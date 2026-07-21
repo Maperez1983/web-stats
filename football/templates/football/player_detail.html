@@ -20,44 +20,12 @@
         grid-template-columns: minmax(0, 1fr) auto;
         align-items: flex-start;
         gap: 1rem;
-        padding: 1rem 1.05rem;
-        border-radius: 1.2rem;
-        border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28));
-        background: rgba(15, 23, 42, 0.42);
-        box-shadow: var(--prod-shadow-md, 0 16px 36px rgba(0, 0, 0, 0.24));
-      }
-      .header-kicker {
-        color: rgba(125, 211, 252, 0.94);
-        font-size: 0.72rem;
-        font-weight: 950;
-        letter-spacing: 0.18em;
-        text-transform: uppercase;
       }
       header h1 {
         margin: 0.2rem 0 0;
         font-size: clamp(1.45rem, 1rem + 1.2vw, 2rem);
         line-height: 1.08;
         overflow-wrap: anywhere;
-      }
-      .header-pills {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.45rem;
-        margin-top: 0.65rem;
-      }
-      .header-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        padding: 0.38rem 0.68rem;
-        border-radius: 999px;
-        border: 1px solid rgba(255,255,255,0.14);
-        background: rgba(255,255,255,0.05);
-        color: var(--prod-text, #f5f7fa);
-        font-size: 0.72rem;
-        font-weight: 900;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
       }
       .injury-alert-icon {
         display: inline-flex;
@@ -73,9 +41,8 @@
         font-size: 1rem;
         vertical-align: middle;
       }
-      .btn { display: inline-flex; align-items: center; justify-content: center; padding: 0.35rem 0.8rem; border-radius: 0.7rem; border: 1px solid var(--prod-line-strong, rgba(244, 180, 0, 0.28)); background: rgba(244, 180, 0, 0.1); color: var(--prod-text, #f5f7fa); text-decoration: none; font-weight: 700; white-space: nowrap; transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease; }
+      .btn { display: inline-flex; align-items: center; justify-content: center; padding: 0.35rem 0.8rem; border-radius: 0.7rem; border: 1px solid var(--prod-line-strong, rgba(244, 180, 0, 0.28)); background: rgba(244, 180, 0, 0.1); color: var(--prod-text, #f5f7fa); text-decoration: none; font-weight: 700; white-space: nowrap; }
       .btn.alt { background: var(--prod-panel-flat, rgba(18, 30, 50, 0.94)); border-color: var(--prod-line, rgba(144, 161, 185, 0.28)); color: var(--prod-text, #f5f7fa); }
-      .btn:hover { transform: translateY(-1px); border-color: rgba(244, 180, 0, 0.42); box-shadow: 0 14px 24px rgba(0,0,0,0.18); }
       .card { background: var(--prod-panel-flat, rgba(18, 30, 50, 0.94)); border-radius: 1rem; padding: 1.2rem; margin-top: 1rem; border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28)); box-shadow: var(--prod-shadow-md, 0 16px 36px rgba(0, 0, 0, 0.24)); }
       .preview-banner {
         margin-top: 1rem;
@@ -158,6 +125,102 @@
       .season-history-row h3 {
         margin: 0;
         font-size: 1rem;
+      }
+      .decision-board {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.75rem;
+      }
+      .decision-card {
+        border-radius: 0.95rem;
+        padding: 0.9rem 0.95rem;
+        background: rgba(2, 6, 23, 0.08);
+        border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28));
+      }
+      .decision-card.is-accent {
+        border-color: rgba(244, 180, 0, 0.34);
+        background: rgba(244, 180, 0, 0.08);
+      }
+      .decision-card .label {
+        display: block;
+        margin: 0;
+        color: var(--prod-muted, rgba(15, 23, 42, 0.64));
+        font-size: 0.72rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-weight: 900;
+      }
+      .decision-card .value {
+        margin-top: 0.3rem;
+        font-size: 1.05rem;
+        font-weight: 900;
+        color: var(--prod-text, #f5f7fa);
+      }
+      .decision-card .meta {
+        margin-top: 0.3rem;
+        color: var(--prod-muted, rgba(15, 23, 42, 0.64));
+        font-size: 0.88rem;
+        line-height: 1.35;
+      }
+      .decision-card .meta strong {
+        color: var(--prod-text, #f5f7fa);
+      }
+      .priority-wrap {
+        margin-top: 1rem;
+        border-radius: 1rem;
+        border: 1px solid rgba(244, 180, 0, 0.24);
+        background: rgba(244, 180, 0, 0.06);
+        padding: 0.95rem;
+      }
+      .priority-wrap h2 {
+        margin: 0;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: rgba(255, 242, 199, 0.96);
+      }
+      .priority-list {
+        margin-top: 0.75rem;
+        display: grid;
+        gap: 0.6rem;
+      }
+      .priority-item {
+        border-radius: 0.9rem;
+        padding: 0.8rem 0.9rem;
+        background: rgba(2, 6, 23, 0.08);
+        border: 1px solid rgba(144, 161, 185, 0.22);
+      }
+      .priority-item.is-critical {
+        border-color: rgba(248, 113, 113, 0.48);
+        background: rgba(248, 113, 113, 0.12);
+      }
+      .priority-item.is-warning {
+        border-color: rgba(244, 180, 0, 0.34);
+        background: rgba(244, 180, 0, 0.08);
+      }
+      .priority-item.is-ok {
+        border-color: rgba(47, 125, 50, 0.30);
+        background: rgba(47, 125, 50, 0.08);
+      }
+      .priority-item .priority-label {
+        display: block;
+        font-size: 0.72rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--prod-muted, rgba(15, 23, 42, 0.64));
+        font-weight: 900;
+      }
+      .priority-item .priority-value {
+        margin-top: 0.25rem;
+        font-size: 1.02rem;
+        font-weight: 900;
+      }
+      .priority-item .priority-meta {
+        margin-top: 0.25rem;
+        color: var(--prod-muted, rgba(15, 23, 42, 0.64));
+        font-size: 0.9rem;
+        line-height: 1.35;
       }
       .tabs { display: flex; flex-wrap: nowrap; gap: 0.5rem; margin-top: 1rem; overflow-x: auto; scrollbar-gutter: stable; -webkit-overflow-scrolling: touch; }
       .tab-btn { border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28)); background: rgba(2, 6, 23, 0.08); color: var(--prod-muted-soft, rgba(15, 23, 42, 0.78)); border-radius: 999px; padding: 0.45rem 0.95rem; cursor: pointer; font-weight: 800; white-space: nowrap; flex: 0 0 auto; }
@@ -718,7 +781,7 @@
 	          <span>2J Player · Football Intelligence</span>
 	        </div>
       </a>
-      {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True hide_dragon_logo=False hide_global_guard_widget=True %}
+      {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True hide_dragon_logo=False %}
       <header>
         <div class="player-head-main">
           <div class="player-photo-mini">
@@ -729,7 +792,7 @@
             {% endif %}
           </div>
           <div class="player-head-copy">
-          <p class="header-kicker">Jugador · {{ player.team.display_name }}</p>
+          <p style="margin:0;" class="subtle">Jugador · {{ player.team.display_name }}</p>
           <h1>
             {{ player.name }}
             {% if has_active_injury %}
@@ -742,12 +805,6 @@
           {% if current_convocation %}
             <p style="margin:0.35rem 0 0;" class="subtle">Convocatoria activa: {{ current_convocation.round|default:"Sin jornada" }} · {{ current_convocation.opponent_name|default:"Rival pendiente" }}</p>
           {% endif %}
-          <div class="header-pills">
-            {% if player.position %}<span class="header-pill">{{ player.position }}</span>{% endif %}
-            {% if player.number %}<span class="header-pill">#{{ player.number }}</span>{% endif %}
-            {% if player.dominant_foot %}<span class="header-pill">{{ player.dominant_foot }}</span>{% endif %}
-            <span class="header-pill">{% if is_player_readonly %}Vista jugador{% else %}Vista staff{% endif %}</span>
-          </div>
 	        </div>
           </div>
 		        <div class="player-head-actions">
@@ -775,6 +832,104 @@
         <strong>Vista previa jugador</strong>
         Estás viendo esta ficha tal y como la verá el jugador: sin formularios de edición, sin bloque staff y en modo solo lectura.
       </div>
+      {% endif %}
+
+      {% with latest_comm=communications|first latest_eval=evaluation_summary.latest next_session=upcoming_sessions|first %}
+      <div class="decision-board" aria-label="Resumen rápido del jugador">
+        <article class="decision-card {% if has_active_injury or has_manual_sanction %}is-accent{% endif %}">
+          <span class="label">Estado</span>
+          <div class="value">
+            {% if has_active_injury %}
+              Lesionado
+            {% elif has_manual_sanction %}
+              Sancionado
+            {% elif is_called_up %}
+              Convocado
+            {% else %}
+              Disponible
+            {% endif %}
+          </div>
+          <div class="meta">
+            {% if has_active_injury %}
+              Ver historial de lesiones y alta prevista.
+            {% elif has_manual_sanction %}
+              Revisa la sanción manual registrada en ficha.
+            {% elif is_called_up %}
+              Ya figura en la convocatoria activa.
+            {% else %}
+              Sin bloqueo operativo en este momento.
+            {% endif %}
+          </div>
+        </article>
+        <article class="decision-card">
+          <span class="label">Próxima sesión</span>
+          <div class="value">
+            {% if next_session %}
+              {{ next_session.date_label }}{% if next_session.time_label %} · {{ next_session.time_label }}{% endif %}
+            {% else %}
+              Sin próximas sesiones
+            {% endif %}
+          </div>
+          <div class="meta">
+            {% if next_session %}
+              {{ next_session.focus }}{% if next_session.status_label %} · {{ next_session.status_label }}{% endif %}
+            {% else %}
+              No hay sesiones cargadas para los próximos 14 días.
+            {% endif %}
+          </div>
+        </article>
+        <article class="decision-card">
+          <span class="label">Última evaluación</span>
+          <div class="value">
+            {% if latest_eval %}
+              {{ latest_eval.evaluated_on|date:"d/m/Y" }}
+            {% else %}
+              Sin evaluación cerrada
+            {% endif %}
+          </div>
+          <div class="meta">
+            {% if latest_eval %}
+              {{ latest_eval.get_evaluation_type_display }} · Global {{ latest_eval.overall_rating|default:"--" }}
+              {% if evaluation_summary.days_since is not None %} · Hace {{ evaluation_summary.days_since }} días{% endif %}
+            {% else %}
+              No hay una evaluación cerrada visible para este jugador.
+            {% endif %}
+          </div>
+        </article>
+        <article class="decision-card">
+          <span class="label">Última comunicación</span>
+          <div class="value">
+            {% if latest_comm %}
+              {{ latest_comm.get_category_display }}
+            {% else %}
+              Sin comunicaciones
+            {% endif %}
+          </div>
+          <div class="meta">
+            {% if latest_comm %}
+              {{ latest_comm.created_at|date:"d/m/Y H:i" }}
+              {% if latest_comm.match %} · Jornada {{ latest_comm.match.round|default:"-" }}{% endif %}
+            {% else %}
+              No hay trazabilidad de mensajes todavía.
+            {% endif %}
+          </div>
+        </article>
+      </div>
+      {% endwith %}
+
+      {% if player_priority_rows %}
+      <section class="priority-wrap" aria-label="Prioridades del jugador">
+        <h2>Prioridades de trabajo</h2>
+        <div class="priority-list">
+          {% for item in player_priority_rows %}
+          <article class="priority-item {% if item.tone == 'critical' %}is-critical{% elif item.tone == 'warning' %}is-warning{% else %}is-ok{% endif %}">
+            <span class="priority-label">{{ item.label }}</span>
+            <div class="priority-value">{{ item.value }}</div>
+            <div class="priority-meta">{{ item.meta }}</div>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
       {% endif %}
 
       {% if club_season_options %}
@@ -2292,8 +2447,5 @@
 	      })();
 	    </script>
 	    <script src="{% static 'football/js/kpi_customizer.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
-      {% if request.user.is_authenticated %}
-        {% include 'football/includes/global_guard_widget.html' %}
-      {% endif %}
 	  </body>
 	</html>

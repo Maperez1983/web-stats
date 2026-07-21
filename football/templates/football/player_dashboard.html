@@ -24,17 +24,12 @@
 	      body {
 	        margin: 0;
 	        min-height: 100vh;
-	        padding: 1.05rem 1.2rem 2rem;
+	        padding: 1.25rem;
 	        font-family: var(--prod-font-ui, 'Avenir Next', 'Inter', system-ui, sans-serif);
 	        color: var(--text);
-          background:
-            radial-gradient(circle at top left, rgba(244, 180, 0, 0.08), transparent 24%),
-            radial-gradient(circle at top right, rgba(47, 125, 50, 0.08), transparent 20%),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 18%),
-            linear-gradient(180deg, #050c17 0%, #08111d 100%);
 	      }
-	      .headline p { margin: 0; color: var(--muted); line-height: 1.55; }
-	      .headline h1 { margin: 0.25rem 0 0.3rem; font-size: 1.6rem; letter-spacing: -0.03em; text-wrap: balance; }
+	      .headline p { margin: 0; color: var(--muted); }
+	      .headline h1 { margin: 0.25rem 0 0.3rem; font-size: 1.45rem; }
 	      .back-link {
 	        color: rgba(255, 242, 199, 0.96);
 	        text-decoration: none;
@@ -79,9 +74,8 @@
 	      .card {
 	        background: var(--prod-panel, linear-gradient(170deg, rgba(16, 25, 43, 0.93), rgba(11, 18, 34, 0.95)));
 	        border: 1px solid var(--line);
-	        border-radius: 1.15rem;
+	        border-radius: 0.95rem;
 	        padding: 0.95rem;
-          box-shadow: 0 20px 42px rgba(0, 0, 0, 0.18);
 	      }
       .card-link {
         color: inherit;
@@ -401,6 +395,82 @@
         text-align: center;
         color: var(--muted);
       }
+      .empty-player {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.75fr);
+        gap: 1rem;
+        align-items: stretch;
+        text-align: left;
+        border-style: solid;
+        border-color: rgba(244, 180, 0, 0.18);
+        background:
+          radial-gradient(circle at top right, rgba(244, 180, 0, 0.08), transparent 36%),
+          rgba(8, 17, 29, 0.78);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+      }
+      .empty-player-copy {
+        display: grid;
+        gap: 0.8rem;
+        align-content: start;
+      }
+      .empty-kicker {
+        display: inline-flex;
+        width: fit-content;
+        padding: 0.32rem 0.6rem;
+        border-radius: 999px;
+        border: 1px solid rgba(244, 180, 0, 0.28);
+        background: rgba(244, 180, 0, 0.08);
+        color: rgba(255, 242, 199, 0.95);
+        font-size: 0.67rem;
+        font-weight: 900;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+      .empty-player-copy h3 {
+        margin: 0;
+        color: var(--text);
+        font-size: 1.15rem;
+      }
+      .empty-player-copy p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+      .empty-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      .empty-actions a {
+        flex: 0 0 auto;
+      }
+      .empty-player-side {
+        display: grid;
+        gap: 0.7rem;
+        align-content: start;
+      }
+      .empty-metric {
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 0.9rem;
+        background: rgba(2, 6, 23, 0.28);
+        padding: 0.75rem 0.8rem;
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+      .empty-metric span {
+        color: rgba(148, 163, 184, 0.88);
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .empty-metric strong {
+        color: var(--text);
+        font-size: 1.15rem;
+        font-weight: 950;
+      }
       .card-actions {
         display: flex;
         gap: 0.5rem;
@@ -410,7 +480,7 @@
         flex: 1;
         text-align: center;
         text-decoration: none;
-        border-radius: 0.9rem;
+        border-radius: 0.8rem;
         padding: 0.55rem 0.7rem;
         font-weight: 700;
         border: 1px solid #334155;
@@ -433,7 +503,7 @@
       }
       @media (max-width: 640px) {
         body {
-          padding: 0.85rem 0.8rem 1.6rem;
+          padding: 0.85rem;
         }
         .grid {
           grid-template-columns: 1fr;
@@ -457,7 +527,7 @@
 	              <span>2J Player · Football Intelligence</span>
 	            </div>
           </a>
-          {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True hide_dragon_logo=False hide_global_guard_widget=True %}
+          {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True hide_dragon_logo=False %}
           <p>Dashboard jugadores · {{ team_name }}</p>
           <h1>Vista limpia de rendimiento</h1>
 	          <p class="mode-note product-inline-note">Perfil activo: <span class="product-chip role">{{ current_role_label }}</span> <span class="product-chip">Fase 4 · Seguimiento Jugadores</span></p>
@@ -699,9 +769,38 @@
         {% endfor %}
 
         {% if not player_stats %}
-          <article class="empty">
-            <h3 style="margin:0 0 0.45rem;">Sin datos todavía</h3>
-            <p style="margin:0;">No se han importado eventos para los jugadores.</p>
+          <article class="empty empty-player">
+            <div class="empty-player-copy">
+              <span class="empty-kicker">Arranque de pretemporada</span>
+              <h3>Sin datos todavía</h3>
+              <p>
+                No se han importado eventos para los jugadores. Empieza por abrir la plantilla del equipo,
+                revisar los vídeos o volver al panel para cargar el contexto del club.
+              </p>
+              <div class="empty-actions">
+                {% if active_team %}
+                  <a class="primary-link" href="{% url 'coach-roster' %}?team={{ active_team.id }}">Abrir plantilla</a>
+                {% else %}
+                  <a class="primary-link" href="{% url 'coach-roster' %}">Abrir plantilla</a>
+                {% endif %}
+                <a class="preview-link" href="{% url 'player-video-library' %}">Vídeos del equipo</a>
+                <a class="preview-link" href="{% url 'dashboard-home' %}">Volver al panel</a>
+              </div>
+            </div>
+            <div class="empty-player-side" aria-label="Resumen de arranque">
+              <div class="empty-metric">
+                <span>Jugadores visibles</span>
+                <strong>0</strong>
+              </div>
+              <div class="empty-metric">
+                <span>Eventos importados</span>
+                <strong>0</strong>
+              </div>
+              <div class="empty-metric">
+                <span>Estado</span>
+                <strong>Pretemporada</strong>
+              </div>
+            </div>
           </article>
         {% endif %}
       </div>
@@ -868,8 +967,5 @@
             applySort();
           })();
         </script>
-        {% if request.user.is_authenticated %}
-          {% include 'football/includes/global_guard_widget.html' %}
-        {% endif %}
 	  </body>
 	</html>

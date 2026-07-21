@@ -9,16 +9,6 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
     <style>
-      :root {
-        --panel: rgba(7, 16, 30, 0.82);
-        --panel-soft: rgba(255,255,255,0.03);
-        --line: rgba(255, 255, 255, 0.15);
-        --muted: rgba(226, 232, 240, 0.74);
-        --shadow: 0 20px 44px rgba(0, 0, 0, 0.35);
-      }
-      * {
-        box-sizing: border-box;
-      }
       body {
         margin: 0;
         min-height: 100vh;
@@ -32,135 +22,7 @@
       .shell {
         width: min(100%, 1180px);
         margin: 0 auto;
-        padding: 1rem 1rem 2.4rem;
-      }
-      .topbar,
-      .hero,
-      .header,
-      .card,
-      .hero-stat {
-        box-shadow: var(--shadow);
-      }
-      .topbar {
-        margin-top: 0.9rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 1rem;
-        margin-bottom: 1rem;
-        border: 1px solid var(--line);
-        border-radius: 24px;
-        padding: 0.95rem 1.05rem;
-        background: var(--panel);
-        backdrop-filter: blur(4px);
-        flex-wrap: wrap;
-      }
-      .topbar-copy {
-        display: grid;
-        gap: 0.28rem;
-        max-width: 760px;
-      }
-      .topbar-kicker {
-        color: #baf7ff;
-        font-size: 0.72rem;
-        font-weight: 900;
-        letter-spacing: 0.18em;
-        text-transform: uppercase;
-      }
-      .topbar h1 {
-        margin: 0;
-        font-size: clamp(1.45rem, 2.6vw, 2.2rem);
-        line-height: 0.95;
-        letter-spacing: -0.03em;
-      }
-      .hero {
-        display: grid;
-        grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
-        gap: 1rem;
-        border-radius: 28px;
-        border: 1px solid var(--line);
-        background: var(--panel);
-        padding: 1.2rem;
-      }
-      .eyebrow {
-        display: inline-flex;
-        align-items: center;
-        width: fit-content;
-        padding: 0.34rem 0.7rem;
-        border-radius: 999px;
-        border: 1px solid rgba(70, 211, 255, 0.22);
-        background: linear-gradient(135deg, rgba(70, 211, 255, 0.12), rgba(255, 191, 69, 0.12));
-        color: #dffcff;
-        font-size: 0.72rem;
-        font-weight: 800;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-      }
-      .hero h2 {
-        margin: 0.8rem 0 0.55rem;
-        max-width: 12ch;
-        font-size: clamp(2rem, 4.4vw, 3.2rem);
-        line-height: 0.95;
-        letter-spacing: -0.04em;
-        text-wrap: balance;
-      }
-      .hero p {
-        margin: 0;
-        max-width: 58ch;
-        color: rgba(226, 232, 240, 0.82);
-        line-height: 1.65;
-      }
-      .hero-pills {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.45rem;
-        margin-top: 1rem;
-      }
-      .hero-pill {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 38px;
-        text-decoration: none;
-        border-radius: 999px;
-        padding: 0.42rem 0.72rem;
-        border: 1px solid rgba(255,255,255,0.12);
-        background: rgba(255,255,255,0.05);
-        color: rgba(245, 247, 250, 0.92);
-        font-weight: 900;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-        font-size: 0.72rem;
-        white-space: nowrap;
-      }
-      .hero-side {
-        display: grid;
-        gap: 0.75rem;
-      }
-      .hero-stat {
-        border-radius: 22px;
-        border: 1px solid rgba(255,255,255,0.12);
-        background:
-          radial-gradient(circle at top left, rgba(70, 211, 255, 0.12), transparent 38%),
-          var(--panel-soft);
-        padding: 1rem;
-      }
-      .hero-stat span {
-        display: block;
-        color: rgba(148, 163, 184, 0.9);
-        font-size: 0.72rem;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-      }
-      .hero-stat strong {
-        display: block;
-        margin-top: 0.2rem;
-        font-size: 1.28rem;
-      }
-      .hero-stat p {
-        margin: 0.45rem 0 0;
-        color: rgba(226, 232, 240, 0.8);
-        line-height: 1.55;
+        padding: clamp(0.85rem, 1.25vw, 1.2rem);
       }
       .header {
         margin-top: 0.9rem;
@@ -169,23 +31,49 @@
         align-items: flex-start;
         justify-content: space-between;
         gap: 1rem;
-        border: 1px solid var(--line);
-        border-radius: 24px;
-        padding: 1rem 1.05rem;
-        background: var(--panel);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 18px;
+        padding: 0.9rem 1rem;
+        background: rgba(7, 16, 30, 0.82);
         backdrop-filter: blur(4px);
       }
       .header h1 {
         margin: 0;
-        font-size: 1.18rem;
-        letter-spacing: -0.02em;
-        text-transform: none;
+        font-size: 1rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
         overflow-wrap: anywhere;
       }
       .header p {
         margin: 0.35rem 0 0;
-        color: var(--muted);
-        line-height: 1.6;
+        color: rgba(226, 232, 240, 0.74);
+      }
+      .filters {
+        margin-top: 0.8rem;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.6rem;
+      }
+      .filters label {
+        display: grid;
+        gap: 0.35rem;
+        color: rgba(226, 232, 240, 0.76);
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-weight: 900;
+      }
+      .filters input,
+      .filters select {
+        width: 100%;
+        min-width: 0;
+        border-radius: 14px;
+        padding: 0.65rem 0.75rem;
+        border: 1px solid rgba(244, 180, 0, 0.18);
+        background: rgba(15, 23, 42, 0.55);
+        color: #f8fafc;
+        font-weight: 700;
+        font-size: 0.92rem;
       }
       .btn {
         display: inline-flex;
@@ -204,10 +92,6 @@
         font-size: 0.7rem;
         white-space: nowrap;
       }
-      .btn.secondary {
-        border-color: rgba(255,255,255,0.16);
-        background: rgba(255,255,255,0.06);
-      }
       .head-actions {
         display: flex;
         gap: 0.55rem;
@@ -225,14 +109,15 @@
       .grid {
         margin-top: 1rem;
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
         gap: 0.85rem;
       }
       .card {
         min-width: 0;
-        border-radius: 22px;
+        border-radius: 18px;
         border: 1px solid rgba(255, 255, 255, 0.14);
         background: rgba(7, 16, 30, 0.72);
+        box-shadow: 0 20px 44px rgba(0, 0, 0, 0.35);
         padding: 0.9rem;
         display: flex;
         gap: 0.8rem;
@@ -262,9 +147,8 @@
       .card-title {
         color: rgba(245,247,250,0.92);
         font-weight: 900;
-        letter-spacing: 0.02em;
-        text-transform: none;
-        font-size: 1rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
         overflow-wrap: anywhere;
       }
       .meta {
@@ -275,26 +159,11 @@
         text-transform: none;
         overflow-wrap: anywhere;
       }
-      .tag-row {
+      .meta-row {
         display: flex;
-        gap: 0.4rem;
         flex-wrap: wrap;
-        margin-top: 0.6rem;
-      }
-      .tag {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 30px;
-        padding: 0.28rem 0.55rem;
-        border-radius: 999px;
-        border: 1px solid rgba(255,255,255,0.12);
-        background: rgba(255,255,255,0.05);
-        color: rgba(226, 232, 240, 0.92);
-        font-size: 0.68rem;
-        font-weight: 900;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
+        gap: 0.45rem;
+        margin-top: 0.35rem;
       }
       .muted {
         opacity: 0.65;
@@ -312,16 +181,12 @@
         color: rgba(255, 242, 199, 0.92);
         font-weight: 800;
       }
-      @media (max-width: 820px) {
-        .hero {
-          grid-template-columns: 1fr;
-        }
-      }
       @media (max-width: 720px) {
         .header { grid-template-columns: 1fr; }
         .head-actions { justify-content: flex-start; }
         .head-actions .btn { width: 100%; }
         .card { align-items: flex-start; }
+        .filters { grid-template-columns: 1fr; }
       }
     </style>
   </head>
@@ -329,51 +194,61 @@
     <div class="shell">
       {% include 'football/includes/dragon_nav.html' %}
 
-      <header class="topbar">
-        <div class="topbar-copy">
-          <div class="topbar-kicker">Directorio humano</div>
-          <h1>Staff</h1>
-          <div class="muted">Consulta el equipo humano, localiza responsables y entra rápido en cada ficha operativa del club.</div>
-        </div>
-      </header>
-
-      <section class="hero">
-        <div>
-          <span class="eyebrow">Equipo de trabajo</span>
-          <h2>Visualiza el staff con más claridad y mejor contexto.</h2>
-          <p>Este directorio está pensado para encontrar rápido perfiles, roles, ámbito y certificaciones, evitando una lista plana y mejorando la lectura para coordinadores y responsables.</p>
-          <div class="hero-pills">
-            <span class="hero-pill">Lectura rápida</span>
-            <span class="hero-pill">Roles visibles</span>
-            <span class="hero-pill">Acceso directo a fichas</span>
-          </div>
-        </div>
-        <aside class="hero-side">
-          <article class="hero-stat">
-            <span>Miembros listados</span>
-            <strong>{{ items|length }}</strong>
-            <p>El directorio reúne perfiles operativos y facilita entrar a cada ficha sin fricción.</p>
-          </article>
-          <article class="hero-stat">
-            <span>Ámbito activo</span>
-            <strong>{{ team_label }}</strong>
-            <p>La vista mantiene el contexto del equipo o estructura actual para no perder referencia organizativa.</p>
-          </article>
-        </aside>
-      </section>
-
       <header class="header">
         <div>
-          <h1>Directorio del staff</h1>
-          <p>Accede a las fichas del personal técnico y de apoyo. Usa “Áreas” para navegar por estructura funcional y “Añadir” para incorporar nuevas fichas.</p>
+          <h1>Staff</h1>
+          <p>{{ team_label }}</p>
+          <p class="meta" style="margin-top:0.35rem;">
+            {% if visible_items_count is not None %}
+              {{ visible_items_count }} fichas visibles
+              {% if active_visible_count is not None %}· {{ active_visible_count }} activas{% endif %}
+              {% if expiring_visible_count is not None %}· {{ expiring_visible_count }} con caducidad{% endif %}
+            {% endif %}
+          </p>
         </div>
         <div class="head-actions">
-          <a class="btn secondary" href="{% url 'coach-cards' %}">Áreas</a>
+          <a class="btn" href="{% url 'coach-cards' %}">Áreas</a>
           {% if can_manage_workspace %}
           <a class="btn primary" href="{% url 'staff-member-create' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Añadir</a>
           {% endif %}
         </div>
       </header>
+
+      <form class="filters" method="get">
+        {% if active_team %}<input type="hidden" name="team" value="{{ active_team.id }}" />{% endif %}
+        <label>
+          Buscar
+          <input type="search" name="q" value="{{ search_filter|default:'' }}" placeholder="Nombre, rol, titulación..." />
+        </label>
+        <label>
+          Estado
+          <select name="status">
+            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>Todos</option>
+            <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Activos</option>
+            <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactivos</option>
+          </select>
+        </label>
+        <label>
+          Ámbito
+          <select name="scope">
+            <option value="all" {% if scope_filter == 'all' %}selected{% endif %}>Todos</option>
+            <option value="team" {% if scope_filter == 'team' %}selected{% endif %}>Solo equipo</option>
+            <option value="club" {% if scope_filter == 'club' %}selected{% endif %}>Solo club</option>
+          </select>
+        </label>
+        <label>
+          Caducidad
+          <select name="docs">
+            <option value="all" {% if docs_filter == 'all' %}selected{% endif %}>Todas</option>
+            <option value="expiring" {% if docs_filter == 'expiring' %}selected{% endif %}>Vence pronto</option>
+            <option value="expired" {% if docs_filter == 'expired' %}selected{% endif %}>Caducadas</option>
+          </select>
+        </label>
+        <div class="head-actions" style="justify-content:flex-start; grid-column:1 / -1;">
+          <button class="btn primary" type="submit">Filtrar</button>
+          <a class="btn" href="{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Limpiar</a>
+        </div>
+      </form>
 
       {% if items %}
       <section class="grid" aria-label="Miembros del staff">
@@ -387,9 +262,19 @@
               {% if member.certification_level %} · {{ member.certification_level }}{% endif %}
             </div>
             {% if member.team %}<div class="meta">Ámbito: {{ member.team.category|default:member.team.name }}</div>{% endif %}
-            <div class="tag-row">
-              <span class="tag">{% if member.role_title %}{{ member.role_title }}{% else %}Staff{% endif %}</span>
-              {% if member.certification_level %}<span class="tag">{{ member.certification_level }}</span>{% endif %}
+            <div class="meta-row">
+              <span class="pill {% if member.is_active %}ok{% else %}warn{% endif %}" style="display:inline-flex;">
+                {% if member.is_active %}Activo{% else %}Inactivo{% endif %}
+              </span>
+              <span class="pill {% if member.doc_state == 'expired' %}warn{% elif member.doc_state == 'expiring' %}ok{% else %}ok{% endif %}" style="display:inline-flex;">
+                {% if member.doc_state == 'expired' %}
+                  Caducado
+                {% elif member.doc_state == 'expiring' %}
+                  Vence pronto
+                {% else %}
+                  Documentación OK
+                {% endif %}
+              </span>
             </div>
           </div>
         </a>

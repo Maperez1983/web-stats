@@ -162,6 +162,38 @@
         font-weight: 900;
         letter-spacing: 0.02em;
       }
+      .status-board {
+        margin-top: 0.9rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.7rem;
+      }
+      .status-card {
+        border-radius: 16px;
+        padding: 0.8rem 0.9rem;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.12);
+      }
+      .status-card .label {
+        display: block;
+        font-size: 0.7rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.72);
+        font-weight: 900;
+      }
+      .status-card .value {
+        margin-top: 0.3rem;
+        font-size: 1rem;
+        font-weight: 900;
+        color: rgba(245,247,250,0.96);
+      }
+      .status-card .meta {
+        margin-top: 0.25rem;
+        color: rgba(226,232,240,0.72);
+        font-size: 0.88rem;
+        line-height: 1.35;
+      }
       .access-panel {
         grid-column: 1 / -1;
         display: grid;
@@ -257,6 +289,45 @@
             <button class="btn" type="button" onclick="navigator.clipboard?.writeText('{{ invite_link }}');">Copiar enlace</button>
           </div>
           {% endif %}
+        </div>
+        {% endif %}
+
+        {% if mode != 'create' %}
+        <div class="status-board" aria-label="Estado de la ficha de staff">
+          <article class="status-card">
+            <span class="label">Estado</span>
+            <div class="value">{% if member.is_active %}Activo{% else %}Inactivo{% endif %}</div>
+            <div class="meta">{% if member.team %}Ámbito: {{ member.team.category|default:member.team.name }}{% else %}Ámbito: club completo{% endif %}</div>
+          </article>
+          <article class="status-card">
+            <span class="label">Usuario</span>
+            <div class="value">{% if member.user %}Vinculado{% else %}Sin vincular{% endif %}</div>
+            <div class="meta">{% if member.user %}{{ member.user.username }}{% else %}La ficha no tiene acceso de usuario asociado.{% endif %}</div>
+          </article>
+          <article class="status-card">
+            <span class="label">Licencia</span>
+            <div class="value">
+              {% if member.federation_license_expires_at %}
+                {{ member.federation_license_expires_at|date:'d/m/Y' }}
+              {% else %}
+                Sin caducidad
+              {% endif %}
+            </div>
+            <div class="meta">
+              {% if member.federation_license_number %}Nº {{ member.federation_license_number }}{% else %}Sin número de licencia{% endif %}
+            </div>
+          </article>
+          <article class="status-card">
+            <span class="label">Titulación</span>
+            <div class="value">
+              {% if member.certification_expires_at %}
+                {{ member.certification_expires_at|date:'d/m/Y' }}
+              {% else %}
+                Sin caducidad
+              {% endif %}
+            </div>
+            <div class="meta">{% if member.certification_level %}{{ member.certification_level }}{% else %}Titulación pendiente{% endif %}</div>
+          </article>
         </div>
         {% endif %}
 

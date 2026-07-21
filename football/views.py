@@ -46,7 +46,7 @@ from django.db import IntegrityError
 from django.db import transaction
 from django.db.models import Count, F, Max, Q, Sum
 from django.db.utils import OperationalError, ProgrammingError
-from django.http import FileResponse, Http404, HttpResponse, JsonResponse, StreamingHttpResponse
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse, QueryDict, StreamingHttpResponse
 from django.shortcuts import render, redirect
 from django.template.loader import render_to_string
 from django.templatetags.static import static
@@ -76,7 +76,7 @@ from .task_choices import (
     TASK_TACTICAL_INTENT_CHOICES,
     TASK_USEFULNESS_CHOICES,
 )
-from .preview_render import render_html_selector_png, render_task_detail_3d_scene_png, render_task_preview_png
+from .preview_render import render_html_selector_png, render_task_preview_png
 from .drills import DRILL_CATALOG, drill_cards, normalize_drill_ids
 from .competition_sync import sync_workspace_competition_context
 from . import permissions
@@ -115,20 +115,13 @@ from .ops_logging import log_exception
 from .session_plan_fields import parse_session_plan_fields, serialize_session_plan_fields
 from . import session_import_services
 from . import universo_client
-from .premium_surface_preview import (
-    render_flat_tactical_preview_data_url,
-    render_stadium_native_preview_data_url,
-    render_stadium_native_perspective_preview_data_url,
-    render_stadium_taskboard_preview_data_url,
-)
 from .video_studio_services import (
     apply_autocut_suggestions as _video_studio_apply_autocut_suggestions,
     autocut_enabled as _video_studio_autocut_enabled,
     schedule_autocut_after_upload as _video_studio_schedule_autocut_after_upload,
 )
 from .ai_trainer import ai_trainer_index_task, ai_trainer_tokenize, normalize_ai_trainer_text
-from .local_llm import ai_trainer_senior_local_advice, call_ollama_json, local_llm_config
-from .web_research import compact_web_research, fetch_web_research_with_browser, search_web_research
+from .local_llm import ai_trainer_senior_local_advice, local_llm_config
 from .library_repositories import (
     INBOX_MICROCYCLE_WEEK_END,
     INBOX_MICROCYCLE_WEEK_START,
@@ -152,10 +145,9 @@ from .library_repositories import (
 )
 
 try:
-    from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageOps
+    from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 except Exception:  # pragma: no cover
     Image = None
-    ImageDraw = None
     ImageEnhance = None
     ImageFilter = None
     ImageOps = None
@@ -670,409 +662,6 @@ def system_healthcheck_api(request):
     return JsonResponse(report)
 
 
-@login_required
-@require_POST
-def system_guard_chat_api(request):
-    if not _can_access_sessions_workspace(request.user):
-        return JsonResponse({'ok': False, 'error': 'No autorizado'}, status=403)
-    try:
-        payload = json.loads(request.body.decode('utf-8') or '{}')
-    except Exception:
-        payload = {}
-    question = str(payload.get('message') or '').strip()
-    if not question:
-        return JsonResponse({'ok': False, 'error': 'Mensaje vacío.'}, status=400)
-    run_smoke = str(payload.get('run_smoke') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
-    auto_fix = str(payload.get('auto_fix') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
-    maintenance_action = str(payload.get('maintenance_action') or '').strip()
-    autonomy_mode = str(payload.get('autonomy_mode') or 'operator').strip().lower()
-    audience = str(payload.get('audience') or 'technical').strip().lower()
-    execute_confirmed = str(payload.get('execute_confirmed') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
-    history = payload.get('history') if isinstance(payload.get('history'), list) else []
-    payload_page_context = payload.get('page_context') if isinstance(payload.get('page_context'), dict) else {}
-    try:
-        workspace = _get_active_workspace(request)
-    except Exception:
-        workspace = None
-    can_manage_guard = bool(_is_admin_user(request.user) or (workspace and _can_manage_workspace(request.user, workspace)))
-    def _csv_env_values(name: str) -> set[str]:
-        raw = str(os.getenv(name, '') or '').strip()
-        if not raw:
-            return set()
-        return {part.strip() for part in raw.split(',') if part.strip()}
-    def _can_operate_guard_code(user, workspace_obj=None) -> bool:
-        user_id = int(getattr(user, 'id', 0) or 0)
-        username = str(getattr(user, 'username', '') or '').strip().lower()
-        email = str(getattr(user, 'email', '') or '').strip().lower()
-        allowed_ids = {
-            int(value) for value in _csv_env_values('OLLANA_OPERATOR_USER_IDS')
-            if str(value).strip().isdigit()
-        }
-        allowed_usernames = {value.lower() for value in _csv_env_values('OLLANA_OPERATOR_USERNAMES')}
-        allowed_emails = {value.lower() for value in _csv_env_values('OLLANA_OPERATOR_USER_EMAILS')}
-        if allowed_ids or allowed_usernames or allowed_emails:
-            return bool(
-                (user_id and user_id in allowed_ids)
-                or (username and username in allowed_usernames)
-                or (email and email in allowed_emails)
-            )
-        if _is_admin_user(user):
-            return True
-        return bool(workspace_obj and int(getattr(workspace_obj, 'owner_user_id', 0) or 0) == user_id)
-    can_operate_guard_code = bool(can_manage_guard and _can_operate_guard_code(request.user, workspace))
-    try:
-        team = _get_primary_team_for_request(request) or _team_from_request_param(request)
-    except Exception:
-        team = None
-    if not can_manage_guard:
-        run_smoke = False
-        auto_fix = False
-        maintenance_action = ''
-        execute_confirmed = False
-        autonomy_mode = 'advisor'
-    elif not can_operate_guard_code:
-        auto_fix = False
-        maintenance_action = ''
-        execute_confirmed = False
-        if autonomy_mode == 'operator':
-            autonomy_mode = 'supervised'
-    payload_ui_snapshot = payload_page_context.get('ui_snapshot') if isinstance(payload_page_context.get('ui_snapshot'), dict) else {}
-    payload_visual_snapshot = payload_page_context.get('visual_snapshot') if isinstance(payload_page_context.get('visual_snapshot'), dict) else {}
-    payload_runtime_snapshot = payload_page_context.get('runtime_snapshot') if isinstance(payload_page_context.get('runtime_snapshot'), dict) else {}
-    payload_module_snapshot = payload_page_context.get('module_snapshot') if isinstance(payload_page_context.get('module_snapshot'), dict) else {}
-    payload_health_snapshot = payload_page_context.get('health_snapshot') if isinstance(payload_page_context.get('health_snapshot'), dict) else {}
-    sanitized_ui_snapshot = {
-        'headings': [str(item).strip()[:120] for item in (payload_ui_snapshot.get('headings') or []) if str(item or '').strip()][:6],
-        'heading_count': max(0, int(payload_ui_snapshot.get('heading_count') or 0)),
-        'primary_actions': [str(item).strip()[:80] for item in (payload_ui_snapshot.get('primary_actions') or []) if str(item or '').strip()][:8],
-        'primary_action_count': max(0, int(payload_ui_snapshot.get('primary_action_count') or 0)),
-        'notices': [str(item).strip()[:140] for item in (payload_ui_snapshot.get('notices') or []) if str(item or '').strip()][:6],
-        'panels': [str(item).strip()[:100] for item in (payload_ui_snapshot.get('panels') or []) if str(item or '').strip()][:8],
-        'body_excerpt': [str(item).strip()[:140] for item in (payload_ui_snapshot.get('body_excerpt') or []) if str(item or '').strip()][:8],
-        'low_contrast_elements': [{
-            'tag': str((row or {}).get('tag') or '')[:24],
-            'text': str((row or {}).get('text') or '')[:80],
-            'fg': str((row or {}).get('fg') or '')[:40],
-            'bg': str((row or {}).get('bg') or '')[:40],
-            'ratio': max(0, float((row or {}).get('ratio') or 0)),
-        } for row in (payload_ui_snapshot.get('low_contrast_elements') or []) if isinstance(row, dict)][:8],
-        'visible_forms': [{
-            'tag': str((row or {}).get('tag') or '')[:24],
-            'type': str((row or {}).get('type') or '')[:24],
-            'label': str((row or {}).get('label') or '')[:80],
-        } for row in (payload_ui_snapshot.get('visible_forms') or []) if isinstance(row, dict)][:10],
-        'screen_summary': {
-            'title': str(((payload_ui_snapshot.get('screen_summary') or {}).get('title') or '')).strip()[:140] if isinstance(payload_ui_snapshot.get('screen_summary'), dict) else '',
-            'h1': str(((payload_ui_snapshot.get('screen_summary') or {}).get('h1') or '')).strip()[:120] if isinstance(payload_ui_snapshot.get('screen_summary'), dict) else '',
-            'controls': [str(item).strip()[:80] for item in ((payload_ui_snapshot.get('screen_summary') or {}).get('controls') or []) if str(item or '').strip()][:5] if isinstance(payload_ui_snapshot.get('screen_summary'), dict) else [],
-        },
-        'viewport': {
-            'width': max(0, int(((payload_ui_snapshot.get('viewport') or {}).get('width') or 0))) if isinstance(payload_ui_snapshot.get('viewport'), dict) else 0,
-            'height': max(0, int(((payload_ui_snapshot.get('viewport') or {}).get('height') or 0))) if isinstance(payload_ui_snapshot.get('viewport'), dict) else 0,
-        },
-    }
-    sanitized_visual_snapshot = {
-        'blocks': [{
-            'tag': str((row or {}).get('tag') or '')[:24],
-            'text': str((row or {}).get('text') or '')[:90],
-            'x': max(0, int((row or {}).get('x') or 0)),
-            'y': max(0, int((row or {}).get('y') or 0)),
-            'w': max(0, int((row or {}).get('w') or 0)),
-            'h': max(0, int((row or {}).get('h') or 0)),
-            'emphasis': str((row or {}).get('emphasis') or '')[:24],
-        } for row in (payload_visual_snapshot.get('blocks') or []) if isinstance(row, dict)][:12],
-        'palette': [str(item).strip()[:40] for item in (payload_visual_snapshot.get('palette') or []) if str(item or '').strip()][:8],
-        'text_density': max(0, min(100, int(payload_visual_snapshot.get('text_density') or 0))),
-        'visual_density': max(0, min(100, int(payload_visual_snapshot.get('visual_density') or 0))),
-        'media_count': max(0, int(payload_visual_snapshot.get('media_count') or 0)),
-        'interactive_count': max(0, int(payload_visual_snapshot.get('interactive_count') or 0)),
-        'low_contrast_elements': [{
-            'tag': str((row or {}).get('tag') or '')[:24],
-            'text': str((row or {}).get('text') or '')[:80],
-            'fg': str((row or {}).get('fg') or '')[:40],
-            'bg': str((row or {}).get('bg') or '')[:40],
-            'ratio': max(0, float((row or {}).get('ratio') or 0)),
-        } for row in (payload_visual_snapshot.get('low_contrast_elements') or []) if isinstance(row, dict)][:8],
-        'render_surfaces': [{
-            'id': str((row or {}).get('id') or '')[:60],
-            'tag': str((row or {}).get('tag') or '')[:24],
-            'kind': str((row or {}).get('kind') or '')[:40],
-            'label': str((row or {}).get('label') or '')[:90],
-            'visible': bool((row or {}).get('visible')),
-            'modal_open': bool((row or {}).get('modal_open')),
-            'x': max(0, int((row or {}).get('x') or 0)),
-            'y': max(0, int((row or {}).get('y') or 0)),
-            'w': max(0, int((row or {}).get('w') or 0)),
-            'h': max(0, int((row or {}).get('h') or 0)),
-            'buffer_w': max(0, int((row or {}).get('buffer_w') or 0)),
-            'buffer_h': max(0, int((row or {}).get('buffer_h') or 0)),
-            'draw_state': str((row or {}).get('draw_state') or '')[:32],
-            'non_empty_samples': max(0, int((row or {}).get('non_empty_samples') or 0)),
-            'webgl_context': str((row or {}).get('webgl_context') or '')[:20],
-            'scene_status': str((row or {}).get('scene_status') or '')[:40],
-            'issue': str((row or {}).get('issue') or '')[:60],
-            'step_index': max(0, int((row or {}).get('step_index') or 0)),
-            'step_count': max(0, int((row or {}).get('step_count') or 0)),
-            'object_count': max(0, int((row or {}).get('object_count') or 0)),
-            'player_count': max(0, int((row or {}).get('player_count') or 0)),
-            'ball_count': max(0, int((row or {}).get('ball_count') or 0)),
-            'path_count': max(0, int((row or {}).get('path_count') or 0)),
-            'render_calls': max(0, int((row or {}).get('render_calls') or 0)),
-            'rendered_frames': max(0, int((row or {}).get('rendered_frames') or 0)),
-        } for row in (payload_visual_snapshot.get('render_surfaces') or []) if isinstance(row, dict)][:6],
-        'render_alerts': [str(item).strip()[:140] for item in (payload_visual_snapshot.get('render_alerts') or []) if str(item or '').strip()][:4],
-        'scroll': {
-            'y': max(0, int(((payload_visual_snapshot.get('scroll') or {}).get('y') or 0))) if isinstance(payload_visual_snapshot.get('scroll'), dict) else 0,
-            'max_y': max(0, int(((payload_visual_snapshot.get('scroll') or {}).get('max_y') or 0))) if isinstance(payload_visual_snapshot.get('scroll'), dict) else 0,
-        },
-    }
-    sanitized_runtime_snapshot = {
-        'ready_state': str(payload_runtime_snapshot.get('ready_state') or '').strip()[:20],
-        'request_totals': {
-            'total': max(0, int(((payload_runtime_snapshot.get('request_totals') or {}).get('total') or 0))) if isinstance(payload_runtime_snapshot.get('request_totals'), dict) else 0,
-            'failed': max(0, int(((payload_runtime_snapshot.get('request_totals') or {}).get('failed') or 0))) if isinstance(payload_runtime_snapshot.get('request_totals'), dict) else 0,
-        },
-        'js_errors': [{
-            'message': str((row or {}).get('message') or '')[:180],
-            'source': str((row or {}).get('source') or '')[:220],
-            'line': max(0, int((row or {}).get('line') or 0)),
-            'column': max(0, int((row or {}).get('column') or 0)),
-        } for row in (payload_runtime_snapshot.get('js_errors') or []) if isinstance(row, dict)][:4],
-        'promise_rejections': [{
-            'message': str((row or {}).get('message') or '')[:180],
-        } for row in (payload_runtime_snapshot.get('promise_rejections') or []) if isinstance(row, dict)][:4],
-        'resource_errors': [{
-            'tag': str((row or {}).get('tag') or '')[:24],
-            'source': str((row or {}).get('source') or '')[:220],
-            'message': str((row or {}).get('message') or '')[:160],
-        } for row in (payload_runtime_snapshot.get('resource_errors') or []) if isinstance(row, dict)][:4],
-        'failed_requests': [{
-            'method': str((row or {}).get('method') or '')[:12],
-            'url': str((row or {}).get('url') or '')[:220],
-            'status': max(0, int((row or {}).get('status') or 0)),
-            'kind': str((row or {}).get('kind') or '')[:32],
-            'message': str((row or {}).get('message') or '')[:160],
-        } for row in (payload_runtime_snapshot.get('failed_requests') or []) if isinstance(row, dict)][:5],
-        'section_states': [{
-            'label': str((row or {}).get('label') or '')[:90],
-            'visible': bool((row or {}).get('visible')),
-            'text_density': max(0, min(100, int((row or {}).get('text_density') or 0))),
-        } for row in (payload_runtime_snapshot.get('section_states') or []) if isinstance(row, dict)][:8],
-        'alerts': [str(item).strip()[:140] for item in (payload_runtime_snapshot.get('alerts') or []) if str(item or '').strip()][:4],
-    }
-    sanitized_module_snapshot = {
-        'modules': [{
-            'label': str((row or {}).get('label') or '')[:90],
-            'kind': str((row or {}).get('kind') or '')[:24],
-            'x': max(0, int((row or {}).get('x') or 0)),
-            'y': max(0, int((row or {}).get('y') or 0)),
-            'w': max(0, int((row or {}).get('w') or 0)),
-            'h': max(0, int((row or {}).get('h') or 0)),
-            'action_count': max(0, int((row or {}).get('action_count') or 0)),
-            'form_count': max(0, int((row or {}).get('form_count') or 0)),
-            'media_count': max(0, int((row or {}).get('media_count') or 0)),
-            'notice_count': max(0, int((row or {}).get('notice_count') or 0)),
-            'text_density': max(0, min(100, int((row or {}).get('text_density') or 0))),
-        } for row in (payload_module_snapshot.get('modules') or []) if isinstance(row, dict)][:10],
-    }
-    sanitized_health_snapshot = {
-        'status': str(payload_health_snapshot.get('status') or '').strip()[:24],
-        'notices': [str(item).strip()[:160] for item in (payload_health_snapshot.get('notices') or []) if str(item or '').strip()][:8],
-        'loading_hints': [str(item).strip()[:120] for item in (payload_health_snapshot.get('loading_hints') or []) if str(item or '').strip()][:6],
-        'empty_hints': [str(item).strip()[:140] for item in (payload_health_snapshot.get('empty_hints') or []) if str(item or '').strip()][:6],
-        'disabled_controls': [str(item).strip()[:80] for item in (payload_health_snapshot.get('disabled_controls') or []) if str(item or '').strip()][:8],
-        'module_counts': {
-            'total': max(0, int(((payload_health_snapshot.get('module_counts') or {}).get('total') or 0))) if isinstance(payload_health_snapshot.get('module_counts'), dict) else 0,
-            'healthy': max(0, int(((payload_health_snapshot.get('module_counts') or {}).get('healthy') or 0))) if isinstance(payload_health_snapshot.get('module_counts'), dict) else 0,
-            'degraded': max(0, int(((payload_health_snapshot.get('module_counts') or {}).get('degraded') or 0))) if isinstance(payload_health_snapshot.get('module_counts'), dict) else 0,
-            'blocked': max(0, int(((payload_health_snapshot.get('module_counts') or {}).get('blocked') or 0))) if isinstance(payload_health_snapshot.get('module_counts'), dict) else 0,
-        },
-        'degraded_modules': [{
-            'label': str((row or {}).get('label') or '')[:90],
-            'notice_count': max(0, int((row or {}).get('notice_count') or 0)),
-            'media_count': max(0, int((row or {}).get('media_count') or 0)),
-            'text_density': max(0, min(100, int((row or {}).get('text_density') or 0))),
-        } for row in (payload_health_snapshot.get('degraded_modules') or []) if isinstance(row, dict)][:6],
-        'blocked_modules': [{
-            'label': str((row or {}).get('label') or '')[:90],
-            'action_count': max(0, int((row or {}).get('action_count') or 0)),
-            'form_count': max(0, int((row or {}).get('form_count') or 0)),
-            'text_density': max(0, min(100, int((row or {}).get('text_density') or 0))),
-        } for row in (payload_health_snapshot.get('blocked_modules') or []) if isinstance(row, dict)][:6],
-        'alerts': [str(item).strip()[:140] for item in (payload_health_snapshot.get('alerts') or []) if str(item or '').strip()][:6],
-    }
-    page_context = {
-        'page': str(payload_page_context.get('page') or request.resolver_match.url_name or '').strip()[:120],
-        'path': str(payload_page_context.get('path') or request.path or '').strip()[:240],
-        'browser_target_url': str(payload_page_context.get('browser_target_url') or request.build_absolute_uri(request.get_full_path()) or '').strip()[:300],
-        'title': str(payload_page_context.get('title') or '').strip()[:200],
-        'team_id': int(getattr(team, 'id', 0) or 0),
-        'team_name': str(getattr(team, 'name', '') or '')[:160],
-        'workspace_id': int(getattr(workspace, 'id', 0) or 0),
-        'workspace_name': str(getattr(workspace, 'name', '') or '')[:160],
-        'user_id': int(getattr(request.user, 'id', 0) or 0),
-        'user': str(getattr(request.user, 'username', '') or '')[:120],
-        'is_admin_user': bool(_is_admin_user(request.user)),
-        'can_manage_guard': can_manage_guard,
-        'can_operate_guard_code': can_operate_guard_code,
-        'ui_snapshot': sanitized_ui_snapshot,
-        'visual_snapshot': sanitized_visual_snapshot,
-        'runtime_snapshot': sanitized_runtime_snapshot,
-        'module_snapshot': sanitized_module_snapshot,
-        'health_snapshot': sanitized_health_snapshot,
-    }
-    try:
-        from football.system_guard import _browser_visual_page_snapshot
-        visual_browser_snapshot = _browser_visual_page_snapshot(workspace, actor_id=int(getattr(request.user, 'id', 0) or 0), page_context=page_context)
-    except Exception:
-        visual_browser_snapshot = {}
-    if isinstance(visual_browser_snapshot, dict):
-        page_context['browser_visual_snapshot'] = {
-            'enabled': bool(visual_browser_snapshot.get('enabled')),
-            'reason': str(visual_browser_snapshot.get('reason') or '')[:80],
-            'target_url': str(visual_browser_snapshot.get('target_url') or '')[:220],
-            'screenshot_path': str(visual_browser_snapshot.get('screenshot_path') or '')[:240],
-            'title': str(visual_browser_snapshot.get('title') or '')[:140],
-            'h1': str(visual_browser_snapshot.get('h1') or '')[:140],
-            'h1_color': str(visual_browser_snapshot.get('h1_color') or '')[:40],
-            'top_bg': str(visual_browser_snapshot.get('top_bg') or '')[:80],
-            'body_classes': str(visual_browser_snapshot.get('body_classes') or '')[:120],
-            'buttons': [str(item).strip()[:80] for item in (visual_browser_snapshot.get('buttons') or []) if str(item or '').strip()][:12],
-            'low_contrast': [{
-                'tag': str((row or {}).get('tag') or '')[:24],
-                'text': str((row or {}).get('text') or '')[:80],
-                'ratio': max(0, float((row or {}).get('ratio') or 0)),
-                'fg': str((row or {}).get('fg') or '')[:40],
-                'bg': str((row or {}).get('bg') or '')[:40],
-            } for row in (visual_browser_snapshot.get('low_contrast') or []) if isinstance(row, dict)][:8],
-        }
-    try:
-        from football.system_guard import _maybe_run_scheduled_guard_cycle, _observability_summary, run_system_guard_chat
-
-        try:
-            _maybe_run_scheduled_guard_cycle(
-                workspace=workspace,
-                actor_id=int(getattr(request.user, 'id', 0) or 0),
-                page_context=page_context,
-            )
-        except Exception:
-            pass
-
-        result = run_system_guard_chat(
-            question=question,
-            history=history,
-            run_smoke=run_smoke,
-            auto_fix=auto_fix,
-            maintenance_action=maintenance_action,
-            workspace=workspace,
-            page_context=page_context,
-            actor_id=int(getattr(request.user, 'id', 0) or 0),
-            autonomy_mode=autonomy_mode,
-            audience=audience,
-            execute_confirmed=execute_confirmed,
-        )
-        result['observability'] = _observability_summary(workspace)
-        result['permissions'] = {
-            'can_manage_guard': can_manage_guard,
-            'can_operate_guard_code': can_operate_guard_code,
-        }
-        return JsonResponse({'ok': True, **result})
-    except Exception as exc:
-        return JsonResponse({'ok': False, 'error': f'{exc.__class__.__name__}: {exc}'}, status=500)
-
-
-@login_required
-@require_http_methods(["GET", "POST"])
-def system_guard_operator_api(request):
-    if not _can_access_sessions_workspace(request.user):
-        return HttpResponse('No tienes permisos para acceder al operador.', status=403)
-    try:
-        workspace = _get_active_workspace(request)
-    except Exception:
-        workspace = None
-    if not workspace or not (_is_admin_user(request.user) or _can_manage_workspace(request.user, workspace)):
-        return HttpResponse('No autorizado.', status=403)
-    try:
-        from football.system_guard import (
-            _continuous_operator_snapshot,
-            _load_operator_control,
-            _store_operator_control,
-        )
-        if request.method == "POST":
-            payload = json.loads(request.body.decode('utf-8') or '{}')
-            action = str(payload.get('action') or '').strip().lower()
-            control = _load_operator_control(workspace)
-            if action == 'stop':
-                control.update({
-                    'stop_requested': True,
-                    'updated_at': timezone.now().isoformat(),
-                    'updated_by': int(getattr(request.user, 'id', 0) or 0),
-                })
-            elif action == 'resume':
-                control.update({
-                    'stop_requested': False,
-                    'updated_at': timezone.now().isoformat(),
-                    'updated_by': int(getattr(request.user, 'id', 0) or 0),
-                })
-            _store_operator_control(workspace, control)
-        snapshot = _continuous_operator_snapshot(workspace, actor_id=int(getattr(request.user, 'id', 0) or 0))
-        return JsonResponse({'ok': True, 'operator': snapshot})
-    except Exception as exc:
-        return JsonResponse({'ok': False, 'error': f'{exc.__class__.__name__}: {exc}'}, status=500)
-
-
-@login_required
-@ensure_csrf_cookie
-def system_guard_page(request):
-    if not _can_access_sessions_workspace(request.user):
-        return HttpResponse('No tienes permisos para acceder al guardián del sistema.', status=403)
-    try:
-        workspace = _get_active_workspace(request)
-    except Exception:
-        workspace = None
-    if not (_is_admin_user(request.user) or (workspace and _can_manage_workspace(request.user, workspace))):
-        return HttpResponse('No autorizado.', status=403)
-    team = _get_primary_team_for_request(request) or _team_from_request_param(request)
-    if not team:
-        return HttpResponse('Equipo no configurado.', status=400)
-    guard_observability = {}
-    try:
-        from football.system_guard import _maybe_run_scheduled_guard_cycle, _observability_summary
-        try:
-            _maybe_run_scheduled_guard_cycle(
-                workspace=workspace,
-                actor_id=int(getattr(request.user, 'id', 0) or 0),
-                page_context={
-                    'page': str(request.resolver_match.url_name or '').strip()[:120],
-                    'path': str(request.path or '').strip()[:240],
-                    'title': 'System Guard',
-                    'team_id': int(getattr(team, 'id', 0) or 0),
-                    'team_name': str(getattr(team, 'name', '') or '')[:160],
-                    'workspace_id': int(getattr(workspace, 'id', 0) or 0),
-                    'workspace_name': str(getattr(workspace, 'name', '') or '')[:160],
-                    'user_id': int(getattr(request.user, 'id', 0) or 0),
-                    'user': str(getattr(request.user, 'username', '') or '')[:120],
-                    'is_admin_user': bool(_is_admin_user(request.user)),
-                    'can_manage_guard': True,
-                    'can_operate_guard_code': bool(_is_admin_user(request.user) or int(getattr(workspace, 'owner_user_id', 0) or 0) == int(getattr(request.user, 'id', 0) or 0)),
-                },
-            )
-        except Exception:
-            pass
-        guard_observability = _observability_summary(workspace)
-    except Exception:
-        guard_observability = {}
-    return render(
-        request,
-        'football/system_guard.html',
-        {
-            'team': team,
-            'workspace': workspace,
-            'guard_observability': guard_observability,
-        },
-    )
-
-
 def kpi_audit(request):
     """
     Auditoría rápida (solo admin) de KPIs por jugador.
@@ -1278,82 +867,6 @@ UNIVERSO_STORAGE_STATE_PATH = _env_path(
     Path(settings.BASE_DIR) / 'data' / 'input' / 'rfaf_storage_state.json',
 )
 TASK_RESOURCE_LIBRARY_PATH = Path(settings.BASE_DIR) / "data" / "input" / "task-resource-library.json"
-TASK_RESOURCE_LIBRARY_BASE_GROUPS = [
-    {
-        'category': 'Equipamiento',
-        'items': [
-            {'label': 'Cono', 'add_key': 'cone', 'preview_emoji': '🔺'},
-            {'label': 'Cono (rayas)', 'add_key': 'cone_striped', 'preview_emoji': '🔶'},
-            {'label': 'Pica', 'add_key': 'pole_marker', 'preview_emoji': '📍'},
-            {'label': 'Aro', 'add_key': 'ring', 'preview_emoji': '⭕'},
-            {'label': 'Cinta / línea de suelo', 'add_key': 'tape', 'preview_emoji': '🧵'},
-            {'label': 'Puerta (2 conos)', 'add_key': 'gate', 'preview_emoji': '🚪'},
-            {'label': 'Escalera de coordinación', 'add_key': 'ladder', 'preview_emoji': '🪜'},
-            {'label': 'Escalera en L', 'add_key': 'ladder_L', 'preview_emoji': '↪️'},
-            {'label': 'Escalera en zigzag', 'add_key': 'ladder_zigzag', 'preview_emoji': '〰️'},
-            {'label': 'Valla', 'add_key': 'hurdle', 'preview_emoji': '🚧'},
-            {'label': 'Mini valla', 'add_key': 'mini_hurdle', 'preview_emoji': '🪧'},
-            {'label': 'Maniquí', 'add_key': 'mannequin', 'preview_emoji': '🧍'},
-            {'label': 'Barrera (4 maniquíes)', 'add_key': 'barrier', 'preview_emoji': '🚧'},
-            {'label': 'Muro / panel', 'add_key': 'wall', 'preview_emoji': '🧱'},
-            {'label': 'Rebounder', 'add_key': 'rebounder', 'preview_emoji': '🧲'},
-        ],
-    },
-    {
-        'category': 'Porterías',
-        'items': [
-            {'label': 'Portería', 'add_key': 'goal', 'preview_emoji': '🥅'},
-            {'label': 'Portería (marco)', 'add_key': 'goal_posts', 'preview_emoji': '🧱'},
-            {'label': 'Mini portería', 'add_key': 'goal_mini', 'preview_emoji': '🥅'},
-            {'label': 'Portería con dianas', 'add_key': 'goal_target', 'preview_emoji': '🎯'},
-            {'label': 'Portería pop-up', 'add_key': 'goal_popup', 'preview_emoji': '⛺'},
-            {'label': 'Portería futsal', 'add_key': 'goal_futsal', 'preview_emoji': '🥅'},
-        ],
-    },
-    {
-        'category': 'Marcadores',
-        'items': [
-            {'label': 'Marcador inicio', 'add_key': 'marker_start', 'preview_emoji': 'I'},
-            {'label': 'Marcador fin', 'add_key': 'marker_end', 'preview_emoji': 'F'},
-            {'label': 'Marcador pase', 'add_key': 'marker_pass', 'preview_emoji': 'P'},
-            {'label': 'Marcador tiro', 'add_key': 'marker_shot', 'preview_emoji': 'T'},
-            {'label': 'Marcador apoyo', 'add_key': 'marker_support', 'preview_emoji': 'A'},
-            {'label': 'Regla de medida', 'add_key': 'measure', 'preview_emoji': '📏'},
-        ],
-    },
-    {
-        'category': 'Apoyos visuales',
-        'items': [
-            {'label': 'Línea de presión', 'add_key': 'line_pressure', 'preview_emoji': '╌'},
-            {'label': 'Línea defensiva', 'add_key': 'line_defensive', 'preview_emoji': '╌'},
-            {'label': 'Línea de fuera de juego', 'add_key': 'line_offside', 'preview_emoji': '╌'},
-            {'label': 'Emoji balón', 'add_key': 'emoji_ball', 'preview_emoji': '⚽'},
-            {'label': 'Emoji cono', 'add_key': 'emoji_cone', 'preview_emoji': '🔺'},
-            {'label': 'Emoji pica', 'add_key': 'emoji_pole', 'preview_emoji': '📍'},
-            {'label': 'Emoji escalera', 'add_key': 'emoji_ladder', 'preview_emoji': '🪜'},
-            {'label': 'Emoji aro', 'add_key': 'emoji_ring', 'preview_emoji': '⭕'},
-            {'label': 'Emoji valla', 'add_key': 'emoji_hurdle', 'preview_emoji': '🚧'},
-            {'label': 'Emoji peto', 'add_key': 'emoji_bib', 'preview_emoji': '🦺'},
-            {'label': 'Emoji maniquí', 'add_key': 'emoji_mannequin', 'preview_emoji': '🧍'},
-            {'label': 'Emoji muro', 'add_key': 'emoji_wall', 'preview_emoji': '🧱'},
-            {'label': 'Emoji portería', 'add_key': 'emoji_goal', 'preview_emoji': '🥅'},
-            {'label': 'Emoji mini portería', 'add_key': 'emoji_mini_goal', 'preview_emoji': '🥅'},
-            {'label': 'Emoji entrenador', 'add_key': 'emoji_coach', 'preview_emoji': '🧑‍🏫'},
-            {'label': 'Emoji staff', 'add_key': 'emoji_staff', 'preview_emoji': '👥'},
-            {'label': 'Emoji silbato', 'add_key': 'emoji_whistle', 'preview_emoji': '📣'},
-            {'label': 'Emoji crono', 'add_key': 'emoji_stopwatch', 'preview_emoji': '⏱️'},
-        ],
-    },
-    {
-        'category': 'Sprites 3D',
-        'items': [
-            {'label': 'Jugador recortado Aitor', 'add_key': f'image_url:{static("football/images/players/aitor-n10-cut.png")}', 'static_path': 'football/images/players/aitor-n10-cut.png'},
-            {'label': 'Jugador recortado Cristian', 'add_key': f'image_url:{static("football/images/players/cristian-n16-cut.png")}', 'static_path': 'football/images/players/cristian-n16-cut.png'},
-            {'label': 'Jugador recortado Iván', 'add_key': f'image_url:{static("football/images/players/ivan-n9-cut.png")}', 'static_path': 'football/images/players/ivan-n9-cut.png'},
-            {'label': 'Jugador recortado Tadeo', 'add_key': f'image_url:{static("football/images/players/tadeo-n1-cut.png")}', 'static_path': 'football/images/players/tadeo-n1-cut.png'},
-        ],
-    },
-]
 SCRAPE_LOCK_KEY = "football:refresh_scraping_running"
 SCRAPE_LOCK_TIMEOUT_SECONDS = 900
 DASHBOARD_CACHE_KEY_PREFIX = "football:dashboard_payload"
@@ -2747,6 +2260,10 @@ def staff_directory_page(request):
         raise Http404('Club no configurado')
     active_team = _get_active_team_for_request(request)
     can_manage = bool(_can_manage_workspace(request.user, workspace)) if workspace else False
+    status_filter = str(request.GET.get('status') or 'all').strip().lower()
+    scope_filter = str(request.GET.get('scope') or 'all').strip().lower()
+    docs_filter = str(request.GET.get('docs') or 'all').strip().lower()
+    search_filter = str(request.GET.get('q') or '').strip().lower()
 
     items = list(
         StaffMember.objects
@@ -2764,13 +2281,62 @@ def staff_directory_page(request):
     # Nunca caemos a "items" completo: eso mezclaría staff de otras categorías.
     visible_items = team_items + club_items if active_team else club_items
 
+    def _matches_search(member):
+        if not search_filter:
+            return True
+        haystack = ' '.join(
+            [
+                str(getattr(member, 'name', '') or ''),
+                str(getattr(member, 'role_title', '') or ''),
+                str(getattr(member, 'certification_level', '') or ''),
+                str(getattr(member, 'email', '') or ''),
+                str(getattr(member, 'phone', '') or ''),
+            ]
+        ).lower()
+        return search_filter in haystack
+
+    today = timezone.localdate()
+    def _doc_state(member):
+        license_exp = getattr(member, 'federation_license_expires_at', None)
+        cert_exp = getattr(member, 'certification_expires_at', None)
+        dates = [d for d in (license_exp, cert_exp) if d]
+        if not dates:
+            return 'none'
+        if any(d < today for d in dates):
+            return 'expired'
+        if any(d <= today + timedelta(days=90) for d in dates):
+            return 'expiring'
+        return 'valid'
+
+    filtered_items = []
     for member in visible_items:
+        if status_filter == 'active' and not getattr(member, 'is_active', False):
+            continue
+        if status_filter == 'inactive' and getattr(member, 'is_active', False):
+            continue
+        if scope_filter == 'team' and getattr(member, 'team_id', None) is None:
+            continue
+        if scope_filter == 'club' and getattr(member, 'team_id', None) is not None:
+            continue
+        doc_state = _doc_state(member)
+        if docs_filter == 'expired' and doc_state != 'expired':
+            continue
+        if docs_filter == 'expiring' and doc_state not in {'expired', 'expiring'}:
+            continue
+        if not _matches_search(member):
+            continue
+        member.doc_state = doc_state
+        filtered_items.append(member)
+
+    for member in filtered_items:
         member.photo_url = ''
         try:
             if member.photo:
                 member.photo_url = reverse('staff-member-photo-file', args=[member.id])
         except Exception:
             member.photo_url = ''
+    active_visible_count = sum(1 for member in filtered_items if getattr(member, 'is_active', False))
+    expiring_visible_count = sum(1 for member in filtered_items if getattr(member, 'doc_state', '') in {'expired', 'expiring'})
     return render(
         request,
         'football/staff_directory.html',
@@ -2779,7 +2345,14 @@ def staff_directory_page(request):
             'team_label': _staff_scope_label(active_team),
             'active_team': active_team,
             'can_manage_workspace': can_manage,
-            'items': visible_items,
+            'items': filtered_items,
+            'visible_items_count': len(filtered_items),
+            'active_visible_count': active_visible_count,
+            'expiring_visible_count': expiring_visible_count,
+            'status_filter': status_filter,
+            'scope_filter': scope_filter,
+            'docs_filter': docs_filter,
+            'search_filter': search_filter,
         },
     )
 
@@ -3773,7 +3346,6 @@ def pdf_graphic_asset_delete_api(request):
 
     scope = str(request.POST.get('scope') or '').strip().lower()
     qs = PdfGraphicAsset.objects.select_related('team', 'owner').filter(id=int(asset_id))
-    primary_team = None
 
     if scope == 'system':
         if not bool(getattr(request.user, 'is_superuser', False)):
@@ -3786,12 +3358,8 @@ def pdf_graphic_asset_delete_api(request):
             return JsonResponse({'ok': False, 'error': 'Repositorio del sistema no inicializado.'}, status=500)
         qs = qs.filter(team=system_team)
     else:
-        if not _can_access_sessions_workspace(request.user):
-            return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
-        primary_team = _get_primary_team_for_request(request)
-        if not primary_team:
-            return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
-        qs = qs.filter(Q(team=primary_team) | Q(owner=request.user))
+        # Por ahora, restringimos el borrado desde UI a scope=system para evitar borrados accidentales.
+        return JsonResponse({'ok': False, 'error': 'Scope no soportado.'}, status=400)
 
     asset = qs.first()
     if not asset:
@@ -3803,18 +3371,7 @@ def pdf_graphic_asset_delete_api(request):
                 asset.file.delete(save=False)
             except Exception:
                 pass
-        if primary_team:
-            try:
-                hidden_keys = _task_builder_resource_library_hidden_keys(request, primary_team)
-                hidden_keys.discard(f'pdf_asset:{int(asset.id)}')
-                _save_task_builder_resource_library_hidden_keys(request, primary_team, hidden_keys)
-            except Exception:
-                pass
         asset.delete()
-        try:
-            cache.delete(_task_builder_pdf_assets_cache_key(getattr(asset, 'team_id', 0) or getattr(primary_team, 'id', 0) or 0, getattr(request.user, 'id', 0) or 0))
-        except Exception:
-            pass
     except Exception:
         return JsonResponse({'ok': False, 'error': 'No se pudo borrar el recurso.'}, status=500)
 
@@ -6019,48 +5576,6 @@ def _team_stadium_palette(workspace, team):
     except Exception:
         pass
     return palette
-
-
-def _task_pitch3d_asset_context(static_build_id=None, *, player_model_src=''):
-    def _asset(path_value):
-        try:
-            resolved = static(str(path_value or '').lstrip('/'))
-            if static_build_id:
-                resolved = f"{resolved}?v={quote(str(static_build_id))}"
-            return resolved
-        except Exception:
-            return ''
-
-    # El estadio correcto para tareas es el cenital histórico de la ficha:
-    # la geometría 3D comercial queda desactivada hasta que exista una versión
-    # equivalente y estable. El frontend reconoce este identificador y renderiza
-    # exclusivamente la base/overlay cenital.
-    stadium_asset_path = 'football/models/pitch3d/stadium_taskboard_reference.glb'
-
-    return {
-        'pitch3d_stadium_model_src': _asset(stadium_asset_path),
-        'pitch3d_stadium_top_h_src': _asset('football/images/pitch3d/stadium_taskboard_top_h.png'),
-        'pitch3d_stadium_top_v_src': _asset('football/images/pitch3d/stadium_taskboard_top_v.png'),
-        'pitch3d_stadium_overlay_h_src': _asset('football/images/pitch3d/stadium_taskboard_overlay_h.png'),
-        'pitch3d_stadium_overlay_v_src': _asset('football/images/pitch3d/stadium_taskboard_overlay_v.png'),
-        'pitch3d_grass_albedo_src': _asset('football/images/pitch3d/grass_premium_albedo.png'),
-        'pitch3d_grass_bump_src': _asset('football/images/pitch3d/grass_premium_bump.png'),
-        'pitch3d_grass_normal_src': _asset('football/images/pitch3d/grass_premium_normal.png'),
-        'pitch3d_grass_roughness_src': _asset('football/images/pitch3d/grass_premium_roughness.png'),
-        'pitch3d_concrete_albedo_src': _asset('football/materials/pitch3d/ambientcg/Concrete034/Concrete034_1K-JPG_Color.jpg'),
-        'pitch3d_benagalbon_crest_src': _asset('football/images/kit_logos/benagalbon_crest_alpha.png'),
-        'pitch3d_goal_model_src': _asset('football/models/pitch3d/goal_premium.glb'),
-        'pitch3d_player_model_src': player_model_src or _asset('football/models/avatar/player_humanoid.glb'),
-    }
-
-
-def _resolve_static_build_id() -> str:
-    try:
-        from football.context_processors import _static_build_id  # noqa: WPS433
-
-        return str(_static_build_id() or '').strip()
-    except Exception:
-        return ''
 
 
 def _team_stadium_ads(workspace, team):
@@ -17253,67 +16768,6 @@ def player_reports_zip(request):
     return response
 
 
-def _build_team_hero_payload(request, workspace, primary_team):
-    """Construye URL y data-uri del hero con imagen de equipo o fallback global."""
-    hero_image_url = ''
-    hero_image_data_uri = ''
-    if primary_team and _should_use_team_cover_image(request, workspace, primary_team):
-        try:
-            updated_at = getattr(primary_team, 'cover_updated_at', None)
-            version = str(int(updated_at.timestamp())) if updated_at else str(int(timezone.now().timestamp()))
-            hero_image_url = f'{reverse("team-cover-image-file", args=[primary_team.id])}?v={version}&w=1600&h=900&q=72'
-            cache_key = f'coach-overview:hero-data-uri:{int(primary_team.id)}:{version}'
-            cached_data_uri = None
-            try:
-                cached_data_uri = cache.get(cache_key)
-            except Exception:
-                cached_data_uri = None
-            if isinstance(cached_data_uri, str) and cached_data_uri.startswith('data:image/'):
-                hero_image_data_uri = cached_data_uri
-            else:
-                cover_field = getattr(primary_team, 'cover_image', None)
-                raw = b''
-                try:
-                    cover_field.open('rb')
-                    raw = cover_field.read() or b''
-                except Exception:
-                    raw = b''
-                try:
-                    cover_field.close()
-                except Exception:
-                    pass
-                if raw:
-                    ext = Path(getattr(cover_field, 'name', '') or '').suffix.lower()
-                    mime = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp'}.get(ext, 'image/jpeg')
-                    hero_image_data_uri = _image_bytes_as_small_data_uri(
-                        raw_bytes=raw,
-                        mime_type=mime,
-                        max_width=1600,
-                        max_height=900,
-                        quality=70,
-                    ) or ''
-                if hero_image_data_uri:
-                    try:
-                        cache.set(cache_key, hero_image_data_uri, timeout=60 * 60 * 24)
-                    except Exception:
-                        pass
-        except Exception:
-            hero_image_url = ''
-    if not hero_image_url:
-        active_hero_items = list(HomeCarouselImage.objects.filter(is_active=True).order_by('order', '-created_at', '-id'))
-        hero_items = active_hero_items or list(HomeCarouselImage.objects.order_by('order', '-created_at', '-id'))
-        if hero_items and getattr(hero_items[0], 'image', None):
-            try:
-                item = hero_items[0]
-                version = str(int(getattr(item, 'created_at', None).timestamp())) if getattr(item, 'created_at', None) else str(int(timezone.now().timestamp()))
-                hero_image_url = f'{reverse("home-carousel-image-file", args=[item.id])}?v={version}'
-            except Exception:
-                hero_image_url = ''
-        else:
-            hero_image_url = ''
-    return hero_image_data_uri, hero_image_url
-
-
 @login_required
 def coach_overview_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
@@ -17450,7 +16904,62 @@ def coach_overview_page(request):
         next_match_date = parsed_next_match_date.strftime('%d/%m/%Y')
     elif isinstance(next_match, dict):
         next_match_date = str(next_match.get('date') or '').strip()
-    hero_image_data_uri, hero_image_url = _build_team_hero_payload(request, workspace, primary_team)
+    hero_image_url = ''
+    hero_image_data_uri = ''
+    if primary_team and _should_use_team_cover_image(request, workspace, primary_team):
+        try:
+            updated_at = getattr(primary_team, 'cover_updated_at', None)
+            version = str(int(updated_at.timestamp())) if updated_at else str(int(timezone.now().timestamp()))
+            hero_image_url = f'{reverse("team-cover-image-file", args=[primary_team.id])}?v={version}&w=1600&h=900&q=72'
+            cache_key = f'coach-overview:hero-data-uri:{int(primary_team.id)}:{version}'
+            cached_data_uri = None
+            try:
+                cached_data_uri = cache.get(cache_key)
+            except Exception:
+                cached_data_uri = None
+            if isinstance(cached_data_uri, str) and cached_data_uri.startswith('data:image/'):
+                hero_image_data_uri = cached_data_uri
+            else:
+                cover_field = getattr(primary_team, 'cover_image', None)
+                raw = b''
+                try:
+                    cover_field.open('rb')
+                    raw = cover_field.read() or b''
+                except Exception:
+                    raw = b''
+                try:
+                    cover_field.close()
+                except Exception:
+                    pass
+                if raw:
+                    ext = Path(getattr(cover_field, 'name', '') or '').suffix.lower()
+                    mime = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp'}.get(ext, 'image/jpeg')
+                    hero_image_data_uri = _image_bytes_as_small_data_uri(
+                        raw_bytes=raw,
+                        mime_type=mime,
+                        max_width=1600,
+                        max_height=900,
+                        quality=70,
+                    ) or ''
+                if hero_image_data_uri:
+                    try:
+                        cache.set(cache_key, hero_image_data_uri, timeout=60 * 60 * 24)
+                    except Exception:
+                        pass
+        except Exception:
+            hero_image_url = ''
+    if not hero_image_url:
+        active_hero_items = list(HomeCarouselImage.objects.filter(is_active=True).order_by('order', '-created_at', '-id'))
+        hero_items = active_hero_items or list(HomeCarouselImage.objects.order_by('order', '-created_at', '-id'))
+        if hero_items and getattr(hero_items[0], 'image', None):
+            try:
+                item = hero_items[0]
+                version = str(int(getattr(item, 'created_at', None).timestamp())) if getattr(item, 'created_at', None) else str(int(timezone.now().timestamp()))
+                hero_image_url = f'{reverse("home-carousel-image-file", args=[item.id])}?v={version}'
+            except Exception:
+                hero_image_url = ''
+        else:
+            hero_image_url = ''
     team_name_folded = (primary_team.name or '').strip().lower() if primary_team else ''
     highlighted_standing = None
     for row in standings:
@@ -25500,65 +25009,6 @@ def _task_pdf_lines(value):
 _team_pdf_palette = team_media_services.team_pdf_palette
 
 
-def _resolve_club_palette_team(team, request=None):
-    """Devuelve el equipo de identidad de paleta para formato Club.
-
-    En clubes multiequipo, algunas categorías usan nombres cortos (por ejemplo,
-    "T", "Alevín B") que no identifican a nivel de nombre el club principal.
-    Si la categoría pertenece a un workspace cuyo `primary_team` está marcado como
-    Benagalbón, devolvemos ese team para que el formato Club conserve identidad.
-    """
-    if not team:
-        return team
-    if _is_benagalbon_team(team):
-        return team
-    if getattr(team, 'is_primary', False):
-        return team
-    team_id = int(getattr(team, 'id', 0) or 0)
-    if not team_id:
-        return team
-
-    link_queries = (
-        WorkspaceTeam.objects.filter(
-            team_id=team_id,
-            workspace__kind=Workspace.KIND_CLUB,
-            workspace__is_active=True,
-            workspace__primary_team_id__isnull=False,
-        ).select_related('workspace__primary_team', 'workspace'),
-        WorkspaceTeam.objects.filter(
-            team_id=team_id,
-            workspace__kind=Workspace.KIND_CLUB,
-            workspace__primary_team_id__isnull=False,
-        ).select_related('workspace__primary_team', 'workspace'),
-    )
-    try:
-        for links_qs in link_queries:
-            for link in links_qs:
-                primary_team = getattr(link.workspace, 'primary_team', None)
-                if primary_team:
-                    return primary_team
-    except Exception:
-        logger.debug('No se pudo resolver equipo de paleta de club para task team %s', team_id, exc_info=True)
-
-    try:
-        if request is not None:
-            active_workspace = workspace_context.get_active_workspace(request)
-            if active_workspace and getattr(active_workspace, 'kind', None) == Workspace.KIND_CLUB:
-                has_link_in_active_workspace = WorkspaceTeam.objects.filter(
-                    workspace=active_workspace,
-                    team=team,
-                ).exists()
-                if not has_link_in_active_workspace:
-                    return team
-            primary_team = getattr(active_workspace, 'primary_team', None) if active_workspace else None
-            if primary_team:
-                return primary_team
-    except Exception:
-        logger.debug('No se pudo resolver workspace activo para task team %s', team_id, exc_info=True)
-
-    return team
-
-
 def _build_task_pdf_tokens(request, tactical_layout):
     material_icon_by_kind = {
         'cone': '△',
@@ -25718,9 +25168,6 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
     multi_board_enabled = bool(meta.get('multi_board') or meta.get('multi_board_enabled') or False)
     analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
     task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
-    task_sheet = _sanitize_task_sheet_for_display(task_sheet)
-    task_sheet = _sanitize_task_sheet_for_display(task_sheet)
-    task_sheet = _sanitize_task_sheet_for_display(task_sheet)
     description_text = str(task_sheet.get('description') or '').strip()
     description_html = str(task_sheet.get('description_html') or '').strip()
     coaching_html = str(task_sheet.get('coaching_html') or '').strip()
@@ -25766,8 +25213,7 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
 
     methodology_rows = []
     for label, value in [
-        ('MD', _choice_label(TASK_MD_DAY_CHOICES, meta.get('md_day'))),
-        ('Carga dominante', _choice_label(TASK_DOMINANT_LOAD_CHOICES, meta.get('dominant_load'))),
+        ('Contexto', str(meta.get('game_context') or '').strip()),
         ('Momento', _choice_label(GAME_MOMENT_CHOICES, meta.get('game_moment'))),
         ('Principio', str(meta.get('principle') or '').strip()),
         ('Subprincipio', str(meta.get('subprinciple') or '').strip()),
@@ -25777,423 +25223,51 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         ('Carga física', _choice_label(TASK_LOAD_LEVEL_CHOICES, meta.get('physical_load'))),
         ('Carga cognitiva', _choice_label(TASK_LOAD_LEVEL_CHOICES, meta.get('cognitive_load'))),
         ('Carga emocional', _choice_label(TASK_LOAD_LEVEL_CHOICES, meta.get('emotional_load'))),
-        ('Escala', _choice_label(TASK_RPE_SCALE_CHOICES, meta.get('rpe_scale'))),
-        ('RPE previsto', meta.get('planned_rpe')),
-        ('sRPE previsto', meta.get('planned_srpe_load')),
-        ('Wellness objetivo', meta.get('wellness_target')),
-        ('Monotony', str(meta.get('monotony_target') or '').strip()),
-        ('Strain', str(meta.get('strain_target') or '').strip()),
-        ('Notas carga', str(meta.get('load_notes') or '').strip()),
     ]:
         text = str(value or '').strip()
         if text:
             methodology_rows.append({'label': label, 'value': text})
-    principle_label = ' · '.join(
-        part for part in [
-            str(meta.get('principle') or '').strip(),
-            str(meta.get('subprinciple') or '').strip(),
-        ] if part
-    ) or '-'
-    session_cycle_label = ' · '.join(
-        part for part in [
-            _choice_label(TASK_MD_DAY_CHOICES, meta.get('md_day')),
-            _choice_label(TASK_DOMINANT_LOAD_CHOICES, meta.get('dominant_load')),
-        ] if str(part or '').strip()
-    ) or '-'
-    player_count_label = (
-        str(meta.get('player_count') or '').strip()
-        or str(task_sheet.get('players') or '').strip()
-        or '-'
-    )
-    structure_summary_label = ' · '.join(
-        part for part in [
-            str(meta.get('organization') or '').strip(),
-            str(meta.get('players_distribution') or '').strip(),
-            str(meta.get('dominant_structure') or '').strip(),
-            str(meta.get('secondary_structure') or '').strip(),
-        ] if part
-    ) or structure_label or '-'
-    load_summary_label = ' · '.join(
-        part for part in [
-            _choice_label(TASK_LOAD_LEVEL_CHOICES, meta.get('physical_load')),
-            _choice_label(TASK_LOAD_LEVEL_CHOICES, meta.get('cognitive_load')),
-            _choice_label(TASK_LOAD_LEVEL_CHOICES, meta.get('emotional_load')),
-            ('RPE ' + str(meta.get('planned_rpe')).strip()) if str(meta.get('planned_rpe') or '').strip() else '',
-        ] if str(part or '').strip()
-    ) or '-'
-    workload_recipe_label = ' · '.join(
-        part for part in [
-            ('Series ' + str(meta.get('series')).strip()) if str(meta.get('series') or '').strip() else '',
-            ('Rep. ' + str(meta.get('repetitions')).strip()) if str(meta.get('repetitions') or '').strip() else '',
-            ('T/D ' + str(meta.get('work_rest')).strip()) if str(meta.get('work_rest') or '').strip() else '',
-        ] if str(part or '').strip()
-    ) or '-'
-    provocation_rule_label = str(meta.get('provocation_rule') or '').strip() or '-'
-    regression_label = str(meta.get('regression') or '').strip() or '-'
-    session_plan_fields = _parse_session_plan_fields(getattr(session, 'content', '')) if session else {}
     animation_frames = _normalize_animation_timeline(
         tactical_layout.get('timeline') if isinstance(tactical_layout, dict) else []
     )
     graphic_editor = meta.get('graphic_editor') if isinstance(meta.get('graphic_editor'), dict) else {}
-    orientation_key = str(meta.get('pitch_orientation') or 'landscape').strip().lower()
-    default_canvas_width = 684 if orientation_key == 'portrait' else 1054
-    default_canvas_height = 1054 if orientation_key == 'portrait' else 684
-    frame_canvas_width = _parse_int(graphic_editor.get('canvas_width')) or default_canvas_width
-    frame_canvas_height = _parse_int(graphic_editor.get('canvas_height')) or default_canvas_height
-    resolver_name = str(getattr(getattr(request, 'resolver_match', None), 'url_name', '') or '').strip()
-    pdf_live_preview_mode = resolver_name in {'sessions-task-pdf-preview', 'task-studio-task-pdf-preview'}
-    if not pdf_live_preview_mode:
-        pdf_live_preview_mode = str(request.GET.get('live_preview_3d') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
-
-    def _normalize_preview_grass_style(variant: str = '2d') -> str:
-        raw_grass_style = str(meta.get('pitch_grass_style') or 'broadcast_premium').strip().lower()
-        normalized_variant = '3d' if str(variant or '').strip().lower() == '3d' else '2d'
-        if normalized_variant == '3d':
-            return 'stadium_top'
-        if raw_grass_style in {'stadium_top', 'stadium_top_h', 'stadium_top_v', 'stadium_native'}:
-            return 'stadium_native'
-        if raw_grass_style in {'classic', 'broadcast', 'broadcast_premium', 'realistic', 'pro', 'artificial', 'dry', 'wet', 'uefa_b', 'whiteboard', 'blackboard'}:
-            return raw_grass_style
-        return 'stadium_native'
-
-    static_build_id = _resolve_static_build_id()
-    pitch3d_player_model_src = ''
-    try:
-        pitch3d_player_model_url = str(os.getenv('TASK_PLAYER_MODEL_URL') or '').strip()
-        pitch3d_player_model_static_path = str(os.getenv('TASK_PLAYER_MODEL_STATIC_PATH') or '').strip()
-        if pitch3d_player_model_url:
-            pitch3d_player_model_src = pitch3d_player_model_url
-        elif pitch3d_player_model_static_path:
-            pitch3d_player_model_src = static(pitch3d_player_model_static_path.lstrip('/'))
-            if static_build_id:
-                pitch3d_player_model_src = f"{pitch3d_player_model_src}?v={quote(str(static_build_id))}"
-    except Exception:
-        pitch3d_player_model_src = ''
-    pitch3d_assets = _task_pitch3d_asset_context(static_build_id, player_model_src=pitch3d_player_model_src)
-    stadium_palette = {'primary': '#047857', 'secondary': '#f8fafc', 'accent': '#073b32'}
-    stadium_ads = {
-        'top': str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or 'Club').strip() or 'Club',
-        'right': '2J Football Intelligence',
-        'bottom': str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or 'Club').strip() or 'Club',
-        'left': 'Partner',
-    }
-    workspace = None
-    try:
-        workspace = _get_active_workspace(request)
-    except Exception:
-        workspace = None
-    if not workspace and team:
-        try:
-            workspace = Workspace.objects.filter(primary_team=team).first()
-        except Exception:
-            workspace = None
-    try:
-        if team:
-            stadium_palette = _team_stadium_palette(workspace, team)
-            ads = _team_stadium_ads(workspace, team)
-            if isinstance(ads, dict):
-                stadium_ads.update({
-                    'top': str(ads.get('top') or stadium_ads['top']).strip() or stadium_ads['top'],
-                    'right': str(ads.get('right') or stadium_ads['right']).strip() or stadium_ads['right'],
-                    'bottom': str(ads.get('bottom') or stadium_ads['bottom']).strip() or stadium_ads['bottom'],
-                    'left': str(ads.get('left') or stadium_ads['left']).strip() or stadium_ads['left'],
-                })
-    except Exception:
-        pass
-    pitch3d_context_payload = {
-        'teamName': str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or '').strip(),
-        'stadiumPalette': stadium_palette,
-        'stadiumAds': stadium_ads,
-    }
-
-    def _color_to_rgba(value, default):
-        raw = str(value or '').strip()
-        if not raw:
-            return default
-        if raw.startswith('#'):
-            hex_value = raw[1:]
-            if len(hex_value) == 3:
-                hex_value = ''.join(ch * 2 for ch in hex_value)
-            if len(hex_value) == 6:
-                try:
-                    return tuple(int(hex_value[i:i + 2], 16) for i in (0, 2, 4)) + (255,)
-                except Exception:
-                    return default
-        if raw.startswith('rgba(') and raw.endswith(')'):
-            try:
-                parts = [part.strip() for part in raw[5:-1].split(',')]
-                if len(parts) == 4:
-                    alpha = float(parts[3])
-                    return (
-                        max(0, min(255, int(float(parts[0])))),
-                        max(0, min(255, int(float(parts[1])))),
-                        max(0, min(255, int(float(parts[2])))),
-                        max(0, min(255, int(round(alpha * 255 if alpha <= 1 else alpha)))),
-                    )
-            except Exception:
-                return default
-        if raw.startswith('rgb(') and raw.endswith(')'):
-            try:
-                parts = [part.strip() for part in raw[4:-1].split(',')]
-                if len(parts) == 3:
-                    return (
-                        max(0, min(255, int(float(parts[0])))),
-                        max(0, min(255, int(float(parts[1])))),
-                        max(0, min(255, int(float(parts[2])))),
-                        255,
-                    )
-            except Exception:
-                return default
-        return default
-
-    def _pdf_3d_camera_preset() -> str:
-        normalized_orientation = str(meta.get('pitch_orientation') or 'landscape').strip().lower()
-        return 'coach' if normalized_orientation == 'portrait' else 'analyst'
-
-    def _render_perspective_preview_url(canvas_state):
-        safe_state = canvas_state if isinstance(canvas_state, dict) else {}
-        native_stadium_url = render_stadium_native_preview_data_url(
-            safe_state,
-            canvas_width=frame_canvas_width or default_canvas_width,
-            canvas_height=frame_canvas_height or default_canvas_height,
-            pitch_orientation=str(meta.get('pitch_orientation') or 'landscape').strip().lower(),
-        )
-        if native_stadium_url:
-            return native_stadium_url
-        snapshot_state = {
-            'version': str(safe_state.get('version') or graphic_editor.get('version') or '5.3.0'),
-            'objects': list(safe_state.get('objects') or []),
-            'canvas_width': frame_canvas_width or default_canvas_width,
-            'canvas_height': frame_canvas_height or default_canvas_height,
+    frame_canvas_width = _parse_int(graphic_editor.get('canvas_width')) or 1280
+    frame_canvas_height = _parse_int(graphic_editor.get('canvas_height')) or 720
+    animation_frame_cards = [
+        {
+            'title': str(frame.get('title') or f'Paso {index + 1}').strip() or f'Paso {index + 1}',
+            'duration': max(1, min(_parse_int(frame.get('duration')) or 3, 20)),
+            'tokens': _build_task_pdf_tokens_from_canvas_state(
+                request,
+                frame.get('canvas_state'),
+                canvas_width=frame_canvas_width,
+                canvas_height=frame_canvas_height,
+            ),
         }
-        snapshot_frames = [{
-            'title': str(task.title or '').strip() or 'Situación base',
-            'duration': 4,
-            'canvas_state': snapshot_state,
-        }]
-        try:
-            png_bytes = render_task_detail_3d_scene_png(
-                task_title=str(task.title or '').strip(),
-                stadium_model_url=pitch3d_assets.get('pitch3d_stadium_model_src') or '',
-                player_model_url=pitch3d_assets.get('pitch3d_player_model_src') or '',
-                pitch3d_context=pitch3d_context_payload,
-                graphic_editor_state=snapshot_state,
-                animation_frames=snapshot_frames,
-                pitch_orientation=str(meta.get('pitch_orientation') or 'landscape').strip().lower(),
-                camera_preset=_pdf_3d_camera_preset(),
-                viewport_width=1200 if str(meta.get('pitch_orientation') or 'landscape').strip().lower() == 'portrait' else 1500,
-                viewport_height=1800 if str(meta.get('pitch_orientation') or 'landscape').strip().lower() == 'portrait' else 1100,
-                device_scale_factor=2.0,
-                timeout_ms=35000,
-            )
-        except Exception:
-            png_bytes = None
-        if png_bytes:
-            return 'data:image/png;base64,' + base64.b64encode(png_bytes).decode('ascii')
-        return render_stadium_native_preview_data_url(
-            safe_state,
-            canvas_width=frame_canvas_width or default_canvas_width,
-            canvas_height=frame_canvas_height or default_canvas_height,
-            pitch_orientation=str(meta.get('pitch_orientation') or 'landscape').strip().lower(),
-        )
-
-    def _render_explicit_2d_preview_url(canvas_state):
-        normalized_orientation = str(meta.get('pitch_orientation') or 'landscape').strip().lower()
-        safe_state = canvas_state if isinstance(canvas_state, dict) else {'objects': []}
-        raw_grass_style = str(meta.get('pitch_grass_style') or 'broadcast_premium').strip().lower()
-        if raw_grass_style in {'stadium_top', 'stadium_top_h', 'stadium_top_v', 'stadium_native'}:
-            pitch_grass_style = 'stadium_native'
-        elif raw_grass_style in {'classic', 'broadcast', 'broadcast_premium', 'realistic', 'pro', 'artificial', 'dry', 'wet', 'uefa_b', 'whiteboard', 'blackboard'}:
-            pitch_grass_style = raw_grass_style
-        else:
-            pitch_grass_style = 'broadcast_premium'
-        return render_flat_tactical_preview_data_url(
-            safe_state,
-            canvas_width=frame_canvas_width or default_canvas_width,
-            canvas_height=frame_canvas_height or default_canvas_height,
-            pitch_orientation=normalized_orientation,
-            grass_style=pitch_grass_style,
-        )
-
-    def _render_variant_preview_url(canvas_state, variant: str = '2d', *, fallback_to_primary: bool = False):
-        normalized_variant = '3d' if str(variant or '').strip().lower() == '3d' else '2d'
-        has_objects = isinstance(canvas_state, dict) and isinstance(canvas_state.get('objects'), list) and bool(canvas_state.get('objects'))
-        if not has_objects:
-            if normalized_variant == '2d':
-                explicit_2d_url = _render_explicit_2d_preview_url(canvas_state if isinstance(canvas_state, dict) else {})
-                if explicit_2d_url:
-                    return explicit_2d_url
-            if normalized_variant == '3d':
-                perspective_preview_url = _render_perspective_preview_url(canvas_state if isinstance(canvas_state, dict) else {})
-                if perspective_preview_url:
-                    return perspective_preview_url
-            return preview_url if (fallback_to_primary and normalized_variant == '2d') else ''
-        if normalized_variant == '3d':
-            perspective_preview_url = _render_perspective_preview_url(canvas_state)
-            if perspective_preview_url:
-                return perspective_preview_url
-        if normalized_variant == '2d':
-            explicit_2d_url = _render_explicit_2d_preview_url(canvas_state)
-            if explicit_2d_url:
-                return explicit_2d_url
-        pitch_preset = str(meta.get('pitch_preset') or 'full_pitch').strip() or 'full_pitch'
-        pitch_orientation = str(meta.get('pitch_orientation') or 'landscape').strip().lower()
-        try:
-            png_bytes = render_task_preview_png(
-                canvas_state=canvas_state,
-                pitch_preset=pitch_preset,
-                pitch_orientation='portrait' if pitch_orientation == 'portrait' else 'landscape',
-                pitch_grass_style=_normalize_preview_grass_style(variant),
-                world_width=frame_canvas_width,
-                world_height=frame_canvas_height,
-                max_side=2400,
-            )
-        except Exception:
-            png_bytes = None
-        if png_bytes:
-            return 'data:image/png;base64,' + base64.b64encode(png_bytes).decode('ascii')
-        if normalized_variant == '3d':
-            return _render_perspective_preview_url(canvas_state if isinstance(canvas_state, dict) else {}) or ''
-        if fallback_to_primary:
-            return preview_url or ''
-        return ''
-
-    def _render_frame_preview_url(frame_state, variant: str = '2d', *, fallback_to_task: bool = False):
-        return _render_variant_preview_url(frame_state, variant, fallback_to_primary=fallback_to_task)
-
-    animation_frame_cards = []
-    for index, frame in enumerate(animation_frames):
-        frame_state = frame.get('canvas_state')
-        frame_preview_2d_url = _render_frame_preview_url(frame_state, '2d', fallback_to_task=True)
-        frame_preview_3d_url = _render_frame_preview_url(frame_state, '3d', fallback_to_task=True)
-        frame_preview_3d_embed_url = ''
-        if pdf_live_preview_mode and getattr(task, 'id', None):
-            try:
-                frame_camera = _pdf_3d_camera_preset()
-                frame_preview_3d_embed_url = reverse('session-task-pdf-3d-embed', args=[int(task.id)]) + f'?frame={index + 1}&camera={frame_camera}'
-            except Exception:
-                frame_preview_3d_embed_url = ''
-        animation_frame_cards.append(
-            {
-                'title': str(frame.get('title') or f'Paso {index + 1}').strip() or f'Paso {index + 1}',
-                'duration': max(1, min(_parse_int(frame.get('duration')) or 3, 20)),
-                'preview_url': frame_preview_2d_url or frame_preview_3d_url,
-                'preview_2d_url': frame_preview_2d_url,
-                'preview_3d_url': frame_preview_3d_url,
-                'preview_3d_embed_url': frame_preview_3d_embed_url,
-                'tokens': _build_task_pdf_tokens_from_canvas_state(
-                    request,
-                    frame_state,
-                    canvas_width=frame_canvas_width,
-                    canvas_height=frame_canvas_height,
-                ),
-            }
-        )
-    task_canvas_state = {}
-    if isinstance(tactical_layout, dict):
-        if isinstance(tactical_layout.get('objects'), list) and tactical_layout.get('objects'):
-            task_canvas_state = {
-                'version': str(tactical_layout.get('version') or '5.3.0'),
-                'objects': tactical_layout.get('objects'),
-            }
-    if not isinstance(task_canvas_state.get('objects'), list) or not task_canvas_state.get('objects'):
-        try:
-            extracted_canvas_state, extracted_canvas_width, extracted_canvas_height = _extract_canvas_state_for_preview(task)
-        except Exception:
-            extracted_canvas_state, extracted_canvas_width, extracted_canvas_height = {}, 0, 0
-        if isinstance(extracted_canvas_state, dict) and isinstance(extracted_canvas_state.get('objects'), list) and extracted_canvas_state.get('objects'):
-            task_canvas_state = extracted_canvas_state
-            if extracted_canvas_width:
-                frame_canvas_width = extracted_canvas_width
-            if extracted_canvas_height:
-                frame_canvas_height = extracted_canvas_height
-    task_preview_2d_url = _render_variant_preview_url(task_canvas_state, '2d', fallback_to_primary=True) or preview_url
-    task_preview_3d_url = _render_variant_preview_url(task_canvas_state, '3d') or ''
-    task_preview_3d_embed_url = ''
-    if pdf_live_preview_mode and getattr(task, 'id', None):
-        try:
-            task_camera = _pdf_3d_camera_preset()
-            task_preview_3d_embed_url = reverse('session-task-pdf-3d-embed', args=[int(task.id)]) + f'?camera={task_camera}'
-        except Exception:
-            task_preview_3d_embed_url = ''
-    if not animation_frame_cards and (task_preview_2d_url or task_preview_3d_url):
-        animation_frame_cards = [
-            {
-                'title': 'Situación base',
-                'duration': 0,
-                'preview_url': task_preview_2d_url or task_preview_3d_url,
-                'preview_2d_url': task_preview_2d_url,
-                'preview_3d_url': task_preview_3d_url,
-                'preview_3d_embed_url': task_preview_3d_embed_url,
-                'tokens': [],
-                'is_fallback': True,
-            }
-        ]
-
-    def _first_real_animation_frame_card():
-        for frame_card in animation_frame_cards:
-            if isinstance(frame_card, dict) and not frame_card.get('is_fallback'):
-                return frame_card
-        return {}
-
-    first_real_animation_frame = _first_real_animation_frame_card()
-    graphic_view_2d_url = task_preview_2d_url or ''
-    graphic_view_3d_url = task_preview_3d_url or task_preview_3d_embed_url or ''
-    recreation_2d_url = str(first_real_animation_frame.get('preview_2d_url') or '').strip()
-    recreation_3d_url = str(first_real_animation_frame.get('preview_3d_url') or '').strip()
-    recreation_3d_embed_url = str(first_real_animation_frame.get('preview_3d_embed_url') or '').strip()
+        for index, frame in enumerate(animation_frames)
+    ]
     coach_name = (
         request.user.get_full_name().strip()
         if hasattr(request.user, 'get_full_name') and request.user.get_full_name().strip()
         else getattr(request.user, 'username', '') or 'Entrenador'
     )
     primary_club_team = team or _get_primary_team_for_request(request) or Team.objects.filter(is_primary=True).first()
-    def _pdf_static_asset_url(static_path: str, mime_type: str = '') -> str:
-        data_url = _static_data_url(static_path, mime_type) if mime_type else ''
-        if data_url:
-            return data_url
-        try:
-            return static(static_path)
-        except Exception:
-            return ''
-
     club_logo_url = resolve_team_crest_url(request, primary_club_team, sync=True) if primary_club_team else ''
-    uefa_badge_url = _pdf_static_asset_url('football/images/uefa-badge.svg', 'image/svg+xml')
+    uefa_badge_url = _static_asset_as_data_uri('football/images/rfef-uefa-mark.svg') or request.build_absolute_uri(static('football/images/rfef-uefa-mark.svg'))
     team_crest_url = resolve_team_crest_url(request, team, sync=True)
-    palette_team = team
-    if pdf_style in {'club', 'hybrid'}:
-        palette_team = _resolve_club_palette_team(team, request=request)
     logo_url = team_crest_url if pdf_style in {'club', 'hybrid'} else uefa_badge_url
     club_dragon_url = (
         _static_data_url('football/images/cdb-dragon-watermark.png', 'image/png')
-        if (pdf_style in {'club', 'hybrid'} and _is_benagalbon_team(palette_team))
+        if (pdf_style in {'club', 'hybrid'} and _is_benagalbon_team(team))
         else ''
     )
-    rich_description = _rich_task_text_html(description_html, str(task_sheet.get('description') or getattr(task, 'description', '') or ''))
-    rich_coaching = _rich_task_text_html(
-        coaching_html,
-        str(getattr(task, 'coaching_points', '') or ''),
-    )
-    rich_rules = _rich_task_text_html(
-        rules_html,
-        str(getattr(task, 'confrontation_rules', '') or ''),
-    )
-    rich_progression = _rich_task_text_html(
-        progression_html,
-        str(meta.get('progression') or ''),
-    )
-    rich_regression = _rich_task_text_html(
-        regression_html,
-        str(meta.get('regression') or ''),
-    )
-    rich_success = _rich_task_text_html(
-        success_criteria_html,
-        str(meta.get('success_criteria') or ''),
-    )
-    rich_organization = _rich_task_text_html(
-        organization_html,
-        str(meta.get('organization') or ''),
-    )
+    rich_description = _sanitize_task_rich_html(description_html) if description_html else _rich_html_from_plain_text(description_text)
+    rich_coaching = _sanitize_task_rich_html(coaching_html) if coaching_html else _rich_html_from_plain_text(getattr(task, 'coaching_points', '') or '')
+    rich_rules = _sanitize_task_rich_html(rules_html) if rules_html else _rich_html_from_plain_text(getattr(task, 'confrontation_rules', '') or '')
+    rich_progression = _sanitize_task_rich_html(progression_html) if progression_html else _rich_html_from_plain_text(str(meta.get('progression') or ''))
+    rich_regression = _sanitize_task_rich_html(regression_html) if regression_html else _rich_html_from_plain_text(str(meta.get('regression') or ''))
+    rich_success = _sanitize_task_rich_html(success_criteria_html) if success_criteria_html else _rich_html_from_plain_text(str(meta.get('success_criteria') or ''))
+    rich_organization = _sanitize_task_rich_html(organization_html) if organization_html else _rich_html_from_plain_text(str(meta.get('organization') or ''))
     copy_len = sum(
         len(str(part or '').strip())
         for part in [
@@ -26210,7 +25284,7 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
     task_drills = _task_drills_for_pdf(meta)
     # Altura recomendada para el gráfico en PDF (px). En "1 página" intentamos aprovechar el espacio
     # cuando el texto es corto, para que la representación se vea más grande.
-    graphic_height_px = 330 if pdf_style == 'uefa' else 380
+    graphic_height_px = 380
     if one_page:
         # Heurística: cuanto menos texto, más alto el gráfico.
         if copy_len <= 220:
@@ -26299,11 +25373,9 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         rich_success = ''
         rich_organization = ''
 
-        # Para garantizar 1 página en tareas normales, no imprimimos storyboard.
-        # Si la tarea usa multipizarra, las escenas son la representación gráfica principal.
-        if not multi_board_enabled:
-            animation_frames = []
-            animation_frame_cards = []
+        # Para garantizar 1 página, no imprimimos storyboard / multipizarra.
+        animation_frames = []
+        animation_frame_cards = []
         task_drills = []
         pdf_text_heavy = False
         pdf_text_superheavy = False
@@ -26342,6 +25414,7 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         'regression_rich_html': rich_regression,
         'success_criteria_rich_html': rich_success,
         'organization_rich_html': rich_organization,
+        'task_sheet': task_sheet,
         'tokens': pdf_tokens,
         'task_meta': meta,
         'task_drills': task_drills,
@@ -26359,37 +25432,20 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         'coordination_label': coordination_label or '-',
         'coordination_skills_label': coordination_skills_label or '-',
         'tactical_intent_label': tactical_intent_label or '-',
-        'principle_label': principle_label,
-        'session_cycle_label': session_cycle_label,
-        'player_count_label': player_count_label,
-        'structure_summary_label': structure_summary_label,
-        'load_summary_label': load_summary_label,
-        'workload_recipe_label': workload_recipe_label,
-        'provocation_rule_label': provocation_rule_label,
-        'regression_label': regression_label,
-        'session_plan_fields': session_plan_fields,
         'methodology_rows': methodology_rows,
         'animation_frames': animation_frames,
         'animation_frame_cards': animation_frame_cards,
         'pdf_style': pdf_style,
         'template_bg_src': _system_pdf_template_bg_src('pdf_template_session_bg_asset_id', max_width=2200, max_height=3100, quality=72) if pdf_style == 'uefa' else '',
-        'pdf_palette': _team_pdf_palette(palette_team, pdf_style),
+        'pdf_palette': _team_pdf_palette(team, pdf_style),
         'coach_name': coach_name,
         'animation_frames_count': len(animation_frames),
         'logo_url': logo_url,
-        'brand_mark_url': _pdf_static_asset_url('football/images/2j-mark.svg', 'image/svg+xml'),
+        'brand_mark_url': request.build_absolute_uri(static('football/images/2j-mark.svg')),
         'club_dragon_url': club_dragon_url,
         'club_logo_url': club_logo_url,
-        'task_preview_url': task_preview_2d_url or task_preview_3d_url or preview_url,
-        'task_preview_2d_url': task_preview_2d_url or preview_url,
-        'task_preview_3d_url': task_preview_3d_url,
-        'task_preview_3d_embed_url': task_preview_3d_embed_url,
-        'graphic_view_2d_url': graphic_view_2d_url,
-        'graphic_view_3d_url': graphic_view_3d_url,
-        'recreation_2d_url': recreation_2d_url,
-        'recreation_3d_url': recreation_3d_url,
-        'recreation_3d_embed_url': recreation_3d_embed_url,
-        'pdf_live_preview_mode': pdf_live_preview_mode,
+        'task_preview_url': preview_url,
+        'task_3d_preview_url': str(meta.get('pitch3d_preview_data_v1') or ''),
         'template_bg_src': _system_pdf_template_bg_src('pdf_template_task_bg_asset_id', max_width=2200, max_height=3100, quality=72) if pdf_style == 'uefa' else '',
         'pdf_text_heavy': pdf_text_heavy,
         'pdf_text_superheavy': pdf_text_superheavy,
@@ -26417,6 +25473,8 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa', one_p
     selected_coord_skills = _sanitize_task_text((request.POST.get('draw_task_coordination_skills') or '').strip(), multiline=False, max_len=80)
     selected_tactical_intent = _sanitize_task_text((request.POST.get('draw_task_tactical_intent') or '').strip(), multiline=False, max_len=80)
     game_moment = _clean_choice_value(request.POST.get('draw_task_game_moment'), {key for key, _ in GAME_MOMENT_CHOICES}, max_len=40)
+    game_context = _sanitize_task_text((request.POST.get('draw_task_game_context') or '').strip(), multiline=True, max_len=1000)
+    pitch3d_preview_data = _clean_task_3d_preview_data_url(request.POST.get('draw_canvas_3d_preview_data') or '')
     principle = _clean_short_text(request.POST.get('draw_task_principle'), max_len=120)
     subprinciple = _clean_short_text(request.POST.get('draw_task_subprinciple'), max_len=160)
     provocation_rule = _sanitize_task_text((request.POST.get('draw_task_provocation_rule') or '').strip(), multiline=True, max_len=500)
@@ -26425,14 +25483,6 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa', one_p
     physical_load = _clean_choice_value(request.POST.get('draw_task_physical_load'), {key for key, _ in TASK_LOAD_LEVEL_CHOICES}, max_len=20)
     cognitive_load = _clean_choice_value(request.POST.get('draw_task_cognitive_load'), {key for key, _ in TASK_LOAD_LEVEL_CHOICES}, max_len=20)
     emotional_load = _clean_choice_value(request.POST.get('draw_task_emotional_load'), {key for key, _ in TASK_LOAD_LEVEL_CHOICES}, max_len=20)
-    rpe_scale = _clean_choice_value(request.POST.get('draw_task_rpe_scale') or 'cr10', {key for key, _ in TASK_RPE_SCALE_CHOICES}, max_len=20) or 'cr10'
-    planned_rpe = _bounded_optional_int(request.POST.get('draw_task_planned_rpe'), min_value=0, max_value=20)
-    wellness_target = _bounded_optional_int(request.POST.get('draw_task_wellness_target'), min_value=1, max_value=10)
-    monotony_target = _sanitize_task_text((request.POST.get('draw_task_monotony_target') or '').strip(), multiline=False, max_len=40)
-    strain_target = _sanitize_task_text((request.POST.get('draw_task_strain_target') or '').strip(), multiline=False, max_len=60)
-    md_day = _clean_choice_value(request.POST.get('draw_task_md_day'), {key for key, _ in TASK_MD_DAY_CHOICES}, max_len=24)
-    dominant_load = _clean_choice_value(request.POST.get('draw_task_dominant_load'), {key for key, _ in TASK_DOMINANT_LOAD_CHOICES}, max_len=24)
-    load_notes = _sanitize_task_text((request.POST.get('draw_task_load_notes') or '').strip(), multiline=True, max_len=500)
     space = _sanitize_task_text((request.POST.get('draw_task_space') or '').strip(), multiline=False, max_len=120)
     organization = _sanitize_task_text((request.POST.get('draw_task_organization') or '').strip(), multiline=True, max_len=500)
     players_distribution = _sanitize_task_text((request.POST.get('draw_task_players_distribution') or '').strip(), multiline=False, max_len=180)
@@ -26493,6 +25543,8 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa', one_p
                 'pitch_format': selected_pitch_format,
                 'game_phase': selected_phase,
                 'game_moment': game_moment,
+                'game_context': game_context,
+                'pitch3d_preview_data_v1': pitch3d_preview_data,
                 'principle': principle,
                 'subprinciple': subprinciple,
                 'provocation_rule': provocation_rule,
@@ -26501,15 +25553,6 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa', one_p
                 'physical_load': physical_load,
                 'cognitive_load': cognitive_load,
                 'emotional_load': emotional_load,
-                'rpe_scale': rpe_scale,
-                'planned_rpe': planned_rpe,
-                'planned_srpe_load': _task_srpe_load(minutes, planned_rpe),
-                'wellness_target': wellness_target,
-                'monotony_target': monotony_target,
-                'strain_target': strain_target,
-                'md_day': md_day,
-                'dominant_load': dominant_load,
-                'load_notes': load_notes,
                 'methodology': selected_methodology,
                 'complexity': selected_complexity,
                 'strategy': selected_strategy,
@@ -26566,11 +25609,9 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa', one_p
         try:
             pitch_preset = (request.POST.get('draw_task_pitch_preset') or 'full_pitch').strip()
             pitch_orientation = (request.POST.get('draw_task_pitch_orientation') or 'landscape').strip().lower()
-            pitch_grass_style = (request.POST.get('draw_task_pitch_grass_style') or 'stadium_native').strip().lower()
-            if pitch_grass_style in {'stadium_top', 'stadium_top_h', 'stadium_top_v'}:
-                pitch_grass_style = 'stadium_native'
-            if pitch_grass_style not in {'classic', 'broadcast', 'broadcast_premium', 'stadium_native', 'realistic', 'pro', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'}:
-                pitch_grass_style = 'stadium_native'
+            pitch_grass_style = (request.POST.get('draw_task_pitch_grass_style') or DEFAULT_TASK_PITCH_GRASS_STYLE).strip().lower()
+            if pitch_grass_style not in {'classic', 'broadcast', 'realistic', 'pro', 'stadium_close', 'stadium_top', 'stadium_full', 'stadium_premium', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'}:
+                pitch_grass_style = 'classic'
             try:
                 pitch_zoom = float(str(request.POST.get('draw_task_pitch_zoom') or '1.0').strip())
             except Exception:
@@ -26641,47 +25682,14 @@ TASK_LOAD_LEVEL_CHOICES = [
     ('high', 'Alta'),
 ]
 
-TASK_RPE_SCALE_CHOICES = [
-    ('cr10', 'Borg CR-10 / RPE 0-10'),
-    ('borg_6_20', 'Borg 6-20'),
-    ('wellness_1_5', 'Wellness 1-5'),
-]
-
-TASK_DOMINANT_LOAD_CHOICES = [
-    *TrainingSession.DOMINANT_LOAD_CHOICES,
-]
-
-TASK_MD_DAY_CHOICES = [
-    *TrainingSession.DAY_CHOICES,
-]
-
 
 def _clean_choice_value(value, allowed, *, max_len=80):
-    allowed_set = set(allowed or [])
-    raw_value = str(value or '').strip()
-    if raw_value in allowed_set:
-        return raw_value
-    raw = _sanitize_task_text(raw_value, multiline=False, max_len=max_len)
-    return raw if raw in allowed_set else ''
+    raw = _sanitize_task_text(str(value or '').strip(), multiline=False, max_len=max_len)
+    return raw if raw in set(allowed or []) else ''
 
 
 def _clean_short_text(value, *, max_len=160):
     return _sanitize_task_text(str(value or '').strip(), multiline=False, max_len=max_len)
-
-
-def _bounded_optional_int(value, *, min_value=0, max_value=9999):
-    parsed = _parse_int(value)
-    if parsed is None:
-        return None
-    return max(int(min_value), min(int(parsed), int(max_value)))
-
-
-def _task_srpe_load(minutes, rpe):
-    minutes_int = _bounded_optional_int(minutes, min_value=1, max_value=240)
-    rpe_int = _bounded_optional_int(rpe, min_value=0, max_value=20)
-    if minutes_int is None or rpe_int is None:
-        return None
-    return int(minutes_int) * int(rpe_int)
 
 
 def _model_of_play_preference(workspace):
@@ -27048,29 +26056,7 @@ def training_session_detail_page(request, session_id):
 
                 # Campos estructurados (presentación)
                 next_fields = plan_fields.copy()
-                for key in [
-                    'warmup',
-                    'activation',
-                    'main',
-                    'cooldown',
-                    'objective',
-                    'objective_physical',
-                    'objective_tactical',
-                    'success_criteria',
-                    'coaching_keys',
-                    'main_rule',
-                    'key_principles',
-                    'indicators',
-                    'variations',
-                    'weekly_plan',
-                    'recommended_duration',
-                    'rpe_target',
-                    'player_count',
-                    'location',
-                    'materials',
-                    'absences',
-                    'notes',
-                ]:
+                for key in ['warmup', 'activation', 'main', 'cooldown', 'objective', 'success_criteria', 'rpe_target', 'player_count', 'location', 'materials', 'absences', 'notes']:
                     next_fields[key] = str(request.POST.get(key) or '').strip()
                 show_in_agenda_raw = str(request.POST.get('show_in_agenda') or '').strip().lower()
                 show_in_agenda = show_in_agenda_raw in {'1', 'true', 'yes', 'on', 'si'}
@@ -27915,9 +26901,180 @@ def session_task_pdf(request, task_id):
     )
     html = render_to_string('football/session_task_pdf.html', context)
     filename = slugify(f'tarea-{task.session.session_date}-{task.title}') or f'tarea-{task.id}'
-    if str(request.GET.get('html') or '').strip().lower() in {'1', 'true', 'yes', 'on'}:
-        return HttpResponse(html, content_type='text/html; charset=utf-8')
     return _build_pdf_response_or_html_fallback(request, html, filename)
+
+
+@login_required
+def session_task_interactive_sheet(request, task_id):
+    if not _can_access_sessions_workspace(request.user):
+        return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
+    task = (
+        SessionTask.objects
+        .select_related('session__microcycle__team')
+        .filter(id=task_id)
+        .first()
+    )
+    if not task:
+        raise Http404('Tarea no encontrada')
+
+    team = task.session.microcycle.team
+    sheet_style = (request.GET.get('style') or 'uefa').strip().lower()
+    if sheet_style not in {'uefa', 'club'}:
+        sheet_style = 'uefa'
+
+    edit_graphic_url = ''
+    try:
+        if _is_task_editable(task):
+            scope_key = _task_scope_for_item(task)
+            layout0 = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+            meta0 = layout0.get('meta') if isinstance(layout0.get('meta'), dict) else {}
+            is_performed = str(meta0.get('source') or '').strip().lower() == 'performed' or bool(str(meta0.get('performed_on') or '').strip())
+            if not is_performed:
+                edit_graphic_url = reverse(_task_builder_edit_route_name(scope_key), args=[int(task.id)]) + '?back_to=detail'
+    except Exception:
+        edit_graphic_url = ''
+
+    preview_url = ''
+    try:
+        if not getattr(task, 'task_preview_image', None):
+            try:
+                _maybe_render_task_preview_server_side(task, force=True)
+                task.refresh_from_db(fields=['task_preview_image'])
+            except Exception:
+                pass
+        if getattr(task, 'task_preview_image', None):
+            preview_url = _file_field_as_data_url(task.task_preview_image)
+        if not preview_url:
+            embedded = _embedded_preview_bytes_from_task(task)
+            if embedded:
+                raw, mime = embedded
+                preview_url = _image_bytes_as_small_data_uri(raw, mime_type=mime or 'image/jpeg', max_width=3200, max_height=2400, quality=88)
+    except Exception:
+        preview_url = ''
+
+    context = _build_task_pdf_context(
+        request,
+        team=team,
+        session=task.session,
+        microcycle=task.session.microcycle,
+        task=task,
+        tactical_layout=task.tactical_layout if isinstance(task.tactical_layout, dict) else {},
+        pdf_style=sheet_style,
+        preview_url=preview_url,
+        one_page=False,
+    )
+    context.update(
+        {
+            'sheet_style': sheet_style,
+            'html_sheet_url_uefa': reverse('session-task-html-sheet', args=[task.id]) + '?style=uefa',
+            'html_sheet_url_club': reverse('session-task-html-sheet', args=[task.id]) + '?style=club',
+            'pdf_url_uefa': reverse('session-task-pdf', args=[task.id]) + '?style=uefa&one_page=1',
+            'pdf_url_club': reverse('session-task-pdf', args=[task.id]) + '?style=club&one_page=1',
+            'detail_url': reverse('session-task-detail', args=[task.id]) + '?edit=1',
+            'edit_graphic_url': edit_graphic_url,
+            'bookmark_toggle_url': reverse('session-task-bookmark-toggle', args=[task.id]),
+            'quick_update_url': reverse('session-task-html-sheet-update', args=[task.id]),
+            'save_interactive_collection_url': reverse('session-task-html-sheet-save', args=[task.id]),
+            'interactive_sheet_absolute_url': request.build_absolute_uri(
+                reverse('session-task-html-sheet', args=[task.id]) + f'?style={sheet_style}'
+            ),
+            'back_url': reverse('training-session-detail', args=[task.session_id])
+            if getattr(task, 'session_id', None) and not _is_library_session(getattr(task, 'session', None))
+            else reverse('sessions') + '?tab=library',
+            'back_label': 'Volver al entreno'
+            if getattr(task, 'session_id', None) and not _is_library_session(getattr(task, 'session', None))
+            else 'Volver a biblioteca',
+            'task_blocks': SessionTask.BLOCK_CHOICES,
+            'game_moment_choices': GAME_MOMENT_CHOICES,
+            'player_structure_choices': PLAYER_STRUCTURE_CHOICES,
+            'task_load_level_choices': TASK_LOAD_LEVEL_CHOICES,
+            'task_version_label': f'v{int(getattr(task, "workflow_version_number", 1) or 1)}',
+            'task_updated_label': timezone.localtime(getattr(task, 'updated_at', timezone.now())).strftime('%d/%m/%Y %H:%M'),
+            'saved_interactive_collection': SessionTaskCollectionItem.objects.filter(
+                task=task,
+                collection__team=team,
+                collection__repository=SessionTaskCollection.REPO_INTERACTIVE,
+                collection__name='Fichas interactivas',
+            ).exists(),
+        }
+    )
+    return render(request, 'football/session_task_interactive_sheet.html', context)
+
+
+@authenticated_write
+@require_POST
+def update_session_task_interactive_sheet(request, task_id):
+    if not _can_access_sessions_workspace(request.user):
+        return JsonResponse({'error': 'No tienes permisos para acceder a sesiones.'}, status=403)
+    task = (
+        SessionTask.objects
+        .select_related('session__microcycle__team')
+        .filter(id=task_id, deleted_at__isnull=True)
+        .first()
+    )
+    if not task:
+        return JsonResponse({'error': 'Tarea no encontrada.'}, status=404)
+    if not _is_task_editable(task):
+        return JsonResponse({'error': 'La tarea no se puede editar.'}, status=403)
+    try:
+        data = request.POST.copy()
+        if not data:
+            try:
+                payload = json.loads(request.body.decode('utf-8') or '{}')
+            except Exception:
+                payload = {}
+            if isinstance(payload, dict):
+                data = QueryDict('', mutable=True)
+                for key, value in payload.items():
+                    data[str(key)] = '' if value is None else str(value)
+        _update_library_task_from_post(task, data, scope_key=_task_scope_for_item(task))
+        task.refresh_from_db()
+        return JsonResponse(
+            {
+                'ok': True,
+                'title': task.title,
+                'objective': task.objective,
+                'block': task.get_block_display(),
+                'duration_minutes': int(task.duration_minutes or 0),
+                'updated_at': timezone.localtime(getattr(task, 'updated_at', timezone.now())).strftime('%d/%m/%Y %H:%M'),
+            }
+        )
+    except ValueError as exc:
+        return JsonResponse({'error': str(exc)}, status=400)
+    except Exception:
+        return JsonResponse({'error': 'No se pudo guardar la ficha.'}, status=500)
+
+
+@authenticated_write
+@require_POST
+def save_session_task_interactive_sheet(request, task_id):
+    if not _can_access_sessions_workspace(request.user):
+        return JsonResponse({'error': 'No tienes permisos para acceder a sesiones.'}, status=403)
+    task = (
+        SessionTask.objects
+        .select_related('session__microcycle__team')
+        .filter(id=task_id, deleted_at__isnull=True)
+        .first()
+    )
+    if not task:
+        return JsonResponse({'error': 'Tarea no encontrada.'}, status=404)
+    team = task.session.microcycle.team
+    collection, _ = SessionTaskCollection.objects.get_or_create(
+        team=team,
+        repository=SessionTaskCollection.REPO_INTERACTIVE,
+        name='Fichas interactivas',
+        defaults={'created_by_user': request.user if request.user.is_authenticated else None},
+    )
+    _, created = SessionTaskCollectionItem.objects.get_or_create(collection=collection, task=task)
+    return JsonResponse(
+        {
+            'ok': True,
+            'saved': True,
+            'created': bool(created),
+            'collection_id': collection.id,
+            'collection_name': collection.name,
+        }
+    )
 
 
 def _resolve_static_asset_file(asset_value):
@@ -28527,6 +27684,10 @@ def coach_role_trainer_page(request):
     trainer_selected_season, trainer_season_start, trainer_season_end = _selected_club_season_bounds(request, workspace=workspace)
     stats_scope = _get_stats_scope_for_request(request, primary_team)
     tournament_filter = _get_tournament_filter_for_request(request, primary_team, scope=stats_scope)
+    selected_player_id = _parse_int(request.GET.get('player'))
+    selected_match_id = _parse_int(request.GET.get('match'))
+    trainer_full_players = str(request.GET.get('full') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    trainer_fast_entry = not selected_player_id and not selected_match_id and not trainer_full_players
 
     # UX/Rendimiento: el default de scope es "Liga". Si el equipo no tiene acciones con
     # `match.context="league"`, el dashboard queda vacío aunque existan datos (torneos/amistosos).
@@ -28588,6 +27749,10 @@ def coach_role_trainer_page(request):
         base_events_qs = base_events_qs.filter(match__tournament_name=tournament_filter)
     if trainer_selected_season:
         base_events_qs = _apply_date_bounds(base_events_qs, 'match__date', trainer_season_start, trainer_season_end)
+    if trainer_fast_entry:
+        # La entrada del área entrenador debe abrir rápido. El detalle completo sigue disponible
+        # al seleccionar jugador/partido o al añadir ?full=1.
+        base_events_qs = base_events_qs.order_by('-match__date', '-match_id', '-minute', '-id')[:2500]
     events = (
         _filter_stats_events(
             base_events_qs,
@@ -28704,7 +27869,7 @@ def coach_role_trainer_page(request):
     # Lectura de plantilla (tarjetas) respetando el ámbito seleccionado.
     player_cards = (
         compute_player_cards(primary_team, scope=stats_scope, tournament_name=tournament_filter, request=request)
-        if primary_team
+        if primary_team and not trainer_fast_entry
         else []
     )
     yellows = sum(int(item.get('yellow_cards', 0) or 0) for item in player_cards)
@@ -28720,12 +27885,12 @@ def coach_role_trainer_page(request):
     duels_won_by_player = {}
     recoveries_by_player = {}
     for event in events:
-        player = event.player
-        if not player:
+        player_id = getattr(event, 'player_id', None)
+        if not player_id:
             continue
         duel_event = classify_duel_event(event.event_type, event.result, event.observation, event.zone)
         if duel_event.get('is_duel') and duel_event.get('won'):
-            duels_won_by_player[player.id] = duels_won_by_player.get(player.id, 0) + 1
+            duels_won_by_player[player_id] = duels_won_by_player.get(player_id, 0) + 1
         event_text = ' '.join(
             [
                 str(event.event_type or ''),
@@ -28734,7 +27899,7 @@ def coach_role_trainer_page(request):
             ]
         )
         if contains_keyword(event_text, ['robo', 'recuper', 'intercep']):
-            recoveries_by_player[player.id] = recoveries_by_player.get(player.id, 0) + 1
+            recoveries_by_player[player_id] = recoveries_by_player.get(player_id, 0) + 1
 
     def _top_player_from_counter(counter_dict):
         if not counter_dict:
@@ -28870,14 +28035,31 @@ def coach_role_trainer_page(request):
             {'label': 'Tarjetas', 'value': card_total},
         ],
     }
-    selected_player_id = _parse_int(request.GET.get('player'))
-    trainer_full_players = str(request.GET.get('full') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     player_dashboard_rows = (
         compute_player_dashboard(primary_team, scope=stats_scope, tournament_name=tournament_filter, request=request)
         if primary_team and (selected_player_id or trainer_full_players)
         else []
     )
-    player_option_rows = player_dashboard_rows or player_cards
+    if player_dashboard_rows or player_cards:
+        player_option_rows = player_dashboard_rows or player_cards
+    elif primary_team:
+        player_option_rows = [
+            {
+                'id': player.id,
+                'player_id': player.id,
+                'name': player.name,
+                'number': player.number,
+                'position': player.position or '-',
+                'photo_url': '',
+                'minutes': 0,
+                'pj': 0,
+                'goals': 0,
+                'assists': 0,
+            }
+            for player in Player.objects.filter(team=primary_team).only('id', 'name', 'number', 'position').order_by('name')[:80]
+        ]
+    else:
+        player_option_rows = []
     coach_player_options = [
         {
             'id': item.get('player_id') or item.get('id'),
@@ -29035,7 +28217,7 @@ def coach_role_trainer_page(request):
         match_qs = match_qs.filter(context=stats_scope)
     if stats_scope == Match.CONTEXT_TOURNAMENT and tournament_filter:
         match_qs = match_qs.filter(tournament_name=tournament_filter)
-    team_matches = list(match_qs)
+    team_matches = list(match_qs[:8] if trainer_fast_entry else match_qs)
     coach_match_rows = []
     for match in team_matches:
         match_events = match_events_map.get(match.id, [])
@@ -29059,7 +28241,6 @@ def coach_role_trainer_page(request):
             }
         )
 
-    selected_match_id = _parse_int(request.GET.get('match'))
     valid_match_ids = {row['match_id'] for row in coach_match_rows}
     if selected_match_id not in valid_match_ids:
         selected_match_id = None
@@ -29165,8 +28346,6 @@ def coach_role_trainer_page(request):
                 'top_event_types': selected_match_team_metrics['top_event_types'],
             }
 
-    hero_image_data_uri, hero_image_url = _build_team_hero_payload(request, workspace, primary_team)
-
     modules = [
         {'title': 'Convocatoria', 'description': 'Define lista oficial y PDF del partido.', 'link': 'convocation'},
         {'title': '11 inicial', 'description': 'Pantalla táctica visual para construir la alineación titular y banquillo.', 'link': 'initial-eleven'},
@@ -29209,8 +28388,6 @@ def coach_role_trainer_page(request):
             'coach_selected_player_match_id': _parse_int(request.GET.get('player_match')),
             'coach_player_view': coach_player_view,
             'active_team': primary_team,
-            'hero_image_data_uri': hero_image_data_uri,
-            'hero_image_url': hero_image_url,
         },
     )
 
@@ -29399,7 +28576,11 @@ def coach_tactics_page(request):
     except Exception:
         player_catalog = []
     try:
-        available_players = list(player_catalog or [])
+        available_players = list(
+            Player.objects
+            .filter(team=primary_team, is_active=True)
+            .order_by('number', 'name')[:60]
+        )
     except Exception:
         available_players = []
 
@@ -29483,9 +28664,9 @@ def coach_tactics_page(request):
             back_url = f'{back_url}?team={int(active_team.id)}'
     except Exception:
         back_url = '/'
-    static_build_id = _resolve_static_build_id()
     model_value = _model_of_play_preference(_get_active_workspace(request))
     model_principle_options = _model_principle_options(model_value)
+
 
     pitch3d_player_model_src = ''
     try:
@@ -29500,7 +28681,6 @@ def coach_tactics_page(request):
     except Exception:
         pitch3d_player_model_src = ''
 
-    pitch3d_assets = _task_pitch3d_asset_context(static_build_id, player_model_src=pitch3d_player_model_src)
     return render(
         request,
         'football/task_builder.html',
@@ -29519,9 +28699,6 @@ def coach_tactics_page(request):
             'game_moment_choices': GAME_MOMENT_CHOICES,
             'player_structure_choices': PLAYER_STRUCTURE_CHOICES,
             'task_load_level_choices': TASK_LOAD_LEVEL_CHOICES,
-            'task_rpe_scale_choices': TASK_RPE_SCALE_CHOICES,
-            'task_dominant_load_choices': TASK_DOMINANT_LOAD_CHOICES,
-            'task_md_day_choices': TASK_MD_DAY_CHOICES,
             'model_principle_options': model_principle_options,
             'task_complexity_choices': TASK_COMPLEXITY_CHOICES,
             'task_strategy_choices': TASK_STRATEGY_CHOICES,
@@ -29549,7 +28726,6 @@ def coach_tactics_page(request):
             'back_url': back_url,
             'back_label': 'Volver al club',
             'pdf_preview_url': '',
-            **pitch3d_assets,
             'video_import_url': '',
             'task_preview_url': '',
             'show_session_selector': False,
@@ -31430,8 +30606,6 @@ def _initial_eleven_page_impl(request):
             'realistic',
             'pro',
             'broadcast',
-            'broadcast_premium',
-            'stadium_native',
             'artificial',
             'dry',
             'wet',
@@ -31440,9 +30614,9 @@ def _initial_eleven_page_impl(request):
             'whiteboard',
             'blackboard',
         }
-        lineup_grass_style = requested_grass if requested_grass in allowed_grass else 'stadium_native'
+        lineup_grass_style = requested_grass if requested_grass in allowed_grass else 'uefa_b'
     except Exception:
-        lineup_grass_style = 'stadium_native'
+        lineup_grass_style = 'uefa_b'
 
     lineup_seed_payload = _safe_lineup_script_payload(lineup_seed)
     rival_lineup_seed_payload = _safe_lineup_script_payload(rival_lineup_seed)
@@ -32150,26 +31324,6 @@ _polish_spanish_text = task_library_services.polish_spanish_text
 _sanitize_task_text = task_library_services.sanitize_task_text
 
 
-_TASK_RICH_EDITOR_MARKER_PATTERN = re.compile(
-    r'{%[^%]*%}|{#[\s\S]*?#}|{\{[^}]*\}}',
-    re.IGNORECASE | re.DOTALL,
-)
-_TASK_RICH_TEMPLATE_HINTS = (
-    'Esta es la ficha HTML principal que luego se imprime o comparte.',
-    'Aquí se replica el formato visual del PDF Club.',
-)
-_TASK_RICH_TEMPLATE_SOURCE_PATTERNS = (
-    r'has_frames\s*=\s*pc\.animation_frames',
-    r'has_2d\s*=\s*task_obj\.task_preview_image',
-    r'has_pdf\s*=\s*task_obj\.task_pdf',
-    r'presentation_format\|lower\s*==\s*[\'"](?:club|uefa)[\'"]',
-    r'task_presentation_pdf_context_by_format',
-    r'presentation-task-sheet',
-    r'club-task-sheet',
-    r'uefa-task-sheet',
-)
-
-
 _RICH_ALLOWED_TAGS = {
     'b',
     'strong',
@@ -32225,31 +31379,8 @@ class _RichTextSanitizer(HTMLParser):
         self.out.append(html.escape(str(data)))
 
 
-def _strip_task_rich_template_markers(value):
-    raw = html.unescape(str(value or ''))
-    if not raw:
-        return ''
-    cleaned = _TASK_RICH_EDITOR_MARKER_PATTERN.sub('', raw)
-    for marker in _TASK_RICH_TEMPLATE_HINTS:
-        cleaned = re.sub(re.escape(marker), '', cleaned, flags=re.IGNORECASE)
-    lines = []
-    for line in cleaned.splitlines():
-        stripped = str(line or '').strip()
-        if not stripped:
-            continue
-        if any(re.search(pattern, stripped, flags=re.IGNORECASE) for pattern in _TASK_RICH_TEMPLATE_SOURCE_PATTERNS):
-            continue
-        if stripped.startswith(('{%', '{{', '{#')) or stripped.endswith(('%}', '}}', '#}')):
-            continue
-        lines.append(line)
-    cleaned = '\n'.join(lines).strip()
-    if cleaned.count('{%') >= 2 or cleaned.count('{{') >= 2:
-        return ''
-    return cleaned.strip()
-
-
 def _sanitize_task_rich_html(value, max_len=6000):
-    raw = _strip_task_rich_template_markers(value)
+    raw = str(value or '').strip()
     if not raw:
         return ''
     sanitizer = _RichTextSanitizer(_RICH_ALLOWED_TAGS)
@@ -32270,29 +31401,7 @@ def _rich_html_from_plain_text(value, max_len=6000):
         return ''
     if max_len:
         raw = raw[: int(max_len)]
-    raw = _strip_task_rich_template_markers(raw)
     return html.escape(raw).replace('\n', '<br>')
-
-
-def _rich_task_text_html(raw_html, fallback_text, max_len=6000):
-    raw_rich = _sanitize_task_rich_html(raw_html, max_len=max_len)
-    if raw_rich:
-        return raw_rich
-    return _rich_html_from_plain_text(fallback_text, max_len=max_len)
-
-
-def _sanitize_task_sheet_for_display(task_sheet):
-    sheet = dict(task_sheet or {})
-    plain_multiline_keys = ('description',)
-    plain_singleline_keys = ('players', 'space', 'dimensions', 'materials')
-    rich_keys = ('description_html', 'coaching_html', 'rules_html')
-    for key in plain_multiline_keys:
-        sheet[key] = _strip_task_rich_template_markers(sheet.get(key))
-    for key in plain_singleline_keys:
-        sheet[key] = _strip_task_rich_template_markers(sheet.get(key)).replace('\n', ' ').strip()
-    for key in rich_keys:
-        sheet[key] = _sanitize_task_rich_html(sheet.get(key))
-    return sheet
 
 
 _text_has_quality_issues = task_library_services.text_has_quality_issues
@@ -32531,240 +31640,11 @@ def _analysis_quality_score(analysis):
     if analysis.get('phase_tags'):
         score += 5
     task_sheet = analysis.get('task_sheet') if isinstance(analysis.get('task_sheet'), dict) else {}
-    task_sheet = _sanitize_task_sheet_for_display(task_sheet)
     if task_sheet.get('description'):
         score += 5
     if task_sheet.get('players') or task_sheet.get('dimensions') or task_sheet.get('materials'):
         score += 5
     return min(100, score)
-
-
-def _generate_ollana_task_analysis(task, *, page_context=None) -> dict:
-    layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
-    layout = dict(layout)
-    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
-    meta = dict(meta)
-    analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
-    analysis_meta = dict(analysis_meta)
-    task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
-    task_sheet = dict(task_sheet)
-    pdf_excerpt = str(meta.get('pdf_segment_excerpt') or meta.get('extracted_text_excerpt') or '').strip()
-    detected_materials = analysis_meta.get('detected_materials') if isinstance(analysis_meta.get('detected_materials'), list) else []
-    if not detected_materials:
-        detected_materials = _detect_materials_in_text(
-            ' '.join(
-                part for part in [
-                    str(getattr(task, 'objective', '') or ''),
-                    str(getattr(task, 'coaching_points', '') or ''),
-                    str(getattr(task, 'confrontation_rules', '') or ''),
-                    str(task_sheet.get('description') or ''),
-                    str(task_sheet.get('materials') or ''),
-                    pdf_excerpt,
-                ]
-                if str(part or '').strip()
-            )
-        )
-    task_sheet_prompt = {
-        'description': str(task_sheet.get('description') or getattr(task, 'objective', '') or '').strip(),
-        'players': str(task_sheet.get('players') or '').strip(),
-        'space': str(task_sheet.get('space') or meta.get('space') or '').strip(),
-        'dimensions': str(task_sheet.get('dimensions') or '').strip(),
-        'materials': str(task_sheet.get('materials') or meta.get('resources_summary') or '').strip(),
-    }
-    base_analysis = {
-        'title': _polish_spanish_text(
-            _repair_joined_words_text(str(getattr(task, 'title', '') or '').strip()[:220]),
-            multiline=False,
-            max_len=160,
-        ),
-        'objective': _polish_spanish_text(
-            _repair_joined_words_text(str(getattr(task, 'objective', '') or '').strip()),
-            multiline=True,
-            max_len=8000,
-        ),
-        'minutes': max(5, min(_parse_int(getattr(task, 'duration_minutes', 0) or 0) or 15, 90)),
-        'coaching_points': _polish_spanish_text(
-            _repair_joined_words_text(str(getattr(task, 'coaching_points', '') or '').strip()),
-            multiline=True,
-        ),
-        'confrontation_rules': _polish_spanish_text(
-            _repair_joined_words_text(str(getattr(task, 'confrontation_rules', '') or '').strip()),
-            multiline=True,
-        ),
-        'summary': _polish_spanish_text(
-            _repair_joined_words_text(
-                ' '.join(
-                    part for part in [
-                        str(getattr(task, 'title', '') or '').strip(),
-                        str(getattr(task, 'objective', '') or '').strip(),
-                        str(getattr(task, 'coaching_points', '') or '').strip(),
-                        str(getattr(task, 'confrontation_rules', '') or '').strip(),
-                        pdf_excerpt,
-                    ]
-                    if str(part or '').strip()
-                )
-            ),
-            multiline=True,
-            max_len=1200,
-        ),
-        'work_contexts': _detect_keyword_tags(
-            ' '.join(
-                part for part in [
-                    str(getattr(task, 'title', '') or ''),
-                    str(getattr(task, 'objective', '') or ''),
-                    str(getattr(task, 'coaching_points', '') or ''),
-                    str(getattr(task, 'confrontation_rules', '') or ''),
-                    pdf_excerpt,
-                ]
-                if str(part or '').strip()
-            ),
-            TASK_CONTEXT_KEYWORDS,
-        ),
-        'objective_tags': _detect_keyword_tags(
-            ' '.join([str(getattr(task, 'objective', '') or ''), str(getattr(task, 'coaching_points', '') or ''), str(getattr(task, 'confrontation_rules', '') or '')]),
-            TASK_OBJECTIVE_KEYWORDS,
-        ),
-        'exercise_types': _detect_keyword_tags(
-            ' '.join(
-                part for part in [
-                    str(getattr(task, 'title', '') or ''),
-                    str(getattr(task, 'objective', '') or ''),
-                    pdf_excerpt,
-                ]
-                if str(part or '').strip()
-            ),
-            TASK_TYPE_KEYWORDS,
-        ),
-        'phase_tags': _detect_keyword_tags(
-            ' '.join(
-                part for part in [
-                    str(getattr(task, 'title', '') or ''),
-                    str(getattr(task, 'objective', '') or ''),
-                    str(getattr(task, 'coaching_points', '') or ''),
-                    pdf_excerpt,
-                ]
-                if str(part or '').strip()
-            ),
-            TASK_PHASE_KEYWORDS,
-        ),
-        'players_count_estimate': _estimate_players_count(task_sheet_prompt.get('players'), ' '.join([task_sheet_prompt.get('description'), pdf_excerpt])),
-        'players_band': _players_band_label(_estimate_players_count(task_sheet_prompt.get('players'), ' '.join([task_sheet_prompt.get('description'), pdf_excerpt]))),
-        'duration_band': _duration_band_label(getattr(task, 'duration_minutes', 0) or 0),
-        'detected_materials': detected_materials,
-        'task_sheet': task_sheet_prompt,
-        'pdf_template': str(meta.get('pdf_template') or meta.get('analysis_template') or 'ollana').strip() or 'ollana',
-        'reference_date': str(analysis_meta.get('reference_date') or '').strip(),
-        'generated_by': 'ollana',
-        'generated_by_source': 'task_detail',
-    }
-    cfg = local_llm_config()
-    llm_used = bool(cfg.get('enabled') and str(cfg.get('provider') or '').strip().lower() == 'ollama')
-    parsed = None
-    if llm_used:
-        payload = json.dumps(
-            {
-                'task': {
-                    'id': int(getattr(task, 'id', 0) or 0),
-                    'title': str(getattr(task, 'title', '') or '').strip(),
-                    'objective': str(getattr(task, 'objective', '') or '').strip(),
-                    'coaching_points': str(getattr(task, 'coaching_points', '') or '').strip(),
-                    'confrontation_rules': str(getattr(task, 'confrontation_rules', '') or '').strip(),
-                    'duration_minutes': int(getattr(task, 'duration_minutes', 0) or 0),
-                    'block': str(getattr(task, 'block', '') or '').strip(),
-                },
-                'analysis': base_analysis,
-                'page_context': page_context if isinstance(page_context, dict) else {},
-                'task_sheet': task_sheet_prompt,
-                'pdf_excerpt': pdf_excerpt[:1400],
-            },
-            ensure_ascii=False,
-            separators=(',', ':'),
-        )
-        prompt = (
-            'Eres Ollana, analista senior de tareas de entrenamiento de fútbol. '
-            'Debes reconstruir el análisis automático de una tarea a partir del JSON recibido. '
-            'Prioriza claridad para entrenador, detecta contexto, objetivo, tipo de ejercicio y materiales. '
-            'Devuelve SOLO JSON válido con estas claves exactas: '
-            'summary:string, coaching_points:string, confrontation_rules:string, work_contexts:list, objective_tags:list, '
-            'exercise_types:list, phase_tags:list, detected_materials:list, quality_score:number, task_sheet:object. '
-            'task_sheet debe incluir description, players, space, dimensions y materials. '
-            'Si faltan datos, conserva los valores ya aportados y no inventes información no presente.\n\n'
-            f'CONTEXTO_JSON={payload}'
-        )
-        try:
-            parsed, _error = call_ollama_json(
-                prompt,
-                model=cfg.get('model'),
-                base_url=cfg.get('base_url'),
-                timeout=min(max(_parse_int(cfg.get('timeout')) or 8, 2), 20),
-            )
-        except Exception:
-            parsed = None
-    if isinstance(parsed, dict):
-        quality_score_override = None
-        for key in ('summary', 'objective', 'coaching_points', 'confrontation_rules', 'title'):
-            value = str(parsed.get(key) or '').strip()
-            if value:
-                if key == 'title':
-                    base_analysis[key] = _polish_spanish_text(_repair_joined_words_text(value[:220]), multiline=False, max_len=160)
-                elif key == 'summary':
-                    base_analysis[key] = _polish_spanish_text(_repair_joined_words_text(value), multiline=True, max_len=1200)
-                else:
-                    base_analysis[key] = _polish_spanish_text(_repair_joined_words_text(value), multiline=True, max_len=8000 if key == 'objective' else 3000)
-        for key in ('work_contexts', 'objective_tags', 'exercise_types', 'phase_tags', 'detected_materials'):
-            value = parsed.get(key)
-            if isinstance(value, list) and value:
-                base_analysis[key] = value[:12]
-        parsed_sheet = parsed.get('task_sheet') if isinstance(parsed.get('task_sheet'), dict) else {}
-        if parsed_sheet:
-            merged_sheet = dict(base_analysis.get('task_sheet') or {})
-            for key in ('description', 'players', 'space', 'dimensions', 'materials'):
-                value = str(parsed_sheet.get(key) or '').strip()
-                if value:
-                    merged_sheet[key] = value
-            base_analysis['task_sheet'] = merged_sheet
-        quality_score = _parse_int(parsed.get('quality_score'))
-        if quality_score:
-            quality_score_override = max(0, min(100, int(quality_score)))
-    else:
-        quality_score_override = None
-    if not str(base_analysis.get('summary') or '').strip():
-        base_analysis['summary'] = _polish_spanish_text(
-            _repair_joined_words_text(
-                ' '.join(
-                    part for part in [
-                        str(getattr(task, 'title', '') or '').strip(),
-                        str(getattr(task, 'objective', '') or '').strip(),
-                        str(getattr(task, 'coaching_points', '') or '').strip(),
-                    ]
-                    if str(part or '').strip()
-                )
-            ),
-            multiline=True,
-            max_len=1200,
-        )
-    task_sheet_clean = base_analysis.get('task_sheet') if isinstance(base_analysis.get('task_sheet'), dict) else {}
-    task_sheet_clean = dict(task_sheet_clean)
-    if task_sheet_clean.get('description') and not task_sheet_clean.get('description_html'):
-        task_sheet_clean['description_html'] = _sanitize_task_rich_html(_rich_html_from_plain_text(task_sheet_clean.get('description')))
-    if str(getattr(task, 'coaching_points', '') or '').strip() and not task_sheet_clean.get('coaching_html'):
-        task_sheet_clean['coaching_html'] = _sanitize_task_rich_html(_rich_html_from_plain_text(str(getattr(task, 'coaching_points', '') or '').strip()))
-    if str(getattr(task, 'confrontation_rules', '') or '').strip() and not task_sheet_clean.get('rules_html'):
-        task_sheet_clean['rules_html'] = _sanitize_task_rich_html(_rich_html_from_plain_text(str(getattr(task, 'confrontation_rules', '') or '').strip()))
-    base_analysis['task_sheet'] = task_sheet_clean
-    base_analysis['quality_score'] = quality_score_override if quality_score_override is not None else _analysis_quality_score(base_analysis)
-    base_analysis['generated_at'] = timezone.now().isoformat()
-    base_analysis['generation_mode'] = 'llm' if llm_used and isinstance(parsed, dict) else 'heuristic'
-    base_analysis['analysis_source'] = 'ollana_task_detail'
-    meta['analysis'] = base_analysis
-    layout['meta'] = meta
-    task.tactical_layout = layout
-    task.save(update_fields=['tactical_layout'])
-    return {
-        'ok': True,
-        'used_llm': bool(llm_used and isinstance(parsed, dict)),
-        'analysis': base_analysis,
-    }
 
 
 def _analysis_confidence_scores(analysis):
@@ -34065,6 +32945,52 @@ def _update_library_task_from_post(task, post_data, scope_key=None):
             if sheet_key == 'space':
                 touched_space = True
 
+    meta_field_map = {
+        'task_game_context': ('game_context', True, 1000),
+        'task_principle': ('principle', False, 120),
+        'task_subprinciple': ('subprinciple', False, 160),
+        'task_provocation_rule': ('provocation_rule', True, 500),
+        'task_progression': ('progression', True, 500),
+        'task_regression': ('regression', True, 500),
+        'task_success_criteria': ('success_criteria', True, 500),
+        'task_training_type': ('training_type', False, 120),
+        'task_player_count': ('player_count', False, 100),
+        'task_players_distribution': ('players_distribution', False, 180),
+        'task_load_target': ('load_target', False, 180),
+        'task_work_rest': ('work_rest', False, 180),
+        'task_team_a_count': ('team_a_count', False, 20),
+        'task_team_b_count': ('team_b_count', False, 20),
+        'task_neutral_count': ('neutral_count', False, 20),
+        'task_goalkeeper_count': ('goalkeeper_count', False, 20),
+        'task_space_objective': ('space_objective', False, 40),
+        'task_space_m2_per_player': ('space_m2_per_player', False, 40),
+        'task_space_recommendation': ('space_recommendation', True, 700),
+        'task_microcycle_day': ('microcycle_day', False, 80),
+        'task_microcycle_objective': ('microcycle_objective', True, 500),
+        'task_microcycle_match_relation': ('microcycle_match_relation', True, 500),
+        'task_morphocycle_focus': ('morphocycle_focus', False, 120),
+        'task_conditional_orientation': ('conditional_orientation', False, 160),
+        'task_recovery_orientation': ('recovery_orientation', False, 160),
+        'task_game_moment': ('game_moment', False, 40),
+        'task_dominant_structure': ('dominant_structure', False, 40),
+        'task_secondary_structure': ('secondary_structure', False, 40),
+        'task_physical_load': ('physical_load', False, 20),
+        'task_cognitive_load': ('cognitive_load', False, 20),
+        'task_emotional_load': ('emotional_load', False, 20),
+    }
+    for post_key, field_config in meta_field_map.items():
+        if post_key in post_data:
+            meta_key, multiline, max_len = field_config
+            meta[meta_key] = _polish_spanish_text(
+                _repair_joined_words_text(str(post_data.get(post_key) or '').strip()),
+                multiline=bool(multiline),
+                max_len=int(max_len),
+            )
+            if meta_key == 'training_type' and not str(meta.get('strategy') or '').strip():
+                meta['strategy'] = meta[meta_key]
+            if meta_key == 'load_target' and not str(meta.get('coordination_skills') or '').strip():
+                meta['coordination_skills'] = meta[meta_key]
+
     # Si la edición llega desde la ficha, sincronizamos también su HTML para que el PDF (UEFA/Club)
     # muestre el texto actualizado (el renderer prioriza `*_html` cuando existe).
     if 'task_sheet_description' in post_data:
@@ -34076,81 +33002,6 @@ def _update_library_task_from_post(task, post_data, scope_key=None):
     if 'task_confrontation_rules' in post_data:
         if _sync_task_sheet_html('rules_html', task.confrontation_rules):
             task_sheet_touched = True
-    meta_field_touched = False
-    choice_meta_fields = [
-        ('task_surface', 'surface', TASK_SURFACE_CHOICES, 32),
-        ('task_pitch_format', 'pitch_format', TASK_PITCH_FORMAT_CHOICES, 32),
-        ('task_complexity', 'complexity', TASK_COMPLEXITY_CHOICES, 24),
-        ('task_strategy', 'strategy', TASK_STRATEGY_CHOICES, 40),
-        ('task_dynamics', 'dynamics', TASK_DYNAMICS_CHOICES, 40),
-        ('task_structure', 'structure', TASK_STRUCTURE_CHOICES, 40),
-        ('task_coordination', 'coordination', TASK_COORDINATION_CHOICES, 40),
-        ('task_coordination_skills', 'coordination_skills', TASK_COORDINATION_SKILLS_CHOICES, 40),
-        ('task_tactical_intent', 'tactical_intent', TASK_TACTICAL_INTENT_CHOICES, 40),
-        ('task_game_moment', 'game_moment', GAME_MOMENT_CHOICES, 40),
-        ('task_dominant_structure', 'dominant_structure', PLAYER_STRUCTURE_CHOICES, 40),
-        ('task_secondary_structure', 'secondary_structure', PLAYER_STRUCTURE_CHOICES, 40),
-        ('task_physical_load', 'physical_load', TASK_LOAD_LEVEL_CHOICES, 20),
-        ('task_cognitive_load', 'cognitive_load', TASK_LOAD_LEVEL_CHOICES, 20),
-        ('task_emotional_load', 'emotional_load', TASK_LOAD_LEVEL_CHOICES, 20),
-        ('task_rpe_scale', 'rpe_scale', TASK_RPE_SCALE_CHOICES, 20),
-        ('task_md_day', 'md_day', TASK_MD_DAY_CHOICES, 24),
-        ('task_dominant_load', 'dominant_load', TASK_DOMINANT_LOAD_CHOICES, 24),
-    ]
-    for post_key, meta_key, choices, max_len in choice_meta_fields:
-        if post_key in post_data:
-            meta[meta_key] = _clean_choice_value(post_data.get(post_key), {key for key, _ in choices}, max_len=max_len)
-            if meta_key == 'rpe_scale' and not meta[meta_key]:
-                meta[meta_key] = 'cr10'
-            meta_field_touched = True
-    text_meta_fields = [
-        ('task_player_count', 'player_count', 120, False),
-        ('task_age_group', 'age_group', 80, False),
-        ('task_training_type', 'training_type', 120, False),
-        ('task_players_distribution', 'players_distribution', 180, False),
-        ('task_series', 'series', 40, False),
-        ('task_repetitions', 'repetitions', 40, False),
-        ('task_work_rest', 'work_rest', 120, False),
-        ('task_principle', 'principle', 120, False),
-        ('task_subprinciple', 'subprinciple', 160, False),
-        ('task_provocation_rule', 'provocation_rule', 500, True),
-        ('task_load_target', 'load_target', 180, False),
-        ('task_monotony_target', 'monotony_target', 40, False),
-        ('task_strain_target', 'strain_target', 60, False),
-        ('task_load_notes', 'load_notes', 500, True),
-    ]
-    for post_key, meta_key, max_len, multiline in text_meta_fields:
-        if post_key in post_data:
-            meta[meta_key] = _polish_spanish_text(
-                _repair_joined_words_text(str(post_data.get(post_key) or '').strip()),
-                multiline=bool(multiline),
-                max_len=max_len,
-            )
-            meta_field_touched = True
-    rich_meta_fields = [
-        ('task_organization', 'organization', 'organization_html'),
-        ('task_progression', 'progression', 'progression_html'),
-        ('task_regression', 'regression', 'regression_html'),
-        ('task_success_criteria', 'success_criteria', 'success_criteria_html'),
-    ]
-    for post_key, meta_key, html_key in rich_meta_fields:
-        if post_key in post_data:
-            plain_value = _polish_spanish_text(
-                _repair_joined_words_text(str(post_data.get(post_key) or '').strip()),
-                multiline=True,
-                max_len=8000,
-            )
-            meta[meta_key] = plain_value
-            meta[html_key] = _sanitize_task_rich_html(_rich_html_from_plain_text(plain_value)) if plain_value else ''
-            meta_field_touched = True
-    if 'task_planned_rpe' in post_data:
-        meta['planned_rpe'] = _bounded_optional_int(post_data.get('task_planned_rpe'), min_value=0, max_value=20)
-        meta_field_touched = True
-    if 'task_wellness_target' in post_data:
-        meta['wellness_target'] = _bounded_optional_int(post_data.get('task_wellness_target'), min_value=1, max_value=10)
-        meta_field_touched = True
-    if meta_field_touched:
-        meta['planned_srpe_load'] = _task_srpe_load(minutes, meta.get('planned_rpe'))
     if task_sheet_touched:
         analysis_meta['task_sheet'] = task_sheet
         if touched_space:
@@ -34170,8 +33021,6 @@ def _update_library_task_from_post(task, post_data, scope_key=None):
             ]
         )
     else:
-        if meta_field_touched:
-            meta['analysis'] = analysis_meta
         layout['meta'] = meta
         task.tactical_layout = layout
         task.save(
@@ -34481,6 +33330,16 @@ def _enhance_task_preview_data_url_for_club_pdf(data_url):
 
 def _build_embedded_preview_data_url(raw_bytes: bytes, *, max_w: int = 1280, max_h: int = 800) -> str:
     return task_library_services.build_embedded_preview_data_url(raw_bytes, max_w=max_w, max_h=max_h)
+
+
+def _clean_task_3d_preview_data_url(data_url: str) -> str:
+    raw_bytes, _extension = _decode_canvas_data_url(data_url)
+    if not raw_bytes or len(raw_bytes) > 10_000_000:
+        return ''
+    try:
+        return _build_embedded_preview_data_url(raw_bytes, max_w=1800, max_h=1100)
+    except Exception:
+        return ''
 
 
 def _embedded_preview_bytes_from_task(task_obj):
@@ -35537,7 +34396,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                         'repository': LIBRARY_REPOSITORY_INTERACTIVE,
                         'pitch_preset': 'full_pitch',
                         'pitch_orientation': 'landscape',
-                        'pitch_grass_style': 'stadium_native',
+                        'pitch_grass_style': DEFAULT_TASK_PITCH_GRASS_STYLE,
                         'pitch_zoom': 1.0,
                         'multi_board': bool(len(timeline) >= 2),
                         'player_count': player_count,
@@ -35676,10 +34535,6 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 skipped_sessions = 0
                 base_title = title_prefix or template.label
                 allowed_intensity = {item[0] for item in TrainingSession.INTENSITY_CHOICES}
-                allowed_cycle_types = {item[0] for item in TrainingMicrocycle.TYPE_CHOICES}
-                allowed_md_days = {item[0] for item in TrainingSession.DAY_CHOICES}
-                allowed_loads = {item[0] for item in TrainingSession.DOMINANT_LOAD_CHOICES}
-                allowed_game_moments = {item[0] for item in GAME_MOMENT_CHOICES}
 
                 for week_index in range(int(template.weeks or 0)):
                     week_start = cycle_start + timedelta(days=7 * week_index)
@@ -35694,15 +34549,6 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                         week_title = f'{base_title} · {week_tpl.title or ("Semana " + str(week_index + 1))}'
                         week_objective = str(getattr(week_tpl, 'objective', '') or '').strip()[:200]
                         week_sessions = list(getattr(week_tpl, 'sessions', None) or [])
-                    week_cycle_type = str(getattr(week_tpl, 'cycle_type', '') or '').strip()
-                    if week_cycle_type not in allowed_cycle_types:
-                        week_cycle_type = TrainingMicrocycle.TYPE_STANDARD
-                    week_game_moment = str(getattr(week_tpl, 'game_moment', '') or '').strip()
-                    if week_game_moment not in allowed_game_moments:
-                        week_game_moment = ''
-                    week_game_model_focus = str(getattr(week_tpl, 'game_model_focus', '') or '').strip()[:180]
-                    week_principle = str(getattr(week_tpl, 'principle', '') or '').strip()[:120]
-                    week_subprinciple = str(getattr(week_tpl, 'subprinciple', '') or '').strip()[:160]
 
                     microcycle, created = TrainingMicrocycle.objects.get_or_create(
                         team=primary_team,
@@ -35711,11 +34557,6 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                             'week_end': week_end,
                             'title': week_title[:140],
                             'objective': week_objective,
-                            'cycle_type': week_cycle_type,
-                            'game_model_focus': week_game_model_focus,
-                            'game_moment': week_game_moment,
-                            'principle': week_principle,
-                            'subprinciple': week_subprinciple,
                             'status': TrainingMicrocycle.STATUS_DRAFT,
                             'notes': '',
                         },
@@ -35735,17 +34576,6 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                         intensity = str(getattr(sess_tpl, 'intensity', '') or '').strip()
                         if intensity not in allowed_intensity:
                             intensity = TrainingSession.INTENSITY_MEDIUM
-                        md_day = str(getattr(sess_tpl, 'md_day', '') or '').strip()
-                        if md_day not in allowed_md_days:
-                            md_day = ''
-                        dominant_load = str(getattr(sess_tpl, 'dominant_load', '') or '').strip()
-                        if dominant_load not in allowed_loads:
-                            dominant_load = ''
-                        session_game_moment = str(getattr(sess_tpl, 'game_moment', '') or '').strip()
-                        if session_game_moment not in allowed_game_moments:
-                            session_game_moment = ''
-                        session_principle = str(getattr(sess_tpl, 'principle', '') or '').strip()[:120]
-                        session_subprinciple = str(getattr(sess_tpl, 'subprinciple', '') or '').strip()[:160]
                         try:
                             duration_minutes = int(getattr(sess_tpl, 'duration_minutes', 90) or 90)
                         except Exception:
@@ -35757,11 +34587,6 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                             defaults={
                                 'duration_minutes': max(15, min(duration_minutes, 240)),
                                 'intensity': intensity,
-                                'md_day': md_day,
-                                'dominant_load': dominant_load,
-                                'game_moment': session_game_moment,
-                                'principle': session_principle,
-                                'subprinciple': session_subprinciple,
                                 'status': TrainingSession.STATUS_PLANNED,
                                 'order': order_index,
                                 'content': '',
@@ -38835,16 +37660,12 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             session_library_rows.append(
                 {
                     'id': sid,
-                    'session_date_iso': str(getattr(s.session_date, 'isoformat', lambda: '')() or ''),
                     'title': f'{s.session_date:%d/%m/%Y} · S{seq} ({season_label}) · {str(s.focus or "").strip() or f"Sesión {sid}"}',
-                    'focus_title': str(s.focus or "").strip() or f"Sesión {sid}",
-                    'session_badge': f'S{seq} · {season_label}',
                     'label': label,
                     'duration': int(s.duration_minutes or 0),
                     'intensity': intensity_label,
                     'status': status_label,
                     'tasks_count': int(tasks_count_map.get(sid, 0)),
-                    'tasks_label': 'Con tareas' if int(tasks_count_map.get(sid, 0)) > 0 else 'Sin tareas',
                     'attendance_label': attendance_label,
                     'url_ficha': reverse('training-session-detail', args=[sid]),
                     'url_editor': reverse(_sessions_scope_route_name(scope_key)) + f'?tab=sessions&sessions_view=editor&session_id={sid}&team={int(primary_team.id)}' + (f'&workspace={active_workspace_id}' if active_workspace_id else '') + '#planner-active-session',
@@ -38991,238 +37812,98 @@ def _task_builder_edit_route_name(scope_key):
     }.get(scope_key, 'sessions-task-edit')
 
 
-def _task_builder_library_route_name(scope_key):
-    return {
-        'coach': 'sessions-task-library',
-        'goalkeeper': 'sessions-goalkeeper-task-library',
-        'fitness': 'sessions-fitness-task-library',
-    }.get(scope_key, 'sessions-task-library')
-
-
-def _task_builder_pdf_assets_cache_key(team_id, user_id):
-    return f"task_builder:v3:pdf_assets:{int(team_id)}:{int(user_id)}"
-
-
-def _task_builder_resource_library_pref_workspace(request, primary_team):
-    workspace = None
+def _create_quick_task_draft(request, primary_team, scope_key):
+    library_repository = _normalize_library_repository(
+        request.GET.get('repo') or request.GET.get('library_repo') or LIBRARY_REPOSITORY_INTERACTIVE
+    )
+    target_session = None
     try:
-        workspace = _get_active_workspace(request)
+        wants_session = str(request.GET.get('assign') or request.GET.get('use_session') or '').strip().lower() in {'1', 'true', 'yes', 'on', 'si', 'sí'}
+        target_session_id = _parse_int(request.GET.get('session_id') or request.GET.get('from_session'))
+        if wants_session and target_session_id:
+            target_session = (
+                TrainingSession.objects
+                .select_related('microcycle')
+                .filter(id=int(target_session_id), microcycle__team=primary_team)
+                .first()
+            )
     except Exception:
-        workspace = None
-    if workspace or not primary_team:
-        return workspace
+        target_session = None
+    if not target_session:
+        target_session = _get_or_create_library_session_with_repository(primary_team, scope_key, repository=library_repository)
+    is_library = _is_library_session(target_session)
+    title = _sanitize_task_text(str(request.GET.get('title') or '').strip(), multiline=False, max_len=160) or 'Nueva tarea'
+    pitch_preset = 'full_pitch'
+    pitch_orientation = 'landscape'
+    pitch_grass_style = DEFAULT_TASK_PITCH_GRASS_STYLE
     try:
-        return Workspace.objects.filter(primary_team=primary_team).first()
+        default_surface = _default_task_surface_for_request(request, primary_team)
     except Exception:
-        return None
-
-
-def _task_builder_resource_library_pref_key(primary_team):
-    return f'task_builder_resource_library:v1:team:{int(getattr(primary_team, "id", 0) or 0)}'
-
-
-def _task_builder_resource_library_hidden_keys(request, primary_team):
-    workspace = _task_builder_resource_library_pref_workspace(request, primary_team)
-    if not workspace or not primary_team:
-        return set()
+        default_surface = ''
     try:
-        pref = WorkspacePreference.objects.filter(
-            workspace=workspace,
-            key=_task_builder_resource_library_pref_key(primary_team),
-        ).only('value').first()
-        value = pref.value if pref else {}
-        if isinstance(value, str):
-            value = _coerce_json_dict(value) or {}
-        raw = value.get('hidden_resources') if isinstance(value, dict) else []
-        if not isinstance(raw, list):
-            return set()
-        return {
-            str(item or '').strip()
-            for item in raw
-            if str(item or '').strip()
-        }
+        default_age = _default_task_age_group_for_team(primary_team)
     except Exception:
-        return set()
-
-
-def _save_task_builder_resource_library_hidden_keys(request, primary_team, hidden_keys):
-    workspace = _task_builder_resource_library_pref_workspace(request, primary_team)
-    if not workspace or not primary_team:
-        return False
-    cleaned = sorted({
-        str(item or '').strip()
-        for item in (hidden_keys or [])
-        if str(item or '').strip()
-    })
-    try:
-        WorkspacePreference.objects.update_or_create(
-            workspace=workspace,
-            key=_task_builder_resource_library_pref_key(primary_team),
-            defaults={'value': {'hidden_resources': cleaned}},
-        )
-        return True
-    except Exception:
-        logger.exception(
-            'task_resource_library: no se pudo guardar visibilidad',
-            extra={'team_id': getattr(primary_team, 'id', None), 'workspace_id': getattr(workspace, 'id', None)},
-        )
-        return False
-
-
-def _task_builder_resource_library_context(request, primary_team, *, context_cache_seconds=300, include_hidden=False):
-    hidden_resource_keys = _task_builder_resource_library_hidden_keys(request, primary_team)
-    board_resource_groups = []
-    board_resource_count = 0
-    try:
-        for group in TASK_RESOURCE_LIBRARY_BASE_GROUPS:
-            group_items = []
-            for item in list(group.get('items') or []):
-                prepared = dict(item)
-                prepared['is_hidden'] = prepared.get('add_key') in hidden_resource_keys
-                if include_hidden or not prepared['is_hidden']:
-                    group_items.append(prepared)
-            if group_items:
-                board_resource_groups.append(
-                    {
-                        'category': str(group.get('category') or '').strip() or 'General',
-                        'items': group_items,
-                    }
-                )
-        board_resource_count = sum(len(group.get('items') or []) for group in board_resource_groups)
-    except Exception:
-        board_resource_groups = []
-        board_resource_count = 0
-
-    pdf_assets = []
-    try:
-        cache_key = _task_builder_pdf_assets_cache_key(primary_team.id, int(getattr(request.user, 'id', 0) or 0))
-        cached = cache.get(cache_key)
-        if isinstance(cached, list):
-            pdf_assets = cached
-        else:
-            system_team = None
-            try:
-                system_team = Team.objects.filter(slug='pizarra').first()
-            except Exception:
-                system_team = None
-            assets_filter = Q(team=primary_team) | Q(owner=request.user)
-            if system_team:
-                assets_filter |= Q(team=system_team)
-            pdf_assets = []
-            for asset in (
-                PdfGraphicAsset.objects
-                .filter(assets_filter)
-                .exclude(file='')
-                .only('id', 'title', 'width', 'height', 'source_pdf_name', 'created_at', 'team_id', 'owner_id')
-                .order_by('-created_at', '-id')[:220]
-            ):
-                pdf_assets.append(
-                    {
-                        'id': int(asset.id),
-                        'title': str(asset.title or '').strip(),
-                        'width': int(asset.width or 0),
-                        'height': int(asset.height or 0),
-                        'source_pdf_name': str(asset.source_pdf_name or '').strip(),
-                        'url': reverse('pdf-graphic-asset-file', args=[int(asset.id)]),
-                        'is_system': bool(system_team and getattr(asset, 'team_id', None) == getattr(system_team, 'id', None)),
-                        'is_personal': bool(getattr(asset, 'owner_id', None) == getattr(request.user, 'id', None)),
-                        'add_key': f'pdf_asset:{int(asset.id)}',
-                    }
-                )
-            cache.set(cache_key, pdf_assets, context_cache_seconds)
-    except Exception:
-        pdf_assets = []
-        logger.exception('task_resource_library: no se pudieron cargar assets PDF', extra={'team_id': getattr(primary_team, 'id', None)})
-    if hidden_resource_keys:
-        for item in pdf_assets:
-            item['is_hidden'] = item.get('add_key') in hidden_resource_keys
-    else:
-        for item in pdf_assets:
-            item['is_hidden'] = False
-    if not include_hidden:
-        pdf_assets = [item for item in pdf_assets if not item.get('is_hidden')]
-
-    ppt_icons = []
-    try:
-        cache_key = "task_builder:v3:ppt_icons"
-        cached = cache.get(cache_key)
-        if isinstance(cached, list):
-            ppt_icons = cached
-        else:
-            if TASK_MATERIAL_PPT_DIR and TASK_MATERIAL_PPT_DIR.exists():
-                allowed = {'.png', '.jpg', '.jpeg', '.webp', '.gif'}
-                files = [p for p in TASK_MATERIAL_PPT_DIR.iterdir() if p.is_file() and p.suffix.lower() in allowed]
-                files = sorted(files, key=lambda p: p.name.lower())[:180]
-                for p in files:
-                    ppt_icons.append(
-                        {
-                            'label': str(p.stem or '').strip()[:80],
-                            'static_path': f'football/images/task-materials/ppt/{p.name}',
-                            'add_key': f'image_url:{static(f"football/images/task-materials/ppt/{p.name}")}',
-                        }
-                    )
-            cache.set(cache_key, ppt_icons, context_cache_seconds)
-    except Exception:
-        ppt_icons = []
-    if hidden_resource_keys:
-        for item in ppt_icons:
-            item['is_hidden'] = item.get('add_key') in hidden_resource_keys
-    else:
-        for item in ppt_icons:
-            item['is_hidden'] = False
-    if not include_hidden:
-        ppt_icons = [item for item in ppt_icons if not item.get('is_hidden')]
-
-    drills_catalog = []
-    drill_groups = []
-    try:
-        cache_key = "task_builder:v3:drills_catalog"
-        cached = cache.get(cache_key)
-        if isinstance(cached, list):
-            drills_catalog = cached
-        else:
-            drills_catalog = [
-                {
-                    'id': item.id,
-                    'label': item.label,
-                    'category': item.category,
-                    'icon_static_path': item.icon_static_path,
-                    'add_key': f'image_url:{static(item.icon_static_path)}',
-                    'age_min': item.age_min,
-                    'age_max': item.age_max,
-                }
-                for item in DRILL_CATALOG
-            ]
-            cache.set(cache_key, drills_catalog, context_cache_seconds)
-        if hidden_resource_keys:
-            for item in drills_catalog:
-                item['is_hidden'] = item.get('add_key') in hidden_resource_keys
-        else:
-            for item in drills_catalog:
-                item['is_hidden'] = False
-        if not include_hidden:
-            drills_catalog = [item for item in drills_catalog if not item.get('is_hidden')]
-        grouped = defaultdict(list)
-        for item in drills_catalog:
-            grouped[str(item.get('category') or 'General').strip() or 'General'].append(item)
-        drill_groups = [
-            {'category': category, 'items': items}
-            for category, items in sorted(grouped.items(), key=lambda kv: kv[0].lower())
-        ]
-    except Exception:
-        drills_catalog = []
-        drill_groups = []
-        logger.exception('task_resource_library: no se pudo construir catálogo de drills', extra={'team_id': getattr(primary_team, 'id', None)})
-
-    return {
-        'board_resource_groups': board_resource_groups,
-        'board_resource_count': board_resource_count,
-        'pdf_assets': pdf_assets,
-        'ppt_icons': ppt_icons,
-        'drills_catalog': drills_catalog,
-        'drill_groups': drill_groups,
-        'hidden_resource_keys': sorted(hidden_resource_keys),
+        default_age = ''
+    tactical_layout = {
+        'tokens': [],
+        'timeline': [],
+        'meta': {
+            'scope': scope_key,
+            'source': 'quick-html-draft',
+            **({'repository': library_repository} if is_library else {}),
+            'is_template': bool(is_library),
+            'surface': default_surface,
+            'pitch_preset': pitch_preset,
+            'pitch_orientation': pitch_orientation,
+            'pitch_zoom': 1.0,
+            'pitch_grass_style': pitch_grass_style,
+            'age_group': default_age,
+            'graphic_editor': {
+                'canvas_state': _starter_canvas_state(pitch_preset),
+                'canvas_width': 1280,
+                'canvas_height': 720,
+            },
+            'analysis': {
+                'task_sheet': {
+                    'description': '',
+                    'description_html': '',
+                    'coaching_html': '',
+                    'rules_html': '',
+                    'players': '',
+                    'space': '',
+                    'dimensions': '',
+                    'materials': '',
+                },
+            },
+        },
     }
+    task = SessionTask.objects.create(
+        session=target_session,
+        title=title[:160],
+        block=SessionTask.BLOCK_MAIN_1,
+        duration_minutes=15,
+        objective='',
+        coaching_points='',
+        confrontation_rules='',
+        tactical_layout=tactical_layout,
+        status=SessionTask.STATUS_PLANNED,
+        order=SessionTask.objects.filter(session=target_session, deleted_at__isnull=True).count() + 1,
+        notes='Borrador creado desde ficha HTML',
+    )
+    try:
+        if is_library:
+            layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+            layout = dict(layout)
+            meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+            meta = dict(meta)
+            meta['library_source_task_id'] = int(task.id)
+            meta['is_template'] = True
+            layout['meta'] = meta
+            task.tactical_layout = layout
+            task.save(update_fields=['tactical_layout'])
+    except Exception:
+        pass
+    return task
 
 
 def _build_tactical_player_catalog(request, primary_team):
@@ -39232,7 +37913,7 @@ def _build_tactical_player_catalog(request, primary_team):
     players = (
         Player.objects
         .filter(team=primary_team, is_active=True)
-        .only('id', 'name', 'nickname', 'number', 'position', 'photo_updated_at')
+        .only('id', 'name', 'nickname', 'number', 'position', 'height_cm', 'weight_kg', 'photo_updated_at')
         .order_by('number', 'name')[:60]
     )
     for player in players:
@@ -39248,6 +37929,8 @@ def _build_tactical_player_catalog(request, primary_team):
                 'nickname': str(getattr(player, 'nickname', '') or '').strip(),
                 'number': _parse_int(player.number) or '',
                 'position': str(player.position or '').strip(),
+                'height_cm': _parse_int(player.height_cm) or '',
+                'weight_kg': float(player.weight_kg) if player.weight_kg is not None else '',
                 'photo_url': str(photo_url or '').strip(),
             }
         )
@@ -39288,6 +37971,9 @@ def _build_task_studio_player_catalog(request, owner):
             }
         )
     return catalog
+
+
+DEFAULT_TASK_PITCH_GRASS_STYLE = 'stadium_top'
 
 
 def _task_builder_initial_values(task):
@@ -39481,6 +38167,7 @@ def _task_builder_initial_values(task):
         'pitch_format': str(meta.get('pitch_format') or ''),
         'game_phase': str(meta.get('game_phase') or ''),
         'game_moment': str(meta.get('game_moment') or ''),
+        'game_context': str(meta.get('game_context') or ''),
         'principle': str(meta.get('principle') or ''),
         'subprinciple': str(meta.get('subprinciple') or ''),
         'provocation_rule': str(meta.get('provocation_rule') or ''),
@@ -39489,15 +38176,6 @@ def _task_builder_initial_values(task):
         'physical_load': str(meta.get('physical_load') or ''),
         'cognitive_load': str(meta.get('cognitive_load') or ''),
         'emotional_load': str(meta.get('emotional_load') or ''),
-        'rpe_scale': str(meta.get('rpe_scale') or 'cr10'),
-        'planned_rpe': '' if meta.get('planned_rpe') is None else str(meta.get('planned_rpe') or ''),
-        'planned_srpe_load': '' if meta.get('planned_srpe_load') is None else str(meta.get('planned_srpe_load') or ''),
-        'wellness_target': '' if meta.get('wellness_target') is None else str(meta.get('wellness_target') or ''),
-        'monotony_target': str(meta.get('monotony_target') or ''),
-        'strain_target': str(meta.get('strain_target') or ''),
-        'md_day': str(meta.get('md_day') or ''),
-        'dominant_load': str(meta.get('dominant_load') or ''),
-        'load_notes': str(meta.get('load_notes') or ''),
         'methodology': str(meta.get('methodology') or ''),
         'complexity': str(meta.get('complexity') or ''),
         'strategy': str(meta.get('strategy') or ''),
@@ -39510,7 +38188,8 @@ def _task_builder_initial_values(task):
         'pitch_preset': str(meta.get('pitch_preset') or 'full_pitch'),
         'pitch_orientation': str(meta.get('pitch_orientation') or 'landscape'),
         'pitch_zoom': str(meta.get('pitch_zoom') or '1.00'),
-        'pitch_grass_style': 'stadium_native' if str(meta.get('pitch_grass_style') or '').strip().lower() in {'', 'stadium_top', 'stadium_top_h', 'stadium_top_v'} else str(meta.get('pitch_grass_style') or 'stadium_native'),
+        'pitch_grass_style': str(meta.get('pitch_grass_style') or DEFAULT_TASK_PITCH_GRASS_STYLE),
+        'pitch3d_preview_data': str(meta.get('pitch3d_preview_data_v1') or ''),
         'series': str(meta.get('series') or ''),
         'repetitions': str(meta.get('repetitions') or ''),
         'player_count': str(meta.get('player_count') or ''),
@@ -39582,40 +38261,14 @@ def _normalize_animation_timeline(raw_timeline):
         if not isinstance(item, dict):
             continue
         canvas_state = item.get('canvas_state')
-        if isinstance(canvas_state, str):
-            canvas_state = _coerce_json_dict(canvas_state)
         if not isinstance(canvas_state, dict):
-            canvas_state = item.get('state')
-            if isinstance(canvas_state, str):
-                canvas_state = _coerce_json_dict(canvas_state)
-            if not isinstance(canvas_state, dict):
-                continue
-        normalized_objects = canvas_state.get('objects')
-        if not isinstance(normalized_objects, list):
-            normalized_objects = canvas_state.get('_objects')
-        if not isinstance(normalized_objects, list):
-            normalized_objects = canvas_state.get('tokens')
-        if not isinstance(normalized_objects, list):
-            normalized_objects = []
-        # Normalización defensiva: algunas versiones antiguas guardan una lista de objetos sueltos.
-        if not normalized_objects:
             continue
-        canvas_state = {
-            'version': str(canvas_state.get('version') or '5.3.0'),
-            'width': _parse_int(canvas_state.get('width')) or 0,
-            'height': _parse_int(canvas_state.get('height')) or 0,
-            'objects': normalized_objects,
-        }
         title = _sanitize_task_text(str(item.get('title') or '').strip(), multiline=False, max_len=80)
         duration = max(1, min(_parse_int(item.get('duration')) or 3, 20))
-        canvas_width = _parse_int(item.get('canvas_width')) or _parse_int(item.get('width')) or _parse_int(canvas_state.get('width')) or 0
-        canvas_height = _parse_int(item.get('canvas_height')) or _parse_int(item.get('height')) or _parse_int(canvas_state.get('height')) or 0
         normalized.append(
             {
                 'title': title or f'Paso {index + 1}',
                 'duration': duration,
-                'canvas_width': canvas_width,
-                'canvas_height': canvas_height,
                 'canvas_state': canvas_state,
             }
         )
@@ -39623,20 +38276,6 @@ def _normalize_animation_timeline(raw_timeline):
 
 
 def _save_task_builder_entry(request, primary_team, scope_key, existing_task=None):
-    if not existing_task:
-        raw_post_task_id = _parse_int(request.POST.get('task_id'))
-        if raw_post_task_id:
-            candidate_task = (
-                SessionTask.objects
-                .select_related('session__microcycle')
-                .filter(id=raw_post_task_id, session__microcycle__team=primary_team, deleted_at__isnull=True)
-                .first()
-            )
-            if not candidate_task:
-                raise ValueError('No se pudo identificar la tarea a guardar.')
-            if _task_scope_for_item(candidate_task) != scope_key:
-                raise ValueError('La tarea no pertenece a este espacio.')
-            existing_task = candidate_task
     existing_meta = _task_existing_meta(existing_task)
     existing_analysis = existing_meta.get('analysis') if isinstance(existing_meta.get('analysis'), dict) else {}
     existing_task_sheet = existing_analysis.get('task_sheet') if isinstance(existing_analysis.get('task_sheet'), dict) else {}
@@ -39649,8 +38288,6 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     except Exception:
         pass
     target_session_id = _parse_int(request.POST.get('draw_target_session_id'))
-    raw_submission_uid = str(request.POST.get('task_submit_uid') or '').strip()[:64]
-    submission_uid = re.sub(r'[^0-9a-zA-Z_-]', '', raw_submission_uid)
     library_repository = _normalize_library_repository(
         request.POST.get('draw_library_repository') or request.POST.get('library_repo') or LIBRARY_REPOSITORY_TRADITIONAL
     )
@@ -39877,6 +38514,18 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         if raw_game_moment is not None
         else str(existing_meta.get('game_moment') or '')
     )
+    raw_game_context = request.POST.get('draw_task_game_context')
+    game_context = (
+        _sanitize_task_text(str(raw_game_context or '').strip(), multiline=True, max_len=1000)
+        if raw_game_context is not None
+        else str(existing_meta.get('game_context') or '')
+    )
+    raw_pitch3d_preview = request.POST.get('draw_canvas_3d_preview_data')
+    pitch3d_preview_data = (
+        _clean_task_3d_preview_data_url(raw_pitch3d_preview)
+        if raw_pitch3d_preview is not None and str(raw_pitch3d_preview or '').strip()
+        else str(existing_meta.get('pitch3d_preview_data_v1') or '')
+    )
     raw_principle = request.POST.get('draw_task_principle')
     principle = (
         _clean_short_text(raw_principle, max_len=120)
@@ -39925,54 +38574,6 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         if raw_emotional_load is not None
         else str(existing_meta.get('emotional_load') or '')
     )
-    raw_rpe_scale = request.POST.get('draw_task_rpe_scale')
-    rpe_scale = (
-        _clean_choice_value(raw_rpe_scale, {key for key, _ in TASK_RPE_SCALE_CHOICES}, max_len=20)
-        if raw_rpe_scale is not None
-        else str(existing_meta.get('rpe_scale') or '')
-    ) or 'cr10'
-    raw_planned_rpe = request.POST.get('draw_task_planned_rpe')
-    planned_rpe = (
-        _bounded_optional_int(raw_planned_rpe, min_value=0, max_value=20)
-        if raw_planned_rpe is not None
-        else _bounded_optional_int(existing_meta.get('planned_rpe'), min_value=0, max_value=20)
-    )
-    raw_wellness_target = request.POST.get('draw_task_wellness_target')
-    wellness_target = (
-        _bounded_optional_int(raw_wellness_target, min_value=1, max_value=10)
-        if raw_wellness_target is not None
-        else _bounded_optional_int(existing_meta.get('wellness_target'), min_value=1, max_value=10)
-    )
-    raw_monotony_target = request.POST.get('draw_task_monotony_target')
-    monotony_target = (
-        _sanitize_task_text(str(raw_monotony_target or '').strip(), multiline=False, max_len=40)
-        if raw_monotony_target is not None
-        else str(existing_meta.get('monotony_target') or '')
-    )
-    raw_strain_target = request.POST.get('draw_task_strain_target')
-    strain_target = (
-        _sanitize_task_text(str(raw_strain_target or '').strip(), multiline=False, max_len=60)
-        if raw_strain_target is not None
-        else str(existing_meta.get('strain_target') or '')
-    )
-    raw_md_day = request.POST.get('draw_task_md_day')
-    md_day = (
-        _clean_choice_value(raw_md_day, {key for key, _ in TASK_MD_DAY_CHOICES}, max_len=24)
-        if raw_md_day is not None
-        else str(existing_meta.get('md_day') or '')
-    )
-    raw_dominant_load = request.POST.get('draw_task_dominant_load')
-    dominant_load = (
-        _clean_choice_value(raw_dominant_load, {key for key, _ in TASK_DOMINANT_LOAD_CHOICES}, max_len=24)
-        if raw_dominant_load is not None
-        else str(existing_meta.get('dominant_load') or '')
-    )
-    raw_load_notes = request.POST.get('draw_task_load_notes')
-    load_notes = (
-        _sanitize_task_text(str(raw_load_notes or '').strip(), multiline=True, max_len=500)
-        if raw_load_notes is not None
-        else str(existing_meta.get('load_notes') or '')
-    )
     raw_template_key = request.POST.get('draw_task_template')
     template_key = (raw_template_key or 'none').strip() if raw_template_key is not None else str(existing_meta.get('template_key') or 'none')
     if 'draw_task_multi_board' in request.POST:
@@ -39984,7 +38585,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     raw_pitch_orientation = request.POST.get('draw_task_pitch_orientation')
     pitch_orientation = (raw_pitch_orientation or '').strip().lower() if raw_pitch_orientation is not None else str(existing_meta.get('pitch_orientation') or 'landscape')
     raw_pitch_grass_style = request.POST.get('draw_task_pitch_grass_style')
-    pitch_grass_style = (raw_pitch_grass_style or '').strip().lower() if raw_pitch_grass_style is not None else str(existing_meta.get('pitch_grass_style') or 'stadium_native')
+    pitch_grass_style = (raw_pitch_grass_style or '').strip().lower() if raw_pitch_grass_style is not None else str(existing_meta.get('pitch_grass_style') or DEFAULT_TASK_PITCH_GRASS_STYLE)
     raw_pitch_zoom = request.POST.get('draw_task_pitch_zoom')
     pitch_zoom = None
     if raw_pitch_zoom is None:
@@ -40135,10 +38736,8 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         pitch_preset = 'full_pitch'
     if pitch_orientation not in {'landscape', 'portrait'}:
         pitch_orientation = 'landscape'
-    if pitch_grass_style in {'stadium_top', 'stadium_top_h', 'stadium_top_v'}:
-        pitch_grass_style = 'stadium_native'
-    if pitch_grass_style not in {'classic', 'broadcast', 'broadcast_premium', 'stadium_native', 'realistic', 'pro', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'}:
-        pitch_grass_style = 'stadium_native'
+    if pitch_grass_style not in {'classic', 'broadcast', 'realistic', 'pro', 'stadium_close', 'stadium_top', 'stadium_full', 'stadium_premium', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'}:
+        pitch_grass_style = 'classic'
     try:
         pitch_zoom = float(pitch_zoom or 1.0)
     except Exception:
@@ -40277,44 +38876,6 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
 
     preserved_import_meta = _import_meta_preserve(existing_task, existing_meta) if existing_task else None
     meta_source = (preserved_import_meta.get('source') if preserved_import_meta else 'manual-studio')
-
-    def _stable_signature_payload(value):
-        try:
-            return json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(',', ':'))
-        except Exception:
-            return ''
-
-    def _build_builder_signature():
-        metadata = {
-            'scope_key': scope_key,
-            'title': str(title or '').strip()[:160],
-            'block': str(block or '').strip(),
-            'duration_minutes': int(minutes or 0) or 15,
-            'target_session_id': int(target_session_id or 0),
-            'objective': str(objective or '').strip(),
-            'coaching_points': str(coaching_points or '').strip(),
-            'confrontation_rules': str(confrontation_rules or '').strip(),
-            'analysis_sheet': {
-                'description': str(description or '').strip(),
-                'coaching_html': str(coaching_html or '').strip(),
-                'rules_html': str(rules_html or '').strip(),
-                'players': str(players or '').strip(),
-                'materials': str(materials or '').strip(),
-            },
-            'layout_meta': {
-                'pitch_preset': str(pitch_preset or ''),
-                'pitch_orientation': str(pitch_orientation or ''),
-                'pitch_grass_style': str(pitch_grass_style or ''),
-                'multi_board': bool(multi_board_enabled),
-                'game_phase': str(selected_phase or ''),
-                'game_moment': str(game_moment or ''),
-                'canvas_signature': _stable_signature_payload(canvas_state),
-                'timeline_signature': _stable_signature_payload(timeline),
-            },
-        }
-        return hashlib.sha1(_stable_signature_payload(metadata).encode('utf-8')).hexdigest()
-
-    submission_signature = _build_builder_signature()
     tactical_layout = {
         'tokens': canvas_state.get('objects') if isinstance(canvas_state.get('objects'), list) else [],
         'timeline': timeline,
@@ -40333,6 +38894,8 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             'multi_board': bool(multi_board_enabled),
             'game_phase': selected_phase,
             'game_moment': game_moment,
+            'game_context': game_context,
+            'pitch3d_preview_data_v1': pitch3d_preview_data,
             'principle': principle,
             'subprinciple': subprinciple,
             'provocation_rule': provocation_rule,
@@ -40341,15 +38904,6 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             'physical_load': physical_load,
             'cognitive_load': cognitive_load,
             'emotional_load': emotional_load,
-            'rpe_scale': rpe_scale,
-            'planned_rpe': planned_rpe,
-            'planned_srpe_load': _task_srpe_load(minutes, planned_rpe),
-            'wellness_target': wellness_target,
-            'monotony_target': monotony_target,
-            'strain_target': strain_target,
-            'md_day': md_day,
-            'dominant_load': dominant_load,
-            'load_notes': load_notes,
             'methodology': selected_methodology,
             'complexity': selected_complexity,
             'strategy': selected_strategy,
@@ -40386,7 +38940,6 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
                 'canvas_width': canvas_width,
                 'canvas_height': canvas_height,
             },
-            'builder_payload_signature': submission_signature,
             'analysis': {
                 'task_sheet': {
                     'description': description,
@@ -40400,7 +38953,6 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
                 },
                 **({'opponent': opponent_meta} if opponent_meta else {}),
             },
-            **({'submission_uid': submission_uid[:64]} if submission_uid else {}),
             **(preserved_import_meta or {}),
         }
     }
@@ -40419,95 +38971,22 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         task.notes = 'Tarea actualizada en editor visual'
         task.save()
     else:
-        recent_duplicate = None
-        recent_duplicate_window = timezone.localtime() - timedelta(seconds=80)
-        if submission_uid:
-            try:
-                recent_duplicate = (
-                    SessionTask.objects
-                    .filter(
-                        session=target_session,
-                        deleted_at__isnull=True,
-                        status=SessionTask.STATUS_PLANNED,
-                        created_at__gte=recent_duplicate_window,
-                    )
-                    .filter(tactical_layout__meta__submission_uid=submission_uid)
-                    .order_by('-created_at', '-id')
-                    .first()
-                )
-            except Exception:
-                recent_duplicate = None
-        if not recent_duplicate and submission_signature:
-            try:
-                recent_duplicate = (
-                    SessionTask.objects
-                    .filter(
-                        session=target_session,
-                        deleted_at__isnull=True,
-                        status=SessionTask.STATUS_PLANNED,
-                        created_at__gte=timezone.localtime() - timedelta(seconds=50),
-                    )
-                    .filter(tactical_layout__meta__builder_payload_signature=submission_signature)
-                    .order_by('-created_at', '-id')
-                    .first()
-                )
-            except Exception:
-                recent_duplicate = None
-        if not recent_duplicate:
-            # Red de seguridad extra: si el frontend pierde el `task_id` o reenvía el mismo payload
-            # con una sesión recién abierta, evitamos crear una segunda fila idéntica.
-            try:
-                recent_candidates = (
-                    SessionTask.objects
-                    .filter(
-                        session=target_session,
-                        deleted_at__isnull=True,
-                        status=SessionTask.STATUS_PLANNED,
-                        created_at__gte=recent_duplicate_window,
-                        title=str(title or '')[:160],
-                        block=str(block or SessionTask.BLOCK_MAIN_1),
-                        duration_minutes=int(minutes or 15),
-                        objective=str(objective or '')[:8000],
-                        coaching_points=str(coaching_points or ''),
-                        confrontation_rules=str(confrontation_rules or ''),
-                    )
-                    .order_by('-created_at', '-id')
-                )
-                for candidate in recent_candidates:
-                    candidate_layout = candidate.tactical_layout if isinstance(getattr(candidate, 'tactical_layout', None), dict) else {}
-                    candidate_meta = candidate_layout.get('meta') if isinstance(candidate_layout.get('meta'), dict) else {}
-                    candidate_signature = str(candidate_meta.get('builder_payload_signature') or '').strip()
-                    candidate_uid = str(candidate_meta.get('submission_uid') or '').strip()
-                    if submission_signature and candidate_signature and candidate_signature == submission_signature:
-                        recent_duplicate = candidate
-                        break
-                    if submission_uid and candidate_uid and candidate_uid == submission_uid:
-                        recent_duplicate = candidate
-                        break
-                # Si no hay huellas guardadas, la coincidencia exacta del payload reciente ya es suficiente.
-                if not recent_duplicate:
-                    recent_duplicate = recent_candidates.first()
-            except Exception:
-                recent_duplicate = None
-        if recent_duplicate:
-            task = recent_duplicate
-        else:
-            task = SessionTask.objects.create(
-                session=target_session,
-                title=title[:160],
-                block=block,
-                duration_minutes=minutes,
-                objective=objective,
-                coaching_points=coaching_points,
-                confrontation_rules=confrontation_rules,
-                tactical_layout=tactical_layout,
-                status=SessionTask.STATUS_PLANNED,
-                order=SessionTask.objects.filter(session=target_session).count() + 1,
-                notes='Tarea creada en editor visual',
-            )
+        task = SessionTask.objects.create(
+            session=target_session,
+            title=title[:160],
+            block=block,
+            duration_minutes=minutes,
+            objective=objective,
+            coaching_points=coaching_points,
+            confrontation_rules=confrontation_rules,
+            tactical_layout=tactical_layout,
+            status=SessionTask.STATUS_PLANNED,
+            order=SessionTask.objects.filter(session=target_session).count() + 1,
+            notes='Tarea creada en editor visual',
+        )
 
     # --- Separación Tarea (plantilla) vs Sesión (instancia) ---
-    # Si el usuario guarda una tarea nueva en una sesión real, creamos (si hace falta)
+    # Si el usuario está guardando una tarea dentro de una sesión real, creamos (una vez)
     # una plantilla en Biblioteca y enlazamos la copia con `meta.library_source_task_id`.
     try:
         if task and not is_target_library:
@@ -40516,90 +38995,38 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
             meta = dict(meta) if isinstance(meta, dict) else {}
             source_template_id = _parse_int(meta.get('library_source_task_id')) or 0
-            if existing_task:
-                if source_template_id:
-                    meta['library_source_task_id'] = int(source_template_id)
-                    meta['is_template'] = False
-                    meta['repository'] = library_repository or meta.get('repository')
-                    layout['meta'] = meta
-                    task.tactical_layout = layout
-                    task.save(update_fields=['tactical_layout'])
-            else:
-                if not source_template_id:
-                    # Crea plantilla en Biblioteca (repositorio elegido en el editor).
-                    library_session = _get_or_create_library_session_with_repository(primary_team, scope_key, repository=library_repository)
-                    template_layout = dict(layout)
-                    template_meta = template_layout.get('meta') if isinstance(template_layout.get('meta'), dict) else {}
-                    template_meta = dict(template_meta) if isinstance(template_meta, dict) else {}
-                    template_meta['is_template'] = True
-                    template_meta['repository'] = library_repository
-                    template_layout['meta'] = template_meta
-                    existing_template = None
-                    if submission_signature:
-                        try:
-                            existing_template = (
-                                SessionTask.objects
-                                .filter(session=library_session, deleted_at__isnull=True)
-                                .filter(tactical_layout__meta__builder_payload_signature=submission_signature)
-                                .order_by('-created_at', '-id')
-                                .first()
-                            )
-                        except Exception:
-                            existing_template = None
-                    if not existing_template and submission_uid:
-                        try:
-                            existing_template = (
-                                SessionTask.objects
-                                .filter(session=library_session, deleted_at__isnull=True)
-                                .filter(tactical_layout__meta__submission_uid=submission_uid)
-                                .order_by('-created_at', '-id')
-                                .first()
-                            )
-                        except Exception:
-                            existing_template = None
-                    if not existing_template:
-                        try:
-                            existing_template = (
-                                SessionTask.objects
-                                .filter(
-                                    session=library_session,
-                                    deleted_at__isnull=True,
-                                    title=str(task.title or '')[:160],
-                                    block=str(task.block or SessionTask.BLOCK_MAIN_1),
-                                    duration_minutes=int(getattr(task, 'duration_minutes', 0) or 15),
-                                    notes__icontains=f'tarea #{int(task.id)}',
-                                )
-                                .order_by('-created_at', '-id')
-                                .first()
-                            )
-                        except Exception:
-                            existing_template = None
-                    if existing_template:
-                        source_template_id = int(getattr(existing_template, 'id', 0) or 0)
-                    else:
-                        template_task = SessionTask.objects.create(
-                            session=library_session,
-                            title=str(task.title or '')[:160],
-                            block=str(task.block or SessionTask.BLOCK_MAIN_1),
-                            duration_minutes=int(getattr(task, 'duration_minutes', 0) or 15),
-                            objective=str(getattr(task, 'objective', '') or '')[:8000],
-                            coaching_points=str(getattr(task, 'coaching_points', '') or ''),
-                            confrontation_rules=str(getattr(task, 'confrontation_rules', '') or ''),
-                            tactical_layout=template_layout,
-                            status=SessionTask.STATUS_PLANNED,
-                            order=SessionTask.objects.filter(session=library_session, deleted_at__isnull=True).count() + 1,
-                            notes=f'Plantilla creada desde sesión #{int(getattr(task.session, "id", 0) or 0)} · tarea #{int(task.id)}',
-                        )
-                        # Copia referencias de archivos (si existen) sin duplicar el contenido.
-                        try:
-                            if getattr(task, 'task_pdf', None):
-                                template_task.task_pdf = task.task_pdf.name
-                            if getattr(task, 'task_preview_image', None):
-                                template_task.task_preview_image = task.task_preview_image.name
-                            template_task.save(update_fields=['task_pdf', 'task_preview_image'])
-                        except Exception:
-                            pass
-                        source_template_id = int(getattr(template_task, 'id', 0) or 0)
+            if not source_template_id:
+                # Crea plantilla en Biblioteca (repositorio elegido en el editor).
+                library_session = _get_or_create_library_session_with_repository(primary_team, scope_key, repository=library_repository)
+                template_layout = dict(layout)
+                template_meta = template_layout.get('meta') if isinstance(template_layout.get('meta'), dict) else {}
+                template_meta = dict(template_meta) if isinstance(template_meta, dict) else {}
+                template_meta['is_template'] = True
+                template_meta['repository'] = library_repository
+                template_layout['meta'] = template_meta
+                template_task = SessionTask.objects.create(
+                    session=library_session,
+                    title=str(task.title or '')[:160],
+                    block=str(task.block or SessionTask.BLOCK_MAIN_1),
+                    duration_minutes=int(getattr(task, 'duration_minutes', 0) or 15),
+                    objective=str(getattr(task, 'objective', '') or '')[:8000],
+                    coaching_points=str(getattr(task, 'coaching_points', '') or ''),
+                    confrontation_rules=str(getattr(task, 'confrontation_rules', '') or ''),
+                    tactical_layout=template_layout,
+                    status=SessionTask.STATUS_PLANNED,
+                    order=SessionTask.objects.filter(session=library_session, deleted_at__isnull=True).count() + 1,
+                    notes=f'Plantilla creada desde sesión #{int(getattr(task.session, "id", 0) or 0)} · tarea #{int(task.id)}',
+                )
+                # Copia referencias de archivos (si existen) sin duplicar el contenido.
+                try:
+                    if getattr(task, 'task_pdf', None):
+                        template_task.task_pdf = task.task_pdf.name
+                    if getattr(task, 'task_preview_image', None):
+                        template_task.task_preview_image = task.task_preview_image.name
+                    template_task.save(update_fields=['task_pdf', 'task_preview_image'])
+                except Exception:
+                    pass
+                source_template_id = int(getattr(template_task, 'id', 0) or 0)
 
             if source_template_id and int(source_template_id) > 0:
                 meta['library_source_task_id'] = int(source_template_id)
@@ -40715,18 +39142,6 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             'repetitions': _safe_text(layout_meta.get('repetitions') or '', max_len=100),
             'work_rest': _safe_text(layout_meta.get('work_rest') or '', max_len=180),
             'load_target': _safe_text(layout_meta.get('load_target') or '', max_len=180),
-            'rpe_scale': _safe_text(layout_meta.get('rpe_scale') or '', max_len=20),
-            'planned_rpe': layout_meta.get('planned_rpe'),
-            'planned_srpe_load': layout_meta.get('planned_srpe_load'),
-            'wellness_target': layout_meta.get('wellness_target'),
-            'md_day': _safe_text(layout_meta.get('md_day') or '', max_len=24),
-            'dominant_load': _safe_text(layout_meta.get('dominant_load') or '', max_len=24),
-            'physical_load': _safe_text(layout_meta.get('physical_load') or '', max_len=20),
-            'cognitive_load': _safe_text(layout_meta.get('cognitive_load') or '', max_len=20),
-            'emotional_load': _safe_text(layout_meta.get('emotional_load') or '', max_len=20),
-            'monotony_target': _safe_text(layout_meta.get('monotony_target') or '', max_len=40),
-            'strain_target': _safe_text(layout_meta.get('strain_target') or '', max_len=60),
-            'load_notes': _safe_text(layout_meta.get('load_notes') or '', max_len=500),
             'players_distribution': _safe_text(layout_meta.get('players_distribution') or '', max_len=180),
             'organization_html': str(layout_meta.get('organization_html') or ''),
             'description_html': str(sheet.get('description_html') or ''),
@@ -40806,140 +39221,6 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     except Exception:
         pass
     return task
-
-
-def _task_builder_duplicate_text(value):
-    text = _sanitize_task_text(str(value or '').strip(), multiline=False, max_len=500)
-    if not text:
-        return ''
-    text = unicodedata.normalize('NFKD', text.lower())
-    text = ''.join(ch for ch in text if not unicodedata.combining(ch))
-    text = re.sub(r'[^a-z0-9]+', ' ', text)
-    return re.sub(r'\s+', ' ', text).strip()
-
-
-def _task_builder_duplicate_profile(task):
-    layout = task.tactical_layout if isinstance(getattr(task, 'tactical_layout', None), dict) else {}
-    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
-    analysis = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
-    sheet = analysis.get('task_sheet') if isinstance(analysis.get('task_sheet'), dict) else {}
-    graphic = meta.get('graphic_editor') if isinstance(meta.get('graphic_editor'), dict) else {}
-    canvas_state = graphic.get('canvas_state') if isinstance(graphic.get('canvas_state'), dict) else {}
-    timeline = layout.get('timeline') if isinstance(layout.get('timeline'), list) else []
-    core_bits = [
-        _task_builder_duplicate_text(getattr(task, 'title', '') or ''),
-        _task_builder_duplicate_text(getattr(task, 'objective', '') or ''),
-        _task_builder_duplicate_text(getattr(task, 'coaching_points', '') or ''),
-        _task_builder_duplicate_text(getattr(task, 'confrontation_rules', '') or ''),
-        _task_builder_duplicate_text(sheet.get('description_html') or ''),
-        _task_builder_duplicate_text(sheet.get('coaching_html') or ''),
-        _task_builder_duplicate_text(sheet.get('rules_html') or ''),
-        _task_builder_duplicate_text(layout.get('tokens') if isinstance(layout.get('tokens'), list) else ''),
-        _task_builder_duplicate_text(canvas_state),
-        _task_builder_duplicate_text(timeline),
-    ]
-    core_signature = hashlib.sha1('|'.join(core_bits).encode('utf-8')).hexdigest()
-    return {
-        'title': str(getattr(task, 'title', '') or '').strip(),
-        'title_norm': _task_builder_duplicate_text(getattr(task, 'title', '') or ''),
-        'block': str(getattr(task, 'block', '') or '').strip(),
-        'duration_minutes': int(getattr(task, 'duration_minutes', 0) or 0),
-        'builder_payload_signature': str(meta.get('builder_payload_signature') or '').strip(),
-        'submission_uid': str(meta.get('submission_uid') or '').strip(),
-        'core_signature': core_signature,
-    }
-
-
-def _find_task_builder_duplicate_matches(primary_team, scope_key, task, *, limit=5, workspace=None, user=None):
-    if not task:
-        return []
-    try:
-        task_profile = _task_builder_duplicate_profile(task)
-    except Exception:
-        return []
-    target_team_ids = []
-    try:
-        if workspace:
-            links = []
-            try:
-                links = _workspace_team_links_for_user(workspace, user) if user else _workspace_team_links(workspace)
-            except Exception:
-                links = []
-            target_team_ids = [
-                int(getattr(link, "team_id", 0) or 0)
-                for link in links
-                if getattr(link, "team_id", None)
-            ]
-        if primary_team:
-            target_team_ids.insert(0, int(getattr(primary_team, "id", 0) or 0))
-    except Exception:
-        target_team_ids = [int(getattr(primary_team, "id", 0) or 0)] if primary_team else []
-    target_team_ids = [int(team_id) for team_id in dict.fromkeys(target_team_ids) if int(team_id or 0)]
-    if not target_team_ids and primary_team:
-        target_team_ids = [int(getattr(primary_team, "id", 0) or 0)]
-    try:
-        candidates = (
-            SessionTask.objects
-            .select_related('session__microcycle')
-            .filter(session__microcycle__team_id__in=target_team_ids, deleted_at__isnull=True)
-            .exclude(id=int(getattr(task, 'id', 0) or 0))
-            .filter(block=str(task_profile.get('block') or getattr(task, 'block', '') or '').strip())
-            .filter(duration_minutes=int(task_profile.get('duration_minutes') or getattr(task, 'duration_minutes', 0) or 0))
-            .order_by('-updated_at', '-id')[:250]
-        )
-    except Exception:
-        return []
-
-    matches = []
-    for candidate in candidates:
-        try:
-            if _task_scope_for_item(candidate) != scope_key:
-                continue
-            candidate_profile = _task_builder_duplicate_profile(candidate)
-            reason = ''
-            if task_profile['builder_payload_signature'] and candidate_profile['builder_payload_signature'] and task_profile['builder_payload_signature'] == candidate_profile['builder_payload_signature']:
-                reason = 'firma de guardado idéntica'
-            elif task_profile['submission_uid'] and candidate_profile['submission_uid'] and task_profile['submission_uid'] == candidate_profile['submission_uid']:
-                reason = 'mismo identificador de envío'
-            elif task_profile['core_signature'] == candidate_profile['core_signature']:
-                reason = 'mismo contenido normalizado'
-            elif task_profile['title_norm'] and task_profile['title_norm'] == candidate_profile['title_norm']:
-                reason = 'mismo título'
-            if not reason:
-                continue
-            session_obj = getattr(candidate, 'session', None)
-            session_label = ''
-            try:
-                candidate_team_name = ''
-                if _is_library_session(session_obj):
-                    repo_label = _library_repository_for_task(candidate) or LIBRARY_REPOSITORY_TRADITIONAL
-                    session_label = f'Biblioteca · {repo_label}'
-                elif session_obj and getattr(session_obj, 'session_date', None):
-                    session_label = session_obj.session_date.strftime('%d/%m/%Y')
-                    focus = str(getattr(session_obj, 'focus', '') or '').strip()
-                    if focus:
-                        session_label = f'{session_label} · {focus}'
-                    candidate_team = getattr(getattr(session_obj, 'microcycle', None), 'team', None)
-                    candidate_team_name = str(getattr(candidate_team, 'display_name', '') or getattr(candidate_team, 'name', '') or '').strip()
-                    if candidate_team_name and (not primary_team or int(getattr(candidate_team, 'id', 0) or 0) != int(getattr(primary_team, 'id', 0) or 0)):
-                        session_label = f'{session_label} · {candidate_team_name}'
-                else:
-                    session_label = f'Tarea #{int(getattr(candidate, "id", 0) or 0)}'
-            except Exception:
-                session_label = f'Tarea #{int(getattr(candidate, "id", 0) or 0)}'
-            matches.append({
-                'id': int(getattr(candidate, 'id', 0) or 0),
-                'title': str(getattr(candidate, 'title', '') or '').strip(),
-                'session_label': session_label,
-                'team_name': candidate_team_name,
-                'reason': reason,
-                'url': reverse(_task_builder_edit_route_name(scope_key), args=[int(getattr(candidate, 'id', 0) or 0)]),
-            })
-            if len(matches) >= int(limit or 5):
-                break
-        except Exception:
-            continue
-    return matches
 
 
 def _save_task_studio_entry(request, owner, existing_task=None):
@@ -41164,6 +39445,12 @@ def _save_task_studio_entry(request, owner, existing_task=None):
     else:
         category_tags_raw = _sanitize_task_text((raw_category_tags or '').strip(), multiline=False, max_len=240)
         category_tags = [tag.strip() for tag in category_tags_raw.split(',') if tag.strip()]
+    raw_pitch3d_preview = request.POST.get('draw_canvas_3d_preview_data')
+    pitch3d_preview_data = (
+        _clean_task_3d_preview_data_url(raw_pitch3d_preview)
+        if raw_pitch3d_preview is not None and str(raw_pitch3d_preview or '').strip()
+        else str(existing_meta.get('pitch3d_preview_data_v1') or '')
+    )
     if 'assigned_player_ids' in request.POST:
         assigned_player_ids = [
             player_id
@@ -41280,6 +39567,7 @@ def _save_task_studio_entry(request, owner, existing_task=None):
             'player_count': player_count,
             'age_group': age_group,
             'training_type': training_type,
+            'pitch3d_preview_data_v1': pitch3d_preview_data,
             'category_tags': category_tags,
             'assigned_player_ids': assigned_player_ids,
             'assigned_player_names': [player.name for player in assigned_players],
@@ -41379,14 +39667,9 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request) or _team_from_request_param(request)
+    primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
-    try:
-        workspace = _get_active_workspace(request)
-    except Exception:
-        workspace = None
-    embedded_mode = str(request.GET.get('embedded') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
 
     # Guardrail: si hay un despliegue sin migraciones aplicadas, el editor puede caer en 500.
     # En lugar de eso, devolvemos un mensaje claro (y el traceback queda en logs).
@@ -41402,25 +39685,22 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             status=503,
         )
     task = None
-    posted_task_id = (
-        _parse_int(request.POST.get('task_id'))
-        if request.method == 'POST'
-        else _parse_int(request.GET.get('task_id'))
-    )
-    if not task_id and posted_task_id:
-        # Compatibilidad con casos donde el formulario se envía contra la URL de "crear"
-        # pero incluye el task_id de edición (útil para entornos con navegación híbrida).
-        task = (
-            SessionTask.objects
-            .select_related('session__microcycle')
-            .filter(id=posted_task_id, session__microcycle__team=primary_team, deleted_at__isnull=True)
-            .first()
-        )
-        if task:
-            if _task_scope_for_item(task) != scope_key:
-                return HttpResponse('La tarea no pertenece a este espacio.', status=403)
-            task_id = posted_task_id
-    if task_id and not task:
+    if not task_id and request.method == 'GET':
+        editor_requested = str(request.GET.get('editor') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+        quick_disabled = str(request.GET.get('quick') or '').strip().lower() in {'0', 'false', 'no', 'off'}
+        assistant_mode = str(request.GET.get('pane') or '').strip().lower() in {'assistant', 'recommender', 'ia'}
+        if not editor_requested and not quick_disabled and not assistant_mode:
+            task = _create_quick_task_draft(request, primary_team, scope_key)
+            params = request.GET.copy()
+            for key in ('quick', 'editor', 'pane', 'title'):
+                params.pop(key, None)
+            if not str(params.get('style') or '').strip():
+                params['style'] = 'uefa'
+            params['draft'] = '1'
+            query = params.urlencode()
+            url = reverse('session-task-html-sheet', args=[int(task.id)])
+            return redirect(f'{url}?{query}' if query else url)
+    if task_id:
         task = (
             SessionTask.objects
             .select_related('session__microcycle')
@@ -41431,10 +39711,10 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             raise Http404('Tarea no encontrada')
         if _task_scope_for_item(task) != scope_key:
             return HttpResponse('La tarea no pertenece a este espacio.', status=403)
-    # Compat: las tareas del repositorio "realizadas" son clones. Si por algún motivo el clon perdió
-    # `meta.graphic_editor.canvas_state` (pero la original lo tiene), rehidratamos desde el origen
-    # para que "Editar pizarra" no abra en blanco.
-    if task:
+
+        # Compat: las tareas del repositorio "realizadas" son clones. Si por algún motivo el clon perdió
+        # `meta.graphic_editor.canvas_state` (pero la original lo tiene), rehidratamos desde el origen
+        # para que "Editar pizarra" no abra en blanco.
         try:
             raw_layout = getattr(task, 'tactical_layout', None)
             if isinstance(raw_layout, str):
@@ -41577,13 +39857,6 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     feedback = ''
     error = ''
     saved_task_info = None
-    task_context_warning = ''
-    duplicate_task_matches = []
-    duplicate_task_warning = ''
-    raw_submit_uid = str(request.POST.get('task_submit_uid') or '').strip()
-    task_submit_uid = re.sub(r'[^0-9a-zA-Z_-]', '', raw_submit_uid)[:64]
-    if not task_submit_uid:
-        task_submit_uid = uuid.uuid4().hex[:32]
     if request.method == 'GET':
         if str(request.GET.get('board_recreated') or '').strip() == '1':
             feedback = 'Pizarra reconstruida desde el PDF. Revisa la tarea y guarda.'
@@ -41598,7 +39871,6 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     if request.method == 'POST':
         try:
             builder_action = (request.POST.get('builder_action') or '').strip()
-            is_new_task = task is None
             if builder_action == 'restore_original_version':
                 if not task:
                     raise ValueError('No se pudo identificar la tarea a restaurar.')
@@ -41607,34 +39879,9 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
                 feedback = 'Se restauró la versión original de la tarea.'
             else:
                 task = _save_task_builder_entry(request, primary_team, scope_key, existing_task=task)
-                try:
-                    _ai_trainer_index_task(task, team=primary_team)
-                except Exception:
-                    pass
-                if is_new_task and task and getattr(task, 'id', None):
-                    detail_url = reverse('session-task-detail', args=[int(task.id)])
-                    detail_params = {
-                        'mode': 'edit',
-                        'tab': 'edit',
-                        'edit_tab': 'graphic',
-                        'format': 'uefa',
-                    }
-                    if primary_team and getattr(primary_team, 'id', None):
-                        detail_params['team'] = int(primary_team.id)
-                    try:
-                        task_session_id = _parse_int(getattr(task, 'session_id', None))
-                        if task_session_id:
-                            detail_params['from_session'] = task_session_id
-                    except Exception:
-                        pass
-                    try:
-                        workspace = _parse_int(request.GET.get('workspace') or '')
-                        if workspace:
-                            detail_params['workspace'] = workspace
-                    except Exception:
-                        pass
-                    return redirect(f"{detail_url}?{urlencode(detail_params)}")
                 feedback = 'Tarea guardada correctamente.'
+                if task and str(request.GET.get('back_to') or '').strip().lower() in {'detail', 'task_detail', 'ficha'}:
+                    return redirect(reverse('session-task-html-sheet', args=[int(task.id)]) + '?style=uefa')
                 try:
                     dest_session = getattr(task, 'session', None)
                     is_library = _is_library_session(dest_session)
@@ -41678,25 +39925,6 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             error = str(exc)
         except Exception:
             error = 'No se pudo guardar la tarea.'
-
-    try:
-        duplicate_task_matches = _find_task_builder_duplicate_matches(
-            primary_team,
-            scope_key,
-            task,
-            limit=4,
-            workspace=workspace,
-            user=request.user,
-        ) if task else []
-        if duplicate_task_matches:
-            duplicate_task_warning = (
-                f'Ollana ha detectado {len(duplicate_task_matches)} posible(s) duplicado(s) de esta tarea.'
-            )
-            if not task_context_warning:
-                task_context_warning = duplicate_task_warning
-    except Exception:
-        duplicate_task_matches = []
-        duplicate_task_warning = ''
 
     try:
         initial = _task_builder_initial_values(task)
@@ -41776,7 +40004,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     except Exception:
         logger.exception('sessions_task_builder: no se pudieron cargar sesiones', extra={'team_id': getattr(primary_team, 'id', None)})
     try:
-        cache_key = f'task_builder:player_catalog:{int(primary_team.id)}'
+        cache_key = f'task_builder:player_catalog:v2:{int(primary_team.id)}'
         cached = cache.get(cache_key)
         if isinstance(cached, list):
             player_catalog = cached
@@ -41805,24 +40033,90 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     except Exception:
         confirmed_player_ids = []
         confirmed_only_default = False
-    resource_library_context = _task_builder_resource_library_context(
-        request,
-        primary_team,
-        context_cache_seconds=context_cache_seconds,
-    )
-    pdf_assets = list(resource_library_context.get('pdf_assets') or [])
-    ppt_icons = list(resource_library_context.get('ppt_icons') or [])
-    drills_catalog = list(resource_library_context.get('drills_catalog') or [])
+    # Recursos gráficos extraídos de PDFs importados (y/o subidos por el usuario en su estudio).
+    # En sesiones (coach/club) mostramos:
+    # - assets del equipo (team=primary_team)
+    # - assets globales del sistema (team slug="pizarra")
+    # - assets privados del usuario (owner=request.user), útil si los subió en Task Studio.
+    pdf_assets = []
+    try:
+        cache_key = f"task_builder:v2:pdf_assets:{int(primary_team.id)}:{int(getattr(request.user, 'id', 0) or 0)}"
+        cached = cache.get(cache_key)
+        if isinstance(cached, list):
+            pdf_assets = cached
+        else:
+            system_team = None
+            try:
+                system_team = Team.objects.filter(slug='pizarra').first()
+            except Exception:
+                system_team = None
+            assets_filter = Q(team=primary_team) | Q(owner=request.user)
+            if system_team:
+                assets_filter |= Q(team=system_team)
+            pdf_assets = list(
+                PdfGraphicAsset.objects
+                .filter(assets_filter)
+                .exclude(file='')
+                .values('id', 'title', 'width', 'height', 'file')
+                .order_by('-created_at', '-id')[:80]
+            )
+            cache.set(cache_key, pdf_assets, context_cache_seconds)
+    except Exception:
+        pdf_assets = []
+        logger.exception('sessions_task_builder: no se pudieron cargar assets PDF', extra={'team_id': getattr(primary_team, 'id', None)})
+    ppt_icons = []
+    try:
+        cache_key = "task_builder:v2:ppt_icons"
+        cached = cache.get(cache_key)
+        if isinstance(cached, list):
+            ppt_icons = cached
+        else:
+            if TASK_MATERIAL_PPT_DIR and TASK_MATERIAL_PPT_DIR.exists():
+                allowed = {'.png', '.jpg', '.jpeg', '.webp', '.gif'}
+                files = [p for p in TASK_MATERIAL_PPT_DIR.iterdir() if p.is_file() and p.suffix.lower() in allowed]
+                files = sorted(files, key=lambda p: p.name.lower())[:90]
+                for p in files:
+                    ppt_icons.append(
+                        {
+                            'label': str(p.stem or '').strip()[:80],
+                            'static_path': f'football/images/task-materials/ppt/{p.name}',
+                        }
+                    )
+            cache.set(cache_key, ppt_icons, context_cache_seconds)
+    except Exception:
+        ppt_icons = []
+    drills_catalog = []
+    try:
+        cache_key = "task_builder:v2:drills_catalog"
+        cached = cache.get(cache_key)
+        if isinstance(cached, list):
+            drills_catalog = cached
+        else:
+            drills_catalog = [
+                {
+                    'id': item.id,
+                    'label': item.label,
+                    'category': item.category,
+                    'icon_static_path': item.icon_static_path,
+                    'age_min': item.age_min,
+                    'age_max': item.age_max,
+                }
+                for item in DRILL_CATALOG
+            ]
+            cache.set(cache_key, drills_catalog, context_cache_seconds)
+    except Exception:
+        drills_catalog = []
+        logger.exception('sessions_task_builder: no se pudo construir catálogo de drills', extra={'team_id': getattr(primary_team, 'id', None)})
     library_repository = _normalize_library_repository(request.GET.get('repo') or request.GET.get('library_repo') or LIBRARY_REPOSITORY_TRADITIONAL)
     try:
         if task and _is_library_session(getattr(task, 'session', None)):
             library_repository = _library_repository_for_task(task)
     except Exception:
         pass
+    task_context_warning = ''
     if not all_sessions:
         # Biblioteca puede funcionar sin sesión destino. No lo tratamos como error bloqueante.
-        if not task_context_warning:
-            task_context_warning = 'No hay sesiones recientes para asignar como destino. Puedes guardar la tarea en Biblioteca y añadirla a una sesión más tarde.'
+        task_context_warning = 'No hay sesiones recientes para asignar como destino. Puedes guardar la tarea en Biblioteca y añadirla a una sesión más tarde.'
 
     def _sessions_library_back_url(*, source: str = '') -> str:
         base = reverse(_sessions_scope_route_name(scope_key))
@@ -41881,9 +40175,9 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             back_label = 'Volver a ficha'
     except Exception:
         pass
-    static_build_id = _resolve_static_build_id()
     model_value = _model_of_play_preference(_get_active_workspace(request))
     model_principle_options = _model_principle_options(model_value)
+
     pitch3d_player_model_src = ''
     try:
         pitch3d_player_model_url = str(os.getenv('TASK_PLAYER_MODEL_URL') or '').strip()
@@ -41897,14 +40191,6 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     except Exception:
         pitch3d_player_model_src = ''
 
-    pitch3d_assets = _task_pitch3d_asset_context(static_build_id, player_model_src=pitch3d_player_model_src)
-    task_resource_library_url = reverse(_task_builder_library_route_name(scope_key))
-    try:
-        next_target = request.get_full_path()
-        if next_target:
-            task_resource_library_url = f'{task_resource_library_url}?{urlencode({"next": next_target})}'
-    except Exception:
-        pass
     return render(
         request,
         'football/task_builder.html',
@@ -41912,14 +40198,10 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'scope_key': scope_key,
             'scope_title': scope_title,
             'scope_route_name': _sessions_scope_route_name(scope_key),
-            'embedded_mode': embedded_mode,
             'task': task,
             'feedback': feedback,
             'error': error,
             'task_context_warning': task_context_warning,
-            'duplicate_task_warning': duplicate_task_warning,
-            'duplicate_task_matches': duplicate_task_matches,
-            'task_submit_uid': task_submit_uid,
             'can_restore_original': can_restore_original,
             'task_blocks': SessionTask.BLOCK_CHOICES,
             'all_sessions': all_sessions,
@@ -41928,9 +40210,6 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'game_moment_choices': GAME_MOMENT_CHOICES,
             'player_structure_choices': PLAYER_STRUCTURE_CHOICES,
             'task_load_level_choices': TASK_LOAD_LEVEL_CHOICES,
-            'task_rpe_scale_choices': TASK_RPE_SCALE_CHOICES,
-            'task_dominant_load_choices': TASK_DOMINANT_LOAD_CHOICES,
-            'task_md_day_choices': TASK_MD_DAY_CHOICES,
             'model_principle_options': model_principle_options,
             'task_complexity_choices': TASK_COMPLEXITY_CHOICES,
             'task_strategy_choices': TASK_STRATEGY_CHOICES,
@@ -41962,89 +40241,11 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
                     'task_preview_url': (f"{reverse('session-task-preview-file', args=[task.id])}?hd=1&v={quote(str(task.task_preview_image.name or ''))}" if task and task.task_preview_image else ''),
             'show_session_selector': True,
             'saved_task_info': saved_task_info,
-            'show_dragon_nav': not embedded_mode,
+            'show_dragon_nav': True,
             'confirmed_players_api_url': reverse('sessions-confirmed-players-api'),
-            'task_resource_library_url': task_resource_library_url,
-            **pitch3d_assets,
+            'pitch3d_player_model_src': pitch3d_player_model_src,
         },
     )
-
-
-def session_task_resource_library_page(request, scope_key='coach', scope_title='Sesiones · Entrenador'):
-    if not _can_access_sessions_workspace(request.user):
-        return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
-    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
-    if forbidden:
-        return forbidden
-    primary_team = _get_primary_team_for_request(request)
-    if not primary_team:
-        raise Http404('Equipo principal no configurado')
-
-    try:
-        context_cache_seconds = int(str(os.getenv('TASK_BUILDER_CONTEXT_CACHE_SECONDS', '600') or '600').strip() or 600)
-    except Exception:
-        context_cache_seconds = 600
-    context_cache_seconds = max(15, min(900, int(context_cache_seconds or 120)))
-    resource_library_context = _task_builder_resource_library_context(
-        request,
-        primary_team,
-        context_cache_seconds=context_cache_seconds,
-        include_hidden=True,
-    )
-
-    back_url = str(request.GET.get('next') or '').strip() or reverse(_task_builder_route_name(scope_key))
-    upload_scope = 'coach'
-    try:
-        if bool(getattr(request.user, 'is_superuser', False)) and str(request.GET.get('scope') or '').strip().lower() == 'system':
-            upload_scope = 'system'
-    except Exception:
-        upload_scope = 'coach'
-
-    return render(
-        request,
-        'football/task_resource_library.html',
-        {
-            'scope_key': scope_key,
-            'scope_title': scope_title,
-            'back_url': back_url,
-            'team_name': str(getattr(primary_team, 'name', '') or '').strip(),
-            'upload_scope': upload_scope,
-            'upload_api_url': reverse('pdf-graphic-asset-upload'),
-            'visibility_api_url': reverse('task-resource-library-visibility-api'),
-            'delete_api_url': reverse('pdf-graphic-asset-delete-api'),
-            'board_resource_count': int(resource_library_context.get('board_resource_count') or 0),
-            'pdf_asset_count': len(resource_library_context.get('pdf_assets') or []),
-            'ppt_icon_count': len(resource_library_context.get('ppt_icons') or []),
-            'drill_count': len(resource_library_context.get('drills_catalog') or []),
-            **resource_library_context,
-        },
-    )
-
-
-@login_required
-@require_POST
-def task_resource_library_visibility_api(request):
-    if not _can_access_sessions_workspace(request.user):
-        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
-    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
-    if forbidden:
-        return JsonResponse({'ok': False, 'error': 'Módulo sesiones desactivado.'}, status=403)
-    primary_team = _get_primary_team_for_request(request)
-    if not primary_team:
-        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
-    resource_key = str(request.POST.get('resource_key') or request.POST.get('add_key') or '').strip()
-    if not resource_key:
-        return JsonResponse({'ok': False, 'error': 'resource_key requerido.'}, status=400)
-    visible_raw = str(request.POST.get('visible') or '').strip().lower()
-    visible = visible_raw in {'1', 'true', 'yes', 'on'}
-    hidden_keys = _task_builder_resource_library_hidden_keys(request, primary_team)
-    if visible:
-        hidden_keys.discard(resource_key)
-    else:
-        hidden_keys.add(resource_key)
-    if not _save_task_builder_resource_library_hidden_keys(request, primary_team, hidden_keys):
-        return JsonResponse({'ok': False, 'error': 'No se pudo guardar la visibilidad.'}, status=500)
-    return JsonResponse({'ok': True, 'resource_key': resource_key, 'visible': visible})
 
 
 @login_required
@@ -42098,137 +40299,9 @@ def session_task_pdf_preview(request):
     one_page = one_page_raw.strip().lower() not in {'0', 'false', 'no', 'off'}
     context = _build_task_draft_pdf_context(request, primary_team, pdf_style=pdf_style, one_page=one_page)
     html = render_to_string('football/session_task_pdf.html', context)
-    return HttpResponse(html, content_type='text/html; charset=utf-8')
-
-
-@login_required
-def session_task_pdf_3d_embed(request, task_id):
-    if not _can_access_sessions_workspace(request.user):
-        return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
-    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
-    if forbidden:
-        return forbidden
-    task = (
-        SessionTask.objects
-        .select_related('session__microcycle__team')
-        .filter(id=task_id, deleted_at__isnull=True)
-        .first()
-    )
-    if not task:
-        raise Http404('Tarea no encontrada')
-
-    static_build_id = _resolve_static_build_id()
-    team = getattr(getattr(getattr(task, 'session', None), 'microcycle', None), 'team', None)
-    workspace = None
-    try:
-        workspace = _get_active_workspace(request)
-    except Exception:
-        workspace = None
-    if not workspace and team:
-        try:
-            workspace = Workspace.objects.filter(primary_team=team).first()
-        except Exception:
-            workspace = None
-
-    pitch3d_player_model_src = ''
-    try:
-        pitch3d_player_model_url = str(os.getenv('TASK_PLAYER_MODEL_URL') or '').strip()
-        pitch3d_player_model_static_path = str(os.getenv('TASK_PLAYER_MODEL_STATIC_PATH') or '').strip()
-        if pitch3d_player_model_url:
-            pitch3d_player_model_src = pitch3d_player_model_url
-        elif pitch3d_player_model_static_path:
-            pitch3d_player_model_src = static(pitch3d_player_model_static_path.lstrip('/'))
-            if static_build_id:
-                pitch3d_player_model_src = f"{pitch3d_player_model_src}?v={quote(str(static_build_id))}"
-    except Exception:
-        pitch3d_player_model_src = ''
-
-    pitch3d_assets = _task_pitch3d_asset_context(static_build_id, player_model_src=pitch3d_player_model_src)
-    stadium_palette = {'primary': '#047857', 'secondary': '#f8fafc', 'accent': '#073b32'}
-    stadium_ads = {
-        'top': str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or 'Club').strip() or 'Club',
-        'right': '2J Football Intelligence',
-        'bottom': str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or 'Club').strip() or 'Club',
-        'left': 'Partner',
-    }
-    try:
-        if team:
-            stadium_palette = _team_stadium_palette(workspace, team)
-            ads = _team_stadium_ads(workspace, team)
-            if isinstance(ads, dict):
-                stadium_ads.update({
-                    'top': str(ads.get('top') or stadium_ads['top']).strip() or stadium_ads['top'],
-                    'right': str(ads.get('right') or stadium_ads['right']).strip() or stadium_ads['right'],
-                    'bottom': str(ads.get('bottom') or stadium_ads['bottom']).strip() or stadium_ads['bottom'],
-                    'left': str(ads.get('left') or stadium_ads['left']).strip() or stadium_ads['left'],
-                })
-    except Exception:
-        pass
-
-    tactical_layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
-    meta = _normalize_task_pdf_meta(tactical_layout.get('meta') if isinstance(tactical_layout, dict) else {})
-    pitch_orientation = str(meta.get('pitch_orientation') or 'landscape').strip().lower()
-    graphic_editor_state = {}
-    if isinstance(tactical_layout.get('objects'), list) and tactical_layout.get('objects'):
-        graphic_editor_state = {
-            'version': str(tactical_layout.get('version') or '5.3.0'),
-            'objects': list(tactical_layout.get('objects') or []),
-        }
-    if not isinstance(graphic_editor_state.get('objects'), list) or not graphic_editor_state.get('objects'):
-        try:
-            extracted_canvas_state, _, _ = _extract_canvas_state_for_preview(task)
-        except Exception:
-            extracted_canvas_state = {}
-        if isinstance(extracted_canvas_state, dict) and isinstance(extracted_canvas_state.get('objects'), list):
-            graphic_editor_state = extracted_canvas_state
-
-    animation_frames = _normalize_animation_timeline(
-        tactical_layout.get('timeline') if isinstance(tactical_layout, dict) else []
-    )
-    frame_index = _parse_int(request.GET.get('frame'))
-    if animation_frames and frame_index:
-        safe_index = max(0, min(len(animation_frames) - 1, int(frame_index) - 1))
-        selected_frame = animation_frames[safe_index]
-        frame_state = selected_frame.get('canvas_state') if isinstance(selected_frame, dict) else None
-        if isinstance(frame_state, dict) and isinstance(frame_state.get('objects'), list):
-            graphic_editor_state = frame_state
-        animation_frames = [selected_frame]
-    elif not animation_frames:
-        animation_frames = [{
-            'title': str(task.title or '').strip() or 'Situación base',
-            'duration': 4,
-            'canvas_state': graphic_editor_state,
-        }]
-
-    fallback_preview_url = render_stadium_native_preview_data_url(
-        graphic_editor_state if isinstance(graphic_editor_state, dict) else {},
-        canvas_width=1054,
-        canvas_height=684,
-        pitch_orientation='portrait' if pitch_orientation == 'portrait' else 'landscape',
-    )
-    default_camera_preset = 'coach' if pitch_orientation == 'portrait' else 'broadcast'
-    camera_preset = str(request.GET.get('camera') or '').strip().lower()
-    if camera_preset not in {'broadcast', 'tactic', 'top_h', 'top_v', 'corner', 'goal', 'drone', 'tunnel', 'analyst', 'coach', 'rosaleda'}:
-        camera_preset = default_camera_preset
-
-    context = {
-        'task_title': str(task.title or '').strip() or 'Vista 3D',
-        'pitch3d_assets': pitch3d_assets,
-        'task_pitch3d_context_json': json.dumps(
-            {
-                'teamName': str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or '').strip(),
-                'stadiumPalette': stadium_palette,
-                'stadiumAds': stadium_ads,
-            },
-            ensure_ascii=False,
-        ),
-        'graphic_editor_state_json': json.dumps(graphic_editor_state, ensure_ascii=False),
-        'animation_frames_json': json.dumps(animation_frames, ensure_ascii=False),
-        'camera_preset': camera_preset,
-        'fallback_preview_url': fallback_preview_url,
-        'static_build_id': static_build_id,
-    }
-    return render(request, 'football/session_task_pdf_3d_embed.html', context)
+    filename = slugify(f"borrador-{context['task'].title}") or 'borrador-tarea'
+    # Previsualización: devolver inline para que Safari/iOS WebView lo renderice en pantalla.
+    return _build_pdf_response_or_html_fallback(request, html, filename, inline=True)
 
 
 @login_required
@@ -42528,7 +40601,7 @@ def _build_task_studio_pdf_context(request, owner, task, tactical_layout, pdf_st
         {
             'team_name': team_stub.name,
             'coach_name': coach_name,
-            'logo_url': request.build_absolute_uri(static('football/images/uefa-badge.svg')) if pdf_style == 'uefa' else crest_url,
+            'logo_url': (_static_asset_as_data_uri('football/images/rfef-uefa-mark.svg') or request.build_absolute_uri(static('football/images/rfef-uefa-mark.svg'))) if pdf_style == 'uefa' else crest_url,
             'pdf_palette': _team_pdf_palette(team_stub, pdf_style),
             'task_studio_profile': profile,
         }
@@ -42555,6 +40628,8 @@ def _build_task_studio_draft_pdf_context(request, owner, pdf_style='uefa'):
     selected_coord_skills = _sanitize_task_text((request.POST.get('draw_task_coordination_skills') or '').strip(), multiline=False, max_len=80)
     selected_tactical_intent = _sanitize_task_text((request.POST.get('draw_task_tactical_intent') or '').strip(), multiline=False, max_len=80)
     game_moment = _clean_choice_value(request.POST.get('draw_task_game_moment'), {key for key, _ in GAME_MOMENT_CHOICES}, max_len=40)
+    game_context = _sanitize_task_text((request.POST.get('draw_task_game_context') or '').strip(), multiline=True, max_len=1000)
+    pitch3d_preview_data = _clean_task_3d_preview_data_url(request.POST.get('draw_canvas_3d_preview_data') or '')
     principle = _clean_short_text(request.POST.get('draw_task_principle'), max_len=120)
     subprinciple = _clean_short_text(request.POST.get('draw_task_subprinciple'), max_len=160)
     provocation_rule = _sanitize_task_text((request.POST.get('draw_task_provocation_rule') or '').strip(), multiline=True, max_len=500)
@@ -42615,6 +40690,8 @@ def _build_task_studio_draft_pdf_context(request, owner, pdf_style='uefa'):
             'pitch_format': selected_pitch_format,
             'game_phase': selected_phase,
             'game_moment': game_moment,
+            'game_context': game_context,
+            'pitch3d_preview_data_v1': pitch3d_preview_data,
             'principle': principle,
             'subprinciple': subprinciple,
             'provocation_rule': provocation_rule,
@@ -42677,11 +40754,9 @@ def _build_task_studio_draft_pdf_context(request, owner, pdf_style='uefa'):
         try:
             pitch_preset = (request.POST.get('draw_task_pitch_preset') or 'full_pitch').strip()
             pitch_orientation = (request.POST.get('draw_task_pitch_orientation') or 'landscape').strip().lower()
-            pitch_grass_style = (request.POST.get('draw_task_pitch_grass_style') or 'stadium_native').strip().lower()
-            if pitch_grass_style in {'stadium_top', 'stadium_top_h', 'stadium_top_v'}:
-                pitch_grass_style = 'stadium_native'
-            if pitch_grass_style not in {'classic', 'broadcast', 'broadcast_premium', 'stadium_native', 'realistic', 'pro', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'}:
-                pitch_grass_style = 'stadium_native'
+            pitch_grass_style = (request.POST.get('draw_task_pitch_grass_style') or DEFAULT_TASK_PITCH_GRASS_STYLE).strip().lower()
+            if pitch_grass_style not in {'classic', 'broadcast', 'realistic', 'pro', 'stadium_close', 'stadium_top', 'stadium_full', 'stadium_premium', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'}:
+                pitch_grass_style = 'classic'
             try:
                 pitch_zoom = float(str(request.POST.get('draw_task_pitch_zoom') or '1.0').strip())
             except Exception:
@@ -43426,14 +41501,6 @@ def ai_trainer_page(request):
     profile = str(request.GET.get('profile') or '').strip() or 'hybrid'
     phase = str(request.GET.get('phase') or '').strip()
     goal = str(request.GET.get('goal') or '').strip()
-    web_urls = str(request.GET.get('web_urls') or '').strip()
-    web_search_query = str(request.GET.get('web_search_query') or '').strip()
-    web_search_domains = str(request.GET.get('web_search_domains') or '').strip()
-    web_search_blocked_domains = str(request.GET.get('web_search_blocked_domains') or '').strip()
-    web_search_limit = _parse_int(request.GET.get('web_search_limit') or 4) or 4
-    web_search_limit = max(1, min(web_search_limit, 8))
-    web_browser = str(request.GET.get('web_browser') or '1').strip().lower() not in {'0', 'false', 'no', 'off'}
-    web_research = []
     proposals = []
     signals = {}
     suggestions = []
@@ -43447,7 +41514,6 @@ def ai_trainer_page(request):
     }
     senior_memory = {}
     dict_prefill = {}
-    guard_observability = {}
     concept_section = str(request.GET.get('section') or '').strip().lower() or 'principles'
     concept_q = str(request.GET.get('q') or '').strip()
     concept_rows = []
@@ -43472,13 +41538,6 @@ def ai_trainer_page(request):
         profile = str(request.POST.get('profile') or profile).strip() or 'hybrid'
         phase = str(request.POST.get('phase') or phase).strip()
         goal = str(request.POST.get('goal') or goal).strip()
-        web_urls = str(request.POST.get('web_urls') or web_urls).strip()
-        web_search_query = str(request.POST.get('web_search_query') or web_search_query).strip()
-        web_search_domains = str(request.POST.get('web_search_domains') or web_search_domains).strip()
-        web_search_blocked_domains = str(request.POST.get('web_search_blocked_domains') or web_search_blocked_domains).strip()
-        web_search_limit = _parse_int(request.POST.get('web_search_limit') or web_search_limit) or web_search_limit
-        web_search_limit = max(1, min(web_search_limit, 8))
-        web_browser = str(request.POST.get('web_browser') or '').strip().lower() not in {'0', 'false', 'no', 'off'}
         text_norm = _ai_trainer_normalize_text(goal)
         tokens = _ai_trainer_tokenize(text_norm, limit=32)
 
@@ -43555,24 +41614,6 @@ def ai_trainer_page(request):
         proposals = _ai_trainer_build_proposals(profile=profile, phase=phase, goal=goal, signals=signals, dictionary=dictionary)
         suggestions = _ai_trainer_suggest_library_tasks(team, text_norm=text_norm, signals=signals, limit=8)
         if post_action == 'generate' and goal:
-            try:
-                research_rows = []
-                if web_search_query:
-                    search_rows = search_web_research(
-                        web_search_query,
-                        max_results=web_search_limit,
-                        preferred_domains=web_search_domains,
-                        blocked_domains=web_search_blocked_domains,
-                    )
-                    research_rows.extend(search_rows)
-                    result_urls = "\n".join([str(row.get('url') or '') for row in search_rows if isinstance(row, dict) and row.get('ok')])
-                    if result_urls:
-                        research_rows.extend(fetch_web_research_with_browser(result_urls, prefer_browser=web_browser))
-                if web_urls:
-                    research_rows.extend(fetch_web_research_with_browser(web_urls, prefer_browser=web_browser))
-                web_research = compact_web_research(research_rows) if research_rows else []
-            except Exception as exc:
-                web_research = [{'url': '', 'ok': False, 'error': f'web_research_error:{str(exc)[:120]}', 'title': '', 'text': ''}]
             senior_llm = ai_trainer_senior_local_advice(
                 team_name=getattr(team, 'name', '') or str(team),
                 profile=profile,
@@ -43583,7 +41624,6 @@ def ai_trainer_page(request):
                 learning_memory=senior_memory,
                 suggestions=suggestions,
                 proposals=proposals,
-                web_research=web_research,
             )
         # Prefill para entrenar (solo lo detectado).
         try:
@@ -43615,23 +41655,6 @@ def ai_trainer_page(request):
                 'profile': profile,
                 'phase': phase,
                 'goal': goal[:800],
-                'web_urls': web_urls[:1000],
-                'web_search_query': web_search_query[:300],
-                'web_search_domains': web_search_domains[:300],
-                'web_search_blocked_domains': web_search_blocked_domains[:300],
-                'web_search_limit': web_search_limit,
-                'web_browser': bool(web_browser),
-                'web_research': [
-                    {
-                        'url': str(row.get('url') or '')[:500],
-                        'ok': bool(row.get('ok')),
-                        'title': str(row.get('title') or '')[:180],
-                        'error': str(row.get('error') or '')[:160],
-                        'method': str(row.get('method') or '')[:40],
-                    }
-                    for row in (web_research or [])
-                    if isinstance(row, dict)
-                ],
                 'signals': signals,
                 'senior_llm': {
                     'provider': senior_llm.get('provider'),
@@ -43683,23 +41706,6 @@ def ai_trainer_page(request):
                         'profile': profile,
                         'phase': phase,
                         'goal': goal,
-                        'web_urls': web_urls,
-                        'web_search_query': web_search_query,
-                        'web_search_domains': web_search_domains,
-                        'web_search_blocked_domains': web_search_blocked_domains,
-                        'web_search_limit': web_search_limit,
-                        'web_browser': bool(web_browser),
-                        'web_research': [
-                            {
-                                'url': str(row.get('url') or '')[:500],
-                                'ok': bool(row.get('ok')),
-                                'title': str(row.get('title') or '')[:180],
-                                'error': str(row.get('error') or '')[:160],
-                                'method': str(row.get('method') or '')[:40],
-                            }
-                            for row in (web_research or [])
-                            if isinstance(row, dict)
-                        ],
                         'variant': variant,
                         'signals': signals,
                     },
@@ -43841,11 +41847,6 @@ def ai_trainer_page(request):
             concept_rows = rows[:800]
         except Exception:
             concept_rows = []
-    try:
-        from football.system_guard import _observability_summary
-        guard_observability = _observability_summary(workspace)
-    except Exception:
-        guard_observability = {}
 
     return render(
         request,
@@ -43856,19 +41857,11 @@ def ai_trainer_page(request):
             'profile': profile,
             'phase': phase,
             'goal': goal,
-            'web_urls': web_urls,
-            'web_search_query': web_search_query,
-            'web_search_domains': web_search_domains,
-            'web_search_blocked_domains': web_search_blocked_domains,
-            'web_search_limit': web_search_limit,
-            'web_browser': web_browser,
-            'web_research': web_research,
             'signals': signals,
             'proposals': proposals,
             'suggestions': suggestions,
             'senior_llm': senior_llm,
             'senior_memory': senior_memory,
-            'guard_observability': guard_observability,
             'can_train_dictionary': can_train_dictionary,
             'dict_prefill': dict_prefill,
             'concept_section': concept_section,
@@ -44004,11 +41997,6 @@ def sessions_task_edit_page(request, task_id):
 
 
 @login_required
-def sessions_task_library_page(request):
-    return session_task_resource_library_page(request, scope_key='coach', scope_title='Sesiones · Entrenador')
-
-
-@login_required
 @ensure_csrf_cookie
 def sessions_goalkeeper_page(request):
     response = _sessions_workspace_page(request, scope_key='goalkeeper', scope_title='Sesiones · Porteros')
@@ -44028,11 +42016,6 @@ def sessions_goalkeeper_task_edit_page(request, task_id):
 
 
 @login_required
-def sessions_goalkeeper_task_library_page(request):
-    return session_task_resource_library_page(request, scope_key='goalkeeper', scope_title='Sesiones · Porteros')
-
-
-@login_required
 @ensure_csrf_cookie
 def sessions_fitness_page(request):
     response = _sessions_workspace_page(request, scope_key='fitness', scope_title='Sesiones · Preparacion fisica')
@@ -44049,11 +42032,6 @@ def sessions_fitness_task_create_page(request):
 @login_required
 def sessions_fitness_task_edit_page(request, task_id):
     return session_task_builder_page(request, scope_key='fitness', scope_title='Sesiones · Preparacion fisica', task_id=task_id)
-
-
-@login_required
-def sessions_fitness_task_library_page(request):
-    return session_task_resource_library_page(request, scope_key='fitness', scope_title='Sesiones · Preparacion fisica')
 
 
 @login_required
@@ -44136,6 +42114,17 @@ def session_task_detail_page(request, task_id):
         back_url = _sessions_library_back_url(source=request.GET.get('library_source') or '')
         back_label = 'Volver a biblioteca'
 
+    wants_edit_mode = str(request.GET.get('edit') or request.GET.get('legacy') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    if request.method == 'GET' and not wants_edit_mode:
+        params = request.GET.copy()
+        params.pop('edit', None)
+        params.pop('legacy', None)
+        if not str(params.get('style') or '').strip():
+            params['style'] = 'uefa'
+        query = params.urlencode()
+        url = reverse('session-task-html-sheet', args=[task.id])
+        return redirect(f'{url}?{query}' if query else url)
+
     feedback = ''
     error = ''
     is_editable_task = _is_task_editable(task)
@@ -44147,51 +42136,8 @@ def session_task_detail_page(request, task_id):
         is_performed_task = str(meta0.get('source') or '').strip().lower() == 'performed' or bool(str(meta0.get('performed_on') or '').strip())
     except Exception:
         is_performed_task = False
-    detail_mode = str(request.GET.get('mode') or '').strip().lower()
-    detail_tab = str(request.GET.get('tab') or '').strip().lower()
-    detail_edit_tab = str(request.GET.get('edit_tab') or '').strip().lower()
-    detail_format_tab = str(request.GET.get('format') or '').strip().lower()
-    task_detail_format_session_key = f'session_task_detail_format:{int(task_id)}'
 
-    def _normalize_task_detail_format(raw_format):
-        normalized = str(raw_format or '').strip().lower()
-        return 'club' if normalized == 'club' else 'uefa'
-
-    if not detail_format_tab:
-        try:
-            detail_format_tab = (
-                request.session.get(task_detail_format_session_key)
-                or request.session.get('session_task_detail_format')
-                or ''
-            )
-        except Exception:
-            detail_format_tab = ''
-    detail_format_tab = _normalize_task_detail_format(detail_format_tab)
-    can_edit_task = bool(is_editable_task and not is_performed_task)
-    active_task_tab = 'presentation'
-    active_task_edit_tab = 'graphic'
-    active_task_format_tab = 'uefa'
-    if can_edit_task and detail_mode == 'edit':
-        active_task_tab = 'edit'
-        active_task_edit_tab = 'graphic'
-    elif can_edit_task and detail_tab in {'presentation', 'edit', 'export'}:
-        active_task_tab = detail_tab
-    elif detail_tab:
-        active_task_tab = 'presentation'
-
-    if detail_edit_tab in {'graphic', 'settings'}:
-        active_task_edit_tab = detail_edit_tab
-    elif not can_edit_task:
-        active_task_edit_tab = ''
-    active_task_format_tab = _normalize_task_detail_format(detail_format_tab)
-    try:
-        request.session[task_detail_format_session_key] = active_task_format_tab
-        request.session['session_task_detail_format'] = active_task_format_tab
-    except Exception:
-        pass
-    show_edit_mode = bool(can_edit_task and active_task_tab == 'edit')
-
-    # UX: la ficha de tarea es la vista principal; el modo edición reutiliza esa misma ficha y añade los controles debajo.
+    # UX: la ficha de tarea es la vista por defecto. El editor visual se abre desde un botón ("Editar pizarra").
 
     if request.method == 'POST':
         detail_action = (request.POST.get('detail_action') or '').strip()
@@ -44200,21 +42146,6 @@ def session_task_detail_page(request, task_id):
                 _update_library_task_from_post(task, request.POST, scope_key=scope_key)
                 feedback = 'Tarea actualizada correctamente.'
                 task.refresh_from_db()
-            elif detail_action == 'generate_ollana_analysis':
-                result = _generate_ollana_task_analysis(
-                    task,
-                    page_context={
-                        'page': 'session-task-detail',
-                        'task_id': int(task.id),
-                        'team_id': int(getattr(getattr(getattr(task, 'session', None), 'microcycle', None), 'team_id', 0) or 0),
-                        'scope_key': scope_key,
-                    },
-                )
-                if result.get('ok'):
-                    feedback = 'Análisis regenerado con Ollana.'
-                    task.refresh_from_db()
-                else:
-                    error = result.get('error') or 'No se pudo generar el análisis.'
             elif detail_action == 'restore_original_version':
                 _restore_task_from_original_snapshot(task, scope_key=scope_key)
                 feedback = 'Se restauró la versión original de la tarea.'
@@ -44230,11 +42161,10 @@ def session_task_detail_page(request, task_id):
     meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
     analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
     task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
-    task_sheet = _sanitize_task_sheet_for_display(task_sheet)
     original_version = meta.get('original_version') if isinstance(meta.get('original_version'), dict) else {}
     original_task_sheet = original_version.get('task_sheet') if isinstance(original_version.get('task_sheet'), dict) else {}
-    original_task_sheet = _sanitize_task_sheet_for_display(original_task_sheet)
     original_preview_url = _storage_url_or_empty(original_version.get('task_preview_image') if isinstance(original_version, dict) else '')
+    task_3d_preview_url = str(meta.get('pitch3d_preview_data_v1') or '').strip()
     pdf_excerpt = str(meta.get('pdf_segment_excerpt') or meta.get('extracted_text_excerpt') or '').strip()
     detected_materials = analysis_meta.get('detected_materials') if isinstance(analysis_meta.get('detected_materials'), list) else []
     animation_frames = _normalize_animation_timeline(layout.get('timeline') if isinstance(layout, dict) else [])
@@ -44242,47 +42172,8 @@ def session_task_detail_page(request, task_id):
     if isinstance(graphic_editor_state, dict) and animation_frames:
         graphic_editor_state = dict(graphic_editor_state)
         graphic_editor_state['timeline'] = animation_frames
-        first_canvas = animation_frames[0].get('canvas_state') if animation_frames else {}
-        if not graphic_editor_state.get('canvas_width'):
-            graphic_editor_state['canvas_width'] = _parse_int(first_canvas.get('width')) if isinstance(first_canvas, dict) else 0
-        if not graphic_editor_state.get('canvas_height'):
-            graphic_editor_state['canvas_height'] = _parse_int(first_canvas.get('height')) if isinstance(first_canvas, dict) else 0
     if task.task_pdf and not task.task_preview_image:
         _ensure_task_preview_image(task)
-
-    session_obj_for_pdf = getattr(task, 'session', None)
-    microcycle_obj_for_pdf = getattr(session_obj_for_pdf, 'microcycle', None) if session_obj_for_pdf else None
-    team_obj_for_pdf = getattr(microcycle_obj_for_pdf, 'team', None) if microcycle_obj_for_pdf else None
-    tactical_layout_for_pdf = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
-    task_presentation_pdf_context_by_format = {'uefa': {}, 'club': {}}
-    try:
-        preview_url_for_pdf = ''
-        if getattr(task, 'task_preview_image', None):
-            preview_url_for_pdf = _file_field_as_data_url(task.task_preview_image)
-        task_presentation_pdf_context_by_format['uefa'] = _build_task_pdf_context(
-            request=request,
-            team=team_obj_for_pdf,
-            session=session_obj_for_pdf,
-            microcycle=microcycle_obj_for_pdf,
-            task=task,
-            tactical_layout=tactical_layout_for_pdf,
-            pdf_style='uefa',
-            preview_url=preview_url_for_pdf,
-            one_page=False,
-        )
-        task_presentation_pdf_context_by_format['club'] = _build_task_pdf_context(
-            request=request,
-            team=team_obj_for_pdf,
-            session=session_obj_for_pdf,
-            microcycle=microcycle_obj_for_pdf,
-            task=task,
-            tactical_layout=tactical_layout_for_pdf,
-            pdf_style='club',
-            preview_url=preview_url_for_pdf,
-            one_page=False,
-        )
-    except Exception:
-        task_presentation_pdf_context_by_format = {'uefa': {}, 'club': {}}
 
     session_context = {}
     try:
@@ -44365,87 +42256,17 @@ def session_task_detail_page(request, task_id):
     except Exception:
         related_tasks = []
     edit_graphic_url = ''
-    builder_embed_url = ''
-    presentation_url = ''
-    task_builder_edit_route_name = _task_builder_edit_route_name(scope_key)
-    team = getattr(getattr(getattr(task, 'session', None), 'microcycle', None), 'team', None)
-    workspace = None
-    static_build_id = _resolve_static_build_id()
-    stadium_palette = {'primary': '#047857', 'secondary': '#f8fafc', 'accent': '#073b32'}
-    stadium_ads = {
-        'top': str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or 'Club').strip() or 'Club',
-        'right': '2J Football Intelligence',
-        'bottom': str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or 'Club').strip() or 'Club',
-        'left': 'Partner',
-    }
     try:
-        workspace = _get_active_workspace(request)
-    except Exception:
-        workspace = None
-    if not workspace and team:
-        try:
-            workspace = Workspace.objects.filter(primary_team=team).first()
-        except Exception:
-            workspace = None
-    try:
-        if team:
-            stadium_palette = _team_stadium_palette(workspace, team)
-            ads = _team_stadium_ads(workspace, team)
-            if isinstance(ads, dict):
-                stadium_ads.update({
-                    'top': str(ads.get('top') or stadium_ads['top']).strip() or stadium_ads['top'],
-                    'right': str(ads.get('right') or stadium_ads['right']).strip() or stadium_ads['right'],
-                    'bottom': str(ads.get('bottom') or stadium_ads['bottom']).strip() or stadium_ads['bottom'],
-                    'left': str(ads.get('left') or stadium_ads['left']).strip() or stadium_ads['left'],
-                })
-    except Exception:
-        pass
-    try:
-        base_detail_url = reverse('session-task-detail', args=[int(task.id)])
-        params = request.GET.copy()
-        params.pop('legacy', None)
-        params.pop('mode', None)
-        encoded_base = params.urlencode()
-        presentation_url = base_detail_url if not encoded_base else f'{base_detail_url}?{encoded_base}'
         if is_editable_task and not is_performed_task:
-            edit_params = {}
-            try:
-                if team and getattr(team, 'id', None):
-                    edit_params['team'] = int(team.id)
-            except Exception:
-                pass
-            try:
-                if workspace and getattr(workspace, 'id', None):
-                    edit_params['workspace'] = int(workspace.id)
-            except Exception:
-                pass
-            edit_graphic_url = reverse(task_builder_edit_route_name, args=[int(task.id)])
-            builder_embed_url = edit_graphic_url
-            edit_params['back_to'] = 'detail'
-            embedded_params = dict(edit_params)
-            embedded_params['embedded'] = 1
-            if edit_params:
-                edit_graphic_url = f"{edit_graphic_url}?{urlencode(edit_params)}"
-            if embedded_params:
-                builder_embed_url = f"{builder_embed_url}?{urlencode(embedded_params)}"
+            edit_graphic_url = reverse(_task_builder_edit_route_name(scope_key), args=[int(task.id)])
+            params = request.GET.copy()
+            params.pop('legacy', None)
+            params['back_to'] = 'detail'
+            encoded = params.urlencode()
+            if encoded:
+                edit_graphic_url = f'{edit_graphic_url}?{encoded}'
     except Exception:
         edit_graphic_url = ''
-        presentation_url = ''
-        builder_embed_url = ''
-
-    pitch3d_player_model_src = ''
-    try:
-        pitch3d_player_model_url = str(os.getenv('TASK_PLAYER_MODEL_URL') or '').strip()
-        pitch3d_player_model_static_path = str(os.getenv('TASK_PLAYER_MODEL_STATIC_PATH') or '').strip()
-        if pitch3d_player_model_url:
-            pitch3d_player_model_src = pitch3d_player_model_url
-        elif pitch3d_player_model_static_path:
-            pitch3d_player_model_src = static(pitch3d_player_model_static_path.lstrip('/'))
-            if static_build_id:
-                pitch3d_player_model_src = f"{pitch3d_player_model_src}?v={quote(str(static_build_id))}"
-    except Exception:
-        pitch3d_player_model_src = ''
-    pitch3d_assets = _task_pitch3d_asset_context(static_build_id, player_model_src=pitch3d_player_model_src)
     return render(
         request,
         'football/session_task_detail.html',
@@ -44454,71 +42275,28 @@ def session_task_detail_page(request, task_id):
             'scope_key': scope_key,
             'scope_title': scope_title,
             'scope_route_name': scope_route_name,
-            'task_builder_edit_route_name': task_builder_edit_route_name,
             'back_url': back_url,
             'back_label': back_label,
             'analysis_meta': analysis_meta,
-            'has_analysis_meta': bool(
-                str(analysis_meta.get('summary') or '').strip()
-                or str(task_sheet.get('description') or '').strip()
-                or str(task_sheet.get('players') or '').strip()
-                or str(task_sheet.get('space') or '').strip()
-                or str(task_sheet.get('dimensions') or '').strip()
-                or str(task_sheet.get('materials') or '').strip()
-                or detected_materials
-                or pdf_excerpt
-            ),
-            'task_meta': meta,
             'task_sheet': task_sheet,
             'pdf_excerpt': pdf_excerpt,
             'detected_materials': detected_materials,
             'feedback': feedback,
             'error': error,
             'task_blocks': SessionTask.BLOCK_CHOICES,
-            'task_surface_choices': TASK_SURFACE_CHOICES,
-            'task_pitch_choices': TASK_PITCH_FORMAT_CHOICES,
-            'game_moment_choices': GAME_MOMENT_CHOICES,
-            'player_structure_choices': PLAYER_STRUCTURE_CHOICES,
-            'task_load_level_choices': TASK_LOAD_LEVEL_CHOICES,
-            'task_rpe_scale_choices': TASK_RPE_SCALE_CHOICES,
-            'task_dominant_load_choices': TASK_DOMINANT_LOAD_CHOICES,
-            'task_md_day_choices': TASK_MD_DAY_CHOICES,
-            'task_complexity_choices': TASK_COMPLEXITY_CHOICES,
-            'task_strategy_choices': TASK_STRATEGY_CHOICES,
-            'task_coordination_skills_choices': TASK_COORDINATION_SKILLS_CHOICES,
-            'task_tactical_intent_choices': TASK_TACTICAL_INTENT_CHOICES,
-            'task_dynamics_choices': TASK_DYNAMICS_CHOICES,
-            'task_structure_choices': TASK_STRUCTURE_CHOICES,
-            'task_coordination_choices': TASK_COORDINATION_CHOICES,
             'graphic_editor_state_json': json.dumps(graphic_editor_state, ensure_ascii=False),
             'animation_frames': animation_frames,
             'animation_frames_json': json.dumps(animation_frames, ensure_ascii=False),
             'original_version': original_version,
             'original_task_sheet': original_task_sheet,
             'original_preview_url': original_preview_url,
-            'builder_embed_url': builder_embed_url,
+            'task_3d_preview_url': task_3d_preview_url,
             'is_editable_task': is_editable_task,
             'is_imported_task': is_imported_task,
             'is_performed_task': is_performed_task,
-            'can_edit_task': can_edit_task,
-            'active_task_tab': active_task_tab,
-            'active_task_edit_tab': active_task_edit_tab,
-            'active_task_format_tab': active_task_format_tab,
-            'show_edit_mode': show_edit_mode,
             'session_context': session_context,
             'related_tasks': related_tasks,
             'edit_graphic_url': edit_graphic_url,
-            'presentation_url': presentation_url,
-            'task_pitch3d_context_json': json.dumps(
-                {
-                    'teamName': str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or '').strip(),
-                    'stadiumPalette': stadium_palette,
-                    'stadiumAds': stadium_ads,
-                },
-                ensure_ascii=False,
-            ),
-            'task_presentation_pdf_context_by_format': task_presentation_pdf_context_by_format,
-            'pitch3d_assets': pitch3d_assets,
             'is_bookmarked': SessionTaskBookmark.objects.filter(user=request.user, task=task).exists()
             if request.user and request.user.is_authenticated
             else False,
@@ -45170,15 +42948,25 @@ def analysis_page(request):
     analysis_selected_season, analysis_season_start, analysis_season_end = _selected_club_season_bounds(request, workspace=workspace)
     analysis_season_read_only = season_history_services.selected_club_season_is_read_only(analysis_selected_season)
     active_tab = str(request.GET.get('tab') or '').strip().lower() or 'videos'
-    if active_tab not in {'reports', 'videos', 'studio', 'insights', 'rivals'}:
+    if active_tab not in {'reports', 'videos', 'studio', 'tactics', 'insights', 'rivals'}:
         active_tab = 'videos'
-    def _tab_link(tab_name):
+    analysis_video_view = str(request.GET.get('view') or '').strip().lower()
+    if analysis_video_view not in {'upload', 'library'}:
+        analysis_video_view = 'upload'
+
+    def _tab_link(tab_name, **extra_params):
         params = request.GET.copy()
         params['tab'] = tab_name
+        for key, value in extra_params.items():
+            if value is None:
+                params.pop(key, None)
+            else:
+                params[key] = value
         encoded = params.urlencode()
         return f'?{encoded}' if encoded else ''
     team_url = (request.GET.get('team_url') or '').strip()
     team_id = (request.GET.get('team_id') or '').strip()
+    selected_video_match_id = _parse_int(request.GET.get('video_match_id') or request.POST.get('video_match_id'))
     raw_text = ''
     roster = []
     probable_eleven = []
@@ -45379,10 +43167,12 @@ def analysis_page(request):
             video_source = (request.POST.get('video_source') or RivalVideo.SOURCE_MANUAL).strip()
             rival_team_id = _parse_int(request.POST.get('video_team_id'))
             folder_id = _parse_int(request.POST.get('video_folder_id'))
+            match_id = _parse_int(request.POST.get('video_match_id'))
             want_personal = str(request.POST.get('video_personal') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
             video_file = request.FILES.get('video_file')
             rival_team = Team.objects.filter(id=rival_team_id).first() if rival_team_id else None
             folder = AnalystVideoFolder.objects.filter(id=folder_id, team=primary_team).first() if folder_id and primary_team else None
+            match_obj = _team_match_queryset(primary_team).filter(id=int(match_id)).first() if match_id and primary_team and not want_personal else None
             wants_json_response = 'application/json' in str(request.headers.get('Accept') or '').lower()
             if not video_file:
                 video_error = 'Selecciona un vídeo para subir.'
@@ -45399,6 +43189,7 @@ def analysis_page(request):
                         team=None if want_personal else primary_team,
                         club_season=None if want_personal else analysis_selected_season,
                         folder=None if want_personal else folder,
+                        match=None if want_personal else match_obj,
                         owner_user=request.user if want_personal else None,
                         rival_team=rival_team,
                         title=video_title,
@@ -45457,6 +43248,7 @@ def analysis_page(request):
         elif form_action == 'assign_video_players':
             video_id = _parse_int(request.POST.get('video_id'))
             folder_id = _parse_int(request.POST.get('video_folder_id'))
+            match_id = _parse_int(request.POST.get('video_match_id'))
             entry = RivalVideo.objects.select_related('folder').filter(id=video_id).first()
             if not entry:
                 video_error = 'Vídeo no encontrado.'
@@ -45471,12 +43263,14 @@ def analysis_page(request):
                     video_error = 'No autorizado.'
                 else:
                     folder = AnalystVideoFolder.objects.filter(id=folder_id, team=primary_team).first() if folder_id else None
+                    match_obj = _team_match_queryset(primary_team).filter(id=int(match_id)).first() if match_id else None
                     entry.folder = folder
+                    entry.match = match_obj
                     if not entry_team_id:
                         entry.team = primary_team
-                        entry.save(update_fields=['folder', 'team'])
+                        entry.save(update_fields=['folder', 'match', 'team'])
                     else:
-                        entry.save(update_fields=['folder'])
+                        entry.save(update_fields=['folder', 'match'])
                     assigned_player_ids = [
                         player_id
                         for player_id in (_parse_int(value) for value in request.POST.getlist('assigned_player_ids'))
@@ -46462,25 +44256,34 @@ def analysis_page(request):
             except Exception:
                 video_inbox_unread_count = 0
 
-    rival_videos_qs = RivalVideo.objects.select_related('rival_team', 'folder', 'folder__base_video').prefetch_related('assigned_players').order_by('-is_base', '-created_at')
-    if primary_team:
-        # Multi-equipo: no mezclar vídeos entre clubs/categorías.
-        rival_videos_qs = rival_videos_qs.filter(
-            Q(team=primary_team)
-            | Q(team__isnull=True, folder__team=primary_team)
-            | Q(team__isnull=True, folder__isnull=True, owner_user=request.user)
+    rival_videos = []
+    if active_tab in {'videos', 'studio'}:
+        rival_videos_qs = (
+            RivalVideo.objects
+            .select_related('rival_team', 'folder', 'folder__base_video', 'match', 'match__home_team', 'match__away_team')
+            .prefetch_related('assigned_players')
+            .order_by('-is_base', '-created_at')
         )
-    elif request.user.is_authenticated:
-        rival_videos_qs = rival_videos_qs.filter(team__isnull=True, folder__isnull=True, owner_user=request.user)
-    if selected_team:
-        rival_videos_qs = rival_videos_qs.filter(rival_team=selected_team)
-    else:
-        rival_videos_qs = rival_videos_qs.filter(rival_team__isnull=True)
-    if selected_folder_id:
-        rival_videos_qs = rival_videos_qs.filter(folder_id=selected_folder_id)
-    if analysis_selected_season:
-        rival_videos_qs = _apply_club_season_filter(rival_videos_qs, analysis_selected_season, 'created_at', analysis_season_start, analysis_season_end, datetime_field=True)
-    rival_videos = list(rival_videos_qs[:40])
+        if primary_team:
+            # Multi-equipo: no mezclar vídeos entre clubs/categorías.
+            rival_videos_qs = rival_videos_qs.filter(
+                Q(team=primary_team)
+                | Q(team__isnull=True, folder__team=primary_team)
+                | Q(team__isnull=True, folder__isnull=True, owner_user=request.user)
+            )
+        elif request.user.is_authenticated:
+            rival_videos_qs = rival_videos_qs.filter(team__isnull=True, folder__isnull=True, owner_user=request.user)
+        if selected_team:
+            rival_videos_qs = rival_videos_qs.filter(rival_team=selected_team)
+        else:
+            rival_videos_qs = rival_videos_qs.filter(rival_team__isnull=True)
+        if selected_folder_id:
+            rival_videos_qs = rival_videos_qs.filter(folder_id=selected_folder_id)
+        if selected_video_match_id:
+            rival_videos_qs = rival_videos_qs.filter(match_id=int(selected_video_match_id))
+        if analysis_selected_season:
+            rival_videos_qs = _apply_club_season_filter(rival_videos_qs, analysis_selected_season, 'created_at', analysis_season_start, analysis_season_end, datetime_field=True)
+        rival_videos = list(rival_videos_qs[:20])
     # Ordena poniendo el vídeo base de la carpeta (si existe) el primero.
     try:
         folder_base_id = 0
@@ -46491,26 +44294,11 @@ def analysis_page(request):
             rival_videos.sort(key=lambda v: (0 if int(getattr(v, 'id', 0) or 0) == folder_base_id else 1, -int(getattr(v, 'id', 0) or 0)))
     except Exception:
         pass
-    for v in rival_videos:
-        try:
-            is_youtube = bool(
-                getattr(v, 'source', '') == RivalVideo.SOURCE_YOUTUBE
-                and str(getattr(v, 'source_url', '') or '').strip()
-                and not getattr(v, 'video', None)
-            )
-            if not is_youtube:
-                continue
-            yt_id = _extract_youtube_video_id(str(getattr(v, 'source_url', '') or '').strip())
-            setattr(v, 'youtube_id', yt_id)
-            if yt_id:
-                setattr(
-                    v,
-                    'youtube_embed_url',
-                    f'https://www.youtube-nocookie.com/embed/{yt_id}?rel=0&modestbranding=1&playsinline=1',
-                )
-        except Exception:
-            continue
-    analyst_players = _operational_roster_players_for_team(request, primary_team, confirmed_only=True) if primary_team else []
+    analyst_players = (
+        _operational_roster_players_for_team(request, primary_team, confirmed_only=True)
+        if primary_team and active_tab == 'videos'
+        else []
+    )
     match_options = []
     match_reports = []
     if primary_team:
@@ -46547,6 +44335,91 @@ def analysis_page(request):
         except Exception:
             match_reports = []
 
+    def _analysis_video_match_label(match):
+        if not match:
+            return 'Sin partido asignado'
+        try:
+            if getattr(match, 'home_team', None) and getattr(match, 'away_team', None):
+                base = f'{match.home_team.display_name} vs {match.away_team.display_name}'
+            else:
+                base = f'Partido {match.id}'
+        except Exception:
+            base = f'Partido {getattr(match, "id", "") or ""}'.strip()
+        parts = []
+        try:
+            if match.round:
+                parts.append(str(match.round))
+        except Exception:
+            pass
+        try:
+            if match.date:
+                parts.append(match.date.strftime('%d/%m/%Y'))
+        except Exception:
+            pass
+        suffix = ' · '.join([p for p in parts if p])
+        return f'{base} · {suffix}' if suffix else base
+
+    analysis_match_library = []
+    if rival_videos:
+        video_ids = [int(v.id) for v in rival_videos if getattr(v, 'id', None)]
+        clip_counts = {
+            int(row['video_id']): int(row['c'] or 0)
+            for row in VideoClip.objects.filter(video_id__in=video_ids).values('video_id').annotate(c=Count('id'))
+        }
+        export_counts = {
+            int(row['video_id']): int(row['c'] or 0)
+            for row in VideoExportAsset.objects.filter(video_id__in=video_ids).values('video_id').annotate(c=Count('id'))
+        }
+        project_counts = {}
+        capture_counts = {}
+        for project in VideoTelestrationProject.objects.filter(video_id__in=video_ids).only('video_id', 'payload'):
+            vid = int(getattr(project, 'video_id', 0) or 0)
+            if not vid:
+                continue
+            project_counts[vid] = project_counts.get(vid, 0) + 1
+            payload = project.payload if isinstance(getattr(project, 'payload', None), dict) else {}
+            slides = payload.get('slides') if isinstance(payload, dict) else None
+            if isinstance(slides, list):
+                capture_counts[vid] = capture_counts.get(vid, 0) + len(slides)
+
+        grouped = {}
+        for video in rival_videos:
+            match_id_value = int(getattr(video, 'match_id', 0) or 0)
+            key = match_id_value or 0
+            if key not in grouped:
+                grouped[key] = {
+                    'match_id': match_id_value,
+                    'label': _analysis_video_match_label(getattr(video, 'match', None)),
+                    'date': getattr(getattr(video, 'match', None), 'date', None),
+                    'videos': [],
+                    'video_count': 0,
+                    'clip_count': 0,
+                    'capture_count': 0,
+                    'project_count': 0,
+                    'export_count': 0,
+                }
+            row = grouped[key]
+            vid = int(getattr(video, 'id', 0) or 0)
+            video.analysis_clip_count = int(clip_counts.get(vid, 0))
+            video.analysis_capture_count = int(capture_counts.get(vid, 0))
+            video.analysis_project_count = int(project_counts.get(vid, 0))
+            video.analysis_export_count = int(export_counts.get(vid, 0))
+            row['videos'].append(video)
+            row['video_count'] += 1
+            row['clip_count'] += int(video.analysis_clip_count)
+            row['capture_count'] += int(video.analysis_capture_count)
+            row['project_count'] += int(video.analysis_project_count)
+            row['export_count'] += int(video.analysis_export_count)
+        analysis_match_library = sorted(
+            grouped.values(),
+            key=lambda item: (
+                1 if item.get('match_id') else 0,
+                item.get('date') or date.min,
+                item.get('match_id') or 0,
+            ),
+            reverse=True,
+        )
+
     folder_reports = []
     if primary_team and selected_folder_id:
         try:
@@ -46560,20 +44433,49 @@ def analysis_page(request):
         except Exception:
             folder_reports = []
 
+    def _append_query(url, **params):
+        clean_params = {key: value for key, value in params.items() if value not in (None, '')}
+        if not clean_params:
+            return url
+        separator = '&' if '?' in url else '?'
+        return f'{url}{separator}{urlencode(clean_params)}'
+
+    try:
+        tactics_url = reverse('coach-tactics')
+        if primary_team:
+            tactics_url = _append_query(tactics_url, team=int(primary_team.id))
+    except Exception:
+        tactics_url = '/coach/tactica/'
+    tactics_url_playbook = _append_query(tactics_url, pane='playbook')
+    tactics_url_export = _append_query(tactics_url, pane='exportar')
+    tactics_url_pro = _append_query(tactics_url, pane='tacticalpro')
+    tactics_url_easy_animation = _append_query(tactics_url, pane='tacticalpro', anim='easy')
+
     return render(
         request,
         'football/coach_analysis.html',
         {
-            'section_title': 'Análisis rival',
-            'description': 'Indicadores y notas tácticas para el próximo rival.',
+            'section_title': 'Análisis',
+            'description': 'Carga, biblioteca, edición de vídeo y pizarra táctica del cuerpo técnico.',
             'team_url': team_url,
             'team_id': team_id,
             'active_tab': active_tab,
-            'tab_link_reports': _tab_link('reports'),
-            'tab_link_videos': _tab_link('videos'),
-            'tab_link_studio': _tab_link('studio'),
-            'tab_link_insights': _tab_link('insights'),
-            'tab_link_rivals': _tab_link('rivals'),
+            'analysis_video_view': analysis_video_view,
+            'analysis_match_library': analysis_match_library,
+            'selected_video_match_id': int(selected_video_match_id or 0),
+            'tab_link_reports': _tab_link('reports', view=None),
+            'tab_link_upload': _tab_link('videos', view='upload'),
+            'tab_link_library': _tab_link('videos', view='library'),
+            'tab_link_videos': _tab_link('videos', view='library'),
+            'tab_link_studio': _tab_link('studio', view=None),
+            'tab_link_tactics': _tab_link('tactics', view=None),
+            'tab_link_insights': _tab_link('insights', view=None),
+            'tab_link_rivals': _tab_link('rivals', view=None),
+            'tactics_url': tactics_url,
+            'tactics_url_playbook': tactics_url_playbook,
+            'tactics_url_export': tactics_url_export,
+            'tactics_url_pro': tactics_url_pro,
+            'tactics_url_easy_animation': tactics_url_easy_animation,
             'teams': Team.objects.order_by('name'),
             'raw_text': raw_text,
             'roster': roster,
@@ -48774,7 +46676,7 @@ def analysis_video_report_item_tactical_page(request, item_id):
         if pitch_orientation not in {'landscape', 'portrait'}:
             pitch_orientation = 'landscape'
         pitch_zoom = (request.POST.get('draw_task_pitch_zoom') or '').strip() or '1.00'
-        pitch_grass_style = (request.POST.get('draw_task_pitch_grass_style') or '').strip() or 'stadium_native'
+        pitch_grass_style = (request.POST.get('draw_task_pitch_grass_style') or '').strip() or DEFAULT_TASK_PITCH_GRASS_STYLE
         pitch_preset = (request.POST.get('draw_task_pitch_preset') or '').strip() or 'full_pitch'
 
         tactical_layout = {
@@ -48840,7 +46742,7 @@ def analysis_video_report_item_tactical_page(request, item_id):
         'canvas_height': int(_parse_int(graphic.get('canvas_height')) or 720),
         'pitch_orientation': str(meta.get('pitch_orientation') or 'landscape'),
         'pitch_zoom': str(meta.get('pitch_zoom') or '1.00'),
-        'pitch_grass_style': 'stadium_native' if str(meta.get('pitch_grass_style') or '').strip().lower() in {'', 'stadium_top', 'stadium_top_h', 'stadium_top_v'} else str(meta.get('pitch_grass_style') or 'stadium_native'),
+        'pitch_grass_style': str(meta.get('pitch_grass_style') or DEFAULT_TASK_PITCH_GRASS_STYLE),
         'pitch_preset': str(meta.get('pitch_preset') or 'full_pitch'),
     }
 
@@ -48852,7 +46754,11 @@ def analysis_video_report_item_tactical_page(request, item_id):
     except Exception:
         player_catalog = []
     try:
-        available_players = list(player_catalog or [])
+        available_players = list(
+            Player.objects
+            .filter(team=primary_team, is_active=True)
+            .order_by('number', 'name')[:60]
+        )
     except Exception:
         available_players = []
 
@@ -48929,8 +46835,6 @@ def analysis_video_report_item_tactical_page(request, item_id):
         analysis_item_title = f'Elemento {int(item.id)}'
 
     workspace = _get_active_workspace(request)
-    static_build_id = _resolve_static_build_id()
-    pitch3d_assets = _task_pitch3d_asset_context(static_build_id)
 
     return render(
         request,
@@ -48942,7 +46846,6 @@ def analysis_video_report_item_tactical_page(request, item_id):
             'task': None,
             'feedback': message,
             'error': error,
-            'task_submit_uid': task_submit_uid,
             'can_restore_original': False,
             'task_blocks': SessionTask.BLOCK_CHOICES,
             'all_sessions': [],
@@ -48982,7 +46885,6 @@ def analysis_video_report_item_tactical_page(request, item_id):
             'analysis_item_mode': True,
             'analysis_item_title': analysis_item_title,
             'analysis_item_video_upload_url': reverse('analysis-video-report-item-tactical-video-upload-api', args=[int(item.id)]),
-            **pitch3d_assets,
         },
     )
 
@@ -49562,11 +47464,16 @@ def analysis_rival_video_chunk_init_api(request):
         return JsonResponse({'ok': False, 'error': 'total_chunks inválido.'}, status=400)
     if size_bytes <= 0:
         return JsonResponse({'ok': False, 'error': 'size_bytes inválido.'}, status=400)
+    max_mb = int(getattr(settings, 'ANALYSIS_VIDEO_MAX_UPLOAD_MB', 0) or 0)
+    if max_mb and int(size_bytes) > max_mb * 1024 * 1024:
+        return JsonResponse({'ok': False, 'error': f'El vídeo supera el límite de {max_mb}MB.'}, status=400)
 
     video_title = (data.get('video_title') or '').strip() or 'Vídeo rival'
     video_source = (data.get('video_source') or RivalVideo.SOURCE_MANUAL).strip()
     rival_team_id = _parse_int(data.get('video_team_id'))
     folder_id = _parse_int(data.get('video_folder_id'))
+    match_id = _parse_int(data.get('video_match_id'))
+    want_personal = str(data.get('video_personal') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     notes = (data.get('video_notes') or '').strip()
     assigned = data.get('assigned_player_ids')
     if not isinstance(assigned, list):
@@ -49595,6 +47502,8 @@ def analysis_rival_video_chunk_init_api(request):
                 'video_source': video_source if video_source in {c[0] for c in RivalVideo.SOURCE_CHOICES} else RivalVideo.SOURCE_MANUAL,
                 'video_team_id': int(rival_team_id or 0),
                 'video_folder_id': int(folder_id or 0),
+                'video_match_id': int(match_id or 0),
+                'video_personal': bool(want_personal),
                 'video_notes': notes[:4000],
                 'assigned_player_ids': assigned_ids,
             },
@@ -49698,11 +47607,14 @@ def analysis_rival_video_chunk_finish_api(request):
     video_source = str(meta.get('video_source') or RivalVideo.SOURCE_MANUAL).strip()
     rival_team_id = _parse_int(meta.get('video_team_id'))
     folder_id = _parse_int(meta.get('video_folder_id'))
+    match_id = _parse_int(meta.get('video_match_id'))
+    want_personal = bool(meta.get('video_personal'))
     notes = str(meta.get('video_notes') or '').strip()
     assigned_ids = meta.get('assigned_player_ids') if isinstance(meta.get('assigned_player_ids'), list) else []
     assigned_ids = [int(x) for x in assigned_ids if str(x).isdigit()][:200]
     rival_team = Team.objects.filter(id=int(rival_team_id)).first() if rival_team_id else None
-    folder = AnalystVideoFolder.objects.filter(id=int(folder_id), team=primary_team).first() if folder_id else None
+    folder = AnalystVideoFolder.objects.filter(id=int(folder_id), team=primary_team).first() if folder_id and not want_personal else None
+    match_obj = _team_match_queryset(primary_team).filter(id=int(match_id)).first() if match_id and not want_personal else None
     selected_video_season = selected_club_season_for_request(request, workspace=_get_active_workspace(request))
 
     tmp = tempfile.NamedTemporaryFile(prefix='2j-video-', suffix=Path(session.original_name or 'upload.mp4').suffix or '.mp4', delete=False)
@@ -49720,23 +47632,26 @@ def analysis_rival_video_chunk_finish_api(request):
         from django.core.files import File  # noqa: WPS433 (lazy import)
         with open(tmp_path, 'rb') as assembled:
             entry = RivalVideo.objects.create(
-                team=primary_team,
-                club_season=selected_video_season,
+                team=None if want_personal else primary_team,
+                club_season=None if want_personal else selected_video_season,
                 rival_team=rival_team,
                 folder=folder,
+                match=None if want_personal else match_obj,
+                owner_user=request.user if want_personal else None,
                 title=video_title[:180],
                 source=video_source if video_source in {c[0] for c in RivalVideo.SOURCE_CHOICES} else RivalVideo.SOURCE_MANUAL,
                 notes=notes[:4000],
             )
             entry.video.save(Path(session.original_name or 'video.mp4').name, File(assembled), save=True)
-            if assigned_ids:
+            if assigned_ids and primary_team and not want_personal:
                 entry.assigned_players.set(Player.objects.filter(team=primary_team, id__in=assigned_ids))
             # AutoCut automático (background): crea colección "AutoCut" + marcadores.
             try:
                 _video_studio_schedule_autocut_after_upload(
                     video_id=int(entry.id),
-                    team_id=int(getattr(primary_team, 'id', 0) or 0) or None,
-                    owner_user_id=None,
+                    team_id=int(getattr(entry, 'team_id', 0) or 0) or None,
+                    owner_user_id=int(getattr(entry, 'owner_user_id', 0) or 0) or None,
+                    workspace_id=int(getattr(_get_active_workspace(request), 'id', 0) or 0) or None,
                     created_by=request.user.get_username() if request.user.is_authenticated else '',
                 )
             except Exception:
@@ -49826,6 +47741,7 @@ def analysis_rival_video_import_youtube_api(request):
     requested_title = _sanitize_task_text(str(data.get('video_title') or '').strip(), multiline=False, max_len=180)
     rival_team_id = _parse_int(data.get('video_team_id'))
     folder_id = _parse_int(data.get('video_folder_id'))
+    match_id = _parse_int(data.get('video_match_id'))
     notes = _sanitize_task_text(str(data.get('video_notes') or '').strip(), multiline=True, max_len=4000)
     want_personal = str(data.get('video_personal') or data.get('personal') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
 
@@ -49852,6 +47768,7 @@ def analysis_rival_video_import_youtube_api(request):
     folder = None
     if folder_id and primary_team and not want_personal:
         folder = AnalystVideoFolder.objects.filter(id=int(folder_id), team=primary_team).first()
+    match_obj = _team_match_queryset(primary_team).filter(id=int(match_id)).first() if match_id and primary_team and not want_personal else None
     selected_video_season = selected_club_season_for_request(request, workspace=_get_active_workspace(request))
 
     title = requested_title
@@ -49864,6 +47781,7 @@ def analysis_rival_video_import_youtube_api(request):
             club_season=None if want_personal else selected_video_season,
             rival_team=rival_team,
             folder=folder,
+            match=None if want_personal else match_obj,
             owner_user=request.user if want_personal else None,
             title=title[:180],
             source=RivalVideo.SOURCE_YOUTUBE,
@@ -59548,13 +57466,22 @@ def player_detail_page(request, player_id):
             if latest_closed_evaluation
             else []
         )
-        physical_metrics = player.physical_metrics.all()[:20]
+        physical_metrics = list(player.physical_metrics.order_by('-recorded_on', '-id')[:20])
         latest_physical_metric = physical_metrics[0] if physical_metrics else None
-        communications = player.communications.select_related('match').all()[:20]
+        communications = list(
+            player.communications
+            .select_related('match')
+            .order_by('-created_at', '-id')[:20]
+        )
+        latest_communication = communications[0] if communications else None
         assigned_analysis_videos = list(
             player.assigned_analysis_videos.select_related('rival_team', 'folder').order_by('-created_at')[:20]
         )
-        injury_records = list(player.injury_records.select_related('catalog_entry').all()[:20])
+        injury_records = list(
+            player.injury_records
+            .select_related('catalog_entry')
+            .order_by('-injury_date', '-id')[:20]
+        )
         for record in injury_records:
             try:
                 record.days_lost = time_loss_days(record.injury_date, record.return_date)
@@ -59801,6 +57728,62 @@ def player_detail_page(request, player_id):
         except Exception:
             injury_days = 0
 
+        player_priority_rows = []
+        if has_active_injury:
+            player_priority_rows.append({
+                'label': 'Recuperación',
+                'value': 'Lesión activa',
+                'meta': latest_injury_record.injury if latest_injury_record else 'Revisar el historial de lesión y la fecha de alta.',
+                'priority': 100,
+                'tone': 'critical',
+            })
+        if has_manual_sanction:
+            player_priority_rows.append({
+                'label': 'Disciplina',
+                'value': 'Sanción manual',
+                'meta': player.manual_sanction_reason or 'Ver motivo, vigencia y comunicación interna.',
+                'priority': 95,
+                'tone': 'critical',
+            })
+        if attendance_pending > 0:
+            player_priority_rows.append({
+                'label': 'Asistencia',
+                'value': f'{attendance_pending} pendientes',
+                'meta': 'Hay sesiones sin confirmar en la temporada actual.',
+                'priority': 80 if attendance_pending >= 3 else 65,
+                'tone': 'warning' if attendance_pending >= 3 else 'neutral',
+            })
+        if evaluation_summary['pending']:
+            days_text = f' hace {evaluation_days_since} días' if evaluation_days_since is not None else ''
+            player_priority_rows.append({
+                'label': 'Evaluación',
+                'value': 'Revisar cierre',
+                'meta': f'La última evaluación cerrada necesita revisión{days_text}.',
+                'priority': 78 if evaluation_days_since is None or evaluation_days_since > 30 else 60,
+                'tone': 'warning' if evaluation_days_since is None or evaluation_days_since > 30 else 'neutral',
+            })
+        if not latest_communication:
+            player_priority_rows.append({
+                'label': 'Comunicación',
+                'value': 'Sin trazabilidad',
+                'meta': 'Conviene dejar un mensaje de contexto o seguimiento.',
+                'priority': 45,
+                'tone': 'neutral',
+            })
+        if not player_priority_rows:
+            player_priority_rows = [{
+                'label': 'Estado',
+                'value': 'Sin alertas',
+                'meta': 'El jugador está disponible y la ficha no muestra prioridades urgentes.',
+                'priority': 10,
+                'tone': 'ok',
+            }]
+        player_priority_rows = sorted(
+            player_priority_rows,
+            key=lambda item: int(item.get('priority', 0) or 0),
+            reverse=True,
+        )[:4]
+
         # Próximas sesiones: útiles para que el jugador confirme asistencia.
         today = timezone.localdate()
         upcoming_end = today + timedelta(days=14)
@@ -59914,6 +57897,8 @@ def player_detail_page(request, player_id):
                 'physical_metrics': physical_metrics,
                 'latest_physical_metric': latest_physical_metric,
                 'communications': communications,
+                'latest_communication': latest_communication,
+                'player_priority_rows': player_priority_rows,
                 'assigned_analysis_videos': assigned_analysis_videos,
                 'injury_records': injury_records,
                 'latest_injury_record': latest_injury_record,
@@ -66342,162 +64327,6 @@ def search_page(request):
     )
 
 
-def _search_api_team_url(*, request, workspace, team):
-    workspace_id = int(getattr(workspace, 'id', 0) or 0)
-    team_id = int(getattr(team, 'id', 0) or 0)
-    if not team_id:
-        return reverse('coach-roster')
-    if workspace_id:
-        if _can_manage_workspace(request.user, workspace) or _is_admin_user(request.user):
-            try:
-                return reverse('platform-workspace-team-detail', args=[workspace_id, team_id])
-            except Exception:
-                pass
-        try:
-            return f"{reverse('platform-workspace-enter', args=[workspace_id])}?team={team_id}"
-        except Exception:
-            pass
-    return f"{reverse('coach-roster')}?team={team_id}"
-
-
-def _score_team_search_candidate(*, team, workspace, query_norm, is_default=False, active_team_id=None):
-    if not query_norm:
-        return 0
-    values = [
-        getattr(team, 'name', '') or '',
-        getattr(team, 'short_name', '') or '',
-        getattr(team, 'slug', '') or '',
-        getattr(team, 'external_id', '') or '',
-        getattr(team, 'city', '') or '',
-        getattr(team, 'category', '') or '',
-        getattr(getattr(team, 'group', None), 'name', '') or '',
-        getattr(getattr(team, 'group', None), 'slug', '') or '',
-        getattr(getattr(team, 'group', None), 'external_id', '') or '',
-        getattr(workspace, 'name', '') or '',
-        getattr(workspace, 'slug', '') or '',
-    ]
-    normalized_values = [normalize_label(value) for value in values if str(value or '').strip()]
-    if not normalized_values:
-        return 0
-
-    score = 0
-    if query_norm in normalized_values:
-        score += 120
-    elif any(value.startswith(query_norm) for value in normalized_values):
-        score += 90
-    elif any(query_norm in value for value in normalized_values):
-        score += 60
-
-    tokens = [token for token in query_norm.split() if len(token) >= 2]
-    if tokens:
-        token_hits = 0
-        for token in tokens:
-            if any(token in value for value in normalized_values):
-                token_hits += 1
-        if token_hits == len(tokens):
-            score += 40
-        elif token_hits:
-            score += 10 + (token_hits * 4)
-
-    if normalize_label(getattr(team, 'category', '') or '') == query_norm:
-        score += 12
-    if normalize_label(getattr(team, 'slug', '') or '') == query_norm:
-        score += 10
-    if is_default:
-        score += 8
-    if active_team_id and int(getattr(team, 'id', 0) or 0) == int(active_team_id):
-        score += 6
-    if workspace and int(getattr(workspace, 'primary_team_id', 0) or 0) == int(getattr(team, 'id', 0) or 0):
-        score += 5
-    return score
-
-
-def _search_api_team_items(request, primary_team, q):
-    query_norm = normalize_label(q)
-    if len(query_norm) < 2:
-        return []
-
-    workspaces = []
-    active_workspace = _get_active_workspace(request)
-    if active_workspace and getattr(active_workspace, 'kind', None) == Workspace.KIND_CLUB:
-        workspaces = [active_workspace]
-    else:
-        try:
-            workspaces = list(
-                _available_workspaces_for_user(request.user)
-                .filter(kind=Workspace.KIND_CLUB)
-                .order_by('id')[:20]
-            )
-        except Exception:
-            workspaces = []
-        if not workspaces and primary_team:
-            try:
-                fallback_workspace = Workspace.objects.filter(primary_team=primary_team).first()
-            except Exception:
-                fallback_workspace = None
-            if fallback_workspace:
-                workspaces = [fallback_workspace]
-
-    items = []
-    seen_team_ids = set()
-    active_team_id = int(getattr(primary_team, 'id', 0) or 0)
-    for workspace in workspaces:
-        try:
-            links = _workspace_team_links_for_user(workspace, request.user)
-        except Exception:
-            links = []
-        for link in links:
-            team = getattr(link, 'team', None)
-            if not team or not getattr(team, 'id', None):
-                continue
-            team_id = int(team.id)
-            if team_id in seen_team_ids:
-                continue
-            score = _score_team_search_candidate(
-                team=team,
-                workspace=workspace,
-                query_norm=query_norm,
-                is_default=bool(getattr(link, 'is_default', False)),
-                active_team_id=active_team_id,
-            )
-            if score <= 0:
-                continue
-            seen_team_ids.add(team_id)
-            meta_parts = []
-            category = str(getattr(team, 'category', '') or '').strip()
-            if category:
-                meta_parts.append(category.title())
-            city = str(getattr(team, 'city', '') or '').strip()
-            if city:
-                meta_parts.append(city)
-            if getattr(workspace, 'name', ''):
-                meta_parts.append(str(workspace.name).strip())
-            items.append(
-                {
-                    'type': 'team',
-                    'id': str(team_id),
-                    'label': str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or '').strip() or f'Equipo {team_id}',
-                    'meta': ' · '.join(meta_parts),
-                    'url': _search_api_team_url(request=request, workspace=workspace, team=team),
-                    '_score': score,
-                    '_is_default': bool(getattr(link, 'is_default', False)),
-                }
-            )
-
-    items.sort(
-        key=lambda item: (
-            -int(item.get('_score', 0) or 0),
-            0 if item.get('_is_default') else 1,
-            str(item.get('label') or '').lower(),
-            int(item.get('id') or 0),
-        )
-    )
-    for item in items:
-        item.pop('_score', None)
-        item.pop('_is_default', None)
-    return items[:12]
-
-
 @login_required
 def search_api(request):
     primary_team = _get_primary_team_for_request(request)
@@ -66507,12 +64336,6 @@ def search_api(request):
     if len(q) < 2:
         return JsonResponse({'ok': True, 'q': q, 'groups': []})
     team_qs = f'?team={int(primary_team.id)}'
-
-    team_items = []
-    try:
-        team_items = _search_api_team_items(request, primary_team, q)
-    except Exception:
-        team_items = []
 
     player_items = []
     try:
@@ -66672,8 +64495,6 @@ def search_api(request):
     ]
 
     groups = []
-    if team_items:
-        groups.append({'key': 'teams', 'label': 'Equipos', 'items': team_items})
     if player_items:
         groups.append({'key': 'players', 'label': 'Jugadores', 'items': player_items})
     if match_items:
@@ -67508,7 +65329,7 @@ def tactical_playbook_task_save_api(request):
         pitch_preset = 'full_pitch'
     pitch_orientation = str(first_step.get('orientation') or 'landscape').strip().lower()
     pitch_orientation = pitch_orientation if pitch_orientation in {'landscape', 'portrait'} else 'landscape'
-    pitch_grass_style = str(first_step.get('grass_style') or 'stadium_native').strip().lower() or 'stadium_native'
+    pitch_grass_style = str(first_step.get('grass_style') or DEFAULT_TASK_PITCH_GRASS_STYLE).strip().lower() or DEFAULT_TASK_PITCH_GRASS_STYLE
     try:
         pitch_zoom = float(first_step.get('zoom') or 1.0)
     except Exception:
@@ -67586,16 +65407,8 @@ def tactical_playbook_task_save_api(request):
         pass
 
     try:
-        task_detail_url = reverse('session-task-detail', args=[int(created_task.id)])
-        params = {
-            'mode': 'edit',
-            'tab': 'edit',
-            'edit_tab': 'graphic',
-            'format': 'uefa',
-            'repo': 'interactive',
-            'created_from': 'tactics',
-        }
-        url = f"{task_detail_url}?{urlencode(params)}"
+        edit_route = _task_builder_edit_route_name('coach')
+        url = f"{reverse(edit_route, args=[int(created_task.id)])}?repo=interactive&created_from=tactics"
     except Exception:
         url = ''
     return JsonResponse({'ok': True, 'id': int(created_task.id), 'url': url})
