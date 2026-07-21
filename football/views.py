@@ -17162,8 +17162,236 @@ def player_dashboard_page(request):
             'video_inbox_unread_count': int(video_inbox_unread_count or 0),
             'active_workspace': active_workspace,
             'active_team': primary_team,
+            'player_self_portal_url': reverse('player-self-portal') if getattr(getattr(request.user, 'player_profile', None), 'id', None) else '',
         },
     )
+
+
+@login_required
+def player_portal_page(request, player_id):
+    forbidden = _forbid_if_workspace_module_disabled(request, 'players', label='módulo de jugadores')
+    if forbidden:
+        return forbidden
+    primary_team, player = _resolve_player_for_request_scope(request, int(player_id))
+    if not primary_team:
+        return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
+    if not player:
+        return JsonResponse({'error': 'Jugador no encontrado'}, status=404)
+    forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
+    if forbidden:
+        return forbidden
+    current_role = _get_user_role(request.user)
+    is_player_account = current_role == AppUserRole.ROLE_PLAYER and not _is_admin_user(request.user)
+    active_workspace = _get_active_workspace(request)
+    active_match = get_active_match(primary_team)
+    current_convocation = get_current_convocation_record(primary_team, match=active_match)
+    scope = _get_stats_scope_for_request(request, primary_team)
+    tournament_filter = _get_tournament_filter_for_request(request, primary_team, scope=scope)
+
+    try:
+        dashboard_rows = compute_player_dashboard(
+            primary_team,
+            request=request,
+            scope=scope,
+            tournament_name=tournament_filter,
+            refresh_photo_urls=False,
+        )
+    except Exception:
+        logger.exception('Error calculando dashboard en player_portal_page')
+        dashboard_rows = []
+    player_stats = next(
+        (
+            row for row in dashboard_rows
+            if int(_parse_int(row.get('player_id')) or 0) == int(player.id)
+        ),
+        {},
+    )
+
+    season_obj = getattr(getattr(primary_team, 'group', None), 'season', None)
+    season_label = 'Temporada actual'
+    division_label = primary_team.group.name if primary_team.group else ''
+    if season_obj:
+        if getattr(season_obj, 'start_date', None) and getattr(season_obj, 'end_date', None):
+            season_label = f'{season_obj.start_date.year}-{season_obj.end_date.year}'
+        else:
+            season_label = season_obj.name or season_label
+
+    season_start = getattr(season_obj, 'start_date', None) if season_obj else None
+    season_end = getattr(season_obj, 'end_date', None) if season_obj else None
+    if not season_start:
+        season_start = timezone.localdate() - timedelta(days=365)
+    if not season_end:
+        season_end = timezone.localdate() + timedelta(days=30)
+
+    session_total_in_season = int(
+        TrainingSession.objects
+        .filter(microcycle__team=primary_team)
+        .filter(session_date__range=(season_start, season_end))
+        .exclude(status=TrainingSession.STATUS_CANCELED)
+        .count()
+        or 0
+    )
+    attendance_counts = {
+        TrainingSessionAttendance.STATUS_PRESENT: 0,
+        TrainingSessionAttendance.STATUS_ABSENT: 0,
+        TrainingSessionAttendance.STATUS_LATE: 0,
+        TrainingSessionAttendance.STATUS_INJURED: 0,
+        TrainingSessionAttendance.STATUS_EXCUSED: 0,
+    }
+    for row in (
+        TrainingSessionAttendance.objects
+        .filter(player=player, session__session_date__range=(season_start, season_end))
+        .values('status')
+        .annotate(total=Count('id'))
+    ):
+        status_key = str(row.get('status') or '').strip()
+        if status_key in attendance_counts:
+            attendance_counts[status_key] = int(row.get('total') or 0)
+    attendance_completed_total = int(attendance_counts.get(TrainingSessionAttendance.STATUS_PRESENT, 0) or 0) + int(
+        attendance_counts.get(TrainingSessionAttendance.STATUS_LATE, 0) or 0
+    )
+    attendance_completed_pct = round((attendance_completed_total / session_total_in_season) * 100, 1) if session_total_in_season else 0.0
+    attendance_pending = max(0, session_total_in_season - sum(attendance_counts.values()))
+
+    upcoming_sessions = list(
+        TrainingSession.objects
+        .select_related('microcycle')
+        .filter(microcycle__team=primary_team)
+        .filter(session_date__range=(timezone.localdate(), timezone.localdate() + timedelta(days=14)))
+        .exclude(status=TrainingSession.STATUS_CANCELED)
+        .order_by('session_date', 'start_time', 'order', 'id')[:8]
+    )
+    upcoming_marks = {
+        int(mark.session_id): mark
+        for mark in TrainingSessionAttendance.objects.filter(
+            player=player,
+            session_id__in=[int(s.id) for s in upcoming_sessions],
+        )
+    } if upcoming_sessions else {}
+    upcoming_session_rows = []
+    for session in upcoming_sessions:
+        mark = upcoming_marks.get(int(session.id))
+        upcoming_session_rows.append(
+            {
+                'id': int(session.id),
+                'date_label': session.session_date.strftime('%d/%m/%Y') if session.session_date else '',
+                'time_label': session.start_time.strftime('%H:%M') if getattr(session, 'start_time', None) else '',
+                'focus': str(getattr(session, 'focus', '') or '').strip() or 'Sesión',
+                'status_label': dict(TrainingSessionAttendance.STATUS_CHOICES).get(getattr(mark, 'status', ''), '') if mark else '',
+                'notes': str(getattr(mark, 'notes', '') or '').strip() if mark else '',
+            }
+        )
+
+    latest_closed_evaluation = (
+        PlayerEvaluation.objects
+        .filter(player=player, status=PlayerEvaluation.STATUS_CLOSED)
+        .select_related('team', 'club_season', 'created_by')
+        .order_by('-evaluated_on', '-updated_at', '-id')
+        .first()
+    )
+    evaluation_days_since = None
+    if latest_closed_evaluation and getattr(latest_closed_evaluation, 'evaluated_on', None):
+        evaluation_days_since = (timezone.localdate() - latest_closed_evaluation.evaluated_on).days
+    evaluation_summary = {
+        'latest': latest_closed_evaluation,
+        'days_since': evaluation_days_since,
+        'pending': latest_closed_evaluation is None or (evaluation_days_since is not None and evaluation_days_since > 30),
+    }
+
+    communications = list(
+        player.communications
+        .select_related('match')
+        .order_by('-created_at', '-id')[:5]
+    )
+    latest_communication = communications[0] if communications else None
+
+    injury_records = list(player.injury_records.select_related('catalog_entry').order_by('-injury_date', '-id')[:5])
+    latest_injury_record = injury_records[0] if injury_records else None
+    has_active_injury = player.id in get_active_injury_player_ids([player.id])
+    if not has_active_injury and latest_injury_record:
+        has_active_injury = is_injury_record_active(latest_injury_record)
+    has_manual_sanction = is_manual_sanction_active(player)
+
+    fines_summary = {
+        'registered_fines': 0,
+        'registered_total': 0,
+        'manual_sanctions': 1 if has_manual_sanction else 0,
+        'total': 0,
+    }
+    fines_records = []
+    reason_labels = dict(PlayerFine.REASON_CHOICES)
+    for fine in player.fines.all()[:40]:
+        fines_summary['registered_fines'] += 1
+        fines_summary['registered_total'] += int(fine.amount or 0)
+        fines_records.append(
+            {
+                'type': reason_labels.get(fine.reason, fine.reason),
+                'amount': int(fine.amount or 0),
+                'date': fine.created_at.strftime('%d/%m/%Y'),
+                'detail': fine.note or '-',
+            }
+        )
+    if has_manual_sanction:
+        fines_records.insert(
+            0,
+            {
+                'type': 'Sanción manual',
+                'amount': 0,
+                'date': player.manual_sanction_until.strftime('%d/%m/%Y') if player.manual_sanction_until else 'Sin fecha fin',
+                'detail': player.manual_sanction_reason or 'Sanción configurada en ficha',
+            },
+        )
+    fines_summary['total'] = fines_summary['registered_fines'] + fines_summary['manual_sanctions']
+
+    player_photo_url = resolve_player_photo_url(request, player)
+    player_license_url = resolve_player_license_url(request, player)
+    try:
+        player_team_crest_url = resolve_team_crest_url(request, player.team, fallback_static=None, sync=True)
+    except Exception:
+        player_team_crest_url = ''
+
+    home_url = _workspace_entry_url(active_workspace, user=request.user) if active_workspace else reverse('dashboard-home')
+    return render(
+        request,
+        'football/player_portal.html',
+        {
+            'player': player,
+            'player_stats': player_stats,
+            'season_label': season_label,
+            'division_label': division_label,
+            'player_photo_url': player_photo_url,
+            'player_license_url': player_license_url,
+            'player_team_crest_url': player_team_crest_url,
+            'player_portal_url': reverse('player-portal', args=[player.id]),
+            'player_detail_url': reverse('player-detail', args=[player.id]),
+            'home_url': home_url,
+            'is_player_account': is_player_account,
+            'active_match': active_match,
+            'current_convocation': current_convocation,
+            'has_active_injury': has_active_injury,
+            'has_manual_sanction': has_manual_sanction,
+            'evaluation_summary': evaluation_summary,
+            'communications': communications,
+            'latest_communication': latest_communication,
+            'fines_summary': fines_summary,
+            'fines_records': fines_records,
+            'attendance_session_total': session_total_in_season,
+            'attendance_completed_total': attendance_completed_total,
+            'attendance_completed_pct': attendance_completed_pct,
+            'attendance_pending': attendance_pending,
+            'attendance_counts': attendance_counts,
+            'upcoming_sessions': upcoming_session_rows,
+            'latest_injury_record': latest_injury_record,
+        },
+    )
+
+
+@login_required
+def player_self_portal_page(request):
+    player = getattr(request.user, 'player_profile', None)
+    if not player:
+        return HttpResponse('No tienes ficha de jugador vinculada a tu usuario.', status=400)
+    return redirect(reverse('player-portal', args=[player.id]))
 
 
 @login_required
@@ -57343,10 +57571,13 @@ def player_detail_page(request, player_id):
         if forbidden:
             return forbidden
         current_role = _get_user_role(request.user)
+        if current_role == AppUserRole.ROLE_PLAYER and not _is_admin_user(request.user):
+            return redirect(reverse('player-portal', args=[player.id]))
         can_preview_player_view = (
             request.user.is_authenticated
             and (current_role != AppUserRole.ROLE_PLAYER or _is_admin_user(request.user))
         )
+        is_player_account = current_role == AppUserRole.ROLE_PLAYER and not _is_admin_user(request.user)
         preview_mode = (request.GET.get('preview') or '').strip().lower()
         player_view_preview = can_preview_player_view and preview_mode == 'player'
         is_player_readonly = player_view_preview or (current_role == AppUserRole.ROLE_PLAYER and not _is_admin_user(request.user))
@@ -58135,6 +58366,7 @@ def player_detail_page(request, player_id):
             fines_summary['registered_fines']
             + fines_summary['manual_sanctions']
         )
+        fines_total_count = int(fines_summary['total'] or 0)
 
         def _to_int_value(value):
             return _parse_int(value) or 0
@@ -58516,12 +58748,15 @@ def player_detail_page(request, player_id):
                 'selected_club_season_id': int(getattr(selected_club_season, 'id', 0) or 0),
                 'season_history_rows': season_history_rows,
                 'fines_summary': fines_summary,
+                'fines_total_count': fines_total_count,
                 'fines_records': fines_records,
                 'stats_error': stats_error,
                 'is_player_readonly': is_player_readonly,
+                'is_player_account': is_player_account,
                 'player_view_preview': player_view_preview,
                 'can_preview_player_view': can_preview_player_view,
                 'player_list_back_url': player_list_back_url,
+                'player_portal_url': reverse('player-portal', args=[player.id]),
                 'workspace_entry_url': home_url,
                 'home_url': home_url,
                 'attendance_season_start': season_start,

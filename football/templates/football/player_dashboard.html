@@ -591,6 +591,9 @@
           <a class="back-link" href="{% if video_inbox_url %}{{ video_inbox_url }}{% else %}{% url 'player-video-inbox' %}{% endif %}">
             Bandeja vídeos{% if video_inbox_unread_count %} ({{ video_inbox_unread_count }}){% endif %}
           </a>
+          {% if player_self_portal_url %}
+          <a class="back-link" href="{{ player_self_portal_url }}">Mi ficha</a>
+          {% endif %}
           <a class="back-link" href="{% url 'player-video-library' %}">Vídeos del equipo</a>
           <a class="back-link" href="{% url 'dashboard-home' %}">← Volver al panel</a>
         </div>

@@ -1,0 +1,606 @@
+{% load static football_extras l10n %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Segunda Jugada · Mi ficha</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      :root {
+        --bg: #07111d;
+        --panel: rgba(15, 23, 42, 0.92);
+        --panel-soft: rgba(255, 255, 255, 0.04);
+        --line: rgba(148, 163, 184, 0.22);
+        --text: #f5f7fa;
+        --muted: rgba(226, 232, 240, 0.72);
+        --accent: #f4b400;
+        --accent-2: #2f7d32;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        padding: 1.15rem;
+        font-family: var(--prod-font-ui, 'Avenir Next', 'Inter', system-ui, sans-serif);
+        color: var(--text);
+        background:
+          radial-gradient(circle at top left, rgba(56, 189, 248, 0.12), transparent 24%),
+          radial-gradient(circle at top right, rgba(244, 180, 0, 0.1), transparent 22%),
+          linear-gradient(180deg, #08111d 0%, #050b15 100%);
+      }
+      .shell { width: min(100%, 1180px); margin: 0 auto; }
+      .brand {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.8rem;
+        padding: 0.85rem 1rem;
+        border: 1px solid var(--line);
+        border-radius: 1rem;
+        background: rgba(7, 16, 30, 0.76);
+        text-decoration: none;
+        color: inherit;
+      }
+      .brand strong { display: block; font-size: 1rem; letter-spacing: 0.08em; text-transform: uppercase; }
+      .brand span { display: block; margin-top: 0.15rem; color: var(--muted); font-size: 0.82rem; }
+      .brand-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 38px;
+        padding: 0.35rem 0.78rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text);
+        text-decoration: none;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .hero {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+        gap: 1rem;
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 1.15rem;
+        background: var(--panel);
+        box-shadow: 0 22px 48px rgba(0, 0, 0, 0.28);
+      }
+      .hero-main {
+        padding: 1rem;
+        background:
+          radial-gradient(circle at top left, rgba(56, 189, 248, 0.14), transparent 32%),
+          radial-gradient(circle at bottom right, rgba(244, 180, 0, 0.08), transparent 26%),
+          linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(8, 17, 29, 0.98));
+      }
+      .hero-head {
+        display: grid;
+        grid-template-columns: 108px minmax(0, 1fr);
+        gap: 0.95rem;
+        align-items: start;
+      }
+      .photo {
+        width: 108px;
+        height: 144px;
+        border-radius: 1rem;
+        overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(2, 6, 23, 0.28);
+      }
+      .photo img {
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-fit: contain;
+        object-position: center;
+        background: rgba(2, 6, 23, 0.55);
+      }
+      .kicker {
+        display: inline-flex;
+        width: fit-content;
+        padding: 0.3rem 0.58rem;
+        border-radius: 999px;
+        border: 1px solid rgba(125, 211, 252, 0.28);
+        background: rgba(56, 189, 248, 0.08);
+        color: rgba(224, 242, 254, 0.96);
+        font-size: 0.66rem;
+        font-weight: 950;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+      .hero h1 {
+        margin: 0.4rem 0 0;
+        font-size: clamp(1.6rem, 1.15rem + 1.35vw, 2.45rem);
+        line-height: 1.02;
+        letter-spacing: -0.04em;
+      }
+      .hero p { margin: 0.45rem 0 0; color: rgba(226, 232, 240, 0.82); line-height: 1.6; }
+      .chips { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.85rem; }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        min-height: 34px;
+        padding: 0.3rem 0.65rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(2, 6, 23, 0.24);
+        color: rgba(226, 232, 240, 0.96);
+        font-size: 0.7rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .hero-side {
+        display: grid;
+        gap: 0.75rem;
+      }
+      .metric {
+        padding: 0.9rem 0.95rem;
+        border-radius: 1rem;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(2, 6, 23, 0.24);
+      }
+      .metric .label {
+        display: block;
+        color: rgba(148, 163, 184, 0.88);
+        font-size: 0.68rem;
+        font-weight: 950;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .metric .value {
+        margin-top: 0.28rem;
+        font-size: 1.15rem;
+        font-weight: 950;
+      }
+      .metric .meta {
+        margin-top: 0.2rem;
+        color: rgba(226, 232, 240, 0.78);
+        font-size: 0.86rem;
+        line-height: 1.35;
+      }
+      .grid {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+        gap: 1rem;
+      }
+      .panel {
+        padding: 1rem;
+        background: rgba(15, 23, 42, 0.88);
+      }
+      .panel h2 {
+        margin: 0;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: rgba(255, 242, 199, 0.96);
+      }
+      .panel p.subtle {
+        margin: 0.35rem 0 0;
+        color: var(--muted);
+        line-height: 1.55;
+      }
+      .span-6 { grid-column: span 6; }
+      .span-4 { grid-column: span 4; }
+      .span-8 { grid-column: span 8; }
+      .span-12 { grid-column: span 12; }
+      .stats-grid {
+        margin-top: 0.85rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 0.7rem;
+      }
+      .stat {
+        border-radius: 0.95rem;
+        padding: 0.82rem 0.88rem;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(2, 6, 23, 0.24);
+      }
+      .stat .label {
+        display: block;
+        color: rgba(148, 163, 184, 0.88);
+        font-size: 0.68rem;
+        font-weight: 950;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .stat .value {
+        margin-top: 0.25rem;
+        font-size: 1.15rem;
+        font-weight: 950;
+      }
+      .stat .meta {
+        margin-top: 0.2rem;
+        color: rgba(226, 232, 240, 0.78);
+        font-size: 0.86rem;
+        line-height: 1.35;
+      }
+      .session-list, .comm-list, .fines-list {
+        margin-top: 0.85rem;
+        display: grid;
+        gap: 0.65rem;
+      }
+      .session-item, .comm-item, .fine-item {
+        border-radius: 0.95rem;
+        padding: 0.85rem 0.9rem;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(2, 6, 23, 0.24);
+      }
+      .session-title, .comm-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+      }
+      .session-title strong, .comm-title strong {
+        font-size: 0.98rem;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.18rem 0.55rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(255,255,255,0.05);
+        color: rgba(226, 232, 240, 0.96);
+        font-size: 0.68rem;
+        font-weight: 950;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .pill.ok { border-color: rgba(47,125,50,0.28); background: rgba(47,125,50,0.08); }
+      .pill.warn { border-color: rgba(244,180,0,0.3); background: rgba(244,180,0,0.08); }
+      .list-meta {
+        margin-top: 0.3rem;
+        color: rgba(226, 232, 240, 0.78);
+        font-size: 0.88rem;
+        line-height: 1.45;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 0.85rem;
+      }
+      th, td {
+        text-align: left;
+        padding: 0.48rem 0.2rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+        vertical-align: top;
+      }
+      th {
+        color: rgba(148, 163, 184, 0.9);
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .footer-actions {
+        margin-top: 1rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      @media (max-width: 900px) {
+        .hero { grid-template-columns: 1fr; }
+        .hero-head { grid-template-columns: 1fr; }
+        .photo { width: 100%; max-width: 160px; height: auto; aspect-ratio: 3 / 4; }
+        .span-6, .span-4, .span-8, .span-12 { grid-column: span 12; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <div class="brand">
+        <div>
+          <strong>Segunda Jugada</strong>
+          <span>Portal del jugador</span>
+        </div>
+        <div class="brand-actions">
+          <a class="btn" href="{{ player_portal_url }}">Mi ficha</a>
+          <a class="btn" href="{% url 'player-pdf' player.id %}" target="_blank" rel="noopener">PDF</a>
+        </div>
+      </div>
+
+      <section class="hero">
+        <article class="card hero-main">
+          <div class="hero-head">
+            <div class="photo">
+              {% if player_photo_url %}
+                <img src="{{ player_photo_url }}" alt="{{ player.name }}" loading="lazy" />
+              {% else %}
+                <img src="{% static 'football/images/player-avatar.svg' %}" alt="{{ player.name }}" loading="lazy" />
+              {% endif %}
+            </div>
+            <div>
+              <span class="kicker">{% if is_player_account %}Tu espacio{% else %}Vista privada{% endif %}</span>
+              <h1>{{ player.name }}</h1>
+              <p>
+                Tu ficha personal con datos básicos, estadísticas de temporada, entrenamientos, multas y mensajes relevantes.
+              </p>
+              <div class="chips">
+                {% if player.position %}<span class="chip">{{ player.position }}</span>{% endif %}
+                {% if player.number %}<span class="chip">#{{ player.number }}</span>{% endif %}
+                {% if player.team %}<span class="chip">{{ player.team.display_name }}</span>{% endif %}
+                <span class="chip">{% if has_active_injury %}Lesión activa{% elif has_manual_sanction %}Sanción activa{% elif current_convocation %}Convocatoria{% else %}Disponible{% endif %}</span>
+              </div>
+            </div>
+          </div>
+          <div class="footer-actions">
+            <a class="btn" href="#estadisticas">Estadísticas</a>
+            <a class="btn" href="#entrenos">Entrenos</a>
+            <a class="btn" href="#multas">Multas</a>
+            <a class="btn" href="#comunicacion">Comunicación</a>
+          </div>
+        </article>
+        <aside class="hero-side">
+          <article class="card metric">
+            <span class="label">Asistencia temporada</span>
+            <div class="value">{{ attendance_completed_pct|default:0 }}%</div>
+            <div class="meta">{{ attendance_completed_total }} de {{ attendance_session_total }} sesiones. Pendientes {{ attendance_pending }}.</div>
+          </article>
+          <article class="card metric">
+            <span class="label">Próximo entrenamiento</span>
+            <div class="value">
+              {% if upcoming_sessions|first %}
+                {% with next_session=upcoming_sessions|first %}
+                  {{ next_session.date_label }}{% if next_session.time_label %} · {{ next_session.time_label }}{% endif %}
+                {% endwith %}
+              {% else %}
+                Sin sesiones próximas
+              {% endif %}
+            </div>
+            <div class="meta">
+              {% if upcoming_sessions|first %}
+                {% with next_session=upcoming_sessions|first %}
+                  {{ next_session.focus }}{% if next_session.status_label %} · {{ next_session.status_label }}{% endif %}
+                {% endwith %}
+              {% else %}
+                No hay sesiones cargadas para los próximos 14 días.
+              {% endif %}
+            </div>
+          </article>
+          <article class="card metric">
+            <span class="label">Última evaluación</span>
+            <div class="value">
+              {% if evaluation_summary.latest %}
+                {{ evaluation_summary.latest.evaluated_on|date:"d/m/Y" }}
+              {% else %}
+                Sin evaluación
+              {% endif %}
+            </div>
+            <div class="meta">
+              {% if evaluation_summary.latest %}
+                {{ evaluation_summary.latest.get_evaluation_type_display }} · Global {{ evaluation_summary.latest.overall_rating|default:"--" }}
+              {% else %}
+                Todavía no hay una evaluación cerrada visible.
+              {% endif %}
+            </div>
+          </article>
+          <article class="card metric">
+            <span class="label">Disciplina</span>
+            <div class="value">
+              {% if fines_summary.total %}
+                {{ fines_summary.total }} incidencias
+              {% else %}
+                Sin incidencias
+              {% endif %}
+            </div>
+            <div class="meta">
+              {% if fines_summary.registered_total %}
+                Importe registrado {{ fines_summary.registered_total }}€.
+              {% else %}
+                Sin importe pendiente registrado.
+              {% endif %}
+            </div>
+          </article>
+        </aside>
+      </section>
+
+      <section class="grid">
+        <article class="card panel span-6" id="estadisticas">
+          <h2>Estadísticas de temporada</h2>
+          <p class="subtle">Resumen de rendimiento y participación en la temporada actual.</p>
+          <div class="stats-grid">
+            <article class="stat">
+              <span class="label">Minutos</span>
+              <div class="value">{{ player_stats.minutes|default:0 }}</div>
+              <div class="meta">Participación en el contexto seleccionado</div>
+            </article>
+            <article class="stat">
+              <span class="label">Goles</span>
+              <div class="value">{{ player_stats.goals|default:0 }}</div>
+              <div class="meta">Producción ofensiva acumulada</div>
+            </article>
+            <article class="stat">
+              <span class="label">Asistencias</span>
+              <div class="value">{{ player_stats.assists|default:0 }}</div>
+              <div class="meta">Último pase decisivo</div>
+            </article>
+            <article class="stat">
+              <span class="label">Éxito</span>
+              <div class="value">{{ player_stats.success_rate|default:0|floatformat:1 }}%</div>
+              <div class="meta">Éxito global de acciones</div>
+            </article>
+            <article class="stat">
+              <span class="label">Importancia</span>
+              <div class="value">{{ player_stats.importance_score|default:0|floatformat:0 }}</div>
+              <div class="meta">Peso competitivo dentro del equipo</div>
+            </article>
+            <article class="stat">
+              <span class="label">Influencia</span>
+              <div class="value">{{ player_stats.influence_score|default:0|floatformat:0 }}</div>
+              <div class="meta">Impacto en acciones decisivas</div>
+            </article>
+          </div>
+        </article>
+
+        <article class="card panel span-6">
+          <h2>Datos personales</h2>
+          <p class="subtle">Información básica vinculada a tu ficha.</p>
+          <div class="stats-grid">
+            <article class="stat">
+              <span class="label">Nombre completo</span>
+              <div class="value">{{ player.full_name|default:player.name }}</div>
+            </article>
+            <article class="stat">
+              <span class="label">Apodo</span>
+              <div class="value">{{ player.nickname|default:'--' }}</div>
+            </article>
+            <article class="stat">
+              <span class="label">Nacimiento</span>
+              <div class="value">{% if player.birth_date %}{{ player.birth_date|date:'d/m/Y' }}{% else %}--{% endif %}</div>
+            </article>
+            <article class="stat">
+              <span class="label">Altura</span>
+              <div class="value">{% if player.height_cm %}{{ player.height_cm }} cm{% else %}--{% endif %}</div>
+            </article>
+            <article class="stat">
+              <span class="label">Peso base</span>
+              <div class="value">{% if player.weight_kg %}{{ player.weight_kg|floatformat:1 }} kg{% else %}--{% endif %}</div>
+            </article>
+            <article class="stat">
+              <span class="label">Licencia</span>
+              <div class="value">{% if player_license_url %}<a href="{{ player_license_url }}" target="_blank" rel="noopener" style="color:inherit; text-decoration:none;">Ver archivo</a>{% else %}No cargada{% endif %}</div>
+            </article>
+          </div>
+        </article>
+
+        <article class="card panel span-8" id="entrenos">
+          <h2>Entrenamientos</h2>
+          <p class="subtle">Asistencia, próximas sesiones y contexto de trabajo.</p>
+          <div class="stats-grid">
+            <article class="stat">
+              <span class="label">Sesiones totales</span>
+              <div class="value">{{ attendance_session_total }}</div>
+            </article>
+            <article class="stat">
+              <span class="label">Completadas</span>
+              <div class="value">{{ attendance_completed_total }}</div>
+            </article>
+            <article class="stat">
+              <span class="label">Pendientes</span>
+              <div class="value">{{ attendance_pending }}</div>
+            </article>
+            <article class="stat">
+              <span class="label">Temporada</span>
+              <div class="value">{{ season_label }}</div>
+            </article>
+          </div>
+          <div class="session-list">
+            {% for session in upcoming_sessions %}
+              <article class="session-item">
+                <div class="session-title">
+                  <strong>{{ session.date_label }}{% if session.time_label %} · {{ session.time_label }}{% endif %}</strong>
+                  {% if session.status_label %}<span class="pill ok">{{ session.status_label }}</span>{% endif %}
+                </div>
+                <div class="list-meta">
+                  {{ session.focus }}
+                  {% if session.notes %} · {{ session.notes }}{% endif %}
+                </div>
+              </article>
+            {% empty %}
+              <article class="session-item">
+                <strong>Sin próximas sesiones</strong>
+                <div class="list-meta">No hay entrenamientos cargados para los próximos 14 días.</div>
+              </article>
+            {% endfor %}
+          </div>
+        </article>
+
+        <article class="card panel span-4">
+          <h2>Estado</h2>
+          <p class="subtle">Una lectura rápida de tu situación actual.</p>
+          <div class="stats-grid">
+            <article class="stat">
+              <span class="label">Lesión</span>
+              <div class="value">{% if has_active_injury %}Activa{% else %}Disponible{% endif %}</div>
+            </article>
+            <article class="stat">
+              <span class="label">Sanción</span>
+              <div class="value">{% if has_manual_sanction %}Activa{% else %}No{% endif %}</div>
+            </article>
+            <article class="stat">
+              <span class="label">Convocatoria</span>
+              <div class="value">{% if current_convocation %}Activa{% else %}No{% endif %}</div>
+            </article>
+            <article class="stat">
+              <span class="label">Categoría</span>
+              <div class="value">{{ division_label|default:'--' }}</div>
+            </article>
+          </div>
+        </article>
+
+        <article class="card panel span-6" id="multas">
+          <h2>Multas y sanciones</h2>
+          <p class="subtle">Historial visible para el jugador.</p>
+          <div class="stats-grid">
+            <article class="stat">
+              <span class="label">Multas registradas</span>
+              <div class="value">{{ fines_summary.registered_fines|default:0 }}</div>
+            </article>
+            <article class="stat">
+              <span class="label">Importe</span>
+              <div class="value">{{ fines_summary.registered_total|default:0 }}€</div>
+            </article>
+            <article class="stat">
+              <span class="label">Sanción manual</span>
+              <div class="value">{{ fines_summary.manual_sanctions|default:0 }}</div>
+            </article>
+            <article class="stat">
+              <span class="label">Total incidencias</span>
+              <div class="value">{{ fines_summary.total|default:0 }}</div>
+            </article>
+          </div>
+          <table>
+            <thead>
+              <tr><th>Tipo</th><th>Fecha / Hasta</th><th>Detalle</th></tr>
+            </thead>
+            <tbody>
+              {% for fine in fines_records %}
+              <tr>
+                <td>{{ fine.type }}</td>
+                <td>{{ fine.date }}</td>
+                <td>{{ fine.detail|default:'-' }}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="3">Sin multas registradas.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </article>
+
+        <article class="card panel span-6" id="comunicacion">
+          <h2>Comunicación</h2>
+          <p class="subtle">Últimos mensajes asociados a tu ficha.</p>
+          <div class="comm-list">
+            {% for comm in communications|slice:":3" %}
+              <article class="comm-item">
+                <div class="comm-title">
+                  <strong>{{ comm.get_category_display }}</strong>
+                  <span class="pill">{{ comm.created_at|date:"d/m/Y H:i" }}</span>
+                </div>
+                <div class="list-meta">{{ comm.message }}</div>
+              </article>
+            {% empty %}
+              <article class="comm-item">
+                <strong>Sin comunicaciones</strong>
+                <div class="list-meta">No hay mensajes registrados todavía.</div>
+              </article>
+            {% endfor %}
+          </div>
+        </article>
+      </section>
+    </div>
+  </body>
+</html>
