@@ -1617,7 +1617,14 @@
       {% endif %}
       {% endif %}
       {% if role_key == 'trainer' %}
-      <div class="workspace-tabs" role="tablist" aria-label="Estadísticas del entrenador">
+      <div class="workspace-tabs" role="tablist" aria-label="Cabina del entrenador">
+        <button class="workspace-tab is-active" type="button" data-tab-target="player">Plantilla</button>
+        <button class="workspace-tab" type="button" data-tab-target="summary">Estadísticas</button>
+        <button class="workspace-tab" type="button" data-tab-target="sessions">Sesiones</button>
+        <a class="workspace-tab" role="tab" href="{% url 'coach-matches' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" title="Editar partidos, borrar duplicados y completar datos manuales">Partidos</a>
+        <a class="workspace-tab" role="tab" href="{% url 'coach-rivals' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" title="Fichas de rivales, estadio, escudo, equipaciones, plantillas y análisis">Rivales</a>
+      </div>
+      <div class="workspace-tabs" role="tablist" aria-label="Estadísticas del entrenador" style="display:none;">
         <button class="workspace-tab is-active" type="button" data-tab-target="summary">Generales</button>
         <button class="workspace-tab" type="button" data-tab-target="player">Individuales</button>
         <button class="workspace-tab" type="button" data-tab-target="charts" title="Configura las gráficas del PDF del jugador (por club o por jugador)">Gráficas</button>
@@ -1792,8 +1799,8 @@
       {% if coach_player_options %}
       <section class="workspace-panel" data-tab-panel="player">
         <section id="coach-player" class="analysis-section is-light coach-player-tools" style="margin-top:0;">
-          <h3>Individuales</h3>
-          <p class="section-copy">Se muestran 6 jugadores por minutos disputados. Usa el buscador para localizar cualquier ficha rápidamente.</p>
+          <h3>Plantilla</h3>
+          <p class="section-copy">Listado de jugadores con cards, acceso a ficha completa y seguimiento individual. Puedes buscar por nombre o dorsal y abrir cada perfil al momento.</p>
           <form method="get" class="summary-toolbar" style="margin:0 0 1rem;">
             {% if coach_selected_match %}<input type="hidden" name="match" value="{{ coach_selected_match.match_id }}" />{% endif %}
             {% if coach_selected_player_id %}<input type="hidden" name="player" value="{{ coach_selected_player_id }}" />{% endif %}
@@ -2005,6 +2012,67 @@
           {% endif %}
           {% endif %}
         </section>
+      </section>
+
+      <section class="workspace-panel" data-tab-panel="sessions">
+        <div class="workspace-stack">
+          <section class="summary-card">
+            <h3>Sesiones</h3>
+            <p class="summary-meta">Aquí vas a la elaboración de tareas y a la planificación de la semana. No es un panel de KPIs: es el sitio para construir trabajo de campo.</p>
+            <div class="hub-grid areas-grid" style="margin-top:0.8rem;">
+              <a class="hub-link is-primary" href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
+                <strong>Planificador semanal</strong>
+                <span>Microciclos, sesiones y tareas agrupadas por semana.</span>
+              </a>
+              <a class="hub-link is-primary" href="{% url 'sessions-task-create' %}{% if active_team %}?team={{ active_team.id }}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}{% endif %}">
+                <strong>Crear tarea</strong>
+                <span>Abre el editor para construir ejercicios y tareas.</span>
+              </a>
+              <a class="hub-link" href="{% url 'ai-trainer' %}{% if active_team %}?team={{ active_team.id }}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}{% endif %}">
+                <strong>IA-Trainer</strong>
+                <span>Generar ideas y convertirlas en tareas concretas.</span>
+              </a>
+              <a class="hub-link" href="{% url 'coach-model-of-play' %}{% if active_team %}?team={{ active_team.id }}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}{% endif %}">
+                <strong>Modelo de juego</strong>
+                <span>Metodología para orientar el trabajo semanal.</span>
+              </a>
+            </div>
+          </section>
+          <section class="summary-layout">
+            <section class="summary-card">
+              <h3>Flujo de trabajo</h3>
+              <div class="overview-summary is-compact" style="margin-top:0.75rem;">
+                <article class="overview-item">
+                  <div class="label">1. Elegir foco</div>
+                  <div class="value">Grupo / objetivo</div>
+                </article>
+                <article class="overview-item">
+                  <div class="label">2. Diseñar tarea</div>
+                  <div class="value">Ejercicio y consigna</div>
+                </article>
+                <article class="overview-item">
+                  <div class="label">3. Publicar</div>
+                  <div class="value">Sesión lista</div>
+                </article>
+              </div>
+            </section>
+            <aside class="summary-card">
+              <h3>Accesos de apoyo</h3>
+              <div class="summary-leaders-list">
+                <article class="summary-leader">
+                  <span class="kicker">Plantilla</span>
+                  <strong>Alta y gestión</strong>
+                  <span>Para traer jugadores al grupo antes de trabajar sesiones.</span>
+                </article>
+                <article class="summary-leader">
+                  <span class="kicker">Táctica</span>
+                  <strong>Pizarra</strong>
+                  <span>Usa la pizarra para convertir ideas en tareas visuales.</span>
+                </article>
+              </div>
+            </aside>
+          </section>
+        </div>
       </section>
 
       <section class="workspace-panel" data-tab-panel="charts">
@@ -2252,8 +2320,11 @@
         const tabParam = String(params.get('tab') || '').trim().toLowerCase();
         if (params.get('player')) {
           activateTab('player');
-        } else if (tabParam && ['summary', 'player', 'charts'].includes(tabParam)) {
-          activateTab(tabParam);
+        } else if (tabParam && ['summary', 'player', 'charts', 'sessions', 'stats', 'plantilla'].includes(tabParam)) {
+          const mapped = ({ plantilla: 'player', stats: 'summary' }[tabParam] || tabParam);
+          activateTab(mapped);
+        } else {
+          activateTab('player');
         }
         const searchInput = document.getElementById('individual-player-search');
         const playerCards = Array.from(document.querySelectorAll('[data-player-card]'));
