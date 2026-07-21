@@ -1,0 +1,1491 @@
+	      :root {
+	        --bg: var(--prod-bg, #071320);
+	        --panel: var(--prod-panel-flat, rgba(14, 23, 39, 0.96));
+	        --panel-soft: rgba(255, 255, 255, 0.04);
+	        --line: var(--prod-line, rgba(144, 161, 185, 0.22));
+	        --ink: var(--prod-text, #f8fafc);
+	        --muted: var(--prod-muted-soft, rgba(226, 232, 240, 0.84));
+	        /* Cian se reserva para herramientas/edición (no como marca). */
+	        --accent: var(--prod-info, #22d3ee);
+	        --accent-soft: rgba(34, 211, 238, 0.16);
+	      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: transparent;
+        color: var(--ink);
+        font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", sans-serif);
+      }
+      body.embedded-task-builder {
+        background: transparent;
+      }
+      body.embedded-task-builder .page {
+        max-width: none;
+        margin: 0;
+        padding: 0;
+      }
+      body.editor-lab-compact .page {
+        max-width: none;
+        margin: 0;
+        padding: 0;
+      }
+      body.editor-lab-compact .product-nav-shortcuts,
+      body.embedded-task-builder .topbar,
+      body.embedded-task-builder #task-builder-draft-alert,
+      body.embedded-task-builder .task-landing,
+      body.embedded-task-builder .tpad-support-fab,
+      body.embedded-task-builder #tpad-overlay-backdrop {
+        display: none !important;
+      }
+      body.editor-lab-compact .dragon-nav,
+      body.editor-lab-compact .topbar,
+      body.editor-lab-compact #task-builder-draft-alert,
+      body.editor-lab-compact .task-landing,
+      body.editor-lab-compact .tpad-support-fab,
+      body.editor-lab-compact #tpad-overlay-backdrop,
+      body.editor-lab-compact .task-mode-tabs,
+      body.editor-lab-compact .saved-task-info,
+      body.editor-lab-compact .alert {
+        display: none !important;
+      }
+      body.embedded-task-builder .builder {
+        margin: 0;
+      }
+      body.editor-lab-compact .builder {
+        margin: 0;
+      }
+      body.embedded-task-builder .builder > section.panel,
+      body.embedded-task-builder .builder > aside.panel {
+        border-radius: 0;
+        border-left: 0;
+        border-right: 0;
+      }
+      body.editor-lab-compact .builder > section.panel,
+      body.editor-lab-compact .builder > aside.panel {
+        border-radius: 0;
+        border-left: 0;
+        border-right: 0;
+      }
+      .embedded-builder-bar {
+        display: none;
+      }
+      body.embedded-task-builder .embedded-builder-bar {
+        position: sticky;
+        top: 0;
+        z-index: 120;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.7rem 0.85rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(7, 22, 44, 0.94);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+      }
+      .embedded-builder-bar-copy {
+        display: grid;
+        gap: 0.15rem;
+      }
+      .embedded-builder-bar-copy strong {
+        font-size: 0.9rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .embedded-builder-bar-copy span {
+        color: rgba(226, 232, 240, 0.78);
+        font-size: 0.8rem;
+      }
+      .embedded-builder-bar-actions {
+        display: flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      .editor-lab-switcher {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin: 0 0 0.75rem;
+        padding: 0.7rem 0.85rem;
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 18px;
+        background: rgba(4, 12, 24, 0.7);
+        box-shadow: 0 18px 42px rgba(2, 6, 23, 0.16);
+      }
+      body.editor-lab-compact .editor-lab-switcher {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        z-index: 260;
+        margin: 0;
+        width: auto;
+        max-width: calc(100vw - 20px);
+        padding: 0.45rem 0.55rem;
+        border-radius: 14px;
+        background: rgba(4, 12, 24, 0.9);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+      }
+      .editor-lab-switcher-copy {
+        display: grid;
+        gap: 0.16rem;
+      }
+      .editor-lab-switcher-copy strong {
+        font-size: 0.78rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .editor-lab-switcher-copy span {
+        color: rgba(226, 232, 240, 0.76);
+        font-size: 0.78rem;
+      }
+      .editor-lab-switcher-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        justify-content: flex-end;
+      }
+      .editor-lab-switcher-actions .button[aria-current="page"] {
+        border-color: rgba(34, 211, 238, 0.42);
+        background: rgba(34, 211, 238, 0.16);
+        color: #f8fafc;
+      }
+      body.editor-lab-compact .editor-lab-switcher-copy strong {
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+      }
+      body.editor-lab-compact .editor-lab-switcher-copy span {
+        font-size: 0.7rem;
+      }
+      body.editor-lab-compact .editor-lab-switcher-actions .button,
+      body.editor-lab-compact .editor-lab-switcher-actions span.button {
+        padding: 0.44rem 0.7rem;
+        font-size: 0.74rem;
+      }
+      body.editor-lab-compact .builder > section.panel > .panel-body,
+      body.editor-lab-compact .builder > aside.panel > .panel-body {
+        padding: 0.35rem 0.45rem 0.55rem;
+      }
+      body.editor-lab-compact .board-workbench,
+      body.editor-lab-compact .board-guide,
+      body.editor-lab-compact .board-quickbar,
+      body.editor-lab-compact .board-status-row,
+      body.editor-lab-compact .board-flow-note,
+      body.editor-lab-compact .task-timeline-dock,
+      body.editor-lab-compact .simple-hint,
+      body.editor-lab-compact .pitch-drills-strip,
+      body.editor-lab-compact .tactics-interactive-dock,
+      body.editor-lab-compact .tactics-menu,
+      body.editor-lab-compact .editor-side-tabs,
+      body.editor-lab-compact .editor-side-pane,
+      body.editor-lab-compact .resource-empty-state,
+      body.editor-lab-compact .command-cluster-head,
+      body.editor-lab-compact .command-bar {
+        display: none !important;
+      }
+      body.editor-lab-compact .panel-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        align-items: start;
+        gap: 0.35rem;
+        margin-bottom: 0.45rem;
+      }
+      body.editor-lab-compact .panel-head > div:first-child {
+        display: none;
+      }
+      body.editor-lab-compact .pitch-toolbar {
+        width: 100%;
+        margin-bottom: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        align-items: center;
+      }
+      body.editor-lab-compact .pitch-toolbar .tactics-toolbar-group {
+        display: flex !important;
+      }
+      body.editor-lab-compact .pitch-toolbar button,
+      body.editor-lab-compact .pitch-toolbar .button,
+      body.editor-lab-compact .pitch-toolbar .surface-trigger {
+        padding: 0.46rem 0.72rem;
+        font-size: 0.72rem;
+      }
+      body.editor-lab-compact .tactics-toolbar-primary {
+        display: none !important;
+      }
+      body.editor-lab-compact .tactics-toolbar-surface,
+      body.editor-lab-compact .tactics-toolbar-output {
+        flex-wrap: wrap;
+      }
+      body.editor-lab-compact .pitch-layout {
+        display: grid;
+        position: relative;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas:
+          "main"
+          "side";
+        gap: 0.9rem;
+        padding-left: 0;
+        padding-right: 0;
+        align-items: start;
+      }
+      body.editor-lab-compact .pitch-main {
+        grid-area: main;
+        width: 100%;
+        min-width: 0;
+      }
+      body.editor-lab-compact .board-stage-shell {
+        width: 100%;
+        min-width: 0;
+      }
+      body.editor-lab-compact .pitch-viewport {
+        padding: 0;
+      }
+      body.editor-lab-compact .pitch-stage {
+        margin: 0 auto;
+        background:
+          radial-gradient(circle at 50% 46%, rgba(255,255,255,0.07), transparent 38%),
+          radial-gradient(circle at 50% 52%, rgba(9,20,10,0.16), transparent 60%),
+          repeating-linear-gradient(90deg, rgba(255,255,255,0.028) 0 11.5%, rgba(0,0,0,0.04) 11.5% 23%),
+          linear-gradient(180deg, #6b9243 0%, #5e8437 37%, #4c7330 100%) !important;
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.09),
+          inset 0 -18px 36px rgba(4, 17, 29, 0.14),
+          0 20px 42px rgba(2, 6, 23, 0.24);
+        filter: saturate(1.03) contrast(1.06) brightness(0.98);
+      }
+      body.editor-lab-compact .pitch-side {
+        grid-area: side;
+        position: relative;
+        top: auto;
+        left: auto;
+        bottom: auto;
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+        max-height: none;
+        overflow: visible;
+        z-index: 120;
+        padding: 0;
+        border: 0;
+        border-radius: 18px;
+        background: rgba(4, 12, 24, 0.78);
+        box-shadow: 0 18px 42px rgba(2, 6, 23, 0.26);
+      }
+      body.editor-lab-compact .pitch-side .resource-details {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+        height: 100%;
+        padding: 0.45rem;
+      }
+      body.editor-lab-compact .pitch-side .resource-panel[data-panel="base"] {
+        display: flex !important;
+        flex-direction: column;
+        gap: 0.5rem;
+        flex: 1 1 auto;
+        min-height: 0;
+        padding: 0;
+        margin: 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+      }
+      body.editor-lab-compact .pitch-side .resource-panel:not([data-panel="base"]) {
+        display: none !important;
+      }
+      body.editor-lab-compact .pitch-side .library-head,
+      body.editor-lab-compact .pitch-side .library-filter,
+      body.editor-lab-compact .pitch-side .library-helper-grid,
+      body.editor-lab-compact .pitch-side .library-copy,
+      body.editor-lab-compact .pitch-side .library-current,
+      body.editor-lab-compact .pitch-side .resource-tabs,
+      body.editor-lab-compact .pitch-side .resource-helper,
+      body.editor-lab-compact .pitch-side .resource-empty-state,
+      body.editor-lab-compact .pitch-side .resource-panel,
+      body.editor-lab-compact .pitch-side .task-material-family {
+        display: none !important;
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.34rem;
+        margin: 0;
+        flex: 1 1 auto;
+        align-content: start;
+        position: relative;
+        overflow: visible;
+      }
+      body.editor-lab-compact .pitch-side .resource-quick-title {
+        display: none !important;
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail {
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+        padding: 0.58rem 0.42rem 0.68rem;
+        margin: 0;
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background:
+          linear-gradient(180deg, rgba(3, 9, 20, 0.92), rgba(4, 12, 24, 0.88));
+        box-shadow:
+          0 24px 48px rgba(0, 0, 0, 0.26),
+          inset 0 1px 0 rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(14px);
+        gap: 0.42rem;
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary button.tool-icon,
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary summary.tool-icon,
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary button[data-add],
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary button[data-action] {
+        min-height: 62px;
+        width: 100%;
+        padding: 0.38rem 0.32rem 0.34rem;
+        border-radius: 15px;
+        display: grid;
+        justify-items: center;
+        gap: 0.22rem;
+        font-size: 0.64rem;
+        border-color: rgba(255, 255, 255, 0.10);
+        background: rgba(255, 255, 255, 0.03);
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail {
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+        padding: 0.56rem 0.34rem 0.64rem;
+        gap: 0.42rem;
+        overflow: visible;
+        position: relative;
+        z-index: 145;
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail details.sidebar-dropdown {
+        position: relative;
+        width: 100%;
+        display: grid;
+        grid-template-columns: clamp(132px, 28vw, 198px) minmax(0, 1fr);
+        column-gap: 0.72rem;
+        align-items: start;
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail details.sidebar-dropdown > summary {
+        list-style: none;
+        cursor: pointer;
+        width: 100%;
+        grid-column: 1;
+        grid-row: 1;
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail details.sidebar-dropdown > summary::-webkit-details-marker {
+        display: none;
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail .sidebar-caret {
+        margin-top: 0.1rem;
+        font-size: 0.82rem;
+        line-height: 1;
+        color: rgba(226, 232, 240, 0.55);
+        transition: transform 0.16s ease, color 0.16s ease;
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail details.sidebar-dropdown[open] > summary .sidebar-caret {
+        transform: rotate(90deg);
+        color: rgba(74, 222, 128, 0.85);
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail .sidebar-flyout {
+        position: relative;
+        left: auto;
+        top: auto;
+        min-width: 0;
+        max-width: none;
+        width: 100%;
+        margin: 0;
+        grid-column: 2;
+        grid-row: 1;
+        padding: 0.68rem;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        background: linear-gradient(180deg, rgba(5, 11, 20, 0.96), rgba(8, 14, 26, 0.94));
+        box-shadow: 0 24px 48px rgba(0, 0, 0, 0.34);
+        display: none;
+        grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+        gap: 0.5rem;
+        z-index: 150;
+        max-height: min(64vh, 36rem);
+        overflow: auto;
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail details.sidebar-dropdown[open] > .sidebar-flyout {
+        display: grid;
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail .sidebar-flyout.sidebar-flyout-medium {
+        grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail .sidebar-flyout.sidebar-flyout-large {
+        grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail .sidebar-flyout.sidebar-flyout-wide {
+        grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail .sidebar-flyout.sidebar-flyout-xwide {
+        grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail .sidebar-option {
+        min-height: 58px;
+        padding: 0.44rem 0.36rem;
+        border-radius: 14px;
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail .sidebar-option .tool-label {
+        font-size: 0.61rem;
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail details.sidebar-dropdown[open] > summary {
+        background: linear-gradient(180deg, rgba(34, 197, 94, 0.18), rgba(16, 185, 129, 0.10));
+        border-color: rgba(74, 222, 128, 0.30);
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail summary.sidebar-category:hover,
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail summary.sidebar-category:focus-visible {
+        transform: translateY(-1px);
+        border-color: rgba(255, 255, 255, 0.18);
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary .tool-emoji {
+        width: 1.7rem;
+        height: 1.7rem;
+        font-size: 1.45rem;
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary .sidebar-category {
+        align-items: center;
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary .tool-label {
+        display: block;
+        font-size: 0.64rem;
+        letter-spacing: 0.04em;
+        line-height: 1.05;
+        text-align: center;
+        color: rgba(248, 250, 252, 0.92);
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary svg {
+        width: 22px;
+        height: 22px;
+        filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.3));
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary button.is-active,
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary button[aria-pressed="true"] {
+        background: linear-gradient(180deg, rgba(34, 197, 94, 0.22), rgba(16, 185, 129, 0.14));
+        border-color: rgba(74, 222, 128, 0.34);
+        box-shadow:
+          0 10px 24px rgba(16, 185, 129, 0.12),
+          inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        color: rgba(240, 253, 244, 0.98);
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary button:hover {
+        transform: translateY(-1px);
+        border-color: rgba(255, 255, 255, 0.18);
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary button:focus-visible {
+        outline: 2px solid rgba(74, 222, 128, 0.58);
+        outline-offset: 2px;
+      }
+      body.editor-lab-compact .pitch-view-menu {
+        display: block;
+        margin: 0;
+      }
+      body.editor-lab-compact .pitch-view-menu summary {
+        display: none;
+      }
+      body.editor-lab-compact .pitch-view-menu-body {
+        position: static;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        width: auto;
+        min-width: 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+      }
+      body.editor-lab-compact .pitch-view-menu-body .pitch-zoom,
+      body.editor-lab-compact .pitch-view-menu-body .pitch-size {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.28rem;
+        padding: 0.22rem 0.35rem;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.03);
+      }
+      body.editor-lab-compact .pitch-view-menu-body .pitch-zoom button,
+      body.editor-lab-compact .pitch-view-menu-body .pitch-size button {
+        width: 30px;
+        height: 30px;
+        padding: 0;
+      }
+      body.editor-lab-compact .pitch-view-menu-body .zoom-readout {
+        min-width: 3.6rem;
+        text-align: center;
+      }
+      body.editor-lab-compact .editor-lab-field-dock {
+        position: relative;
+        left: auto;
+        top: auto;
+        right: auto;
+        bottom: auto;
+        width: 100%;
+        z-index: 1;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.42rem;
+        flex-wrap: wrap;
+        overflow: visible;
+        padding: 0.55rem 0.5rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        background: rgba(4, 12, 24, 0.74);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        box-shadow: 0 14px 30px rgba(2, 6, 23, 0.22);
+      }
+      body.editor-lab-compact .editor-lab-field-dock-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem;
+        align-items: center;
+      }
+      body.editor-lab-compact .editor-lab-field-dock-group .button {
+        padding: 0.46rem 0.66rem;
+        font-size: 0.67rem;
+      }
+      body.editor-lab-compact .editor-lab-field-dock-group-actions {
+        margin-left: auto;
+      }
+      @media (max-width: 840px) {
+        body.embedded-task-builder .embedded-builder-bar {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .embedded-builder-bar-actions {
+          justify-content: stretch;
+        }
+        .embedded-builder-bar-actions .button {
+          flex: 1 1 0;
+        }
+        .editor-lab-switcher {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .editor-lab-switcher-actions {
+          justify-content: stretch;
+        }
+        .editor-lab-switcher-actions .button,
+        .editor-lab-switcher-actions span.button {
+          flex: 1 1 0;
+        }
+      }
+      /* overlay-backdrop: evita sensación de superposición en popovers/modales */
+	      .overlay-backdrop {
+	        position: fixed;
+	        inset: 0;
+	        z-index: 80;
+	        background: rgba(2, 6, 23, 0.32);
+	        backdrop-filter: blur(6px);
+	        -webkit-backdrop-filter: blur(6px);
+	      }
+	      /* Pantalla de entrada (comercial): vista del campo + tarjetas de acciones. */
+	      .task-landing {
+	        position: fixed;
+	        inset: 0;
+	        /* Debe estar por encima de cualquier overlay/popover del motor de pizarra. */
+	        /* Important: tactical pad creates its own overlays (e.g. PDF viewer) at z-index 2147483647.
+	           We keep landing above all by using the same max int value. */
+	        z-index: 2147483647;
+	        background: rgba(2, 6, 23, 0.58);
+	        display: grid;
+	        place-items: center;
+	        pointer-events: auto;
+	        touch-action: manipulation;
+	        transform: translateZ(0);
+	        -webkit-transform: translateZ(0);
+	        padding: calc(16px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+	      }
+      /* iOS/WKWebView: `backdrop-filter` sobre el contenedor puede “comerse” taps.
+         Lo movemos a un pseudo-elemento SIN pointer-events. */
+      .task-landing::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: rgba(2, 6, 23, 0.0);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        pointer-events: none;
+      }
+      /* Garantiza que `landing.hidden = true` siempre oculte el modal incluso si otro CSS pisa `[hidden]`. */
+      .task-landing[hidden] {
+        display: none !important;
+      }
+	      .task-landing * {
+	        pointer-events: auto;
+	      }
+	      .task-landing-card {
+	        width: min(1320px, 96vw);
+	        border-radius: 26px;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(10, 22, 38, 0.86);
+	        box-shadow: 0 28px 80px rgba(2, 6, 23, 0.55);
+	        overflow: hidden;
+	        display: grid;
+	        grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.9fr);
+	        gap: 0;
+	        position: relative;
+	        z-index: 1;
+	      }
+	      @media (max-width: 980px) {
+	        .task-landing-card { grid-template-columns: 1fr; }
+	      }
+	      .task-landing-pitch {
+	        position: relative;
+	        min-height: 420px;
+	        background:
+	          repeating-linear-gradient(90deg, rgba(34, 197, 94, 0.16) 0 60px, rgba(34, 197, 94, 0.08) 60px 120px),
+	          linear-gradient(180deg, rgba(16, 185, 129, 0.22), rgba(34, 197, 94, 0.18));
+	        border-right: 1px solid rgba(255,255,255,0.10);
+	        display: grid;
+	        place-items: center;
+	      }
+	      @media (max-width: 980px) {
+	        .task-landing-pitch { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.10); min-height: 320px; }
+	      }
+	      .task-landing-pitch img {
+	        width: 100%;
+	        height: 100%;
+	        object-fit: contain;
+	        display: block;
+	      }
+	      .task-landing-pitch svg {
+	        width: min(880px, 92%);
+	        height: auto;
+	        opacity: 0.92;
+	        filter: drop-shadow(0 18px 24px rgba(2, 6, 23, 0.22));
+	      }
+	      .task-landing-actions {
+	        padding: 1.05rem 1.05rem 1.15rem;
+	        display: grid;
+	        gap: 0.75rem;
+	        align-content: start;
+	        position: relative;
+	        z-index: 2;
+	      }
+	      .task-landing-actions h2 {
+	        margin: 0;
+	        font-size: 0.82rem;
+	        letter-spacing: 0.14em;
+	        text-transform: uppercase;
+	      }
+	      .task-landing-actions .meta {
+	        margin: 0;
+	        opacity: 0.88;
+	      }
+	      .task-landing-note {
+	        border: 1px solid rgba(255, 255, 255, 0.12);
+	        background: rgba(255, 255, 255, 0.04);
+	        border-radius: 16px;
+	        padding: 0.7rem 0.85rem;
+	        font-size: 0.86rem;
+	        line-height: 1.35;
+	        color: rgba(226, 232, 240, 0.92);
+	      }
+	      .task-landing-note strong {
+	        color: rgba(248, 250, 252, 0.98);
+	      }
+	      .task-landing-action {
+	        display: grid;
+	        gap: 0.2rem;
+	        text-align: left;
+	        border-radius: 18px;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(255,255,255,0.06);
+	        color: rgba(248,250,252,0.96);
+	        padding: 0.85rem 0.95rem;
+	        font: inherit;
+	        font-weight: 900;
+	        cursor: pointer;
+	        touch-action: manipulation;
+	      }
+	      .task-landing-action small { opacity: 0.85; font-weight: 700; }
+	      .task-landing-action.is-selected {
+	        background: rgba(34, 211, 238, 0.14);
+	        border-color: rgba(34, 211, 238, 0.38);
+	      }
+	      .task-landing-action.is-selected:focus-visible {
+	        outline: 3px solid rgba(34, 211, 238, 0.55);
+	        outline-offset: 2px;
+	      }
+	      .task-landing-foot {
+	        display: flex;
+	        justify-content: space-between;
+	        gap: 0.75rem;
+	        align-items: center;
+	        flex-wrap: wrap;
+	        margin-top: 0.15rem;
+	      }
+	      .task-landing-foot .ui-check { margin: 0; }
+	      .task-landing-close {
+	        border-radius: 999px;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(255,255,255,0.06);
+	        color: rgba(248,250,252,0.92);
+	        padding: 0.55rem 0.85rem;
+	        font-weight: 900;
+	        cursor: pointer;
+	      }
+      .page {
+        max-width: 1560px;
+        margin: 0 auto;
+        padding: 1.15rem;
+      }
+      body:not(.tactics-mode) .page {
+        max-width: none;
+        margin: 0;
+        padding: 0.95rem;
+        background:
+          radial-gradient(circle at 50% 15%, rgba(110, 168, 77, 0.28), transparent 32%),
+          radial-gradient(circle at 50% 55%, rgba(37, 99, 41, 0.16), transparent 58%),
+          linear-gradient(180deg, #113b18 0%, #0d3015 24%, #0a2312 58%, #081926 100%);
+      }
+      /* Táctica: layout de 1 sola vista (sin scroll de página).
+         Permitimos scroll interno solo en paneles que lo necesitan (Recursos/Playbook). */
+      body.tactics-mode {
+        /* Importante: no bloqueamos el scroll del documento.
+           El campo se auto-ajusta, pero si algún dispositivo/zoom provoca overflow, el usuario debe poder desplazarse. */
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+      body.tactics-mode .page {
+        width: 100%;
+        max-width: none;
+        min-height: 100vh;
+        /* iOS Safari: evitar “rubber resize” al aparecer/desaparecer barras al hacer scroll. */
+        min-height: 100svh;
+        overflow-x: hidden;
+        display: flex;
+        flex-direction: column;
+        padding: clamp(0.25rem, 0.55vw, 0.7rem);
+      }
+      body.tactics-mode .builder {
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+      body.tactics-mode .builder > section.panel {
+        height: 100%;
+      }
+      body.tactics-mode .builder > section.panel > .panel-body {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow-x: hidden;
+        padding: clamp(0.25rem, 0.55vw, 0.65rem);
+      }
+      /* Táctica: el aviso "Borrador local recuperado" no debe ocupar altura ni empujar el layout.
+         Se muestra como toast flotante (y el JS lo auto-oculta). */
+      body.tactics-mode #task-builder-draft-alert {
+        position: fixed;
+        top: calc(10px + env(safe-area-inset-top));
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 240;
+        width: min(980px, 94vw);
+        margin: 0;
+        padding: 0.55rem 0.75rem;
+        border-radius: 999px;
+        box-shadow: 0 18px 44px rgba(2, 6, 23, 0.55);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+      }
+      /* Táctica: pantalla completa (sin scroll del documento, todo en una vista). */
+      body.tactics-mode.tactics-fullscreen {
+        /* Importante: no bloqueamos el scroll global. Aunque el objetivo sea “1 vista”,
+           necesitamos permitir desplazamiento si el navegador/zoom provoca overflow,
+           o si el usuario usa trackpad/rueda para navegar (especialmente en desktop). */
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+      body.tactics-mode.tactics-fullscreen .page {
+        max-width: none;
+        height: 100vh;
+        /* iOS Safari: altura estable (no crece/encoge al hacer scroll). */
+        height: 100svh;
+        padding: calc(10px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));
+      }
+      body.tactics-mode.tactics-fullscreen .dragon-nav {
+        display: none !important;
+      }
+      body.tactics-mode.tactics-fullscreen .topbar {
+        margin-bottom: 0.65rem;
+        align-items: center;
+      }
+      body.tactics-mode.tactics-fullscreen .topbar > div:first-child {
+        display: none;
+      }
+      body.tactics-mode.tactics-fullscreen .topbar .actions {
+        width: 100%;
+        justify-content: flex-end;
+      }
+      body.tactics-mode.tactics-fullscreen .builder {
+        min-height: 0;
+      }
+      body.tactics-mode .pitch-layout {
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+      body.tactics-mode .pitch-main {
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      body.tactics-mode .pitch-viewport {
+        flex: 1 1 auto;
+        /* Evita colapsos a 0px (Safari/WebKit) cuando el grid/flex calcula alturas “auto” con aspect-ratio. */
+        min-height: clamp(320px, 58vh, 980px);
+        /* iOS Safari: valor estable (no depende de la UI del navegador en scroll). */
+        min-height: clamp(320px, 58svh, 980px);
+        min-width: 0;
+        max-width: 100%;
+        display: flex;
+        /* En desktop suele quedar “aire” arriba cuando el fit reduce el stage; preferimos anclar el campo arriba. */
+        align-items: flex-start;
+        justify-content: center;
+        padding-top: 0.1rem;
+      }
+      /* En táctica, el tamaño del campo lo gestiona el layoutManager (JS) para que quepa en una sola vista. */
+      body.tactics-mode .pitch-stage {
+        max-height: 100%;
+      }
+      .simple-hint {
+        margin: 0.65rem 0 0;
+        padding: 0.7rem 0.85rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(2, 6, 23, 0.55);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        color: rgba(248,250,252,0.92);
+        font-size: 0.88rem;
+        line-height: 1.35;
+      }
+      .quick-start {
+        margin-top: 0.75rem;
+        display: grid;
+        gap: 0.6rem;
+      }
+      .quick-start h4 {
+        margin: 0;
+        font-size: 0.72rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.78);
+      }
+      .quick-start-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+      }
+      .quick-start-actions .button {
+        border-radius: 14px;
+        padding: 0.55rem 0.75rem;
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        text-transform: none;
+      }
+      .mode-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        border: 1px solid rgba(255,255,255,0.14);
+        border-radius: 999px;
+        padding: 0.42rem 0.7rem;
+        background: rgba(255,255,255,0.05);
+        color: rgba(248,250,252,0.92);
+        font-weight: 850;
+        font-size: 0.76rem;
+      }
+      .mode-pill .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.9);
+      }
+      body.mode-insert .mode-pill .dot { background: rgba(34, 211, 238, 0.95); }
+      body.mode-draw .mode-pill .dot { background: rgba(56, 189, 248, 0.95); }
+      body.mode-move .mode-pill .dot { background: rgba(74, 222, 128, 0.95); }
+	      /* En modo táctica mantenemos accesos rápidos (capas/escenarios/simulador) para no perder operatividad. */
+	      .topbar {
+	        display: flex;
+	        justify-content: space-between;
+	        align-items: flex-start;
+	        gap: 1rem;
+	        margin-bottom: 1rem;
+	        flex-wrap: wrap;
+          padding: 1rem 1.05rem;
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 24px;
+          background:
+            linear-gradient(135deg, rgba(8,15,31,0.9), rgba(15,23,42,0.82)),
+            radial-gradient(circle at top left, rgba(56,189,248,0.16), transparent 28%);
+          box-shadow: 0 24px 58px rgba(2, 6, 23, 0.32);
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
+	      }
+      .topbar-copy {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.34rem;
+        max-width: 760px;
+      }
+      .topbar-kicker {
+        color: rgba(125,211,252,0.92);
+        font-size: 0.72rem;
+        font-weight: 950;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+      body.ui-tablet .topbar {
+	        position: sticky;
+	        top: 0;
+	        z-index: 1200;
+	        padding-top: calc(0.65rem + env(safe-area-inset-top));
+	        padding-bottom: 0.65rem;
+	        background: rgba(2, 6, 23, 0.72);
+	        backdrop-filter: blur(10px);
+	        -webkit-backdrop-filter: blur(10px);
+	        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+	      }
+      .topbar h1 {
+        margin: 0;
+        font-size: clamp(1.18rem, 1.9vw, 1.8rem);
+        line-height: 1.02;
+        letter-spacing: -0.03em;
+        text-transform: none;
+        color: #f8fafc;
+      }
+      .topbar-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        align-items: center;
+      }
+      .topbar-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.36rem;
+        padding: 0.42rem 0.72rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148,163,184,0.15);
+        background: rgba(255,255,255,0.05);
+        color: rgba(248,250,252,0.94);
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      body.tactics-mode .topbar {
+        display: grid;
+        grid-template-columns: minmax(180px, 1fr) auto;
+        align-items: center;
+        gap: 0.55rem 0.85rem;
+        margin-bottom: 0.5rem;
+      }
+      body.tactics-mode .topbar h1 {
+        font-size: 0.82rem;
+        letter-spacing: 0.1em;
+      }
+      body.tactics-mode .topbar .meta {
+        display: none;
+      }
+      body.tactics-mode .topbar .actions {
+        justify-content: flex-end;
+        align-items: center;
+        gap: 0.36rem;
+      }
+      body.tactics-mode .topbar .actions .button,
+      body.tactics-mode .topbar .actions button,
+      body.tactics-mode .topbar .actions .action-summary {
+        min-height: 36px;
+        padding: 0.46rem 0.68rem;
+        font-size: 0.66rem;
+        border-radius: 12px;
+        line-height: 1.05;
+      }
+      body.tactics-mode #tactics-save-task-top,
+      body.tactics-mode #tactics-save-task-system-top,
+      body.tactics-mode #tactics-save-clip-top,
+      body.tactics-mode #task-builder-help,
+      body.tactics-mode #task-builder-simple-toggle,
+      body.tactics-mode #task-builder-compact-toggle {
+        display: none;
+      }
+      @media (max-width: 1180px) {
+        body.tactics-mode .topbar {
+          grid-template-columns: 1fr;
+        }
+        body.tactics-mode .topbar .actions {
+          justify-content: flex-start;
+        }
+      }
+      .meta {
+        margin: 0.35rem 0 0;
+        color: var(--muted);
+        font-size: 0.86rem;
+      }
+      .actions {
+        display: flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-end;
+      }
+      .actions .button,
+      .actions button {
+        transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+      }
+      .actions .button:hover,
+      .actions button:hover {
+        transform: translateY(-1px);
+        border-color: rgba(125,211,252,0.32);
+        background: rgba(255,255,255,0.1);
+        box-shadow: 0 14px 24px rgba(2,6,23,0.18);
+      }
+      .action-menu {
+        position: relative;
+      }
+      .action-menu summary {
+        list-style: none;
+      }
+      .action-menu summary::-webkit-details-marker { display: none; }
+      .action-menu summary.action-summary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--ink);
+        border-radius: 999px;
+        padding: 0.62rem 0.92rem;
+        font: inherit;
+        font-size: 0.73rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        cursor: pointer;
+        user-select: none;
+      }
+      .action-menu[open] summary.action-summary {
+        border-color: rgba(34, 211, 238, 0.42);
+        background: rgba(34, 211, 238, 0.12);
+      }
+	      .action-menu-body {
+	        position: absolute;
+	        top: calc(100% + 10px);
+	        right: 0;
+	        z-index: 90;
+	        width: min(540px, 92vw);
+	        padding: 0.75rem;
+	        border-radius: 18px;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(8, 18, 30, 0.96);
+	        box-shadow: 0 26px 56px rgba(2, 6, 23, 0.42);
+	        display: grid;
+	        gap: 0.75rem;
+	      }
+	      /* Safari/iOS/desktop: el backdrop (con blur) puede “tapar” el dropdown de <details> por stacking context.
+	         Fix robusto: cuando el menú está abierto, lo mostramos como panel fijo por encima del backdrop. */
+		      .action-menu[open] .action-menu-body {
+		        position: fixed;
+		        top: calc(14px + env(safe-area-inset-top));
+		        right: calc(12px + env(safe-area-inset-right));
+		        left: auto;
+		        width: min(540px, calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right)));
+		        /* iOS Safari: `dvh` cambia durante el scroll (barras UI). Usamos `svh` para que el panel no “respire”. */
+		        max-height: calc(100vh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+		        max-height: calc(100svh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+		        overflow: auto;
+		        z-index: 1600;
+		      }
+		      @media (max-width: 760px) {
+		        .action-menu[open] .action-menu-body {
+		          left: calc(12px + env(safe-area-inset-left));
+		          right: calc(12px + env(safe-area-inset-right));
+		          width: auto;
+		        }
+		      }
+	      /* Importante: `backdrop-filter` en `.topbar` (commercial.css) crea stacking context.
+	         Subimos el contenedor cuando Opciones está abierto para que el panel pueda quedar por encima del backdrop. */
+	      .action-menu[open] {
+	        position: relative;
+	        z-index: 1601;
+	      }
+	      /* El backdrop (z=80) vive fuera de `main.page`. Si la topbar crea stacking context por
+	         `backdrop-filter` (commercial.css), el menú de Opciones puede quedar “atrapado” detrás.
+	         Al abrir cualquier overlay, elevamos la topbar por encima del backdrop. */
+	      body.overlay-backdrop-open .topbar {
+	        position: relative;
+	        z-index: 1600;
+	      }
+      .action-menu-group {
+        border: 1px solid rgba(255,255,255,0.10);
+        background: rgba(255,255,255,0.03);
+        border-radius: 16px;
+        padding: 0.7rem;
+        display: grid;
+        gap: 0.55rem;
+      }
+      .action-menu-title {
+        font-size: 0.7rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.78);
+        font-weight: 900;
+      }
+      .action-menu-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+      }
+      .device-view-select {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.25rem 0.45rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.05);
+        color: rgba(226,232,240,0.9);
+        font-size: 0.78rem;
+        font-weight: 800;
+      }
+      .device-view-select select {
+        width: auto;
+        min-width: 8.5rem;
+        border-radius: 999px;
+        padding: 0.28rem 0.55rem;
+      }
+      .button, button {
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--ink);
+        border-radius: 999px;
+        padding: 0.62rem 0.92rem;
+        font: inherit;
+        font-size: 0.73rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .button.danger,
+      button.danger {
+        background: rgba(127, 29, 29, 0.22);
+        border-color: rgba(248, 113, 113, 0.4);
+        color: #fecaca;
+      }
+      .icon-trash {
+        display: inline-flex;
+        width: 0.95rem;
+        height: 0.95rem;
+      }
+      .icon-trash svg {
+        width: 100%;
+        height: 100%;
+        fill: currentColor;
+      }
+	      button.primary {
+	        background: linear-gradient(135deg, rgba(244, 180, 0, 0.95), rgba(47, 125, 50, 0.86));
+	        border: none;
+	        color: rgba(8, 17, 29, 0.98);
+	      }
+      .alert {
+        margin-bottom: 0.95rem;
+        padding: 0.78rem 0.92rem;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+      }
+      .alert.ok {
+        background: rgba(22, 163, 74, 0.16);
+        border-color: rgba(74, 222, 128, 0.4);
+      }
+      .alert.err {
+        background: rgba(127, 29, 29, 0.22);
+        border-color: rgba(248, 113, 113, 0.4);
+      }
+      .alert.warn {
+        background: rgba(245, 158, 11, 0.14);
+        border-color: rgba(251, 191, 36, 0.42);
+        color: rgba(254, 243, 199, 0.98);
+        font-weight: 650;
+      }
+      /* En Táctica, el hint no debe "empujar" el campo ni crear scroll: se muestra como toast flotante. */
+      body.tactics-mode #tpad-hint {
+        /* En la práctica estorba más que ayuda en una vista única; se deja accesible vía “Guía”. */
+        display: none !important;
+      }
+      .builder {
+        display: grid;
+        grid-template-columns: minmax(0, 1.45fr) minmax(340px, 420px);
+        gap: 1rem;
+        align-items: start;
+      }
+      @media (min-width: 980px) {
+        .builder {
+          grid-template-columns: minmax(0, 1.85fr) minmax(340px, 420px);
+        }
+      }
+      /* Modo táctica: prioriza el campo (ancho completo). El panel lateral se abre como drawer. */
+      body.tactics-mode .builder {
+        grid-template-columns: 1fr;
+      }
+      body.tactics-mode .builder > aside.panel {
+        position: fixed;
+        top: calc(88px + env(safe-area-inset-top));
+        right: calc(14px + env(safe-area-inset-right));
+        left: auto;
+        width: min(420px, calc(100vw - 28px));
+        max-height: calc(100vh - 110px - env(safe-area-inset-top));
+        overflow-x: hidden;
+        overflow-y: auto;
+        z-index: 1400;
+        display: none;
+      }
+      body.tactics-mode.tactics-panel-open .builder > aside.panel {
+        display: block;
+      }
+      @media (max-width: 820px) {
+        body.tactics-mode .builder > aside.panel {
+          left: calc(14px + env(safe-area-inset-left));
+          right: calc(14px + env(safe-area-inset-right));
+          width: auto;
+        }
+      }
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        background: rgba(10, 22, 38, 0.88);
+        box-shadow: 0 18px 48px rgba(2, 6, 23, 0.34);
+        /* Importante en grid: evita que contenidos con overflow-x ensanchen la columna. */
+        min-width: 0;
+      }
+      .panel-body {
+        padding: 1rem;
+        min-width: 0;
+      }
+      .panel-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.8rem;
+        margin-bottom: 0.9rem;
+        flex-wrap: wrap;
+      }
+      body.tactics-mode .panel-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        align-items: start;
+        gap: 0.45rem 0.65rem;
+        margin-bottom: 0.45rem;
+      }
+      body.tactics-mode .panel-head > div:first-child {
+        min-width: 0;
+      }
+      body.tactics-mode .panel-head h2 {
+        font-size: 0.76rem;
+      }
+      body.tactics-mode .panel-head p {
+        font-size: 0.72rem;
+        line-height: 1.25;
+        margin-top: 0.18rem;
+      }
+      /* Tablet: evita que la cabecera (Pizarra + Superficie/Vista/Presentación) se "corte".
+         Lo apilamos y lo alineamos a la izquierda para que quepa en iPad. */
+      body.ui-tablet .panel-head {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      body.ui-tablet .panel-head > div:first-child {
+        order: 2;
+      }
+      body.ui-tablet .panel-head .pitch-toolbar {
+        order: 1;
+        width: 100%;
+        justify-content: flex-start;
+        margin-bottom: 0.35rem;
+      }
+      body.ui-tablet .pitch-toolbar button,
+      body.ui-tablet .pitch-toolbar .button,
+      body.ui-tablet .pitch-toolbar .surface-trigger {
+        padding: 0.52rem 0.72rem;
+        font-size: 0.76rem;
+      }
+      .panel-head h2 {
+        margin: 0;
+        font-size: 0.82rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .panel-head p {
+        margin: 0.3rem 0 0;
+        color: var(--muted);
+        font-size: 0.78rem;
+      }
+      .pitch-toolbar {
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.85rem;
+        position: relative;
+      }
+      body.tactics-mode .pitch-toolbar {
+        width: 100%;
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: minmax(420px, 1fr) auto auto;
+        gap: 0.4rem;
+        margin-bottom: 0.35rem;
+        align-items: center;
+        justify-content: stretch;
+      }
+      body.tactics-mode .panel-head > div:first-child {
+        display: none;
+      }
+      body.tactics-mode .tactics-toolbar-group {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.32rem;
+      }
+      body.tactics-mode .tactics-toolbar-primary {
+        justify-content: flex-start;
+      }
+      body.tactics-mode .tactics-toolbar-surface,
+      body.tactics-mode .tactics-toolbar-output {
+        justify-content: flex-end;
+      }
+      body.tactics-mode .tactics-toolbar-surface {
+        flex-wrap: nowrap;
+      }
+      body.tactics-mode .tactics-toolbar-output {
+        flex-wrap: nowrap;
+      }
+      @media (max-width: 1640px) {
+        body.tactics-mode .pitch-toolbar {
+          grid-template-columns: minmax(0, 1fr) auto;
+        }
+        body.tactics-mode .tactics-toolbar-primary {
+          grid-column: 1 / -1;
+        }
+      }
+      @media (max-width: 1120px) {
+        body.tactics-mode .pitch-toolbar {
+          grid-template-columns: 1fr;
+        }
+        body.tactics-mode .tactics-toolbar-group {
+          justify-content: flex-start;
+          flex-wrap: wrap;
+        }
+      }
+      .pitch-view-menu {
+        position: relative;
+      }
+      .pitch-view-menu summary::-webkit-details-marker { display: none; }
+      .pitch-view-menu summary.surface-trigger {
+        cursor: pointer;
+        user-select: none;
+      }
+      .pitch-view-menu[open] summary.surface-trigger {
+        background: rgba(34, 211, 238, 0.12);
+        border-color: rgba(34, 211, 238, 0.42);
+      }
+	      .pitch-view-menu-body {
+	        position: absolute;
+	        top: calc(100% + 10px);
+	        left: 0;
+	        z-index: 85;
+	        width: min(720px, 92vw);
+        padding: 0.75rem;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(8, 18, 30, 0.96);
+        box-shadow: 0 26px 56px rgba(2, 6, 23, 0.42);
+        display: flex;
+        flex-wrap: wrap;
+	        gap: 0.55rem;
+	        align-items: center;
+	      }
+	      .pitch-grass-select-wrap {
+	        position: relative;
+	        display: inline-flex;
+	        align-items: center;
+	      }
+	      .pitch-grass-select-wrap::after {
+	        content: "▾";
+	        position: absolute;
+	        right: 14px;
+	        top: 50%;
+	        transform: translateY(-50%);
+	        pointer-events: none;
+	        opacity: 0.75;
+	        font-weight: 900;
+	      }
+	      select.pitch-grass-select {
+	        min-width: 220px;
+	        border: 1px solid var(--line);
+	        background: rgba(255, 255, 255, 0.05);
+	        color: var(--ink);
+	        border-radius: 999px;
+	        padding: 0.62rem 2.2rem 0.62rem 0.92rem;
+	        font: inherit;
+	        font-size: 0.73rem;
+	        font-weight: 800;
+	        letter-spacing: 0.06em;
+	        text-transform: uppercase;
+	        cursor: pointer;
+	        appearance: none;
+	        -webkit-appearance: none;
+	      }
+      body.tactics-mode select.pitch-grass-select {
+        min-width: 160px;
+      }
+		      .pitch-toolbar button,
+		      .resource-strip button,
+		      .player-bank button {
+		        border-radius: 12px;
+		        text-transform: none;
+	        letter-spacing: 0.02em;
+	        font-size: 0.8rem;
+	        font-weight: 700;
+	        padding: 0.62rem 0.82rem;
+	      }
+	      .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+      body.tactics-mode #task-tactics-panel-toggle,
+      body.tactics-mode #task-tactics-tools-toggle,
+      body.tactics-mode #task-tactics-sim-open {
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        flex: 0 0 auto;
+      }
+      /* Táctica: barra rápida de inserción (chips local/rival + recursos mínimos + export) */
+      body.tactics-mode .tactics-quickbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.36rem;
+        align-items: center;
+        margin-left: 0;
+        flex: 1 1 300px;
+        min-width: 240px;
+      }
+      /* Táctica: por defecto, cabecera compacta para ganar altura de campo.
+         Mostramos solo lo imprescindible; el resto vive en Recursos/Playbook/Simulador. */
