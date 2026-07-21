@@ -29279,21 +29279,51 @@ def coach_role_trainer_page(request):
                 'top_event_types': selected_match_team_metrics['top_event_types'],
             }
 
-    modules = [
-        {'title': 'Convocatoria', 'description': 'Define lista oficial y PDF del partido.', 'link': 'convocation'},
-        {'title': '11 inicial', 'description': 'Pantalla táctica visual para construir la alineación titular y banquillo.', 'link': 'initial-eleven'},
+    module_groups = [
         {
-            'title': 'Partidos',
-            'description': 'Listado anual para editar, depurar duplicados y completar datos manuales (minutos, goles, asistencias…).',
-            'link': 'coach-matches',
+            'key': 'match',
+            'title': 'Partido',
+            'description': 'Convocatoria, 11 inicial y edición de encuentros.',
+            'modules': [
+                {'title': 'Convocatoria', 'description': 'Define lista oficial y PDF del partido.', 'link': 'convocation'},
+                {'title': '11 inicial', 'description': 'Pantalla táctica visual para construir la alineación titular y banquillo.', 'link': 'initial-eleven'},
+                {
+                    'title': 'Partidos',
+                    'description': 'Listado anual para editar, depurar duplicados y completar datos manuales (minutos, goles, asistencias…).',
+                    'link': 'coach-matches',
+                },
+            ],
         },
         {
-            'title': 'Rivales',
-            'description': 'Fichas de rivales, estadio, escudo, equipaciones y análisis previo del siguiente encuentro.',
-            'link': 'coach-rivals',
+            'key': 'training',
+            'title': 'Entrenamiento',
+            'description': 'Sesiones, tareas y modelo de juego.',
+            'modules': [
+                {'title': 'Sesiones', 'description': 'Planificador semanal de sesiones y tareas.', 'link': 'sessions'},
+                {'title': 'IA-Trainer', 'description': 'Generar ideas y convertirlas en tareas concretas.', 'link': 'ai-trainer'},
+                {'title': 'Modelo de juego', 'description': 'Metodología para orientar el trabajo semanal.', 'link': 'coach-model-of-play'},
+            ],
         },
-        {'title': 'Sesiones', 'description': 'Planificador semanal de sesiones y tareas.', 'link': 'sessions'},
-        {'title': 'Multas', 'description': 'Control disciplinario del vestuario.', 'link': 'fines'},
+        {
+            'key': 'discipline',
+            'title': 'Régimen disciplinario',
+            'description': 'Seguimiento disciplinario y sanciones.',
+            'modules': [
+                {'title': 'Multas', 'description': 'Control disciplinario del vestuario.', 'link': 'fines'},
+            ],
+        },
+        {
+            'key': 'analysis',
+            'title': 'Análisis',
+            'description': 'Rivales, contexto y lectura previa del siguiente encuentro.',
+            'modules': [
+                {
+                    'title': 'Rivales',
+                    'description': 'Fichas de rivales, estadio, escudo, equipaciones y análisis previo del siguiente encuentro.',
+                    'link': 'coach-rivals',
+                },
+            ],
+        },
     ]
     return render(
         request,
@@ -29310,7 +29340,7 @@ def coach_role_trainer_page(request):
             'stats_scope': stats_scope,
             'tournament_filter': tournament_filter,
             'tournament_options': _team_tournament_name_options(primary_team) if primary_team else [],
-            'modules': modules,
+            'module_groups': module_groups,
             'kpis': kpis,
             'kpi_note': '* Goles, puntos y clasificación: temporada real. Métricas de acciones: solo sobre partidos medidos.',
             'coach_overview_stats': coach_overview_stats,

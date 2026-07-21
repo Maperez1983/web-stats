@@ -285,6 +285,39 @@
       .module-panel .panel-actions .workspace-tab {
         text-decoration: none;
       }
+      .module-group-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.8rem;
+        margin-top: 0.9rem;
+      }
+      .coach-module-card {
+        border-radius: 16px;
+        padding: 0.95rem;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(2, 6, 23, 0.42);
+        display: grid;
+        gap: 0.55rem;
+        min-height: 142px;
+      }
+      .coach-module-card h5 {
+        margin: 0;
+        font-size: 0.92rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .coach-module-card p {
+        margin: 0;
+        color: rgba(226, 232, 240, 0.74);
+        line-height: 1.45;
+      }
+      .coach-module-card .module-action {
+        margin-top: auto;
+      }
+      .coach-module-card .module-action .workspace-tab {
+        width: fit-content;
+        text-decoration: none;
+      }
       .workspace-stack {
         display: grid;
         gap: 1rem;
@@ -1151,17 +1184,15 @@
         line-height: 1.15;
         letter-spacing: 0.04em;
         text-transform: uppercase;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        overflow-wrap: anywhere;
+        white-space: normal;
       }
       .broadcast-sub {
         margin-top: 0.15rem;
         color: rgba(226, 232, 240, 0.72);
         font-size: 0.78rem;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        overflow-wrap: anywhere;
+        white-space: normal;
       }
       .broadcast-pill {
         display: inline-flex;
@@ -1196,38 +1227,6 @@
       }
       .mini-pill strong {
         color: #fff8e1;
-      }
-      .broadcast-kpis {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 0.45rem;
-      }
-      .broadcast-kpi {
-        display: grid;
-        gap: 0.08rem;
-        padding: 0.55rem 0.6rem;
-        border-radius: 12px;
-        background: rgba(2, 6, 23, 0.22);
-        border: 1px solid rgba(148, 163, 184, 0.16);
-      }
-      .broadcast-kpi .k {
-        font-size: 0.66rem;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: rgba(226, 232, 240, 0.72);
-      }
-      .broadcast-kpi .v {
-        font-size: 0.92rem;
-        font-weight: 900;
-        color: rgba(245, 247, 250, 0.96);
-      }
-      .broadcast-kpi.is-accent {
-        border-color: rgba(244, 180, 0, 0.26);
-        background: rgba(244, 180, 0, 0.09);
-      }
-      .broadcast-kpi.is-cool {
-        border-color: rgba(56, 189, 248, 0.24);
-        background: rgba(56, 189, 248, 0.08);
       }
       .avatar-wrap {
         position: relative;
@@ -1453,6 +1452,36 @@
               <strong>{% if weekly_staff_brief %}{{ weekly_staff_brief.headline }}{% else %}Sin briefing semanal{% endif %}</strong>
             </article>
           </aside>
+        </div>
+      </section>
+      {% endif %}
+      {% if role_key == 'trainer' and module_groups %}
+      <section id="coach-modules" class="summary-card coach-card-shell">
+        <h3>Módulos</h3>
+        <p class="summary-meta">Todo el trabajo del entrenador agrupado en bloques. Primero eliges el grupo y luego abres la herramienta concreta.</p>
+        <div class="module-tabs" role="tablist" aria-label="Grupos de módulos del entrenador">
+          {% for group in module_groups %}
+          <button class="module-tab{% if forloop.first %} is-active{% endif %}" type="button" data-module-target="group-{{ forloop.counter0 }}">{{ group.title }}</button>
+          {% endfor %}
+        </div>
+        <div class="module-panels">
+          {% for group in module_groups %}
+          <article class="module-panel{% if forloop.first %} is-active{% endif %}" data-module-panel="group-{{ forloop.counter0 }}">
+            <h4>{{ group.title }}</h4>
+            <p>{{ group.description }}</p>
+            <div class="module-group-grid">
+              {% for module in group.modules %}
+              <article class="coach-module-card">
+                <h5>{{ module.title }}</h5>
+                <p>{{ module.description }}</p>
+                <div class="module-action">
+                  <a class="workspace-tab" href="{% url module.link %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Abrir módulo</a>
+                </div>
+              </article>
+              {% endfor %}
+            </div>
+          </article>
+          {% endfor %}
         </div>
       </section>
       {% endif %}
@@ -2161,12 +2190,6 @@
                   <span class="mini-pill">G <strong>{{ item.goals }}</strong></span>
                   <span class="mini-pill">A <strong>{{ item.assists }}</strong></span>
                 </div>
-                <div class="broadcast-kpis" aria-label="KPIs resumidos">
-                  <div class="broadcast-kpi"><span class="k">Minutos</span><span class="v">{{ item.minutes }}</span></div>
-                  <div class="broadcast-kpi"><span class="k">Partidos</span><span class="v">{{ item.matches }}</span></div>
-                  <div class="broadcast-kpi is-accent"><span class="k">Goles</span><span class="v">{{ item.goals }}</span></div>
-                  <div class="broadcast-kpi is-cool"><span class="k">Asist.</span><span class="v">{{ item.assists }}</span></div>
-                </div>
               </article>
             </a>
 	            {% endfor %}
@@ -2595,26 +2618,6 @@
       </nav>
       {% endif %}
 
-      <section id="coach-modules" class="summary-card coach-card-shell">
-        <h3>Módulos</h3>
-        <p class="summary-meta">Accesos del entrenador en formato pestaña. La portada queda arriba y el trabajo diario queda aquí abajo.</p>
-        <div class="module-tabs" role="tablist" aria-label="Módulos del entrenador">
-          {% for module in modules %}
-          <button class="module-tab{% if forloop.first %} is-active{% endif %}" type="button" data-module-target="module-{{ forloop.counter0 }}">{{ module.title }}</button>
-          {% endfor %}
-        </div>
-        <div class="module-panels">
-          {% for module in modules %}
-          <article class="module-panel{% if forloop.first %} is-active{% endif %}" data-module-panel="module-{{ forloop.counter0 }}">
-            <h4>{{ module.title }}</h4>
-            <p>{{ module.description }}</p>
-            <div class="panel-actions">
-              <a class="workspace-tab" href="{% url module.link %}">Abrir módulo</a>
-            </div>
-          </article>
-          {% endfor %}
-        </div>
-      </section>
     </div>
     {% if role_key == 'trainer' %}
     <script>
