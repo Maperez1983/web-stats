@@ -843,6 +843,147 @@ class PlayerCommunication(models.Model):
         return f'{self.player.name} · {self.category}'
 
 
+class ScoutingTarget(models.Model):
+    STATUS_TARGET = 'target'
+    STATUS_WATCHLIST = 'watchlist'
+    STATUS_ACTIVE = 'active'
+    STATUS_REVIEW = 'review'
+    STATUS_DISCARDED = 'discarded'
+    STATUS_SIGNED = 'signed'
+    STATUS_CHOICES = [
+        (STATUS_TARGET, 'Objetivo'),
+        (STATUS_WATCHLIST, 'En seguimiento'),
+        (STATUS_ACTIVE, 'Seguimiento activo'),
+        (STATUS_REVIEW, 'Revisar'),
+        (STATUS_DISCARDED, 'Descartado'),
+        (STATUS_SIGNED, 'Firmado'),
+    ]
+
+    PRIORITY_LOW = 'low'
+    PRIORITY_MEDIUM = 'medium'
+    PRIORITY_HIGH = 'high'
+    PRIORITY_URGENT = 'urgent'
+    PRIORITY_CHOICES = [
+        (PRIORITY_LOW, 'Baja'),
+        (PRIORITY_MEDIUM, 'Media'),
+        (PRIORITY_HIGH, 'Alta'),
+        (PRIORITY_URGENT, 'Urgente'),
+    ]
+
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name='scouting_targets')
+    player = models.ForeignKey(Player, on_delete=models.SET_NULL, null=True, blank=True, related_name='scouting_targets')
+    subject_name = models.CharField(max_length=160, help_text='Nombre del jugador ojeado, aunque no exista como ficha local.')
+    subject_team_name = models.CharField(max_length=160, blank=True, help_text='Club actual o referencia del jugador.')
+    position = models.CharField(max_length=60, blank=True)
+    dominant_foot = models.CharField(max_length=16, blank=True)
+    birth_date = models.DateField(null=True, blank=True)
+    status = models.CharField(max_length=24, choices=STATUS_CHOICES, default=STATUS_WATCHLIST, db_index=True)
+    priority = models.CharField(max_length=16, choices=PRIORITY_CHOICES, default=PRIORITY_MEDIUM, db_index=True)
+    assigned_to = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assigned_scouting_targets',
+    )
+    next_review_on = models.DateField(null=True, blank=True)
+    budget_note = models.CharField(max_length=160, blank=True)
+    summary = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_scouting_targets',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-priority', 'status', 'subject_name', '-updated_at', '-id']
+        unique_together = ('workspace', 'player', 'subject_name')
+        indexes = [
+            models.Index(fields=['workspace', 'status', 'priority'], name='scout_ws_status_prio_idx'),
+            models.Index(fields=['workspace', 'next_review_on'], name='scout_ws_review_idx'),
+        ]
+        verbose_name = 'Jugador ojeado'
+        verbose_name_plural = 'Jugadores ojeados'
+
+    @property
+    def display_name(self):
+        return (self.subject_name or getattr(self.player, 'name', '') or '').strip()
+
+    def __str__(self):
+        return f'{self.display_name} · {self.workspace.name}'
+
+
+class ScoutingReport(models.Model):
+    RECOMMENDATION_SIGN = 'sign'
+    RECOMMENDATION_FOLLOW = 'follow'
+    RECOMMENDATION_DISCARD = 'discard'
+    RECOMMENDATION_WAIT = 'wait'
+    RECOMMENDATION_CHOICES = [
+        (RECOMMENDATION_SIGN, 'Fichar'),
+        (RECOMMENDATION_FOLLOW, 'Seguir'),
+        (RECOMMENDATION_DISCARD, 'Descartar'),
+        (RECOMMENDATION_WAIT, 'Esperar'),
+    ]
+
+    target = models.ForeignKey(ScoutingTarget, on_delete=models.CASCADE, related_name='reports')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='scouting_reports')
+    observed_on = models.DateField(default=timezone.localdate)
+    opposition = models.CharField(max_length=160, blank=True)
+    competition = models.CharField(max_length=160, blank=True)
+    technical_rating = models.PositiveSmallIntegerField(null=True, blank=True)
+    tactical_rating = models.PositiveSmallIntegerField(null=True, blank=True)
+    physical_rating = models.PositiveSmallIntegerField(null=True, blank=True)
+    mental_rating = models.PositiveSmallIntegerField(null=True, blank=True)
+    potential_rating = models.PositiveSmallIntegerField(null=True, blank=True)
+    fit_rating = models.PositiveSmallIntegerField(null=True, blank=True)
+    recommendation = models.CharField(max_length=16, choices=RECOMMENDATION_CHOICES, default=RECOMMENDATION_WAIT)
+    strengths = models.TextField(blank=True)
+    weaknesses = models.TextField(blank=True)
+    summary = models.TextField(blank=True)
+    next_steps = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-observed_on', '-created_at', '-id']
+        indexes = [
+            models.Index(fields=['target', '-observed_on'], name='scout_report_target_idx'),
+            models.Index(fields=['target', 'recommendation'], name='scout_report_reco_idx'),
+        ]
+        verbose_name = 'Informe de scouting'
+        verbose_name_plural = 'Informes de scouting'
+
+    def __str__(self):
+        return f'{self.target.display_name} · {self.observed_on:%d/%m/%Y}'
+
+
+class ScoutingFollowUp(models.Model):
+    target = models.ForeignKey(ScoutingTarget, on_delete=models.CASCADE, related_name='followups')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='scouting_followups')
+    title = models.CharField(max_length=140)
+    due_on = models.DateField(null=True, blank=True)
+    completed_on = models.DateField(null=True, blank=True)
+    is_done = models.BooleanField(default=False)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['is_done', 'due_on', '-created_at', '-id']
+        indexes = [
+            models.Index(fields=['target', 'is_done', 'due_on'], name='scout_followup_target_idx'),
+        ]
+        verbose_name = 'Seguimiento de scouting'
+        verbose_name_plural = 'Seguimientos de scouting'
+
+    def __str__(self):
+        return f'{self.target.display_name} · {self.title}'
+
+
 class PlayerFine(models.Model):
     REASON_ABSENCE = 'absence'
     REASON_LATE = 'late'

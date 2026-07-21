@@ -44,7 +44,7 @@ from django.core.files.storage import FileSystemStorage, default_storage, storag
 from django.db import connections
 from django.db import IntegrityError
 from django.db import transaction
-from django.db.models import Count, F, Max, Q, Sum
+from django.db.models import Count, F, Max, Prefetch, Q, Sum
 from django.db.utils import OperationalError, ProgrammingError
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse, QueryDict, StreamingHttpResponse
 from django.shortcuts import render, redirect
@@ -98,8 +98,15 @@ from . import universo_context_services
 from . import universo_group_services
 from . import universo_snapshot_services
 from . import workspace_competition_context_services
+from . import academy_views
+from . import billing_views
+from . import kit2d_views
+from . import pwa as pwa_views
+from . import season_wizard_views
 from . import workspace_subscription
 from . import workspace_context
+from . import workspace_views
+from . import system_guard
 from . import workspace_ui
 from .host_redirects import redirect_to_app_host_if_landing
 from .dashboard_cache import (
@@ -143,6 +150,33 @@ from .library_repositories import (
     library_repository_for_task,
     normalize_library_repository,
 )
+
+academy_home_page = academy_views.academy_home_page
+academy_lesson_page = academy_views.academy_lesson_page
+academy_today_api = academy_views.academy_today_api
+academy_answer_api = academy_views.academy_answer_api
+academy_complete_api = academy_views.academy_complete_api
+
+billing_page = billing_views.billing_page
+billing_checkout_session_api = billing_views.billing_checkout_session_api
+billing_portal_session_api = billing_views.billing_portal_session_api
+apple_receipt_api = billing_views.apple_receipt_api
+stripe_webhook = billing_views.stripe_webhook
+
+club_season_wizard = season_wizard_views.club_season_wizard
+
+kit2d_generate_api = kit2d_views.kit2d_generate_api
+kit2d_generator_page = kit2d_views.kit2d_generator_page
+
+pwa_manifest = pwa_views.pwa_manifest
+pwa_service_worker = pwa_views.pwa_service_worker
+pwa_offline = pwa_views.pwa_offline
+
+workspace_set_active_team = workspace_views.workspace_set_active_team
+workspace_set_active_workspace = workspace_views.workspace_set_active_workspace
+workspace_preference_get_api = workspace_views.workspace_preference_get_api
+workspace_preference_set_api = workspace_views.workspace_preference_set_api
+workspace_sync_competition_api = workspace_views.workspace_sync_competition_api
 
 try:
     from PIL import Image, ImageEnhance, ImageFilter, ImageOps
@@ -205,6 +239,9 @@ from football.models import (
     PlayerEvaluation,
     PlayerPhysicalMetric,
     PlayerStatistic,
+    ScoutingFollowUp,
+    ScoutingReport,
+    ScoutingTarget,
     SessionTask,
     SessionTaskBookmark,
     SessionTaskCollection,
@@ -2640,6 +2677,515 @@ def staff_member_detail_page(request, staff_id):
             'workspace_member_role_choices': WorkspaceMembership.ROLE_CHOICES,
         },
     )
+
+
+@login_required
+def scouting_board_page(request):
+    forbidden = _forbid_if_no_staff_access(request.user)
+    if forbidden:
+        return forbidden
+    workspace = _get_active_workspace(request)
+    if not workspace or workspace.kind != Workspace.KIND_CLUB:
+        raise Http404('Club no configurado')
+    active_team = _get_active_team_for_request(request)
+    can_manage = bool(_can_manage_workspace(request.user, workspace))
+
+    status_filter = str(request.GET.get('status') or 'all').strip().lower()
+    priority_filter = str(request.GET.get('priority') or 'all').strip().lower()
+    search_filter = str(request.GET.get('q') or '').strip().lower()
+    assigned_filter = str(request.GET.get('assigned') or 'all').strip().lower()
+    feedback = ''
+    error = ''
+
+    if request.method == 'POST':
+        if not can_manage:
+            return HttpResponse('No tienes permisos para editar.', status=403)
+        action = str(request.POST.get('action') or 'create').strip().lower()
+        if action == 'create':
+            subject_name = str(request.POST.get('subject_name') or '').strip()[:160]
+            player_id = _parse_int(request.POST.get('player_id'))
+            linked_player = None
+            if player_id:
+                linked_player = (
+                    Player.objects
+                    .select_related('team')
+                    .filter(id=int(player_id))
+                    .first()
+                )
+            if not subject_name and linked_player:
+                subject_name = str(getattr(linked_player, 'name', '') or '').strip()[:160]
+            if not subject_name:
+                error = 'El nombre del jugador es obligatorio.'
+            else:
+                target, created = ScoutingTarget.objects.get_or_create(
+                    workspace=workspace,
+                    player=linked_player,
+                    subject_name=subject_name,
+                    defaults={
+                        'subject_team_name': str(request.POST.get('subject_team_name') or '').strip()[:160],
+                        'position': str(request.POST.get('position') or '').strip()[:60],
+                        'dominant_foot': str(request.POST.get('dominant_foot') or '').strip()[:16],
+                        'birth_date': parse_date(str(request.POST.get('birth_date') or '').strip()) if str(request.POST.get('birth_date') or '').strip() else None,
+                        'priority': str(request.POST.get('priority') or ScoutingTarget.PRIORITY_MEDIUM).strip().lower(),
+                        'status': str(request.POST.get('status') or ScoutingTarget.STATUS_WATCHLIST).strip().lower(),
+                        'assigned_to_id': _parse_int(request.POST.get('assigned_to_id')),
+                        'next_review_on': parse_date(str(request.POST.get('next_review_on') or '').strip()) if str(request.POST.get('next_review_on') or '').strip() else None,
+                        'budget_note': str(request.POST.get('budget_note') or '').strip()[:160],
+                        'summary': str(request.POST.get('summary') or '').strip(),
+                        'created_by': request.user if request.user.is_authenticated else None,
+                    },
+                )
+                if not created:
+                    feedback = 'El jugador ya estaba en seguimiento. Se ha reutilizado su ficha.'
+                target.subject_team_name = str(request.POST.get('subject_team_name') or target.subject_team_name or '').strip()[:160]
+                target.position = str(request.POST.get('position') or target.position or '').strip()[:60]
+                target.dominant_foot = str(request.POST.get('dominant_foot') or target.dominant_foot or '').strip()[:16]
+                target.priority = str(request.POST.get('priority') or target.priority or ScoutingTarget.PRIORITY_MEDIUM).strip().lower()
+                target.status = str(request.POST.get('status') or target.status or ScoutingTarget.STATUS_WATCHLIST).strip().lower()
+                assigned_to_id = _parse_int(request.POST.get('assigned_to_id'))
+                target.assigned_to_id = assigned_to_id or None
+                target.birth_date = parse_date(str(request.POST.get('birth_date') or '').strip()) if str(request.POST.get('birth_date') or '').strip() else target.birth_date
+                target.next_review_on = parse_date(str(request.POST.get('next_review_on') or '').strip()) if str(request.POST.get('next_review_on') or '').strip() else target.next_review_on
+                target.budget_note = str(request.POST.get('budget_note') or target.budget_note or '').strip()[:160]
+                target.summary = str(request.POST.get('summary') or target.summary or '').strip()
+                if not target.created_by_id and request.user.is_authenticated:
+                    target.created_by = request.user
+                target.save()
+                return redirect(reverse('scouting-target-detail', args=[target.id]))
+
+    targets_qs = (
+        ScoutingTarget.objects
+        .filter(workspace=workspace)
+        .select_related('player', 'player__team', 'assigned_to', 'created_by')
+        .order_by('-priority', 'status', 'subject_name', '-updated_at', '-id')
+    )
+    if active_team:
+        targets_qs = targets_qs.filter(Q(player__team=active_team) | Q(subject_team_name__icontains=active_team.display_name))
+    if status_filter != 'all':
+        targets_qs = targets_qs.filter(status=status_filter)
+    if priority_filter != 'all':
+        targets_qs = targets_qs.filter(priority=priority_filter)
+    if assigned_filter == 'me':
+        targets_qs = targets_qs.filter(assigned_to=request.user)
+    elif assigned_filter == 'unassigned':
+        targets_qs = targets_qs.filter(assigned_to__isnull=True)
+    if search_filter:
+        targets_qs = targets_qs.filter(
+            Q(subject_name__icontains=search_filter)
+            | Q(subject_team_name__icontains=search_filter)
+            | Q(position__icontains=search_filter)
+            | Q(summary__icontains=search_filter)
+            | Q(budget_note__icontains=search_filter)
+        )
+
+    targets = list(
+        targets_qs.prefetch_related(
+            Prefetch(
+                'reports',
+                queryset=ScoutingReport.objects.select_related('created_by').order_by('-observed_on', '-created_at', '-id'),
+            ),
+            Prefetch(
+                'followups',
+                queryset=ScoutingFollowUp.objects.select_related('created_by').order_by('is_done', 'due_on', '-created_at', '-id'),
+            ),
+        )[:120]
+    )
+    for target in targets:
+        report_rows = list(target.reports.all()) if hasattr(target, 'reports') else []
+        followup_rows = list(target.followups.all()) if hasattr(target, 'followups') else []
+        target.latest_report = report_rows[0] if report_rows else None
+        target.report_count = len(report_rows)
+        target.followups_open = [row for row in followup_rows if not getattr(row, 'is_done', False)]
+        target.followups_done = [row for row in followup_rows if getattr(row, 'is_done', False)]
+        target.next_followup = target.followups_open[0] if target.followups_open else None
+
+    total_targets = len(targets)
+    active_targets = sum(1 for target in targets if target.status in {ScoutingTarget.STATUS_TARGET, ScoutingTarget.STATUS_WATCHLIST, ScoutingTarget.STATUS_ACTIVE})
+    review_targets = sum(1 for target in targets if target.status == ScoutingTarget.STATUS_REVIEW)
+    urgent_targets = sum(1 for target in targets if target.priority == ScoutingTarget.PRIORITY_URGENT)
+
+    return render(
+        request,
+        'football/scouting_board.html',
+        {
+            'workspace': workspace,
+            'active_team': active_team,
+            'team_label': _staff_scope_label(active_team),
+            'can_manage_workspace': can_manage,
+            'items': targets,
+            'total_targets': total_targets,
+            'active_targets': active_targets,
+            'review_targets': review_targets,
+            'urgent_targets': urgent_targets,
+            'status_filter': status_filter,
+            'priority_filter': priority_filter,
+            'search_filter': search_filter,
+            'assigned_filter': assigned_filter,
+            'status_choices': ScoutingTarget.STATUS_CHOICES,
+            'priority_choices': ScoutingTarget.PRIORITY_CHOICES,
+            'feedback': feedback,
+            'error': error,
+        },
+    )
+
+
+@login_required
+def scouting_target_detail_page(request, target_id):
+    forbidden = _forbid_if_no_staff_access(request.user)
+    if forbidden:
+        return forbidden
+    workspace = _get_active_workspace(request)
+    if not workspace or workspace.kind != Workspace.KIND_CLUB:
+        raise Http404('Club no configurado')
+    target = (
+        ScoutingTarget.objects
+        .select_related('workspace', 'player', 'player__team', 'assigned_to', 'created_by')
+        .filter(id=int(target_id), workspace=workspace)
+        .first()
+    )
+    if not target:
+        raise Http404('Jugador ojeado no encontrado')
+    can_manage = bool(_can_manage_workspace(request.user, workspace))
+    active_team = _get_active_team_for_request(request)
+    feedback = ''
+    error = ''
+
+    def _rating_value(raw_value):
+        raw = str(raw_value or '').strip().replace(',', '.')
+        if not raw:
+            return None
+        try:
+            value = int(float(raw))
+        except Exception:
+            return None
+        return max(1, min(10, value))
+
+    if request.method == 'POST':
+        if not can_manage:
+            return HttpResponse('No tienes permisos para editar.', status=403)
+        action = str(request.POST.get('action') or '').strip().lower()
+        try:
+            if action == 'save-target':
+                target.subject_name = str(request.POST.get('subject_name') or '').strip()[:160] or target.subject_name
+                target.subject_team_name = str(request.POST.get('subject_team_name') or '').strip()[:160]
+                target.position = str(request.POST.get('position') or '').strip()[:60]
+                target.dominant_foot = str(request.POST.get('dominant_foot') or '').strip()[:16]
+                target.birth_date = parse_date(str(request.POST.get('birth_date') or '').strip()) if str(request.POST.get('birth_date') or '').strip() else None
+                target.status = str(request.POST.get('status') or target.status or ScoutingTarget.STATUS_WATCHLIST).strip().lower()
+                target.priority = str(request.POST.get('priority') or target.priority or ScoutingTarget.PRIORITY_MEDIUM).strip().lower()
+                target.assigned_to_id = _parse_int(request.POST.get('assigned_to_id')) or None
+                target.next_review_on = parse_date(str(request.POST.get('next_review_on') or '').strip()) if str(request.POST.get('next_review_on') or '').strip() else None
+                target.budget_note = str(request.POST.get('budget_note') or '').strip()[:160]
+                target.summary = str(request.POST.get('summary') or '').strip()
+                player_id = _parse_int(request.POST.get('player_id'))
+                if player_id:
+                    target.player = Player.objects.filter(id=int(player_id)).first()
+                elif str(request.POST.get('clear_player') or '').strip().lower() in {'1', 'true', 'yes', 'on'}:
+                    target.player = None
+                target.save()
+                feedback = 'Ficha actualizada.'
+            elif action == 'create-report':
+                ScoutingReport.objects.create(
+                    target=target,
+                    created_by=request.user if request.user.is_authenticated else None,
+                    observed_on=parse_date(str(request.POST.get('observed_on') or '').strip()) or timezone.localdate(),
+                    opposition=str(request.POST.get('opposition') or '').strip()[:160],
+                    competition=str(request.POST.get('competition') or '').strip()[:160],
+                    technical_rating=_rating_value(request.POST.get('technical_rating')),
+                    tactical_rating=_rating_value(request.POST.get('tactical_rating')),
+                    physical_rating=_rating_value(request.POST.get('physical_rating')),
+                    mental_rating=_rating_value(request.POST.get('mental_rating')),
+                    potential_rating=_rating_value(request.POST.get('potential_rating')),
+                    fit_rating=_rating_value(request.POST.get('fit_rating')),
+                    recommendation=str(request.POST.get('recommendation') or ScoutingReport.RECOMMENDATION_WAIT).strip().lower(),
+                    strengths=str(request.POST.get('strengths') or '').strip(),
+                    weaknesses=str(request.POST.get('weaknesses') or '').strip(),
+                    summary=str(request.POST.get('summary') or '').strip(),
+                    next_steps=str(request.POST.get('next_steps') or '').strip(),
+                )
+                feedback = 'Informe guardado.'
+            elif action == 'create-followup':
+                ScoutingFollowUp.objects.create(
+                    target=target,
+                    created_by=request.user if request.user.is_authenticated else None,
+                    title=str(request.POST.get('title') or '').strip()[:140],
+                    due_on=parse_date(str(request.POST.get('due_on') or '').strip()) if str(request.POST.get('due_on') or '').strip() else None,
+                    notes=str(request.POST.get('notes') or '').strip(),
+                )
+                feedback = 'Seguimiento añadido.'
+            elif action == 'toggle-followup':
+                followup_id = _parse_int(request.POST.get('followup_id'))
+                followup = ScoutingFollowUp.objects.filter(id=followup_id, target=target).first() if followup_id else None
+                if followup:
+                    followup.is_done = not bool(followup.is_done)
+                    followup.completed_on = timezone.localdate() if followup.is_done else None
+                    followup.save(update_fields=['is_done', 'completed_on', 'updated_at'])
+                    feedback = 'Estado de seguimiento actualizado.'
+        except Exception:
+            logger.exception('No se pudo actualizar el scouting target %s', target_id)
+            error = 'No se pudo guardar la información.'
+
+    target = (
+        ScoutingTarget.objects
+        .select_related('workspace', 'player', 'player__team', 'assigned_to', 'created_by')
+        .filter(id=int(target_id), workspace=workspace)
+        .first()
+    ) or target
+    reports = list(
+        target.reports.select_related('created_by').order_by('-observed_on', '-created_at', '-id')
+    )
+    followups = list(
+        target.followups.select_related('created_by').order_by('is_done', 'due_on', '-created_at', '-id')
+    )
+    latest_report = reports[0] if reports else None
+    open_followups = [item for item in followups if not item.is_done]
+    done_followups = [item for item in followups if item.is_done]
+    player_detail_url = reverse('player-detail', args=[target.player_id]) if target.player_id else ''
+
+    return render(
+        request,
+        'football/scouting_target_detail.html',
+        {
+            'workspace': workspace,
+            'active_team': active_team,
+            'team_label': _staff_scope_label(active_team),
+            'can_manage_workspace': can_manage,
+            'target': target,
+            'reports': reports,
+            'followups': followups,
+            'latest_report': latest_report,
+            'open_followups': open_followups,
+            'done_followups': done_followups,
+            'player_detail_url': player_detail_url,
+            'status_choices': ScoutingTarget.STATUS_CHOICES,
+            'priority_choices': ScoutingTarget.PRIORITY_CHOICES,
+            'recommendation_choices': ScoutingReport.RECOMMENDATION_CHOICES,
+            'feedback': feedback,
+            'error': error,
+        },
+    )
+
+
+@login_required
+@require_POST
+def task_resource_library_visibility_api(request):
+    workspace = _get_active_workspace(request)
+    if not workspace:
+        return JsonResponse({'ok': False, 'error': 'Workspace no configurado'}, status=400)
+    raw_value = str(
+        request.POST.get('visible')
+        if request.POST.get('visible') is not None
+        else request.POST.get('is_visible')
+        if request.POST.get('is_visible') is not None
+        else request.POST.get('value')
+        or ''
+    ).strip().lower()
+    visible = raw_value in {'1', 'true', 'yes', 'on'}
+    try:
+        WorkspacePreference.objects.update_or_create(
+            workspace=workspace,
+            key='task_resource_library:visibility',
+            defaults={'value': {'visible': bool(visible)}},
+        )
+    except Exception:
+        logger.exception('No se pudo guardar la preferencia de visibilidad de la biblioteca de recursos')
+        return JsonResponse({'ok': False, 'error': 'No se pudo guardar la preferencia.'}, status=500)
+    return JsonResponse({'ok': True, 'visible': bool(visible)})
+
+
+def _system_guard_page_context(request, *, workspace=None, team=None) -> dict:
+    workspace = workspace or _get_active_workspace(request)
+    team = team or _get_primary_team_for_request(request)
+    if not team and workspace:
+        try:
+            team = getattr(workspace, 'primary_team', None) or getattr(workspace, 'team', None)
+        except Exception:
+            team = None
+
+    can_manage_guard = bool(_can_manage_workspace(request))
+    is_admin_user = bool(_is_admin_user(request.user))
+    can_operate_guard_code = bool(is_admin_user)
+    if not can_operate_guard_code and can_manage_guard:
+        try:
+            operator_usernames = {
+                str(item or '').strip().lower()
+                for item in (os.getenv('OLLANA_OPERATOR_USERNAMES') or '').split(',')
+                if str(item or '').strip()
+            }
+        except Exception:
+            operator_usernames = set()
+        if str(getattr(request.user, 'username', '') or '').strip().lower() in operator_usernames:
+            can_operate_guard_code = True
+
+    scheduled_state = {}
+    if workspace:
+        try:
+            scheduled_state = system_guard._maybe_run_scheduled_guard_cycle(
+                workspace=workspace,
+                actor_id=getattr(request.user, 'id', None),
+                page_context={'page': 'system-guard'},
+                force=False,
+            )
+        except Exception:
+            scheduled_state = {}
+
+    observability = {}
+    if workspace:
+        try:
+            observability = system_guard._observability_summary(workspace)
+        except Exception:
+            observability = {}
+    if not isinstance(observability, dict):
+        observability = {}
+    if scheduled_state:
+        observability = dict(observability)
+        observability['scheduled_state'] = scheduled_state.get('state') or {}
+        if isinstance(scheduled_state.get('result'), dict):
+            observability['task_queue'] = scheduled_state['result'].get('queue_counts') or observability.get('task_queue') or {}
+
+    return {
+        'team': team,
+        'workspace': workspace,
+        'active_team': team,
+        'active_workspace': workspace,
+        'guard_observability': observability,
+        'page_context': {
+            'page': 'system-guard',
+            'title': 'System Guard',
+            'path': request.path,
+            'can_manage_guard': can_manage_guard,
+            'can_operate_guard_code': can_operate_guard_code,
+            'is_admin_user': is_admin_user,
+        },
+    }
+
+
+@login_required
+def system_guard_page(request):
+    context = _system_guard_page_context(request)
+    return render(request, 'football/system_guard.html', context)
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def system_guard_operator_api(request):
+    workspace = _get_active_workspace(request)
+    if not workspace:
+        return JsonResponse({'ok': False, 'error': 'Workspace no configurado.'}, status=400)
+    if not _can_access_sessions_workspace(request):
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+
+    control = system_guard._load_operator_control(workspace)
+    runtime = system_guard._load_operator_runtime_state(workspace)
+    lease = system_guard._load_operator_lease(workspace)
+
+    if request.method == 'POST':
+        payload = _parse_request_json(request)
+        action = str((payload.get('action') if isinstance(payload, dict) else request.POST.get('action')) or '').strip().lower()
+        if action == 'stop':
+            control = dict(control)
+            control['stop_requested'] = True
+            control['updated_at'] = timezone.localtime().isoformat()
+            control['updated_by'] = int(getattr(request.user, 'id', 0) or 0)
+            system_guard._store_operator_control(workspace, control)
+        elif action == 'resume':
+            control = dict(control)
+            control['stop_requested'] = False
+            control['updated_at'] = timezone.localtime().isoformat()
+            control['updated_by'] = int(getattr(request.user, 'id', 0) or 0)
+            system_guard._store_operator_control(workspace, control)
+        elif action:
+            return JsonResponse({'ok': False, 'error': 'Acción no soportada.'}, status=400)
+        runtime = system_guard._load_operator_runtime_state(workspace)
+        lease = system_guard._load_operator_lease(workspace)
+
+    return JsonResponse({
+        'ok': True,
+        'operator': {
+            'runtime': runtime,
+            'control': control,
+            'lease': lease,
+        },
+    })
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def system_guard_chat_api(request):
+    workspace = _get_active_workspace(request)
+    if not workspace:
+        return JsonResponse({'ok': False, 'error': 'Workspace no configurado.'}, status=400)
+    if not _can_access_sessions_workspace(request):
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+
+    payload = _parse_request_json(request) if request.method == 'POST' else {}
+    if not isinstance(payload, dict):
+        payload = {}
+
+    can_manage_guard = bool(_can_manage_workspace(request))
+    is_admin_user = bool(_is_admin_user(request.user))
+    operator_usernames = {
+        str(item or '').strip().lower()
+        for item in (os.getenv('OLLANA_OPERATOR_USERNAMES') or '').split(',')
+        if str(item or '').strip()
+    }
+    can_operate_guard_code = bool(is_admin_user or str(getattr(request.user, 'username', '') or '').strip().lower() in operator_usernames)
+
+    run_smoke = bool(payload.get('run_smoke'))
+    auto_fix = bool(payload.get('auto_fix'))
+    maintenance_action = str(payload.get('maintenance_action') or '').strip()
+    autonomy_mode = str(payload.get('autonomy_mode') or '').strip().lower() or 'operator'
+    audience = str(payload.get('audience') or '').strip().lower() or 'technical'
+    execute_confirmed = bool(payload.get('execute_confirmed'))
+
+    if not can_manage_guard:
+        run_smoke = False
+        auto_fix = False
+        maintenance_action = ''
+        autonomy_mode = 'advisor'
+    elif not can_operate_guard_code:
+        auto_fix = False
+        maintenance_action = ''
+        autonomy_mode = 'supervised'
+    elif autonomy_mode not in {'operator', 'supervised', 'advisor'}:
+        autonomy_mode = 'operator'
+
+    extra_context = payload.get('page_context') if isinstance(payload.get('page_context'), dict) else {}
+    page_context = {
+        'page': 'system-guard',
+        'title': str(extra_context.get('title') or 'System Guard'),
+        'path': str(extra_context.get('path') or request.path),
+        'can_manage_guard': can_manage_guard,
+        'can_operate_guard_code': can_operate_guard_code,
+        'is_admin_user': is_admin_user,
+    }
+    for key in ('ui_snapshot', 'visual_snapshot', 'runtime_snapshot', 'module_snapshot', 'health_snapshot', 'browser_visual_snapshot', 'web_urls', 'web_search_query'):
+        if key in extra_context:
+            page_context[key] = extra_context[key]
+
+    result = system_guard.run_system_guard_chat(
+        question=str(payload.get('message') or payload.get('question') or '').strip(),
+        history=payload.get('history'),
+        run_smoke=run_smoke,
+        auto_fix=auto_fix,
+        maintenance_action=maintenance_action,
+        workspace=workspace,
+        page_context=page_context,
+        actor_id=getattr(request.user, 'id', None),
+        autonomy_mode=autonomy_mode,
+        audience=audience,
+        execute_confirmed=execute_confirmed,
+    )
+    if not isinstance(result, dict):
+        result = {'ok': False, 'error': 'No se pudo ejecutar el guardián.'}
+    result['observability'] = system_guard._observability_summary(workspace)
+    result['permissions'] = {
+        'can_manage_guard': can_manage_guard,
+        'can_operate_guard_code': can_operate_guard_code,
+        'is_admin_user': is_admin_user,
+    }
+    result['page_context'] = page_context
+    return JsonResponse(result)
 
 
 @login_required
@@ -12470,6 +13016,7 @@ def platform_workspace_detail_page(request, workspace_id):
         {'title': 'Portada', 'description': 'Home, clasificación, próximo partido y contexto visual del cliente.', 'url': reverse('dashboard-home')},
         {'title': 'Estadísticas', 'description': 'KPIs de temporada, seguimiento individual y métricas manuales.', 'url': reverse('coach-role-trainer')},
         {'title': 'Cuerpo técnico', 'description': 'Hub del staff, plantilla técnica y áreas operativas del cliente.', 'url': reverse('coach-cards')},
+        {'title': 'Dirección', 'description': 'Bandeja de scouting, informes de ojeados y seguimiento de objetivos.', 'url': reverse('scouting-board')},
         {'title': 'Partido', 'description': 'Convocatoria, 11 inicial y registro de acciones de matchday.', 'url': reverse('convocation')},
         {'title': 'Entrenamiento', 'description': 'Microciclos, sesiones, tareas, porteros, físico y ABP.', 'url': reverse('sessions')},
         {'title': 'Análisis', 'description': 'Rival, informes, scouting y lectura táctica del cliente seleccionado.', 'url': reverse('analysis')},
@@ -41018,6 +41565,21 @@ def sessions_page(request):
     return response
 
 
+@login_required
+def sessions_task_library_page(request):
+    return redirect(f"{reverse('sessions')}?tab=library&scope=coach")
+
+
+@login_required
+def sessions_goalkeeper_task_library_page(request):
+    return redirect(f"{reverse('sessions-goalkeeper')}?tab=library&scope=goalkeeper")
+
+
+@login_required
+def sessions_fitness_task_library_page(request):
+    return redirect(f"{reverse('sessions-fitness')}?tab=library&scope=fitness")
+
+
 _AI_TRAINER_COACH_DICT_CACHE = None
 
 
@@ -57474,6 +58036,37 @@ def player_detail_page(request, player_id):
             .order_by('-created_at', '-id')[:20]
         )
         latest_communication = communications[0] if communications else None
+        scouting_targets = []
+        latest_scouting_target = None
+        try:
+            if active_workspace and getattr(active_workspace, 'kind', None) == Workspace.KIND_CLUB:
+                scouting_targets = list(
+                    ScoutingTarget.objects
+                    .filter(workspace=active_workspace, player=player)
+                    .select_related('assigned_to', 'created_by')
+                    .prefetch_related(
+                        Prefetch(
+                            'reports',
+                            queryset=ScoutingReport.objects.select_related('created_by').order_by('-observed_on', '-created_at', '-id'),
+                        ),
+                        Prefetch(
+                            'followups',
+                            queryset=ScoutingFollowUp.objects.select_related('created_by').order_by('is_done', 'due_on', '-created_at', '-id'),
+                        ),
+                    )
+                    .order_by('-priority', 'status', '-updated_at', '-id')[:5]
+                )
+                for target in scouting_targets:
+                    report_rows = list(target.reports.all()) if hasattr(target, 'reports') else []
+                    followup_rows = list(target.followups.all()) if hasattr(target, 'followups') else []
+                    target.latest_report = report_rows[0] if report_rows else None
+                    target.report_count = len(report_rows)
+                    target.followups_open = [row for row in followup_rows if not getattr(row, 'is_done', False)]
+                    target.next_followup = target.followups_open[0] if target.followups_open else None
+                latest_scouting_target = scouting_targets[0] if scouting_targets else None
+        except Exception:
+            scouting_targets = []
+            latest_scouting_target = None
         assigned_analysis_videos = list(
             player.assigned_analysis_videos.select_related('rival_team', 'folder').order_by('-created_at')[:20]
         )
@@ -57898,6 +58491,8 @@ def player_detail_page(request, player_id):
                 'latest_physical_metric': latest_physical_metric,
                 'communications': communications,
                 'latest_communication': latest_communication,
+                'scouting_targets': scouting_targets,
+                'latest_scouting_target': latest_scouting_target,
                 'player_priority_rows': player_priority_rows,
                 'assigned_analysis_videos': assigned_analysis_videos,
                 'injury_records': injury_records,

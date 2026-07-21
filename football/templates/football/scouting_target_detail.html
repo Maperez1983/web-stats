@@ -1,0 +1,641 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Seguimiento · {{ target.display_name }} · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: rgba(245, 247, 250, 0.94);
+        font-family: "Avenir Next", "Segoe UI", sans-serif;
+        background:
+          radial-gradient(circle at 10% -10%, rgba(56, 189, 248, 0.14), transparent 40%),
+          radial-gradient(circle at 92% 0%, rgba(244, 180, 0, 0.10), transparent 34%),
+          linear-gradient(180deg, #020617 0%, #07111f 52%, #091423 100%);
+      }
+      .shell {
+        width: min(100%, 1320px);
+        margin: 0 auto;
+        padding: clamp(0.85rem, 1.25vw, 1.2rem);
+      }
+      .header {
+        margin-top: 0.9rem;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 1rem;
+        align-items: start;
+        border-radius: 20px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(7, 16, 30, 0.86);
+        padding: 1rem 1.05rem;
+      }
+      .kicker {
+        margin: 0;
+        color: #7dd3fc;
+        font-size: 0.72rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        font-weight: 900;
+      }
+      h1 {
+        margin: 0.2rem 0 0;
+        font-size: clamp(1.55rem, 2.8vw, 2.2rem);
+      }
+      .sub {
+        margin: 0.45rem 0 0;
+        color: rgba(226,232,240,0.76);
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+        justify-content: flex-end;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 38px;
+        padding: 0.56rem 0.9rem;
+        border-radius: 999px;
+        border: 1px solid rgba(244, 180, 0, 0.24);
+        background: rgba(15, 23, 42, 0.62);
+        color: rgba(245, 247, 250, 0.94);
+        text-decoration: none;
+        font-weight: 900;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        white-space: nowrap;
+      }
+      .btn.primary {
+        border-color: rgba(244, 180, 0, 0.45);
+        background: linear-gradient(135deg, rgba(244, 180, 0, 0.22), rgba(47, 125, 50, 0.16));
+      }
+      .btn:hover {
+        border-color: rgba(244, 180, 0, 0.52);
+        color: #fff8e1;
+      }
+      .panel {
+        margin-top: 1rem;
+        border-radius: 20px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(7, 16, 30, 0.78);
+        padding: 1rem;
+      }
+      .grid-top {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+        gap: 0.85rem;
+      }
+      .summary-grid {
+        margin-top: 0.85rem;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.65rem;
+      }
+      .summary {
+        border-radius: 16px;
+        background: rgba(2, 6, 23, 0.24);
+        border: 1px solid rgba(148,163,184,0.14);
+        padding: 0.8rem;
+      }
+      .summary .label {
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.68);
+        font-weight: 900;
+      }
+      .summary .value {
+        margin-top: 0.25rem;
+        font-size: 0.98rem;
+        font-weight: 900;
+      }
+      .status-line {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-top: 0.75rem;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 24px;
+        padding: 0.1rem 0.55rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148,163,184,0.18);
+        background: rgba(255,255,255,0.04);
+        font-size: 0.7rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 900;
+      }
+      .badge.critical { background: rgba(248,113,113,0.14); color: #fecaca; border-color: rgba(248,113,113,0.34); }
+      .badge.warning { background: rgba(244,180,0,0.12); color: #fde68a; border-color: rgba(244,180,0,0.32); }
+      .badge.ok { background: rgba(47,125,50,0.14); color: #bbf7d0; border-color: rgba(47,125,50,0.32); }
+      .badge.cyan { background: rgba(56,189,248,0.14); color: #bae6fd; border-color: rgba(56,189,248,0.32); }
+      .form-grid {
+        margin-top: 0.85rem;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+      }
+      .form-grid label,
+      .report-grid label,
+      .follow-grid label {
+        display: grid;
+        gap: 0.35rem;
+        color: rgba(226,232,240,0.74);
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-weight: 900;
+      }
+      input, select, textarea {
+        width: 100%;
+        min-width: 0;
+        border-radius: 14px;
+        padding: 0.68rem 0.75rem;
+        border: 1px solid rgba(244, 180, 0, 0.18);
+        background: rgba(15, 23, 42, 0.55);
+        color: #f8fafc;
+        font-weight: 700;
+        font-size: 0.92rem;
+      }
+      textarea { min-height: 100px; resize: vertical; }
+      .section {
+        margin-top: 1rem;
+        border-radius: 18px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(7, 16, 30, 0.72);
+        padding: 1rem;
+      }
+      .section h2 {
+        margin: 0;
+        font-size: 0.9rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .section p {
+        margin: 0.35rem 0 0;
+        color: rgba(226,232,240,0.74);
+      }
+      .report-grid,
+      .follow-grid {
+        margin-top: 0.9rem;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+      }
+      .report-grid textarea,
+      .follow-grid textarea {
+        grid-column: 1 / -1;
+      }
+      .actions-row {
+        margin-top: 0.85rem;
+        display: flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+      }
+      .list {
+        margin-top: 0.9rem;
+        display: grid;
+        gap: 0.7rem;
+      }
+      .item {
+        border-radius: 16px;
+        padding: 0.85rem 0.9rem;
+        border: 1px solid rgba(148,163,184,0.14);
+        background: rgba(2, 6, 23, 0.22);
+      }
+      .item-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.65rem;
+        align-items: flex-start;
+      }
+      .item-title {
+        margin: 0;
+        font-size: 0.98rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .item-meta {
+        margin-top: 0.25rem;
+        color: rgba(226,232,240,0.72);
+      }
+      .item-text {
+        margin-top: 0.55rem;
+        color: rgba(226,232,240,0.82);
+        white-space: pre-wrap;
+      }
+      .split {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+      }
+      .mini-grid {
+        margin-top: 0.75rem;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.55rem;
+      }
+      .mini {
+        border-radius: 14px;
+        background: rgba(2,6,23,0.24);
+        border: 1px solid rgba(148,163,184,0.14);
+        padding: 0.65rem 0.7rem;
+      }
+      .mini .label {
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.68);
+        font-weight: 900;
+      }
+      .mini .value {
+        margin-top: 0.25rem;
+        font-size: 0.92rem;
+        font-weight: 900;
+      }
+      .empty {
+        margin-top: 0.9rem;
+        border-radius: 16px;
+        padding: 0.9rem 1rem;
+        border: 1px dashed rgba(244,180,0,0.24);
+        background: rgba(244,180,0,0.06);
+        color: rgba(255,244,209,0.95);
+      }
+      .feedback, .error {
+        margin-top: 0.9rem;
+        border-radius: 14px;
+        padding: 0.75rem 0.85rem;
+        font-weight: 900;
+      }
+      .feedback {
+        background: rgba(47,125,50,0.14);
+        border: 1px solid rgba(47,125,50,0.3);
+        color: #dcfce7;
+      }
+      .error {
+        background: rgba(248,113,113,0.12);
+        border: 1px solid rgba(248,113,113,0.28);
+        color: #fee2e2;
+      }
+      @media (max-width: 900px) {
+        .header,
+        .grid-top,
+        .split {
+          grid-template-columns: 1fr;
+        }
+        .actions {
+          justify-content: flex-start;
+        }
+        .form-grid,
+        .report-grid,
+        .follow-grid,
+        .summary-grid,
+        .mini-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      {% include 'football/includes/dragon_nav.html' %}
+
+      <header class="header">
+        <div>
+          <p class="kicker">Dirección deportiva</p>
+          <h1>{{ target.display_name }}</h1>
+          <p class="sub">
+            {% if target.subject_team_name %}{{ target.subject_team_name }}{% else %}Jugador sin club indicado{% endif %}
+            {% if target.position %} · {{ target.position }}{% endif %}
+          </p>
+          <div class="status-line">
+            <span class="badge {% if target.priority == 'urgent' %}critical{% elif target.priority == 'high' %}warning{% else %}ok{% endif %}">{{ target.get_priority_display }}</span>
+            <span class="badge cyan">{{ target.get_status_display }}</span>
+            {% if target.assigned_to %}
+            <span class="badge">Asignado: {{ target.assigned_to.get_full_name|default:target.assigned_to.username }}</span>
+            {% endif %}
+            {% if target.next_review_on %}
+            <span class="badge">Revisión {{ target.next_review_on|date:"d/m/Y" }}</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="actions">
+          <a class="btn" href="{% url 'scouting-board' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Volver</a>
+          {% if player_detail_url %}
+          <a class="btn primary" href="{{ player_detail_url }}">Ficha jugador</a>
+          {% endif %}
+        </div>
+      </header>
+
+      <section class="panel">
+        <div class="grid-top">
+          <div>
+            <h2 style="margin:0;font-size:0.9rem;letter-spacing:0.12em;text-transform:uppercase;">Resumen</h2>
+            <div class="summary-grid">
+              <div class="summary">
+                <div class="label">Informes</div>
+                <div class="value">{{ reports|length }}</div>
+              </div>
+              <div class="summary">
+                <div class="label">Pendientes</div>
+                <div class="value">{{ open_followups|length }}</div>
+              </div>
+              <div class="summary">
+                <div class="label">Cerrados</div>
+                <div class="value">{{ done_followups|length }}</div>
+              </div>
+            </div>
+            {% if target.summary %}
+            <p style="margin:0.9rem 0 0;color:rgba(226,232,240,0.78);white-space:pre-wrap;">{{ target.summary }}</p>
+            {% endif %}
+            {% if target.budget_note %}
+            <p style="margin:0.65rem 0 0;color:#fde68a;font-weight:800;">Presupuesto: {{ target.budget_note }}</p>
+            {% endif %}
+          </div>
+          <div>
+            <div class="mini-grid">
+              <div class="mini">
+                <div class="label">Nacido</div>
+                <div class="value">{% if target.birth_date %}{{ target.birth_date|date:"d/m/Y" }}{% else %}-{% endif %}</div>
+              </div>
+              <div class="mini">
+                <div class="label">Pie</div>
+                <div class="value">{% if target.dominant_foot %}{{ target.dominant_foot }}{% else %}-{% endif %}</div>
+              </div>
+              <div class="mini">
+                <div class="label">Actualizado</div>
+                <div class="value">{{ target.updated_at|date:"d/m/Y H:i" }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {% if can_manage_workspace %}
+      <section class="section">
+        <h2>Editar seguimiento</h2>
+        <p>Ajusta estado, prioridad y datos base sin salir de la ficha.</p>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save-target" />
+          <div class="form-grid">
+            <label>
+              Nombre
+              <input type="text" name="subject_name" value="{{ target.subject_name }}" maxlength="160" required />
+            </label>
+            <label>
+              Club
+              <input type="text" name="subject_team_name" value="{{ target.subject_team_name }}" maxlength="160" />
+            </label>
+            <label>
+              Posición
+              <input type="text" name="position" value="{{ target.position }}" maxlength="60" />
+            </label>
+            <label>
+              Pie
+              <input type="text" name="dominant_foot" value="{{ target.dominant_foot }}" maxlength="16" />
+            </label>
+            <label>
+              Fecha nacimiento
+              <input type="date" name="birth_date" value="{{ target.birth_date|date:'Y-m-d' }}" />
+            </label>
+            <label>
+              Estado
+              <select name="status">
+                {% for value,label in status_choices %}
+                <option value="{{ value }}"{% if target.status == value %} selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              Prioridad
+              <select name="priority">
+                {% for value,label in priority_choices %}
+                <option value="{{ value }}"{% if target.priority == value %} selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              Asignado a ID
+              <input type="number" name="assigned_to_id" min="1" value="{{ target.assigned_to_id|default:'' }}" />
+            </label>
+            <label>
+              Próxima revisión
+              <input type="date" name="next_review_on" value="{{ target.next_review_on|date:'Y-m-d' }}" />
+            </label>
+            <label style="grid-column:1 / -1;">
+              Nota de presupuesto
+              <input type="text" name="budget_note" value="{{ target.budget_note }}" maxlength="160" />
+            </label>
+            <label style="grid-column:1 / -1;">
+              Resumen
+              <textarea name="summary">{{ target.summary }}</textarea>
+            </label>
+          </div>
+          <div class="actions-row">
+            <button class="btn primary" type="submit">Guardar</button>
+          </div>
+        </form>
+      </section>
+      {% endif %}
+
+      <div class="split">
+        <section class="section">
+          <h2>Nuevo informe</h2>
+          <p>Valora el jugador tras una observación, partido o vídeo.</p>
+          {% if can_manage_workspace %}
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create-report" />
+            <div class="report-grid">
+              <label>
+                Fecha
+                <input type="date" name="observed_on" value="{% now 'Y-m-d' %}" />
+              </label>
+              <label>
+                Rival
+                <input type="text" name="opposition" maxlength="160" />
+              </label>
+              <label>
+                Competición
+                <input type="text" name="competition" maxlength="160" />
+              </label>
+              <label>
+                Técnico
+                <input type="number" name="technical_rating" min="1" max="10" />
+              </label>
+              <label>
+                Táctico
+                <input type="number" name="tactical_rating" min="1" max="10" />
+              </label>
+              <label>
+                Físico
+                <input type="number" name="physical_rating" min="1" max="10" />
+              </label>
+              <label>
+                Mental
+                <input type="number" name="mental_rating" min="1" max="10" />
+              </label>
+              <label>
+                Potencial
+                <input type="number" name="potential_rating" min="1" max="10" />
+              </label>
+              <label>
+                Encaje
+                <input type="number" name="fit_rating" min="1" max="10" />
+              </label>
+              <label>
+                Recomendación
+                <select name="recommendation">
+                  {% for value,label in recommendation_choices %}
+                  <option value="{{ value }}"{% if value == 'wait' %} selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label style="grid-column:1 / -1;">
+                Fortalezas
+                <textarea name="strengths"></textarea>
+              </label>
+              <label style="grid-column:1 / -1;">
+                Debilidades
+                <textarea name="weaknesses"></textarea>
+              </label>
+              <label style="grid-column:1 / -1;">
+                Resumen
+                <textarea name="summary"></textarea>
+              </label>
+              <label style="grid-column:1 / -1;">
+                Siguiente paso
+                <textarea name="next_steps"></textarea>
+              </label>
+            </div>
+            <div class="actions-row">
+              <button class="btn primary" type="submit">Guardar informe</button>
+            </div>
+          </form>
+          {% else %}
+          <div class="empty">Solo los perfiles con permisos de gestión pueden crear informes.</div>
+          {% endif %}
+        </section>
+
+        <section class="section">
+          <h2>Nuevo seguimiento</h2>
+          <p>Define la próxima acción a revisar.</p>
+          {% if can_manage_workspace %}
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create-followup" />
+            <div class="follow-grid">
+              <label>
+                Tarea
+                <input type="text" name="title" maxlength="140" required />
+              </label>
+              <label>
+                Vence
+                <input type="date" name="due_on" />
+              </label>
+              <label style="grid-column:1 / -1;">
+                Notas
+                <textarea name="notes"></textarea>
+              </label>
+            </div>
+            <div class="actions-row">
+              <button class="btn primary" type="submit">Añadir seguimiento</button>
+            </div>
+          </form>
+          {% else %}
+          <div class="empty">Solo los perfiles con permisos de gestión pueden crear seguimientos.</div>
+          {% endif %}
+        </section>
+      </div>
+
+      <div class="split">
+        <section class="section">
+          <h2>Informes</h2>
+          {% if reports %}
+          <div class="list">
+            {% for report in reports %}
+            <article class="item">
+              <div class="item-head">
+                <div>
+                  <h3 class="item-title">{{ report.observed_on|date:"d/m/Y" }} · {{ report.get_recommendation_display }}</h3>
+                  <div class="item-meta">
+                    {% if report.competition %}{{ report.competition }}{% endif %}
+                    {% if report.opposition %}{% if report.competition %} · {% endif %}{{ report.opposition }}{% endif %}
+                    {% if report.created_by %} · {{ report.created_by.get_full_name|default:report.created_by.username }}{% endif %}
+                  </div>
+                </div>
+                <span class="badge {% if report.recommendation == 'sign' %}ok{% elif report.recommendation == 'discard' %}critical{% else %}warning{% endif %}">{{ report.get_recommendation_display }}</span>
+              </div>
+              {% if report.summary %}<div class="item-text">{{ report.summary }}</div>{% endif %}
+              <div class="card-badges" style="margin-top:0.6rem;">
+                {% if report.technical_rating %}<span class="badge">T {{ report.technical_rating }}/10</span>{% endif %}
+                {% if report.tactical_rating %}<span class="badge">Tac {{ report.tactical_rating }}/10</span>{% endif %}
+                {% if report.physical_rating %}<span class="badge">Fis {{ report.physical_rating }}/10</span>{% endif %}
+                {% if report.mental_rating %}<span class="badge">Men {{ report.mental_rating }}/10</span>{% endif %}
+                {% if report.potential_rating %}<span class="badge">Pot {{ report.potential_rating }}/10</span>{% endif %}
+                {% if report.fit_rating %}<span class="badge">Encaje {{ report.fit_rating }}/10</span>{% endif %}
+              </div>
+              {% if report.strengths %}<div class="item-text"><strong>Fortalezas:</strong> {{ report.strengths }}</div>{% endif %}
+              {% if report.weaknesses %}<div class="item-text"><strong>Debilidades:</strong> {{ report.weaknesses }}</div>{% endif %}
+              {% if report.next_steps %}<div class="item-text"><strong>Siguiente paso:</strong> {{ report.next_steps }}</div>{% endif %}
+            </article>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="empty">Aún no hay informes registrados.</div>
+          {% endif %}
+        </section>
+
+        <section class="section">
+          <h2>Seguimientos</h2>
+          {% if followups %}
+          <div class="list">
+            {% for followup in followups %}
+            <article class="item">
+              <div class="item-head">
+                <div>
+                  <h3 class="item-title">{{ followup.title }}</h3>
+                  <div class="item-meta">
+                    {% if followup.due_on %}Vence {{ followup.due_on|date:"d/m/Y" }}{% else %}Sin vencimiento{% endif %}
+                    {% if followup.created_by %} · {{ followup.created_by.get_full_name|default:followup.created_by.username }}{% endif %}
+                  </div>
+                </div>
+                <span class="badge {% if followup.is_done %}ok{% else %}warning{% endif %}">{% if followup.is_done %}Hecho{% else %}Abierto{% endif %}</span>
+              </div>
+              {% if followup.notes %}<div class="item-text">{{ followup.notes }}</div>{% endif %}
+              {% if can_manage_workspace %}
+              <form method="post" class="actions-row" style="margin-top:0.65rem;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="toggle-followup" />
+                <input type="hidden" name="followup_id" value="{{ followup.id }}" />
+                <button class="btn" type="submit">{% if followup.is_done %}Reabrir{% else %}Marcar hecho{% endif %}</button>
+              </form>
+              {% endif %}
+            </article>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="empty">Todavía no hay tareas de seguimiento.</div>
+          {% endif %}
+        </section>
+      </div>
+
+      {% if feedback %}<div class="feedback">{{ feedback }}</div>{% endif %}
+      {% if error %}<div class="error">{{ error }}</div>{% endif %}
+    </div>
+  </body>
+</html>

@@ -222,6 +222,68 @@
         font-size: 0.9rem;
         line-height: 1.35;
       }
+      .scouting-wrap {
+        margin-top: 1rem;
+        border-radius: 1rem;
+        border: 1px solid rgba(56, 189, 248, 0.24);
+        background: rgba(8, 47, 73, 0.08);
+        padding: 0.95rem;
+      }
+      .scouting-wrap h2 {
+        margin: 0;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: rgba(207, 250, 254, 0.96);
+      }
+      .scouting-list {
+        margin-top: 0.75rem;
+        display: grid;
+        gap: 0.6rem;
+      }
+      .scouting-card {
+        border-radius: 0.9rem;
+        padding: 0.8rem 0.9rem;
+        background: rgba(2, 6, 23, 0.08);
+        border: 1px solid rgba(148, 161, 185, 0.22);
+      }
+      .scouting-card .label {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 0.72rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--prod-muted, rgba(15, 23, 42, 0.64));
+        font-weight: 900;
+      }
+      .scouting-card .value {
+        margin-top: 0.25rem;
+        font-size: 1.02rem;
+        font-weight: 900;
+      }
+      .scouting-card .meta {
+        margin-top: 0.25rem;
+        color: var(--prod-muted, rgba(15, 23, 42, 0.64));
+        font-size: 0.9rem;
+        line-height: 1.35;
+      }
+      .scouting-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 24px;
+        padding: 0.1rem 0.55rem;
+        border-radius: 999px;
+        background: rgba(56, 189, 248, 0.15);
+        color: #0b4f6c;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
       .tabs { display: flex; flex-wrap: nowrap; gap: 0.5rem; margin-top: 1rem; overflow-x: auto; scrollbar-gutter: stable; -webkit-overflow-scrolling: touch; }
       .tab-btn { border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28)); background: rgba(2, 6, 23, 0.08); color: var(--prod-muted-soft, rgba(15, 23, 42, 0.78)); border-radius: 999px; padding: 0.45rem 0.95rem; cursor: pointer; font-weight: 800; white-space: nowrap; flex: 0 0 auto; }
       .tab-btn.is-active { background: linear-gradient(120deg, var(--prod-secondary, #f4b400), #f5c538); color: var(--prod-midnight, #0b1626); border-color: var(--prod-line-strong, rgba(244, 180, 0, 0.28)); }
@@ -928,6 +990,38 @@
             <div class="priority-meta">{{ item.meta }}</div>
           </article>
           {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      {% if scouting_targets %}
+      <section class="scouting-wrap" aria-label="Seguimiento de dirección deportiva">
+        <h2>Dirección deportiva</h2>
+        <div class="scouting-list">
+          {% for target in scouting_targets %}
+          <article class="scouting-card">
+            <div class="label">
+              <span>{{ target.display_name }}</span>
+              <span class="scouting-pill">{{ target.get_status_display }}</span>
+            </div>
+            <div class="value">
+              {% if target.subject_team_name %}{{ target.subject_team_name }} · {% endif %}
+              {{ target.position|default:"Sin posición" }}
+            </div>
+            <div class="meta">
+              {% if target.latest_report %}
+                Último informe {{ target.latest_report.observed_on|date:"d/m/Y" }} ·
+                Recomendación {{ target.latest_report.get_recommendation_display }}
+              {% else %}
+                Sin informe todavía.
+              {% endif %}
+              {% if target.next_followup %} · Próximo paso: {{ target.next_followup.title }}{% endif %}
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+        <div style="margin-top:0.75rem;">
+          <a class="btn alt" href="{% url 'scouting-board' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Abrir dirección deportiva</a>
         </div>
       </section>
       {% endif %}
