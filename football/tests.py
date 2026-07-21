@@ -11494,6 +11494,35 @@ class PlayerDetailStatsFallbackTests(TestCase):
         self.assertEqual(str(self.player.weight_kg), '76.50')
         self.assertContains(response, 'name="weight_kg_base" value="76.50"', html=False)
 
+    def test_player_detail_injury_form_creates_record_in_injuries_tab(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse('player-detail', args=[self.player.id]),
+            {
+                'form_action': 'injuries',
+                'injury': 'Sobrecarga muscular',
+                'injury_type': 'Muscular',
+                'injury_zone': 'Isquios',
+                'injury_side': 'izquierdo',
+                'injury_date': '2026-07-01',
+                'injury_return_date': '2026-07-10',
+                'injury_notes': 'Carga alta en pretemporada',
+                'injury_record_mode': 'new',
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.player.refresh_from_db()
+        self.assertEqual(self.player.injury, 'Sobrecarga muscular')
+        self.assertEqual(self.player.injury_type, 'Muscular')
+        self.assertEqual(self.player.injury_zone, 'Isquios')
+        self.assertEqual(self.player.injury_side, 'izquierdo')
+        self.assertEqual(str(self.player.injury_date), '2026-07-01')
+        self.assertContains(response, 'Historial de lesiones')
+        self.assertContains(response, 'Sobrecarga muscular')
+
     @patch('football.views.compute_player_dashboard')
     @override_settings(MEDIA_URL='/media-test/')
     def test_player_pdf_html_uses_player_team_branding(self, mocked_dashboard):
@@ -13513,6 +13542,81 @@ class CoachTrainerMetricsTests(TestCase):
         self.assertEqual(response.context['coach_player_view']['mode'], 'match')
         self.assertContains(response, 'Multas')
         self.assertContains(response, 'Comunicación')
+
+
+class CoachTrainerAdminSwitcherTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = get_user_model().objects.create_user(
+            username='coach-admin-switcher',
+            email='coach-admin-switcher@example.com',
+            password='pass-1234',
+            is_staff=True,
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_ADMIN)
+
+        competition = Competition.objects.create(name='Liga Admin Switch', slug='liga-admin-switch', region='Andalucia')
+        season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
+        group = Group.objects.create(season=season, name='Grupo Admin Switch', slug='grupo-admin-switch')
+
+        self.team_a = Team.objects.create(name='Benagalbon A', slug='benagalbon-a', group=group, is_primary=True)
+        self.team_b = Team.objects.create(name='Benagalbon B', slug='benagalbon-b', group=group)
+
+        self.workspace_a = Workspace.objects.create(
+            name='Workspace Benagalbon A',
+            slug='workspace-benagalbon-a',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team_a,
+            enabled_modules={'players': True, 'dashboard': True, 'coach_overview': True},
+        )
+        self.workspace_b = Workspace.objects.create(
+            name='Workspace Benagalbon B',
+            slug='workspace-benagalbon-b',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team_b,
+            enabled_modules={'players': True, 'dashboard': True, 'coach_overview': True},
+        )
+
+        WorkspaceTeam.objects.create(workspace=self.workspace_a, team=self.team_a, is_default=True)
+        WorkspaceTeam.objects.create(workspace=self.workspace_b, team=self.team_b, is_default=True)
+
+        self.client.force_login(self.user)
+        session = self.client.session
+        session['active_workspace_id'] = self.workspace_a.id
+        session['active_team_by_workspace'] = {
+            str(self.workspace_a.id): int(self.team_a.id),
+            str(self.workspace_b.id): int(self.team_b.id),
+        }
+        session.save()
+
+    def test_admin_sees_workspace_selector_in_trainer_view(self):
+        response = self.client.get(reverse('coach-role-trainer'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="workspace_id"', html=False)
+        self.assertContains(response, 'Workspace Benagalbon A')
+        self.assertContains(response, 'Workspace Benagalbon B')
+        self.assertEqual(len(response.context['trainer_workspace_options']), 2)
+        self.assertEqual(
+            [item['label'] for item in response.context['trainer_workspace_options']],
+            ['Workspace Benagalbon A', 'Workspace Benagalbon B'],
+        )
+
+    def test_admin_workspace_selector_redirects_to_trainer_view(self):
+        response = self.client.post(
+            reverse('workspace-active'),
+            {
+                'workspace_id': self.workspace_b.id,
+                'next': reverse('coach-role-trainer'),
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Workspace Benagalbon B')
+        self.assertEqual(int(self.client.session.get('active_workspace_id') or 0), int(self.workspace_b.id))
+        self.assertEqual(response.context['active_workspace']['id'], self.workspace_b.id)
+        self.assertEqual(response.context['active_team'].id, self.team_b.id)
 
 
 class StatsScopePersistenceTests(TestCase):

@@ -10449,6 +10449,16 @@ def club_onboarding_page(request):
     except Exception:
         pass
 
+    workspace_module_rows = []
+    try:
+        if workspace:
+            workspace_module_rows = _workspace_module_catalog_for_template(
+                workspace.kind,
+                _workspace_enabled_modules(workspace),
+            )
+    except Exception:
+        workspace_module_rows = []
+
     crest_preview_url = ''
     cover_preview_url = ''
     try:
@@ -10520,6 +10530,7 @@ def club_onboarding_page(request):
                 'form': form,
                 'theme_form': theme_form,
                 'kit_form': kit_form,
+                'workspace_module_rows': workspace_module_rows,
                 'setup_checklist': setup_checklist or [],
                 'setup_progress': setup_progress,
                 'error': error,
@@ -17840,6 +17851,21 @@ def coach_overview_page(request):
                         pass
         except Exception:
             hero_image_url = ''
+    trainer_workspace_options = []
+    if _is_admin_user(request.user):
+        try:
+            trainer_workspace_options = [
+                {
+                    'id': int(ws.id),
+                    'label': str(getattr(ws, 'name', '') or '').strip() or f'Workspace {ws.id}',
+                    'kind': str(getattr(ws, 'kind', '') or '').strip(),
+                }
+                for ws in workspace_context.available_workspaces_for_user(request.user)
+                .filter(kind=Workspace.KIND_CLUB, is_active=True)
+                .order_by('name', 'id')
+            ]
+        except Exception:
+            trainer_workspace_options = []
     if not hero_image_url:
         active_hero_items = list(HomeCarouselImage.objects.filter(is_active=True).order_by('order', '-created_at', '-id'))
         hero_items = active_hero_items or list(HomeCarouselImage.objects.order_by('order', '-created_at', '-id'))
@@ -17852,6 +17878,21 @@ def coach_overview_page(request):
                 hero_image_url = ''
         else:
             hero_image_url = ''
+    trainer_workspace_options = []
+    if _is_admin_user(request.user):
+        try:
+            trainer_workspace_options = [
+                {
+                    'id': int(ws.id),
+                    'label': str(getattr(ws, 'name', '') or '').strip() or f'Workspace {ws.id}',
+                    'kind': str(getattr(ws, 'kind', '') or '').strip(),
+                }
+                for ws in workspace_context.available_workspaces_for_user(request.user)
+                .filter(kind=Workspace.KIND_CLUB, is_active=True)
+                .order_by('name', 'id')
+            ]
+        except Exception:
+            trainer_workspace_options = []
     team_name_folded = (primary_team.name or '').strip().lower() if primary_team else ''
     highlighted_standing = None
     for row in standings:
@@ -28614,6 +28655,27 @@ def coach_role_trainer_page(request):
             group=primary_team.group,
             team=primary_team,
         ).first()
+    coach_standings_rows = []
+    if primary_team:
+        try:
+            coach_standings_rows = _resolve_standings_for_team(primary_team) or []
+        except Exception:
+            coach_standings_rows = []
+    coach_team_standing_row = None
+    if coach_standings_rows and primary_team:
+        team_name_keys = {
+            normalize_label(getattr(primary_team, 'display_name', '') or ''),
+            normalize_label(getattr(primary_team, 'name', '') or ''),
+            normalize_label(getattr(primary_team, 'short_name', '') or ''),
+        }
+        coach_team_standing_row = next(
+            (
+                row
+                for row in coach_standings_rows
+                if normalize_label(str(row.get('full_name') or row.get('team') or '')) in team_name_keys
+            ),
+            coach_standings_rows[0],
+        )
     hero_image_url = ''
     hero_image_data_uri = ''
     if primary_team and _should_use_team_cover_image(request, workspace, primary_team):
@@ -28670,6 +28732,21 @@ def coach_role_trainer_page(request):
                 hero_image_url = ''
         else:
             hero_image_url = ''
+    trainer_workspace_options = []
+    if _is_admin_user(request.user):
+        try:
+            trainer_workspace_options = [
+                {
+                    'id': int(ws.id),
+                    'label': str(getattr(ws, 'name', '') or '').strip() or f'Workspace {ws.id}',
+                    'kind': str(getattr(ws, 'kind', '') or '').strip(),
+                }
+                for ws in workspace_context.available_workspaces_for_user(request.user)
+                .filter(kind=Workspace.KIND_CLUB, is_active=True)
+                .order_by('name', 'id')
+            ]
+        except Exception:
+            trainer_workspace_options = []
     preferred_sources = preferred_event_source_by_match(primary_team, scope=stats_scope) if primary_team else {}
     base_events_qs = (
         confirmed_events_queryset()
@@ -29078,6 +29155,100 @@ def coach_role_trainer_page(request):
                 ),
             )
         ]
+    squad_pitch_targets = [
+        {'key': 'goalkeeper', 'label': 'Portería', 'target': 2},
+        {'key': 'defense', 'label': 'Defensa', 'target': 6},
+        {'key': 'midfield', 'label': 'Centro del campo', 'target': 6},
+        {'key': 'attack', 'label': 'Ataque', 'target': 4},
+    ]
+
+    def _coach_squad_bucket(position_text: str) -> str:
+        text = normalize_label(position_text or '')
+        if any(token in text for token in ('portero', 'goalkeeper', 'guardameta', 'porteria')):
+            return 'goalkeeper'
+        if any(token in text for token in ('defensa', 'central', 'lateral', 'carrilero', 'defensive')):
+            return 'defense'
+        if any(token in text for token in ('medio', 'centro', 'pivote', 'pivot', 'interior', 'volante', 'medio centro')):
+            return 'midfield'
+        if any(token in text for token in ('delantero', 'extremo', 'punta', 'ataque', 'media punta', 'segundo punta')):
+            return 'attack'
+        return 'midfield'
+
+    squad_pitch_slots = {
+        'goalkeeper': [{'left': 50, 'top': 83}],
+        'defense': [{'left': 16, 'top': 66}, {'left': 37, 'top': 68}, {'left': 63, 'top': 68}, {'left': 84, 'top': 66}],
+        'midfield': [{'left': 13, 'top': 47}, {'left': 31, 'top': 44}, {'left': 50, 'top': 43}, {'left': 69, 'top': 44}, {'left': 87, 'top': 47}],
+        'attack': [{'left': 22, 'top': 26}, {'left': 42, 'top': 23}, {'left': 58, 'top': 23}, {'left': 78, 'top': 26}],
+    }
+    squad_role_counts = {item['key']: 0 for item in squad_pitch_targets}
+    for item in coach_player_cards_all:
+        bucket = _coach_squad_bucket(item.get('position') or '')
+        squad_role_counts[bucket] = squad_role_counts.get(bucket, 0) + 1
+    trainer_pitch_players = []
+    pitch_role_counts = {item['key']: 0 for item in squad_pitch_targets}
+    for item in coach_player_cards_all[:11]:
+        bucket = _coach_squad_bucket(item.get('position') or '')
+        bucket_index = pitch_role_counts.get(bucket, 0)
+        pitch_role_counts[bucket] = bucket_index + 1
+        slot_pool = squad_pitch_slots.get(bucket) or squad_pitch_slots['midfield']
+        slot = slot_pool[bucket_index % len(slot_pool)]
+        row = bucket_index // len(slot_pool)
+        left = max(5, min(90, slot['left'] + (row * 3 if bucket != 'goalkeeper' else 0)))
+        top = max(6, min(88, slot['top'] + (row * 7 if bucket != 'goalkeeper' else 0)))
+        trainer_pitch_players.append(
+            {
+                **item,
+                'bucket': bucket,
+                'left': left,
+                'top': top,
+                'accent': {
+                    'goalkeeper': 'keeper',
+                    'defense': 'defense',
+                    'midfield': 'midfield',
+                    'attack': 'attack',
+                }.get(bucket, 'midfield'),
+            }
+        )
+    trainer_squad_active_count = len(coach_player_cards_all)
+    trainer_active_player_ids = [_parse_int(item.get('id')) for item in coach_player_cards_all if _parse_int(item.get('id'))]
+    try:
+        active_injury_ids = set(get_active_injury_player_ids(trainer_active_player_ids))
+    except Exception:
+        active_injury_ids = set()
+    trainer_injured_count = len(active_injury_ids)
+    trainer_ok_count = max(0, trainer_squad_active_count - trainer_injured_count)
+    trainer_sessions_done_count = 0
+    if primary_team:
+        try:
+            trainer_sessions_qs = TrainingSession.objects.filter(microcycle__team=primary_team).exclude(
+                status=TrainingSession.STATUS_CANCELED
+            )
+            if trainer_selected_season:
+                trainer_sessions_qs = _apply_club_season_filter(
+                    trainer_sessions_qs,
+                    trainer_selected_season,
+                    'session_date',
+                    trainer_season_start,
+                    trainer_season_end,
+                )
+            trainer_sessions_done_count = int(
+                trainer_sessions_qs.filter(status=TrainingSession.STATUS_DONE).count() or 0
+            )
+        except Exception:
+            trainer_sessions_done_count = 0
+    trainer_squad_reinforcement_rows = []
+    for target in squad_pitch_targets:
+        current = squad_role_counts.get(target['key'], 0)
+        missing = max(0, int(target['target']) - int(current))
+        trainer_squad_reinforcement_rows.append(
+            {
+                **target,
+                'current': current,
+                'missing': missing,
+                'tone': 'critical' if missing >= 2 else 'warning' if missing == 1 else 'ok',
+                'status': 'Refuerzo urgente' if missing >= 2 else 'Revisar' if missing == 1 else 'Cubierto',
+            }
+        )
     selected_player = (
         Player.objects.filter(id=selected_player_id, team=primary_team, is_active=True).first()
         if selected_player_id
@@ -29400,6 +29571,8 @@ def coach_role_trainer_page(request):
             'coach_standing_goals_for': standing.goals_for if standing else '',
             'coach_standing_goals_against': standing.goals_against if standing else '',
             'coach_standing_goal_diff': (standing.goals_for - standing.goals_against) if standing else '',
+            'coach_standings_rows': coach_standings_rows,
+            'coach_team_standing_row': coach_team_standing_row,
             'stats_scope': stats_scope,
             'tournament_filter': tournament_filter,
             'tournament_options': _team_tournament_name_options(primary_team) if primary_team else [],
@@ -29419,10 +29592,17 @@ def coach_role_trainer_page(request):
             'coach_measured_matches': measured_matches,
             'coach_player_options': coach_player_options,
             'coach_player_cards_all': coach_player_cards_all,
+            'trainer_pitch_players': trainer_pitch_players,
+            'trainer_squad_active_count': trainer_squad_active_count,
+            'trainer_ok_count': trainer_ok_count,
+            'trainer_injured_count': trainer_injured_count,
+            'trainer_sessions_done_count': trainer_sessions_done_count,
+            'trainer_squad_reinforcement_rows': trainer_squad_reinforcement_rows,
             'coach_selected_player_id': selected_player_id,
             'coach_player_match_options': coach_player_match_options,
             'coach_selected_player_match_id': _parse_int(request.GET.get('player_match')),
             'coach_player_view': coach_player_view,
+            'trainer_workspace_options': trainer_workspace_options,
             'active_team': primary_team,
         },
     )
@@ -57923,6 +58103,73 @@ def player_detail_page(request, player_id):
                 return primary_team.group.season
             return Season.objects.filter(is_current=True).order_by('-start_date', '-id').first()
 
+        def _save_injury_record(*, injury_name, injury_type, injury_zone, injury_side, injury_date, injury_return_date, injury_notes, force_new=False):
+            active_injury = (
+                PlayerInjuryRecord.objects
+                .filter(player=player, is_active=True)
+                .order_by('-injury_date', '-id')
+                .first()
+            )
+            if injury_name and injury_date:
+                same_record = None
+                if not force_new:
+                    same_record = (
+                        PlayerInjuryRecord.objects
+                        .filter(
+                            player=player,
+                            injury__iexact=injury_name,
+                            injury_date=injury_date,
+                        )
+                        .order_by('-id')
+                        .first()
+                    )
+                if same_record:
+                    updated_fields = []
+                    if injury_type != same_record.injury_type:
+                        same_record.injury_type = injury_type
+                        updated_fields.append('injury_type')
+                    if injury_zone != same_record.injury_zone:
+                        same_record.injury_zone = injury_zone
+                        updated_fields.append('injury_zone')
+                    if injury_side != same_record.injury_side:
+                        same_record.injury_side = injury_side
+                        updated_fields.append('injury_side')
+                    if injury_notes != same_record.notes:
+                        same_record.notes = injury_notes
+                        updated_fields.append('notes')
+                    if injury_return_date != same_record.return_date:
+                        same_record.return_date = injury_return_date
+                        updated_fields.append('return_date')
+                    should_be_active = not injury_return_date or injury_return_date > timezone.localdate()
+                    if same_record.is_active != should_be_active:
+                        same_record.is_active = should_be_active
+                        updated_fields.append('is_active')
+                    if updated_fields:
+                        same_record.save(update_fields=updated_fields + ['updated_at'])
+                else:
+                    PlayerInjuryRecord.objects.create(
+                        player=player,
+                        injury=injury_name,
+                        injury_type=injury_type,
+                        injury_zone=injury_zone,
+                        injury_side=injury_side,
+                        injury_date=injury_date,
+                        return_date=injury_return_date,
+                        notes=injury_notes,
+                        is_active=(not injury_return_date or injury_return_date > timezone.localdate()),
+                    )
+                if active_injury and active_injury.injury.lower() != injury_name.lower():
+                    active_injury.is_active = False
+                    if not active_injury.return_date:
+                        active_injury.return_date = injury_return_date or timezone.localdate()
+                        active_injury.save(update_fields=['is_active', 'return_date', 'updated_at'])
+                    else:
+                        active_injury.save(update_fields=['is_active', 'updated_at'])
+            elif active_injury and injury_return_date:
+                active_injury.return_date = injury_return_date
+                active_injury.is_active = False
+                active_injury.save(update_fields=['return_date', 'is_active', 'updated_at'])
+
         if request.method == 'POST' and not is_player_readonly:
             form_action = (request.POST.get('form_action') or 'profile').strip().lower()
 
@@ -57930,18 +58177,9 @@ def player_detail_page(request, player_id):
                 uploaded_photo = request.FILES.get('player_photo')
                 uploaded_license = request.FILES.get('player_license')
                 number = request.POST.get('number', '').strip()
-                injury_name = request.POST.get('injury', '').strip()
-                injury_type = request.POST.get('injury_type', '').strip()
-                injury_zone = request.POST.get('injury_zone', '').strip()
-                injury_side = request.POST.get('injury_side', '').strip()
-                injury_notes = request.POST.get('injury_notes', '').strip()
-                injury_date = _parse_date_value(request.POST.get('injury_date'))
-                injury_return_date = _parse_date_value(request.POST.get('injury_return_date'))
                 manual_sanction_active = str(request.POST.get('manual_sanction_active') or '').lower() in {'1', 'true', 'on', 'yes'}
                 manual_sanction_reason = request.POST.get('manual_sanction_reason', '').strip()
                 manual_sanction_until = _parse_date_value(request.POST.get('manual_sanction_until'))
-                injury_record_mode = (request.POST.get('injury_record_mode') or '').strip().lower()
-                force_new_injury_record = injury_record_mode in {'new', 'add', 'create'}
                 player.number = _parse_int(number) if number else None
                 player.position = request.POST.get('position', '').strip()
                 player.full_name = request.POST.get('full_name', '').strip()
@@ -57949,11 +58187,9 @@ def player_detail_page(request, player_id):
                 player.birth_date = _parse_date_value(request.POST.get('birth_date'))
                 player.height_cm = _parse_int(request.POST.get('height_cm'))
                 player.weight_kg = _parse_decimal_value(request.POST.get('weight_kg_base'))
-                player.injury = injury_name
-                player.injury_type = injury_type
-                player.injury_zone = injury_zone
-                player.injury_side = injury_side
-                player.injury_date = injury_date
+                player.dominant_foot = request.POST.get('dominant_foot', '').strip()
+                player.preferred_position = request.POST.get('preferred_position', '').strip()
+                player.previous_season_position = request.POST.get('previous_season_position', '').strip()
                 player.manual_sanction_active = manual_sanction_active
                 player.manual_sanction_reason = manual_sanction_reason
                 player.manual_sanction_until = manual_sanction_until
@@ -57963,74 +58199,35 @@ def player_detail_page(request, player_id):
                 if uploaded_license:
                     save_player_license(player, uploaded_license)
                 _invalidate_team_dashboard_caches(primary_team)
+                return redirect(f"{reverse('player-detail', args=[player.id])}?tab=personal")
 
-                active_injury = (
-                    PlayerInjuryRecord.objects
-                    .filter(player=player, is_active=True)
-                    .order_by('-injury_date', '-id')
-                    .first()
+            if form_action == 'injuries':
+                injury_name = request.POST.get('injury', '').strip()
+                injury_type = request.POST.get('injury_type', '').strip()
+                injury_zone = request.POST.get('injury_zone', '').strip()
+                injury_side = request.POST.get('injury_side', '').strip()
+                injury_notes = request.POST.get('injury_notes', '').strip()
+                injury_date = _parse_date_value(request.POST.get('injury_date'))
+                injury_return_date = _parse_date_value(request.POST.get('injury_return_date'))
+                injury_record_mode = (request.POST.get('injury_record_mode') or '').strip().lower()
+                force_new_injury_record = injury_record_mode in {'new', 'add', 'create'}
+                player.injury = injury_name
+                player.injury_type = injury_type
+                player.injury_zone = injury_zone
+                player.injury_side = injury_side
+                player.injury_date = injury_date
+                player.save(update_fields=['injury', 'injury_type', 'injury_zone', 'injury_side', 'injury_date'])
+                _save_injury_record(
+                    injury_name=injury_name,
+                    injury_type=injury_type,
+                    injury_zone=injury_zone,
+                    injury_side=injury_side,
+                    injury_date=injury_date,
+                    injury_return_date=injury_return_date,
+                    injury_notes=injury_notes,
+                    force_new=force_new_injury_record,
                 )
-                if injury_name and injury_date:
-                    same_record = None
-                    if not force_new_injury_record:
-                        same_record = (
-                            PlayerInjuryRecord.objects
-                            .filter(
-                                player=player,
-                                injury__iexact=injury_name,
-                                injury_date=injury_date,
-                            )
-                            .order_by('-id')
-                            .first()
-                        )
-                    if same_record:
-                        updated_fields = []
-                        if injury_type != same_record.injury_type:
-                            same_record.injury_type = injury_type
-                            updated_fields.append('injury_type')
-                        if injury_zone != same_record.injury_zone:
-                            same_record.injury_zone = injury_zone
-                            updated_fields.append('injury_zone')
-                        if injury_side != same_record.injury_side:
-                            same_record.injury_side = injury_side
-                            updated_fields.append('injury_side')
-                        if injury_notes != same_record.notes:
-                            same_record.notes = injury_notes
-                            updated_fields.append('notes')
-                        if injury_return_date != same_record.return_date:
-                            same_record.return_date = injury_return_date
-                            updated_fields.append('return_date')
-                        should_be_active = not injury_return_date or injury_return_date > timezone.localdate()
-                        if same_record.is_active != should_be_active:
-                            same_record.is_active = should_be_active
-                            updated_fields.append('is_active')
-                        if updated_fields:
-                            same_record.save(update_fields=updated_fields + ['updated_at'])
-                    else:
-                        PlayerInjuryRecord.objects.create(
-                            player=player,
-                            injury=injury_name,
-                            injury_type=injury_type,
-                            injury_zone=injury_zone,
-                            injury_side=injury_side,
-                            injury_date=injury_date,
-                            return_date=injury_return_date,
-                            notes=injury_notes,
-                            is_active=(not injury_return_date or injury_return_date > timezone.localdate()),
-                        )
-                    if active_injury and active_injury.injury.lower() != injury_name.lower():
-                        active_injury.is_active = False
-                        if not active_injury.return_date:
-                            active_injury.return_date = injury_return_date or timezone.localdate()
-                            active_injury.save(update_fields=['is_active', 'return_date', 'updated_at'])
-                        else:
-                            active_injury.save(update_fields=['is_active', 'updated_at'])
-                elif active_injury and injury_return_date:
-                    active_injury.return_date = injury_return_date
-                    active_injury.is_active = False
-                    active_injury.save(update_fields=['return_date', 'is_active', 'updated_at'])
-
-                return redirect(f"{reverse('player-detail', args=[player.id])}?tab=general")
+                return redirect(f"{reverse('player-detail', args=[player.id])}?tab=injuries")
 
             if form_action == 'manual_stats':
                 season = _resolve_season()

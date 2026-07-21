@@ -105,11 +105,15 @@
           linear-gradient(180deg, rgba(10, 17, 29, 0.74), rgba(5, 12, 21, 0.92));
         backdrop-filter: blur(14px);
         box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
-        display: flex;
-        justify-content: space-between;
-        gap: 1rem;
-        align-items: center;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 1rem 1.2rem;
+        align-items: start;
         margin-bottom: 1rem;
+      }
+      .role-header .title {
+        display: grid;
+        gap: 0.45rem;
       }
       .role-header .title h1 {
         margin: 0;
@@ -121,8 +125,60 @@
       .role-header .title p {
         margin: 0.4rem 0 0;
         color: rgba(226, 232, 240, 0.76);
-        max-width: 62ch;
+        max-width: 54ch;
         line-height: 1.55;
+      }
+      .role-meta-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      .role-meta-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        border-radius: 999px;
+        padding: 0.42rem 0.72rem;
+        border: 1px solid rgba(201, 162, 58, 0.14);
+        background: rgba(201, 162, 58, 0.05);
+        color: rgba(236, 228, 199, 0.96);
+        font-size: 0.7rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .role-actions {
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        align-items: center;
+      }
+      .role-workspace-switcher {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      .role-workspace-switcher label {
+        display: grid;
+        gap: 0.22rem;
+        color: rgba(226, 232, 240, 0.75);
+        font-size: 0.65rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-weight: 900;
+      }
+      .role-workspace-switcher select {
+        min-width: 250px;
+        border-radius: 999px;
+        padding: 0.5rem 0.85rem;
+        border: 1px solid rgba(201, 162, 58, 0.18);
+        background: rgba(2, 6, 23, 0.72);
+        color: #f8fafc;
+        font-weight: 800;
+        letter-spacing: 0.02em;
       }
       .premium-rail {
         display: grid;
@@ -141,7 +197,7 @@
         padding: 0.95rem 1rem;
         display: grid;
         gap: 0.4rem;
-        min-height: 118px;
+        min-height: 104px;
       }
       .premium-rail-card.is-featured {
         background:
@@ -209,13 +265,13 @@
       }
       .trainer-hero-grid {
         display: grid;
-        grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.72fr);
-        gap: 1.15rem;
-        padding: 1.15rem;
+        grid-template-columns: minmax(0, 1.9fr) minmax(280px, 0.5fr);
+        gap: 0.95rem;
+        padding: 1rem;
       }
       .trainer-photo-panel {
         position: relative;
-        min-height: 500px;
+        min-height: 560px;
         border-radius: 26px;
         overflow: hidden;
         border: 1px solid rgba(148, 163, 184, 0.16);
@@ -261,19 +317,23 @@
       }
       .trainer-photo-copy {
         position: absolute;
-        inset: auto 0 0 0;
+        inset: 1rem auto auto 1rem;
+        max-width: min(640px, calc(100% - 2rem));
         z-index: 1;
-        padding: 1.2rem 1.15rem;
+        padding: 1rem 1.05rem;
         display: grid;
-        gap: 0.55rem;
-        background: linear-gradient(180deg, transparent, rgba(2, 6, 23, 0.86));
+        gap: 0.6rem;
+        border-radius: 20px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: linear-gradient(180deg, rgba(2, 6, 23, 0.54), rgba(2, 6, 23, 0.82));
+        backdrop-filter: blur(10px);
       }
       .trainer-photo-copy h2 {
         margin: 0;
         color: #f8fafc;
         text-transform: uppercase;
         letter-spacing: 0.08em;
-        font-size: 0.92rem;
+        font-size: 0.98rem;
       }
       .trainer-photo-copy p {
         margin: 0;
@@ -281,23 +341,63 @@
         max-width: 44ch;
         line-height: 1.5;
       }
+      .trainer-photo-tags {
+        margin-top: 0.7rem;
+        color: rgba(226, 232, 240, 0.76);
+        font-size: 0.82rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .trainer-photo-stats {
+        position: absolute;
+        inset: auto 1rem 1rem 1rem;
+        z-index: 1;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.55rem;
+      }
+      .trainer-photo-stat {
+        border-radius: 16px;
+        padding: 0.74rem 0.82rem;
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        background: rgba(2, 6, 23, 0.5);
+        backdrop-filter: blur(10px);
+      }
+      .trainer-photo-stat span {
+        display: block;
+        color: rgba(226, 232, 240, 0.68);
+        font-size: 0.62rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-weight: 900;
+      }
+      .trainer-photo-stat strong {
+        display: block;
+        margin-top: 0.18rem;
+        color: #f8fafc;
+        font-size: 1rem;
+      }
       .trainer-info-stack {
         display: grid;
         gap: 0.85rem;
         align-content: start;
       }
+      .trainer-summary-card,
       .trainer-info-card {
-        border-radius: 20px;
-        padding: 1.05rem;
+        border-radius: 18px;
+        padding: 0.92rem;
         border: 1px solid rgba(148, 163, 184, 0.18);
-        border-top: 2px solid rgba(39, 90, 46, 0.58);
         background:
           radial-gradient(circle at top right, rgba(201, 162, 58, 0.03), transparent 26%),
           linear-gradient(180deg, rgba(10, 17, 29, 0.98), rgba(5, 12, 21, 0.99));
         display: grid;
-        gap: 0.7rem;
+        gap: 0.65rem;
         min-height: 0;
         box-shadow: 0 20px 36px rgba(0, 0, 0, 0.16);
+      }
+      .trainer-summary-card {
+        display: grid;
+        gap: 0.65rem;
       }
       .trainer-info-card .label {
         display: block;
@@ -346,6 +446,174 @@
         color: rgba(226, 232, 240, 0.76);
         line-height: 1.45;
       }
+      .trainer-summary-grid {
+        display: grid;
+        gap: 0.55rem;
+      }
+      .trainer-mini-dashboard {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.55rem;
+      }
+      .trainer-mini-card {
+        border-radius: 16px;
+        padding: 0.82rem 0.85rem;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background: rgba(2, 6, 23, 0.26);
+        display: grid;
+        gap: 0.35rem;
+        position: relative;
+        overflow: hidden;
+      }
+      .trainer-mini-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at top right, rgba(255, 255, 255, 0.04), transparent 42%);
+        pointer-events: none;
+      }
+      .trainer-mini-card.is-ok {
+        border-color: rgba(34, 197, 94, 0.28);
+        background:
+          radial-gradient(circle at top right, rgba(34, 197, 94, 0.12), transparent 36%),
+          rgba(2, 6, 23, 0.26);
+      }
+      .trainer-mini-card.is-injured {
+        border-color: rgba(248, 113, 113, 0.3);
+        background:
+          radial-gradient(circle at top right, rgba(248, 113, 113, 0.12), transparent 36%),
+          rgba(2, 6, 23, 0.26);
+      }
+      .trainer-mini-card.is-training {
+        border-color: rgba(244, 180, 0, 0.3);
+        background:
+          radial-gradient(circle at top right, rgba(244, 180, 0, 0.12), transparent 36%),
+          rgba(2, 6, 23, 0.26);
+      }
+      .trainer-mini-card .mini-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        position: relative;
+        z-index: 1;
+      }
+      .trainer-mini-card .label {
+        color: rgba(226, 232, 240, 0.74);
+        font-size: 0.62rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-weight: 900;
+      }
+      .trainer-mini-card .value {
+        color: #f8fafc;
+        font-size: 1.4rem;
+        line-height: 1.05;
+        font-weight: 950;
+        letter-spacing: -0.04em;
+        position: relative;
+        z-index: 1;
+      }
+      .trainer-mini-card .meta {
+        color: rgba(226, 232, 240, 0.7);
+        font-size: 0.76rem;
+        line-height: 1.25;
+        position: relative;
+        z-index: 1;
+      }
+      .trainer-mini-card .mini-badge {
+        width: 1.8rem;
+        height: 1.8rem;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(2, 6, 23, 0.34);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        flex: 0 0 auto;
+        color: #f8fafc;
+      }
+      .trainer-mini-card .mini-icon {
+        width: 1.05rem;
+        height: 1.05rem;
+        display: block;
+      }
+      .trainer-mini-card .mini-icon svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .trainer-mini-card.is-ok .mini-badge {
+        color: rgba(134, 239, 172, 0.98);
+        border-color: rgba(34, 197, 94, 0.35);
+      }
+      .trainer-mini-card.is-injured .mini-badge {
+        color: rgba(254, 202, 202, 0.98);
+        border-color: rgba(248, 113, 113, 0.38);
+      }
+      .trainer-mini-card.is-training .mini-badge {
+        color: rgba(255, 242, 199, 0.98);
+        border-color: rgba(244, 180, 0, 0.36);
+      }
+      .trainer-standings-card {
+        border-radius: 16px;
+        padding: 0.75rem;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background: rgba(2, 6, 23, 0.28);
+        display: grid;
+        gap: 0.5rem;
+      }
+      .trainer-standings-card h4 {
+        margin: 0;
+        color: rgba(225, 231, 240, 0.84);
+        font-size: 0.66rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+      .trainer-standings-table {
+        max-height: 224px;
+        overflow: auto;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        background: rgba(2, 6, 23, 0.24);
+      }
+      .trainer-standings-table table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .trainer-standings-table th,
+      .trainer-standings-table td {
+        padding: 0.42rem 0.48rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+        font-size: 0.72rem;
+        text-align: left;
+      }
+      .trainer-standings-table th {
+        color: rgba(226, 232, 240, 0.66);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 0.6rem;
+      }
+      .trainer-standings-table tr.is-home td {
+        background: rgba(244, 180, 0, 0.08);
+      }
+      .trainer-standings-table .team-cell {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        min-width: 0;
+      }
+      .trainer-standings-table .team-cell img {
+        width: 22px;
+        height: 22px;
+        object-fit: contain;
+        flex: 0 0 auto;
+      }
       .trainer-hero-chip {
         display: inline-flex;
         align-items: center;
@@ -360,15 +628,383 @@
         letter-spacing: 0.08em;
         text-transform: uppercase;
       }
+      .trainer-squad-section {
+        margin-top: 1rem;
+      }
+      .trainer-squad-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: flex-start;
+        margin-bottom: 0.9rem;
+      }
+      .trainer-squad-header h3 {
+        margin: 0;
+        font-size: 0.9rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(225, 231, 240, 0.84);
+      }
+      .trainer-squad-header p {
+        margin: 0.35rem 0 0;
+        color: var(--hub-card-muted);
+        line-height: 1.5;
+        max-width: 70ch;
+      }
+      .trainer-squad-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        justify-content: flex-end;
+      }
+      .trainer-squad-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
+        gap: 1rem;
+        align-items: start;
+      }
+      .trainer-squad-pitch,
+      .trainer-squad-panel {
+        border-radius: 22px;
+        border: 1px solid var(--hub-card-border);
+        background:
+          radial-gradient(circle at top right, rgba(201, 162, 58, 0.05), transparent 28%),
+          linear-gradient(180deg, rgba(10, 17, 29, 0.96), rgba(5, 12, 21, 0.99));
+        box-shadow: 0 18px 36px rgba(0, 0, 0, 0.18);
+        overflow: hidden;
+      }
+      .trainer-squad-pitch {
+        padding: 1rem;
+        display: grid;
+        gap: 0.85rem;
+      }
+      .trainer-squad-pitch-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+      .trainer-squad-pitch-head .pitch-title {
+        display: grid;
+        gap: 0.2rem;
+      }
+      .trainer-squad-pitch-head .pitch-title strong {
+        font-size: 1.08rem;
+        color: #f8fafc;
+        letter-spacing: -0.02em;
+      }
+      .trainer-squad-pitch-head .pitch-title span {
+        color: var(--hub-card-muted);
+        line-height: 1.4;
+      }
+      .trainer-squad-metrics {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        justify-content: flex-end;
+      }
+      .trainer-squad-metric {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 0.35rem;
+        padding: 0.35rem 0.6rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(2, 6, 23, 0.28);
+        color: rgba(226, 232, 240, 0.9);
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .trainer-squad-metric strong {
+        color: #fff8e1;
+        font-size: 1rem;
+      }
+      .trainer-squad-field {
+        min-height: 540px;
+        padding-bottom: 0;
+        border-radius: 22px;
+        overflow: hidden;
+      }
+      .trainer-squad-field img {
+        opacity: 0.34;
+        mix-blend-mode: screen;
+      }
+      .trainer-pitch-player {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        width: min(120px, 18vw);
+        display: grid;
+        gap: 0.16rem;
+        align-items: center;
+        justify-items: center;
+        text-decoration: none;
+        color: #f8fafc;
+        padding: 0.48rem 0.42rem 0.52rem;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(2, 6, 23, 0.54);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 18px 32px rgba(0, 0, 0, 0.18);
+      }
+      .trainer-pitch-player::before {
+        content: "";
+        position: absolute;
+        inset: auto auto 0.32rem auto;
+        width: 1.7rem;
+        height: 0.25rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.18);
+        opacity: 0.7;
+      }
+      .trainer-pitch-player.is-goalkeeper {
+        border-color: rgba(59, 130, 246, 0.42);
+      }
+      .trainer-pitch-player.is-defense {
+        border-color: rgba(34, 197, 94, 0.34);
+      }
+      .trainer-pitch-player.is-midfield {
+        border-color: rgba(244, 180, 0, 0.32);
+      }
+      .trainer-pitch-player.is-attack {
+        border-color: rgba(248, 113, 113, 0.34);
+      }
+      .trainer-pitch-player-number {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.65rem;
+        height: 1.65rem;
+        border-radius: 999px;
+        border: 1px solid rgba(244, 180, 0, 0.36);
+        background: rgba(244, 180, 0, 0.12);
+        color: rgba(255, 242, 199, 0.98);
+        font-size: 0.72rem;
+        font-weight: 950;
+        letter-spacing: 0.04em;
+      }
+      .trainer-pitch-player-name {
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        text-align: center;
+        line-height: 1.05;
+      }
+      .trainer-pitch-player-role {
+        color: rgba(226, 232, 240, 0.72);
+        font-size: 0.62rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        text-align: center;
+        line-height: 1.2;
+      }
+      .trainer-squad-legend {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.45rem;
+      }
+      .trainer-squad-legend .trainer-squad-metric {
+        justify-content: space-between;
+      }
+      .trainer-squad-panel {
+        padding: 1rem;
+        display: grid;
+        gap: 0.9rem;
+      }
+      .trainer-squad-panel-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.65rem;
+        align-items: center;
+      }
+      .trainer-squad-panel-head strong {
+        font-size: 1rem;
+        color: #f8fafc;
+      }
+      .trainer-squad-panel-head span {
+        color: var(--hub-card-muted);
+      }
+      .trainer-squad-list {
+        display: grid;
+        gap: 0.55rem;
+        max-height: 430px;
+        overflow: auto;
+        padding-right: 0.15rem;
+      }
+      .trainer-squad-player {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 0.65rem;
+        align-items: center;
+        text-decoration: none;
+        color: inherit;
+        padding: 0.6rem;
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background: rgba(2, 6, 23, 0.24);
+        transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+      }
+      .trainer-squad-player:hover {
+        transform: translateY(-1px);
+        border-color: rgba(244, 180, 0, 0.34);
+        background: rgba(2, 6, 23, 0.34);
+      }
+      .trainer-squad-player-media {
+        position: relative;
+        width: 54px;
+        height: 54px;
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background:
+          radial-gradient(circle at top, rgba(244, 180, 0, 0.18), transparent 44%),
+          rgba(2, 6, 23, 0.7);
+        flex: 0 0 auto;
+      }
+      .trainer-squad-player-media img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .trainer-squad-player-number {
+        position: absolute;
+        right: 0.18rem;
+        bottom: 0.18rem;
+        min-width: 1.18rem;
+        height: 1.18rem;
+        padding: 0 0.2rem;
+        border-radius: 999px;
+        border: 1px solid rgba(244, 180, 0, 0.34);
+        background: rgba(244, 180, 0, 0.12);
+        color: rgba(255, 242, 199, 0.98);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.66rem;
+        font-weight: 950;
+      }
+      .trainer-squad-player-copy {
+        min-width: 0;
+        display: grid;
+        gap: 0.12rem;
+      }
+      .trainer-squad-player-copy strong {
+        display: block;
+        color: #f8fafc;
+        font-size: 0.78rem;
+        line-height: 1.12;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: normal;
+      }
+      .trainer-squad-player-copy span {
+        color: var(--hub-card-muted);
+        font-size: 0.72rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .trainer-squad-reinforcement {
+        display: grid;
+        gap: 0.55rem;
+      }
+      .trainer-squad-reinforcement h4 {
+        margin: 0;
+        color: rgba(225, 231, 240, 0.84);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 0.72rem;
+      }
+      .trainer-squad-reinforcement-row {
+        display: grid;
+        gap: 0.18rem;
+        padding: 0.66rem 0.75rem;
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background: rgba(2, 6, 23, 0.22);
+      }
+      .trainer-squad-reinforcement-row.is-critical {
+        border-color: rgba(248, 113, 113, 0.32);
+        background: rgba(248, 113, 113, 0.08);
+      }
+      .trainer-squad-reinforcement-row.is-warning {
+        border-color: rgba(244, 180, 0, 0.28);
+        background: rgba(244, 180, 0, 0.08);
+      }
+      .trainer-squad-reinforcement-row.is-ok {
+        border-color: rgba(34, 197, 94, 0.24);
+        background: rgba(34, 197, 94, 0.06);
+      }
+      .trainer-squad-reinforcement-row .label {
+        color: var(--hub-card-muted);
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 900;
+      }
+      .trainer-squad-reinforcement-row .value {
+        color: #f8fafc;
+        font-weight: 900;
+      }
+      .trainer-squad-reinforcement-row .meta {
+        color: var(--hub-card-muted);
+        font-size: 0.78rem;
+        line-height: 1.35;
+      }
       @media (max-width: 900px) {
+        .role-header {
+          grid-template-columns: 1fr;
+        }
+        .role-actions {
+          justify-content: flex-start;
+        }
+        .role-workspace-switcher {
+          justify-content: flex-start;
+        }
+        .role-workspace-switcher select {
+          min-width: 0;
+          width: min(100%, 320px);
+        }
         .trainer-hero-grid {
           grid-template-columns: 1fr;
         }
         .trainer-photo-panel {
           min-height: 320px;
         }
+        .trainer-photo-copy {
+          inset: 0.85rem 0.85rem auto 0.85rem;
+          max-width: none;
+        }
+        .trainer-photo-stats {
+          inset: auto 0.85rem 0.85rem 0.85rem;
+          grid-template-columns: 1fr;
+        }
         .trainer-info-meta {
           grid-template-columns: 1fr;
+        }
+        .trainer-mini-dashboard {
+          grid-template-columns: 1fr;
+        }
+        .trainer-squad-layout {
+          grid-template-columns: 1fr;
+        }
+        .trainer-squad-field {
+          min-height: 400px;
+        }
+        .trainer-squad-legend {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .trainer-pitch-player {
+          width: min(110px, 30vw);
+        }
+        .trainer-squad-list {
+          max-height: none;
         }
       }
       .section-nav {
@@ -1404,8 +2040,8 @@
       }
       .broadcast-name {
         margin: 0;
-        font-size: 1rem;
-        line-height: 1.15;
+        font-size: 0.88rem;
+        line-height: 1.08;
         letter-spacing: 0.04em;
         text-transform: uppercase;
         overflow-wrap: anywhere;
@@ -1625,60 +2261,42 @@
   </head>
   <body class="prod-commercial">
     <div class="page product-shell">
-      {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/dragon_nav.html' with compact_workspace_tabs=True %}
       <header class="role-header">
         <div class="title">
           <p class="product-kicker">Workspace por rol</p>
           <h1>{{ role_title }}</h1>
           <p>{{ role_description }}</p>
-        </div>
-        <div style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center; justify-content:flex-end;">
           {% if role_key == 'trainer' %}
-          <a class="pill-button" style="border-radius:12px; text-decoration:none;" href="{% url 'reports-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" title="Biblioteca de informes PDF (club y jugador)">Informes</a>
+          <div class="role-meta-row" aria-label="Contexto rápido del entrenador">
+            <span class="role-meta-chip">{{ active_team.display_name|default:'Equipo principal' }}</span>
+            <span class="role-meta-chip">{% if active_team and active_team.group and active_team.group.season %}{{ active_team.group.season.name }}{% else %}Temporada actual{% endif %}</span>
+            <span class="role-meta-chip">#{% if coach_standing_rank %}{{ coach_standing_rank }}{% else %}-{% endif %}</span>
+            <span class="role-meta-chip">{% if weekly_staff_brief %}{{ weekly_staff_brief.match.opponent }}{% else %}Rival por confirmar{% endif %}</span>
+          </div>
           {% endif %}
-          <a class="pill-button" style="border-radius:12px;" href="{% url 'coach-cards' %}">Volver</a>
+        </div>
+        <div class="role-actions">
+          {% if role_key == 'trainer' and is_admin_user %}
+          <form class="role-workspace-switcher" method="post" action="{% url 'workspace-active' %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'coach-role-trainer' %}" />
+            <label>
+              Club
+              <select name="workspace_id" onchange="this.form.submit()">
+                {% for option in trainer_workspace_options %}
+                  {% if option.kind == 'club' %}
+                  <option value="{{ option.id }}" {% if active_workspace and option.id == active_workspace.id %}selected{% endif %}>
+                    {{ option.label }}
+                  </option>
+                  {% endif %}
+                {% endfor %}
+              </select>
+            </label>
+          </form>
+          {% endif %}
         </div>
       </header>
-      {% if role_key == 'trainer' %}
-      <section class="premium-rail" aria-label="Accesos y estado rápido del entrenador">
-        <article class="premium-rail-card is-featured">
-          <span class="eyebrow">Centro de mando</span>
-          <strong>{{ active_team.display_name|default:'Equipo principal' }}</strong>
-          <p>Vista de inicio pensada para leer el contexto del equipo de un vistazo y entrar al trabajo real sin ruido.</p>
-        </article>
-        <article class="premium-rail-card">
-          <span class="eyebrow">Clasificación</span>
-          <strong>#{% if coach_standing_rank %}{{ coach_standing_rank }}{% else %}-{% endif %}</strong>
-          <p>
-            {% if coach_standing_points is not None %}
-              {{ coach_standing_points }} puntos · {{ coach_standing_played|default:0 }} partidos
-            {% else %}
-              Sin clasificación consolidada
-            {% endif %}
-          </p>
-        </article>
-        <article class="premium-rail-card">
-          <span class="eyebrow">Próximo rival</span>
-          <strong>{% if weekly_staff_brief %}{{ weekly_staff_brief.match.opponent }}{% else %}Rival por confirmar{% endif %}</strong>
-          <p>
-            {% if weekly_staff_brief %}
-              {{ weekly_staff_brief.match.round }} · {{ weekly_staff_brief.match.date }}
-            {% else %}
-              Pendiente de calendario
-            {% endif %}
-          </p>
-        </article>
-        <article class="premium-rail-card premium-rail-actions">
-          <span class="eyebrow">Accesos rápidos</span>
-          <div class="premium-rail-links">
-            <a href="{% url 'coach-roster' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Plantilla</a>
-            <a href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Sesiones</a>
-            <a href="{% url 'coach-matches' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Partidos</a>
-            <a href="{% url 'fines' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Multas</a>
-          </div>
-        </article>
-      </section>
-      {% endif %}
       {% if role_key == 'trainer' %}
       <section class="stadium-hero is-trainer">
         <div class="trainer-hero-grid">
@@ -1691,51 +2309,242 @@
               <p style="margin:0; text-transform:uppercase; letter-spacing:0.12em; color:var(--brand); font-weight:900;">Home del entrenador</p>
               <h2>{{ role_title }} · {{ active_team.display_name|default:'Equipo principal' }}</h2>
               <p>Foto del equipo, lectura competitiva y acceso directo al trabajo del staff en una sola superficie.</p>
+              <p class="trainer-photo-tags" aria-label="Resumen de contexto">Plantilla · Clasificación · Partido</p>
+            </div>
+            <div class="trainer-photo-stats" aria-label="Datos rápidos del equipo">
+              <article class="trainer-photo-stat">
+                <span>Clasificación</span>
+                <strong>#{% if coach_standing_rank %}{{ coach_standing_rank }}{% else %}-{% endif %}</strong>
+              </article>
+              <article class="trainer-photo-stat">
+                <span>Puntos</span>
+                <strong>{% if coach_standing_points is not None %}{{ coach_standing_points }}{% else %}0{% endif %}</strong>
+              </article>
+              <article class="trainer-photo-stat">
+                <span>Próximo rival</span>
+                <strong>{% if weekly_staff_brief %}{{ weekly_staff_brief.match.opponent }}{% else %}Por confirmar{% endif %}</strong>
+              </article>
             </div>
           </article>
-          <div class="trainer-info-stack">
-            <article class="trainer-info-card">
-              <span class="label">Clasificación</span>
-              <div class="trainer-info-value">#{% if coach_standing_rank %}{{ coach_standing_rank }}{% else %}-{% endif %}</div>
-                <div class="trainer-info-meta" aria-label="Datos de clasificación">
-                  <div class="trainer-info-stat">
-                    <span>Puntos</span>
-                    <strong>{% if coach_standing_points is not None %}{{ coach_standing_points }}{% else %}0{% endif %}</strong>
-                  </div>
-                <div class="trainer-info-stat">
-                  <span>Jugados</span>
-                  <strong>{% if coach_standing_played is not None %}{{ coach_standing_played }}{% else %}0{% endif %}</strong>
+          <article class="trainer-summary-card">
+            <div class="trainer-summary-grid">
+              <div>
+                <span class="label">Próximo rival</span>
+                <div class="trainer-info-value">{% if weekly_staff_brief %}{{ weekly_staff_brief.match.opponent }}{% else %}Rival por confirmar{% endif %}</div>
+                <div class="trainer-next-rival">
+                  <p>
+                    {% if weekly_staff_brief %}
+                      {{ weekly_staff_brief.match.round }} · {{ weekly_staff_brief.match.date }}
+                      {% if weekly_staff_brief.match.time %} · {{ weekly_staff_brief.match.time }}{% endif %}
+                    {% else %}
+                      Pendiente de calendario
+                    {% endif %}
+                  </p>
+                  <p>{% if weekly_staff_brief %}{{ weekly_staff_brief.headline }}{% else %}Sin briefing semanal{% endif %}</p>
                 </div>
-                <div class="trainer-info-stat">
-                  <span>Goles a favor</span>
-                  <strong>{% if coach_standing_goals_for is not None %}{{ coach_standing_goals_for }}{% else %}0{% endif %}</strong>
-                </div>
-                  <div class="trainer-info-stat">
-                    <span>Goles en contra</span>
-                    <strong>{% if coach_standing_goals_against is not None %}{{ coach_standing_goals_against }}{% else %}0{% endif %}</strong>
-                  </div>
-                  <div class="trainer-info-stat">
-                    <span>Diferencia</span>
-                    <strong>{% if coach_standing_goal_diff is not None and coach_standing_goal_diff != '' %}{{ coach_standing_goal_diff }}{% else %}0{% endif %}</strong>
-                  </div>
-                </div>
-            </article>
-            <article class="trainer-info-card">
-              <span class="label">Próximo rival</span>
-              <div class="trainer-info-value">{% if weekly_staff_brief %}{{ weekly_staff_brief.match.opponent }}{% else %}Rival por confirmar{% endif %}</div>
-              <div class="trainer-next-rival">
-                <p>
-                  {% if weekly_staff_brief %}
-                    {{ weekly_staff_brief.match.round }} · {{ weekly_staff_brief.match.date }}
-                    {% if weekly_staff_brief.match.time %} · {{ weekly_staff_brief.match.time }}{% endif %}
-                  {% else %}
-                    Pendiente de calendario
-                  {% endif %}
-                </p>
-                <p>{% if weekly_staff_brief %}{{ weekly_staff_brief.headline }}{% else %}Sin briefing semanal{% endif %}</p>
               </div>
-            </article>
+            </div>
+            <div class="trainer-mini-dashboard" aria-label="Mini dashboard del entrenador">
+              <article class="trainer-mini-card is-ok">
+                <div class="mini-head">
+                  <span class="label">Jugadores OK</span>
+                  <span class="mini-badge" aria-hidden="true">
+                    <span class="mini-icon">
+                      <svg viewBox="0 0 24 24" role="img" aria-hidden="true" focusable="false">
+                        <path d="M20 6 9 17l-5-5"></path>
+                      </svg>
+                    </span>
+                  </span>
+                </div>
+                <span class="value">{{ trainer_ok_count }}</span>
+                <span class="meta">Disponibles para trabajar y competir.</span>
+              </article>
+              <article class="trainer-mini-card is-injured">
+                <div class="mini-head">
+                  <span class="label">Lesionados</span>
+                  <span class="mini-badge" aria-hidden="true">
+                    <span class="mini-icon">
+                      <svg viewBox="0 0 24 24" role="img" aria-hidden="true" focusable="false">
+                        <path d="M12 9v4"></path>
+                        <path d="M12 17h.01"></path>
+                        <path d="M10.3 4.9 2.6 18a1.7 1.7 0 0 0 1.5 2.5h15.8a1.7 1.7 0 0 0 1.5-2.5L13.7 4.9a1.9 1.9 0 0 0-3.4 0Z"></path>
+                      </svg>
+                    </span>
+                  </span>
+                </div>
+                <span class="value">{{ trainer_injured_count }}</span>
+                <span class="meta">Baja médica activa en plantilla.</span>
+              </article>
+              <article class="trainer-mini-card is-training">
+                <div class="mini-head">
+                  <span class="label">Entrenamientos realizados</span>
+                  <span class="mini-badge" aria-hidden="true">
+                    <span class="mini-icon">
+                      <svg viewBox="0 0 24 24" role="img" aria-hidden="true" focusable="false">
+                        <path d="M6 7h12"></path>
+                        <path d="M6 17h12"></path>
+                        <path d="M8 5v14"></path>
+                        <path d="M16 5v14"></path>
+                      </svg>
+                    </span>
+                  </span>
+                </div>
+                <span class="value">{{ trainer_sessions_done_count }}</span>
+                <span class="meta">Sesiones cerradas esta temporada.</span>
+              </article>
+            </div>
+            <div class="trainer-standings-card" aria-label="Clasificación completa">
+              <h4>Clasificación completa</h4>
+              <div class="trainer-standings-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Equipo</th>
+                      <th>PJ</th>
+                      <th>Pts</th>
+                      <th>DG</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in coach_standings_rows %}
+                    <tr class="{% if coach_team_standing_row and row.rank == coach_team_standing_row.rank and row.full_name == coach_team_standing_row.full_name %}is-home{% endif %}">
+                      <td>{{ row.rank|default:'-' }}</td>
+                      <td>
+                        <div class="team-cell">
+                          {% if row.crest_url %}<img src="{{ row.crest_url }}" alt="{{ row.full_name|default:row.team }}" loading="lazy" />{% endif %}
+                          <span>{{ row.full_name|default:row.team }}</span>
+                        </div>
+                      </td>
+                      <td>{{ row.played|default:'-' }}</td>
+                      <td>{{ row.points|default:'-' }}</td>
+                      <td>{% if row.goal_difference is not None %}{% if row.goal_difference >= 0 %}+{% endif %}{{ row.goal_difference }}{% else %}-{% endif %}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                      <td colspan="5">Clasificación no disponible.</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+      {% endif %}
+      {% if role_key == 'trainer' %}
+      <section id="coach-squad" class="summary-card coach-card-shell trainer-squad-section">
+        <div class="trainer-squad-header">
+          <div>
+            <h3>Configuración de plantilla</h3>
+            <p>
+              Campo de trabajo para leer la plantilla activa, ver la ocupación por líneas y detectar qué perfiles faltan
+              o están más justos de lo ideal.
+            </p>
           </div>
+          <div class="trainer-squad-badges">
+            <span class="role-meta-chip">Altas activas: {{ trainer_squad_active_count }}</span>
+            <span class="role-meta-chip">Once base</span>
+            <span class="role-meta-chip">Refuerzos</span>
+          </div>
+        </div>
+        <div class="trainer-squad-layout">
+          <article class="trainer-squad-pitch" aria-label="Campo de configuración de plantilla">
+            <div class="trainer-squad-pitch-head">
+              <div class="pitch-title">
+                <strong>Campo de fútbol</strong>
+                <span>Las piezas sobre el campo son la fotografía operativa del once base que tienes disponible ahora.</span>
+              </div>
+              <div class="trainer-squad-metrics" aria-label="Resumen de plantilla">
+                <span class="trainer-squad-metric">Activos <strong>{{ trainer_squad_active_count }}</strong></span>
+                <span class="trainer-squad-metric">Titulares <strong>{{ trainer_pitch_players|length }}</strong></span>
+              </div>
+            </div>
+            <div class="field-diagram trainer-squad-field">
+              <img src="{% static 'football/campo-futbol.jpg' %}" alt="Campo de fútbol" />
+              {% for player in trainer_pitch_players %}
+              <a
+                class="trainer-pitch-player is-{{ player.accent }}"
+                href="{% url 'coach-role-trainer' %}?player={{ player.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}"
+                title="{{ player.name }}{% if player.number %} · {{ player.number }}{% endif %}"
+                style="left: {{ player.left }}%; top: {{ player.top }}%;"
+              >
+                <span class="trainer-pitch-player-number">{% if player.number %}{{ player.number }}{% else %}--{% endif %}</span>
+                <span class="trainer-pitch-player-name">{{ player.name }}</span>
+                <span class="trainer-pitch-player-role">{{ player.position|default:'-' }}</span>
+              </a>
+              {% empty %}
+              <div style="position:absolute; inset:50% auto auto 50%; transform:translate(-50%, -50%); text-align:center; max-width: 18rem; z-index:2;">
+                <div style="display:inline-flex; padding:0.45rem 0.7rem; border-radius:999px; background:rgba(2,6,23,0.62); border:1px solid rgba(244,180,0,0.24); color:rgba(255,242,199,0.94); font-size:0.72rem; font-weight:900; letter-spacing:0.12em; text-transform:uppercase;">Sin once base</div>
+                <p style="margin:0.75rem 0 0; color:rgba(226,232,240,0.82); line-height:1.5;">Cuando haya jugadores activos, aquí se proyectará la configuración de la plantilla sobre el campo.</p>
+              </div>
+              {% endfor %}
+            </div>
+            <div class="trainer-squad-legend" aria-label="Lectura rápida por líneas">
+              {% for row in trainer_squad_reinforcement_rows %}
+              <span class="trainer-squad-metric">
+                {{ row.label }} <strong>{{ row.current }}</strong>
+              </span>
+              {% endfor %}
+            </div>
+          </article>
+          <aside class="trainer-squad-panel" aria-label="Plantilla activa y posiciones a reforzar">
+            <div class="trainer-squad-panel-head">
+              <div>
+                <strong>Plantilla activa</strong><br />
+                <span>{{ trainer_squad_active_count }} jugadores dados de alta</span>
+              </div>
+            </div>
+            <div class="trainer-squad-list">
+              {% for item in coach_player_cards_all %}
+              <a
+                class="card-link"
+                href="{% url 'coach-role-trainer' %}?player={{ item.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}"
+                title="{{ item.name }}{% if item.number %} · {{ item.number }}{% endif %}"
+              >
+                <article class="card broadcast-card{% if coach_selected_player_id == item.id %} is-selected{% endif %}">
+                  <div class="broadcast-head">
+                    <div class="broadcast-head-left">
+                      <div class="avatar-wrap" aria-hidden="true">
+                        <img class="avatar" src="{% if item.photo_url %}{{ item.photo_url }}{% else %}{% static 'football/images/player-avatar.svg' %}{% endif %}" alt="{{ item.name }}" loading="lazy" />
+                        {% if item.number %}<span class="dorsal-badge">{{ item.number }}</span>{% endif %}
+                      </div>
+                      <div>
+                        <h2 class="broadcast-name">{{ item.name }}</h2>
+                        <div class="broadcast-sub">{{ item.position|default:'-' }}</div>
+                      </div>
+                    </div>
+                    <div class="broadcast-head-right">
+                      <div class="broadcast-pill">Min {{ item.minutes }}</div>
+                      <div class="broadcast-pill">PJ {{ item.matches }}</div>
+                    </div>
+                  </div>
+                  <div class="broadcast-mini">
+                    <span class="mini-pill">G <strong>{{ item.goals }}</strong></span>
+                    <span class="mini-pill">A <strong>{{ item.assists }}</strong></span>
+                  </div>
+                </article>
+              </a>
+              {% endfor %}
+            </div>
+            <div class="trainer-squad-reinforcement">
+              <h4>Posiciones a reforzar</h4>
+              {% for row in trainer_squad_reinforcement_rows %}
+              <div class="trainer-squad-reinforcement-row is-{{ row.tone }}">
+                <span class="label">{{ row.label }}</span>
+                <span class="value">{{ row.current }} disponibles</span>
+                <span class="meta">
+                  {% if row.missing %}
+                    Falta {{ row.missing }} para tener una estructura más sólida. {{ row.status }}
+                  {% else %}
+                    Estructura cubierta para un once base competitivo.
+                  {% endif %}
+                </span>
+              </div>
+              {% endfor %}
+            </div>
+          </aside>
         </div>
       </section>
       {% endif %}
@@ -2231,13 +3040,7 @@
       {% if role_key == 'trainer' %}
       <div class="workspace-tabs" role="tablist" aria-label="Cabina del entrenador">
         <button class="workspace-tab is-active" type="button" data-tab-target="player">Plantilla</button>
-        <button class="workspace-tab" type="button" data-tab-target="summary">Estadísticas</button>
-        <button class="workspace-tab" type="button" data-tab-target="sessions">Sesiones</button>
-      </div>
-      <div class="workspace-tabs" role="tablist" aria-label="Estadísticas del entrenador" style="display:none;">
-        <button class="workspace-tab is-active" type="button" data-tab-target="summary">Generales</button>
-        <button class="workspace-tab" type="button" data-tab-target="player">Individuales</button>
-        <button class="workspace-tab" type="button" data-tab-target="charts" title="Configura las gráficas del PDF del jugador (por club o por jugador)">Gráficas</button>
+        <button class="workspace-tab" type="button" data-tab-target="sessions">Entrenamiento</button>
       </div>
 
       <section class="workspace-panel is-active" data-tab-panel="summary">
@@ -2439,6 +3242,39 @@
             </div>
             {% endif %}
           </form>
+          {% if coach_overview_stats or coach_player_leaders %}
+          <section id="coach-summary" class="summary-layout" style="margin-bottom:1rem;">
+            {% if coach_overview_stats %}
+            <section class="summary-card">
+              <h3>Estadísticas de plantilla</h3>
+              <div class="overview-rings">
+                {% for item in coach_overview_stats.rings %}
+                <article class="overview-ring">
+                  <div class="overview-ring-chart" style="--pct: {{ item.pct|default:0 }};">
+                    <span class="overview-ring-value">{{ item.value }}</span>
+                  </div>
+                  <div class="overview-ring-label">{{ item.label }}</div>
+                </article>
+                {% endfor %}
+              </div>
+            </section>
+            {% endif %}
+            {% if coach_player_leaders %}
+            <aside class="summary-card">
+              <h3>Referencias plantilla</h3>
+              <div class="summary-leaders-list">
+                {% for leader in coach_player_leaders %}
+                <article class="summary-leader">
+                  <span class="kicker">{{ leader.label }}</span>
+                  <strong>{{ leader.name }}</strong>
+                  <span>{{ leader.value }}{% if leader.suffix %} {{ leader.suffix }}{% endif %}</span>
+                </article>
+                {% endfor %}
+              </div>
+            </aside>
+            {% endif %}
+          </section>
+          {% endif %}
           <div class="individual-search">
             <label for="individual-player-search">Buscar jugador</label>
             <input id="individual-player-search" type="search" placeholder="Escribe nombre o dorsal" />
