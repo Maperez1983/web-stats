@@ -74,6 +74,9 @@
         background: linear-gradient(180deg, rgba(14, 24, 40, 0.75), rgba(8, 16, 28, 0.82));
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 26px 52px rgba(0, 0, 0, 0.25);
       }
+      .stadium-hero.is-trainer {
+        overflow: hidden;
+      }
       .stadium-hero-media {
         min-height: min(48vh, 340px);
         border-radius: 22px 22px 0 0;
@@ -99,6 +102,15 @@
         z-index: 1;
         max-width: 520px;
       }
+      .stadium-hero-media.is-trainer {
+        min-height: min(34vh, 260px);
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 0.42fr);
+        gap: 1rem;
+        align-items: end;
+      }
+      .stadium-hero-copy {
+        max-width: 640px;
+      }
       .stadium-hero-media h2 {
         margin: 0;
         color: #f8fafc;
@@ -109,27 +121,62 @@
         margin: 0.5rem 0 0;
         color: rgba(226, 232, 240, 0.86);
       }
-      .stadium-hero-card {
-        padding: 1rem;
+      .trainer-hero-meta {
+        margin-top: 0.75rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      .trainer-hero-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        border-radius: 999px;
+        padding: 0.38rem 0.7rem;
+        border: 1px solid rgba(244, 180, 0, 0.22);
+        background: rgba(244, 180, 0, 0.08);
+        color: rgba(255, 242, 199, 0.96);
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .trainer-hero-rail {
+        position: relative;
+        z-index: 1;
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 0.7rem;
+        align-content: end;
       }
-      .stadium-hero-stat {
-        border: 1px solid var(--hub-subcard-border);
-        background: var(--hub-subcard-bg);
-        border-radius: 12px;
-        padding: 0.72rem;
-        color: var(--hub-card-ink);
+      .trainer-hero-stat {
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(7, 16, 30, 0.72);
+        border-radius: 16px;
+        padding: 0.8rem 0.9rem;
+        color: #f8fafc;
       }
-      .stadium-hero-stat strong {
+      .trainer-hero-stat .label {
         display: block;
-        font-size: 0.88rem;
-        margin-top: 0.2rem;
+        color: rgba(186, 230, 253, 0.88);
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-weight: 900;
+      }
+      .trainer-hero-stat strong {
+        display: block;
+        font-size: 1rem;
+        margin-top: 0.25rem;
+        line-height: 1.25;
       }
       @media (max-width: 900px) {
-        .stadium-hero-card {
+        .stadium-hero-media.is-trainer {
           grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 720px) {
+        .stadium-hero-media.is-trainer {
+          min-height: 0;
         }
       }
       .section-nav {
@@ -1321,49 +1368,48 @@
         </div>
         <div style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center; justify-content:flex-end;">
           {% if role_key == 'trainer' %}
-          <a
-            class="pill-button"
-            style="border-radius:12px; text-decoration:none;"
-            href="{% url 'reports-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}"
-            title="Biblioteca de informes PDF (club y jugador)"
-          >Informes (PDF)</a>
-          <a
-            class="pill-button"
-            style="border-radius:12px; text-decoration:none;"
-            href="{% url 'player-reports-zip' %}{% if active_team %}?team={{ active_team.id }}{% endif %}"
-            target="_blank"
-            rel="noreferrer"
-            title="Descarga masiva: ZIP con todos los informes PDF de jugadores"
-          >Descargar ZIP</a>
+          <a class="pill-button" style="border-radius:12px; text-decoration:none;" href="{% url 'reports-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" title="Biblioteca de informes PDF (club y jugador)">Informes</a>
           {% endif %}
           <a class="pill-button" style="border-radius:12px;" href="{% url 'coach-cards' %}">Volver</a>
         </div>
       </header>
       {% if role_key == 'trainer' %}
-      <section class="stadium-hero">
+      <section class="stadium-hero is-trainer">
         <div
-          class="stadium-hero-media"
+          class="stadium-hero-media is-trainer"
           style="--hero-image: url('{% if hero_image_data_uri %}{{ hero_image_data_uri }}{% elif hero_image_url %}{{ hero_image_url }}{% else %}{% static 'football/campo-futbol-fallback.jpg' %}{% endif %}')"
         >
-          <div>
+          <div class="stadium-hero-copy">
             <p style="margin:0; text-transform:uppercase; letter-spacing:0.09em; color:var(--brand); font-weight:900;">Home del entrenador</p>
             <h2>{{ role_title }} · {{ active_team.display_name|default:'Equipo principal' }}</h2>
-            <p>Vista de inicio con portada del estadio y acceso rápido a módulos de planificación semanal.</p>
+            <p>Vista de inicio con foto del equipo, lectura competitiva y acceso directo a los módulos del staff.</p>
+            <div class="trainer-hero-meta" aria-label="Resumen del equipo">
+              <span class="trainer-hero-chip">Clasificación {% if coach_standing_rank %}#{{ coach_standing_rank }}{% else %}-{% endif %}</span>
+              <span class="trainer-hero-chip">{% if coach_standing_points is not None %}{{ coach_standing_points }} pts{% else %}0 pts{% endif %}</span>
+              <span class="trainer-hero-chip">{% if coach_standing_played is not None %}{{ coach_standing_played }} partidos{% else %}0 partidos{% endif %}</span>
+            </div>
           </div>
-        </div>
-        <div class="stadium-hero-card">
-          <article class="stadium-hero-stat">
-            <span class="meta">Partidos medidos</span>
-            <strong>{{ coach_measured_matches|default:0 }}</strong>
-          </article>
-          <article class="stadium-hero-stat">
-            <span class="meta">Acciones totales</span>
-            <strong>{{ coach_total_actions_count|default:0 }}</strong>
-          </article>
-          <article class="stadium-hero-stat">
-            <span class="meta">Estado</span>
-            <strong>{% if weekly_staff_brief %}Resumen semanal listo{% else %}Sin resumen semanal{% endif %}</strong>
-          </article>
+          <aside class="trainer-hero-rail" aria-label="Próximo rival">
+            <article class="trainer-hero-stat">
+              <span class="label">Próximo rival</span>
+              <strong>{% if weekly_staff_brief %}{{ weekly_staff_brief.match.opponent }}{% else %}Rival por confirmar{% endif %}</strong>
+            </article>
+            <article class="trainer-hero-stat">
+              <span class="label">Siguiente cita</span>
+              <strong>
+                {% if weekly_staff_brief %}
+                  {{ weekly_staff_brief.match.round }} · {{ weekly_staff_brief.match.date }}
+                  {% if weekly_staff_brief.match.time %} · {{ weekly_staff_brief.match.time }}{% endif %}
+                {% else %}
+                  Pendiente de calendario
+                {% endif %}
+              </strong>
+            </article>
+            <article class="trainer-hero-stat">
+              <span class="label">Lectura rápida</span>
+              <strong>{% if weekly_staff_brief %}{{ weekly_staff_brief.headline }}{% else %}Sin briefing semanal{% endif %}</strong>
+            </article>
+          </aside>
         </div>
       </section>
       {% endif %}
@@ -2522,7 +2568,7 @@
 
       <section id="coach-modules" class="summary-card">
         <h3>Módulos</h3>
-        <p class="summary-meta">Accesos del entrenador en formato pestaña para navegar sin mezclarlo con tarjetas sueltas.</p>
+        <p class="summary-meta">Accesos del entrenador en formato pestaña. La portada queda arriba y el trabajo diario queda aquí abajo.</p>
         <div class="module-tabs" role="tablist" aria-label="Módulos del entrenador">
           {% for module in modules %}
           <button class="module-tab{% if forloop.first %} is-active{% endif %}" type="button" data-module-target="module-{{ forloop.counter0 }}">{{ module.title }}</button>
