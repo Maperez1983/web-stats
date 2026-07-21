@@ -29242,6 +29242,11 @@ def coach_role_trainer_page(request):
             'description': 'Listado anual para editar, depurar duplicados y completar datos manuales (minutos, goles, asistencias…).',
             'link': 'coach-matches',
         },
+        {
+            'title': 'Rivales',
+            'description': 'Fichas de rivales, estadio, escudo, equipaciones y análisis previo del siguiente encuentro.',
+            'link': 'coach-rivals',
+        },
         {'title': 'Sesiones', 'description': 'Planificador semanal de sesiones y tareas.', 'link': 'sessions'},
         {'title': 'Multas', 'description': 'Control disciplinario del vestuario.', 'link': 'fines'},
     ]
