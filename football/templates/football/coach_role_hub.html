@@ -105,11 +105,15 @@
           linear-gradient(180deg, rgba(10, 17, 29, 0.74), rgba(5, 12, 21, 0.92));
         backdrop-filter: blur(14px);
         box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
-        display: flex;
-        justify-content: space-between;
-        gap: 1rem;
-        align-items: center;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 1rem 1.2rem;
+        align-items: start;
         margin-bottom: 1rem;
+      }
+      .role-header .title {
+        display: grid;
+        gap: 0.45rem;
       }
       .role-header .title h1 {
         margin: 0;
@@ -121,8 +125,34 @@
       .role-header .title p {
         margin: 0.4rem 0 0;
         color: rgba(226, 232, 240, 0.76);
-        max-width: 62ch;
+        max-width: 54ch;
         line-height: 1.55;
+      }
+      .role-meta-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      .role-meta-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        border-radius: 999px;
+        padding: 0.42rem 0.72rem;
+        border: 1px solid rgba(201, 162, 58, 0.14);
+        background: rgba(201, 162, 58, 0.05);
+        color: rgba(236, 228, 199, 0.96);
+        font-size: 0.7rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .role-actions {
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        align-items: center;
       }
       .premium-rail {
         display: grid;
@@ -141,7 +171,7 @@
         padding: 0.95rem 1rem;
         display: grid;
         gap: 0.4rem;
-        min-height: 118px;
+        min-height: 104px;
       }
       .premium-rail-card.is-featured {
         background:
@@ -215,7 +245,7 @@
       }
       .trainer-photo-panel {
         position: relative;
-        min-height: 500px;
+        min-height: 430px;
         border-radius: 26px;
         overflow: hidden;
         border: 1px solid rgba(148, 163, 184, 0.16);
@@ -261,25 +291,63 @@
       }
       .trainer-photo-copy {
         position: absolute;
-        inset: auto 0 0 0;
+        inset: 1rem auto auto 1rem;
+        max-width: min(520px, calc(100% - 2rem));
         z-index: 1;
-        padding: 1.2rem 1.15rem;
+        padding: 1rem 1.05rem;
         display: grid;
-        gap: 0.55rem;
-        background: linear-gradient(180deg, transparent, rgba(2, 6, 23, 0.86));
+        gap: 0.6rem;
+        border-radius: 20px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: linear-gradient(180deg, rgba(2, 6, 23, 0.54), rgba(2, 6, 23, 0.82));
+        backdrop-filter: blur(10px);
       }
       .trainer-photo-copy h2 {
         margin: 0;
         color: #f8fafc;
         text-transform: uppercase;
         letter-spacing: 0.08em;
-        font-size: 0.92rem;
+        font-size: 0.98rem;
       }
       .trainer-photo-copy p {
         margin: 0;
         color: rgba(226, 232, 240, 0.86);
         max-width: 44ch;
         line-height: 1.5;
+      }
+      .trainer-photo-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+      }
+      .trainer-photo-stats {
+        position: absolute;
+        inset: auto 1rem 1rem 1rem;
+        z-index: 1;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.55rem;
+      }
+      .trainer-photo-stat {
+        border-radius: 16px;
+        padding: 0.82rem 0.86rem;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background: rgba(2, 6, 23, 0.58);
+        backdrop-filter: blur(8px);
+      }
+      .trainer-photo-stat span {
+        display: block;
+        color: rgba(226, 232, 240, 0.68);
+        font-size: 0.62rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-weight: 900;
+      }
+      .trainer-photo-stat strong {
+        display: block;
+        margin-top: 0.18rem;
+        color: #f8fafc;
+        font-size: 1rem;
       }
       .trainer-info-stack {
         display: grid;
@@ -361,11 +429,25 @@
         text-transform: uppercase;
       }
       @media (max-width: 900px) {
+        .role-header {
+          grid-template-columns: 1fr;
+        }
+        .role-actions {
+          justify-content: flex-start;
+        }
         .trainer-hero-grid {
           grid-template-columns: 1fr;
         }
         .trainer-photo-panel {
           min-height: 320px;
+        }
+        .trainer-photo-copy {
+          inset: 0.85rem 0.85rem auto 0.85rem;
+          max-width: none;
+        }
+        .trainer-photo-stats {
+          inset: auto 0.85rem 0.85rem 0.85rem;
+          grid-template-columns: 1fr;
         }
         .trainer-info-meta {
           grid-template-columns: 1fr;
@@ -1631,54 +1713,22 @@
           <p class="product-kicker">Workspace por rol</p>
           <h1>{{ role_title }}</h1>
           <p>{{ role_description }}</p>
+          {% if role_key == 'trainer' %}
+          <div class="role-meta-row" aria-label="Contexto rápido del entrenador">
+            <span class="role-meta-chip">{{ active_team.display_name|default:'Equipo principal' }}</span>
+            <span class="role-meta-chip">{% if active_team and active_team.group and active_team.group.season %}{{ active_team.group.season.name }}{% else %}Temporada actual{% endif %}</span>
+            <span class="role-meta-chip">#{% if coach_standing_rank %}{{ coach_standing_rank }}{% else %}-{% endif %}</span>
+            <span class="role-meta-chip">{% if weekly_staff_brief %}{{ weekly_staff_brief.match.opponent }}{% else %}Rival por confirmar{% endif %}</span>
+          </div>
+          {% endif %}
         </div>
-        <div style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center; justify-content:flex-end;">
+        <div class="role-actions">
           {% if role_key == 'trainer' %}
           <a class="pill-button" style="border-radius:12px; text-decoration:none;" href="{% url 'reports-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" title="Biblioteca de informes PDF (club y jugador)">Informes</a>
           {% endif %}
           <a class="pill-button" style="border-radius:12px;" href="{% url 'coach-cards' %}">Volver</a>
         </div>
       </header>
-      {% if role_key == 'trainer' %}
-      <section class="premium-rail" aria-label="Accesos y estado rápido del entrenador">
-        <article class="premium-rail-card is-featured">
-          <span class="eyebrow">Centro de mando</span>
-          <strong>{{ active_team.display_name|default:'Equipo principal' }}</strong>
-          <p>Vista de inicio pensada para leer el contexto del equipo de un vistazo y entrar al trabajo real sin ruido.</p>
-        </article>
-        <article class="premium-rail-card">
-          <span class="eyebrow">Clasificación</span>
-          <strong>#{% if coach_standing_rank %}{{ coach_standing_rank }}{% else %}-{% endif %}</strong>
-          <p>
-            {% if coach_standing_points is not None %}
-              {{ coach_standing_points }} puntos · {{ coach_standing_played|default:0 }} partidos
-            {% else %}
-              Sin clasificación consolidada
-            {% endif %}
-          </p>
-        </article>
-        <article class="premium-rail-card">
-          <span class="eyebrow">Próximo rival</span>
-          <strong>{% if weekly_staff_brief %}{{ weekly_staff_brief.match.opponent }}{% else %}Rival por confirmar{% endif %}</strong>
-          <p>
-            {% if weekly_staff_brief %}
-              {{ weekly_staff_brief.match.round }} · {{ weekly_staff_brief.match.date }}
-            {% else %}
-              Pendiente de calendario
-            {% endif %}
-          </p>
-        </article>
-        <article class="premium-rail-card premium-rail-actions">
-          <span class="eyebrow">Accesos rápidos</span>
-          <div class="premium-rail-links">
-            <a href="{% url 'coach-roster' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Plantilla</a>
-            <a href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Sesiones</a>
-            <a href="{% url 'coach-matches' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Partidos</a>
-            <a href="{% url 'fines' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Multas</a>
-          </div>
-        </article>
-      </section>
-      {% endif %}
       {% if role_key == 'trainer' %}
       <section class="stadium-hero is-trainer">
         <div class="trainer-hero-grid">
@@ -1691,34 +1741,49 @@
               <p style="margin:0; text-transform:uppercase; letter-spacing:0.12em; color:var(--brand); font-weight:900;">Home del entrenador</p>
               <h2>{{ role_title }} · {{ active_team.display_name|default:'Equipo principal' }}</h2>
               <p>Foto del equipo, lectura competitiva y acceso directo al trabajo del staff en una sola superficie.</p>
+              <div class="trainer-photo-tags" aria-label="Resumen de contexto">
+                <span class="trainer-hero-chip">Plantilla</span>
+                <span class="trainer-hero-chip">Sesiones</span>
+                <span class="trainer-hero-chip">Partido</span>
+              </div>
+            </div>
+            <div class="trainer-photo-stats" aria-label="Datos rápidos del equipo">
+              <article class="trainer-photo-stat">
+                <span>Clasificación</span>
+                <strong>#{% if coach_standing_rank %}{{ coach_standing_rank }}{% else %}-{% endif %}</strong>
+              </article>
+              <article class="trainer-photo-stat">
+                <span>Puntos</span>
+                <strong>{% if coach_standing_points is not None %}{{ coach_standing_points }}{% else %}0{% endif %}</strong>
+              </article>
+              <article class="trainer-photo-stat">
+                <span>Próximo rival</span>
+                <strong>{% if weekly_staff_brief %}{{ weekly_staff_brief.match.opponent }}{% else %}Por confirmar{% endif %}</strong>
+              </article>
             </div>
           </article>
           <div class="trainer-info-stack">
             <article class="trainer-info-card">
-              <span class="label">Clasificación</span>
-              <div class="trainer-info-value">#{% if coach_standing_rank %}{{ coach_standing_rank }}{% else %}-{% endif %}</div>
-                <div class="trainer-info-meta" aria-label="Datos de clasificación">
-                  <div class="trainer-info-stat">
-                    <span>Puntos</span>
-                    <strong>{% if coach_standing_points is not None %}{{ coach_standing_points }}{% else %}0{% endif %}</strong>
-                  </div>
+              <span class="label">Accesos rápidos</span>
+              <div class="trainer-info-value" style="font-size:1.2rem;">Plantilla, sesiones y partido</div>
+              <div class="trainer-info-meta" aria-label="Accesos rápidos">
                 <div class="trainer-info-stat">
-                  <span>Jugados</span>
-                  <strong>{% if coach_standing_played is not None %}{{ coach_standing_played }}{% else %}0{% endif %}</strong>
+                  <span>Plantilla</span>
+                  <strong><a href="{% url 'coach-roster' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" style="color:inherit;text-decoration:none;">Abrir</a></strong>
                 </div>
                 <div class="trainer-info-stat">
-                  <span>Goles a favor</span>
-                  <strong>{% if coach_standing_goals_for is not None %}{{ coach_standing_goals_for }}{% else %}0{% endif %}</strong>
+                  <span>Sesiones</span>
+                  <strong><a href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" style="color:inherit;text-decoration:none;">Abrir</a></strong>
                 </div>
-                  <div class="trainer-info-stat">
-                    <span>Goles en contra</span>
-                    <strong>{% if coach_standing_goals_against is not None %}{{ coach_standing_goals_against }}{% else %}0{% endif %}</strong>
-                  </div>
-                  <div class="trainer-info-stat">
-                    <span>Diferencia</span>
-                    <strong>{% if coach_standing_goal_diff is not None and coach_standing_goal_diff != '' %}{{ coach_standing_goal_diff }}{% else %}0{% endif %}</strong>
-                  </div>
+                <div class="trainer-info-stat">
+                  <span>Partidos</span>
+                  <strong><a href="{% url 'coach-matches' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" style="color:inherit;text-decoration:none;">Abrir</a></strong>
                 </div>
+                <div class="trainer-info-stat">
+                  <span>Multas</span>
+                  <strong><a href="{% url 'fines' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" style="color:inherit;text-decoration:none;">Abrir</a></strong>
+                </div>
+              </div>
             </article>
             <article class="trainer-info-card">
               <span class="label">Próximo rival</span>
