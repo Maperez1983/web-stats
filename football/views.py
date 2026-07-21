@@ -10039,10 +10039,21 @@ def dashboard_page(request):
     # porque suelen ser internos (staff) y eso rompe el acceso a la plataforma.
     if current_role is None:
         current_role = AppUserRole.ROLE_COACH
-    # Product rule (ajustada): Platform es SOLO para admin. Para staff/coach la home es el dashboard del club.
-    # Se puede forzar el home club con `?home=club`.
+    # Product rule (ajustada): Platform es SOLO para admin. Para staff/coach la home es el hub de entrenador.
+    # `?home=club` debe tener prioridad para evitar caer en la portada vieja o en el dashboard clásico.
+    forced_home = str(request.GET.get('home') or '').strip().lower()
+    if forced_home == 'club':
+        try:
+            raw_params = request.GET.copy()
+            raw_params.pop('home', None)
+            preserved_qs = raw_params.urlencode()
+        except Exception:
+            preserved_qs = ''
+        trainer_url = reverse('coach-role-trainer')
+        if preserved_qs:
+            trainer_url = f'{trainer_url}?{preserved_qs}'
+        return redirect(trainer_url)
     if _is_admin_user(request.user) and _can_access_platform(request.user) and (host in app_hosts or host.startswith('app.')):
-        forced_home = str(request.GET.get('home') or '').strip().lower()
         if forced_home != 'club':
             # Si el usuario ya tiene un cliente activo (workspace) no lo mandamos a Platform en cada arranque.
             # Esto evita que la app "reinicie" siempre en Platform tras cerrar/abrir en iPad.
@@ -10059,8 +10070,13 @@ def dashboard_page(request):
         return redirect('player-dashboard')
     # Home de staff: el punto de entrada es el hub de entrenador.
     # La portada clásica queda como vista legacy explícita, no como inicio.
-    forced_home = str(request.GET.get('home') or '').strip().lower()
-    staff_roles = {AppUserRole.ROLE_COACH, AppUserRole.ROLE_FITNESS, AppUserRole.ROLE_GOALKEEPER, AppUserRole.ROLE_ANALYST}
+    staff_roles = {
+        AppUserRole.ROLE_COACH,
+        AppUserRole.ROLE_FITNESS,
+        AppUserRole.ROLE_GOALKEEPER,
+        AppUserRole.ROLE_ANALYST,
+        AppUserRole.ROLE_ADMIN,
+    }
     if current_role in staff_roles:
         try:
             raw_params = request.GET.copy()
