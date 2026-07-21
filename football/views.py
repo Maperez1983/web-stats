@@ -28610,6 +28610,62 @@ def coach_role_trainer_page(request):
             group=primary_team.group,
             team=primary_team,
         ).first()
+    hero_image_url = ''
+    hero_image_data_uri = ''
+    if primary_team and _should_use_team_cover_image(request, workspace, primary_team):
+        try:
+            updated_at = getattr(primary_team, 'cover_updated_at', None)
+            version = str(int(updated_at.timestamp())) if updated_at else str(int(timezone.now().timestamp()))
+            hero_image_url = f'{reverse("team-cover-image-file", args=[primary_team.id])}?v={version}&w=1600&h=900&q=72'
+            cache_key = f'coach-trainer:hero-data-uri:{int(primary_team.id)}:{version}'
+            cached_data_uri = None
+            try:
+                cached_data_uri = cache.get(cache_key)
+            except Exception:
+                cached_data_uri = None
+            if isinstance(cached_data_uri, str) and cached_data_uri.startswith('data:image/'):
+                hero_image_data_uri = cached_data_uri
+            else:
+                cover_field = getattr(primary_team, 'cover_image', None)
+                raw = b''
+                try:
+                    cover_field.open('rb')
+                    raw = cover_field.read() or b''
+                except Exception:
+                    raw = b''
+                try:
+                    cover_field.close()
+                except Exception:
+                    pass
+                if raw:
+                    ext = Path(getattr(cover_field, 'name', '') or '').suffix.lower()
+                    mime = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp'}.get(ext, 'image/jpeg')
+                    hero_image_data_uri = _image_bytes_as_small_data_uri(
+                        raw_bytes=raw,
+                        mime_type=mime,
+                        max_width=1600,
+                        max_height=900,
+                        quality=70,
+                    ) or ''
+                if hero_image_data_uri:
+                    try:
+                        cache.set(cache_key, hero_image_data_uri, timeout=60 * 60 * 24)
+                    except Exception:
+                        pass
+        except Exception:
+            hero_image_url = ''
+    if not hero_image_url:
+        active_hero_items = list(HomeCarouselImage.objects.filter(is_active=True).order_by('order', '-created_at', '-id'))
+        hero_items = active_hero_items or list(HomeCarouselImage.objects.order_by('order', '-created_at', '-id'))
+        if hero_items and getattr(hero_items[0], 'image', None):
+            try:
+                item = hero_items[0]
+                version = str(int(getattr(item, 'created_at', None).timestamp())) if getattr(item, 'created_at', None) else str(int(timezone.now().timestamp()))
+                hero_image_url = f'{reverse("home-carousel-image-file", args=[item.id])}?v={version}'
+            except Exception:
+                hero_image_url = ''
+        else:
+            hero_image_url = ''
     preferred_sources = preferred_event_source_by_match(primary_team, scope=stats_scope) if primary_team else {}
     base_events_qs = (
         confirmed_events_queryset()
@@ -29332,11 +29388,14 @@ def coach_role_trainer_page(request):
             'role_title': 'Entrenador',
             'role_key': 'trainer',
             'role_description': 'Área operativa principal del staff técnico.',
+            'hero_image_url': hero_image_url,
+            'hero_image_data_uri': hero_image_data_uri,
             'coach_standing_rank': standing.position if standing else '',
             'coach_standing_points': standing.points if standing else '',
             'coach_standing_played': standing.played if standing else '',
             'coach_standing_goals_for': standing.goals_for if standing else '',
             'coach_standing_goals_against': standing.goals_against if standing else '',
+            'coach_standing_goal_diff': (standing.goals_for - standing.goals_against) if standing else '',
             'stats_scope': stats_scope,
             'tournament_filter': tournament_filter,
             'tournament_options': _team_tournament_name_options(primary_team) if primary_team else [],

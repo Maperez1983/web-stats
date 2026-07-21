@@ -77,55 +77,113 @@
       .stadium-hero.is-trainer {
         overflow: hidden;
       }
-      .stadium-hero-media {
-        min-height: min(48vh, 340px);
-        border-radius: 22px 22px 0 0;
-        position: relative;
+      .trainer-hero-grid {
         display: grid;
-        align-items: end;
+        grid-template-columns: minmax(0, 1.3fr) minmax(300px, 0.7fr);
+        gap: 1rem;
         padding: 1rem;
-        background:
-          var(--pitch) linear-gradient(0deg, rgba(8, 16, 28, 0.62), rgba(8, 16, 28, 0.1)),
-          var(--hero-image) center/cover no-repeat;
-        background-blend-mode: multiply;
       }
-      .stadium-hero-media::after {
+      .trainer-photo-panel {
+        position: relative;
+        min-height: 420px;
+        border-radius: 20px;
+        overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(2, 6, 23, 0.4);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      }
+      .trainer-photo-panel img {
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-fit: cover;
+        object-position: center;
+      }
+      .trainer-photo-panel::after {
         content: "";
         position: absolute;
         inset: 0;
-        border-radius: 20px 20px 0 0;
-        background: linear-gradient(to top, rgba(4, 10, 18, 0.65), rgba(4, 10, 18, 0));
+        background: linear-gradient(180deg, rgba(2, 6, 23, 0.08) 25%, rgba(2, 6, 23, 0.74) 100%);
         pointer-events: none;
       }
-      .stadium-hero-media > div {
-        position: relative;
+      .trainer-photo-copy {
+        position: absolute;
+        inset: auto 0 0 0;
         z-index: 1;
-        max-width: 520px;
+        padding: 1rem;
+        display: grid;
+        gap: 0.5rem;
       }
-      .stadium-hero-media.is-trainer {
-        min-height: min(34vh, 260px);
-        grid-template-columns: minmax(0, 1fr) minmax(280px, 0.42fr);
-        gap: 1rem;
-        align-items: end;
-      }
-      .stadium-hero-copy {
-        max-width: 640px;
-      }
-      .stadium-hero-media h2 {
+      .trainer-photo-copy h2 {
         margin: 0;
         color: #f8fafc;
         text-transform: uppercase;
         letter-spacing: 0.12em;
       }
-      .stadium-hero-media p {
-        margin: 0.5rem 0 0;
+      .trainer-photo-copy p {
+        margin: 0;
         color: rgba(226, 232, 240, 0.86);
       }
-      .trainer-hero-meta {
-        margin-top: 0.75rem;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
+      .trainer-info-stack {
+        display: grid;
+        gap: 0.75rem;
+        align-content: start;
+      }
+      .trainer-info-card {
+        border-radius: 18px;
+        padding: 0.95rem;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(15, 23, 42, 0.9);
+        display: grid;
+        gap: 0.65rem;
+        min-height: 0;
+      }
+      .trainer-info-card .label {
+        display: block;
+        color: rgba(186, 230, 253, 0.88);
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-weight: 900;
+      }
+      .trainer-info-value {
+        font-size: 1.25rem;
+        font-weight: 950;
+        letter-spacing: -0.03em;
+        color: #f8fafc;
+      }
+      .trainer-info-meta {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.55rem;
+      }
+      .trainer-info-stat {
+        border-radius: 14px;
+        padding: 0.75rem 0.8rem;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(2, 6, 23, 0.42);
+      }
+      .trainer-info-stat span {
+        display: block;
+        color: rgba(226, 232, 240, 0.72);
+        font-size: 0.66rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .trainer-info-stat strong {
+        display: block;
+        margin-top: 0.2rem;
+        color: #f8fafc;
+        font-size: 1rem;
+      }
+      .trainer-next-rival {
+        display: grid;
+        gap: 0.55rem;
+      }
+      .trainer-next-rival p {
+        margin: 0;
+        color: rgba(226, 232, 240, 0.76);
+        line-height: 1.45;
       }
       .trainer-hero-chip {
         display: inline-flex;
@@ -141,42 +199,15 @@
         letter-spacing: 0.08em;
         text-transform: uppercase;
       }
-      .trainer-hero-rail {
-        position: relative;
-        z-index: 1;
-        display: grid;
-        gap: 0.7rem;
-        align-content: end;
-      }
-      .trainer-hero-stat {
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        background: rgba(7, 16, 30, 0.72);
-        border-radius: 16px;
-        padding: 0.8rem 0.9rem;
-        color: #f8fafc;
-      }
-      .trainer-hero-stat .label {
-        display: block;
-        color: rgba(186, 230, 253, 0.88);
-        font-size: 0.68rem;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        font-weight: 900;
-      }
-      .trainer-hero-stat strong {
-        display: block;
-        font-size: 1rem;
-        margin-top: 0.25rem;
-        line-height: 1.25;
-      }
       @media (max-width: 900px) {
-        .stadium-hero-media.is-trainer {
+        .trainer-hero-grid {
           grid-template-columns: 1fr;
         }
-      }
-      @media (max-width: 720px) {
-        .stadium-hero-media.is-trainer {
-          min-height: 0;
+        .trainer-photo-panel {
+          min-height: 320px;
+        }
+        .trainer-info-meta {
+          grid-template-columns: 1fr;
         }
       }
       .section-nav {
@@ -1417,41 +1448,61 @@
       </header>
       {% if role_key == 'trainer' %}
       <section class="stadium-hero is-trainer">
-        <div
-          class="stadium-hero-media is-trainer"
-          style="--hero-image: url('{% if hero_image_data_uri %}{{ hero_image_data_uri }}{% elif hero_image_url %}{{ hero_image_url }}{% else %}{% static 'football/campo-futbol-fallback.jpg' %}{% endif %}')"
-        >
-          <div class="stadium-hero-copy">
-            <p style="margin:0; text-transform:uppercase; letter-spacing:0.09em; color:var(--brand); font-weight:900;">Home del entrenador</p>
-            <h2>{{ role_title }} · {{ active_team.display_name|default:'Equipo principal' }}</h2>
-            <p>Vista de inicio con foto del equipo, lectura competitiva y acceso directo a los módulos del staff.</p>
-            <div class="trainer-hero-meta" aria-label="Resumen del equipo">
-              <span class="trainer-hero-chip">Clasificación {% if coach_standing_rank %}#{{ coach_standing_rank }}{% else %}-{% endif %}</span>
-              <span class="trainer-hero-chip">{% if coach_standing_points is not None %}{{ coach_standing_points }} pts{% else %}0 pts{% endif %}</span>
-              <span class="trainer-hero-chip">{% if coach_standing_played is not None %}{{ coach_standing_played }} partidos{% else %}0 partidos{% endif %}</span>
+        <div class="trainer-hero-grid">
+          <article class="trainer-photo-panel">
+            <img
+              src="{% if hero_image_data_uri %}{{ hero_image_data_uri }}{% elif hero_image_url %}{{ hero_image_url }}{% else %}{% static 'football/campo-futbol-fallback.jpg' %}{% endif %}"
+              alt="Portada del equipo"
+            />
+            <div class="trainer-photo-copy">
+              <p style="margin:0; text-transform:uppercase; letter-spacing:0.09em; color:var(--brand); font-weight:900;">Home del entrenador</p>
+              <h2>{{ role_title }} · {{ active_team.display_name|default:'Equipo principal' }}</h2>
+              <p>Vista de inicio con foto del equipo, lectura competitiva y acceso directo a los módulos del staff.</p>
             </div>
-          </div>
-          <aside class="trainer-hero-rail" aria-label="Próximo rival">
-            <article class="trainer-hero-stat">
+          </article>
+          <div class="trainer-info-stack">
+            <article class="trainer-info-card">
+              <span class="label">Clasificación</span>
+              <div class="trainer-info-value">#{% if coach_standing_rank %}{{ coach_standing_rank }}{% else %}-{% endif %}</div>
+                <div class="trainer-info-meta" aria-label="Datos de clasificación">
+                  <div class="trainer-info-stat">
+                    <span>Puntos</span>
+                    <strong>{% if coach_standing_points is not None %}{{ coach_standing_points }}{% else %}0{% endif %}</strong>
+                  </div>
+                <div class="trainer-info-stat">
+                  <span>Jugados</span>
+                  <strong>{% if coach_standing_played is not None %}{{ coach_standing_played }}{% else %}0{% endif %}</strong>
+                </div>
+                <div class="trainer-info-stat">
+                  <span>Goles a favor</span>
+                  <strong>{% if coach_standing_goals_for is not None %}{{ coach_standing_goals_for }}{% else %}0{% endif %}</strong>
+                </div>
+                  <div class="trainer-info-stat">
+                    <span>Goles en contra</span>
+                    <strong>{% if coach_standing_goals_against is not None %}{{ coach_standing_goals_against }}{% else %}0{% endif %}</strong>
+                  </div>
+                  <div class="trainer-info-stat">
+                    <span>Diferencia</span>
+                    <strong>{% if coach_standing_goal_diff is not None and coach_standing_goal_diff != '' %}{{ coach_standing_goal_diff }}{% else %}0{% endif %}</strong>
+                  </div>
+                </div>
+            </article>
+            <article class="trainer-info-card">
               <span class="label">Próximo rival</span>
-              <strong>{% if weekly_staff_brief %}{{ weekly_staff_brief.match.opponent }}{% else %}Rival por confirmar{% endif %}</strong>
+              <div class="trainer-info-value">{% if weekly_staff_brief %}{{ weekly_staff_brief.match.opponent }}{% else %}Rival por confirmar{% endif %}</div>
+              <div class="trainer-next-rival">
+                <p>
+                  {% if weekly_staff_brief %}
+                    {{ weekly_staff_brief.match.round }} · {{ weekly_staff_brief.match.date }}
+                    {% if weekly_staff_brief.match.time %} · {{ weekly_staff_brief.match.time }}{% endif %}
+                  {% else %}
+                    Pendiente de calendario
+                  {% endif %}
+                </p>
+                <p>{% if weekly_staff_brief %}{{ weekly_staff_brief.headline }}{% else %}Sin briefing semanal{% endif %}</p>
+              </div>
             </article>
-            <article class="trainer-hero-stat">
-              <span class="label">Siguiente cita</span>
-              <strong>
-                {% if weekly_staff_brief %}
-                  {{ weekly_staff_brief.match.round }} · {{ weekly_staff_brief.match.date }}
-                  {% if weekly_staff_brief.match.time %} · {{ weekly_staff_brief.match.time }}{% endif %}
-                {% else %}
-                  Pendiente de calendario
-                {% endif %}
-              </strong>
-            </article>
-            <article class="trainer-hero-stat">
-              <span class="label">Lectura rápida</span>
-              <strong>{% if weekly_staff_brief %}{{ weekly_staff_brief.headline }}{% else %}Sin briefing semanal{% endif %}</strong>
-            </article>
-          </aside>
+          </div>
         </div>
       </section>
       {% endif %}
