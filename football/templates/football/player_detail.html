@@ -959,7 +959,7 @@
 	      body.is-player-present .tabs,
 	      body.is-player-present .preview-banner { display: none !important; }
 	      body.is-player-present .card { margin-top: 0.6rem; }
-	      body.is-player-present [data-pane="performance"] { display: block !important; }
+      body.is-player-present [data-pane="stats"] { display: block !important; }
 	      body.is-player-present .performance-map,
 	      body.is-player-present .performance-table { display: none !important; }
 	      body.is-player-present .performance-radar { padding: 0.95rem; border-radius: 1.05rem; }
@@ -1045,11 +1045,10 @@
               Reúne tu información clave para entrar rápido a los datos personales, ver los entrenamientos, revisar las estadísticas de temporada y seguir el estado disciplinario.
             </p>
             <div class="portal-actions" aria-label="Accesos rápidos">
-              <a href="{% url 'player-detail' player.id %}?{% qs_replace tab='general' %}">Datos y estadísticas</a>
-              <a href="{% url 'player-detail' player.id %}?{% qs_replace tab='seasons' %}">Temporadas</a>
-              <a href="{% url 'player-detail' player.id %}?{% qs_replace tab='evaluations' %}">Evaluaciones</a>
-              <a href="{% url 'player-detail' player.id %}?{% qs_replace tab='fines' %}">Multas</a>
-              <a href="{% url 'player-detail' player.id %}?{% qs_replace tab='communication' %}">Comunicación</a>
+              <a href="{% url 'player-detail' player.id %}?{% qs_replace tab='personal' %}">Datos personales</a>
+              <a href="{% url 'player-detail' player.id %}?{% qs_replace tab='stats' %}">Estadísticas</a>
+              <a href="{% url 'player-detail' player.id %}?{% qs_replace tab='discipline' %}">Disciplina</a>
+              <a href="{% url 'player-detail' player.id %}?{% qs_replace tab='physical' %}">Físico</a>
             </div>
             <div class="portal-tags">
               {% if player.position %}<span class="portal-tag">{{ player.position }}</span>{% endif %}
@@ -1287,26 +1286,15 @@
       {% endif %}
 
       <div class="tabs" role="tablist">
-        <button class="tab-btn" data-tab="general" role="tab">Datos + Estadísticas</button>
-        <button class="tab-btn" data-tab="seasons" role="tab">Temporadas</button>
-        <button class="tab-btn" data-tab="evaluations" role="tab">Evaluaciones</button>
-        <button class="tab-btn" data-tab="performance" role="tab">KPI + Mapa</button>
+        <button class="tab-btn" data-tab="personal" role="tab">Datos personales y Evaluación previa</button>
+        <button class="tab-btn" data-tab="stats" role="tab">Estadísticas y KPI mapa</button>
         <button class="tab-btn" data-tab="injuries" role="tab">Lesiones</button>
-        <button class="tab-btn" data-tab="communication" role="tab">Comunicación</button>
-        {% if assigned_analysis_videos %}
-        <button class="tab-btn" data-tab="videos" role="tab">Vídeos</button>
-        {% endif %}
-        {% if is_player_readonly %}
-        <button class="tab-btn" data-tab="fines" role="tab">Multas</button>
-        {% endif %}
-        {% if not is_player_readonly %}
-        <button class="tab-btn" data-tab="fines" role="tab">Multas</button>
-        <button class="tab-btn" data-tab="physical" role="tab">Métricas físicas</button>
-        {% endif %}
+        <button class="tab-btn" data-tab="discipline" role="tab">Comunicación y multas</button>
+        <button class="tab-btn" data-tab="physical" role="tab">Físico</button>
       </div>
 
-      <section class="card tab-pane" data-pane="general">
-        <h2 style="margin-top:0;">Datos personales y estadísticas generales</h2>
+      <section class="card tab-pane" data-pane="personal">
+        <h2 style="margin-top:0;">Datos personales y evaluación previa</h2>
         <div class="attendance-summary-card">
           <div class="attendance-summary-head">
             <div>
@@ -1378,6 +1366,63 @@
               {% endif %}
             </div>
           {% endif %}
+        </div>
+        <div class="decision-board" aria-label="Evaluación previa">
+          <article class="decision-card">
+            <span class="label">Última evaluación</span>
+            <div class="value">
+              {% if latest_eval %}
+                {{ latest_eval.evaluated_on|date:"d/m/Y" }}
+              {% else %}
+                Sin evaluación cerrada
+              {% endif %}
+            </div>
+            <div class="meta">
+              {% if latest_eval %}
+                {{ latest_eval.get_evaluation_type_display }} · Global {{ latest_eval.overall_rating|default:"--" }}
+              {% else %}
+                No hay una evaluación cerrada visible para este jugador.
+              {% endif %}
+            </div>
+          </article>
+          <article class="decision-card">
+            <span class="label">Contexto</span>
+            <div class="value">
+              {% if evaluation_summary.days_since is not None %}
+                Hace {{ evaluation_summary.days_since }} días
+              {% else %}
+                Sin histórico
+              {% endif %}
+            </div>
+            <div class="meta">
+              {% if latest_eval %}
+                Revisión previa disponible para comparar con la evolución actual.
+              {% else %}
+                La primera evaluación servirá de línea base.
+              {% endif %}
+            </div>
+          </article>
+          <article class="decision-card">
+            <span class="label">Estado operativo</span>
+            <div class="value">
+              {% if has_active_injury %}
+                Lesionado
+              {% elif has_manual_sanction %}
+                Sancionado
+              {% else %}
+                Disponible
+              {% endif %}
+            </div>
+            <div class="meta">
+              {% if has_active_injury %}
+                Revisa el historial de lesiones y la fecha estimada de alta.
+              {% elif has_manual_sanction %}
+                Comprueba la sanción manual registrada en la ficha.
+              {% else %}
+                Sin bloqueo operativo en este momento.
+              {% endif %}
+            </div>
+          </article>
         </div>
         <div class="personal-layout">
           {% if not is_player_readonly %}
@@ -1741,7 +1786,7 @@
                   </div>
                 </div>
                 <div style="display:flex; gap:0.45rem; flex-wrap:wrap; justify-content:flex-end;">
-                  <a class="btn alt" href="{% url 'player-detail' player.id %}?{% qs_replace club_season_id=row.id tab='general' %}">Abrir</a>
+                  <a class="btn alt" href="{% url 'player-detail' player.id %}?{% qs_replace club_season_id=row.id tab='personal' %}">Abrir</a>
                   <a class="btn" href="{{ row.pdf_url }}" target="_blank" rel="noopener">PDF</a>
                 </div>
               </article>
@@ -2026,8 +2071,8 @@
         {% endif %}
       </section>
 
-      <section class="card tab-pane" data-pane="performance">
-        <h2 style="margin-top:0;">Rendimiento, KPI y mapa de calor</h2>
+      <section class="card tab-pane" data-pane="stats">
+        <h2 style="margin-top:0;">Estadísticas y KPI mapa</h2>
         {% if stats %}
 	          <div class="performance-overview" data-kpi-container>
 	            <h3>KPI de rendimiento</h3>
@@ -2318,7 +2363,7 @@
 
       <section class="card tab-pane" data-pane="physical">
         {% if not is_player_readonly %}
-        <h2 style="margin-top:0;">Métricas físicas (staff)</h2>
+        <h2 style="margin-top:0;">Físico</h2>
         <div class="stats-grid" style="margin-top:0;">
           <article class="stat">
             <div class="label">Altura base</div>
@@ -2384,103 +2429,119 @@
         {% endif %}
       </section>
 
-      <section class="card tab-pane" data-pane="fines">
-        <h2 style="margin-top:0;">Multas recibidas</h2>
-        <div class="stats-grid" style="margin-top:0.4rem;">
-          <article class="stat">
-            <div class="label">Total</div>
-            <div class="value">{{ fines_summary.total|default:0 }}</div>
-          </article>
-          <article class="stat">
-            <div class="label">Multas registradas</div>
-            <div class="value">{{ fines_summary.registered_fines|default:0 }}</div>
-          </article>
-          <article class="stat">
-            <div class="label">Importe total</div>
-            <div class="value">{{ fines_summary.registered_total|default:0 }}€</div>
-          </article>
-          <article class="stat">
-            <div class="label">Sanción manual</div>
-            <div class="value">{{ fines_summary.manual_sanctions|default:0 }}</div>
-          </article>
+      <section class="card tab-pane" data-pane="discipline">
+        <h2 style="margin-top:0;">Comunicación y multas</h2>
+        <div class="split">
+          <section class="section" style="margin-top:0;">
+            <h2>Multas</h2>
+            <p>Resumen disciplinario y sanciones manuales registradas.</p>
+            <div class="stats-grid" style="margin-top:0.4rem;">
+              <article class="stat">
+                <div class="label">Total</div>
+                <div class="value">{{ fines_summary.total|default:0 }}</div>
+              </article>
+              <article class="stat">
+                <div class="label">Multas registradas</div>
+                <div class="value">{{ fines_summary.registered_fines|default:0 }}</div>
+              </article>
+              <article class="stat">
+                <div class="label">Importe total</div>
+                <div class="value">{{ fines_summary.registered_total|default:0 }}€</div>
+              </article>
+              <article class="stat">
+                <div class="label">Sanción manual</div>
+                <div class="value">{{ fines_summary.manual_sanctions|default:0 }}</div>
+              </article>
+            </div>
+
+            <table>
+              <thead>
+                <tr><th>Tipo</th><th>Cantidad</th><th>Fecha / Hasta</th><th>Detalle</th></tr>
+              </thead>
+              <tbody>
+                {% for item in fines_records %}
+                <tr>
+                  <td>{{ item.type }}</td>
+                  <td>{{ item.amount|default:0 }}€</td>
+                  <td>{{ item.date }}</td>
+                  <td>{{ item.detail|default:'-' }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4">Sin multas registradas.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </section>
+
+          <section class="section" style="margin-top:0;">
+            <h2>Comunicación</h2>
+            <p>
+              {% if is_player_readonly %}
+              Historial de mensajes, convocatorias y comunicaciones del staff.
+              {% else %}
+              Puedes dejar trazabilidad de mensajes de convocatoria, avisos internos o parte médico.
+              {% endif %}
+            </p>
+            {% if not is_player_readonly %}
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="form_action" value="communication" />
+              <div class="form-grid">
+                <label>Tipo
+                  <select name="category">
+                    <option value="convocatoria">Convocatoria</option>
+                    <option value="interna">Comunicación interna</option>
+                    <option value="medica">Parte médico</option>
+                  </select>
+                </label>
+                <label>Programar para
+                  <input type="datetime-local" name="scheduled_for" />
+                </label>
+                <label style="grid-column: 1 / -1;">Mensaje
+                  <textarea name="message" placeholder="Ej. Convocado para Jornada 25, citación 16:15 en vestuarios."></textarea>
+                </label>
+              </div>
+              <div style="margin-top:0.85rem;"><button type="submit">Guardar comunicación</button></div>
+            </form>
+            {% endif %}
+
+            <table>
+              <thead>
+                <tr><th>Fecha</th><th>Tipo</th><th>Partido</th><th>Programada</th><th>Mensaje</th><th>Autor</th></tr>
+              </thead>
+              <tbody>
+                {% for item in communications %}
+                <tr>
+                  <td>{{ item.created_at|date:'d/m/Y H:i' }}</td>
+                  <td>{{ item.get_category_display }}</td>
+                  <td>{{ item.match.round|default:'-' }}</td>
+                  <td>{% if item.scheduled_for %}{{ item.scheduled_for|date:'d/m/Y H:i' }}{% else %}-{% endif %}</td>
+                  <td>{{ item.message }}</td>
+                  <td>{{ item.created_by|default:'-' }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6">Sin comunicaciones registradas.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </section>
         </div>
-
-        <table>
-          <thead>
-            <tr><th>Tipo</th><th>Cantidad</th><th>Fecha / Hasta</th><th>Detalle</th></tr>
-          </thead>
-          <tbody>
-            {% for item in fines_records %}
-            <tr>
-              <td>{{ item.type }}</td>
-              <td>{{ item.amount|default:0 }}€</td>
-              <td>{{ item.date }}</td>
-              <td>{{ item.detail|default:'-' }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="4">Sin multas registradas.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </section>
-
-      <section class="card tab-pane" data-pane="communication">
-        <h2 style="margin-top:0;">Comunicación y convocatorias</h2>
-        <p class="subtle" style="margin-top:0;">
-          {% if is_player_readonly %}
-          Historial de mensajes, convocatorias y comunicaciones del staff.
-          {% else %}
-          Puedes dejar trazabilidad de mensajes de convocatoria, avisos internos o parte médico.
-          {% endif %}
-        </p>
-        {% if not is_player_readonly %}
-        <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="form_action" value="communication" />
-          <div class="form-grid">
-            <label>Tipo
-              <select name="category">
-                <option value="convocatoria">Convocatoria</option>
-                <option value="interna">Comunicación interna</option>
-                <option value="medica">Parte médico</option>
-              </select>
-            </label>
-            <label>Programar para
-              <input type="datetime-local" name="scheduled_for" />
-            </label>
-            <label style="grid-column: 1 / -1;">Mensaje
-              <textarea name="message" placeholder="Ej. Convocado para Jornada 25, citación 16:15 en vestuarios."></textarea>
-            </label>
-          </div>
-          <div style="margin-top:0.85rem;"><button type="submit">Guardar comunicación</button></div>
-        </form>
-        {% endif %}
-
-        <table>
-          <thead>
-            <tr><th>Fecha</th><th>Tipo</th><th>Partido</th><th>Programada</th><th>Mensaje</th><th>Autor</th></tr>
-          </thead>
-          <tbody>
-            {% for item in communications %}
-            <tr>
-              <td>{{ item.created_at|date:'d/m/Y H:i' }}</td>
-              <td>{{ item.get_category_display }}</td>
-              <td>{{ item.match.round|default:'-' }}</td>
-              <td>{% if item.scheduled_for %}{{ item.scheduled_for|date:'d/m/Y H:i' }}{% else %}-{% endif %}</td>
-              <td>{{ item.message }}</td>
-              <td>{{ item.created_by|default:'-' }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="6">Sin comunicaciones registradas.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
       </section>
     </div>
 
 	    <script>
 	      (() => {
-        const fallbackTab = '{{ active_tab|default:"general"|escapejs }}' || 'general';
+        const tabAliases = {
+          general: 'personal',
+          seasons: 'personal',
+          evaluations: 'personal',
+          performance: 'stats',
+          communication: 'discipline',
+          fines: 'discipline',
+          videos: 'personal',
+        };
+        const rawTab = '{{ active_tab|default:"personal"|escapejs }}' || 'personal';
+        const fallbackTab = tabAliases[rawTab] || rawTab;
         const buttons = Array.from(document.querySelectorAll('.tab-btn'));
         const panes = Array.from(document.querySelectorAll('.tab-pane'));
         const activate = (tab) => {
@@ -2491,7 +2552,7 @@
           window.history.replaceState({}, '', url);
         };
         buttons.forEach((btn) => btn.addEventListener('click', () => activate(btn.dataset.tab)));
-	        activate(buttons.some((b) => b.dataset.tab === fallbackTab) ? fallbackTab : 'general');
+	        activate(buttons.some((b) => b.dataset.tab === fallbackTab) ? fallbackTab : 'personal');
 		      })();
 		    </script>
 		    <script>
@@ -2501,7 +2562,7 @@
 		        const key = 'player_detail:present:v1';
 		        const activatePerformance = () => {
 		          try {
-		            const perfBtn = document.querySelector('.tab-btn[data-tab="performance"]');
+		            const perfBtn = document.querySelector('.tab-btn[data-tab="stats"]');
 		            if (perfBtn) perfBtn.click();
 		          } catch (e) {}
 		        };

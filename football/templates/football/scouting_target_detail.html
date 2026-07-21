@@ -290,6 +290,34 @@
         border: 1px solid rgba(248,113,113,0.28);
         color: #fee2e2;
       }
+      .tabs {
+        margin-top: 0.95rem;
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      .tab-btn {
+        border: 1px solid rgba(244,180,0,0.24);
+        background: rgba(15,23,42,0.62);
+        color: rgba(245,247,250,0.94);
+        border-radius: 999px;
+        padding: 0.52rem 0.9rem;
+        cursor: pointer;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+      }
+      .tab-btn.is-active {
+        border-color: rgba(244,180,0,0.48);
+        background: linear-gradient(135deg, rgba(244,180,0,0.2), rgba(47,125,50,0.12));
+      }
+      .tab-pane {
+        display: none;
+      }
+      .tab-pane.is-active {
+        display: block;
+      }
       @media (max-width: 900px) {
         .header,
         .grid-top,
@@ -324,15 +352,9 @@
           <div class="status-line">
             <span class="badge {% if target.priority == 'urgent' %}critical{% elif target.priority == 'high' %}warning{% else %}ok{% endif %}">{{ target.get_priority_display }}</span>
             <span class="badge cyan">{{ target.get_status_display }}</span>
-            {% if target.player_id %}
-            <span class="badge ok">En plantilla</span>
-            {% endif %}
-            {% if target.assigned_to %}
-            <span class="badge">Asignado: {{ target.assigned_to.get_full_name|default:target.assigned_to.username }}</span>
-            {% endif %}
-            {% if target.next_review_on %}
-            <span class="badge">Revisión {{ target.next_review_on|date:"d/m/Y" }}</span>
-            {% endif %}
+            {% if target.player_id %}<span class="badge ok">En plantilla</span>{% endif %}
+            {% if target.assigned_to %}<span class="badge">Asignado: {{ target.assigned_to.get_full_name|default:target.assigned_to.username }}</span>{% endif %}
+            {% if target.next_review_on %}<span class="badge">Revisión {{ target.next_review_on|date:"d/m/Y" }}</span>{% endif %}
           </div>
         </div>
         <div class="actions">
@@ -352,7 +374,15 @@
         </div>
       </header>
 
-      <section class="panel">
+      <div class="tabs" role="tablist">
+        <button class="tab-btn" data-tab="personal" role="tab">Datos personales y Evaluación previa</button>
+        <button class="tab-btn" data-tab="stats" role="tab">Estadísticas y KPI mapa</button>
+        <button class="tab-btn" data-tab="injuries" role="tab">Lesiones</button>
+        <button class="tab-btn" data-tab="discipline" role="tab">Comunicación y multas</button>
+        <button class="tab-btn" data-tab="physical" role="tab">Físico</button>
+      </div>
+
+      <section class="panel tab-pane" data-pane="personal">
         <div class="grid-top">
           <div>
             <h2 style="margin:0;font-size:0.9rem;letter-spacing:0.12em;text-transform:uppercase;">Resumen</h2>
@@ -392,145 +422,130 @@
                 <div class="value">{{ target.updated_at|date:"d/m/Y H:i" }}</div>
               </div>
             </div>
+            <div class="summary-grid" style="margin-top:0.75rem;">
+              <div class="summary">
+                <div class="label">Revisión</div>
+                <div class="value">{% if target.next_review_on %}{{ target.next_review_on|date:"d/m/Y" }}{% else %}-{% endif %}</div>
+              </div>
+              <div class="summary">
+                <div class="label">Asignado</div>
+                <div class="value">{% if target.assigned_to %}Sí{% else %}-{% endif %}</div>
+              </div>
+              <div class="summary">
+                <div class="label">Plantilla</div>
+                <div class="value">{% if target.player_id %}Sí{% else %}No{% endif %}</div>
+              </div>
+            </div>
           </div>
         </div>
-      </section>
 
-      {% if can_manage_workspace %}
-      <section class="section">
-        <h2>Editar seguimiento</h2>
-        <p>Ajusta estado, prioridad y datos base sin salir de la ficha.</p>
-        <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="save-target" />
-          <div class="form-grid">
-            <label>
-              Nombre
-              <input type="text" name="subject_name" value="{{ target.subject_name }}" maxlength="160" required />
-            </label>
-            <label>
-              Club
-              <input type="text" name="subject_team_name" value="{{ target.subject_team_name }}" maxlength="160" />
-            </label>
-            <label>
-              Posición
-              <input type="text" name="position" value="{{ target.position }}" maxlength="60" />
-            </label>
-            <label>
-              Pie
-              <input type="text" name="dominant_foot" value="{{ target.dominant_foot }}" maxlength="16" />
-            </label>
-            <label>
-              Fecha nacimiento
-              <input type="date" name="birth_date" value="{{ target.birth_date|date:'Y-m-d' }}" />
-            </label>
-            <label>
-              Estado
-              <select name="status">
-                {% for value,label in status_choices %}
-                <option value="{{ value }}"{% if target.status == value %} selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>
-              Prioridad
-              <select name="priority">
-                {% for value,label in priority_choices %}
-                <option value="{{ value }}"{% if target.priority == value %} selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>
-              Asignado a ID
-              <input type="number" name="assigned_to_id" min="1" value="{{ target.assigned_to_id|default:'' }}" />
-            </label>
-            <label>
-              Próxima revisión
-              <input type="date" name="next_review_on" value="{{ target.next_review_on|date:'Y-m-d' }}" />
-            </label>
-            <label style="grid-column:1 / -1;">
-              Nota de presupuesto
-              <input type="text" name="budget_note" value="{{ target.budget_note }}" maxlength="160" />
-            </label>
-            <label style="grid-column:1 / -1;">
-              Resumen
-              <textarea name="summary">{{ target.summary }}</textarea>
-            </label>
-          </div>
-          <div class="actions-row">
-            <button class="btn primary" type="submit">Guardar</button>
-          </div>
-        </form>
-      </section>
-      {% endif %}
-
-      <div class="split">
+        {% if can_manage_workspace %}
         <section class="section">
-          <h2>Nuevo informe</h2>
-          <p>Valora el jugador tras una observación, partido o vídeo.</p>
-          {% if can_manage_workspace %}
+          <h2>Editar seguimiento</h2>
+          <p>Ajusta estado, prioridad y datos base sin salir de la ficha.</p>
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save-target" />
+            <div class="form-grid">
+              <label>Nombre
+                <input type="text" name="subject_name" value="{{ target.subject_name }}" maxlength="160" required />
+              </label>
+              <label>Club
+                <input type="text" name="subject_team_name" value="{{ target.subject_team_name }}" maxlength="160" />
+              </label>
+              <label>Posición
+                <input type="text" name="position" value="{{ target.position }}" maxlength="60" />
+              </label>
+              <label>Pie
+                <input type="text" name="dominant_foot" value="{{ target.dominant_foot }}" maxlength="16" />
+              </label>
+              <label>Fecha nacimiento
+                <input type="date" name="birth_date" value="{{ target.birth_date|date:'Y-m-d' }}" />
+              </label>
+              <label>Estado
+                <select name="status">
+                  {% for value,label in status_choices %}
+                  <option value="{{ value }}"{% if target.status == value %} selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>Prioridad
+                <select name="priority">
+                  {% for value,label in priority_choices %}
+                  <option value="{{ value }}"{% if target.priority == value %} selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>Asignado a ID
+                <input type="number" name="assigned_to_id" min="1" value="{{ target.assigned_to_id|default:'' }}" />
+              </label>
+              <label>Próxima revisión
+                <input type="date" name="next_review_on" value="{{ target.next_review_on|date:'Y-m-d' }}" />
+              </label>
+              <label style="grid-column:1 / -1;">Nota de presupuesto
+                <input type="text" name="budget_note" value="{{ target.budget_note }}" maxlength="160" />
+              </label>
+              <label style="grid-column:1 / -1;">Resumen
+                <textarea name="summary">{{ target.summary }}</textarea>
+              </label>
+            </div>
+            <div class="actions-row">
+              <button class="btn primary" type="submit">Guardar</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="section">
+          <h2>Evaluación previa</h2>
+          <p>La primera observación del ojeador sirve para fijar la base comparativa.</p>
           <form method="post">
             {% csrf_token %}
             <input type="hidden" name="action" value="create-report" />
             <div class="report-grid">
-              <label>
-                Fecha
+              <label>Fecha
                 <input type="date" name="observed_on" value="{% now 'Y-m-d' %}" />
               </label>
-              <label>
-                Rival
+              <label>Rival
                 <input type="text" name="opposition" maxlength="160" />
               </label>
-              <label>
-                Competición
+              <label>Competición
                 <input type="text" name="competition" maxlength="160" />
               </label>
-              <label>
-                Técnico
+              <label>Técnico
                 <input type="number" name="technical_rating" min="1" max="10" />
               </label>
-              <label>
-                Táctico
+              <label>Táctico
                 <input type="number" name="tactical_rating" min="1" max="10" />
               </label>
-              <label>
-                Físico
+              <label>Físico
                 <input type="number" name="physical_rating" min="1" max="10" />
               </label>
-              <label>
-                Mental
+              <label>Mental
                 <input type="number" name="mental_rating" min="1" max="10" />
               </label>
-              <label>
-                Potencial
+              <label>Potencial
                 <input type="number" name="potential_rating" min="1" max="10" />
               </label>
-              <label>
-                Encaje
+              <label>Encaje
                 <input type="number" name="fit_rating" min="1" max="10" />
               </label>
-              <label>
-                Recomendación
+              <label>Recomendación
                 <select name="recommendation">
                   {% for value,label in recommendation_choices %}
                   <option value="{{ value }}"{% if value == 'wait' %} selected{% endif %}>{{ label }}</option>
                   {% endfor %}
                 </select>
               </label>
-              <label style="grid-column:1 / -1;">
-                Fortalezas
+              <label style="grid-column:1 / -1;">Fortalezas
                 <textarea name="strengths"></textarea>
               </label>
-              <label style="grid-column:1 / -1;">
-                Debilidades
+              <label style="grid-column:1 / -1;">Debilidades
                 <textarea name="weaknesses"></textarea>
               </label>
-              <label style="grid-column:1 / -1;">
-                Resumen
+              <label style="grid-column:1 / -1;">Resumen
                 <textarea name="summary"></textarea>
               </label>
-              <label style="grid-column:1 / -1;">
-                Siguiente paso
+              <label style="grid-column:1 / -1;">Siguiente paso
                 <textarea name="next_steps"></textarea>
               </label>
             </div>
@@ -538,116 +553,211 @@
               <button class="btn primary" type="submit">Guardar informe</button>
             </div>
           </form>
-          {% else %}
-          <div class="empty">Solo los perfiles con permisos de gestión pueden crear informes.</div>
-          {% endif %}
         </section>
+        {% else %}
+        <div class="empty">Solo los perfiles con permisos de gestión pueden editar o evaluar este seguimiento.</div>
+        {% endif %}
+      </section>
 
-        <section class="section">
-          <h2>Nuevo seguimiento</h2>
-          <p>Define la próxima acción a revisar.</p>
-          {% if can_manage_workspace %}
-          <form method="post">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="create-followup" />
-            <div class="follow-grid">
-              <label>
-                Tarea
-                <input type="text" name="title" maxlength="140" required />
-              </label>
-              <label>
-                Vence
-                <input type="date" name="due_on" />
-              </label>
-              <label style="grid-column:1 / -1;">
-                Notas
-                <textarea name="notes"></textarea>
-              </label>
-            </div>
-            <div class="actions-row">
-              <button class="btn primary" type="submit">Añadir seguimiento</button>
-            </div>
-          </form>
-          {% else %}
-          <div class="empty">Solo los perfiles con permisos de gestión pueden crear seguimientos.</div>
-          {% endif %}
-        </section>
-      </div>
-
-      <div class="split">
-        <section class="section">
-          <h2>Informes</h2>
-          {% if reports %}
-          <div class="list">
-            {% for report in reports %}
-            <article class="item">
-              <div class="item-head">
-                <div>
-                  <h3 class="item-title">{{ report.observed_on|date:"d/m/Y" }} · {{ report.get_recommendation_display }}</h3>
-                  <div class="item-meta">
-                    {% if report.competition %}{{ report.competition }}{% endif %}
-                    {% if report.opposition %}{% if report.competition %} · {% endif %}{{ report.opposition }}{% endif %}
-                    {% if report.created_by %} · {{ report.created_by.get_full_name|default:report.created_by.username }}{% endif %}
-                  </div>
-                </div>
-                <span class="badge {% if report.recommendation == 'sign' %}ok{% elif report.recommendation == 'discard' %}critical{% else %}warning{% endif %}">{{ report.get_recommendation_display }}</span>
-              </div>
-              {% if report.summary %}<div class="item-text">{{ report.summary }}</div>{% endif %}
-              <div class="card-badges" style="margin-top:0.6rem;">
-                {% if report.technical_rating %}<span class="badge">T {{ report.technical_rating }}/10</span>{% endif %}
-                {% if report.tactical_rating %}<span class="badge">Tac {{ report.tactical_rating }}/10</span>{% endif %}
-                {% if report.physical_rating %}<span class="badge">Fis {{ report.physical_rating }}/10</span>{% endif %}
-                {% if report.mental_rating %}<span class="badge">Men {{ report.mental_rating }}/10</span>{% endif %}
-                {% if report.potential_rating %}<span class="badge">Pot {{ report.potential_rating }}/10</span>{% endif %}
-                {% if report.fit_rating %}<span class="badge">Encaje {{ report.fit_rating }}/10</span>{% endif %}
-              </div>
-              {% if report.strengths %}<div class="item-text"><strong>Fortalezas:</strong> {{ report.strengths }}</div>{% endif %}
-              {% if report.weaknesses %}<div class="item-text"><strong>Debilidades:</strong> {{ report.weaknesses }}</div>{% endif %}
-              {% if report.next_steps %}<div class="item-text"><strong>Siguiente paso:</strong> {{ report.next_steps }}</div>{% endif %}
-            </article>
-            {% endfor %}
+      <section class="panel tab-pane" data-pane="stats">
+        <h2 style="margin-top:0;">Estadísticas y KPI mapa</h2>
+        <p class="sub">Bloque de lectura técnica, táctica y física basado en informes y comparativa de seguimiento.</p>
+        <div class="summary-grid">
+          <div class="summary">
+            <div class="label">Informes</div>
+            <div class="value">{{ reports|length }}</div>
           </div>
-          {% else %}
+          <div class="summary">
+            <div class="label">Última recomendación</div>
+            <div class="value">{% if latest_report %}{{ latest_report.get_recommendation_display }}{% else %}-{% endif %}</div>
+          </div>
+          <div class="summary">
+            <div class="label">Próxima revisión</div>
+            <div class="value">{% if target.next_review_on %}{{ target.next_review_on|date:"d/m/Y" }}{% else %}-{% endif %}</div>
+          </div>
+        </div>
+        {% if latest_report %}
+        <div class="mini-grid">
+          <div class="mini"><div class="label">Técnico</div><div class="value">{% if latest_report.technical_rating %}{{ latest_report.technical_rating }}/10{% else %}-{% endif %}</div></div>
+          <div class="mini"><div class="label">Táctico</div><div class="value">{% if latest_report.tactical_rating %}{{ latest_report.tactical_rating }}/10{% else %}-{% endif %}</div></div>
+          <div class="mini"><div class="label">Físico</div><div class="value">{% if latest_report.physical_rating %}{{ latest_report.physical_rating }}/10{% else %}-{% endif %}</div></div>
+          <div class="mini"><div class="label">Mental</div><div class="value">{% if latest_report.mental_rating %}{{ latest_report.mental_rating }}/10{% else %}-{% endif %}</div></div>
+          <div class="mini"><div class="label">Potencial</div><div class="value">{% if latest_report.potential_rating %}{{ latest_report.potential_rating }}/10{% else %}-{% endif %}</div></div>
+          <div class="mini"><div class="label">Encaje</div><div class="value">{% if latest_report.fit_rating %}{{ latest_report.fit_rating }}/10{% else %}-{% endif %}</div></div>
+        </div>
+        {% endif %}
+        <div class="list">
+          {% for report in reports %}
+          <article class="item">
+            <div class="item-head">
+              <div>
+                <h3 class="item-title">{{ report.observed_on|date:"d/m/Y" }} · {{ report.get_recommendation_display }}</h3>
+                <div class="item-meta">
+                  {% if report.competition %}{{ report.competition }}{% endif %}
+                  {% if report.opposition %}{% if report.competition %} · {% endif %}{{ report.opposition }}{% endif %}
+                  {% if report.created_by %} · {{ report.created_by.get_full_name|default:report.created_by.username }}{% endif %}
+                </div>
+              </div>
+              <span class="badge {% if report.recommendation == 'sign' %}ok{% elif report.recommendation == 'discard' %}critical{% else %}warning{% endif %}">{{ report.get_recommendation_display }}</span>
+            </div>
+            {% if report.summary %}<div class="item-text">{{ report.summary }}</div>{% endif %}
+            <div class="card-badges" style="margin-top:0.6rem;">
+              {% if report.technical_rating %}<span class="badge">T {{ report.technical_rating }}/10</span>{% endif %}
+              {% if report.tactical_rating %}<span class="badge">Tac {{ report.tactical_rating }}/10</span>{% endif %}
+              {% if report.physical_rating %}<span class="badge">Fis {{ report.physical_rating }}/10</span>{% endif %}
+              {% if report.mental_rating %}<span class="badge">Men {{ report.mental_rating }}/10</span>{% endif %}
+              {% if report.potential_rating %}<span class="badge">Pot {{ report.potential_rating }}/10</span>{% endif %}
+              {% if report.fit_rating %}<span class="badge">Encaje {{ report.fit_rating }}/10</span>{% endif %}
+            </div>
+            {% if report.strengths %}<div class="item-text"><strong>Fortalezas:</strong> {{ report.strengths }}</div>{% endif %}
+            {% if report.weaknesses %}<div class="item-text"><strong>Debilidades:</strong> {{ report.weaknesses }}</div>{% endif %}
+            {% if report.next_steps %}<div class="item-text"><strong>Siguiente paso:</strong> {{ report.next_steps }}</div>{% endif %}
+          </article>
+          {% empty %}
           <div class="empty">Aún no hay informes registrados.</div>
-          {% endif %}
-        </section>
+          {% endfor %}
+        </div>
+      </section>
 
-        <section class="section">
-          <h2>Seguimientos</h2>
-          {% if followups %}
-          <div class="list">
-            {% for followup in followups %}
-            <article class="item">
-              <div class="item-head">
-                <div>
-                  <h3 class="item-title">{{ followup.title }}</h3>
-                  <div class="item-meta">
-                    {% if followup.due_on %}Vence {{ followup.due_on|date:"d/m/Y" }}{% else %}Sin vencimiento{% endif %}
-                    {% if followup.created_by %} · {{ followup.created_by.get_full_name|default:followup.created_by.username }}{% endif %}
-                  </div>
-                </div>
-                <span class="badge {% if followup.is_done %}ok{% else %}warning{% endif %}">{% if followup.is_done %}Hecho{% else %}Abierto{% endif %}</span>
+      <section class="panel tab-pane" data-pane="injuries">
+        <h2 style="margin-top:0;">Lesiones</h2>
+        <div class="empty">
+          No hay un historial de lesiones específico para el seguimiento ojeado.
+          {% if target.player_id %}Al convertirlo en plantilla, la ficha del jugador heredará el seguimiento médico.{% endif %}
+        </div>
+        {% if player_detail_url %}
+        <div class="actions-row" style="margin-top:0.85rem;">
+          <a class="btn primary" href="{{ player_detail_url }}">Abrir ficha jugador</a>
+        </div>
+        {% endif %}
+      </section>
+
+      <section class="panel tab-pane" data-pane="discipline">
+        <h2 style="margin-top:0;">Comunicación y multas</h2>
+        <div class="split">
+          <section class="section" style="margin-top:0;">
+            <h2>Multas</h2>
+            <p>Por ahora este seguimiento no tiene una bolsa de multas propia.</p>
+            <div class="empty" style="margin-top:0.85rem;">Sin multas registradas en el seguimiento.</div>
+          </section>
+
+          <section class="section" style="margin-top:0;">
+            <h2>Comunicación</h2>
+            <p>Usa los seguimientos para dejar trazabilidad operativa del ojeo.</p>
+            {% if can_manage_workspace %}
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="create-followup" />
+              <div class="follow-grid">
+                <label>Tarea
+                  <input type="text" name="title" maxlength="140" required />
+                </label>
+                <label>Vence
+                  <input type="date" name="due_on" />
+                </label>
+                <label style="grid-column:1 / -1;">Notas
+                  <textarea name="notes"></textarea>
+                </label>
               </div>
-              {% if followup.notes %}<div class="item-text">{{ followup.notes }}</div>{% endif %}
-              {% if can_manage_workspace %}
-              <form method="post" class="actions-row" style="margin-top:0.65rem;">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="toggle-followup" />
-                <input type="hidden" name="followup_id" value="{{ followup.id }}" />
-                <button class="btn" type="submit">{% if followup.is_done %}Reabrir{% else %}Marcar hecho{% endif %}</button>
-              </form>
-              {% endif %}
-            </article>
-            {% endfor %}
+              <div class="actions-row">
+                <button class="btn primary" type="submit">Añadir seguimiento</button>
+              </div>
+            </form>
+            {% endif %}
+            <div class="list" style="margin-top:0.9rem;">
+              {% for followup in followups %}
+              <article class="item">
+                <div class="item-head">
+                  <div>
+                    <h3 class="item-title">{{ followup.title }}</h3>
+                    <div class="item-meta">
+                      {% if followup.due_on %}Vence {{ followup.due_on|date:"d/m/Y" }}{% else %}Sin vencimiento{% endif %}
+                      {% if followup.created_by %} · {{ followup.created_by.get_full_name|default:followup.created_by.username }}{% endif %}
+                    </div>
+                  </div>
+                  <span class="badge {% if followup.is_done %}ok{% else %}warning{% endif %}">{% if followup.is_done %}Hecho{% else %}Abierto{% endif %}</span>
+                </div>
+                {% if followup.notes %}<div class="item-text">{{ followup.notes }}</div>{% endif %}
+                {% if can_manage_workspace %}
+                <form method="post" class="actions-row" style="margin-top:0.65rem;">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="toggle-followup" />
+                  <input type="hidden" name="followup_id" value="{{ followup.id }}" />
+                  <button class="btn" type="submit">{% if followup.is_done %}Reabrir{% else %}Marcar hecho{% endif %}</button>
+                </form>
+                {% endif %}
+              </article>
+              {% empty %}
+              <div class="empty">Todavía no hay tareas de seguimiento.</div>
+              {% endfor %}
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="panel tab-pane" data-pane="physical">
+        <h2 style="margin-top:0;">Físico</h2>
+        <div class="summary-grid">
+          <div class="summary">
+            <div class="label">Nacido</div>
+            <div class="value">{% if target.birth_date %}{{ target.birth_date|date:"d/m/Y" }}{% else %}-{% endif %}</div>
           </div>
-          {% else %}
-          <div class="empty">Todavía no hay tareas de seguimiento.</div>
-          {% endif %}
-        </section>
-      </div>
+          <div class="summary">
+            <div class="label">Pie dominante</div>
+            <div class="value">{% if target.dominant_foot %}{{ target.dominant_foot }}{% else %}-{% endif %}</div>
+          </div>
+          <div class="summary">
+            <div class="label">Estado físico</div>
+            <div class="value">{% if latest_report and latest_report.physical_rating %}{{ latest_report.physical_rating }}/10{% else %}-{% endif %}</div>
+          </div>
+        </div>
+        <div class="mini-grid" style="margin-top:0.9rem;">
+          <div class="mini">
+            <div class="label">Observación más reciente</div>
+            <div class="value">{% if latest_report %}{{ latest_report.observed_on|date:"d/m/Y" }}{% else %}-{% endif %}</div>
+          </div>
+          <div class="mini">
+            <div class="label">Técnico</div>
+            <div class="value">{% if latest_report and latest_report.technical_rating %}{{ latest_report.technical_rating }}/10{% else %}-{% endif %}</div>
+          </div>
+          <div class="mini">
+            <div class="label">Táctico</div>
+            <div class="value">{% if latest_report and latest_report.tactical_rating %}{{ latest_report.tactical_rating }}/10{% else %}-{% endif %}</div>
+          </div>
+        </div>
+        <div class="empty" style="margin-top:0.9rem;">
+          Aquí no hay métricas físicas separadas del ojeo. El detalle físico se toma de los informes y, si entra en plantilla, se completa en la ficha del jugador.
+        </div>
+      </section>
 
       {% if feedback %}<div class="feedback">{{ feedback }}</div>{% endif %}
       {% if error %}<div class="error">{{ error }}</div>{% endif %}
     </div>
+
+    <script>
+      (() => {
+        const tabAliases = {
+          general: 'personal',
+          stats: 'stats',
+          personal: 'personal',
+          discipline: 'discipline',
+          injuries: 'injuries',
+          physical: 'physical',
+        };
+        const rawTab = '{{ request.GET.tab|default:"personal"|escapejs }}' || 'personal';
+        const fallbackTab = tabAliases[rawTab] || rawTab;
+        const buttons = Array.from(document.querySelectorAll('.tab-btn'));
+        const panes = Array.from(document.querySelectorAll('.tab-pane'));
+        const activate = (tab) => {
+          buttons.forEach((btn) => btn.classList.toggle('is-active', btn.dataset.tab === tab));
+          panes.forEach((pane) => pane.classList.toggle('is-active', pane.dataset.pane === tab));
+          const url = new URL(window.location.href);
+          url.searchParams.set('tab', tab);
+          window.history.replaceState({}, '', url);
+        };
+        buttons.forEach((btn) => btn.addEventListener('click', () => activate(btn.dataset.tab)));
+        activate(buttons.some((b) => b.dataset.tab === fallbackTab) ? fallbackTab : 'personal');
+      })();
+    </script>
   </body>
 </html>
