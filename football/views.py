@@ -28655,6 +28655,27 @@ def coach_role_trainer_page(request):
             group=primary_team.group,
             team=primary_team,
         ).first()
+    coach_standings_rows = []
+    if primary_team:
+        try:
+            coach_standings_rows = _resolve_standings_for_team(primary_team) or []
+        except Exception:
+            coach_standings_rows = []
+    coach_team_standing_row = None
+    if coach_standings_rows and primary_team:
+        team_name_keys = {
+            normalize_label(getattr(primary_team, 'display_name', '') or ''),
+            normalize_label(getattr(primary_team, 'name', '') or ''),
+            normalize_label(getattr(primary_team, 'short_name', '') or ''),
+        }
+        coach_team_standing_row = next(
+            (
+                row
+                for row in coach_standings_rows
+                if normalize_label(str(row.get('full_name') or row.get('team') or '')) in team_name_keys
+            ),
+            coach_standings_rows[0],
+        )
     hero_image_url = ''
     hero_image_data_uri = ''
     if primary_team and _should_use_team_cover_image(request, workspace, primary_team):
@@ -29524,6 +29545,8 @@ def coach_role_trainer_page(request):
             'coach_standing_goals_for': standing.goals_for if standing else '',
             'coach_standing_goals_against': standing.goals_against if standing else '',
             'coach_standing_goal_diff': (standing.goals_for - standing.goals_against) if standing else '',
+            'coach_standings_rows': coach_standings_rows,
+            'coach_team_standing_row': coach_team_standing_row,
             'stats_scope': stats_scope,
             'tournament_filter': tournament_filter,
             'tournament_options': _team_tournament_name_options(primary_team) if primary_team else [],

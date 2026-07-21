@@ -380,6 +380,7 @@
         gap: 0.85rem;
         align-content: start;
       }
+      .trainer-summary-card,
       .trainer-info-card {
         border-radius: 20px;
         padding: 1.05rem;
@@ -392,6 +393,10 @@
         gap: 0.7rem;
         min-height: 0;
         box-shadow: 0 20px 36px rgba(0, 0, 0, 0.16);
+      }
+      .trainer-summary-card {
+        display: grid;
+        gap: 0.85rem;
       }
       .trainer-info-card .label {
         display: block;
@@ -439,6 +444,72 @@
         margin: 0;
         color: rgba(226, 232, 240, 0.76);
         line-height: 1.45;
+      }
+      .trainer-summary-grid {
+        display: grid;
+        gap: 0.75rem;
+      }
+      .trainer-summary-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+      }
+      .trainer-summary-links a {
+        text-decoration: none;
+      }
+      .trainer-standings-card {
+        border-radius: 18px;
+        padding: 0.85rem;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background: rgba(2, 6, 23, 0.34);
+        display: grid;
+        gap: 0.6rem;
+      }
+      .trainer-standings-card h4 {
+        margin: 0;
+        color: rgba(225, 231, 240, 0.84);
+        font-size: 0.68rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .trainer-standings-table {
+        max-height: 190px;
+        overflow: auto;
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        background: rgba(2, 6, 23, 0.24);
+      }
+      .trainer-standings-table table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .trainer-standings-table th,
+      .trainer-standings-table td {
+        padding: 0.5rem 0.55rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+        font-size: 0.75rem;
+        text-align: left;
+      }
+      .trainer-standings-table th {
+        color: rgba(226, 232, 240, 0.66);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 0.62rem;
+      }
+      .trainer-standings-table tr.is-home td {
+        background: rgba(244, 180, 0, 0.08);
+      }
+      .trainer-standings-table .team-cell {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        min-width: 0;
+      }
+      .trainer-standings-table .team-cell img {
+        width: 26px;
+        height: 26px;
+        object-fit: contain;
+        flex: 0 0 auto;
       }
       .trainer-hero-chip {
         display: inline-flex;
@@ -721,12 +792,13 @@
       .trainer-squad-player-copy strong {
         display: block;
         color: #f8fafc;
-        font-size: 0.88rem;
+        font-size: 0.78rem;
+        line-height: 1.12;
         text-transform: uppercase;
         letter-spacing: 0.04em;
         overflow: hidden;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        white-space: normal;
       }
       .trainer-squad-player-copy span {
         color: var(--hub-card-muted);
@@ -1862,8 +1934,8 @@
       }
       .broadcast-name {
         margin: 0;
-        font-size: 1rem;
-        line-height: 1.15;
+        font-size: 0.88rem;
+        line-height: 1.08;
         letter-spacing: 0.04em;
         text-transform: uppercase;
         overflow-wrap: anywhere;
@@ -2133,7 +2205,7 @@
               <p>Foto del equipo, lectura competitiva y acceso directo al trabajo del staff en una sola superficie.</p>
               <div class="trainer-photo-tags" aria-label="Resumen de contexto">
                 <span class="trainer-hero-chip">Plantilla</span>
-                <span class="trainer-hero-chip">Sesiones</span>
+                <span class="trainer-hero-chip">Clasificación</span>
                 <span class="trainer-hero-chip">Partido</span>
               </div>
             </div>
@@ -2152,45 +2224,67 @@
               </article>
             </div>
           </article>
-          <div class="trainer-info-stack">
-            <article class="trainer-info-card">
-              <span class="label">Accesos rápidos</span>
-              <div class="trainer-info-value" style="font-size:1.2rem;">Plantilla, sesiones y partido</div>
-              <div class="trainer-info-meta" aria-label="Accesos rápidos">
-                <div class="trainer-info-stat">
-                  <span>Plantilla</span>
-                  <strong><a href="{% url 'coach-roster' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" style="color:inherit;text-decoration:none;">Abrir</a></strong>
-                </div>
-                <div class="trainer-info-stat">
-                  <span>Sesiones</span>
-                  <strong><a href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" style="color:inherit;text-decoration:none;">Abrir</a></strong>
-                </div>
-                <div class="trainer-info-stat">
-                  <span>Partidos</span>
-                  <strong><a href="{% url 'coach-matches' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" style="color:inherit;text-decoration:none;">Abrir</a></strong>
-                </div>
-                <div class="trainer-info-stat">
-                  <span>Multas</span>
-                  <strong><a href="{% url 'fines' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" style="color:inherit;text-decoration:none;">Abrir</a></strong>
+          <article class="trainer-summary-card">
+            <div class="trainer-summary-grid">
+              <div>
+                <span class="label">Próximo rival</span>
+                <div class="trainer-info-value">{% if weekly_staff_brief %}{{ weekly_staff_brief.match.opponent }}{% else %}Rival por confirmar{% endif %}</div>
+                <div class="trainer-next-rival">
+                  <p>
+                    {% if weekly_staff_brief %}
+                      {{ weekly_staff_brief.match.round }} · {{ weekly_staff_brief.match.date }}
+                      {% if weekly_staff_brief.match.time %} · {{ weekly_staff_brief.match.time }}{% endif %}
+                    {% else %}
+                      Pendiente de calendario
+                    {% endif %}
+                  </p>
+                  <p>{% if weekly_staff_brief %}{{ weekly_staff_brief.headline }}{% else %}Sin briefing semanal{% endif %}</p>
                 </div>
               </div>
-            </article>
-            <article class="trainer-info-card">
-              <span class="label">Próximo rival</span>
-              <div class="trainer-info-value">{% if weekly_staff_brief %}{{ weekly_staff_brief.match.opponent }}{% else %}Rival por confirmar{% endif %}</div>
-              <div class="trainer-next-rival">
-                <p>
-                  {% if weekly_staff_brief %}
-                    {{ weekly_staff_brief.match.round }} · {{ weekly_staff_brief.match.date }}
-                    {% if weekly_staff_brief.match.time %} · {{ weekly_staff_brief.match.time }}{% endif %}
-                  {% else %}
-                    Pendiente de calendario
-                  {% endif %}
-                </p>
-                <p>{% if weekly_staff_brief %}{{ weekly_staff_brief.headline }}{% else %}Sin briefing semanal{% endif %}</p>
+              <div class="trainer-summary-links" aria-label="Accesos rápidos">
+                <a class="trainer-hero-chip" href="{% url 'coach-roster' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Plantilla</a>
+                <a class="trainer-hero-chip" href="{% url 'coach-rivals' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Dirección</a>
+                <a class="trainer-hero-chip" href="{% url 'match-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Partido</a>
+                <a class="trainer-hero-chip" href="{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Configurar</a>
               </div>
-            </article>
-          </div>
+            </div>
+            <div class="trainer-standings-card" aria-label="Clasificación completa">
+              <h4>Clasificación completa</h4>
+              <div class="trainer-standings-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Equipo</th>
+                      <th>PJ</th>
+                      <th>Pts</th>
+                      <th>DG</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in coach_standings_rows %}
+                    <tr class="{% if coach_team_standing_row and row.rank == coach_team_standing_row.rank and row.full_name == coach_team_standing_row.full_name %}is-home{% endif %}">
+                      <td>{{ row.rank|default:'-' }}</td>
+                      <td>
+                        <div class="team-cell">
+                          {% if row.crest_url %}<img src="{{ row.crest_url }}" alt="{{ row.full_name|default:row.team }}" loading="lazy" />{% endif %}
+                          <span>{{ row.full_name|default:row.team }}</span>
+                        </div>
+                      </td>
+                      <td>{{ row.played|default:'-' }}</td>
+                      <td>{{ row.points|default:'-' }}</td>
+                      <td>{% if row.goal_difference is not None %}{% if row.goal_difference >= 0 %}+{% endif %}{{ row.goal_difference }}{% else %}-{% endif %}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                      <td colspan="5">Clasificación no disponible.</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </article>
         </div>
       </section>
       {% endif %}
@@ -2787,13 +2881,7 @@
       {% if role_key == 'trainer' %}
       <div class="workspace-tabs" role="tablist" aria-label="Cabina del entrenador">
         <button class="workspace-tab is-active" type="button" data-tab-target="player">Plantilla</button>
-        <button class="workspace-tab" type="button" data-tab-target="summary">Estadísticas</button>
-        <button class="workspace-tab" type="button" data-tab-target="sessions">Sesiones</button>
-      </div>
-      <div class="workspace-tabs" role="tablist" aria-label="Estadísticas del entrenador" style="display:none;">
-        <button class="workspace-tab is-active" type="button" data-tab-target="summary">Generales</button>
-        <button class="workspace-tab" type="button" data-tab-target="player">Individuales</button>
-        <button class="workspace-tab" type="button" data-tab-target="charts" title="Configura las gráficas del PDF del jugador (por club o por jugador)">Gráficas</button>
+        <button class="workspace-tab" type="button" data-tab-target="sessions">Entrenamiento</button>
       </div>
 
       <section class="workspace-panel is-active" data-tab-panel="summary">
@@ -2995,6 +3083,39 @@
             </div>
             {% endif %}
           </form>
+          {% if coach_overview_stats or coach_player_leaders %}
+          <section id="coach-summary" class="summary-layout" style="margin-bottom:1rem;">
+            {% if coach_overview_stats %}
+            <section class="summary-card">
+              <h3>Estadísticas de plantilla</h3>
+              <div class="overview-rings">
+                {% for item in coach_overview_stats.rings %}
+                <article class="overview-ring">
+                  <div class="overview-ring-chart" style="--pct: {{ item.pct|default:0 }};">
+                    <span class="overview-ring-value">{{ item.value }}</span>
+                  </div>
+                  <div class="overview-ring-label">{{ item.label }}</div>
+                </article>
+                {% endfor %}
+              </div>
+            </section>
+            {% endif %}
+            {% if coach_player_leaders %}
+            <aside class="summary-card">
+              <h3>Referencias plantilla</h3>
+              <div class="summary-leaders-list">
+                {% for leader in coach_player_leaders %}
+                <article class="summary-leader">
+                  <span class="kicker">{{ leader.label }}</span>
+                  <strong>{{ leader.name }}</strong>
+                  <span>{{ leader.value }}{% if leader.suffix %} {{ leader.suffix }}{% endif %}</span>
+                </article>
+                {% endfor %}
+              </div>
+            </aside>
+            {% endif %}
+          </section>
+          {% endif %}
           <div class="individual-search">
             <label for="individual-player-search">Buscar jugador</label>
             <input id="individual-player-search" type="search" placeholder="Escribe nombre o dorsal" />
