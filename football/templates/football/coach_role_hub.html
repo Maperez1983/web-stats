@@ -342,9 +342,11 @@
         line-height: 1.5;
       }
       .trainer-photo-tags {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.4rem;
+        margin-top: 0.7rem;
+        color: rgba(226, 232, 240, 0.76);
+        font-size: 0.82rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
       }
       .trainer-photo-stats {
         position: absolute;
@@ -557,14 +559,6 @@
       .trainer-mini-card.is-training .mini-badge {
         color: rgba(255, 242, 199, 0.98);
         border-color: rgba(244, 180, 0, 0.36);
-      }
-      .trainer-summary-links {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.45rem;
-      }
-      .trainer-summary-links a {
-        text-decoration: none;
       }
       .trainer-standings-card {
         border-radius: 16px;
@@ -2315,11 +2309,7 @@
               <p style="margin:0; text-transform:uppercase; letter-spacing:0.12em; color:var(--brand); font-weight:900;">Home del entrenador</p>
               <h2>{{ role_title }} · {{ active_team.display_name|default:'Equipo principal' }}</h2>
               <p>Foto del equipo, lectura competitiva y acceso directo al trabajo del staff en una sola superficie.</p>
-              <div class="trainer-photo-tags" aria-label="Resumen de contexto">
-                <span class="trainer-hero-chip">Plantilla</span>
-                <span class="trainer-hero-chip">Clasificación</span>
-                <span class="trainer-hero-chip">Partido</span>
-              </div>
+              <p class="trainer-photo-tags" aria-label="Resumen de contexto">Plantilla · Clasificación · Partido</p>
             </div>
             <div class="trainer-photo-stats" aria-label="Datos rápidos del equipo">
               <article class="trainer-photo-stat">
@@ -2352,12 +2342,6 @@
                   </p>
                   <p>{% if weekly_staff_brief %}{{ weekly_staff_brief.headline }}{% else %}Sin briefing semanal{% endif %}</p>
                 </div>
-              </div>
-              <div class="trainer-summary-links" aria-label="Accesos rápidos">
-                <a class="trainer-hero-chip" href="{% url 'coach-roster' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Plantilla</a>
-                <a class="trainer-hero-chip" href="{% url 'coach-rivals' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Dirección</a>
-                <a class="trainer-hero-chip" href="{% url 'match-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Partido</a>
-                <a class="trainer-hero-chip" href="{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Configurar</a>
               </div>
             </div>
             <div class="trainer-mini-dashboard" aria-label="Mini dashboard del entrenador">
@@ -2515,18 +2499,32 @@
             <div class="trainer-squad-list">
               {% for item in coach_player_cards_all %}
               <a
-                class="trainer-squad-player"
+                class="card-link"
                 href="{% url 'coach-role-trainer' %}?player={{ item.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}"
                 title="{{ item.name }}{% if item.number %} · {{ item.number }}{% endif %}"
               >
-                <div class="trainer-squad-player-media" aria-hidden="true">
-                  <img src="{% if item.photo_url %}{{ item.photo_url }}{% else %}{% static 'football/images/player-avatar.svg' %}{% endif %}" alt="{{ item.name }}" loading="lazy" />
-                  {% if item.number %}<span class="trainer-squad-player-number">{{ item.number }}</span>{% endif %}
-                </div>
-                <div class="trainer-squad-player-copy">
-                  <strong>{% if item.number %}#{{ item.number }} · {% endif %}{{ item.name }}</strong>
-                  <span>{{ item.position|default:'-' }}</span>
-                </div>
+                <article class="card broadcast-card{% if coach_selected_player_id == item.id %} is-selected{% endif %}">
+                  <div class="broadcast-head">
+                    <div class="broadcast-head-left">
+                      <div class="avatar-wrap" aria-hidden="true">
+                        <img class="avatar" src="{% if item.photo_url %}{{ item.photo_url }}{% else %}{% static 'football/images/player-avatar.svg' %}{% endif %}" alt="{{ item.name }}" loading="lazy" />
+                        {% if item.number %}<span class="dorsal-badge">{{ item.number }}</span>{% endif %}
+                      </div>
+                      <div>
+                        <h2 class="broadcast-name">{{ item.name }}</h2>
+                        <div class="broadcast-sub">{{ item.position|default:'-' }}</div>
+                      </div>
+                    </div>
+                    <div class="broadcast-head-right">
+                      <div class="broadcast-pill">Min {{ item.minutes }}</div>
+                      <div class="broadcast-pill">PJ {{ item.matches }}</div>
+                    </div>
+                  </div>
+                  <div class="broadcast-mini">
+                    <span class="mini-pill">G <strong>{{ item.goals }}</strong></span>
+                    <span class="mini-pill">A <strong>{{ item.assists }}</strong></span>
+                  </div>
+                </article>
               </a>
               {% endfor %}
             </div>
