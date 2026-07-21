@@ -29210,6 +29210,32 @@ def coach_role_trainer_page(request):
             }
         )
     trainer_squad_active_count = len(coach_player_cards_all)
+    trainer_active_player_ids = [_parse_int(item.get('id')) for item in coach_player_cards_all if _parse_int(item.get('id'))]
+    try:
+        active_injury_ids = set(get_active_injury_player_ids(trainer_active_player_ids))
+    except Exception:
+        active_injury_ids = set()
+    trainer_injured_count = len(active_injury_ids)
+    trainer_ok_count = max(0, trainer_squad_active_count - trainer_injured_count)
+    trainer_sessions_done_count = 0
+    if primary_team:
+        try:
+            trainer_sessions_qs = TrainingSession.objects.filter(microcycle__team=primary_team).exclude(
+                status=TrainingSession.STATUS_CANCELED
+            )
+            if trainer_selected_season:
+                trainer_sessions_qs = _apply_club_season_filter(
+                    trainer_sessions_qs,
+                    trainer_selected_season,
+                    'session_date',
+                    trainer_season_start,
+                    trainer_season_end,
+                )
+            trainer_sessions_done_count = int(
+                trainer_sessions_qs.filter(status=TrainingSession.STATUS_DONE).count() or 0
+            )
+        except Exception:
+            trainer_sessions_done_count = 0
     trainer_squad_reinforcement_rows = []
     for target in squad_pitch_targets:
         current = squad_role_counts.get(target['key'], 0)
@@ -29568,6 +29594,9 @@ def coach_role_trainer_page(request):
             'coach_player_cards_all': coach_player_cards_all,
             'trainer_pitch_players': trainer_pitch_players,
             'trainer_squad_active_count': trainer_squad_active_count,
+            'trainer_ok_count': trainer_ok_count,
+            'trainer_injured_count': trainer_injured_count,
+            'trainer_sessions_done_count': trainer_sessions_done_count,
             'trainer_squad_reinforcement_rows': trainer_squad_reinforcement_rows,
             'coach_selected_player_id': selected_player_id,
             'coach_player_match_options': coach_player_match_options,
