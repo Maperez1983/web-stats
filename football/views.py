@@ -2704,19 +2704,27 @@ def scouting_board_page(request):
         source_name = str(getattr(target, 'subject_name', '') or getattr(getattr(target, 'player', None), 'name', '') or '').strip()
         if not source_name:
             raise ValueError('Falta el nombre del jugador.')
-        player = getattr(target, 'player', None)
-        if player and int(getattr(player, 'team_id', 0) or 0) != int(team.id):
-            player.team = team
-        elif not player:
-            player = (
-                Player.objects
-                .filter(team=team, name__iexact=source_name)
-                .order_by('id')
-                .first()
+        existing_team_player = (
+            Player.objects
+            .filter(team=team)
+            .filter(
+                Q(name__iexact=source_name)
+                | Q(full_name__iexact=source_name)
+                | Q(nickname__iexact=source_name)
             )
-            if not player:
-                player = Player(team=team)
-            player.team = team
+            .order_by('id')
+            .first()
+        )
+        player = existing_team_player or getattr(target, 'player', None)
+        if player and existing_team_player and int(getattr(player, 'id', 0) or 0) != int(existing_team_player.id):
+            player = existing_team_player
+        if player and int(getattr(player, 'team_id', 0) or 0) != int(team.id):
+            if existing_team_player and int(getattr(existing_team_player, 'id', 0) or 0) != int(getattr(player, 'id', 0) or 0):
+                player = existing_team_player
+            else:
+                player.team = team
+        if not player:
+            player = Player(team=team)
         player.name = source_name[:120]
         player.full_name = source_name[:180]
         if getattr(target, 'position', ''):
@@ -2729,10 +2737,33 @@ def scouting_board_page(request):
         if getattr(target, 'subject_team_name', ''):
             player.origin_team = target.subject_team_name[:160]
         player.is_active = True
-        if not player.pk:
-            player.save()
-        else:
-            player.save(update_fields=['team', 'name', 'full_name', 'position', 'preferred_position', 'dominant_foot', 'birth_date', 'origin_team', 'is_active'])
+        try:
+            if not player.pk:
+                player.save()
+            else:
+                player.save(update_fields=['team', 'name', 'full_name', 'position', 'preferred_position', 'dominant_foot', 'birth_date', 'origin_team', 'is_active'])
+        except IntegrityError:
+            fallback_player = (
+                Player.objects
+                .filter(team=team, name__iexact=source_name)
+                .order_by('id')
+                .first()
+            )
+            if not fallback_player or int(getattr(fallback_player, 'id', 0) or 0) == int(getattr(player, 'id', 0) or 0):
+                raise
+            player = fallback_player
+            player.full_name = source_name[:180]
+            if getattr(target, 'position', ''):
+                player.position = target.position[:60]
+                player.preferred_position = target.position[:60]
+            if getattr(target, 'dominant_foot', ''):
+                player.dominant_foot = target.dominant_foot[:16]
+            if getattr(target, 'birth_date', None):
+                player.birth_date = target.birth_date
+            if getattr(target, 'subject_team_name', ''):
+                player.origin_team = target.subject_team_name[:160]
+            player.is_active = True
+            player.save(update_fields=['full_name', 'position', 'preferred_position', 'dominant_foot', 'birth_date', 'origin_team', 'is_active'])
         ensure_workspace_player(workspace, player, current_team=team, is_active=True)
         try:
             active_club_season = selected_club_season_for_request(request, workspace=workspace)
