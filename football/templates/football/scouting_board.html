@@ -349,6 +349,8 @@
         background: rgba(255,255,255,0.04);
         color: rgba(245,247,250,0.94);
         text-decoration: none;
+        cursor: pointer;
+        appearance: none;
         font-size: 0.68rem;
         font-weight: 900;
         letter-spacing: 0.11em;
@@ -358,6 +360,31 @@
         border-color: rgba(244, 180, 0, 0.38);
         background: rgba(244, 180, 0, 0.12);
         color: #fff7dd;
+      }
+      .card-action.danger {
+        border-color: rgba(248, 113, 113, 0.34);
+        background: rgba(127, 29, 29, 0.20);
+        color: #fecaca;
+      }
+      .card-action.danger:hover {
+        border-color: rgba(248, 113, 113, 0.58);
+        color: #ffe4e6;
+      }
+      .icon-btn {
+        gap: 0.38rem;
+      }
+      .icon-btn svg {
+        width: 0.9rem;
+        height: 0.9rem;
+        display: block;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .inline-form {
+        display: inline;
       }
       .badge {
         display: inline-flex;
@@ -648,6 +675,25 @@
                     {% if target.player_id %}
                     <a class="card-action" href="{% url 'player-detail' target.player_id %}">Jugador</a>
                     {% endif %}
+                    <form class="inline-form" method="post" action="">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="delete-target" />
+                      <input type="hidden" name="target_id" value="{{ target.id }}" />
+                      <button
+                        class="card-action danger icon-btn"
+                        type="submit"
+                        onclick="return confirm('¿Eliminar este seguimiento? Esta acción no se puede deshacer.');"
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M3 6h18" />
+                          <path d="M8 6V4h8v2" />
+                          <path d="M6 6l1 14h10l1-14" />
+                          <path d="M10 10v6" />
+                          <path d="M14 10v6" />
+                        </svg>
+                        Borrar
+                      </button>
+                    </form>
                   </div>
                 </td>
               </tr>

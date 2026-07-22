@@ -2792,6 +2792,21 @@ def scouting_board_page(request):
         if not can_manage:
             return HttpResponse('No tienes permisos para editar.', status=403)
         action = str(request.POST.get('action') or 'create').strip().lower()
+        if action == 'delete-target':
+            target_id = _parse_int(request.POST.get('target_id'))
+            target = ScoutingTarget.objects.filter(id=target_id, workspace=workspace).first() if target_id else None
+            if not target:
+                error = 'No se encontró el jugador ojeado.'
+            else:
+                target_label = target.display_name
+                target.delete()
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({'ok': True, 'deleted': True, 'label': target_label})
+                redirect_url = reverse('scouting-board')
+                qs = request.GET.urlencode()
+                if qs:
+                    redirect_url = f'{redirect_url}?{qs}'
+                return redirect(redirect_url)
         if action == 'create':
             subject_name = str(request.POST.get('subject_name') or '').strip()[:160]
             player_id = _parse_int(request.POST.get('player_id'))
