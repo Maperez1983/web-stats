@@ -759,6 +759,14 @@
         background: rgba(2, 6, 23, 0.54);
         backdrop-filter: blur(10px);
         box-shadow: 0 18px 32px rgba(0, 0, 0, 0.18);
+        user-select: none;
+        touch-action: none;
+        cursor: grab;
+      }
+      .trainer-pitch-player.is-dragging {
+        cursor: grabbing;
+        z-index: 4;
+        box-shadow: 0 24px 42px rgba(0, 0, 0, 0.28);
       }
       .trainer-pitch-player::before {
         content: "";
@@ -2468,7 +2476,7 @@
                 <span class="trainer-squad-metric">Titulares <strong>{{ trainer_pitch_players|length }}</strong></span>
               </div>
             </div>
-            <div class="field-diagram trainer-squad-field">
+            <div class="field-diagram trainer-squad-field" data-coach-pitch-layout data-coach-pitch-key="{{ active_workspace.id|default:0 }}:{{ active_team.id|default:0 }}">
               <svg class="trainer-squad-surface" id="coach-pitch-surface" aria-hidden="true"></svg>
               {% for player in trainer_pitch_players %}
               <a
@@ -2476,6 +2484,9 @@
                 href="{% url 'player-detail' player.id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% elif active_team %}?team={{ active_team.id }}{% endif %}"
                 title="{{ player.name }}{% if player.number %} · {{ player.number }}{% endif %}"
                 style="left: {{ player.left }}%; top: {{ player.top }}%;"
+                data-player-id="{{ player.id }}"
+                data-default-left="{{ player.left }}"
+                data-default-top="{{ player.top }}"
               >
                 <span class="trainer-pitch-player-number">{% if player.number %}{{ player.number }}{% else %}--{% endif %}</span>
                 <span class="trainer-pitch-player-name">{{ player.name }}</span>
@@ -2556,14 +2567,117 @@
       </section>
       {% endif %}
       {% if role_key == 'trainer' %}
-      {% endif %}
-      {% if role_key == 'trainer' %}
       <script src="{% static 'football/js/pitch_surface.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
       <script>
         (() => {
           const svg = document.getElementById('coach-pitch-surface');
           if (!svg || !window.WebstatsPitchSurface || typeof window.WebstatsPitchSurface.applyToSvg !== 'function') return;
           window.WebstatsPitchSurface.applyToSvg(svg, 'full_pitch', 'landscape', 'coachboard');
+        })();
+        (() => {
+          const field = document.querySelector('[data-coach-pitch-layout]');
+          if (!field) return;
+          const cards = Array.from(field.querySelectorAll('.trainer-pitch-player[data-player-id]'));
+          if (!cards.length) return;
+
+          const key = field.dataset.coachPitchKey || 'default';
+          const storageKey = `coachPitchPositions:v1:${key}`;
+          const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+          const readSaved = () => {
+            try {
+              const raw = window.localStorage.getItem(storageKey);
+              if (!raw) return {};
+              const parsed = JSON.parse(raw);
+              return parsed && typeof parsed === 'object' ? parsed : {};
+            } catch (error) {
+              return {};
+            }
+          };
+
+          const writeSaved = (positions) => {
+            try {
+              window.localStorage.setItem(storageKey, JSON.stringify(positions));
+            } catch (error) {
+              // ignore
+            }
+          };
+
+          const positions = readSaved();
+          cards.forEach((card) => {
+            const id = card.dataset.playerId;
+            const saved = positions[id];
+            const left = Number.parseFloat(saved?.left ?? card.dataset.defaultLeft ?? card.style.left ?? '50');
+            const top = Number.parseFloat(saved?.top ?? card.dataset.defaultTop ?? card.style.top ?? '50');
+            if (Number.isFinite(left)) card.style.left = `${left}%`;
+            if (Number.isFinite(top)) card.style.top = `${top}%`;
+          });
+
+          let dragging = null;
+          let currentPositions = { ...positions };
+
+          const persist = () => {
+            writeSaved(currentPositions);
+          };
+
+          const updateCardPosition = (card, clientX, clientY) => {
+            const fieldRect = field.getBoundingClientRect();
+            const cardRect = card.getBoundingClientRect();
+            const halfW = ((cardRect.width / 2) / fieldRect.width) * 100;
+            const halfH = ((cardRect.height / 2) / fieldRect.height) * 100;
+            const left = clamp(((clientX - fieldRect.left) / fieldRect.width) * 100, halfW, 100 - halfW);
+            const top = clamp(((clientY - fieldRect.top) / fieldRect.height) * 100, halfH, 100 - halfH);
+            card.style.left = `${left}%`;
+            card.style.top = `${top}%`;
+            currentPositions[card.dataset.playerId] = { left, top };
+          };
+
+          cards.forEach((card) => {
+            card.addEventListener('pointerdown', (event) => {
+              if (event.button !== undefined && event.button !== 0) return;
+              dragging = {
+                card,
+                pointerId: event.pointerId,
+                startX: event.clientX,
+                startY: event.clientY,
+                moved: false,
+              };
+              try { card.setPointerCapture(event.pointerId); } catch (error) { /* ignore */ }
+              card.classList.add('is-dragging');
+            });
+
+            card.addEventListener('pointermove', (event) => {
+              if (!dragging || dragging.card !== card || dragging.pointerId !== event.pointerId) return;
+              const dx = Math.abs(event.clientX - dragging.startX);
+              const dy = Math.abs(event.clientY - dragging.startY);
+              if (!dragging.moved && (dx + dy) > 6) dragging.moved = true;
+              if (!dragging.moved) return;
+              event.preventDefault();
+              updateCardPosition(card, event.clientX, event.clientY);
+            });
+
+            const finishDrag = (event) => {
+              if (!dragging || dragging.card !== card || dragging.pointerId !== event.pointerId) return;
+              try { card.releasePointerCapture(event.pointerId); } catch (error) { /* ignore */ }
+              card.classList.remove('is-dragging');
+              const wasDragging = dragging.moved;
+              dragging = null;
+              if (wasDragging) {
+                persist();
+                card.dataset.justDragged = '1';
+                window.setTimeout(() => { delete card.dataset.justDragged; }, 0);
+              }
+            };
+
+            card.addEventListener('pointerup', finishDrag);
+            card.addEventListener('pointercancel', finishDrag);
+            card.addEventListener('click', (event) => {
+              if (card.dataset.justDragged === '1') {
+                event.preventDefault();
+                event.stopPropagation();
+              }
+            }, true);
+          });
         })();
       </script>
       {% endif %}
