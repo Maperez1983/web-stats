@@ -2611,7 +2611,7 @@
             <span class="role-meta-chip">Altas activas: {{ trainer_squad_active_count }}</span>
             <span class="role-meta-chip">Plantilla completa</span>
             <span class="role-meta-chip">Estados visibles</span>
-            <a class="role-meta-chip" href="{% url 'coach-roster-pdf' %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% elif active_team %}?team={{ active_team.id }}{% endif %}" target="_blank" rel="noopener">PDF plantilla</a>
+            <a class="role-meta-chip" href="{% url 'coach-roster-pdf' %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% else %}{% if active_team %}?team={{ active_team.id }}{% endif %}{% endif %}{% if active_workspace and active_workspace.id or active_team %}&download=1{% else %}?download=1{% endif %}">PDF plantilla</a>
           </div>
         </div>
         <div class="trainer-squad-layout">
@@ -2630,7 +2630,7 @@
             </div>
             <div class="field-diagram trainer-squad-field" data-coach-pitch-layout data-coach-pitch-key="{{ active_workspace.id|default:0 }}:{{ active_team.id|default:0 }}">
               <div class="trainer-squad-field-actions">
-                <a href="{% url 'coach-roster-pdf' %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% elif active_team %}?team={{ active_team.id }}{% endif %}" target="_blank" rel="noopener">Generar PDF</a>
+                <a href="{% url 'coach-roster-pdf' %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% else %}{% if active_team %}?team={{ active_team.id }}{% endif %}{% endif %}{% if active_workspace and active_workspace.id or active_team %}&download=1{% else %}?download=1{% endif %}">Generar PDF</a>
               </div>
               <img class="field-bg" src="{% static 'football/campo-futbol.jpg' %}" alt="Campo de fútbol" aria-hidden="true" />
               {% if trainer_pitch_players %}

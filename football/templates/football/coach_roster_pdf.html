@@ -6,15 +6,22 @@
     <title>Plantilla · {{ team_name }}</title>
     {% include 'football/includes/print_tokens_css.html' %}
     <style>
-      @page { size: A4 landscape; margin: 10mm 10mm; }
+      @page { size: A4 landscape; margin: 10mm; }
+      :root {
+        --club-primary: {{ pdf_palette.primary|default:"#0f7a35" }};
+        --club-secondary: {{ pdf_palette.secondary|default:"#f4b400" }};
+        --club-accent: {{ pdf_palette.accent|default:"#102734" }};
+        --club-panel: {{ pdf_palette.panel|default:"#f8fafc" }};
+        --club-primary-rgb: {{ pdf_palette_css.primary_rgb|default:"15, 122, 53" }};
+        --club-secondary-rgb: {{ pdf_palette_css.secondary_rgb|default:"244, 180, 0" }};
+        --club-accent-rgb: {{ pdf_palette_css.accent_rgb|default:"16, 39, 52" }};
+      }
+      * { box-sizing: border-box; }
       body {
         margin: 0;
-        font-family: var(--print-font, "Inter", system-ui, -apple-system, Segoe UI, sans-serif);
-        color: #e5eef7;
-        background:
-          radial-gradient(circle at 14% 0%, rgba(244, 180, 0, 0.10), transparent 30%),
-          radial-gradient(circle at 88% 8%, rgba(47, 125, 50, 0.18), transparent 24%),
-          linear-gradient(180deg, #020817 0%, #081120 45%, #0b1626 100%);
+        font-family: var(--print-font, "Segoe UI", Arial, sans-serif);
+        color: #0b1220;
+        background: #ffffff;
       }
       .sheet {
         display: grid;
@@ -25,11 +32,12 @@
         grid-template-columns: minmax(0, 1fr) auto;
         gap: 12px;
         align-items: start;
-        padding: 10px 12px;
-        border-radius: 16px;
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        background: rgba(7, 16, 30, 0.86);
-        box-shadow: 0 18px 42px rgba(0, 0, 0, 0.22);
+        padding: 12px 14px;
+        border-radius: 18px;
+        color: #ffffff;
+        background: linear-gradient(135deg, var(--club-primary), var(--club-accent));
+        border: 1px solid rgba(11, 18, 32, 0.08);
+        box-shadow: 0 14px 30px rgba(11, 18, 32, 0.12);
       }
       .brand-stack {
         display: grid;
@@ -45,12 +53,12 @@
         display: inline-flex;
         align-items: center;
         min-height: 22px;
-        padding: 0 8px;
+        padding: 0 9px;
         border-radius: 999px;
-        border: 1px solid rgba(244, 180, 0, 0.22);
-        background: rgba(244, 180, 0, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.10);
         color: #fff7dd;
-        font-size: 8px;
+        font-size: 8.5px;
         font-weight: 900;
         letter-spacing: 0.12em;
         text-transform: uppercase;
@@ -62,18 +70,16 @@
         min-width: 0;
       }
       .crest {
-        width: 56px;
-        height: 56px;
-        border-radius: 14px;
-        border: 1px solid rgba(148, 163, 184, 0.18);
+        width: 58px;
+        height: 58px;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
         background: rgba(255, 255, 255, 0.95);
         object-fit: contain;
         padding: 6px;
         flex: 0 0 auto;
       }
-      .head-copy {
-        min-width: 0;
-      }
+      .head-copy { min-width: 0; }
       .kicker {
         margin: 0;
         color: #7dd3fc;
@@ -84,86 +90,40 @@
       }
       h1 {
         margin: 3px 0 0;
-        font-size: 18px;
+        font-size: 20px;
         letter-spacing: 0.08em;
         text-transform: uppercase;
         line-height: 1.1;
       }
       .sub {
         margin: 4px 0 0;
-        color: rgba(226, 232, 240, 0.76);
+        color: rgba(226, 232, 240, 0.88);
         font-weight: 700;
         font-size: 11px;
       }
       .mark {
         width: 76px;
         height: auto;
-        opacity: 0.9;
+        opacity: 0.95;
       }
       .metrics {
         display: grid;
         grid-template-columns: repeat(5, minmax(0, 1fr));
         gap: 8px;
       }
-      .totals-shell {
-        border-radius: 16px;
-        border: 1px solid rgba(148, 163, 184, 0.16);
-        background:
-          radial-gradient(circle at top right, rgba(244, 180, 0, 0.06), transparent 24%),
-          rgba(7, 16, 30, 0.84);
-        padding: 10px;
-        display: grid;
-        gap: 10px;
-      }
-      .totals-shell h2 {
-        margin: 0;
-        font-size: 11px;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        color: #bae6fd;
-      }
-      .totals-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 8px;
-      }
-      .total-card {
-        border-radius: 14px;
-        border: 1px solid rgba(148, 163, 184, 0.14);
-        background: rgba(255, 255, 255, 0.04);
-        padding: 9px 10px;
-      }
-      .total-card .kicker {
-        color: rgba(226, 232, 240, 0.74);
-        font-size: 8px;
-        letter-spacing: 0.14em;
-      }
-      .total-card strong {
-        display: block;
-        margin-top: 4px;
-        font-size: 14px;
-        color: #f8fafc;
-      }
-      .total-card .meta {
-        margin-top: 4px;
-        color: rgba(226, 232, 240, 0.72);
-        font-size: 8px;
-        line-height: 1.3;
-      }
       .metric {
         border-radius: 14px;
-        border: 1px solid rgba(148, 163, 184, 0.14);
-        background:
-          radial-gradient(circle at top left, rgba(244, 180, 0, 0.08), transparent 26%),
-          rgba(7, 16, 30, 0.82);
+        border: 1px solid rgba(11, 18, 32, 0.08);
+        background: linear-gradient(180deg, #ffffff, #f8fbff);
         padding: 10px 10px 9px;
+        box-shadow: 0 8px 18px rgba(11, 18, 32, 0.05);
       }
       .metric .label {
         display: block;
         font-size: 9px;
         text-transform: uppercase;
         letter-spacing: 0.16em;
-        color: rgba(148, 163, 184, 0.9);
+        color: rgba(71, 85, 105, 0.9);
         font-weight: 900;
       }
       .metric .value {
@@ -172,13 +132,13 @@
         font-size: 18px;
         font-weight: 950;
         line-height: 1;
-        color: #f8fafc;
+        color: #0b1220;
       }
       .metric .hint {
         display: block;
         margin-top: 4px;
         font-size: 9px;
-        color: rgba(226, 232, 240, 0.72);
+        color: rgba(71, 85, 105, 0.84);
       }
       .hero {
         display: grid;
@@ -187,38 +147,79 @@
         align-items: start;
       }
       .panel {
-        border-radius: 16px;
-        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 18px;
+        border: 1px solid rgba(11, 18, 32, 0.08);
         background:
-          radial-gradient(circle at top right, rgba(244, 180, 0, 0.05), transparent 28%),
-          rgba(7, 16, 30, 0.82);
+          radial-gradient(circle at top right, rgba(var(--club-secondary-rgb), 0.06), transparent 28%),
+          #ffffff;
         padding: 10px;
+        box-shadow: 0 12px 28px rgba(11, 18, 32, 0.05);
       }
       .panel h2 {
         margin: 0;
         font-size: 12px;
         letter-spacing: 0.14em;
         text-transform: uppercase;
-        color: #bae6fd;
+        color: var(--club-primary);
       }
       .panel p {
         margin: 4px 0 0;
-        color: rgba(226, 232, 240, 0.74);
+        color: rgba(71, 85, 105, 0.84);
         font-size: 11px;
         line-height: 1.45;
       }
+      .field-title {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .field-title .title-copy { min-width: 0; }
+      .field-title .title-copy h2 {
+        margin: 0;
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--club-primary);
+      }
+      .field-title .title-copy p {
+        margin: 4px 0 0;
+        color: rgba(71, 85, 105, 0.84);
+        font-size: 11px;
+        line-height: 1.45;
+      }
+      .field-badges {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 5px;
+      }
+      .field-badge {
+        display: inline-flex;
+        align-items: center;
+        min-height: 22px;
+        padding: 0 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(var(--club-primary-rgb), 0.16);
+        background: rgba(var(--club-primary-rgb), 0.06);
+        color: var(--club-primary);
+        font-size: 8px;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
       .pitch-stage {
         position: relative;
-        border-radius: 18px;
-        overflow: hidden;
         margin-top: 8px;
         min-height: 404px;
+        overflow: hidden;
+        border-radius: 18px;
+        border: 1px solid rgba(11, 18, 32, 0.08);
         background:
-          radial-gradient(circle at 50% 18%, rgba(244, 180, 0, 0.08), transparent 24%),
-          radial-gradient(circle at 50% 50%, rgba(47, 125, 50, 0.12), transparent 48%),
-          linear-gradient(180deg, rgba(9, 16, 29, 0.95), rgba(3, 8, 18, 0.88));
-        border: 1px solid rgba(148, 163, 184, 0.14);
-        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02), 0 18px 36px rgba(0,0,0,0.22);
+          radial-gradient(circle at 50% 18%, rgba(var(--club-secondary-rgb), 0.08), transparent 24%),
+          radial-gradient(circle at 50% 50%, rgba(var(--club-primary-rgb), 0.10), transparent 48%),
+          linear-gradient(180deg, rgba(247, 250, 252, 0.96), rgba(239, 244, 248, 0.96));
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55), 0 18px 36px rgba(11, 18, 32, 0.08);
       }
       .pitch-stage img {
         position: absolute;
@@ -228,52 +229,43 @@
         object-fit: cover;
         display: block;
       }
-      .pitch-stage .pitch-base {
-        opacity: 0.94;
-        filter: saturate(1.02) contrast(1.04) brightness(0.96);
+      .pitch-base {
+        opacity: 0.92;
+        filter: saturate(1.01) contrast(1.02) brightness(1.02);
       }
-      .pitch-stage .pitch-overlay {
-        opacity: 0.58;
-        mix-blend-mode: screen;
+      .pitch-overlay {
+        opacity: 0.52;
+        mix-blend-mode: multiply;
       }
       .pitch-stage::after {
         content: "";
         position: absolute;
         inset: 0;
-        background:
-          linear-gradient(180deg, rgba(4, 10, 20, 0.08), rgba(4, 10, 20, 0.28)),
-          radial-gradient(circle at center, transparent 24%, rgba(2, 6, 23, 0.22) 100%);
         pointer-events: none;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(2, 6, 23, 0.10)),
+          radial-gradient(circle at center, transparent 24%, rgba(2, 6, 23, 0.10) 100%);
       }
-      .pitch-overlay {
+      .pitch-overlay-layer {
         position: absolute;
         inset: 10px;
       }
       .field-card {
         position: absolute;
+        transform: translate(-50%, -50%);
         border-radius: 14px;
-        border: 1px solid rgba(148, 163, 184, 0.14);
+        border: 1px solid rgba(11, 18, 32, 0.12);
         background:
-          radial-gradient(circle at top right, rgba(244, 180, 0, 0.08), transparent 24%),
-          rgba(7, 16, 30, 0.82);
+          radial-gradient(circle at top right, rgba(var(--club-secondary-rgb), 0.14), transparent 24%),
+          rgba(7, 16, 30, 0.88);
         color: #f8fafc;
         padding: 7px 8px 8px;
-        box-shadow: 0 16px 28px rgba(2, 6, 23, 0.22);
-        transform: translate(-50%, -50%);
+        box-shadow: 0 16px 28px rgba(2, 6, 23, 0.16);
       }
-      .field-card.is-available { border-color: rgba(47,125,50,0.36); }
-      .field-card.is-trial { border-color: rgba(244,180,0,0.34); }
-      .field-card.is-critical { border-color: rgba(248,113,113,0.34); }
-      .field-card.is-muted { border-color: rgba(148,163,184,0.26); }
-      .field-card .field-state-line {
-        margin-top: 3px;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 4px;
-      }
-      .field-card .field-state-line .mini-state {
-        margin-top: 0;
-      }
+      .field-card.is-available { border-color: rgba(47, 125, 50, 0.36); }
+      .field-card.is-trial { border-color: rgba(244, 180, 0, 0.34); }
+      .field-card.is-critical { border-color: rgba(248, 113, 113, 0.34); }
+      .field-card.is-muted { border-color: rgba(148, 163, 184, 0.26); }
       .field-head {
         display: flex;
         align-items: baseline;
@@ -290,8 +282,8 @@
         display: inline-flex;
         align-items: center;
         min-height: 18px;
-        border-radius: 999px;
         padding: 0 7px;
+        border-radius: 999px;
         border: 1px solid rgba(56, 189, 248, 0.24);
         background: rgba(56, 189, 248, 0.12);
         color: #fff7dd;
@@ -313,39 +305,27 @@
       }
       .mini-card {
         display: grid;
-        grid-template-columns: 26px minmax(0, 1fr);
+        grid-template-columns: 22px minmax(0, 1fr);
         gap: 6px;
         align-items: center;
-        padding: 5px 6px;
+        padding: 4px 5px;
         border-radius: 12px;
         border: 1px solid rgba(148, 163, 184, 0.14);
         background: rgba(255, 255, 255, 0.04);
-        break-inside: avoid;
-      }
-      .field-card .mini-card {
-        grid-template-columns: 22px minmax(0, 1fr);
-        padding: 4px 5px;
       }
       .mini-num {
-        width: 26px;
-        height: 26px;
+        width: 22px;
+        height: 22px;
         border-radius: 999px;
         display: grid;
         place-items: center;
-        font-size: 10px;
+        font-size: 9px;
         font-weight: 950;
         color: #fde68a;
         border: 1px solid rgba(250, 204, 21, 0.5);
         background: rgba(250, 204, 21, 0.14);
       }
-      .field-card .mini-num {
-        width: 22px;
-        height: 22px;
-        font-size: 9px;
-      }
-      .mini-copy {
-        min-width: 0;
-      }
+      .mini-copy { min-width: 0; }
       .mini-name {
         display: block;
         font-size: 8px;
@@ -379,24 +359,10 @@
         letter-spacing: 0.12em;
         text-transform: uppercase;
       }
-      .mini-state.is-critical { border: 1px solid rgba(248,113,113,0.34); background: rgba(248,113,113,0.12); color: #fecaca; }
-      .mini-state.is-trial { border: 1px solid rgba(244,180,0,0.30); background: rgba(244,180,0,0.10); color: #fde68a; }
-      .mini-state.is-available { border: 1px solid rgba(47,125,50,0.32); background: rgba(47,125,50,0.12); color: #bbf7d0; }
-      .mini-state.is-muted { border: 1px solid rgba(148,163,184,0.24); background: rgba(148,163,184,0.10); color: #e2e8f0; }
-      .mini-empty {
-        padding: 8px 6px;
-        border-radius: 12px;
-        border: 1px dashed rgba(148,163,184,0.22);
-        color: rgba(226, 232, 240, 0.74);
-        text-align: center;
-        font-size: 9px;
-        letter-spacing: 0.11em;
-        text-transform: uppercase;
-      }
-      .chip.more {
-        color: rgba(226, 232, 240, 0.88);
-        background: rgba(2, 6, 23, 0.38);
-      }
+      .mini-state.is-critical { border: 1px solid rgba(248, 113, 113, 0.34); background: rgba(248, 113, 113, 0.12); color: #fecaca; }
+      .mini-state.is-trial { border: 1px solid rgba(244, 180, 0, 0.30); background: rgba(244, 180, 0, 0.10); color: #fde68a; }
+      .mini-state.is-available { border: 1px solid rgba(47, 125, 50, 0.32); background: rgba(47, 125, 50, 0.12); color: #bbf7d0; }
+      .mini-state.is-muted { border: 1px solid rgba(148, 163, 184, 0.24); background: rgba(148, 163, 184, 0.10); color: #e2e8f0; }
       .state-card .legend {
         display: grid;
         gap: 7px;
@@ -409,37 +375,82 @@
         gap: 12px;
         border-radius: 12px;
         padding: 9px 10px;
-        border: 1px solid rgba(148, 163, 184, 0.16);
-        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(11, 18, 32, 0.08);
+        background: #ffffff;
       }
       .legend-row strong {
         font-size: 14px;
-        color: #f8fafc;
+        color: #0b1220;
       }
       .legend-row span {
         font-size: 9px;
         text-transform: uppercase;
         letter-spacing: 0.14em;
         font-weight: 900;
-        color: rgba(226, 232, 240, 0.78);
+        color: rgba(71, 85, 105, 0.82);
       }
-      .legend-row.is-critical { border-color: rgba(248,113,113,0.32); background: rgba(248,113,113,0.10); }
-      .legend-row.is-trial { border-color: rgba(244,180,0,0.28); background: rgba(244,180,0,0.08); }
-      .legend-row.is-available { border-color: rgba(47,125,50,0.30); background: rgba(47,125,50,0.10); }
-      .legend-row.is-muted { border-color: rgba(148,163,184,0.18); background: rgba(148,163,184,0.08); }
+      .legend-row.is-critical { border-color: rgba(248, 113, 113, 0.24); background: rgba(248, 113, 113, 0.06); }
+      .legend-row.is-trial { border-color: rgba(244, 180, 0, 0.24); background: rgba(244, 180, 0, 0.06); }
+      .legend-row.is-available { border-color: rgba(47, 125, 50, 0.22); background: rgba(47, 125, 50, 0.06); }
+      .legend-row.is-muted { border-color: rgba(148, 163, 184, 0.16); background: rgba(148, 163, 184, 0.06); }
+      .totals-shell {
+        display: grid;
+        gap: 10px;
+        padding: 11px;
+        border-radius: 18px;
+        border: 1px solid rgba(11, 18, 32, 0.08);
+        background: #f8fafc;
+        box-shadow: 0 12px 26px rgba(11, 18, 32, 0.05);
+      }
+      .totals-shell h2 {
+        margin: 0;
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--club-primary);
+      }
+      .totals-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 8px;
+      }
+      .total-card {
+        border-radius: 14px;
+        border: 1px solid rgba(11, 18, 32, 0.08);
+        background: #ffffff;
+        padding: 9px 10px;
+      }
+      .total-card .kicker {
+        color: rgba(71, 85, 105, 0.82);
+        font-size: 8px;
+        letter-spacing: 0.14em;
+      }
+      .total-card strong {
+        display: block;
+        margin-top: 4px;
+        font-size: 14px;
+        color: #0b1220;
+      }
+      .total-card .meta {
+        margin-top: 4px;
+        color: rgba(71, 85, 105, 0.88);
+        font-size: 8px;
+        line-height: 1.3;
+      }
       .sections {
         display: grid;
         gap: 10px;
       }
       .group-card {
         border-radius: 16px;
-        border: 1px solid rgba(148, 163, 184, 0.14);
+        border: 1px solid rgba(11, 18, 32, 0.08);
         background:
-          radial-gradient(circle at top right, rgba(244, 180, 0, 0.04), transparent 25%),
-          rgba(7, 16, 30, 0.84);
+          radial-gradient(circle at top right, rgba(var(--club-secondary-rgb), 0.05), transparent 25%),
+          #ffffff;
         padding: 10px;
         break-inside: avoid;
         page-break-inside: avoid;
+        box-shadow: 0 10px 22px rgba(11, 18, 32, 0.05);
       }
       .group-title {
         display: flex;
@@ -452,11 +463,11 @@
         font-size: 12px;
         letter-spacing: 0.14em;
         text-transform: uppercase;
-        color: #f8fafc;
+        color: var(--club-primary);
       }
       .group-title .meta {
         font-size: 10px;
-        color: rgba(226, 232, 240, 0.72);
+        color: rgba(71, 85, 105, 0.82);
         font-weight: 700;
       }
       table {
@@ -474,11 +485,11 @@
         font-size: 9px;
         letter-spacing: 0.14em;
         text-transform: uppercase;
-        color: rgba(226, 232, 240, 0.78);
+        color: rgba(71, 85, 105, 0.88);
       }
       td {
         font-size: 10px;
-        color: rgba(248, 250, 252, 0.94);
+        color: #0b1220;
       }
       .player-name {
         font-weight: 900;
@@ -496,69 +507,27 @@
         text-transform: uppercase;
         white-space: nowrap;
       }
-      .row-badge.is-critical { border-color: rgba(248,113,113,0.34); background: rgba(248,113,113,0.12); color: #fecaca; }
-      .row-badge.is-trial { border-color: rgba(244,180,0,0.34); background: rgba(244,180,0,0.08); color: #fde68a; }
-      .row-badge.is-available { border-color: rgba(47,125,50,0.34); background: rgba(47,125,50,0.10); color: #bbf7d0; }
-      .row-badge.is-muted { border-color: rgba(148,163,184,0.24); background: rgba(148,163,184,0.08); color: #e2e8f0; }
+      .row-badge.is-critical { border-color: rgba(248, 113, 113, 0.34); background: rgba(248, 113, 113, 0.12); color: #991b1b; }
+      .row-badge.is-trial { border-color: rgba(244, 180, 0, 0.34); background: rgba(244, 180, 0, 0.08); color: #9a6700; }
+      .row-badge.is-available { border-color: rgba(47, 125, 50, 0.34); background: rgba(47, 125, 50, 0.10); color: #0f5132; }
+      .row-badge.is-muted { border-color: rgba(148, 163, 184, 0.24); background: rgba(148, 163, 184, 0.08); color: #475569; }
+      .field-summary-note {
+        margin: 0;
+        color: rgba(71, 85, 105, 0.82);
+        font-size: 9px;
+        letter-spacing: 0.10em;
+        text-transform: uppercase;
+      }
       .foot {
         display: flex;
         justify-content: space-between;
         gap: 12px;
         font-size: 10px;
-        color: rgba(226, 232, 240, 0.72);
+        color: rgba(71, 85, 105, 0.82);
         padding-top: 2px;
       }
       .muted {
-        color: rgba(226, 232, 240, 0.72);
-      }
-      .field-summary-note {
-        margin: 0;
-        color: rgba(226, 232, 240, 0.72);
-        font-size: 9px;
-        letter-spacing: 0.10em;
-        text-transform: uppercase;
-      }
-      .field-title {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 10px;
-      }
-      .field-title .title-copy {
-        min-width: 0;
-      }
-      .field-title .title-copy h2 {
-        margin: 0;
-        font-size: 12px;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        color: #bae6fd;
-      }
-      .field-title .title-copy p {
-        margin: 4px 0 0;
-        color: rgba(226, 232, 240, 0.74);
-        font-size: 11px;
-        line-height: 1.45;
-      }
-      .field-badges {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-        gap: 5px;
-      }
-      .field-badge {
-        display: inline-flex;
-        align-items: center;
-        min-height: 22px;
-        padding: 0 8px;
-        border-radius: 999px;
-        border: 1px solid rgba(244, 180, 0, 0.22);
-        background: rgba(244, 180, 0, 0.08);
-        color: #fff7dd;
-        font-size: 8px;
-        font-weight: 900;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
+        color: rgba(71, 85, 105, 0.82);
       }
     </style>
   </head>
@@ -568,7 +537,7 @@
         <div class="brand-stack">
           <div class="club-banner">
             <span class="club-pill">Club</span>
-            <span class="club-pill">{{ division_label|default:"División" }}</span>
+            <span class="club-pill">{{ division_label|default:"Division" }}</span>
             <span class="club-pill">{{ season_label }}</span>
             <span class="club-pill">{{ scope_label }}</span>
             {% if tournament_filter %}<span class="club-pill">{{ tournament_filter }}</span>{% endif %}
@@ -576,7 +545,7 @@
           <div class="brand">
             {% if crest_src %}<img class="crest" src="{{ crest_src }}" alt="Escudo {{ team_name }}" />{% endif %}
             <div class="head-copy">
-              <p class="kicker">Plantilla técnica</p>
+              <p class="kicker">Plantilla tecnica</p>
               <h1>{{ team_name }}</h1>
               <p class="sub">
                 {{ division_label|default:"" }}{% if division_label and season_label %} · {% endif %}{{ season_label }}
@@ -603,7 +572,7 @@
         <article class="panel">
           <div class="field-title">
             <div class="title-copy">
-              <h2>Configuración de plantilla</h2>
+              <h2>Configuracion de plantilla</h2>
               <p>La superficie replica la pizarra de tareas del staff. Cada mini card representa un jugador de la plantilla con su estado operativo.</p>
             </div>
             <div class="field-badges">
@@ -614,13 +583,13 @@
             </div>
           </div>
           <div class="pitch-stage">
-            {% if pitch_src %}<img class="pitch-base" src="{{ pitch_src }}" alt="Campo de fútbol" />{% endif %}
+            {% if pitch_src %}<img class="pitch-base" src="{{ pitch_src }}" alt="Campo de futbol" />{% endif %}
             {% if pitch_overlay_src %}<img class="pitch-overlay" src="{{ pitch_overlay_src }}" alt="" aria-hidden="true" />{% endif %}
-            <div class="pitch-overlay">
+            <div class="pitch-overlay-layer">
               {% for card in field_cards %}
                 <article class="field-card {% if card.state_key == 'injured' %}is-critical{% elif card.state_key == 'trial' %}is-trial{% elif card.state_key == 'confirmed' %}is-available{% else %}is-muted{% endif %}" style="left: {{ card.left }}%; top: {{ card.top }}%; width: {{ card.width }}%;">
                   <div class="field-head">
-                    <span>{{ card.number|default:"-" }}</span>
+                    <span>{% if card.number %}{{ card.number }}{% else %}-{% endif %}</span>
                     <strong>{{ card.bucket_short }}</strong>
                   </div>
                   <div class="field-count">{{ card.bucket_label }}</div>
@@ -630,7 +599,7 @@
                       <div class="mini-copy">
                         <span class="mini-name">{{ card.name }}</span>
                         <span class="mini-meta">{{ card.position|default:"-" }}</span>
-                        <div class="field-state-line">
+                        <div>
                           <span class="mini-state {% if card.state_key == 'injured' %}is-critical{% elif card.state_key == 'trial' %}is-trial{% elif card.state_key == 'confirmed' %}is-available{% else %}is-muted{% endif %}">{{ card.state_label }}</span>
                         </div>
                       </div>
@@ -638,7 +607,9 @@
                   </div>
                 </article>
               {% empty %}
-                <div class="mini-empty" style="position:absolute; inset: 42% auto auto 50%; transform: translate(-50%, -50%);">Sin jugadores</div>
+                <div style="position:absolute; inset: 42% auto auto 50%; transform: translate(-50%, -50%); text-align:center; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(71,85,105,0.8);">
+                  Sin jugadores
+                </div>
               {% endfor %}
             </div>
           </div>
@@ -647,7 +618,7 @@
 
         <article class="panel state-card">
           <h2>Estado de la plantilla</h2>
-          <p>Lectura rápida del momento actual de la categoría.</p>
+          <p>Lectura rapida del momento actual de la categoria.</p>
           <div class="legend">
             <div class="legend-row is-available">
               <div><strong>{{ state_counts.confirmed|default:0 }}</strong></div>
@@ -696,7 +667,7 @@
                 <tr>
                   <th style="width:48px;">#</th>
                   <th>Jugador</th>
-                  <th style="width:110px;">Posición</th>
+                  <th style="width:110px;">Posicion</th>
                   <th style="width:90px;">Nacimiento</th>
                   <th>Origen</th>
                   <th style="width:110px;">Estado</th>
@@ -718,7 +689,7 @@
                   </tr>
                 {% empty %}
                   <tr>
-                    <td colspan="6" class="muted">Sin jugadores en esta línea.</td>
+                    <td colspan="6" class="muted">Sin jugadores en esta linea.</td>
                   </tr>
                 {% endfor %}
               </tbody>

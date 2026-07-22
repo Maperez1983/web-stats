@@ -15993,7 +15993,7 @@ def admin_page(request):
 
     if active_tab == "roster":
         roster_players = (
-            list(Player.objects.filter(team=primary_team).order_by("-is_active", "number", "name"))
+            list(Player.objects.filter(team=primary_team, is_active=True).order_by('number', 'name'))
             if primary_team
             else []
         )
@@ -32665,7 +32665,7 @@ def coach_roster_pdf(request):
             'id': int(getattr(player, 'id', 0) or 0),
             'name': str(getattr(player, 'name', '') or '').strip(),
             'number': getattr(player, 'number', None),
-            'position': str(getattr(player, 'position', '') or getattr(player, 'preferred_position', '') or '-').strip() or '-',
+            'position': str(getattr(player, 'position', '') or '-').strip() or '-',
             'birth_year': getattr(player, 'birth_date', None).year if getattr(player, 'birth_date', None) else '',
             'origin_team': str(getattr(player, 'origin_team', '') or '-').strip() or '-',
             'state_key': state_key,
@@ -32673,9 +32673,11 @@ def coach_roster_pdf(request):
             'state_tone': tone,
             'season_status_label': str(getattr(membership, 'status', '') or '').strip() and status_labels.get(str(getattr(membership, 'status', '') or '').strip(), 'Pendiente') or 'Pendiente',
             'confirmed': bool(getattr(player, 'season_confirmed', False)) if hasattr(player, 'season_confirmed') else False,
+            'is_active': bool(getattr(player, 'is_active', True)),
         }
         roster_rows.append(record)
-        group['players'].append(record)
+        if record['is_active']:
+            group['players'].append(record)
 
     field_cards = []
     for bucket_key in ('gk', 'def', 'mid', 'att', 'oth'):
@@ -32725,7 +32727,7 @@ def coach_roster_pdf(request):
         'injured': sum(1 for row in roster_rows if row['state_key'] == 'injured'),
         'inactive': inactive_total,
     }
-    total_players = len(roster_rows)
+    total_players = len([row for row in roster_rows if row.get('is_active')])
 
     static_base_dir = Path(settings.BASE_DIR) / 'static'
     pitch_src = (
@@ -32780,6 +32782,8 @@ def coach_roster_pdf(request):
         {'label': 'Inactivos', 'value': state_counts['inactive'], 'hint': 'Baja o fuera de plantilla'},
     ]
 
+    want_download = str(request.GET.get('download') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+
     html = render_to_string(
         'football/coach_roster_pdf.html',
         {
@@ -32803,7 +32807,7 @@ def coach_roster_pdf(request):
         request=request,
     )
     filename = slugify(f'plantilla-{primary_team.display_name}-{timezone.localdate()}') or f'plantilla-{primary_team.id}'
-    return _build_pdf_response_or_html_fallback(request, html, filename, inline=True, force_pdf=True)
+    return _build_pdf_response_or_html_fallback(request, html, filename, inline=not want_download, force_pdf=True)
 
 
 @login_required
