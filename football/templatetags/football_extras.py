@@ -1,6 +1,7 @@
 from django import template
 
 from football.event_taxonomy import normalize_label
+from football.normalization import normalize_person_name
 
 register = template.Library()
 
@@ -26,9 +27,13 @@ _POSITION_DISPLAY_MAP = {
     "mc": "Mediocentro",
     "medio centro": "Mediocentro",
     "mediocentro": "Mediocentro",
+    "interior d": "Interior derecho",
+    "interiord": "Interior derecho",
     "id": "Interior derecho",
     "interior derecho": "Interior derecho",
     "interiorderecho": "Interior derecho",
+    "interior i": "Interior izquierdo",
+    "interiori": "Interior izquierdo",
     "ii": "Interior izquierdo",
     "interior izquierdo": "Interior izquierdo",
     "interiorizquierdo": "Interior izquierdo",
@@ -47,6 +52,12 @@ _POSITION_DISPLAY_MAP = {
     "sd": "Segundo delantero",
     "segundo delantero": "Segundo delantero",
     "segundodelantero": "Segundo delantero",
+    "carrilero d": "Carrilero derecho",
+    "carrilerod": "Carrilero derecho",
+    "carrilero derecho": "Carrilero derecho",
+    "carrilero i": "Carrilero izquierdo",
+    "carrileroi": "Carrilero izquierdo",
+    "carrilero izquierdo": "Carrilero izquierdo",
 }
 
 
@@ -110,7 +121,7 @@ def initials(value, count=2):
 
 @register.filter
 def display_text(value):
-    return _smart_title(value)
+    return normalize_person_name(value, preserve_acronyms=False)
 
 
 @register.filter

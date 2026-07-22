@@ -10,6 +10,8 @@ import secrets
 import hashlib
 import uuid
 
+from .normalization import normalize_player_record, normalize_scouting_target_record
+
 
 class DataSource(models.Model):
     name = models.CharField(max_length=120, unique=True)
@@ -644,6 +646,15 @@ class Player(models.Model):
     def __str__(self):
         return f'{self.name} ({self.team.name})'
 
+    def save(self, *args, **kwargs):
+        changed_fields = normalize_player_record(self)
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None:
+            merged = set(update_fields)
+            merged.update(changed_fields)
+            kwargs['update_fields'] = sorted(merged)
+        super().save(*args, **kwargs)
+
 
 class StaffMember(models.Model):
     """
@@ -920,6 +931,15 @@ class ScoutingTarget(models.Model):
 
     def __str__(self):
         return f'{self.display_name} · {self.workspace.name}'
+
+    def save(self, *args, **kwargs):
+        changed_fields = normalize_scouting_target_record(self)
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None:
+            merged = set(update_fields)
+            merged.update(changed_fields)
+            kwargs['update_fields'] = sorted(merged)
+        super().save(*args, **kwargs)
 
 
 class ScoutingReport(models.Model):
