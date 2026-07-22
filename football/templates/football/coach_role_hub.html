@@ -265,13 +265,14 @@
       }
       .trainer-hero-grid {
         display: grid;
-        grid-template-columns: minmax(0, 1.9fr) minmax(280px, 0.5fr);
+        grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.8fr);
         gap: 0.95rem;
         padding: 1rem;
+        align-items: start;
       }
       .trainer-photo-panel {
         position: relative;
-        min-height: 560px;
+        min-height: 430px;
         border-radius: 26px;
         overflow: hidden;
         border: 1px solid rgba(148, 163, 184, 0.16);
@@ -398,6 +399,7 @@
       .trainer-summary-card {
         display: grid;
         gap: 0.65rem;
+        align-content: start;
       }
       .trainer-info-card .label {
         display: block;
@@ -975,7 +977,7 @@
           grid-template-columns: 1fr;
         }
         .trainer-photo-panel {
-          min-height: 320px;
+          min-height: 300px;
         }
         .trainer-photo-copy {
           inset: 0.85rem 0.85rem auto 0.85rem;
