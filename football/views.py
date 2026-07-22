@@ -2845,8 +2845,6 @@ def scouting_board_page(request):
         .select_related('player', 'player__team', 'assigned_to', 'created_by')
         .order_by('-priority', 'status', 'subject_name', '-updated_at', '-id')
     )
-    if active_team:
-        targets_qs = targets_qs.filter(Q(player__team=active_team) | Q(subject_team_name__icontains=active_team.display_name))
     if status_filter != 'all':
         targets_qs = targets_qs.filter(status=status_filter)
     if priority_filter != 'all':

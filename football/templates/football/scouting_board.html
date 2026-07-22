@@ -242,6 +242,55 @@
         grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
         gap: 0.85rem;
       }
+      .list-wrap {
+        margin-top: 1rem;
+        overflow-x: auto;
+      }
+      .list-table {
+        width: 100%;
+        border-collapse: collapse;
+        border-spacing: 0;
+        min-width: 860px;
+        border-radius: 18px;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(7, 16, 30, 0.74);
+      }
+      .list-table th,
+      .list-table td {
+        padding: 0.85rem 0.9rem;
+        text-align: left;
+        vertical-align: top;
+        border-bottom: 1px solid rgba(148,163,184,0.12);
+      }
+      .list-table th {
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.72);
+        font-weight: 900;
+        background: rgba(2, 6, 23, 0.22);
+      }
+      .list-table tbody tr:hover {
+        background: rgba(244, 180, 0, 0.05);
+      }
+      .list-main {
+        display: grid;
+        gap: 0.2rem;
+      }
+      .list-name {
+        font-size: 0.98rem;
+        font-weight: 900;
+        color: rgba(245,247,250,0.96);
+      }
+      .list-sub {
+        color: rgba(226,232,240,0.7);
+        font-size: 0.82rem;
+      }
+      .list-muted {
+        color: rgba(226,232,240,0.72);
+        font-size: 0.9rem;
+      }
       .card {
         min-width: 0;
         border-radius: 20px;
@@ -554,66 +603,58 @@
         </section>
 
         {% if items %}
-        <section class="grid" aria-label="Jugadores ojeados">
-          {% for target in items %}
-          <article class="card">
-            <div class="card-head">
-              <div>
-                <h3 class="card-title">{{ target.display_name }}</h3>
-                <div class="card-sub">
-                  {% if target.subject_team_name %}{{ target.subject_team_name }} · {% endif %}
-                  {{ target.position|default:"Sin posición" }}
-                </div>
-              </div>
-              <span class="badge {% if target.priority == 'urgent' %}critical{% elif target.priority == 'high' %}warning{% else %}ok{% endif %}">{{ target.get_priority_display }}</span>
-            </div>
-            <div class="card-badges">
-              <span class="badge">{{ target.get_status_display }}</span>
-              {% if target.available_for_coach_tools and target.status != 'discarded' %}
-              <span class="badge warning">A prueba</span>
-              {% endif %}
-              {% if target.player_id %}
-              <span class="badge ok">En plantilla</span>
-              {% endif %}
-              {% if target.assigned_to %}
-              <span class="badge">Asignado: {{ target.assigned_to.get_full_name|default:target.assigned_to.username }}</span>
-              {% endif %}
-              {% if target.next_review_on %}
-              <span class="badge">Revisión {{ target.next_review_on|date:"d/m/Y" }}</span>
-              {% endif %}
-            </div>
-            <div class="mini-grid">
-              <div class="mini">
-                <div class="label">Informes</div>
-                <div class="value">{{ target.report_count|default:0 }}</div>
-              </div>
-              <div class="mini">
-                <div class="label">Abiertos</div>
-                <div class="value">{{ target.followups_open|length|default:0 }}</div>
-              </div>
-              <div class="mini">
-                <div class="label">Última nota</div>
-                <div class="value">
-                  {% if target.latest_report %}
-                    {{ target.latest_report.observed_on|date:"d/m" }}
-                  {% else %}
-                    -
-                  {% endif %}
-                </div>
-              </div>
-            </div>
-            {% if target.summary %}
-            <div class="card-meta">{{ target.summary|truncatechars:160 }}</div>
-            {% endif %}
-            <div class="card-actions">
-              <a class="card-action primary" href="{% url 'scouting-target-detail' target.id %}">Abrir ficha</a>
-              {% if target.player_id %}
-              <a class="card-action" href="{% url 'player-detail' target.player_id %}">Ficha jugador</a>
-              {% endif %}
-            </div>
-          </article>
-          {% endfor %}
-        </section>
+        <div class="list-wrap" aria-label="Jugadores ojeados">
+          <table class="list-table">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Posición</th>
+                <th>Año nacimiento</th>
+                <th>Club de origen</th>
+                <th>Estado en planificación</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for target in items %}
+              <tr>
+                <td>
+                  <div class="list-main">
+                    <a class="list-name" href="{% url 'scouting-target-detail' target.id %}">{{ target.display_name }}</a>
+                    {% if target.player_id %}
+                    <div class="list-sub">Vinculado a plantilla</div>
+                    {% endif %}
+                  </div>
+                </td>
+                <td class="list-muted">{{ target.position|default:"Sin posición" }}</td>
+                <td class="list-muted">{% if target.birth_date %}{{ target.birth_date|date:"Y" }}{% else %}-{% endif %}</td>
+                <td class="list-muted">{{ target.subject_team_name|default:"-" }}</td>
+                <td>
+                  <div class="card-badges" style="margin-top:0;">
+                    <span class="badge {% if target.priority == 'urgent' %}critical{% elif target.priority == 'high' %}warning{% else %}ok{% endif %}">{{ target.get_priority_display }}</span>
+                    <span class="badge">{{ target.get_status_display }}</span>
+                    {% if target.available_for_coach_tools and target.status != 'discarded' %}
+                    <span class="badge warning">A prueba</span>
+                    {% elif target.status == 'discarded' %}
+                    <span class="badge critical">Descartado</span>
+                    {% elif target.player_id %}
+                    <span class="badge ok">En plantilla</span>
+                    {% endif %}
+                  </div>
+                </td>
+                <td>
+                  <div class="card-actions" style="margin-top:0;">
+                    <a class="card-action primary" href="{% url 'scouting-target-detail' target.id %}">Abrir ficha</a>
+                    {% if target.player_id %}
+                    <a class="card-action" href="{% url 'player-detail' target.player_id %}">Jugador</a>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
         {% else %}
         <div class="empty">No hay jugadores ojeados con estos filtros.</div>
         {% endif %}
