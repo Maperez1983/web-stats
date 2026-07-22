@@ -151,7 +151,8 @@
   {% endif %}
   {% endwith %}
 </nav>
-{% elif not hide_product_shortcuts %}
+{% endif %}
+{% if not hide_product_shortcuts %}
 <nav class="product-nav-shortcuts" aria-label="Accesos rápidos">
   {% if active_workspace %}
   <div class="nav-context" aria-label="Contexto actual">
@@ -312,6 +313,7 @@
   {% endif %}
   {% endwith %}
 </nav>
+{% endif %}
 {% if request.user.is_authenticated and not hide_global_guard_widget %}
   {% include 'football/includes/global_guard_widget.html' %}
 {% endif %}
