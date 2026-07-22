@@ -18590,29 +18590,24 @@ def coach_overview_page(request):
             "url": reverse("match-hub"),
         },
         {
-            "title": "Entrenamiento",
-            "description": "Tareas · sesiones · microciclos",
-            "url": reverse("sessions"),
-        },
-        {
-            "title": "Agenda",
-            "description": "Semana (sesiones + partidos)",
-            "url": reverse("team-agenda"),
-        },
-        {
-            "title": "Jugadores",
-            "description": "Fichas, licencias, KPIs",
+            "title": "Plantilla",
+            "description": "Fichas, estados, KPIs y PDF",
             "url": reverse("coach-roster"),
         },
         {
-            "title": "Análisis",
-            "description": "Vídeos e informes",
-            "url": reverse("analysis"),
+            "title": "Dirección",
+            "description": "Ojeo, seguimiento y altas",
+            "url": reverse("scouting-board"),
         },
         {
-            "title": "Táctica",
-            "description": "Pizarra · clips · export",
-            "url": reverse("coach-tactics"),
+            "title": "Entrenamiento",
+            "description": "Sesiones, tareas y microciclos",
+            "url": reverse("sessions"),
+        },
+        {
+            "title": "Configuración",
+            "description": "Staff, módulos y ajustes del club",
+            "url": reverse("club-onboarding"),
         },
     ]
     probable_eleven_names = []
