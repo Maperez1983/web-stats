@@ -661,12 +661,11 @@
       }
       .trainer-squad-layout {
         display: grid;
-        grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
+        grid-template-columns: minmax(0, 1fr);
         gap: 1rem;
         align-items: start;
       }
-      .trainer-squad-pitch,
-      .trainer-squad-panel {
+      .trainer-squad-pitch {
         border-radius: 22px;
         border: 1px solid var(--hub-card-border);
         background:
@@ -726,7 +725,9 @@
       }
       .trainer-squad-field {
         position: relative;
-        min-height: 540px;
+        aspect-ratio: 105 / 68;
+        min-height: 760px;
+        max-height: min(84vh, 980px);
         padding-bottom: 0;
         border-radius: 22px;
         overflow: hidden;
@@ -838,107 +839,6 @@
       .trainer-squad-legend .trainer-squad-metric {
         justify-content: space-between;
       }
-      .trainer-squad-panel {
-        padding: 1rem;
-        display: grid;
-        gap: 0.9rem;
-      }
-      .trainer-squad-panel-head {
-        display: flex;
-        justify-content: space-between;
-        gap: 0.65rem;
-        align-items: center;
-      }
-      .trainer-squad-panel-head strong {
-        font-size: 1rem;
-        color: #f8fafc;
-      }
-      .trainer-squad-panel-head span {
-        color: var(--hub-card-muted);
-      }
-      .trainer-squad-list {
-        display: grid;
-        gap: 0.55rem;
-        max-height: 430px;
-        overflow: auto;
-        padding-right: 0.15rem;
-      }
-      .trainer-squad-player {
-        display: grid;
-        grid-template-columns: auto minmax(0, 1fr);
-        gap: 0.65rem;
-        align-items: center;
-        text-decoration: none;
-        color: inherit;
-        padding: 0.6rem;
-        border-radius: 16px;
-        border: 1px solid rgba(148, 163, 184, 0.14);
-        background: rgba(2, 6, 23, 0.24);
-        transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
-      }
-      .trainer-squad-player:hover {
-        transform: translateY(-1px);
-        border-color: rgba(244, 180, 0, 0.34);
-        background: rgba(2, 6, 23, 0.34);
-      }
-      .trainer-squad-player-media {
-        position: relative;
-        width: 54px;
-        height: 54px;
-        border-radius: 16px;
-        overflow: hidden;
-        border: 1px solid rgba(148, 163, 184, 0.16);
-        background:
-          radial-gradient(circle at top, rgba(244, 180, 0, 0.18), transparent 44%),
-          rgba(2, 6, 23, 0.7);
-        flex: 0 0 auto;
-      }
-      .trainer-squad-player-media img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-      }
-      .trainer-squad-player-number {
-        position: absolute;
-        right: 0.18rem;
-        bottom: 0.18rem;
-        min-width: 1.18rem;
-        height: 1.18rem;
-        padding: 0 0.2rem;
-        border-radius: 999px;
-        border: 1px solid rgba(244, 180, 0, 0.34);
-        background: rgba(244, 180, 0, 0.12);
-        color: rgba(255, 242, 199, 0.98);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.66rem;
-        font-weight: 950;
-      }
-      .trainer-squad-player-copy {
-        min-width: 0;
-        display: grid;
-        gap: 0.12rem;
-      }
-      .trainer-squad-player-copy strong {
-        display: block;
-        color: #f8fafc;
-        font-size: 0.78rem;
-        line-height: 1.12;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: normal;
-      }
-      .trainer-squad-player-copy span {
-        color: var(--hub-card-muted);
-        font-size: 0.72rem;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
       .trainer-squad-reinforcement {
         display: grid;
         gap: 0.55rem;
@@ -986,6 +886,11 @@
         font-size: 0.78rem;
         line-height: 1.35;
       }
+      .trainer-squad-reinforcement-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.55rem;
+      }
       @media (max-width: 900px) {
         .role-header {
           grid-template-columns: 1fr;
@@ -1024,16 +929,24 @@
           grid-template-columns: 1fr;
         }
         .trainer-squad-field {
-          min-height: 400px;
+          min-height: 520px;
         }
         .trainer-squad-legend {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
-        .trainer-pitch-player {
-          width: min(110px, 30vw);
+        .trainer-squad-reinforcement-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
         }
-        .trainer-squad-list {
-          max-height: none;
+      }
+      @media (max-width: 640px) {
+        .trainer-squad-field {
+          min-height: 440px;
+        }
+        .trainer-squad-reinforcement-grid {
+          grid-template-columns: 1fr;
+        }
+        .trainer-pitch-player {
+          width: min(106px, 34vw);
         }
       }
       .section-nav {
@@ -2525,62 +2438,24 @@
               {% endfor %}
             </div>
           </article>
-          <aside class="trainer-squad-panel" aria-label="Plantilla activa y posiciones a reforzar">
-            <div class="trainer-squad-panel-head">
-              <div>
-                <strong>Plantilla activa</strong><br />
-                <span>{{ trainer_squad_active_count }} jugadores dados de alta</span>
-              </div>
+        </div>
+        <div class="trainer-squad-reinforcement">
+          <h4>Posiciones a reforzar</h4>
+          <div class="trainer-squad-reinforcement-grid">
+            {% for row in trainer_squad_reinforcement_rows %}
+            <div class="trainer-squad-reinforcement-row is-{{ row.tone }}">
+              <span class="label">{{ row.label }}</span>
+              <span class="value">{{ row.current }} disponibles</span>
+              <span class="meta">
+                {% if row.missing %}
+                  Falta {{ row.missing }} para tener una estructura más sólida. {{ row.status }}
+                {% else %}
+                  Estructura cubierta para un once base competitivo.
+                {% endif %}
+              </span>
             </div>
-            <div class="trainer-squad-list">
-              {% for item in coach_player_cards_all %}
-              <a
-                class="card-link"
-                href="{% url 'player-detail' item.id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% elif active_team %}?team={{ active_team.id }}{% endif %}"
-                title="{{ item.name }}{% if item.number %} · {{ item.number }}{% endif %}"
-              >
-                <article class="card broadcast-card{% if coach_selected_player_id == item.id %} is-selected{% endif %}{% if not item.season_confirmed %} is-unconfirmed{% endif %}">
-                  <div class="broadcast-head">
-                    <div class="broadcast-head-left">
-                      <div class="avatar-wrap" aria-hidden="true">
-                        <img class="avatar" src="{% if item.photo_url %}{{ item.photo_url }}{% else %}{% static 'football/images/player-avatar.svg' %}{% endif %}" alt="{{ item.name }}" loading="lazy" />
-                        {% if item.number %}<span class="dorsal-badge">{{ item.number }}</span>{% endif %}
-                      </div>
-                      <div>
-                        <h2 class="broadcast-name">{{ item.name }}</h2>
-                        <div class="broadcast-sub">{{ item.position|default:'-' }}</div>
-                      </div>
-                    </div>
-                    <div class="broadcast-head-right">
-                      <div class="broadcast-pill">Min {{ item.minutes }}</div>
-                      <div class="broadcast-pill">PJ {{ item.matches }}</div>
-                    </div>
-                  </div>
-                  <div class="broadcast-mini">
-                    <span class="mini-pill">G <strong>{{ item.goals }}</strong></span>
-                    <span class="mini-pill">A <strong>{{ item.assists }}</strong></span>
-                  </div>
-                </article>
-              </a>
-              {% endfor %}
-            </div>
-            <div class="trainer-squad-reinforcement">
-              <h4>Posiciones a reforzar</h4>
-              {% for row in trainer_squad_reinforcement_rows %}
-              <div class="trainer-squad-reinforcement-row is-{{ row.tone }}">
-                <span class="label">{{ row.label }}</span>
-                <span class="value">{{ row.current }} disponibles</span>
-                <span class="meta">
-                  {% if row.missing %}
-                    Falta {{ row.missing }} para tener una estructura más sólida. {{ row.status }}
-                  {% else %}
-                    Estructura cubierta para un once base competitivo.
-                  {% endif %}
-                </span>
-              </div>
-              {% endfor %}
-            </div>
-          </aside>
+            {% endfor %}
+          </div>
         </div>
       </section>
       {% endif %}
