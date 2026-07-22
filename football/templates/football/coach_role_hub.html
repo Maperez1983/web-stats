@@ -2783,9 +2783,39 @@
             currentPositions[card.dataset.playerId] = { left, top };
           };
 
+          const handlePointerMove = (event) => {
+            if (!dragging || dragging.pointerId !== event.pointerId) return;
+            const { card } = dragging;
+            const dx = Math.abs(event.clientX - dragging.startX);
+            const dy = Math.abs(event.clientY - dragging.startY);
+            if (!dragging.moved && (dx + dy) > 6) dragging.moved = true;
+            if (!dragging.moved) return;
+            event.preventDefault();
+            updateCardPosition(card, event.clientX, event.clientY);
+          };
+
+          const handlePointerEnd = (event) => {
+            if (!dragging || dragging.pointerId !== event.pointerId) return;
+            const { card } = dragging;
+            try { card.releasePointerCapture(event.pointerId); } catch (error) { /* ignore */ }
+            card.classList.remove('is-dragging');
+            const wasDragging = dragging.moved;
+            dragging = null;
+            if (wasDragging) {
+              persist();
+              card.dataset.justDragged = '1';
+              window.setTimeout(() => { delete card.dataset.justDragged; }, 0);
+            }
+          };
+
+          window.addEventListener('pointermove', handlePointerMove, { passive: false });
+          window.addEventListener('pointerup', handlePointerEnd);
+          window.addEventListener('pointercancel', handlePointerEnd);
+
           cards.forEach((card) => {
             card.addEventListener('pointerdown', (event) => {
               if (event.button !== undefined && event.button !== 0) return;
+              event.preventDefault();
               dragging = {
                 card,
                 pointerId: event.pointerId,
@@ -2796,32 +2826,6 @@
               try { card.setPointerCapture(event.pointerId); } catch (error) { /* ignore */ }
               card.classList.add('is-dragging');
             });
-
-            card.addEventListener('pointermove', (event) => {
-              if (!dragging || dragging.card !== card || dragging.pointerId !== event.pointerId) return;
-              const dx = Math.abs(event.clientX - dragging.startX);
-              const dy = Math.abs(event.clientY - dragging.startY);
-              if (!dragging.moved && (dx + dy) > 6) dragging.moved = true;
-              if (!dragging.moved) return;
-              event.preventDefault();
-              updateCardPosition(card, event.clientX, event.clientY);
-            });
-
-            const finishDrag = (event) => {
-              if (!dragging || dragging.card !== card || dragging.pointerId !== event.pointerId) return;
-              try { card.releasePointerCapture(event.pointerId); } catch (error) { /* ignore */ }
-              card.classList.remove('is-dragging');
-              const wasDragging = dragging.moved;
-              dragging = null;
-              if (wasDragging) {
-                persist();
-                card.dataset.justDragged = '1';
-                window.setTimeout(() => { delete card.dataset.justDragged; }, 0);
-              }
-            };
-
-            card.addEventListener('pointerup', finishDrag);
-            card.addEventListener('pointercancel', finishDrag);
             card.addEventListener('click', (event) => {
               if (card.dataset.justDragged === '1') {
                 event.preventDefault();
