@@ -3064,6 +3064,12 @@ def scouting_target_detail_page(request, target_id):
                     request_user=request.user,
                 )
                 feedback = 'Jugador convertido en miembro de la plantilla.'
+            elif action == 'delete-target':
+                target_label = target.display_name
+                target.delete()
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({'ok': True, 'deleted': True, 'label': target_label})
+                return redirect(reverse('scouting-board'))
         except Exception:
             logger.exception('No se pudo actualizar el scouting target %s', target_id)
             error = 'No se pudo guardar la información.'

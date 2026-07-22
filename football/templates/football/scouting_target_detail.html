@@ -78,6 +78,31 @@
         border-color: rgba(244, 180, 0, 0.45);
         background: linear-gradient(135deg, rgba(244, 180, 0, 0.22), rgba(47, 125, 50, 0.16));
       }
+      .btn.danger {
+        border-color: rgba(248, 113, 113, 0.35);
+        background: rgba(127, 29, 29, 0.22);
+        color: #fecaca;
+      }
+      .btn.danger:hover {
+        border-color: rgba(248, 113, 113, 0.62);
+        color: #ffe4e6;
+      }
+      .icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+      }
+      .icon-btn svg {
+        width: 0.95rem;
+        height: 0.95rem;
+        display: block;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
       .btn:hover {
         border-color: rgba(244, 180, 0, 0.52);
         color: #fff8e1;
@@ -369,6 +394,20 @@
             <input type="hidden" name="action" value="promote-to-player" />
             <button class="btn primary" type="submit">
               {% if target.player_id %}Sincronizar plantilla{% else %}Convertir a plantilla{% endif %}
+            </button>
+          </form>
+          <form method="post" style="margin:0; display:inline-flex;" onsubmit="return confirm('¿Eliminar este seguimiento? Esta acción no se puede deshacer.');">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete-target" />
+            <button class="btn danger icon-btn" type="submit" title="Eliminar seguimiento" aria-label="Eliminar seguimiento">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M3 6h18"></path>
+                <path d="M8 6V4.5A1.5 1.5 0 0 1 9.5 3h5A1.5 1.5 0 0 1 16 4.5V6"></path>
+                <path d="M19 6l-1 14.2A1.6 1.6 0 0 1 16.4 22H7.6A1.6 1.6 0 0 1 6 20.2L5 6"></path>
+                <path d="M10 11v6"></path>
+                <path d="M14 11v6"></path>
+              </svg>
+              <span>Borrar</span>
             </button>
           </form>
           {% endif %}
