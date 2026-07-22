@@ -4925,6 +4925,9 @@ def _render_coach_roster_preview_png(
     font_card_pos = _roster_preview_font(13, bold=False) or ImageFont.load_default()
     font_card_state = _roster_preview_font(11, bold=True) or ImageFont.load_default()
     font_big = _roster_preview_font(26, bold=True) or ImageFont.load_default()
+    font_avatar_name = _roster_preview_font(16, bold=True) or ImageFont.load_default()
+    font_avatar_meta = _roster_preview_font(11, bold=True) or ImageFont.load_default()
+    font_avatar_small = _roster_preview_font(10, bold=False) or ImageFont.load_default()
 
     # top header
     header_box = (38, 28, width - 38, 150)
@@ -4954,7 +4957,7 @@ def _render_coach_roster_preview_png(
         chip_x -= 14
 
     # main board
-    field_box = (40, 190, width - 40, 945)
+    field_box = (40, 190, width - 40, 980)
     field_img = _load_image_source(pitch_src)
     if field_img is not None:
         field_img = field_img.resize((field_box[2] - field_box[0], field_box[3] - field_box[1]))
@@ -4967,66 +4970,151 @@ def _render_coach_roster_preview_png(
 
     field_cards = list(payload.get("field_cards") or [])
     card_base = {
-        "available": ((46, 120, 73, 228), (75, 180, 120, 220)),
-        "trial": ((106, 80, 24, 230), (255, 196, 80, 210)),
-        "injured": ((115, 38, 34, 230), (255, 107, 107, 220)),
-        "inactive": ((63, 63, 70, 220), (148, 163, 184, 200)),
+        "available": ((12, 59, 34, 220), (88, 217, 133, 205), (74, 222, 128, 255)),
+        "trial": ((77, 58, 12, 224), (255, 202, 82, 208), (255, 199, 79, 255)),
+        "injured": ((87, 28, 24, 224), (255, 108, 108, 210), (255, 99, 99, 255)),
+        "inactive": ((44, 48, 58, 214), (148, 163, 184, 190), (148, 163, 184, 255)),
     }
     field_w = field_box[2] - field_box[0]
     field_h = field_box[3] - field_box[1]
+    pitch_margin_x = max(42, int(field_w * 0.028))
+    pitch_margin_y = max(34, int(field_h * 0.035))
+
+    def _resolve_avatar_layer(source: str, max_w: int, max_h: int):
+        src_img = _load_image_source(source)
+        if src_img is None:
+            return None
+        try:
+            resampling = getattr(Image, "Resampling", None)
+            resample = getattr(resampling, "LANCZOS", getattr(Image, "LANCZOS", 1))
+            src_img = src_img.convert("RGBA")
+            if ImageOps is not None:
+                src_img = ImageOps.contain(src_img, (max_w, max_h), method=resample)
+            else:
+                src_img.thumbnail((max_w, max_h), resample=resample)
+            return src_img
+        except Exception:
+            return None
+
+    def _draw_avatar_player(
+        *,
+        target,
+        item,
+        x,
+        y,
+        avatar_w,
+        avatar_h,
+        accent,
+        glow,
+    ):
+        layer = Image.new("RGBA", (avatar_w + 60, avatar_h + 90), (0, 0, 0, 0))
+        ldraw = ImageDraw.Draw(layer)
+        # halo / glow para que la figura respire sobre el césped
+        ldraw.ellipse((12, 18, avatar_w + 42, avatar_h + 48), fill=(*accent[:3], 28))
+        ldraw.ellipse((18, 22, avatar_w + 36, avatar_h + 42), outline=glow, width=3)
+
+        avatar = _resolve_avatar_layer(str(item.get("photo_src") or ""), avatar_w, avatar_h)
+        if avatar is None:
+            avatar = Image.new("RGBA", (avatar_w, avatar_h), (0, 0, 0, 0))
+            adraw = ImageDraw.Draw(avatar)
+            adraw.rounded_rectangle((0, 0, avatar_w - 1, avatar_h - 1), radius=20, fill=(10, 18, 30, 180), outline=glow, width=2)
+            initials = "".join([part[:1] for part in str(item.get("name") or "Jugador").split()[:2] if part]).upper()[:2] or "2J"
+            font = _roster_preview_font(max(16, avatar_w // 5), bold=True) or ImageFont.load_default()
+            bbox = adraw.textbbox((0, 0), initials, font=font)
+            adraw.text(
+                ((avatar_w - (bbox[2] - bbox[0])) / 2, (avatar_h - (bbox[3] - bbox[1])) / 2 - 1),
+                initials,
+                font=font,
+                fill=(255, 250, 240, 235),
+            )
+        avatar_x = int((layer.width - avatar.width) / 2)
+        avatar_y = 12
+        if avatar.height < avatar_h:
+            avatar_y += int((avatar_h - avatar.height) * 0.12)
+        layer.alpha_composite(avatar, (avatar_x, avatar_y))
+
+        number = str(item.get("number") or "—").strip() or "—"
+        num_font = _roster_preview_font(max(14, avatar_w // 4), bold=True) or ImageFont.load_default()
+        num_bbox = ldraw.textbbox((0, 0), number, font=num_font)
+        num_w = num_bbox[2] - num_bbox[0]
+        num_h = num_bbox[3] - num_bbox[1]
+        num_box = (14, 10, 14 + max(30, num_w + 16), 10 + max(30, num_h + 12))
+        ldraw.rounded_rectangle(num_box, radius=12, fill=(7, 10, 18, 175), outline=glow, width=2)
+        ldraw.text(
+            (num_box[0] + (num_box[2] - num_box[0] - num_w) / 2, num_box[1] + (num_box[3] - num_box[1] - num_h) / 2 - 1),
+            number,
+            font=num_font,
+            fill=(255, 250, 240, 250),
+        )
+
+        name = str(item.get("name") or "").strip() or "Jugador"
+        name_lines = _roster_preview_wrap_text(ldraw, name, font_avatar_name, avatar_w + 34, max_lines=2)
+        label_w = max(164, avatar_w + 34)
+        label_h = 70 if len(name_lines) > 1 else 58
+        label_x = max(6, int((layer.width - label_w) / 2))
+        label_y = avatar_h + 18
+        ldraw.rounded_rectangle((label_x, label_y, label_x + label_w, label_y + label_h), radius=18, fill=(7, 12, 22, 178), outline=glow, width=2)
+        label_text_y = label_y + 7
+        for idx, line in enumerate(name_lines[:2]):
+            bbox = ldraw.textbbox((0, 0), line, font=font_avatar_name)
+            text_w = bbox[2] - bbox[0]
+            ldraw.text((label_x + (label_w - text_w) / 2, label_text_y + idx * 18), line, font=font_avatar_name, fill=(255, 250, 240, 245))
+
+        pos_text = str(item.get("position") or "-").strip().upper()
+        state_label = str(item.get("state_label") or "").strip().upper()
+        meta_text = f"{pos_text} · {state_label}" if pos_text else state_label
+        meta_bbox = ldraw.textbbox((0, 0), meta_text, font=font_avatar_meta)
+        meta_w = meta_bbox[2] - meta_bbox[0]
+        meta_x = label_x + (label_w - meta_w) / 2
+        meta_y = label_y + label_h - 20
+        ldraw.text((meta_x, meta_y), meta_text, font=font_avatar_meta, fill=glow)
+
+        state_chip = (label_x + 12, label_y + label_h - 22, label_x + 12 + 88, label_y + label_h - 4)
+        ldraw.rounded_rectangle(state_chip, radius=999, fill=(*accent[:3], 190), outline=glow, width=1)
+        chip_text = state_label or "DISPONIBLE"
+        chip_bbox = ldraw.textbbox((0, 0), chip_text, font=font_avatar_small)
+        chip_w = chip_bbox[2] - chip_bbox[0]
+        chip_h = chip_bbox[3] - chip_bbox[1]
+        ldraw.text(
+            (state_chip[0] + (state_chip[2] - state_chip[0] - chip_w) / 2, state_chip[1] + (state_chip[3] - state_chip[1] - chip_h) / 2 - 1),
+            chip_text,
+            font=font_avatar_small,
+            fill=(255, 250, 240, 250),
+        )
+
+        # sombra suave bajo el conjunto
+        shadow = Image.new("RGBA", layer.size, (0, 0, 0, 0))
+        sdraw = ImageDraw.Draw(shadow)
+        sdraw.ellipse(
+            (avatar_x + 6, avatar_y + avatar.height - 16, avatar_x + avatar.width - 6, avatar_y + avatar.height + 20),
+            fill=(0, 0, 0, 110),
+        )
+        shadow = shadow.filter(ImageFilter.GaussianBlur(12))
+        target.alpha_composite(shadow, (x - 30, y - 8))
+        target.alpha_composite(layer, (x - 30, y - 8))
+
     for item in field_cards:
         state = str(item.get("state_tone") or item.get("state_key") or "available").strip()
-        bg, accent = card_base.get(state, card_base["available"])
+        bg, accent, glow = card_base.get(state, card_base["available"])
         left_pct = float(item.get("left") or 50.0)
         top_pct = float(item.get("top") or 50.0)
         width_pct = float(item.get("width") or 13.5)
         card_w = int(field_w * (width_pct / 100.0))
-        card_h = max(96, int(card_w * 0.72))
+        card_h = max(220, int(card_w * 1.95))
         cx = field_box[0] + int(field_w * (left_pct / 100.0))
         cy = field_box[1] + int(field_h * (top_pct / 100.0))
-        x = max(field_box[0] + 8, min(field_box[2] - card_w - 8, cx - card_w // 2))
-        y = max(field_box[1] + 8, min(field_box[3] - card_h - 8, cy - card_h // 2))
-        shadow = Image.new("RGBA", (card_w + 24, card_h + 24), (0, 0, 0, 0))
-        sdraw = ImageDraw.Draw(shadow)
-        sdraw.rounded_rectangle((12, 12, card_w + 12, card_h + 12), radius=18, fill=(0, 0, 0, 110))
-        shadow = shadow.filter(ImageFilter.GaussianBlur(8))
-        canvas.alpha_composite(shadow, (x - 12, y - 8))
-        card = Image.new("RGBA", (card_w, card_h), (0, 0, 0, 0))
-        cdraw = ImageDraw.Draw(card)
-        cdraw.rounded_rectangle((0, 0, card_w - 1, card_h - 1), radius=18, fill=bg, outline=accent, width=2)
-        cdraw.rounded_rectangle((6, 6, card_w - 7, card_h - 7), radius=14, fill=(11, 18, 32, 70), outline=(255, 255, 255, 30), width=1)
-        initials = "".join([part[:1] for part in str(item.get("name") or "Jugador").split()[:2] if part]).upper()
-        photo_size = min(40, max(28, card_w // 4))
-        _draw_photo_badge(
-            card,
-            source=str(item.get("photo_src") or ""),
-            box=(card_w - photo_size - 12, 10, card_w - 12, 10 + photo_size),
-            accent_color=accent,
-            initials=initials,
+        x = max(field_box[0] + pitch_margin_x, min(field_box[2] - card_w - pitch_margin_x, cx - card_w // 2))
+        y = max(field_box[1] + pitch_margin_y, min(field_box[3] - card_h - pitch_margin_y, cy - card_h // 2))
+        _draw_avatar_player(
+            target=canvas,
+            item=item,
+            x=x,
+            y=y,
+            avatar_w=max(92, min(170, card_w + 8)),
+            avatar_h=max(140, min(220, card_h - 64)),
+            accent=accent,
+            glow=glow,
         )
-        # dorsal
-        number = str(item.get("number") or "—").strip() or "—"
-        num_box = (12, 12, 40, 40)
-        cdraw.rounded_rectangle(num_box, radius=12, fill=(255, 255, 255, 35), outline=(255, 255, 255, 45), width=1)
-        bbox = cdraw.textbbox((0, 0), number, font=font_card_state)
-        n_w = bbox[2] - bbox[0]
-        n_h = bbox[3] - bbox[1]
-        cdraw.text((num_box[0] + (num_box[2] - num_box[0] - n_w) / 2, num_box[1] + (num_box[3] - num_box[1] - n_h) / 2 - 1), number, font=font_card_state, fill=(255, 250, 240, 255))
-        # name
-        name = str(item.get("name") or "").strip() or "Jugador"
-        name_lines = _roster_preview_wrap_text(cdraw, name, font_card_name, card_w - 70, max_lines=2)
-        name_y = 14
-        for idx, line in enumerate(name_lines):
-            cdraw.text((50, name_y + idx * 20), line, font=font_card_name, fill=(255, 250, 240, 255))
-        pos_text = str(item.get("position") or "").strip() or "-"
-        cdraw.text((50, card_h - 38), pos_text[:22].upper(), font=font_card_pos, fill=(220, 226, 238, 235))
-        state_label = str(item.get("state_label") or "").strip().upper()
-        pill_w = min(card_w - 18, max(70, _roster_preview_text_bbox(cdraw, state_label, font_card_state)[0] + 22))
-        pill_x = 12
-        pill_y = card_h - 26
-        cdraw.rounded_rectangle((pill_x, pill_y, pill_x + pill_w, pill_y + 18), radius=999, fill=(255, 255, 255, 16), outline=(255, 255, 255, 40), width=1)
-        cdraw.text((pill_x + 10, pill_y + 3), state_label, font=font_card_state, fill=(255, 250, 240, 255))
-        canvas.alpha_composite(card, (x, y))
 
     # footer summaries
     footer_box = (40, 980, width - 40, 1158)
