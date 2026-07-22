@@ -29155,6 +29155,37 @@ def coach_role_trainer_page(request):
                 ),
             )
         ]
+    trainer_player_season_memberships = {}
+    if primary_team and trainer_selected_season and coach_player_cards_all:
+        try:
+            trainer_player_ids = [
+                _parse_int(item.get('id'))
+                for item in coach_player_cards_all
+                if _parse_int(item.get('id'))
+            ]
+            trainer_player_season_memberships = {
+                int(getattr(row, 'player_id', 0) or 0): row
+                for row in WorkspaceSeasonPlayer.objects.filter(
+                    season=trainer_selected_season,
+                    player_id__in=trainer_player_ids,
+                ).only('player_id', 'is_confirmed', 'status')
+            }
+        except Exception:
+            trainer_player_season_memberships = {}
+    if coach_player_cards_all:
+        status_labels = dict(WorkspaceSeasonPlayer.STATUS_CHOICES)
+        for item in coach_player_cards_all:
+            player_id = _parse_int(item.get('id'))
+            membership = trainer_player_season_memberships.get(player_id) if player_id else None
+            season_status = str(getattr(membership, 'status', '') or '').strip() if membership else ''
+            season_confirmed = bool(
+                membership
+                and getattr(membership, 'is_confirmed', False)
+                and season_status == WorkspaceSeasonPlayer.STATUS_CONFIRMED
+            )
+            item['season_confirmed'] = season_confirmed
+            item['season_status'] = season_status
+            item['season_status_label'] = status_labels.get(season_status, 'Pendiente')
     squad_pitch_targets = [
         {'key': 'goalkeeper', 'label': 'Portería', 'target': 2},
         {'key': 'defense', 'label': 'Defensa', 'target': 6},

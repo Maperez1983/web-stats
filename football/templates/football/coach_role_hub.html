@@ -790,6 +790,16 @@
       .trainer-pitch-player.is-attack {
         border-color: rgba(248, 113, 113, 0.34);
       }
+      .trainer-pitch-player.is-unconfirmed {
+        border-color: rgba(248, 113, 113, 0.5);
+        background: rgba(127, 29, 29, 0.6);
+        box-shadow: 0 18px 32px rgba(127, 29, 29, 0.16);
+      }
+      .trainer-pitch-player.is-unconfirmed .trainer-pitch-player-number {
+        border-color: rgba(248, 113, 113, 0.46);
+        background: rgba(248, 113, 113, 0.16);
+        color: rgba(254, 202, 202, 0.98);
+      }
       .trainer-pitch-player-number {
         display: inline-flex;
         align-items: center;
@@ -2036,6 +2046,14 @@
         border-color: rgba(244, 180, 0, 0.62);
         box-shadow: 0 0 0 1px rgba(244, 180, 0, 0.12), 0 18px 36px rgba(0, 0, 0, 0.2);
       }
+      .broadcast-card.is-unconfirmed {
+        border-color: rgba(248, 113, 113, 0.42);
+        background: rgba(127, 29, 29, 0.14);
+      }
+      .broadcast-card.is-unconfirmed:hover {
+        border-color: rgba(248, 113, 113, 0.58);
+        background: rgba(127, 29, 29, 0.18);
+      }
       .broadcast-head {
         display: flex;
         align-items: flex-start;
@@ -2480,7 +2498,7 @@
               <svg class="trainer-squad-surface" id="coach-pitch-surface" aria-hidden="true"></svg>
               {% for player in trainer_pitch_players %}
               <a
-                class="trainer-pitch-player is-{{ player.accent }}"
+                class="trainer-pitch-player is-{{ player.accent }}{% if not player.season_confirmed %} is-unconfirmed{% endif %}"
                 href="{% url 'player-detail' player.id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% elif active_team %}?team={{ active_team.id }}{% endif %}"
                 title="{{ player.name }}{% if player.number %} · {{ player.number }}{% endif %}"
                 style="left: {{ player.left }}%; top: {{ player.top }}%;"
@@ -2521,7 +2539,7 @@
                 href="{% url 'player-detail' item.id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% elif active_team %}?team={{ active_team.id }}{% endif %}"
                 title="{{ item.name }}{% if item.number %} · {{ item.number }}{% endif %}"
               >
-                <article class="card broadcast-card{% if coach_selected_player_id == item.id %} is-selected{% endif %}">
+                <article class="card broadcast-card{% if coach_selected_player_id == item.id %} is-selected{% endif %}{% if not item.season_confirmed %} is-unconfirmed{% endif %}">
                   <div class="broadcast-head">
                     <div class="broadcast-head-left">
                       <div class="avatar-wrap" aria-hidden="true">
@@ -3422,7 +3440,7 @@
 	              data-player-number="{{ item.number|default:'' }}"
 	              {% if forloop.counter > 6 %}hidden{% endif %}
             >
-              <article class="card broadcast-card{% if coach_selected_player_id == item.id %} is-selected{% endif %}">
+              <article class="card broadcast-card{% if coach_selected_player_id == item.id %} is-selected{% endif %}{% if not item.season_confirmed %} is-unconfirmed{% endif %}">
                 <div class="broadcast-head">
                   <div class="broadcast-head-left">
                     <div class="avatar-wrap" aria-hidden="true">
