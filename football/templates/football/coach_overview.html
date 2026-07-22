@@ -1,4 +1,4 @@
-{% load static %}
+{% load static football_extras %}
 <!DOCTYPE html>
 <html lang="es">
   <head>
@@ -441,6 +441,29 @@
         gap: 0.55rem;
         margin-top: 0.85rem;
       }
+      .squad-display-toggle {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-top: 0.85rem;
+      }
+      .squad-display-toggle button {
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.04);
+        color: rgba(245,247,250,0.86);
+        border-radius: 999px;
+        padding: 0.45rem 0.8rem;
+        font-weight: 800;
+        font-size: 0.7rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .squad-display-toggle button.is-active {
+        border-color: rgba(244, 180, 0, 0.4);
+        background: rgba(244, 180, 0, 0.12);
+        color: #fff3c4;
+      }
       .squad-metric {
         border-radius: 14px;
         border: 1px solid rgba(255,255,255,0.08);
@@ -507,6 +530,17 @@
         box-shadow: 0 12px 24px rgba(0, 0, 0, 0.24);
         backdrop-filter: blur(4px);
       }
+      .squad-pitch-player .player-media,
+      .squad-pitch-player .player-avatar,
+      .squad-pitch-player .player-photo,
+      .squad-pitch-player .player-core {
+        display: none;
+      }
+      .squad-pitch-player .player-core {
+        justify-items: center;
+        gap: 0.12rem;
+        width: 100%;
+      }
       .squad-pitch-player.is-keeper { border-color: rgba(56, 189, 248, 0.26); }
       .squad-pitch-player.is-defense { border-color: rgba(47, 125, 50, 0.26); }
       .squad-pitch-player.is-midfield { border-color: rgba(244, 180, 0, 0.24); }
@@ -516,6 +550,123 @@
       .squad-pitch-player.is-injured { background: rgba(248, 113, 113, 0.22); }
       .squad-pitch-player:hover {
         transform: translate(-50%, -51%) scale(1.02);
+      }
+      .squad-pitch[data-mode="photo"] .squad-pitch-player {
+        width: 11.2%;
+        min-width: 88px;
+        padding: 0.62rem 0.46rem 0.54rem;
+      }
+      .squad-pitch[data-mode="photo"] .squad-pitch-player .player-core {
+        display: grid;
+      }
+      .squad-pitch[data-mode="photo"] .squad-pitch-player .player-media {
+        display: grid;
+        place-items: center;
+        width: 2.2rem;
+        height: 2.2rem;
+        margin-bottom: 0.05rem;
+      }
+      .squad-pitch[data-mode="photo"] .squad-pitch-player.has-photo .player-photo,
+      .squad-pitch[data-mode="photo"] .squad-pitch-player:not(.has-photo) .player-avatar {
+        display: inline-flex;
+      }
+      .squad-pitch[data-mode="photo"] .squad-pitch-player .player-photo,
+      .squad-pitch[data-mode="photo"] .squad-pitch-player .player-avatar {
+        width: 100%;
+        height: 100%;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.14);
+        object-fit: cover;
+        background: rgba(2, 6, 23, 0.86);
+        color: #fff3c4;
+        font-size: 0.8rem;
+        font-weight: 900;
+        align-items: center;
+        justify-content: center;
+      }
+      .squad-pitch[data-mode="photo"] .squad-pitch-player .num {
+        width: 1.45rem;
+        height: 1.45rem;
+        font-size: 0.64rem;
+      }
+      .squad-pitch[data-mode="photo"] .squad-pitch-player .name {
+        font-size: 0.7rem;
+      }
+      .squad-pitch[data-mode="photo"] .squad-pitch-player .role,
+      .squad-pitch[data-mode="photo"] .squad-pitch-player .status {
+        font-size: 0.5rem;
+      }
+      .squad-pitch[data-mode="initials"] .squad-pitch-player {
+        width: 10.6%;
+        min-width: 80px;
+      }
+      .squad-pitch[data-mode="initials"] .squad-pitch-player .player-core {
+        display: grid;
+      }
+      .squad-pitch[data-mode="initials"] .squad-pitch-player .player-media {
+        display: grid;
+        place-items: center;
+        width: 2rem;
+        height: 2rem;
+        margin-bottom: 0.06rem;
+      }
+      .squad-pitch[data-mode="initials"] .squad-pitch-player .player-avatar {
+        display: inline-flex;
+        width: 100%;
+        height: 100%;
+        border-radius: 999px;
+        border: 1px solid rgba(244, 180, 0, 0.28);
+        background: rgba(2, 6, 23, 0.86);
+        color: #fff3c4;
+        font-size: 0.72rem;
+        font-weight: 950;
+        align-items: center;
+        justify-content: center;
+      }
+      .squad-pitch[data-mode="initials"] .squad-pitch-player .num {
+        width: 1.55rem;
+        height: 1.55rem;
+      }
+      .squad-pitch[data-mode="compact"] .squad-pitch-player {
+        width: 8.8%;
+        min-width: 68px;
+        padding: 0.42rem 0.34rem 0.34rem;
+      }
+      .squad-pitch[data-mode="compact"] .squad-pitch-player .player-core {
+        display: grid;
+      }
+      .squad-pitch[data-mode="compact"] .squad-pitch-player .player-media {
+        display: grid;
+        place-items: center;
+        width: 1.7rem;
+        height: 1.7rem;
+      }
+      .squad-pitch[data-mode="compact"] .squad-pitch-player .player-avatar {
+        display: inline-flex;
+        width: 100%;
+        height: 100%;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(2, 6, 23, 0.84);
+        color: #fff3c4;
+        font-size: 0.64rem;
+        font-weight: 950;
+        align-items: center;
+        justify-content: center;
+      }
+      .squad-pitch[data-mode="compact"] .squad-pitch-player .role {
+        display: none;
+      }
+      .squad-pitch[data-mode="compact"] .squad-pitch-player .name {
+        font-size: 0.68rem;
+      }
+      .squad-pitch[data-mode="compact"] .squad-pitch-player .status {
+        font-size: 0.5rem;
+      }
+      .squad-pitch[data-mode="compact"] .squad-pitch-player .num {
+        width: 1.35rem;
+        height: 1.35rem;
+        font-size: 0.6rem;
       }
       .squad-pitch-player .num {
         display: inline-flex;
@@ -824,20 +975,33 @@
               <div class="squad-metric"><span>A prueba</span><strong>{{ coach_trial_count|default:0 }}</strong></div>
               <div class="squad-metric"><span>Lesionados</span><strong>{{ coach_injured_count|default:0 }}</strong></div>
             </div>
-            <div class="squad-pitch" aria-label="Campo de plantilla">
+            <div class="squad-display-toggle" role="tablist" aria-label="Vista de la plantilla">
+              <button type="button" class="is-active" data-squad-mode="compact">Compacto</button>
+              <button type="button" data-squad-mode="initials">Iniciales</button>
+              <button type="button" data-squad-mode="photo">Foto</button>
+            </div>
+            <div class="squad-pitch" aria-label="Campo de plantilla" data-mode="compact">
               <img class="field-bg" src="{% static 'football/campo-futbol.jpg' %}" alt="Campo de fútbol" aria-hidden="true" />
               {% if coach_pitch_players %}
                 {% for player in coach_pitch_players %}
                 <a
-                  class="squad-pitch-player is-{{ player.accent }} is-{{ player.state_tone }}"
+                  class="squad-pitch-player is-{{ player.accent }} is-{{ player.state_tone }}{% if player.photo_url %} has-photo{% endif %}"
                   href="{% url 'player-detail' player.id %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}"
                   style="left: {{ player.left }}%; top: {{ player.top }}%;"
                   title="{{ player.name }}{% if player.number %} · {{ player.number }}{% endif %}"
                 >
-                  <span class="num">{% if player.number %}{{ player.number }}{% else %}--{% endif %}</span>
-                  <span class="name">{{ player.name }}</span>
-                  <span class="role">{{ player.position|default:'-' }}</span>
-                  <span class="status is-{{ player.state_tone }}">{{ player.state_label }}</span>
+                  <span class="player-media" aria-hidden="true">
+                    {% if player.photo_url %}
+                      <img class="player-photo" src="{{ player.photo_url }}" alt="" loading="lazy" />
+                    {% endif %}
+                    <span class="player-avatar">{{ player.name|initials }}</span>
+                  </span>
+                  <span class="player-core">
+                    <span class="num">{% if player.number %}{{ player.number }}{% else %}--{% endif %}</span>
+                    <span class="name">{{ player.name }}</span>
+                    <span class="role">{{ player.position|default:'-' }}</span>
+                    <span class="status is-{{ player.state_tone }}">{{ player.state_label }}</span>
+                  </span>
                 </a>
                 {% endfor %}
               {% else %}
@@ -890,5 +1054,30 @@
         </section>
       </article>
     </div>
+    <script>
+      (function () {
+        const root = document.querySelector('.squad-pitch');
+        const buttons = Array.from(document.querySelectorAll('[data-squad-mode]'));
+        if (!root || !buttons.length) return;
+        const storageKey = 'coach_squad_pitch_mode';
+        const allowed = new Set(['compact', 'initials', 'photo']);
+        const setMode = (mode) => {
+          const safeMode = allowed.has(mode) ? mode : 'compact';
+          root.dataset.mode = safeMode;
+          buttons.forEach((button) => {
+            const active = button.dataset.squadMode === safeMode;
+            button.classList.toggle('is-active', active);
+            button.setAttribute('aria-selected', active ? 'true' : 'false');
+          });
+          try { window.localStorage.setItem(storageKey, safeMode); } catch (_) {}
+        };
+        buttons.forEach((button) => {
+          button.addEventListener('click', () => setMode(button.dataset.squadMode));
+        });
+        let initial = 'compact';
+        try { initial = window.localStorage.getItem(storageKey) || 'compact'; } catch (_) {}
+        setMode(initial);
+      })();
+    </script>
   </body>
 </html>
