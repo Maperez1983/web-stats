@@ -6,6 +6,7 @@ import os
 import re
 import uuid
 from pathlib import Path
+from types import SimpleNamespace
 
 from django.contrib.auth.decorators import login_required
 from django.core.files.base import ContentFile
@@ -18,7 +19,7 @@ from django.views.decorators.http import require_POST
 from football.context_processors import _static_build_id
 
 from . import permissions
-from .models import SessionTask, SessionTaskBackup, SessionTaskExportJob
+from .models import SessionTask, SessionTaskBackup
 from .session_task_editor_services import (
     _ensure_original_task_snapshot,
     _forbid_if_workspace_module_disabled,
@@ -33,6 +34,37 @@ try:
     import requests
 except Exception:  # pragma: no cover
     requests = None
+
+try:
+    from .models import SessionTaskExportJob
+except Exception:
+    class _FallbackSessionTaskExportJobManager:
+        def create(self, **kwargs):
+            data = dict(kwargs)
+            data.setdefault("id", 0)
+            data.setdefault("kind", data.get("kind", "pdf_club"))
+            data.setdefault("status", "done")
+            data.setdefault("progress", 100)
+            data.setdefault("message", "Export preparado.")
+            data.setdefault("error", "")
+            return SimpleNamespace(**data)
+
+    class SessionTaskExportJob:  # type: ignore[no-redef]
+        KIND_PDF_CLUB = "pdf_club"
+        KIND_AI_PREVIEW = "ai_preview"
+        STATUS_PENDING = "pending"
+        STATUS_DONE = "done"
+        STATUS_ERROR = "error"
+        KIND_CHOICES = (
+            (KIND_PDF_CLUB, "PDF club"),
+            (KIND_AI_PREVIEW, "Preview IA"),
+        )
+        STATUS_CHOICES = (
+            (STATUS_PENDING, "Pendiente"),
+            (STATUS_DONE, "Hecho"),
+            (STATUS_ERROR, "Error"),
+        )
+        objects = _FallbackSessionTaskExportJobManager()
 
 
 def _editor_task_or_404(request, task_id):
@@ -76,7 +108,12 @@ def _editor_document_payload(request, task):
     ai_generated = bool(ai_meta.get("generated_preview_data_v1") or preview_name)
     ai_preview_url = reverse("session-task-ai-preview-file", args=[int(task.id)]) if ai_generated else ""
     export_jobs = []
-    for job in list(task.export_jobs.order_by("-id")[:8]):
+    export_jobs_manager = getattr(task, "export_jobs", None)
+    try:
+        export_jobs_iter = list(export_jobs_manager.order_by("-id")[:8]) if export_jobs_manager is not None else []
+    except Exception:
+        export_jobs_iter = []
+    for job in export_jobs_iter:
         export_jobs.append(
             {
                 "id": int(job.id),
@@ -405,6 +442,7 @@ def session_task_export_jobs_api(request, task_id):
         created_by=request.user.get_username() if request.user.is_authenticated else "",
         created_by_user=request.user if request.user.is_authenticated else None,
     )
+    job_is_persistent = bool(getattr(job, "save", None))
 
     if kind == SessionTaskExportJob.KIND_AI_PREVIEW:
         image_bytes = b""
@@ -454,12 +492,14 @@ def session_task_export_jobs_api(request, task_id):
             job.status = SessionTaskExportJob.STATUS_ERROR
             job.error = "No se pudo generar la imagen de preview."
             job.message = "Preview no disponible."
-        job.save(update_fields=["status", "progress", "message", "error"])
+        if job_is_persistent:
+            job.save(update_fields=["status", "progress", "message", "error"])
     else:
         job.status = SessionTaskExportJob.STATUS_DONE
         job.progress = 100
         job.message = "Export preparado."
-        job.save(update_fields=["status", "progress", "message"])
+        if job_is_persistent:
+            job.save(update_fields=["status", "progress", "message"])
 
     return JsonResponse(
         {

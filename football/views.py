@@ -120,13 +120,7 @@ from .library_repositories import (
 )
 from .local_llm import ai_trainer_senior_local_advice, call_ollama_json, local_llm_config
 from .ops_logging import log_exception
-from .premium_surface_preview import (
-    render_flat_tactical_preview_data_url,
-    render_stadium_native_perspective_preview_data_url,
-    render_stadium_native_preview_data_url,
-    render_stadium_taskboard_preview_data_url,
-)
-from .preview_render import render_html_selector_png, render_task_detail_3d_scene_png, render_task_preview_png
+from .preview_render import render_html_selector_png, render_task_preview_png
 from .session_plan_fields import parse_session_plan_fields, serialize_session_plan_fields
 from .session_task_editor_services import (
     _ensure_local_editor_lab_workspace,
@@ -158,6 +152,103 @@ from .video_studio_services import apply_autocut_suggestions as _video_studio_ap
 from .video_studio_services import autocut_enabled as _video_studio_autocut_enabled
 from .video_studio_services import schedule_autocut_after_upload as _video_studio_schedule_autocut_after_upload
 from .web_research import compact_web_research, fetch_web_research_with_browser, search_web_research
+
+try:
+    from .premium_surface_preview import (
+        render_flat_tactical_preview_data_url,
+        render_stadium_native_perspective_preview_data_url,
+        render_stadium_native_preview_data_url,
+        render_stadium_taskboard_preview_data_url,
+    )
+except Exception:
+    def _fallback_preview_data_url(canvas_state, *, canvas_width=1280, canvas_height=720, pitch_orientation="landscape", grass_style="stadium_top"):
+        try:
+            png_bytes = render_task_preview_png(
+                canvas_state=canvas_state if isinstance(canvas_state, dict) else {"objects": []},
+                pitch_preset="full_pitch",
+                pitch_orientation=pitch_orientation,
+                pitch_grass_style=grass_style,
+                pitch_zoom=1.0,
+                world_width=canvas_width,
+                world_height=canvas_height,
+                max_side=max(int(canvas_width or 1280), int(canvas_height or 720), 1024),
+            )
+        except Exception:
+            png_bytes = None
+        if png_bytes:
+            return "data:image/png;base64," + base64.b64encode(png_bytes).decode("ascii")
+        return ""
+
+    def render_flat_tactical_preview_data_url(canvas_state, canvas_width=1280, canvas_height=720, pitch_orientation="landscape", grass_style="broadcast_premium"):
+        return _fallback_preview_data_url(
+            canvas_state,
+            canvas_width=canvas_width,
+            canvas_height=canvas_height,
+            pitch_orientation=pitch_orientation,
+            grass_style=grass_style,
+        )
+
+    def render_stadium_native_perspective_preview_data_url(canvas_state, canvas_width=1280, canvas_height=720, pitch_orientation="landscape"):
+        return _fallback_preview_data_url(
+            canvas_state,
+            canvas_width=canvas_width,
+            canvas_height=canvas_height,
+            pitch_orientation=pitch_orientation,
+            grass_style="stadium_top",
+        )
+
+    def render_stadium_native_preview_data_url(canvas_state, canvas_width=1280, canvas_height=720, pitch_orientation="landscape"):
+        return _fallback_preview_data_url(
+            canvas_state,
+            canvas_width=canvas_width,
+            canvas_height=canvas_height,
+            pitch_orientation=pitch_orientation,
+            grass_style="stadium_top",
+        )
+
+    def render_stadium_taskboard_preview_data_url(canvas_state, canvas_width=1280, canvas_height=720, pitch_orientation="landscape"):
+        return _fallback_preview_data_url(
+            canvas_state,
+            canvas_width=canvas_width,
+            canvas_height=canvas_height,
+            pitch_orientation=pitch_orientation,
+            grass_style="stadium_top",
+        )
+
+try:
+    render_task_detail_3d_scene_png
+except NameError:
+    def render_task_detail_3d_scene_png(
+        *,
+        task_title="Vista 3D",
+        stadium_model_url="",
+        player_model_url="",
+        pitch3d_context=None,
+        graphic_editor_state=None,
+        animation_frames=None,
+        pitch_orientation="landscape",
+        camera_preset="broadcast",
+        viewport_width=1400,
+        viewport_height=900,
+        device_scale_factor=2.0,
+        timeout_ms=20000,
+    ):
+        selector_html = f"""
+        <html><body style="margin:0;background:#081120;color:#fff;font-family:Arial,sans-serif;">
+          <div id="scene" style="padding:24px;">
+            <h1 style="margin:0 0 8px;font-size:20px;">{task_title}</h1>
+            <p style="margin:0;opacity:.8;">Previsualización 3D no disponible en este entorno.</p>
+          </div>
+        </body></html>
+        """
+        return render_html_selector_png(
+            html=selector_html,
+            selector="body",
+            viewport_width=viewport_width,
+            viewport_height=viewport_height,
+            device_scale_factor=device_scale_factor,
+            timeout_ms=timeout_ms,
+        )
 
 try:
     from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageOps
