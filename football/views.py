@@ -29267,11 +29267,11 @@ def coach_role_trainer_page(request):
                 'detail_url': (
                     f"{reverse('player-detail', args=[player_id])}"
                     + (
-                        f"?workspace={int(active_workspace.id)}&team={int(active_team.id)}"
-                        if active_workspace and getattr(active_workspace, 'id', None) and active_team and getattr(active_team, 'id', None)
-                        else f"?team={int(active_team.id)}"
-            if active_team and getattr(active_team, 'id', None)
-            else ''
+                        f"?workspace={int(workspace.id)}&team={int(primary_team.id)}"
+                        if workspace and getattr(workspace, 'id', None) and primary_team and getattr(primary_team, 'id', None)
+                        else f"?team={int(primary_team.id)}"
+                        if primary_team and getattr(primary_team, 'id', None)
+                        else ''
                     )
                     if player_id
                     else ''
@@ -29336,10 +29336,10 @@ def coach_role_trainer_page(request):
                     'detail_url': (
                         reverse('scouting-target-detail', args=[int(target.id)])
                         + (
-                            f'?workspace={int(active_workspace.id)}&team={int(active_team.id)}'
-                            if active_workspace and getattr(active_workspace, 'id', None) and active_team and getattr(active_team, 'id', None)
-                            else f'?team={int(active_team.id)}'
-                            if active_team and getattr(active_team, 'id', None)
+                            f'?workspace={int(workspace.id)}&team={int(primary_team.id)}'
+                            if workspace and getattr(workspace, 'id', None) and primary_team and getattr(primary_team, 'id', None)
+                            else f'?team={int(primary_team.id)}'
+                            if primary_team and getattr(primary_team, 'id', None)
                             else ''
                         )
                     ),
