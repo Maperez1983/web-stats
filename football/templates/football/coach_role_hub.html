@@ -653,6 +653,12 @@
         align-items: flex-start;
         margin-bottom: 0.9rem;
       }
+      .trainer-squad-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        justify-content: flex-end;
+      }
       .trainer-squad-header h3 {
         margin: 0;
         font-size: 0.9rem;
@@ -963,6 +969,120 @@
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 0.55rem;
+      }
+      .trainer-squad-groups {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.65rem;
+        margin-top: 0.9rem;
+      }
+      .trainer-squad-group {
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background: rgba(2, 6, 23, 0.22);
+        padding: 0.75rem 0.8rem;
+      }
+      .trainer-squad-group-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.6rem;
+      }
+      .trainer-squad-group-head strong {
+        font-size: 0.75rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(225, 231, 240, 0.92);
+      }
+      .trainer-squad-group-head span {
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.72);
+      }
+      .trainer-squad-group-list {
+        display: grid;
+        gap: 0.45rem;
+        margin-top: 0.7rem;
+      }
+      .trainer-squad-group-player {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 0.6rem;
+        align-items: center;
+        padding: 0.55rem 0.6rem;
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--text);
+        text-decoration: none;
+      }
+      .trainer-squad-group-player:hover {
+        border-color: rgba(244, 180, 0, 0.22);
+      }
+      .trainer-squad-group-player .num {
+        min-width: 2rem;
+        height: 2rem;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(244, 180, 0, 0.28);
+        background: rgba(244, 180, 0, 0.10);
+        color: #fff7dd;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+      }
+      .trainer-squad-group-player .copy {
+        min-width: 0;
+        display: grid;
+        gap: 0.1rem;
+      }
+      .trainer-squad-group-player .name {
+        font-size: 0.76rem;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        overflow-wrap: anywhere;
+      }
+      .trainer-squad-group-player .meta {
+        color: rgba(226, 232, 240, 0.72);
+        font-size: 0.68rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .trainer-squad-group-player .state {
+        display: inline-flex;
+        width: fit-content;
+        align-items: center;
+        margin-top: 0.12rem;
+        padding: 0.15rem 0.45rem;
+        border-radius: 999px;
+        font-size: 0.6rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-weight: 900;
+      }
+      .trainer-squad-group-player .state.is-available {
+        border: 1px solid rgba(34, 197, 94, 0.26);
+        background: rgba(34, 197, 94, 0.10);
+        color: #bbf7d0;
+      }
+      .trainer-squad-group-player .state.is-trial {
+        border: 1px solid rgba(244, 180, 0, 0.26);
+        background: rgba(244, 180, 0, 0.10);
+        color: #fde68a;
+      }
+      .trainer-squad-group-player .state.is-injured {
+        border: 1px solid rgba(248, 113, 113, 0.28);
+        background: rgba(248, 113, 113, 0.10);
+        color: #fecaca;
+      }
+      .trainer-squad-group-player .state.is-muted {
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(148, 163, 184, 0.08);
+        color: #e2e8f0;
       }
       @media (max-width: 900px) {
         .role-header {
@@ -2462,10 +2582,11 @@
               están disponibles, a prueba o lesionados.
             </p>
           </div>
-          <div class="trainer-squad-badges">
+          <div class="trainer-squad-actions">
             <span class="role-meta-chip">Altas activas: {{ trainer_squad_active_count }}</span>
             <span class="role-meta-chip">Plantilla completa</span>
             <span class="role-meta-chip">Estados visibles</span>
+            <a class="role-meta-chip" href="{% url 'coach-roster-pdf' %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% elif active_team %}?team={{ active_team.id }}{% endif %}" target="_blank" rel="noopener">PDF plantilla</a>
           </div>
         </div>
         <div class="trainer-squad-layout">
@@ -2513,6 +2634,43 @@
               <span class="trainer-squad-metric">
                 {{ row.label }} <strong>{{ row.current }}</strong>
               </span>
+              {% endfor %}
+            </div>
+            <div class="trainer-squad-groups" aria-label="Listado por puesto">
+              {% for group in trainer_pitch_groups %}
+              <article class="trainer-squad-group">
+                <div class="trainer-squad-group-head">
+                  <strong>{{ group.label }}</strong>
+                  <span>{{ group.players|length }} jugadores</span>
+                </div>
+                <div class="trainer-squad-group-list">
+                  {% for player in group.preview_players %}
+                  <a class="trainer-squad-group-player" href="{% url 'player-detail' player.id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% elif active_team %}?team={{ active_team.id }}{% endif %}">
+                    <span class="num">{% if player.number %}{{ player.number }}{% else %}--{% endif %}</span>
+                    <span class="copy">
+                      <span class="name">{{ player.name }}</span>
+                      <span class="meta">{{ player.position|default:'-' }}</span>
+                      <span class="state is-{{ player.state_tone }}">{{ player.state_label }}</span>
+                    </span>
+                  </a>
+                  {% empty %}
+                  <div class="trainer-squad-group-player" style="grid-template-columns:1fr;">
+                    <span class="copy">
+                      <span class="name">Sin jugadores</span>
+                      <span class="meta">No hay efectivos en este puesto</span>
+                    </span>
+                  </div>
+                  {% endfor %}
+                  {% if group.extra_count %}
+                  <div class="trainer-squad-group-player" style="grid-template-columns:1fr;">
+                    <span class="copy">
+                      <span class="name">+{{ group.extra_count }} más</span>
+                      <span class="meta">Ocultos para mantener la lectura limpia</span>
+                    </span>
+                  </div>
+                  {% endif %}
+                </div>
+              </article>
               {% endfor %}
             </div>
           </article>
@@ -3105,11 +3263,6 @@
       {% endif %}
       {% endif %}
       {% if role_key == 'trainer' %}
-      <div class="workspace-tabs" role="tablist" aria-label="Cabina del entrenador">
-        <button class="workspace-tab is-active" type="button" data-tab-target="player">Plantilla</button>
-        <button class="workspace-tab" type="button" data-tab-target="sessions">Entrenamiento</button>
-      </div>
-
       <section class="workspace-panel is-active" data-tab-panel="summary">
         <div class="workspace-stack">
           {% if coach_match_rows %}

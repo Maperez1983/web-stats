@@ -113,8 +113,9 @@
       }
       .hero {
         display: grid;
-        grid-template-columns: minmax(0, 1.25fr) minmax(250px, 0.75fr);
+        grid-template-columns: minmax(0, 1.55fr) minmax(240px, 0.65fr);
         gap: 10px;
+        align-items: start;
       }
       .panel {
         border-radius: 16px;
@@ -137,79 +138,97 @@
         font-size: 11px;
         line-height: 1.45;
       }
-      .pitch-wrap {
+      .pitch-stage {
         position: relative;
-        border-radius: 16px;
+        border-radius: 18px;
         overflow: hidden;
         margin-top: 8px;
-        min-height: 282px;
+        min-height: 404px;
         background:
-          radial-gradient(circle at center, rgba(47, 125, 50, 0.12), transparent 46%),
-          linear-gradient(180deg, rgba(11, 22, 38, 0.9), rgba(3, 8, 18, 0.84));
+          radial-gradient(circle at 50% 18%, rgba(244, 180, 0, 0.08), transparent 24%),
+          radial-gradient(circle at 50% 50%, rgba(47, 125, 50, 0.12), transparent 48%),
+          linear-gradient(180deg, rgba(9, 16, 29, 0.95), rgba(3, 8, 18, 0.88));
         border: 1px solid rgba(148, 163, 184, 0.14);
         box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02), 0 18px 36px rgba(0,0,0,0.22);
       }
-      .pitch-wrap img {
+      .pitch-stage img {
         position: absolute;
         inset: 0;
         width: 100%;
         height: 100%;
         object-fit: cover;
-        opacity: 0.42;
-        filter: saturate(0.95) contrast(1.02);
+        display: block;
+      }
+      .pitch-stage .pitch-base {
+        opacity: 0.94;
+        filter: saturate(1.02) contrast(1.04) brightness(0.96);
+      }
+      .pitch-stage .pitch-overlay {
+        opacity: 0.58;
+        mix-blend-mode: screen;
+      }
+      .pitch-stage::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(180deg, rgba(4, 10, 20, 0.08), rgba(4, 10, 20, 0.28)),
+          radial-gradient(circle at center, transparent 24%, rgba(2, 6, 23, 0.22) 100%);
+        pointer-events: none;
       }
       .pitch-overlay {
         position: absolute;
         inset: 10px;
       }
-      .pitch-group {
+      .field-card {
         position: absolute;
-        border-radius: 16px;
-        border: 1px solid rgba(244, 180, 0, 0.18);
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.14);
         background:
           radial-gradient(circle at top right, rgba(244, 180, 0, 0.08), transparent 24%),
           rgba(7, 16, 30, 0.82);
         color: #f8fafc;
-        padding: 8px 9px 9px;
+        padding: 7px 8px 8px;
         box-shadow: 0 16px 28px rgba(2, 6, 23, 0.22);
+        transform: translate(-50%, -50%);
       }
-      .pitch-group.gk { left: 3.5%; top: 56%; width: 16%; }
-      .pitch-group.def { left: 18%; top: 16%; width: 24%; }
-      .pitch-group.mid { left: 47%; top: 16%; width: 24%; }
-      .pitch-group.att { left: 73%; top: 25%; width: 22.5%; }
-      .group-head {
+      .field-card.is-available { border-color: rgba(47,125,50,0.36); }
+      .field-card.is-trial { border-color: rgba(244,180,0,0.34); }
+      .field-card.is-critical { border-color: rgba(248,113,113,0.34); }
+      .field-card.is-muted { border-color: rgba(148,163,184,0.26); }
+      .field-head {
         display: flex;
         align-items: baseline;
         justify-content: space-between;
         gap: 8px;
       }
-      .group-head strong {
-        font-size: 11px;
+      .field-head strong {
+        font-size: 9px;
         letter-spacing: 0.12em;
         text-transform: uppercase;
         color: #f8fafc;
       }
-      .group-head span {
+      .field-head span {
         display: inline-flex;
         align-items: center;
-        min-height: 20px;
+        min-height: 18px;
         border-radius: 999px;
         padding: 0 7px;
         border: 1px solid rgba(56, 189, 248, 0.24);
         background: rgba(56, 189, 248, 0.12);
         color: #fff7dd;
-        font-size: 10px;
+        font-size: 9px;
         font-weight: 900;
       }
-      .group-count {
+      .field-count {
         margin-top: 3px;
-        font-size: 9px;
+        font-size: 8px;
         letter-spacing: 0.12em;
         text-transform: uppercase;
         color: rgba(226, 232, 240, 0.74);
         font-weight: 900;
       }
-      .mini-grid {
+      .field-chip {
         margin-top: 7px;
         display: grid;
         gap: 5px;
@@ -225,6 +244,10 @@
         background: rgba(255, 255, 255, 0.04);
         break-inside: avoid;
       }
+      .field-card .mini-card {
+        grid-template-columns: 22px minmax(0, 1fr);
+        padding: 4px 5px;
+      }
       .mini-num {
         width: 26px;
         height: 26px;
@@ -237,12 +260,17 @@
         border: 1px solid rgba(250, 204, 21, 0.5);
         background: rgba(250, 204, 21, 0.14);
       }
+      .field-card .mini-num {
+        width: 22px;
+        height: 22px;
+        font-size: 9px;
+      }
       .mini-copy {
         min-width: 0;
       }
       .mini-name {
         display: block;
-        font-size: 9px;
+        font-size: 8px;
         letter-spacing: 0.08em;
         text-transform: uppercase;
         font-weight: 950;
@@ -256,7 +284,7 @@
         align-items: center;
         gap: 4px;
         margin-top: 2px;
-        font-size: 8px;
+        font-size: 7px;
         letter-spacing: 0.11em;
         text-transform: uppercase;
         color: rgba(226, 232, 240, 0.72);
@@ -268,7 +296,7 @@
         margin-top: 3px;
         padding: 0 5px;
         border-radius: 999px;
-        font-size: 8px;
+        font-size: 7px;
         font-weight: 900;
         letter-spacing: 0.12em;
         text-transform: uppercase;
@@ -405,6 +433,48 @@
       .muted {
         color: rgba(226, 232, 240, 0.72);
       }
+      .field-title {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .field-title .title-copy {
+        min-width: 0;
+      }
+      .field-title .title-copy h2 {
+        margin: 0;
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #bae6fd;
+      }
+      .field-title .title-copy p {
+        margin: 4px 0 0;
+        color: rgba(226, 232, 240, 0.74);
+        font-size: 11px;
+        line-height: 1.45;
+      }
+      .field-badges {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 5px;
+      }
+      .field-badge {
+        display: inline-flex;
+        align-items: center;
+        min-height: 22px;
+        padding: 0 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(244, 180, 0, 0.22);
+        background: rgba(244, 180, 0, 0.08);
+        color: #fff7dd;
+        font-size: 8px;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
     </style>
   </head>
   <body>
@@ -437,43 +507,42 @@
 
       <section class="hero">
         <article class="panel">
-          <h2>Configuración de plantilla</h2>
-          <p>La superficie muestra la lectura operativa del equipo. Las tarjetas sobre el campo representan las líneas de trabajo y los jugadores destacados por posición.</p>
-          <div class="pitch-wrap">
-            {% if pitch_src %}<img src="{{ pitch_src }}" alt="Campo de fútbol" />{% endif %}
+          <div class="field-title">
+            <div class="title-copy">
+              <h2>Configuración de plantilla</h2>
+              <p>La superficie replica la pizarra de tareas del staff. Cada mini card representa un jugador de la plantilla con su estado operativo.</p>
+            </div>
+            <div class="field-badges">
+              <span class="field-badge">{{ total_players }} jugadores</span>
+              <span class="field-badge">{{ state_counts.confirmed|default:0 }} disponibles</span>
+              <span class="field-badge">{{ state_counts.trial|default:0 }} a prueba</span>
+              <span class="field-badge">{{ state_counts.injured|default:0 }} lesionados</span>
+            </div>
+          </div>
+          <div class="pitch-stage">
+            {% if pitch_src %}<img class="pitch-base" src="{{ pitch_src }}" alt="Campo de fútbol" />{% endif %}
+            {% if pitch_overlay_src %}<img class="pitch-overlay" src="{{ pitch_overlay_src }}" alt="" aria-hidden="true" />{% endif %}
             <div class="pitch-overlay">
-              {% for group in position_groups %}
-                <article class="pitch-group {{ group.key }}">
-                  <div class="group-head">
-                    <span>{{ group.short }}</span>
-                    <strong>{{ group.label }}</strong>
+              {% for card in field_cards %}
+                <article class="field-card {% if card.state_key == 'injured' %}is-critical{% elif card.state_key == 'trial' %}is-trial{% elif card.state_key == 'confirmed' %}is-available{% else %}is-muted{% endif %}" style="left: {{ card.left }}%; top: {{ card.top }}%; width: {{ card.width }}%;">
+                  <div class="field-head">
+                    <span>{{ card.number|default:"-" }}</span>
+                    <strong>{{ card.bucket_short }}</strong>
                   </div>
-                  <div class="group-count">{{ group.players|length }} jugadores</div>
-                  <div class="mini-grid">
-                    {% for player in group.preview_players %}
-                      <div class="mini-card">
-                        <div class="mini-num">{% if player.number %}{{ player.number }}{% else %}-{% endif %}</div>
-                        <div class="mini-copy">
-                          <span class="mini-name">{{ player.name }}</span>
-                          <span class="mini-meta">{{ player.position|default:"-" }}</span>
-                          <span class="mini-state {% if player.state_key == 'injured' %}is-critical{% elif player.state_key == 'trial' %}is-trial{% elif player.state_key == 'confirmed' %}is-available{% else %}is-muted{% endif %}">{{ player.state_label }}</span>
-                        </div>
+                  <div class="field-count">{{ card.bucket_label }}</div>
+                  <div class="field-chip">
+                    <div class="mini-card">
+                      <div class="mini-num">{% if card.number %}{{ card.number }}{% else %}-{% endif %}</div>
+                      <div class="mini-copy">
+                        <span class="mini-name">{{ card.name }}</span>
+                        <span class="mini-meta">{{ card.position|default:"-" }}</span>
+                        <span class="mini-state {% if card.state_key == 'injured' %}is-critical{% elif card.state_key == 'trial' %}is-trial{% elif card.state_key == 'confirmed' %}is-available{% else %}is-muted{% endif %}">{{ card.state_label }}</span>
                       </div>
-                    {% empty %}
-                      <div class="mini-empty">Sin jugadores</div>
-                    {% endfor %}
-                    {% if group.extra_count %}
-                      <div class="mini-card">
-                        <div class="mini-num">+{{ group.extra_count }}</div>
-                        <div class="mini-copy">
-                          <span class="mini-name">Más jugadores</span>
-                          <span class="mini-meta">Ocultos por legibilidad</span>
-                          <span class="mini-state is-muted">Ver tabla</span>
-                        </div>
-                      </div>
-                    {% endif %}
+                    </div>
                   </div>
                 </article>
+              {% empty %}
+                <div class="mini-empty" style="position:absolute; inset: 42% auto auto 50%; transform: translate(-50%, -50%);">Sin jugadores</div>
               {% endfor %}
             </div>
           </div>

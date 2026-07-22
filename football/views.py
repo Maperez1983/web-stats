@@ -29359,6 +29359,17 @@ def coach_role_trainer_page(request):
     trainer_available_count = sum(1 for item in trainer_pitch_players if item.get('state_tone') == 'available')
     trainer_trial_count = sum(1 for item in trainer_pitch_players if item.get('state_tone') == 'trial')
     trainer_injured_count = sum(1 for item in trainer_pitch_players if item.get('state_tone') == 'injured')
+    trainer_pitch_groups = []
+    for target in squad_pitch_targets:
+        group_players = [item for item in trainer_pitch_players if item.get('bucket') == target['key']]
+        trainer_pitch_groups.append(
+            {
+                **target,
+                'players': group_players,
+                'preview_players': group_players[:5],
+                'extra_count': max(0, len(group_players) - 5),
+            }
+        )
     trainer_trial_players = []
     if primary_team and workspace:
         try:
@@ -29803,6 +29814,7 @@ def coach_role_trainer_page(request):
             'trainer_trial_count': trainer_trial_count,
             'trainer_sessions_done_count': trainer_sessions_done_count,
             'trainer_squad_reinforcement_rows': trainer_squad_reinforcement_rows,
+            'trainer_pitch_groups': trainer_pitch_groups,
             'coach_selected_player_id': selected_player_id,
             'coach_player_match_options': coach_player_match_options,
             'coach_selected_player_match_id': _parse_int(request.GET.get('player_match')),
@@ -30930,6 +30942,13 @@ def coach_roster_pdf(request):
         'oth': {'label': 'Sin definir', 'short': 'OTR', 'x': 47, 'y': 62, 'w': 22},
     }
     position_groups = {key: {'key': key, **meta, 'players': []} for key, meta in bucket_meta.items()}
+    field_slots = {
+        'gk': [(50, 81, 14.5)],
+        'def': [(12, 58, 13.5), (25, 32, 13.5), (24, 78, 13.5), (38, 50, 13.5), (15, 22, 13.5), (38, 76, 13.5), (30, 14, 13.5)],
+        'mid': [(50, 24, 13.5), (60, 50, 13.5), (44, 70, 13.5), (67, 34, 13.5), (57, 78, 13.5), (74, 58, 13.5), (48, 52, 13.5)],
+        'att': [(82, 24, 13.5), (90, 50, 13.5), (80, 78, 13.5), (93, 34, 13.5), (91, 76, 13.5), (76, 54, 13.5)],
+        'oth': [(50, 42, 13.5), (58, 58, 13.5), (42, 62, 13.5), (60, 38, 13.5), (48, 72, 13.5)],
+    }
 
     def _player_state(player, membership):
         nonlocal confirmed_total, pending_total, inactive_total
@@ -30984,6 +31003,26 @@ def coach_roster_pdf(request):
         roster_rows.append(record)
         group['players'].append(record)
 
+    field_cards = []
+    for bucket_key in ('gk', 'def', 'mid', 'att', 'oth'):
+        group = position_groups[bucket_key]
+        slots = field_slots.get(bucket_key) or field_slots['oth']
+        for index, row in enumerate(group['players']):
+            slot_left, slot_top, slot_width = slots[index % len(slots)]
+            cycle = index // len(slots)
+            if cycle:
+                slot_top = max(4, min(92, slot_top + (cycle * 6) - (cycle // 2) * 3))
+                slot_left = max(4, min(94, slot_left + (cycle * 2) - (cycle // 2)))
+            field_cards.append({
+                **row,
+                'bucket': bucket_key,
+                'bucket_label': group['label'],
+                'bucket_short': group['short'],
+                'left': slot_left,
+                'top': slot_top,
+                'width': slot_width,
+            })
+
     for group in position_groups.values():
         group['players'].sort(key=lambda row: (int(row.get('number') or 9999), str(row.get('name') or '').lower()))
         group['preview_players'] = group['players'][:4]
@@ -30999,9 +31038,14 @@ def coach_roster_pdf(request):
 
     static_base_dir = Path(settings.BASE_DIR) / 'static'
     pitch_src = (
-        _file_as_data_uri(static_base_dir / 'football' / 'campo-futbol-fallback.jpg')
+        _file_as_data_uri(static_base_dir / 'football' / 'images' / 'pitch3d' / 'stadium_taskboard_top_h.png')
+        or _file_as_data_uri(static_base_dir / 'football' / 'campo-futbol-fallback.jpg')
         or _file_as_data_uri(static_base_dir / 'football' / 'campo-futbol.jpg')
         or request.build_absolute_uri(static('football/campo-futbol.jpg'))
+    )
+    pitch_overlay_src = (
+        _file_as_data_uri(static_base_dir / 'football' / 'images' / 'pitch3d' / 'stadium_taskboard_overlay_h.png')
+        or ''
     )
     crest_src = ''
     try:
@@ -31057,9 +31101,11 @@ def coach_roster_pdf(request):
             'generated_at': timezone.localtime(),
             'crest_src': crest_src,
             'pitch_src': pitch_src,
+            'pitch_overlay_src': pitch_overlay_src,
             'team_cards': team_cards,
             'state_counts': state_counts,
             'position_groups': list(position_groups.values()),
+            'field_cards': field_cards,
             'roster_rows': roster_rows,
         },
         request=request,
