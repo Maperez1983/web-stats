@@ -1,4 +1,4 @@
-{% load static %}
+{% load static football_extras %}
 <!doctype html>
 <html lang="es">
   <head>
@@ -601,8 +601,8 @@
                     <div class="mini-card">
                       <div class="mini-num">{% if card.number %}{{ card.number }}{% else %}-{% endif %}</div>
                       <div class="mini-copy">
-                        <span class="mini-name">{{ card.name }}</span>
-                        <span class="mini-meta">{{ card.position|default:"-" }}</span>
+                        <span class="mini-name">{{ card.name|display_text }}</span>
+                        <span class="mini-meta">{{ card.position|default:"-"|display_position }}</span>
                         <div>
                           <span class="mini-state {% if card.state_key == 'injured' %}is-critical{% elif card.state_key == 'trial' %}is-trial{% elif card.state_key == 'confirmed' %}is-available{% else %}is-muted{% endif %}">{{ card.state_label }}</span>
                         </div>
@@ -681,8 +681,8 @@
                 {% for player in group.players %}
                   <tr>
                     <td>{% if player.number %}{{ player.number }}{% else %}-{% endif %}</td>
-                    <td><span class="player-name">{{ player.name }}</span></td>
-                    <td>{{ player.position }}</td>
+                    <td><span class="player-name">{{ player.name|display_text }}</span></td>
+                    <td>{{ player.position|display_position }}</td>
                     <td>{% if player.birth_year %}{{ player.birth_year }}{% else %}-{% endif %}</td>
                     <td>{{ player.origin_team }}</td>
                     <td>

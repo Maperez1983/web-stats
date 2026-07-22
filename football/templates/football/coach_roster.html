@@ -1,4 +1,4 @@
-{% load static %}
+{% load static football_extras %}
 <!DOCTYPE html>
 <html lang="es">
   <head>
@@ -798,16 +798,16 @@
 
           <div class="grid" id="playersGrid">
             {% for card in player_cards %}
-              <article class="card broadcast-card" data-player-name="{{ card.name|lower }} {{ card.nickname|default:''|lower }}">
+              <article class="card broadcast-card" data-player-name="{{ card.name|display_text|lower }} {{ card.nickname|default:''|display_text|lower }}">
                 <a class="card-link" href="{% url 'player-detail' player_id=card.player_id %}{{ active_team_query|default:'' }}">
                   <div class="broadcast-head">
                     <div class="avatar-wrap" aria-hidden="true">
-                      <img class="avatar" src="{% if card.photo_url %}{{ card.photo_url }}{% else %}{% static 'football/images/player-avatar.svg' %}{% endif %}" alt="{{ card.name }}" loading="lazy" />
+                      <img class="avatar" src="{% if card.photo_url %}{{ card.photo_url }}{% else %}{% static 'football/images/player-avatar.svg' %}{% endif %}" alt="{{ card.name|display_text }}" loading="lazy" />
                       {% if card.number %}<span class="dorsal-badge">{{ card.number }}</span>{% endif %}
                     </div>
                     <div class="broadcast-identity">
-                      <h2 class="broadcast-name">{{ card.nickname|default:card.name }}</h2>
-                      <div class="broadcast-sub">{{ card.profile_label|default:card.position|default:"-" }}</div>
+                      <h2 class="broadcast-name">{{ card.nickname|default:card.name|display_text }}</h2>
+                      <div class="broadcast-sub">{{ card.profile_label|default:card.position|default:"-"|display_position }}</div>
                       <div class="broadcast-staff-rating" aria-label="Valoración media staff {{ card.staff_rating_display|default:'--/10' }}">
                         <div class="broadcast-staff-row">
                           <span>Staff</span>
@@ -1240,8 +1240,8 @@
             {% for player in players %}
             <tr>
               <td>{{ player.number|default:"--" }}</td>
-              <td><a style="color:var(--prod-text, #f5f7fa); text-decoration:none;" href="{% url 'player-detail' player_id=player.id %}{% if active_club_season %}?club_season_id={{ active_club_season.id }}{% endif %}">{{ player.name }}</a></td>
-              <td>{{ player.position|default:"-" }}</td>
+              <td><a style="color:var(--prod-text, #f5f7fa); text-decoration:none;" href="{% url 'player-detail' player_id=player.id %}{% if active_club_season %}?club_season_id={{ active_club_season.id }}{% endif %}">{{ player.name|display_text }}</a></td>
+              <td>{{ player.position|default:"-"|display_position }}</td>
               <td>
                 {% if player.is_active %}
                 <span class="badge ok">Activo</span>

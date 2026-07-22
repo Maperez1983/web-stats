@@ -1,6 +1,62 @@
 from django import template
 
+from football.event_taxonomy import normalize_label
+
 register = template.Library()
+
+_POSITION_DISPLAY_MAP = {
+    "por": "Portero",
+    "gk": "Portero",
+    "pt": "Portero",
+    "portero": "Portero",
+    "guardameta": "Portero",
+    "dfc": "Defensa central",
+    "defensa central": "Defensa central",
+    "defensacentral": "Defensa central",
+    "ld": "Lateral derecho",
+    "lateral derecho": "Lateral derecho",
+    "carril derecho": "Lateral derecho",
+    "li": "Lateral izquierdo",
+    "lateral izquierdo": "Lateral izquierdo",
+    "carril izquierdo": "Lateral izquierdo",
+    "mcd": "Mediocentro defensivo",
+    "mediocentro defensivo": "Mediocentro defensivo",
+    "mediocentrodefensivo": "Mediocentro defensivo",
+    "pivote": "Mediocentro defensivo",
+    "mc": "Mediocentro",
+    "medio centro": "Mediocentro",
+    "mediocentro": "Mediocentro",
+    "id": "Interior derecho",
+    "interior derecho": "Interior derecho",
+    "interiorderecho": "Interior derecho",
+    "ii": "Interior izquierdo",
+    "interior izquierdo": "Interior izquierdo",
+    "interiorizquierdo": "Interior izquierdo",
+    "mp": "Mediapunta",
+    "media punta": "Mediapunta",
+    "mediapunta": "Mediapunta",
+    "ed": "Extremo derecho",
+    "extremo derecho": "Extremo derecho",
+    "extremoderecho": "Extremo derecho",
+    "ei": "Extremo izquierdo",
+    "extremo izquierdo": "Extremo izquierdo",
+    "extremoizquierdo": "Extremo izquierdo",
+    "dc": "Delantero centro",
+    "delantero centro": "Delantero centro",
+    "delanterocentro": "Delantero centro",
+    "sd": "Segundo delantero",
+    "segundo delantero": "Segundo delantero",
+    "segundodelantero": "Segundo delantero",
+}
+
+
+def _smart_title(value):
+    text = " ".join(str(value or "").strip().split())
+    if not text:
+        return ""
+    if text.isupper() and len(text) <= 4:
+        return text
+    return text.title()
 
 
 @register.simple_tag(takes_context=True)
@@ -50,3 +106,21 @@ def initials(value, count=2):
     if len(words) == 1:
         return words[0][:limit].upper()
     return "".join(word[0] for word in words[:limit]).upper()
+
+
+@register.filter
+def display_text(value):
+    return _smart_title(value)
+
+
+@register.filter
+def display_position(value):
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    normalized = normalize_label(text)
+    compact = normalized.replace(" ", "")
+    for key in (normalized, compact):
+        if key in _POSITION_DISPLAY_MAP:
+            return _POSITION_DISPLAY_MAP[key]
+    return _smart_title(text)

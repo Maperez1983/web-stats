@@ -993,7 +993,7 @@
             {% endif %}
           </h1>
           {% if player.nickname %}
-            <p style="margin:0.2rem 0 0;" class="subtle">Apodo: {{ player.nickname }}</p>
+            <p style="margin:0.2rem 0 0;" class="subtle">Apodo: {{ player.nickname|display_text }}</p>
           {% endif %}
           {% if current_convocation %}
             <p style="margin:0.35rem 0 0;" class="subtle">Convocatoria activa: {{ current_convocation.round|default:"Sin jornada" }} · {{ current_convocation.opponent_name|default:"Rival pendiente" }}</p>
@@ -1051,7 +1051,7 @@
               <a href="{% url 'player-detail' player.id %}?{% qs_replace tab='physical' %}">Físico</a>
             </div>
             <div class="portal-tags">
-              {% if player.position %}<span class="portal-tag">{{ player.position }}</span>{% endif %}
+              {% if player.position %}<span class="portal-tag">{{ player.position|display_position }}</span>{% endif %}
               {% if player.number %}<span class="portal-tag">#{{ player.number }}</span>{% endif %}
               <span class="portal-tag">{% if has_active_injury %}Lesión activa{% elif has_manual_sanction %}Sanción activa{% elif is_called_up %}Convocado{% else %}Disponible{% endif %}</span>
               {% if player.team %}<span class="portal-tag">{{ player.team.display_name }}</span>{% endif %}
@@ -1527,7 +1527,7 @@
               </article>
               <article class="info-item">
                 <span class="info-label">Apodo</span>
-                <span class="info-value">{{ player.nickname|default:'--' }}</span>
+                <span class="info-value">{{ player.nickname|default:'--'|display_text }}</span>
               </article>
               <article class="info-item">
                 <span class="info-label">Fecha nacimiento</span>
@@ -1539,15 +1539,15 @@
               </article>
               <article class="info-item">
                 <span class="info-label">Posición</span>
-                <span class="info-value">{{ player.position|default:stats.position|default:'--' }}</span>
+                <span class="info-value">{{ player.position|default:stats.position|default:'--'|display_position }}</span>
               </article>
               <article class="info-item">
                 <span class="info-label">Posición preferida</span>
-                <span class="info-value">{{ player.preferred_position|default:'--' }}</span>
+                <span class="info-value">{{ player.preferred_position|default:'--'|display_position }}</span>
               </article>
               <article class="info-item">
                 <span class="info-label">Posición anterior</span>
-                <span class="info-value">{{ player.previous_season_position|default:'--' }}</span>
+                <span class="info-value">{{ player.previous_season_position|default:'--'|display_position }}</span>
               </article>
               <article class="info-item">
                 <span class="info-label">Pie dominante</span>
