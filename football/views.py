@@ -68964,6 +68964,9 @@ def player_pdf(request, player_id):
         attendance_pct_val = float((attendance_summary or {}).get("completion_pct", 0.0) or 0.0)
     except Exception:
         attendance_pct_val = 0.0
+    staff_percentiles = {}
+    radar_data = {"axes": [], "path_d": "", "points": [], "labels": []}
+    card_radar_data = {"axes": [], "polygon_points_svg": "", "axis_svg": []}
     radar_staff_axes_rows = []
     radar_card_axes_rows = []
     try:
@@ -68994,6 +68997,151 @@ def player_pdf(request, player_id):
         radar_card_axes_rows = _chunk_pad_axes((card_radar_data or {}).get("axes") or [], cols=2)
     except Exception:
         pass
+
+    fm_attribute_groups = []
+    try:
+        passes_accuracy = _num_float((passes or {}).get("accuracy"))
+        shots_accuracy = _num_float((shots or {}).get("accuracy"))
+        quality_pct = _num_float((staff_percentiles or {}).get("quality"))
+        actions_per90 = _num_float((staff_percentiles or {}).get("actions_per90"))
+        decisive_per90 = _num_float(detail.get("decisive_actions_per90") if isinstance(detail, dict) else 0)
+        duel_rate = _num_float(detail.get("duel_rate") if isinstance(detail, dict) else 0)
+        aerial_rate = _num_float(detail.get("aerial_rate") if isinstance(detail, dict) else 0)
+        participation_pct = _num_float(detail.get("participation_pct") if isinstance(detail, dict) else 0)
+        starter_pct = _num_float(detail.get("starter_pct") if isinstance(detail, dict) else 0)
+        minute_ratio = round((minutes_val / max(1, pj_val * 90)) * 100.0, 1) if pj_val else 0.0
+        injury_penalty = min(20, max(0, int(round(len(injury_rows) * 2))))
+        availability_score = max(1, min(20, 20 - injury_penalty))
+
+        fm_attribute_groups = [
+            _fm_group_card(
+                "Técnica",
+                "Lectura técnica del informe actual.",
+                [
+                    _fm_metric_row(
+                        "Pase",
+                        passes_accuracy,
+                        display=f"{passes_accuracy:.0f}%",
+                        hint="Precisión en la circulación.",
+                    ),
+                    _fm_metric_row(
+                        "Tiro",
+                        shots_accuracy,
+                        display=f"{shots_accuracy:.0f}%",
+                        hint="Tiros entre los tres palos.",
+                    ),
+                    _fm_metric_row(
+                        "Éxito",
+                        _num_float(detail.get("success_rate") if isinstance(detail, dict) else 0),
+                        display=f"{_num_float(detail.get('success_rate') if isinstance(detail, dict) else 0):.0f}%",
+                        hint="Éxito global de las acciones.",
+                    ),
+                    _fm_metric_row(
+                        "Calidad",
+                        quality_pct,
+                        display=f"P{int(round(quality_pct))}",
+                        hint="Rendimiento ajustado al rol.",
+                    ),
+                ],
+            ),
+            _fm_group_card(
+                "Producción",
+                "Impacto y peso decisivo en el juego.",
+                [
+                    _fm_metric_row(
+                        "Acciones/90",
+                        actions_per90,
+                        display=f"P{int(round(actions_per90))}",
+                        hint="Volumen medio de intervenciones.",
+                    ),
+                    _fm_metric_row(
+                        "Decisivas/90",
+                        decisive_per90,
+                        display=f"{decisive_per90:.1f}",
+                        hint="Goles, asistencias y acciones clave.",
+                    ),
+                    _fm_metric_row(
+                        "Importancia",
+                        _num_float(detail.get("importance_score") if isinstance(detail, dict) else 0),
+                        display=f"{_num_float(detail.get('importance_score') if isinstance(detail, dict) else 0):.0f}",
+                        hint="Peso competitivo dentro del equipo.",
+                    ),
+                    _fm_metric_row(
+                        "Influencia",
+                        _num_float(detail.get("influence_score") if isinstance(detail, dict) else 0),
+                        display=f"{_num_float(detail.get('influence_score') if isinstance(detail, dict) else 0):.0f}",
+                        hint="Capacidad de condicionar el juego.",
+                    ),
+                ],
+            ),
+            _fm_group_card(
+                "Competitivo",
+                "Duelo, presencia y participación.",
+                [
+                    _fm_metric_row(
+                        "Duelos",
+                        duel_rate,
+                        display=f"{duel_rate:.0f}%",
+                        hint="Éxito en los duelos disputados.",
+                    ),
+                    _fm_metric_row(
+                        "Aéreos",
+                        aerial_rate,
+                        display=f"{aerial_rate:.0f}%",
+                        hint="Presencia en el juego aéreo.",
+                    ),
+                    _fm_metric_row(
+                        "Participación",
+                        participation_pct,
+                        display=f"{participation_pct:.0f}%",
+                        hint="Minutos y peso competitivo.",
+                    ),
+                    _fm_metric_row(
+                        "Titularidad",
+                        starter_pct,
+                        display=f"{starter_pct:.0f}%",
+                        hint="Frecuencia de inicio en el once.",
+                    ),
+                ],
+            ),
+            _fm_group_card(
+                "Estado",
+                "Disponibilidad y continuidad operativa.",
+                [
+                    _fm_metric_row(
+                        "Asistencia",
+                        attendance_pct_val,
+                        display=f"{attendance_pct_val:.0f}%",
+                        hint="Asistencia completada en la temporada.",
+                    ),
+                    _fm_metric_row(
+                        "Minutos",
+                        minute_ratio,
+                        display=f"{minute_ratio:.0f}%",
+                        hint="Minutos jugados sobre el máximo posible.",
+                    ),
+                    _fm_metric_row(
+                        "Lesiones",
+                        availability_score,
+                        display=f"{len(injury_rows)} registros",
+                        hint="Más alto cuanto menor es el impacto de lesiones.",
+                    ),
+                    _fm_metric_row(
+                        "Baja médica",
+                        availability_score,
+                        display="Estable" if availability_score >= 15 else "Vigilancia",
+                        hint="Lectura resumida del estado físico.",
+                    ),
+                ],
+            ),
+        ]
+    except Exception:
+        fm_attribute_groups = []
+
+    try:
+        fm_attribute_radar_data = _build_fm_attribute_radar_data(fm_attribute_groups)
+    except Exception:
+        fm_attribute_radar_data = {"axes": [], "average": 0, "polygon_points_svg": "", "axis_svg": []}
 
     fine_rows = []
     fine_summary = {"count": 0, "total_amount": 0}
@@ -69087,6 +69235,8 @@ def player_pdf(request, player_id):
             "card_radar_data": card_radar_data,
             "radar_staff_axes_rows": radar_staff_axes_rows,
             "radar_card_axes_rows": radar_card_axes_rows,
+            "fm_attribute_groups": fm_attribute_groups,
+            "fm_attribute_radar_data": fm_attribute_radar_data,
             "performance_snapshot_src": performance_snapshot_src,
             "played_matches": played_matches,
             "upcoming_matches": upcoming_matches,

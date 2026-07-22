@@ -536,6 +536,114 @@
       .radar-axis-label { font-weight: 1000; letter-spacing: 0.06em; color: #f8fafc; }
       .radar-axis-meta { color: #aab4c6; font-weight: 900; }
       .radar-axis-rank { color: #aab4c6; font-weight: 1000; margin-left: 6px; }
+      .fm-panel {
+        border: 1px solid rgba(148,163,184,0.22);
+        border-radius: 14px;
+        background: #111827;
+        color: #e2e8f0;
+        padding: 14px;
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      .fm-panel-head { margin-bottom: 10px; }
+      .fm-panel-title {
+        font-size: 12px;
+        font-weight: 1000;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #f8fafc;
+      }
+      .fm-panel-sub {
+        margin-top: 6px;
+        color: #aab4c6;
+        font-size: 10.4px;
+        font-weight: 900;
+        line-height: 1.35;
+      }
+      .fm-summary-chip {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(var(--club-secondary-rgb),0.32);
+        background: rgba(var(--club-secondary-rgb),0.10);
+        color: #fde68a;
+        font-size: 9px;
+        font-weight: 1000;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .fm-grid { display: table; width: 100%; table-layout: fixed; }
+      .fm-grid-row { display: table-row; }
+      .fm-grid-left, .fm-grid-right { display: table-cell; vertical-align: top; }
+      .fm-grid-left { width: 40%; padding-right: 12px; }
+      .fm-grid-right { width: 60%; padding-left: 12px; }
+      .fm-radar-card {
+        border-radius: 12px;
+        border: 1px solid rgba(148,163,184,0.22);
+        background: rgba(15,23,42,0.38);
+        padding: 10px;
+        text-align: center;
+      }
+      .fm-radar-title {
+        font-size: 10.5px;
+        font-weight: 1000;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #aab4c6;
+        margin-top: 8px;
+      }
+      .fm-radar-list { list-style: none; padding: 0; margin: 10px 0 0; }
+      .fm-group { border: 1px solid rgba(148,163,184,0.18); border-radius: 12px; background: rgba(15,23,42,0.28); padding: 10px; break-inside: avoid; page-break-inside: avoid; }
+      .fm-group + .fm-group { margin-top: 10px; }
+      .fm-group-head {
+        display: table;
+        width: 100%;
+        table-layout: fixed;
+        margin-bottom: 8px;
+      }
+      .fm-group-head-row { display: table-row; }
+      .fm-group-copy, .fm-group-score-cell { display: table-cell; vertical-align: top; }
+      .fm-group-copy { width: 78%; }
+      .fm-group-score-cell { width: 22%; text-align: right; }
+      .fm-group-name {
+        font-size: 10.5px;
+        font-weight: 1000;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #f8fafc;
+      }
+      .fm-group-desc { margin-top: 4px; color: #aab4c6; font-size: 9.3px; line-height: 1.3; }
+      .fm-group-score {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(var(--club-secondary-rgb),0.32);
+        background: rgba(var(--club-secondary-rgb),0.10);
+        color: #fde68a;
+        font-size: 9px;
+        font-weight: 1000;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .fm-rows { display: block; }
+      .fm-row {
+        border: 1px solid rgba(148,163,184,0.16);
+        border-radius: 10px;
+        background: rgba(2,6,23,0.18);
+        padding: 7px 8px;
+      }
+      .fm-row + .fm-row { margin-top: 8px; }
+      .fm-row-top { display: table; width: 100%; table-layout: fixed; }
+      .fm-row-top-row { display: table-row; }
+      .fm-row-label-cell, .fm-row-value-cell { display: table-cell; vertical-align: top; }
+      .fm-row-label-cell { width: 75%; }
+      .fm-row-value-cell { width: 25%; text-align: right; }
+      .fm-row-label { font-size: 9px; font-weight: 1000; letter-spacing: 0.10em; text-transform: uppercase; color: #aab4c6; }
+      .fm-row-display { margin-top: 3px; font-size: 11px; font-weight: 1000; color: #f8fafc; }
+      .fm-row-value { font-size: 12px; font-weight: 1000; color: #f8fafc; }
+      .fm-track { margin-top: 6px; height: 8px; border-radius: 999px; background: rgba(148,163,184,0.16); overflow: hidden; }
+      .fm-fill { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, rgba(244,180,0,0.92), rgba(47,125,50,0.92)); width: calc(var(--fm-row-value, 0) * 5%); }
+      .fm-hint { margin-top: 5px; color: #aab4c6; font-size: 9.2px; line-height: 1.3; }
       .rating-summary-card {
         margin-bottom: 10px;
         border-radius: 14px;
@@ -1110,64 +1218,92 @@
 	                      </div>
 	                    </div>
 
-	                    <div class="radar-panel">
-	                      <div class="radar-panel-head">
-	                        <div class="radar-panel-title">Radar (card)</div>
-	                        <div class="radar-panel-sub">Escala 0–100 (Pxx dentro del equipo/filtro). Ejes: Acc/90, Éxito, Part., Influencia, Importancia.</div>
+	                    <div class="fm-panel">
+	                      <div class="fm-panel-head">
+	                        <div class="fm-panel-title">Atributos FM</div>
+	                        <div class="fm-panel-sub">Escala 1-20 por áreas. El documento prioriza la lectura del perfil en bloques técnicos, competitivos y de estado.</div>
 	                      </div>
-	                      <div class="radar-layout">
-	                        <div class="radar-layout-row">
-	                          <div class="radar-left">
-	                            <div class="radar-figure">
-	                              <div class="radar-figure-wrap">
-	                                <svg viewBox="0 0 360 360" role="img" aria-label="Radar comparativo (card)">
-	                                  <circle cx="180" cy="180" r="61.2" fill="none" stroke="rgba(226,232,240,0.32)" stroke-width="1.2"></circle>
-	                                  <circle cx="180" cy="180" r="122.4" fill="none" stroke="rgba(226,232,240,0.32)" stroke-width="1.2"></circle>
-	                                  {% if card_radar_data.axis_svg %}
-	                                    {% for ax in card_radar_data.axis_svg %}
-	                                      <line x1="180" y1="180" x2="{{ ax.axis_x }}" y2="{{ ax.axis_y }}" stroke="rgba(226,232,240,0.20)" stroke-width="1.1"></line>
-	                                    {% endfor %}
-	                                  {% endif %}
-	                                  {% if card_radar_data.polygon_points_svg %}
-	                                    <polygon points="{{ card_radar_data.polygon_points_svg }}" fill="rgba(244,180,0,0.22)" stroke="rgba(244,180,0,0.92)" stroke-width="2"></polygon>
-	                                  {% endif %}
-	                                </svg>
-	                                <span class="radar-html-label top">Acc/90</span>
-	                                <span class="radar-html-label right">Éxito</span>
-	                                <span class="radar-html-label br">Part.</span>
-	                                <span class="radar-html-label bl">Importancia</span>
-	                                <span class="radar-html-label left">Influencia</span>
-	                              </div>
+	                      <div class="fm-grid">
+	                        <div class="fm-grid-row">
+	                          <div class="fm-grid-left">
+	                            <div class="fm-radar-card">
+	                              <svg viewBox="0 0 360 360" role="img" aria-label="Radar FM" focusable="false">
+	                                <circle cx="180" cy="180" r="61.2" fill="none" stroke="rgba(226,232,240,0.32)" stroke-width="1.2"></circle>
+	                                <circle cx="180" cy="180" r="122.4" fill="none" stroke="rgba(226,232,240,0.32)" stroke-width="1.2"></circle>
+	                                {% if fm_attribute_radar_data.axis_svg %}
+	                                  {% for ax in fm_attribute_radar_data.axis_svg %}
+	                                    <line x1="180" y1="180" x2="{{ ax.axis_x }}" y2="{{ ax.axis_y }}" stroke="rgba(226,232,240,0.20)" stroke-width="1.1"></line>
+	                                  {% endfor %}
+	                                {% endif %}
+	                                {% if fm_attribute_radar_data.polygon_points_svg %}
+	                                  <polygon points="{{ fm_attribute_radar_data.polygon_points_svg }}" fill="rgba(244,180,0,0.24)" stroke="rgba(244,180,0,0.92)" stroke-width="2"></polygon>
+	                                {% endif %}
+	                              </svg>
+	                              <div class="fm-radar-title">Promedio por áreas</div>
+	                              <div class="fm-summary-chip" style="margin-top:6px;">{% if fm_attribute_radar_data.average %}{{ fm_attribute_radar_data.average }}/20{% else %}--{% endif %}</div>
+	                            </div>
+	                            <div class="radar-mini-wrap">
+	                              <div class="radar-mini-title">Áreas incluidas</div>
+	                              <table class="radar-axes-table" style="margin-top:6px;">
+	                                {% for row in fm_attribute_radar_data.axes %}
+	                                  <tr>
+	                                    <td>
+	                                      <ul class="radar-axes">
+	                                        <li>
+	                                          <div class="radar-axis-row">
+	                                            <div class="radar-axis-left">
+	                                              <span class="radar-dot" aria-hidden="true"></span>
+	                                              <span class="radar-axis-label">{{ row.label }}</span>
+	                                            </div>
+	                                            <div class="radar-axis-right">
+	                                              <span class="radar-axis-meta">{{ row.display }}</span>
+	                                            </div>
+	                                          </div>
+	                                        </li>
+	                                      </ul>
+	                                    </td>
+	                                  </tr>
+	                                {% empty %}
+	                                  <tr><td><div class="mini-note">Sin datos suficientes para mostrar el radar FM.</div></td></tr>
+	                                {% endfor %}
+	                              </table>
 	                            </div>
 	                          </div>
-	                          <div class="radar-right">
-	                            <table class="radar-axes-table">
-	                              {% for row in radar_card_axes_rows %}
-	                                <tr>
-	                                  {% for axis in row %}
-	                                    <td>
-	                                      {% if axis %}
-	                                        <ul class="radar-axes">
-	                                          <li>
-	                                            <div class="radar-axis-row">
-	                                              <div class="radar-axis-left">
-	                                                <span class="radar-dot" aria-hidden="true"></span>
-	                                                <span class="radar-axis-label">{{ axis.key }}</span>
-	                                              </div>
-	                                              <div class="radar-axis-right">
-	                                                <span class="radar-axis-meta">{{ axis.display }}</span>
-	                                                <span class="radar-axis-rank">P{{ axis.pct_rank|default:0 }}</span>
-	                                              </div>
-	                                            </div>
-	                                          </li>
-	                                        </ul>
-	                                      {% endif %}
-	                                    </td>
+	                          <div class="fm-grid-right">
+	                            {% for group in fm_attribute_groups %}
+	                              <div class="fm-group">
+	                                <div class="fm-group-head">
+	                                  <div class="fm-group-head-row">
+	                                    <div class="fm-group-copy">
+	                                      <div class="fm-group-name">{{ group.title }}</div>
+	                                      <div class="fm-group-desc">{{ group.summary }}</div>
+	                                    </div>
+	                                    <div class="fm-group-score-cell">
+	                                      <span class="fm-group-score">{% if group.average %}{{ group.average }}/20{% else %}--{% endif %}</span>
+	                                    </div>
+	                                  </div>
+	                                </div>
+	                                <div class="fm-rows">
+	                                  {% for row in group.rows %}
+	                                    <div class="fm-row">
+	                                      <div class="fm-row-top">
+	                                        <div class="fm-row-top-row">
+	                                          <div class="fm-row-label-cell">
+	                                            <div class="fm-row-label">{{ row.label }}</div>
+	                                            <div class="fm-row-display">{{ row.display }}</div>
+	                                          </div>
+	                                          <div class="fm-row-value-cell">
+	                                            <div class="fm-row-value">{% if row.value %}{{ row.value }}/20{% else %}--{% endif %}</div>
+	                                          </div>
+	                                        </div>
+	                                      </div>
+	                                      <div class="fm-track"><span class="fm-fill" style="--fm-row-value: {{ row.value|default:0 }};"></span></div>
+	                                      {% if row.hint %}<div class="fm-hint">{{ row.hint }}</div>{% endif %}
+	                                    </div>
 	                                  {% endfor %}
-	                                </tr>
-	                              {% endfor %}
-	                            </table>
-	                            <div class="mini-note">Acc/90 = acciones por 90 · Part. = participación.</div>
+	                                </div>
+	                              </div>
+	                            {% endfor %}
 	                          </div>
 	                        </div>
 	                      </div>
