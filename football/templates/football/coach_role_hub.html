@@ -2277,19 +2277,17 @@
           {% endif %}
         </div>
         <div class="role-actions">
-          {% if role_key == 'trainer' and is_admin_user %}
-          <form class="role-workspace-switcher" method="post" action="{% url 'workspace-active' %}">
+          {% if role_key == 'trainer' and active_team_options and active_team_options|length > 1 %}
+          <form class="role-workspace-switcher" method="post" action="{% url 'workspace-active-team' %}">
             {% csrf_token %}
-            <input type="hidden" name="next" value="{% url 'coach-role-trainer' %}" />
+            <input type="hidden" name="next" value="{{ request.get_full_path }}" />
             <label>
-              Club
-              <select name="workspace_id" onchange="this.form.submit()">
-                {% for option in trainer_workspace_options %}
-                  {% if option.kind == 'club' %}
-                  <option value="{{ option.id }}" {% if active_workspace and option.id == active_workspace.id %}selected{% endif %}>
-                    {{ option.label }}
-                  </option>
-                  {% endif %}
+              Equipo
+              <select name="team_id" onchange="this.form.submit()">
+                {% for option in active_team_options %}
+                <option value="{{ option.id }}" {% if active_team and option.id == active_team.id %}selected{% endif %}>
+                  {{ option.label }}
+                </option>
                 {% endfor %}
               </select>
             </label>
