@@ -752,6 +752,31 @@
         overflow: hidden;
         background: #0c2715;
       }
+      .trainer-squad-field-actions {
+        position: absolute;
+        top: 0.85rem;
+        right: 0.85rem;
+        z-index: 3;
+      }
+      .trainer-squad-field-actions a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.5rem 0.78rem;
+        border-radius: 999px;
+        border: 1px solid rgba(244, 180, 0, 0.26);
+        background: rgba(7, 16, 30, 0.78);
+        color: #fff7dd;
+        text-decoration: none;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.22);
+      }
+      .trainer-squad-field-actions a:hover {
+        border-color: rgba(244, 180, 0, 0.42);
+      }
       .trainer-squad-field .field-bg {
         position: absolute;
         inset: 0;
@@ -2604,6 +2629,9 @@
               </div>
             </div>
             <div class="field-diagram trainer-squad-field" data-coach-pitch-layout data-coach-pitch-key="{{ active_workspace.id|default:0 }}:{{ active_team.id|default:0 }}">
+              <div class="trainer-squad-field-actions">
+                <a href="{% url 'coach-roster-pdf' %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% elif active_team %}?team={{ active_team.id }}{% endif %}" target="_blank" rel="noopener">Generar PDF</a>
+              </div>
               <img class="field-bg" src="{% static 'football/campo-futbol.jpg' %}" alt="Campo de fútbol" aria-hidden="true" />
               {% if trainer_pitch_players %}
                 {% for player in trainer_pitch_players %}

@@ -31027,6 +31027,23 @@ def coach_roster_pdf(request):
         group['players'].sort(key=lambda row: (int(row.get('number') or 9999), str(row.get('name') or '').lower()))
         group['preview_players'] = group['players'][:4]
         group['extra_count'] = max(0, len(group['players']) - len(group['preview_players']))
+        group['confirmed_count'] = sum(1 for row in group['players'] if row['state_key'] == 'confirmed')
+        group['trial_count'] = sum(1 for row in group['players'] if row['state_key'] == 'trial')
+        group['injured_count'] = sum(1 for row in group['players'] if row['state_key'] == 'injured')
+        group['inactive_count'] = sum(1 for row in group['players'] if row['state_key'] == 'inactive')
+
+    position_total_rows = [
+        {
+            'key': group['key'],
+            'label': group['label'],
+            'count': len(group['players']),
+            'confirmed': group['confirmed_count'],
+            'trial': group['trial_count'],
+            'injured': group['injured_count'],
+            'inactive': group['inactive_count'],
+        }
+        for group in position_groups.values()
+    ]
 
     state_counts = {
         'confirmed': confirmed_total,
@@ -31105,6 +31122,7 @@ def coach_roster_pdf(request):
             'team_cards': team_cards,
             'state_counts': state_counts,
             'position_groups': list(position_groups.values()),
+            'position_total_rows': position_total_rows,
             'field_cards': field_cards,
             'roster_rows': roster_rows,
         },

@@ -31,6 +31,30 @@
         background: rgba(7, 16, 30, 0.86);
         box-shadow: 0 18px 42px rgba(0, 0, 0, 0.22);
       }
+      .brand-stack {
+        display: grid;
+        gap: 10px;
+      }
+      .club-banner {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+      .club-pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 22px;
+        padding: 0 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(244, 180, 0, 0.22);
+        background: rgba(244, 180, 0, 0.08);
+        color: #fff7dd;
+        font-size: 8px;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
       .brand {
         display: flex;
         gap: 12px;
@@ -80,6 +104,51 @@
         display: grid;
         grid-template-columns: repeat(5, minmax(0, 1fr));
         gap: 8px;
+      }
+      .totals-shell {
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background:
+          radial-gradient(circle at top right, rgba(244, 180, 0, 0.06), transparent 24%),
+          rgba(7, 16, 30, 0.84);
+        padding: 10px;
+        display: grid;
+        gap: 10px;
+      }
+      .totals-shell h2 {
+        margin: 0;
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #bae6fd;
+      }
+      .totals-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 8px;
+      }
+      .total-card {
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background: rgba(255, 255, 255, 0.04);
+        padding: 9px 10px;
+      }
+      .total-card .kicker {
+        color: rgba(226, 232, 240, 0.74);
+        font-size: 8px;
+        letter-spacing: 0.14em;
+      }
+      .total-card strong {
+        display: block;
+        margin-top: 4px;
+        font-size: 14px;
+        color: #f8fafc;
+      }
+      .total-card .meta {
+        margin-top: 4px;
+        color: rgba(226, 232, 240, 0.72);
+        font-size: 8px;
+        line-height: 1.3;
       }
       .metric {
         border-radius: 14px;
@@ -196,6 +265,15 @@
       .field-card.is-trial { border-color: rgba(244,180,0,0.34); }
       .field-card.is-critical { border-color: rgba(248,113,113,0.34); }
       .field-card.is-muted { border-color: rgba(148,163,184,0.26); }
+      .field-card .field-state-line {
+        margin-top: 3px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .field-card .field-state-line .mini-state {
+        margin-top: 0;
+      }
       .field-head {
         display: flex;
         align-items: baseline;
@@ -433,6 +511,13 @@
       .muted {
         color: rgba(226, 232, 240, 0.72);
       }
+      .field-summary-note {
+        margin: 0;
+        color: rgba(226, 232, 240, 0.72);
+        font-size: 9px;
+        letter-spacing: 0.10em;
+        text-transform: uppercase;
+      }
       .field-title {
         display: flex;
         align-items: baseline;
@@ -480,16 +565,25 @@
   <body>
     <div class="sheet">
       <section class="header">
-        <div class="brand">
-          {% if crest_src %}<img class="crest" src="{{ crest_src }}" alt="Escudo {{ team_name }}" />{% endif %}
-          <div class="head-copy">
-            <p class="kicker">Plantilla técnica</p>
-            <h1>{{ team_name }}</h1>
-            <p class="sub">
-              {{ division_label|default:"" }}{% if division_label and season_label %} · {% endif %}{{ season_label }}
-              {% if scope_label %} · {{ scope_label }}{% endif %}
-              {% if tournament_filter %} · {{ tournament_filter }}{% endif %}
-            </p>
+        <div class="brand-stack">
+          <div class="club-banner">
+            <span class="club-pill">Club</span>
+            <span class="club-pill">{{ division_label|default:"División" }}</span>
+            <span class="club-pill">{{ season_label }}</span>
+            <span class="club-pill">{{ scope_label }}</span>
+            {% if tournament_filter %}<span class="club-pill">{{ tournament_filter }}</span>{% endif %}
+          </div>
+          <div class="brand">
+            {% if crest_src %}<img class="crest" src="{{ crest_src }}" alt="Escudo {{ team_name }}" />{% endif %}
+            <div class="head-copy">
+              <p class="kicker">Plantilla técnica</p>
+              <h1>{{ team_name }}</h1>
+              <p class="sub">
+                {{ division_label|default:"" }}{% if division_label and season_label %} · {% endif %}{{ season_label }}
+                {% if scope_label %} · {{ scope_label }}{% endif %}
+                {% if tournament_filter %} · {{ tournament_filter }}{% endif %}
+              </p>
+            </div>
           </div>
         </div>
         {% if brand_mark_src %}<img class="mark" src="{{ brand_mark_src }}" alt="2J" />{% endif %}
@@ -536,7 +630,9 @@
                       <div class="mini-copy">
                         <span class="mini-name">{{ card.name }}</span>
                         <span class="mini-meta">{{ card.position|default:"-" }}</span>
-                        <span class="mini-state {% if card.state_key == 'injured' %}is-critical{% elif card.state_key == 'trial' %}is-trial{% elif card.state_key == 'confirmed' %}is-available{% else %}is-muted{% endif %}">{{ card.state_label }}</span>
+                        <div class="field-state-line">
+                          <span class="mini-state {% if card.state_key == 'injured' %}is-critical{% elif card.state_key == 'trial' %}is-trial{% elif card.state_key == 'confirmed' %}is-available{% else %}is-muted{% endif %}">{{ card.state_label }}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -546,6 +642,7 @@
               {% endfor %}
             </div>
           </div>
+          <p class="field-summary-note">Los jugadores lesionados y a prueba aparecen en su puesto con el estado visible.</p>
         </article>
 
         <article class="panel state-card">
@@ -570,6 +667,21 @@
             </div>
           </div>
         </article>
+      </section>
+
+      <section class="totals-shell">
+        <h2>Totales por puesto y zona del campo</h2>
+        <div class="totals-grid" aria-label="Totalizadores de plantilla">
+          {% for row in position_total_rows %}
+          <article class="total-card">
+            <div class="kicker">{{ row.label }}</div>
+            <strong>{{ row.count }} jugadores</strong>
+            <div class="meta">
+              {{ row.confirmed }} disp. · {{ row.trial }} a prueba · {{ row.injured }} lesionados
+            </div>
+          </article>
+          {% endfor %}
+        </div>
       </section>
 
       <section class="sections">
