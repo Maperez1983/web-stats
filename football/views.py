@@ -2688,6 +2688,7 @@ def scouting_board_page(request):
     if not workspace or workspace.kind != Workspace.KIND_CLUB:
         raise Http404('Club no configurado')
     active_team = _get_active_team_for_request(request)
+    primary_team = active_team or getattr(workspace, 'primary_team', None)
     can_manage = bool(_can_manage_workspace(request.user, workspace))
 
     status_filter = str(request.GET.get('status') or 'all').strip().lower()
@@ -2818,21 +2819,24 @@ def scouting_board_page(request):
                     target.available_for_coach_tools = False
                     target.save(update_fields=['available_for_coach_tools', 'updated_at'])
                 if create_player:
-                    player = _promote_scouting_target_to_player(
-                        target,
-                        team=primary_team,
-                        workspace=workspace,
-                        request_user=request.user,
-                    )
-                    player_detail_url = reverse('player-detail', args=[player.id])
-                    qs = []
-                    if workspace and getattr(workspace, 'id', None):
-                        qs.append(f'workspace={int(workspace.id)}')
-                    if primary_team and getattr(primary_team, 'id', None):
-                        qs.append(f'team={int(primary_team.id)}')
-                    if qs:
-                        player_detail_url = f"{player_detail_url}?{'&'.join(qs)}"
-                    return redirect(player_detail_url)
+                    if not primary_team:
+                        error = 'Selecciona un equipo activo para convertir el seguimiento en jugador.'
+                    else:
+                        player = _promote_scouting_target_to_player(
+                            target,
+                            team=primary_team,
+                            workspace=workspace,
+                            request_user=request.user,
+                        )
+                        player_detail_url = reverse('player-detail', args=[player.id])
+                        qs = []
+                        if workspace and getattr(workspace, 'id', None):
+                            qs.append(f'workspace={int(workspace.id)}')
+                        if primary_team and getattr(primary_team, 'id', None):
+                            qs.append(f'team={int(primary_team.id)}')
+                        if qs:
+                            player_detail_url = f"{player_detail_url}?{'&'.join(qs)}"
+                        return redirect(player_detail_url)
                 return redirect(reverse('scouting-target-detail', args=[target.id]))
 
     targets_qs = (
