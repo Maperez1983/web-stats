@@ -1,0 +1,470 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Plantilla · {{ team_name }}</title>
+    {% include 'football/includes/print_tokens_css.html' %}
+    <style>
+      @page { size: A4 landscape; margin: 10mm 10mm; }
+      body {
+        margin: 0;
+        font-family: var(--print-font, "Inter", system-ui, -apple-system, Segoe UI, sans-serif);
+        color: var(--print-ink, #0b1220);
+        background: var(--print-paper, #ffffff);
+      }
+      .sheet {
+        display: grid;
+        gap: 10px;
+      }
+      .header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: start;
+        padding: 10px 12px;
+        border-radius: 16px;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        background: rgba(248, 250, 252, 0.94);
+      }
+      .brand {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        min-width: 0;
+      }
+      .crest {
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        background: #fff;
+        object-fit: contain;
+        padding: 6px;
+        flex: 0 0 auto;
+      }
+      .head-copy {
+        min-width: 0;
+      }
+      .kicker {
+        margin: 0;
+        color: #0f7a35;
+        font-size: 10px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        font-weight: 900;
+      }
+      h1 {
+        margin: 3px 0 0;
+        font-size: 18px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        line-height: 1.1;
+      }
+      .sub {
+        margin: 4px 0 0;
+        color: rgba(71, 85, 105, 0.96);
+        font-weight: 700;
+        font-size: 11px;
+      }
+      .mark {
+        width: 84px;
+        height: auto;
+        opacity: 0.94;
+      }
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .metric {
+        border-radius: 14px;
+        border: 1px solid rgba(15, 23, 42, 0.10);
+        background: rgba(248, 250, 252, 0.96);
+        padding: 10px 10px 9px;
+      }
+      .metric .label {
+        display: block;
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        color: rgba(71, 85, 105, 0.92);
+        font-weight: 900;
+      }
+      .metric .value {
+        display: block;
+        margin-top: 4px;
+        font-size: 18px;
+        font-weight: 950;
+        line-height: 1;
+      }
+      .metric .hint {
+        display: block;
+        margin-top: 4px;
+        font-size: 9px;
+        color: rgba(71, 85, 105, 0.88);
+      }
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(250px, 0.75fr);
+        gap: 10px;
+      }
+      .panel {
+        border-radius: 16px;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        background: #ffffff;
+        padding: 10px;
+      }
+      .panel h2 {
+        margin: 0;
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .panel p {
+        margin: 4px 0 0;
+        color: rgba(71, 85, 105, 0.92);
+        font-size: 11px;
+        line-height: 1.45;
+      }
+      .pitch-wrap {
+        position: relative;
+        border-radius: 16px;
+        overflow: hidden;
+        margin-top: 8px;
+        min-height: 250px;
+        background: linear-gradient(180deg, rgba(15, 118, 53, 0.12), rgba(15, 118, 53, 0.05));
+        border: 1px solid rgba(15, 118, 53, 0.16);
+      }
+      .pitch-wrap img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .pitch-overlay {
+        position: absolute;
+        inset: 9px;
+      }
+      .pitch-group {
+        position: absolute;
+        border-radius: 14px;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        background: rgba(7, 16, 30, 0.74);
+        color: #f8fafc;
+        padding: 8px 9px;
+        box-shadow: 0 10px 20px rgba(2, 6, 23, 0.18);
+      }
+      .pitch-group.gk { left: 3%; top: 54%; width: 18%; }
+      .pitch-group.def { left: 19%; top: 15%; width: 24%; }
+      .pitch-group.mid { left: 47%; top: 15%; width: 24%; }
+      .pitch-group.att { left: 74%; top: 25%; width: 22%; }
+      .group-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .group-head strong {
+        font-size: 12px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .group-head span {
+        display: inline-flex;
+        align-items: center;
+        min-height: 20px;
+        border-radius: 999px;
+        padding: 0 7px;
+        border: 1px solid rgba(244, 180, 0, 0.28);
+        background: rgba(244, 180, 0, 0.10);
+        color: #fff7dd;
+        font-size: 10px;
+        font-weight: 900;
+      }
+      .group-count {
+        margin-top: 3px;
+        font-size: 9px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.78);
+        font-weight: 900;
+      }
+      .chip-row {
+        margin-top: 6px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 7px;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(255, 255, 255, 0.08);
+        font-size: 10px;
+        font-weight: 800;
+        line-height: 1;
+      }
+      .chip .num {
+        color: #fde68a;
+        font-weight: 950;
+      }
+      .chip.is-critical { border-color: rgba(248,113,113,0.36); background: rgba(127,29,29,0.36); }
+      .chip.is-trial { border-color: rgba(244,180,0,0.28); background: rgba(244,180,0,0.12); color: #fff7dd; }
+      .chip.is-available { border-color: rgba(47,125,50,0.30); background: rgba(47,125,50,0.22); color: #dcfce7; }
+      .chip.is-muted { border-color: rgba(148,163,184,0.22); background: rgba(148,163,184,0.10); color: #e2e8f0; }
+      .chip.more {
+        color: rgba(226, 232, 240, 0.88);
+        background: rgba(2, 6, 23, 0.38);
+      }
+      .state-card .legend {
+        display: grid;
+        gap: 7px;
+        margin-top: 9px;
+      }
+      .legend-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-radius: 12px;
+        padding: 9px 10px;
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        background: rgba(248, 250, 252, 0.96);
+      }
+      .legend-row strong {
+        font-size: 14px;
+      }
+      .legend-row span {
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        font-weight: 900;
+        color: rgba(71, 85, 105, 0.88);
+      }
+      .legend-row.is-critical { border-color: rgba(248,113,113,0.32); background: rgba(248,113,113,0.08); }
+      .legend-row.is-trial { border-color: rgba(244,180,0,0.26); background: rgba(244,180,0,0.08); }
+      .legend-row.is-available { border-color: rgba(47,125,50,0.30); background: rgba(47,125,50,0.08); }
+      .legend-row.is-muted { border-color: rgba(148,163,184,0.18); background: rgba(148,163,184,0.08); }
+      .sections {
+        display: grid;
+        gap: 10px;
+      }
+      .group-card {
+        border-radius: 16px;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        background: #ffffff;
+        padding: 10px;
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      .group-title {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .group-title h3 {
+        margin: 0;
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .group-title .meta {
+        font-size: 10px;
+        color: rgba(71, 85, 105, 0.92);
+        font-weight: 700;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 8px;
+      }
+      th, td {
+        padding: 6px 6px;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        font-size: 9px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(71, 85, 105, 0.92);
+      }
+      td {
+        font-size: 10px;
+        color: rgba(15, 23, 42, 0.94);
+      }
+      .player-name {
+        font-weight: 900;
+      }
+      .row-badge {
+        display: inline-flex;
+        align-items: center;
+        min-height: 18px;
+        padding: 0 6px;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      .row-badge.is-critical { border-color: rgba(248,113,113,0.34); background: rgba(248,113,113,0.10); color: #b91c1c; }
+      .row-badge.is-trial { border-color: rgba(244,180,0,0.34); background: rgba(244,180,0,0.08); color: #92400e; }
+      .row-badge.is-available { border-color: rgba(47,125,50,0.34); background: rgba(47,125,50,0.08); color: #166534; }
+      .row-badge.is-muted { border-color: rgba(148,163,184,0.24); background: rgba(148,163,184,0.08); color: #334155; }
+      .foot {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 10px;
+        color: rgba(71, 85, 105, 0.92);
+        padding-top: 2px;
+      }
+      .muted {
+        color: rgba(71, 85, 105, 0.72);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="sheet">
+      <section class="header">
+        <div class="brand">
+          {% if crest_src %}<img class="crest" src="{{ crest_src }}" alt="Escudo {{ team_name }}" />{% endif %}
+          <div class="head-copy">
+            <p class="kicker">Plantilla técnica</p>
+            <h1>{{ team_name }}</h1>
+            <p class="sub">
+              {{ division_label|default:"" }}{% if division_label and season_label %} · {% endif %}{{ season_label }}
+              {% if scope_label %} · {{ scope_label }}{% endif %}
+              {% if tournament_filter %} · {{ tournament_filter }}{% endif %}
+            </p>
+          </div>
+        </div>
+        {% if brand_mark_src %}<img class="mark" src="{{ brand_mark_src }}" alt="2J" />{% endif %}
+      </section>
+
+      <section class="metrics">
+        {% for card in team_cards %}
+          <article class="metric">
+            <span class="label">{{ card.label }}</span>
+            <span class="value">{{ card.value }}</span>
+            <span class="hint">{{ card.hint|default:"" }}</span>
+          </article>
+        {% endfor %}
+      </section>
+
+      <section class="hero">
+        <article class="panel">
+          <h2>Configuración de plantilla</h2>
+          <p>La superficie muestra la lectura operativa del equipo. Las tarjetas sobre el campo representan las líneas de trabajo y los jugadores destacados por posición.</p>
+          <div class="pitch-wrap">
+            {% if pitch_src %}<img src="{{ pitch_src }}" alt="Campo de fútbol" />{% endif %}
+            <div class="pitch-overlay">
+              {% for group in position_groups %}
+                <article class="pitch-group {{ group.key }}">
+                  <div class="group-head">
+                    <span>{{ group.short }}</span>
+                    <strong>{{ group.label }}</strong>
+                  </div>
+                  <div class="group-count">{{ group.players|length }} jugadores</div>
+                  <div class="chip-row">
+                    {% for player in group.preview_players %}
+                      <span class="chip {% if player.state_key == 'injured' %}is-critical{% elif player.state_key == 'trial' %}is-trial{% elif player.state_key == 'confirmed' %}is-available{% else %}is-muted{% endif %}">
+                        <span class="num">{% if player.number %}{{ player.number }}{% else %}-{% endif %}</span>
+                        <span>{{ player.name }}</span>
+                      </span>
+                    {% empty %}
+                      <span class="chip more">Sin jugadores</span>
+                    {% endfor %}
+                    {% if group.extra_count %}
+                      <span class="chip more">+{{ group.extra_count }}</span>
+                    {% endif %}
+                  </div>
+                </article>
+              {% endfor %}
+            </div>
+          </div>
+        </article>
+
+        <article class="panel state-card">
+          <h2>Estado de la plantilla</h2>
+          <p>Lectura rápida del momento actual de la categoría.</p>
+          <div class="legend">
+            <div class="legend-row is-available">
+              <div><strong>{{ state_counts.confirmed|default:0 }}</strong></div>
+              <span>Disponibles</span>
+            </div>
+            <div class="legend-row is-trial">
+              <div><strong>{{ state_counts.trial|default:0 }}</strong></div>
+              <span>A prueba</span>
+            </div>
+            <div class="legend-row is-critical">
+              <div><strong>{{ state_counts.injured|default:0 }}</strong></div>
+              <span>Lesionados</span>
+            </div>
+            <div class="legend-row is-muted">
+              <div><strong>{{ state_counts.inactive|default:0 }}</strong></div>
+              <span>Inactivos</span>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="sections">
+        {% for group in position_groups %}
+          <article class="group-card">
+            <div class="group-title">
+              <h3>{{ group.label }}</h3>
+              <div class="meta">{{ group.players|length }} jugadores</div>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:48px;">#</th>
+                  <th>Jugador</th>
+                  <th style="width:110px;">Posición</th>
+                  <th style="width:90px;">Nacimiento</th>
+                  <th>Origen</th>
+                  <th style="width:110px;">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for player in group.players %}
+                  <tr>
+                    <td>{% if player.number %}{{ player.number }}{% else %}-{% endif %}</td>
+                    <td><span class="player-name">{{ player.name }}</span></td>
+                    <td>{{ player.position }}</td>
+                    <td>{% if player.birth_year %}{{ player.birth_year }}{% else %}-{% endif %}</td>
+                    <td>{{ player.origin_team }}</td>
+                    <td>
+                      <span class="row-badge {% if player.state_key == 'injured' %}is-critical{% elif player.state_key == 'trial' %}is-trial{% elif player.state_key == 'confirmed' %}is-available{% else %}is-muted{% endif %}">
+                        {{ player.state_label }}
+                      </span>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="6" class="muted">Sin jugadores en esta línea.</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </article>
+        {% endfor %}
+      </section>
+
+      <div class="foot">
+        <div>Generado: {{ generated_at|date:"d/m/Y H:i" }}</div>
+        <div>Segunda Jugada · Plantilla</div>
+      </div>
+    </div>
+  </body>
+</html>

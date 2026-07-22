@@ -30853,6 +30853,222 @@ def coach_roster_page(request):
 
 
 @login_required
+@pdf_view_guard
+def coach_roster_pdf(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'players', label='plantilla técnica')
+    if forbidden:
+        return forbidden
+    workspace = _get_active_workspace(request)
+    if not workspace or getattr(workspace, 'kind', None) != Workspace.KIND_CLUB:
+        return HttpResponse('Selecciona un club (workspace) antes de generar el PDF.', status=400)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+
+    scope_value = _get_stats_scope_for_request(request, primary_team)
+    tournament_filter = _get_tournament_filter_for_request(request, primary_team, scope=scope_value)
+    active_club_season = None
+    active_club_season_is_current = False
+    try:
+        active_club_season = selected_club_season_for_request(request, workspace=workspace)
+        workspace_current_season_id = int(getattr(workspace, 'active_season_id', 0) or 0)
+        active_club_season_is_current = bool(
+            active_club_season
+            and int(getattr(active_club_season, 'id', 0) or 0) == workspace_current_season_id
+            and bool(getattr(active_club_season, 'is_active', False))
+        )
+    except Exception:
+        active_club_season = None
+        active_club_season_is_current = False
+
+    players = list(Player.objects.filter(team=primary_team).order_by('is_active', 'number', 'name'))
+    status_labels = dict(WorkspaceSeasonPlayer.STATUS_CHOICES)
+    memberships = {}
+    confirmed_total = 0
+    pending_total = 0
+    inactive_total = 0
+    try:
+        if active_club_season:
+            if active_club_season_is_current and players:
+                ensure_team_roster_season_memberships(active_club_season, primary_team, include_inactive=True)
+            memberships = {
+                int(row.player_id): row
+                for row in WorkspaceSeasonPlayer.objects.filter(
+                    season=active_club_season,
+                    player_id__in=[int(p.id) for p in players if getattr(p, 'id', None)],
+                ).only('player_id', 'is_confirmed', 'status')
+            }
+    except Exception:
+        memberships = {}
+
+    active_player_ids = [int(getattr(p, 'id', 0) or 0) for p in players if getattr(p, 'id', None)]
+    try:
+        active_injury_ids = set(get_active_injury_player_ids(active_player_ids))
+    except Exception:
+        active_injury_ids = set()
+
+    def _roster_bucket(position_text: str) -> str:
+        text = normalize_label(position_text or '')
+        if any(token in text for token in ('portero', 'goalkeeper', 'guardameta', 'porteria', 'puerta')):
+            return 'gk'
+        if any(token in text for token in ('defensa', 'central', 'lateral', 'carrilero', 'libero', 'zaguero')):
+            return 'def'
+        if any(token in text for token in ('medio', 'centro', 'pivote', 'pivot', 'interior', 'volante', 'mediocentro', 'media punta', 'mediapunta')):
+            return 'mid'
+        if any(token in text for token in ('delantero', 'extremo', 'punta', 'ataque', 'segundo punta', 'ariete')):
+            return 'att'
+        return 'mid'
+
+    bucket_meta = {
+        'gk': {'label': 'Portería', 'short': 'GK', 'x': 4, 'y': 44, 'w': 20},
+        'def': {'label': 'Defensa', 'short': 'DEF', 'x': 20, 'y': 18, 'w': 26},
+        'mid': {'label': 'Centro', 'short': 'MED', 'x': 48, 'y': 18, 'w': 26},
+        'att': {'label': 'Ataque', 'short': 'ATT', 'x': 75, 'y': 26, 'w': 21},
+        'oth': {'label': 'Sin definir', 'short': 'OTR', 'x': 47, 'y': 62, 'w': 22},
+    }
+    position_groups = {key: {'key': key, **meta, 'players': []} for key, meta in bucket_meta.items()}
+
+    def _player_state(player, membership):
+        nonlocal confirmed_total, pending_total, inactive_total
+        player_id = int(getattr(player, 'id', 0) or 0)
+        confirmed = bool(membership and getattr(membership, 'is_confirmed', False) and str(getattr(membership, 'status', '') or '').strip() == WorkspaceSeasonPlayer.STATUS_CONFIRMED)
+        season_status = str(getattr(membership, 'status', '') or '').strip() if membership else ''
+        is_injury = bool(player_id and player_id in active_injury_ids)
+        is_inactive = not bool(getattr(player, 'is_active', True)) or season_status in {WorkspaceSeasonPlayer.STATUS_LEFT, WorkspaceSeasonPlayer.STATUS_INACTIVE}
+        if is_injury:
+            state_key = 'injured'
+            state_label = 'Lesionado'
+            tone = 'critical'
+        elif is_inactive:
+            state_key = 'inactive'
+            state_label = 'Inactivo'
+            tone = 'muted'
+        elif confirmed:
+            state_key = 'confirmed'
+            state_label = 'Disponible'
+            tone = 'available'
+        else:
+            state_key = 'trial'
+            state_label = 'A prueba'
+            tone = 'trial'
+        if state_key == 'confirmed':
+            confirmed_total += 1
+        elif state_key == 'trial':
+            pending_total += 1
+        elif state_key == 'inactive':
+            inactive_total += 1
+        return state_key, state_label, tone
+
+    roster_rows = []
+    for player in players:
+        membership = memberships.get(int(getattr(player, 'id', 0) or 0))
+        state_key, state_label, tone = _player_state(player, membership)
+        bucket = _roster_bucket(getattr(player, 'position', '') or getattr(player, 'preferred_position', '') or '')
+        group = position_groups.get(bucket) or position_groups['oth']
+        record = {
+            'id': int(getattr(player, 'id', 0) or 0),
+            'name': str(getattr(player, 'name', '') or '').strip(),
+            'number': getattr(player, 'number', None),
+            'position': str(getattr(player, 'position', '') or getattr(player, 'preferred_position', '') or '-').strip() or '-',
+            'birth_year': getattr(player, 'birth_date', None).year if getattr(player, 'birth_date', None) else '',
+            'origin_team': str(getattr(player, 'origin_team', '') or '-').strip() or '-',
+            'state_key': state_key,
+            'state_label': state_label,
+            'state_tone': tone,
+            'season_status_label': str(getattr(membership, 'status', '') or '').strip() and status_labels.get(str(getattr(membership, 'status', '') or '').strip(), 'Pendiente') or 'Pendiente',
+            'confirmed': bool(getattr(player, 'season_confirmed', False)) if hasattr(player, 'season_confirmed') else False,
+        }
+        roster_rows.append(record)
+        group['players'].append(record)
+
+    for group in position_groups.values():
+        group['players'].sort(key=lambda row: (int(row.get('number') or 9999), str(row.get('name') or '').lower()))
+        group['preview_players'] = group['players'][:4]
+        group['extra_count'] = max(0, len(group['players']) - len(group['preview_players']))
+
+    state_counts = {
+        'confirmed': confirmed_total,
+        'trial': pending_total,
+        'injured': sum(1 for row in roster_rows if row['state_key'] == 'injured'),
+        'inactive': inactive_total,
+    }
+    total_players = len(roster_rows)
+
+    static_base_dir = Path(settings.BASE_DIR) / 'static'
+    pitch_src = (
+        _file_as_data_uri(static_base_dir / 'football' / 'campo-futbol-fallback.jpg')
+        or _file_as_data_uri(static_base_dir / 'football' / 'campo-futbol.jpg')
+        or request.build_absolute_uri(static('football/campo-futbol.jpg'))
+    )
+    crest_src = ''
+    try:
+        if getattr(primary_team, 'crest_image', None):
+            if getattr(primary_team.crest_image, 'path', None):
+                crest_src = _image_file_as_small_data_uri(Path(primary_team.crest_image.path), max_width=220, max_height=220, quality=74)
+            else:
+                with primary_team.crest_image.open('rb') as fp:
+                    raw = fp.read() or b''
+                crest_src = _image_bytes_as_small_data_uri(raw, mime_type='image/jpeg', max_width=220, max_height=220, quality=74)
+    except Exception:
+        crest_src = ''
+    if not crest_src:
+        crest_src = resolve_team_crest_url(request, primary_team, sync=True) or _file_as_data_uri(static_base_dir / 'football' / 'images' / 'cdb-logo.png') or ''
+
+    season_label = 'Temporada actual'
+    try:
+        season = primary_team.group.season if primary_team.group else None
+        if season and season.start_date and season.end_date:
+            season_label = f'{season.start_date.year}-{season.end_date.year}'
+        elif season and season.name:
+            season_label = season.name
+        if active_club_season and getattr(active_club_season, 'label', None):
+            season_label = str(active_club_season.label)
+    except Exception:
+        pass
+    division_label = primary_team.group.name if primary_team.group else ''
+
+    scope_label = {
+        Match.CONTEXT_LEAGUE: 'Liga',
+        Match.CONTEXT_TOURNAMENT: 'Torneo',
+        Match.CONTEXT_FRIENDLY: 'Amistoso',
+        'all': 'Globales',
+    }.get(scope_value, 'Liga')
+
+    team_cards = [
+        {'label': 'Jugadores', 'value': total_players, 'hint': 'Alta en plantilla'},
+        {'label': 'Disponibles', 'value': state_counts['confirmed'], 'hint': 'Confirmados'},
+        {'label': 'A prueba', 'value': state_counts['trial'], 'hint': 'Pendientes de confirmación'},
+        {'label': 'Lesionados', 'value': state_counts['injured'], 'hint': 'Estado médico'},
+        {'label': 'Inactivos', 'value': state_counts['inactive'], 'hint': 'Baja o fuera de plantilla'},
+    ]
+
+    html = render_to_string(
+        'football/coach_roster_pdf.html',
+        {
+            **_build_pdf_nav_urls(request),
+            'team_name': primary_team.display_name,
+            'division_label': division_label,
+            'season_label': season_label,
+            'scope_label': scope_label,
+            'tournament_filter': tournament_filter if scope_value == Match.CONTEXT_TOURNAMENT else '',
+            'generated_at': timezone.localtime(),
+            'crest_src': crest_src,
+            'pitch_src': pitch_src,
+            'team_cards': team_cards,
+            'state_counts': state_counts,
+            'position_groups': list(position_groups.values()),
+            'roster_rows': roster_rows,
+        },
+        request=request,
+    )
+    filename = slugify(f'plantilla-{primary_team.display_name}-{timezone.localdate()}') or f'plantilla-{primary_team.id}'
+    return _build_pdf_response_or_html_fallback(request, html, filename, inline=True, force_pdf=True)
+
+
+@login_required
 def coach_injuries_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
     if forbidden:

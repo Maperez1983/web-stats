@@ -46,6 +46,12 @@
         color: var(--prod-text, #f5f7fa);
         white-space: nowrap;
       }
+      .top-actions {
+        display: flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
       .panel {
         margin-top: 1rem;
         border-radius: 18px;
@@ -753,7 +759,10 @@
           <p style="margin:0;color:var(--prod-muted, rgba(15, 23, 42, 0.64));">Cuerpo técnico</p>
           <h1>Plantilla · {{ team_name }}</h1>
         </div>
-        <a class="button" href="{% url 'coach-cards' %}">Volver</a>
+        <div class="top-actions">
+          <a class="button" href="{% url 'coach-roster-pdf' %}{{ active_team_query|default:'' }}" target="_blank" rel="noopener">PDF plantilla</a>
+          <a class="button" href="{% url 'coach-cards' %}">Volver</a>
+        </div>
       </header>
 
       <section class="panel">
