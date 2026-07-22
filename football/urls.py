@@ -126,6 +126,7 @@ urlpatterns = [
     path("coach/dashboard/", views.kpi_dashboard_page, name="kpi-dashboard"),
     path("direccion/", views.scouting_board_page, name="scouting-board"),
     path("direccion/<int:target_id>/", views.scouting_target_detail_page, name="scouting-target-detail"),
+    path("direccion/<int:target_id>/pdf/", views.scouting_target_pdf, name="scouting-target-pdf"),
     path("coach/informes/equipo/pdf/", views.team_season_report_pdf, name="team-season-report-pdf"),
     path("coach/informes/partido/", views.match_staff_report_page, name="match-staff-report"),
     path("coach/informes/partido/pdf/", views.match_staff_report_pdf, name="match-staff-report-pdf"),

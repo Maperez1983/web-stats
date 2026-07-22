@@ -1,8 +1,11 @@
 from datetime import date
 
 from django.contrib.auth import get_user_model
+from django.http import HttpResponse
 from django.test import TestCase
 from django.urls import reverse
+
+from unittest.mock import patch
 
 from football.models import AppUserRole, Competition, Group, ScoutingTarget, Season, Team, Workspace, WorkspaceMembership, WorkspaceTeam
 
@@ -86,3 +89,12 @@ class ScoutingTargetPersistenceTests(TestCase):
         self.assertEqual(self.target.budget_note, 'Prioridad alta')
         self.assertEqual(self.target.summary, 'Primer informe.')
         self.assertTrue(self.target.available_for_coach_tools)
+
+    @patch('football.views._build_pdf_response_or_html_fallback')
+    def test_scouting_target_pdf_route_renders_with_current_target(self, mock_pdf):
+        mock_pdf.return_value = HttpResponse('ok', status=200)
+
+        response = self.client.get(reverse('scouting-target-pdf', args=[self.target.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(mock_pdf.called)

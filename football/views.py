@@ -32285,8 +32285,161 @@ def scouting_target_detail_page(request, target_id):
             "attribute_radar_data": attribute_radar_data,
             "fm_attribute_groups": fm_attribute_groups,
             "fm_attribute_radar_data": fm_attribute_radar_data,
+            "pdf_url": reverse("scouting-target-pdf", args=[target.id]),
         },
     )
+
+
+@login_required
+def scouting_target_pdf(request, target_id):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    workspace = _get_active_workspace(request)
+    active_team = _get_primary_team_for_request(request)
+    target = (
+        ScoutingTarget.objects.select_related("player", "player__team", "assigned_to", "created_by")
+        .prefetch_related("reports", "followups")
+        .filter(id=target_id)
+        .first()
+    )
+    if not target or (workspace and target.workspace_id != workspace.id):
+        raise Http404("Seguimiento no encontrado")
+
+    reports = list(target.reports.select_related("created_by").order_by("-observed_on", "-created_at", "-id")[:12])
+    open_followups = list(target.followups.select_related("created_by").filter(is_done=False)[:12])
+    done_followups = list(target.followups.select_related("created_by").filter(is_done=True)[:12])
+    player_detail_url = reverse("player-detail", args=[target.player_id]) if target.player_id else ""
+    latest_report = reports[0] if reports else None
+    latest_ratings = {
+        "technical": int(getattr(latest_report, "technical_rating", 0) or 0) if latest_report else 0,
+        "tactical": int(getattr(latest_report, "tactical_rating", 0) or 0) if latest_report else 0,
+        "physical": int(getattr(latest_report, "physical_rating", 0) or 0) if latest_report else 0,
+        "mental": int(getattr(latest_report, "mental_rating", 0) or 0) if latest_report else 0,
+        "social": int(getattr(latest_report, "social_rating", 0) or 0) if latest_report else 0,
+        "overall": int(getattr(latest_report, "overall_rating", 0) or 0) if latest_report else 0,
+    }
+    attribute_radar_data = {
+        "axes": [
+            {"label": "Técnica", "value": latest_ratings["technical"], "max": 10},
+            {"label": "Táctica", "value": latest_ratings["tactical"], "max": 10},
+            {"label": "Físico", "value": latest_ratings["physical"], "max": 10},
+            {"label": "Mental", "value": latest_ratings["mental"], "max": 10},
+            {"label": "Social", "value": latest_ratings["social"], "max": 10},
+        ],
+        "overall": latest_ratings["overall"],
+        "reports_count": len(reports),
+        "axis_svg": [],
+        "polygon_points_svg": "",
+    }
+    try:
+        import math as _math
+
+        cx = 180.0
+        cy = 180.0
+        radius = 140.0
+        points = []
+        for idx, value in enumerate(attribute_radar_data["axes"]):
+            angle = (-90.0 + (idx * 72.0)) * (_math.pi / 180.0)
+            score = max(0.0, min(float(value.get("value") or 0) / 10.0, 1.0))
+            point_radius = radius * score
+            x = cx + (_math.cos(angle) * point_radius)
+            y = cy + (_math.sin(angle) * point_radius)
+            points.append(f"{x:.1f},{y:.1f}")
+        attribute_radar_data["polygon_points_svg"] = " ".join(points)
+    except Exception:
+        attribute_radar_data["polygon_points_svg"] = ""
+
+    fm_attribute_groups = [
+        _fm_group_card(
+            "Informe",
+            "Lectura principal del ojeador en escala 1-20.",
+            [
+                _fm_metric_row(
+                    "Global",
+                    latest_ratings["overall"],
+                    source_max=10,
+                    display=f"{latest_ratings['overall']}/10" if latest_report else "-",
+                    hint="Valoración global del informe.",
+                ),
+                _fm_metric_row(
+                    "Técnica",
+                    latest_ratings["technical"],
+                    source_max=10,
+                    display=f"{latest_ratings['technical']}/10" if latest_report else "-",
+                    hint="Lectura técnica del perfil.",
+                ),
+                _fm_metric_row(
+                    "Táctica",
+                    latest_ratings["tactical"],
+                    source_max=10,
+                    display=f"{latest_ratings['tactical']}/10" if latest_report else "-",
+                    hint="Interpretación táctica del jugador.",
+                ),
+                _fm_metric_row(
+                    "Físico",
+                    latest_ratings["physical"],
+                    source_max=10,
+                    display=f"{latest_ratings['physical']}/10" if latest_report else "-",
+                    hint="Capacidad física observada.",
+                ),
+            ],
+        ),
+        _fm_group_card(
+            "Perfil",
+            "Lectura complementaria del comportamiento observado.",
+            [
+                _fm_metric_row(
+                    "Mental",
+                    latest_ratings["mental"],
+                    source_max=10,
+                    display=f"{latest_ratings['mental']}/10" if latest_report else "-",
+                    hint="Concentración, ritmo mental y lectura.",
+                ),
+                _fm_metric_row(
+                    "Social",
+                    latest_ratings["social"],
+                    source_max=10,
+                    display=f"{latest_ratings['social']}/10" if latest_report else "-",
+                    hint="Encaje competitivo y comunicación.",
+                ),
+                _fm_metric_row(
+                    "Informes",
+                    len(reports),
+                    source_max=8,
+                    display=f"{len(reports)} informes",
+                    hint="Cuantos más informes, más sólida es la lectura.",
+                ),
+                _fm_metric_row(
+                    "Estado",
+                    10 if latest_report else 0,
+                    source_max=10,
+                    display="Último informe" if latest_report else "Sin informe",
+                    hint="Presencia de una observación reciente.",
+                ),
+            ],
+        ),
+    ]
+    fm_attribute_radar_data = _build_fm_attribute_radar_data(fm_attribute_groups)
+    pdf_html = render_to_string(
+        "football/scouting_target_pdf.html",
+        {
+            "target": target,
+            "reports": reports,
+            "latest_report": latest_report,
+            "open_followups": open_followups,
+            "done_followups": done_followups,
+            "player_detail_url": player_detail_url,
+            "active_team": active_team,
+            "workspace": workspace,
+            "attribute_radar_data": attribute_radar_data,
+            "fm_attribute_groups": fm_attribute_groups,
+            "fm_attribute_radar_data": fm_attribute_radar_data,
+        },
+        request=request,
+    )
+    filename = slugify(f"seguimiento-{target.display_name}-{target.id}") or f"seguimiento-{target.id}"
+    return _build_pdf_response_or_html_fallback(request, pdf_html, filename, inline=True, force_pdf=True)
 
 
 @login_required

@@ -536,6 +536,9 @@
         </div>
         <div class="actions">
           <a class="btn" href="{% url 'scouting-board' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Volver</a>
+          {% if pdf_url %}
+          <a class="btn" href="{{ pdf_url }}" target="_blank" rel="noopener">PDF</a>
+          {% endif %}
           {% if player_detail_url %}
           <a class="btn primary" href="{{ player_detail_url }}">Ficha jugador</a>
           {% endif %}
