@@ -1,4 +1,33 @@
 {% load static %}
+<style>
+  .dragon-nav {
+    display: inline-flex;
+    align-items: center;
+    margin-bottom: 0.75rem;
+  }
+  .dragon-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.4rem;
+    height: 3.4rem;
+    border-radius: 1rem;
+    overflow: hidden;
+    flex: 0 0 auto;
+  }
+  .dragon-link img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  @media (max-width: 640px) {
+    .dragon-link {
+      width: 2.9rem;
+      height: 2.9rem;
+    }
+  }
+</style>
 {% if not hide_dragon_logo %}
 <div class="dragon-nav">
 	  <a href="{% if club_dashboard_url %}{{ club_dashboard_url }}{% elif active_team %}{% url 'dashboard-home' %}?team={{ active_team.id }}{% elif home_url %}{{ home_url }}{% elif workspace_entry_url %}{{ workspace_entry_url }}{% else %}{% url 'dashboard-home' %}{% endif %}" class="dragon-link" title="Volver al inicio">
