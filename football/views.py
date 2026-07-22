@@ -33372,6 +33372,7 @@ def coach_roster_page(request):
     if scope_value == Match.CONTEXT_TOURNAMENT and tournament_filter:
         active_team_query.append(f"tournament={quote(str(tournament_filter))}")
     active_team_query = f"?{'&'.join(active_team_query)}" if active_team_query else ""
+    roster_html_query = f"{active_team_query}{'&' if active_team_query else '?'}html=1"
 
     def _tab_link(tab_name, *, refresh=False):
         params = request.GET.copy()
@@ -33407,6 +33408,7 @@ def coach_roster_page(request):
                 _team_tournament_name_options(primary_team) if scope_value == Match.CONTEXT_TOURNAMENT else []
             ),
             "active_team_query": active_team_query,
+            "roster_html_query": roster_html_query,
             "tab_link_stats": _tab_link("stats"),
             "tab_link_manage": _tab_link("manage"),
             "tab_link_inactive": _tab_link("inactive"),
@@ -33610,9 +33612,10 @@ def coach_roster_pdf(request):
 
     static_base_dir = Path(settings.BASE_DIR) / 'static'
     pitch_src = (
-        _file_as_data_uri(static_base_dir / 'football' / 'images' / 'pitch3d' / 'stadium_taskboard_top_h.png')
+        _file_as_data_uri(static_base_dir / 'football' / 'images' / 'pitch3d' / 'coach_home_pitch_surface.png')
+        or _file_as_data_uri(static_base_dir / 'football' / 'images' / 'pitch3d' / 'stadium_taskboard_top_h.png')
         or _file_as_data_uri(static_base_dir / 'football' / 'images' / 'pitch3d' / 'grass_premium_albedo.png')
-        or request.build_absolute_uri(static('football/images/pitch3d/stadium_taskboard_top_h.png'))
+        or request.build_absolute_uri(static('football/images/pitch3d/coach_home_pitch_surface.png'))
     )
     pitch_overlay_src = (
         _file_as_data_uri(static_base_dir / 'football' / 'images' / 'pitch3d' / 'stadium_taskboard_overlay_h.png')
@@ -33662,6 +33665,7 @@ def coach_roster_pdf(request):
     ]
 
     want_download = str(request.GET.get('download') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    want_html = str(request.GET.get('html') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
 
     html = render_to_string(
         'football/coach_roster_pdf.html',
@@ -33685,6 +33689,10 @@ def coach_roster_pdf(request):
         },
         request=request,
     )
+    if want_html:
+        response = HttpResponse(html, content_type='text/html; charset=utf-8')
+        response["Cache-Control"] = "no-store"
+        return response
     filename = slugify(f'plantilla-{primary_team.display_name}-{timezone.localdate()}') or f'plantilla-{primary_team.id}'
     return _build_pdf_response_or_html_fallback(request, html, filename, inline=not want_download, force_pdf=True)
 

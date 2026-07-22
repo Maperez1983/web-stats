@@ -760,6 +760,7 @@
           <h1>Plantilla · {{ team_name }}</h1>
         </div>
         <div class="top-actions">
+          <a class="button" href="{% url 'coach-roster-pdf' %}{{ roster_html_query|default:'?html=1' }}" target="_blank" rel="noopener">Ficha HTML</a>
           <a class="button" href="{% url 'coach-roster-pdf' %}{{ active_team_query|default:'' }}" target="_blank" rel="noopener">PDF plantilla</a>
           <a class="button" href="{% url 'coach-cards' %}">Volver</a>
         </div>
