@@ -725,14 +725,23 @@
         font-size: 1rem;
       }
       .trainer-squad-field {
+        position: relative;
         min-height: 540px;
         padding-bottom: 0;
         border-radius: 22px;
         overflow: hidden;
       }
-      .trainer-squad-field img {
-        opacity: 0.34;
-        mix-blend-mode: screen;
+      .trainer-squad-surface {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        pointer-events: none;
+        opacity: 0.98;
+      }
+      .trainer-squad-field .trainer-pitch-player {
+        z-index: 2;
       }
       .trainer-pitch-player {
         position: absolute;
@@ -2460,7 +2469,7 @@
               </div>
             </div>
             <div class="field-diagram trainer-squad-field">
-              <img src="{% static 'football/campo-futbol.jpg' %}" alt="Campo de fútbol" />
+              <svg class="trainer-squad-surface" id="coach-pitch-surface" aria-hidden="true"></svg>
               {% for player in trainer_pitch_players %}
               <a
                 class="trainer-pitch-player is-{{ player.accent }}"
@@ -2547,6 +2556,16 @@
       </section>
       {% endif %}
       {% if role_key == 'trainer' %}
+      {% endif %}
+      {% if role_key == 'trainer' %}
+      <script src="{% static 'football/js/pitch_surface.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
+      <script>
+        (() => {
+          const svg = document.getElementById('coach-pitch-surface');
+          if (!svg || !window.WebstatsPitchSurface || typeof window.WebstatsPitchSurface.applyToSvg !== 'function') return;
+          window.WebstatsPitchSurface.applyToSvg(svg, 'full_pitch', 'landscape', 'coachboard');
+        })();
+      </script>
       {% endif %}
       {% if role_key == 'trainer' and module_groups %}
       <section id="coach-modules" class="summary-card coach-card-shell">
