@@ -10,8 +10,11 @@
       body {
         margin: 0;
         font-family: var(--print-font, "Inter", system-ui, -apple-system, Segoe UI, sans-serif);
-        color: var(--print-ink, #0b1220);
-        background: var(--print-paper, #ffffff);
+        color: #e5eef7;
+        background:
+          radial-gradient(circle at 14% 0%, rgba(244, 180, 0, 0.10), transparent 30%),
+          radial-gradient(circle at 88% 8%, rgba(47, 125, 50, 0.18), transparent 24%),
+          linear-gradient(180deg, #020817 0%, #081120 45%, #0b1626 100%);
       }
       .sheet {
         display: grid;
@@ -24,8 +27,9 @@
         align-items: start;
         padding: 10px 12px;
         border-radius: 16px;
-        border: 1px solid rgba(15, 23, 42, 0.12);
-        background: rgba(248, 250, 252, 0.94);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(7, 16, 30, 0.86);
+        box-shadow: 0 18px 42px rgba(0, 0, 0, 0.22);
       }
       .brand {
         display: flex;
@@ -37,8 +41,8 @@
         width: 56px;
         height: 56px;
         border-radius: 14px;
-        border: 1px solid rgba(15, 23, 42, 0.12);
-        background: #fff;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(255, 255, 255, 0.95);
         object-fit: contain;
         padding: 6px;
         flex: 0 0 auto;
@@ -48,7 +52,7 @@
       }
       .kicker {
         margin: 0;
-        color: #0f7a35;
+        color: #7dd3fc;
         font-size: 10px;
         letter-spacing: 0.18em;
         text-transform: uppercase;
@@ -63,14 +67,14 @@
       }
       .sub {
         margin: 4px 0 0;
-        color: rgba(71, 85, 105, 0.96);
+        color: rgba(226, 232, 240, 0.76);
         font-weight: 700;
         font-size: 11px;
       }
       .mark {
-        width: 84px;
+        width: 76px;
         height: auto;
-        opacity: 0.94;
+        opacity: 0.9;
       }
       .metrics {
         display: grid;
@@ -79,8 +83,10 @@
       }
       .metric {
         border-radius: 14px;
-        border: 1px solid rgba(15, 23, 42, 0.10);
-        background: rgba(248, 250, 252, 0.96);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background:
+          radial-gradient(circle at top left, rgba(244, 180, 0, 0.08), transparent 26%),
+          rgba(7, 16, 30, 0.82);
         padding: 10px 10px 9px;
       }
       .metric .label {
@@ -88,7 +94,7 @@
         font-size: 9px;
         text-transform: uppercase;
         letter-spacing: 0.16em;
-        color: rgba(71, 85, 105, 0.92);
+        color: rgba(148, 163, 184, 0.9);
         font-weight: 900;
       }
       .metric .value {
@@ -97,12 +103,13 @@
         font-size: 18px;
         font-weight: 950;
         line-height: 1;
+        color: #f8fafc;
       }
       .metric .hint {
         display: block;
         margin-top: 4px;
         font-size: 9px;
-        color: rgba(71, 85, 105, 0.88);
+        color: rgba(226, 232, 240, 0.72);
       }
       .hero {
         display: grid;
@@ -111,8 +118,10 @@
       }
       .panel {
         border-radius: 16px;
-        border: 1px solid rgba(15, 23, 42, 0.12);
-        background: #ffffff;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background:
+          radial-gradient(circle at top right, rgba(244, 180, 0, 0.05), transparent 28%),
+          rgba(7, 16, 30, 0.82);
         padding: 10px;
       }
       .panel h2 {
@@ -120,10 +129,11 @@
         font-size: 12px;
         letter-spacing: 0.14em;
         text-transform: uppercase;
+        color: #bae6fd;
       }
       .panel p {
         margin: 4px 0 0;
-        color: rgba(71, 85, 105, 0.92);
+        color: rgba(226, 232, 240, 0.74);
         font-size: 11px;
         line-height: 1.45;
       }
@@ -132,9 +142,12 @@
         border-radius: 16px;
         overflow: hidden;
         margin-top: 8px;
-        min-height: 250px;
-        background: linear-gradient(180deg, rgba(15, 118, 53, 0.12), rgba(15, 118, 53, 0.05));
-        border: 1px solid rgba(15, 118, 53, 0.16);
+        min-height: 282px;
+        background:
+          radial-gradient(circle at center, rgba(47, 125, 50, 0.12), transparent 46%),
+          linear-gradient(180deg, rgba(11, 22, 38, 0.9), rgba(3, 8, 18, 0.84));
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02), 0 18px 36px rgba(0,0,0,0.22);
       }
       .pitch-wrap img {
         position: absolute;
@@ -142,24 +155,28 @@
         width: 100%;
         height: 100%;
         object-fit: cover;
+        opacity: 0.42;
+        filter: saturate(0.95) contrast(1.02);
       }
       .pitch-overlay {
         position: absolute;
-        inset: 9px;
+        inset: 10px;
       }
       .pitch-group {
         position: absolute;
-        border-radius: 14px;
-        border: 1px solid rgba(15, 23, 42, 0.12);
-        background: rgba(7, 16, 30, 0.74);
+        border-radius: 16px;
+        border: 1px solid rgba(244, 180, 0, 0.18);
+        background:
+          radial-gradient(circle at top right, rgba(244, 180, 0, 0.08), transparent 24%),
+          rgba(7, 16, 30, 0.82);
         color: #f8fafc;
-        padding: 8px 9px;
-        box-shadow: 0 10px 20px rgba(2, 6, 23, 0.18);
+        padding: 8px 9px 9px;
+        box-shadow: 0 16px 28px rgba(2, 6, 23, 0.22);
       }
-      .pitch-group.gk { left: 3%; top: 54%; width: 18%; }
-      .pitch-group.def { left: 19%; top: 15%; width: 24%; }
-      .pitch-group.mid { left: 47%; top: 15%; width: 24%; }
-      .pitch-group.att { left: 74%; top: 25%; width: 22%; }
+      .pitch-group.gk { left: 3.5%; top: 56%; width: 16%; }
+      .pitch-group.def { left: 18%; top: 16%; width: 24%; }
+      .pitch-group.mid { left: 47%; top: 16%; width: 24%; }
+      .pitch-group.att { left: 73%; top: 25%; width: 22.5%; }
       .group-head {
         display: flex;
         align-items: baseline;
@@ -167,9 +184,10 @@
         gap: 8px;
       }
       .group-head strong {
-        font-size: 12px;
+        font-size: 11px;
         letter-spacing: 0.12em;
         text-transform: uppercase;
+        color: #f8fafc;
       }
       .group-head span {
         display: inline-flex;
@@ -177,8 +195,8 @@
         min-height: 20px;
         border-radius: 999px;
         padding: 0 7px;
-        border: 1px solid rgba(244, 180, 0, 0.28);
-        background: rgba(244, 180, 0, 0.10);
+        border: 1px solid rgba(56, 189, 248, 0.24);
+        background: rgba(56, 189, 248, 0.12);
         color: #fff7dd;
         font-size: 10px;
         font-weight: 900;
@@ -188,35 +206,87 @@
         font-size: 9px;
         letter-spacing: 0.12em;
         text-transform: uppercase;
-        color: rgba(226, 232, 240, 0.78);
+        color: rgba(226, 232, 240, 0.74);
         font-weight: 900;
       }
-      .chip-row {
-        margin-top: 6px;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 4px;
+      .mini-grid {
+        margin-top: 7px;
+        display: grid;
+        gap: 5px;
       }
-      .chip {
+      .mini-card {
+        display: grid;
+        grid-template-columns: 26px minmax(0, 1fr);
+        gap: 6px;
+        align-items: center;
+        padding: 5px 6px;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background: rgba(255, 255, 255, 0.04);
+        break-inside: avoid;
+      }
+      .mini-num {
+        width: 26px;
+        height: 26px;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        font-size: 10px;
+        font-weight: 950;
+        color: #fde68a;
+        border: 1px solid rgba(250, 204, 21, 0.5);
+        background: rgba(250, 204, 21, 0.14);
+      }
+      .mini-copy {
+        min-width: 0;
+      }
+      .mini-name {
+        display: block;
+        font-size: 9px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 950;
+        line-height: 1.05;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .mini-meta {
         display: inline-flex;
         align-items: center;
         gap: 4px;
-        padding: 4px 7px;
+        margin-top: 2px;
+        font-size: 8px;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.72);
+      }
+      .mini-state {
+        display: inline-flex;
+        align-items: center;
+        min-height: 16px;
+        margin-top: 3px;
+        padding: 0 5px;
         border-radius: 999px;
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        background: rgba(255, 255, 255, 0.08);
-        font-size: 10px;
-        font-weight: 800;
-        line-height: 1;
+        font-size: 8px;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
       }
-      .chip .num {
-        color: #fde68a;
-        font-weight: 950;
+      .mini-state.is-critical { border: 1px solid rgba(248,113,113,0.34); background: rgba(248,113,113,0.12); color: #fecaca; }
+      .mini-state.is-trial { border: 1px solid rgba(244,180,0,0.30); background: rgba(244,180,0,0.10); color: #fde68a; }
+      .mini-state.is-available { border: 1px solid rgba(47,125,50,0.32); background: rgba(47,125,50,0.12); color: #bbf7d0; }
+      .mini-state.is-muted { border: 1px solid rgba(148,163,184,0.24); background: rgba(148,163,184,0.10); color: #e2e8f0; }
+      .mini-empty {
+        padding: 8px 6px;
+        border-radius: 12px;
+        border: 1px dashed rgba(148,163,184,0.22);
+        color: rgba(226, 232, 240, 0.74);
+        text-align: center;
+        font-size: 9px;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
       }
-      .chip.is-critical { border-color: rgba(248,113,113,0.36); background: rgba(127,29,29,0.36); }
-      .chip.is-trial { border-color: rgba(244,180,0,0.28); background: rgba(244,180,0,0.12); color: #fff7dd; }
-      .chip.is-available { border-color: rgba(47,125,50,0.30); background: rgba(47,125,50,0.22); color: #dcfce7; }
-      .chip.is-muted { border-color: rgba(148,163,184,0.22); background: rgba(148,163,184,0.10); color: #e2e8f0; }
       .chip.more {
         color: rgba(226, 232, 240, 0.88);
         background: rgba(2, 6, 23, 0.38);
@@ -233,22 +303,23 @@
         gap: 12px;
         border-radius: 12px;
         padding: 9px 10px;
-        border: 1px solid rgba(148, 163, 184, 0.12);
-        background: rgba(248, 250, 252, 0.96);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(255, 255, 255, 0.04);
       }
       .legend-row strong {
         font-size: 14px;
+        color: #f8fafc;
       }
       .legend-row span {
         font-size: 9px;
         text-transform: uppercase;
         letter-spacing: 0.14em;
         font-weight: 900;
-        color: rgba(71, 85, 105, 0.88);
+        color: rgba(226, 232, 240, 0.78);
       }
-      .legend-row.is-critical { border-color: rgba(248,113,113,0.32); background: rgba(248,113,113,0.08); }
-      .legend-row.is-trial { border-color: rgba(244,180,0,0.26); background: rgba(244,180,0,0.08); }
-      .legend-row.is-available { border-color: rgba(47,125,50,0.30); background: rgba(47,125,50,0.08); }
+      .legend-row.is-critical { border-color: rgba(248,113,113,0.32); background: rgba(248,113,113,0.10); }
+      .legend-row.is-trial { border-color: rgba(244,180,0,0.28); background: rgba(244,180,0,0.08); }
+      .legend-row.is-available { border-color: rgba(47,125,50,0.30); background: rgba(47,125,50,0.10); }
       .legend-row.is-muted { border-color: rgba(148,163,184,0.18); background: rgba(148,163,184,0.08); }
       .sections {
         display: grid;
@@ -256,8 +327,10 @@
       }
       .group-card {
         border-radius: 16px;
-        border: 1px solid rgba(15, 23, 42, 0.12);
-        background: #ffffff;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background:
+          radial-gradient(circle at top right, rgba(244, 180, 0, 0.04), transparent 25%),
+          rgba(7, 16, 30, 0.84);
         padding: 10px;
         break-inside: avoid;
         page-break-inside: avoid;
@@ -273,10 +346,11 @@
         font-size: 12px;
         letter-spacing: 0.14em;
         text-transform: uppercase;
+        color: #f8fafc;
       }
       .group-title .meta {
         font-size: 10px;
-        color: rgba(71, 85, 105, 0.92);
+        color: rgba(226, 232, 240, 0.72);
         font-weight: 700;
       }
       table {
@@ -286,7 +360,7 @@
       }
       th, td {
         padding: 6px 6px;
-        border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
         text-align: left;
         vertical-align: top;
       }
@@ -294,11 +368,11 @@
         font-size: 9px;
         letter-spacing: 0.14em;
         text-transform: uppercase;
-        color: rgba(71, 85, 105, 0.92);
+        color: rgba(226, 232, 240, 0.78);
       }
       td {
         font-size: 10px;
-        color: rgba(15, 23, 42, 0.94);
+        color: rgba(248, 250, 252, 0.94);
       }
       .player-name {
         font-weight: 900;
@@ -316,20 +390,20 @@
         text-transform: uppercase;
         white-space: nowrap;
       }
-      .row-badge.is-critical { border-color: rgba(248,113,113,0.34); background: rgba(248,113,113,0.10); color: #b91c1c; }
-      .row-badge.is-trial { border-color: rgba(244,180,0,0.34); background: rgba(244,180,0,0.08); color: #92400e; }
-      .row-badge.is-available { border-color: rgba(47,125,50,0.34); background: rgba(47,125,50,0.08); color: #166534; }
-      .row-badge.is-muted { border-color: rgba(148,163,184,0.24); background: rgba(148,163,184,0.08); color: #334155; }
+      .row-badge.is-critical { border-color: rgba(248,113,113,0.34); background: rgba(248,113,113,0.12); color: #fecaca; }
+      .row-badge.is-trial { border-color: rgba(244,180,0,0.34); background: rgba(244,180,0,0.08); color: #fde68a; }
+      .row-badge.is-available { border-color: rgba(47,125,50,0.34); background: rgba(47,125,50,0.10); color: #bbf7d0; }
+      .row-badge.is-muted { border-color: rgba(148,163,184,0.24); background: rgba(148,163,184,0.08); color: #e2e8f0; }
       .foot {
         display: flex;
         justify-content: space-between;
         gap: 12px;
         font-size: 10px;
-        color: rgba(71, 85, 105, 0.92);
+        color: rgba(226, 232, 240, 0.72);
         padding-top: 2px;
       }
       .muted {
-        color: rgba(71, 85, 105, 0.72);
+        color: rgba(226, 232, 240, 0.72);
       }
     </style>
   </head>
@@ -375,17 +449,28 @@
                     <strong>{{ group.label }}</strong>
                   </div>
                   <div class="group-count">{{ group.players|length }} jugadores</div>
-                  <div class="chip-row">
+                  <div class="mini-grid">
                     {% for player in group.preview_players %}
-                      <span class="chip {% if player.state_key == 'injured' %}is-critical{% elif player.state_key == 'trial' %}is-trial{% elif player.state_key == 'confirmed' %}is-available{% else %}is-muted{% endif %}">
-                        <span class="num">{% if player.number %}{{ player.number }}{% else %}-{% endif %}</span>
-                        <span>{{ player.name }}</span>
-                      </span>
+                      <div class="mini-card">
+                        <div class="mini-num">{% if player.number %}{{ player.number }}{% else %}-{% endif %}</div>
+                        <div class="mini-copy">
+                          <span class="mini-name">{{ player.name }}</span>
+                          <span class="mini-meta">{{ player.position|default:"-" }}</span>
+                          <span class="mini-state {% if player.state_key == 'injured' %}is-critical{% elif player.state_key == 'trial' %}is-trial{% elif player.state_key == 'confirmed' %}is-available{% else %}is-muted{% endif %}">{{ player.state_label }}</span>
+                        </div>
+                      </div>
                     {% empty %}
-                      <span class="chip more">Sin jugadores</span>
+                      <div class="mini-empty">Sin jugadores</div>
                     {% endfor %}
                     {% if group.extra_count %}
-                      <span class="chip more">+{{ group.extra_count }}</span>
+                      <div class="mini-card">
+                        <div class="mini-num">+{{ group.extra_count }}</div>
+                        <div class="mini-copy">
+                          <span class="mini-name">Más jugadores</span>
+                          <span class="mini-meta">Ocultos por legibilidad</span>
+                          <span class="mini-state is-muted">Ver tabla</span>
+                        </div>
+                      </div>
                     {% endif %}
                   </div>
                 </article>
