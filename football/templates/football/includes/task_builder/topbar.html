@@ -1,0 +1,277 @@
+      <div class="topbar">
+        <div class="topbar-copy">
+          <div class="topbar-kicker">
+            {% if tactics_mode %}Playbook táctico
+            {% elif analysis_item_mode %}Editor de informe
+            {% elif task %}Biblioteca de tareas
+            {% else %}Nueva tarea
+            {% endif %}
+          </div>
+	          <h1>
+	            {% if analysis_item_mode %}
+	              Informe · {{ analysis_item_title|default:"Pizarra" }} · Editor visual
+	            {% elif tactics_mode %}
+	              Táctica · Editor visual dedicado
+	            {% elif task %}
+	              Editar tarea · Editor visual dedicado
+	            {% else %}
+	              Crear tarea · Editor visual dedicado
+	            {% endif %}
+	          </h1>
+          <p class="meta">
+            {% if tactics_mode %}
+              Pizarra táctica + Playbook (clips), exportaciones y compartir. No crea tareas ni requiere sesión.
+            {% else %}
+              Superficie real de juego, recursos básicos y ficha corta para que la pizarra sea lo principal.
+            {% endif %}
+          </p>
+          <div class="topbar-pills">
+            {% if tactics_mode %}
+            <span class="topbar-pill">Pizarra libre</span>
+            <span class="topbar-pill">Clips</span>
+            <span class="topbar-pill">Compartir</span>
+            {% elif analysis_item_mode %}
+            <span class="topbar-pill">Informe visual</span>
+            <span class="topbar-pill">Edición rápida</span>
+            {% else %}
+            <span class="topbar-pill">{% if task %}Modo edición{% else %}Modo creación{% endif %}</span>
+            <span class="topbar-pill">Ficha + pizarra</span>
+            <span class="topbar-pill">PDF UEFA/Club</span>
+            {% endif %}
+          </div>
+        </div>
+				        <div class="actions">
+		              {% if analysis_item_mode %}
+	              <button
+	                type="button"
+	                class="button primary"
+	                id="task-builder-save-top"
+	                title="Guardar pizarra"
+	                onclick="try{var f=document.getElementById('task-builder-form');if(!f)return;var b=document.getElementById('task-submit-btn');if(f.requestSubmit){f.requestSubmit(b||undefined);}else if(b){b.click();}else{f.submit();}}catch(e){};return false;"
+	              >Guardar</button>
+			              {% elif tactics_mode %}
+			              <button
+			                type="button"
+			                class="button primary"
+			                id="tactics-save-top"
+			                title="Guardar táctica (fija) en Playbook"
+			              >Guardar táctica</button>
+			              <button
+			                type="button"
+			                class="button"
+			                id="tactics-save-task-top"
+			                title="Guardar la pizarra como tarea en Biblioteca (Interactivas)"
+			              >Guardar como tarea</button>
+			              {% if request.user.is_superuser %}
+			              <button
+			                type="button"
+			                class="button"
+			                id="tactics-save-task-system-top"
+			                title="Guardar la pizarra como tarea global (solo sistema)"
+			              >Guardar tarea (sistema)</button>
+			              {% endif %}
+			              <button
+			                type="button"
+			                class="button"
+			                id="tactics-save-clip-top"
+			                title="Guardar clip (simulación) en Playbook"
+			              >Guardar clip</button>
+		              {% elif not tactics_mode %}
+		              <button
+		                type="button"
+		                class="button primary"
+		                id="task-builder-save-top"
+	                title="{% if task %}Guardar tarea{% else %}Crear tarea{% endif %}"
+		                onclick="try{var f=document.getElementById('task-builder-form');if(!f)return;var b=document.getElementById('task-submit-btn');if(f.requestSubmit){f.requestSubmit(b||undefined);}else if(b){b.click();}else{f.submit();}}catch(e){};return false;"
+		              >{% if task %}Guardar tarea{% else %}Crear tarea{% endif %}</button>
+		              <a href="{{ task_resource_library_url|default:'#' }}" class="button" id="task-resource-library-top">Biblioteca de recursos</a>
+		              {% endif %}
+              {% if request.user.is_staff or request.user.is_superuser %}
+              <a href="{% url 'platform-overview' %}" class="button">Platform</a>
+              {% endif %}
+		          <a href="{{ back_url|default:'#' }}" class="button" onclick="return window.__webstatsTaskLandingGo(this.href)">{{ back_label|default:'Volver a entrenos' }}</a>
+			          <button type="button" class="button" id="task-builder-help" title="Ver tutorial rápido">Ayuda</button>
+			          <button type="button" class="button" id="task-builder-simple-toggle" aria-pressed="false" title="Muestra una guía rápida en pantalla">Guía</button>
+		          <button type="button" class="button" id="task-builder-compact-toggle" aria-pressed="false">Vista compacta</button>
+		          <label class="device-view-select" for="task-device-view">
+		            Vista
+		            <select id="task-device-view" aria-label="Vista de interfaz">
+		              <option value="auto">Automática</option>
+		              <option value="desktop">Escritorio</option>
+		              <option value="tablet">iPad</option>
+		            </select>
+		          </label>
+            <details class="action-menu" id="task-builder-actions-menu">
+              <summary class="action-summary" aria-label="Abrir opciones">Opciones</summary>
+              <div class="action-menu-body" role="menu">
+                {% if not tactics_mode %}
+	                <div class="action-menu-group">
+	                  <div class="action-menu-title">PDF</div>
+	                  <div class="action-menu-row">
+	                  <button type="button" class="button" data-print-style="uefa" data-print-one-page="1">Imprimir UEFA</button>
+	                  <button type="button" class="button" data-print-style="club" data-print-one-page="1">Imprimir Club</button>
+	                  {% if task %}
+	                  <button type="button" class="button" id="share-pdf-uefa">Compartir PDF UEFA</button>
+	                  <button type="button" class="button" id="share-pdf-club">Compartir PDF Club</button>
+	                  {% endif %}
+	                  </div>
+	                </div>
+	                {% endif %}
+	                {% if tactics_mode %}
+	                <div class="action-menu-group">
+	                  <div class="action-menu-title">Guardar</div>
+	                  <div class="action-menu-row">
+	                    <button type="button" class="button" onclick="try{document.getElementById('tactics-save-task-top')?.click();document.getElementById('task-builder-actions-menu').open=false;}catch(e){};return false;">Guardar como tarea</button>
+	                    {% if request.user.is_superuser %}
+	                    <button type="button" class="button" onclick="try{document.getElementById('tactics-save-task-system-top')?.click();document.getElementById('task-builder-actions-menu').open=false;}catch(e){};return false;">Guardar tarea sistema</button>
+	                    {% endif %}
+	                    <button type="button" class="button" onclick="try{document.getElementById('tactics-save-clip-top')?.click();document.getElementById('task-builder-actions-menu').open=false;}catch(e){};return false;">Guardar clip</button>
+	                  </div>
+	                </div>
+	                {% endif %}
+	                <div class="action-menu-group">
+	                  <div class="action-menu-title">Panel</div>
+	                  <div class="action-menu-row">
+	                    {% if tactics_mode %}
+	                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;playbook&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Playbook</button>
+	                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;animacion&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Escenarios</button>
+	                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;capas&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Capas</button>
+	                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;exportar&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Exportar</button>
+	                    {% else %}
+		                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;config&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;ficha&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Configuración</button>
+		                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;methodology&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;design&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Metodología</button>
+		                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;load&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;load&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Carga</button>
+		                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;export&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;exportar&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Exportar</button>
+		                    {% endif %}
+	                  </div>
+	                </div>
+	                {% if tactics_mode %}
+	                <div class="action-menu-group">
+	                  <div class="action-menu-title">Ayuda y vista</div>
+	                  <div class="action-menu-row">
+	                    <button type="button" class="button" onclick="try{document.getElementById('task-builder-help')?.click();document.getElementById('task-builder-actions-menu').open=false;}catch(e){};return false;">Ayuda</button>
+	                    <button type="button" class="button" onclick="try{document.getElementById('task-builder-simple-toggle')?.click();document.getElementById('task-builder-actions-menu').open=false;}catch(e){};return false;">Guía</button>
+	                    <button type="button" class="button" onclick="try{document.getElementById('task-builder-compact-toggle')?.click();document.getElementById('task-builder-actions-menu').open=false;}catch(e){};return false;">Vista compacta</button>
+	                  </div>
+	                </div>
+	                {% endif %}
+                {% if not tactics_mode and task and can_restore_original %}
+                <div class="action-menu-group">
+                  <div class="action-menu-title">Seguridad</div>
+                  <div class="action-menu-row">
+	                  <form method="post" style="display:inline-flex; margin:0;">
+	                    {% csrf_token %}
+	                    <input type="hidden" name="builder_action" value="restore_original_version" />
+	                    <button type="submit" class="button danger" title="Restaura el contenido anterior si algo se borró por error">Restaurar versión</button>
+	                  </form>
+                  </div>
+                </div>
+                {% endif %}
+              </div>
+            </details>
+	        </div>
+	      </div>
+	      <script>
+	        (function () {
+	          const storageKey = 'webstats:task-builder:device-view:v1';
+	          const normalizeDevice = (value) => {
+	            const v = String(value || '').trim().toLowerCase();
+	            if (v === 'desktop' || v === 'tablet' || v === 'auto') return v;
+	            return 'auto';
+	          };
+	          const resolveAutoDevice = () => {
+	            try {
+	              const coarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+	              const width = Math.max(Number(window.innerWidth || 0), Number(window.visualViewport?.width || 0));
+	              if (coarse && width > 0 && width < 700) return 'tablet';
+	            } catch (e) { /* ignore */ }
+	            return 'desktop';
+	          };
+	          const applyDevice = (mode, persist) => {
+	            const requested = normalizeDevice(mode);
+	            const resolved = requested === 'auto' ? resolveAutoDevice() : requested;
+	            document.body.classList.toggle('ui-desktop', resolved === 'desktop');
+	            document.body.classList.toggle('ui-tablet', resolved === 'tablet');
+	            document.body.dataset.deviceMode = requested;
+	            document.body.dataset.deviceResolved = resolved;
+	            const select = document.getElementById('task-device-view');
+	            if (select && select.value !== requested) select.value = requested;
+	            if (persist) {
+	              try { window.localStorage.setItem(storageKey, requested); } catch (e) { /* ignore */ }
+	            }
+	            try { window.dispatchEvent(new CustomEvent('webstats:tpad:device-change', { detail: { mode: requested, resolved } })); } catch (error) {}
+	          };
+	          let initialDevice = 'auto';
+	          let hasUrlDevice = false;
+	          try {
+	            const url = new URL(window.location.href);
+	            if (url.searchParams.has('device')) {
+	              initialDevice = normalizeDevice(url.searchParams.get('device'));
+	              hasUrlDevice = true;
+	            }
+	          } catch (e) { /* ignore */ }
+	          if (!hasUrlDevice) {
+	            try {
+	              const saved = normalizeDevice(window.localStorage.getItem(storageKey));
+	              if (saved) initialDevice = saved;
+	            } catch (e) { /* ignore */ }
+	          }
+	          applyDevice(initialDevice, false);
+	          const bind = () => {
+	            const select = document.getElementById('task-device-view');
+	            if (!select || select.dataset.boundDeviceView === '1') return;
+	            select.dataset.boundDeviceView = '1';
+	            select.value = initialDevice;
+	            select.addEventListener('change', () => {
+	              applyDevice(select.value, true);
+	              try {
+	                const status = document.getElementById('task-builder-status');
+	                const resolved = document.body.dataset.deviceResolved || '';
+	                if (status) status.textContent = `Vista ${select.options[select.selectedIndex]?.textContent || select.value} aplicada${resolved ? ` (${resolved})` : ''}.`;
+	              } catch (e) { /* ignore */ }
+	            });
+	          };
+	          bind();
+	          if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind, { once: true });
+	          window.addEventListener('resize', () => {
+	            try {
+	              if (document.body.dataset.deviceMode === 'auto') applyDevice('auto', false);
+	            } catch (e) { /* ignore */ }
+	          }, { passive: true });
+	        })();
+	      </script>
+
+      {% if saved_task_info %}
+      <div class="alert ok" style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
+        <span>{{ saved_task_info.dest_hint }} · ID #{{ saved_task_info.id }}</span>
+        {% if saved_task_info.url %}
+          <a class="button" href="{{ saved_task_info.url }}">Ver en lista</a>
+        {% endif %}
+      </div>
+      {# Harden: algunas builds antiguas del JS de pizarra referenciaban `diagCopyBtn` como variable global.
+         Definimos un placeholder para evitar ReferenceError aunque el botón no exista / esté oculto. #}
+      <script>
+        // eslint-disable-next-line no-unused-vars
+        var diagCopyBtn = null;
+      </script>
+      {% endif %}
+      {% if feedback and not saved_task_info %}<div class="alert ok">{{ feedback }}</div>{% endif %}
+      {% if error %}<div class="alert err">{{ error }}</div>{% endif %}
+      {% if task_context_warning %}<div class="alert warn">{{ task_context_warning }}</div>{% endif %}
+      {% if duplicate_task_matches %}
+      <div class="alert warn" style="display:flex; flex-direction:column; gap:0.6rem;">
+        <div><strong>Duplicados detectados por Ollana:</strong> {{ duplicate_task_warning|default:'Hay coincidencias sospechosas en esta tarea.' }}</div>
+        <div style="display:grid; gap:0.35rem;">
+          {% for dup in duplicate_task_matches %}
+            <a class="button" href="{{ dup.url }}" style="justify-content:space-between; text-align:left;">
+              <span>#{{ dup.id }} · {{ dup.title|default:'Tarea' }}</span>
+              <span style="opacity:0.8;">
+                {{ dup.session_label }}
+                {% if dup.team_name %} · {{ dup.team_name }}{% endif %}
+                · {{ dup.reason }}
+              </span>
+            </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}

@@ -1,0 +1,39 @@
+{% load static %}
+    {{ tactical_player_catalog|json_script:"tpad-players-catalog" }}
+    {{ confirmed_player_ids|json_script:"tpad-confirmed-player-ids" }}
+    <script src="{% static 'football/js/ui_tour.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    {% if tactics_mode %}
+    <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    <script src="{% static 'football/js/pitch_surface_25d.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    <script src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    {% endif %}
+    <script>
+      window.__TASK_BUILDER_CONFIG = {
+        taskId: "{{ task.id|default_if_none:''|escapejs }}",
+        shareTaskPdfCreateUrl: "{% url 'share-task-pdf-create' %}",
+        coachDictionaryUrl: "{% static 'football/data/coach_dictionary_es_v1.json' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}",
+        rivalRosterApiUrl: "{{ rival_roster_api_url|default:''|escapejs }}",
+        scopeKey: "{{ scope_key|default:''|escapejs }}",
+        tacticsMode: {% if tactics_mode %}true{% else %}false{% endif %},
+      };
+    </script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "{% static 'vendor/three/build/three.module.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
+        }
+      }
+    </script>
+    <script src="{% static 'football/js/task_builder/modules/00_bootstrap.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    <script src="{% static 'football/js/task_builder/modules/01_diagnostics.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    <script src="{% static 'football/js/task_builder/modules/02_reinit.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    <script src="{% static 'football/js/task_builder/modules/03_stack_loader.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    <script src="{% static 'football/js/task_builder/modules/04_tactics_submit_guard.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    <script src="{% static 'football/js/task_builder/modules/05_tactics_ui.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    <script src="{% static 'football/js/task_builder/modules/06_landing_mode.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    <script src="{% static 'football/js/task_builder/modules/07_simulator_fallback.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    <script src="{% static 'football/js/task_builder/modules/08_share_pdf.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    <script src="{% static 'football/js/task_builder/modules/09_resource_tabs.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    <script src="{% static 'football/js/task_builder/modules/10_methodology_picker.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    <script src="{% static 'football/js/task_builder/modules/11_board_controls.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    <script src="{% static 'football/js/task_builder/task_builder.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>

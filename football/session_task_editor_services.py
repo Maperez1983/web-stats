@@ -1,8 +1,10 @@
 """Servicios compartidos del editor profesional de tareas."""
 
 import json
+from datetime import timedelta
 from urllib.parse import quote
 
+from django.conf import settings
 from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -10,7 +12,16 @@ from django.utils import timezone
 
 from . import permissions, task_library_services, workspace_context, workspace_subscription
 from .drills import normalize_drill_ids
-from .models import AppUserRole, SessionTask, Workspace, WorkspaceTeam
+from .models import (
+    AppUserRole,
+    SessionTask,
+    Team,
+    TrainingMicrocycle,
+    TrainingSession,
+    Workspace,
+    WorkspaceMembership,
+    WorkspaceTeam,
+)
 from .services import _parse_int
 
 
@@ -33,6 +44,246 @@ def _workspace_needs_setup(workspace) -> bool:
     if getattr(workspace, "primary_team_id", None):
         return False
     return not WorkspaceTeam.objects.filter(workspace=workspace).exists()
+
+
+def _is_local_editor_lab_request(request) -> bool:
+    if not request or not getattr(request, "META", None):
+        return False
+    try:
+        if not bool(getattr(settings, "DEBUG", False)):
+            return False
+    except Exception:
+        return False
+    host = str(getattr(request, "get_host", lambda: "")() or "").split(":", 1)[0].strip().lower()
+    return host in {"localhost", "127.0.0.1", "::1"}
+
+
+def _find_local_editor_lab_task(request):
+    if not _is_local_editor_lab_request(request):
+        return None
+    _ensure_local_editor_lab_workspace(request)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return None
+    task = (
+        SessionTask.objects.select_related("session__microcycle__team")
+        .filter(
+            session__microcycle__team=primary_team,
+            deleted_at__isnull=True,
+            title__iexact="Local Editor Lab Task",
+        )
+        .order_by("session__session_date", "session__order", "order", "id")
+        .first()
+    )
+    if task:
+        return task
+
+    task = (
+        SessionTask.objects.select_related("session__microcycle__team")
+        .filter(
+            session__microcycle__team=primary_team,
+            deleted_at__isnull=True,
+            title__iexact="Laboratorio local · Editor",
+        )
+        .order_by("session__session_date", "session__order", "order", "id")
+        .first()
+    )
+    if task:
+        return task
+
+    today = timezone.localdate()
+    monday = today - timedelta(days=today.weekday())
+    sunday = monday + timedelta(days=6)
+    microcycle, _ = TrainingMicrocycle.objects.get_or_create(
+        team=primary_team,
+        week_start=monday,
+        defaults={
+            "week_end": sunday,
+            "title": "Laboratorio local",
+            "objective": "Entorno local estable para editar tareas.",
+        },
+    )
+    session, _ = TrainingSession.objects.get_or_create(
+        microcycle=microcycle,
+        session_date=today,
+        defaults={
+            "duration_minutes": 90,
+            "focus": "Laboratorio local",
+            "status": TrainingSession.STATUS_PLANNED,
+        },
+    )
+    task, _ = SessionTask.objects.get_or_create(
+        session=session,
+        title="Local Editor Lab Task",
+        defaults={
+            "block": SessionTask.BLOCK_MAIN_1,
+            "duration_minutes": 18,
+            "objective": "Editor de producción local para validar cambios sin tocar producción.",
+            "coaching_points": "Tarea estable del laboratorio local.",
+            "confrontation_rules": "",
+            "notes": "Generada automáticamente para el laboratorio local.",
+            "status": SessionTask.STATUS_PLANNED,
+            "order": 0,
+            "tactical_layout": {
+                "meta": {
+                    "local_lab": True,
+                    "graphic_editor": {
+                        "canvas_state": {
+                            "version": "5.3.0",
+                            "objects": [],
+                            "timeline": [],
+                        },
+                        "canvas_width": 1280,
+                        "canvas_height": 720,
+                    },
+                }
+            },
+        },
+    )
+    if not isinstance(task.tactical_layout, dict):
+        task.tactical_layout = {}
+    layout = dict(task.tactical_layout)
+    meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
+    meta = dict(meta)
+    meta["local_lab"] = True
+    graphic = meta.get("graphic_editor") if isinstance(meta.get("graphic_editor"), dict) else {}
+    graphic = dict(graphic)
+    if not isinstance(graphic.get("canvas_state"), dict):
+        graphic["canvas_state"] = {
+            "version": "5.3.0",
+            "objects": [],
+            "timeline": [],
+        }
+    graphic.setdefault("canvas_width", 1280)
+    graphic.setdefault("canvas_height", 720)
+    meta["graphic_editor"] = graphic
+    layout["meta"] = meta
+    task.tactical_layout = layout
+    task.save(update_fields=["tactical_layout"])
+    return task
+
+
+def _ensure_local_editor_lab_workspace(request):
+    if not _is_local_editor_lab_request(request):
+        return None
+    user = getattr(request, "user", None)
+    if not user or not getattr(user, "is_authenticated", False):
+        return None
+    team = _get_primary_team_for_request(request)
+    workspace = workspace_context.get_active_workspace(request)
+    if team and workspace:
+        return workspace
+    team = (
+        Team.objects.filter(slug="local-editor-lab-team").first()
+        or Team.objects.filter(name__iexact="Laboratorio local").first()
+    )
+    if not team:
+        team = Team.objects.create(
+            name="Laboratorio local",
+            slug="local-editor-lab-team",
+            short_name="Lab",
+            is_primary=True,
+        )
+    else:
+        changed = []
+        if not getattr(team, "is_primary", False):
+            team.is_primary = True
+            changed.append("is_primary")
+        if changed:
+            team.save(update_fields=changed)
+    workspace = (
+        Workspace.objects.filter(primary_team=team).first()
+        or Workspace.objects.filter(slug="local-editor-lab-workspace").first()
+        or Workspace.objects.filter(slug="local-editor-lab").first()
+        or Workspace.objects.filter(name__iexact="Local Editor Lab Workspace").first()
+        or Workspace.objects.filter(name__iexact="Laboratorio local").first()
+    )
+    workspace_created = False
+    if not workspace:
+        workspace = Workspace.objects.create(
+            name="Laboratorio local",
+            slug="local-editor-lab-workspace",
+        )
+        workspace_created = True
+    changed = []
+    if workspace_created and getattr(workspace, "name", "") != "Laboratorio local":
+        workspace.name = "Laboratorio local"
+        changed.append("name")
+    if workspace_created and getattr(workspace, "slug", "") != "local-editor-lab-workspace":
+        workspace.slug = "local-editor-lab-workspace"
+        changed.append("slug")
+    if hasattr(workspace, "kind") and getattr(workspace, "kind", None) != Workspace.KIND_CLUB:
+        workspace.kind = Workspace.KIND_CLUB
+        changed.append("kind")
+    if hasattr(workspace, "primary_team_id") and getattr(workspace, "primary_team_id", None) != getattr(
+        team, "id", None
+    ):
+        workspace.primary_team = team
+        changed.append("primary_team")
+    if hasattr(workspace, "owner_user_id") and getattr(workspace, "owner_user_id", None) != getattr(user, "id", None):
+        workspace.owner_user = user
+        changed.append("owner_user")
+    if hasattr(workspace, "is_active") and not getattr(workspace, "is_active", True):
+        workspace.is_active = True
+        changed.append("is_active")
+    if hasattr(workspace, "enabled_modules"):
+        enabled_modules = getattr(workspace, "enabled_modules", None)
+        if not isinstance(enabled_modules, dict) or not enabled_modules.get("sessions"):
+            workspace.enabled_modules = {"sessions": True}
+            changed.append("enabled_modules")
+    if changed:
+        workspace.save(update_fields=changed)
+    WorkspaceMembership.objects.update_or_create(
+        workspace=workspace,
+        user=user,
+        defaults={
+            "role": WorkspaceMembership.ROLE_OWNER,
+            "module_access": {"sessions": True},
+        },
+    )
+    WorkspaceTeam.objects.update_or_create(
+        workspace=workspace,
+        team=team,
+        defaults={"is_default": True},
+    )
+    try:
+        session = getattr(request, "session", None)
+        if session is not None:
+            session["active_workspace_id"] = int(workspace.id)
+            mapping = session.get("active_team_by_workspace")
+            if not isinstance(mapping, dict):
+                mapping = {}
+            mapping[str(workspace.id)] = int(team.id)
+            session["active_team_by_workspace"] = mapping
+    except Exception:
+        pass
+    return workspace
+
+
+def _local_editor_lab_context(request, task, *, current_mode: str = "production") -> dict:
+    mode = str(current_mode or "production").strip().lower()
+    if mode not in {"production", "konva", "comparison"}:
+        mode = "production"
+    task_id = int(getattr(task, "id", 0) or 0)
+    enabled = bool(task_id) and _is_local_editor_lab_request(request)
+    if not enabled:
+        return {
+            "local_editor_lab_enabled": False,
+            "local_editor_lab_mode": mode,
+            "local_editor_lab_task_id": task_id,
+            "local_editor_lab_production_url": "",
+            "local_editor_lab_konva_url": "",
+            "local_editor_lab_comparison_url": "",
+        }
+    embedded_suffix = "&embedded=1"
+    return {
+        "local_editor_lab_enabled": True,
+        "local_editor_lab_mode": mode,
+        "local_editor_lab_task_id": task_id,
+        "local_editor_lab_production_url": f"{reverse('sessions-task-edit', args=[task_id])}?editor_lab=production{embedded_suffix}",
+        "local_editor_lab_konva_url": f"{reverse('session-task-editor-pro', args=[task_id])}?editor_lab=konva{embedded_suffix}",
+        "local_editor_lab_comparison_url": f"{reverse('session-task-editor-lab-compare', args=[task_id])}?editor_lab=comparison{embedded_suffix}",
+    }
 
 
 def _ensure_original_task_snapshot(task):
@@ -80,8 +331,7 @@ def _get_primary_team_for_request(request):
     if request and getattr(request, "user", None) and request.user.is_authenticated:
         try:
             link = (
-                WorkspaceTeam.objects
-                .select_related("workspace", "team")
+                WorkspaceTeam.objects.select_related("workspace", "team")
                 .filter(
                     workspace__in=workspace_context.available_workspaces_for_user(request.user),
                     workspace__kind=Workspace.KIND_CLUB,
@@ -110,7 +360,12 @@ def _get_primary_team_for_request(request):
 def _forbid_if_workspace_module_disabled(request, module_key, label="módulo"):
     workspace = workspace_context.get_active_workspace(request)
     if not workspace:
-        if request and getattr(request, "user", None) and request.user.is_authenticated and not workspace_context.can_access_platform(request.user):
+        if (
+            request
+            and getattr(request, "user", None)
+            and request.user.is_authenticated
+            and not workspace_context.can_access_platform(request.user)
+        ):
             role = workspace_context.get_user_role(request.user)
             if role == AppUserRole.ROLE_PLAYER:
                 if module_key in {"players", "dashboard"}:
@@ -141,7 +396,12 @@ def _forbid_if_workspace_module_disabled(request, module_key, label="módulo"):
     except Exception:
         pass
     if workspace.kind != Workspace.KIND_CLUB:
-        if request and getattr(request, "user", None) and request.user.is_authenticated and not workspace_context.can_access_platform(request.user):
+        if (
+            request
+            and getattr(request, "user", None)
+            and request.user.is_authenticated
+            and not workspace_context.can_access_platform(request.user)
+        ):
             role = workspace_context.get_user_role(request.user)
             if role == AppUserRole.ROLE_PLAYER:
                 if module_key in {"players", "dashboard"}:
@@ -161,7 +421,9 @@ def _forbid_if_workspace_module_disabled(request, module_key, label="módulo"):
             if status == "active":
                 paid = getattr(workspace, "paid_modules", None)
                 if isinstance(paid, dict) and paid:
-                    if not permissions.workspace_has_module_for_user(workspace, module_key, user=getattr(request, "user", None)):
+                    if not permissions.workspace_has_module_for_user(
+                        workspace, module_key, user=getattr(request, "user", None)
+                    ):
                         try:
                             accept = str(request.META.get("HTTP_ACCEPT") or "")
                         except Exception:
@@ -172,12 +434,23 @@ def _forbid_if_workspace_module_disabled(request, module_key, label="módulo"):
                                 return redirect(f"{billing_url}?need={quote(module_key)}")
                             except Exception:
                                 return redirect("/billing/")
-                        return HttpResponse("Este módulo no está incluido en tu suscripción. Ve a /billing/ para activarlo.", status=402)
+                        return HttpResponse(
+                            "Este módulo no está incluido en tu suscripción. Ve a /billing/ para activarlo.", status=402
+                        )
     except Exception:
         pass
     try:
-        if module_key != "dashboard" and _workspace_needs_setup(workspace) and request and getattr(request, "user", None) and request.user.is_authenticated and not workspace_context.can_access_platform(request.user):
-            return HttpResponse("Este club todavía no tiene equipo/configuración. Completa el onboarding primero.", status=403)
+        if (
+            module_key != "dashboard"
+            and _workspace_needs_setup(workspace)
+            and request
+            and getattr(request, "user", None)
+            and request.user.is_authenticated
+            and not workspace_context.can_access_platform(request.user)
+        ):
+            return HttpResponse(
+                "Este club todavía no tiene equipo/configuración. Completa el onboarding primero.", status=403
+            )
     except Exception:
         pass
     if permissions.workspace_has_module_for_user(workspace, module_key, user=request.user if request else None):
@@ -208,7 +481,11 @@ def _task_builder_initial_values(task):
         graphic_editor = task_library_services.coerce_json_dict(graphic_editor) or {}
     if not isinstance(graphic_editor, dict):
         graphic_editor = {}
-    canvas_state = task_library_services.coerce_json_dict(graphic_editor.get("canvas_state")) or graphic_editor.get("canvas_state") or None
+    canvas_state = (
+        task_library_services.coerce_json_dict(graphic_editor.get("canvas_state"))
+        or graphic_editor.get("canvas_state")
+        or None
+    )
     fallback_canvas_size = None
 
     def _coerce_timeline_frames(raw):
@@ -296,13 +573,25 @@ def _task_builder_initial_values(task):
         except Exception:
             return 0
 
-    if (not isinstance(canvas_state, dict) or _state_objects_count(canvas_state) == 0) and task and isinstance(layout, dict):
+    if (
+        (not isinstance(canvas_state, dict) or _state_objects_count(canvas_state) == 0)
+        and task
+        and isinstance(layout, dict)
+    ):
         tokens = layout.get("tokens")
         if isinstance(tokens, list) and tokens:
             looks_like_fabric = False
             try:
                 sample = next((item for item in tokens if isinstance(item, dict)), None)
-                looks_like_fabric = bool(sample and (sample.get("type") or sample.get("objects") or sample.get("_objects") or sample.get("left") is not None))
+                looks_like_fabric = bool(
+                    sample
+                    and (
+                        sample.get("type")
+                        or sample.get("objects")
+                        or sample.get("_objects")
+                        or sample.get("left") is not None
+                    )
+                )
             except Exception:
                 looks_like_fabric = False
             if looks_like_fabric:
@@ -327,8 +616,12 @@ def _task_builder_initial_values(task):
         canvas_state["timeline"] = timeline
         canvas_state["active_step_index"] = 0
     drills_ids = normalize_drill_ids(meta.get("drills"))
-    canvas_width = int(graphic_editor.get("canvas_width") or 0) or (fallback_canvas_size[0] if fallback_canvas_size else 1280)
-    canvas_height = int(graphic_editor.get("canvas_height") or 0) or (fallback_canvas_size[1] if fallback_canvas_size else 720)
+    canvas_width = int(graphic_editor.get("canvas_width") or 0) or (
+        fallback_canvas_size[0] if fallback_canvas_size else 1280
+    )
+    canvas_height = int(graphic_editor.get("canvas_height") or 0) or (
+        fallback_canvas_size[1] if fallback_canvas_size else 720
+    )
     return {
         "multi_board_enabled": bool(meta.get("multi_board") or meta.get("multi_board_enabled") or False),
         "target_session_id": str(getattr(task, "session_id", "") or ""),
@@ -390,13 +683,22 @@ def _task_builder_initial_values(task):
         "pitch_preset": str(meta.get("pitch_preset") or "full_pitch"),
         "pitch_orientation": str(meta.get("pitch_orientation") or "landscape"),
         "pitch_zoom": str(meta.get("pitch_zoom") or "1.00"),
-        "pitch_grass_style": "stadium_native" if str(meta.get("pitch_grass_style") or "").strip().lower() in {"", "stadium_top", "stadium_top_h", "stadium_top_v"} else str(meta.get("pitch_grass_style") or "stadium_native"),
+        "pitch_grass_style": (
+            "stadium_native"
+            if str(meta.get("pitch_grass_style") or "").strip().lower()
+            in {"", "stadium_top", "stadium_top_h", "stadium_top_v"}
+            else str(meta.get("pitch_grass_style") or "stadium_native")
+        ),
         "series": str(meta.get("series") or ""),
         "repetitions": str(meta.get("repetitions") or ""),
         "player_count": str(meta.get("player_count") or ""),
         "age_group": str(meta.get("age_group") or ""),
         "training_type": str(meta.get("training_type") or ""),
-        "category_tags": ", ".join(meta.get("category_tags") or []) if isinstance(meta.get("category_tags"), list) else str(meta.get("category_tags") or ""),
+        "category_tags": (
+            ", ".join(meta.get("category_tags") or [])
+            if isinstance(meta.get("category_tags"), list)
+            else str(meta.get("category_tags") or "")
+        ),
         "assigned_player_ids": [int(value) for value in (meta.get("assigned_player_ids") or []) if _parse_int(value)],
         "constraints": [str(value) for value in (meta.get("constraints") or []) if str(value).strip()],
         "canvas_state": json.dumps(canvas_state, ensure_ascii=False),

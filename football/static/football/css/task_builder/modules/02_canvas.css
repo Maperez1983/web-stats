@@ -1,0 +1,2286 @@
+      .resource-select label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.7rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.78);
+      }
+      .resource-select select {
+        width: auto;
+        min-width: 210px;
+        padding: 0.55rem 0.72rem;
+        border-radius: 999px;
+      }
+	      .resource-details {
+	        position: relative;
+	        margin: 0;
+	        padding: 0;
+	      }
+	      /* Recursos (lateral): rail colapsable + panel de recursos (sin overlays). */
+	      .library-head {
+	        display: flex;
+	        align-items: center;
+	        gap: 0.55rem;
+	        margin: 0 0 0.6rem;
+	      }
+	      .library-toggle {
+	        width: 42px;
+	        height: 42px;
+	        border-radius: 14px;
+	        display: inline-flex;
+	        align-items: center;
+	        justify-content: center;
+	        border: 1px solid rgba(255,255,255,0.16);
+	        background: rgba(255,255,255,0.05);
+	        color: rgba(248,250,252,0.92);
+	        cursor: pointer;
+	      }
+	      .library-toggle svg { width: 22px; height: 22px; fill: currentColor; display: block; }
+	      .library-title {
+	        font-size: 0.72rem;
+	        letter-spacing: 0.14em;
+	        text-transform: uppercase;
+	        color: rgba(226,232,240,0.82);
+	        font-weight: 900;
+	      }
+        .library-copy {
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 0.14rem;
+        }
+        .library-subtitle {
+          font-size: 0.76rem;
+          line-height: 1.35;
+          color: rgba(226,232,240,0.64);
+        }
+	      .library-current {
+	        margin-left: auto;
+	        font-size: 0.78rem;
+	        color: rgba(226,232,240,0.82);
+	        font-weight: 900;
+	        letter-spacing: 0.04em;
+	        white-space: nowrap;
+	        overflow: hidden;
+	        text-overflow: ellipsis;
+	        max-width: 38%;
+	      }
+	      .library-filter {
+	        width: 100%;
+	        padding: 0.62rem 0.8rem;
+	        border-radius: 14px;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(255,255,255,0.04);
+	        color: rgba(248,250,252,0.92);
+	        margin: 0 0 0.6rem;
+	      }
+	      .library-filter::placeholder { color: rgba(226,232,240,0.55); }
+        .library-helper-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 0.45rem;
+          margin: 0 0 0.75rem;
+        }
+        .library-helper-pill {
+          display: flex;
+          flex-direction: column;
+          gap: 0.12rem;
+          padding: 0.58rem 0.68rem;
+          border-radius: 14px;
+          border: 1px solid rgba(255,255,255,0.1);
+          background: rgba(255,255,255,0.035);
+        }
+        .library-helper-pill strong {
+          font-size: 0.68rem;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: rgba(248,250,252,0.94);
+        }
+        .library-helper-pill span {
+          font-size: 0.76rem;
+          color: rgba(226,232,240,0.66);
+          line-height: 1.32;
+        }
+        .command-cluster-head {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 0.5rem;
+          margin: 0.72rem 0 0.42rem;
+        }
+        .command-cluster-head strong {
+          font-size: 0.76rem;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          color: rgba(248,250,252,0.92);
+        }
+        .command-cluster-head span {
+          font-size: 0.74rem;
+          color: rgba(226,232,240,0.62);
+        }
+	      .resource-tabs {
+	        display: grid;
+	        grid-template-columns: 1fr;
+	        gap: 0.45rem;
+	        align-items: stretch;
+	      }
+	      .resource-tab {
+	        position: relative;
+	        width: 100%;
+	        display: inline-flex;
+	        align-items: center;
+	        justify-content: flex-start;
+	        gap: 0.6rem;
+	        border-radius: 16px;
+	        padding: 0.62rem 0.7rem;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(255,255,255,0.04);
+	        color: rgba(226,232,240,0.9);
+	        font-size: 0.78rem;
+	        font-weight: 900;
+	        letter-spacing: 0.04em;
+	        text-transform: none;
+	        cursor: pointer;
+	      }
+	      .resource-tab[href] {
+	        text-decoration: none;
+	      }
+	      .resource-tab .lib-ico {
+	        width: 30px;
+	        height: 30px;
+	        border-radius: 12px;
+	        display: inline-flex;
+	        align-items: center;
+	        justify-content: center;
+	        border: 1px solid rgba(255,255,255,0.12);
+	        background: rgba(255,255,255,0.04);
+	      }
+	      .resource-tab .lib-ico svg { width: 18px; height: 18px; fill: rgba(248,250,252,0.92); display:block; }
+	      .resource-tab.is-active {
+	        border-color: rgba(244,180,0,0.55);
+	        background: rgba(244,180,0,0.12);
+	      }
+	      /* Colapsado: solo rail de categorías, sin paneles ni filtro. */
+	      body.library-collapsed .pitch-side .library-title,
+	      body.library-collapsed .pitch-side .library-current,
+	      body.library-collapsed .pitch-side .library-filter,
+	      body.library-collapsed .pitch-side .resource-helper,
+      body.library-collapsed .pitch-side .resource-panel:not([data-panel="base"]) {
+        display: none !important;
+      }
+	      body.library-collapsed .pitch-side .library-head {
+	        justify-content: center;
+	      }
+	      body.library-collapsed .pitch-side .resource-tab {
+	        justify-content: center;
+	        padding: 0.52rem 0.55rem;
+	      }
+	      body.library-collapsed .pitch-side .resource-tab .lib-label {
+	        display: none;
+	      }
+	      body.library-collapsed .pitch-side .resource-tab .lib-ico {
+	        width: 38px;
+	        height: 38px;
+	      }
+        .library-add-form {
+          margin-top: 0.7rem;
+          display: grid;
+          grid-template-columns: 1.2fr 0.9fr auto;
+          gap: 0.45rem;
+        }
+        .library-add-form input {
+          min-width: 0;
+        }
+        .library-add-form button {
+          white-space: nowrap;
+        }
+
+      /* Selector de dispositivo (UI):
+         - ui-desktop fuerza pestañas siempre visibles (sin desplegable).
+         - ui-tablet fuerza desplegable (para dejar más espacio al campo). */
+      body.ui-tablet .resource-select { display: inline-flex !important; }
+
+      /* ui-tablet: el campo debe caber completo sin recortes horizontales (iPad/rotación). */
+      body.ui-tablet .pitch-stage {
+        max-width: 100%;
+      }
+      body.ui-tablet .pitch-stage.is-portrait {
+        max-width: 100%;
+      }
+	      /* `.resource-tabs` se define arriba como grid (Biblioteca). */
+      .command-bar {
+        display: inline-flex;
+        gap: 0.35rem;
+        align-items: center;
+        margin-left: auto;
+        padding: 6px 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.05);
+        position: relative;
+      }
+      /* iPad UX: dock fijo para no perder acciones clave al scroll. */
+	      body.ui-tablet main.page {
+	        padding-bottom: calc(96px + env(safe-area-inset-bottom));
+	      }
+	      /* ui-tablet: el command bar fijo puede tapar el lateral de recursos (cuando hay scroll).
+	         Aseguramos padding inferior para que nada quede “cortado” detrás del dock. */
+	      body.ui-tablet .pitch-side {
+	        padding-bottom: calc(110px + env(safe-area-inset-bottom));
+	      }
+	      body.ui-tablet .pitch-side .resource-panel.is-visible {
+	        padding-bottom: calc(120px + env(safe-area-inset-bottom));
+	      }
+      body.ui-tablet .command-bar {
+        position: fixed;
+        left: 50%;
+        bottom: calc(14px + env(safe-area-inset-bottom));
+        transform: translateX(-50%);
+        z-index: 120;
+        max-width: min(960px, 96vw);
+        flex-wrap: wrap;
+        justify-content: center;
+        row-gap: 0.35rem;
+        overflow-x: visible;
+        -webkit-overflow-scrolling: touch;
+        box-shadow: 0 20px 46px rgba(2, 6, 23, 0.55);
+        background: rgba(2, 6, 23, 0.82);
+        backdrop-filter: blur(12px);
+      }
+      body.ui-tablet .command-bar::-webkit-scrollbar {
+        display: none;
+      }
+      body.ui-tablet .icon-btn {
+        width: 54px;
+        height: 48px;
+      }
+	      body.ui-tablet .icon-btn svg {
+	        width: 26px;
+	        height: 26px;
+	      }
+	      /* Viewport bajo (portátiles/ventana pequeña): compactar el rail de recursos. */
+	      @media (max-height: 820px) {
+	        .resource-tab-bar { gap: 0.5rem; margin-bottom: 0.5rem; }
+	        .library-head { margin-bottom: 0.45rem; }
+	        .library-filter { padding: 0.5rem 0.7rem; margin-bottom: 0.45rem; }
+	        .resource-tabs { gap: 0.35rem; }
+	        .resource-tab { padding: 0.5rem 0.6rem; border-radius: 14px; font-size: 0.74rem; }
+	        .resource-tab .lib-ico { width: 26px; height: 26px; border-radius: 10px; }
+	        .resource-tab .lib-ico svg { width: 16px; height: 16px; }
+	      }
+      .icon-btn {
+        width: 60px;
+        height: 54px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.05);
+        color: rgba(255,255,255,0.92);
+        cursor: pointer;
+        transition: transform 0.12s ease, background 0.12s ease;
+      }
+      .icon-btn svg {
+        width: 30px;
+        height: 30px;
+        display: block;
+        fill: currentColor;
+      }
+      .icon-btn:hover {
+        background: rgba(255,255,255,0.06);
+        transform: translateY(-1px);
+      }
+      .icon-btn:active {
+        transform: translateY(0);
+      }
+      .icon-btn.danger {
+        border-color: rgba(239,68,68,0.35);
+        background: rgba(239,68,68,0.08);
+        color: rgba(252,165,165,0.95);
+      }
+      .command-menu {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        min-width: 240px;
+        padding: 10px;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(2, 6, 23, 0.92);
+        backdrop-filter: blur(12px);
+        display: grid;
+        gap: 6px;
+        z-index: 160;
+        box-shadow: 0 18px 44px rgba(0,0,0,0.38);
+      }
+      /* ui-tablet: el command bar vive fijo abajo => el menú debe abrirse hacia arriba (si no, queda fuera de pantalla). */
+      body.ui-tablet .command-menu {
+        top: auto;
+        bottom: calc(100% + 10px);
+      }
+      /* Desktop/ventana baja: si el menú se sale por abajo, JS puede añadir `.opens-up`. */
+      .command-menu.opens-up {
+        top: auto;
+        bottom: calc(100% + 10px);
+      }
+      /* No dejar que estilos del autor anulen el atributo HTML `hidden`. */
+      .command-menu[hidden] {
+        display: none !important;
+      }
+      .command-menu button {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.10);
+        background: rgba(255,255,255,0.04);
+        color: rgba(248,250,252,0.92);
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: none;
+        cursor: pointer;
+      }
+      .command-menu button:hover {
+        background: rgba(255,255,255,0.07);
+      }
+      .command-menu button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .command-menu .shortcut {
+        font-size: 0.74rem;
+        letter-spacing: 0.08em;
+        color: rgba(226,232,240,0.6);
+        font-weight: 900;
+      }
+      .layers-popover {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        width: min(420px, 92vw);
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(2, 6, 23, 0.92);
+        backdrop-filter: blur(12px);
+        z-index: 162;
+        box-shadow: 0 18px 44px rgba(0,0,0,0.38);
+        overflow: hidden;
+      }
+      /* ui-tablet (no tácticas): el popover debe abrirse hacia arriba desde el dock inferior. */
+      body.ui-tablet:not(.tactics-mode) .layers-popover {
+        top: auto;
+        bottom: calc(100% + 10px);
+      }
+      .layers-popover.opens-up {
+        top: auto;
+        bottom: calc(100% + 10px);
+      }
+      .layers-popover[hidden] {
+        display: none !important;
+      }
+      .layers-popover-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6rem;
+        padding: 10px 12px;
+        border-bottom: 1px solid rgba(255,255,255,0.10);
+      }
+      .layers-popover-head h4 {
+        margin: 0;
+        font-size: 0.78rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.92);
+      }
+      .layers-popover-close {
+        width: 42px;
+        height: 38px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.05);
+        color: rgba(248,250,252,0.9);
+        font-weight: 900;
+        cursor: pointer;
+      }
+      .layers-popover-body {
+        padding: 10px 12px 12px;
+        max-height: min(62vh, 520px);
+        overflow: auto;
+      }
+      .layers-popover-body .meta {
+        margin: 0 0 0.6rem;
+        opacity: 0.9;
+      }
+      .scenarios-popover {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        width: min(520px, 92vw);
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(2, 6, 23, 0.92);
+        backdrop-filter: blur(12px);
+        z-index: 163;
+        box-shadow: 0 18px 44px rgba(0,0,0,0.38);
+        overflow: hidden;
+      }
+      /* ui-tablet (no tácticas): el popover debe abrirse hacia arriba desde el dock inferior. */
+      body.ui-tablet:not(.tactics-mode) .scenarios-popover {
+        top: auto;
+        bottom: calc(100% + 10px);
+      }
+      .scenarios-popover[hidden] {
+        display: none !important;
+      }
+      .scenarios-popover-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6rem;
+        padding: 10px 12px;
+        border-bottom: 1px solid rgba(255,255,255,0.10);
+      }
+      .scenarios-popover-head h4 {
+        margin: 0;
+        font-size: 0.78rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.92);
+      }
+      .scenarios-popover-close {
+        width: 42px;
+        height: 38px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.05);
+        color: rgba(248,250,252,0.9);
+        font-weight: 900;
+        cursor: pointer;
+      }
+      .scenarios-popover-body {
+        padding: 10px 12px 12px;
+        max-height: min(68vh, 640px);
+        overflow: auto;
+      }
+      .scenarios-popover-body .meta {
+        margin: 0 0 0.6rem;
+        opacity: 0.9;
+      }
+      /* En iPad/portrait el contenedor del campo tiene `overflow:hidden` para recortar el canvas.
+         Los popovers “flotantes” (simulador/capas/escenarios) deben salir fuera del campo, así que
+         en modo táctica los convertimos en overlays fijos para que siempre sean visibles. */
+      body.tactics-mode .layers-popover,
+      body.tactics-mode .scenarios-popover,
+      body.tactics-mode .sim-popover {
+        position: fixed;
+        top: calc(88px + env(safe-area-inset-top));
+        right: calc(14px + env(safe-area-inset-right));
+        left: auto;
+        z-index: 1200;
+        max-height: calc(100vh - 110px - env(safe-area-inset-top));
+      }
+      /* En modo táctica, si el simulador se acopla en el panel lateral, no debe ser overlay fijo. */
+      body.tactics-mode .sim-popover.is-docked {
+        position: relative;
+        top: auto;
+        right: auto;
+        left: auto;
+        width: 100%;
+        max-height: none;
+        margin-top: 0.65rem;
+        z-index: 1;
+        box-shadow: none;
+      }
+      @media (max-width: 820px) {
+        body.tactics-mode .layers-popover,
+        body.tactics-mode .scenarios-popover,
+        body.tactics-mode .sim-popover {
+          left: calc(14px + env(safe-area-inset-left));
+          right: calc(14px + env(safe-area-inset-right));
+          width: auto;
+        }
+        body.tactics-mode .sim-popover.is-docked {
+          left: auto;
+          right: auto;
+          width: 100%;
+        }
+      }
+	      .sim-popover {
+	        position: absolute;
+	        top: calc(100% + 10px);
+	        right: 0;
+	        width: min(420px, 92vw);
+	        border-radius: 14px;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(2, 6, 23, 0.92);
+	        backdrop-filter: blur(12px);
+	        z-index: 164;
+	        box-shadow: 0 18px 44px rgba(0,0,0,0.38);
+	        overflow: hidden;
+	      }
+	      /* ui-tablet (no tácticas): el popover debe abrirse hacia arriba desde el dock inferior. */
+	      body.ui-tablet:not(.tactics-mode) .sim-popover {
+	        top: auto;
+	        bottom: calc(100% + 10px);
+	      }
+	      .sim-popover[hidden] {
+	        display: none !important;
+	      }
+	      .sim-popover-head {
+	        display: flex;
+	        align-items: center;
+	        justify-content: space-between;
+	        gap: 0.6rem;
+	        padding: 10px 12px;
+	        border-bottom: 1px solid rgba(255,255,255,0.10);
+	      }
+	      .sim-popover-head h4 {
+	        margin: 0;
+	        font-size: 0.78rem;
+	        letter-spacing: 0.14em;
+	        text-transform: uppercase;
+	        color: rgba(226,232,240,0.92);
+	      }
+	      .sim-popover-close {
+	        width: 42px;
+	        height: 38px;
+	        border-radius: 999px;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(255,255,255,0.05);
+	        color: rgba(248,250,252,0.9);
+	        font-weight: 900;
+	        cursor: pointer;
+	      }
+	      .sim-popover-body {
+	        padding: 10px 12px 12px;
+	        max-height: min(62vh, 520px);
+	        overflow: auto;
+	      }
+	      .sim-popover-body .meta {
+	        margin: 0 0 0.75rem;
+	        opacity: 0.9;
+	      }
+	      .sim-advanced {
+	        margin-top: 0.65rem;
+	        border-radius: 14px;
+	        border: 1px solid rgba(255,255,255,0.12);
+	        background: rgba(255,255,255,0.03);
+	        overflow: hidden;
+	      }
+	      .sim-advanced > summary {
+	        cursor: pointer;
+	        padding: 10px 12px;
+	        font-size: 0.76rem;
+	        font-weight: 900;
+	        letter-spacing: 0.12em;
+	        text-transform: uppercase;
+	        color: rgba(226,232,240,0.9);
+	        list-style: none;
+	        display: flex;
+	        align-items: center;
+	        justify-content: space-between;
+	        gap: 0.75rem;
+	      }
+	      .sim-advanced > summary::-webkit-details-marker { display: none; }
+	      .sim-advanced > summary::after {
+	        content: "▾";
+	        opacity: 0.75;
+	        font-size: 0.9rem;
+	      }
+	      .sim-advanced[open] > summary::after { content: "▴"; }
+	      .sim-advanced > summary:hover {
+	        background: rgba(255,255,255,0.05);
+	      }
+	      .sim-advanced .sim-controls,
+	      .sim-advanced .sim-options {
+	        padding: 0 12px 12px;
+	      }
+	      .sim-controls {
+	        display: flex;
+	        flex-wrap: wrap;
+	        gap: 0.6rem;
+	        align-items: center;
+	        justify-content: space-between;
+	      }
+	      .sim-steps {
+	        margin-top: 0.75rem;
+	        display: grid;
+	        gap: 0.5rem;
+	      }
+	      .sim-meta {
+	        margin-top: 0.75rem;
+	        display: grid;
+	        grid-template-columns: minmax(0, 1fr) 120px;
+	        gap: 0.55rem;
+	        align-items: end;
+	      }
+	      .sim-meta label {
+	        display: grid;
+	        gap: 6px;
+	        font-size: 0.72rem;
+	        letter-spacing: 0.14em;
+	        text-transform: uppercase;
+	        color: rgba(226,232,240,0.82);
+	        font-weight: 900;
+	      }
+	      .sim-meta input,
+	      .sim-meta select {
+	        border-radius: 12px;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(255,255,255,0.05);
+	        color: rgba(248,250,252,0.92);
+	        padding: 10px 12px;
+	        font: inherit;
+	        font-weight: 800;
+	        letter-spacing: 0.02em;
+	        text-transform: none;
+	      }
+	      .sim-options {
+	        margin-top: 0.7rem;
+	        display: flex;
+	        flex-wrap: wrap;
+	        gap: 0.7rem;
+	        align-items: center;
+	        justify-content: space-between;
+	      }
+	      .sim-check {
+	        display: inline-flex;
+	        gap: 10px;
+	        align-items: center;
+	        font-weight: 900;
+	        letter-spacing: 0.06em;
+	        text-transform: uppercase;
+	        font-size: 0.72rem;
+	        color: rgba(226,232,240,0.92);
+	      }
+	      .sim-check input {
+	        width: 18px;
+	        height: 18px;
+	      }
+	      .sim-options label {
+	        display: inline-flex;
+	        gap: 10px;
+	        align-items: center;
+	        font-weight: 900;
+	        letter-spacing: 0.06em;
+	        text-transform: uppercase;
+	        font-size: 0.72rem;
+	        color: rgba(226,232,240,0.92);
+	      }
+	      .sim-options select {
+	        border-radius: 999px;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(255,255,255,0.05);
+	        color: rgba(248,250,252,0.92);
+	        padding: 10px 12px;
+	        font: inherit;
+	        font-weight: 900;
+	      }
+	      .sim-step {
+	        width: 100%;
+	        display: flex;
+	        align-items: center;
+	        justify-content: space-between;
+	        gap: 10px;
+	        padding: 10px 12px;
+	        border-radius: 12px;
+	        border: 1px solid rgba(255,255,255,0.10);
+	        background: rgba(255,255,255,0.04);
+	        color: rgba(248,250,252,0.92);
+	        font-weight: 800;
+	        letter-spacing: 0.02em;
+	        text-transform: none;
+	        cursor: pointer;
+	      }
+	      .sim-step:hover {
+	        background: rgba(255,255,255,0.07);
+	      }
+	      .sim-step.is-active {
+	        border-color: rgba(250, 204, 21, 0.42);
+	        background: rgba(250, 204, 21, 0.10);
+	      }
+	      .sim-step strong {
+	        display: block;
+	        font-size: 0.86rem;
+	        letter-spacing: 0.02em;
+	      }
+	      .sim-step span {
+	        font-size: 0.72rem;
+	        letter-spacing: 0.10em;
+	        opacity: 0.75;
+	        text-transform: uppercase;
+	      }
+	      .sim-pro-inspector {
+	        grid-column: 1 / -1;
+	        display: grid;
+	        gap: 0.6rem;
+	        padding-top: 0.2rem;
+	        border-top: 1px solid rgba(255,255,255,0.08);
+	      }
+	      .sim-pro-summary {
+	        display: flex;
+	        flex-wrap: wrap;
+	        gap: 0.55rem;
+	        align-items: center;
+	        justify-content: space-between;
+	      }
+	      .sim-pro-summary .meta strong {
+	        color: rgba(248,250,252,0.96);
+	      }
+	      .sim-pro-track-list {
+	        display: grid;
+	        gap: 0.45rem;
+	        max-height: 280px;
+	        overflow: auto;
+	        padding-right: 0.1rem;
+	      }
+	      .sim-pro-track {
+	        width: 100%;
+	        display: grid;
+	        grid-template-columns: minmax(0, 1fr) auto;
+	        gap: 0.7rem;
+	        align-items: center;
+	        padding: 10px 12px;
+	        border-radius: 12px;
+	        border: 1px solid rgba(255,255,255,0.10);
+	        background: rgba(255,255,255,0.035);
+	        color: rgba(248,250,252,0.92);
+	        cursor: pointer;
+	      }
+	      .sim-pro-track:hover {
+	        background: rgba(255,255,255,0.07);
+	      }
+	      .sim-pro-track.is-active {
+	        border-color: rgba(34, 211, 238, 0.42);
+	        background: rgba(34, 211, 238, 0.10);
+	      }
+	      .sim-pro-track-main {
+	        min-width: 0;
+	        display: grid;
+	        gap: 0.18rem;
+	        text-align: left;
+	      }
+	      .sim-pro-track-main strong,
+	      .sim-pro-track-main span {
+	        min-width: 0;
+	        overflow: hidden;
+	        text-overflow: ellipsis;
+	        white-space: nowrap;
+	      }
+	      .sim-pro-track-main strong {
+	        font-size: 0.84rem;
+	        letter-spacing: 0.02em;
+	      }
+	      .sim-pro-track-main span {
+	        font-size: 0.7rem;
+	        letter-spacing: 0.08em;
+	        opacity: 0.78;
+	        text-transform: uppercase;
+	      }
+	      .sim-pro-track-badge {
+	        display: inline-flex;
+	        align-items: center;
+	        justify-content: center;
+	        min-width: 42px;
+	        padding: 6px 10px;
+	        border-radius: 999px;
+	        background: rgba(255,255,255,0.08);
+	        border: 1px solid rgba(255,255,255,0.1);
+	        font-size: 0.7rem;
+	        font-weight: 900;
+	        letter-spacing: 0.08em;
+	        text-transform: uppercase;
+	      }
+	      .icon-btn.is-simulating {
+	        background: rgba(244,180,0,0.12);
+	        border-color: rgba(244,180,0,0.42);
+	        color: rgba(255,237,213,0.95);
+	      }
+	      body.is-simulating .resource-summary .current::after {
+	        content: " · simulando";
+	        color: rgba(250, 204, 21, 0.95);
+	        font-weight: 900;
+	        letter-spacing: 0.06em;
+	      }
+      .scenarios-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.75rem;
+      }
+      .scenarios-controls .button {
+        padding: 0.55rem 0.8rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.05);
+        color: rgba(248,250,252,0.92);
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+        cursor: pointer;
+      }
+      .scenarios-controls .button.danger {
+        border-color: rgba(239,68,68,0.35);
+        background: rgba(239,68,68,0.08);
+        color: rgba(252,165,165,0.95);
+      }
+      .scenarios-fields {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 140px;
+        gap: 0.55rem;
+        margin-bottom: 0.75rem;
+      }
+      .scenarios-fields label {
+        display: grid;
+        gap: 0.35rem;
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.72);
+      }
+      .scenarios-fields input {
+        width: 100%;
+        padding: 0.62rem 0.75rem;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.04);
+        color: #f8fafc;
+      }
+      .scenarios-fields input[type="number"] {
+        text-align: center;
+      }
+      .pattern-popover {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        min-width: 270px;
+        padding: 12px;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(2, 6, 23, 0.92);
+        backdrop-filter: blur(12px);
+        z-index: 161;
+        box-shadow: 0 18px 44px rgba(0,0,0,0.38);
+        display: grid;
+        gap: 10px;
+      }
+      /* ui-tablet: los popovers (patrón/formación/overlays) están anclados al dock inferior => abrir hacia arriba. */
+      body.ui-tablet .pattern-popover {
+        top: auto;
+        bottom: calc(100% + 10px);
+      }
+      /* No dejar que estilos del autor anulen el atributo HTML `hidden`. */
+      .pattern-popover[hidden] {
+        display: none !important;
+      }
+      .pattern-popover h4 {
+        margin: 0;
+        font-size: 0.78rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(248,250,252,0.92);
+      }
+      .pattern-popover .pattern-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .pattern-popover .pattern-close {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.05);
+        color: rgba(248,250,252,0.92);
+        font-size: 22px;
+        font-weight: 900;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .pattern-popover .pattern-close:hover {
+        background: rgba(255,255,255,0.08);
+      }
+      .pattern-fields {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .pattern-fields.is-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+      .pattern-options {
+        display: grid;
+        gap: 8px;
+      }
+      .pattern-check {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.82);
+      }
+      .pattern-check input {
+        width: 18px;
+        height: 18px;
+      }
+      .pattern-field {
+        display: grid;
+        gap: 6px;
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.82);
+      }
+      .pattern-field input {
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.05);
+        color: rgba(248,250,252,0.94);
+        padding: 10px 10px;
+        font-weight: 750;
+        letter-spacing: 0.02em;
+        text-transform: none;
+      }
+      .pattern-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+      .pattern-actions button {
+        border-radius: 999px;
+        padding: 10px 12px;
+        font-size: 0.74rem;
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .layers-list {
+        display: grid;
+        gap: 8px;
+        margin-top: 0.75rem;
+      }
+      .layer-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+        align-items: center;
+        padding: 10px 12px;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.10);
+        background: rgba(255,255,255,0.03);
+      }
+      .layer-row.is-active {
+        border-color: rgba(34,211,238,0.42);
+        background: rgba(34,211,238,0.10);
+      }
+      .layer-title {
+        display: grid;
+        gap: 2px;
+      }
+      .layer-title strong {
+        font-size: 0.9rem;
+        letter-spacing: 0.02em;
+      }
+      .layer-title small {
+        font-size: 0.78rem;
+        color: rgba(226,232,240,0.65);
+      }
+      .layer-actions {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .layer-actions button {
+        width: 38px;
+        height: 34px;
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.04);
+        color: rgba(248,250,252,0.92);
+        cursor: pointer;
+      }
+      .layer-actions button:hover {
+        background: rgba(255,255,255,0.07);
+      }
+      .resource-tab {
+        background: transparent;
+        border: 1px solid rgba(255,255,255,0.3);
+        border-radius: 999px;
+        padding: 6px 16px;
+        color: rgba(248,250,252,0.78);
+        transition: background 0.2s ease;
+      }
+      .resource-tab.is-active {
+        background: rgba(34,211,238,0.18);
+        border-color: rgba(34,211,238,0.6);
+        color: #ffffff;
+      }
+      .resource-helper {
+        margin: 0;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .resource-panel {
+        display: none;
+        margin-top: 0.6rem;
+      }
+      .resource-panel.is-visible {
+        display: block;
+      }
+      .resource-panel[hidden] {
+        display: none !important;
+      }
+      .token-meta {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 140px;
+        gap: 10px;
+        align-items: end;
+      }
+      .token-meta[hidden] {
+        display: none !important;
+      }
+      @media (max-width: 760px) {
+        .token-meta {
+          grid-template-columns: 1fr;
+        }
+      }
+      .pitch-stage {
+        position: relative;
+        --pitch-zoom: 1;
+        width: 100%;
+        /* `--stage-max-user` = tamaño elegido por el usuario (botones/drag).
+           `--stage-max-fit`  = límite calculado para que quepa en el viewport (layoutManager).
+           Si no existen, cae al max-width clásico. */
+        max-width: min(var(--stage-max-user, 1500px), var(--stage-max-fit, 9999px));
+        margin: 0 auto;
+        /* Mantener misma proporción que el SVG (viewBox -2 -2 1054x684). */
+        aspect-ratio: 1054 / 684;
+        min-height: 0;
+        max-height: 100%;
+        border-radius: 24px;
+        overflow: visible;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background:
+          radial-gradient(circle at 50% 45%, rgba(255,255,255,0.07), transparent 36%),
+          linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01)),
+          repeating-linear-gradient(90deg, rgba(255,255,255,0.030) 0 8.33%, rgba(0,0,0,0.055) 8.33% 16.66%),
+          url("/static/football/images/pitch3d/grass_premium_albedo.png"),
+          linear-gradient(180deg, #6ea24d 0%, #5f9444 42%, #4e7f39 100%);
+        background-size: auto, auto, auto, cover, cover;
+        background-position: center, center, center, center, center;
+        background-repeat: no-repeat, no-repeat, repeat, no-repeat, no-repeat;
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.12),
+          inset 0 -22px 44px rgba(4, 17, 29, 0.22),
+          0 24px 50px rgba(2, 6, 23, 0.3);
+      }
+      .pitch-stage .canvas-container {
+        position: absolute !important;
+        inset: 0;
+        width: 100% !important;
+        height: 100% !important;
+        z-index: 3;
+        background: transparent !important;
+      }
+      .pitch-stage-3d-surface {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+        pointer-events: none;
+        border-radius: inherit;
+        display: none;
+      }
+      .pitch-stage.pitch-stage-3d-live {
+        background:
+          linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)),
+          linear-gradient(180deg, #edf4fb 0%, #d6e5f1 100%);
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.18),
+          0 24px 50px rgba(2, 6, 23, 0.22);
+      }
+      .pitch-stage.pitch-stage-3d-live #task-pitch-surface {
+        opacity: 1;
+        visibility: visible;
+      }
+      .pitch-stage.pitch-stage-3d-live:not(.surface-ready)::after {
+        display: none;
+      }
+      #task-pitch-surface {
+        z-index: 2;
+        background: transparent;
+      }
+      .pitch-stage:not(.surface-ready)::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 1;
+        opacity: 0.9;
+        background:
+          linear-gradient(90deg, transparent calc(50% - 1px), rgba(248,250,252,0.72) calc(50% - 1px) calc(50% + 1px), transparent calc(50% + 1px)),
+          radial-gradient(circle at 50% 50%, transparent 0 9.8%, rgba(248,250,252,0.72) 10% 10.35%, transparent 10.7%),
+          radial-gradient(circle at 50% 50%, rgba(248,250,252,0.72) 0 0.28%, transparent 0.35%),
+          linear-gradient(90deg, rgba(248,250,252,0.72) 0 2px, transparent 2px calc(100% - 2px), rgba(248,250,252,0.72) calc(100% - 2px)),
+          linear-gradient(180deg, rgba(248,250,252,0.72) 0 2px, transparent 2px calc(100% - 2px), rgba(248,250,252,0.72) calc(100% - 2px)),
+          linear-gradient(90deg, transparent 0 6.2%, rgba(248,250,252,0.68) 6.2% calc(6.2% + 2px), transparent calc(6.2% + 2px) calc(93.8% - 2px), rgba(248,250,252,0.68) calc(93.8% - 2px) 93.8%, transparent 93.8%),
+          linear-gradient(180deg, transparent 0 22%, rgba(248,250,252,0.68) 22% calc(22% + 2px), transparent calc(22% + 2px) calc(78% - 2px), rgba(248,250,252,0.68) calc(78% - 2px) 78%, transparent 78%),
+          linear-gradient(90deg, transparent 0 18%, rgba(248,250,252,0.55) 18% calc(18% + 2px), transparent calc(18% + 2px) calc(82% - 2px), rgba(248,250,252,0.55) calc(82% - 2px) 82%, transparent 82%),
+          linear-gradient(180deg, transparent 0 36%, rgba(248,250,252,0.55) 36% calc(36% + 2px), transparent calc(36% + 2px) calc(64% - 2px), rgba(248,250,252,0.55) calc(64% - 2px) 64%, transparent 64%);
+        mix-blend-mode: screen;
+      }
+      .pitch-stage::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0;
+        --grid-size: 40px;
+        background-image:
+          linear-gradient(to right, rgba(248,250,252,0.08) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(248,250,252,0.08) 1px, transparent 1px);
+        background-size: var(--grid-size) var(--grid-size);
+        mix-blend-mode: overlay;
+      }
+      .pitch-stage.has-grid::before {
+        opacity: 1;
+      }
+	      .pitch-stage.is-portrait {
+	        aspect-ratio: 684 / 1054;
+	        width: 100%;
+	      }
+	      /* En vertical (portrait) el stage se vuelve demasiado alto si ocupa todo el ancho.
+	         En escritorio lo limitamos para que la pizarra siga siendo usable en una sola pantalla. */
+	      body.ui-desktop .pitch-stage.is-portrait {
+	        max-width: clamp(380px, 42vw, 560px);
+	      }
+	      /* En vertical, la plantilla en grid multi-fila aumenta muchísimo el alto.
+	         Cambiamos a fila con scroll horizontal (como en iPad) para reducir scroll de página. */
+	      body.ui-desktop #task-pitch-viewport.is-portrait ~ .section .player-bank {
+	        display: flex;
+	        flex-wrap: nowrap;
+	        overflow-x: auto;
+	        overflow-y: hidden;
+	        -webkit-overflow-scrolling: touch;
+	        padding-bottom: 4px;
+	      }
+	      body.ui-desktop #task-pitch-viewport.is-portrait ~ .section .player-bank > button {
+	        flex: 0 0 auto;
+	        min-width: 132px;
+	      }
+	      body.ui-desktop #task-pitch-viewport.is-portrait ~ .pitch-status {
+	        margin-top: 0.5rem;
+	      }
+		      body.ui-desktop #task-pitch-viewport.is-portrait ~ .section {
+		        margin-top: 0.65rem !important;
+		      }
+
+	      /* Tablet/phone portrait: mantener Recursos visibles sin que “pisen” el campo.
+	         En vez de columna lateral (que en pantallas estrechas provoca scroll lateral y overlays),
+	         usamos un layout apilado: campo arriba + Recursos abajo con altura fija y scroll interno. */
+	      @media (max-width: 1180px) and (orientation: portrait) {
+	        .pitch-layout {
+	          grid-template-columns: 1fr;
+	          grid-template-areas:
+	            "main"
+	            "side";
+	        }
+	        .pitch-side {
+	          position: relative;
+	          top: auto;
+	          max-height: none;
+	          height: min(56vh, 520px);
+	          overflow: hidden;
+	          padding-right: 0;
+	        }
+	        .pitch-side .resource-details {
+	          display: grid;
+	          grid-template-rows: auto auto auto 1fr;
+	          gap: 0;
+	          height: 100%;
+	        }
+	        .pitch-side .library-head,
+	        .pitch-side .library-filter,
+	        .pitch-side .resource-tabs {
+	          background: rgba(7, 22, 44, 0.92);
+	        }
+	        .pitch-side .resource-tabs {
+	          padding-bottom: 0.55rem;
+	        }
+	        .pitch-side .resource-panel.is-visible {
+	          overflow-y: auto;
+	          overflow-x: hidden;
+	          padding-bottom: calc(84px + env(safe-area-inset-bottom));
+	        }
+	      }
+      .pitch-viewport {
+        width: 100%;
+        overflow: visible;
+        border-radius: 18px;
+      }
+		      .pitch-layout {
+		        display: grid;
+		        grid-template-columns: minmax(0, 1fr) var(--library-width, 380px);
+		        grid-template-areas: "main side";
+		        gap: 1rem;
+		        align-items: start;
+		      }
+      /* Táctica: layout.
+         Por defecto usamos split (campo + recursos a la derecha). Si el usuario quiere el campo “a todo lo ancho”,
+         activamos `tactics-layout-top` y el panel de recursos pasa arriba, dejando el campo full-width. */
+      body.tactics-mode .pitch-layout {
+        /* Evita overflow horizontal: en pantallas estrechas, el panel lateral reduce ancho automáticamente. */
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        overflow: visible;
+        display: grid;
+        grid-auto-flow: row;
+        grid-template-columns: minmax(0, 1fr) clamp(300px, 16vw, 350px);
+        grid-template-areas: "main side";
+        gap: 0.5rem;
+      }
+      body.tactics-mode.pitch-orientation-portrait .pitch-layout {
+        grid-template-columns: minmax(0, 1fr) clamp(280px, 15vw, 330px);
+        gap: 0.6rem;
+      }
+      body.tactics-mode.tactics-layout-top .pitch-layout {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+          "side"
+          "main";
+      }
+      .pitch-main,
+      .pitch-side {
+        min-width: 0;
+      }
+      .pitch-main { grid-area: main; }
+      .pitch-side {
+        grid-area: side;
+        position: sticky;
+        top: 0.75rem;
+        align-self: start;
+        max-height: calc(100vh - 2.75rem);
+        /* Evita scroll lateral "fantasma" en Biblioteca (iPad/Safari): solo scroll vertical. */
+        overflow-x: hidden;
+        overflow-y: auto;
+        padding-right: 2px;
+      }
+      body.tactics-mode .pitch-side {
+        /* Stacking: los popovers/menús de recursos deben quedar por encima del campo si se solapan. */
+        z-index: 10;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        position: sticky;
+        top: 0.75rem;
+        align-self: start;
+        max-height: min(calc(100vh - 210px), 980px);
+        /* iOS Safari: evita resize por scroll (barra superior/inferior). */
+        max-height: min(calc(100svh - 210px), 980px);
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding-right: 2px;
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 18px;
+        background: rgba(8, 18, 30, 0.72);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        box-shadow: 0 18px 46px rgba(2, 6, 23, 0.34);
+      }
+      body.tactics-mode .pitch-main {
+        position: relative;
+        z-index: 1;
+        min-width: 0;
+        max-width: 100%;
+        overflow: visible;
+      }
+      /* Táctica: rail de recursos más compacto (menos “aire” y más contenido útil). */
+      body.tactics-mode .pitch-side .library-head { margin-bottom: 0.45rem; }
+      body.tactics-mode .pitch-side .library-toggle {
+        width: 34px;
+        height: 34px;
+        border-radius: 12px;
+      }
+      body.tactics-mode .pitch-side .library-title {
+        font-size: 0.66rem;
+        letter-spacing: 0.12em;
+      }
+      body.tactics-mode .pitch-side .library-current {
+        font-size: 0.66rem;
+      }
+      body.tactics-mode .pitch-side .library-filter {
+        padding: 0.48rem 0.62rem;
+        margin-bottom: 0.38rem;
+        border-radius: 12px;
+      }
+      body.tactics-mode .pitch-side .resource-tabs {
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 0.28rem;
+      }
+      body.tactics-mode .pitch-side .resource-tab {
+        min-height: 38px;
+        justify-content: center;
+        padding: 0.36rem;
+        border-radius: 12px;
+        font-size: 0.68rem;
+        gap: 0;
+      }
+      body.tactics-mode .pitch-side .resource-tab .lib-ico {
+        width: 24px;
+        height: 24px;
+        border-radius: 9px;
+      }
+      body.tactics-mode .pitch-side .resource-tab .lib-ico svg { width: 15px; height: 15px; }
+      body.tactics-mode .pitch-side .resource-tab .lib-label {
+        display: none;
+      }
+      body.tactics-mode .pitch-side .resource-tab-bar { gap: 0.4rem; margin-bottom: 0.42rem; }
+
+      /* Táctica: barra de comandos más pequeña (no “se come” el panel). */
+      body.tactics-mode .pitch-side .command-bar {
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: thin;
+        padding: 5px 6px;
+        gap: 0.3rem;
+      }
+      body.tactics-mode .pitch-side .icon-btn {
+        width: 50px;
+        height: 44px;
+      }
+      body.tactics-mode .pitch-side .icon-btn svg {
+        width: 24px;
+        height: 24px;
+      }
+      body.tactics-mode.tactics-layout-top .pitch-side {
+        grid-column: 1 / -1;
+        grid-row: 1;
+        position: relative;
+        top: auto;
+        max-height: min(34svh, 320px);
+        max-height: min(34vh, 320px);
+        overflow-y: auto;
+      }
+      body.tactics-mode.tactics-layout-top .pitch-main {
+        grid-column: 1 / -1;
+        grid-row: 2;
+      }
+
+      /* Hardening: en algunos navegadores/estados, el grid-area puede no aplicarse correctamente
+         (y la pizarra acaba dentro del panel lateral, con viewport 0px de alto). Forzamos columnas/filas. */
+      body.tactics-mode .pitch-main {
+        grid-column: 1 / 2;
+        grid-row: 1;
+        align-self: stretch;
+        order: -1;
+      }
+      body.tactics-mode .pitch-side {
+        grid-column: 2 / 3;
+        grid-row: 1;
+        order: 0;
+      }
+      body.tactics-mode.tactics-layout-top .pitch-main {
+        order: 0;
+      }
+      body.tactics-mode.tactics-layout-top .pitch-side {
+        order: -1;
+      }
+      body.tactics-mode.tactics-fullscreen .pitch-side {
+        max-height: calc(100vh - 130px);
+        max-height: calc(100svh - 130px);
+      }
+      /* Evita scroll lateral “fantasma” en el panel (iPad/Safari y sliders anchos). */
+      body.tactics-mode .pitch-side .resource-details,
+      body.tactics-mode .pitch-side .resource-panel.is-visible {
+        min-width: 0;
+        max-width: 100%;
+        overflow-x: hidden;
+      }
+      body.tactics-mode .pitch-side .resource-strip,
+      body.tactics-mode .pitch-side .player-bank {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      body.tactics-mode .pitch-side input,
+      body.tactics-mode .pitch-side select,
+      body.tactics-mode .pitch-side button,
+      body.tactics-mode .pitch-side textarea {
+        max-width: 100%;
+      }
+      /* En tácticas, el botón “Recursos” colapsa/expande el panel; no lo ocultamos completo. */
+      body.tactics-mode.tactics-tools-open .pitch-side { }
+
+      /* Cuando el usuario colapsa la biblioteca, el panel lateral se convierte en rail estrecho. */
+      body.tactics-mode.library-collapsed .pitch-layout {
+        grid-template-columns: minmax(0, 1fr) var(--library-width, 68px);
+      }
+		      @media (max-width: 1160px) {
+		        .pitch-layout {
+		          grid-template-columns: 1fr;
+		          grid-template-areas:
+		            "main"
+		            "side";
+		        }
+		        .pitch-side {
+		          position: relative;
+		          top: auto;
+		          max-height: none;
+		          overflow: visible;
+		          padding-right: 0;
+		        }
+		      }
+      /* Biblioteca colapsable (general) */
+      body {
+        --library-width-expanded: 380px;
+        --library-width-collapsed: 68px;
+        --library-width: var(--library-width-expanded);
+      }
+      body.library-collapsed {
+        --library-width: var(--library-width-collapsed);
+      }
+      /* iPad/tablet: un poco más estrecha para no robar campo */
+      body.ui-tablet {
+        --library-width-expanded: 340px;
+        --library-width-collapsed: 68px;
+      }
+      /* iPad/tablet: mantener Biblioteca lateral incluso bajo 1160px */
+      @media (max-width: 1160px) {
+        body.ui-tablet .pitch-layout {
+          grid-template-columns: minmax(0, 1fr) var(--library-width, 340px);
+          grid-template-areas: "main side";
+        }
+        body.ui-tablet .pitch-side {
+          position: sticky;
+          top: 0.75rem;
+          max-height: calc(100vh - 2.75rem);
+          overflow-x: hidden;
+          overflow-y: auto;
+          padding-right: 2px;
+        }
+      }
+      /* iPad/tablet en vertical: la biblioteca lateral roba demasiado ancho.
+         Cambiamos a campo arriba + recursos abajo con scroll interno. */
+      @media (orientation: portrait) {
+        /* iPad portrait: bottom sheet de Recursos (evita scroll largo y recortes). */
+        body.ui-tablet:not(.tactics-mode) .pitch-layout {
+          grid-template-columns: 1fr;
+          grid-template-areas: "main";
+        }
+	        /* El campo en portrait: que siempre quepa sin empujar UI. */
+	        body.ui-tablet:not(.tactics-mode) .pitch-stage {
+	          /* iOS Safari: `dvh` varía con scroll; `svh` estabiliza el layout. */
+	          max-height: calc(100vh - 420px);
+	          max-height: calc(100svh - 420px);
+	        }
+        /* Panel de Recursos como bottom sheet; se abre cuando NO está colapsado. */
+	        body.ui-tablet:not(.tactics-mode) .pitch-side {
+	          position: fixed;
+	          left: calc(12px + env(safe-area-inset-left));
+	          right: calc(12px + env(safe-area-inset-right));
+	          bottom: calc(98px + env(safe-area-inset-bottom)); /* deja sitio al dock inferior */
+	          height: min(46vh, 520px);
+	          max-height: calc(100vh - 140px - env(safe-area-inset-bottom));
+	          max-height: calc(100svh - 140px - env(safe-area-inset-bottom));
+	          overflow: hidden;
+	          padding: 10px;
+	          border-radius: 18px;
+	          border: 1px solid rgba(148,163,184,0.22);
+          background: rgba(15,23,42,0.92);
+          backdrop-filter: blur(14px);
+          z-index: 1500;
+          box-shadow: 0 18px 52px rgba(2, 6, 23, 0.45);
+          display: none;
+        }
+        body.ui-tablet:not(.tactics-mode):not(.library-collapsed) .pitch-side {
+          display: block;
+        }
+        body.ui-tablet:not(.tactics-mode) .pitch-side .resource-details {
+          display: grid;
+          grid-template-rows: auto auto auto 1fr;
+          gap: 0;
+          height: 100%;
+        }
+        body.ui-tablet:not(.tactics-mode) .pitch-side .library-head,
+        body.ui-tablet:not(.tactics-mode) .pitch-side .library-filter,
+        body.ui-tablet:not(.tactics-mode) .pitch-side .resource-tabs {
+          background: transparent;
+        }
+        body.ui-tablet:not(.tactics-mode) .pitch-side .resource-panel.is-visible {
+          overflow-y: auto;
+          overflow-x: hidden;
+          padding-bottom: 12px;
+        }
+      }
+      .pitch-viewport.is-hand,
+      .pitch-viewport.is-hand * {
+        cursor: grab;
+      }
+      .pitch-viewport.is-hand.is-grabbing,
+      .pitch-viewport.is-hand.is-grabbing * {
+        cursor: grabbing;
+      }
+      .pitch-viewport.is-portrait { }
+      .pitch-viewport.is-zoomed {
+        /* mantiene compatibilidad: ahora el overflow ya es auto por defecto */
+      }
+      .pitch-stage.is-drop-target {
+        box-shadow: inset 0 0 0 2px rgba(34, 211, 238, 0.7);
+      }
+	      .pitch-stage svg,
+	      .pitch-stage canvas {
+	        position: absolute;
+	        inset: 0;
+	        width: 100%;
+	        height: 100%;
+	        display: block;
+	        background: transparent !important;
+	        touch-action: none;
+	        -webkit-user-select: none;
+	        user-select: none;
+	      }
+      .pitch-stage canvas.lower-canvas,
+      .pitch-stage canvas.upper-canvas {
+        background: transparent !important;
+      }
+	      .pitch-resize-handle {
+	        position: absolute;
+	        right: 10px;
+	        bottom: 10px;
+	        width: 44px;
+	        height: 44px;
+	        border-radius: 14px;
+	        border: 1px solid rgba(255,255,255,0.18);
+	        background: rgba(2,6,23,0.58);
+	        color: rgba(226,232,240,0.92);
+	        display: flex;
+	        align-items: center;
+	        justify-content: center;
+	        cursor: nwse-resize;
+	        z-index: 6;
+	        box-shadow: 0 14px 30px rgba(2,6,23,0.45);
+	        backdrop-filter: blur(10px);
+	        opacity: 0.0;
+	        transform: translateY(6px);
+	        transition: opacity 0.15s ease, transform 0.15s ease;
+	      }
+	      .pitch-stage:hover .pitch-resize-handle,
+	      .pitch-stage:focus-within .pitch-resize-handle {
+	        opacity: 1;
+	        transform: translateY(0);
+	      }
+	      .pitch-resize-handle:active {
+	        transform: translateY(0) scale(0.98);
+	      }
+	      .pitch-resize-handle svg {
+	        width: 22px;
+	        height: 22px;
+	        opacity: 0.9;
+	      }
+	      .pitch-status {
+	        margin: 0.75rem 0 0;
+	        color: var(--muted);
+	        font-size: 0.82rem;
+	      }
+		      .pitch-drills-strip {
+		        margin: 0.65rem 0 0;
+		        display: flex;
+		        gap: 0.5rem;
+		        flex-wrap: wrap;
+		        align-items: center;
+		        padding: 0.5rem 0.65rem;
+		        border-radius: 14px;
+		        border: 1px solid rgba(255,255,255,0.14);
+		        background: rgba(2,6,23,0.50);
+		        box-shadow: 0 12px 28px rgba(2,6,23,0.35);
+		        backdrop-filter: blur(10px);
+		        --drill-icon-color: #0f7a35;
+		      }
+	      .pitch-drills-strip[hidden] { display: none !important; }
+		      .pitch-drills-title {
+		        font-weight: 900;
+		        letter-spacing: 0.08em;
+		        text-transform: uppercase;
+		        color: rgba(226,232,240,0.92);
+		        font-size: 0.78rem;
+		        margin-right: 0.15rem;
+		      }
+		      .pitch-drills-color {
+		        appearance: none;
+		        -webkit-appearance: none;
+		        border: 1px solid rgba(255,255,255,0.12);
+		        background: rgba(15, 23, 42, 0.62);
+		        border-radius: 999px;
+		        height: 30px;
+		        padding: 0 0.55rem;
+		        display: inline-flex;
+		        align-items: center;
+		        gap: 0.4rem;
+		        color: rgba(226,232,240,0.9);
+		        font-weight: 900;
+		        letter-spacing: 0.08em;
+		        text-transform: uppercase;
+		        font-size: 0.68rem;
+		        cursor: pointer;
+		      }
+		      .pitch-drills-color:hover { border-color: rgba(244,180,0,0.42); }
+		      .pitch-drills-swatch {
+		        width: 14px;
+		        height: 14px;
+		        border-radius: 6px;
+		        background: var(--drill-icon-color);
+		        box-shadow: 0 0 0 2px rgba(255,255,255,0.14) inset;
+		      }
+	      .pitch-drill-chip {
+	        display: inline-flex;
+	        align-items: center;
+	        gap: 0.4rem;
+	        padding: 0.3rem 0.45rem;
+	        border-radius: 999px;
+	        border: 1px solid rgba(255,255,255,0.12);
+	        background: rgba(15, 23, 42, 0.62);
+	        color: rgba(226,232,240,0.92);
+	        font-weight: 800;
+	        font-size: 0.78rem;
+	        max-width: 220px;
+	        appearance: none;
+	        -webkit-appearance: none;
+	        outline: none;
+	        cursor: grab;
+	        user-select: none;
+	        transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+	      }
+	      .pitch-drill-chip:hover {
+	        border-color: rgba(244,180,0,0.42);
+	        box-shadow: 0 10px 22px rgba(2,6,23,0.35);
+	      }
+	      .pitch-drill-chip:active {
+	        cursor: grabbing;
+	        transform: scale(0.98);
+	      }
+	      .pitch-drill-chip.is-active {
+	        border-color: rgba(244,180,0,0.70);
+	        background: rgba(244,180,0,0.14);
+	      }
+	      .pitch-drill-chip.is-dragging {
+	        opacity: 0.72;
+	      }
+		      .pitch-drill-icon {
+		        width: 20px;
+		        height: 20px;
+		        flex: 0 0 auto;
+		        background: var(--drill-icon-color);
+		        -webkit-mask: var(--drill-mask) no-repeat center / contain;
+		        mask: var(--drill-mask) no-repeat center / contain;
+		        filter: drop-shadow(0 6px 10px rgba(2,6,23,0.35));
+		      }
+	      .pitch-drill-chip span {
+	        overflow: hidden;
+	        text-overflow: ellipsis;
+	        white-space: nowrap;
+	        max-width: 170px;
+	      }
+	      .pitch-zoom {
+	        display: flex;
+	        align-items: center;
+	        gap: 0.45rem;
+	      }
+      .pitch-size {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+      }
+      body.focus-mode .builder {
+        grid-template-columns: 1fr;
+      }
+      body.focus-mode aside.panel {
+        display: none !important;
+      }
+      body.focus-mode .pitch-layout {
+        grid-template-columns: 1fr;
+        grid-template-areas: "main";
+      }
+      body.focus-mode .pitch-side {
+        display: none !important;
+      }
+      body.focus-mode .panel-head,
+      body.focus-mode .pitch-toolbar,
+      body.focus-mode #tpad-hint,
+      body.focus-mode .pitch-status,
+      body.focus-mode .pitch-drills-strip,
+      body.focus-mode .pitch-main .section {
+        display: none !important;
+      }
+      .focus-exit {
+        position: fixed;
+        right: calc(18px + env(safe-area-inset-right));
+        top: calc(18px + env(safe-area-inset-top));
+        z-index: 2600;
+        border: 1px solid rgba(255,255,255,0.18);
+        background: rgba(2, 6, 23, 0.88);
+        border-radius: 999px;
+        padding: 0.62rem 0.98rem;
+        color: rgba(248,250,252,0.96);
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+        display: none;
+        box-shadow: 0 18px 44px rgba(2,6,23,0.52);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        white-space: nowrap;
+      }
+      body.focus-mode .focus-exit {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .token-global-style {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        margin: 0.55rem 0 0.3rem;
+      }
+      .token-global-style .label {
+        font-size: 0.7rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.72);
+        font-weight: 900;
+        margin-right: 0.2rem;
+        align-self: center;
+      }
+      .token-global-style button {
+        border-radius: 999px;
+        padding: 0.42rem 0.7rem;
+        border: 1px solid rgba(255,255,255,0.16);
+        background: rgba(255,255,255,0.05);
+        color: rgba(226,232,240,0.92);
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-size: 0.68rem;
+        cursor: pointer;
+      }
+	      .token-global-style button.is-active {
+	        border-color: rgba(244,180,0,0.52);
+	        background: rgba(244,180,0,0.16);
+	      }
+	      .token-global-color {
+	        display: inline-flex;
+	        align-items: center;
+	        gap: 0.45rem;
+	        margin-left: auto;
+	        flex-wrap: wrap;
+	      }
+	      .token-global-color input[type="color"] {
+	        width: 44px;
+	        height: 36px;
+	        padding: 0;
+	        border-radius: 12px;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(255,255,255,0.04);
+	      }
+      .token-global-color input[type="text"] {
+	        width: 110px;
+	        min-width: 0;
+	        padding: 0.42rem 0.55rem;
+	        border-radius: 12px;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(255,255,255,0.04);
+	        color: rgba(248,250,252,0.92);
+	        font-weight: 800;
+	        letter-spacing: 0.02em;
+	        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+	      }
+	      body.tactics-mode .pitch-side .token-global-style {
+	        align-items: flex-start;
+	      }
+	      body.tactics-mode .pitch-side .token-global-color {
+	        width: 100%;
+	        margin-left: 0;
+	      }
+	      body.tactics-mode .pitch-side .token-global-color input[type="text"] {
+	        width: min(110px, 100%);
+	      }
+	      body.tactics-mode .selection-actions#task-scale-presets,
+	      body.tactics-mode .selection-actions#task-token-size-presets,
+	      body.tactics-mode .selection-actions#task-stroke-presets,
+	      body.tactics-mode #task-stroke-width-row {
+	        display: none !important;
+	      }
+		      /* En tácticas, la plantilla no debe ocupar alto bajo el campo.
+		         Se muestra solo cuando está “dockeada” dentro de Herramientas (slot). */
+		      body.tactics-mode #task-roster-bank {
+		        display: none;
+		      }
+		      body.tactics-mode #task-roster-bank-slot #task-roster-bank,
+		      body.tactics-mode #task-roster-bank-slot-main #task-roster-bank {
+		        display: block;
+		      }
+	      .pitch-zoom button,
+	      .pitch-size button {
+	        border-radius: 10px;
+	        padding: 8px 10px;
+	        border: 1px solid rgba(255,255,255,0.18);
+	        background: rgba(255,255,255,0.06);
+	        color: #e2e8f0;
+	        min-width: 38px;
+	      }
+	      .pitch-zoom .zoom-readout,
+	      .pitch-size .zoom-readout {
+	        min-width: 54px;
+	        text-align: center;
+	        font-weight: 700;
+	        color: rgba(226,232,240,0.8);
+	      }
+      .resource-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      /* En el lateral, preferimos recursos en “wrap” para evitar scroll horizontal. */
+      .pitch-side .resource-strip {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.45rem;
+        overflow: visible;
+        padding-bottom: 0;
+      }
+      @media (max-width: 760px) {
+        .pitch-side .resource-strip {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+	      .resource-strip,
+	      .player-bank {
+	        display: grid;
+	        grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+	        gap: 0.45rem;
+	        min-width: 0;
+	      }
+		      .roster-bank-slot {
+		        margin-top: 0.85rem;
+		        padding-top: 0.85rem;
+		        border-top: 1px solid rgba(255,255,255,0.10);
+		      }
+		      body.tactics-mode .resource-panel[data-panel="plantilla"] .roster-bank-slot {
+		        margin-top: 0;
+		        padding-top: 0;
+		        border-top: 0;
+		      }
+	      .pitch-side .roster-bank {
+	        margin-top: 0 !important;
+	      }
+	      body.ui-tablet .pitch-side .roster-bank {
+	        border: 1px solid rgba(255,255,255,0.10);
+	        background: rgba(2, 6, 23, 0.18);
+	        border-radius: 18px;
+	        padding: 0.65rem;
+	      }
+      .player-bank-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.55rem;
+      }
+      /* En escritorio, los recursos van en una sola fila con scroll horizontal. */
+      @media (min-width: 761px) {
+        .resource-strip {
+          display: flex;
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          overflow-y: hidden;
+          -webkit-overflow-scrolling: touch;
+          padding-bottom: 4px;
+        }
+        .resource-strip > button {
+          flex: 0 0 auto;
+          min-width: 132px;
+        }
+        .player-bank {
+          grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+        }
+        .player-bank > button {
+          min-width: 0;
+        }
+      }
+      /* Plantilla: en modo ordenador queremos ver todos (grid multi-fila, sin scroll lateral). */
+      body.ui-desktop .player-bank {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+        overflow: visible;
+      }
+      body.ui-desktop .player-bank > button {
+        min-width: 0;
+      }
+      /* Plantilla: en modo iPad preferimos fila con scroll horizontal (menos alto). */
+      body.ui-tablet .player-bank {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 4px;
+      }
+      body.ui-tablet .player-bank > button {
+        flex: 0 0 auto;
+        min-width: 132px;
+      }
+      .player-bank-tools {
+        display: inline-flex;
+        gap: 0.45rem;
+        align-items: center;
+        justify-content: flex-end;
+        margin-left: auto;
+      }
+      .chip-toggle {
+        display: inline-flex;
+        gap: 0.4rem;
+        align-items: center;
+        padding: 0.4rem 0.65rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.04);
+        color: rgba(226,232,240,0.85);
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        user-select: none;
+      }
+	      .chip-toggle input {
+	        width: 18px;
+	        height: 18px;
+	        margin: 0;
+	        accent-color: var(--accent, #22d3ee);
+	      }
+	      .chip-toggle .drill-icon {
+	        width: 18px;
+	        height: 18px;
+	        object-fit: contain;
+	        display: block;
+	        background: rgba(255,255,255,0.92);
+	        border-radius: 6px;
+	        padding: 2px;
+	      }
+	      .chip-toggle .drill-add-to-board {
+	        appearance: none;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(255,255,255,0.06);
+	        color: rgba(248,250,252,0.88);
+	        width: 22px;
+	        height: 22px;
+	        border-radius: 999px;
+	        font-weight: 900;
+	        line-height: 1;
+	        display: inline-grid;
+	        place-items: center;
+	        cursor: pointer;
+	      }
+	      .chip-toggle .drill-add-to-board:hover {
+	        border-color: rgba(244,180,0,0.30);
+	        background: rgba(244,180,0,0.14);
+	        color: rgba(248,250,252,0.96);
+	      }
+	      .drills-picker {
+	        display: flex;
+	        flex-wrap: wrap;
+	        gap: 0.5rem;
+	      }
+      .library-grid {
+        grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+      }
+      .library-grid button {
+        flex-direction: column;
+        justify-content: center;
+        text-align: center;
+        padding: 0.6rem 0.5rem;
+        gap: 0.35rem;
+      }
+      .library-emoji {
+        font-size: 20px;
+        line-height: 1;
+        opacity: 0.92;
+      }
+      .tool-group-title {
+        margin: 0 0 0.55rem;
+        font-size: 0.73rem;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+        color: #cbd5e1;
+      }
+      .stack {
+        display: grid;
+        gap: 0.85rem;
+      }
+      .side-tabs {
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.65rem;
+      }
+      .side-tab-more {
+        position: relative;
+      }
+      .side-tab-more summary.side-tab {
+        list-style: none;
+      }
+      .side-tab-more summary.side-tab::-webkit-details-marker { display: none; }
+      .side-more-menu {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        z-index: 200;
+        width: min(320px, 86vw);
+        padding: 0.65rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(8, 18, 30, 0.96);
+        box-shadow: 0 26px 56px rgba(2, 6, 23, 0.48);
+        display: grid;
+        gap: 0.45rem;
+      }
+      .side-more-menu .side-tab {
+        width: 100%;
+        text-align: left;
+      }
+      .side-tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.42rem;
+        border-radius: 999px;
+        padding: 0.44rem 0.75rem;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.04);
+        color: rgba(226,232,240,0.86);
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .side-tab .tab-emoji {
+        font-size: 0.98rem;
+        line-height: 1;
+        filter: saturate(1.05);
+      }
+      body.is-compact #task-side-tabs > .side-tab .tab-label {
+        display: none;
+      }
+      body.is-compact #task-side-tabs > .side-tab {
+        padding-left: 0.58rem;
+        padding-right: 0.58rem;
+      }
+	      .side-tab.is-active {
+	        background: rgba(34,211,238,0.16);
+	        border-color: rgba(34,211,238,0.4);
+	        color: rgba(224, 242, 254, 0.95);
+	      }
+      .side-pane {
+        display: none;
+      }
+      .side-pane.is-active {
+        display: block;
+      }
+      .export-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.55rem;
+        margin-top: 0.75rem;
+      }
+      body.tactics-mode #task-playbook-open-sim,
+      body.tactics-mode #task-playbook-open-3d,
+      body.tactics-mode #task-playbook-open-video,
+      body.tactics-mode #task-playbook-export-pack {
+        position: relative;
+        z-index: 2005;
+        pointer-events: auto;
+      }
+      body.tactics-mode #task-playbook-pane,
+      body.tactics-mode #task-playbook-dock,
+      body.tactics-mode #task-playbook-clips-host,
+      body.tactics-mode #task-sim-clips,
+      body.tactics-mode #task-sim-clips .sim-step,
+      body.tactics-mode #task-sim-clips button {
+        position: relative;
+        z-index: 2006;
+        pointer-events: auto;
+      }
+      .export-note {
+        margin-top: 0.75rem;
+        font-size: 0.86rem;
+        color: rgba(226,232,240,0.72);
+      }
+      .assigned-summary {
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 14px;
+        padding: 0.75rem 0.85rem;
+        background: rgba(255,255,255,0.03);
+        color: rgba(226,232,240,0.8);
+        font-size: 0.86rem;
+        line-height: 1.45;
+      }
+      label {
+        display: grid;
+        gap: 0.34rem;
+        font-size: 0.74rem;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.84);
+      }
+      input,
+      select,
+      textarea {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--ink);
+        padding: 0.72rem 0.82rem;
+        font: inherit;
+      }
+      textarea {
+        min-height: 92px;
+        resize: vertical;
+      }
+      .rich-editor {
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.05);
+        overflow: hidden;
+        text-transform: none;
+        letter-spacing: normal;
+        color: var(--ink);
+      }
+      .rich-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 8px 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(2, 6, 23, 0.42);
+      }
+      .rich-toolbar button {
+        border-radius: 10px;
+        padding: 6px 10px;
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.02em;
+        text-transform: none;
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .rich-toolbar button:hover {
+        background: rgba(255, 255, 255, 0.07);
+      }
+	      .rich-area {
+	        min-height: 120px;
+	        padding: 0.72rem 0.82rem;
+	        outline: none;
+	        font-size: 0.92rem;
+	        letter-spacing: 0.02em;
+	        text-transform: none;
+	        text-align: left !important;
+	        display: block !important;
+        justify-content: flex-start !important;
+        align-items: stretch !important;
+        align-content: flex-start !important;
+        direction: ltr;
+        white-space: pre-wrap;
+	        line-height: 1.55;
+	      }
+	      .rich-area * {
+	        text-align: left !important;
+	        /* Evita que el contenido quede "centrado" por wrappers (flex/align) dentro del HTML pegado. */
+	        justify-content: flex-start !important;
+	        align-items: flex-start !important;
+	        align-content: flex-start !important;
+	        margin-left: 0 !important;
+	        margin-right: 0 !important;
+	      }
+	      .rich-area p,
+	      .rich-area div,
+	      .rich-area span,
+	      .rich-area section,
+	      .rich-area article {
+	        text-align: left !important;
+	      }
+      .rich-area ul,
+      .rich-area ol {
+        margin: 0;
+        padding-left: 18px;
+      }
+      .rich-area p {
+        margin: 0 0 8px;
+      }
+      .compact-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+      }
+      .section {
+        padding: 0.9rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: var(--panel-soft);
+      }
+      /* Tácticas: el panel fijo de recursos debe ser opaco para no “tapar”/mezclarse con el campo. */
+      body.tactics-mode .pitch-side.section {
+        background: rgba(8, 18, 30, 0.96);
+        border-color: rgba(255, 255, 255, 0.14);
+        backdrop-filter: blur(12px);
+      }
+      .section h3 {
+        margin: 0 0 0.7rem;
+        font-size: 0.75rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .assign-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
+        gap: 0.45rem;
+      }
+      .assign-chip {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.55rem 0.65rem;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.04);
+        font-size: 0.8rem;
+      }
+      .assign-chip input {
+        width: auto;
+        margin: 0;
+      }
+      .preview-card {
+        display: grid;
+        gap: 0.55rem;
+      }
+      .preview-card img {
+        width: 100%;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.04);
+      }

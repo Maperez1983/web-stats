@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <radialGradient id="s" cx="0.34" cy="0.26" r="0.76">
+      <stop offset="0" stop-color="#fffbeb" stop-opacity=".98"/>
+      <stop offset=".58" stop-color="#fde68a"/>
+      <stop offset="1" stop-color="#f59e0b"/>
+    </radialGradient>
+    <linearGradient id="g" x1="12" y1="12" x2="114" y2="112">
+      <stop offset="0" stop-color="#fff7ed"/>
+      <stop offset="1" stop-color="#92400e"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="68" cy="78" rx="32" ry="25" fill="#451a03" fill-opacity=".24"/>
+  <circle cx="64" cy="58" r="35" fill="url(#s)" stroke="#7c2d12" stroke-width="3"/>
+  <path d="M64 35 77 44l-4 15H55l-4-15 13-9Z" fill="#7c2d12"/>
+  <path d="M50 48 40 62l10 11 6-10-6-15Z" fill="#b45309"/>
+  <path d="M78 48 72 63l6 10 10-11-10-14Z" fill="#b45309"/>
+  <path d="M52 85 64 93l12-8-7-12H59l-7 12Z" fill="#fbbf24"/>
+  <path d="M64 35 77 44l-4 15H55l-4-15 13-9Z" fill="none" stroke="url(#g)" stroke-width="2" opacity=".8"/>
+  <circle cx="64" cy="58" r="35" fill="none" stroke="#ffffff" stroke-opacity=".35" stroke-width="2"/>
+</svg>

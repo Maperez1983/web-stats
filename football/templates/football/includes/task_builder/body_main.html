@@ -1,0 +1,24 @@
+{% include 'football/includes/task_builder/canvas_viewport.html' %}
+{% if editor_lab_compact %}
+<div class="editor-lab-field-dock" aria-label="Controles rápidos del editor">
+  <div class="editor-lab-field-dock-group" aria-label="Formatos de campo">
+    <button type="button" class="button" onclick="try{document.querySelector('#surface-menu [data-preset=&quot;full_pitch&quot;]')?.click();}catch(e){};return false;">Fútbol 11</button>
+    <button type="button" class="button" onclick="try{document.querySelector('#surface-menu [data-preset=&quot;seven_side_single&quot;]')?.click();}catch(e){};return false;">Fútbol 7</button>
+    <button type="button" class="button" onclick="try{document.querySelector('#surface-menu [data-preset=&quot;futsal&quot;]')?.click();}catch(e){};return false;">Fútbol sala</button>
+  </div>
+  <div class="editor-lab-field-dock-group" aria-label="Vista del campo">
+    <button type="button" class="button" onclick="try{document.querySelector('#surface-menu [data-preset=&quot;full_pitch&quot;]')?.click();}catch(e){};return false;">Campo completo</button>
+    <button type="button" class="button" onclick="try{document.querySelector('#surface-menu [data-preset=&quot;half_pitch&quot;]')?.click();}catch(e){};return false;">Media cancha</button>
+    <button type="button" class="button" onclick="try{document.querySelector('#surface-menu [data-preset=&quot;attacking_third&quot;]')?.click();}catch(e){};return false;">Tres cuartos</button>
+    <button type="button" class="button" title="Cambiar orientación del campo" aria-label="Cambiar orientación del campo" onclick="try{document.getElementById('pitch-orientation-toggle-quick')?.click();}catch(e){};return false;">Orientación</button>
+  </div>
+  <div class="editor-lab-field-dock-group editor-lab-field-dock-group-actions" aria-label="Acciones rápidas">
+    <button type="button" class="button" onclick="try{document.querySelector('#task-command-bar [data-action=&quot;undo&quot;]')?.click();}catch(e){};return false;">Deshacer</button>
+    <button type="button" class="button" onclick="try{document.querySelector('#task-command-bar [data-action=&quot;redo&quot;]')?.click();}catch(e){};return false;">Rehacer</button>
+    <button type="button" class="button" onclick="try{document.getElementById('task-focus-toggle')?.click();}catch(e){};return false;">Presentación</button>
+    <button type="button" class="button primary" onclick="try{document.getElementById('task-builder-save-top')?.click();}catch(e){};return false;">Guardar</button>
+  </div>
+</div>
+{% endif %}
+{% include 'football/includes/task_builder/focus_exit.html' %}
+{% include 'football/includes/task_builder/sidebar.html' %}

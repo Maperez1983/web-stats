@@ -1,8 +1,10 @@
 import base64
+import copy
 import json
 import mimetypes
 import os
 import re
+import uuid
 from pathlib import Path
 
 from django.contrib.auth.decorators import login_required
@@ -10,17 +12,22 @@ from django.core.files.base import ContentFile
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseNotAllowed, JsonResponse
 from django.shortcuts import render
 from django.urls import reverse
+from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from football.context_processors import _static_build_id
 
 from . import permissions
-from .models import SessionTask, SessionTaskExportJob
+from .models import SessionTask, SessionTaskBackup, SessionTaskExportJob
 from .session_task_editor_services import (
     _ensure_original_task_snapshot,
     _forbid_if_workspace_module_disabled,
     _get_primary_team_for_request,
+    _is_local_editor_lab_request,
+    _local_editor_lab_context,
     _task_builder_initial_values,
 )
+from .task_backups import write_task_backup
 
 try:
     import requests
@@ -132,10 +139,153 @@ def _editor_document_payload(request, task):
         },
         "urls": {
             "graphic_save": reverse("session-task-graphic-save", args=[int(task.id)]),
+            "save_as": reverse("session-task-editor-save-as-api", args=[int(task.id)]),
+            "duplicate": reverse("session-task-editor-save-as-api", args=[int(task.id)]),
+            "rename": reverse("session-task-editor-rename-api", args=[int(task.id)]),
+            "delete": reverse("session-task-editor-delete-api", args=[int(task.id)]),
+            "versions": reverse("session-task-editor-versions-api", args=[int(task.id)]),
+            "restore_version": reverse("session-task-editor-restore-version-api", args=[int(task.id)]),
             "export_jobs_api": reverse("session-task-export-jobs-api", args=[int(task.id)]),
             "detail": reverse("session-task-detail", args=[int(task.id)]),
             "ai_preview": ai_preview_url,
         },
+    }
+
+
+def _decode_canvas_preview_data(raw_preview: str):
+    text = str(raw_preview or "").strip()
+    if not text:
+        return b"", ""
+    match = re.match(r"^data:(image/[a-z0-9.+-]+);base64,(.+)$", text, flags=re.I | re.S)
+    if not match:
+        return b"", ""
+    mime = str(match.group(1) or "image/png").strip().lower()
+    encoded = str(match.group(2) or "").strip()
+    if not encoded:
+        return b"", ""
+    try:
+        raw_bytes = base64.b64decode(encoded.encode("ascii"), validate=False)
+    except Exception:
+        return b"", ""
+    extension = {
+        "image/png": ".png",
+        "image/jpeg": ".jpg",
+        "image/jpg": ".jpg",
+        "image/webp": ".webp",
+    }.get(mime, ".png")
+    return raw_bytes, extension
+
+
+def _apply_graphic_payload_to_task(task, payload, *, keep_preview=True):
+    if not task or not isinstance(payload, dict):
+        return []
+    canvas_state = payload.get("canvas_state")
+    if not isinstance(canvas_state, dict):
+        canvas_state = {}
+    canvas_width = int(payload.get("canvas_width") or 0)
+    canvas_height = int(payload.get("canvas_height") or 0)
+    preview_data = str(payload.get("preview_data") or "").strip()
+    layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+    layout = dict(layout)
+    meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
+    meta = dict(meta)
+    graphic_editor = meta.get("graphic_editor") if isinstance(meta.get("graphic_editor"), dict) else {}
+    graphic_editor = dict(graphic_editor)
+    graphic_editor.update(
+        {
+            "canvas_state": canvas_state,
+            "canvas_width": canvas_width if canvas_width and canvas_width > 0 else None,
+            "canvas_height": canvas_height if canvas_height and canvas_height > 0 else None,
+            "updated_at": timezone.now().isoformat(),
+        }
+    )
+    meta["graphic_editor"] = graphic_editor
+    layout["meta"] = meta
+    task.tactical_layout = layout
+    update_fields = ["tactical_layout"]
+
+    if keep_preview and preview_data:
+        raw_bytes, extension = _decode_canvas_preview_data(preview_data)
+        if raw_bytes and extension:
+            filename = f"task-{int(task.id)}-graphic-{uuid.uuid4().hex[:10]}{extension}"
+            task.task_preview_image.save(filename, ContentFile(raw_bytes), save=False)
+            update_fields.append("task_preview_image")
+            try:
+                embedded = f'data:image/{extension.lstrip(".")};base64,{base64.b64encode(raw_bytes).decode("ascii")}'
+                if embedded:
+                    meta["preview_data_embedded_v1"] = embedded
+                    layout["meta"] = meta
+                    task.tactical_layout = layout
+                    if "tactical_layout" not in update_fields:
+                        update_fields.append("tactical_layout")
+            except Exception:
+                pass
+
+    task.save(update_fields=update_fields)
+    return update_fields
+
+
+def _clone_task_for_save_as(source_task, *, title: str = "", payload=None, actor_username: str = ""):
+    cloned = SessionTask.objects.create(
+        session=source_task.session,
+        title=str(title or "").strip()[:160] or f"{str(source_task.title or 'Tarea').strip() or 'Tarea'} (copia)",
+        block=source_task.block,
+        duration_minutes=source_task.duration_minutes,
+        objective=source_task.objective,
+        coaching_points=source_task.coaching_points,
+        confrontation_rules=source_task.confrontation_rules,
+        notes=source_task.notes,
+        status=SessionTask.STATUS_PLANNED,
+        order=0,
+        tactical_layout=(
+            copy.deepcopy(source_task.tactical_layout) if isinstance(source_task.tactical_layout, dict) else {}
+        ),
+        task_pdf=source_task.task_pdf.name if source_task.task_pdf else None,
+        task_preview_image=source_task.task_preview_image.name if source_task.task_preview_image else None,
+    )
+    try:
+        layout = cloned.tactical_layout if isinstance(cloned.tactical_layout, dict) else {}
+        layout = copy.deepcopy(layout) if isinstance(layout, dict) else {}
+        meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
+        meta = dict(meta) if isinstance(meta, dict) else {}
+        meta.pop("original_version", None)
+        layout["meta"] = meta
+        cloned.tactical_layout = layout
+        update_fields = ["tactical_layout"]
+        if payload:
+            update_fields = list(_apply_graphic_payload_to_task(cloned, payload))
+        else:
+            cloned.save(update_fields=update_fields)
+    except Exception:
+        cloned.save()
+    try:
+        write_task_backup(cloned, kind="session_task", reason="save_as", actor_username=actor_username)
+    except Exception:
+        pass
+    return cloned
+
+
+def _serialize_task_version_backup(backup):
+    payload = getattr(backup, "payload", None) if backup else None
+    task_data = payload.get("task") if isinstance(payload, dict) else {}
+    if not isinstance(task_data, dict):
+        task_data = {}
+    layout = task_data.get("tactical_layout") if isinstance(task_data.get("tactical_layout"), dict) else {}
+    graphic = layout.get("meta", {}).get("graphic_editor", {}) if isinstance(layout.get("meta"), dict) else {}
+    canvas_state = graphic.get("canvas_state") if isinstance(graphic.get("canvas_state"), dict) else {}
+    return {
+        "id": int(getattr(backup, "id", 0) or 0),
+        "captured_at": str(getattr(backup, "created_at", "") or ""),
+        "reason": str(getattr(backup, "reason", "") or ""),
+        "actor": str(getattr(backup, "actor_username", "") or ""),
+        "kind": str(getattr(backup, "kind", "") or ""),
+        "title": str(task_data.get("title") or ""),
+        "block": str(task_data.get("block") or ""),
+        "duration_minutes": int(task_data.get("duration_minutes") or 0),
+        "objects_count": len(canvas_state.get("objects") or []) if isinstance(canvas_state.get("objects"), list) else 0,
+        "timeline_count": (
+            len(canvas_state.get("timeline") or []) if isinstance(canvas_state.get("timeline"), list) else 0
+        ),
     }
 
 
@@ -200,8 +350,33 @@ def session_task_editor_pro_page(request, task_id):
         "editor_document_api_url": reverse("session-task-editor-document-api", args=[int(task.id)]),
         "document_payload_json": json.dumps(payload, ensure_ascii=False),
         "static_build_id": static_build_id,
+        **_local_editor_lab_context(request, task, current_mode="konva"),
     }
     return render(request, "football/session_task_editor_pro.html", context)
+
+
+@login_required
+def session_task_editor_lab_compare_page(request, task_id):
+    if request.method != "GET":
+        return HttpResponseNotAllowed(["GET"])
+    if not _is_local_editor_lab_request(request):
+        return HttpResponse("No disponible.", status=404)
+    task, forbidden = _editor_task_or_404(request, task_id)
+    if forbidden:
+        return forbidden
+    task_payload = _editor_document_payload(request, task)
+    task_id_int = int(task.id)
+    context = {
+        "task": task,
+        "static_build_id": str(_static_build_id() or "").strip(),
+        "production_url": f"{reverse('sessions-task-edit', args=[task_id_int])}?editor_lab=production&editor_lab_compare=1&editor_lab_compare_side=production",
+        "konva_url": f"{reverse('session-task-editor-pro', args=[task_id_int])}?editor_lab=konva&editor_lab_compare=1&editor_lab_compare_side=konva",
+        "detail_url": reverse("session-task-detail", args=[task_id_int]),
+        "builder_url": reverse("sessions-task-edit", args=[task_id_int]),
+        "document_payload_json": json.dumps(task_payload, ensure_ascii=False),
+        **_local_editor_lab_context(request, task, current_mode="comparison"),
+    }
+    return render(request, "football/session_task_editor_lab_compare.html", context)
 
 
 @login_required
@@ -294,6 +469,184 @@ def session_task_export_jobs_api(request, task_id):
         },
         status=201,
     )
+
+
+@login_required
+@require_POST
+def session_task_editor_save_as_api(request, task_id):
+    task, forbidden = _editor_task_or_404(request, task_id)
+    if forbidden:
+        return forbidden
+    try:
+        payload = json.loads((request.body or b"{}").decode("utf-8") or "{}")
+    except Exception:
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    raw_title = str(payload.get("title") or "").strip()
+    cloned = _clone_task_for_save_as(
+        task,
+        title=raw_title,
+        payload=payload,
+        actor_username=(request.user.get_username() if request.user.is_authenticated else ""),
+    )
+    return JsonResponse(
+        {
+            "ok": True,
+            "task": {
+                "id": int(cloned.id),
+                "title": str(cloned.title or ""),
+            },
+            "detail_url": reverse("session-task-detail", args=[int(cloned.id)]),
+            "editor_url": reverse("session-task-editor-pro", args=[int(cloned.id)]),
+        }
+    )
+
+
+@login_required
+@require_POST
+def session_task_editor_rename_api(request, task_id):
+    task, forbidden = _editor_task_or_404(request, task_id)
+    if forbidden:
+        return forbidden
+    try:
+        payload = json.loads((request.body or b"{}").decode("utf-8") or "{}")
+    except Exception:
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    title = str(payload.get("title") or "").strip()
+    if not title:
+        return JsonResponse({"ok": False, "error": "Título requerido."}, status=400)
+    task.title = title[:160]
+    task.save(update_fields=["title"])
+    try:
+        write_task_backup(
+            task,
+            kind="session_task",
+            reason="rename",
+            actor_username=(request.user.get_username() if request.user.is_authenticated else ""),
+        )
+    except Exception:
+        pass
+    return JsonResponse(
+        {
+            "ok": True,
+            "task": {
+                "id": int(task.id),
+                "title": str(task.title or ""),
+            },
+            "document": _editor_document_payload(request, task),
+        }
+    )
+
+
+@login_required
+@require_POST
+def session_task_editor_delete_api(request, task_id):
+    task, forbidden = _editor_task_or_404(request, task_id)
+    if forbidden:
+        return forbidden
+    task.deleted_at = timezone.now()
+    if hasattr(task, "deleted_by"):
+        task.deleted_by = request.user if request.user.is_authenticated else None
+    update_fields = ["deleted_at"]
+    if hasattr(task, "deleted_by"):
+        update_fields.append("deleted_by")
+    task.save(update_fields=update_fields)
+    try:
+        write_task_backup(
+            task,
+            kind="session_task",
+            reason="delete",
+            actor_username=(request.user.get_username() if request.user.is_authenticated else ""),
+        )
+    except Exception:
+        pass
+    return JsonResponse({"ok": True, "redirect_url": reverse("sessions")})
+
+
+@login_required
+def session_task_editor_versions_api(request, task_id):
+    if request.method != "GET":
+        return HttpResponseNotAllowed(["GET"])
+    task, forbidden = _editor_task_or_404(request, task_id)
+    if forbidden:
+        return forbidden
+    team = getattr(getattr(getattr(task, "session", None), "microcycle", None), "team", None)
+    backups = (
+        SessionTaskBackup.objects.filter(team=team, task_id=int(task.id)).order_by("-created_at", "-id")[:20]
+        if team
+        else []
+    )
+    return JsonResponse({"ok": True, "versions": [_serialize_task_version_backup(backup) for backup in backups]})
+
+
+@login_required
+@require_POST
+def session_task_editor_restore_version_api(request, task_id):
+    task, forbidden = _editor_task_or_404(request, task_id)
+    if forbidden:
+        return forbidden
+    try:
+        payload = json.loads((request.body or b"{}").decode("utf-8") or "{}")
+    except Exception:
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    backup_id = int(payload.get("backup_id") or 0)
+    if backup_id <= 0:
+        return JsonResponse({"ok": False, "error": "backup_id requerido."}, status=400)
+    team = getattr(getattr(getattr(task, "session", None), "microcycle", None), "team", None)
+    backup = SessionTaskBackup.objects.filter(id=backup_id, task_id=int(task.id), team=team).first() if team else None
+    if not backup or not isinstance(getattr(backup, "payload", None), dict):
+        return JsonResponse({"ok": False, "error": "Versión no encontrada."}, status=404)
+    task_data = backup.payload.get("task") if isinstance(backup.payload, dict) else {}
+    if not isinstance(task_data, dict):
+        return JsonResponse({"ok": False, "error": "Versión no válida."}, status=400)
+
+    task.title = str(task_data.get("title") or task.title or "")[:160]
+    task.block = str(task_data.get("block") or task.block or "")[:30] or task.block
+    task.duration_minutes = max(1, min(240, int(task_data.get("duration_minutes") or task.duration_minutes or 15)))
+    task.objective = str(task_data.get("objective") or "")
+    task.coaching_points = str(task_data.get("coaching_points") or "")
+    task.confrontation_rules = str(task_data.get("confrontation_rules") or "")
+    task.notes = str(task_data.get("notes") or "")
+    task.tactical_layout = (
+        copy.deepcopy(task_data.get("tactical_layout")) if isinstance(task_data.get("tactical_layout"), dict) else {}
+    )
+    update_fields = [
+        "title",
+        "block",
+        "duration_minutes",
+        "objective",
+        "coaching_points",
+        "confrontation_rules",
+        "notes",
+        "tactical_layout",
+    ]
+    try:
+        pdf_name = str(task_data.get("task_pdf") or "").strip()
+        if pdf_name:
+            task.task_pdf.name = pdf_name
+            update_fields.append("task_pdf")
+        img_name = str(task_data.get("task_preview_image") or "").strip()
+        if img_name:
+            task.task_preview_image.name = img_name
+            update_fields.append("task_preview_image")
+    except Exception:
+        pass
+    task.save(update_fields=sorted(set(update_fields)))
+    try:
+        write_task_backup(
+            task,
+            kind="session_task",
+            reason="restore_version",
+            actor_username=(request.user.get_username() if request.user.is_authenticated else ""),
+        )
+    except Exception:
+        pass
+    return JsonResponse({"ok": True, "document": _editor_document_payload(request, task)})
 
 
 @login_required
