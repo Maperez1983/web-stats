@@ -18582,15 +18582,30 @@ def coach_overview_page(request):
     coach_trial_count = 0
     coach_injured_count = 0
     coach_squad_reinforcement_rows = []
+    roster_players = []
+    try:
+        roster_players = list(_operational_roster_players_for_team(request, primary_team, confirmed_only=False)) if primary_team else []
+    except Exception:
+        roster_players = []
+    if not roster_players and primary_team:
+        try:
+            roster_players = list(Player.objects.filter(team=primary_team, is_active=True).order_by("number", "name", "id"))
+        except Exception:
+            roster_players = []
+    coach_player_cards = []
     try:
         coach_player_cards = compute_player_cards(primary_team, request=request) if primary_team else []
     except Exception:
         coach_player_cards = []
     coach_player_ids = []
+    cards_by_player_id = {}
     for card in coach_player_cards:
-        pid = _parse_int(card.get("id"))
+        pid = _parse_int(card.get("player_id") or card.get("id"))
         if pid:
+            cards_by_player_id[pid] = card
             coach_player_ids.append(pid)
+    if not coach_player_ids:
+        coach_player_ids = [int(getattr(player, "id", 0) or 0) for player in roster_players if getattr(player, "id", None)]
     try:
         active_injury_ids = set(get_active_injury_player_ids(coach_player_ids))
     except Exception:
@@ -18639,11 +18654,12 @@ def coach_overview_page(request):
         ],
     }
     pitch_counts = {item["key"]: 0 for item in pitch_targets}
-    for card in coach_player_cards:
-        pid = _parse_int(card.get("id"))
+    for player in roster_players:
+        pid = _parse_int(getattr(player, "id", None))
         if not pid:
             continue
-        bucket = _coach_pitch_bucket(card.get("position") or "")
+        card = cards_by_player_id.get(pid, {})
+        bucket = _coach_pitch_bucket(getattr(player, "position", "") or card.get("position") or "")
         bucket_index = pitch_counts.get(bucket, 0)
         pitch_counts[bucket] = bucket_index + 1
         slot_pool = pitch_slots.get(bucket) or pitch_slots["midfield"]
@@ -18651,22 +18667,35 @@ def coach_overview_page(request):
         row = bucket_index // len(slot_pool)
         left = max(5, min(90, slot["left"] + (row * 4 if bucket != "goalkeeper" else 0)))
         top = max(6, min(88, slot["top"] + (row * 6 if bucket != "goalkeeper" else 0)))
+        confirmed_value = bool(
+            getattr(player, "season_confirmed", False)
+            if hasattr(player, "season_confirmed")
+            else card.get("season_confirmed", True)
+        )
         if pid in active_injury_ids:
             state_tone = "injured"
             state_label = "Lesionado"
-        elif not bool(card.get("season_confirmed")):
+        elif not confirmed_value:
             state_tone = "trial"
             state_label = "A prueba"
         else:
             state_tone = "available"
             state_label = "Disponible"
+        player_name = str(getattr(player, "name", "") or getattr(player, "full_name", "") or "").strip()
+        if not player_name:
+            player_name = str(card.get("name") or card.get("label") or f"Jugador {pid}").strip()
         coach_pitch_players.append(
             {
                 **card,
+                "id": pid,
                 "card_key": f"player-{pid}",
                 "bucket": bucket,
                 "left": left,
                 "top": top,
+                "name": player_name,
+                "number": getattr(player, "number", None) or card.get("number"),
+                "position": str(getattr(player, "position", "") or card.get("position") or "").strip(),
+                "photo_url": resolve_player_photo_url(request, player) if player else str(card.get("photo_url") or ""),
                 "accent": {
                     "goalkeeper": "keeper",
                     "defense": "defense",
@@ -18781,6 +18810,7 @@ def coach_overview_page(request):
             "coach_trial_count": coach_trial_count,
             "coach_injured_count": coach_injured_count,
             "coach_squad_reinforcement_rows": coach_squad_reinforcement_rows,
+            "coach_pitch_has_players": bool(coach_pitch_players),
         },
     )
 

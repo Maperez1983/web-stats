@@ -410,9 +410,10 @@
       }
       .squad-layout {
         display: grid;
-        grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.8fr);
+        grid-template-columns: 1fr;
         gap: 1rem;
         margin-top: 1rem;
+        align-items: start;
       }
       .squad-panel {
         border-radius: 22px;
@@ -467,9 +468,10 @@
           linear-gradient(90deg, rgba(255,255,255,0.03) 0 12.5%, transparent 12.5% 25%, rgba(255,255,255,0.03) 25% 37.5%, transparent 37.5% 50%, rgba(255,255,255,0.03) 50% 62.5%, transparent 62.5% 75%, rgba(255,255,255,0.03) 75% 87.5%, rgba(255,255,255,0.03) 87.5% 100%),
           linear-gradient(180deg, #102516 0%, #0b1b12 100%);
         position: relative;
-        overflow: visible;
+        overflow: hidden;
         aspect-ratio: 16 / 10;
-        min-height: 620px;
+        min-height: 580px;
+        width: 100%;
       }
       .squad-pitch::after {
         content: "";
@@ -489,8 +491,8 @@
       }
       .squad-pitch-player {
         position: absolute;
-        width: 12.2%;
-        min-width: 92px;
+        width: 11.2%;
+        min-width: 84px;
         transform: translate(-50%, -50%);
         z-index: 2;
         display: grid;
@@ -550,7 +552,9 @@
       .squad-pitch-player .status.is-injured { color: #fecaca; }
       .squad-side {
         display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
         gap: 0.85rem;
+        width: 100%;
       }
       .squad-side-card {
         border-radius: 18px;
@@ -616,6 +620,9 @@
       .secondary-grid .card {
         overflow-x: auto;
       }
+      .squad-block {
+        margin-top: 1rem;
+      }
       @media (max-width: 1120px) {
         .primary-grid,
         .secondary-grid {
@@ -652,7 +659,7 @@
           grid-template-columns: 1fr;
         }
         .squad-pitch {
-          min-height: 420px;
+          min-height: 380px;
         }
         .squad-metrics {
           grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -772,7 +779,37 @@
           </div>
         </section>
 
-        <section class="squad-layout" aria-label="Configuración de plantilla">
+        <section class="secondary-grid">
+          <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;">
+              <h2 style="margin:0;">Clasificación</h2>
+              <a class="hero-badge-link" href="{% url 'coach-rivals' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}" aria-label="Ver rivales completos">
+                <span class="hero-badge">Ver rivales</span>
+              </a>
+            </div>
+            {% if standings %}
+            <table class="standings-table">
+              <thead>
+                <tr><th>Pos</th><th>Equipo</th><th>Pts</th><th>PJ</th></tr>
+              </thead>
+              <tbody>
+                {% for row in standings %}
+                <tr class="{% if row.is_team %}is-team{% endif %}">
+                  <td>{{ row.rank|default:"-" }}</td>
+                  <td>{{ row.team|default:"-" }}</td>
+                  <td>{{ row.points|default:"-" }}</td>
+                  <td>{{ row.played|default:"-" }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            {% else %}
+            <p class="muted">No hay clasificación disponible.</p>
+            {% endif %}
+          </div>
+        </section>
+
+        <section class="squad-layout squad-block" aria-label="Configuración de plantilla">
           <article class="squad-panel">
             <h3>Configuración de plantilla</h3>
             <p class="panel-copy">Lectura visual de la plantilla activa sobre el campo. Los no confirmados salen como a prueba y las bajas médicas se marcan en rojo.</p>
@@ -845,36 +882,6 @@
               </a>
             </article>
           </aside>
-        </section>
-
-        <section class="secondary-grid">
-          <div class="card">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;">
-              <h2 style="margin:0;">Clasificación</h2>
-              <a class="hero-badge-link" href="{% url 'coach-rivals' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}" aria-label="Ver rivales completos">
-                <span class="hero-badge">Ver rivales</span>
-              </a>
-            </div>
-            {% if standings %}
-            <table class="standings-table">
-              <thead>
-                <tr><th>Pos</th><th>Equipo</th><th>Pts</th><th>PJ</th></tr>
-              </thead>
-              <tbody>
-                {% for row in standings %}
-                <tr class="{% if row.is_team %}is-team{% endif %}">
-                  <td>{{ row.rank|default:"-" }}</td>
-                  <td>{{ row.team|default:"-" }}</td>
-                  <td>{{ row.points|default:"-" }}</td>
-                  <td>{{ row.played|default:"-" }}</td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-            {% else %}
-            <p class="muted">No hay clasificación disponible.</p>
-            {% endif %}
-          </div>
         </section>
       </article>
     </div>
