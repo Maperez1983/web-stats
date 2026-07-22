@@ -1,0 +1,25 @@
+{% if local_editor_lab_enabled %}
+<nav class="editor-lab-switcher" aria-label="Selector editor local" data-testid="editor-lab-selector">
+  <div class="editor-lab-switcher-copy">
+    <strong>Laboratorio local</strong>
+    <span>Tarea #{{ local_editor_lab_task_id }}</span>
+  </div>
+  <div class="editor-lab-switcher-actions">
+    {% if local_editor_lab_mode == 'production' %}
+      <span class="button primary" aria-current="page" data-testid="editor-lab-production" aria-label="Editor producción activo" title="Editor producción activo">Editor producción</span>
+    {% else %}
+      <a class="button" href="{{ local_editor_lab_production_url }}" data-testid="editor-lab-production" aria-label="Abrir editor de producción" title="Abrir editor de producción">Editor producción</a>
+    {% endif %}
+    {% if local_editor_lab_mode == 'konva' %}
+      <span class="button primary" aria-current="page" data-testid="editor-lab-konva" aria-label="Editor 2D activo" title="Editor 2D activo">Editor 2D</span>
+    {% else %}
+      <a class="button" href="{{ local_editor_lab_konva_url }}" data-testid="editor-lab-konva" aria-label="Abrir editor 2D" title="Abrir editor 2D">Editor 2D</a>
+    {% endif %}
+    {% if local_editor_lab_mode == 'comparison' %}
+      <span class="button primary" aria-current="page" data-testid="editor-lab-compare" aria-label="Comparación activa" title="Comparación activa">Comparación</span>
+    {% else %}
+      <a class="button" href="{{ local_editor_lab_comparison_url }}" data-testid="editor-lab-compare" aria-label="Abrir comparación de editores" title="Abrir comparación de editores">Comparación</a>
+    {% endif %}
+  </div>
+</nav>
+{% endif %}

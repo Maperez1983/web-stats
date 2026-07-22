@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="shaft" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4fbff"/>
+      <stop offset="0.52" stop-color="#b7c8d8"/>
+      <stop offset="1" stop-color="#7d8c9d"/>
+    </linearGradient>
+    <linearGradient id="tip" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffcc4d"/>
+      <stop offset="1" stop-color="#ff7a00"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="6" stdDeviation="4" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+  <rect width="128" height="128" fill="none"/>
+  <g filter="url(#shadow)">
+    <rect x="58" y="22" width="12" height="66" rx="6" fill="url(#shaft)" stroke="#ffffff" stroke-width="2"/>
+    <path d="M40 96L64 24l24 72Z" fill="url(#tip)" stroke="#2f1e00" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M52 80h24" stroke="#fff0c8" stroke-width="5" stroke-linecap="round" opacity="0.95"/>
+    <circle cx="64" cy="26.5" r="4.6" fill="#ffffff" opacity="0.8"/>
+    <ellipse cx="64" cy="100" rx="21" ry="5" fill="#0b1020" opacity="0.18"/>
+  </g>
+</svg>

@@ -1,0 +1,88 @@
+{% load static %}
+      <div class="alert warn" id="task-builder-draft-alert" hidden style="display:flex; align-items:center; justify-content:center; gap:0.75rem; flex-wrap:wrap;">
+        <span id="task-builder-draft-text"></span>
+      </div>
+				      <form
+					        method="post"
+					        id="task-builder-form"
+				        data-tactics-mode="{% if tactics_mode %}1{% else %}0{% endif %}"
+				        data-scope-key="{{ scope_key }}"
+                {% if analysis_item_mode %}
+				        data-analysis-board-video-upload-url="{{ analysis_item_video_upload_url|default:'' }}"
+                {% endif %}
+				        data-fabric-src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
+				        data-pitch-25d-src="{% static 'football/js/pitch_surface_25d.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
+				        data-tpad-src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
+				        data-three-src="{% static 'vendor/three/build/three.module.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
+				        data-three-gltf-loader-src="{% static 'vendor/three/examples/jsm/loaders/GLTFLoader.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
+				        data-three-skeleton-utils-src="{% static 'vendor/three/examples/jsm/utils/SkeletonUtils.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
+				        data-pitch3d-stadium-model-src="{{ pitch3d_stadium_model_src|default:'' }}"
+				        data-pitch3d-grass-albedo-src="{{ pitch3d_grass_albedo_src|default:'' }}"
+				        data-pitch3d-grass-bump-src="{{ pitch3d_grass_bump_src|default:'' }}"
+				        data-pitch3d-grass-normal-src="{{ pitch3d_grass_normal_src|default:'' }}"
+				        data-pitch3d-grass-roughness-src="{{ pitch3d_grass_roughness_src|default:'' }}"
+				        data-pitch3d-concrete-albedo-src="{{ pitch3d_concrete_albedo_src|default:'' }}"
+				        data-pitch3d-benagalbon-crest-src="{{ pitch3d_benagalbon_crest_src|default:'' }}"
+				        data-pitch3d-goal-model-src="{{ pitch3d_goal_model_src|default:'' }}"
+				        data-pitch3d-stadium-top-h-src="{{ pitch3d_stadium_top_h_src|default:'' }}"
+				        data-pitch3d-stadium-top-v-src="{{ pitch3d_stadium_top_v_src|default:'' }}"
+				        data-pitch3d-stadium-overlay-h-src="{{ pitch3d_stadium_overlay_h_src|default:'' }}"
+				        data-pitch3d-stadium-overlay-v-src="{{ pitch3d_stadium_overlay_v_src|default:'' }}"
+				        data-pitch3d-player-model-src="{{ pitch3d_player_model_src|default:'' }}"
+				        data-stadium-primary-color="{{ stadium_palette.primary|default:'#047857' }}"
+				        data-stadium-secondary-color="{{ stadium_palette.secondary|default:'#f8fafc' }}"
+				        data-stadium-accent-color="{{ stadium_palette.accent|default:'#073b32' }}"
+					        data-task-id="{% if task %}{{ task.id }}{% endif %}"
+					        data-pdf-preview-url="{{ pdf_preview_url|default:'' }}"
+					        data-video-import-url="{{ video_import_url|default:'' }}"
+					        data-confirmed-players-api-url="{{ confirmed_players_api_url|default:'' }}"
+				        data-task-create-url="{% if scope_key == 'goalkeeper' %}{% url 'sessions-goalkeeper-task-create' %}{% elif scope_key == 'fitness' %}{% url 'sessions-fitness-task-create' %}{% else %}{% url 'sessions-task-create' %}{% endif %}"
+				        data-assistant-blueprints-url="{% url 'task-assistant-blueprints-api' %}"
+			        data-assistant-blueprints-save-url="{% url 'task-assistant-blueprint-save-api' %}"
+			        data-assistant-knowledge-url="{% url 'task-assistant-knowledge-api' %}"
+			        data-assistant-knowledge-upload-url="{% url 'task-assistant-knowledge-upload-api' %}"
+			        data-coach-dictionary-url="{% static 'football/data/coach_dictionary_es_v1.json' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
+			        data-keepalive-url="{% url 'session-keepalive' %}"
+			        data-save-success="{% if saved_task_info %}1{% else %}0{% endif %}"
+			        data-draft-key="webstats:tpad:draft:{{ scope_key }}:{% if task %}{{ task.id }}{% else %}new{% endif %}:{% firstof request.GET.workspace '' %}"
+		        data-draft-new-key="webstats:tpad:draft:{{ scope_key }}:new:{% firstof request.GET.workspace '' %}"
+		      >
+	        {% csrf_token %}
+	        <input type="hidden" id="task-sim-share-url" value="{% url 'share-task-simulation-create' %}" />
+	        <input type="hidden" id="task-playbook-list-url" value="{% url 'tactical-playbook-clips-api' %}" />
+	        <input type="hidden" id="task-playbook-save-url" value="{% url 'tactical-playbook-clip-save-api' %}" />
+	        <input type="hidden" id="task-playbook-save-task-url" value="{% url 'tactical-playbook-task-save-api' %}" />
+	        <input type="hidden" id="task-playbook-delete-url" value="{% url 'tactical-playbook-clip-delete-api' %}" />
+	        <input type="hidden" id="task-playbook-favorite-url" value="{% url 'tactical-playbook-clip-favorite-api' %}" />
+	        <input type="hidden" id="task-playbook-clone-url" value="{% url 'tactical-playbook-clip-clone-api' %}" />
+	        <input type="hidden" id="task-playbook-teams-url" value="{% url 'tactical-playbook-teams-api' %}" />
+	        <input type="hidden" id="task-playbook-versions-url" value="{% url 'tactical-playbook-versions-api' %}" />
+	        <input type="hidden" id="task-playbook-share-url" value="{% url 'share-tactical-playbook-clip-create' %}" />
+	        <input type="hidden" name="task_id" value="{{ task.id|default_if_none:'' }}" />
+	        <input type="hidden" name="task_submit_uid" id="task-submit-uid" value="{{ task_submit_uid|default:'' }}" />
+	        <input type="hidden" name="planner_action" value="create_draw_task" />
+	        <input type="hidden" name="draw_library_repository" value="{{ library_repository|default:'traditional' }}" />
+	        <input type="hidden" name="draw_canvas_state" id="draw-canvas-state" value="{{ initial.canvas_state|escape }}" />
+	        <input type="hidden" name="draw_canvas_width" id="draw-canvas-width" value="{{ initial.canvas_width }}" />
+	        <input type="hidden" name="draw_canvas_height" id="draw-canvas-height" value="{{ initial.canvas_height }}" />
+	        <input type="hidden" name="draw_canvas_preview_data" id="draw-canvas-preview-data" />
+	        <input type="hidden" name="draw_canvas_timeline_previews" id="draw-canvas-timeline-previews" />
+	        <input type="hidden" name="draw_task_pitch_orientation" id="draw-task-pitch-orientation" value="{{ initial.pitch_orientation|default:'landscape' }}" />
+	        <input type="hidden" name="draw_task_pitch_zoom" id="draw-task-pitch-zoom" value="{{ initial.pitch_zoom|default:'1.00' }}" />
+	        <input type="hidden" name="draw_task_pitch_grass_style" id="draw-task-pitch-grass-style" value="{{ initial.pitch_grass_style|default:'stadium_native' }}" />
+          <input type="hidden" name="draw_task_pitch_ad_preset" id="draw-task-pitch-ad-preset" value="{{ initial.pitch_ad_preset|default:'mixed' }}" />
+	        <div id="assigned-players-hidden" style="display:none;"></div>
+
+        {% if not tactics_mode %}
+        <div class="task-mode-tabs" id="task-mode-tabs" role="tablist" aria-label="Vista de edición">
+          <button type="button" class="is-active" data-task-mode="board" role="tab" aria-selected="true">Edición gráfica</button>
+          <button type="button" data-task-mode="config" role="tab" aria-selected="false">Configuración</button>
+          <button type="button" data-task-mode="methodology" role="tab" aria-selected="false">Metodología</button>
+          <button type="button" data-task-mode="load" role="tab" aria-selected="false">Carga</button>
+          <button type="button" data-task-mode="export" role="tab" aria-selected="false">Exportar</button>
+          <span class="hint">Diseña, configura, afina metodología, controla carga y exporta sin mezclarlo todo.</span>
+        </div>
+	        {% endif %}
+
+		          <div class="builder">
+		          {% include 'football/includes/task_builder/task_landing.html' %}

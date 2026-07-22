@@ -1,0 +1,130 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>{{ task.title }} · Comparación local</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <style>
+      body {
+        margin: 0;
+        background: #07111f;
+        color: #f8fafc;
+        font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", sans-serif);
+      }
+      .editor-lab-page {
+        min-height: 100vh;
+        padding: 0.9rem;
+        display: grid;
+        gap: 0.9rem;
+      }
+      .editor-lab-switcher {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.7rem 0.85rem;
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 18px;
+        background: rgba(4, 12, 24, 0.7);
+        box-shadow: 0 18px 42px rgba(2, 6, 23, 0.16);
+      }
+      .editor-lab-switcher-copy {
+        display: grid;
+        gap: 0.16rem;
+      }
+      .editor-lab-switcher-copy strong {
+        font-size: 0.78rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .editor-lab-switcher-copy span {
+        color: rgba(226, 232, 240, 0.76);
+        font-size: 0.78rem;
+      }
+      .editor-lab-switcher-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        justify-content: flex-end;
+      }
+      .editor-lab-switcher-actions .button[aria-current="page"] {
+        border-color: rgba(34, 211, 238, 0.42);
+        background: rgba(34, 211, 238, 0.16);
+        color: #f8fafc;
+      }
+      .editor-lab-warning {
+        padding: 0.7rem 0.85rem;
+        border: 1px solid rgba(250, 204, 21, 0.24);
+        border-radius: 16px;
+        background: rgba(120, 53, 15, 0.18);
+        color: #fef3c7;
+        font-size: 0.82rem;
+        line-height: 1.45;
+      }
+      .editor-lab-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 0.9rem;
+        min-height: 0;
+      }
+      .editor-lab-panel {
+        display: grid;
+        gap: 0.55rem;
+        min-width: 0;
+      }
+      .editor-lab-panel h2 {
+        margin: 0;
+        font-size: 0.82rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.82);
+      }
+      .editor-lab-panel iframe {
+        width: 100%;
+        min-height: calc(100vh - 180px);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 18px;
+        background: #07111f;
+      }
+      @media (max-width: 1200px) {
+        .editor-lab-grid {
+          grid-template-columns: 1fr;
+        }
+        .editor-lab-panel iframe {
+          min-height: 720px;
+        }
+      }
+      @media (max-width: 760px) {
+        .editor-lab-switcher {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .editor-lab-switcher-actions {
+          justify-content: stretch;
+        }
+        .editor-lab-switcher-actions .button,
+        .editor-lab-switcher-actions span.button {
+          flex: 1 1 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="editor-lab-page">
+      {% include 'football/includes/editor_lab_switcher.html' %}
+      <aside class="editor-lab-warning" data-testid="editor-lab-compare-warning">
+        Modo comparación: el panel Konva se abre en solo lectura para evitar sobrescrituras simultáneas.
+      </aside>
+      <section class="editor-lab-panel">
+        <h2>Editor producción</h2>
+        <iframe src="{{ production_url }}" title="Editor producción" data-testid="editor-lab-production-frame" data-task-id="{{ task.id }}"></iframe>
+      </section>
+      <section class="editor-lab-panel">
+        <h2>Editor 2D</h2>
+        <iframe src="{{ konva_url }}" title="Editor 2D" data-testid="editor-lab-konva-frame" data-task-id="{{ task.id }}"></iframe>
+      </section>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,749 @@
+      body.tactics-mode:not(.tactics-tools-open):not(.tactics-panel-open) .tactics-quickbar .tactics-chip {
+        display: none;
+      }
+      body.tactics-mode:not(.tactics-tools-open):not(.tactics-panel-open) .tactics-quickbar .tactics-mode-toggle,
+      body.tactics-mode:not(.tactics-tools-open):not(.tactics-panel-open) .tactics-quickbar #task-tactics-layout-toggle {
+        display: inline-flex;
+      }
+      body.tactics-mode:not(.tactics-tools-open):not(.tactics-panel-open) .tactics-quickbar #task-tactics-layout-toggle {
+        padding: 0.58rem 0.78rem;
+      }
+      body.tactics-mode .tactics-mode-toggle {
+        display: inline-flex;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.05);
+        border-radius: 999px;
+        overflow: hidden;
+      }
+      body.tactics-mode .tactics-mode-toggle button {
+        border: 0;
+        background: transparent;
+        color: rgba(226,232,240,0.9);
+        padding: 0.46rem 0.58rem;
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        cursor: pointer;
+      }
+      body.tactics-mode .tactics-mode-toggle button.is-active {
+        background: rgba(34, 211, 238, 0.14);
+        color: rgba(224, 242, 254, 0.98);
+      }
+      body.tactics-mode .tactics-quickbar [data-tactics-only="interactive"] {
+        display: none;
+      }
+      body.tactics-mode.tactics-interactive .tactics-quickbar [data-tactics-only="interactive"] {
+        display: inline-flex;
+      }
+      body.tactics-mode .tactics-quickbar [data-tactics-tool],
+      body.tactics-mode .tactics-quickbar #tactics-interactive-menu,
+      body.tactics-mode .tactics-quickbar #tactics-formation-menu,
+      body.tactics-mode .tactics-quickbar #tactics-export-png,
+      body.tactics-mode .tactics-quickbar #tactics-export-image-hq,
+      body.tactics-mode .tactics-quickbar #tactics-export-pdf {
+        display: none !important;
+      }
+      body.tactics-mode .tactics-quickbar #tactics-overlays-open,
+      body.tactics-mode .tactics-quickbar #tactics-zones-open,
+      body.tactics-mode .tactics-quickbar #tactics-tool-text,
+      body.tactics-mode .tactics-quickbar #tactics-export-image-hq,
+      body.tactics-mode .tactics-quickbar #task-tactics-layout-toggle {
+        display: inline-flex !important;
+      }
+      body.tactics-mode.tactics-interactive .tactics-quickbar #tactics-tool-route,
+      body.tactics-mode.tactics-interactive .tactics-quickbar #tactics-tool-route-play,
+      body.tactics-mode.tactics-interactive .tactics-quickbar #tactics-interactive-menu,
+      body.tactics-mode.tactics-interactive .tactics-quickbar #tactics-demo-build-up {
+        display: inline-flex !important;
+      }
+      body.tactics-mode .tactics-interactive-dock {
+        display: none;
+      }
+      body.tactics-mode.tactics-interactive .tactics-interactive-dock {
+        display: flex;
+        flex: 1 0 100%;
+        align-items: center;
+        gap: 0.42rem;
+        padding: 0.48rem;
+        border: 1px solid rgba(34, 211, 238, 0.24);
+        border-radius: 16px;
+        background: rgba(8, 47, 73, 0.18);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+      }
+      body.tactics-mode .tactics-interactive-dock button,
+      body.tactics-mode .tactics-interactive-dock .route-meter {
+        min-height: 38px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 12px;
+        background: rgba(15, 23, 42, 0.78);
+        color: rgba(241, 245, 249, 0.94);
+        padding: 0.48rem 0.68rem;
+        font-size: 0.68rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      body.tactics-mode .tactics-interactive-dock button {
+        cursor: pointer;
+      }
+      body.tactics-mode .tactics-interactive-dock .primary {
+        border-color: rgba(250, 204, 21, 0.54);
+        background: rgba(250, 204, 21, 0.16);
+        color: rgba(255, 251, 235, 0.98);
+      }
+      body.tactics-mode .tactics-interactive-dock .route-meter {
+        margin-left: auto;
+        color: rgba(186, 230, 253, 0.92);
+      }
+      body.tactics-mode .tactics-quickbar .tactics-chip {
+        border-radius: 14px;
+        padding: 0.52rem 0.72rem;
+        min-width: 76px;
+        max-width: none;
+        color: rgba(248, 250, 252, 0.96);
+        font-size: 0.7rem;
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        flex: 0 0 auto;
+        justify-content: center;
+        white-space: nowrap;
+        overflow: visible;
+        text-overflow: clip;
+      }
+      body.tactics-mode .tactics-quickbar #tactics-overlays-open,
+      body.tactics-mode .tactics-quickbar #tactics-zones-open,
+      body.tactics-mode .tactics-quickbar #task-tactics-layout-toggle {
+        min-width: 108px;
+      }
+      body.tactics-mode .tactics-quickbar #tactics-zones-open {
+        min-width: 148px;
+      }
+      body.tactics-mode .tactics-quickbar #tactics-mode-toggle {
+        flex: 0 0 auto;
+      }
+      body.tactics-mode .tactics-quickbar #tactics-mode-toggle button {
+        min-width: 104px;
+        white-space: nowrap;
+      }
+      body.tactics-mode .tactics-quickbar .tactics-chip .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(148,163,184,0.9);
+      }
+      body.tactics-mode .tactics-quickbar .tactics-chip[data-tactics-tool="player_local"] .dot,
+      body.tactics-mode .tactics-quickbar .tactics-chip[data-tactics-tool="goalkeeper_local"] .dot { background: var(--tpad-token-local, rgba(34, 197, 94, 0.95)); }
+      body.tactics-mode .tactics-quickbar .tactics-chip[data-tactics-tool="player_rival"] .dot,
+      body.tactics-mode .tactics-quickbar .tactics-chip[data-tactics-tool="goalkeeper_rival"] .dot { background: var(--tpad-token-rival, rgba(239, 68, 68, 0.95)); }
+      body.tactics-mode .tactics-quickbar .tactics-chip.is-active {
+        background: rgba(34, 211, 238, 0.14);
+        border-color: rgba(34, 211, 238, 0.38);
+        color: rgba(224, 242, 254, 0.98);
+      }
+      body.tactics-mode #tactics-quick-recents {
+        display: none !important;
+        margin-top: 0.5rem;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        align-items: center;
+      }
+      body.tactics-mode #tactics-quick-recents .tactics-chip {
+        padding: 0.5rem 0.65rem;
+        font-size: 0.74rem;
+      }
+      body.tactics-mode .tactics-quickbar details summary.surface-trigger { cursor: pointer; }
+      body.tactics-mode .tactics-quickbar details summary::-webkit-details-marker { display: none; }
+      body.tactics-mode .tactics-quickbar .tactics-menu {
+        position: relative;
+      }
+      body.tactics-mode .tactics-quickbar .tactics-menu-body {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        z-index: 120;
+        width: min(520px, 92vw);
+        padding: 0.75rem;
+        border-radius: 18px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(8, 18, 30, 0.96);
+        box-shadow: 0 26px 56px rgba(2, 6, 23, 0.42);
+        display: grid;
+        gap: 0.55rem;
+      }
+      body.tactics-mode .tactics-quickbar .tactics-menu-body .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+      }
+      body.tactics-mode .tactics-quickbar .tactics-menu-body .row .meta {
+        font-size: 0.78rem;
+        opacity: 0.85;
+      }
+      body.tactics-mode .tactics-quickbar .tactics-menu-body .row .button {
+        padding: 0.55rem 0.75rem;
+        border-radius: 14px;
+        font-weight: 900;
+      }
+	      .resource-strip button {
+	        display: inline-flex;
+	        align-items: center;
+	        gap: 0.5rem;
+	      }
+	      .resource-strip button.tool-icon {
+	        width: 56px;
+	        height: 56px;
+	        padding: 0.35rem;
+	        justify-content: center;
+	        gap: 0;
+	      }
+	      body.is-compact .resource-strip button.tool-icon {
+	        width: 50px;
+	        height: 50px;
+	      }
+	      .resource-strip button.tool-icon .tool-emoji {
+	        font-size: 1.5rem;
+	        line-height: 1;
+	        display: inline-flex;
+	        align-items: center;
+	        justify-content: center;
+	      }
+	      .resource-strip button.tool-icon .tool-emoji img.tool-preview-img {
+	        width: 34px;
+	        height: 34px;
+	        object-fit: contain;
+	        filter: drop-shadow(0 1px 2px rgba(2, 6, 23, 0.55));
+	      }
+	      body.is-compact .resource-strip button.tool-icon .tool-emoji img.tool-preview-img {
+	        width: 30px;
+	        height: 30px;
+	      }
+	      .resource-strip button svg {
+	        width: 18px;
+	        height: 18px;
+	        fill: currentColor;
+	        opacity: 0.92;
+	        flex: 0 0 auto;
+	      }
+	      .pdf-assets-strip {
+	        flex-wrap: wrap;
+	        gap: 0.5rem;
+	      }
+	      .pdf-assets-strip .pdf-asset-btn {
+	        padding: 0.35rem;
+	        width: 62px;
+	        height: 62px;
+	        justify-content: center;
+	      }
+	      .pdf-assets-strip .pdf-asset-btn img {
+	        width: 48px;
+	        height: 48px;
+	        object-fit: contain;
+	        border-radius: 10px;
+	        background: rgba(255,255,255,0.06);
+	        border: 1px solid rgba(255,255,255,0.10);
+	      }
+	      .pdf-assets-strip span.meta {
+	        padding: 0.35rem 0.2rem;
+	      }
+      .resource-strip button[data-add],
+      .player-bank button.player-token-bank {
+        cursor: grab;
+      }
+      .resource-strip button[data-add]:active,
+      .player-bank button.player-token-bank:active {
+        cursor: grabbing;
+      }
+      .resource-strip button.is-dragging,
+      .player-bank button.player-token-bank.is-dragging {
+        opacity: 0.58;
+        transform: scale(0.98);
+      }
+	      .pitch-toolbar button.is-active,
+	      .resource-strip button.is-active,
+	      .player-bank button.is-active {
+	        background: var(--accent-soft);
+	        border-color: rgba(34, 211, 238, 0.36);
+	        color: rgba(224, 242, 254, 0.95);
+	      }
+      .player-bank button.player-token-bank {
+        padding: 0.58rem 0.6rem;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 0.58rem;
+        position: relative;
+        isolation: isolate;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 22% 14%, rgba(255,255,255,0.10), transparent 34%),
+          linear-gradient(180deg, rgba(15, 23, 42, 0.94), rgba(8, 15, 30, 0.80));
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.08),
+          inset 0 -1px 0 rgba(2,6,23,0.18),
+          0 14px 26px rgba(2, 6, 23, 0.22);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+      }
+      .player-bank button.player-token-bank::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background:
+          linear-gradient(135deg, rgba(255,255,255,0.10), transparent 32%),
+          linear-gradient(180deg, transparent, rgba(2,6,23,0.10));
+        opacity: 0.9;
+        pointer-events: none;
+        z-index: 0;
+      }
+      .player-bank button.player-token-bank > * {
+        position: relative;
+        z-index: 1;
+      }
+      .player-bank button.player-token-bank:hover {
+        transform: translateY(-1px);
+        border-color: rgba(255,255,255,0.16);
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.10),
+          inset 0 -1px 0 rgba(2,6,23,0.22),
+          0 18px 30px rgba(2, 6, 23, 0.28);
+      }
+      .player-bank.is-opponent button.player-token-bank {
+        background:
+          radial-gradient(circle at 22% 14%, rgba(255,255,255,0.08), transparent 34%),
+          linear-gradient(180deg, rgba(55, 11, 20, 0.88), rgba(27, 10, 16, 0.78));
+        border-color: rgba(239, 68, 68, 0.18);
+      }
+      .player-bank button.player-token-bank .token-name {
+        display: -webkit-box;
+        max-width: 100%;
+        font-size: 0.82rem;
+        line-height: 1.14;
+        text-align: left;
+        color: #f8fafc;
+        font-weight: 800;
+        letter-spacing: 0.01em;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        overflow: hidden;
+        text-overflow: initial;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+      }
+      .player-bank button.player-token-bank .player-token-bank-copy {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.14rem;
+        min-width: 0;
+        flex: 1 1 auto;
+      }
+      .player-bank button.player-token-bank .player-token-bank-visuals {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        flex: 0 0 auto;
+        padding: 0.06rem 0.04rem;
+      }
+      .player-bank button.player-token-bank .token-meta {
+        display: block;
+        max-width: 100%;
+        font-size: 0.65rem;
+        line-height: 1.15;
+        text-align: left;
+        color: rgba(186, 230, 253, 0.8);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .player-bank-quickbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.55rem;
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      .player-bank-filter-group,
+      .player-bank-style-group {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        flex-wrap: wrap;
+      }
+      .player-bank-quickbar button {
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.05);
+        color: rgba(226,232,240,0.82);
+        border-radius: 999px;
+        padding: 0.28rem 0.62rem;
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .player-bank-quickbar button.is-active {
+        background: rgba(15,122,53,0.24);
+        border-color: rgba(52,211,153,0.5);
+        color: rgba(240,253,244,0.96);
+        box-shadow: 0 10px 22px rgba(2, 6, 23, 0.18);
+      }
+      .player-bank-divider {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 72px;
+        min-height: 72px;
+        padding: 0.35rem 0.45rem;
+        border-radius: 16px;
+        border: 1px dashed rgba(148, 163, 184, 0.34);
+        background: rgba(15, 23, 42, 0.22);
+        color: rgba(191, 219, 254, 0.74);
+        font-size: 0.62rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        text-align: center;
+      }
+      .player-bank button.player-token-bank .token-name.is-numbered {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.25rem;
+        min-width: 0;
+      }
+      .player-bank button.player-token-bank .token-name .token-number-inline {
+        flex: 0 0 auto;
+        min-width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        display: inline-grid;
+        place-items: center;
+        padding: 0 0.24rem;
+        background: rgba(244, 180, 0, 0.96);
+        color: rgba(2, 6, 23, 0.96);
+        border: 1px solid rgba(2, 6, 23, 0.55);
+        font-size: 0.58rem;
+        font-weight: 900;
+        text-shadow: none;
+      }
+      .player-bank button.player-token-bank .token-disk {
+        width: 44px;
+        height: 44px;
+        border-radius: 999px;
+        border: 2px solid rgba(248, 250, 252, 0.94);
+        background:
+          radial-gradient(circle at 30% 18%, rgba(255,255,255,0.44), transparent 22%),
+          radial-gradient(circle at 50% 78%, rgba(2,6,23,0.22), transparent 48%),
+          linear-gradient(180deg, rgba(255,255,255,0.12), rgba(2,6,23,0.18)),
+          repeating-linear-gradient(
+            90deg,
+            var(--tpad-token-local, #0f7a35) 0 8px,
+            #f8fafc 8px 16px
+          );
+        display: grid;
+        place-items: center;
+        position: relative;
+        box-shadow:
+          inset 0 0 0 2px rgba(2, 6, 23, 0.34),
+          inset 0 0 0 5px rgba(255, 255, 255, 0.16),
+          0 8px 16px rgba(2, 6, 23, 0.34);
+        overflow: hidden;
+      }
+      .player-bank button.player-token-bank .token-disk::before {
+        content: "";
+        position: absolute;
+        inset: 4px;
+        border-radius: inherit;
+        background:
+          radial-gradient(circle at 30% 22%, rgba(255,255,255,0.44), transparent 26%),
+          radial-gradient(circle at 55% 72%, rgba(2,6,23,0.14), transparent 44%);
+        pointer-events: none;
+      }
+      .player-bank button.player-token-bank .token-disk.is-preview,
+      .player-bank button.player-token-bank .token-jersey.is-preview,
+      .player-bank button.player-token-bank .token-photo.is-preview {
+        width: 34px;
+        height: 34px;
+        min-width: 34px;
+        min-height: 34px;
+        border-width: 1px;
+        box-shadow: 0 6px 14px rgba(15, 23, 42, 0.24);
+        opacity: 0.42;
+        transform: scale(0.92);
+        transition: opacity 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+      }
+      .player-bank button.player-token-bank .token-disk.is-preview.is-active,
+      .player-bank button.player-token-bank .token-jersey.is-preview.is-active,
+      .player-bank button.player-token-bank .token-photo.is-preview.is-active {
+        opacity: 1;
+        transform: scale(1.06);
+        box-shadow: 0 10px 18px rgba(15, 23, 42, 0.28);
+      }
+      .player-bank button.player-token-bank .token-disk::after {
+        content: "";
+        position: absolute;
+        inset: 5px;
+        border-radius: inherit;
+        border: 1px solid rgba(255,255,255,0.30);
+        pointer-events: none;
+      }
+      .player-bank.is-opponent button.player-token-bank .token-disk {
+        background:
+          radial-gradient(circle at 30% 18%, rgba(255,255,255,0.32), transparent 28%),
+          linear-gradient(180deg, rgba(255,255,255,0.08), rgba(2,6,23,0.16)),
+          repeating-linear-gradient(
+            90deg,
+            var(--tpad-token-rival, #ef4444) 0 8px,
+            #fff1f2 8px 16px
+          );
+      }
+      .player-bank button.player-token-bank .token-disk.is-goalkeeper {
+        background: radial-gradient(circle at 30% 18%, rgba(255,255,255,0.46), transparent 34%),
+          linear-gradient(135deg, #1d4ed8, #0ea5e9);
+        border-color: rgba(255, 255, 255, 0.92);
+      }
+      .player-bank button.player-token-bank .token-jersey,
+      .player-bank button.player-token-bank .token-photo {
+        width: 44px;
+        height: 44px;
+        border-radius: 999px;
+        border: 2px solid rgba(255, 255, 255, 0.9);
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.14),
+          0 8px 18px rgba(15, 23, 42, 0.30);
+        position: relative;
+        overflow: hidden;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(circle at 30% 18%, rgba(255,255,255,0.22), transparent 28%),
+          linear-gradient(180deg, rgba(255,255,255,0.10), rgba(15,23,42,0.18));
+      }
+      .player-bank button.player-token-bank .token-jersey {
+        border-radius: 16px;
+      }
+      .player-bank button.player-token-bank .token-jersey.is-preview {
+        border-radius: 12px;
+      }
+      .player-bank button.player-token-bank .token-jersey svg.token-jersey-svg {
+        width: 56px;
+        height: 56px;
+        display: block;
+        filter: drop-shadow(0 4px 8px rgba(2, 6, 23, 0.22));
+      }
+      .player-bank button.player-token-bank .token-jersey.is-preview svg.token-jersey-svg {
+        width: 38px;
+        height: 38px;
+      }
+      .player-bank button.player-token-bank .token-jersey img.token-jersey-img {
+        width: 56px;
+        height: 56px;
+        display: block;
+        object-fit: contain;
+        z-index: 1;
+        filter: drop-shadow(0 6px 12px rgba(2, 6, 23, 0.24));
+      }
+      .player-bank button.player-token-bank .token-jersey.is-preview img.token-jersey-img {
+        width: 38px;
+        height: 38px;
+      }
+      .player-bank button.player-token-bank .token-jersey::before,
+      .player-bank button.player-token-bank .token-photo::before {
+        content: "";
+        position: absolute;
+        inset: 2px;
+        border-radius: inherit;
+        background:
+          linear-gradient(180deg, rgba(255,255,255,0.22), transparent 42%),
+          radial-gradient(circle at 30% 24%, rgba(255,255,255,0.16), transparent 28%);
+        pointer-events: none;
+      }
+      .player-bank button.player-token-bank .token-jersey.is-kit2d {
+        background: transparent;
+      }
+      .player-bank button.player-token-bank .token-photo {
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-color: rgba(15, 23, 42, 0.18);
+      }
+      .player-bank button.player-token-bank .token-photo::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.28), transparent 46%);
+        pointer-events: none;
+      }
+      .player-bank button.player-token-bank .token-photo.is-preview::after {
+        inset: 0;
+      }
+      .player-bank button.player-token-bank .token-photo .token-initials {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        font-size: 0.85rem;
+        font-weight: 800;
+        color: #e2e8f0;
+        text-shadow: 0 1px 2px rgba(15, 23, 42, 0.65);
+      }
+      .player-bank button.player-token-bank .token-number {
+        position: relative;
+        z-index: 1;
+        font-size: 0.98rem;
+        font-weight: 950;
+        color: #ffffff;
+        text-shadow:
+          0 1px 2px rgba(2, 6, 23, 0.88),
+          0 0 1px rgba(2, 6, 23, 0.95);
+      }
+      .player-bank button.player-token-bank .token-jersey .token-number,
+      .player-bank button.player-token-bank .token-photo .token-number {
+        position: absolute;
+        left: 50%;
+        bottom: 4px;
+        transform: translateX(-50%);
+        font-size: 0.7rem;
+        padding: 1px 6px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.88);
+        border: 1px solid rgba(255,255,255,0.14);
+        text-shadow: none;
+        z-index: 2;
+      }
+      .player-bank button.player-token-bank .token-disk.is-preview .token-number,
+      .player-bank button.player-token-bank .token-jersey.is-preview .token-number,
+      .player-bank button.player-token-bank .token-photo.is-preview .token-number {
+        font-size: 0.5rem;
+        padding: 1px 4px;
+        bottom: 2px;
+      }
+      .surface-picker {
+        position: relative;
+      }
+      .surface-trigger {
+        min-width: 220px;
+        justify-content: space-between;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6rem;
+      }
+      body.tactics-mode .surface-trigger {
+        min-width: 0;
+        min-height: 36px;
+        padding: 0.44rem 0.56rem;
+        border-radius: 12px;
+        font-size: 0.66rem;
+        line-height: 1.05;
+      }
+      body.tactics-mode .pitch-toolbar > .surface-trigger {
+        flex: 0 0 auto;
+        justify-content: center;
+      }
+      body.tactics-mode .surface-picker,
+      body.tactics-mode .pitch-view-menu {
+        flex: 0 0 auto;
+        min-width: 0;
+      }
+      body.tactics-mode .surface-picker > .surface-trigger,
+      body.tactics-mode .pitch-view-menu > .surface-trigger,
+      body.tactics-mode #pitch-orientation-toggle-quick,
+      body.tactics-mode #task-focus-toggle,
+      body.tactics-mode #task-tactics-fullscreen {
+        width: auto;
+      }
+      .surface-trigger .current {
+        text-transform: none;
+        letter-spacing: 0.02em;
+      }
+      body.tactics-mode .surface-trigger .current {
+        font-size: 0.63rem;
+      }
+      .surface-menu {
+        position: absolute;
+        top: calc(100% + 0.5rem);
+        left: 0;
+        z-index: 20;
+        width: min(780px, 86vw);
+        display: none;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 0.7rem;
+        padding: 0.8rem;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(8, 18, 30, 0.96);
+        box-shadow: 0 26px 56px rgba(2, 6, 23, 0.42);
+      }
+      .surface-picker.is-open .surface-menu {
+        display: grid;
+      }
+      .surface-option {
+        padding: 0.5rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.04);
+        display: grid;
+        gap: 0.45rem;
+        text-align: left;
+      }
+      .surface-option-thumb {
+        display: block;
+        width: 100%;
+        aspect-ratio: 1.6 / 1;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .surface-option-thumb svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      .surface-option strong {
+        display: block;
+        font-size: 0.82rem;
+        letter-spacing: 0.01em;
+        text-transform: none;
+      }
+      .surface-option small {
+        display: block;
+        color: var(--muted);
+        font-size: 0.72rem;
+        line-height: 1.35;
+        text-transform: none;
+      }
+	      .resource-tab-bar {
+	        display: grid;
+	        gap: 0.65rem;
+	        align-items: stretch;
+	        margin-bottom: 0.65rem;
+	      }
+      .resource-select {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        margin-left: auto;
+      }
+      /* En pantallas pequeñas el selector rápido ayuda a no perderse. */
+      .resource-select { display: none; }
+      @media (max-width: 979px) {
+        .resource-select { display: inline-flex; }
+      }

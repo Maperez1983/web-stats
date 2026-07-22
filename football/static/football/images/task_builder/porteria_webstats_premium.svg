@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" role="img" aria-label="Portería premium">
+  <defs>
+    <linearGradient id="frameGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f8fafc"/>
+      <stop offset="0.45" stop-color="#d8dde6"/>
+      <stop offset="1" stop-color="#8f98a8"/>
+    </linearGradient>
+    <linearGradient id="netGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f9fbfd" stop-opacity="0.96"/>
+      <stop offset="1" stop-color="#cad2de" stop-opacity="0.78"/>
+    </linearGradient>
+    <linearGradient id="shadowGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#000" stop-opacity="0.0"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.22"/>
+    </linearGradient>
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#0b1220" flood-opacity="0.34"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#softShadow)">
+    <ellipse cx="90" cy="90" rx="28" ry="42" fill="url(#shadowGrad)" opacity="0.18"/>
+
+    <g transform="translate(28 24)">
+      <path d="M0 112 L0 20 L16 2 L16 94 Z" fill="#c7d0da" opacity="0.88"/>
+      <path d="M0 20 L16 2 L184 2 L168 20 Z" fill="url(#frameGrad)"/>
+      <path d="M16 94 L16 2 L184 2 L184 94 Z" fill="none" stroke="url(#frameGrad)" stroke-width="6" stroke-linejoin="round"/>
+      <path d="M0 112 L16 94 L184 94 L168 112 Z" fill="#9ea8b6" opacity="0.78"/>
+      <path d="M0 112 L0 20 L16 2 L16 94 Z" fill="none" stroke="url(#frameGrad)" stroke-width="5.5" stroke-linejoin="round"/>
+      <path d="M184 94 L184 2 L168 20 L168 112 Z" fill="#8e97a7" opacity="0.72"/>
+      <path d="M168 20 L184 2 L184 94 L168 112 Z" fill="none" stroke="url(#frameGrad)" stroke-width="5.5" stroke-linejoin="round"/>
+
+      <g opacity="0.82">
+        <path d="M16 8 H184" stroke="#ffffff" stroke-opacity="0.65" stroke-width="1.4"/>
+        <path d="M16 18 H184" stroke="#ffffff" stroke-opacity="0.42" stroke-width="1.2"/>
+        <path d="M16 30 H184" stroke="#ffffff" stroke-opacity="0.36" stroke-width="1.1"/>
+        <path d="M16 43 H184" stroke="#ffffff" stroke-opacity="0.30" stroke-width="1.0"/>
+        <path d="M16 56 H184" stroke="#ffffff" stroke-opacity="0.26" stroke-width="0.95"/>
+        <path d="M16 69 H184" stroke="#ffffff" stroke-opacity="0.22" stroke-width="0.9"/>
+        <path d="M16 82 H184" stroke="#ffffff" stroke-opacity="0.18" stroke-width="0.85"/>
+
+        <path d="M26 8 V94" stroke="#ffffff" stroke-opacity="0.48" stroke-width="1.0"/>
+        <path d="M38 8 V94" stroke="#ffffff" stroke-opacity="0.38" stroke-width="0.95"/>
+        <path d="M50 8 V94" stroke="#ffffff" stroke-opacity="0.32" stroke-width="0.9"/>
+        <path d="M62 8 V94" stroke="#ffffff" stroke-opacity="0.28" stroke-width="0.9"/>
+        <path d="M74 8 V94" stroke="#ffffff" stroke-opacity="0.24" stroke-width="0.88"/>
+        <path d="M86 8 V94" stroke="#ffffff" stroke-opacity="0.22" stroke-width="0.84"/>
+        <path d="M98 8 V94" stroke="#ffffff" stroke-opacity="0.20" stroke-width="0.82"/>
+        <path d="M110 8 V94" stroke="#ffffff" stroke-opacity="0.18" stroke-width="0.8"/>
+        <path d="M122 8 V94" stroke="#ffffff" stroke-opacity="0.16" stroke-width="0.78"/>
+        <path d="M134 8 V94" stroke="#ffffff" stroke-opacity="0.14" stroke-width="0.76"/>
+        <path d="M146 8 V94" stroke="#ffffff" stroke-opacity="0.12" stroke-width="0.74"/>
+        <path d="M158 8 V94" stroke="#ffffff" stroke-opacity="0.10" stroke-width="0.72"/>
+        <path d="M170 8 V94" stroke="#ffffff" stroke-opacity="0.08" stroke-width="0.7"/>
+      </g>
+
+      <path d="M0 112 L16 94 L184 94 L168 112 Z" fill="none" stroke="#d8dee8" stroke-opacity="0.72" stroke-width="2"/>
+      <path d="M16 94 L16 2" stroke="#f8fafc" stroke-width="6.5" stroke-linecap="round"/>
+      <path d="M168 94 L168 20" stroke="#f8fafc" stroke-width="6.5" stroke-linecap="round"/>
+      <path d="M16 2 L184 2" stroke="#f8fafc" stroke-width="6.5" stroke-linecap="round"/>
+      <path d="M16 94 L184 94" stroke="#f8fafc" stroke-width="5.5" stroke-linecap="round"/>
+
+      <path d="M24 94 L24 14 L176 14 L176 84" fill="none" stroke="#edf2f7" stroke-opacity="0.22" stroke-width="1.2"/>
+      <path d="M36 94 L36 18 L164 18 L164 78" fill="none" stroke="#edf2f7" stroke-opacity="0.16" stroke-width="1.1"/>
+      <path d="M48 94 L48 22 L152 22 L152 72" fill="none" stroke="#edf2f7" stroke-opacity="0.12" stroke-width="1"/>
+
+      <path d="M176 14 L184 2" stroke="#ffffff" stroke-opacity="0.5" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M176 84 L184 94" stroke="#ffffff" stroke-opacity="0.26" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M24 14 L16 2" stroke="#ffffff" stroke-opacity="0.4" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M24 94 L16 94" stroke="#ffffff" stroke-opacity="0.22" stroke-width="3.5" stroke-linecap="round"/>
+    </g>
+  </g>
+</svg>

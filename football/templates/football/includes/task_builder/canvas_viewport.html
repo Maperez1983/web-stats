@@ -1,0 +1,2127 @@
+{% load static %}
+<section class="panel">
+		            <div class="panel-body">
+		                <div class="panel-head">
+		                  <div>
+	                  <h2>Pizarra</h2>
+                  <p>Selecciona superficie, elige recurso y colócalo con un clic sobre el campo.</p>
+                </div>
+	                <div class="alert warn" id="tpad-hint" hidden>
+	                  <div style="display:flex; gap:0.75rem; align-items:center; justify-content:space-between; flex-wrap:wrap;">
+	                    <div style="min-width:240px;">
+	                      <strong>Flujo rápido:</strong> 1) Arrastra recursos al campo · 2) Ajusta tamaño/color en el inspector · 3) Cambia entre 2D, 3D o táctica interactiva · 4) Guarda y exporta.
+	                    </div>
+	                    <button type="button" class="button" id="tpad-hint-close">Entendido</button>
+	                  </div>
+	                </div>
+                <div class="pitch-toolbar">
+                  {% if not tactics_mode %}
+                  <div class="task-workflow-strip" aria-label="Flujo de trabajo del entrenador" hidden>
+                    <span class="task-workflow-label">Flujo</span>
+                    <button type="button" class="is-active" data-workflow-action="build">Montar</button>
+                    <button type="button" data-workflow-action="animate">Animar</button>
+                    <button type="button" data-workflow-action="present3d">3D</button>
+                    <button type="button" data-workflow-action="export">Exportar</button>
+                  </div>
+                  <div class="task-kind-strip" aria-label="Tipo de tarea">
+                    <span class="task-kind-label">Tipo</span>
+                    <button type="button" class="is-active" data-task-kind="2d">2D</button>
+                    <button type="button" data-task-kind="3d">3D</button>
+                    <button type="button" data-task-kind="interactive">Táctica interactiva</button>
+                  </div>
+                  {% endif %}
+                  {% if tactics_mode %}
+                  <div class="tactics-toolbar-group tactics-toolbar-primary" aria-label="Área de trabajo táctico">
+                  <button type="button" class="surface-trigger" id="task-tactics-panel-toggle" title="Abrir/cerrar Playbook" aria-label="Abrir/cerrar Playbook">Playbook</button>
+                  <button type="button" class="surface-trigger" id="task-tactics-tools-toggle" title="Mostrar/ocultar herramientas" aria-label="Mostrar/ocultar herramientas">Herramientas</button>
+                  <button type="button" class="surface-trigger" id="task-tactics-sim-open" title="Abrir simulador" aria-label="Abrir simulador">Simulador</button>
+                  <div class="tactics-quickbar" id="tactics-quickbar" aria-label="Barra rápida de táctica">
+                    <div class="tactics-mode-toggle" id="tactics-mode-toggle" role="tablist" aria-label="Modo de pizarra">
+                      <button type="button" class="is-active" id="tactics-mode-static" data-tactics-board="static" role="tab" aria-selected="true">Estática</button>
+                      <button type="button" id="tactics-mode-interactive" data-tactics-board="interactive" role="tab" aria-selected="false">Interactiva</button>
+                    </div>
+                    <button type="button" class="surface-trigger tactics-chip" data-tactics-generate="seq" title="Convierte flechas, balón y fichas en pasos de simulación" aria-label="Convertir pizarra en simulación">Auto sim</button>
+                    <button type="button" class="surface-trigger tactics-chip" data-tactics-only="interactive" data-tactics-demo="build_up" id="tactics-demo-build-up" title="Generar demo interactiva" aria-label="Generar demo interactiva">Demo interactiva</button>
+                    <button type="button" class="surface-trigger tactics-chip" data-tactics-tool="player_local" id="tactics-tool-local" title="Insertar ficha local" aria-label="Insertar ficha local">
+                      <span class="dot" aria-hidden="true"></span>Local
+                    </button>
+                    <button type="button" class="surface-trigger tactics-chip" data-tactics-tool="player_rival" id="tactics-tool-rival" title="Insertar ficha rival" aria-label="Insertar ficha rival">
+                      <span class="dot" aria-hidden="true"></span>Rival
+                    </button>
+                    <button type="button" class="surface-trigger tactics-chip" data-tactics-tool="goalkeeper_local" id="tactics-tool-gk-local" title="Insertar portero local" aria-label="Insertar portero local">
+                      <span class="dot" aria-hidden="true"></span>GK L
+                    </button>
+                    <button type="button" class="surface-trigger tactics-chip" data-tactics-tool="goalkeeper_rival" id="tactics-tool-gk-rival" title="Insertar portero rival" aria-label="Insertar portero rival">
+                      <span class="dot" aria-hidden="true"></span>GK R
+                    </button>
+                    <button type="button" class="surface-trigger tactics-chip" data-tactics-tool="ball" id="tactics-tool-ball" title="Insertar balón" aria-label="Insertar balón">⚽</button>
+                    <button type="button" class="surface-trigger tactics-chip" data-tactics-tool="arrow_solid" id="tactics-tool-arrow" title="Insertar flecha" aria-label="Insertar flecha">➡︎</button>
+                    <button type="button" class="surface-trigger tactics-chip" data-tactics-tool="cone" id="tactics-tool-cone" title="Insertar cono" aria-label="Insertar cono">Cono</button>
+                    <button type="button" class="surface-trigger tactics-chip" data-tactics-tool="text" id="tactics-tool-text" title="Insertar texto" aria-label="Insertar texto">Texto</button>
+	                    <button type="button" class="surface-trigger tactics-chip" data-tactics-only="interactive" data-tactics-tool="route_move" id="tactics-tool-route" title="Ruta de movimiento (Interactiva)" aria-label="Ruta de movimiento (Interactiva)">Ruta</button>
+	                    <button type="button" class="surface-trigger tactics-chip" data-tactics-only="interactive" data-tactics-tool="route_play" id="tactics-tool-route-play" title="Reproducir rutas (Interactiva)" aria-label="Reproducir rutas (Interactiva)">▶</button>
+	                  <button type="button" class="surface-trigger tactics-chip" id="task-tactics-layout-toggle" title="Alterna layout: recursos arriba / recursos a la derecha" aria-label="Alternar layout" aria-pressed="false">Layout</button>
+                    <div class="tactics-interactive-dock" data-tactics-only="interactive" aria-label="Controles de táctica interactiva">
+                      <button type="button" class="primary" data-tactics-demo="build_up">Demo</button>
+                      <button type="button" data-tactics-tool="route_move">Ruta</button>
+                      <button type="button" data-tactics-tool="route_play">Reproducir</button>
+                      <button type="button" data-tactics-generate="seq">Secuencia</button>
+                      <button type="button" data-tactics-generate="simul">A la vez</button>
+                      <button type="button" data-tactics-clear-routes="1">Borrar</button>
+                      <span class="route-meter" data-tactics-route-count>0 rutas</span>
+                    </div>
+		                    <details class="tactics-menu" id="tactics-interactive-menu" data-tactics-only="interactive">
+		                      <summary class="surface-trigger" aria-label="Opciones de táctica interactiva">
+		                        <span>Avanzado</span>
+	                        <span class="current">Auto</span>
+	                      </summary>
+                      <div class="tactics-menu-body" role="dialog" aria-label="Táctica interactiva">
+                        <div class="row">
+                          <span class="meta">Generar simulación desde rutas:</span>
+                          <button type="button" class="button" data-tactics-demo="build_up">Demo</button>
+                          <button type="button" class="button" data-tactics-generate="simul">A la vez</button>
+                          <button type="button" class="button" data-tactics-generate="seq">Secuencia</button>
+                        </div>
+                        <div class="row">
+                          <label class="chip-toggle" style="margin:0;">
+                            <input type="checkbox" id="tactics-interactive-ball-follow" checked />
+                            Balón sigue a jugador
+                          </label>
+                          <button type="button" class="button" data-tactics-clear-routes="1">Borrar rutas</button>
+                        </div>
+                        <div class="row">
+                          <span class="meta" id="tactics-route-summary">Rutas: 0</span>
+                        </div>
+                      </div>
+                    </details>
+
+                    <details class="tactics-menu" id="tactics-formation-menu">
+                      <summary class="surface-trigger" aria-label="Formaciones y autocolocado">
+                        <span>Formación</span>
+                        <span class="current">Auto</span>
+                      </summary>
+                      <div class="tactics-menu-body" role="dialog" aria-label="Formaciones">
+                        <div class="row">
+                          <span class="meta"><strong>Local</strong> (11v11)</span>
+                          <button type="button" class="button" data-tactics-formation="11:433:local">4-3-3</button>
+                          <button type="button" class="button" data-tactics-formation="11:442:local">4-4-2</button>
+                          <button type="button" class="button" data-tactics-formation="11:4231:local">4-2-3-1</button>
+                          <button type="button" class="button" data-tactics-formation="11:352:local">3-5-2</button>
+                        </div>
+                        <div class="row">
+                          <span class="meta"><strong>Local</strong> (7v7)</span>
+                          <button type="button" class="button" data-tactics-formation="7:231:local">2-3-1</button>
+                          <button type="button" class="button" data-tactics-formation="7:321:local">3-2-1</button>
+                          <button type="button" class="button" data-tactics-formation="7:222:local">2-2-2</button>
+                        </div>
+                        <div class="row">
+                          <span class="meta"><strong>Rival</strong> (copiar)</span>
+                          <button type="button" class="button" data-tactics-formation="11:433:rival">4-3-3</button>
+                          <button type="button" class="button" data-tactics-formation="11:442:rival">4-4-2</button>
+                          <button type="button" class="button" data-tactics-formation="7:231:rival">2-3-1</button>
+                        </div>
+                        <div class="row">
+                          <label class="chip-toggle" style="margin:0;">
+                            <input type="checkbox" id="tactics-formation-clear" checked />
+                            Reemplazar fichas
+                          </label>
+                          <label class="chip-toggle" style="margin:0;">
+                            <input type="checkbox" id="tactics-formation-numbers" checked />
+                            Dorsales 1–11
+                          </label>
+                        </div>
+                      </div>
+                    </details>
+
+                    <button type="button" class="surface-trigger tactics-chip" id="tactics-export-png" title="Exportar PNG" aria-label="Exportar PNG">PNG</button>
+                    <button type="button" class="surface-trigger tactics-chip" id="tactics-export-image-hq" title="Descargar imagen máxima calidad del campo" aria-label="Descargar imagen máxima calidad del campo">Imagen HQ</button>
+                    <button type="button" class="surface-trigger tactics-chip" id="tactics-export-pdf" title="Exportar PDF" aria-label="Exportar PDF">PDF</button>
+                  </div>
+                  </div>
+                  <div class="tactics-toolbar-group tactics-toolbar-surface" aria-label="Superficie y vista">
+                  {% endif %}
+                  {% if not tactics_mode %}
+                  <div class="board-overlay-controls" aria-label="Paneles de edición">
+                    <button type="button" class="surface-trigger" id="task-board-roster-toggle" aria-pressed="false">Jugadores</button>
+                    <button type="button" class="surface-trigger" id="task-board-resources-toggle" aria-pressed="false">Material</button>
+                    <button type="button" class="surface-trigger" id="task-zones-btn" title="Carriles / zonas y plantillas">Carriles</button>
+                    <a href="{{ task_resource_library_url|default:'#' }}" class="surface-trigger" id="task-resource-library-inline" aria-label="Abrir biblioteca de recursos">Biblioteca</a>
+                    <button type="button" class="surface-trigger" id="task-export-jpg-inline" title="Descargar captura JPG de la pizarra" aria-label="Descargar captura JPG de la pizarra">JPG</button>
+                  </div>
+                  {% endif %}
+                  {% if not tactics_mode %}
+                  <div class="task-hidden-present-actions" hidden aria-hidden="true">
+                    <button type="button" class="surface-trigger" id="task-focus-toggle" title="Modo presentación" aria-label="Modo presentación">Solo pizarra</button>
+                    <button type="button" class="surface-trigger" id="pitch-3d-open-standard" data-pitch3d-trigger="1" title="Representación 3D" aria-label="Representación 3D">
+                      <span>Vista 3D</span>
+                      <span class="current">3D</span>
+                    </button>
+                  </div>
+                  {% endif %}
+                  {% if tactics_mode %}
+                  </div>
+                  <div class="tactics-toolbar-group tactics-toolbar-output" aria-label="Presentación">
+                  {% endif %}
+                  {% if tactics_mode %}
+                  <button type="button" class="surface-trigger" id="task-focus-toggle" title="Modo presentación" aria-label="Modo presentación">Presentación</button>
+                  {% endif %}
+                  {% if tactics_mode %}
+                  <button type="button" class="surface-trigger" id="pitch-3d-open-tactics" data-pitch3d-trigger="1" title="Representación 3D (presentación)" aria-label="Representación 3D">
+                    <span>Representación 3D</span>
+                    <span class="current">3D</span>
+                  </button>
+                  <button type="button" class="surface-trigger" id="task-tactics-fullscreen" title="Pantalla completa" aria-label="Pantalla completa">Pantalla completa</button>
+                  </div>
+                  {% endif %}
+	                </div>
+	              </div>
+
+              <label style="display:none;">
+                Preset
+                <select name="draw_task_pitch_preset" id="draw-task-preset">
+                  <option value="full_pitch" {% if initial.pitch_preset == 'full_pitch' %}selected{% endif %}>Campo completo</option>
+                  <option value="half_pitch" {% if initial.pitch_preset == 'half_pitch' %}selected{% endif %}>Medio campo</option>
+                  <option value="attacking_third" {% if initial.pitch_preset == 'attacking_third' %}selected{% endif %}>Último tercio</option>
+                  <option value="middle_third" {% if initial.pitch_preset == 'middle_third' %}selected{% endif %}>Tercio medio</option>
+                  <option value="defensive_third" {% if initial.pitch_preset == 'defensive_third' %}selected{% endif %}>Primer tercio</option>
+                  <option value="seven_side" {% if initial.pitch_preset == 'seven_side' %}selected{% endif %}>Fútbol 7 sobre F11</option>
+                  <option value="seven_side_single" {% if initial.pitch_preset == 'seven_side_single' %}selected{% endif %}>Fútbol 7 individual</option>
+                  <option value="futsal" {% if initial.pitch_preset == 'futsal' %}selected{% endif %}>Futsal</option>
+                  <option value="blank" {% if initial.pitch_preset == 'blank' %}selected{% endif %}>Limpio</option>
+                </select>
+              </label>
+
+              <div class="pitch-layout">
+		              <div class="section resource-section pitch-side">
+		                <div class="resource-tab-bar">
+                    {% if not tactics_mode %}
+                    <div class="editor-side-tabs" id="task-board-side-tabs" aria-label="Panel lateral de edición" hidden>
+                      <button type="button" class="editor-side-tab is-active" data-side-pane="edit">Editar</button>
+                      <button type="button" class="editor-side-tab" data-side-pane="resources">Material</button>
+                    </div>
+                    <div class="editor-side-pane editor-edit-pane" id="task-side-pane-edit" hidden>
+                      <div class="editor-pane-card">
+                        <h4>Edición de pizarra</h4>
+                        <p>Selecciona un elemento en el campo para ajustar tamaño, color, nombre, capas o lectura táctica. Los jugadores quedan abajo para no robar espacio al campo.</p>
+                      </div>
+                      <div class="editor-pane-card" data-board-pane="starter">
+                        <div class="editor-side-section-head">
+                          <strong>Primeros pasos</strong>
+                          <span>Crear más rápido</span>
+                        </div>
+                        <div class="editor-starter-actions">
+                          <button type="button" class="button secondary" data-guide-action="surface">Elegir superficie</button>
+                          <button type="button" class="button secondary" data-guide-action="players">Ir a plantilla</button>
+                          <button type="button" class="button secondary" data-guide-action="draw">Dibujar recorrido</button>
+                        </div>
+                      </div>
+                      <div class="editor-pane-card" data-board-pane="actions">
+                        <div class="editor-side-section-head">
+                          <strong>Acciones</strong>
+                          <span>Edición rápida</span>
+                        </div>
+                        <div id="task-side-command-slot"></div>
+                      </div>
+                      <div class="editor-pane-card" data-board-pane="inspector">
+                        <div class="editor-side-section-head">
+                          <strong>Inspector</strong>
+                          <span>Elemento seleccionado</span>
+                        </div>
+                        <div id="task-side-selection-slot">
+                          <div class="selection-empty-state" id="task-selection-empty">
+                            <strong>Ningún elemento seleccionado</strong>
+                            <span>Pulsa una chapa, flecha, cono o zona del campo y aquí aparecerán solo los ajustes relevantes. Mientras tanto, no mostramos opciones avanzadas.</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="editor-side-pane" id="task-side-pane-resources" hidden>
+                    {% endif %}
+                    <div class="resource-details" id="task-resource-details">
+                      <div class="library-head">
+                        <button type="button" class="library-toggle" id="task-library-toggle" aria-label="Colapsar/expandir recursos" aria-pressed="false" title="Recursos">
+                          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z"/></svg>
+                        </button>
+                        <div class="library-copy">
+                          <div class="library-title">Biblioteca de pizarra</div>
+                          {% if not tactics_mode %}
+                          <div class="library-subtitle">Elige categoría, inserta recursos y edita en este mismo lateral el elemento que selecciones en el campo.</div>
+                          {% endif %}
+                        </div>
+                        <div class="library-current" id="task-resource-summary-label">{% if tactics_mode %}Base{% else %}Jugadores{% endif %}</div>
+	                      </div>
+	                      <input type="search" class="library-filter" id="task-library-filter" placeholder="Filtra recursos…" aria-label="Filtrar recursos" />
+		                        {% if not tactics_mode %}
+			                        <div class="library-helper-grid resource-helper" aria-label="Guía rápida del lateral">
+                          <div class="library-helper-pill">
+                            <strong>Montaje</strong>
+                            <span>Abre una categoría y verás solo sus recursos. No mezclamos opciones fuera de contexto.</span>
+                          </div>
+                          <div class="library-helper-pill">
+                            <strong>Edición</strong>
+                            <span>Al tocar una chapa, flecha, cono o zona, este mismo lateral cambia a sus ajustes útiles.</span>
+                          </div>
+		                        </div>
+		                        {% endif %}
+			                      <div class="resource-tabs" aria-label="Categorías de recursos">
+		                        <button type="button" class="resource-tab" data-resource="base" title="Base">
+		                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7a3 3 0 0 1 3-3h2V3h6v1h2a3 3 0 0 1 3 3v2H4V7Zm0 4h20v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8Zm7-7h2v1h-2V4Z"/></svg></span>
+		                          <span class="lib-label">{% if tactics_mode %}Elementos{% else %}Jugadores{% endif %}</span>
+		                        </button>
+		                        <button type="button" class="resource-tab" data-resource="pro" title="PRO">
+		                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2 15 9l7 .6-5.3 4.6 1.7 7-6.4-3.8L6.3 21l1.7-7L2.7 9.6 10 9l2-7Z"/></svg></span>
+		                          <span class="lib-label">{% if tactics_mode %}Porterías{% else %}Material{% endif %}</span>
+		                        </button>
+			                        {% if tactics_mode %}
+			                        <button type="button" class="resource-tab" data-resource="plantilla" title="Plantilla">
+		                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z"/></svg></span>
+		                          <span class="lib-label">Plantilla</span>
+		                        </button>
+	                        {% endif %}
+                        <button type="button" class="resource-tab" data-resource="trazos" title="Trazos y flechas">
+                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12h12.17l-3.58-3.59L14 7l7 7-7 7-1.41-1.41L16.17 14H4v-2Z"/></svg></span>
+                          <span class="lib-label">{% if tactics_mode %}Flechas{% else %}Trazos{% endif %}</span>
+                        </button>
+		                        <button type="button" class="resource-tab" data-resource="figuras" title="Figuras geométricas">
+		                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 7h6v6H7V7Zm10 1a4 4 0 1 1-4 4 4 4 0 0 1 4-4ZM5 19h14v2H5v-2Z"/></svg></span>
+		                          <span class="lib-label">Zonas</span>
+		                        </button>
+		                      </div>
+		                      <div class="resource-empty-state" id="task-resource-empty-state">
+		                        <strong>Barra lateral en espera</strong>
+		                        <span>Pulsa una categoría para cargar solo ese bloque. Si eliges Material, primero verás sus tipos y luego los recursos de la familia seleccionada.</span>
+		                      </div>
+		                    </div>
+                      {% if not tactics_mode %}
+                      <div class="command-cluster-head">
+                        <strong>Acciones rápidas</strong>
+                        <span>Deshacer, rehacer, dibujar o duplicar sin salir del campo.</span>
+                      </div>
+                      {% endif %}
+				                  <div class="command-bar" id="task-command-bar" aria-label="Comandos rápidos">
+		                    <button type="button" class="icon-btn" data-action="undo" title="Deshacer" aria-label="Deshacer">
+		                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7V4L2 9l5 5v-3h7a4 4 0 1 1 0 8H9v2h5a6 6 0 1 0 0-12H7Z"/></svg>
+		                    </button>
+	                    <button type="button" class="icon-btn" data-action="redo" title="Rehacer" aria-label="Rehacer">
+	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 7h-7a6 6 0 1 0 0 12h5v-2H10a4 4 0 1 1 0-8h7v3l5-5-5-5v3Z"/></svg>
+	                    </button>
+	                    <button type="button" class="icon-btn" data-action="draw_free" title="Dibujo libre (pulsa para activar/desactivar)" aria-label="Dibujo libre">
+	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L19.81 7.94l-3.75-3.75L3 17.25Zm2.92 2.83H5v-.92l10.06-10.06.92.92L5.92 20.08ZM21 6.34a1 1 0 0 0 0-1.41l-1.93-1.93a1 1 0 0 0-1.41 0l-1.5 1.5 3.75 3.75L21 6.34Z"/></svg>
+	                    </button>
+	                    <button type="button" class="icon-btn" data-action="pencil_pro" title="Pencil Pro (Apple Pencil: dibuja en vacío, arrastra si empiezas sobre una ficha)" aria-label="Pencil Pro">
+	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L19.81 7.94l-3.75-3.75L3 17.25Zm2.92 2.83H5v-.92l10.06-10.06.92.92L5.92 20.08ZM20.71 5.63a1 1 0 0 0 0-1.41L19.78 3.3a1 1 0 0 0-1.41 0l-1.16 1.16 3.75 3.75 1.75-1.58Z"/></svg>
+	                    </button>
+	                    <button type="button" class="icon-btn" data-action="duplicate" title="Duplicar seleccionado" aria-label="Duplicar seleccionado">
+	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h12v12H8V8Zm-2 8H4V4h12v2H6v10Z"/></svg>
+	                    </button>
+	                    <button type="button" class="icon-btn" data-action="edit_bg" title="Editar figura (toca la figura para ajustarla)" aria-label="Editar figura">
+	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20Zm0 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16Zm-1 3h2v3.2l2.7-1.55 1 1.73-2.7 1.55 2.7 1.55-1 1.73-2.7-1.55V17h-2v-3.2l-2.7 1.55-1-1.73 2.7-1.55-2.7-1.55 1-1.73L11 10.2V7Z"/></svg>
+	                    </button>
+	                    <button type="button" class="icon-btn danger" data-action="delete" title="Borrar seleccionado" aria-label="Borrar seleccionado">
+	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v10h-2V9Zm4 0h2v10h-2V9ZM6 8h12v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V8Z"/></svg>
+	                    </button>
+	                    <button type="button" class="icon-btn" id="task-layers-btn" title="Capas" aria-label="Capas">
+	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 2 7l10 5 10-5-10-5Zm0 8L2 5v2l10 5 10-5V5l-10 5Zm0 4L2 9v2l10 5 10-5V9l-10 5Zm0 4L2 13v2l10 5 10-5v-2l-10 5Z"/></svg>
+	                    </button>
+				                    <button type="button" class="icon-btn" id="task-scenarios-btn" title="Escenarios" aria-label="Escenarios">
+				                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1h2v2h-2v2h2v2h-2v2h2v2h-2v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6Zm2 0v12h10V6H6Z"/></svg>
+				                    </button>
+				                    <button type="button" class="button" id="task-export-surface-btn" title="Descargar imagen HD de la superficie gráfica">Imagen</button>
+				                    <button type="button" class="icon-btn" id="task-sim-btn" title="Simular (no guarda)" aria-label="Simular">
+				                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7v10l10-5-10-5Z"/></svg>
+				                    </button>
+			                    <button type="button" class="icon-btn" id="task-command-more" title="Más acciones" aria-label="Más acciones">
+			                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 14a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm6 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm6 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"/></svg>
+			                    </button>
+				                    <div class="command-menu" id="task-command-menu" hidden>
+			                      <button type="button" data-command="secondary-player-rival">Jugador rival</button>
+			                      <button type="button" data-command="secondary-goalkeeper-rival">Portero rival</button>
+			                      <button type="button" data-command="align_x">Alinear centro X <span class="shortcut">⇧A</span></button>
+			                      <button type="button" data-command="align_y">Alinear centro Y <span class="shortcut">A</span></button>
+			                      <button type="button" data-command="distribute_x">Distribuir X <span class="shortcut">D</span></button>
+			                      <button type="button" data-command="distribute_y">Distribuir Y <span class="shortcut">⇧D</span></button>
+				                      <button type="button" data-command="pattern_row">Patrón en fila <span class="shortcut">↔</span></button>
+			                      <button type="button" data-command="pattern_col">Patrón en columna <span class="shortcut">↕</span></button>
+			                      <button type="button" data-command="pattern_grid">Patrón en rejilla <span class="shortcut">⌗</span></button>
+			                      <button type="button" data-command="front">Traer al frente <span class="shortcut">⌘]</span></button>
+			                      <button type="button" data-command="back">Enviar atrás <span class="shortcut">⌘[</span></button>
+			                      <button type="button" data-command="lock">Bloquear/Desbloquear <span class="shortcut">⌘L</span></button>
+			                      <button type="button" data-command="shadow">Sombra / normal <span class="shortcut">H</span></button>
+			                      <button type="button" data-command="grid_toggle">Mostrar/Ocultar rejilla <span class="shortcut">G</span></button>
+			                      <button type="button" data-command="grid_snap">Snap a rejilla <span class="shortcut">Alt</span></button>
+			                      <button type="button" data-command="grid_size">Tamaño rejilla <span class="shortcut">S/M/L</span></button>
+			                      <button type="button" data-command="formation">Formación / patrón</button>
+			                      <button type="button" data-command="tactical_overlays">Overlays tácticos</button>
+			                      <button type="button" data-command="zones">Zonas / plantillas</button>
+			                      <button type="button" data-command="lane_snap_toggle">Snap carriles/sectores <span class="shortcut">⇧</span></button>
+			                      <button type="button" data-command="group">Agrupar <span class="shortcut">⌘G</span></button>
+			                      <button type="button" data-command="ungroup">Desagrupar <span class="shortcut">⌘⇧G</span></button>
+			                      <button type="button" data-command="clear">Limpiar pizarra</button>
+				                    </div>
+			                    <div class="layers-popover" id="task-layers-popover" hidden>
+			                      <div class="layers-popover-head">
+			                        <h4>Capas</h4>
+			                        <button type="button" class="layers-popover-close" id="task-layers-close" aria-label="Cerrar">×</button>
+			                      </div>
+			                      <div class="layers-popover-body">
+			                        <p class="meta">Reordena qué va arriba/abajo, oculta y bloquea. Doble click para renombrar.</p>
+			                        <div class="layers-list" id="task-layers-list-popover"></div>
+			                      </div>
+			                    </div>
+			                    <div class="scenarios-popover" id="task-scenarios-popover" hidden>
+			                      <div class="scenarios-popover-head">
+			                        <h4>Escenarios (multipizarra)</h4>
+			                        <button type="button" class="scenarios-popover-close" id="task-scenarios-close" aria-label="Cerrar">×</button>
+			                      </div>
+			                      <div class="scenarios-popover-body">
+			                        <p class="meta">Guarda varios escenarios dentro de una misma tarea. Cada escenario mantiene su propia pizarra.</p>
+			                        <div class="scenarios-controls">
+			                          <button type="button" class="button" id="task-scenario-add">+ Escenario</button>
+			                          <button type="button" class="button" id="task-scenario-duplicate">Duplicar</button>
+			                          <button type="button" class="button danger" id="task-scenario-remove">Eliminar</button>
+			                          <button type="button" class="button" id="task-scenario-template-3" title="Crea 3 escenarios rápidos: Inicio, Desarrollo, Final">Plantilla 3</button>
+			                        </div>
+			                        <div class="scenarios-fields" aria-label="Datos del escenario activo">
+			                          <label>
+			                            Título
+			                            <input type="text" id="task-scenario-title-pop" placeholder="Ej.: Escenario 1" />
+			                          </label>
+			                          <label>
+			                            Seg (opcional)
+			                            <input type="number" id="task-scenario-duration-pop" min="1" max="20" step="1" value="3" />
+			                          </label>
+			                        </div>
+				                        <div class="timeline-list" id="task-timeline-list-popover"></div>
+				                      </div>
+				                    </div>
+				                    <div class="sim-popover" id="task-sim-popover" hidden>
+				                      <div class="sim-popover-head">
+				                        <h4>Simulador</h4>
+				                        <button type="button" class="sim-popover-close" id="task-sim-close" aria-label="Cerrar">×</button>
+				                      </div>
+				                        <div class="sim-popover-body">
+				                        <p class="meta">Modo simulación: mueve chapas/recursos para explicar una táctica. No se guardan cambios hasta que salgas del simulador.</p>
+					                        <div class="sim-controls">
+					                          <button type="button" class="button primary" id="task-sim-toggle">Entrar en simulación</button>
+					                          <button type="button" class="button" id="task-sim-reset" hidden>Resetear</button>
+					                          <button type="button" class="button" id="task-sim-capture" hidden>Capturar paso</button>
+					                          <button type="button" class="button" id="task-sim-play" hidden>Reproducir</button>
+					                          <button type="button" class="button" id="task-sim-record-quick" hidden title="Graba movimientos (keyframes + ruta suave) para convertirlo en un clip.">Grabar</button>
+					                          <button type="button" class="button danger" id="task-sim-remove" hidden>Eliminar paso</button>
+					                          <button type="button" class="button" id="task-sim-duplicate" hidden>Duplicar paso</button>
+						                        <button type="button" class="button" id="task-sim-prev" hidden>Anterior</button>
+					                          <button type="button" class="button" id="task-sim-next" hidden>Siguiente</button>
+					                          <button type="button" class="button" id="task-sim-clip-save" hidden>Guardar clip</button>
+						                        </div>
+						                        <details class="sim-advanced" id="task-sim-advanced" hidden>
+						                          <summary>Opciones avanzadas</summary>
+						                          <div class="sim-controls" style="margin-top:0.65rem;">
+						                            <button type="button" class="button" id="task-sim-to-scenarios" hidden>Crear escenarios</button>
+						                            <button type="button" class="button" id="task-sim-share" hidden>Copiar enlace</button>
+						                            <button type="button" class="button" id="task-sim-export-step" hidden>PNG paso</button>
+						                            <button type="button" class="button" id="task-sim-export-all" hidden>PNG pasos</button>
+						                            <button type="button" class="button" id="task-sim-record" hidden>Descargar vídeo</button>
+						                            <button type="button" class="button" id="task-sim-view-3d" hidden>Vista 3D</button>
+						                            <button type="button" class="button" id="task-sim-video-studio" hidden>Video Studio</button>
+						                            <button type="button" class="button" id="task-sim-clip-import" hidden>Importar clip</button>
+						                            <button type="button" class="button" id="task-sim-script-open" hidden>Guion (texto)</button>
+						                            <button type="button" class="button" id="task-sim-video-import" hidden>Importar vídeo</button>
+						                            <label style="display:flex; gap:10px; align-items:center;" id="task-sim-clip-dest-wrap" hidden>
+						                              Destino
+						                              <select id="task-sim-clip-dest">
+						                                <option value="local" {% if not tactics_mode %}selected{% endif %}>Local</option>
+						                                <option value="team" {% if tactics_mode %}selected{% endif %}>Playbook equipo</option>
+						                                {% if user.is_superuser %}
+						                                <option value="system">Playbook sistema</option>
+						                                {% endif %}
+						                              </select>
+						                            </label>
+						                            <button type="button" class="button" id="task-sim-pack" hidden>Pack presentación</button>
+						                          </div>
+							                          <div class="sim-options">
+							                            <label class="sim-check">
+							                              <input type="checkbox" id="task-sim-autocapture" />
+							                              Auto-capturar al mover
+							                            </label>
+							                            <label class="sim-check" title="Durante “Grabar”, crea pasos automáticamente al pausar unos ms.">
+							                              <input type="checkbox" id="task-sim-motion-auto" checked />
+							                              Auto-corte (grabación)
+							                            </label>
+							                            <label title="Milisegundos de pausa para cerrar un tramo (keyframes).">
+							                              Corte (ms)
+							                              <input type="number" id="task-sim-motion-cut-ms" min="180" max="6000" step="20" value="520" style="max-width:120px;" />
+							                            </label>
+							                            <label class="sim-check">
+							                              <input type="checkbox" id="task-sim-pro-enabled" />
+							                              Timeline Pro
+							                            </label>
+						                            <label class="sim-check">
+						                              <input type="checkbox" id="task-sim-trajectories" />
+						                              Trayectorias
+						                            </label>
+						                            <label class="sim-check">
+						                              <input type="checkbox" id="task-sim-magnets" />
+						                              Imanes
+						                            </label>
+						                            <label class="sim-check">
+						                              <input type="checkbox" id="task-sim-guides" />
+						                              Guías
+						                            </label>
+						                            <label class="sim-check">
+						                              <input type="checkbox" id="task-sim-collision" />
+						                              Colisión suave
+						                            </label>
+						                            <label>
+						                              Velocidad
+						                              <select id="task-sim-speed">
+						                                <option value="0.5">0.5×</option>
+						                                <option value="1" selected>1×</option>
+						                                <option value="1.5">1.5×</option>
+						                                <option value="2">2×</option>
+						                              </select>
+						                            </label>
+						                            <label>
+						                              Formato vídeo
+						                              <select id="task-sim-record-format">
+						                                <option value="match" selected>Tal cual (pizarra)</option>
+						                                <option value="ig_4_5">Instagram 4:5 (1080×1350)</option>
+						                                <option value="ig_9_16">Instagram 9:16 (1080×1920)</option>
+						                              </select>
+						                            </label>
+						                            <label class="sim-check" title="Muestra el título de la tarea en el vídeo exportado.">
+						                              <input type="checkbox" id="task-sim-record-title" checked />
+						                              Título en vídeo
+						                            </label>
+						                          </div>
+						                        </details>
+						                        <input type="file" id="task-sim-clip-file" accept="application/json,.json" hidden />
+						                        <input type="file" id="task-sim-video-file" accept="video/*" hidden />
+					                        <div class="sim-options" id="task-sim-pro-panel" hidden style="margin-top:0.75rem;">
+					                          <div class="meta" style="grid-column:1/-1;">Timeline Pro: scrub continuo + keyframes por objeto (posición/rotación/escala/opacidad).</div>
+					                          <div style="grid-column:1/-1; display:flex; gap:0.55rem; flex-wrap:wrap; align-items:center; justify-content:space-between;">
+					                            <div style="display:flex; gap:0.55rem; flex-wrap:wrap; align-items:center;">
+					                              <span class="meta" id="task-sim-pro-time">00:00</span>
+					                              <input type="range" id="task-sim-pro-scrub" min="0" max="1000" value="0" style="min-width:220px; width:min(520px, 60vw);" />
+					                              <span class="meta" id="task-sim-pro-total">00:00</span>
+					                            </div>
+					                            <label style="display:flex; gap:10px; align-items:center;">
+					                              Loop
+					                              <input type="checkbox" id="task-sim-pro-loop" checked />
+					                            </label>
+					                          </div>
+					                          <div style="grid-column:1/-1; display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center;">
+					                            <button type="button" class="button" id="task-sim-pro-kf-add">+ Keyframe (selección)</button>
+					                            <button type="button" class="button danger" id="task-sim-pro-kf-del">Borrar keyframe</button>
+					                            <label style="display:flex; gap:10px; align-items:center;">
+					                              Easing
+					                              <select id="task-sim-pro-easing">
+					                                <option value="ease" selected>Ease</option>
+					                                <option value="linear">Linear</option>
+					                                <option value="hold">Hold</option>
+					                              </select>
+					                            </label>
+					                            <button type="button" class="button" id="task-sim-pro-clear">Limpiar keyframes</button>
+					                          </div>
+					                          <div class="sim-steps" id="task-sim-pro-kf-list" hidden></div>
+					                        </div>
+					                        <div class="sim-options" id="task-sim-routes-panel" hidden style="margin-top:0.75rem;">
+					                          <div class="meta" style="grid-column:1/-1;">Rutas: selecciona una ficha (o el balón) y añade waypoints. “Spline” suaviza el movimiento.</div>
+					                          <div style="grid-column:1/-1; display:flex; gap:0.45rem; flex-wrap:wrap;">
+					                            <button type="button" class="button" id="task-sim-route-toggle">Añadir waypoints</button>
+					                            <button type="button" class="button" id="task-sim-route-undo">Borrar último</button>
+					                            <button type="button" class="button danger" id="task-sim-route-clear">Limpiar ruta</button>
+					                          </div>
+					                          <label class="sim-check" style="grid-column:1/-1;">
+					                            <input type="checkbox" id="task-sim-route-spline" />
+					                            Spline (suavizar)
+					                          </label>
+					                          <div style="grid-column:1/-1; display:flex; gap:0.45rem; flex-wrap:wrap;">
+					                            <button type="button" class="button" id="task-sim-ball-follow">Balón pegado (1 seleccionado)</button>
+					                            <button type="button" class="button" id="task-sim-ball-pass">Pase (2 seleccionados)</button>
+					                          </div>
+					                        </div>
+					                        <div class="sim-steps" id="task-sim-steps" hidden></div>
+					                        <div class="sim-steps" id="task-sim-clips" hidden style="margin-top:0.65rem;"></div>
+					                        <div class="sim-meta" id="task-sim-meta" hidden>
+					                          <label>
+					                            Título del paso
+					                            <input type="text" id="task-sim-step-title" placeholder="Ej.: Salida de balón" />
+				                          </label>
+				                          <label>
+				                            Seg
+				                            <input type="number" id="task-sim-step-duration" min="1" max="20" step="1" value="3" />
+				                          </label>
+					                      </div>
+					                    </div>
+
+				                    {% if not tactics_mode %}
+				                    <div class="sim-3d-modal" id="task-sim-script-modal" hidden>
+				                      <div class="sim-3d-card" role="dialog" aria-modal="true" aria-label="Guion de jugada" style="width:min(780px, 96vw); height:min(620px, 92vh);">
+				                        <div class="sim-3d-head">
+				                          <div style="display:flex; flex-direction:column; gap:0.1rem;">
+				                            <strong>Guion (texto) · Generar pasos</strong>
+				                            <span class="meta" style="opacity:0.9;">Cada línea crea pasos. Preciso: <code>Título | dur=3 | 10@60,40 6@30,55 ball@50,50</code>. Macro (una línea = jugada): <code>Tercer hombre 6 10 8 a zona 14</code>, <code>Fijar y soltar 6 10 9 a la espalda</code>, <code>Cambio de orientación 3 7</code>.</span>
+				                          </div>
+				                          <button type="button" class="sim-3d-close" id="task-sim-script-close">Cerrar</button>
+				                        </div>
+				                        <div class="sim-3d-body" style="padding:0.9rem; background: rgba(15, 23, 42, 0.92);">
+				                          <textarea id="task-sim-script-text" style="width:100%; height:100%; resize:none; border-radius:14px; border:1px solid rgba(255,255,255,0.14); background: rgba(2,6,23,0.55); color: rgba(248,250,252,0.92); padding: 0.75rem 0.85rem; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 0.92rem; line-height: 1.35;" placeholder="Ejemplo:\nSalida | dur=3 | 5@25,60 6@35,55 ball@30,50\nProgresión | dur=4 | 10@55,45 9@68,40\nFinalización | dur=2 | 9@78,42 ball@78,42"></textarea>
+				                        </div>
+				                        <div class="sim-3d-foot" style="justify-content: space-between;">
+				                          <div class="meta" id="task-sim-script-status" style="opacity:0.9;">Tip: usa porcentajes (0–100) y el número de dorsal (data playerNumber).</div>
+				                          <div style="display:flex; gap:0.5rem;">
+				                            <button type="button" class="sim-3d-close" id="task-sim-script-cancel">Cancelar</button>
+				                            <button type="button" class="button primary" id="task-sim-script-apply">Generar pasos</button>
+				                          </div>
+				                        </div>
+				                      </div>
+				                    </div>
+				                    {% endif %}
+
+				                    <div class="sim-3d-modal" id="task-sim-3d-modal" hidden>
+				                      <div class="sim-3d-card" role="dialog" aria-modal="true" aria-label="Vista 3D de la tarea">
+				                        <div class="sim-3d-head">
+				                          <div style="display:flex; flex-direction:column; gap:0.1rem;">
+				                            <strong>Vista 3D · Tactical Board</strong>
+				                            <span class="meta" id="task-sim-3d-step-label" style="opacity:0.9;">Paso —</span>
+				                          </div>
+				                          <button type="button" class="sim-3d-close" id="task-sim-3d-close">Cerrar</button>
+				                        </div>
+				                        <div class="sim-3d-body">
+				                          <canvas class="sim-3d-canvas" id="task-sim-3d-canvas"></canvas>
+				                        </div>
+					                        <div class="sim-3d-foot">
+					                          <div class="sim-3d-controls">
+					                            <button type="button" class="button" id="task-sim-3d-prev">Anterior</button>
+					                            <button type="button" class="button primary" id="task-sim-3d-play">Reproducir</button>
+					                            <button type="button" class="button" id="task-sim-3d-next">Siguiente</button>
+				                            <label style="display:flex; gap:10px; align-items:center;">
+				                              Cámara
+					                              <select id="task-sim-3d-camera">
+					                                <option value="tv" selected>TV</option>
+					                                <option value="drone">Drone</option>
+					                                <option value="lateral">Lateral</option>
+					                              </select>
+					                            </label>
+					                            <label style="display:flex; gap:10px; align-items:center;">
+					                              <input type="checkbox" id="task-sim-3d-follow" />
+					                              Seguir balón
+					                            </label>
+					                            <button type="button" class="button" id="task-sim-3d-fullscreen">Pantalla completa</button>
+					                            <button type="button" class="button" id="task-sim-3d-record">Grabar vídeo</button>
+				                            <label style="display:flex; gap:10px; align-items:center;">
+				                              Velocidad
+				                              <select id="task-sim-3d-speed">
+				                                <option value="0.5">0.5×</option>
+				                                <option value="1" selected>1×</option>
+				                                <option value="1.5">1.5×</option>
+				                                <option value="2">2×</option>
+					                              </select>
+					                            </label>
+					                          </div>
+					                          <div class="sim-3d-controls" style="width:100%; justify-content:space-between;">
+					                            <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+					                              <label style="display:flex; gap:10px; align-items:center;">
+					                                <input type="checkbox" id="task-sim-3d-pro" checked />
+					                                3D Pro
+					                              </label>
+					                              <label style="display:flex; gap:10px; align-items:center;">
+					                                Seguimiento
+					                                <select id="task-sim-3d-follow-mode">
+					                                  <option value="off">Off</option>
+					                                  <option value="auto" selected>Auto</option>
+					                                  <option value="ball">Balón</option>
+					                                  <option value="selected">Jugador (click)</option>
+					                                </select>
+					                              </label>
+					                              <label style="display:flex; gap:10px; align-items:center;">
+					                                Overlays
+					                                <select id="task-sim-3d-overlays">
+					                                  <option value="off" selected>Off</option>
+					                                  <option value="lanes">Carriles</option>
+					                                  <option value="sectors">Sectores</option>
+					                                  <option value="zones">Zonas</option>
+					                                  <option value="all">Carriles + Sectores + Zonas</option>
+					                                </select>
+					                              </label>
+					                            </div>
+					                            <div style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center; justify-content:flex-end;">
+					                              <button type="button" class="button" id="task-sim-3d-kf-add">+ Keyframe cámara</button>
+					                              <button type="button" class="button danger" id="task-sim-3d-kf-del">Borrar keyframe</button>
+					                              <button type="button" class="button" id="task-sim-3d-kf-clear">Limpiar</button>
+					                            </div>
+					                          </div>
+					                          <div class="sim-steps" id="task-sim-3d-kf-list" hidden style="margin-top:0.55rem;"></div>
+					                          <div class="sim-3d-note">
+					                            Consejo: usa la simulación 2D para capturar pasos y aquí podrás reproducirlos en 3D.
+					                          </div>
+					                      </div>
+				                    </div>
+
+				                    {% if not tactics_mode %}
+				                    <div class="sim-3d-modal" id="task-video-studio-modal" hidden>
+				                      <div class="sim-3d-card video-studio-card" role="dialog" aria-modal="true" aria-label="Video Studio">
+				                        <div class="sim-3d-head">
+				                          <div style="display:flex; flex-direction:column; gap:0.1rem;">
+				                            <strong>Video Studio · Telestración</strong>
+				                            <span class="meta" id="task-video-studio-meta" style="opacity:0.9;">Carga un vídeo y dibuja encima.</span>
+				                          </div>
+				                          <button type="button" class="sim-3d-close" id="task-video-studio-close">Cerrar</button>
+				                        </div>
+				                        <div class="video-studio-body">
+					                          <div class="video-studio-stage" id="task-video-studio-stage">
+					                            <video class="video-studio-player" id="task-video-studio-player" playsinline controls preload="metadata"></video>
+					                            <div class="video-studio-fx video-studio-spotlight" id="task-video-spotlight" hidden></div>
+					                            <div class="video-studio-fx video-studio-blur-wrap" id="task-video-blur-wrap" hidden></div>
+					                            <canvas class="video-studio-canvas" id="task-video-studio-canvas"></canvas>
+					                          </div>
+					                          <div class="video-studio-toolbar">
+					                            <div class="video-studio-tools">
+					                              <button type="button" class="button" id="task-video-load">Cargar vídeo</button>
+				                              <button type="button" class="button danger" id="task-video-clear" disabled>Quitar</button>
+				                              <input type="file" id="task-video-file" accept="video/*" hidden />
+				                              <span class="meta" id="task-video-status" style="opacity:0.9;">—</span>
+				                            </div>
+					                            <div class="video-studio-tools">
+					                              <button type="button" class="button" id="task-video-tool-pen">Pen</button>
+					                              <button type="button" class="button" id="task-video-tool-arrow">Flecha</button>
+					                              <button type="button" class="button" id="task-video-tool-circle">Círculo</button>
+					                              <button type="button" class="button" id="task-video-tool-rect">Rect</button>
+					                              <button type="button" class="button" id="task-video-tool-text">Texto</button>
+					                              <button type="button" class="button" id="task-video-tool-callout" disabled>Callout #</button>
+					                              <button type="button" class="button" id="task-video-tool-spotlight" disabled>Spotlight</button>
+					                              <button type="button" class="button" id="task-video-tool-blur" disabled>Blur</button>
+					                              <button type="button" class="button" id="task-video-tool-freeze" disabled>Freeze</button>
+					                              <button type="button" class="button" id="task-video-undo" disabled>Undo</button>
+					                              <button type="button" class="button danger" id="task-video-clear-draw" disabled>Limpiar</button>
+					                              <label>
+					                                Color
+				                                <input type="color" id="task-video-color" value="#facc15" />
+				                              </label>
+				                              <label>
+				                                Grosor
+				                                <select id="task-video-width">
+				                                  <option value="3">3</option>
+				                                  <option value="5" selected>5</option>
+				                                  <option value="7">7</option>
+				                                  <option value="9">9</option>
+				                                </select>
+				                              </label>
+					                              <button type="button" class="button" id="task-video-export" disabled>Exportar vídeo</button>
+					                              <label>
+					                                Formato
+					                                <select id="task-video-export-format" disabled>
+					                                  <option value="auto" selected>Auto</option>
+					                                  <option value="webm">WebM</option>
+					                                  <option value="mp4">MP4 (si disponible)</option>
+					                                </select>
+					                              </label>
+					                              <label>
+					                                Calidad
+					                                <select id="task-video-export-quality" disabled>
+					                                  <option value="fast" selected>Rápido (720p)</option>
+					                                  <option value="pro">Pro (1080p)</option>
+					                                  <option value="source">Source (máx)</option>
+					                                </select>
+					                              </label>
+					                              <label>
+					                                FPS
+					                                <select id="task-video-export-fps" disabled>
+					                                  <option value="24">24</option>
+					                                  <option value="30" selected>30</option>
+					                                  <option value="60">60</option>
+					                                </select>
+					                              </label>
+					                              <label>
+					                                Clip
+					                                <select id="task-video-export-len" disabled>
+				                                  <option value="10" selected>10s</option>
+				                                  <option value="20">20s</option>
+				                                  <option value="60">60s</option>
+				                                  <option value="full">Full</option>
+					                                </select>
+					                              </label>
+					                              <button type="button" class="button" id="task-video-export-slides" disabled>Slides PDF</button>
+					                              <button type="button" class="button" id="task-video-export-pack" disabled>Paquete</button>
+					                            </div>
+				                          </div>
+				                          <div class="video-studio-timeline">
+				                            <div class="video-studio-scrub">
+				                              <span class="meta" id="task-video-time">00:00</span>
+				                              <input type="range" id="task-video-scrub" min="0" max="1000" value="0" />
+				                              <span class="meta" id="task-video-duration">00:00</span>
+				                            </div>
+				                            <div class="video-studio-kf">
+				                              <div class="video-studio-hint">
+				                                Keyframes: guarda dibujos ligados a un instante del vídeo para reproducirlos/editar.
+				                              </div>
+				                              <div style="display:flex; gap:0.5rem; flex-wrap:wrap; justify-content:flex-end;">
+				                                <button type="button" class="button" id="task-video-kf-add" disabled>Guardar keyframe</button>
+				                                <button type="button" class="button danger" id="task-video-kf-delete-all" disabled>Borrar keyframes</button>
+				                              </div>
+				                            </div>
+					                            <div class="video-studio-kf-list" id="task-video-kf-list"></div>
+					                            <div class="video-studio-kf">
+					                              <div class="video-studio-hint">
+					                                Capas Pro: entrada/salida, spotlight, blur, freeze y callouts (sin perder keyframes).
+					                              </div>
+					                              <div style="display:flex; gap:0.5rem; flex-wrap:wrap; justify-content:flex-end;">
+					                                <button type="button" class="button" id="task-video-layer-add" disabled>Nueva capa</button>
+					                                <button type="button" class="button" id="task-video-layer-from-selection" disabled>Capa (selección)</button>
+					                              </div>
+					                            </div>
+					                            <div class="video-studio-layer-panel">
+					                              <div class="video-studio-layer-controls">
+					                                <label>Pro <input type="checkbox" id="task-video-pro-enabled" checked /></label>
+					                                <label>Guías <input type="checkbox" id="task-video-show-handles" /></label>
+					                                <span class="meta" id="task-video-layer-status" style="opacity:0.9;">—</span>
+					                              </div>
+					                              <div class="video-studio-layer-list" id="task-video-layer-list"></div>
+					                              <div class="video-studio-layer-editor" id="task-video-layer-editor" hidden>
+					                                <div class="video-studio-layer-grid">
+					                                  <label>Nombre
+					                                    <input type="text" id="task-video-layer-name" placeholder="Capa" />
+					                                  </label>
+					                                  <label>IN (s)
+					                                    <input type="number" id="task-video-layer-in" min="0" step="0.1" />
+					                                  </label>
+					                                  <label>OUT (s)
+					                                    <input type="number" id="task-video-layer-out" min="0" step="0.1" />
+					                                  </label>
+					                                  <label>Fade IN
+					                                    <input type="number" id="task-video-layer-fadein" min="0" step="0.05" />
+					                                  </label>
+					                                  <label>Fade OUT
+					                                    <input type="number" id="task-video-layer-fadeout" min="0" step="0.05" />
+					                                  </label>
+					                                </div>
+					                                <div class="video-studio-layer-actions">
+					                                  <button type="button" class="button" id="task-video-layer-set-in">IN=Ahora</button>
+					                                  <button type="button" class="button" id="task-video-layer-set-out">OUT=Ahora</button>
+					                                  <label style="display:inline-flex; gap:10px; align-items:center; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; color:rgba(226,232,240,0.92);">
+					                                    Trazo
+					                                    <select id="task-video-layer-stroke-anim">
+					                                      <option value="none" selected>Sin</option>
+					                                      <option value="draw">Progresivo</option>
+					                                    </select>
+					                                  </label>
+					                                  <button type="button" class="button danger" id="task-video-layer-delete">Borrar capa</button>
+					                                </div>
+					                              </div>
+					                            </div>
+					                          </div>
+					                        </div>
+					                      </div>
+					                    </div>
+				                    </div>
+				                    {% endif %}
+				                    </div>
+				                    <div class="pattern-popover" id="task-pattern-popover" hidden>
+				                      <div class="pattern-head">
+				                        <h4 id="task-pattern-title">Patrón</h4>
+				                        <button type="button" class="pattern-close" id="task-pattern-close" aria-label="Cerrar">×</button>
+			                      </div>
+			                      <div class="pattern-fields" id="task-pattern-fields-line">
+			                        <div class="pattern-field">
+			                          Copias
+			                          <input type="number" id="task-pattern-count" min="1" max="25" step="1" value="4" />
+			                        </div>
+			                        <div class="pattern-field">
+			                          Separación (px)
+			                          <input type="number" id="task-pattern-spacing" min="8" max="400" step="1" value="40" />
+			                        </div>
+			                      </div>
+			                      <div class="pattern-fields is-grid" id="task-pattern-fields-grid" hidden>
+			                        <div class="pattern-field">
+			                          Filas
+			                          <input type="number" id="task-pattern-rows" min="1" max="12" step="1" value="3" />
+			                        </div>
+			                        <div class="pattern-field">
+			                          Columnas
+			                          <input type="number" id="task-pattern-cols" min="1" max="12" step="1" value="3" />
+			                        </div>
+			                        <div class="pattern-field">
+			                          Separación X (px)
+			                          <input type="number" id="task-pattern-spacing-x" min="8" max="400" step="1" value="40" />
+			                        </div>
+			                        <div class="pattern-field">
+			                          Separación Y (px)
+			                          <input type="number" id="task-pattern-spacing-y" min="8" max="400" step="1" value="40" />
+			                        </div>
+			                      </div>
+			                      <div class="pattern-options">
+			                        <label class="pattern-check">
+			                          <input type="checkbox" id="task-pattern-center" checked />
+			                          Centrar en original
+			                        </label>
+			                        <label class="pattern-check">
+			                          <input type="checkbox" id="task-pattern-invert-x" />
+			                          Invertir X
+			                        </label>
+			                        <label class="pattern-check">
+			                          <input type="checkbox" id="task-pattern-invert-y" />
+			                          Invertir Y
+			                        </label>
+			                      </div>
+				                      <div class="pattern-actions">
+				                        <button type="button" id="task-pattern-cancel">Cancelar</button>
+				                        <button type="button" class="primary" id="task-pattern-apply">Aplicar</button>
+				                      </div>
+				                    </div>
+
+				                    {% if not tactics_mode %}
+				                    <div class="sim-3d-modal" id="task-pitch-3d-modal" hidden>
+				                      <div class="sim-3d-card" role="dialog" aria-modal="true" aria-label="Representación 3D">
+				                        <div class="sim-3d-head">
+				                          <div style="display:flex; flex-direction:column; gap:0.1rem;">
+				                            <strong>Representación 3D · Presentación</strong>
+				                            <span class="meta" style="opacity:0.9;">Misma pizarra, en 3D. Útil para explicar profundidad y espacios.</span>
+				                          </div>
+				                          <button type="button" class="sim-3d-close" id="task-pitch-3d-close">Cerrar</button>
+				                        </div>
+				                        <div class="sim-3d-body">
+				                          <canvas class="sim-3d-canvas" id="task-pitch-3d-canvas"></canvas>
+				                          <div class="pitch3d-hud" id="task-pitch-3d-hud">
+				                            <div class="hud-left">
+				                              <div class="pitch3d-step" id="task-pitch-3d-step">
+				                                <strong id="task-pitch-3d-step-title">Pizarra</strong>
+				                                <span class="meta" id="task-pitch-3d-step-meta">—</span>
+				                              </div>
+				                              <div class="pitch3d-nav">
+				                                <button type="button" class="button" id="task-pitch-3d-prev" title="Paso anterior">‹</button>
+				                                <button type="button" class="button primary" id="task-pitch-3d-next" title="Siguiente paso">›</button>
+				                              </div>
+				                            </div>
+				                            <div class="hud-right">
+				                              <button type="button" class="button" id="task-pitch-3d-present" title="Modo presentación">Presentación</button>
+				                              <button type="button" class="button" id="task-pitch-3d-fullscreen" title="Pantalla completa (si el navegador lo permite)">⤢</button>
+				                            </div>
+				                          </div>
+				                        </div>
+				                        <div class="sim-3d-foot">
+				                          <div class="sim-3d-controls pitch3d-primary-controls">
+				                            <div class="pitch3d-control-group">
+				                              <span class="pitch3d-control-label">Captura HD</span>
+				                              <button type="button" class="button" id="task-pitch-3d-snap" title="Descargar captura HD PNG">Captura HD</button>
+				                            </div>
+				                            <div class="pitch3d-control-group">
+				                              <span class="pitch3d-control-label">Tipo de cámara</span>
+				                              <select id="task-pitch-3d-camera" title="Tipo de cámara" aria-label="Tipo de cámara">
+				                                <option value="render_original" selected>Render original</option>
+				                                <option value="reference_photo">Referencia estadio</option>
+				                                <option value="clean_pitch_render">Campo limpio</option>
+				                                <option value="task_focus">Táctica cercana</option>
+				                                <option value="drone">Drone</option>
+				                                <option value="broadcast">Broadcast</option>
+				                                <option value="broadcast_high">Broadcast alto</option>
+				                                <option value="coach_sideline">Entrenador</option>
+				                                <option value="goal_behind">Detrás portería</option>
+				                                <option value="explain">Explicación</option>
+				                                <option value="normal">Normal</option>
+				                                <option value="rotated">Rotada</option>
+				                                <option value="front">Frontal</option>
+				                                <option value="side">Lateral</option>
+				                                <option value="top_h">Top H</option>
+				                                <option value="top_v">Top V</option>
+				                              </select>
+				                            </div>
+				                            <div class="pitch3d-control-group">
+				                              <span class="pitch3d-control-label">Superficie de juego</span>
+				                              <select id="task-pitch-3d-format" title="Superficie de juego" aria-label="Superficie de juego">
+				                                <option value="f11" selected>Fútbol 11</option>
+				                                <option value="f7">Fútbol 7</option>
+				                              </select>
+				                            </div>
+				                            <div class="pitch3d-control-group">
+				                              <span class="pitch3d-control-label">Tipo de césped</span>
+				                              <select id="task-pitch-3d-surface" title="Tipo de césped" aria-label="Tipo de césped">
+				                                <option value="classic">Césped</option>
+				                                <option value="broadcast">Broadcast</option>
+				                                <option value="realistic">Realista</option>
+				                                <option value="pro">PRO</option>
+				                                <option value="uefa_b">UEFA B</option>
+				                                <option value="natural">Natural</option>
+				                                <option value="artificial">Artificial</option>
+				                                <option value="albero">Albero</option>
+				                                <option value="dirt">Tierra</option>
+				                                <option value="indoor">Indoor</option>
+				                                <option value="dry">Seco</option>
+				                                <option value="wet">Mojado</option>
+				                              </select>
+				                            </div>
+				                          </div>
+				                          <div class="sim-3d-controls pitch3d-hidden-controls" aria-hidden="true">
+				                            <select id="task-pitch-3d-follow" title="Seguimiento" aria-label="Seguimiento">
+				                                <option value="off" selected>Off</option>
+				                                <option value="ball">Balón</option>
+				                                <option value="selected">Jugador (tap)</option>
+				                              </select>
+				                            <select id="task-pitch-3d-insert" title="Insertar elemento en el campo 3D" aria-label="Insertar en 3D">
+				                                <option value="" selected>Insertar</option>
+				                                <option value="player_local">Chapa local</option>
+				                                <option value="player_rival">Chapa rival</option>
+				                                <option value="player_away">Chapa 2ª equipación</option>
+				                                <option value="goalkeeper_local">Portero</option>
+				                                <option value="goalkeeper_rival">Portero rival</option>
+				                                <option value="ball">Balón</option>
+				                                <option value="arrow_solid">Flecha</option>
+				                                <option value="arrow_dash">Flecha discontinua</option>
+				                                <option value="arrow_curve">Flecha curva</option>
+				                                <option value="line_solid">Línea</option>
+				                                <option value="cone">Cono</option>
+				                                <option value="cone_striped">Cono rayas</option>
+				                                <option value="mannequin">Maniquí</option>
+				                                <option value="zone">Zona</option>
+				                              </select>
+				                            <button type="button" class="button" id="task-pitch-3d-refresh" title="Sincroniza con la pizarra actual">Actualizar</button>
+				                            <button type="button" class="button primary" id="task-pitch-3d-snap-tactic" title="Descarga PNG enfocando la táctica">PNG táctica</button>
+				                            <button type="button" class="button" id="task-pitch-3d-play" title="Reproduce escenarios (si existen)">▶</button>
+				                            <button type="button" class="button" id="task-pitch-3d-record" title="Grabar WebM (beta)">REC</button>
+				                            <select id="task-pitch-3d-action" title="Tipo de acción para rutas del elemento seleccionado">
+				                              <option value="pass">Pase</option>
+				                              <option value="carry">Conducción</option>
+				                              <option value="shot">Tiro</option>
+				                              <option value="cross">Centro</option>
+				                              <option value="press">Presión</option>
+				                              <option value="move">Movimiento</option>
+				                            </select>
+				                            <button type="button" class="button" id="task-pitch-3d-action-apply" title="Aplica el tipo de acción a las rutas seleccionadas">Acción</button>
+				                            <button type="button" class="button" id="task-pitch-3d-phase-save" title="Guarda la pizarra actual como nueva fase 3D">Guardar fase</button>
+				                            <button type="button" class="button" id="task-pitch-3d-phase-dup" title="Duplica la fase actual">Duplicar fase</button>
+				                            <button type="button" class="button" id="task-pitch-3d-template" title="Crea una plantilla 3D base">Plantilla 3D</button>
+				                            <button type="button" class="button" id="task-pitch-3d-validate" title="Revisa límites y coherencia básica">Validar</button>
+				                            <button type="button" class="button" id="task-pitch-3d-clamp" title="Ajusta jugadores/material al campo">Ajustar límites</button>
+				                            <button type="button" class="button" id="task-pitch-3d-quality" title="Alterna calidad visual alta">Calidad</button>
+				                            <select id="task-pitch-3d-theme" title="Iluminación del estadio">
+				                              <option value="auto" selected>Auto luz</option>
+				                              <option value="day">Día</option>
+				                              <option value="night">Noche</option>
+				                            </select>
+				                          </div>
+				                          <div class="sim-3d-note">Tip: arrastra para girar; rueda/pinch para zoom; Shift + arrastre o botón derecho desplaza el foco.</div>
+				                        </div>
+				                      </div>
+				                    </div>
+				                    {% endif %}
+
+				                    <div class="pattern-popover" id="task-formation-popover" hidden>
+				                      <div class="pattern-head">
+				                        <h4>Formación</h4>
+				                        <button type="button" class="pattern-close" id="task-formation-close" aria-label="Cerrar">×</button>
+				                      </div>
+				                      <div class="pattern-fields">
+				                        <div class="pattern-field" style="grid-column:1 / -1;">
+				                          Formato
+				                          <select id="task-formation-format">
+				                            <option value="f11" selected>Fútbol 11</option>
+				                            <option value="f7">Fútbol 7</option>
+				                            <option value="futsal">Futsal</option>
+				                          </select>
+				                        </div>
+				                        <div class="pattern-field" style="grid-column:1 / -1;">
+				                          Formación
+				                          <select id="task-formation-shape"></select>
+				                        </div>
+				                        <div class="pattern-field" style="grid-column:1 / -1;">
+				                          Dirección ataque
+				                          <select id="task-formation-direction">
+				                            <option value="right" selected>Ataque hacia la derecha</option>
+				                            <option value="left">Ataque hacia la izquierda</option>
+				                          </select>
+				                        </div>
+				                      </div>
+				                      <div class="pattern-actions">
+				                        <button type="button" id="task-formation-apply-selected">Ajustar seleccionados</button>
+				                        <button type="button" class="primary" id="task-formation-apply">Crear/ordenar formación</button>
+				                      </div>
+				                      <div class="meta" style="margin-top:0.5rem; opacity:0.9;">
+				                        Tip: “Ajustar seleccionados” reordena solo las chapas seleccionadas; si faltan, se crean nuevas.
+				                      </div>
+				                    </div>
+
+					                    <div class="pattern-popover" id="task-overlays-popover" hidden>
+					                      <div class="pattern-head">
+					                        <h4>Overlays tácticos</h4>
+					                        <button type="button" class="pattern-close" id="task-overlays-close" aria-label="Cerrar">×</button>
+					                      </div>
+					                      <div class="pattern-actions" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:0.8rem;">
+					                        <button type="button" id="task-overlays-quick-sectors">3 sectores</button>
+					                        <button type="button" id="task-overlays-quick-lanes">5 carriles</button>
+					                        <button type="button" id="task-overlays-quick-grid120">120 zonas</button>
+					                        <button type="button" id="task-overlays-quick-clear">Quitar</button>
+					                      </div>
+				                      <div class="pattern-fields">
+				                        <div class="pattern-field" style="grid-column:1 / -1;">
+				                          Preset
+				                          <select id="task-overlays-preset">
+				                            <option value="custom" selected>Personalizado</option>
+				                            <option value="clean">Limpio</option>
+				                            <option value="grid">Carriles + sectores</option>
+				                            <option value="analysis">Análisis (pase + superioridades)</option>
+				                            <option value="full">Completo</option>
+				                          </select>
+				                        </div>
+				                        <label class="pattern-check" style="grid-column:1 / -1;">
+				                          <input type="checkbox" id="task-overlay-snap" />
+				                          Snap a carriles/sectores (Shift: desactiva temporalmente)
+				                        </label>
+				                        <label class="pattern-check" style="grid-column:1 / -1;">
+				                          <input type="checkbox" id="task-overlay-lanes" />
+				                          Mostrar carriles (5)
+				                        </label>
+				                        <label class="pattern-check" style="grid-column:1 / -1;">
+				                          <input type="checkbox" id="task-overlay-sectors" />
+				                          Mostrar sectores (3)
+				                        </label>
+				                        <label class="pattern-check" style="grid-column:1 / -1;">
+				                          <input type="checkbox" id="task-overlay-passlines" />
+				                          Líneas de pase (auto)
+				                        </label>
+					                        <label class="pattern-check" style="grid-column:1 / -1;">
+					                          <input type="checkbox" id="task-overlay-superiorities" />
+					                          Superioridades (auto)
+					                        </label>
+					                        <label class="pattern-check" style="grid-column:1 / -1;">
+					                          <input type="checkbox" id="task-overlay-halfspaces" />
+					                          Mostrar half-spaces (carriles 2 y 4)
+					                        </label>
+					                        <label class="pattern-check" style="grid-column:1 / -1;">
+					                          <input type="checkbox" id="task-overlay-offside" />
+					                          Línea fuera de juego (F7 / referencia)
+					                        </label>
+					                        <label class="pattern-check" style="grid-column:1 / -1;">
+					                          <input type="checkbox" id="task-overlay-zone14" />
+					                          Marcar zona 14 (referencia)
+					                        </label>
+				                      </div>
+					                      <div class="pattern-actions">
+					                        <button type="button" class="primary" id="task-overlays-apply">Aplicar</button>
+					                      </div>
+					                    </div>
+
+					                    <div class="pattern-popover" id="task-zones-popover" hidden>
+					                      <div class="pattern-head">
+					                        <h4>Zonas / Carriles (manual)</h4>
+					                        <button type="button" class="pattern-close" id="task-zones-close" aria-label="Cerrar">×</button>
+					                      </div>
+					                      <div class="pattern-fields">
+					                        <label class="pattern-check" style="grid-column:1 / -1;">
+					                          <input type="checkbox" id="task-zones-snap" />
+					                          Snap a zonas personalizadas (Shift: desactiva temporalmente)
+					                        </label>
+					                        <div class="pattern-field" style="grid-column:1 / -1;">
+					                          Plantilla
+					                          <select id="task-zones-template"></select>
+					                        </div>
+					                        <div class="pattern-field" style="grid-column:1 / -1;">
+					                          Nombre plantilla (para guardar)
+					                          <input type="text" id="task-zones-template-name" placeholder="Ej: 5 carriles + 3 sectores + Z14" autocomplete="off" />
+					                        </div>
+					                      </div>
+					                      <div class="pattern-actions" style="display:flex; gap:10px; flex-wrap:wrap;">
+					                        <button type="button" id="task-zones-apply">Aplicar plantilla</button>
+					                        <button type="button" class="primary" id="task-zones-save">Guardar plantilla</button>
+					                        <button type="button" id="task-zones-clear" title="Borra zonas/carriles actuales (no chapas)">Limpiar zonas</button>
+					                      </div>
+					                      <div class="meta" style="margin-top:0.55rem; opacity:0.9;">
+					                        Tip: dibuja zonas con “Zona” y crea carriles a medida con “Divisor vertical/horizontal” (Trazos). Luego guarda como plantilla para reusar.
+					                      </div>
+					                    </div>
+			                  </div>
+		                </div>
+	                <p class="resource-helper" hidden>Pulsa una pestaña para mostrar los recursos.</p>
+				                <div class="resource-panel is-visible" data-panel="base">
+				                  <h3 class="tool-group-title">{% if tactics_mode %}Recursos gráficos{% else %}Jugadores{% endif %}</h3>
+			                  {% if tactics_mode %}
+			                  <div class="token-global-style" id="task-token-style-global-tactics" aria-label="Colores rápidos de fichas">
+			                    <span class="label">Colores</span>
+			                    <span class="token-global-color" aria-label="Color local">
+			                      <span class="label" style="opacity:0.9;">Local</span>
+			                      <input type="color" id="task-token-global-color-local" value="#0f7a35" aria-label="Color local" />
+			                      <input type="text" id="task-token-global-color-local-hex" value="#0f7a35" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="#RRGGBB" aria-label="Color local (hex)" />
+			                    </span>
+			                    <span class="token-global-color" aria-label="Color rival">
+			                      <span class="label" style="opacity:0.9;">Rival</span>
+			                      <input type="color" id="task-token-global-color-rival" value="#ef4444" aria-label="Color rival" />
+			                      <input type="text" id="task-token-global-color-rival-hex" value="#ef4444" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="#RRGGBB" aria-label="Color rival (hex)" />
+			                    </span>
+			                    <button type="button" data-token-team-preset="local">Local</button>
+			                    <button type="button" data-token-team-preset="rival">Rival</button>
+			                    <button type="button" data-token-team-preset="goalkeeper">Portero</button>
+			                    <button type="button" data-token-team-preset="neutral">Neutral</button>
+			                  </div>
+			                  <div class="resource-strip" id="tactics-quick-recents" hidden aria-label="Recientes y favoritos"></div>
+				                  <div class="resource-quick-title">{% if tactics_mode %}Recursos gráficos{% else %}Barra lateral{% endif %}</div>
+			                  <div class="resource-strip resource-strip-primary sidebar-rail" id="task-basic-tools" aria-label="Barra lateral de recursos">
+			                    <details class="sidebar-dropdown sidebar-dropdown-selection">
+			                      <summary class="tool-icon sidebar-category" title="Selección" aria-label="Selección">
+			                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3l7.6 13.1 1.5-4.6 4.7 4.7 1.8-1.8-4.7-4.7 4.6-1.5L4 3z"/></svg>
+			                        <span class="tool-label">Selección</span>
+			                        <span class="sidebar-caret" aria-hidden="true">▸</span>
+			                      </summary>
+			                      <div class="sidebar-flyout sidebar-flyout-medium" role="menu" aria-label="Acciones de selección">
+			                        <button type="button" class="tool-icon sidebar-option" data-action="move" title="Mover / seleccionar" aria-label="Mover / seleccionar" onclick="try{document.getElementById('task-quick-move')?.click();}catch(e){};return false;">
+			                          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3l7.6 13.1 1.5-4.6 4.7 4.7 1.8-1.8-4.7-4.7 4.6-1.5L4 3z"/></svg>
+			                          <span class="tool-label">Mover</span>
+			                        </button>
+			                        <button type="button" class="tool-icon sidebar-option" data-action="duplicate" title="Duplicar" aria-label="Duplicar" onclick="try{document.querySelector('[data-inspector-action=\\\"duplicate\\\"]')?.click();}catch(e){};return false;">
+			                          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h12v12H8V8Zm-2 8H4V4h12v2H6v10Z"/></svg>
+			                          <span class="tool-label">Duplicar</span>
+			                        </button>
+			                        <button type="button" class="tool-icon sidebar-option" data-action="delete" title="Borrar" aria-label="Borrar" onclick="try{document.querySelector('[data-command-proxy=\\\"delete\\\"]')?.click();}catch(e){};return false;">
+			                          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v10h-2V9Zm4 0h2v10h-2V9ZM6 8h12v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V8Z"/></svg>
+			                          <span class="tool-label">Borrar</span>
+			                        </button>
+			                      </div>
+			                    </details>
+			                    <details class="sidebar-dropdown sidebar-dropdown-material" open>
+			                      <summary class="tool-icon sidebar-category" title="Material entrenos" aria-label="Material entrenos">
+			                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 7 18h10L12 4Zm0 2.8 3.1 8.6H8.9L12 6.8Z"/><path d="M5.5 19h13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity="0.65"/></svg>
+			                        <span class="tool-label">Material</span>
+			                        <span class="sidebar-caret" aria-hidden="true">▸</span>
+			                      </summary>
+			                      <div class="sidebar-flyout sidebar-flyout-grid sidebar-flyout-large" role="menu" aria-label="Material entrenos">
+			                        <button type="button" class="tool-icon sidebar-option" data-add="cone" title="Cono" aria-label="Cono"><span class="tool-emoji" aria-hidden="true">🔺</span><span class="tool-label">Cono</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="ppt_cone_asset" title="Cono PPT" aria-label="Cono PPT"><span class="tool-emoji" aria-hidden="true"><img class="tool-preview-img" src="{% static 'football/images/task_builder/ppt/cone_ppt.png' %}" alt="" loading="lazy" /></span><span class="tool-label">PPT</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="cone_striped" title="Cono (rayas)" aria-label="Cono (rayas)"><span class="tool-emoji" aria-hidden="true">🔶</span><span class="tool-label">Rayas</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="ppt_pole_asset" title="Pica PPT" aria-label="Pica PPT"><span class="tool-emoji" aria-hidden="true"><img class="tool-preview-img" src="{% static 'football/images/task_builder/ppt/pole_ppt_asset.svg' %}" alt="" loading="lazy" /></span><span class="tool-label">PPT</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="pole_marker" title="Pica" aria-label="Pica"><span class="tool-emoji" aria-hidden="true">📍</span><span class="tool-label">Pica</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="ring" title="Aro" aria-label="Aro"><span class="tool-emoji" aria-hidden="true">⭕</span><span class="tool-label">Aro</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="tape" title="Cinta / línea de suelo" aria-label="Cinta / línea de suelo"><span class="tool-emoji" aria-hidden="true">🧵</span><span class="tool-label">Cinta</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="gate" title="Puerta (2 conos)" aria-label="Puerta (2 conos)"><span class="tool-emoji" aria-hidden="true">🚪</span><span class="tool-label">Puerta</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="ladder" title="Escalera de coordinación" aria-label="Escalera de coordinación"><span class="tool-emoji" aria-hidden="true">🪜</span><span class="tool-label">Escalera</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="hurdle" title="Valla" aria-label="Valla"><span class="tool-emoji" aria-hidden="true">🚧</span><span class="tool-label">Valla</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="mini_hurdle" title="Mini valla" aria-label="Mini valla"><span class="tool-emoji" aria-hidden="true">🪧</span><span class="tool-label">Mini</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="mannequin" title="Maniquí" aria-label="Maniquí"><span class="tool-emoji" aria-hidden="true">🧍</span><span class="tool-label">Maniquí</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="barrier" title="Barrera (4 maniquíes)" aria-label="Barrera (4 maniquíes)"><span class="tool-emoji" aria-hidden="true">🚧</span><span class="tool-label">Barrera</span></button>
+			                      </div>
+			                    </details>
+			                    <details class="sidebar-dropdown sidebar-dropdown-graphics">
+			                      <summary class="tool-icon sidebar-category" title="Elementos gráficos" aria-label="Elementos gráficos">
+			                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h12v12H6z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 4v16M4 12h16" fill="none" stroke="currentColor" stroke-width="1.3" opacity="0.7"/></svg>
+			                        <span class="tool-label">Gráficos</span>
+			                        <span class="sidebar-caret" aria-hidden="true">▸</span>
+			                      </summary>
+			                      <div class="sidebar-flyout sidebar-flyout-grid sidebar-flyout-large" role="menu" aria-label="Elementos gráficos">
+			                        <button type="button" class="tool-icon sidebar-option" data-add="zone" title="Zona" aria-label="Zona"><span class="tool-emoji" aria-hidden="true">▢</span><span class="tool-label">Zona</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="shape_circle" title="Círculo" aria-label="Círculo"><span class="tool-emoji" aria-hidden="true">⚪</span><span class="tool-label">Círculo</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="shape_square" title="Cuadrado" aria-label="Cuadrado"><span class="tool-emoji" aria-hidden="true">⬜</span><span class="tool-label">Cuadrado</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="shape_rect" title="Rectángulo" aria-label="Rectángulo"><span class="tool-emoji" aria-hidden="true">▭</span><span class="tool-label">Rectángulo</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="shape_triangle" title="Triángulo" aria-label="Triángulo"><span class="tool-emoji" aria-hidden="true">🔺</span><span class="tool-label">Triángulo</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="shape_diamond" title="Rombo" aria-label="Rombo"><span class="tool-emoji" aria-hidden="true">🔶</span><span class="tool-label">Rombo</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="marker_start" title="Marcador inicio" aria-label="Marcador inicio"><span class="tool-emoji" aria-hidden="true">I</span><span class="tool-label">Inicio</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="marker_end" title="Marcador fin" aria-label="Marcador fin"><span class="tool-emoji" aria-hidden="true">F</span><span class="tool-label">Fin</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="marker_pass" title="Marcador pase" aria-label="Marcador pase"><span class="tool-emoji" aria-hidden="true">P</span><span class="tool-label">Pase</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="marker_shot" title="Marcador tiro" aria-label="Marcador tiro"><span class="tool-emoji" aria-hidden="true">T</span><span class="tool-label">Tiro</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="marker_support" title="Marcador apoyo" aria-label="Marcador apoyo"><span class="tool-emoji" aria-hidden="true">A</span><span class="tool-label">Apoyo</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="measure" title="Regla de medida" aria-label="Regla de medida"><span class="tool-emoji" aria-hidden="true">📏</span><span class="tool-label">Medida</span></button>
+			                      </div>
+			                    </details>
+			                    <details class="sidebar-dropdown sidebar-dropdown-lines">
+			                      <summary class="tool-icon sidebar-category" title="Flechas y líneas" aria-label="Flechas y líneas">
+			                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19 18 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M14 6h4v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+			                        <span class="tool-label">Líneas</span>
+			                        <span class="sidebar-caret" aria-hidden="true">▸</span>
+			                      </summary>
+			                      <div class="sidebar-flyout sidebar-flyout-grid sidebar-flyout-wide sidebar-flyout-xwide" role="menu" aria-label="Flechas y líneas">
+			                        <button type="button" class="tool-icon sidebar-option" data-add="draw_free" title="Dibujo libre" aria-label="Dibujo libre"><span class="tool-emoji" aria-hidden="true">✏️</span><span class="tool-label">Libre</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="smart_arrow" title="Auto flecha" aria-label="Auto flecha"><span class="tool-emoji" aria-hidden="true">✨</span><span class="tool-label">Auto</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="line_solid" title="Línea continua" aria-label="Línea continua"><span class="tool-emoji" aria-hidden="true">➖</span><span class="tool-label">Continua</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="line_dash" title="Línea discontinua" aria-label="Línea discontinua"><span class="tool-emoji" aria-hidden="true">╌</span><span class="tool-label">Discont.</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="line_dot" title="Línea de puntos" aria-label="Línea de puntos"><span class="tool-emoji" aria-hidden="true">⋯</span><span class="tool-label">Puntos</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="line_double" title="Línea doble" aria-label="Línea doble"><span class="tool-emoji" aria-hidden="true">〓</span><span class="tool-label">Doble</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="line_curve" title="Curva" aria-label="Curva"><span class="tool-emoji" aria-hidden="true">〰️</span><span class="tool-label">Curva</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="line_wave" title="Ondulada" aria-label="Ondulada"><span class="tool-emoji" aria-hidden="true">🌊</span><span class="tool-label">Ondulada</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="arrow_solid" title="Flecha continua" aria-label="Flecha continua"><span class="tool-emoji" aria-hidden="true">➡️</span><span class="tool-label">Flecha</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="arrow_dash" title="Flecha discontinua" aria-label="Flecha discontinua"><span class="tool-emoji" aria-hidden="true">➟</span><span class="tool-label">Flecha discont.</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="arrow_dot" title="Flecha de puntos" aria-label="Flecha de puntos"><span class="tool-emoji" aria-hidden="true">➟</span><span class="tool-label">Flecha puntos</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="arrow_curve" title="Flecha curva" aria-label="Flecha curva"><span class="tool-emoji" aria-hidden="true">↪️</span><span class="tool-label">Curva</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="arrow_curve_left" title="Flecha curva (lado contrario)" aria-label="Flecha curva (lado contrario)"><span class="tool-emoji" aria-hidden="true">↩️</span><span class="tool-label">Invertida</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="line_thick" title="Línea gruesa" aria-label="Línea gruesa"><span class="tool-emoji" aria-hidden="true">➖</span><span class="tool-label">Gruesa</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="line_pressure" title="Línea de presión (táctica)" aria-label="Línea de presión"><span class="tool-emoji" aria-hidden="true">🟥</span><span class="tool-label">Presión</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="line_defensive" title="Línea defensiva (táctica)" aria-label="Línea defensiva"><span class="tool-emoji" aria-hidden="true">🟦</span><span class="tool-label">Defensa</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="line_offside" title="Línea fuera de juego (táctica)" aria-label="Fuera de juego"><span class="tool-emoji" aria-hidden="true">🚫</span><span class="tool-label">Offside</span></button>
+	                      </div>
+			                    </details>
+			                    <details class="sidebar-dropdown sidebar-dropdown-ball">
+			                      <summary class="tool-icon sidebar-category" title="Balones" aria-label="Balones">
+			                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 6.2 9.5 8.1 10.3 11h3.4l.8-2.9L12 6.2Zm-5 4.4 1.5 4.6 2.4-1.3-.8-3.3H7Zm10 0h-3.1l-.8 3.3 2.4 1.3L17 10.6ZM9.3 15.1 12 17.6l2.7-2.5-1.5-1.7h-2.4L9.3 15.1Z" fill="currentColor" opacity="0.9"/></svg>
+			                        <span class="tool-label">Balones</span>
+			                        <span class="sidebar-caret" aria-hidden="true">▸</span>
+			                      </summary>
+			                      <div class="sidebar-flyout sidebar-flyout-grid sidebar-flyout-medium" role="menu" aria-label="Balones">
+			                        <button type="button" class="tool-icon sidebar-option" data-add="ball_training_asset" title="Balón de entrenamiento" aria-label="Balón de entrenamiento"><span class="tool-emoji" aria-hidden="true"><img class="tool-preview-img" src="{% static 'football/images/task_builder/ball_webstats_training.svg' %}" alt="" loading="lazy" /></span><span class="tool-label">Entreno</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="ppt_ball_training_asset" title="Balón PPT entrenamiento" aria-label="Balón PPT entrenamiento"><span class="tool-emoji" aria-hidden="true"><img class="tool-preview-img" src="{% static 'football/images/task_builder/ppt/ball_ppt_training.png' %}" alt="" loading="lazy" /></span><span class="tool-label">PPT T.</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="ppt_ball_alt_asset" title="Balón PPT alternativo" aria-label="Balón PPT alternativo"><span class="tool-emoji" aria-hidden="true"><img class="tool-preview-img" src="{% static 'football/images/task_builder/ppt/ppt_ball_alt_asset.png' %}" alt="" loading="lazy" /></span><span class="tool-label">PPT A.</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="ball_futsal_asset" title="Balón futsal" aria-label="Balón futsal"><span class="tool-emoji" aria-hidden="true"><img class="tool-preview-img" src="{% static 'football/images/task_builder/ball_webstats_futsal.svg' %}" alt="" loading="lazy" /></span><span class="tool-label">Futsal</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="ball_premium_asset" title="Balón premium" aria-label="Balón premium"><span class="tool-emoji" aria-hidden="true"><img class="tool-preview-img" src="{% static 'football/images/task_builder/ball_webstats_premium.svg' %}" alt="" loading="lazy" /></span><span class="tool-label">Premium</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="emoji_ball" title="Balón emoji" aria-label="Balón emoji"><span class="tool-emoji" aria-hidden="true">⚽</span><span class="tool-label">Emoji</span></button>
+			                      </div>
+			                    </details>
+			                    <details class="sidebar-dropdown sidebar-dropdown-emojis">
+			                      <summary class="tool-icon sidebar-category" title="Emojis" aria-label="Emojis">
+			                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9 11h.01M15 11h.01M9 15c1.1 1 2.2 1.5 3 1.5s1.9-.5 3-1.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+			                        <span class="tool-label">Emojis</span>
+			                        <span class="sidebar-caret" aria-hidden="true">▸</span>
+			                      </summary>
+			                      <div class="sidebar-flyout sidebar-flyout-grid sidebar-flyout-wide" role="menu" aria-label="Emojis">
+			                        <button type="button" class="tool-icon sidebar-option" data-add="emoji_goal" title="Portería emoji" aria-label="Portería emoji"><span class="tool-emoji" aria-hidden="true">🥅</span><span class="tool-label">Portería</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="emoji_mini_goal" title="Mini portería emoji" aria-label="Mini portería emoji"><span class="tool-emoji" aria-hidden="true">🥅</span><span class="tool-label">Mini</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="emoji_ball" title="Balón emoji" aria-label="Balón emoji"><span class="tool-emoji" aria-hidden="true">⚽</span><span class="tool-label">Balón</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="emoji_ball_alt" title="Balón alternativo emoji" aria-label="Balón alternativo emoji"><span class="tool-emoji" aria-hidden="true">🏐</span><span class="tool-label">Alterno</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="ppt_target_asset" title="Objetivo PPT" aria-label="Objetivo PPT"><span class="tool-emoji" aria-hidden="true"><img class="tool-preview-img" src="{% static 'football/images/task_builder/ppt/ppt_target_asset.png' %}" alt="" loading="lazy" /></span><span class="tool-label">PPT Obj.</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="emoji_flag" title="Bandera emoji" aria-label="Bandera emoji"><span class="tool-emoji" aria-hidden="true">🚩</span><span class="tool-label">Bandera</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="emoji_target" title="Objetivo emoji" aria-label="Objetivo emoji"><span class="tool-emoji" aria-hidden="true">🎯</span><span class="tool-label">Objetivo</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="emoji_shield" title="Escudo emoji" aria-label="Escudo emoji"><span class="tool-emoji" aria-hidden="true">🛡️</span><span class="tool-label">Escudo</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" data-add="ppt_shirt_asset" title="Ficha PPT" aria-label="Ficha PPT"><span class="tool-emoji" aria-hidden="true"><img class="tool-preview-img" src="{% static 'football/images/task_builder/ppt/ppt_shirt_asset.png' %}" alt="" loading="lazy" /></span><span class="tool-label">PPT Ficha</span></button>
+			                      </div>
+			                    </details>
+			                    <details class="sidebar-dropdown sidebar-dropdown-text">
+			                      <summary class="tool-icon sidebar-category" title="Texto" aria-label="Texto">
+			                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h12v2H13v10h-2V8H6V6Z"/></svg>
+			                        <span class="tool-label">Texto</span>
+			                        <span class="sidebar-caret" aria-hidden="true">▸</span>
+			                      </summary>
+			                      <div class="sidebar-flyout" role="menu" aria-label="Texto">
+			                        <button type="button" class="tool-icon sidebar-option" data-add="text" title="Texto" aria-label="Texto">
+			                          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h12v2H13v10h-2V8H6V6Z"/></svg>
+			                          <span class="tool-label">Texto</span>
+			                        </button>
+			                      </div>
+			                    </details>
+			                    <details class="sidebar-dropdown sidebar-dropdown-more">
+			                      <summary class="tool-icon sidebar-category" id="task-sidebar-more" title="Más acciones" aria-label="Más acciones">
+			                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm12 0a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm-6 0a2 2 0 1 1 4 0 2 2 0 0 1-4 0Z"/></svg>
+			                        <span class="tool-label">Más</span>
+			                        <span class="sidebar-caret" aria-hidden="true">▸</span>
+			                      </summary>
+			                      <div class="sidebar-flyout sidebar-flyout-grid sidebar-flyout-xwide" role="menu" aria-label="Superficies">
+			                        <button type="button" class="tool-icon sidebar-option" title="3 sectores" aria-label="3 sectores" onclick="try{window.__webstatsTpadApplyOverlayQuickMode?.('sectors');}catch(e){};return false;"><span class="tool-emoji" aria-hidden="true">3</span><span class="tool-label">3 sectores</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" title="5 carriles" aria-label="5 carriles" onclick="try{window.__webstatsTpadApplyOverlayQuickMode?.('lanes');}catch(e){};return false;"><span class="tool-emoji" aria-hidden="true">5</span><span class="tool-label">5 carriles</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" title="120 zonas" aria-label="120 zonas" onclick="try{window.__webstatsTpadApplyOverlayQuickMode?.('grid120');}catch(e){};return false;"><span class="tool-emoji" aria-hidden="true">#</span><span class="tool-label">120 zonas</span></button>
+			                        <button type="button" class="tool-icon sidebar-option" title="Quitar" aria-label="Quitar" onclick="try{window.__webstatsTpadApplyOverlayQuickMode?.('clear');}catch(e){};return false;"><span class="tool-emoji" aria-hidden="true">×</span><span class="tool-label">Quitar</span></button>
+			                      </div>
+			                    </details>
+			                  </div>
+			                  {% else %}
+				                  <div class="resource-strip" id="task-basic-tools">
+			                  <button type="button" class="tool-icon" data-add="player_local" title="Jugador local" aria-label="Jugador local"><span class="tool-emoji" aria-hidden="true">🔵</span><span class="sr-only">Jugador local</span></button>
+			                  <button type="button" class="tool-icon" data-add="player_rival" title="Jugador rival" aria-label="Jugador rival"><span class="tool-emoji" aria-hidden="true">🔴</span><span class="sr-only">Jugador rival</span></button>
+			                  <button type="button" class="tool-icon" data-add="player_away" title="Jugador 2ª equipación" aria-label="Jugador 2ª equipación"><span class="tool-emoji" aria-hidden="true">🟡</span><span class="sr-only">Jugador 2ª equipación</span></button>
+			                  <button type="button" class="tool-icon" data-add="goalkeeper_local" title="Portero" aria-label="Portero"><span class="tool-emoji" aria-hidden="true">🧤</span><span class="sr-only">Portero</span></button>
+			                  <button type="button" class="tool-icon" data-add="goalkeeper_rival" title="Portero rival" aria-label="Portero rival"><span class="tool-emoji" aria-hidden="true">🧤</span><span class="sr-only">Portero rival</span></button>
+			                  <button type="button" class="tool-icon" data-add="ball" title="Balón" aria-label="Balón"><span class="tool-emoji" aria-hidden="true">⚽</span><span class="sr-only">Balón</span></button>
+		                </div>
+		                {% endif %}
+		                {% if tactics_mode and not tactical_player_catalog and not available_players %}
+		                  <div class="player-bank-generic" aria-label="Recursos genéricos de plantilla">
+		                    <button type="button" class="player-token-bank" data-add="player_local" title="Chapa" aria-label="Chapa">
+		                      <span class="player-token-bank-visuals">
+		                        <span class="token-disk is-preview is-active"><span class="token-number">•</span></span>
+		                        <span class="token-jersey is-preview"><img class="token-jersey-img" src="{% static 'football/images/task_builder/ppt/ppt_shirt_asset.png' %}" alt="" loading="lazy" /></span>
+		                      </span>
+		                      <span class="player-token-bank-copy">
+		                        <span class="token-name">Chapa</span>
+		                        <span class="token-meta">Genérico</span>
+		                      </span>
+		                    </button>
+		                    <button type="button" class="player-token-bank" data-add="goalkeeper_local" title="Portero" aria-label="Portero">
+		                      <span class="player-token-bank-visuals">
+		                        <span class="token-disk is-preview is-goalkeeper"><span class="token-number">GK</span></span>
+		                        <span class="token-jersey is-preview is-goalkeeper"><svg class="token-jersey-svg" viewBox="-26 -30 52 60" aria-hidden="true" focusable="false"><defs><linearGradient id="bank-gk-generic-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1d4ed8"></stop><stop offset="1" stop-color="#0ea5e9"></stop></linearGradient></defs><path d="M-15 -26 -23 -18 -19 -4 -13 -8 -11 28 11 28 13 -8 19 -4 23 -18 15 -26 8 -18 5 -24 -5 -24 -8 -18Z" fill="url(#bank-gk-generic-grad)" stroke="rgba(255,255,255,0.92)" stroke-width="2"></path></svg></span>
+		                        <span class="token-photo is-preview is-goalkeeper"><span class="token-initials">G</span></span>
+		                      </span>
+		                      <span class="player-token-bank-copy">
+		                        <span class="token-name">Portero</span>
+		                        <span class="token-meta">Genérico</span>
+		                      </span>
+		                    </button>
+		                    <button type="button" class="player-token-bank" data-add="player_rival" title="Camiseta" aria-label="Camiseta">
+		                      <span class="player-token-bank-visuals">
+		                        <span class="token-disk is-preview"><span class="token-number">•</span></span>
+		                        <span class="token-jersey is-preview"><img class="token-jersey-img" src="{% static 'football/images/task_builder/ppt/ppt_shirt_asset.png' %}" alt="" loading="lazy" /></span>
+		                      </span>
+		                      <span class="player-token-bank-copy">
+		                        <span class="token-name">Camiseta</span>
+		                        <span class="token-meta">Genérica</span>
+		                      </span>
+		                    </button>
+		                    <button type="button" class="player-token-bank" data-add="player_away" title="Avatar" aria-label="Avatar">
+		                      <span class="player-token-bank-visuals">
+		                        <span class="token-disk is-preview"><span class="token-number">•</span></span>
+		                        <span class="token-jersey is-preview"><svg class="token-jersey-svg" viewBox="-26 -30 52 60" aria-hidden="true" focusable="false"><path d="M-15 -26 -23 -18 -19 -4 -13 -8 -11 28 11 28 13 -8 19 -4 23 -18 15 -26 8 -18 5 -24 -5 -24 -8 -18Z" fill="#f8fafc" stroke="rgba(255,255,255,0.92)" stroke-width="2"></path><path d="M-24 -29H-16V30H-24ZM-8 -29H0V30H-8ZM8 -29H16V30H8ZM24 -29H16V30H24Z" fill="#facc15"></path></svg></span>
+		                        <span class="token-photo is-preview"><span class="token-initials">A</span></span>
+		                      </span>
+		                      <span class="player-token-bank-copy">
+		                        <span class="token-name">Avatar</span>
+		                        <span class="token-meta">Genérico</span>
+		                      </span>
+		                    </button>
+		                  </div>
+		                {% endif %}
+                  <div data-inspector-slot="base">
+	                    <div class="selection-dock" id="task-selection-dock" hidden>
+	                    <div class="selection-toolbar" id="task-selection-toolbar" hidden>
+	                      <div class="selection-header">
+	                        <div class="selection-preview" id="task-selection-preview" aria-hidden="true">•</div>
+	                        <div>
+	                        <div class="selection-dock-actions">
+	                          <button type="button" id="task-selection-dock-close" aria-label="Cerrar inspector" title="Cerrar">✕</button>
+	                        </div>
+	                        <h3>Elemento seleccionado</h3>
+	                        <p id="task-selection-summary">Selecciona un recurso para ajustarlo.</p>
+	                        </div>
+	                      </div>
+	                      <div class="selection-actions is-primary" aria-label="Acciones rápidas" hidden>
+	                        <button type="button" data-inspector-action="duplicate" title="Duplicar">Duplicar</button>
+	                        <button type="button" data-command-proxy="delete" class="danger" title="Borrar">Borrar</button>
+	                        <button type="button" data-command-proxy="front" title="Traer delante">Delante</button>
+	                        <button type="button" data-command-proxy="back" title="Enviar detrás">Detrás</button>
+	                        <button type="button" data-command-proxy="lock" title="Bloquear o desbloquear">Bloquear</button>
+	                      </div>
+	                      <div class="inspector-section-title">Ajuste</div>
+	                      <div class="selection-grid">
+	                        <div class="token-meta" id="task-token-meta" hidden>
+	                          <label>
+	                            Nombre
+	                            <input type="text" id="task-token-name" placeholder="Ej. Cristian" maxlength="40" />
+	                          </label>
+	                          <label>
+	                            Dorsal
+	                            <input type="text" id="task-token-number" placeholder="Ej. 9" inputmode="numeric" maxlength="2" />
+	                          </label>
+	                        </div>
+	                        <label id="task-scale-x-row">
+	                          Longitud / ancho
+	                          <input type="range" id="task-scale-x" min="40" max="260" step="5" value="100" />
+	                        </label>
+	                        <label id="task-scale-y-row">
+                          Altura / grosor
+                          <input type="range" id="task-scale-y" min="40" max="260" step="5" value="100" />
+                        </label>
+                        <label style="grid-column:1 / -1;" id="task-rotation-row" hidden>
+                          Giro
+                          <input type="range" id="task-rotation" min="0" max="359" step="1" value="0" />
+                        </label>
+                        <details class="inspector-advanced" id="task-inspector-advanced">
+                          <summary>Avanzado</summary>
+                        <label style="grid-column:1 / -1;" id="task-token-facing-row" hidden>
+                          Orientación (cuerpo)
+                          <input type="range" id="task-token-facing" min="0" max="359" step="1" value="0" />
+                        </label>
+                        <div class="selection-actions" id="task-token-facing-actions" hidden style="grid-column:1 / -1; justify-content:flex-start;">
+                          <span class="preset-label">Cuerpo</span>
+                          <button type="button" data-token-facing-step="-15" title="Girar orientación -15°">↺ 15°</button>
+                          <button type="button" data-token-facing-step="15" title="Girar orientación +15°">↻ 15°</button>
+                          <button type="button" data-token-fov-toggle="1" title="Mostrar/ocultar cono de visión">Cono</button>
+                          <button type="button" data-token-facing-reset="1" title="Reset orientación">Reset</button>
+                        </div>
+                        <label style="grid-column:1 / -1;" id="task-token-fov-row" hidden>
+                          Cono de visión (amplitud)
+                          <input type="range" id="task-token-fov-width" min="20" max="140" step="5" value="70" />
+                        </label>
+                        <label style="grid-column:1 / -1;" id="task-ball-direction-row" hidden>
+                          Dirección del balón
+                          <input type="range" id="task-ball-direction" min="0" max="359" step="1" value="0" />
+                        </label>
+                        <div class="selection-actions" id="task-ball-direction-actions" hidden style="grid-column:1 / -1; justify-content:flex-start;">
+                          <span class="preset-label">Balón</span>
+                          <button type="button" data-ball-direction-toggle="1" title="Mostrar/ocultar dirección">Mostrar/ocultar</button>
+                          <button type="button" data-ball-direction-step="-15" title="Girar dirección -15°">↺ 15°</button>
+                          <button type="button" data-ball-direction-step="15" title="Girar dirección +15°">↻ 15°</button>
+                          <button type="button" data-ball-direction-reset="1" title="Reset dirección">Reset</button>
+                        </div>
+                        <label style="grid-column:1 / -1;" id="task-ball-strike-row" hidden>
+                          Golpeo (contacto)
+                          <input type="range" id="task-ball-strike-contact" min="0" max="359" step="1" value="0" />
+                        </label>
+                        <div class="selection-actions" id="task-ball-strike-actions" hidden style="grid-column:1 / -1; justify-content:flex-start;">
+                          <span class="preset-label">Golpeo</span>
+                          <button type="button" data-ball-strike-toggle="1" title="Mostrar/ocultar golpeo">Mostrar/ocultar</button>
+                          <button type="button" data-ball-strike-foot="L" title="Pie izquierdo">Izq</button>
+                          <button type="button" data-ball-strike-foot="R" title="Pie derecho">Der</button>
+                          <button type="button" data-ball-strike-reset="1" title="Reset golpeo">Reset</button>
+                        </div>
+                        <label style="grid-column:1 / -1;" id="task-ball-strike-timing-row" hidden>
+                          Golpeo (timing)
+                          <input type="range" id="task-ball-strike-timing" min="0" max="100" step="5" value="50" />
+                        </label>
+                        </details>
+                        <label style="grid-column:1 / -1;" id="task-style-color-row">
+                          Color
+                          <div style="display:flex; gap:0.6rem; align-items:center;">
+                            <input type="color" id="task-style-color" value="#22d3ee" />
+                            <input
+                              type="text"
+                              id="task-style-color-hex"
+                              value="#22d3ee"
+                              inputmode="text"
+                              autocomplete="off"
+                              autocapitalize="off"
+                              spellcheck="false"
+                              style="flex:1; min-width:0; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;"
+                              placeholder="#RRGGBB"
+                              aria-label="Color (hex)"
+                            />
+                          </div>
+                        </label>
+		                        <label style="grid-column:1 / -1;" id="task-stroke-width-row" hidden>
+		                          Grosor de línea
+		                          <input type="range" id="task-stroke-width" min="1" max="14" step="1" value="3" />
+		                        </label>
+		                        <label style="grid-column:1 / -1;" id="task-lane-opacity-row" hidden>
+		                          Opacidad
+		                          <input type="range" id="task-lane-opacity" min="10" max="100" step="5" value="100" />
+		                        </label>
+		                        <div class="selection-actions" id="task-curve-actions" hidden style="grid-column:1 / -1; justify-content:flex-start;">
+		                          <span class="preset-label">Curva</span>
+		                          <button type="button" id="task-curve-flip" title="Cambiar lado de la curva (flecha/curva seleccionada)">Cambiar lado</button>
+		                        </div>
+		                      </div>
+		                      <div class="selection-actions" id="task-scale-presets">
+	                        <span class="preset-label">Tamaño</span>
+	                        <button type="button" data-scale-preset="65">Pequeño</button>
+	                        <button type="button" data-scale-preset="80">S</button>
+	                        <button type="button" data-scale-preset="100">M</button>
+	                        <button type="button" data-scale-preset="125">L</button>
+	                        <button type="button" data-scale-preset="150">XL</button>
+	                        <button type="button" data-rotate-step="-15" title="Girar 15 grados a la izquierda">↺ 15°</button>
+	                        <button type="button" data-rotate-step="15" title="Girar 15 grados a la derecha">↻ 15°</button>
+	                        <button type="button" data-nudge-x="-8" title="Mover a la izquierda">←</button>
+	                        <button type="button" data-nudge-y="-8" title="Mover arriba">↑</button>
+	                        <button type="button" data-nudge-y="8" title="Mover abajo">↓</button>
+	                        <button type="button" data-nudge-x="8" title="Mover a la derecha">→</button>
+	                      </div>
+	                      <div class="selection-actions" id="task-token-size-presets" hidden>
+	                        <span class="preset-label">Chapa</span>
+	                        <button type="button" data-token-size="s">Pequeña</button>
+	                        <button type="button" data-token-size="m">Normal</button>
+	                        <button type="button" data-token-size="l">Grande</button>
+	                      </div>
+	                      <div class="selection-actions" id="task-stroke-presets" hidden>
+	                        <span class="preset-label">Grosor</span>
+	                        <button type="button" data-stroke-preset="2">S</button>
+	                        <button type="button" data-stroke-preset="3">M</button>
+	                        <button type="button" data-stroke-preset="5">L</button>
+	                        <button type="button" data-stroke-preset="8">XL</button>
+	                      </div>
+		                      <div class="selection-actions" id="task-color-presets-row">
+		                        <button type="button" data-color="#22d3ee">Cian</button>
+		                        <button type="button" data-color="#f97316">Naranja</button>
+	                        <button type="button" data-color="#ef4444">Rojo</button>
+	                        <button type="button" data-color="#84cc16">Verde</button>
+	                        <button type="button" data-color="#facc15">Amarillo</button>
+	                        <button type="button" data-color="#ffffff">Blanco</button>
+	                        <button type="button" data-color="#000000">Negro</button>
+	                        <button type="button" data-color="#a855f7">Morado</button>
+	                      </div>
+	                      <div class="inspector-section-title">Ficha</div>
+	                      <div class="selection-actions" id="task-token-style-actions" hidden>
+	                        <span class="preset-label">Token</span>
+	                        <button type="button" data-token-style="disk">Chapa</button>
+	                        <button type="button" data-token-style="jersey">Camiseta</button>
+	                        <button type="button" data-token-style="figure">Figura</button>
+	                        <button type="button" data-token-style="photo">Foto</button>
+	                        <button type="button" data-token-style="sprite">Avatar</button>
+	                      </div>
+	                      <div class="selection-grid" id="task-token-color-grid" hidden style="grid-template-columns: 1fr 1fr;">
+	                        <label>
+	                          Base
+	                          <div style="display:flex; gap:0.55rem; align-items:center;">
+	                            <input type="color" id="task-token-base-color" value="#ffffff" />
+	                            <input
+	                              type="text"
+	                              id="task-token-base-color-hex"
+	                              value="#ffffff"
+	                              inputmode="text"
+	                              autocomplete="off"
+	                              autocapitalize="off"
+	                              spellcheck="false"
+	                              style="flex:1; min-width:0; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;"
+	                              placeholder="#RRGGBB"
+	                              aria-label="Color base (hex)"
+	                            />
+	                          </div>
+	                        </label>
+	                        <label>
+	                          Franjas
+	                          <div style="display:flex; gap:0.55rem; align-items:center;">
+	                            <input type="color" id="task-token-stripe-color" value="#0f7a35" />
+	                            <input
+	                              type="text"
+	                              id="task-token-stripe-color-hex"
+	                              value="#0f7a35"
+	                              inputmode="text"
+	                              autocomplete="off"
+	                              autocapitalize="off"
+	                              spellcheck="false"
+	                              style="flex:1; min-width:0; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;"
+	                              placeholder="#RRGGBB"
+	                              aria-label="Color franjas (hex)"
+	                            />
+	                          </div>
+	                        </label>
+	                      </div>
+	                      <div class="selection-actions" id="task-token-pattern-actions" hidden>
+	                        <span class="preset-label">Patrón</span>
+	                        <button type="button" data-token-pattern="striped">Rayas</button>
+	                        <button type="button" data-token-pattern="solid">Sólido</button>
+	                        <button type="button" data-token-pattern="half">Mitad</button>
+	                        <button type="button" data-token-pattern="sash">Banda</button>
+	                      </div>
+	                      <div class="selection-actions" id="task-token-kit-actions" hidden>
+	                        <span class="preset-label">Kit</span>
+	                        <button type="button" data-token-kit-slot="home">1ª</button>
+	                        <button type="button" data-token-kit-slot="away">2ª</button>
+	                        <button type="button" data-token-kit-slot="third">3ª</button>
+	                        <button type="button" data-token-kit-slot="gk">P1</button>
+	                        <button type="button" data-token-kit-slot="gk2">P2</button>
+	                        <button type="button" data-token-kit-slot="gk3">P3</button>
+	                      </div>
+	                      <div class="selection-actions" id="task-token-name-tag-actions" hidden>
+	                        <span class="preset-label">Nombre</span>
+	                        <button type="button" data-token-name-tag="solid">Fondo</button>
+	                        <button type="button" data-token-name-tag="none">Sin fondo</button>
+	                      </div>
+	                      <div class="selection-actions" id="task-token-display-presets" hidden>
+	                        <span class="preset-label">Vista</span>
+	                        <button type="button" data-token-display-preset="name_number">Nombre + nº</button>
+	                        <button type="button" data-token-display-preset="number_only">Solo nº</button>
+	                        <button type="button" data-token-team-preset="local">Local</button>
+	                        <button type="button" data-token-team-preset="rival">Rival</button>
+	                        <button type="button" data-token-team-preset="neutral">Neutral</button>
+	                      </div>
+	                      <div class="selection-actions" id="task-token-focus-actions" hidden>
+	                        <span class="preset-label">Lectura</span>
+	                        <button type="button" data-token-focus-toggle="1">Foco</button>
+	                        <button type="button" data-token-possession-toggle="1">Balón</button>
+	                        <button type="button" data-token-role="support">Apoyo</button>
+	                        <button type="button" data-token-role="depth">Prof.</button>
+	                        <button type="button" data-token-role="press">Presión</button>
+	                        <button type="button" data-token-role="cover">Cobertura</button>
+	                        <button type="button" data-token-role="clear">Sin rol</button>
+	                        <button type="button" data-token-auto-number="1">Numerar</button>
+	                        <button type="button" data-token-separate-overlaps="1">Separar</button>
+	                        <button type="button" data-token-focus-clear="1">Quitar foco</button>
+	                      </div>
+	                      <div class="selection-actions" id="task-zone-style-actions" hidden>
+	                        <span class="preset-label">Relleno</span>
+	                        <button type="button" data-zone-style="hatch">Rayado</button>
+	                        <button type="button" data-zone-style="cross">Doble</button>
+	                        <button type="button" data-zone-style="dots">Puntos</button>
+	                        <button type="button" data-zone-style="solid">Sólido</button>
+	                        <button type="button" data-zone-style="outline">Contorno</button>
+	                      </div>
+	                      <div class="selection-actions" id="task-lane-template-actions" hidden>
+	                        <span class="preset-label">Carriles</span>
+	                      </div>
+	                      <div class="selection-actions" id="task-lane-label-actions" hidden>
+	                        <span class="preset-label">Etiqueta</span>
+	                        <button type="button" data-lane-label="show">Mostrar</button>
+	                        <button type="button" data-lane-label="hide">Ocultar</button>
+	                      </div>
+	                      <div class="selection-actions" id="task-background-edit-actions" hidden>
+	                        <span class="preset-label">Fondo</span>
+	                        <button type="button" data-inspector-action="toggle_background_edit">Editar</button>
+	                      </div>
+	                      <div class="selection-note">
+	                        Tip: usa `Cmd/Ctrl + D` para duplicar.
+	                    </div>
+	                    </div>
+                  </div>
+	                </div>
+	              </div>
+
+                <div class="resource-panel" data-panel="pro" hidden>
+                  <h3 class="tool-group-title">{% if tactics_mode %}Recursos PRO{% else %}Material{% endif %}</h3>
+                  <p class="meta" style="margin:0 0 0.65rem; font-size:0.78rem;">
+                    Recursos “de pizarra” listos para tareas y táctica. Tip: tras colocar, selecciona el elemento para ajustar tamaño/color y usa “Capas” para reordenar/bloquear.
+                  </p>
+	                  <div class="selection-actions" id="task-material-family-tabs" style="margin-bottom:0.7rem;">
+	                    <span class="preset-label">Familia</span>
+	                    <button type="button" data-material-family-toggle="equipamiento">🔺 Equipamiento</button>
+                    <button type="button" data-material-family-toggle="porterias">🥅 Porterías</button>
+                    <button type="button" data-material-family-toggle="marcadores">🏷 Marcadores</button>
+                    <button type="button" data-material-family-toggle="apoyos">⚽ Apoyos</button>
+                    <button type="button" data-material-family-toggle="importados">🖼 Importados</button>
+                  </div>
+                  <div class="selection-actions" style="margin-bottom:0.7rem;">
+                    <span class="preset-label">Borrado</span>
+                    <button type="button" data-action="delete" title="Borra el recurso seleccionado">Borrar seleccionado</button>
+	                    <button type="button" class="danger" data-action="clear_material" title="Elimina del campo material, emojis e importados">Limpiar material</button>
+	                  </div>
+	                  <div class="material-empty-state" id="task-material-empty-state">
+	                    <strong>Selecciona un tipo de material</strong>
+	                    <span>Primero elige Equipamiento, Porterías, Marcadores, Apoyos, Sprites 3D o Importados. Solo entonces mostraremos los recursos de esa familia.</span>
+	                  </div>
+
+                  <div class="task-material-family" data-material-family="equipamiento">
+                    <div class="meta" style="margin:0.65rem 0 0.35rem;">Equipamiento</div>
+                    <div class="meta" style="margin:0.7rem 0 0.35rem;">Balones</div>
+                    <div class="resource-strip pdf-assets-strip" data-material-columns="4">
+                      <button type="button" class="pdf-asset-btn" data-add="ball_classic_asset" title="Balón clásico" aria-label="Balón clásico">
+                        <img src="{% static 'football/images/task_builder/ball_webstats_classic.svg' %}" alt="Balón clásico" loading="lazy" />
+                        <span class="pdf-asset-name">Clásico</span>
+                      </button>
+                      <button type="button" class="pdf-asset-btn" data-add="ball_training_asset" title="Balón entrenamiento" aria-label="Balón entrenamiento">
+                        <img src="{% static 'football/images/task_builder/ball_webstats_training.svg' %}" alt="Balón entrenamiento" loading="lazy" />
+                        <span class="pdf-asset-name">Entreno</span>
+                      </button>
+                      <button type="button" class="pdf-asset-btn" data-add="ball_futsal_asset" title="Balón futsal" aria-label="Balón futsal">
+                        <img src="{% static 'football/images/task_builder/ball_webstats_futsal.svg' %}" alt="Balón futsal" loading="lazy" />
+                        <span class="pdf-asset-name">Futsal</span>
+                      </button>
+                      <button type="button" class="pdf-asset-btn" data-add="ball_premium_asset" title="Balón premium" aria-label="Balón premium">
+                        <img src="{% static 'football/images/task_builder/ball_webstats_premium.svg' %}" alt="Balón premium" loading="lazy" />
+                        <span class="pdf-asset-name">Premium</span>
+                      </button>
+                    </div>
+                  <div class="resource-strip">
+                    <button type="button" class="tool-icon" data-add="cone" title="Cono" aria-label="Cono"><span class="tool-emoji" aria-hidden="true">🔺</span><span class="sr-only">Cono</span></button>
+                    <button type="button" class="tool-icon" data-add="cone_striped" title="Cono (rayas)" aria-label="Cono (rayas)"><span class="tool-emoji" aria-hidden="true">🔶</span><span class="sr-only">Cono (rayas)</span></button>
+                    <button type="button" class="tool-icon" data-add="pole_marker" title="Pica" aria-label="Pica"><span class="tool-emoji" aria-hidden="true">📍</span><span class="sr-only">Pica</span></button>
+                    <button type="button" class="tool-icon" data-add="ring" title="Aro" aria-label="Aro"><span class="tool-emoji" aria-hidden="true">⭕</span><span class="sr-only">Aro</span></button>
+                    <button type="button" class="tool-icon" data-add="tape" title="Cinta / línea de suelo" aria-label="Cinta / línea de suelo"><span class="tool-emoji" aria-hidden="true">🧵</span><span class="sr-only">Cinta</span></button>
+                    <button type="button" class="tool-icon" data-add="gate" title="Puerta (2 conos)" aria-label="Puerta (2 conos)"><span class="tool-emoji" aria-hidden="true">🚪</span><span class="sr-only">Puerta</span></button>
+                    <button type="button" class="tool-icon" data-add="ladder" title="Escalera de coordinación" aria-label="Escalera de coordinación"><span class="tool-emoji" aria-hidden="true">🪜</span><span class="sr-only">Escalera</span></button>
+                    <button type="button" class="tool-icon" data-add="hurdle" title="Valla" aria-label="Valla"><span class="tool-emoji" aria-hidden="true">🚧</span><span class="sr-only">Valla</span></button>
+                    <button type="button" class="tool-icon" data-add="mini_hurdle" title="Mini valla" aria-label="Mini valla"><span class="tool-emoji" aria-hidden="true">🪧</span><span class="sr-only">Mini valla</span></button>
+                    <button type="button" class="tool-icon" data-add="mannequin" title="Maniquí" aria-label="Maniquí"><span class="tool-emoji" aria-hidden="true">🧍</span><span class="sr-only">Maniquí</span></button>
+                    <button type="button" class="tool-icon" data-add="barrier" title="Barrera (4 maniquíes)" aria-label="Barrera (4 maniquíes)"><span class="tool-emoji" aria-hidden="true">🚧</span><span class="sr-only">Barrera</span></button>
+                  </div>
+                  </div>
+
+                  <div class="task-material-family" data-material-family="porterias" hidden>
+                  <div class="meta" style="margin:0.85rem 0 0.35rem;">Porterías</div>
+                  <div class="resource-strip">
+                    <button type="button" class="tool-icon" data-add="emoji_goal" title="Portería emoji" aria-label="Portería emoji"><span class="tool-emoji" aria-hidden="true">🥅</span><span class="sr-only">Portería emoji</span></button>
+                  </div>
+                  </div>
+
+                  <div class="task-material-family" data-material-family="marcadores" hidden>
+                  <div class="meta" style="margin:0.85rem 0 0.35rem;">Marcadores</div>
+                  <div class="resource-strip">
+                    <button type="button" class="tool-icon" data-add="marker_start" title="Marcador: inicio" aria-label="Marcador: inicio"><span class="tool-emoji" aria-hidden="true">I</span><span class="sr-only">Marcador inicio</span></button>
+                    <button type="button" class="tool-icon" data-add="marker_end" title="Marcador: fin" aria-label="Marcador: fin"><span class="tool-emoji" aria-hidden="true">F</span><span class="sr-only">Marcador fin</span></button>
+                    <button type="button" class="tool-icon" data-add="marker_pass" title="Marcador: pase" aria-label="Marcador: pase"><span class="tool-emoji" aria-hidden="true">P</span><span class="sr-only">Marcador pase</span></button>
+                    <button type="button" class="tool-icon" data-add="marker_shot" title="Marcador: tiro" aria-label="Marcador: tiro"><span class="tool-emoji" aria-hidden="true">T</span><span class="sr-only">Marcador tiro</span></button>
+                    <button type="button" class="tool-icon" data-add="marker_support" title="Marcador: apoyo" aria-label="Marcador: apoyo"><span class="tool-emoji" aria-hidden="true">A</span><span class="sr-only">Marcador apoyo</span></button>
+                    <button type="button" class="tool-icon" data-add="measure" title="Regla de medida" aria-label="Regla de medida"><span class="tool-emoji" aria-hidden="true">📏</span><span class="sr-only">Medida</span></button>
+                  </div>
+                  </div>
+
+                  <div class="task-material-family" data-material-family="apoyos" hidden>
+                  <div class="meta" style="margin:0.85rem 0 0.35rem;">Líneas tácticas</div>
+                  <div class="resource-strip">
+                    <button type="button" class="tool-icon" data-add="line_pressure" title="Línea de presión" aria-label="Línea de presión"><span class="tool-emoji" aria-hidden="true">╌</span><span class="sr-only">Línea de presión</span></button>
+                    <button type="button" class="tool-icon" data-add="line_defensive" title="Línea defensiva" aria-label="Línea defensiva"><span class="tool-emoji" aria-hidden="true">╌</span><span class="sr-only">Línea defensiva</span></button>
+                    <button type="button" class="tool-icon" data-add="line_offside" title="Línea de fuera de juego" aria-label="Línea de fuera de juego"><span class="tool-emoji" aria-hidden="true">╌</span><span class="sr-only">Fuera de juego</span></button>
+                  </div>
+                  <div class="meta" style="margin:0.85rem 0 0.35rem;">Apoyos visuales</div>
+                  <div class="resource-strip" id="task-emoji-tools">
+                  <button type="button" class="tool-icon" data-add="emoji_ball" title="Balón" aria-label="Balón"><span class="tool-emoji" aria-hidden="true">⚽</span><span class="sr-only">Balón</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_cone" title="Cono" aria-label="Cono"><span class="tool-emoji" aria-hidden="true">🔺</span><span class="sr-only">Cono</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_pole" title="Pica" aria-label="Pica"><span class="tool-emoji" aria-hidden="true">📍</span><span class="sr-only">Pica</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_ladder" title="Escalera" aria-label="Escalera"><span class="tool-emoji" aria-hidden="true">🪜</span><span class="sr-only">Escalera</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_ring" title="Aro" aria-label="Aro"><span class="tool-emoji" aria-hidden="true">⭕</span><span class="sr-only">Aro</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_hurdle" title="Valla" aria-label="Valla"><span class="tool-emoji" aria-hidden="true">🚧</span><span class="sr-only">Valla</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_bib" title="Peto" aria-label="Peto"><span class="tool-emoji" aria-hidden="true">🦺</span><span class="sr-only">Peto</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_mannequin" title="Maniquí" aria-label="Maniquí"><span class="tool-emoji" aria-hidden="true">🧍</span><span class="sr-only">Maniquí</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_goal" title="Portería" aria-label="Portería"><span class="tool-emoji" aria-hidden="true">🥅</span><span class="sr-only">Portería</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_mini_goal" title="Mini portería" aria-label="Mini portería"><span class="tool-emoji" aria-hidden="true">🥅</span><span class="sr-only">Mini portería</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_coach" title="Entrenador" aria-label="Entrenador"><span class="tool-emoji" aria-hidden="true">🧑‍🏫</span><span class="sr-only">Entrenador</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_staff" title="Staff" aria-label="Staff"><span class="tool-emoji" aria-hidden="true">👥</span><span class="sr-only">Staff</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_whistle" title="Silbato" aria-label="Silbato"><span class="tool-emoji" aria-hidden="true">📣</span><span class="sr-only">Silbato</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_stopwatch" title="Crono" aria-label="Crono"><span class="tool-emoji" aria-hidden="true">⏱️</span><span class="sr-only">Crono</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_flag" title="Bandera" aria-label="Bandera"><span class="tool-emoji" aria-hidden="true">🚩</span><span class="sr-only">Bandera</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_target" title="Objetivo" aria-label="Objetivo"><span class="tool-emoji" aria-hidden="true">🎯</span><span class="sr-only">Objetivo</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_shield" title="Escudo" aria-label="Escudo"><span class="tool-emoji" aria-hidden="true">🛡️</span><span class="sr-only">Escudo</span></button>
+                  <button type="button" class="tool-icon" data-add="emoji_ball_alt" title="Balón alternativo" aria-label="Balón alternativo"><span class="tool-emoji" aria-hidden="true">🏐</span><span class="sr-only">Balón alternativo</span></button>
+                  </div>
+                  </div><div class="task-material-family" data-material-family="importados" hidden>
+	                  <div class="meta" style="margin:0.85rem 0 0.35rem;">Importados (PDF/PPT)</div>
+	                  <p class="meta" style="margin:0 0 0.65rem; font-size:0.78rem;">
+	                    Aquí aparecen los recursos del sistema, los del equipo y los extraídos al importar tareas desde PDF.
+	                  </p>
+                    <div class="meta" style="margin:0.5rem 0 0.35rem;">Biblioteca externa</div>
+                    <div class="resource-strip pdf-assets-strip" id="task-custom-library-assets"></div>
+	                  {% if not pdf_assets and not ppt_icons %}
+	                    <span class="meta">Aún no hay recursos disponibles. Sube un PPTX/PNG en Platform → Asistente o importa tareas desde PDF.</span>
+	                  {% endif %}
+                  {% if pdf_assets %}
+                  <div class="meta" style="margin:0.5rem 0 0.35rem;">Recursos extraídos de PDFs</div>
+                  <div class="resource-strip pdf-assets-strip">
+                    {% for asset in pdf_assets|slice:":24" %}
+                      {% if asset.url %}
+                        <button
+                          type="button"
+                          class="pdf-asset-btn"
+                          data-add="pdf_asset:{{ asset.id }}"
+                          title="{{ asset.title|default:'Recurso importado' }}"
+                          aria-label="{{ asset.title|default:'Recurso importado' }}"
+                        >
+                          <img src="{{ asset.url }}" alt="{{ asset.title|default:'Recurso importado' }}" loading="lazy" />
+                        </button>
+                      {% endif %}
+                    {% endfor %}
+                  </div>
+                  {% if pdf_assets|length > 24 %}
+                  <div class="meta" style="margin-top:0.4rem;">
+                    Mostrando 24 de {{ pdf_assets|length }}.
+                  </div>
+                  {% endif %}
+                  {% endif %}
+                  {% if ppt_icons %}
+                  <div class="meta" style="margin:0.7rem 0 0.35rem;">Iconos (catálogo PPT)</div>
+                  <div class="resource-strip pdf-assets-strip">
+                    {% for icon in ppt_icons|slice:":24" %}
+                      <button
+                        type="button"
+                        class="pdf-asset-btn"
+                        data-add="image_url:{% static icon.static_path %}"
+                        title="{{ icon.label|default:'Icono' }}"
+                        aria-label="{{ icon.label|default:'Icono' }}"
+                      >
+                        <img src="{% static icon.static_path %}" alt="{{ icon.label|default:'Icono' }}" loading="lazy" />
+                      </button>
+                    {% endfor %}
+                  </div>
+                  {% if ppt_icons|length > 24 %}
+                  <div class="meta" style="margin-top:0.4rem;">
+                    Mostrando 24 de {{ ppt_icons|length }}.
+                  </div>
+                  {% endif %}
+                  {% endif %}
+                  </div>
+                  <div data-inspector-slot="pro"></div>
+                </div>
+	                <div class="resource-panel" data-panel="trazos" hidden>
+	                  <h3 class="tool-group-title" style="margin-top:0.85rem;">Trazos y flechas</h3>
+	                  <div class="resource-strip" id="task-lines-tools">
+	                  <button type="button" class="tool-icon" data-action="draw_free" title="Dibujo a mano alzada (pulsa de nuevo para salir)" aria-label="Dibujo libre"><span class="tool-emoji" aria-hidden="true">✏️</span><span class="sr-only">Dibujo libre</span></button>
+	                  <button type="button" class="tool-icon" data-action="smart_arrow" title="Auto flecha: dibuja una flecha a mano (aunque hagas la punta) y se convertirá en una flecha limpia y editable." aria-label="Auto flecha"><span class="tool-emoji" aria-hidden="true">➡️</span><span class="sr-only">Auto flecha</span></button>
+	                  <button type="button" class="tool-icon" data-action="smart_shapes" title="Auto formas: dibuja (círculo/rectángulo/línea) y lo convertirá en una forma limpia y editable." aria-label="Auto formas"><span class="tool-emoji" aria-hidden="true">🔷</span><span class="sr-only">Auto formas</span></button>
+	                  <button type="button" class="tool-icon" data-action="pencil_pro" title="Apple Pencil: dibuja solo con lápiz (palma/finger no pintan). El dedo se usa para pan/zoom." aria-label="Pencil Pro"><span class="tool-emoji" aria-hidden="true">✍️</span><span class="sr-only">Pencil Pro</span></button>
+	                  <button type="button" class="tool-icon" data-action="draw_anim_path" title="Apple Pencil: dibuja una ruta para animar la ficha seleccionada (Timeline Pro)." aria-label="Ruta animada"><span class="tool-emoji" aria-hidden="true">🧭</span><span class="sr-only">Ruta animada</span></button>
+	                  <button type="button" class="tool-icon" data-add="line_solid" title="Línea continua" aria-label="Línea continua"><span class="tool-emoji" aria-hidden="true">➖</span><span class="sr-only">Línea continua</span></button>
+	                  <button type="button" class="tool-icon" data-add="line_thick" title="Línea gruesa" aria-label="Línea gruesa"><span class="tool-emoji" aria-hidden="true">➖</span><span class="sr-only">Línea gruesa</span></button>
+		                  <button type="button" class="tool-icon" data-add="line_dash" title="Línea discontinua" aria-label="Línea discontinua"><span class="tool-emoji" aria-hidden="true">╌</span><span class="sr-only">Línea discontinua</span></button>
+	                  <button type="button" class="tool-icon" data-add="line_dot" title="Línea de puntos" aria-label="Línea de puntos"><span class="tool-emoji" aria-hidden="true">⋯</span><span class="sr-only">Línea de puntos</span></button>
+	                  <button type="button" class="tool-icon" data-add="line_double" title="Línea doble" aria-label="Línea doble"><span class="tool-emoji" aria-hidden="true">〓</span><span class="sr-only">Línea doble</span></button>
+	                  <button type="button" class="tool-icon" data-add="line_curve" title="Curva" aria-label="Curva"><span class="tool-emoji" aria-hidden="true">〰️</span><span class="sr-only">Curva</span></button>
+	                  <button type="button" class="tool-icon" data-add="line_wave" title="Ondulada" aria-label="Ondulada"><span class="tool-emoji" aria-hidden="true">🌊</span><span class="sr-only">Ondulada</span></button>
+	                  <button type="button" class="tool-icon" data-add="arrow_solid" title="Flecha continua" aria-label="Flecha continua"><span class="tool-emoji" aria-hidden="true">➡️</span><span class="sr-only">Flecha continua</span></button>
+	                  <button type="button" class="tool-icon" data-add="arrow_thick" title="Flecha gruesa" aria-label="Flecha gruesa"><span class="tool-emoji" aria-hidden="true">➡️</span><span class="sr-only">Flecha gruesa</span></button>
+	                  <button type="button" class="tool-icon" data-add="arrow_dash" title="Flecha discontinua" aria-label="Flecha discontinua"><span class="tool-emoji" aria-hidden="true">➟</span><span class="sr-only">Flecha discontinua</span></button>
+		                  <button type="button" class="tool-icon" data-add="arrow_dot" title="Flecha de puntos" aria-label="Flecha de puntos"><span class="tool-emoji" aria-hidden="true">➟</span><span class="sr-only">Flecha de puntos</span></button>
+		                  <button type="button" class="tool-icon" data-add="arrow_curve" title="Flecha curva" aria-label="Flecha curva"><span class="tool-emoji" aria-hidden="true">↪️</span><span class="sr-only">Flecha curva</span></button>
+		                  <button type="button" class="tool-icon" data-add="arrow_curve_left" title="Flecha curva (lado contrario)" aria-label="Flecha curva (lado contrario)"><span class="tool-emoji" aria-hidden="true">↩️</span><span class="sr-only">Flecha curva (lado contrario)</span></button>
+		                  <button type="button" class="tool-icon" data-add="line_pressure" title="Línea de presión (táctica)" aria-label="Línea de presión"><span class="tool-emoji" aria-hidden="true">🟥</span><span class="sr-only">Línea de presión</span></button>
+		                  <button type="button" class="tool-icon" data-add="line_defensive" title="Línea defensiva (táctica)" aria-label="Línea defensiva"><span class="tool-emoji" aria-hidden="true">🟦</span><span class="sr-only">Línea defensiva</span></button>
+	                  <button type="button" class="tool-icon" data-add="line_offside" title="Línea fuera de juego (táctica)" aria-label="Fuera de juego"><span class="tool-emoji" aria-hidden="true">🚫</span><span class="sr-only">Fuera de juego</span></button>
+	                  <button type="button" class="tool-icon" data-add="measure" title="Regla (mide distancias al ajustar)" aria-label="Medir"><span class="tool-emoji" aria-hidden="true">📏</span><span class="sr-only">Medir</span></button>
+	                  <button type="button" data-add="marker_start" title="Marcador inicio">I</button>
+	                  <button type="button" data-add="marker_pass" title="Marcador pase">P</button>
+	                  <button type="button" data-add="marker_shot" title="Marcador tiro">T</button>
+	                  <button type="button" data-add="marker_support" title="Marcador apoyo">A</button>
+	                  <button type="button" data-add="marker_end" title="Marcador fin">F</button>
+		                </div>
+                  <div data-inspector-slot="trazos"></div>
+                </div>
+	                <div class="resource-panel" data-panel="figuras" hidden>
+	                  <h3 class="tool-group-title" style="margin-top:0.85rem;">Figuras geométricas</h3>
+		                  <div class="resource-strip" id="task-shapes-tools">
+		                  <button type="button" class="tool-icon" data-add="shape_circle" title="Círculo" aria-label="Círculo"><span class="tool-emoji" aria-hidden="true">⚪</span><span class="sr-only">Círculo</span></button>
+		                  <button type="button" class="tool-icon" data-add="shape_square" title="Cuadrado" aria-label="Cuadrado"><span class="tool-emoji" aria-hidden="true">⬜</span><span class="sr-only">Cuadrado</span></button>
+		                  <button type="button" class="tool-icon" data-add="shape_rect" title="Rectángulo" aria-label="Rectángulo"><span class="tool-emoji" aria-hidden="true">▭</span><span class="sr-only">Rectángulo</span></button>
+		                  <button type="button" class="tool-icon" data-add="shape_triangle" title="Triángulo" aria-label="Triángulo"><span class="tool-emoji" aria-hidden="true">🔺</span><span class="sr-only">Triángulo</span></button>
+		                  <button type="button" class="tool-icon" data-add="shape_diamond" title="Rombo" aria-label="Rombo"><span class="tool-emoji" aria-hidden="true">🔶</span><span class="sr-only">Rombo</span></button>
+		                </div>
+		                  <div data-inspector-slot="figuras"></div>
+		                </div>
+				                  {% if not tactics_mode %}
+				                  <div class="roster-bank-slot" id="task-roster-bank-slot" hidden></div>
+				                  {% endif %}
+                      {% if not tactics_mode %}
+                    </div>
+                    {% endif %}
+				              </div>
+
+	              <div class="pitch-main">
+                      {% if not tactics_mode %}
+                      <div class="board-workbench">
+                        <div class="board-workbench-head">
+                          <div class="board-workbench-copy">
+                            <strong>Superficie gráfica de la tarea</strong>
+                            <span>Trabaja primero sobre el campo: coloca jugadores, material, recorridos y zonas antes de completar la descripción.</span>
+                          </div>
+                          <span class="board-workbench-badge">Editor 2D</span>
+                        </div>
+                        <div class="board-guide" aria-label="Flujo guiado de creación">
+                          <div class="board-guide-step"><strong>1</strong><span>Elige la superficie que mejor encaja con tu tarea.</span></div>
+                          <div class="board-guide-step"><strong>2</strong><span>Usa un preset rápido o inserta material base.</span></div>
+                          <div class="board-guide-step"><strong>3</strong><span>Arrastra o coloca jugadores desde la plantilla inferior.</span></div>
+                          <div class="board-guide-step"><strong>4</strong><span>Ajusta detalles solo al final desde el inspector lateral.</span></div>
+                        </div>
+                        <div class="board-quickbar" aria-label="Arranques rápidos">
+                          <div class="board-quickbar-head">
+                            <strong>Arranques rápidos</strong>
+                            <span>Te preparan la superficie base más habitual para cada tipo de tarea.</span>
+                          </div>
+                          <div class="board-preset-strip">
+                            <button type="button" class="board-preset-card" data-guided-preset="seven_side_single" data-guided-resource="base" data-guided-template="zone_14"><strong>Rondo</strong><span>Espacio corto y mucho contacto.</span></button>
+                            <button type="button" class="board-preset-card" data-guided-preset="half_pitch" data-guided-resource="base" data-guided-template="formation_433"><strong>Posesión</strong><span>Campo medio para conservar y progresar.</span></button>
+                            <button type="button" class="board-preset-card" data-guided-preset="attacking_third" data-guided-resource="pro" data-guided-template="abp_fk_frontal"><strong>Finalización</strong><span>Último tercio listo para remate.</span></button>
+                            <button type="button" class="board-preset-card" data-guided-preset="half_pitch" data-guided-resource="pro" data-guided-template="halfspace_left"><strong>Circuito</strong><span>Montaje rápido de material y recorridos.</span></button>
+                            <button type="button" class="board-preset-card" data-guided-preset="full_pitch" data-guided-resource="base" data-guided-template="formation_4231"><strong>Partido</strong><span>Campo completo para estructura global.</span></button>
+                          </div>
+                        </div>
+                        <div class="board-quickbar" aria-label="Bandeja rápida de recursos">
+                          <div class="board-quickbar-head">
+                            <strong>Recursos rápidos</strong>
+                            <span>Los 8 elementos que más se usan para montar una tarea desde cero.</span>
+                          </div>
+                          <div class="board-quickbar-grid">
+                            <button type="button" class="board-chip" data-add="player_local" title="Jugador local" aria-label="Jugador local"><span class="tool-emoji" aria-hidden="true">🔵</span><span class="tool-label">Jugador local</span></button>
+                            <button type="button" class="board-chip" data-add="player_rival" title="Jugador rival" aria-label="Jugador rival"><span class="tool-emoji" aria-hidden="true">🔴</span><span class="tool-label">Jugador rival</span></button>
+                            <button type="button" class="board-chip" data-add="goalkeeper_local" title="Portero" aria-label="Portero"><span class="tool-emoji" aria-hidden="true">🧤</span><span class="tool-label">Portero</span></button>
+                            <button type="button" class="board-chip" data-add="ball" title="Balón" aria-label="Balón"><span class="tool-emoji" aria-hidden="true">⚽</span><span class="tool-label">Balón</span></button>
+                            <button type="button" class="board-chip" data-add="cone" title="Cono" aria-label="Cono"><span class="tool-emoji" aria-hidden="true">🔺</span><span class="tool-label">Cono</span></button>
+                            <button type="button" class="board-chip" data-add="arrow_solid" title="Flecha" aria-label="Flecha"><span class="tool-emoji" aria-hidden="true">➡️</span><span class="tool-label">Flecha</span></button>
+                            <button type="button" class="board-chip" data-add="zone" title="Zona" aria-label="Zona"><span class="tool-emoji" aria-hidden="true">🟩</span><span class="tool-label">Zona</span></button>
+                          </div>
+                        </div>
+                        {% if not tactics_mode %}
+                        <div class="board-surface-controls" aria-label="Superficie y vista">
+                          <div class="board-overlay-controls" aria-label="Paneles de edición">
+                            <button type="button" class="surface-trigger" id="task-board-roster-toggle" aria-pressed="false">Jugadores</button>
+                            <button type="button" class="surface-trigger" id="task-board-resources-toggle" aria-pressed="false">Material</button>
+                            <button type="button" class="surface-trigger" id="task-zones-btn" title="Carriles / zonas y plantillas">Carriles</button>
+                            <a href="{{ task_resource_library_url|default:'#' }}" class="surface-trigger" id="task-resource-library-inline" aria-label="Abrir biblioteca de recursos">Biblioteca</a>
+                            <button type="button" class="surface-trigger" id="task-export-jpg-inline" title="Descargar captura JPG de la pizarra" aria-label="Descargar captura JPG de la pizarra">JPG</button>
+                          </div>
+                          <div class="board-surface-actions">
+                            <div class="surface-picker" id="surface-picker">
+                              <button type="button" class="surface-trigger" id="surface-trigger">
+                                <span>🏟️ Campo</span>
+                                <span class="current" id="surface-trigger-label">Campo completo</span>
+                              </button>
+                              <div class="surface-menu" id="surface-menu">
+                                <button type="button" class="surface-option" data-preset="full_pitch">
+                                  <span class="surface-option-thumb" data-surface-thumb="full_pitch"></span>
+                                  <span>
+                                    <strong>Fútbol 11 · Campo completo</strong>
+                                    <small>Superficie oficial completa con áreas, áreas pequeñas, puntos de penalti y porterías.</small>
+                                  </span>
+                                </button>
+                                <button type="button" class="surface-option" data-preset="half_pitch">
+                                  <span class="surface-option-thumb" data-surface-thumb="half_pitch"></span>
+                                  <span>
+                                    <strong>Fútbol 11 · Medio campo</strong>
+                                    <small>Para tareas analíticas, salidas de balón o trabajo por sectores.</small>
+                                  </span>
+                                </button>
+                                <button type="button" class="surface-option" data-preset="attacking_third">
+                                  <span class="surface-option-thumb" data-surface-thumb="attacking_third"></span>
+                                  <span>
+                                    <strong>Fútbol 11 · Último tercio</strong>
+                                    <small>Orientado a finalización, centros, área y situaciones próximas a portería.</small>
+                                  </span>
+                                </button>
+                                <button type="button" class="surface-option" data-preset="middle_third">
+                                  <span class="surface-option-thumb" data-surface-thumb="middle_third"></span>
+                                  <span>
+                                    <strong>Fútbol 11 · Tercio medio</strong>
+                                    <small>Para tareas de progresión, presión media y relaciones interiores.</small>
+                                  </span>
+                                </button>
+                                <button type="button" class="surface-option" data-preset="defensive_third">
+                                  <span class="surface-option-thumb" data-surface-thumb="defensive_third"></span>
+                                  <span>
+                                    <strong>Fútbol 11 · Primer tercio</strong>
+                                    <small>Salida de balón, presión alta rival y organización en inicio.</small>
+                                  </span>
+                                </button>
+                                <button type="button" class="surface-option" data-preset="seven_side">
+                                  <span class="surface-option-thumb" data-surface-thumb="seven_side"></span>
+                                  <span>
+                                    <strong>Fútbol 7 sobre F11</strong>
+                                    <small>Dos campos F7 representados dentro del F11, uno en cada mitad.</small>
+                                  </span>
+                                </button>
+                                <button type="button" class="surface-option" data-preset="seven_side_single">
+                                  <span class="surface-option-thumb" data-surface-thumb="seven_side_single"></span>
+                                  <span>
+                                    <strong>Fútbol 7 individual</strong>
+                                    <small>Campo F7 único, limpio y centrado para tareas específicas de fútbol 7.</small>
+                                  </span>
+                                </button>
+                                <button type="button" class="surface-option" data-preset="futsal">
+                                  <span class="surface-option-thumb" data-surface-thumb="futsal"></span>
+                                  <span>
+                                    <strong>Futsal</strong>
+                                    <small>Pista reducida para tareas en espacios cerrados y alta repetición.</small>
+                                  </span>
+                                </button>
+                              </div>
+                            </div>
+                            <button type="button" class="surface-trigger" id="pitch-orientation-toggle-quick" title="Cambiar orientación del campo" aria-label="Cambiar orientación del campo">
+                              <span>🔄 Orientación</span>
+                              <span class="current" id="pitch-orientation-label-quick">{% if initial.pitch_orientation == 'portrait' %}Vertical{% else %}Horizontal{% endif %}</span>
+                            </button>
+                            <details class="pitch-view-menu" id="pitch-view-menu"{% if editor_lab_compact %} open{% endif %}>
+                              <summary class="surface-trigger button" aria-label="Opciones de vista">
+                                <span>📺 Visual</span>
+                                <span class="current">Césped / zoom</span>
+                              </summary>
+                              <div class="pitch-view-menu-body">
+                                <span class="pitch-grass-select-wrap">
+                                  <label class="sr-only" for="pitch-grass-select">Tipo de césped</label>
+                                  <select id="pitch-grass-select" class="pitch-grass-select" aria-label="Tipo de césped">
+                                    <option value="classic" {% if initial.pitch_grass_style == 'classic' %}selected{% endif %}>Césped</option>
+                                    <option value="broadcast" {% if initial.pitch_grass_style == 'broadcast' %}selected{% endif %}>Broadcast</option>
+                                    <option value="broadcast_premium" {% if initial.pitch_grass_style == 'broadcast_premium' %}selected{% endif %}>Broadcast Premium</option>
+                                    <option value="stadium_native" {% if initial.pitch_grass_style == 'stadium_native' %}selected{% endif %}>Estadio 3D</option>
+                                    <option value="realistic" {% if initial.pitch_grass_style == 'realistic' %}selected{% endif %}>Realista</option>
+                                    <option value="pro" {% if initial.pitch_grass_style == 'pro' %}selected{% endif %}>PRO</option>
+                                    <option value="uefa_b" {% if initial.pitch_grass_style == 'uefa_b' %}selected{% endif %}>UEFA B</option>
+                                    <option value="natural" {% if initial.pitch_grass_style == 'natural' %}selected{% endif %}>Natural</option>
+                                    <option value="artificial" {% if initial.pitch_grass_style == 'artificial' %}selected{% endif %}>Artificial</option>
+                                    <option value="albero" {% if initial.pitch_grass_style == 'albero' %}selected{% endif %}>Albero</option>
+                                    <option value="dirt" {% if initial.pitch_grass_style == 'dirt' %}selected{% endif %}>Tierra</option>
+                                    <option value="indoor" {% if initial.pitch_grass_style == 'indoor' %}selected{% endif %}>Indoor</option>
+                                    <option value="dry" {% if initial.pitch_grass_style == 'dry' %}selected{% endif %}>Seco</option>
+                                    <option value="wet" {% if initial.pitch_grass_style == 'wet' %}selected{% endif %}>Mojado</option>
+                                  </select>
+                                </span>
+                                <span class="pitch-grass-select-wrap">
+                                  <label class="sr-only" for="pitch-ad-select">Publicidad del estadio</label>
+                                  <select id="pitch-ad-select" class="pitch-grass-select" aria-label="Publicidad del estadio">
+                                    <option value="mixed" {% if initial.pitch_ad_preset|default:'mixed' == 'mixed' %}selected{% endif %}>Ads mixtos</option>
+                                    <option value="modernia" {% if initial.pitch_ad_preset == 'modernia' %}selected{% endif %}>Club + partner</option>
+                                    <option value="performance" {% if initial.pitch_ad_preset == 'performance' %}selected{% endif %}>Rendimiento</option>
+                                    <option value="competition" {% if initial.pitch_ad_preset == 'competition' %}selected{% endif %}>Competición</option>
+                                  </select>
+                                </span>
+                                <div class="pitch-zoom">
+                                  <button type="button" id="pitch-zoom-out" title="Alejar">-</button>
+                                  <span class="zoom-readout" id="pitch-zoom-label">100%</span>
+                                  <button type="button" id="pitch-zoom-in" title="Acercar">+</button>
+                                  <button type="button" id="pitch-zoom-reset" title="Reset">↺</button>
+                                </div>
+                                <div class="pitch-size" title="Tamaño del campo en pantalla">
+                                  <button type="button" id="pitch-size-down" title="Campo más pequeño">-</button>
+                                  <span class="zoom-readout" id="pitch-size-label">Campo</span>
+                                  <button type="button" id="pitch-size-up" title="Campo más grande">+</button>
+                                  <button type="button" id="pitch-size-fit" title="Ajustar a pantalla">⤢</button>
+                                </div>
+                              </div>
+                            </details>
+                          </div>
+                        </div>
+                        {% endif %}
+                        <div class="board-stage-shell">
+                          {% if not tactics_mode %}
+                          <div class="task-timeline-dock" id="task-timeline-dock" hidden aria-hidden="true">
+                            <div class="task-timeline-dock-head">
+                              <div class="task-timeline-dock-title">
+                                <strong>Secuencia</strong>
+                                <span>Diseña pasos interactivos sin salir de la pizarra.</span>
+                              </div>
+                              <div class="task-timeline-dock-actions">
+                                <button type="button" id="task-step-add-quick">+ Paso</button>
+                                <button type="button" id="task-step-duplicate-quick">Duplicar</button>
+                                <button type="button" id="task-step-remove-quick">Eliminar</button>
+                                <button type="button" id="task-step-play-quick">Previsualizar</button>
+                                <button type="button" class="task-timeline-dock-close" id="task-timeline-close" aria-label="Cerrar secuencia">×</button>
+                              </div>
+                            </div>
+                            <div class="timeline-list task-timeline-quick" id="task-timeline-list-quick"></div>
+                          </div>
+                          {% endif %}
+				                  <div class="pitch-viewport" id="task-pitch-viewport">
+			                    <div class="pitch-stage" id="task-pitch-stage">
+			                      <svg id="task-pitch-surface" viewBox="-2 -2 1054 684" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
+			                      <canvas id="create-task-canvas"></canvas>
+			                      <button type="button" class="pitch-resize-handle" id="pitch-resize-handle" aria-label="Redimensionar campo">
+			                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3v6h-2V6.41l-6.29 6.3-1.42-1.42 6.3-6.29H15V3h6ZM5 21h6v-2H6.41l6.3-6.29-1.42-1.42-6.29 6.3V13H3v8h2Z"/></svg>
+			                      </button>
+			                    </div>
+				                  </div>
+			                  <div class="pitch-drills-strip" id="task-drills-strip" hidden></div>
+                          <div class="board-status-row">
+				                    <p class="pitch-status" id="task-builder-status">Pizarra lista.</p>
+                            <div style="display:flex; gap:0.5rem; align-items:center; justify-content:flex-end; flex-wrap:wrap;">
+                              <button type="button" class="button secondary" id="task-destination-open" title="Elige sesión destino para que la tarea quede añadida al entreno">➕ Añadir a sesión</button>
+                              <span class="meta" id="task-destination-current" style="opacity:0.9;"></span>
+                            </div>
+                          </div>
+                          <div class="board-flow-note">
+                            <strong>Flujo</strong>
+                            <span>1) Monta la acción en el campo.</span>
+                            <span>2) Ajusta tamaños, colores y texto desde el inspector.</span>
+                            <span>3) Después completa metodología, carga y exportación.</span>
+                          </div>
+                        </div>
+                      </div>
+                      {% else %}
+				              <div class="pitch-viewport" id="task-pitch-viewport">
+			                <div class="pitch-stage" id="task-pitch-stage">
+			                  <svg id="task-pitch-surface" viewBox="-2 -2 1054 684" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
+			                  <canvas id="create-task-canvas"></canvas>
+			                  <button type="button" class="pitch-resize-handle" id="pitch-resize-handle" aria-label="Redimensionar campo">
+			                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3v6h-2V6.41l-6.29 6.3-1.42-1.42 6.3-6.29H15V3h6ZM5 21h6v-2H6.41l6.3-6.29-1.42-1.42-6.29 6.3V13H3v8h2Z"/></svg>
+			                  </button>
+			                </div>
+				              </div>
+			              <div class="pitch-drills-strip" id="task-drills-strip" hidden></div>
+				              <p class="pitch-status" id="task-builder-status">Pizarra lista.</p>
+	                    <div style="display:flex; gap:0.5rem; align-items:center; justify-content:center; flex-wrap:wrap; margin-top:-0.15rem;">
+	                        {% if request.GET.diag == '1' %}
+		                        <button type="button" class="button" id="tpad-diag-copy" title="Copia el diagnóstico (errores + estado) para soporte">Copiar diagnóstico</button>
+	                        {% endif %}
+                      <button type="button" class="button secondary" id="tpad-reinit" title="Reinicia el motor de pizarra (si el canvas se quedó en blanco)">Reiniciar pizarra</button>
+		                    </div>
+                      {% endif %}
+                      {% if tactics_mode %}
+                      <div class="resource-panel resource-panel-plantilla is-visible" data-panel="plantilla">
+                        <h3 class="tool-group-title">Plantilla de jugadores</h3>
+                        <div class="library-head library-head-inline library-head-plantilla">
+                          <div class="library-copy">
+                            <div class="library-title">Plantilla del equipo</div>
+                          </div>
+                          <input type="search" class="library-filter" id="task-library-filter" placeholder="Filtra recursos…" aria-label="Filtrar recursos" />
+                        </div>
+                        <div class="roster-bank-slot roster-bank-slot-main" id="task-roster-bank-slot-main">
+                          {% include 'football/_tpad_roster_bank.html' with roster_bank_compact=1 %}
+                        </div>
+                      </div>
+                      {% endif %}
+		              <div class="simple-hint" id="task-simple-hint" hidden>
+		                <strong>Guía rápida:</strong>
+		                {% if tactics_mode %}
+		                  1) Inserta fichas desde “Recursos” o “Plantilla”, 2) Dibuja/mueve con “Pencil Pro”, 3) Usa Playbook para guardar clips y compartir.
+		                {% else %}
+		                  1) Inserta fichas desde “Recursos” o “Plantilla”, 2) Dibuja/mueve con “Pencil Pro”, 3) Completa la ficha lateral y pulsa “Guardar/Crear tarea”.
+		                {% endif %}
+		                <div class="quick-start" aria-label="Acciones rápidas">
+		                  <h4>Acciones rápidas</h4>
+		                  <div class="quick-start-actions">
+		                    <span class="mode-pill" id="task-mode-pill"><span class="dot"></span><span id="task-mode-label">Mover</span></span>
+		                    <button type="button" class="button" id="task-quick-insert">Insertar fichas</button>
+		                    <button type="button" class="button" id="task-quick-move">Mover</button>
+		                    <button type="button" class="button" id="task-quick-draw">Dibujar</button>
+		                    <button type="button" class="button" id="task-quick-clips">{% if tactics_mode %}Clips/Playbook{% else %}Escenarios{% endif %}</button>
+		                  </div>
+		                </div>
+		              </div>
+
+	              </div>
+	              {% if not tactics_mode %}
+	                <div class="roster-bank-slot roster-bank-slot-main" id="task-roster-bank-slot-main">
+	                  {% include 'football/_tpad_roster_bank.html' %}
+	                </div>
+	              {% endif %}
+	              </div>
+	            </div>
+	          </section>

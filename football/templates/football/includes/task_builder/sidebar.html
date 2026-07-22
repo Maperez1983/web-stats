@@ -1,0 +1,980 @@
+{% load static %}
+<aside class="panel">
+		            <div class="panel-body stack">
+		              <details class="collapsible" id="task-opponent-panel">
+		                <summary>Rival y jugadores (scouting)</summary>
+		                <div class="meta" style="margin:0.55rem 0 0.85rem;">
+		                  Selecciona el rival y marca jugadores clave para preparar consignas, reglas o simulaciones en pizarra.
+		                </div>
+		                <div class="compact-grid">
+		                  <label style="grid-column:1 / -1;">
+		                    Rival
+		                    <select id="task-opponent-select">
+		                      <option value="">— Selecciona rival —</option>
+		                      {% if rivals_options %}
+		                      {% for r in rivals_options %}
+		                      <option
+		                        value="{{ r.team_id|default:0 }}"
+		                        data-team-code="{{ r.team_code|default:''|escape }}"
+		                        data-full-name="{{ r.full_name|default:''|escape }}"
+		                        {% if initial.opponent_team_id and initial.opponent_team_id|stringformat:'s' == r.team_id|stringformat:'s' %}selected{% elif not initial.opponent_team_id and not initial.opponent_name and preferred_rival_name and r.full_name and r.full_name|lower in preferred_rival_name|lower %}selected{% endif %}
+		                      >
+		                        {% if r.rank %}{{ r.rank }} · {% endif %}{{ r.full_name }}{% if r.snapshot_ok %} · ✅{% else %} · ⚠️{% endif %}
+		                      </option>
+		                      {% endfor %}
+		                      {% else %}
+		                      <option value="" disabled>(Sin clasificación disponible)</option>
+		                      {% endif %}
+		                    </select>
+		                  </label>
+		                  <label>
+		                    Buscar
+		                    <input type="text" id="task-opponent-player-filter" placeholder="Nombre del jugador…" />
+		                  </label>
+		                  <div class="actions" style="justify-content:flex-start; align-items:flex-end; gap:0.45rem;">
+		                    <button type="button" class="button ghost" id="task-opponent-apply-coaching">Añadir a consignas</button>
+		                    <button type="button" class="button ghost" id="task-opponent-apply-rules">Añadir a reglas</button>
+		                    <button type="button" class="button ghost" id="task-opponent-copy">Copiar nombres</button>
+		                  </div>
+		                </div>
+		                <div class="meta" id="task-opponent-status" style="margin-top:0.6rem;"></div>
+
+		                <input type="hidden" name="draw_task_opponent_team_id" id="draw-task-opponent-team-id" value="{{ initial.opponent_team_id|default:'' }}" />
+		                <input type="hidden" name="draw_task_opponent_name" id="draw-task-opponent-name" value="{{ initial.opponent_name|default:'' }}" />
+		                <input type="hidden" name="draw_task_opponent_team_code" id="draw-task-opponent-team-code" value="{{ initial.opponent_team_code|default:'' }}" />
+		                <input type="hidden" name="draw_task_opponent_players_json" id="draw-task-opponent-players-json" value="{{ initial.opponent_players_json|default:'[]'|escape }}" />
+
+		                <div id="task-opponent-roster-wrap" style="margin-top:0.75rem; overflow:auto; max-height:280px; border:1px solid rgba(255,255,255,0.08); border-radius:16px;">
+		                  <table class="standings-table" style="margin:0; min-width:720px;">
+		                    <thead>
+		                      <tr>
+		                        <th style="width:54px;">Sel</th>
+		                        <th>Jugador</th>
+		                        <th>Pos</th>
+		                        <th>Min</th>
+		                        <th>G</th>
+		                        <th>A</th>
+		                        <th>R</th>
+		                      </tr>
+		                    </thead>
+		                    <tbody id="task-opponent-roster-body">
+		                      <tr><td colspan="7" class="meta" style="padding:0.75rem 0.6rem;">Selecciona un rival para cargar su plantilla.</td></tr>
+		                    </tbody>
+		                  </table>
+		                </div>
+		              </details>
+						              <div class="side-tabs" id="task-side-tabs" role="tablist" aria-label="Panel lateral">
+		                        {% if tactics_mode %}
+						                <button type="button" class="side-tab is-active" data-pane="playbook" role="tab" aria-selected="true"><span class="tab-emoji" aria-hidden="true">📚</span><span class="tab-label">Playbook</span></button>
+					                <button type="button" class="side-tab" data-pane="animacion" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">🎬</span><span class="tab-label">Escenarios</span></button>
+					                <button type="button" class="side-tab" data-pane="capas" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">🧩</span><span class="tab-label">Capas</span></button>
+					                <button type="button" class="side-tab" data-pane="exportar" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">📤</span><span class="tab-label">Exportar</span></button>
+		                        {% else %}
+						                <button type="button" class="side-tab is-active" data-pane="ficha" role="tab" aria-selected="true"><span class="tab-emoji" aria-hidden="true">⚙️</span><span class="tab-label">Configuración</span></button>
+						                <button type="button" class="side-tab" data-pane="design" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">🧠</span><span class="tab-label">Metodología</span></button>
+						                <button type="button" class="side-tab" data-pane="load" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">📈</span><span class="tab-label">Carga</span></button>
+		                        {% endif %}
+						              </div>
+
+              {% if not tactics_mode %}
+              <div class="side-pane is-active" data-pane="ficha" role="tabpanel">
+                <div class="section">
+                  <h3>Configuración de la tarea</h3>
+                  <p class="meta" style="margin-top:0.35rem;">Define aquí la información que luego alimenta la ficha final: identidad, contexto, descripción y consignas.</p>
+                  <div class="compact-grid">
+                  {% if show_session_selector|default:True %}
+	                  <label>
+	                    Guardar en
+	                    <select name="draw_target_session_id" id="draw-target-session">
+	                      <option value="">Biblioteca (sin sesión)</option>
+	                      {% for session in all_sessions %}
+	                      <option value="{{ session.id }}" {% if initial.target_session_id == session.id|stringformat:'s' %}selected{% endif %}>
+	                        {{ session.session_date|date:"d/m/Y" }} · {{ session.focus|default:"Sesión" }}
+	                      </option>
+	                      {% endfor %}
+	                    </select>
+                      <small class="meta" style="display:block; margin-top:0.25rem;">
+                        Si eliges una sesión, al guardar la tarea quedará añadida automáticamente a ese entreno.
+                      </small>
+	                  </label>
+                  {% else %}
+                  <label>
+                    Repositorio
+                    <input type="text" value="Biblioteca privada" readonly />
+                  </label>
+                  {% endif %}
+                  <label>
+                    Superficie
+                    <select name="draw_task_surface" id="draw-task-surface">
+                      {% for value, label in task_surface_choices %}
+                      <option value="{{ value }}" {% if initial.surface == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label style="grid-column:1 / -1;">
+                    Título
+                    <input type="text" name="draw_task_title" value="{{ initial.title }}" maxlength="160" required />
+                  </label>
+                  <label style="grid-column:1 / -1;">
+                    Objetivo
+                    <textarea name="draw_task_objective" rows="2" style="min-height:52px; resize:vertical;">{{ initial.objective }}</textarea>
+                  </label>
+                  <label>
+                    Bloque
+                    <select name="draw_task_block">
+                      {% for value, label in task_blocks %}
+                      <option value="{{ value }}" {% if initial.block == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Minutos
+                    <input type="number" name="draw_task_minutes" min="5" max="90" value="{{ initial.minutes|default:15 }}" />
+                  </label>
+                  <label>
+                    Nº jugadores
+                    <input type="text" name="draw_task_player_count" value="{{ initial.player_count }}" placeholder="Ej: 6v6 + 2 porteros" />
+                  </label>
+                  <label>
+                    Dimensiones
+                    <input type="text" name="draw_task_dimensions" value="{{ initial.dimensions }}" placeholder="Ej: 40x30 m" />
+                  </label>
+                  <label>
+                    Edad
+                    <input type="text" name="draw_task_age_group" value="{{ initial.age_group }}" placeholder="Ej: Cadete / Juvenil" />
+                  </label>
+                  <label>
+                    Tipo
+                    <input type="text" name="draw_task_training_type" value="{{ initial.training_type }}" placeholder="Ej: Conservación / Finalización" />
+                  </label>
+                  <label style="grid-column:1 / -1;">
+                    Formato real
+                    <select name="draw_task_pitch_format" id="draw-task-pitch-format">
+                      {% for value, label in task_pitch_choices %}
+                      <option value="{{ value }}" {% if initial.pitch_format == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              <div class="section">
+                <h3>Contenido</h3>
+                <div class="stack">
+                  <label>
+                    Descripción
+                    <div class="rich-editor" data-rich-editor data-rich-name="draw_task_description" data-rich-html-name="draw_task_description_html">
+                      <div class="rich-toolbar" aria-label="Formato de texto">
+                        <button type="button" data-rich-cmd="bold" title="Negrita">B</button>
+                        <button type="button" data-rich-cmd="italic" title="Cursiva">I</button>
+                        <button type="button" data-rich-cmd="underline" title="Subrayado">U</button>
+                        <button type="button" data-rich-cmd="upper" title="Mayúsculas">MAY</button>
+                        <button type="button" data-rich-cmd="lower" title="Minúsculas">min</button>
+                        <button type="button" data-rich-cmd="insertUnorderedList" title="Viñetas">•</button>
+                        <button type="button" data-rich-cmd="insertOrderedList" title="Numeración">1.</button>
+                        <button type="button" data-rich-cmd="removeFormat" title="Quitar formato">Tx</button>
+                      </div>
+                      <div class="rich-area" contenteditable="true" data-rich-area>
+                        {% if initial.description_html %}{{ initial.description_html|safe }}{% else %}{{ initial.description|linebreaksbr }}{% endif %}
+                      </div>
+                    </div>
+                    <textarea name="draw_task_description" id="draw-task-description" hidden>{{ initial.description }}</textarea>
+                    <input type="hidden" name="draw_task_description_html" id="draw-task-description-html" value="{{ initial.description_html|default:''|escape }}" />
+                  </label>
+                  <label>
+                    Consignas
+                    <div class="rich-editor" data-rich-editor data-rich-name="draw_task_coaching_points" data-rich-html-name="draw_task_coaching_points_html">
+                      <div class="rich-toolbar" aria-label="Formato de texto">
+                        <button type="button" data-rich-cmd="bold" title="Negrita">B</button>
+                        <button type="button" data-rich-cmd="italic" title="Cursiva">I</button>
+                        <button type="button" data-rich-cmd="underline" title="Subrayado">U</button>
+                        <button type="button" data-rich-cmd="upper" title="Mayúsculas">MAY</button>
+                        <button type="button" data-rich-cmd="lower" title="Minúsculas">min</button>
+                        <button type="button" data-rich-cmd="insertUnorderedList" title="Viñetas">•</button>
+                        <button type="button" data-rich-cmd="insertOrderedList" title="Numeración">1.</button>
+                        <button type="button" data-rich-cmd="removeFormat" title="Quitar formato">Tx</button>
+                      </div>
+                      <div class="rich-area" contenteditable="true" data-rich-area>
+                        {% if initial.coaching_points_html %}{{ initial.coaching_points_html|safe }}{% else %}{{ initial.coaching_points|linebreaksbr }}{% endif %}
+                      </div>
+                    </div>
+                    <textarea name="draw_task_coaching_points" id="draw-task-coaching-points" hidden>{{ initial.coaching_points }}</textarea>
+                    <input type="hidden" name="draw_task_coaching_points_html" id="draw-task-coaching-points-html" value="{{ initial.coaching_points_html|default:''|escape }}" />
+                  </label>
+                  <label>
+                    Normas de confrontación
+                    <div class="rich-editor" data-rich-editor data-rich-name="draw_task_confrontation_rules" data-rich-html-name="draw_task_confrontation_rules_html">
+                      <div class="rich-toolbar" aria-label="Formato de texto">
+                        <button type="button" data-rich-cmd="bold" title="Negrita">B</button>
+                        <button type="button" data-rich-cmd="italic" title="Cursiva">I</button>
+                        <button type="button" data-rich-cmd="underline" title="Subrayado">U</button>
+                        <button type="button" data-rich-cmd="upper" title="Mayúsculas">MAY</button>
+                        <button type="button" data-rich-cmd="lower" title="Minúsculas">min</button>
+                        <button type="button" data-rich-cmd="insertUnorderedList" title="Viñetas">•</button>
+                        <button type="button" data-rich-cmd="insertOrderedList" title="Numeración">1.</button>
+                        <button type="button" data-rich-cmd="removeFormat" title="Quitar formato">Tx</button>
+                      </div>
+                      <div class="rich-area" contenteditable="true" data-rich-area>
+                        {% if initial.confrontation_rules_html %}{{ initial.confrontation_rules_html|safe }}{% else %}{{ initial.confrontation_rules|linebreaksbr }}{% endif %}
+                      </div>
+                    </div>
+                    <textarea name="draw_task_confrontation_rules" id="draw-task-confrontation-rules" hidden>{{ initial.confrontation_rules }}</textarea>
+                    <input type="hidden" name="draw_task_confrontation_rules_html" id="draw-task-confrontation-rules-html" value="{{ initial.confrontation_rules_html|default:''|escape }}" />
+                  </label>
+                  <label>
+                    Material
+                    <input type="text" name="draw_task_materials" value="{{ initial.materials }}" placeholder="Conos, petos, porterías..." />
+                  </label>
+	                  <label>
+	                    Espacio
+	                    <input type="text" name="draw_task_space" value="{{ initial.space }}" placeholder="Ej: zona central + 2 carriles" />
+	                  </label>
+		                  <label style="grid-column:1 / -1;">
+		                    Pictogramas (opcional)
+		                    <div class="meta" style="margin-top:0.25rem; margin-bottom:0.45rem; opacity:0.86;">
+		                      Útil para calentamientos (técnica de carrera / movilidad). Se imprimen en el PDF como secuencia visual.
+		                    </div>
+		                    <input type="hidden" name="draw_task_drills_json" id="draw-task-drills-json" value="{{ initial.drills_json|default:'[]'|escape }}" />
+		                    <input type="hidden" name="draw_task_drills_icon_color" id="draw-task-drills-icon-color" value="{{ initial.drills_icon_color|default:'#0f7a35'|escape }}" />
+		                    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; margin-bottom:0.45rem;">
+		                      <input type="text" id="task-drills-search" placeholder="Buscar…" style="flex:1 1 140px; min-width:140px;" />
+		                      <select id="task-drills-filter" style="flex:0 0 auto;">
+	                        <option value="all">Todos</option>
+	                        <option value="running">Carrera</option>
+	                        <option value="running_technique">Técnica carrera</option>
+	                        <option value="mobility">Movilidad</option>
+	                        <option value="physical_field">Carga · campo</option>
+	                        <option value="plyo">Pliometría</option>
+	                        <option value="strength">Fuerza</option>
+	                        <option value="core">Core</option>
+	                        <option value="prehab">Prehab</option>
+	                      </select>
+	                      <select id="task-drills-age" style="flex:0 0 auto;" title="Filtra por edad orientativa (no excluye: deja en “Todas” para ver el catálogo completo).">
+	                        <option value="all">Edades · Todas</option>
+	                        <option value="u8">4–8</option>
+	                        <option value="u12">9–12</option>
+	                        <option value="u16">13–16</option>
+	                        <option value="adult">17+</option>
+	                      </select>
+	                    </div>
+		                    <div class="drills-picker" id="task-drills-picker" style="margin-top:0.35rem;">
+		                      {% for drill in drills_catalog %}
+		                      <label class="chip-toggle" title="{{ drill.label }}" data-drill-cat="{{ drill.category }}" data-drill-label="{{ drill.label }}" data-drill-age-min="{{ drill.age_min|default:'' }}" data-drill-age-max="{{ drill.age_max|default:'' }}">
+		                        <input type="checkbox" value="{{ drill.id }}" {% if drill.id in initial.drills_ids %}checked{% endif %} data-drill-id="{{ drill.id }}" />
+		                        <img class="drill-icon" src="{% static drill.icon_static_path %}" alt="" />
+		                        <button type="button" class="drill-add-to-board" data-drill-add="{{ drill.id }}" title="Añadir pictograma a la pizarra">+</button>
+		                        {{ drill.label }}
+		                      </label>
+		                      {% endfor %}
+		                    </div>
+	                  </label>
+	                </div>
+		              </div>
+		              </div>
+              {% endif %}
+
+              {% if not tactics_mode %}
+			              <div class="side-pane" data-pane="assistant" role="tabpanel">
+	                <div class="section">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:0.65rem; flex-wrap:wrap;">
+	                  <h3 style="margin:0;">Asistente de tareas</h3>
+                      <button type="button" class="button secondary" onclick="try{document.querySelector('#task-mode-tabs [data-task-mode=&quot;methodology&quot;]')?.click();document.querySelector('#task-side-tabs [data-pane=&quot;design&quot;]')?.click();}catch(e){};return false;">Volver a metodología</button>
+                    </div>
+	                  <p class="meta" style="margin-top:0.35rem;">
+	                    Plantillas guiadas para crear tareas rápido sin perder estructura. Ajusta siempre la carga y la técnica a tu grupo.
+	                  </p>
+	                  <div style="margin-top:0.55rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
+	                    <label class="chip-toggle" title="Crea automáticamente una pizarra base (conos/jugadores) al aplicar la plantilla.">
+	                      <input type="checkbox" id="task-assistant-apply-board" checked />
+	                      Pizarra base
+	                    </label>
+	                    <label class="chip-toggle" title="Borra la pizarra actual antes de aplicar la plantilla (si no, añadirá elementos).">
+	                      <input type="checkbox" id="task-assistant-clear-board" checked />
+	                      Borrar antes
+	                    </label>
+	                    {% if user.is_superuser %}
+	                    <label class="chip-toggle" title="Si lo activas, los documentos se guardan como base de conocimiento global del sistema (repositorio PIZARRA).">
+	                      <input type="checkbox" id="task-assistant-knowledge-scope-system" />
+	                      Guardar en sistema
+	                    </label>
+	                    {% endif %}
+	                  </div>
+	                  <div class="compact-grid" style="margin-top:0.65rem;">
+	                    <label style="grid-column:1 / -1;">
+		                      Programa
+		                      <select id="task-assistant-program">
+		                        <option value="fifa11plus">FIFA 11+ · calentamiento (prevención)</option>
+		                        <option value="smart">2J Smart · generar por objetivo</option>
+		                        <option value="fundamentals">Fundamentos · tareas base</option>
+		                      </select>
+		                    </label>
+	                    <label>
+	                      Nivel
+	                      <select id="task-assistant-level">
+	                        <option value="1">Nivel 1 (base)</option>
+	                        <option value="2">Nivel 2 (medio)</option>
+	                        <option value="3">Nivel 3 (alto)</option>
+	                      </select>
+	                    </label>
+	                    <label>
+	                      Minutos (aprox.)
+	                      <input type="number" id="task-assistant-minutes" min="5" max="30" value="8" />
+	                    </label>
+	                  </div>
+		                  <div style="margin-top:0.75rem; display:grid; gap:0.55rem;">
+		                    <div data-assistant-program="fifa11plus">
+		                      <div style="display:grid; gap:0.55rem;">
+		                        <button type="button" class="button" data-assistant-template="fifa11plus_part1">Rellenar Parte 1 · carrera + movilidad</button>
+		                        <button type="button" class="button" data-assistant-template="fifa11plus_part2">Rellenar Parte 2 · fuerza + equilibrio</button>
+		                        <button type="button" class="button" data-assistant-template="fifa11plus_part3">Rellenar Parte 3 · carrera + cambios</button>
+		                      </div>
+		                    </div>
+		                    <div data-assistant-program="smart" hidden>
+		                      <div class="compact-grid">
+		                        <label style="grid-column:1 / -1;">
+		                          Etapa / edad
+		                          <select id="task-assistant-ageband">
+		                            <option value="u8">Fútbol base (4–8)</option>
+		                            <option value="u12">Formación (8–12)</option>
+		                            <option value="u15">Rendimiento (12–15)</option>
+		                            <option value="u19">Competición (16+)</option>
+		                          </select>
+		                        </label>
+			                        <label style="grid-column:1 / -1;">
+			                          Fase / foco
+			                          <select id="task-assistant-goal">
+			                            <option value="warmup">Calentamiento (con/sin balón)</option>
+			                            <option value="physical_field">Carga física · campo</option>
+			                            <option value="physical_gym">Carga física · fuerza (gimnasio)</option>
+			                            <option value="build_up">Salida de balón</option>
+			                            <option value="progression">Progresión (superar líneas)</option>
+			                            <option value="final_third">Último tercio / finalización</option>
+		                            <option value="pressing">Presión organizada</option>
+		                            <option value="counterpress">Presión tras pérdida</option>
+		                            <option value="defending">Defensa en bloque (medio/bajo)</option>
+		                            <option value="transition_atd">Transición ataque → defensa</option>
+		                            <option value="transition_dta">Transición defensa → ataque</option>
+		                            <option value="duels">Duelos (1v1, 2v1)</option>
+		                            <option value="set_pieces">ABP (córner, falta, saque banda…)</option>
+		                            <option value="coord">Coordinación / prevención</option>
+		                          </select>
+		                        </label>
+		                        <label style="grid-column:1 / -1;">
+		                          Principio (opcional)
+		                          <select id="task-assistant-smart-principle">
+		                            <option value="auto">Auto</option>
+		                            <option value="width_depth">Amplitud + profundidad</option>
+		                            <option value="third_man">Tercer hombre</option>
+		                            <option value="fix_release">Fijar y soltar</option>
+		                            <option value="switch">Cambio de orientación</option>
+		                            <option value="support_angles">Ángulos de apoyo</option>
+		                            <option value="press_triggers">Triggers de presión</option>
+		                            <option value="cover_balance">Cobertura + equilibrio</option>
+		                            <option value="rest_defense">Equilibrio defensivo (rest-defense)</option>
+		                          </select>
+		                        </label>
+		                        <label style="grid-column:1 / -1;">
+		                          Sub-fase (opcional)
+		                          <select id="task-assistant-smart-subphase">
+		                            <option value="auto">Auto</option>
+		                          </select>
+		                        </label>
+		                        <label>
+		                          Bloque
+		                          <select id="task-assistant-smart-block">
+		                            <option value="auto">Auto</option>
+		                            <option value="activation">Activación</option>
+		                            <option value="main_1">Principal 1</option>
+		                            <option value="main_2">Principal 2</option>
+		                            <option value="conditioning">Condicionante</option>
+		                            <option value="set_pieces">ABP</option>
+		                            <option value="recovery">Vuelta calma</option>
+		                          </select>
+		                        </label>
+		                        <label>
+		                          Nº jugadores
+		                          <input type="number" id="task-assistant-smart-players" min="4" max="30" value="12" />
+		                        </label>
+		                        <label style="grid-column:1 / -1;">
+		                          Enfoque metodológico
+		                          <select id="task-assistant-smart-approach">
+		                            <option value="auto">Auto</option>
+		                            <option value="systemic">Sistémica (juego / SSG)</option>
+		                            <option value="analytic">Analítica (técnico / repetición)</option>
+		                            <option value="mixed">Mixta</option>
+		                          </select>
+		                        </label>
+			                        <label style="grid-column:1 / -1;">
+			                          Material (opcional)
+			                          <input type="text" id="task-assistant-smart-materials" placeholder="Ej: 12 conos, 8 petos, 6 balones, mini porterías…" />
+			                        </label>
+			                        <label style="grid-column:1 / -1;">
+			                          Descripción libre (opcional)
+			                          <textarea id="task-assistant-smart-prompt" rows="3" placeholder="Escribe lo que quieres (ej: partido condicionado 7v7 para finalizar desde banda; provocar centros + rupturas; 2 comodines interiores; 4x4'…)."></textarea>
+			                          <div class="meta" style="margin-top:0.25rem; opacity:0.9;">Se usa para priorizar y adaptar tus plantillas (opción recomendada).</div>
+			                        </label>
+			                        <label style="grid-column:1 / -1;">
+			                          Guardar como plantilla (equipo)
+			                          <input type="text" id="task-assistant-blueprint-name" placeholder="Nombre de plantilla (ej: Salida 3+2 · atraer y cambiar)" />
+			                        </label>
+		                        <label style="grid-column:1 / -1;">
+		                          Base de conocimiento (docs)
+		                          <input type="file" id="task-assistant-knowledge-files" accept="application/pdf,text/plain,text/markdown,image/*,.pdf,.txt,.md,.png,.jpg,.jpeg,.webp" multiple />
+		                        </label>
+		                      </div>
+		                      <div style="margin-top:0.65rem; display:grid; gap:0.55rem;">
+		                        <button type="button" class="button" id="task-assistant-smart-suggest">Sugerir tareas</button>
+		                        <button type="button" class="button" id="task-assistant-smart-generate">Aplicar mejor sugerencia</button>
+		                        <button type="button" class="button" id="task-assistant-smart-generate-session">Generar bloque (3 tareas)</button>
+		                        <button type="button" class="button" id="task-assistant-blueprint-save">Guardar plantilla</button>
+		                        <button type="button" class="button" id="task-assistant-knowledge-upload">Subir docs/capturas y crear plantillas</button>
+		                      </div>
+		                      <div id="task-assistant-smart-suggestions" style="margin-top:0.75rem; display:grid; gap:0.55rem;"></div>
+		                      <div class="meta" style="margin-top:0.65rem; opacity:0.9;">
+		                        Consejo: define qué quieres entrenar y pulsa “Sugerir tareas”. Aplica una y ajusta reglas/dimensiones.
+		                      </div>
+		                    </div>
+		                    <div data-assistant-program="fundamentals" hidden>
+		                      <div class="meta" style="margin:0.1rem 0 0.55rem; opacity:0.92;">
+		                        Plantillas genéricas para arrancar rápido (ajusta reglas y dimensiones).
+		                      </div>
+		                      <div style="display:grid; gap:0.55rem;">
+		                        <button type="button" class="button" data-assistant-template="fund_dribble_game">Conducción · partido reducido</button>
+		                        <button type="button" class="button" data-assistant-template="fund_oleada_entry">Regate + entrada · oleada</button>
+		                        <button type="button" class="button" data-assistant-template="fund_conservation_pass">Conservación · pase (4v4+2)</button>
+		                        <button type="button" class="button" data-assistant-template="fund_conservation_2v1">Conservación · 2v1</button>
+		                        <button type="button" class="button" data-assistant-template="fund_oleadas_1v1">Oleadas · 1v1</button>
+		                        <button type="button" class="button" data-assistant-template="fund_match_2v1">Partido · 2v1</button>
+		                        <button type="button" class="button" data-assistant-template="fund_coord_circuit">Circuito coordinativo</button>
+		                        <button type="button" class="button" data-assistant-template="fund_adapted_game_coord">Juego adaptado coordinativo</button>
+		                      </div>
+		                    </div>
+		                  </div>
+		                  <div class="alert warn" data-assistant-tip="fifa11plus" style="margin-top:0.85rem;">
+		                    Tip: para un calentamiento completo, crea 3 tareas (Parte 1 + Parte 2 + Parte 3) y así podrás reordenarlas/ajustarlas dentro de la sesión.
+		                  </div>
+		                  <div class="alert warn" data-assistant-tip="smart" hidden style="margin-top:0.85rem;">
+		                    Tip: usa “Generar bloque (3 tareas)” para activar + principal + vuelta a la calma y luego ajusta cada tarea a tu equipo.
+		                  </div>
+		                  <div class="alert warn" data-assistant-tip="fundamentals" hidden style="margin-top:0.85rem;">
+		                    Tip: usa “Fundamentos” para arrancar rápido y adapta reglas/dimensiones según edad y nivel.
+		                  </div>
+		                  <div class="alert ok" id="task-assistant-queue" hidden style="margin-top:0.85rem; display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
+		                    <span id="task-assistant-queue-text"></span>
+		                    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+		                      <button type="button" class="button" id="task-assistant-queue-next">Abrir siguiente tarea</button>
+		                      <button type="button" class="button" id="task-assistant-queue-clear">Vaciar cola</button>
+		                    </div>
+		                  </div>
+		                </div>
+		              </div>
+
+              {% if not tactics_mode %}
+			              <div class="side-pane" data-pane="design" role="tabpanel">
+			                <div class="section">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:0.65rem; flex-wrap:wrap;">
+			                  <h3 style="margin:0;">Metodología</h3>
+                      <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+                        <button type="button" class="button secondary" onclick="try{document.querySelector('#task-side-tabs [data-pane=&quot;playbook&quot;]')?.click();}catch(e){};return false;">Playbook</button>
+                        <button type="button" class="button secondary" onclick="try{document.querySelector('#task-side-tabs [data-pane=&quot;preview&quot;]')?.click();}catch(e){};return false;">Vista previa</button>
+                      </div>
+                    </div>
+                    <p class="meta" style="margin:0.4rem 0 0.85rem;">Aquí defines la lógica metodológica de la tarea, sus principios y sus variantes sin tocar la pizarra.</p>
+		                  <div class="meta" style="margin:-0.2rem 0 0.85rem;">
+		                    <label class="chip-toggle" style="display:inline-flex; gap:10px; align-items:center;">
+		                      <input type="checkbox" name="draw_task_multi_board" id="task-multi-board-toggle" value="1" {% if initial.multi_board_enabled %}checked{% endif %} />
+		                      Multipizarra (varios escenarios)
+		                    </label>
+		                    <div style="margin-top:0.35rem; opacity:0.9;">
+		                      Si lo activas, puedes guardar varios escenarios dentro de una misma tarea (panel “Escenarios”) y aparecerán en el PDF de la tarea.
+		                    </div>
+		                  </div>
+		                  <div class="compact-grid">
+		                  <label>
+		                    Estrategia
+		                    <select name="draw_task_strategy">
+	                      <option value="">Selecciona...</option>
+	                      {% for value, label in task_strategy_choices %}
+	                      <option value="{{ value }}" {% if initial.strategy == value %}selected{% endif %}>{{ label }}</option>
+	                      {% endfor %}
+	                    </select>
+	                  </label>
+	                  <label>
+	                    Dinámica
+	                    <select name="draw_task_dynamics">
+	                      <option value="">Selecciona...</option>
+	                      {% for value, label in task_dynamics_choices %}
+	                      <option value="{{ value }}" {% if initial.dynamics == value %}selected{% endif %}>{{ label }}</option>
+	                      {% endfor %}
+	                    </select>
+	                  </label>
+	                  <label>
+	                    Situación de Juego
+	                    <select name="draw_task_structure">
+	                      <option value="">Selecciona...</option>
+	                      {% for value, label in task_structure_choices %}
+	                      <option value="{{ value }}" {% if initial.structure == value %}selected{% endif %}>{{ label }}</option>
+	                      {% endfor %}
+	                    </select>
+	                  </label>
+	                  <label>
+	                    Coordinación
+	                    <select name="draw_task_coordination">
+	                      <option value="">Selecciona...</option>
+	                      {% for value, label in task_coordination_choices %}
+	                      <option value="{{ value }}" {% if initial.coordination == value %}selected{% endif %}>{{ label }}</option>
+	                      {% endfor %}
+	                    </select>
+	                  </label>
+	                  <label style="grid-column:1 / -1;">
+	                    Habilidades Coordinativas
+	                    <select name="draw_task_coordination_skills">
+	                      <option value="">Selecciona...</option>
+	                      {% for value, label in task_coordination_skills_choices %}
+	                      <option value="{{ value }}" {% if initial.coordination_skills == value %}selected{% endif %}>{{ label }}</option>
+	                      {% endfor %}
+	                    </select>
+	                  </label>
+	                  <label style="grid-column:1 / -1;">
+	                    Intención táctica
+	                    <select name="draw_task_tactical_intent">
+	                      <option value="">Selecciona...</option>
+	                      {% for value, label in task_tactical_intent_choices %}
+	                      <option value="{{ value }}" {% if initial.tactical_intent == value %}selected{% endif %}>{{ label }}</option>
+	                      {% endfor %}
+	                    </select>
+	                  </label>
+	                  <div class="section" id="task-methodology-card" style="grid-column:1 / -1; margin:0.35rem 0 0.55rem; padding:0.75rem; border:1px solid rgba(255,255,255,0.10); border-radius:14px; background:rgba(255,255,255,0.035);" data-methodology-picker data-help="Conecta la tarea con la periodización táctica: momento, principio, subprincipio, regla provocadora y carga.">
+	                    <h3 style="margin:0 0 0.55rem;">Metodología</h3>
+	                    <div class="compact-grid" data-methodology-grid>
+	                      <label>
+	                        Momento del juego
+	                        <select name="draw_task_game_moment">
+	                          <option value="">Selecciona...</option>
+	                          {% for value, label in game_moment_choices %}
+	                          <option value="{{ value }}" {% if initial.game_moment == value %}selected{% endif %}>{{ label }}</option>
+	                          {% endfor %}
+	                        </select>
+	                      </label>
+	                      <label>
+	                        Principio
+	                        <input list="task-principle-options" type="text" name="draw_task_principle" value="{{ initial.principle }}" maxlength="120" placeholder="Ej: Presión tras pérdida" />
+	                      </label>
+	                      <label style="grid-column:1 / -1;">
+	                        Subprincipio
+	                        <input type="text" name="draw_task_subprinciple" value="{{ initial.subprinciple }}" maxlength="160" placeholder="Ej: cerrar pase interior y acosar al poseedor" />
+	                      </label>
+	                      <label style="grid-column:1 / -1;">
+	                        Regla provocadora
+	                        <textarea name="draw_task_provocation_rule" rows="2" style="min-height:52px; resize:vertical;" placeholder="Ej: gol doble si recuperamos en 6'' y finalizamos">{{ initial.provocation_rule }}</textarea>
+	                      </label>
+	                      <label>
+	                        Estructura dominante
+	                        <select name="draw_task_dominant_structure">
+	                          <option value="">Selecciona...</option>
+	                          {% for value, label in player_structure_choices %}
+	                          <option value="{{ value }}" {% if initial.dominant_structure == value %}selected{% endif %}>{{ label }}</option>
+	                          {% endfor %}
+	                        </select>
+	                      </label>
+	                      <label>
+	                        Estructura secundaria
+	                        <select name="draw_task_secondary_structure">
+	                          <option value="">Selecciona...</option>
+	                          {% for value, label in player_structure_choices %}
+	                          <option value="{{ value }}" {% if initial.secondary_structure == value %}selected{% endif %}>{{ label }}</option>
+	                          {% endfor %}
+	                        </select>
+	                      </label>
+	                    </div>
+	                  </div>
+		                  <label style="grid-column:1 / -1;">
+		                    Organización
+		                    <div class="rich-editor" data-rich-editor data-rich-name="draw_task_organization" data-rich-html-name="draw_task_organization_html">
+		                      <div class="rich-toolbar" aria-label="Formato de texto">
+		                        <button type="button" data-rich-cmd="bold" title="Negrita">B</button>
+		                        <button type="button" data-rich-cmd="italic" title="Cursiva">I</button>
+		                        <button type="button" data-rich-cmd="underline" title="Subrayado">U</button>
+		                        <button type="button" data-rich-cmd="upper" title="Mayúsculas">MAY</button>
+		                        <button type="button" data-rich-cmd="lower" title="Minúsculas">min</button>
+		                        <button type="button" data-rich-cmd="insertUnorderedList" title="Viñetas">•</button>
+		                        <button type="button" data-rich-cmd="insertOrderedList" title="Numeración">1.</button>
+		                        <button type="button" data-rich-cmd="removeFormat" title="Quitar formato">Tx</button>
+		                      </div>
+		                      <div class="rich-area" contenteditable="true" data-rich-area>
+		                        {% if initial.organization_html %}{{ initial.organization_html|safe }}{% else %}{{ initial.organization|linebreaksbr }}{% endif %}
+		                      </div>
+		                    </div>
+		                    <textarea name="draw_task_organization" id="draw-task-organization" hidden>{{ initial.organization }}</textarea>
+		                    <input type="hidden" name="draw_task_organization_html" id="draw-task-organization-html" value="{{ initial.organization_html|default:''|escape }}" />
+		                  </label>
+	                  <label>
+                    Reparto jugadores
+                    <input type="text" name="draw_task_players_distribution" value="{{ initial.players_distribution }}" placeholder="Ej: 2 líneas + pivote" />
+                  </label>
+		                  <label>
+	                    Series
+	                    <input type="text" name="draw_task_series" value="{{ initial.series }}" placeholder="Ej: 4" />
+	                  </label>
+	                  <label>
+	                    Repeticiones
+	                    <input type="text" name="draw_task_repetitions" value="{{ initial.repetitions }}" placeholder="Ej: 3" />
+	                  </label>
+	                  <label>
+	                    Trabajo/descanso
+	                    <input type="text" name="draw_task_work_rest" value="{{ initial.work_rest }}" placeholder="Ej: 15'' / 15''" />
+	                  </label>
+                  <label>
+                    Complejidad
+                    <select name="draw_task_complexity">
+                      <option value="">-</option>
+                      {% for value, label in task_complexity_choices %}
+                      <option value="{{ value }}" {% if initial.complexity == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+	                  <label style="grid-column:1 / -1;">
+	                    Progresión
+	                    <div class="rich-editor" data-rich-editor data-rich-name="draw_task_progression" data-rich-html-name="draw_task_progression_html">
+	                      <div class="rich-toolbar" aria-label="Formato de texto">
+	                        <button type="button" data-rich-cmd="bold" title="Negrita">B</button>
+	                        <button type="button" data-rich-cmd="italic" title="Cursiva">I</button>
+	                        <button type="button" data-rich-cmd="underline" title="Subrayado">U</button>
+	                        <button type="button" data-rich-cmd="upper" title="Mayúsculas">MAY</button>
+	                        <button type="button" data-rich-cmd="lower" title="Minúsculas">min</button>
+	                        <button type="button" data-rich-cmd="insertUnorderedList" title="Viñetas">•</button>
+	                        <button type="button" data-rich-cmd="insertOrderedList" title="Numeración">1.</button>
+	                        <button type="button" data-rich-cmd="removeFormat" title="Quitar formato">Tx</button>
+	                      </div>
+	                      <div class="rich-area" contenteditable="true" data-rich-area>
+	                        {% if initial.progression_html %}{{ initial.progression_html|safe }}{% else %}{{ initial.progression|linebreaksbr }}{% endif %}
+	                      </div>
+	                    </div>
+	                    <textarea name="draw_task_progression" id="draw-task-progression" hidden>{{ initial.progression }}</textarea>
+	                    <input type="hidden" name="draw_task_progression_html" id="draw-task-progression-html" value="{{ initial.progression_html|default:''|escape }}" />
+	                  </label>
+	                  <label style="grid-column:1 / -1;">
+	                    Regresión
+	                    <div class="rich-editor" data-rich-editor data-rich-name="draw_task_regression" data-rich-html-name="draw_task_regression_html">
+	                      <div class="rich-toolbar" aria-label="Formato de texto">
+	                        <button type="button" data-rich-cmd="bold" title="Negrita">B</button>
+	                        <button type="button" data-rich-cmd="italic" title="Cursiva">I</button>
+	                        <button type="button" data-rich-cmd="underline" title="Subrayado">U</button>
+	                        <button type="button" data-rich-cmd="upper" title="Mayúsculas">MAY</button>
+	                        <button type="button" data-rich-cmd="lower" title="Minúsculas">min</button>
+	                        <button type="button" data-rich-cmd="insertUnorderedList" title="Viñetas">•</button>
+	                        <button type="button" data-rich-cmd="insertOrderedList" title="Numeración">1.</button>
+	                        <button type="button" data-rich-cmd="removeFormat" title="Quitar formato">Tx</button>
+	                      </div>
+	                      <div class="rich-area" contenteditable="true" data-rich-area>
+	                        {% if initial.regression_html %}{{ initial.regression_html|safe }}{% else %}{{ initial.regression|linebreaksbr }}{% endif %}
+	                      </div>
+	                    </div>
+	                    <textarea name="draw_task_regression" id="draw-task-regression" hidden>{{ initial.regression }}</textarea>
+	                    <input type="hidden" name="draw_task_regression_html" id="draw-task-regression-html" value="{{ initial.regression_html|default:''|escape }}" />
+	                  </label>
+	                  <label style="grid-column:1 / -1;">
+	                    Criterio de éxito
+	                    <div class="rich-editor" data-rich-editor data-rich-name="draw_task_success_criteria" data-rich-html-name="draw_task_success_criteria_html">
+	                      <div class="rich-toolbar" aria-label="Formato de texto">
+	                        <button type="button" data-rich-cmd="bold" title="Negrita">B</button>
+	                        <button type="button" data-rich-cmd="italic" title="Cursiva">I</button>
+	                        <button type="button" data-rich-cmd="underline" title="Subrayado">U</button>
+	                        <button type="button" data-rich-cmd="upper" title="Mayúsculas">MAY</button>
+	                        <button type="button" data-rich-cmd="lower" title="Minúsculas">min</button>
+	                        <button type="button" data-rich-cmd="insertUnorderedList" title="Viñetas">•</button>
+	                        <button type="button" data-rich-cmd="insertOrderedList" title="Numeración">1.</button>
+	                        <button type="button" data-rich-cmd="removeFormat" title="Quitar formato">Tx</button>
+	                      </div>
+	                      <div class="rich-area" contenteditable="true" data-rich-area>
+	                        {% if initial.success_criteria_html %}{{ initial.success_criteria_html|safe }}{% else %}{{ initial.success_criteria|linebreaksbr }}{% endif %}
+	                      </div>
+	                    </div>
+	                    <textarea name="draw_task_success_criteria" id="draw-task-success-criteria" hidden>{{ initial.success_criteria }}</textarea>
+	                    <input type="hidden" name="draw_task_success_criteria_html" id="draw-task-success-criteria-html" value="{{ initial.success_criteria_html|default:''|escape }}" />
+	                  </label>
+                </div>
+              </div>
+
+              <div class="section">
+                <h3>Jugadores detectados</h3>
+                <div class="assigned-summary" id="task-assigned-summary">
+                  Se rellenan automáticamente según las chapas usadas en la pizarra (y en los escenarios multipizarra).
+                </div>
+              </div>
+              </div>
+
+              <div class="side-pane" data-pane="load" role="tabpanel">
+                <div class="section">
+                  <h3>Carga y control</h3>
+                  <p class="meta" style="margin-top:0.35rem;">Concentra aquí la exigencia física, cognitiva y emocional de la tarea para que no se mezcle con la ficha principal.</p>
+                  <div class="compact-grid">
+                    <label>
+                      Carga física
+                      <select name="draw_task_physical_load">
+                        <option value="">-</option>
+                        {% for value, label in task_load_level_choices %}
+                        <option value="{{ value }}" {% if initial.physical_load == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                      </select>
+                    </label>
+                    <label>
+                      Carga cognitiva
+                      <select name="draw_task_cognitive_load">
+                        <option value="">-</option>
+                        {% for value, label in task_load_level_choices %}
+                        <option value="{{ value }}" {% if initial.cognitive_load == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                      </select>
+                    </label>
+                    <label>
+                      Carga emocional
+                      <select name="draw_task_emotional_load">
+                        <option value="">-</option>
+                        {% for value, label in task_load_level_choices %}
+                        <option value="{{ value }}" {% if initial.emotional_load == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                      </select>
+                    </label>
+                    <label>
+                      Día microciclo
+                      <select name="draw_task_md_day">
+                        <option value="">-</option>
+                        {% for value, label in task_md_day_choices %}
+                        <option value="{{ value }}" {% if initial.md_day == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                      </select>
+                    </label>
+                    <label>
+                      Carga dominante
+                      <select name="draw_task_dominant_load">
+                        <option value="">-</option>
+                        {% for value, label in task_dominant_load_choices %}
+                        <option value="{{ value }}" {% if initial.dominant_load == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                      </select>
+                    </label>
+                    <label>
+                      Escala
+                      <select name="draw_task_rpe_scale">
+                        {% for value, label in task_rpe_scale_choices %}
+                        <option value="{{ value }}" {% if initial.rpe_scale == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                      </select>
+                    </label>
+                    <label>
+                      RPE previsto
+                      <input type="number" name="draw_task_planned_rpe" min="0" max="20" step="1" value="{{ initial.planned_rpe }}" placeholder="0-10" />
+                    </label>
+                    <label>
+                      sRPE previsto
+                      <input type="number" value="{{ initial.planned_srpe_load }}" placeholder="auto" readonly />
+                    </label>
+                    <label>
+                      Wellness objetivo
+                      <input type="number" name="draw_task_wellness_target" min="1" max="10" step="1" value="{{ initial.wellness_target }}" placeholder="1-10" />
+                    </label>
+                    <label>
+                      Monotony
+                      <input type="text" name="draw_task_monotony_target" value="{{ initial.monotony_target }}" maxlength="40" placeholder="Ej: <2.0" />
+                    </label>
+                    <label>
+                      Strain
+                      <input type="text" name="draw_task_strain_target" value="{{ initial.strain_target }}" maxlength="60" placeholder="Ej: semana controlada" />
+                    </label>
+                    <label>
+                      Carga objetivo
+                      <input type="text" name="draw_task_load_target" value="{{ initial.load_target }}" placeholder="Ej: RPE 7" />
+                    </label>
+                    <label style="grid-column:1 / -1;">
+                      Notas de carga
+                      <textarea name="draw_task_load_notes" rows="2" style="min-height:52px; resize:vertical;" placeholder="Ej: evitar picos tras partido, controlar aceleraciones y densidad decisional">{{ initial.load_notes }}</textarea>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+		              <div class="side-pane" data-pane="animacion" role="tabpanel">
+	                <div class="section">
+	                  <div class="timeline-head">
+	                  <div>
+	                    <h3>Escenarios (multipizarra)</h3>
+	                    {% if tactics_mode %}
+	                    <p>Crea una secuencia de escenas (inicio → desarrollo → final) para simular una acción.</p>
+	                    {% else %}
+	                    <p>Opcional. Crea varias pizarras dentro de la misma tarea (Escenario 1, 2, 3...).</p>
+	                    {% endif %}
+	                  </div>
+	                  <div class="timeline-toolbar">
+	                    <button type="button" id="task-step-add">Añadir escenario</button>
+	                    <button type="button" id="task-step-duplicate">Duplicar escenario</button>
+	                    <button type="button" id="task-step-remove">Eliminar escenario</button>
+	                    <button type="button" id="task-step-play" title="Pasa por escenarios como previsualización.">Previsualizar</button>
+	                  </div>
+	                </div>
+                  {% if not tactics_mode %}
+	                <div class="meta" style="margin-top:0.55rem;">
+	                  Activa “Multipizarra” en Ajustes avanzados para que estos escenarios se incluyan en el PDF.
+	                </div>
+                  {% endif %}
+	                <div class="timeline-list" id="task-timeline-list"></div>
+	                <div class="compact-grid" style="margin-top:0.8rem;">
+	                  <label>
+	                    Nombre del escenario
+	                    <input type="text" id="task-step-title" maxlength="80" placeholder="Ej: Inicio de la acción" />
+	                  </label>
+	                  <label>
+	                    Duración (seg)
+	                    <input type="number" id="task-step-duration" min="1" max="20" value="3" />
+	                  </label>
+	                </div>
+		              </div>
+		              </div>
+		              {% endif %}
+		              {% endif %}
+
+              {% if not tactics_mode %}
+              <datalist id="task-principle-options">
+                {% for item in model_principle_options %}
+                <option value="{{ item.label }}"></option>
+                {% endfor %}
+              </datalist>
+              {% endif %}
+
+			              <div class="side-pane{% if tactics_mode %} is-active{% endif %}" data-pane="playbook" role="tabpanel">
+		                <div class="section">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:0.65rem; flex-wrap:wrap;">
+		                  <h3 style="margin:0;">Playbook</h3>
+                      {% if not tactics_mode %}
+                      <button type="button" class="button secondary" onclick="try{document.querySelector('#task-mode-tabs [data-task-mode=&quot;methodology&quot;]')?.click();document.querySelector('#task-side-tabs [data-pane=&quot;design&quot;]')?.click();}catch(e){};return false;">Volver a metodología</button>
+                      {% endif %}
+                    </div>
+		                  {% if tactics_mode %}
+		                  <p>Clips reutilizables del equipo: plantillas tácticas, favoritos, versiones, compartir y clonar.</p>
+		                  {% else %}
+		                  <p>Usa una táctica/clip como plantilla de pizarra para esta tarea. Pulsa <strong>Cargar</strong> para aplicarlo.</p>
+		                  {% endif %}
+		                  <div class="export-grid" style="margin:0.75rem 0 0.35rem;">
+		                    <button
+	                        type="button"
+	                        class="button"
+	                        id="task-playbook-open-sim"
+                        onclick="try{var p=document.getElementById('task-sim-popover');if(p)p.hidden=false;var s=document.getElementById('task-builder-status');if(s)s.textContent='Simulador: panel abierto.';}catch(e){};return false;"
+                      >Simulador</button>
+	                    <button
+                        type="button"
+                        class="button"
+                        id="task-playbook-open-3d"
+                        onclick="try{var p=document.getElementById('task-sim-popover');if(p)p.hidden=false;var s=document.getElementById('task-builder-status');if(s)s.textContent='Simulador: panel abierto (Vista 3D).';}catch(e){};return false;"
+                      >Vista 3D</button>
+	                    <button
+                        type="button"
+                        class="button"
+                        id="task-playbook-open-video"
+                        onclick="try{var p=document.getElementById('task-sim-popover');if(p)p.hidden=false;var s=document.getElementById('task-builder-status');if(s)s.textContent='Simulador: panel abierto (Video Studio).';}catch(e){};return false;"
+                      >Video Studio</button>
+	                    <button
+                        type="button"
+                        class="button"
+                        id="task-playbook-export-pack"
+                        onclick="try{var p=document.getElementById('task-sim-popover');if(p)p.hidden=false;var s=document.getElementById('task-builder-status');if(s)s.textContent='Simulador: panel abierto (Pack).';}catch(e){};return false;"
+                      >Pack</button>
+	                  </div>
+		                  <div id="task-playbook-pane">
+		                    <div class="timeline-empty">Cargando Playbook…</div>
+		                  </div>
+		                </div>
+			              </div>
+
+		              <div class="side-pane" data-pane="capas" role="tabpanel">
+		                <div class="section">
+		                  <h3>Capas</h3>
+		                  <p>Reordena, oculta o bloquea elementos de la pizarra.</p>
+		                  <div class="layers-list" id="task-layers-list"></div>
+		                </div>
+		              </div>
+
+		              <div class="side-pane" data-pane="exportar" role="tabpanel">
+		                <div class="section">
+		                  <h3>Exportar</h3>
+		                  <p>Descarga la pizarra como imagen o el estado como archivo.</p>
+		                  <div class="export-grid">
+		                    <button type="button" class="button" id="export-png">PNG (actual)</button>
+		                    <button type="button" class="button" id="export-png-hd">PNG (HD)</button>
+		                    <button type="button" class="button" id="export-json">Estado (JSON)</button>
+		                    <button type="button" class="button" id="export-png-steps">PNGs (pasos)</button>
+		                  </div>
+	                      {% if not tactics_mode %}
+			                  <div class="export-grid" style="margin-top:0.65rem;">
+			                    <button type="button" class="button" data-print-style="uefa" data-print-one-page="1">PDF UEFA</button>
+			                    <button type="button" class="button" data-print-style="club" data-print-one-page="1">PDF Club</button>
+			                  </div>
+	                      {% endif %}
+		                  <div class="export-note">
+                        {% if tactics_mode %}
+		                    Tip: para “Pack” (portada + índice + miniaturas) usa Playbook.
+                        {% else %}
+		                    Tip: puedes generar el PDF desde aquí o desde “Opciones”.
+                        {% endif %}
+		                  </div>
+		                </div>
+		              </div>
+
+              {% if not tactics_mode %}
+			              <div class="side-pane" data-pane="preview" role="tabpanel">
+			                <div class="section preview-card">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:0.65rem; flex-wrap:wrap;">
+			                  <h3 style="margin:0;">Vista previa</h3>
+                      <button type="button" class="button secondary" onclick="try{document.querySelector('#task-mode-tabs [data-task-mode=&quot;methodology&quot;]')?.click();document.querySelector('#task-side-tabs [data-pane=&quot;design&quot;]')?.click();}catch(e){};return false;">Volver a metodología</button>
+                    </div>
+			                  <div class="live-preview-frame">
+	                    <img id="task-live-preview" alt="Preview de tarea" hidden />
+	                    <div id="task-live-preview-placeholder" class="live-preview-placeholder">
+	                      La preview se genera mientras diseñas la tarea.
+			                </div>
+			              </div>
+              {% endif %}
+		                  {% if task %}
+		                  {% if task.task_preview_image or task.task_pdf %}
+	                  <div style="margin-top:0.75rem; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+	                    <button
+	                      type="submit"
+	                      class="button"
+	                      formaction="{% url 'session-task-graphic-recreate' task.id %}"
+	                      formmethod="post"
+	                      title="Reconstruye la pizarra editable usando la previsualización (card) o el PDF original."
+	                    >
+	                      Reconstruir pizarra desde gráfico
+	                    </button>
+	                    <label style="display:flex; gap:8px; align-items:center; font-size:0.95rem; opacity:0.9;">
+	                      <input type="checkbox" name="force" value="1" />
+	                      Sobrescribir si ya hay elementos
+	                    </label>
+	                  </div>
+	                  {% endif %}
+	                  {% endif %}
+	                </div>
+	              </div>
+
+	              {% if analysis_item_mode %}
+	              <div class="submit-row" style="justify-content:flex-end;">
+	                <div style="font-size:0.9rem; opacity:0.85; text-align:right;">
+	                  Pulsa <strong>Guardar</strong> para añadir la pizarra al informe.
+	                </div>
+	              </div>
+	              {% elif not tactics_mode %}
+	              <div class="submit-row">
+	                <button type="submit" class="button primary" id="task-submit-btn">{% if task %}Guardar tarea{% else %}Crear tarea{% endif %}</button>
+	              </div>
+	              {% else %}
+	              <div class="submit-row" style="justify-content:flex-end;">
+                <div style="font-size:0.9rem; opacity:0.85; text-align:right;">
+                  Guarda como <strong>clip</strong> desde el Playbook o exporta en “Exportar”.
+                </div>
+              </div>
+              {% endif %}
+            </div>
+          </aside>
+        </div>
+      </form>
+    </main>
