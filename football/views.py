@@ -251,12 +251,13 @@ except NameError:
         )
 
 try:
-    from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageOps
+    from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont, ImageOps
 except Exception:  # pragma: no cover
     Image = None
     ImageDraw = None
     ImageEnhance = None
     ImageFilter = None
+    ImageFont = None
     ImageOps = None
 else:
     # Soporte HEIC/HEIF (iPhone/iPad). Si la dependencia no está instalada,
@@ -4495,6 +4496,625 @@ def _image_file_as_small_data_uri(file_path, max_width=1200, max_height=800, qua
         return f"data:image/jpeg;base64,{encoded}"
     except Exception:
         return _file_as_data_uri(file_path)
+
+
+def _coach_roster_player_photo_data_uri(request, player, *, max_width=360, max_height=360, quality=78):
+    if not player:
+        return ""
+    try:
+        photo_url = resolve_player_photo_url(request, player)
+    except Exception:
+        photo_url = ""
+    if str(photo_url or "").startswith("data:image/"):
+        return str(photo_url)
+    try:
+        parsed = urlparse(str(photo_url or ""))
+    except Exception:
+        parsed = None
+    try:
+        static_url = str(getattr(settings, "STATIC_URL", "/static/") or "/static/")
+        media_url = str(getattr(settings, "MEDIA_URL", "/media/") or "/media/")
+        path = getattr(parsed, "path", "") if parsed else str(photo_url or "")
+        if path.startswith(static_url):
+            rel = path[len(static_url) :].lstrip("/")
+            return _file_as_data_uri(Path(settings.BASE_DIR) / "static" / rel)
+        if path.startswith(media_url):
+            rel = path[len(media_url) :].lstrip("/")
+            return _image_file_as_small_data_uri(
+                Path(getattr(settings, "MEDIA_ROOT", "")) / rel,
+                max_width=max_width,
+                max_height=max_height,
+                quality=quality,
+            )
+    except Exception:
+        pass
+    try:
+        storage = storages["default"]
+        if isinstance(storage, FileSystemStorage):
+            storage = FileSystemStorage(
+                location=getattr(settings, "MEDIA_ROOT", None), base_url=getattr(settings, "MEDIA_URL", "/media/")
+            )
+    except Exception:
+        storage = default_storage
+    for candidate in _player_photo_storage_candidates(player):
+        try:
+            if storage and storage.exists(candidate):
+                with storage.open(candidate, "rb") as fp:
+                    raw = fp.read() or b""
+                if raw:
+                    mime = {
+                        ".png": "image/png",
+                        ".jpg": "image/jpeg",
+                        ".jpeg": "image/jpeg",
+                        ".webp": "image/webp",
+                    }.get(Path(candidate).suffix.lower(), "image/jpeg")
+                    return _image_bytes_as_small_data_uri(
+                        raw,
+                        mime_type=mime,
+                        max_width=max_width,
+                        max_height=max_height,
+                        quality=quality,
+                    )
+        except Exception:
+            continue
+    try:
+        static_path = resolve_player_photo_static_path(player)
+    except Exception:
+        static_path = ""
+    if static_path:
+        return _file_as_data_uri(Path(settings.BASE_DIR) / "static" / static_path)
+    return ""
+
+
+@lru_cache(maxsize=16)
+def _roster_preview_font(size: int, bold: bool = False):
+    if ImageFont is None:
+        return None
+    candidates = []
+    if bold:
+        candidates.extend(
+            [
+                "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+                "/System/Library/Fonts/Supplemental/Helvetica Bold.ttf",
+                "/Library/Fonts/Arial Bold.ttf",
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            ]
+        )
+    else:
+        candidates.extend(
+            [
+                "/System/Library/Fonts/Supplemental/Arial.ttf",
+                "/System/Library/Fonts/Supplemental/Helvetica.ttf",
+                "/Library/Fonts/Arial.ttf",
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            ]
+        )
+    for candidate in candidates:
+        try:
+            path = Path(candidate)
+            if path.exists() and path.is_file():
+                return ImageFont.truetype(str(path), int(size))
+        except Exception:
+            continue
+    try:
+        return ImageFont.load_default()
+    except Exception:
+        return None
+
+
+def _roster_preview_text_bbox(draw, text, font):
+    if not text:
+        return 0, 0
+    try:
+        bbox = draw.textbbox((0, 0), text, font=font)
+        return max(0, int(bbox[2] - bbox[0])), max(0, int(bbox[3] - bbox[1]))
+    except Exception:
+        try:
+            return draw.textsize(text, font=font)
+        except Exception:
+            return len(text) * 8, 12
+
+
+def _roster_preview_wrap_text(draw, text, font, max_width, max_lines=2):
+    raw = " ".join(str(text or "").split())
+    if not raw:
+        return [""]
+    words = raw.split(" ")
+    lines = []
+    current = ""
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        if _roster_preview_text_bbox(draw, candidate, font)[0] <= max_width or not current:
+            current = candidate
+            continue
+        lines.append(current)
+        current = word
+        if len(lines) >= max_lines:
+            break
+    if len(lines) < max_lines and current:
+        lines.append(current)
+    if len(lines) > max_lines:
+        lines = lines[:max_lines]
+    if len(lines) == max_lines and words:
+        last = lines[-1]
+        while last and _roster_preview_text_bbox(draw, last + "…", font)[0] > max_width:
+            last = last[:-1].rstrip()
+        lines[-1] = f"{last}…" if last and last != lines[-1] else lines[-1]
+    return lines or [raw]
+
+
+def _normalize_roster_preview_label(value: object) -> str:
+    return normalize_label(str(value or "").strip())
+
+
+def _roster_preview_bucket(position_text: str) -> str:
+    text = _normalize_roster_preview_label(position_text or "")
+    if any(token in text for token in ("portero", "goalkeeper", "guardameta", "porteria", "puerta")):
+        return "gk"
+    if any(token in text for token in ("defensa", "central", "lateral", "carrilero", "libero", "zaguero")):
+        return "def"
+    if any(
+        token in text
+        for token in ("medio", "centro", "pivote", "pivot", "interior", "volante", "mediocentro", "media punta", "mediapunta")
+    ):
+        return "mid"
+    if any(token in text for token in ("delantero", "extremo", "punta", "ataque", "segundo punta", "ariete")):
+        return "att"
+    return "mid"
+
+
+def _coach_roster_preview_signature(*, primary_team, active_club_season, board_rows) -> str:
+    payload = {
+        "team_id": int(getattr(primary_team, "id", 0) or 0),
+        "season_id": int(getattr(active_club_season, "id", 0) or 0) if active_club_season else 0,
+        "rows": [
+            {
+                "id": int(row.get("id") or 0),
+                "name": str(row.get("name") or "").strip(),
+                "number": str(row.get("number") or "").strip(),
+                "position": str(row.get("position") or "").strip(),
+                "state": str(row.get("state_key") or "").strip(),
+                "bucket": str(row.get("bucket") or "").strip(),
+                "photo": str(row.get("photo_key") or "").strip(),
+            }
+            for row in board_rows
+        ],
+    }
+    raw = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha1(raw).hexdigest()[:20]
+
+
+def _build_coach_roster_preview_payload(*, primary_team, active_club_season, players, memberships, request=None):
+    status_labels = dict(WorkspaceSeasonPlayer.STATUS_CHOICES)
+    active_ids = [int(getattr(player, "id", 0) or 0) for player in players if getattr(player, "id", None)]
+    try:
+        active_injury_ids = set(get_active_injury_player_ids(active_ids))
+    except Exception:
+        active_injury_ids = set()
+
+    bucket_meta = {
+        "gk": {"label": "Portería", "short": "POR", "x": 6, "y": 52, "w": 20},
+        "def": {"label": "Defensa", "short": "DEF", "x": 24, "y": 28, "w": 28},
+        "mid": {"label": "Centro del campo", "short": "MED", "x": 52, "y": 28, "w": 28},
+        "att": {"label": "Ataque", "short": "ATA", "x": 79, "y": 34, "w": 20},
+        "oth": {"label": "Sin definir", "short": "OTR", "x": 50, "y": 68, "w": 20},
+    }
+    position_groups = {key: {"key": key, **meta, "players": []} for key, meta in bucket_meta.items()}
+    field_slots = {
+        "gk": [(50, 81, 14.5)],
+        "def": [(12, 58, 13.5), (25, 32, 13.5), (24, 78, 13.5), (38, 50, 13.5), (15, 22, 13.5), (38, 76, 13.5), (30, 14, 13.5)],
+        "mid": [(50, 24, 13.5), (60, 50, 13.5), (44, 70, 13.5), (67, 34, 13.5), (57, 78, 13.5), (74, 58, 13.5), (48, 52, 13.5)],
+        "att": [(82, 24, 13.5), (90, 50, 13.5), (80, 78, 13.5), (93, 34, 13.5), (91, 76, 13.5), (76, 54, 13.5)],
+        "oth": [(50, 42, 13.5), (58, 58, 13.5), (42, 62, 13.5), (60, 38, 13.5), (48, 72, 13.5)],
+    }
+
+    rows = []
+    confirmed_total = 0
+    pending_total = 0
+    injured_total = 0
+    inactive_total = 0
+    for player in players:
+        player_id = int(getattr(player, "id", 0) or 0)
+        membership = memberships.get(player_id)
+        confirmed = bool(
+            membership
+            and getattr(membership, "is_confirmed", False)
+            and str(getattr(membership, "status", "") or "").strip() == WorkspaceSeasonPlayer.STATUS_CONFIRMED
+        )
+        season_status = str(getattr(membership, "status", "") or "").strip() if membership else ""
+        season_status_label = status_labels.get(season_status, "Pendiente")
+        if player_id in active_injury_ids:
+            state_key = "injured"
+            state_label = "Lesionado"
+            tone = "injured"
+        elif not bool(getattr(player, "is_active", True)) or season_status in {
+            WorkspaceSeasonPlayer.STATUS_LEFT,
+            WorkspaceSeasonPlayer.STATUS_INACTIVE,
+        }:
+            state_key = "inactive"
+            state_label = "Inactivo"
+            tone = "inactive"
+        elif confirmed:
+            state_key = "confirmed"
+            state_label = "Disponible"
+            tone = "available"
+        else:
+            state_key = "trial"
+            state_label = "A prueba"
+            tone = "trial"
+        if state_key == "confirmed":
+            confirmed_total += 1
+        elif state_key == "trial":
+            pending_total += 1
+        elif state_key == "injured":
+            injured_total += 1
+        else:
+            inactive_total += 1
+        bucket = _roster_preview_bucket(getattr(player, "position", "") or getattr(player, "preferred_position", "") or "")
+        group = position_groups.get(bucket) or position_groups["oth"]
+        row = {
+            "id": player_id,
+            "name": str(getattr(player, "name", "") or getattr(player, "full_name", "") or "").strip(),
+            "number": getattr(player, "number", None),
+            "position": str(getattr(player, "position", "") or getattr(player, "preferred_position", "") or "-").strip() or "-",
+            "state_key": state_key,
+            "state_label": state_label,
+            "state_tone": tone,
+            "season_status_label": season_status_label,
+            "bucket": bucket,
+            "bucket_label": group["label"],
+            "bucket_short": group["short"],
+            "is_active": bool(getattr(player, "is_active", True)),
+            "photo_key": "",
+            "photo_src": _coach_roster_player_photo_data_uri(request, player),
+        }
+        photo_updated_at = getattr(player, "photo_updated_at", None)
+        if photo_updated_at:
+            try:
+                row["photo_key"] = str(int(photo_updated_at.timestamp()))
+            except Exception:
+                row["photo_key"] = str(photo_updated_at)
+        rows.append(row)
+        if row["is_active"] and row["state_key"] != "inactive":
+            group["players"].append(row)
+
+    field_cards = []
+    for bucket_key in ("gk", "def", "mid", "att", "oth"):
+        group = position_groups[bucket_key]
+        slots = field_slots.get(bucket_key) or field_slots["oth"]
+        for index, row in enumerate(group["players"]):
+            slot_left, slot_top, slot_width = slots[index % len(slots)]
+            cycle = index // len(slots)
+            if cycle:
+                slot_top = max(4, min(92, slot_top + (cycle * 6) - (cycle // 2) * 3))
+                slot_left = max(4, min(94, slot_left + (cycle * 2) - (cycle // 2)))
+            field_cards.append(
+                {
+                    **row,
+                    "left": slot_left,
+                    "top": slot_top,
+                    "width": slot_width,
+                }
+            )
+
+    for group in position_groups.values():
+        group["players"].sort(key=lambda row: (int(row.get("number") or 9999), str(row.get("name") or "").lower()))
+        group["confirmed_count"] = sum(1 for row in group["players"] if row["state_key"] == "confirmed")
+        group["trial_count"] = sum(1 for row in group["players"] if row["state_key"] == "trial")
+        group["injured_count"] = sum(1 for row in group["players"] if row["state_key"] == "injured")
+        group["inactive_count"] = sum(1 for row in group["players"] if row["state_key"] == "inactive")
+
+    position_total_rows = [
+        {
+            "key": group["key"],
+            "label": group["label"],
+            "count": len(group["players"]),
+            "confirmed": group["confirmed_count"],
+            "trial": group["trial_count"],
+            "injured": group["injured_count"],
+            "inactive": group["inactive_count"],
+        }
+        for group in position_groups.values()
+    ]
+    state_counts = {
+        "confirmed": confirmed_total,
+        "trial": pending_total,
+        "injured": injured_total,
+        "inactive": inactive_total,
+    }
+    total_players = len([row for row in rows if row.get("is_active") and row.get("state_key") != "inactive"])
+    return {
+        "rows": rows,
+        "field_cards": field_cards,
+        "position_groups": list(position_groups.values()),
+        "position_total_rows": position_total_rows,
+        "state_counts": state_counts,
+        "total_players": total_players,
+        "signature": _coach_roster_preview_signature(
+            primary_team=primary_team,
+            active_club_season=active_club_season,
+            board_rows=field_cards,
+        ),
+    }
+
+
+def _render_coach_roster_preview_png(
+    *,
+    team_name: str,
+    division_label: str,
+    season_label: str,
+    payload: dict,
+    crest_src: str = "",
+    pitch_src: str = "",
+):
+    if Image is None or ImageDraw is None:
+        return b""
+    width, height = 1800, 1200
+    canvas = Image.new("RGBA", (width, height), (7, 14, 26, 255))
+    draw = ImageDraw.Draw(canvas)
+    # fondo premium
+    for y in range(height):
+        ratio = y / max(1, height - 1)
+        r = int(8 + ratio * 4)
+        g = int(17 + ratio * 8)
+        b = int(30 + ratio * 10)
+        draw.line((0, y, width, y), fill=(r, g, b, 255))
+    # brillo lateral
+    for x in range(width):
+        alpha = int(18 * max(0, 1 - abs((x / width) - 0.5) * 2))
+        draw.line((x, 0, x, height), fill=(15, 122, 53, alpha))
+
+    def _load_image_source(src: str):
+        if not src:
+            return None
+        raw = str(src or "").strip()
+        if raw.startswith("data:image/"):
+            try:
+                encoded = raw.split(",", 1)[1]
+                return Image.open(io.BytesIO(base64.b64decode(encoded))).convert("RGBA")
+            except Exception:
+                return None
+        try:
+            path = Path(raw)
+            if path.exists() and path.is_file():
+                return Image.open(path).convert("RGBA")
+        except Exception:
+            return None
+        return None
+
+    def _draw_photo_badge(target_card, *, source, box, accent_color, initials):
+        x0, y0, x1, y1 = box
+        size = max(24, min(x1 - x0, y1 - y0))
+        if size <= 0:
+            return
+        badge = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+        bdraw = ImageDraw.Draw(badge)
+        bdraw.ellipse((0, 0, size - 1, size - 1), fill=(5, 9, 18, 255), outline=accent_color, width=2)
+        src_img = _load_image_source(source)
+        if src_img is not None:
+            try:
+                if ImageOps is not None:
+                    resampling = getattr(Image, "Resampling", None)
+                    resample = getattr(resampling, "LANCZOS", getattr(Image, "LANCZOS", 1))
+                    src_img = ImageOps.fit(src_img.convert("RGBA"), (size - 4, size - 4), method=resample)
+                else:
+                    src_img = src_img.convert("RGBA").resize((size - 4, size - 4))
+                mask = Image.new("L", (size - 4, size - 4), 0)
+                ImageDraw.Draw(mask).ellipse((0, 0, size - 5, size - 5), fill=255)
+                badge.paste(src_img, (2, 2), mask)
+            except Exception:
+                src_img = None
+        if src_img is None:
+            bdraw.ellipse((2, 2, size - 3, size - 3), fill=(15, 25, 42, 255), outline=(255, 255, 255, 32), width=1)
+            inner = initials[:2].upper() if initials else "2J"
+            font = _roster_preview_font(max(9, size // 3), bold=True) or ImageFont.load_default()
+            bbox = bdraw.textbbox((0, 0), inner, font=font)
+            text_w = bbox[2] - bbox[0]
+            text_h = bbox[3] - bbox[1]
+            bdraw.text(((size - text_w) / 2, (size - text_h) / 2 - 1), inner, font=font, fill=(255, 250, 240, 255))
+        border = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+        border_draw = ImageDraw.Draw(border)
+        border_draw.ellipse((0, 0, size - 1, size - 1), outline=accent_color, width=2)
+        badge.alpha_composite(border)
+        target_card.alpha_composite(badge, (x0, y0))
+
+    font_title = _roster_preview_font(30, bold=True) or ImageFont.load_default()
+    font_sub = _roster_preview_font(19, bold=False) or ImageFont.load_default()
+    font_chip = _roster_preview_font(13, bold=True) or ImageFont.load_default()
+    font_card_name = _roster_preview_font(18, bold=True) or ImageFont.load_default()
+    font_card_pos = _roster_preview_font(13, bold=False) or ImageFont.load_default()
+    font_card_state = _roster_preview_font(11, bold=True) or ImageFont.load_default()
+    font_big = _roster_preview_font(26, bold=True) or ImageFont.load_default()
+
+    # top header
+    header_box = (38, 28, width - 38, 150)
+    draw.rounded_rectangle(header_box, radius=28, fill=(10, 20, 34, 230), outline=(109, 98, 54, 180), width=2)
+    if crest_src:
+        crest_img = _load_image_source(crest_src)
+        if crest_img is not None:
+            crest_img = crest_img.resize((88, 88))
+            canvas.alpha_composite(crest_img, (58, 44))
+    draw.text((160, 50), "2J CLUB · BENAGALBÓN", font=font_title, fill=(255, 250, 240, 255))
+    draw.text((160, 88), f"{division_label or 'División'} · {season_label or 'Temporada actual'}", font=font_sub, fill=(191, 219, 254, 235))
+    top_chips = [
+        ("Plantilla activa", str(payload.get("total_players", 0))),
+        ("Disponibles", str(payload.get("state_counts", {}).get("confirmed", 0))),
+        ("A prueba", str(payload.get("state_counts", {}).get("trial", 0))),
+        ("Lesionados", str(payload.get("state_counts", {}).get("injured", 0))),
+    ]
+    chip_x = width - 40
+    for label, value in reversed(top_chips):
+        chip_text = f"{label} · {value}"
+        bbox = draw.textbbox((0, 0), chip_text, font=font_chip)
+        chip_w = (bbox[2] - bbox[0]) + 28
+        chip_h = (bbox[3] - bbox[1]) + 18
+        chip_x -= chip_w
+        draw.rounded_rectangle((chip_x, 50, chip_x + chip_w, 50 + chip_h), radius=999, fill=(18, 28, 44, 230), outline=(244, 180, 0, 130), width=1)
+        draw.text((chip_x + 14, 50 + 8), chip_text, font=font_chip, fill=(245, 247, 250, 255))
+        chip_x -= 14
+
+    # main board
+    field_box = (40, 190, width - 40, 945)
+    field_img = _load_image_source(pitch_src)
+    if field_img is not None:
+        field_img = field_img.resize((field_box[2] - field_box[0], field_box[3] - field_box[1]))
+        canvas.alpha_composite(field_img, (field_box[0], field_box[1]))
+    else:
+        draw.rounded_rectangle(field_box, radius=34, fill=(31, 90, 35, 255), outline=(255, 255, 255, 90), width=2)
+    draw.rounded_rectangle(field_box, radius=34, outline=(255, 255, 255, 130), width=3)
+    field_inner = (field_box[0] + 28, field_box[1] + 28, field_box[2] - 28, field_box[3] - 28)
+    draw.rounded_rectangle(field_inner, radius=24, outline=(255, 255, 255, 85), width=2)
+
+    field_cards = list(payload.get("field_cards") or [])
+    card_base = {
+        "available": ((46, 120, 73, 228), (75, 180, 120, 220)),
+        "trial": ((106, 80, 24, 230), (255, 196, 80, 210)),
+        "injured": ((115, 38, 34, 230), (255, 107, 107, 220)),
+        "inactive": ((63, 63, 70, 220), (148, 163, 184, 200)),
+    }
+    field_w = field_box[2] - field_box[0]
+    field_h = field_box[3] - field_box[1]
+    for item in field_cards:
+        state = str(item.get("state_tone") or item.get("state_key") or "available").strip()
+        bg, accent = card_base.get(state, card_base["available"])
+        left_pct = float(item.get("left") or 50.0)
+        top_pct = float(item.get("top") or 50.0)
+        width_pct = float(item.get("width") or 13.5)
+        card_w = int(field_w * (width_pct / 100.0))
+        card_h = max(96, int(card_w * 0.72))
+        cx = field_box[0] + int(field_w * (left_pct / 100.0))
+        cy = field_box[1] + int(field_h * (top_pct / 100.0))
+        x = max(field_box[0] + 8, min(field_box[2] - card_w - 8, cx - card_w // 2))
+        y = max(field_box[1] + 8, min(field_box[3] - card_h - 8, cy - card_h // 2))
+        shadow = Image.new("RGBA", (card_w + 24, card_h + 24), (0, 0, 0, 0))
+        sdraw = ImageDraw.Draw(shadow)
+        sdraw.rounded_rectangle((12, 12, card_w + 12, card_h + 12), radius=18, fill=(0, 0, 0, 110))
+        shadow = shadow.filter(ImageFilter.GaussianBlur(8))
+        canvas.alpha_composite(shadow, (x - 12, y - 8))
+        card = Image.new("RGBA", (card_w, card_h), (0, 0, 0, 0))
+        cdraw = ImageDraw.Draw(card)
+        cdraw.rounded_rectangle((0, 0, card_w - 1, card_h - 1), radius=18, fill=bg, outline=accent, width=2)
+        cdraw.rounded_rectangle((6, 6, card_w - 7, card_h - 7), radius=14, fill=(11, 18, 32, 70), outline=(255, 255, 255, 30), width=1)
+        initials = "".join([part[:1] for part in str(item.get("name") or "Jugador").split()[:2] if part]).upper()
+        photo_size = min(40, max(28, card_w // 4))
+        _draw_photo_badge(
+            card,
+            source=str(item.get("photo_src") or ""),
+            box=(card_w - photo_size - 12, 10, card_w - 12, 10 + photo_size),
+            accent_color=accent,
+            initials=initials,
+        )
+        # dorsal
+        number = str(item.get("number") or "—").strip() or "—"
+        num_box = (12, 12, 40, 40)
+        cdraw.rounded_rectangle(num_box, radius=12, fill=(255, 255, 255, 35), outline=(255, 255, 255, 45), width=1)
+        bbox = cdraw.textbbox((0, 0), number, font=font_card_state)
+        n_w = bbox[2] - bbox[0]
+        n_h = bbox[3] - bbox[1]
+        cdraw.text((num_box[0] + (num_box[2] - num_box[0] - n_w) / 2, num_box[1] + (num_box[3] - num_box[1] - n_h) / 2 - 1), number, font=font_card_state, fill=(255, 250, 240, 255))
+        # name
+        name = str(item.get("name") or "").strip() or "Jugador"
+        name_lines = _roster_preview_wrap_text(cdraw, name, font_card_name, card_w - 70, max_lines=2)
+        name_y = 14
+        for idx, line in enumerate(name_lines):
+            cdraw.text((50, name_y + idx * 20), line, font=font_card_name, fill=(255, 250, 240, 255))
+        pos_text = str(item.get("position") or "").strip() or "-"
+        cdraw.text((50, card_h - 38), pos_text[:22].upper(), font=font_card_pos, fill=(220, 226, 238, 235))
+        state_label = str(item.get("state_label") or "").strip().upper()
+        pill_w = min(card_w - 18, max(70, _roster_preview_text_bbox(cdraw, state_label, font_card_state)[0] + 22))
+        pill_x = 12
+        pill_y = card_h - 26
+        cdraw.rounded_rectangle((pill_x, pill_y, pill_x + pill_w, pill_y + 18), radius=999, fill=(255, 255, 255, 16), outline=(255, 255, 255, 40), width=1)
+        cdraw.text((pill_x + 10, pill_y + 3), state_label, font=font_card_state, fill=(255, 250, 240, 255))
+        canvas.alpha_composite(card, (x, y))
+
+    # footer summaries
+    footer_box = (40, 980, width - 40, 1158)
+    draw.rounded_rectangle(footer_box, radius=24, fill=(9, 16, 29, 235), outline=(255, 255, 255, 55), width=2)
+    footer_sections = [
+        ("Portería", next((row for row in payload.get("position_total_rows") or [] if row.get("label") == "Portería"), None)),
+        ("Defensa", next((row for row in payload.get("position_total_rows") or [] if row.get("label") == "Defensa"), None)),
+        ("Centro", next((row for row in payload.get("position_total_rows") or [] if row.get("label") == "Centro del campo"), None)),
+        ("Ataque", next((row for row in payload.get("position_total_rows") or [] if row.get("label") == "Ataque"), None)),
+    ]
+    sec_x = footer_box[0] + 18
+    sec_w = 300
+    for label, row in footer_sections:
+        draw.rounded_rectangle((sec_x, footer_box[1] + 16, sec_x + sec_w, footer_box[3] - 16), radius=18, fill=(15, 23, 39, 255), outline=(244, 180, 0, 70), width=1)
+        draw.text((sec_x + 16, footer_box[1] + 28), label.upper(), font=font_chip, fill=(191, 219, 254, 235))
+        if row:
+            draw.text((sec_x + 16, footer_box[1] + 56), str(int(row.get("count") or 0)), font=font_big, fill=(245, 247, 250, 255))
+            detail = f"{int(row.get('confirmed') or 0)} disponibles · {int(row.get('trial') or 0)} a prueba · {int(row.get('injured') or 0)} lesionados"
+            draw.text((sec_x + 92, footer_box[1] + 62), detail, font=font_card_pos, fill=(226, 232, 240, 220))
+        sec_x += sec_w + 14
+    total = int(payload.get("total_players", 0) or 0)
+    draw.rounded_rectangle((sec_x, footer_box[1] + 16, footer_box[2] - 18, footer_box[3] - 16), radius=18, fill=(19, 34, 24, 255), outline=(134, 239, 172, 70), width=1)
+    draw.text((sec_x + 16, footer_box[1] + 28), "TOTAL PLANTILLA", font=font_chip, fill=(134, 239, 172, 240))
+    draw.text((sec_x + 16, footer_box[1] + 56), str(total), font=font_big, fill=(245, 247, 250, 255))
+    draw.text((sec_x + 86, footer_box[1] + 62), "jugadores activos", font=font_card_pos, fill=(226, 232, 240, 220))
+
+    out = io.BytesIO()
+    canvas.convert("RGB").save(out, format="PNG", optimize=True)
+    return out.getvalue()
+
+
+def _save_coach_roster_preview_image(
+    request,
+    *,
+    primary_team,
+    active_club_season,
+    preview_payload,
+    crest_src: str = "",
+    pitch_src: str = "",
+):
+    signature = str(preview_payload.get("signature") or "").strip()
+    if not signature:
+        return ""
+    static_base_dir = Path(settings.BASE_DIR) / "static"
+    if not pitch_src:
+        pitch_src = (
+            _file_as_data_uri(static_base_dir / "football" / "images" / "surfaces" / "references" / "football_pitch_metric_reference.svg")
+            or _file_as_data_uri(static_base_dir / "football" / "images" / "pitch3d" / "coach_home_pitch_surface.png")
+            or _file_as_data_uri(static_base_dir / "football" / "images" / "pitch3d" / "stadium_taskboard_top_h.png")
+            or _file_as_data_uri(static_base_dir / "football" / "images" / "pitch3d" / "grass_premium_albedo.png")
+            or ""
+        )
+    if not crest_src:
+        try:
+            if getattr(primary_team, "crest_image", None):
+                if getattr(primary_team.crest_image, "path", None):
+                    crest_src = _image_file_as_small_data_uri(Path(primary_team.crest_image.path), max_width=220, max_height=220, quality=74)
+                else:
+                    with primary_team.crest_image.open("rb") as fp:
+                        raw = fp.read() or b""
+                    crest_src = _image_bytes_as_small_data_uri(raw, mime_type="image/jpeg", max_width=220, max_height=220, quality=74)
+        except Exception:
+            crest_src = ""
+        if not crest_src:
+            crest_src = resolve_team_crest_url(request, primary_team, sync=True) or _file_as_data_uri(static_base_dir / "football" / "images" / "cdb-logo.png") or ""
+    season_slug = str(getattr(active_club_season, "label", "") or getattr(active_club_season, "id", "") or "no-season")
+    team_slug = slugify(str(getattr(primary_team, "display_name", "") or getattr(primary_team, "name", "") or "team")) or "team"
+    rel_path = f"generated/coach-roster/{team_slug}/{season_slug}/{signature}.png"
+    try:
+        if default_storage.exists(rel_path):
+            return default_storage.url(rel_path)
+    except Exception:
+        pass
+    try:
+        png_bytes = _render_coach_roster_preview_png(
+            team_name=str(getattr(primary_team, "display_name", "") or getattr(primary_team, "name", "") or "Club"),
+            division_label=str(getattr(getattr(primary_team, "group", None), "name", "") or ""),
+            season_label=str(getattr(active_club_season, "label", "") or "Temporada actual"),
+            payload=preview_payload,
+            crest_src=crest_src,
+            pitch_src=pitch_src,
+        )
+        if not png_bytes:
+            return ""
+        saved_name = default_storage.save(rel_path, ContentFile(png_bytes))
+        return default_storage.url(saved_name)
+    except Exception:
+        return ""
 
 
 def _image_url_as_small_data_uri_for_pdf(request, image_url, *, max_width=240, max_height=240, quality=76):
@@ -18584,11 +19204,34 @@ def coach_overview_page(request):
     coach_trial_count = 0
     coach_injured_count = 0
     coach_squad_reinforcement_rows = []
+    active_club_season = None
+    active_club_season_is_current = False
+    roster_memberships = {}
     roster_players = []
     try:
         roster_players = list(_operational_roster_players_for_team(request, primary_team, confirmed_only=False)) if primary_team else []
     except Exception:
         roster_players = []
+    try:
+        active_club_season = selected_club_season_for_request(request, workspace=workspace) if workspace else None
+        workspace_current_season_id = int(getattr(workspace, "active_season_id", 0) or 0) if workspace else 0
+        active_club_season_is_current = bool(
+            active_club_season
+            and int(getattr(active_club_season, "id", 0) or 0) == workspace_current_season_id
+            and bool(getattr(active_club_season, "is_active", False))
+        )
+        if active_club_season and primary_team:
+            roster_memberships = {
+                int(row.player_id): row
+                for row in WorkspaceSeasonPlayer.objects.filter(
+                    season=active_club_season,
+                    player_id__in=[int(getattr(player, "id", 0) or 0) for player in roster_players if getattr(player, "id", None)],
+                ).only("player_id", "is_confirmed", "status")
+            }
+    except Exception:
+        active_club_season = None
+        active_club_season_is_current = False
+        roster_memberships = {}
     if not roster_players and primary_team:
         try:
             roster_players = list(Player.objects.filter(team=primary_team, is_active=True).order_by("number", "name", "id"))
@@ -18712,6 +19355,23 @@ def coach_overview_page(request):
     coach_available_count = sum(1 for item in coach_pitch_players if item.get("state_tone") == "available")
     coach_trial_count = sum(1 for item in coach_pitch_players if item.get("state_tone") == "trial")
     coach_injured_count = sum(1 for item in coach_pitch_players if item.get("state_tone") == "injured")
+    coach_roster_preview_image_url = ""
+    try:
+        preview_payload = _build_coach_roster_preview_payload(
+            primary_team=primary_team,
+            active_club_season=active_club_season,
+            players=roster_players,
+            memberships=roster_memberships,
+            request=request,
+        )
+        coach_roster_preview_image_url = _save_coach_roster_preview_image(
+            request,
+            primary_team=primary_team,
+            active_club_season=active_club_season,
+            preview_payload=preview_payload,
+        )
+    except Exception:
+        coach_roster_preview_image_url = ""
     for target in pitch_targets:
         target_players = [item for item in coach_pitch_players if item.get("bucket") == target["key"]]
         coach_pitch_groups.append(
@@ -18813,6 +19473,7 @@ def coach_overview_page(request):
             "coach_injured_count": coach_injured_count,
             "coach_squad_reinforcement_rows": coach_squad_reinforcement_rows,
             "coach_pitch_has_players": bool(coach_pitch_players),
+            "coach_roster_preview_image_url": coach_roster_preview_image_url,
         },
     )
 
@@ -32816,6 +33477,7 @@ def coach_roster_page(request):
     season_pending_total = 0
     can_edit_current_season = bool(can_edit and (not active_club_season or active_club_season_is_current))
     roster_birth_year_filter = _birth_year_filter_for_team(primary_team, active_club_season)
+    memberships = {}
     if request.method == "POST":
         if not can_edit_current_season:
             return HttpResponse("No tienes permisos para editar la plantilla.", status=403)
@@ -33279,6 +33941,23 @@ def coach_roster_page(request):
                 setattr(p, "season_status", "")
                 setattr(p, "season_status_label", "Pendiente")
     player_cards = []
+    roster_preview_image_url = ""
+    try:
+        preview_payload = _build_coach_roster_preview_payload(
+            primary_team=primary_team,
+            active_club_season=active_club_season,
+            players=players,
+            memberships=memberships or {},
+            request=request,
+        )
+        roster_preview_image_url = _save_coach_roster_preview_image(
+            request,
+            primary_team=primary_team,
+            active_club_season=active_club_season,
+            preview_payload=preview_payload,
+        )
+    except Exception:
+        roster_preview_image_url = ""
     if active_tab == "stats":
         try:
             force_refresh = str(request.GET.get("refresh") or "").strip().lower() in {"1", "true", "yes", "on"}
@@ -33373,6 +34052,7 @@ def coach_roster_page(request):
         active_team_query.append(f"tournament={quote(str(tournament_filter))}")
     active_team_query = f"?{'&'.join(active_team_query)}" if active_team_query else ""
     roster_html_query = f"{active_team_query}{'&' if active_team_query else '?'}html=1"
+    roster_image_query = f"{active_team_query}{'&' if active_team_query else '?'}image=1"
 
     def _tab_link(tab_name, *, refresh=False):
         params = request.GET.copy()
@@ -33409,6 +34089,8 @@ def coach_roster_page(request):
             ),
             "active_team_query": active_team_query,
             "roster_html_query": roster_html_query,
+            "roster_image_query": roster_image_query,
+            "roster_preview_image_url": roster_preview_image_url,
             "tab_link_stats": _tab_link("stats"),
             "tab_link_manage": _tab_link("manage"),
             "tab_link_inactive": _tab_link("inactive"),
@@ -33666,6 +34348,23 @@ def coach_roster_pdf(request):
 
     want_download = str(request.GET.get('download') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     want_html = str(request.GET.get('html') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    want_image = str(request.GET.get('image') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+
+    preview_payload = _build_coach_roster_preview_payload(
+        primary_team=primary_team,
+        active_club_season=active_club_season,
+        players=players,
+        memberships=memberships,
+        request=request,
+    )
+    preview_image_url = _save_coach_roster_preview_image(
+        request,
+        primary_team=primary_team,
+        active_club_season=active_club_season,
+        preview_payload=preview_payload,
+        crest_src=crest_src,
+        pitch_src=pitch_src,
+    )
 
     html = render_to_string(
         'football/coach_roster_pdf.html',
@@ -33686,6 +34385,7 @@ def coach_roster_pdf(request):
             'position_total_rows': position_total_rows,
             'field_cards': field_cards,
             'roster_rows': roster_rows,
+            'roster_preview_image_url': preview_image_url,
         },
         request=request,
     )
@@ -33693,6 +34393,24 @@ def coach_roster_pdf(request):
         response = HttpResponse(html, content_type='text/html; charset=utf-8')
         response["Cache-Control"] = "no-store"
         return response
+    if want_image:
+        try:
+            png_bytes = _render_coach_roster_preview_png(
+                team_name=primary_team.display_name,
+                division_label=division_label,
+                season_label=season_label,
+                payload=preview_payload,
+                crest_src=crest_src,
+                pitch_src=pitch_src,
+            )
+            if png_bytes:
+                filename = slugify(f"plantilla-{primary_team.display_name}-{season_label}") or f"plantilla-{primary_team.id}"
+                response = HttpResponse(png_bytes, content_type="image/png")
+                response["Content-Disposition"] = f'inline; filename="{filename}.png"'
+                response["Cache-Control"] = "private, max-age=0, must-revalidate"
+                return response
+        except Exception:
+            pass
     filename = slugify(f'plantilla-{primary_team.display_name}-{timezone.localdate()}') or f'plantilla-{primary_team.id}'
     return _build_pdf_response_or_html_fallback(request, html, filename, inline=not want_download, force_pdf=True)
 

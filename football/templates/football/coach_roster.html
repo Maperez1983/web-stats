@@ -761,6 +761,7 @@
         </div>
         <div class="top-actions">
           <a class="button" href="{% url 'coach-roster-pdf' %}{{ roster_html_query|default:'?html=1' }}" target="_blank" rel="noopener">Ficha HTML</a>
+          <a class="button" href="{% url 'coach-roster-pdf' %}{{ roster_image_query|default:'?image=1' }}" target="_blank" rel="noopener">Imagen plantilla</a>
           <a class="button" href="{% url 'coach-roster-pdf' %}{{ active_team_query|default:'' }}" target="_blank" rel="noopener">PDF plantilla</a>
           <a class="button" href="{% url 'coach-cards' %}">Volver</a>
         </div>
@@ -769,6 +770,17 @@
       <section class="panel">
         {% if message %}<p class="alert ok">{{ message }}</p>{% endif %}
         {% if error %}<p class="alert err">{{ error }}</p>{% endif %}
+        {% if roster_preview_image_url %}
+          <div style="margin:0 0 1rem;">
+            <a href="{{ roster_preview_image_url }}" target="_blank" rel="noopener" style="display:block;">
+              <img
+                src="{{ roster_preview_image_url }}"
+                alt="Vista visual de la plantilla"
+                style="display:block;width:100%;height:auto;border-radius:18px;border:1px solid var(--prod-line, rgba(144, 161, 185, 0.28));background:rgba(2, 6, 23, 0.08);"
+              />
+            </a>
+          </div>
+        {% endif %}
 
         {% if active_tab == 'stats' %}
           <div class="scope-row">
