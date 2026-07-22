@@ -729,6 +729,8 @@ class PlayerInjuryRecord(models.Model):
     return_date = models.DateField(null=True, blank=True, help_text='Fecha de alta médica/deportiva')
     return_to_train_on = models.DateField(null=True, blank=True, help_text='Vuelta a entrenar (opcional).')
     return_to_play_on = models.DateField(null=True, blank=True, help_text='Vuelta a competir (opcional).')
+    blocks_training = models.BooleanField(default=False, help_text='Marca si impide entrenar.')
+    is_recovered = models.BooleanField(default=False, help_text='Marca si la lesión ya está recuperada.')
     training_status = models.CharField(
         max_length=20,
         blank=True,
@@ -742,8 +744,38 @@ class PlayerInjuryRecord(models.Model):
     class Meta:
         ordering = ['-injury_date', '-id']
 
+    def save(self, *args, **kwargs):
+        if self.is_recovered:
+            self.is_active = False
+            if self.return_date is None:
+                self.return_date = timezone.localdate()
+        elif self.return_date:
+            self.is_active = self.return_date > timezone.localdate()
+        else:
+            self.is_active = True
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f'{self.player.name} · {self.injury} ({self.injury_date:%d/%m/%Y})'
+
+
+class InjuryMilestone(models.Model):
+    record = models.ForeignKey(PlayerInjuryRecord, on_delete=models.CASCADE, related_name='milestones')
+    title = models.CharField(max_length=120)
+    milestone_date = models.DateField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    is_completed = models.BooleanField(default=True)
+    position = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['position', 'milestone_date', 'id']
+        verbose_name = 'Hito de lesión'
+        verbose_name_plural = 'Hitos de lesión'
+
+    def __str__(self):
+        return f'{self.record.player.name} · {self.title}'
 
 
 class InjuryCatalogEntry(models.Model):

@@ -1291,6 +1291,7 @@
       <div class="tabs" role="tablist">
         <button class="tab-btn" data-tab="personal" role="tab">Datos personales y Evaluación previa</button>
         <button class="tab-btn" data-tab="stats" role="tab">Estadísticas y KPI mapa</button>
+        <button class="tab-btn" data-tab="attributes" role="tab">Atributos</button>
         <button class="tab-btn" data-tab="injuries" role="tab">Lesiones</button>
         <button class="tab-btn" data-tab="discipline" role="tab">Comunicación y multas</button>
         <button class="tab-btn" data-tab="physical" role="tab">Físico</button>
@@ -1447,24 +1448,9 @@
                 {% with current_position=player.position|default:stats.position %}
                 <select name="position">
                   <option value="" {% if not current_position %}selected{% endif %}>Sin definir</option>
-                  {% if current_position and current_position != 'POR' and current_position != 'DFC' and current_position != 'LD' and current_position != 'LI' and current_position != 'CARRILERO D' and current_position != 'CARRILERO I' and current_position != 'MCD' and current_position != 'MC' and current_position != 'INTERIOR D' and current_position != 'INTERIOR I' and current_position != 'MP' and current_position != 'ED' and current_position != 'EI' and current_position != 'SD' and current_position != 'DC' %}
-                  <option value="{{ current_position }}" selected>{{ current_position }}</option>
-                  {% endif %}
-                  <option value="POR" {% if current_position == 'POR' %}selected{% endif %}>Portero (POR)</option>
-                  <option value="DFC" {% if current_position == 'DFC' %}selected{% endif %}>Defensa central (DFC)</option>
-                  <option value="LD" {% if current_position == 'LD' %}selected{% endif %}>Lateral derecho (LD)</option>
-                  <option value="LI" {% if current_position == 'LI' %}selected{% endif %}>Lateral izquierdo (LI)</option>
-                  <option value="CARRILERO D" {% if current_position == 'CARRILERO D' %}selected{% endif %}>Carrilero derecho</option>
-                  <option value="CARRILERO I" {% if current_position == 'CARRILERO I' %}selected{% endif %}>Carrilero izquierdo</option>
-                  <option value="MCD" {% if current_position == 'MCD' %}selected{% endif %}>Mediocentro defensivo (MCD)</option>
-                  <option value="MC" {% if current_position == 'MC' %}selected{% endif %}>Mediocentro (MC)</option>
-                  <option value="INTERIOR D" {% if current_position == 'INTERIOR D' %}selected{% endif %}>Interior derecho</option>
-                  <option value="INTERIOR I" {% if current_position == 'INTERIOR I' %}selected{% endif %}>Interior izquierdo</option>
-                  <option value="MP" {% if current_position == 'MP' %}selected{% endif %}>Mediapunta (MP)</option>
-                  <option value="ED" {% if current_position == 'ED' %}selected{% endif %}>Extremo derecho (ED)</option>
-                  <option value="EI" {% if current_position == 'EI' %}selected{% endif %}>Extremo izquierdo (EI)</option>
-                  <option value="SD" {% if current_position == 'SD' %}selected{% endif %}>Segundo delantero (SD)</option>
-                  <option value="DC" {% if current_position == 'DC' %}selected{% endif %}>Delantero centro (DC)</option>
+                  {% for value,label in position_choices %}
+                  <option value="{{ value }}" {% if current_position == value %}selected{% endif %}>{{ label }} ({{ value }})</option>
+                  {% endfor %}
                 </select>
                 {% endwith %}
               </label>
@@ -1480,9 +1466,9 @@
               <label>Pie dominante
                 <select name="dominant_foot">
                   <option value="" {% if not player.dominant_foot %}selected{% endif %}>Sin definir</option>
-                  <option value="izquierdo" {% if player.dominant_foot == 'izquierdo' %}selected{% endif %}>Izquierdo</option>
-                  <option value="derecho" {% if player.dominant_foot == 'derecho' %}selected{% endif %}>Derecho</option>
-                  <option value="ambidiestro" {% if player.dominant_foot == 'ambidiestro' %}selected{% endif %}>Ambidiestro</option>
+                  {% for value,label in foot_choices %}
+                  <option value="{{ value }}" {% if player.dominant_foot == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
                 </select>
               </label>
               <label>Altura (cm)
@@ -2248,6 +2234,47 @@
           {% endif %}
         {% else %}
           <p>No hay datos de rendimiento disponibles.</p>
+      {% endif %}
+      </section>
+
+      <section class="card tab-pane" data-pane="attributes">
+        <h2 style="margin-top:0;">Atributos</h2>
+        <p class="subtle">Resumen visual tipo Football Manager para leer el perfil del jugador de un vistazo.</p>
+        {% if card_radar_data and card_radar_data.polygon_points_svg %}
+          <div class="radar-grid" style="margin-top:0.9rem;">
+            <div class="radar-figure" aria-label="Radar de atributos">
+              <div class="radar-figure-wrap">
+                <svg viewBox="0 0 360 360" role="img" aria-label="Radar de atributos" focusable="false">
+                  <circle cx="180" cy="180" r="61.2" fill="none" stroke="rgba(226,232,240,0.32)" stroke-width="1.2"></circle>
+                  <circle cx="180" cy="180" r="122.4" fill="none" stroke="rgba(226,232,240,0.32)" stroke-width="1.2"></circle>
+                  {% if card_radar_data.axis_svg %}
+                    {% for ax in card_radar_data.axis_svg %}
+                      <line x1="180" y1="180" x2="{{ ax.axis_x }}" y2="{{ ax.axis_y }}" stroke="rgba(226,232,240,0.20)" stroke-width="1.1"></line>
+                    {% endfor %}
+                  {% endif %}
+                  <polygon points="{{ card_radar_data.polygon_points_svg }}" fill="rgba(244,180,0,0.24)" stroke="rgba(244,180,0,0.92)" stroke-width="2"></polygon>
+                </svg>
+              </div>
+            </div>
+            <div class="radar-legend">
+              <h4>Valoración técnica</h4>
+              <p>Escala de lectura rápida con el mismo criterio que la tarjeta del jugador y el PDF.</p>
+              <ul class="radar-axes">
+                {% for axis in card_radar_data.axes %}
+                  <li>
+                    <span class="radar-dot"></span>
+                    <span class="radar-axis-label">{{ axis.key }}</span>
+                    <span class="radar-axis-value">{{ axis.display }}{% if axis.pct_rank %} · P{{ axis.pct_rank|floatformat:0 }}{% endif %}</span>
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+          </div>
+        {% else %}
+          <div class="stat" style="margin-top:0.9rem;">
+            <div class="label">Sin datos</div>
+            <div class="value" style="font-size:1rem;">Aún no hay información suficiente para dibujar atributos.</div>
+          </div>
         {% endif %}
       </section>
 
@@ -2274,6 +2301,7 @@
         <form method="post" enctype="multipart/form-data">
           {% csrf_token %}
           <input type="hidden" name="form_action" value="injuries" />
+          {% if latest_injury_record %}<input type="hidden" name="injury_record_id" value="{{ latest_injury_record.id }}" />{% endif %}
           <div class="form-grid">
             <label>Lesión
               <select name="injury">
@@ -2353,7 +2381,11 @@
             {% for item in injury_records %}
             <tr>
               <td>
-                {{ item.injury }}
+                {% if item.detail_url %}
+                  <a href="{{ item.detail_url }}" style="color:inherit;text-decoration:none;font-weight:900;">{{ item.injury }}</a>
+                {% else %}
+                  {{ item.injury }}
+                {% endif %}
                 {% if item.catalog_entry %}
                 <div class="subtle">{{ item.catalog_entry.get_region_display }} · {{ item.catalog_entry.get_category_display }}</div>
                 {% endif %}
@@ -2369,6 +2401,7 @@
                 {% else %}
                   <span class="pill ok">Alta</span>
                 {% endif %}
+                <div class="subtle" style="margin-top:0.25rem;">{{ item.recovered_label }}</div>
               </td>
             </tr>
             {% empty %}
@@ -2578,6 +2611,7 @@
           seasons: 'personal',
           evaluations: 'personal',
           performance: 'stats',
+          attributes: 'attributes',
           communication: 'discipline',
           fines: 'discipline',
           videos: 'personal',

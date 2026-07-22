@@ -77,7 +77,7 @@ class ScoutingTargetPersistenceTests(TestCase):
         self.assertEqual(self.target.subject_name, 'Jugador Editado')
         self.assertEqual(self.target.subject_team_name, 'Club Actualizado')
         self.assertEqual(self.target.position, 'LD')
-        self.assertEqual(self.target.dominant_foot, 'Izquierdo')
+        self.assertEqual(self.target.dominant_foot, 'izquierdo')
         self.assertEqual(self.target.birth_date, date(2005, 2, 14))
         self.assertEqual(self.target.status, ScoutingTarget.STATUS_WATCHLIST)
         self.assertEqual(self.target.priority, ScoutingTarget.PRIORITY_URGENT)

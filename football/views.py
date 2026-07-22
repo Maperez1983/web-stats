@@ -332,6 +332,7 @@ from football.event_taxonomy import (
     shots_needed_per_goal,
     zone_to_tercio,
 )
+from football.normalization import FOOT_CHOICES, POSITION_CHOICES, normalize_foot_value, normalize_position_value
 from football.injuries import categorize_time_loss
 from football.injuries import estimate_return_date as estimate_return_date_from_catalog
 from football.injuries import time_loss_days
@@ -376,6 +377,7 @@ from football.models import (
     PlayerEvaluation,
     PlayerFine,
     PlayerInjuryRecord,
+    InjuryMilestone,
     PlayerPhysicalMetric,
     PlayerSeasonReport,
     PlayerStatistic,
@@ -31970,9 +31972,11 @@ def scouting_target_detail_page(request, target_id):
                 target.subject_team_name = _sanitize_task_text(
                     str(request.POST.get("subject_team_name") or "").strip(), multiline=False, max_len=160
                 )
-                target.position = _sanitize_task_text(str(request.POST.get("position") or "").strip(), multiline=False, max_len=60)
-                target.dominant_foot = _sanitize_task_text(
-                    str(request.POST.get("dominant_foot") or "").strip(), multiline=False, max_len=16
+                target.position = normalize_position_value(
+                    _sanitize_task_text(str(request.POST.get("position") or "").strip(), multiline=False, max_len=60)
+                )
+                target.dominant_foot = normalize_foot_value(
+                    _sanitize_task_text(str(request.POST.get("dominant_foot") or "").strip(), multiline=False, max_len=16)
                 )
                 target.birth_date = parse_date(str(request.POST.get("birth_date") or "").strip() or "") or None
                 target.status = str(request.POST.get("status") or target.status).strip().lower()
@@ -32038,12 +32042,52 @@ def scouting_target_detail_page(request, target_id):
     open_followups = list(target.followups.select_related("created_by").filter(is_done=False)[:12])
     done_followups = list(target.followups.select_related("created_by").filter(is_done=True)[:12])
     player_detail_url = reverse("player-detail", args=[target.player_id]) if target.player_id else ""
+    latest_report = reports[0] if reports else None
+    latest_ratings = {
+        "technical": int(getattr(latest_report, "technical_rating", 0) or 0) if latest_report else 0,
+        "tactical": int(getattr(latest_report, "tactical_rating", 0) or 0) if latest_report else 0,
+        "physical": int(getattr(latest_report, "physical_rating", 0) or 0) if latest_report else 0,
+        "mental": int(getattr(latest_report, "mental_rating", 0) or 0) if latest_report else 0,
+        "social": int(getattr(latest_report, "social_rating", 0) or 0) if latest_report else 0,
+        "overall": int(getattr(latest_report, "overall_rating", 0) or 0) if latest_report else 0,
+    }
+    attribute_radar_data = {
+        "axes": [
+            {"label": "Técnica", "value": latest_ratings["technical"], "max": 10},
+            {"label": "Táctica", "value": latest_ratings["tactical"], "max": 10},
+            {"label": "Físico", "value": latest_ratings["physical"], "max": 10},
+            {"label": "Mental", "value": latest_ratings["mental"], "max": 10},
+            {"label": "Social", "value": latest_ratings["social"], "max": 10},
+        ],
+        "overall": latest_ratings["overall"],
+        "reports_count": len(reports),
+        "axis_svg": [],
+        "polygon_points_svg": "",
+    }
+    try:
+        import math as _math
+
+        cx = 180.0
+        cy = 180.0
+        radius = 140.0
+        points = []
+        for idx, value in enumerate(attribute_radar_data["axes"]):
+            angle = (-90.0 + (idx * 72.0)) * (_math.pi / 180.0)
+            score = max(0.0, min(float(value.get("value") or 0) / 10.0, 1.0))
+            point_radius = radius * score
+            x = cx + (_math.cos(angle) * point_radius)
+            y = cy + (_math.sin(angle) * point_radius)
+            points.append(f"{x:.1f},{y:.1f}")
+        attribute_radar_data["polygon_points_svg"] = " ".join(points)
+    except Exception:
+        attribute_radar_data["polygon_points_svg"] = ""
     return render(
         request,
         "football/scouting_target_detail.html",
         {
             "target": target,
             "reports": reports,
+            "latest_report": latest_report,
             "open_followups": open_followups,
             "done_followups": done_followups,
             "player_detail_url": player_detail_url,
@@ -32051,6 +32095,9 @@ def scouting_target_detail_page(request, target_id):
             "can_manage_workspace": can_manage_workspace,
             "feedback": feedback,
             "error": error,
+            "position_choices": POSITION_CHOICES,
+            "foot_choices": FOOT_CHOICES,
+            "attribute_radar_data": attribute_radar_data,
         },
     )
 
@@ -33468,6 +33515,166 @@ def coach_injuries_page(request):
             "can_edit": can_edit,
             "message": message,
             "error": error,
+        },
+    )
+
+
+@login_required
+def player_injury_detail_page(request, player_id, record_id):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    workspace = _get_active_workspace(request)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404("Equipo principal no configurado")
+    player = Player.objects.filter(id=player_id, team=primary_team).first()
+    if not player:
+        raise Http404("Jugador no encontrado")
+    record = (
+        PlayerInjuryRecord.objects.select_related("player", "catalog_entry")
+        .prefetch_related("milestones")
+        .filter(id=record_id, player=player)
+        .first()
+    )
+    if not record:
+        raise Http404("Lesión no encontrada")
+
+    can_edit = bool(
+        _can_manage_workspace(request.user, workspace)
+        or _is_admin_user(request.user)
+        or _can_access_platform(request.user)
+    )
+    message = ""
+    error = ""
+    today = timezone.localdate()
+
+    def _parse_local_date(raw_value):
+        value = str(raw_value or "").strip()
+        if not value:
+            return None
+        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+            try:
+                return datetime.strptime(value, fmt).date()
+            except ValueError:
+                continue
+        return parse_date(value)
+
+    def _sync_player_summary():
+        latest_active = (
+            PlayerInjuryRecord.objects.filter(player=player, is_active=True)
+            .order_by("-injury_date", "-id")
+            .first()
+        )
+        summary = latest_active
+        player.injury = str(getattr(summary, "injury", "") or "") if summary else ""
+        player.injury_type = str(getattr(summary, "injury_type", "") or "") if summary else ""
+        player.injury_zone = str(getattr(summary, "injury_zone", "") or "") if summary else ""
+        player.injury_side = str(getattr(summary, "injury_side", "") or "") if summary else ""
+        player.injury_date = getattr(summary, "injury_date", None) if summary else None
+        player.save(update_fields=["injury", "injury_type", "injury_zone", "injury_side", "injury_date"])
+
+    if request.method == "POST":
+        if not can_edit:
+            return HttpResponse("No tienes permisos para editar lesiones.", status=403)
+        action = (request.POST.get("action") or "save-record").strip().lower()
+        try:
+            if action == "delete-record":
+                record.delete()
+                _sync_player_summary()
+                return redirect(reverse("player-detail", args=[player.id]) + "?tab=injuries")
+            if action == "add-milestone":
+                title = str(request.POST.get("milestone_title") or "").strip()
+                if not title:
+                    raise ValueError("Escribe el nombre del hito.")
+                next_pos = (
+                    InjuryMilestone.objects.filter(record=record).aggregate(Max("position")).get("position__max") or 0
+                ) + 1
+                InjuryMilestone.objects.create(
+                    record=record,
+                    title=title,
+                    milestone_date=_parse_local_date(request.POST.get("milestone_date")) or None,
+                    notes=str(request.POST.get("milestone_notes") or "").strip(),
+                    is_completed=str(request.POST.get("milestone_done") or "").lower() in {"1", "true", "on", "yes"},
+                    position=next_pos,
+                )
+                return redirect(f"{reverse('player-injury-detail', args=[player.id, record.id])}?saved=milestone")
+            elif action == "save-record":
+                catalog_code = (request.POST.get("catalog_code") or "").strip()
+                catalog_entry = None
+                if catalog_code:
+                    catalog_entry = InjuryCatalogEntry.objects.filter(code=catalog_code, is_active=True).first()
+                injury_name = str(request.POST.get("injury") or "").strip() or (catalog_entry.name if catalog_entry else record.injury)
+                severity_grade = _parse_int(request.POST.get("severity_grade")) or None
+                injury_date = _parse_local_date(request.POST.get("injury_date")) or record.injury_date
+                estimated_return_date = _parse_local_date(request.POST.get("estimated_return_date"))
+                return_date = _parse_local_date(request.POST.get("return_date"))
+                if catalog_entry and not estimated_return_date:
+                    estimated_return_date = estimate_return_date_from_catalog(
+                        injury_date,
+                        catalog_entry.typical_min_days,
+                        catalog_entry.typical_max_days,
+                        severity_grade=severity_grade,
+                    )
+                record.catalog_entry = catalog_entry or record.catalog_entry
+                record.injury = injury_name
+                record.injury_type = str(request.POST.get("injury_type") or "").strip()
+                record.injury_zone = str(request.POST.get("injury_zone") or "").strip()
+                record.injury_side = str(request.POST.get("injury_side") or "").strip()
+                record.severity_grade = severity_grade
+                record.injury_date = injury_date
+                record.diagnosed_on = _parse_local_date(request.POST.get("diagnosed_on"))
+                record.rehab_started_on = _parse_local_date(request.POST.get("rehab_started_on"))
+                record.estimated_return_date = estimated_return_date
+                record.return_date = return_date
+                record.return_to_train_on = _parse_local_date(request.POST.get("return_to_train_on"))
+                record.return_to_play_on = _parse_local_date(request.POST.get("return_to_play_on"))
+                record.blocks_training = str(request.POST.get("blocks_training") or "").lower() in {"1", "true", "on", "yes"}
+                record.is_recovered = str(request.POST.get("is_recovered") or "").lower() in {"1", "true", "on", "yes"}
+                if record.is_recovered and not record.return_date:
+                    record.return_date = today
+                record.training_status = str(request.POST.get("training_status") or "").strip()
+                record.notes = str(request.POST.get("notes") or "").strip()
+                record.is_active = not record.is_recovered and (not record.return_date or record.return_date > today)
+                record.save()
+                _sync_player_summary()
+                return redirect(f"{reverse('player-injury-detail', args=[player.id, record.id])}?saved=1")
+            elif action == "toggle-milestone":
+                milestone_id = _parse_int(request.POST.get("milestone_id"))
+                milestone = InjuryMilestone.objects.filter(id=milestone_id, record=record).first()
+                if not milestone:
+                    raise ValueError("Hito no encontrado.")
+                milestone.is_completed = not bool(milestone.is_completed)
+                milestone.save(update_fields=["is_completed", "updated_at"])
+                return redirect(f"{reverse('player-injury-detail', args=[player.id, record.id])}?saved=milestone")
+            elif action == "delete-milestone":
+                milestone_id = _parse_int(request.POST.get("milestone_id"))
+                milestone = InjuryMilestone.objects.filter(id=milestone_id, record=record).first()
+                if milestone:
+                    milestone.delete()
+                    return redirect(f"{reverse('player-injury-detail', args=[player.id, record.id])}?saved=milestone")
+        except ValueError as exc:
+            error = str(exc)
+        except Exception:
+            logger.exception("Error guardando ficha de lesión")
+            error = "No se pudo guardar la lesión."
+
+    record.refresh_from_db()
+    milestones = list(record.milestones.all())
+    return render(
+        request,
+        "football/player_injury_detail.html",
+        {
+            "player": player,
+            "record": record,
+            "milestones": milestones,
+            "can_edit": can_edit,
+            "message": message,
+            "error": error,
+            "position_choices": POSITION_CHOICES,
+            "foot_choices": FOOT_CHOICES,
+            "injury_catalog": list(InjuryCatalogEntry.objects.filter(is_active=True).order_by("region", "category", "name")),
+            "today": today,
         },
     )
 
@@ -65344,6 +65551,105 @@ def player_detail_page(request, player_id):
                 return primary_team.group.season
             return Season.objects.filter(is_current=True).order_by("-start_date", "-id").first()
 
+        def _persist_player_injury(
+            *,
+            injury_name,
+            injury_type,
+            injury_zone,
+            injury_side,
+            injury_notes,
+            injury_date,
+            injury_return_date,
+            injury_record_mode,
+            catalog_code="",
+            severity_grade=None,
+            diagnosed_on=None,
+            rehab_started_on=None,
+            estimated_return_date=None,
+            return_to_train_on=None,
+            return_to_play_on=None,
+            blocks_training=False,
+            is_recovered=False,
+            training_status="",
+        ):
+            injury_name = str(injury_name or "").strip()
+            if not injury_name:
+                return None
+            catalog_entry = None
+            if catalog_code:
+                catalog_entry = InjuryCatalogEntry.objects.filter(code=str(catalog_code).strip(), is_active=True).first()
+                if catalog_entry and not injury_name:
+                    injury_name = catalog_entry.name
+            if catalog_entry and not estimated_return_date and injury_date:
+                estimated_return_date = estimate_return_date_from_catalog(
+                    injury_date,
+                    catalog_entry.typical_min_days,
+                    catalog_entry.typical_max_days,
+                    severity_grade=severity_grade,
+                )
+            if injury_return_date and not is_recovered:
+                is_recovered = True
+            force_new = str(injury_record_mode or "").strip().lower() in {"new", "add", "create"}
+            record = None
+            injury_record_id = _parse_int(request.POST.get("injury_record_id"))
+            if injury_record_id:
+                record = PlayerInjuryRecord.objects.filter(id=injury_record_id, player=player).first()
+            if record is None and not force_new:
+                record = (
+                    PlayerInjuryRecord.objects.filter(player=player, injury__iexact=injury_name)
+                    .order_by("-injury_date", "-id")
+                    .first()
+                )
+            if record:
+                record.catalog_entry = catalog_entry or record.catalog_entry
+                record.injury = injury_name
+                record.injury_type = str(injury_type or "").strip()
+                record.injury_zone = str(injury_zone or "").strip()
+                record.injury_side = str(injury_side or "").strip()
+                record.severity_grade = severity_grade
+                record.injury_date = injury_date or record.injury_date
+                record.diagnosed_on = diagnosed_on
+                record.rehab_started_on = rehab_started_on
+                record.estimated_return_date = estimated_return_date
+                record.return_date = injury_return_date or record.return_date
+                record.return_to_train_on = return_to_train_on
+                record.return_to_play_on = return_to_play_on
+                record.blocks_training = bool(blocks_training)
+                record.is_recovered = bool(is_recovered)
+                record.training_status = str(training_status or "").strip()
+                record.notes = str(injury_notes or "").strip()
+                record.is_active = not record.is_recovered and (not record.return_date or record.return_date > timezone.localdate())
+                record.save()
+            else:
+                record = PlayerInjuryRecord.objects.create(
+                    player=player,
+                    catalog_entry=catalog_entry,
+                    injury=injury_name,
+                    injury_type=str(injury_type or "").strip(),
+                    injury_zone=str(injury_zone or "").strip(),
+                    injury_side=str(injury_side or "").strip(),
+                    severity_grade=severity_grade,
+                    injury_date=injury_date or timezone.localdate(),
+                    diagnosed_on=diagnosed_on,
+                    rehab_started_on=rehab_started_on,
+                    estimated_return_date=estimated_return_date,
+                    return_date=injury_return_date,
+                    return_to_train_on=return_to_train_on,
+                    return_to_play_on=return_to_play_on,
+                    blocks_training=bool(blocks_training),
+                    is_recovered=bool(is_recovered),
+                    training_status=str(training_status or "").strip(),
+                    notes=str(injury_notes or "").strip(),
+                    is_active=not is_recovered and (not injury_return_date or injury_return_date > timezone.localdate()),
+                )
+            player.injury = injury_name
+            player.injury_type = str(injury_type or "").strip()
+            player.injury_zone = str(injury_zone or "").strip()
+            player.injury_side = str(injury_side or "").strip()
+            player.injury_date = injury_date or player.injury_date
+            player.save(update_fields=["injury", "injury_type", "injury_zone", "injury_side", "injury_date"])
+            return record
+
         if request.method == "POST" and not is_player_readonly:
             form_action = (request.POST.get("form_action") or "profile").strip().lower()
 
@@ -65358,6 +65664,7 @@ def player_detail_page(request, player_id):
                 injury_notes = request.POST.get("injury_notes", "").strip()
                 injury_date = _parse_date_value(request.POST.get("injury_date"))
                 injury_return_date = _parse_date_value(request.POST.get("injury_return_date"))
+                injury_record_mode = (request.POST.get("injury_record_mode") or "").strip().lower()
                 manual_sanction_active = str(request.POST.get("manual_sanction_active") or "").lower() in {
                     "1",
                     "true",
@@ -65366,20 +65673,14 @@ def player_detail_page(request, player_id):
                 }
                 manual_sanction_reason = request.POST.get("manual_sanction_reason", "").strip()
                 manual_sanction_until = _parse_date_value(request.POST.get("manual_sanction_until"))
-                injury_record_mode = (request.POST.get("injury_record_mode") or "").strip().lower()
-                force_new_injury_record = injury_record_mode in {"new", "add", "create"}
                 player.number = _parse_int(number) if number else None
-                player.position = request.POST.get("position", "").strip()
+                player.position = normalize_position_value(request.POST.get("position", ""))
+                player.dominant_foot = normalize_foot_value(request.POST.get("dominant_foot", ""))
                 player.full_name = request.POST.get("full_name", "").strip()
                 player.nickname = request.POST.get("nickname", "").strip()
                 player.birth_date = _parse_date_value(request.POST.get("birth_date"))
                 player.height_cm = _parse_int(request.POST.get("height_cm"))
                 player.weight_kg = _parse_decimal_value(request.POST.get("weight_kg_base"))
-                player.injury = injury_name
-                player.injury_type = injury_type
-                player.injury_zone = injury_zone
-                player.injury_side = injury_side
-                player.injury_date = injury_date
                 player.manual_sanction_active = manual_sanction_active
                 player.manual_sanction_reason = manual_sanction_reason
                 player.manual_sanction_until = manual_sanction_until
@@ -65388,73 +65689,61 @@ def player_detail_page(request, player_id):
                     save_player_photo(player, uploaded_photo)
                 if uploaded_license:
                     save_player_license(player, uploaded_license)
+                if injury_name or injury_notes or injury_date or injury_return_date:
+                    _persist_player_injury(
+                        injury_name=injury_name,
+                        injury_type=injury_type,
+                        injury_zone=injury_zone,
+                        injury_side=injury_side,
+                        injury_notes=injury_notes,
+                        injury_date=injury_date,
+                        injury_return_date=injury_return_date,
+                        injury_record_mode=injury_record_mode,
+                    )
                 _invalidate_team_dashboard_caches(primary_team)
 
-                active_injury = (
-                    PlayerInjuryRecord.objects.filter(player=player, is_active=True)
-                    .order_by("-injury_date", "-id")
-                    .first()
-                )
-                if injury_name and injury_date:
-                    same_record = None
-                    if not force_new_injury_record:
-                        same_record = (
-                            PlayerInjuryRecord.objects.filter(
-                                player=player,
-                                injury__iexact=injury_name,
-                                injury_date=injury_date,
-                            )
-                            .order_by("-id")
-                            .first()
-                        )
-                    if same_record:
-                        updated_fields = []
-                        if injury_type != same_record.injury_type:
-                            same_record.injury_type = injury_type
-                            updated_fields.append("injury_type")
-                        if injury_zone != same_record.injury_zone:
-                            same_record.injury_zone = injury_zone
-                            updated_fields.append("injury_zone")
-                        if injury_side != same_record.injury_side:
-                            same_record.injury_side = injury_side
-                            updated_fields.append("injury_side")
-                        if injury_notes != same_record.notes:
-                            same_record.notes = injury_notes
-                            updated_fields.append("notes")
-                        if injury_return_date != same_record.return_date:
-                            same_record.return_date = injury_return_date
-                            updated_fields.append("return_date")
-                        should_be_active = not injury_return_date or injury_return_date > timezone.localdate()
-                        if same_record.is_active != should_be_active:
-                            same_record.is_active = should_be_active
-                            updated_fields.append("is_active")
-                        if updated_fields:
-                            same_record.save(update_fields=updated_fields + ["updated_at"])
-                    else:
-                        PlayerInjuryRecord.objects.create(
-                            player=player,
-                            injury=injury_name,
-                            injury_type=injury_type,
-                            injury_zone=injury_zone,
-                            injury_side=injury_side,
-                            injury_date=injury_date,
-                            return_date=injury_return_date,
-                            notes=injury_notes,
-                            is_active=(not injury_return_date or injury_return_date > timezone.localdate()),
-                        )
-                    if active_injury and active_injury.injury.lower() != injury_name.lower():
-                        active_injury.is_active = False
-                        if not active_injury.return_date:
-                            active_injury.return_date = injury_return_date or timezone.localdate()
-                            active_injury.save(update_fields=["is_active", "return_date", "updated_at"])
-                        else:
-                            active_injury.save(update_fields=["is_active", "updated_at"])
-                elif active_injury and injury_return_date:
-                    active_injury.return_date = injury_return_date
-                    active_injury.is_active = False
-                    active_injury.save(update_fields=["return_date", "is_active", "updated_at"])
-
                 return redirect(f"{reverse('player-detail', args=[player.id])}?tab=general")
+
+            if form_action == "injuries":
+                injury_name = request.POST.get("injury", "").strip()
+                injury_type = request.POST.get("injury_type", "").strip()
+                injury_zone = request.POST.get("injury_zone", "").strip()
+                injury_side = request.POST.get("injury_side", "").strip()
+                injury_notes = request.POST.get("injury_notes", "").strip()
+                injury_date = _parse_date_value(request.POST.get("injury_date"))
+                injury_return_date = _parse_date_value(request.POST.get("injury_return_date"))
+                severity_grade = _parse_int(request.POST.get("severity_grade"))
+                blocks_training = str(request.POST.get("blocks_training") or "").lower() in {"1", "true", "on", "yes"}
+                is_recovered = str(request.POST.get("is_recovered") or "").lower() in {"1", "true", "on", "yes"}
+                diagnosed_on = _parse_date_value(request.POST.get("diagnosed_on"))
+                rehab_started_on = _parse_date_value(request.POST.get("rehab_started_on"))
+                estimated_return_date = _parse_date_value(request.POST.get("estimated_return_date"))
+                return_to_train_on = _parse_date_value(request.POST.get("return_to_train_on"))
+                return_to_play_on = _parse_date_value(request.POST.get("return_to_play_on"))
+                training_status = request.POST.get("training_status", "").strip()
+                catalog_code = (request.POST.get("catalog_code") or "").strip()
+                _persist_player_injury(
+                    injury_name=injury_name,
+                    injury_type=injury_type,
+                    injury_zone=injury_zone,
+                    injury_side=injury_side,
+                    injury_notes=injury_notes,
+                    injury_date=injury_date,
+                    injury_return_date=injury_return_date,
+                    injury_record_mode=(request.POST.get("injury_record_mode") or "").strip().lower(),
+                    catalog_code=catalog_code,
+                    severity_grade=severity_grade,
+                    diagnosed_on=diagnosed_on,
+                    rehab_started_on=rehab_started_on,
+                    estimated_return_date=estimated_return_date,
+                    return_to_train_on=return_to_train_on,
+                    return_to_play_on=return_to_play_on,
+                    blocks_training=blocks_training,
+                    is_recovered=is_recovered,
+                    training_status=training_status,
+                )
+                _invalidate_team_dashboard_caches(primary_team)
+                return redirect(f"{reverse('player-detail', args=[player.id])}?tab=injuries")
 
             if form_action == "manual_stats":
                 season = _resolve_season()
@@ -66020,10 +66309,14 @@ def player_detail_page(request, player_id):
                 record.days_lost = time_loss_days(record.injury_date, record.return_date)
                 record.time_loss_severity = categorize_time_loss(record.days_lost) if record.days_lost else ""
                 record.is_active_now = bool(is_injury_record_active(record))
+                record.detail_url = reverse("player-injury-detail", args=[player.id, record.id])
+                record.recovered_label = "Recuperado" if bool(getattr(record, "is_recovered", False)) else "En curso"
             except Exception:
                 record.days_lost = 0
                 record.time_loss_severity = ""
                 record.is_active_now = bool(getattr(record, "is_active", False))
+                record.detail_url = ""
+                record.recovered_label = "En curso"
         latest_injury_record = injury_records[0] if injury_records else None
         has_active_injury = player.id in get_active_injury_player_ids([player.id])
         if not has_active_injury and latest_injury_record:
@@ -66418,6 +66711,8 @@ def player_detail_page(request, player_id):
                 "stats_error": stats_error,
                 "is_player_readonly": is_player_readonly,
                 "player_view_preview": player_view_preview,
+                "position_choices": POSITION_CHOICES,
+                "foot_choices": FOOT_CHOICES,
                 "can_preview_player_view": can_preview_player_view,
                 "player_list_back_url": player_list_back_url,
                 "workspace_entry_url": home_url,

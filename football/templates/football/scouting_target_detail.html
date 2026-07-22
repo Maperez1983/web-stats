@@ -417,6 +417,7 @@
       <div class="tabs" role="tablist">
         <button class="tab-btn" data-tab="personal" role="tab">Datos personales y Evaluación previa</button>
         <button class="tab-btn" data-tab="stats" role="tab">Estadísticas y KPI mapa</button>
+        <button class="tab-btn" data-tab="attributes" role="tab">Atributos</button>
         <button class="tab-btn" data-tab="injuries" role="tab">Lesiones</button>
         <button class="tab-btn" data-tab="discipline" role="tab">Comunicación y multas</button>
         <button class="tab-btn" data-tab="physical" role="tab">Físico</button>
@@ -498,10 +499,20 @@
                 <input type="text" name="subject_team_name" value="{{ target.subject_team_name }}" maxlength="160" />
               </label>
               <label>Posición
-                <input type="text" name="position" value="{{ target.position }}" maxlength="60" />
+                <select name="position">
+                  <option value="" {% if not target.position %}selected{% endif %}>Sin definir</option>
+                  {% for value,label in position_choices %}
+                  <option value="{{ value }}" {% if target.position == value %}selected{% endif %}>{{ label }} ({{ value }})</option>
+                  {% endfor %}
+                </select>
               </label>
               <label>Pie
-                <input type="text" name="dominant_foot" value="{{ target.dominant_foot }}" maxlength="16" />
+                <select name="dominant_foot">
+                  <option value="" {% if not target.dominant_foot %}selected{% endif %}>Sin definir</option>
+                  {% for value,label in foot_choices %}
+                  <option value="{{ value }}" {% if target.dominant_foot == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
               </label>
               <label>Fecha nacimiento
                 <input type="date" name="birth_date" value="{{ target.birth_date|date:'Y-m-d' }}" />
@@ -670,6 +681,42 @@
         </div>
       </section>
 
+      <section class="panel tab-pane" data-pane="attributes">
+        <h2 style="margin-top:0;">Atributos</h2>
+        <p class="sub">Valoración de seguimiento con lectura rápida tipo Football Manager.</p>
+        <div class="radar-grid" style="margin-top:0.9rem;">
+          <div class="radar-figure" aria-label="Radar de atributos">
+            <div class="radar-figure-wrap">
+              <svg viewBox="0 0 360 360" role="img" aria-label="Radar de atributos" focusable="false">
+                <circle cx="180" cy="180" r="61.2" fill="none" stroke="rgba(226,232,240,0.32)" stroke-width="1.2"></circle>
+                <circle cx="180" cy="180" r="122.4" fill="none" stroke="rgba(226,232,240,0.32)" stroke-width="1.2"></circle>
+                <line x1="180" y1="180" x2="180" y2="36" stroke="rgba(226,232,240,0.20)" stroke-width="1.1"></line>
+                <line x1="180" y1="180" x2="302" y2="110" stroke="rgba(226,232,240,0.20)" stroke-width="1.1"></line>
+                <line x1="180" y1="180" x2="270" y2="282" stroke="rgba(226,232,240,0.20)" stroke-width="1.1"></line>
+                <line x1="180" y1="180" x2="90" y2="282" stroke="rgba(226,232,240,0.20)" stroke-width="1.1"></line>
+                <line x1="180" y1="180" x2="58" y2="110" stroke="rgba(226,232,240,0.20)" stroke-width="1.1"></line>
+                {% if attribute_radar_data.polygon_points_svg %}
+                  <polygon points="{{ attribute_radar_data.polygon_points_svg }}" fill="rgba(244,180,0,0.24)" stroke="rgba(244,180,0,0.92)" stroke-width="2"></polygon>
+                {% endif %}
+              </svg>
+            </div>
+          </div>
+          <div class="radar-legend">
+            <h4>Lectura del informe</h4>
+            <p>{{ attribute_radar_data.reports_count }} informes cargados. El último perfil resume la ficha de observación.</p>
+            <ul class="radar-axes">
+              {% for axis in attribute_radar_data.axes %}
+                <li>
+                  <span class="radar-dot"></span>
+                  <span class="radar-axis-label">{{ axis.label }}</span>
+                  <span class="radar-axis-value">{{ axis.value|default:"--" }}/10</span>
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+      </section>
+
       <section class="panel tab-pane" data-pane="injuries">
         <h2 style="margin-top:0;">Lesiones</h2>
         <div class="empty">
@@ -791,6 +838,7 @@
           general: 'personal',
           stats: 'stats',
           personal: 'personal',
+          attributes: 'attributes',
           discipline: 'discipline',
           injuries: 'injuries',
           physical: 'physical',

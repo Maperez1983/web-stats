@@ -47,6 +47,8 @@ def _team_name_signature(value):
 def is_injury_record_active(record, today=None):
     if not record or not getattr(record, 'is_active', False):
         return False
+    if bool(getattr(record, 'is_recovered', False)):
+        return False
     reference_day = today or timezone.localdate()
     return_date = getattr(record, 'return_date', None)
     if return_date and return_date <= reference_day:

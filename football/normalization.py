@@ -4,6 +4,30 @@ import unicodedata
 from .event_taxonomy import normalize_label
 
 
+POSITION_CHOICES = [
+    ("POR", "Portero"),
+    ("DFC", "Defensa central"),
+    ("LD", "Lateral derecho"),
+    ("LI", "Lateral izquierdo"),
+    ("CARRILERO D", "Carrilero derecho"),
+    ("CARRILERO I", "Carrilero izquierdo"),
+    ("MCD", "Mediocentro defensivo"),
+    ("MC", "Mediocentro"),
+    ("INTERIOR D", "Interior derecho"),
+    ("INTERIOR I", "Interior izquierdo"),
+    ("MP", "Mediapunta"),
+    ("ED", "Extremo derecho"),
+    ("EI", "Extremo izquierdo"),
+    ("SD", "Segundo delantero"),
+    ("DC", "Delantero centro"),
+]
+
+FOOT_CHOICES = [
+    ("derecho", "Derecho"),
+    ("izquierdo", "Izquierdo"),
+    ("ambidiestro", "Ambidiestro"),
+]
+
 _POSITION_STORAGE_MAP = {
     "por": "POR",
     "gk": "POR",
@@ -56,6 +80,17 @@ _POSITION_STORAGE_MAP = {
     "carrilero izquierdo": "CARRILERO I",
 }
 
+_FOOT_STORAGE_MAP = {
+    "right": "derecho",
+    "derecho": "derecho",
+    "r": "derecho",
+    "left": "izquierdo",
+    "izquierdo": "izquierdo",
+    "l": "izquierdo",
+    "both": "ambidiestro",
+    "ambidiestro": "ambidiestro",
+}
+
 
 def _compact_text(value: object) -> str:
     return " ".join(str(value or "").strip().split())
@@ -105,6 +140,19 @@ def normalize_position_value(value: object) -> str:
     return text.title()
 
 
+def normalize_foot_value(value: object) -> str:
+    text = _compact_text(value)
+    if not text:
+        return ""
+    normalized = normalize_label(text)
+    compact = normalized.replace(" ", "")
+    for key in (normalized, compact):
+        mapped = _FOOT_STORAGE_MAP.get(key)
+        if mapped:
+            return mapped
+    return ""
+
+
 def normalize_player_record(player):
     changed_fields = []
     for field_name, preserve_acronyms in (
@@ -126,6 +174,12 @@ def normalize_player_record(player):
             setattr(player, field_name, normalized)
             changed_fields.append(field_name)
 
+    current_foot = getattr(player, "dominant_foot", "")
+    normalized_foot = normalize_foot_value(current_foot)
+    if normalized_foot != (current_foot or ""):
+        setattr(player, "dominant_foot", normalized_foot)
+        changed_fields.append("dominant_foot")
+
     return changed_fields
 
 
@@ -146,5 +200,11 @@ def normalize_scouting_target_record(target):
     if normalized_position != (current_position or ""):
         setattr(target, "position", normalized_position)
         changed_fields.append("position")
+
+    current_foot = getattr(target, "dominant_foot", "")
+    normalized_foot = normalize_foot_value(current_foot)
+    if normalized_foot != (current_foot or ""):
+        setattr(target, "dominant_foot", normalized_foot)
+        changed_fields.append("dominant_foot")
 
     return changed_fields
