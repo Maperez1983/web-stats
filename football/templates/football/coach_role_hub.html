@@ -265,7 +265,7 @@
       }
       .trainer-hero-grid {
         display: grid;
-        grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.8fr);
+        grid-template-columns: minmax(0, 1.42fr) minmax(380px, 0.98fr);
         gap: 0.95rem;
         padding: 1rem;
         align-items: start;
@@ -398,8 +398,21 @@
       }
       .trainer-summary-card {
         display: grid;
-        gap: 0.65rem;
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 0.92fr);
+        gap: 0.75rem 0.8rem;
         align-content: start;
+      }
+      .trainer-summary-grid {
+        grid-column: 1;
+        min-width: 0;
+      }
+      .trainer-mini-dashboard {
+        grid-column: 2;
+        grid-row: 1;
+        min-width: 0;
+      }
+      .trainer-standings-card {
+        grid-column: 1 / -1;
       }
       .trainer-info-card .label {
         display: block;
@@ -564,7 +577,7 @@
       }
       .trainer-standings-card {
         border-radius: 16px;
-        padding: 0.75rem;
+        padding: 0.95rem;
         border: 1px solid rgba(148, 163, 184, 0.14);
         background: rgba(2, 6, 23, 0.28);
         display: grid;
@@ -578,7 +591,7 @@
         text-transform: uppercase;
       }
       .trainer-standings-table {
-        max-height: 224px;
+        max-height: 360px;
         overflow: auto;
         border-radius: 12px;
         border: 1px solid rgba(148, 163, 184, 0.12);
@@ -590,16 +603,16 @@
       }
       .trainer-standings-table th,
       .trainer-standings-table td {
-        padding: 0.42rem 0.48rem;
+        padding: 0.52rem 0.62rem;
         border-bottom: 1px solid rgba(148, 163, 184, 0.12);
-        font-size: 0.72rem;
+        font-size: 0.76rem;
         text-align: left;
       }
       .trainer-standings-table th {
         color: rgba(226, 232, 240, 0.66);
         text-transform: uppercase;
         letter-spacing: 0.08em;
-        font-size: 0.6rem;
+        font-size: 0.64rem;
       }
       .trainer-standings-table tr.is-home td {
         background: rgba(244, 180, 0, 0.08);
