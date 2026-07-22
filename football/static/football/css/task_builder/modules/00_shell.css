@@ -1,0 +1,124 @@
+:root {
+  --tpad-shell-bg: #081120;
+  --tpad-shell-surface: rgba(7, 16, 30, 0.86);
+  --tpad-shell-line: rgba(148, 163, 184, 0.18);
+  --tpad-shell-text: rgba(241, 245, 249, 0.96);
+  --tpad-shell-muted: rgba(226, 232, 240, 0.76);
+  --tpad-shell-primary: #f4b400;
+  --tpad-shell-accent: #7dd3fc;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, rgba(244, 180, 0, 0.06), transparent 24%),
+    linear-gradient(180deg, #050c17 0%, var(--tpad-shell-bg) 100%);
+  color: var(--tpad-shell-text);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.page {
+  width: min(100%, 1680px);
+  margin: 0 auto;
+  padding: 1rem 1rem 2rem;
+}
+
+.topbar,
+.task-landing,
+.resource-strip,
+.alert,
+.saved-task-info,
+.task-mode-tabs {
+  border: 1px solid var(--tpad-shell-line);
+  background: var(--tpad-shell-surface);
+  border-radius: 18px;
+  backdrop-filter: blur(6px);
+}
+
+.topbar {
+  padding: 0.9rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.task-landing {
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.task-mode-tabs {
+  padding: 0.7rem;
+}
+
+.resource-strip {
+  padding: 0.75rem;
+}
+
+.saved-task-info,
+.alert {
+  padding: 0.75rem 0.9rem;
+}
+
+.overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.58);
+  z-index: 100;
+}
+
+.tpad-support-fab {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 130;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.tpad-support-fab .button {
+  border-radius: 999px;
+}
+
+.dragon-nav,
+.product-nav-shortcuts {
+  margin-bottom: 0.75rem;
+}
+
+.surface-trigger {
+  cursor: pointer;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 38px;
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--tpad-shell-text);
+  text-decoration: none;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.button.primary {
+  border-color: rgba(244, 180, 0, 0.34);
+  background: rgba(244, 180, 0, 0.12);
+}
+
+.button.secondary {
+  border-color: rgba(125, 211, 252, 0.26);
+  background: rgba(125, 211, 252, 0.08);
+}
