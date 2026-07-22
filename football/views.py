@@ -18575,6 +18575,134 @@ def coach_overview_page(request):
         getattr(primary_team, "display_name", "") or getattr(primary_team, "name", "") or "Club"
     ).strip()
     team_crest_url = resolve_team_crest_url(request, primary_team, sync=True) if primary_team else ""
+    coach_pitch_players = []
+    coach_pitch_groups = []
+    coach_squad_active_count = 0
+    coach_available_count = 0
+    coach_trial_count = 0
+    coach_injured_count = 0
+    coach_squad_reinforcement_rows = []
+    try:
+        coach_player_cards = compute_player_cards(primary_team, request=request) if primary_team else []
+    except Exception:
+        coach_player_cards = []
+    coach_player_ids = []
+    for card in coach_player_cards:
+        pid = _parse_int(card.get("id"))
+        if pid:
+            coach_player_ids.append(pid)
+    try:
+        active_injury_ids = set(get_active_injury_player_ids(coach_player_ids))
+    except Exception:
+        active_injury_ids = set()
+
+    def _coach_pitch_bucket(position_value):
+        value = str(position_value or "").strip().lower()
+        if not value:
+            return "midfield"
+        if any(token in value for token in ("portero", "goalkeeper", "gk", "por", "pt")):
+            return "goalkeeper"
+        if any(token in value for token in ("def", "lateral", "central", "cierre", "ld", "li")):
+            return "defense"
+        if any(token in value for token in ("mc", "mcd", "mco", "pivote", "medio", "centro", "interior")):
+            return "midfield"
+        if any(token in value for token in ("del", "punta", "extremo", "ataque", "dc", "ed", "ei", "9")):
+            return "attack"
+        return "midfield"
+
+    pitch_targets = [
+        {"key": "goalkeeper", "label": "Portería", "target": 1},
+        {"key": "defense", "label": "Defensa", "target": 4},
+        {"key": "midfield", "label": "Centro del campo", "target": 5},
+        {"key": "attack", "label": "Ataque", "target": 4},
+    ]
+    pitch_slots = {
+        "goalkeeper": [{"left": 50, "top": 84}],
+        "defense": [
+            {"left": 16, "top": 66},
+            {"left": 37, "top": 68},
+            {"left": 63, "top": 68},
+            {"left": 84, "top": 66},
+        ],
+        "midfield": [
+            {"left": 13, "top": 47},
+            {"left": 31, "top": 44},
+            {"left": 50, "top": 43},
+            {"left": 69, "top": 44},
+            {"left": 87, "top": 47},
+        ],
+        "attack": [
+            {"left": 22, "top": 26},
+            {"left": 42, "top": 23},
+            {"left": 58, "top": 23},
+            {"left": 78, "top": 26},
+        ],
+    }
+    pitch_counts = {item["key"]: 0 for item in pitch_targets}
+    for card in coach_player_cards:
+        pid = _parse_int(card.get("id"))
+        if not pid:
+            continue
+        bucket = _coach_pitch_bucket(card.get("position") or "")
+        bucket_index = pitch_counts.get(bucket, 0)
+        pitch_counts[bucket] = bucket_index + 1
+        slot_pool = pitch_slots.get(bucket) or pitch_slots["midfield"]
+        slot = slot_pool[bucket_index % len(slot_pool)]
+        row = bucket_index // len(slot_pool)
+        left = max(5, min(90, slot["left"] + (row * 4 if bucket != "goalkeeper" else 0)))
+        top = max(6, min(88, slot["top"] + (row * 6 if bucket != "goalkeeper" else 0)))
+        if pid in active_injury_ids:
+            state_tone = "injured"
+            state_label = "Lesionado"
+        elif not bool(card.get("season_confirmed")):
+            state_tone = "trial"
+            state_label = "A prueba"
+        else:
+            state_tone = "available"
+            state_label = "Disponible"
+        coach_pitch_players.append(
+            {
+                **card,
+                "card_key": f"player-{pid}",
+                "bucket": bucket,
+                "left": left,
+                "top": top,
+                "accent": {
+                    "goalkeeper": "keeper",
+                    "defense": "defense",
+                    "midfield": "midfield",
+                    "attack": "attack",
+                }.get(bucket, "midfield"),
+                "state_label": state_label,
+                "state_tone": state_tone,
+            }
+        )
+    coach_squad_active_count = len(coach_pitch_players)
+    coach_available_count = sum(1 for item in coach_pitch_players if item.get("state_tone") == "available")
+    coach_trial_count = sum(1 for item in coach_pitch_players if item.get("state_tone") == "trial")
+    coach_injured_count = sum(1 for item in coach_pitch_players if item.get("state_tone") == "injured")
+    for target in pitch_targets:
+        target_players = [item for item in coach_pitch_players if item.get("bucket") == target["key"]]
+        coach_pitch_groups.append(
+            {
+                **target,
+                "players": target_players,
+                "preview_players": target_players[:4],
+                "extra_count": max(0, len(target_players) - 4),
+            }
+        )
+    for target in pitch_targets:
+        current = pitch_counts.get(target["key"], 0)
+        missing = max(0, int(target["target"]) - int(current))
+        coach_squad_reinforcement_rows.append(
+            {
+                **target,
+                "current": current,
+                "missing": missing,
+                "tone": "critical" if missing >= 2 else "warning" if missing == 1 else "ok",
+                "status": "Refuerzo urgente" if missing >= 2 else "Revisar" if missing == 1 else "Cubierto",
+            }
+        )
     pending_items = []
     if isinstance(weekly_brief, dict):
         if int(weekly_brief.get("convocated_count") or 0) <= 0:
@@ -18646,6 +18774,13 @@ def coach_overview_page(request):
             "pending_cards": pending_cards,
             "recent_activity": recent_activity,
             "can_access_platform": can_access_platform,
+            "coach_pitch_players": coach_pitch_players,
+            "coach_pitch_groups": coach_pitch_groups,
+            "coach_squad_active_count": coach_squad_active_count,
+            "coach_available_count": coach_available_count,
+            "coach_trial_count": coach_trial_count,
+            "coach_injured_count": coach_injured_count,
+            "coach_squad_reinforcement_rows": coach_squad_reinforcement_rows,
         },
     )
 
