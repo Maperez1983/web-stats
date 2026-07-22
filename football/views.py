@@ -2753,8 +2753,7 @@ def scouting_board_page(request):
             pass
         target.player = player
         target.status = ScoutingTarget.STATUS_SIGNED
-        target.available_for_coach_tools = False
-        target.save(update_fields=['player', 'status', 'available_for_coach_tools', 'updated_at'])
+        target.save(update_fields=['player', 'status', 'updated_at'])
         return player
 
     if request.method == 'POST':
@@ -29168,6 +29167,20 @@ def coach_role_trainer_page(request):
                 ),
             )
         ]
+    coach_trial_player_ids = set()
+    if primary_team and workspace and active_player_ids:
+        try:
+            coach_trial_player_ids = set(
+                ScoutingTarget.objects.filter(
+                    workspace=workspace,
+                    available_for_coach_tools=True,
+                    player_id__in=list(active_player_ids),
+                )
+                .exclude(status=ScoutingTarget.STATUS_DISCARDED)
+                .values_list('player_id', flat=True)
+            )
+        except Exception:
+            coach_trial_player_ids = set()
     trainer_player_season_memberships = {}
     if primary_team and trainer_selected_season and coach_player_cards_all:
         try:
@@ -29251,6 +29264,9 @@ def coach_role_trainer_page(request):
         if player_id and player_id in active_injury_ids:
             state_tone = 'injured'
             state_label = 'Lesionado'
+        elif player_id and player_id in coach_trial_player_ids:
+            state_tone = 'trial'
+            state_label = 'A prueba'
         elif not item.get('season_confirmed'):
             state_tone = 'trial'
             state_label = 'A prueba'
