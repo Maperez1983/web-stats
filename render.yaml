@@ -55,6 +55,12 @@ services:
         sync: false
       - key: DEBUG
         value: "false"
+      # Si cambia el esquema, preferimos migrar en build y fallar el deploy antes que
+      # levantar la app con código nuevo sobre una base vieja y acabar en 500.
+      - key: RUN_MIGRATIONS_AT_BUILD
+        value: "true"
+      - key: MIGRATE_FAIL_OPEN
+        value: "false"
       # Recomendación: mantener instalados los navegadores Playwright durante el build si usas previews HD.
       - key: PLAYWRIGHT_BROWSERS_PATH
         value: "0"
