@@ -389,14 +389,14 @@
           <a class="btn primary" href="{{ player_detail_url }}">Ficha jugador</a>
           {% endif %}
           {% if can_manage_workspace %}
-          <form method="post" style="margin:0; display:inline-flex;">
+          <form class="inline-form" method="post">
             {% csrf_token %}
             <input type="hidden" name="action" value="promote-to-player" />
             <button class="btn primary" type="submit">
               {% if target.player_id %}Sincronizar plantilla{% else %}Convertir a plantilla{% endif %}
             </button>
           </form>
-          <form method="post" style="margin:0; display:inline-flex;" onsubmit="return confirm('¿Eliminar este seguimiento? Esta acción no se puede deshacer.');">
+          <form class="inline-form" method="post" onsubmit="return confirm('¿Eliminar este seguimiento? Esta acción no se puede deshacer.');">
             {% csrf_token %}
             <input type="hidden" name="action" value="delete-target" />
             <button class="btn danger icon-btn" type="submit" title="Eliminar seguimiento" aria-label="Eliminar seguimiento">
