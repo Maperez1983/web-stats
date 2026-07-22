@@ -529,6 +529,14 @@
         text-decoration: none;
         box-shadow: 0 12px 24px rgba(0, 0, 0, 0.24);
         backdrop-filter: blur(4px);
+        cursor: grab;
+        touch-action: none;
+        user-select: none;
+      }
+      .squad-pitch-player.is-dragging {
+        z-index: 6;
+        cursor: grabbing;
+        box-shadow: 0 18px 34px rgba(0, 0, 0, 0.34);
       }
       .squad-pitch-player .player-media,
       .squad-pitch-player .player-avatar,
@@ -1057,10 +1065,45 @@
     <script>
       (function () {
         const root = document.querySelector('.squad-pitch');
+        const tokens = Array.from(document.querySelectorAll('.squad-pitch-player'));
         const buttons = Array.from(document.querySelectorAll('[data-squad-mode]'));
         if (!root || !buttons.length) return;
         const storageKey = 'coach_squad_pitch_mode';
+        const positionsKey = 'coach_squad_pitch_positions';
         const allowed = new Set(['compact', 'initials', 'photo']);
+        const readStoredPositions = () => {
+          try {
+            const raw = window.localStorage.getItem(positionsKey);
+            const parsed = raw ? JSON.parse(raw) : {};
+            return parsed && typeof parsed === 'object' ? parsed : {};
+          } catch (_) {
+            return {};
+          }
+        };
+        const writeStoredPositions = (positions) => {
+          try { window.localStorage.setItem(positionsKey, JSON.stringify(positions || {})); } catch (_) {}
+        };
+        const applyStoredPositions = () => {
+          const positions = readStoredPositions();
+          tokens.forEach((token) => {
+            const id = String(token.getAttribute('href') || '').match(/player-detail\/(\d+)/)?.[1] || '';
+            const pos = id ? positions[id] : null;
+            if (!pos) return;
+            if (Number.isFinite(pos.left)) token.style.left = `${Math.max(0, Math.min(100, pos.left))}%`;
+            if (Number.isFinite(pos.top)) token.style.top = `${Math.max(0, Math.min(100, pos.top))}%`;
+          });
+        };
+        let dragState = null;
+        let clickBlockUntil = 0;
+        const fieldPctFromClient = (clientX, clientY) => {
+          const rect = root.getBoundingClientRect();
+          const x = ((clientX - rect.left) / rect.width) * 100;
+          const y = ((clientY - rect.top) / rect.height) * 100;
+          return {
+            x: Math.max(0, Math.min(100, x)),
+            y: Math.max(0, Math.min(100, y)),
+          };
+        };
         const setMode = (mode) => {
           const safeMode = allowed.has(mode) ? mode : 'compact';
           root.dataset.mode = safeMode;
@@ -1074,9 +1117,61 @@
         buttons.forEach((button) => {
           button.addEventListener('click', () => setMode(button.dataset.squadMode));
         });
+        tokens.forEach((token) => {
+          token.addEventListener('pointerdown', (event) => {
+            if (event.button !== 0) return;
+            const pid = String(token.getAttribute('href') || '').match(/player-detail\/(\d+)/)?.[1] || '';
+            if (!pid) return;
+            try { token.setPointerCapture(event.pointerId); } catch (_) {}
+            dragState = {
+              token,
+              pid,
+              pointerId: event.pointerId,
+              startX: event.clientX,
+              startY: event.clientY,
+              moved: false,
+            };
+            token.classList.add('is-dragging');
+            event.preventDefault();
+          });
+          token.addEventListener('click', (event) => {
+            if (Date.now() < clickBlockUntil) {
+              event.preventDefault();
+              event.stopPropagation();
+            }
+          });
+        });
+        window.addEventListener('pointermove', (event) => {
+          if (!dragState || event.pointerId !== dragState.pointerId) return;
+          const { x, y } = fieldPctFromClient(event.clientX, event.clientY);
+          dragState.token.style.left = `${x}%`;
+          dragState.token.style.top = `${y}%`;
+          const dx = event.clientX - dragState.startX;
+          const dy = event.clientY - dragState.startY;
+          if (!dragState.moved && ((dx * dx) + (dy * dy)) > 16) dragState.moved = true;
+        });
+        window.addEventListener('pointerup', (event) => {
+          if (!dragState || event.pointerId !== dragState.pointerId) return;
+          const { x, y } = fieldPctFromClient(event.clientX, event.clientY);
+          const token = dragState.token;
+          token.classList.remove('is-dragging');
+          if (dragState.moved) {
+            const positions = readStoredPositions();
+            positions[dragState.pid] = { left: x, top: y };
+            writeStoredPositions(positions);
+            clickBlockUntil = Date.now() + 200;
+          }
+          dragState = null;
+        });
+        window.addEventListener('pointercancel', () => {
+          if (!dragState) return;
+          dragState.token.classList.remove('is-dragging');
+          dragState = null;
+        });
         let initial = 'compact';
         try { initial = window.localStorage.getItem(storageKey) || 'compact'; } catch (_) {}
         setMode(initial);
+        applyStoredPositions();
       })();
     </script>
   </body>
