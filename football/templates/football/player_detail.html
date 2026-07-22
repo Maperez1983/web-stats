@@ -1230,6 +1230,9 @@
             <div class="label">
               <span>{{ target.display_name }}</span>
               <span class="scouting-pill">{{ target.get_status_display }}</span>
+              {% if target.coach_visibility_label %}
+              <span class="scouting-pill">{{ target.coach_visibility_label }}</span>
+              {% endif %}
             </div>
             <div class="value">
               {% if target.subject_team_name %}{{ target.subject_team_name }} · {% endif %}

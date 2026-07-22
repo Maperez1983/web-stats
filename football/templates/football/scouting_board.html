@@ -477,6 +477,10 @@
                 <textarea name="summary" placeholder="Qué nos interesa ver, riesgo, encaje y siguiente observación..."></textarea>
               </label>
               <label style="grid-column:1 / -1; display:flex; align-items:center; gap:0.5rem; text-transform:none; letter-spacing:0;">
+                <input type="checkbox" name="available_for_coach_tools" value="1" />
+                <span>Disponible para entrenos y pizarra del entrenador</span>
+              </label>
+              <label style="grid-column:1 / -1; display:flex; align-items:center; gap:0.5rem; text-transform:none; letter-spacing:0;">
                 <input type="checkbox" name="create_player" value="1" />
                 <span>Crear también el jugador en plantilla</span>
               </label>
@@ -565,6 +569,9 @@
             </div>
             <div class="card-badges">
               <span class="badge">{{ target.get_status_display }}</span>
+              {% if target.available_for_coach_tools and target.status != 'discarded' %}
+              <span class="badge warning">A prueba</span>
+              {% endif %}
               {% if target.player_id %}
               <span class="badge ok">En plantilla</span>
               {% endif %}

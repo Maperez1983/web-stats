@@ -431,13 +431,17 @@
                 <div class="label">Asignado</div>
                 <div class="value">{% if target.assigned_to %}Sí{% else %}-{% endif %}</div>
               </div>
-              <div class="summary">
-                <div class="label">Plantilla</div>
-                <div class="value">{% if target.player_id %}Sí{% else %}No{% endif %}</div>
-              </div>
+            <div class="summary">
+              <div class="label">Plantilla</div>
+              <div class="value">{% if target.player_id %}Sí{% else %}No{% endif %}</div>
+            </div>
+            <div class="summary">
+              <div class="label">Pizarra</div>
+              <div class="value">{% if target.available_for_coach_tools and target.status != 'discarded' %}A prueba{% else %}-{% endif %}</div>
             </div>
           </div>
         </div>
+      </div>
 
         {% if can_manage_workspace %}
         <section class="section">
@@ -487,6 +491,10 @@
               </label>
               <label style="grid-column:1 / -1;">Resumen
                 <textarea name="summary">{{ target.summary }}</textarea>
+              </label>
+              <label style="grid-column:1 / -1; display:flex; align-items:center; gap:0.5rem; text-transform:none; letter-spacing:0;">
+                <input type="checkbox" name="available_for_coach_tools" value="1" {% if target.available_for_coach_tools and target.status != 'discarded' %}checked{% endif %} />
+                <span>Disponible para entrenos y pizarra del entrenador</span>
               </label>
             </div>
             <div class="actions-row">

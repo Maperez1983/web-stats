@@ -2753,7 +2753,8 @@ def scouting_board_page(request):
             pass
         target.player = player
         target.status = ScoutingTarget.STATUS_SIGNED
-        target.save(update_fields=['player', 'status', 'updated_at'])
+        target.available_for_coach_tools = False
+        target.save(update_fields=['player', 'status', 'available_for_coach_tools', 'updated_at'])
         return player
 
     if request.method == 'POST':
@@ -2764,6 +2765,7 @@ def scouting_board_page(request):
             subject_name = str(request.POST.get('subject_name') or '').strip()[:160]
             player_id = _parse_int(request.POST.get('player_id'))
             create_player = str(request.POST.get('create_player') or '').strip().lower() in {'1', 'true', 'yes', 'on', 'si'}
+            available_for_coach_tools = str(request.POST.get('available_for_coach_tools') or '').strip().lower() in {'1', 'true', 'yes', 'on', 'si'}
             linked_player = None
             if player_id:
                 linked_player = (
@@ -2788,6 +2790,7 @@ def scouting_board_page(request):
                         'birth_date': parse_date(str(request.POST.get('birth_date') or '').strip()) if str(request.POST.get('birth_date') or '').strip() else None,
                         'priority': str(request.POST.get('priority') or ScoutingTarget.PRIORITY_MEDIUM).strip().lower(),
                         'status': str(request.POST.get('status') or ScoutingTarget.STATUS_WATCHLIST).strip().lower(),
+                        'available_for_coach_tools': available_for_coach_tools,
                         'assigned_to_id': _parse_int(request.POST.get('assigned_to_id')),
                         'next_review_on': parse_date(str(request.POST.get('next_review_on') or '').strip()) if str(request.POST.get('next_review_on') or '').strip() else None,
                         'budget_note': str(request.POST.get('budget_note') or '').strip()[:160],
@@ -2802,6 +2805,7 @@ def scouting_board_page(request):
                 target.dominant_foot = str(request.POST.get('dominant_foot') or target.dominant_foot or '').strip()[:16]
                 target.priority = str(request.POST.get('priority') or target.priority or ScoutingTarget.PRIORITY_MEDIUM).strip().lower()
                 target.status = str(request.POST.get('status') or target.status or ScoutingTarget.STATUS_WATCHLIST).strip().lower()
+                target.available_for_coach_tools = available_for_coach_tools and target.status != ScoutingTarget.STATUS_DISCARDED
                 assigned_to_id = _parse_int(request.POST.get('assigned_to_id'))
                 target.assigned_to_id = assigned_to_id or None
                 target.birth_date = parse_date(str(request.POST.get('birth_date') or '').strip()) if str(request.POST.get('birth_date') or '').strip() else target.birth_date
@@ -2811,6 +2815,9 @@ def scouting_board_page(request):
                 if not target.created_by_id and request.user.is_authenticated:
                     target.created_by = request.user
                 target.save()
+                if target.status == ScoutingTarget.STATUS_DISCARDED:
+                    target.available_for_coach_tools = False
+                    target.save(update_fields=['available_for_coach_tools', 'updated_at'])
                 if create_player:
                     player = _promote_scouting_target_to_player(
                         target,
@@ -2963,6 +2970,9 @@ def scouting_target_detail_page(request, target_id):
                 target.birth_date = parse_date(str(request.POST.get('birth_date') or '').strip()) if str(request.POST.get('birth_date') or '').strip() else None
                 target.status = str(request.POST.get('status') or target.status or ScoutingTarget.STATUS_WATCHLIST).strip().lower()
                 target.priority = str(request.POST.get('priority') or target.priority or ScoutingTarget.PRIORITY_MEDIUM).strip().lower()
+                target.available_for_coach_tools = str(request.POST.get('available_for_coach_tools') or '').strip().lower() in {'1', 'true', 'yes', 'on', 'si'}
+                if target.status == ScoutingTarget.STATUS_DISCARDED:
+                    target.available_for_coach_tools = False
                 target.assigned_to_id = _parse_int(request.POST.get('assigned_to_id')) or None
                 target.next_review_on = parse_date(str(request.POST.get('next_review_on') or '').strip()) if str(request.POST.get('next_review_on') or '').strip() else None
                 target.budget_note = str(request.POST.get('budget_note') or '').strip()[:160]
@@ -2973,6 +2983,9 @@ def scouting_target_detail_page(request, target_id):
                 elif str(request.POST.get('clear_player') or '').strip().lower() in {'1', 'true', 'yes', 'on'}:
                     target.player = None
                 target.save()
+                if target.status == ScoutingTarget.STATUS_DISCARDED:
+                    target.available_for_coach_tools = False
+                    target.save(update_fields=['available_for_coach_tools', 'updated_at'])
                 feedback = 'Ficha actualizada.'
             elif action == 'create-report':
                 ScoutingReport.objects.create(
@@ -29215,6 +29228,12 @@ def coach_role_trainer_page(request):
     for item in coach_player_cards_all:
         bucket = _coach_squad_bucket(item.get('position') or '')
         squad_role_counts[bucket] = squad_role_counts.get(bucket, 0) + 1
+    trainer_squad_active_count = len(coach_player_cards_all)
+    trainer_active_player_ids = [_parse_int(item.get('id')) for item in coach_player_cards_all if _parse_int(item.get('id'))]
+    try:
+        active_injury_ids = set(get_active_injury_player_ids(trainer_active_player_ids))
+    except Exception:
+        active_injury_ids = set()
     trainer_pitch_players = []
     pitch_role_counts = {item['key']: 0 for item in squad_pitch_targets}
     for item in coach_player_cards_all[:11]:
@@ -29226,28 +29245,108 @@ def coach_role_trainer_page(request):
         row = bucket_index // len(slot_pool)
         left = max(5, min(90, slot['left'] + (row * 3 if bucket != 'goalkeeper' else 0)))
         top = max(6, min(88, slot['top'] + (row * 7 if bucket != 'goalkeeper' else 0)))
+        player_id = _parse_int(item.get('id'))
+        if player_id and player_id in active_injury_ids:
+            state_tone = 'injured'
+            state_label = 'Lesionado'
+        elif not item.get('season_confirmed'):
+            state_tone = 'trial'
+            state_label = 'A prueba'
+        else:
+            state_tone = 'available'
+            state_label = 'Disponible'
         trainer_pitch_players.append(
             {
                 **item,
+                'card_key': f"player-{player_id}" if player_id else f"player-{bucket}-{bucket_index}",
                 'bucket': bucket,
                 'left': left,
                 'top': top,
+                'detail_url': (
+                    f"{reverse('player-detail', args=[player_id])}"
+                    + (
+                        f"?workspace={int(active_workspace.id)}&team={int(active_team.id)}"
+                        if active_workspace and getattr(active_workspace, 'id', None) and active_team and getattr(active_team, 'id', None)
+                        else f"?team={int(active_team.id)}"
+            if active_team and getattr(active_team, 'id', None)
+            else ''
+                    )
+                    if player_id
+                    else ''
+                ),
                 'accent': {
                     'goalkeeper': 'keeper',
                     'defense': 'defense',
                     'midfield': 'midfield',
                     'attack': 'attack',
                 }.get(bucket, 'midfield'),
+                'state_label': state_label,
+                'state_tone': state_tone,
             }
         )
-    trainer_squad_active_count = len(coach_player_cards_all)
-    trainer_active_player_ids = [_parse_int(item.get('id')) for item in coach_player_cards_all if _parse_int(item.get('id'))]
-    try:
-        active_injury_ids = set(get_active_injury_player_ids(trainer_active_player_ids))
-    except Exception:
-        active_injury_ids = set()
+    trainer_trial_players = []
+    if primary_team and workspace:
+        try:
+            available_scout_targets = (
+                ScoutingTarget.objects
+                .filter(workspace=workspace, available_for_coach_tools=True)
+                .exclude(status=ScoutingTarget.STATUS_DISCARDED)
+                .select_related('player', 'player__team')
+                .order_by('-priority', 'status', '-updated_at', '-id')
+            )
+            if active_team:
+                available_scout_targets = available_scout_targets.filter(
+                    Q(player__team=active_team) | Q(player__isnull=True)
+                )
+            available_scout_targets = list(available_scout_targets[:12])
+        except Exception:
+            available_scout_targets = []
+        trial_index = 0
+        for target in available_scout_targets:
+            linked_player = getattr(target, 'player', None)
+            linked_player_id = _parse_int(getattr(linked_player, 'id', None))
+            if linked_player_id and linked_player_id in active_player_ids:
+                continue
+            bucket = _coach_squad_bucket(getattr(target, 'position', '') or getattr(linked_player, 'position', '') or '')
+            slot_row = trial_index // 4
+            slot_col = trial_index % 4
+            left = max(8, min(92, 18 + (slot_col * 20)))
+            top = max(58, min(92, 84 - (slot_row * 10)))
+            trial_index += 1
+            trainer_trial_players.append(
+                {
+                    'id': f'scout-{int(target.id)}',
+                    'card_key': f'scout-{int(target.id)}',
+                    'name': target.display_name,
+                    'number': getattr(linked_player, 'number', None),
+                    'minutes': 0,
+                    'matches': 0,
+                    'goals': 0,
+                    'assists': 0,
+                    'position': getattr(target, 'position', '') or getattr(linked_player, 'position', '') or '-',
+                    'photo_url': resolve_player_photo_url(request, linked_player) if linked_player else '',
+                    'bucket': bucket,
+                    'left': left,
+                    'top': top,
+                    'detail_url': (
+                        reverse('scouting-target-detail', args=[int(target.id)])
+                        + (
+                            f'?workspace={int(active_workspace.id)}&team={int(active_team.id)}'
+                            if active_workspace and getattr(active_workspace, 'id', None) and active_team and getattr(active_team, 'id', None)
+                            else f'?team={int(active_team.id)}'
+                            if active_team and getattr(active_team, 'id', None)
+                            else ''
+                        )
+                    ),
+                    'accent': 'midfield',
+                    'state_label': 'A prueba',
+                    'state_tone': 'trial',
+                    'source_kind': 'scouting',
+                }
+            )
     trainer_injured_count = len(active_injury_ids)
     trainer_ok_count = max(0, trainer_squad_active_count - trainer_injured_count)
+    trainer_trial_count = len(trainer_trial_players)
     trainer_sessions_done_count = 0
     if primary_team:
         try:
@@ -58763,6 +58862,7 @@ def player_detail_page(request, player_id):
                 scouting_targets = list(
                     ScoutingTarget.objects
                     .filter(workspace=active_workspace, player=player)
+                    .exclude(status=ScoutingTarget.STATUS_DISCARDED)
                     .select_related('assigned_to', 'created_by')
                     .prefetch_related(
                         Prefetch(
@@ -58783,6 +58883,7 @@ def player_detail_page(request, player_id):
                     target.report_count = len(report_rows)
                     target.followups_open = [row for row in followup_rows if not getattr(row, 'is_done', False)]
                     target.next_followup = target.followups_open[0] if target.followups_open else None
+                    target.coach_visibility_label = 'A prueba' if getattr(target, 'available_for_coach_tools', False) else 'No visible'
                 latest_scouting_target = scouting_targets[0] if scouting_targets else None
         except Exception:
             scouting_targets = []

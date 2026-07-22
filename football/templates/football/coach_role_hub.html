@@ -747,7 +747,7 @@
       .trainer-pitch-player {
         position: absolute;
         transform: translate(-50%, -50%);
-        width: min(120px, 18vw);
+        width: min(116px, 16vw);
         display: grid;
         gap: 0.16rem;
         align-items: center;
@@ -791,15 +791,58 @@
       .trainer-pitch-player.is-attack {
         border-color: rgba(248, 113, 113, 0.34);
       }
-      .trainer-pitch-player.is-unconfirmed {
+      .trainer-pitch-player.is-trial {
+        border-color: rgba(244, 180, 0, 0.42);
+        background: rgba(75, 58, 14, 0.7);
+        box-shadow: 0 18px 32px rgba(75, 58, 14, 0.22);
+      }
+      .trainer-pitch-player.is-available {
+        border-color: rgba(34, 197, 94, 0.34);
+      }
+      .trainer-pitch-player.is-injured {
         border-color: rgba(248, 113, 113, 0.5);
         background: rgba(127, 29, 29, 0.6);
         box-shadow: 0 18px 32px rgba(127, 29, 29, 0.16);
       }
-      .trainer-pitch-player.is-unconfirmed .trainer-pitch-player-number {
+      .trainer-pitch-player.is-trial .trainer-pitch-player-number {
+        border-color: rgba(244, 180, 0, 0.42);
+        background: rgba(244, 180, 0, 0.16);
+        color: rgba(255, 242, 199, 0.98);
+      }
+      .trainer-pitch-player.is-injured .trainer-pitch-player-number {
         border-color: rgba(248, 113, 113, 0.46);
         background: rgba(248, 113, 113, 0.16);
         color: rgba(254, 202, 202, 0.98);
+      }
+      .trainer-pitch-player-status {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 1.2rem;
+        padding: 0.14rem 0.4rem;
+        border-radius: 999px;
+        font-size: 0.56rem;
+        font-weight: 950;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(255, 242, 199, 0.95);
+        background: rgba(15, 23, 42, 0.62);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .trainer-pitch-player-status.is-trial {
+        color: rgba(255, 242, 199, 0.98);
+        background: rgba(244, 180, 0, 0.14);
+        border-color: rgba(244, 180, 0, 0.26);
+      }
+      .trainer-pitch-player-status.is-available {
+        color: rgba(220, 252, 231, 0.98);
+        background: rgba(34, 197, 94, 0.12);
+        border-color: rgba(34, 197, 94, 0.24);
+      }
+      .trainer-pitch-player-status.is-injured {
+        color: rgba(254, 202, 202, 0.98);
+        background: rgba(248, 113, 113, 0.16);
+        border-color: rgba(248, 113, 113, 0.26);
       }
       .trainer-pitch-player-number {
         display: inline-flex;
@@ -816,12 +859,14 @@
         letter-spacing: 0.04em;
       }
       .trainer-pitch-player-name {
-        font-size: 0.72rem;
+        font-size: clamp(0.56rem, 1vw, 0.72rem);
         font-weight: 900;
         letter-spacing: 0.04em;
         text-transform: uppercase;
         text-align: center;
-        line-height: 1.05;
+        line-height: 1.02;
+        max-width: 100%;
+        overflow-wrap: anywhere;
       }
       .trainer-pitch-player-role {
         color: rgba(226, 232, 240, 0.72);
@@ -2405,30 +2450,50 @@
               <div class="trainer-squad-metrics" aria-label="Resumen de plantilla">
                 <span class="trainer-squad-metric">Activos <strong>{{ trainer_squad_active_count }}</strong></span>
                 <span class="trainer-squad-metric">Titulares <strong>{{ trainer_pitch_players|length }}</strong></span>
+                <span class="trainer-squad-metric">A prueba <strong>{{ trainer_trial_count }}</strong></span>
               </div>
             </div>
             <div class="field-diagram trainer-squad-field" data-coach-pitch-layout data-coach-pitch-key="{{ active_workspace.id|default:0 }}:{{ active_team.id|default:0 }}">
               <svg class="trainer-squad-surface" id="coach-pitch-surface" aria-hidden="true"></svg>
-              {% for player in trainer_pitch_players %}
-              <a
-                class="trainer-pitch-player is-{{ player.accent }}{% if not player.season_confirmed %} is-unconfirmed{% endif %}"
-                href="{% url 'player-detail' player.id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% elif active_team %}?team={{ active_team.id }}{% endif %}"
-                title="{{ player.name }}{% if player.number %} · {{ player.number }}{% endif %}"
-                style="left: {{ player.left }}%; top: {{ player.top }}%;"
-                data-player-id="{{ player.id }}"
-                data-default-left="{{ player.left }}"
-                data-default-top="{{ player.top }}"
-              >
-                <span class="trainer-pitch-player-number">{% if player.number %}{{ player.number }}{% else %}--{% endif %}</span>
-                <span class="trainer-pitch-player-name">{{ player.name }}</span>
-                <span class="trainer-pitch-player-role">{{ player.position|default:'-' }}</span>
-              </a>
-              {% empty %}
+              {% if trainer_pitch_players or trainer_trial_players %}
+                {% for player in trainer_pitch_players %}
+                <a
+                  class="trainer-pitch-player is-{{ player.accent }} is-{{ player.state_tone }}"
+                  href="{% url 'player-detail' player.id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% elif active_team %}?team={{ active_team.id }}{% endif %}"
+                  title="{{ player.name }}{% if player.number %} · {{ player.number }}{% endif %}"
+                  style="left: {{ player.left }}%; top: {{ player.top }}%;"
+                  data-player-id="{{ player.id }}"
+                  data-default-left="{{ player.left }}"
+                  data-default-top="{{ player.top }}"
+                >
+                  <span class="trainer-pitch-player-number">{% if player.number %}{{ player.number }}{% else %}--{% endif %}</span>
+                  <span class="trainer-pitch-player-name">{{ player.name }}</span>
+                  <span class="trainer-pitch-player-role">{{ player.position|default:'-' }}</span>
+                  <span class="trainer-pitch-player-status is-{{ player.state_tone }}">{{ player.state_label }}</span>
+                </a>
+                {% endfor %}
+                {% for player in trainer_trial_players %}
+                <a
+                  class="trainer-pitch-player is-{{ player.accent }} is-{{ player.state_tone }}"
+                  href="{{ player.detail_url }}"
+                  title="{{ player.name }}{% if player.number %} · {{ player.number }}{% endif %}"
+                  style="left: {{ player.left }}%; top: {{ player.top }}%;"
+                  data-player-id="{{ player.card_key }}"
+                  data-default-left="{{ player.left }}"
+                  data-default-top="{{ player.top }}"
+                >
+                  <span class="trainer-pitch-player-number">{% if player.number %}{{ player.number }}{% else %}--{% endif %}</span>
+                  <span class="trainer-pitch-player-name">{{ player.name }}</span>
+                  <span class="trainer-pitch-player-role">{{ player.position|default:'-' }}</span>
+                  <span class="trainer-pitch-player-status is-{{ player.state_tone }}">{{ player.state_label }}</span>
+                </a>
+                {% endfor %}
+              {% else %}
               <div style="position:absolute; inset:50% auto auto 50%; transform:translate(-50%, -50%); text-align:center; max-width: 18rem; z-index:2;">
                 <div style="display:inline-flex; padding:0.45rem 0.7rem; border-radius:999px; background:rgba(2,6,23,0.62); border:1px solid rgba(244,180,0,0.24); color:rgba(255,242,199,0.94); font-size:0.72rem; font-weight:900; letter-spacing:0.12em; text-transform:uppercase;">Sin once base</div>
                 <p style="margin:0.75rem 0 0; color:rgba(226,232,240,0.82); line-height:1.5;">Cuando haya jugadores activos, aquí se proyectará la configuración de la plantilla sobre el campo.</p>
               </div>
-              {% endfor %}
+              {% endif %}
             </div>
             <div class="trainer-squad-legend" aria-label="Lectura rápida por líneas">
               {% for row in trainer_squad_reinforcement_rows %}
@@ -2574,42 +2639,11 @@
         })();
       </script>
       {% endif %}
-      {% if role_key == 'trainer' and module_groups %}
-      <section id="coach-modules" class="summary-card coach-card-shell">
-        <h3>Módulos</h3>
-        <p class="summary-meta">Todo el trabajo del entrenador agrupado en bloques. Primero eliges el grupo y luego abres la herramienta concreta.</p>
-        <div class="module-tabs" role="tablist" aria-label="Grupos de módulos del entrenador">
-          {% for group in module_groups %}
-          <button class="module-tab{% if forloop.first %} is-active{% endif %}" type="button" data-module-target="group-{{ forloop.counter0 }}">{{ group.title }}</button>
-          {% endfor %}
-        </div>
-        <div class="module-panels">
-          {% for group in module_groups %}
-          <article class="module-panel{% if forloop.first %} is-active{% endif %}" data-module-panel="group-{{ forloop.counter0 }}">
-            <h4>{{ group.title }}</h4>
-            <p>{{ group.description }}</p>
-            <div class="module-group-grid">
-              {% for module in group.modules %}
-              <article class="coach-module-card">
-                <h5>{{ module.title }}</h5>
-                <p>{{ module.description }}</p>
-                <div class="module-action">
-                  <a class="workspace-tab" href="{% url module.link %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Abrir módulo</a>
-                </div>
-              </article>
-              {% endfor %}
-            </div>
-          </article>
-          {% endfor %}
-        </div>
-      </section>
-      {% endif %}
       {% if role_key != 'trainer' %}
       <nav class="section-nav">
         <a href="#coach-summary">Resumen</a>
         {% if coach_player_options %}<a href="#coach-player">Jugador</a>{% endif %}
         {% if coach_match_rows %}<a href="#coach-match">Partido</a>{% endif %}
-        <a href="#coach-modules">Módulos</a>
       </nav>
       {% if coach_overview_stats or weekly_staff_brief %}
       <section id="coach-summary" class="command-layout" style="margin-top:1rem;">
@@ -3760,7 +3794,6 @@
         <a href="#coach-summary">Resumen</a>
         {% if coach_player_options %}<a href="#coach-player">Jugador</a>{% endif %}
         {% if coach_match_rows %}<a href="#coach-match">Partido</a>{% endif %}
-        <a href="#coach-modules">Módulos</a>
       </nav>
       {% endif %}
 
@@ -3806,17 +3839,6 @@
           searchInput.addEventListener('input', filterCards);
           filterCards();
         }
-        const moduleTabs = Array.from(document.querySelectorAll('[data-module-target]'));
-        const modulePanels = Array.from(document.querySelectorAll('[data-module-panel]'));
-        if (moduleTabs.length && modulePanels.length) {
-          const activateModule = (target) => {
-            moduleTabs.forEach((tab) => tab.classList.toggle('is-active', tab.dataset.moduleTarget === target));
-            modulePanels.forEach((panel) => panel.classList.toggle('is-active', panel.dataset.modulePanel === target));
-          };
-          moduleTabs.forEach((tab) => tab.addEventListener('click', () => activateModule(tab.dataset.moduleTarget)));
-          activateModule(moduleTabs[0].dataset.moduleTarget);
-        }
-
         // Configurador de gráficas PDF (por club / por jugador).
         const scopeSelect = document.getElementById('pdf-charts-scope');
         const playerWrap = document.getElementById('pdf-charts-player-wrap');
