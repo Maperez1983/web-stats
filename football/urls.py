@@ -547,6 +547,7 @@ urlpatterns = [
     path("coach/rivales/", views.coach_rivals_page, name="coach-rivals"),
     path("coach/rivales/<int:rival_id>/", views.analysis_rival_profile_page, name="coach-rival-profile"),
     path("coach/plantilla/", views.coach_roster_page, name="coach-roster"),
+    path("coach/plantilla/pdf/", views.coach_roster_pdf, name="coach-roster-pdf"),
     path("coach/torneos/", views.coach_tournaments_page, name="coach-tournaments"),
     path("coach/partidos/", views.coach_matches_page, name="coach-matches"),
     path("coach/lesiones/", views.coach_injuries_page, name="coach-injuries"),

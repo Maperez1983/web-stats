@@ -31421,6 +31421,23 @@ def coach_role_trainer_page(request):
                 "top_event_types": selected_match_team_metrics["top_event_types"],
             }
 
+    coach_standings_rows = []
+    coach_team_standing_row = None
+    try:
+        coach_standings_rows = _resolve_standings_for_team(primary_team, snapshot=load_universo_snapshot()) or []
+    except Exception:
+        coach_standings_rows = []
+    if coach_standings_rows:
+        team_key = _normalize_team_lookup_key(getattr(primary_team, "display_name", "") or getattr(primary_team, "name", "") or "")
+        for row in coach_standings_rows:
+            if not isinstance(row, dict):
+                continue
+            row_key = _normalize_team_lookup_key(str(row.get("full_name") or row.get("team") or ""))
+            is_team = bool(team_key and row_key and (row_key == team_key or team_key in row_key or row_key in team_key))
+            row["is_team"] = is_team
+            if is_team and coach_team_standing_row is None:
+                coach_team_standing_row = row
+
     hero_image_data_uri, hero_image_url = _build_team_hero_payload(request, workspace, primary_team)
 
     modules = [
