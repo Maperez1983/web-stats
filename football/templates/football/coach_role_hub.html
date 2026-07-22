@@ -2430,14 +2430,14 @@
           <div>
             <h3>Configuración de plantilla</h3>
             <p>
-              Campo de trabajo para leer la plantilla activa, ver la ocupación por líneas y detectar qué perfiles faltan
-              o están más justos de lo ideal.
+              Campo de trabajo para leer la plantilla completa, ver el estado de cada jugador y detectar qué perfiles
+              están disponibles, a prueba o lesionados.
             </p>
           </div>
           <div class="trainer-squad-badges">
             <span class="role-meta-chip">Altas activas: {{ trainer_squad_active_count }}</span>
-            <span class="role-meta-chip">Once base</span>
-            <span class="role-meta-chip">Refuerzos</span>
+            <span class="role-meta-chip">Plantilla completa</span>
+            <span class="role-meta-chip">Estados visibles</span>
           </div>
         </div>
         <div class="trainer-squad-layout">
@@ -2445,17 +2445,18 @@
             <div class="trainer-squad-pitch-head">
               <div class="pitch-title">
                 <strong>Campo de fútbol</strong>
-                <span>Las piezas sobre el campo son la fotografía operativa del once base que tienes disponible ahora.</span>
+                <span>Las piezas sobre el campo representan toda la plantilla activa sobre la superficie de trabajo.</span>
               </div>
               <div class="trainer-squad-metrics" aria-label="Resumen de plantilla">
-                <span class="trainer-squad-metric">Activos <strong>{{ trainer_squad_active_count }}</strong></span>
-                <span class="trainer-squad-metric">Titulares <strong>{{ trainer_pitch_players|length }}</strong></span>
+                <span class="trainer-squad-metric">Plantilla <strong>{{ trainer_squad_active_count }}</strong></span>
+                <span class="trainer-squad-metric">Disponibles <strong>{{ trainer_available_count }}</strong></span>
                 <span class="trainer-squad-metric">A prueba <strong>{{ trainer_trial_count }}</strong></span>
+                <span class="trainer-squad-metric">Lesionados <strong>{{ trainer_injured_count }}</strong></span>
               </div>
             </div>
             <div class="field-diagram trainer-squad-field" data-coach-pitch-layout data-coach-pitch-key="{{ active_workspace.id|default:0 }}:{{ active_team.id|default:0 }}">
               <svg class="trainer-squad-surface" id="coach-pitch-surface" aria-hidden="true"></svg>
-              {% if trainer_pitch_players or trainer_trial_players %}
+              {% if trainer_pitch_players %}
                 {% for player in trainer_pitch_players %}
                 <a
                   class="trainer-pitch-player is-{{ player.accent }} is-{{ player.state_tone }}"
@@ -2472,26 +2473,10 @@
                   <span class="trainer-pitch-player-status is-{{ player.state_tone }}">{{ player.state_label }}</span>
                 </a>
                 {% endfor %}
-                {% for player in trainer_trial_players %}
-                <a
-                  class="trainer-pitch-player is-{{ player.accent }} is-{{ player.state_tone }}"
-                  href="{{ player.detail_url }}"
-                  title="{{ player.name }}{% if player.number %} · {{ player.number }}{% endif %}"
-                  style="left: {{ player.left }}%; top: {{ player.top }}%;"
-                  data-player-id="{{ player.card_key }}"
-                  data-default-left="{{ player.left }}"
-                  data-default-top="{{ player.top }}"
-                >
-                  <span class="trainer-pitch-player-number">{% if player.number %}{{ player.number }}{% else %}--{% endif %}</span>
-                  <span class="trainer-pitch-player-name">{{ player.name }}</span>
-                  <span class="trainer-pitch-player-role">{{ player.position|default:'-' }}</span>
-                  <span class="trainer-pitch-player-status is-{{ player.state_tone }}">{{ player.state_label }}</span>
-                </a>
-                {% endfor %}
               {% else %}
               <div style="position:absolute; inset:50% auto auto 50%; transform:translate(-50%, -50%); text-align:center; max-width: 18rem; z-index:2;">
-                <div style="display:inline-flex; padding:0.45rem 0.7rem; border-radius:999px; background:rgba(2,6,23,0.62); border:1px solid rgba(244,180,0,0.24); color:rgba(255,242,199,0.94); font-size:0.72rem; font-weight:900; letter-spacing:0.12em; text-transform:uppercase;">Sin once base</div>
-                <p style="margin:0.75rem 0 0; color:rgba(226,232,240,0.82); line-height:1.5;">Cuando haya jugadores activos, aquí se proyectará la configuración de la plantilla sobre el campo.</p>
+                <div style="display:inline-flex; padding:0.45rem 0.7rem; border-radius:999px; background:rgba(2,6,23,0.62); border:1px solid rgba(244,180,0,0.24); color:rgba(255,242,199,0.94); font-size:0.72rem; font-weight:900; letter-spacing:0.12em; text-transform:uppercase;">Sin plantilla activa</div>
+                <p style="margin:0.75rem 0 0; color:rgba(226,232,240,0.82); line-height:1.5;">Cuando haya jugadores activos, aquí se proyectará la plantilla completa sobre el campo.</p>
               </div>
               {% endif %}
             </div>
@@ -2515,7 +2500,7 @@
                 {% if row.missing %}
                   Falta {{ row.missing }} para tener una estructura más sólida. {{ row.status }}
                 {% else %}
-                  Estructura cubierta para un once base competitivo.
+                  Estructura cubierta para una plantilla competitiva.
                 {% endif %}
               </span>
             </div>

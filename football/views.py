@@ -29236,15 +29236,17 @@ def coach_role_trainer_page(request):
         active_injury_ids = set()
     trainer_pitch_players = []
     pitch_role_counts = {item['key']: 0 for item in squad_pitch_targets}
-    for item in coach_player_cards_all[:11]:
+    for item in coach_player_cards_all:
         bucket = _coach_squad_bucket(item.get('position') or '')
         bucket_index = pitch_role_counts.get(bucket, 0)
         pitch_role_counts[bucket] = bucket_index + 1
         slot_pool = squad_pitch_slots.get(bucket) or squad_pitch_slots['midfield']
         slot = slot_pool[bucket_index % len(slot_pool)]
         row = bucket_index // len(slot_pool)
-        left = max(5, min(90, slot['left'] + (row * 3 if bucket != 'goalkeeper' else 0)))
-        top = max(6, min(88, slot['top'] + (row * 7 if bucket != 'goalkeeper' else 0)))
+        col_shift = (row % 2) * 4
+        vertical_shift = row * 6 if bucket != 'goalkeeper' else row * 4
+        left = max(5, min(90, slot['left'] + (row * 3 if bucket != 'goalkeeper' else 0) + (col_shift if bucket != 'goalkeeper' else 0)))
+        top = max(6, min(88, slot['top'] + vertical_shift))
         player_id = _parse_int(item.get('id'))
         if player_id and player_id in active_injury_ids:
             state_tone = 'injured'
@@ -29284,6 +29286,9 @@ def coach_role_trainer_page(request):
                 'state_tone': state_tone,
             }
         )
+    trainer_available_count = sum(1 for item in trainer_pitch_players if item.get('state_tone') == 'available')
+    trainer_trial_count = sum(1 for item in trainer_pitch_players if item.get('state_tone') == 'trial')
+    trainer_injured_count = sum(1 for item in trainer_pitch_players if item.get('state_tone') == 'injured')
     trainer_trial_players = []
     if primary_team and workspace:
         try:
@@ -29344,9 +29349,7 @@ def coach_role_trainer_page(request):
                     'source_kind': 'scouting',
                 }
             )
-    trainer_injured_count = len(active_injury_ids)
-    trainer_ok_count = max(0, trainer_squad_active_count - trainer_injured_count)
-    trainer_trial_count = len(trainer_trial_players)
+    trainer_ok_count = trainer_available_count
     trainer_sessions_done_count = 0
     if primary_team:
         try:
@@ -29724,8 +29727,10 @@ def coach_role_trainer_page(request):
             'coach_player_cards_all': coach_player_cards_all,
             'trainer_pitch_players': trainer_pitch_players,
             'trainer_squad_active_count': trainer_squad_active_count,
+            'trainer_available_count': trainer_available_count,
             'trainer_ok_count': trainer_ok_count,
             'trainer_injured_count': trainer_injured_count,
+            'trainer_trial_count': trainer_trial_count,
             'trainer_sessions_done_count': trainer_sessions_done_count,
             'trainer_squad_reinforcement_rows': trainer_squad_reinforcement_rows,
             'coach_selected_player_id': selected_player_id,
