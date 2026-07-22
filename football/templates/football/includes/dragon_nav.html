@@ -178,36 +178,6 @@
     {% endif %}
   </div>
   {% endif %}
-  <button
-    type="button"
-    class="nav-command-btn"
-    id="webstats-nav-back"
-    title="Volver atrás"
-    style="padding:0.38rem 0.6rem; border-radius:999px; border:1px solid rgba(148,163,184,0.25); background:rgba(2,6,23,0.55); color:#e5e7eb;"
-    hidden
-  >← Volver</button>
-  <button
-    type="button"
-    class="nav-command-btn"
-    id="webstats-help-mode-toggle"
-    data-webstats-help-mode-toggle
-    data-help="Activa o desactiva las explicaciones breves de los botones visibles."
-    title="Mostrar explicación de botones"
-    aria-label="Mostrar explicación de botones"
-    aria-pressed="false"
-    style="padding:0.38rem 0.62rem; border-radius:999px; border:1px solid rgba(148,163,184,0.25); background:rgba(2,6,23,0.55); color:#e5e7eb; font-weight:900;"
-  >?</button>
-  <button
-    type="button"
-    class="nav-command-btn"
-    id="webstats-demo-mode-toggle"
-    data-webstats-demo-mode-toggle
-    data-help="Activa el modo muestra: toca botones para ver qué harían sin ejecutar acciones reales."
-    title="Modo muestra"
-    aria-label="Activar modo muestra"
-    aria-pressed="false"
-    style="padding:0.38rem 0.68rem; border-radius:999px; border:1px solid rgba(148,163,184,0.25); background:rgba(2,6,23,0.55); color:#e5e7eb; font-weight:900;"
-  >Demo</button>
   {% with nav_path=request.path|default:'' nav_url_name=request.resolver_match.url_name|default:'' cdurl=club_dashboard_url|default:'' %}
   {# Orden tabs (staff): Entrenador → Entrenamiento → Partido → Jugador #}
   {% if can_access_staff|default:False %}
@@ -237,9 +207,6 @@
   {% if can_configure_active_team and active_workspace and active_workspace.kind == 'club' %}
   <a href="{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Configura el club o equipo: temporada, identidad, módulos, permisos y datos base." class="{% if nav_url_name == 'club-onboarding' or nav_url_name == 'club-season-wizard' %}is-active{% endif %}" {% if nav_url_name == 'club-onboarding' or nav_url_name == 'club-season-wizard' %}aria-current="page"{% endif %}>Configurar</a>
   {% endif %}
-  {% if can_access_platform %}
-  <a href="{% url 'platform-overview' %}" data-help="Abre Platform: gestión de clubes, clientes, accesos y configuración global." class="nav-platform-link {% if nav_url_name == 'platform-overview' or 'platform' in nav_path %}is-active{% endif %}" {% if nav_url_name == 'platform-overview' or 'platform' in nav_path %}aria-current="page"{% endif %}>Platform</a>
-  {% endif %}
   {% if show_legacy_nav_menu|default:False %}
   {# Menú general heredado: desactivado por defecto; la navegación principal debe ser contextual. #}
   <details class="nav-more {% if nav_url_name != 'dashboard-home' and nav_path != '/' and not 'coach/sesiones' in nav_path and not 'coach/tactica' in nav_path and not 'registro-acciones' in nav_path and not 'convocatoria' in nav_path and not '11-inicial' in nav_path and nav_path|slice:":9" != '/partido/' and nav_path|slice:":7" != '/match/' and nav_path|slice:":12" != '/incidencias/' %}is-active{% endif %}">
@@ -253,9 +220,6 @@
       <button type="button" class="nav-command-btn nav-command-btn--panel" data-command-palette>Buscar / Ir a…</button>
       <button type="button" class="nav-command-btn nav-command-btn--panel" data-webstats-shortcuts>Atajos</button>
       <button type="button" class="nav-command-btn nav-command-btn--panel" data-webstats-presentation-toggle>Presentación</button>
-      {% if can_access_platform %}
-      <button type="button" class="nav-command-btn nav-command-btn--panel" id="webstats-reset-cache" title="Útil en iPad/PWA cuando no ves cambios tras un deploy">Reset caché</button>
-      {% endif %}
   {% if can_access_platform and active_workspace_options and active_workspace_options|length > 1 %}
   <div class="nav-more-subtitle">Clientes</div>
   {% for ws in active_workspace_options %}
@@ -348,89 +312,6 @@
   {% endif %}
   {% endwith %}
 </nav>
-<script>
-(() => {
-  const btn = document.getElementById('webstats-nav-back');
-  if (!btn) return;
-  const isNativeLike = () => {
-    try {
-      if (window.Capacitor && typeof window.Capacitor.getPlatform === 'function') {
-        return String(window.Capacitor.getPlatform() || '').toLowerCase() !== 'web';
-      }
-    } catch (e) {}
-    const ua = String(navigator.userAgent || '').toLowerCase();
-    return ua.includes('capacitor') || ua.includes('wkwebview') || (ua.includes('webview') && !ua.includes('safari'));
-  };
-  const canGoBack = () => {
-    try {
-      if (window.history && typeof window.history.length === 'number' && window.history.length > 1) return true;
-    } catch (e) {}
-    return false;
-  };
-  btn.hidden = !(isNativeLike() || canGoBack());
-  btn.addEventListener('click', () => {
-    const before = String(window.location.href || '');
-    try { window.history.back(); } catch (e) {}
-    window.setTimeout(() => {
-      const after = String(window.location.href || '');
-      if (after === before) {
-        try { window.location.href = '/'; } catch (e) {}
-      }
-    }, 280);
-  });
-})();
-</script>
-<script>
-(function () {
-  const btn = document.getElementById('webstats-reset-cache');
-  if (!btn) return;
-  const clearLocalLineupDrafts = () => {
-    try {
-      const keys = Object.keys(window.localStorage || {});
-      keys.forEach((key) => {
-        if (key.startsWith('touchFieldLineup:')) {
-          try { localStorage.removeItem(key); } catch (e) {}
-        }
-      });
-    } catch (e) {}
-  };
-  const clearCaches = async () => {
-    try {
-      if (!('caches' in window)) return;
-      const keys = await caches.keys();
-      await Promise.all(keys.map((key) => {
-        if (String(key || '').startsWith('webstats-')) {
-          return caches.delete(key);
-        }
-        return Promise.resolve(false);
-      }));
-    } catch (e) {}
-  };
-  const unregisterServiceWorkers = async () => {
-    try {
-      if (!('serviceWorker' in navigator)) return;
-      const regs = await navigator.serviceWorker.getRegistrations();
-      await Promise.all((regs || []).map((reg) => reg.unregister()));
-    } catch (e) {}
-  };
-  btn.addEventListener('click', async () => {
-    const ok = window.confirm('¿Resetear caché offline (PWA) y recargar?');
-    if (!ok) return;
-    try { btn.disabled = true; btn.textContent = 'Reseteando…'; } catch (e) {}
-    // Tema/densidad: si el usuario activó "Claro/HC" en algún momento puede dejar la app ilegible
-    // en páginas con estilos dark-first. Al resetear, volvemos a default (oscuro).
-    try { window.localStorage && window.localStorage.removeItem('2j_theme'); } catch (e) {}
-    try { window.localStorage && window.localStorage.removeItem('2j_density'); } catch (e) {}
-    try { document.documentElement && document.documentElement.removeAttribute('data-theme'); } catch (e) {}
-    try { document.documentElement && document.documentElement.removeAttribute('data-density'); } catch (e) {}
-    clearLocalLineupDrafts();
-    await clearCaches();
-    await unregisterServiceWorkers();
-    try { window.location.reload(); } catch (e) {}
-  });
-})();
-</script>
-{% endif %}
 {% if request.user.is_authenticated and not hide_global_guard_widget %}
   {% include 'football/includes/global_guard_widget.html' %}
 {% endif %}
