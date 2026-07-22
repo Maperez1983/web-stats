@@ -1,4 +1,4 @@
-{% load static %}
+{% load static football_extras %}
 <!DOCTYPE html>
 <html lang="es">
   <head>
@@ -237,7 +237,7 @@
                   <tr>
                     <td>
                       <strong>#{{ p.number|default:"-" }} · {{ p.name }}</strong>
-                      <div class="subtle" style="margin:0.15rem 0 0; font-size:0.82rem;">{{ p.position|default:"" }}</div>
+                      <div class="subtle" style="margin:0.15rem 0 0; font-size:0.82rem;">{% if p.position %}{{ p.position|display_position }}{% endif %}</div>
                     </td>
                     <td>
                       <input class="cell-input" type="number" min="1" max="10" name="rpe_{{ p.id }}" value="{% if m %}{{ m.rpe|default:'' }}{% endif %}" />

@@ -1007,7 +1007,7 @@
                   <span class="player-core">
                     <span class="num">{% if player.number %}{{ player.number }}{% else %}--{% endif %}</span>
                     <span class="name">{{ player.name }}</span>
-                    <span class="role">{{ player.position|default:'-' }}</span>
+                    <span class="role">{% if player.position %}{{ player.position|display_position }}{% else %}-{% endif %}</span>
                     <span class="status is-{{ player.state_tone }}">{{ player.state_label }}</span>
                   </span>
                 </a>

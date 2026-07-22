@@ -694,7 +694,7 @@
               data-player-id="{{ player.id }}"
               data-player-name="{{ player.name|upper|escape }}"
               data-player-number="{{ player.number|default:'--' }}"
-              data-player-position="{{ player.position|default:'Sin definir'|escape }}"
+              data-player-position="{% if player.position %}{{ player.position|display_position|escape }}{% else %}Sin definir{% endif %}"
               data-player-photo="{{ player.photo_url|default:avatar_url|escape }}"
               data-player-injured="{% if player.has_active_injury %}1{% else %}0{% endif %}"
               data-player-injury-blocks-play="{% if player.injury_blocks_play %}1{% else %}0{% endif %}"
@@ -704,7 +704,7 @@
             >
               <img class="roster-photo" src="{{ player.photo_url|default:avatar_url }}" alt="{{ player.name }}" loading="lazy" />
               <div class="roster-name">{{ player.name|upper }}</div>
-              <div class="roster-meta">#{{ player.number|default:"--" }} · {{ player.position|default:"Sin definir" }}</div>
+              <div class="roster-meta">#{{ player.number|default:"--" }} · {% if player.position %}{{ player.position|display_position }}{% else %}Sin definir{% endif %}</div>
               <div class="status-badges">
                 {% if player.has_active_injury %}
                 <span

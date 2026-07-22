@@ -1,4 +1,4 @@
-{% load static %}
+{% load static football_extras %}
 <!DOCTYPE html>
 <html lang="es">
   <head>
@@ -369,10 +369,10 @@
       <header class="header">
         <div>
           <p class="kicker">Dirección deportiva</p>
-          <h1>{{ target.display_name }}</h1>
+          <h1>{{ target.display_name|display_text }}</h1>
           <p class="sub">
-            {% if target.subject_team_name %}{{ target.subject_team_name }}{% else %}Jugador sin club indicado{% endif %}
-            {% if target.position %} · {{ target.position }}{% endif %}
+            {% if target.subject_team_name %}{{ target.subject_team_name|display_text }}{% else %}Jugador sin club indicado{% endif %}
+            {% if target.position %} · {{ target.position|display_position }}{% endif %}
           </p>
           <div class="status-line">
             <span class="badge {% if target.priority == 'urgent' %}critical{% elif target.priority == 'high' %}warning{% else %}ok{% endif %}">{{ target.get_priority_display }}</span>

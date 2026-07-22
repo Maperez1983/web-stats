@@ -1,4 +1,4 @@
-{% load static %}
+{% load static football_extras %}
 <!DOCTYPE html>
 <html lang="es">
   <head>
@@ -725,7 +725,7 @@
           <article class="roster-item">
             <div>
               <strong>#{{ player.number|default:"--" }} {{ player.name|upper }}</strong>
-              <div style="opacity:.75;">{{ player.position|default:"Sin posición" }}</div>
+              <div style="opacity:.75;">{% if player.position %}{{ player.position|display_position }}{% else %}Sin posición{% endif %}</div>
             </div>
             <span class="badge-active {% if player.is_active %}on{% else %}off{% endif %}">
               {% if player.is_active %}Activo{% else %}Inactivo{% endif %}

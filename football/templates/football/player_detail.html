@@ -1235,8 +1235,8 @@
               {% endif %}
             </div>
             <div class="value">
-              {% if target.subject_team_name %}{{ target.subject_team_name }} · {% endif %}
-              {{ target.position|default:"Sin posición" }}
+              {% if target.subject_team_name %}{{ target.subject_team_name|display_text }} · {% endif %}
+              {% if target.position %}{{ target.position|display_position }}{% else %}Sin posición{% endif %}
             </div>
             <div class="meta">
               {% if target.latest_report %}

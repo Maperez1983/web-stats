@@ -1,4 +1,4 @@
-{% load static %}
+{% load static football_extras %}
 <!DOCTYPE html>
 <html lang="es">
   <head>
@@ -285,7 +285,7 @@
                     <div class="name">{{ p.name }}</div>
                     <div class="small">{{ p.code }}</div>
                   </td>
-                  <td class="small">{{ p.position|default:"" }}</td>
+                  <td class="small">{% if p.position %}{{ p.position|display_position }}{% endif %}</td>
                   <td>
                     <input class="check js-convoked" type="checkbox" name="convoked_codes" value="{{ p.code }}" {% if p.is_convoked %}checked{% endif %} />
                   </td>

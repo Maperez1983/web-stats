@@ -1,4 +1,4 @@
-{% load static l10n %}
+{% load static l10n football_extras %}
 <!DOCTYPE html>
 <html lang="es">
   <head>
@@ -492,7 +492,7 @@
 	                      {% if p.dorsal %}{{ p.dorsal }} · {% elif p.number %}{{ p.number }} · {% endif %}{{ p.name|default:"Jugador" }}
                     </div>
                     <div class="sub">
-                      {{ p.position|default:"—" }}
+                      {% if p.position %}{{ p.position|display_position }}{% else %}—{% endif %}
                       {% if p.pj %} · PJ {{ p.pj }}{% endif %}
                       {% if p.minutes %} · {{ p.minutes }} min{% endif %}
                       {% if p.goals %} · {{ p.goals }} goles{% endif %}

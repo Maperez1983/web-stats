@@ -15,6 +15,8 @@ class DisplayHelperTests(SimpleTestCase):
         self.assertEqual(display_position('DFC'), 'Defensa central')
         self.assertEqual(display_position('mp'), 'Mediapunta')
         self.assertEqual(display_position('Lateral derecho'), 'Lateral derecho')
+        self.assertEqual(display_position('defensa derecha'), 'Lateral derecho')
+        self.assertEqual(display_position('defensa izquierdo'), 'Lateral izquierdo')
 
     def test_storage_normalizers_apply_canonical_format(self):
         self.assertEqual(normalize_person_name('  JUAN   PEREZ  '), 'Juan Perez')
@@ -23,3 +25,5 @@ class DisplayHelperTests(SimpleTestCase):
         self.assertEqual(normalize_position_value('medio centro'), 'MC')
         self.assertEqual(normalize_position_value('carrilero izquierdo'), 'CARRILERO I')
         self.assertEqual(normalize_position_value('Mediapunta'), 'MP')
+        self.assertEqual(normalize_position_value('defensa derecha'), 'LD')
+        self.assertEqual(normalize_position_value('defensa izquierda'), 'LI')

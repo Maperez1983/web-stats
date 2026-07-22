@@ -217,34 +217,35 @@
         overflow: hidden;
         border-radius: 16px;
         border: 1px solid rgba(11, 18, 32, 0.08);
-        background:
-          radial-gradient(circle at 50% 18%, rgba(var(--club-secondary-rgb), 0.08), transparent 24%),
-          radial-gradient(circle at 50% 50%, rgba(var(--club-primary-rgb), 0.10), transparent 48%),
-          linear-gradient(180deg, rgba(247, 250, 252, 0.92), rgba(239, 244, 248, 0.92));
+        background-color: #edf3e1;
+        background-image:
+          url("{{ pitch_src|default:'' }}");
+        background-repeat: no-repeat;
+        background-position: center center;
+        background-size: 100% 100%;
         box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55), 0 18px 36px rgba(11, 18, 32, 0.08);
         page-break-inside: avoid;
         break-inside: avoid;
       }
-      .pitch-stage img {
+      .pitch-stage::before {
+        content: "";
         position: absolute;
         inset: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        display: block;
-      }
-      .pitch-base {
-        opacity: 0.98;
-        filter: saturate(1.04) contrast(1.02) brightness(1.02);
-      }
-      .pitch-overlay {
-        opacity: 0.54;
+        z-index: 0;
+        background-image:
+          url("{{ pitch_overlay_src|default:'' }}");
+        background-repeat: no-repeat;
+        background-position: center center;
+        background-size: 100% 100%;
+        opacity: 0.84;
         mix-blend-mode: multiply;
+        pointer-events: none;
       }
       .pitch-stage::after {
         content: "";
         position: absolute;
         inset: 0;
+        z-index: 1;
         pointer-events: none;
         background:
           linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(2, 6, 23, 0.10)),
@@ -253,6 +254,7 @@
       .pitch-overlay-layer {
         position: absolute;
         inset: 6px;
+        z-index: 2;
       }
       .field-card {
         position: absolute;
@@ -587,8 +589,6 @@
             </div>
           </div>
           <div class="pitch-stage">
-            {% if pitch_src %}<img class="pitch-base" src="{{ pitch_src }}" alt="Campo de futbol" />{% endif %}
-            {% if pitch_overlay_src %}<img class="pitch-overlay" src="{{ pitch_overlay_src }}" alt="" aria-hidden="true" />{% endif %}
             <div class="pitch-overlay-layer">
               {% for card in field_cards %}
                 <article class="field-card {% if card.state_key == 'injured' %}is-critical{% elif card.state_key == 'trial' %}is-trial{% elif card.state_key == 'confirmed' %}is-available{% else %}is-muted{% endif %}" style="left: {{ card.left }}%; top: {{ card.top }}%; width: {{ card.width }}%;">

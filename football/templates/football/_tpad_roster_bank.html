@@ -1,3 +1,4 @@
+{% load football_extras %}
 <div class="section roster-bank" id="task-roster-bank" style="margin-top:0.9rem;">
   <div class="player-bank-head">
     <h3 style="margin:0;">Plantilla disponible</h3>
@@ -92,7 +93,7 @@
           </span>
           <span class="player-token-bank-copy">
             <span class="token-name">{{ p.nickname|default:p.name|default:'' }}</span>
-            <span class="token-meta">{{ p.position|default:"Jugador" }}</span>
+            <span class="token-meta">{% if p.position %}{{ p.position|display_position }}{% else %}Jugador{% endif %}</span>
           </span>
         </button>
       {% endfor %}
@@ -133,7 +134,7 @@
           </span>
           <span class="player-token-bank-copy">
             <span class="token-name">{{ player.nickname|default:player.name|default:'' }}</span>
-            <span class="token-meta">{{ player.position|default:"Jugador" }}</span>
+            <span class="token-meta">{% if player.position %}{{ player.position|display_position }}{% else %}Jugador{% endif %}</span>
           </span>
         </button>
       {% endfor %}
@@ -147,3 +148,4 @@
     <div class="player-bank is-opponent" id="task-opponent-token-bank" hidden></div>
   </div>
 </div>
+{% load football_extras %}

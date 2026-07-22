@@ -1,4 +1,4 @@
-{% load static %}
+{% load static football_extras %}
 <!DOCTYPE html>
 <html lang="es">
   <head>
@@ -312,7 +312,7 @@
             {% for player in players %}
             <button class="player-chip" type="button" data-player="{{ player.name|upper|escape }}" data-number="{{ player.number|default:'--' }}">
               #{{ player.number|default:"--" }} {{ player.name|upper }}
-              <br /><small>{{ player.position|default:"Sin definir" }}</small>
+              <br /><small>{% if player.position %}{{ player.position|display_position }}{% else %}Sin definir{% endif %}</small>
             </button>
             {% empty %}
             <p>No hay jugadores activos para cargar en la pizarra.</p>

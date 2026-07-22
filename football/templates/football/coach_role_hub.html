@@ -1,4 +1,4 @@
-{% load static %}
+{% load static football_extras %}
 <!DOCTYPE html>
 <html lang="es">
   <head>
@@ -2646,7 +2646,7 @@
                 >
                   <span class="trainer-pitch-player-number">{% if player.number %}{{ player.number }}{% else %}--{% endif %}</span>
                   <span class="trainer-pitch-player-name">{{ player.name }}</span>
-                  <span class="trainer-pitch-player-role">{{ player.position|default:'-' }}</span>
+                  <span class="trainer-pitch-player-role">{% if player.position %}{{ player.position|display_position }}{% else %}-{% endif %}</span>
                   <span class="trainer-pitch-player-status is-{{ player.state_tone }}">{{ player.state_label }}</span>
                 </a>
                 {% endfor %}
@@ -2677,7 +2677,7 @@
                     <span class="num">{% if player.number %}{{ player.number }}{% else %}--{% endif %}</span>
                     <span class="copy">
                       <span class="name">{{ player.name }}</span>
-                      <span class="meta">{{ player.position|default:'-' }}</span>
+                      <span class="meta">{% if player.position %}{{ player.position|display_position }}{% else %}-{% endif %}</span>
                       <span class="state is-{{ player.state_tone }}">{{ player.state_label }}</span>
                     </span>
                   </a>
@@ -3422,7 +3422,7 @@
 		                    </div>
 		                    <div>
 		                      <h2 class="broadcast-name">{{ player.name }}</h2>
-		                      <div class="broadcast-sub">{{ player.position|default:'-' }}</div>
+                      <div class="broadcast-sub">{% if player.position %}{{ player.position|display_position }}{% else %}-{% endif %}</div>
 		                    </div>
 		                  </div>
 		                  <div class="broadcast-head-right">

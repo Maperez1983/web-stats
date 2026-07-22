@@ -2038,7 +2038,7 @@
           {% endif %}
           <div class="players" id="player-list">
             {% for player in convocation_players %}
-            <label class="player-card" data-player-id="{{ player.id }}" data-player-name="{{ player.name|upper|escape }}" data-player-number="{{ player.number|default:'--' }}" data-player-position="{{ player.position|default:''|escape }}" data-player-photo="{{ player.photo_url|default:''|escape }}">
+            <label class="player-card" data-player-id="{{ player.id }}" data-player-name="{{ player.name|upper|escape }}" data-player-number="{{ player.number|default:'--' }}" data-player-position="{% if player.position %}{{ player.position|display_position|escape }}{% endif %}" data-player-photo="{{ player.photo_url|default:''|escape }}">
               {% if player.photo_url %}
               <img src="{{ player.photo_url }}" alt="{{ player.name }}" loading="lazy" />
               {% else %}
@@ -2046,7 +2046,7 @@
               {% endif %}
               <span>
                 <span class="player-name">{{ player.name|upper }}</span>
-                <span class="player-meta">#{{ player.number|default:"--" }} · {{ player.position|default:"Sin definir" }}</span>
+                <span class="player-meta">#{{ player.number|default:"--" }} · {% if player.position %}{{ player.position|display_position }}{% else %}Sin definir{% endif %}</span>
               </span>
               <input type="checkbox" />
             </label>

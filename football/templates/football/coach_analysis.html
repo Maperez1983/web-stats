@@ -1,4 +1,4 @@
-{% load static %}
+{% load static football_extras %}
 <!DOCTYPE html>
 <html lang="es">
 	  <head>
@@ -1298,7 +1298,7 @@
                           <input type="checkbox" class="rival-roster-pick" value="{{ p.name|default:'' }}" />
                         </td>
                         <td><strong>{{ p.name|default:"-" }}</strong></td>
-                        <td class="meta">{{ p.position|default:"-" }}</td>
+                        <td class="meta">{% if p.position %}{{ p.position|display_position }}{% else %}-{% endif %}</td>
                         <td class="meta">{{ p.pj|default:"-" }}</td>
                         <td class="meta">{{ p.minutes|default:"-" }}</td>
                         <td class="meta">{{ p.goals|default:"-" }}</td>
