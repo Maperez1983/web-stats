@@ -509,8 +509,8 @@
         width: 100%;
         height: 100%;
         object-fit: cover;
-        opacity: 0.3;
-        mix-blend-mode: screen;
+        opacity: 1;
+        mix-blend-mode: normal;
       }
       .squad-pitch-player {
         position: absolute;
@@ -989,7 +989,7 @@
               <button type="button" data-squad-mode="photo">Foto</button>
             </div>
             <div class="squad-pitch" aria-label="Campo de plantilla" data-mode="compact">
-              <img class="field-bg" src="{% static 'football/campo-futbol.jpg' %}" alt="Campo de fútbol" aria-hidden="true" />
+              <img class="field-bg" src="{% static 'football/images/pitch3d/coach_home_pitch_surface.png' %}" alt="Campo de fútbol" aria-hidden="true" />
               {% if coach_pitch_players %}
                 {% for player in coach_pitch_players %}
                 <a
