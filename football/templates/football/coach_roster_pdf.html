@@ -6,7 +6,7 @@
     <title>Plantilla · {{ team_name }}</title>
     {% include 'football/includes/print_tokens_css.html' %}
     <style>
-      @page { size: A4 landscape; margin: 10mm; }
+      @page { size: A4 landscape; margin: 8mm; }
       :root {
         --club-primary: {{ pdf_palette.primary|default:"#0f7a35" }};
         --club-secondary: {{ pdf_palette.secondary|default:"#f4b400" }};
@@ -25,15 +25,15 @@
       }
       .sheet {
         display: grid;
-        gap: 10px;
+        gap: 8px;
       }
       .header {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
         gap: 12px;
         align-items: start;
-        padding: 12px 14px;
-        border-radius: 18px;
+        padding: 10px 12px;
+        border-radius: 16px;
         color: #ffffff;
         background: linear-gradient(135deg, var(--club-primary), var(--club-accent));
         border: 1px solid rgba(11, 18, 32, 0.08);
@@ -41,7 +41,7 @@
       }
       .brand-stack {
         display: grid;
-        gap: 10px;
+        gap: 8px;
       }
       .club-banner {
         display: flex;
@@ -70,9 +70,9 @@
         min-width: 0;
       }
       .crest {
-        width: 58px;
-        height: 58px;
-        border-radius: 16px;
+        width: 50px;
+        height: 50px;
+        border-radius: 14px;
         border: 1px solid rgba(255, 255, 255, 0.18);
         background: rgba(255, 255, 255, 0.95);
         object-fit: contain;
@@ -90,7 +90,7 @@
       }
       h1 {
         margin: 3px 0 0;
-        font-size: 20px;
+        font-size: 18px;
         letter-spacing: 0.08em;
         text-transform: uppercase;
         line-height: 1.1;
@@ -99,28 +99,28 @@
         margin: 4px 0 0;
         color: rgba(226, 232, 240, 0.88);
         font-weight: 700;
-        font-size: 11px;
+        font-size: 10px;
       }
       .mark {
-        width: 76px;
+        width: 68px;
         height: auto;
         opacity: 0.95;
       }
       .metrics {
         display: grid;
         grid-template-columns: repeat(5, minmax(0, 1fr));
-        gap: 8px;
+        gap: 6px;
       }
       .metric {
-        border-radius: 14px;
+        border-radius: 12px;
         border: 1px solid rgba(11, 18, 32, 0.08);
         background: linear-gradient(180deg, #ffffff, #f8fbff);
-        padding: 10px 10px 9px;
+        padding: 8px 9px 7px;
         box-shadow: 0 8px 18px rgba(11, 18, 32, 0.05);
       }
       .metric .label {
         display: block;
-        font-size: 9px;
+        font-size: 8px;
         text-transform: uppercase;
         letter-spacing: 0.16em;
         color: rgba(71, 85, 105, 0.9);
@@ -129,7 +129,7 @@
       .metric .value {
         display: block;
         margin-top: 4px;
-        font-size: 18px;
+        font-size: 16px;
         font-weight: 950;
         line-height: 1;
         color: #0b1220;
@@ -137,27 +137,29 @@
       .metric .hint {
         display: block;
         margin-top: 4px;
-        font-size: 9px;
+        font-size: 8px;
         color: rgba(71, 85, 105, 0.84);
       }
       .hero {
         display: grid;
-        grid-template-columns: minmax(0, 1.55fr) minmax(240px, 0.65fr);
-        gap: 10px;
+        grid-template-columns: minmax(0, 1.45fr) minmax(220px, 0.55fr);
+        gap: 8px;
         align-items: start;
+        page-break-inside: avoid;
+        break-inside: avoid;
       }
       .panel {
-        border-radius: 18px;
+        border-radius: 16px;
         border: 1px solid rgba(11, 18, 32, 0.08);
         background:
           radial-gradient(circle at top right, rgba(var(--club-secondary-rgb), 0.06), transparent 28%),
           #ffffff;
-        padding: 10px;
+        padding: 9px;
         box-shadow: 0 12px 28px rgba(11, 18, 32, 0.05);
       }
       .panel h2 {
         margin: 0;
-        font-size: 12px;
+        font-size: 11px;
         letter-spacing: 0.14em;
         text-transform: uppercase;
         color: var(--club-primary);
@@ -165,7 +167,7 @@
       .panel p {
         margin: 4px 0 0;
         color: rgba(71, 85, 105, 0.84);
-        font-size: 11px;
+        font-size: 10px;
         line-height: 1.45;
       }
       .field-title {
@@ -177,7 +179,7 @@
       .field-title .title-copy { min-width: 0; }
       .field-title .title-copy h2 {
         margin: 0;
-        font-size: 12px;
+        font-size: 11px;
         letter-spacing: 0.14em;
         text-transform: uppercase;
         color: var(--club-primary);
@@ -185,7 +187,7 @@
       .field-title .title-copy p {
         margin: 4px 0 0;
         color: rgba(71, 85, 105, 0.84);
-        font-size: 11px;
+        font-size: 10px;
         line-height: 1.45;
       }
       .field-badges {
@@ -203,7 +205,7 @@
         border: 1px solid rgba(var(--club-primary-rgb), 0.16);
         background: rgba(var(--club-primary-rgb), 0.06);
         color: var(--club-primary);
-        font-size: 8px;
+        font-size: 7px;
         font-weight: 900;
         letter-spacing: 0.12em;
         text-transform: uppercase;
@@ -211,30 +213,32 @@
       .pitch-stage {
         position: relative;
         margin-top: 8px;
-        min-height: 404px;
+        min-height: 260px;
         overflow: hidden;
-        border-radius: 18px;
+        border-radius: 16px;
         border: 1px solid rgba(11, 18, 32, 0.08);
         background:
           radial-gradient(circle at 50% 18%, rgba(var(--club-secondary-rgb), 0.08), transparent 24%),
           radial-gradient(circle at 50% 50%, rgba(var(--club-primary-rgb), 0.10), transparent 48%),
-          linear-gradient(180deg, rgba(247, 250, 252, 0.96), rgba(239, 244, 248, 0.96));
+          linear-gradient(180deg, rgba(247, 250, 252, 0.92), rgba(239, 244, 248, 0.92));
         box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55), 0 18px 36px rgba(11, 18, 32, 0.08);
+        page-break-inside: avoid;
+        break-inside: avoid;
       }
       .pitch-stage img {
         position: absolute;
         inset: 0;
         width: 100%;
         height: 100%;
-        object-fit: cover;
+        object-fit: contain;
         display: block;
       }
       .pitch-base {
-        opacity: 0.92;
-        filter: saturate(1.01) contrast(1.02) brightness(1.02);
+        opacity: 0.98;
+        filter: saturate(1.04) contrast(1.02) brightness(1.02);
       }
       .pitch-overlay {
-        opacity: 0.52;
+        opacity: 0.54;
         mix-blend-mode: multiply;
       }
       .pitch-stage::after {
@@ -248,19 +252,19 @@
       }
       .pitch-overlay-layer {
         position: absolute;
-        inset: 10px;
+        inset: 6px;
       }
       .field-card {
         position: absolute;
         transform: translate(-50%, -50%);
-        border-radius: 14px;
+        border-radius: 12px;
         border: 1px solid rgba(11, 18, 32, 0.12);
         background:
           radial-gradient(circle at top right, rgba(var(--club-secondary-rgb), 0.14), transparent 24%),
           rgba(7, 16, 30, 0.88);
         color: #f8fafc;
-        padding: 7px 8px 8px;
-        box-shadow: 0 16px 28px rgba(2, 6, 23, 0.16);
+        padding: 5px 6px 6px;
+        box-shadow: 0 12px 22px rgba(2, 6, 23, 0.14);
       }
       .field-card.is-available { border-color: rgba(47, 125, 50, 0.36); }
       .field-card.is-trial { border-color: rgba(244, 180, 0, 0.34); }
@@ -273,7 +277,7 @@
         gap: 8px;
       }
       .field-head strong {
-        font-size: 9px;
+        font-size: 8px;
         letter-spacing: 0.12em;
         text-transform: uppercase;
         color: #f8fafc;
@@ -287,12 +291,12 @@
         border: 1px solid rgba(56, 189, 248, 0.24);
         background: rgba(56, 189, 248, 0.12);
         color: #fff7dd;
-        font-size: 9px;
+        font-size: 8px;
         font-weight: 900;
       }
       .field-count {
         margin-top: 3px;
-        font-size: 8px;
+        font-size: 7px;
         letter-spacing: 0.12em;
         text-transform: uppercase;
         color: rgba(226, 232, 240, 0.74);
@@ -301,25 +305,25 @@
       .field-chip {
         margin-top: 7px;
         display: grid;
-        gap: 5px;
+        gap: 4px;
       }
       .mini-card {
         display: grid;
-        grid-template-columns: 22px minmax(0, 1fr);
-        gap: 6px;
+        grid-template-columns: 18px minmax(0, 1fr);
+        gap: 5px;
         align-items: center;
-        padding: 4px 5px;
-        border-radius: 12px;
+        padding: 3px 4px;
+        border-radius: 10px;
         border: 1px solid rgba(148, 163, 184, 0.14);
         background: rgba(255, 255, 255, 0.04);
       }
       .mini-num {
-        width: 22px;
-        height: 22px;
+        width: 18px;
+        height: 18px;
         border-radius: 999px;
         display: grid;
         place-items: center;
-        font-size: 9px;
+        font-size: 8px;
         font-weight: 950;
         color: #fde68a;
         border: 1px solid rgba(250, 204, 21, 0.5);
@@ -328,7 +332,7 @@
       .mini-copy { min-width: 0; }
       .mini-name {
         display: block;
-        font-size: 8px;
+        font-size: 7px;
         letter-spacing: 0.08em;
         text-transform: uppercase;
         font-weight: 950;
@@ -342,7 +346,7 @@
         align-items: center;
         gap: 4px;
         margin-top: 2px;
-        font-size: 7px;
+        font-size: 6px;
         letter-spacing: 0.11em;
         text-transform: uppercase;
         color: rgba(226, 232, 240, 0.72);
@@ -350,11 +354,11 @@
       .mini-state {
         display: inline-flex;
         align-items: center;
-        min-height: 16px;
+        min-height: 14px;
         margin-top: 3px;
         padding: 0 5px;
         border-radius: 999px;
-        font-size: 7px;
+        font-size: 6px;
         font-weight: 900;
         letter-spacing: 0.12em;
         text-transform: uppercase;
@@ -395,16 +399,16 @@
       .legend-row.is-muted { border-color: rgba(148, 163, 184, 0.16); background: rgba(148, 163, 184, 0.06); }
       .totals-shell {
         display: grid;
-        gap: 10px;
-        padding: 11px;
-        border-radius: 18px;
+        gap: 8px;
+        padding: 10px;
+        border-radius: 16px;
         border: 1px solid rgba(11, 18, 32, 0.08);
         background: #f8fafc;
         box-shadow: 0 12px 26px rgba(11, 18, 32, 0.05);
       }
       .totals-shell h2 {
         margin: 0;
-        font-size: 11px;
+        font-size: 10px;
         letter-spacing: 0.14em;
         text-transform: uppercase;
         color: var(--club-primary);
@@ -412,42 +416,42 @@
       .totals-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 8px;
+        gap: 6px;
       }
       .total-card {
-        border-radius: 14px;
+        border-radius: 12px;
         border: 1px solid rgba(11, 18, 32, 0.08);
         background: #ffffff;
-        padding: 9px 10px;
+        padding: 8px 9px;
       }
       .total-card .kicker {
         color: rgba(71, 85, 105, 0.82);
-        font-size: 8px;
+        font-size: 7px;
         letter-spacing: 0.14em;
       }
       .total-card strong {
         display: block;
         margin-top: 4px;
-        font-size: 14px;
+        font-size: 13px;
         color: #0b1220;
       }
       .total-card .meta {
         margin-top: 4px;
         color: rgba(71, 85, 105, 0.88);
-        font-size: 8px;
+        font-size: 7px;
         line-height: 1.3;
       }
       .sections {
         display: grid;
-        gap: 10px;
+        gap: 8px;
       }
       .group-card {
-        border-radius: 16px;
+        border-radius: 14px;
         border: 1px solid rgba(11, 18, 32, 0.08);
         background:
           radial-gradient(circle at top right, rgba(var(--club-secondary-rgb), 0.05), transparent 25%),
           #ffffff;
-        padding: 10px;
+        padding: 9px;
         break-inside: avoid;
         page-break-inside: avoid;
         box-shadow: 0 10px 22px rgba(11, 18, 32, 0.05);
@@ -460,13 +464,13 @@
       }
       .group-title h3 {
         margin: 0;
-        font-size: 12px;
+        font-size: 11px;
         letter-spacing: 0.14em;
         text-transform: uppercase;
         color: var(--club-primary);
       }
       .group-title .meta {
-        font-size: 10px;
+        font-size: 9px;
         color: rgba(71, 85, 105, 0.82);
         font-weight: 700;
       }
@@ -476,19 +480,19 @@
         margin-top: 8px;
       }
       th, td {
-        padding: 6px 6px;
+        padding: 5px 5px;
         border-bottom: 1px solid rgba(148, 163, 184, 0.12);
         text-align: left;
         vertical-align: top;
       }
       th {
-        font-size: 9px;
+        font-size: 8px;
         letter-spacing: 0.14em;
         text-transform: uppercase;
         color: rgba(71, 85, 105, 0.88);
       }
       td {
-        font-size: 10px;
+        font-size: 9px;
         color: #0b1220;
       }
       .player-name {
@@ -501,7 +505,7 @@
         padding: 0 6px;
         border-radius: 999px;
         border: 1px solid rgba(148, 163, 184, 0.18);
-        font-size: 9px;
+        font-size: 8px;
         font-weight: 900;
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -514,7 +518,7 @@
       .field-summary-note {
         margin: 0;
         color: rgba(71, 85, 105, 0.82);
-        font-size: 9px;
+        font-size: 8px;
         letter-spacing: 0.10em;
         text-transform: uppercase;
       }
@@ -522,7 +526,7 @@
         display: flex;
         justify-content: space-between;
         gap: 12px;
-        font-size: 10px;
+        font-size: 9px;
         color: rgba(71, 85, 105, 0.82);
         padding-top: 2px;
       }

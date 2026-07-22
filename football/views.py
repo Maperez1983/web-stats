@@ -33176,13 +33176,13 @@ def coach_roster_pdf(request):
 
     static_base_dir = Path(settings.BASE_DIR) / 'static'
     pitch_src = (
-        _file_as_data_uri(static_base_dir / 'football' / 'images' / 'pitch3d' / 'stadium_taskboard_top_h.png')
+        _file_as_data_uri(static_base_dir / 'football' / 'images' / 'pitch3d' / 'grass_premium_albedo.png')
         or _file_as_data_uri(static_base_dir / 'football' / 'campo-futbol-fallback.jpg')
         or _file_as_data_uri(static_base_dir / 'football' / 'campo-futbol.jpg')
         or request.build_absolute_uri(static('football/campo-futbol.jpg'))
     )
     pitch_overlay_src = (
-        _file_as_data_uri(static_base_dir / 'football' / 'images' / 'pitch3d' / 'stadium_taskboard_overlay_h.png')
+        _file_as_data_uri(static_base_dir / 'football' / 'images' / 'surfaces' / 'references' / 'football_pitch_metric_reference.svg')
         or ''
     )
     crest_src = ''
