@@ -358,6 +358,9 @@ from football.models import (
     ChunkedRivalVideoUpload,
     Competition,
     ConvocationRecord,
+    ScoutingFollowUp,
+    ScoutingReport,
+    ScoutingTarget,
     CustomMetric,
     DataSource,
     Group,
@@ -31650,6 +31653,225 @@ def coach_abp_board_page(request):
             "players": players,
             "team_name": primary_team.display_name if primary_team else "Equipo principal",
             "can_manage_workspace": can_manage_workspace,
+        },
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def scouting_board_page(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    workspace = _get_active_workspace(request)
+    active_team = _get_primary_team_for_request(request)
+    can_manage_workspace = bool(_can_manage_workspace(request.user, workspace)) if workspace else bool(
+        _can_access_platform(request.user)
+    )
+    feedback = ""
+    error = ""
+
+    if request.method == "POST" and can_manage_workspace and workspace:
+        action = str(request.POST.get("action") or "").strip().lower()
+        target_id = _parse_int(request.POST.get("target_id"))
+        try:
+            if action == "create":
+                subject_name = _sanitize_task_text(
+                    str(request.POST.get("subject_name") or "").strip(), multiline=False, max_len=160
+                )
+                if not subject_name:
+                    raise ValueError("El nombre es obligatorio.")
+                target_team_name = _sanitize_task_text(
+                    str(request.POST.get("subject_team_name") or "").strip(), multiline=False, max_len=160
+                )
+                position = _sanitize_task_text(str(request.POST.get("position") or "").strip(), multiline=False, max_len=60)
+                dominant_foot = _sanitize_task_text(
+                    str(request.POST.get("dominant_foot") or "").strip(), multiline=False, max_len=16
+                )
+                birth_date = parse_date(str(request.POST.get("birth_date") or "").strip() or "") or None
+                priority = str(request.POST.get("priority") or ScoutingTarget.PRIORITY_MEDIUM).strip().lower()
+                if priority not in {choice[0] for choice in ScoutingTarget.PRIORITY_CHOICES}:
+                    priority = ScoutingTarget.PRIORITY_MEDIUM
+                status = str(request.POST.get("status") or "").strip().lower()
+                if status not in {choice[0] for choice in ScoutingTarget.STATUS_CHOICES}:
+                    status = ScoutingTarget.STATUS_WATCHLIST if request.POST.get("available_for_coach_tools") else ScoutingTarget.STATUS_TARGET
+                available_for_coach_tools = bool(request.POST.get("available_for_coach_tools"))
+                target, _created = ScoutingTarget.objects.get_or_create(
+                    workspace=workspace,
+                    player=None,
+                    subject_name=subject_name,
+                    defaults={
+                        "subject_team_name": target_team_name,
+                        "position": position,
+                        "dominant_foot": dominant_foot,
+                        "birth_date": birth_date,
+                        "status": status,
+                        "available_for_coach_tools": available_for_coach_tools,
+                        "priority": priority,
+                        "created_by": request.user,
+                        "assigned_to": request.user if can_manage_workspace else None,
+                    },
+                )
+                if not _created:
+                    target.subject_team_name = target_team_name
+                    target.position = position
+                    target.dominant_foot = dominant_foot
+                    target.birth_date = birth_date
+                    target.status = status
+                    target.available_for_coach_tools = available_for_coach_tools
+                    target.priority = priority
+                    target.assigned_to = request.user if can_manage_workspace else target.assigned_to
+                    target.save(update_fields=[
+                        "subject_team_name",
+                        "position",
+                        "dominant_foot",
+                        "birth_date",
+                        "status",
+                        "available_for_coach_tools",
+                        "priority",
+                        "assigned_to",
+                        "updated_at",
+                    ])
+                feedback = "Seguimiento creado."
+            elif action == "delete-target" and target_id:
+                target = ScoutingTarget.objects.filter(id=target_id, workspace=workspace).first()
+                if target:
+                    target.delete()
+                    feedback = "Seguimiento eliminado."
+            else:
+                raise ValueError("Acción no reconocida.")
+        except Exception as exc:
+            error = str(exc)
+
+    items_qs = ScoutingTarget.objects.none()
+    if workspace:
+        items_qs = (
+            ScoutingTarget.objects.filter(workspace=workspace)
+            .select_related("player", "player__team", "assigned_to", "created_by")
+            .exclude(status=ScoutingTarget.STATUS_DISCARDED)
+            .order_by("-priority", "status", "-updated_at", "-id")
+        )
+        if active_team:
+            items_qs = items_qs.filter(Q(player__team=active_team) | Q(player__isnull=True))
+    search_filter = str(request.GET.get("q") or "").strip()
+    status_filter = str(request.GET.get("status") or "all").strip().lower()
+    priority_filter = str(request.GET.get("priority") or "all").strip().lower()
+    assignment_filter = str(request.GET.get("assignment") or "all").strip().lower()
+    if search_filter:
+        items_qs = items_qs.filter(
+            Q(subject_name__icontains=search_filter)
+            | Q(subject_team_name__icontains=search_filter)
+            | Q(position__icontains=search_filter)
+        )
+    if status_filter != "all":
+        items_qs = items_qs.filter(status=status_filter)
+    if priority_filter != "all":
+        items_qs = items_qs.filter(priority=priority_filter)
+    if assignment_filter == "linked":
+        items_qs = items_qs.filter(player__isnull=False)
+    elif assignment_filter == "available":
+        items_qs = items_qs.filter(available_for_coach_tools=True)
+    items = list(items_qs[:200])
+    total_targets = len(items)
+    active_targets = sum(1 for item in items if item.status in {ScoutingTarget.STATUS_ACTIVE, ScoutingTarget.STATUS_WATCHLIST})
+    review_targets = sum(1 for item in items if item.status == ScoutingTarget.STATUS_REVIEW)
+    urgent_targets = sum(1 for item in items if item.priority == ScoutingTarget.PRIORITY_URGENT)
+    return render(
+        request,
+        "football/scouting_board.html",
+        {
+            "active_team": active_team,
+            "workspace": workspace,
+            "can_manage_workspace": can_manage_workspace,
+            "items": items,
+            "total_targets": total_targets,
+            "active_targets": active_targets,
+            "review_targets": review_targets,
+            "urgent_targets": urgent_targets,
+            "search_filter": search_filter,
+            "status_filter": status_filter,
+            "priority_filter": priority_filter,
+            "assignment_filter": assignment_filter,
+            "feedback": feedback,
+            "error": error,
+            "status_choices": ScoutingTarget.STATUS_CHOICES,
+            "priority_choices": ScoutingTarget.PRIORITY_CHOICES,
+        },
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def scouting_target_detail_page(request, target_id):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    workspace = _get_active_workspace(request)
+    active_team = _get_primary_team_for_request(request)
+    can_manage_workspace = bool(_can_manage_workspace(request.user, workspace)) if workspace else bool(
+        _can_access_platform(request.user)
+    )
+    target = (
+        ScoutingTarget.objects.select_related("player", "player__team", "assigned_to", "created_by")
+        .prefetch_related("reports", "followups")
+        .filter(id=target_id)
+        .first()
+    )
+    if not target or (workspace and target.workspace_id != workspace.id):
+        raise Http404("Seguimiento no encontrado")
+    feedback = ""
+    error = ""
+
+    if request.method == "POST" and can_manage_workspace:
+        action = str(request.POST.get("action") or "").strip().lower()
+        try:
+            if action == "delete-target":
+                target.delete()
+                return redirect("scouting-board")
+            if action == "promote-to-player":
+                player = target.player
+                if player is None:
+                    team = active_team or getattr(target.workspace, "primary_team", None)
+                    if team is None:
+                        raise ValueError("No hay equipo activo para crear la ficha del jugador.")
+                    player, _created = Player.objects.get_or_create(
+                        team=team,
+                        name=target.display_name,
+                        defaults={
+                            "full_name": target.display_name,
+                            "origin_team": target.subject_team_name,
+                            "position": target.position,
+                            "dominant_foot": target.dominant_foot,
+                            "birth_date": target.birth_date,
+                            "is_active": True,
+                        },
+                    )
+                target.player = player
+                target.available_for_coach_tools = True
+                if target.status != ScoutingTarget.STATUS_SIGNED:
+                    target.status = ScoutingTarget.STATUS_ACTIVE
+                target.save(update_fields=["player", "available_for_coach_tools", "status", "updated_at"])
+                feedback = "El seguimiento ahora queda enlazado a plantilla."
+        except Exception as exc:
+            error = str(exc)
+
+    reports = list(target.reports.select_related("created_by").order_by("-observed_on", "-created_at", "-id")[:12])
+    open_followups = list(target.followups.select_related("created_by").filter(is_done=False)[:12])
+    done_followups = list(target.followups.select_related("created_by").filter(is_done=True)[:12])
+    player_detail_url = reverse("player-detail", args=[target.player_id]) if target.player_id else ""
+    return render(
+        request,
+        "football/scouting_target_detail.html",
+        {
+            "target": target,
+            "reports": reports,
+            "open_followups": open_followups,
+            "done_followups": done_followups,
+            "player_detail_url": player_detail_url,
+            "active_team": active_team,
+            "can_manage_workspace": can_manage_workspace,
+            "feedback": feedback,
+            "error": error,
         },
     )
 
