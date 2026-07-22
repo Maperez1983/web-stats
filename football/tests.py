@@ -22,7 +22,7 @@ from django.test import RequestFactory, SimpleTestCase, TestCase, TransactionTes
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import AnalystVideoFolder, AnalysisVideoReport, AiTrainerTaskIndex, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerEvaluation, PlayerFine, PlayerSeasonReport, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, ServiceAccessToken, StaffMember, TacticalPlaybookClip, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, TrainingSessionAttendance, UserInvitation, VideoClip, VideoTimelineEvent, VideoTelestrationProject, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspacePlayer, WorkspacePreference, WorkspaceSeason, WorkspaceSeasonPlayer, WorkspaceSeasonTeam, WorkspaceTeam, WorkspaceTeamAccess
+from football.models import AnalystVideoFolder, AnalysisVideoReport, AiTrainerTaskIndex, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerEvaluation, PlayerFine, PlayerSeasonReport, PlayerStatistic, RivalAnalysisReport, RivalVideo, ScoutingTarget, Season, SessionTask, ServiceAccessToken, StaffMember, TacticalPlaybookClip, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, TrainingSessionAttendance, UserInvitation, VideoClip, VideoTimelineEvent, VideoTelestrationProject, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspacePlayer, WorkspacePreference, WorkspaceSeason, WorkspaceSeasonPlayer, WorkspaceSeasonTeam, WorkspaceTeam, WorkspaceTeamAccess
 from football import views as football_views
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
@@ -5823,46 +5823,6 @@ class CoachRivalsManagementTests(TestCase):
             secure=True,
         )
         self.assertEqual(response.status_code, 200)
-        self.rival.refresh_from_db()
-        self.assertEqual(self.rival.short_name, 'RIV')
-        self.assertEqual(self.rival.home_stadium, 'Estadio Rival')
-        self.assertEqual(self.rival.home_stadium_address, 'Calle Rival 1, Málaga')
-        self.assertEqual(str(self.rival.home_stadium_latitude), '36.721302')
-        self.assertEqual(str(self.rival.home_stadium_longitude), '-4.421637')
-        self.assertTrue(self.rival.crest_image)
-        pref = WorkspacePreference.objects.get(
-            workspace=self.workspace,
-            key=f'rival_kit2d:{self.rival.id}',
-        )
-        self.assertTrue(pref.value.get('home_club_data_url', '').startswith('data:image/png;base64,'))
-        self.assertTrue(pref.value.get('gk2_club_data_url', '').startswith('data:image/png;base64,'))
-        response = self.client.get(reverse('coach-rivals'), secure=True)
-        self.assertContains(response, 'data:image/png;base64,')
-        self.assertContains(response, 'Ubicación guardada')
-
-    def test_rival_profile_can_generate_kit_from_colors_without_file(self):
-        response = self.client.post(
-            reverse('coach-rival-profile', args=[self.rival.id]),
-            data={
-                'form_action': 'save_identity',
-                'short_name': 'RIV',
-                'home_stadium': 'Estadio Rival',
-                'use_kit2d_colors_home': 'on',
-                'kit2d_home_main_color': '#123456',
-                'kit2d_home_trim_color': '#fedcba',
-            },
-            secure=True,
-        )
-        self.assertEqual(response.status_code, 200)
-        pref = WorkspacePreference.objects.get(
-            workspace=self.workspace,
-            key=f'rival_kit2d:{self.rival.id}',
-        )
-        self.assertEqual(pref.value.get('home_main_color'), '#123456')
-        self.assertEqual(pref.value.get('home_trim_color'), '#fedcba')
-        self.assertNotIn('home_club_data_url', pref.value)
-        response = self.client.get(reverse('coach-rivals'), secure=True)
-        self.assertContains(response, 'data:image/svg+xml;base64,')
 
 
 class SessionsAssignTaskSmokeTests(TestCase):

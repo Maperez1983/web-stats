@@ -31960,6 +31960,53 @@ def scouting_target_detail_page(request, target_id):
             if action == "delete-target":
                 target.delete()
                 return redirect("scouting-board")
+            if action == "save-target":
+                subject_name = _sanitize_task_text(
+                    str(request.POST.get("subject_name") or "").strip(), multiline=False, max_len=160
+                )
+                if not subject_name:
+                    raise ValueError("El nombre es obligatorio.")
+                target.subject_name = subject_name
+                target.subject_team_name = _sanitize_task_text(
+                    str(request.POST.get("subject_team_name") or "").strip(), multiline=False, max_len=160
+                )
+                target.position = _sanitize_task_text(str(request.POST.get("position") or "").strip(), multiline=False, max_len=60)
+                target.dominant_foot = _sanitize_task_text(
+                    str(request.POST.get("dominant_foot") or "").strip(), multiline=False, max_len=16
+                )
+                target.birth_date = parse_date(str(request.POST.get("birth_date") or "").strip() or "") or None
+                target.status = str(request.POST.get("status") or target.status).strip().lower()
+                if target.status not in {choice[0] for choice in ScoutingTarget.STATUS_CHOICES}:
+                    target.status = ScoutingTarget.STATUS_WATCHLIST if request.POST.get("available_for_coach_tools") else ScoutingTarget.STATUS_TARGET
+                target.available_for_coach_tools = bool(request.POST.get("available_for_coach_tools"))
+                target.priority = str(request.POST.get("priority") or target.priority).strip().lower()
+                if target.priority not in {choice[0] for choice in ScoutingTarget.PRIORITY_CHOICES}:
+                    target.priority = ScoutingTarget.PRIORITY_MEDIUM
+                target.assigned_to_id = _parse_int(request.POST.get("assigned_to_id"))
+                target.next_review_on = parse_date(str(request.POST.get("next_review_on") or "").strip() or "") or None
+                target.budget_note = _sanitize_task_text(
+                    str(request.POST.get("budget_note") or "").strip(), multiline=False, max_len=160
+                )
+                target.summary = _sanitize_task_text(str(request.POST.get("summary") or "").strip(), multiline=True, max_len=12000)
+                target.save(
+                    update_fields=[
+                        "subject_name",
+                        "subject_team_name",
+                        "position",
+                        "dominant_foot",
+                        "birth_date",
+                        "status",
+                        "available_for_coach_tools",
+                        "priority",
+                        "assigned_to",
+                        "next_review_on",
+                        "budget_note",
+                        "summary",
+                        "updated_at",
+                    ]
+                )
+                feedback = "Seguimiento guardado."
+                return redirect(f"{reverse('scouting-target-detail', args=[target.id])}?saved=1")
             if action == "promote-to-player":
                 player = target.player
                 if player is None:
