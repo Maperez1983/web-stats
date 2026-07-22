@@ -654,6 +654,158 @@
 	        align-items: baseline;
 	        min-width: 0;
 	      }
+	      .fm-attributes-shell {
+	        display: grid;
+	        gap: 0.9rem;
+	      }
+	      .fm-attributes-header {
+	        display: flex;
+	        justify-content: space-between;
+	        gap: 0.85rem;
+	        align-items: flex-start;
+	        flex-wrap: wrap;
+	        border-radius: 1rem;
+	        border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28));
+	        background: rgba(2, 6, 23, 0.08);
+	        padding: 0.9rem 1rem;
+	      }
+	      .fm-attributes-header h3 {
+	        margin: 0;
+	        font-size: 0.82rem;
+	        letter-spacing: 0.14em;
+	        text-transform: uppercase;
+	      }
+	      .fm-attributes-header p {
+	        margin: 0.35rem 0 0;
+	        color: var(--prod-muted, rgba(15, 23, 42, 0.64));
+	        font-weight: 700;
+	      }
+	      .fm-summary {
+	        display: grid;
+	        justify-items: end;
+	        gap: 0.35rem;
+	      }
+	      .fm-summary strong {
+	        font-size: 1.6rem;
+	        line-height: 1;
+	        letter-spacing: -0.03em;
+	      }
+	      .fm-summary span {
+	        color: var(--prod-muted, rgba(15, 23, 42, 0.64));
+	        font-size: 0.72rem;
+	        letter-spacing: 0.14em;
+	        text-transform: uppercase;
+	        font-weight: 900;
+	      }
+	      .fm-attributes-grid {
+	        display: grid;
+	        grid-template-columns: minmax(260px, 0.9fr) minmax(0, 1.1fr);
+	        gap: 0.9rem;
+	        align-items: start;
+	      }
+	      @media (max-width: 900px) {
+	        .fm-attributes-grid { grid-template-columns: 1fr; }
+	      }
+	      .fm-radar-card,
+	      .fm-group-card {
+	        border-radius: 1rem;
+	        border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28));
+	        background: var(--prod-panel-flat, rgba(18, 30, 50, 0.94));
+	        padding: 0.95rem;
+	        box-shadow: var(--prod-shadow-md, 0 16px 36px rgba(0, 0, 0, 0.24));
+	      }
+	      .fm-groups {
+	        display: grid;
+	        gap: 0.75rem;
+	      }
+	      .fm-group-head {
+	        display: flex;
+	        justify-content: space-between;
+	        gap: 0.65rem;
+	        align-items: flex-start;
+	      }
+	      .fm-group-head h4 {
+	        margin: 0;
+	        font-size: 0.88rem;
+	        letter-spacing: 0.12em;
+	        text-transform: uppercase;
+	      }
+	      .fm-group-head p {
+	        margin: 0.28rem 0 0;
+	        color: var(--prod-muted, rgba(15, 23, 42, 0.64));
+	        font-weight: 700;
+	      }
+	      .fm-group-score {
+	        display: inline-flex;
+	        align-items: center;
+	        justify-content: center;
+	        min-width: 3.1rem;
+	        padding: 0.28rem 0.55rem;
+	        border-radius: 999px;
+	        border: 1px solid rgba(244, 180, 0, 0.28);
+	        background: rgba(244, 180, 0, 0.08);
+	        color: rgba(255, 242, 199, 0.96);
+	        font-weight: 950;
+	        letter-spacing: 0.06em;
+	      }
+	      .fm-rows {
+	        margin-top: 0.8rem;
+	        display: grid;
+	        gap: 0.7rem;
+	      }
+	      .fm-row {
+	        border-radius: 0.95rem;
+	        border: 1px solid rgba(144, 161, 185, 0.18);
+	        background: rgba(2, 6, 23, 0.08);
+	        padding: 0.7rem 0.75rem;
+	      }
+	      .fm-row-top {
+	        display: flex;
+	        justify-content: space-between;
+	        gap: 0.65rem;
+	        align-items: flex-start;
+	      }
+	      .fm-row-label {
+	        display: block;
+	        font-size: 0.72rem;
+	        letter-spacing: 0.12em;
+	        text-transform: uppercase;
+	        color: var(--prod-muted, rgba(15, 23, 42, 0.64));
+	        font-weight: 900;
+	      }
+	      .fm-row-display {
+	        display: block;
+	        margin-top: 0.15rem;
+	        color: var(--prod-text, #f5f7fa);
+	        font-weight: 900;
+	        font-size: 0.96rem;
+	      }
+	      .fm-row-top strong {
+	        color: var(--prod-text, #f5f7fa);
+	        font-size: 1.05rem;
+	        font-weight: 950;
+	        white-space: nowrap;
+	      }
+	      .fm-row-track {
+	        margin-top: 0.55rem;
+	        height: 0.56rem;
+	        border-radius: 999px;
+	        overflow: hidden;
+	        background: rgba(148, 163, 184, 0.16);
+	      }
+	      .fm-row-fill {
+	        display: block;
+	        width: calc(var(--fm-row-value, 0) * 5%);
+	        height: 100%;
+	        border-radius: inherit;
+	        background: linear-gradient(90deg, rgba(244, 180, 0, 0.92), rgba(47, 125, 50, 0.92));
+	      }
+	      .fm-row-hint {
+	        margin-top: 0.45rem;
+	        color: var(--prod-muted, rgba(15, 23, 42, 0.64));
+	        font-size: 0.82rem;
+	        line-height: 1.35;
+	      }
 	      .radar-trends {
 	        margin-top: 0.75rem;
 	        display: grid;
@@ -2239,43 +2391,90 @@
 
       <section class="card tab-pane" data-pane="attributes">
         <h2 style="margin-top:0;">Atributos</h2>
-        <p class="subtle">Resumen visual tipo Football Manager para leer el perfil del jugador de un vistazo.</p>
-        {% if card_radar_data and card_radar_data.polygon_points_svg %}
-          <div class="radar-grid" style="margin-top:0.9rem;">
-            <div class="radar-figure" aria-label="Radar de atributos">
-              <div class="radar-figure-wrap">
-                <svg viewBox="0 0 360 360" role="img" aria-label="Radar de atributos" focusable="false">
-                  <circle cx="180" cy="180" r="61.2" fill="none" stroke="rgba(226,232,240,0.32)" stroke-width="1.2"></circle>
-                  <circle cx="180" cy="180" r="122.4" fill="none" stroke="rgba(226,232,240,0.32)" stroke-width="1.2"></circle>
-                  {% if card_radar_data.axis_svg %}
-                    {% for ax in card_radar_data.axis_svg %}
-                      <line x1="180" y1="180" x2="{{ ax.axis_x }}" y2="{{ ax.axis_y }}" stroke="rgba(226,232,240,0.20)" stroke-width="1.1"></line>
+        <div class="fm-attributes-shell" style="margin-top:0.9rem;">
+          <div class="fm-attributes-header">
+            <div>
+              <h3>Lectura FM</h3>
+              <p>Escala 1-20 por áreas para comparar el perfil de forma consistente.</p>
+            </div>
+            <div class="fm-summary">
+              <span>Media de áreas</span>
+              <strong>{% if fm_attribute_radar_data.average %}{{ fm_attribute_radar_data.average }}/20{% else %}--{% endif %}</strong>
+            </div>
+          </div>
+          {% if fm_attribute_groups %}
+            <div class="fm-attributes-grid">
+              <div class="fm-radar-card">
+                <div class="radar-figure" aria-label="Radar de atributos">
+                  <div class="radar-figure-wrap">
+                    <svg viewBox="0 0 360 360" role="img" aria-label="Radar de atributos" focusable="false">
+                      <circle cx="180" cy="180" r="61.2" fill="none" stroke="rgba(226,232,240,0.32)" stroke-width="1.2"></circle>
+                      <circle cx="180" cy="180" r="122.4" fill="none" stroke="rgba(226,232,240,0.32)" stroke-width="1.2"></circle>
+                      {% if fm_attribute_radar_data.axis_svg %}
+                        {% for ax in fm_attribute_radar_data.axis_svg %}
+                          <line x1="180" y1="180" x2="{{ ax.axis_x }}" y2="{{ ax.axis_y }}" stroke="rgba(226,232,240,0.20)" stroke-width="1.1"></line>
+                        {% endfor %}
+                      {% endif %}
+                      {% if fm_attribute_radar_data.polygon_points_svg %}
+                        <polygon points="{{ fm_attribute_radar_data.polygon_points_svg }}" fill="rgba(244,180,0,0.24)" stroke="rgba(244,180,0,0.92)" stroke-width="2"></polygon>
+                      {% endif %}
+                    </svg>
+                  </div>
+                </div>
+                <div class="radar-legend" style="margin-top:0.75rem;">
+                  <h4>Radar FM</h4>
+                  <p>Resumen agregado de las áreas principales. Los valores son 1-20.</p>
+                  <ul class="radar-axes">
+                    {% for axis in fm_attribute_radar_data.axes %}
+                      <li>
+                        <span class="radar-dot"></span>
+                        <span class="radar-axis-label">{{ axis.label }}</span>
+                        <span class="radar-axis-value">{{ axis.display }}</span>
+                      </li>
                     {% endfor %}
-                  {% endif %}
-                  <polygon points="{{ card_radar_data.polygon_points_svg }}" fill="rgba(244,180,0,0.24)" stroke="rgba(244,180,0,0.92)" stroke-width="2"></polygon>
-                </svg>
+                  </ul>
+                </div>
+              </div>
+              <div class="fm-groups">
+                {% for group in fm_attribute_groups %}
+                  <article class="fm-group-card">
+                    <div class="fm-group-head">
+                      <div>
+                        <h4>{{ group.title }}</h4>
+                        <p>{{ group.summary }}</p>
+                      </div>
+                      <div class="fm-group-score">{% if group.average %}{{ group.average }}/20{% else %}--{% endif %}</div>
+                    </div>
+                    <div class="fm-rows">
+                      {% for row in group.rows %}
+                        <div class="fm-row">
+                          <div class="fm-row-top">
+                            <div>
+                              <span class="fm-row-label">{{ row.label }}</span>
+                              <span class="fm-row-display">{{ row.display }}</span>
+                            </div>
+                            <strong>{% if row.value %}{{ row.value }}/20{% else %}--{% endif %}</strong>
+                          </div>
+                          <div class="fm-row-track">
+                            <span class="fm-row-fill" style="--fm-row-value: {{ row.value|default:0 }};"></span>
+                          </div>
+                          {% if row.hint %}
+                            <div class="fm-row-hint">{{ row.hint }}</div>
+                          {% endif %}
+                        </div>
+                      {% endfor %}
+                    </div>
+                  </article>
+                {% endfor %}
               </div>
             </div>
-            <div class="radar-legend">
-              <h4>Valoración técnica</h4>
-              <p>Escala de lectura rápida con el mismo criterio que la tarjeta del jugador y el PDF.</p>
-              <ul class="radar-axes">
-                {% for axis in card_radar_data.axes %}
-                  <li>
-                    <span class="radar-dot"></span>
-                    <span class="radar-axis-label">{{ axis.key }}</span>
-                    <span class="radar-axis-value">{{ axis.display }}{% if axis.pct_rank %} · P{{ axis.pct_rank|floatformat:0 }}{% endif %}</span>
-                  </li>
-                {% endfor %}
-              </ul>
+          {% else %}
+            <div class="stat" style="margin-top:0.9rem;">
+              <div class="label">Sin datos</div>
+              <div class="value" style="font-size:1rem;">Aún no hay información suficiente para dibujar atributos.</div>
             </div>
-          </div>
-        {% else %}
-          <div class="stat" style="margin-top:0.9rem;">
-            <div class="label">Sin datos</div>
-            <div class="value" style="font-size:1rem;">Aún no hay información suficiente para dibujar atributos.</div>
-          </div>
-        {% endif %}
+          {% endif %}
+        </div>
       </section>
 
       <section class="card tab-pane" data-pane="injuries">

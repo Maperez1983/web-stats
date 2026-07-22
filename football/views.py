@@ -24170,6 +24170,119 @@ def _build_player_card_radar_data(detail_row, population_rows):
         return {"axes": axes, "polygon_points_svg": "", "labels_svg": [], "axis_svg": []}
 
 
+def _fm_scale_20(value, *, source_min=0.0, source_max=100.0):
+    """
+    Convierte un valor de origen a la escala Football Manager 1-20.
+    """
+    if value is None or value == "":
+        return None
+    try:
+        numeric = float(value)
+        source_min = float(source_min)
+        source_max = float(source_max)
+    except Exception:
+        return None
+    if source_max <= source_min:
+        return None
+    numeric = max(source_min, min(numeric, source_max))
+    pct = (numeric - source_min) / (source_max - source_min)
+    return max(1, min(20, int(round(1 + (pct * 19.0)))))
+
+
+def _fm_metric_row(label, value, *, source_max=100.0, source_min=0.0, display=None, hint="", tone="neutral", invert=False):
+    """
+    Una fila de atributo estilo FM con valor 1-20 y texto auxiliar.
+    """
+    scaled = _fm_scale_20(value, source_min=source_min, source_max=source_max)
+    if scaled is not None and invert:
+        scaled = max(1, min(20, 21 - int(scaled)))
+    if display is None:
+        if value is None or value == "":
+            display_text = "-"
+        elif isinstance(value, (int, float)) and float(value).is_integer():
+            display_text = f"{int(value)}"
+        else:
+            display_text = f"{value}"
+    else:
+        display_text = str(display)
+    return {
+        "label": str(label or ""),
+        "value": scaled,
+        "display": display_text,
+        "hint": str(hint or ""),
+        "tone": str(tone or "neutral"),
+    }
+
+
+def _fm_group_card(title, summary, rows):
+    values = [int(row.get("value") or 0) for row in (rows or []) if int(row.get("value") or 0) > 0]
+    average = int(round(sum(values) / len(values))) if values else 0
+    return {
+        "title": str(title or ""),
+        "summary": str(summary or ""),
+        "rows": list(rows or []),
+        "average": average,
+    }
+
+
+def _build_fm_attribute_radar_data(groups):
+    axes = []
+    for group in groups or []:
+        average = int(group.get("average") or 0)
+        axes.append(
+            {
+                "label": str(group.get("title") or ""),
+                "value": average,
+                "max": 20,
+                "display": f"{average}/20" if average else "-",
+            }
+        )
+    try:
+        import math as _math
+
+        cx = 180.0
+        cy = 180.0
+        radius = 140.0
+        points = []
+        axis_svg = []
+        for idx, value in enumerate(axes):
+            angle = (-90.0 + (idx * (360.0 / max(len(axes), 1)))) * (_math.pi / 180.0)
+            score = max(0.0, min(float(value.get("value") or 0) / 20.0, 1.0))
+            point_radius = radius * score
+            x = cx + (_math.cos(angle) * point_radius)
+            y = cy + (_math.sin(angle) * point_radius)
+            points.append(f"{x:.1f},{y:.1f}")
+            ax_x = cx + (_math.cos(angle) * radius)
+            ax_y = cy + (_math.sin(angle) * radius)
+            lr = 156.0
+            lx = cx + (_math.cos(angle) * lr)
+            ly = cy + (_math.sin(angle) * lr)
+            anchor = "middle"
+            if lx < cx - 10:
+                anchor = "start"
+            elif lx > cx + 10:
+                anchor = "end"
+            axis_svg.append(
+                {
+                    "axis_x": round(float(ax_x), 1),
+                    "axis_y": round(float(ax_y), 1),
+                    "label_x": round(max(24.0, min(float(lx), 336.0)), 1),
+                    "label_y": round(max(26.0, min(float(ly), 334.0)), 1),
+                    "text": str(value.get("label") or ""),
+                    "anchor": anchor,
+                    "baseline": "middle",
+                }
+            )
+        return {
+            "axes": axes,
+            "average": int(round(sum((int(axis.get("value") or 0) for axis in axes)) / len(axes))) if axes else 0,
+            "polygon_points_svg": " ".join(points),
+            "axis_svg": axis_svg,
+        }
+    except Exception:
+        return {"axes": axes, "average": 0, "polygon_points_svg": "", "axis_svg": []}
+
+
 def _build_staff_rating_radar_data(staff_report):
     """
     Radar fijo para los ratings 1-10 de la valoración del cuerpo técnico.
@@ -32081,6 +32194,78 @@ def scouting_target_detail_page(request, target_id):
         attribute_radar_data["polygon_points_svg"] = " ".join(points)
     except Exception:
         attribute_radar_data["polygon_points_svg"] = ""
+
+    fm_attribute_groups = [
+        _fm_group_card(
+            "Informe",
+            "Lectura principal del ojeador en escala 1-20.",
+            [
+                _fm_metric_row(
+                    "Global",
+                    latest_ratings["overall"],
+                    source_max=10,
+                    display=f"{latest_ratings['overall']}/10" if latest_report else "-",
+                    hint="Valoración global del informe.",
+                ),
+                _fm_metric_row(
+                    "Técnica",
+                    latest_ratings["technical"],
+                    source_max=10,
+                    display=f"{latest_ratings['technical']}/10" if latest_report else "-",
+                    hint="Lectura técnica del perfil.",
+                ),
+                _fm_metric_row(
+                    "Táctica",
+                    latest_ratings["tactical"],
+                    source_max=10,
+                    display=f"{latest_ratings['tactical']}/10" if latest_report else "-",
+                    hint="Interpretación táctica del jugador.",
+                ),
+                _fm_metric_row(
+                    "Físico",
+                    latest_ratings["physical"],
+                    source_max=10,
+                    display=f"{latest_ratings['physical']}/10" if latest_report else "-",
+                    hint="Capacidad física observada.",
+                ),
+            ],
+        ),
+        _fm_group_card(
+            "Perfil",
+            "Lectura complementaria del comportamiento observado.",
+            [
+                _fm_metric_row(
+                    "Mental",
+                    latest_ratings["mental"],
+                    source_max=10,
+                    display=f"{latest_ratings['mental']}/10" if latest_report else "-",
+                    hint="Concentración, ritmo mental y lectura.",
+                ),
+                _fm_metric_row(
+                    "Social",
+                    latest_ratings["social"],
+                    source_max=10,
+                    display=f"{latest_ratings['social']}/10" if latest_report else "-",
+                    hint="Encaje competitivo y comunicación.",
+                ),
+                _fm_metric_row(
+                    "Informes",
+                    len(reports),
+                    source_max=8,
+                    display=f"{len(reports)} informes",
+                    hint="Cuantos más informes, más sólida es la lectura.",
+                ),
+                _fm_metric_row(
+                    "Estado",
+                    10 if latest_report else 0,
+                    source_max=10,
+                    display="Último informe" if latest_report else "Sin informe",
+                    hint="Presencia de una observación reciente.",
+                ),
+            ],
+        ),
+    ]
+    fm_attribute_radar_data = _build_fm_attribute_radar_data(fm_attribute_groups)
     return render(
         request,
         "football/scouting_target_detail.html",
@@ -32098,6 +32283,8 @@ def scouting_target_detail_page(request, target_id):
             "position_choices": POSITION_CHOICES,
             "foot_choices": FOOT_CHOICES,
             "attribute_radar_data": attribute_radar_data,
+            "fm_attribute_groups": fm_attribute_groups,
+            "fm_attribute_radar_data": fm_attribute_radar_data,
         },
     )
 
@@ -66662,6 +66849,132 @@ def player_detail_page(request, player_id):
         except Exception:
             card_radar_data = {"axes": [], "polygon_points_svg": "", "axis_svg": []}
 
+        fm_attribute_groups = [
+            _fm_group_card(
+                "Técnica",
+                "Lectura de pase, tiro y limpieza en la ejecución.",
+                [
+                    _fm_metric_row(
+                        "Pase",
+                        _row_num(safe_stats, "passes_accuracy"),
+                        display=f"{_row_num(safe_stats, 'passes_accuracy'):.0f}%",
+                        hint="Precisión en la circulación.",
+                    ),
+                    _fm_metric_row(
+                        "Tiro",
+                        _row_num(safe_stats, "shots_accuracy"),
+                        display=f"{_row_num(safe_stats, 'shots_accuracy'):.0f}%",
+                        hint="Tiros entre los tres palos.",
+                    ),
+                    _fm_metric_row(
+                        "Éxito",
+                        _row_num(safe_stats, "success_rate"),
+                        display=f"{_row_num(safe_stats, 'success_rate'):.0f}%",
+                        hint="Éxito global de las acciones.",
+                    ),
+                    _fm_metric_row(
+                        "Calidad",
+                        player_percentiles.get("quality", 0),
+                        display=f"P{int(round(float(player_percentiles.get('quality', 0) or 0)))}",
+                        hint="Rendimiento ajustado por rol.",
+                    ),
+                ],
+            ),
+            _fm_group_card(
+                "Producción",
+                "Volumen, impacto y peso decisivo en el juego.",
+                [
+                    _fm_metric_row(
+                        "Acciones/90",
+                        player_percentiles.get("actions_per90", 0),
+                        display=f"P{int(round(float(player_percentiles.get('actions_per90', 0) or 0)))}",
+                        hint="Volumen medio de intervenciones.",
+                    ),
+                    _fm_metric_row(
+                        "Decisivas/90",
+                        player_percentiles.get("decisive_actions_per90", 0),
+                        display=f"P{int(round(float(player_percentiles.get('decisive_actions_per90', 0) or 0)))}",
+                        hint="Goles, asistencias y acciones clave.",
+                    ),
+                    _fm_metric_row(
+                        "Importancia",
+                        _row_num(safe_stats, "importance_score"),
+                        display=f"{_row_num(safe_stats, 'importance_score'):.0f}",
+                        hint="Peso competitivo dentro del equipo.",
+                    ),
+                    _fm_metric_row(
+                        "Influencia",
+                        _row_num(safe_stats, "influence_score"),
+                        display=f"{_row_num(safe_stats, 'influence_score'):.0f}",
+                        hint="Capacidad de condicionar el juego.",
+                    ),
+                ],
+            ),
+            _fm_group_card(
+                "Competitivo",
+                "Duelo, presencia y participación en el día a día.",
+                [
+                    _fm_metric_row(
+                        "Duelos",
+                        _row_num(safe_stats, "duel_rate"),
+                        display=f"{_row_num(safe_stats, 'duel_rate'):.0f}%",
+                        hint="Éxito en los duelos disputados.",
+                    ),
+                    _fm_metric_row(
+                        "Aéreos",
+                        _row_num(safe_stats, "aerial_rate"),
+                        display=f"{_row_num(safe_stats, 'aerial_rate'):.0f}%",
+                        hint="Presencia en el juego aéreo.",
+                    ),
+                    _fm_metric_row(
+                        "Participación",
+                        participation_pct,
+                        display=f"{participation_pct:.0f}%",
+                        hint="Minutos sobre el total posible.",
+                    ),
+                    _fm_metric_row(
+                        "Titularidad",
+                        starter_pct,
+                        display=f"{starter_pct:.0f}%",
+                        hint="Frecuencia de inicio en el once.",
+                    ),
+                ],
+            ),
+            _fm_group_card(
+                "Estado",
+                "Compromiso, continuidad y disponibilidad operativa.",
+                [
+                    _fm_metric_row(
+                        "Compromiso",
+                        attendance_completed_pct,
+                        display=f"{attendance_completed_pct:.0f}%",
+                        hint="Asistencia completada en la temporada.",
+                    ),
+                    _fm_metric_row(
+                        "Minutos",
+                        minute_ratio,
+                        display=f"{minute_ratio:.0f}%",
+                        hint="Minutos disputados sobre el máximo posible.",
+                    ),
+                    _fm_metric_row(
+                        "Partidos",
+                        participation_matches_pct,
+                        display=f"{participation_matches_pct:.0f}%",
+                        hint="Participación en las jornadas del equipo.",
+                    ),
+                    _fm_metric_row(
+                        "Disponibilidad",
+                        injury_days,
+                        source_max=max(60, int(injury_days or 0) + 1),
+                        display=f"{injury_days} días",
+                        hint="Más alto cuanto menor es la carga de baja.",
+                        invert=True,
+                    ),
+                ],
+            ),
+        ]
+        fm_attribute_radar_data = _build_fm_attribute_radar_data(fm_attribute_groups)
+
         return render(
             request,
             "football/player_detail.html",
@@ -66698,6 +67011,8 @@ def player_detail_page(request, player_id):
                 "player_license_url": player_license_url,
                 "player_team_crest_url": player_team_crest_url,
                 "general_kpis": general_kpis,
+                "fm_attribute_groups": fm_attribute_groups,
+                "fm_attribute_radar_data": fm_attribute_radar_data,
                 "team_points": team_points,
                 "team_rank": team_rank,
                 "season_label": season_label,
