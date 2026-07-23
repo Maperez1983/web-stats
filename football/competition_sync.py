@@ -3,6 +3,7 @@ import logging
 from django.utils import timezone
 
 from .dashboard_cache import invalidate_team_dashboard_caches
+from .preferente_competition_services import fetch_preferente_standings
 from .match_payload_services import (
     build_local_next_match_payload,
     build_workspace_schedule_payload,
@@ -135,6 +136,22 @@ def sync_workspace_competition_context(workspace, primary_team=None):
             except Exception:
                 logger.exception('No se pudo sincronizar clasificación Universo para workspace %s', getattr(workspace, 'id', None))
                 standings_payload = []
+    elif provider_key == WorkspaceCompetitionContext.PROVIDER_PREFERENTE:
+        # La Preferente: la clasificación viene de la ficha de equipo (external_source_url o
+        # Team.preferente_url). El spike confirmó que es legible servidor->web.
+        pref_url = str(getattr(context, 'external_source_url', '') or '').strip() or str(
+            getattr(primary_team, 'preferente_url', '') or ''
+        ).strip()
+        if pref_url:
+            try:
+                pref_rows, _pref_meta = fetch_preferente_standings(pref_url)
+                if pref_rows:
+                    standings_payload = pref_rows
+            except Exception:
+                logger.exception(
+                    'No se pudo sincronizar clasificación La Preferente para workspace %s',
+                    getattr(workspace, 'id', None),
+                )
     if not standings_payload:
         standings_payload = resolve_standings_for_team(
             primary_team,

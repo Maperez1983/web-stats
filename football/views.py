@@ -6357,6 +6357,12 @@ def _competition_payload_for_team(workspace, primary_team, *, allow_auto_sync: b
             and context_group_key
             and (context_status == WorkspaceCompetitionContext.STATUS_READY or has_snapshot)
         )
+    elif provider_key == WorkspaceCompetitionContext.PROVIDER_PREFERENTE:
+        # La Preferente no usa external_group_key/external_team_key (se vincula por preferente_url);
+        # basta un snapshot con datos de una sincronización previa para servir la clasificación.
+        context_ready = bool(
+            context_status == WorkspaceCompetitionContext.STATUS_READY or has_snapshot
+        )
     else:
         context_ready = bool(
             provider_key
@@ -6482,6 +6488,13 @@ def _competition_payload_for_team(workspace, primary_team, *, allow_auto_sync: b
                     snapshot.save(update_fields=["next_match_payload", "updated_at"])
             except Exception:
                 pass
+    # La Preferente: la clasificación en vivo la deja el sync en el snapshot; preferimos ese payload.
+    if provider_key == WorkspaceCompetitionContext.PROVIDER_PREFERENTE and snapshot:
+        if isinstance(snapshot.standings_payload, list) and snapshot.standings_payload:
+            standings_payload = snapshot.standings_payload
+        snapshot_next_payload = snapshot.next_match_payload if isinstance(snapshot.next_match_payload, dict) else {}
+        if snapshot_next_payload and _next_match_payload_is_reliable(snapshot_next_payload):
+            normalized_next_match_payload = snapshot_next_payload
     return {
         "standings": standings_payload or [],
         "next_match": normalized_next_match_payload or {},
