@@ -11,7 +11,7 @@ from types import SimpleNamespace
 from django.contrib.auth.decorators import login_required
 from django.core.files.base import ContentFile
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseNotAllowed, JsonResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -378,18 +378,11 @@ def session_task_editor_pro_page(request, task_id):
     task, forbidden = _editor_task_or_404(request, task_id)
     if forbidden:
         return forbidden
-    payload = _editor_document_payload(request, task)
-    static_build_id = str(_static_build_id() or "").strip()
-    context = {
-        "task": task,
-        "detail_url": reverse("session-task-detail", args=[int(task.id)]),
-        "builder_url": reverse("sessions-task-edit", args=[int(task.id)]),
-        "editor_document_api_url": reverse("session-task-editor-document-api", args=[int(task.id)]),
-        "document_payload_json": json.dumps(payload, ensure_ascii=False),
-        "static_build_id": static_build_id,
-        **_local_editor_lab_context(request, task, current_mode="konva"),
-    }
-    return render(request, "football/session_task_editor_pro.html", context)
+    # El editor-pro (Konva/React) no tiene frontend construido en producción
+    # (falta football/static/football/editor-pro/tactical-editor.js), y con
+    # manifest estricto el {% static %} reventaba en 500. Hasta que exista el
+    # build, redirigimos al editor 2D operativo (Fabric).
+    return redirect(reverse("sessions-task-edit", args=[int(task.id)]))
 
 
 @login_required

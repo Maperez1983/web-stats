@@ -17725,6 +17725,7 @@ def share_convocation_pdf_create(request):
         return JsonResponse({"error": "No se pudo crear el enlace."}, status=500)
 
 
+@pdf_view_guard
 def share_convocation_pdf_page(request, token):
     """
     Endpoint público para el PDF de convocatoria compartido por token.
@@ -25614,6 +25615,7 @@ def _pick_player_season_report(primary_team, player, *, season_labels, scope, to
     return reports[0]
 
 
+@pdf_view_guard
 @login_required
 def match_staff_report_pdf(request):
     if not _can_edit_match_actions(request.user):
@@ -33467,6 +33469,7 @@ def scouting_target_detail_page(request, target_id):
     )
 
 
+@pdf_view_guard
 @login_required
 def scouting_target_pdf(request, target_id):
     forbidden = _forbid_if_no_coach_access(request.user)
@@ -59441,6 +59444,12 @@ def _video_studio_ai_space_occupancy_from_track_payload(track_payload: dict, *, 
 
 
 def _video_studio_ai_track_run_payload(*, video, clip, data: dict, job_id=None) -> dict:
+    import importlib.util
+    if importlib.util.find_spec("torch") is None or importlib.util.find_spec("ultralytics") is None:
+        raise ValueError(
+            "La IA de vídeo local (seguimiento YOLO) no está instalada en este servidor. "
+            "Requiere las dependencias opcionales de requirements-ai.txt (torch + ultralytics)."
+        )
     try:
         src = Path(str(video.video.path))
     except Exception:

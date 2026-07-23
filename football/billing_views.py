@@ -724,13 +724,13 @@ def billing_checkout_session_api(request):
         for module_key in selected_modules:
             pid = (price_map.get((module_key, interval)) or '').strip()
             if not pid:
-                return api_error(f'Módulo no disponible: {module_key}.', status=500, code='module_price_missing')
+                return api_error(f'Módulo no disponible: {module_key}.', status=503, code='module_price_missing')
             line_items.append({'price': pid, 'quantity': 1})
 
     if not uses_modular:
         price_id = (price_map.get((plan_key, interval)) or '').strip()
         if not price_id:
-            return api_error('Plan no disponible (missing price id).', status=500, code='plan_price_missing')
+            return api_error('Plan no disponible (missing price id).', status=503, code='plan_price_missing')
         line_items = [{'price': price_id, 'quantity': 1}]
 
     if is_subscription_active(workspace):

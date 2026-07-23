@@ -55,9 +55,9 @@ def club_season_wizard(request):
     if not workspace_context.can_manage_workspace(request.user, workspace):
         return HttpResponse('No tienes permisos para cerrar la temporada de este club.', status=403)
 
-    step = str(request.GET.get('step') or '').strip().lower() or 'close'
+    step = str(request.GET.get('step') or '').strip().lower()
     if step not in {'close', 'reports', 'new', 'questionnaire'}:
-        step = 'close'
+        step = ''  # default se fija abajo, cuando sabemos si hay temporada activa
 
     # Temporada activa (si existe).
     active_club_season = None
@@ -67,6 +67,11 @@ def club_season_wizard(request):
             active_club_season = None
     except Exception:
         active_club_season = None
+
+    # Club nuevo (sin temporada activa): arrancar en 'new' en vez de 'close'
+    # (que daba "No hay temporada activa" y parecía roto).
+    if not step:
+        step = 'close' if active_club_season else 'new'
 
     def _club_group_workspaces(root_workspace):
         group = [root_workspace]
