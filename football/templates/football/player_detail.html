@@ -1623,6 +1623,14 @@
                   {% endfor %}
                 </select>
               </label>
+              <label>Tono de piel (avatar)
+                <select name="skin_tone">
+                  <option value="" {% if not player.skin_tone %}selected{% endif %}>Automático</option>
+                  {% for value,label in skin_tone_choices %}
+                  <option value="{{ value }}" {% if player.skin_tone == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
               <label>Altura (cm)
                 <input type="number" name="height_cm" min="100" max="240" value="{{ player.height_cm|default:'' }}" />
               </label>

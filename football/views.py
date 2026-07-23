@@ -333,7 +333,7 @@ from football.event_taxonomy import (
     shots_needed_per_goal,
     zone_to_tercio,
 )
-from football.normalization import FOOT_CHOICES, POSITION_CHOICES, normalize_foot_value, normalize_position_value
+from football.normalization import FOOT_CHOICES, POSITION_CHOICES, SKIN_TONE_CHOICES, normalize_foot_value, normalize_position_value
 from football.injuries import categorize_time_loss
 from football.injuries import estimate_return_date as estimate_return_date_from_catalog
 from football.injuries import time_loss_days
@@ -4693,7 +4693,7 @@ def _roster_preview_bucket(position_text: str) -> str:
 
 # Sube este numero cuando cambie el DISENO del informe: invalida todas las
 # imagenes cacheadas y fuerza que se regeneren con el render nuevo.
-_ROSTER_PREVIEW_RENDER_VERSION = "5"
+_ROSTER_PREVIEW_RENDER_VERSION = "6"
 
 
 def _coach_roster_preview_signature(*, primary_team, active_club_season, board_rows) -> str:
@@ -4797,6 +4797,25 @@ def _roster_pitch_source(*, for_pillow=False):
         if uri:
             return uri
     return ""
+
+
+_SKIN_TONES = ("light", "medium", "dark")
+
+
+def _coach_library_avatar_path(state_key, skin_tone, player_id=0):
+    """Devuelve el avatar de la BIBLIOTECA (generada por IA, ya recortada) que
+    corresponde al estado + tono de piel del jugador.  Si el jugador no tiene
+    piel definida, reparte de forma variada por id.  Devuelve None si no existe."""
+    state_map = {"confirmed": "available", "trial": "trial", "injured": "injured", "inactive": "available"}
+    st = state_map.get(str(state_key or "").strip(), "available")
+    skin = str(skin_tone or "").strip().lower()
+    if skin not in _SKIN_TONES:
+        skin = _SKIN_TONES[int(player_id or 0) % len(_SKIN_TONES)]
+    p = (
+        Path(settings.BASE_DIR)
+        / "football" / "static" / "football" / "images" / "coach_roster_avatars" / "library" / f"{st}_{skin}.png"
+    )
+    return p if p.exists() else None
 
 
 _AVATAR_CUTOUT_CACHE = {}
@@ -5057,6 +5076,7 @@ def _build_coach_roster_preview_payload(*, primary_team, active_club_season, pla
             "bucket_label": group["label"],
             "bucket_short": group["short"],
             "is_active": bool(getattr(player, "is_active", True)),
+            "skin_tone": str(getattr(player, "skin_tone", "") or "").strip().lower(),
             "photo_key": "",
             "photo_src": _coach_roster_player_photo_data_uri(request, player),
         }
@@ -5307,8 +5327,14 @@ def _render_coach_roster_preview_png(
             "inactive": "INACTIVO",
         }.get(state_key, "DISPONIBLE")
 
-        avatar_source = state_avatar_sources.get(state_key) or state_avatar_sources["available"]
-        avatar_img = _load_avatar_cutout(str(avatar_source)) or _load_image_source(str(avatar_source))
+        # 1) avatar de la BIBLIOTECA IA (ya recortado) segun estado + tono de piel
+        library_path = _coach_library_avatar_path(state_key, item.get("skin_tone"), item.get("id"))
+        if library_path is not None:
+            avatar_img = _load_image_source(str(library_path))
+        else:
+            # 2) fallback: avatares de estado clasicos + recorte al vuelo
+            avatar_source = state_avatar_sources.get(state_key) or state_avatar_sources["available"]
+            avatar_img = _load_avatar_cutout(str(avatar_source)) or _load_image_source(str(avatar_source))
         if avatar_img is not None:
             try:
                 if avatar_img.mode != "RGBA":
@@ -67157,6 +67183,8 @@ def player_detail_page(request, player_id):
                 player.number = _parse_int(number) if number else None
                 player.position = normalize_position_value(request.POST.get("position", ""))
                 player.dominant_foot = normalize_foot_value(request.POST.get("dominant_foot", ""))
+                _skin = str(request.POST.get("skin_tone", "") or "").strip().lower()
+                player.skin_tone = _skin if _skin in {"light", "medium", "dark"} else ""
                 player.full_name = request.POST.get("full_name", "").strip()
                 player.nickname = request.POST.get("nickname", "").strip()
                 player.birth_date = _parse_date_value(request.POST.get("birth_date"))
@@ -68333,6 +68361,7 @@ def player_detail_page(request, player_id):
                 "player_view_preview": player_view_preview,
                 "position_choices": POSITION_CHOICES,
                 "foot_choices": FOOT_CHOICES,
+                "skin_tone_choices": SKIN_TONE_CHOICES,
                 "can_preview_player_view": can_preview_player_view,
                 "player_list_back_url": player_list_back_url,
                 "workspace_entry_url": home_url,

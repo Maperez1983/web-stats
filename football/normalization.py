@@ -28,6 +28,12 @@ FOOT_CHOICES = [
     ("ambidiestro", "Ambidiestro"),
 ]
 
+SKIN_TONE_CHOICES = [
+    ("light", "Clara"),
+    ("medium", "Media"),
+    ("dark", "Oscura"),
+]
+
 _POSITION_STORAGE_MAP = {
     "por": "POR",
     "gk": "POR",

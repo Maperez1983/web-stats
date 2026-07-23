@@ -628,6 +628,7 @@ class Player(models.Model):
     agent_name = models.CharField(max_length=160, blank=True)
     agent_phone = models.CharField(max_length=40, blank=True)
     dominant_foot = models.CharField(max_length=16, blank=True)
+    skin_tone = models.CharField(max_length=16, blank=True, help_text='Tono de piel para el avatar generado: light / medium / dark.')
     preferred_position = models.CharField(max_length=60, blank=True)
     previous_season_position = models.CharField(max_length=60, blank=True)
     number = models.PositiveSmallIntegerField(null=True, blank=True)
