@@ -4663,8 +4663,14 @@ def _roster_preview_bucket(position_text: str) -> str:
     return "mid"
 
 
+# Sube este numero cuando cambie el DISENO del informe: invalida todas las
+# imagenes cacheadas y fuerza que se regeneren con el render nuevo.
+_ROSTER_PREVIEW_RENDER_VERSION = "3"
+
+
 def _coach_roster_preview_signature(*, primary_team, active_club_season, board_rows) -> str:
     payload = {
+        "v": _ROSTER_PREVIEW_RENDER_VERSION,
         "team_id": int(getattr(primary_team, "id", 0) or 0),
         "season_id": int(getattr(active_club_season, "id", 0) or 0) if active_club_season else 0,
         "rows": [
@@ -4682,6 +4688,130 @@ def _coach_roster_preview_signature(*, primary_team, active_club_season, board_r
     }
     raw = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     return hashlib.sha1(raw).hexdigest()[:20]
+
+
+# --- Informe de plantilla: layout de formacion y superficie de campo -------
+# Ancla X (centro de la tarjeta, %) y semi-ancho de reparto horizontal por linea.
+_ROSTER_LINE_X = {"gk": 7.5, "def": 26.0, "mid": 48.0, "att": 74.0, "oth": 50.0}
+_ROSTER_LINE_SPREAD = {"gk": 0.0, "def": 6.0, "mid": 6.0, "att": 6.0, "oth": 5.0}
+_ROSTER_TOP_MIN, _ROSTER_TOP_MAX = 8.0, 92.0
+_ROSTER_MAX_PER_COL = 5          # a partir de aqui se abre otra columna
+_ROSTER_CARD_WIDTH = 8.5         # ancho de tarjeta en % del campo
+
+
+def _roster_field_positions(position_groups, *, bucket_order=("gk", "def", "mid", "att", "oth")):
+    """Distribuye a los jugadores de cada linea en tantas columnas como haga
+    falta (max ~5 por columna) y los reparte verticalmente sin solapes.
+    Recibe ``position_groups`` (dict con ``players`` por bucket, ya filtrados
+    por quien va al campo) y devuelve la lista de ``field_cards`` con
+    ``left``/``top``/``width`` en %.  Sustituye a los antiguos ``field_slots``
+    fijos, que amontonaban las lineas con mas de 6-7 jugadores."""
+    cards = []
+    for bucket_key in bucket_order:
+        group = position_groups.get(bucket_key)
+        if not group:
+            continue
+        players = list(group.get("players") or [])
+        n = len(players)
+        if not n:
+            continue
+        # orden estable dentro de la linea (dorsal, luego nombre)
+        players.sort(key=lambda row: (int(row.get("number") or 9999), str(row.get("name") or "").lower()))
+        base_x = _ROSTER_LINE_X.get(bucket_key, 50.0)
+        spread = _ROSTER_LINE_SPREAD.get(bucket_key, 6.0)
+        cols = max(1, math.ceil(n / _ROSTER_MAX_PER_COL))
+        per = math.ceil(n / cols)
+        columns = [players[i * per:(i + 1) * per] for i in range(cols)]
+        columns = [col for col in columns if col]
+        cols = len(columns)
+        if cols <= 1:
+            col_x = [base_x]
+        else:
+            col_x = [base_x - spread + (2 * spread) * i / (cols - 1) for i in range(cols)]
+        for ci, col in enumerate(columns):
+            k = len(col)
+            x = col_x[ci]
+            for i, row in enumerate(col):
+                if k == 1:
+                    y = (_ROSTER_TOP_MIN + _ROSTER_TOP_MAX) / 2.0
+                else:
+                    y = _ROSTER_TOP_MIN + (_ROSTER_TOP_MAX - _ROSTER_TOP_MIN) * i / (k - 1)
+                cards.append({
+                    **row,
+                    "bucket": bucket_key,
+                    "bucket_label": group.get("label", ""),
+                    "bucket_short": group.get("short", ""),
+                    "left": round(x, 2),
+                    "top": round(y, 2),
+                    "width": _ROSTER_CARD_WIDTH,
+                })
+    return cards
+
+
+def _roster_pitch_source(*, for_pillow=False):
+    """Resuelve la superficie de cesped del informe desde el static de la app
+    (``football/static``), donde viven realmente los PNG de ``pitch3d``.
+    Si ``for_pillow`` es True nunca devuelve un SVG (Pillow no lo rasteriza)."""
+    app_static = Path(settings.BASE_DIR) / "football" / "static"
+    png_candidates = [
+        app_static / "football" / "images" / "pitch3d" / "coach_home_pitch_surface.png",
+        app_static / "football" / "images" / "pitch3d" / "stadium_taskboard_top_h.png",
+        app_static / "football" / "images" / "pitch3d" / "grass_premium_albedo.png",
+    ]
+    for candidate in png_candidates:
+        uri = _file_as_data_uri(candidate)
+        if uri:
+            return uri
+    return ""
+
+
+_AVATAR_CUTOUT_CACHE = {}
+
+
+def _load_avatar_cutout(path_str, thresh=50):
+    """Carga un avatar de estado y le quita el fondo (blanco/uniforme) por
+    flood-fill desde TODO el borde, conservando el blanco interior del kit
+    (rayas, pantalon).  Devuelve un RGBA recortado con el fondo transparente.
+    Cacheado por ruta: cada avatar se procesa una sola vez, no por jugador.
+    Solo PIL (sin numpy)."""
+    key = (str(path_str), int(thresh))
+    if key in _AVATAR_CUTOUT_CACHE:
+        return _AVATAR_CUTOUT_CACHE[key]
+    result = None
+    try:
+        from PIL import ImageChops  # noqa: WPS433 (lazy)
+        p = Path(path_str)
+        if Image is not None and ImageDraw is not None and p.exists() and p.is_file():
+            img = Image.open(p).convert("RGB")
+            w, h = img.size
+            mark = (255, 0, 255)
+            flood = img.copy()
+            step = max(8, w // 24)
+            seeds = []
+            for x in range(0, w, step):
+                seeds += [(x, 0), (x, h - 1)]
+            for y in range(0, h, step):
+                seeds += [(0, y), (w - 1, y)]
+            for seed in seeds:
+                try:
+                    ImageDraw.floodfill(flood, seed, mark, thresh=thresh)
+                except Exception:
+                    pass
+            diff = ImageChops.difference(flood, Image.new("RGB", flood.size, mark)).convert("L")
+            alpha = diff.point(lambda v: 255 if v > 0 else 0)
+            if ImageFilter is not None:
+                # erosiona 1px (come el fleco claro del borde) y suaviza
+                alpha = alpha.filter(ImageFilter.MinFilter(3)).filter(ImageFilter.GaussianBlur(0.8))
+            out = img.convert("RGBA")
+            out.putalpha(alpha)
+            bbox = out.getchannel("A").getbbox()
+            if bbox:
+                out = out.crop(bbox)
+            result = out
+    except Exception:
+        result = None
+    _AVATAR_CUTOUT_CACHE[key] = result
+    return result
 
 
 def _build_coach_roster_preview_payload(*, primary_team, active_club_season, players, memberships, request=None):
@@ -4778,24 +4908,7 @@ def _build_coach_roster_preview_payload(*, primary_team, active_club_season, pla
         if row["is_active"] and row["state_key"] != "inactive":
             group["players"].append(row)
 
-    field_cards = []
-    for bucket_key in ("gk", "def", "mid", "att", "oth"):
-        group = position_groups[bucket_key]
-        slots = field_slots.get(bucket_key) or field_slots["oth"]
-        for index, row in enumerate(group["players"]):
-            slot_left, slot_top, slot_width = slots[index % len(slots)]
-            cycle = index // len(slots)
-            if cycle:
-                slot_top = max(4, min(92, slot_top + (cycle * 6) - (cycle // 2) * 3))
-                slot_left = max(4, min(94, slot_left + (cycle * 2) - (cycle // 2)))
-            field_cards.append(
-                {
-                    **row,
-                    "left": slot_left,
-                    "top": slot_top,
-                    "width": slot_width,
-                }
-            )
+    field_cards = _roster_field_positions(position_groups)
 
     for group in position_groups.values():
         group["players"].sort(key=lambda row: (int(row.get("number") or 9999), str(row.get("name") or "").lower()))
@@ -4928,6 +5041,21 @@ def _render_coach_roster_preview_png(
     font_avatar_name = _roster_preview_font(16, bold=True) or ImageFont.load_default()
     font_avatar_meta = _roster_preview_font(11, bold=True) or ImageFont.load_default()
     font_avatar_small = _roster_preview_font(10, bold=False) or ImageFont.load_default()
+    static_base_dir = Path(settings.BASE_DIR) / "football" / "static"
+    fallback_static_base_dir = Path(settings.BASE_DIR) / "static"
+    state_avatar_sources = {
+        "available": static_base_dir / "football" / "images" / "coach_roster_avatars" / "available_avatar.png",
+        "trial": static_base_dir / "football" / "images" / "coach_roster_avatars" / "trial_avatar.png",
+        "injured": static_base_dir / "football" / "images" / "coach_roster_avatars" / "injured_avatar.png",
+        "inactive": static_base_dir / "football" / "images" / "coach_roster_avatars" / "available_avatar.png",
+    }
+    if not state_avatar_sources["available"].exists():
+        state_avatar_sources = {
+            "available": fallback_static_base_dir / "football" / "images" / "coach_roster_avatars" / "available_avatar.png",
+            "trial": fallback_static_base_dir / "football" / "images" / "coach_roster_avatars" / "trial_avatar.png",
+            "injured": fallback_static_base_dir / "football" / "images" / "coach_roster_avatars" / "injured_avatar.png",
+            "inactive": fallback_static_base_dir / "football" / "images" / "coach_roster_avatars" / "available_avatar.png",
+        }
 
     # top header
     header_box = (38, 28, width - 38, 150)
@@ -4970,10 +5098,10 @@ def _render_coach_roster_preview_png(
 
     field_cards = list(payload.get("field_cards") or [])
     card_base = {
-        "available": ((12, 59, 34, 220), (88, 217, 133, 205), (74, 222, 128, 255)),
-        "trial": ((77, 58, 12, 224), (255, 202, 82, 208), (255, 199, 79, 255)),
-        "injured": ((87, 28, 24, 224), (255, 108, 108, 210), (255, 99, 99, 255)),
-        "inactive": ((44, 48, 58, 214), (148, 163, 184, 190), (148, 163, 184, 255)),
+        "available": ((11, 55, 34, 185), (84, 214, 127, 220), (74, 222, 128, 255)),
+        "trial": ((74, 56, 12, 190), (255, 202, 82, 215), (255, 199, 79, 255)),
+        "injured": ((85, 26, 23, 190), (255, 108, 108, 215), (255, 99, 99, 255)),
+        "inactive": ((40, 45, 56, 180), (148, 163, 184, 190), (148, 163, 184, 255)),
     }
     field_w = field_box[2] - field_box[0]
     field_h = field_box[3] - field_box[1]
@@ -5007,39 +5135,58 @@ def _render_coach_roster_preview_png(
         accent,
         glow,
     ):
-        layer = Image.new("RGBA", (avatar_w + 60, avatar_h + 90), (0, 0, 0, 0))
+        layer = Image.new("RGBA", (avatar_w + 36, avatar_h + 62), (0, 0, 0, 0))
         ldraw = ImageDraw.Draw(layer)
-        # halo / glow para que la figura respire sobre el césped
-        ldraw.ellipse((12, 18, avatar_w + 42, avatar_h + 48), fill=(*accent[:3], 28))
-        ldraw.ellipse((18, 22, avatar_w + 36, avatar_h + 42), outline=glow, width=3)
 
-        avatar = _resolve_avatar_layer(str(item.get("photo_src") or ""), avatar_w, avatar_h)
-        if avatar is None:
-            avatar = Image.new("RGBA", (avatar_w, avatar_h), (0, 0, 0, 0))
-            adraw = ImageDraw.Draw(avatar)
-            adraw.rounded_rectangle((0, 0, avatar_w - 1, avatar_h - 1), radius=20, fill=(10, 18, 30, 180), outline=glow, width=2)
-            initials = "".join([part[:1] for part in str(item.get("name") or "Jugador").split()[:2] if part]).upper()[:2] or "2J"
-            font = _roster_preview_font(max(16, avatar_w // 5), bold=True) or ImageFont.load_default()
-            bbox = adraw.textbbox((0, 0), initials, font=font)
-            adraw.text(
-                ((avatar_w - (bbox[2] - bbox[0])) / 2, (avatar_h - (bbox[3] - bbox[1])) / 2 - 1),
-                initials,
-                font=font,
-                fill=(255, 250, 240, 235),
-            )
-        avatar_x = int((layer.width - avatar.width) / 2)
-        avatar_y = 12
-        if avatar.height < avatar_h:
-            avatar_y += int((avatar_h - avatar.height) * 0.12)
-        layer.alpha_composite(avatar, (avatar_x, avatar_y))
+        state_key = str(item.get("state_key") or "available").strip()
+        label_state = {
+            "trial": "A PRUEBA",
+            "injured": "LESIONADO",
+            "inactive": "INACTIVO",
+        }.get(state_key, "DISPONIBLE")
+
+        avatar_source = state_avatar_sources.get(state_key) or state_avatar_sources["available"]
+        avatar_img = _load_avatar_cutout(str(avatar_source)) or _load_image_source(str(avatar_source))
+        if avatar_img is not None:
+            try:
+                if avatar_img.mode != "RGBA":
+                    avatar_img = avatar_img.convert("RGBA")
+                alpha = avatar_img.getchannel("A")
+                bbox = alpha.getbbox()
+                if bbox:
+                    avatar_img = avatar_img.crop(bbox)
+                if state_key == "inactive":
+                    avatar_img = ImageEnhance.Color(avatar_img).enhance(0.25)
+                    avatar_img = ImageEnhance.Brightness(avatar_img).enhance(0.88)
+                else:
+                    avatar_img = ImageEnhance.Brightness(avatar_img).enhance(1.08)
+                    avatar_img = ImageEnhance.Contrast(avatar_img).enhance(1.03)
+                if ImageOps is not None:
+                    resampling = getattr(Image, "Resampling", None)
+                    resample = getattr(resampling, "LANCZOS", getattr(Image, "LANCZOS", 1))
+                    avatar_img = ImageOps.contain(avatar_img, (avatar_w - 8, avatar_h - 8), method=resample)
+                else:
+                    avatar_img.thumbnail((avatar_w - 8, avatar_h - 8))
+                avatar_x = max(0, int((layer.width - avatar_img.width) / 2))
+                avatar_y = 2
+                layer.alpha_composite(avatar_img, (avatar_x, avatar_y))
+            except Exception:
+                avatar_img = None
+        if avatar_img is None:
+            # fallback to a soft silhouette if the asset cannot be loaded
+            silhouette = Image.new("RGBA", (avatar_w, avatar_h), (0, 0, 0, 0))
+            sdraw = ImageDraw.Draw(silhouette)
+            sdraw.rounded_rectangle((avatar_w * 0.28, avatar_h * 0.18, avatar_w * 0.72, avatar_h * 0.82), radius=18, fill=(17, 25, 39, 165), outline=glow, width=2)
+            sdraw.ellipse((avatar_w * 0.34, avatar_h * 0.02, avatar_w * 0.66, avatar_h * 0.34), fill=(17, 25, 39, 165), outline=glow, width=2)
+            layer.alpha_composite(silhouette, (18, 2))
 
         number = str(item.get("number") or "—").strip() or "—"
         num_font = _roster_preview_font(max(14, avatar_w // 4), bold=True) or ImageFont.load_default()
         num_bbox = ldraw.textbbox((0, 0), number, font=num_font)
         num_w = num_bbox[2] - num_bbox[0]
         num_h = num_bbox[3] - num_bbox[1]
-        num_box = (14, 10, 14 + max(30, num_w + 16), 10 + max(30, num_h + 12))
-        ldraw.rounded_rectangle(num_box, radius=12, fill=(7, 10, 18, 175), outline=glow, width=2)
+        num_box = (12, 8, 12 + max(30, num_w + 14), 8 + max(30, num_h + 10))
+        ldraw.rounded_rectangle(num_box, radius=12, fill=(7, 10, 18, 185), outline=glow, width=2)
         ldraw.text(
             (num_box[0] + (num_box[2] - num_box[0] - num_w) / 2, num_box[1] + (num_box[3] - num_box[1] - num_h) / 2 - 1),
             number,
@@ -5048,30 +5195,31 @@ def _render_coach_roster_preview_png(
         )
 
         name = str(item.get("name") or "").strip() or "Jugador"
-        name_lines = _roster_preview_wrap_text(ldraw, name, font_avatar_name, avatar_w + 34, max_lines=2)
-        label_w = max(164, avatar_w + 34)
-        label_h = 70 if len(name_lines) > 1 else 58
+        name_lines = _roster_preview_wrap_text(ldraw, name, font_avatar_name, avatar_w + 40, max_lines=2)
+        label_w = max(108, avatar_w + 26)
+        label_h = 50 if len(name_lines) > 1 else 44
         label_x = max(6, int((layer.width - label_w) / 2))
-        label_y = avatar_h + 18
-        ldraw.rounded_rectangle((label_x, label_y, label_x + label_w, label_y + label_h), radius=18, fill=(7, 12, 22, 178), outline=glow, width=2)
-        label_text_y = label_y + 7
+        label_y = avatar_h + 8
+        ldraw.rounded_rectangle((label_x, label_y, label_x + label_w, label_y + label_h), radius=14, fill=(12, 18, 28, 190), outline=glow, width=2)
+        label_text_y = label_y + 5
         for idx, line in enumerate(name_lines[:2]):
             bbox = ldraw.textbbox((0, 0), line, font=font_avatar_name)
             text_w = bbox[2] - bbox[0]
-            ldraw.text((label_x + (label_w - text_w) / 2, label_text_y + idx * 18), line, font=font_avatar_name, fill=(255, 250, 240, 245))
+            ldraw.text((label_x + (label_w - text_w) / 2, label_text_y + idx * 16), line, font=font_avatar_name, fill=(255, 250, 240, 245))
 
         pos_text = str(item.get("position") or "-").strip().upper()
-        state_label = str(item.get("state_label") or "").strip().upper()
-        meta_text = f"{pos_text} · {state_label}" if pos_text else state_label
+        state_label = str(item.get("state_label") or "").strip().upper() or "DISPONIBLE"
+        meta_text = pos_text
         meta_bbox = ldraw.textbbox((0, 0), meta_text, font=font_avatar_meta)
         meta_w = meta_bbox[2] - meta_bbox[0]
         meta_x = label_x + (label_w - meta_w) / 2
-        meta_y = label_y + label_h - 20
+        meta_y = label_y + label_h - 17
         ldraw.text((meta_x, meta_y), meta_text, font=font_avatar_meta, fill=glow)
 
-        state_chip = (label_x + 12, label_y + label_h - 22, label_x + 12 + 88, label_y + label_h - 4)
+        state_chip_w = min(label_w - 18, max(74, len(label_state) * 6 + 16))
+        state_chip = (label_x + (label_w - state_chip_w) / 2, label_y + label_h - 16, label_x + (label_w + state_chip_w) / 2, label_y + label_h - 2)
         ldraw.rounded_rectangle(state_chip, radius=999, fill=(*accent[:3], 190), outline=glow, width=1)
-        chip_text = state_label or "DISPONIBLE"
+        chip_text = label_state
         chip_bbox = ldraw.textbbox((0, 0), chip_text, font=font_avatar_small)
         chip_w = chip_bbox[2] - chip_bbox[0]
         chip_h = chip_bbox[3] - chip_bbox[1]
@@ -5081,17 +5229,7 @@ def _render_coach_roster_preview_png(
             font=font_avatar_small,
             fill=(255, 250, 240, 250),
         )
-
-        # sombra suave bajo el conjunto
-        shadow = Image.new("RGBA", layer.size, (0, 0, 0, 0))
-        sdraw = ImageDraw.Draw(shadow)
-        sdraw.ellipse(
-            (avatar_x + 6, avatar_y + avatar.height - 16, avatar_x + avatar.width - 6, avatar_y + avatar.height + 20),
-            fill=(0, 0, 0, 110),
-        )
-        shadow = shadow.filter(ImageFilter.GaussianBlur(12))
-        target.alpha_composite(shadow, (x - 30, y - 8))
-        target.alpha_composite(layer, (x - 30, y - 8))
+        target.alpha_composite(layer, (x - 22, y - 4))
 
     for item in field_cards:
         state = str(item.get("state_tone") or item.get("state_key") or "available").strip()
@@ -5100,7 +5238,9 @@ def _render_coach_roster_preview_png(
         top_pct = float(item.get("top") or 50.0)
         width_pct = float(item.get("width") or 13.5)
         card_w = int(field_w * (width_pct / 100.0))
-        card_h = max(220, int(card_w * 1.95))
+        # Tarjeta compacta: la altura total (avatar + etiqueta) debe caber en el
+        # hueco vertical entre jugadores de una misma columna para no solaparse.
+        card_h = max(150, int(card_w * 1.15))
         cx = field_box[0] + int(field_w * (left_pct / 100.0))
         cy = field_box[1] + int(field_h * (top_pct / 100.0))
         x = max(field_box[0] + pitch_margin_x, min(field_box[2] - card_w - pitch_margin_x, cx - card_w // 2))
@@ -5110,8 +5250,8 @@ def _render_coach_roster_preview_png(
             item=item,
             x=x,
             y=y,
-            avatar_w=max(92, min(170, card_w + 8)),
-            avatar_h=max(140, min(220, card_h - 64)),
+            avatar_w=max(52, min(74, card_w - 60)),
+            avatar_h=max(60, min(72, card_h - 74)),
             accent=accent,
             glow=glow,
         )
@@ -5160,13 +5300,8 @@ def _save_coach_roster_preview_image(
         return ""
     static_base_dir = Path(settings.BASE_DIR) / "static"
     if not pitch_src:
-        pitch_src = (
-            _file_as_data_uri(static_base_dir / "football" / "images" / "surfaces" / "references" / "football_pitch_metric_reference.svg")
-            or _file_as_data_uri(static_base_dir / "football" / "images" / "pitch3d" / "coach_home_pitch_surface.png")
-            or _file_as_data_uri(static_base_dir / "football" / "images" / "pitch3d" / "stadium_taskboard_top_h.png")
-            or _file_as_data_uri(static_base_dir / "football" / "images" / "pitch3d" / "grass_premium_albedo.png")
-            or ""
-        )
+        # OJO: nunca un SVG aqui; Pillow no rasteriza SVG y caeria al rectangulo verde.
+        pitch_src = _roster_pitch_source(for_pillow=True)
     if not crest_src:
         try:
             if getattr(primary_team, "crest_image", None):
@@ -5200,6 +5335,20 @@ def _save_coach_roster_preview_image(
         if not png_bytes:
             return ""
         saved_name = default_storage.save(rel_path, ContentFile(png_bytes))
+        # Limpieza: deja solo la imagen vigente de este equipo/temporada y
+        # borra versiones anteriores (firmas antiguas) para no acumular PNGs.
+        try:
+            prefix_dir = f"generated/coach-roster/{team_slug}/{season_slug}"
+            _subdirs, existing_files = default_storage.listdir(prefix_dir)
+            keep = f"{signature}.png"
+            for fname in existing_files:
+                if fname != keep and fname.endswith(".png"):
+                    try:
+                        default_storage.delete(f"{prefix_dir}/{fname}")
+                    except Exception:
+                        pass
+        except Exception:
+            pass
         return default_storage.url(saved_name)
     except Exception:
         return ""
@@ -34330,25 +34479,7 @@ def coach_roster_pdf(request):
         if record['is_active']:
             group['players'].append(record)
 
-    field_cards = []
-    for bucket_key in ('gk', 'def', 'mid', 'att', 'oth'):
-        group = position_groups[bucket_key]
-        slots = field_slots.get(bucket_key) or field_slots['oth']
-        for index, row in enumerate(group['players']):
-            slot_left, slot_top, slot_width = slots[index % len(slots)]
-            cycle = index // len(slots)
-            if cycle:
-                slot_top = max(4, min(92, slot_top + (cycle * 6) - (cycle // 2) * 3))
-                slot_left = max(4, min(94, slot_left + (cycle * 2) - (cycle // 2)))
-            field_cards.append({
-                **row,
-                'bucket': bucket_key,
-                'bucket_label': group['label'],
-                'bucket_short': group['short'],
-                'left': slot_left,
-                'top': slot_top,
-                'width': slot_width,
-            })
+    field_cards = _roster_field_positions(position_groups)
 
     for group in position_groups.values():
         group['players'].sort(key=lambda row: (int(row.get('number') or 9999), str(row.get('name') or '').lower()))
@@ -34382,9 +34513,7 @@ def coach_roster_pdf(request):
 
     static_base_dir = Path(settings.BASE_DIR) / 'static'
     pitch_src = (
-        _file_as_data_uri(static_base_dir / 'football' / 'images' / 'pitch3d' / 'coach_home_pitch_surface.png')
-        or _file_as_data_uri(static_base_dir / 'football' / 'images' / 'pitch3d' / 'stadium_taskboard_top_h.png')
-        or _file_as_data_uri(static_base_dir / 'football' / 'images' / 'pitch3d' / 'grass_premium_albedo.png')
+        _roster_pitch_source()
         or request.build_absolute_uri(static('football/images/pitch3d/coach_home_pitch_surface.png'))
     )
     pitch_overlay_src = (
