@@ -1160,7 +1160,6 @@
 		            <a class="btn alt" href="{% if home_url %}{{ home_url }}{% else %}{{ workspace_entry_url|default:'/' }}{% endif %}">Mi inicio</a>
 		            <a class="btn" href="{% url 'player-pdf' player.id %}" target="_blank" rel="noopener">PDF</a>
 		          {% else %}
-			          			          <a class="btn alt" href="{{ player_portal_url }}">Portal jugador</a>
 			          {% if can_preview_player_view %}
 			            {% if player_view_preview %}
 			              			            {% else %}
@@ -1444,6 +1443,7 @@
         <button class="tab-btn" data-tab="injuries" role="tab">Lesiones</button>
         <button class="tab-btn" data-tab="discipline" role="tab">Comunicación y multas</button>
         <button class="tab-btn" data-tab="physical" role="tab">Físico</button>
+        <button class="tab-btn" data-tab="videos" role="tab">Vídeos</button>
       </div>
 
       <section class="card tab-pane" data-pane="personal">
@@ -2666,9 +2666,11 @@
               {% if video.rival_team %}<span class="video-chip">{{ video.rival_team.display_name }}</span>{% endif %}
               <span class="video-chip">{{ video.get_source_display }}</span>
             </div>
+            {% if video.video %}
             <video controls preload="metadata">
               <source src="{{ video.video.url }}" />
             </video>
+            {% endif %}
             {% if video.notes %}
             <p class="subtle" style="margin:0.65rem 0 0;">{{ video.notes }}</p>
             {% endif %}
@@ -2850,13 +2852,10 @@
 	      (() => {
         const tabAliases = {
           general: 'personal',
-          seasons: 'personal',
-          evaluations: 'personal',
           performance: 'stats',
           attributes: 'attributes',
           communication: 'discipline',
           fines: 'discipline',
-          videos: 'personal',
         };
         const rawTab = '{{ active_tab|default:"personal"|escapejs }}' || 'personal';
         const fallbackTab = tabAliases[rawTab] || rawTab;

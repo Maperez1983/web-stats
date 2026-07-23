@@ -33267,6 +33267,51 @@ def scouting_target_detail_page(request, target_id):
                     ScoutingTargetSeasonStat.objects.filter(id=stat_id, target=target).delete()
                 feedback = "Temporada eliminada."
                 return redirect(f"{reverse('scouting-target-detail', args=[target.id])}?saved=1&tab=tracking")
+            if action == "create-report":
+                valid_rec = {choice[0] for choice in ScoutingReport.RECOMMENDATION_CHOICES}
+                rec = str(request.POST.get("recommendation") or "").strip().lower()
+                ScoutingReport.objects.create(
+                    target=target,
+                    created_by=request.user if request.user.is_authenticated else None,
+                    observed_on=parse_date(str(request.POST.get("observed_on") or "").strip() or "") or timezone.localdate(),
+                    opposition=_sanitize_task_text(str(request.POST.get("opposition") or "").strip(), multiline=False, max_len=160),
+                    competition=_sanitize_task_text(str(request.POST.get("competition") or "").strip(), multiline=False, max_len=160),
+                    technical_rating=_parse_int(request.POST.get("technical_rating")),
+                    tactical_rating=_parse_int(request.POST.get("tactical_rating")),
+                    physical_rating=_parse_int(request.POST.get("physical_rating")),
+                    mental_rating=_parse_int(request.POST.get("mental_rating")),
+                    potential_rating=_parse_int(request.POST.get("potential_rating")),
+                    fit_rating=_parse_int(request.POST.get("fit_rating")),
+                    recommendation=rec if rec in valid_rec else ScoutingReport.RECOMMENDATION_WAIT,
+                    strengths=_sanitize_task_text(str(request.POST.get("strengths") or "").strip(), multiline=True, max_len=4000),
+                    weaknesses=_sanitize_task_text(str(request.POST.get("weaknesses") or "").strip(), multiline=True, max_len=4000),
+                    summary=_sanitize_task_text(str(request.POST.get("summary") or "").strip(), multiline=True, max_len=8000),
+                    next_steps=_sanitize_task_text(str(request.POST.get("next_steps") or "").strip(), multiline=True, max_len=4000),
+                )
+                feedback = "Informe de ojeo guardado."
+                return redirect(f"{reverse('scouting-target-detail', args=[target.id])}?saved=1")
+            if action == "create-followup":
+                title = _sanitize_task_text(str(request.POST.get("title") or "").strip(), multiline=False, max_len=140)
+                if not title:
+                    raise ValueError("El título del seguimiento es obligatorio.")
+                ScoutingFollowUp.objects.create(
+                    target=target,
+                    created_by=request.user if request.user.is_authenticated else None,
+                    title=title,
+                    due_on=parse_date(str(request.POST.get("due_on") or "").strip() or "") or None,
+                    notes=_sanitize_task_text(str(request.POST.get("notes") or "").strip(), multiline=True, max_len=4000),
+                )
+                feedback = "Seguimiento creado."
+                return redirect(f"{reverse('scouting-target-detail', args=[target.id])}?saved=1")
+            if action == "toggle-followup":
+                followup_id = _parse_int(request.POST.get("followup_id"))
+                followup = ScoutingFollowUp.objects.filter(id=followup_id, target=target).first() if followup_id else None
+                if followup:
+                    followup.is_done = not followup.is_done
+                    followup.completed_on = timezone.localdate() if followup.is_done else None
+                    followup.save(update_fields=["is_done", "completed_on", "updated_at"])
+                    feedback = "Seguimiento actualizado."
+                return redirect(f"{reverse('scouting-target-detail', args=[target.id])}?saved=1")
         except Exception as exc:
             error = str(exc)
 
@@ -33412,6 +33457,8 @@ def scouting_target_detail_page(request, target_id):
             "foot_choices": FOOT_CHOICES,
             "season_stats": season_stats,
             "season_stats_totals": season_stats_totals,
+            "recommendation_choices": ScoutingReport.RECOMMENDATION_CHOICES,
+            "followups": list(open_followups) + list(done_followups),
             "attribute_radar_data": attribute_radar_data,
             "fm_attribute_groups": fm_attribute_groups,
             "fm_attribute_radar_data": fm_attribute_radar_data,
@@ -67183,6 +67230,8 @@ def player_detail_page(request, player_id):
                 manual_sanction_until = _parse_date_value(request.POST.get("manual_sanction_until"))
                 player.number = _parse_int(number) if number else None
                 player.position = normalize_position_value(request.POST.get("position", ""))
+                player.preferred_position = normalize_position_value(request.POST.get("preferred_position", ""))
+                player.previous_season_position = normalize_position_value(request.POST.get("previous_season_position", ""))
                 player.dominant_foot = normalize_foot_value(request.POST.get("dominant_foot", ""))
                 _skin = str(request.POST.get("skin_tone", "") or "").strip().lower()
                 player.skin_tone = _skin if _skin in {"light", "medium", "dark"} else ""
