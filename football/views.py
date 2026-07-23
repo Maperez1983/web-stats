@@ -5141,6 +5141,11 @@ def _render_coach_roster_preview_png(
     payload: dict,
     crest_src: str = "",
     pitch_src: str = "",
+    header_title: str = "",
+    top_chips: list = None,
+    footer_detail_fmt: str = "{confirmed} disponibles · {trial} a prueba · {injured} lesionados",
+    footer_total_label: str = "TOTAL PLANTILLA",
+    footer_total_sub: str = "jugadores activos",
 ):
     if Image is None or ImageDraw is None:
         return b""
@@ -5247,9 +5252,9 @@ def _render_coach_roster_preview_png(
         if crest_img is not None:
             crest_img = crest_img.resize((88, 88))
             canvas.alpha_composite(crest_img, (58, 44))
-    draw.text((160, 50), "2J CLUB · BENAGALBÓN", font=font_title, fill=(255, 250, 240, 255))
+    draw.text((160, 50), header_title or "2J CLUB · BENAGALBÓN", font=font_title, fill=(255, 250, 240, 255))
     draw.text((160, 88), f"{division_label or 'División'} · {season_label or 'Temporada actual'}", font=font_sub, fill=(191, 219, 254, 235))
-    top_chips = [
+    top_chips = top_chips or [
         ("Plantilla activa", str(payload.get("total_players", 0))),
         ("Disponibles", str(payload.get("state_counts", {}).get("confirmed", 0))),
         ("A prueba", str(payload.get("state_counts", {}).get("trial", 0))),
@@ -5284,6 +5289,9 @@ def _render_coach_roster_preview_png(
         "trial": ((74, 56, 12, 190), (255, 202, 82, 215), (255, 199, 79, 255)),
         "injured": ((85, 26, 23, 190), (255, 108, 108, 215), (255, 99, 99, 255)),
         "inactive": ((40, 45, 56, 180), (148, 163, 184, 190), (148, 163, 184, 255)),
+        # Tonos extra para el semáforo de ojeo (fichado por otro / en proceso).
+        "signed_other": ((18, 40, 74, 190), (96, 165, 250, 215), (96, 165, 250, 255)),
+        "process": ((30, 42, 60, 182), (148, 163, 184, 200), (191, 219, 254, 255)),
     }
     field_w = field_box[2] - field_box[0]
     field_h = field_box[3] - field_box[1]
@@ -5321,7 +5329,7 @@ def _render_coach_roster_preview_png(
         ldraw = ImageDraw.Draw(layer)
 
         state_key = str(item.get("state_key") or "available").strip()
-        label_state = {
+        label_state = str(item.get("badge_label") or "").strip() or {
             "trial": "A PRUEBA",
             "injured": "LESIONADO",
             "inactive": "INACTIVO",
@@ -5460,14 +5468,19 @@ def _render_coach_roster_preview_png(
         draw.text((sec_x + 16, footer_box[1] + 28), label.upper(), font=font_chip, fill=(191, 219, 254, 235))
         if row:
             draw.text((sec_x + 16, footer_box[1] + 56), str(int(row.get("count") or 0)), font=font_big, fill=(245, 247, 250, 255))
-            detail = f"{int(row.get('confirmed') or 0)} disponibles · {int(row.get('trial') or 0)} a prueba · {int(row.get('injured') or 0)} lesionados"
+            detail = footer_detail_fmt.format(
+                confirmed=int(row.get("confirmed") or 0),
+                trial=int(row.get("trial") or 0),
+                injured=int(row.get("injured") or 0),
+                inactive=int(row.get("inactive") or 0),
+            )
             draw.text((sec_x + 92, footer_box[1] + 62), detail, font=font_card_pos, fill=(226, 232, 240, 220))
         sec_x += sec_w + 14
     total = int(payload.get("total_players", 0) or 0)
     draw.rounded_rectangle((sec_x, footer_box[1] + 16, footer_box[2] - 18, footer_box[3] - 16), radius=18, fill=(19, 34, 24, 255), outline=(134, 239, 172, 70), width=1)
-    draw.text((sec_x + 16, footer_box[1] + 28), "TOTAL PLANTILLA", font=font_chip, fill=(134, 239, 172, 240))
+    draw.text((sec_x + 16, footer_box[1] + 28), footer_total_label, font=font_chip, fill=(134, 239, 172, 240))
     draw.text((sec_x + 16, footer_box[1] + 56), str(total), font=font_big, fill=(245, 247, 250, 255))
-    draw.text((sec_x + 86, footer_box[1] + 62), "jugadores activos", font=font_card_pos, fill=(226, 232, 240, 220))
+    draw.text((sec_x + 86, footer_box[1] + 62), footer_total_sub, font=font_card_pos, fill=(226, 232, 240, 220))
 
     out = io.BytesIO()
     canvas.convert("RGB").save(out, format="PNG", optimize=True)
@@ -32991,6 +33004,142 @@ def _scouting_semaphore(status, available):
     if available:
         return {"key": "trial", "label": "A prueba", "color": "yellow"}
     return {"key": "process", "label": "En proceso", "color": "grey"}
+
+
+def _scouting_pos_bucket(position):
+    _pos = (position or "").strip().upper()
+    if _pos in {"POR", "GK"}:
+        return "gk"
+    if _pos in {"DFC", "LD", "LI", "DEF", "CB", "RB", "LB", "CARRILERO D", "CARRILERO I"}:
+        return "def"
+    if _pos in {"MC", "MCD", "MP", "MCO", "MID", "INTERIOR D", "INTERIOR I"}:
+        return "mid"
+    if _pos in {"DC", "ED", "EI", "SD", "DEL", "FW", "ST"}:
+        return "att"
+    return "mid"
+
+
+def _build_scouting_pitch_payload(items):
+    """Payload compatible con _render_coach_roster_preview_png pero para ojeados,
+    coloreados por el semáforo de decisión."""
+    bucket_meta = {
+        "gk": {"label": "Portería", "short": "POR"},
+        "def": {"label": "Defensa", "short": "DEF"},
+        "mid": {"label": "Centro del campo", "short": "MED"},
+        "att": {"label": "Ataque", "short": "ATA"},
+        "oth": {"label": "Sin definir", "short": "OTR"},
+    }
+    position_groups = {k: {"key": k, **m, "players": []} for k, m in bucket_meta.items()}
+    # semáforo (color) -> (avatar_state, tono_tarjeta, etiqueta)
+    sem_to_render = {
+        "green": ("available", "available", "FICHADO"),
+        "yellow": ("trial", "trial", "A PRUEBA"),
+        "red": ("injured", "injured", "DESCARTADO"),
+        "blue": ("inactive", "signed_other", "FICHADO X OTRO"),
+        "grey": ("available", "process", "OBJETIVO"),
+    }
+    for item in items:
+        sem = getattr(item, "semaphore", None) or {"color": "grey"}
+        state_key, tone, label = sem_to_render.get(sem.get("color"), sem_to_render["grey"])
+        bucket = getattr(item, "pos_bucket", None) or _scouting_pos_bucket(getattr(item, "position", ""))
+        group = position_groups.get(bucket) or position_groups["oth"]
+        group["players"].append({
+            "id": int(getattr(item, "id", 0) or 0),
+            "name": (getattr(item, "display_name", "") or "").strip(),
+            "number": None,
+            "position": (getattr(item, "position", "") or "-").strip() or "-",
+            "state_key": state_key,
+            "state_tone": tone,
+            "badge_label": label,
+            "skin_tone": "",
+            "photo_src": "",
+            "is_active": True,
+            "bucket": bucket,
+        })
+    field_cards = _roster_field_positions(position_groups)
+    for group in position_groups.values():
+        pl = group["players"]
+        group["confirmed_count"] = sum(1 for r in pl if r["state_tone"] == "available")
+        group["trial_count"] = sum(1 for r in pl if r["state_tone"] == "trial")
+        group["injured_count"] = sum(1 for r in pl if r["state_tone"] == "process")
+        group["inactive_count"] = sum(1 for r in pl if r["state_tone"] == "signed_other")
+    position_total_rows = [
+        {
+            "key": g["key"], "label": g["label"], "count": len(g["players"]),
+            "confirmed": g["confirmed_count"], "trial": g["trial_count"],
+            "injured": g["injured_count"], "inactive": g["inactive_count"],
+        }
+        for g in position_groups.values()
+    ]
+    return {
+        "rows": [],
+        "field_cards": field_cards,
+        "position_groups": list(position_groups.values()),
+        "position_total_rows": position_total_rows,
+        "state_counts": {},
+        "total_players": len(items),
+    }
+
+
+@login_required
+def scouting_pitch_png(request):
+    """Campo fotorealista de la comparativa de ojeo (reutiliza el render del
+    entrenador + la librería de avatares + el césped generado; coste 0)."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    workspace = _get_active_workspace(request)
+    active_team = _get_primary_team_for_request(request)
+    items = []
+    if workspace:
+        qs = (
+            ScoutingTarget.objects.filter(workspace=workspace)
+            .select_related("player")
+            .exclude(status=ScoutingTarget.STATUS_DISCARDED)
+            .order_by("-priority", "status", "-updated_at", "-id")
+        )
+        if active_team:
+            qs = qs.filter(Q(player__team=active_team) | Q(player__isnull=True))
+        items = list(qs[:44])
+    for item in items:
+        item.pos_bucket = _scouting_pos_bucket(item.position)
+        item.semaphore = _scouting_semaphore(item.status, item.available_for_coach_tools)
+    sem_signed = sum(1 for i in items if i.status == ScoutingTarget.STATUS_SIGNED)
+    sem_trial = sum(
+        1
+        for i in items
+        if i.available_for_coach_tools
+        and i.status not in {ScoutingTarget.STATUS_SIGNED, ScoutingTarget.STATUS_SIGNED_OTHER}
+    )
+    discarded_count = (
+        ScoutingTarget.objects.filter(workspace=workspace, status=ScoutingTarget.STATUS_DISCARDED).count()
+        if workspace
+        else 0
+    )
+    payload = _build_scouting_pitch_payload(items)
+    pitch_src = _roster_pitch_source(for_pillow=True)
+    png_bytes = _render_coach_roster_preview_png(
+        team_name="",
+        division_label="Dirección deportiva",
+        season_label="Ojeo",
+        payload=payload,
+        pitch_src=pitch_src,
+        header_title="2J OJEO · COMPARATIVA POR POSICIÓN",
+        top_chips=[
+            ("Ojeados", str(len(items))),
+            ("Fichados", str(sem_signed)),
+            ("A prueba", str(sem_trial)),
+            ("Descartados", str(discarded_count)),
+        ],
+        footer_detail_fmt="{confirmed} fichados · {trial} a prueba · {injured} objetivos",
+        footer_total_label="TOTAL OJEADOS",
+        footer_total_sub="en seguimiento",
+    )
+    if not png_bytes:
+        return HttpResponse(status=503)
+    response = HttpResponse(png_bytes, content_type="image/png")
+    response["Cache-Control"] = "no-cache"
+    return response
 
 
 @login_required
