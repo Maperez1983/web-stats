@@ -33056,6 +33056,12 @@ def _build_scouting_pitch_payload(items):
             "is_active": True,
             "bucket": bucket,
         })
+    # Comparativa = mejores por zona: limitamos para que el campo no se
+    # amontone ni se solapen los nombres (fichados y a prueba primero).
+    _order = {"available": 0, "trial": 1, "signed_other": 2, "process": 3, "injured": 4}
+    for group in position_groups.values():
+        group["players"].sort(key=lambda r: _order.get(r["state_tone"], 5))
+        group["players"] = group["players"][:5]
     field_cards = _roster_field_positions(position_groups)
     for group in position_groups.values():
         pl = group["players"]
