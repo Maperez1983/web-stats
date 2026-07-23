@@ -32394,9 +32394,9 @@ def coach_role_trainer_page(request):
                 .select_related('player', 'player__team')
                 .order_by('-priority', 'status', '-updated_at', '-id')
             )
-            if active_team:
+            if primary_team:
                 available_scout_targets = available_scout_targets.filter(
-                    Q(player__team=active_team) | Q(player__isnull=True)
+                    Q(player__team=primary_team) | Q(player__isnull=True)
                 )
             available_scout_targets = list(available_scout_targets[:12])
         except Exception:
@@ -32847,7 +32847,7 @@ def coach_role_trainer_page(request):
             'stats_scope': stats_scope,
             'tournament_filter': tournament_filter,
             'tournament_options': _team_tournament_name_options(primary_team) if primary_team else [],
-            'module_groups': module_groups,
+            'module_groups': modules,
             'kpis': kpis,
             'kpi_note': '* Goles, puntos y clasificación: temporada real. Métricas de acciones: solo sobre partidos medidos.',
             'coach_overview_stats': coach_overview_stats,
@@ -32876,7 +32876,7 @@ def coach_role_trainer_page(request):
             'coach_player_match_options': coach_player_match_options,
             'coach_selected_player_match_id': _parse_int(request.GET.get('player_match')),
             'coach_player_view': coach_player_view,
-            'trainer_workspace_options': trainer_workspace_options,
+            'trainer_workspace_options': [],
             'active_team': primary_team,
         },
     )
