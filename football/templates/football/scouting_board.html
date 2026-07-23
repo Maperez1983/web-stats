@@ -558,6 +558,36 @@
                 Nota de presupuesto
                 <input type="text" name="budget_note" maxlength="160" />
               </label>
+              <label>
+                Teléfono
+                <input type="tel" name="phone" maxlength="40" placeholder="Ej. 600 000 000" />
+              </label>
+              <label>
+                ¿Tiene agente?
+                <select name="has_agent" id="scout-has-agent">
+                  <option value="0">No</option>
+                  <option value="1">Sí</option>
+                </select>
+              </label>
+              <label class="scout-agent-field" style="display:none;">
+                Nombre / contacto del agente
+                <input type="text" name="agent_name" maxlength="160" placeholder="Nombre o agencia" />
+              </label>
+              <label class="scout-agent-field" style="display:none;">
+                Teléfono del agente
+                <input type="tel" name="agent_phone" maxlength="40" placeholder="Ej. 600 000 000" />
+              </label>
+              <script>
+                (function () {
+                  var sel = document.getElementById('scout-has-agent');
+                  if (!sel) return;
+                  function upd() {
+                    var show = sel.value === '1';
+                    document.querySelectorAll('.scout-agent-field').forEach(function (el) { el.style.display = show ? '' : 'none'; });
+                  }
+                  sel.addEventListener('change', upd); upd();
+                })();
+              </script>
               <label style="grid-column:1 / -1;">
                 Resumen inicial
                 <textarea name="summary" placeholder="Qué nos interesa ver, riesgo, encaje y siguiente observación..."></textarea>

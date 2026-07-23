@@ -952,6 +952,10 @@ class ScoutingTarget(models.Model):
     )
     next_review_on = models.DateField(null=True, blank=True)
     budget_note = models.CharField(max_length=160, blank=True)
+    phone = models.CharField(max_length=40, blank=True)
+    has_agent = models.BooleanField(default=False)
+    agent_name = models.CharField(max_length=160, blank=True)
+    agent_phone = models.CharField(max_length=40, blank=True)
     summary = models.TextField(blank=True)
     created_by = models.ForeignKey(
         User,

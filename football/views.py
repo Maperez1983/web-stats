@@ -33020,6 +33020,10 @@ def scouting_board_page(request):
                 if status not in {choice[0] for choice in ScoutingTarget.STATUS_CHOICES}:
                     status = ScoutingTarget.STATUS_WATCHLIST if request.POST.get("available_for_coach_tools") else ScoutingTarget.STATUS_TARGET
                 available_for_coach_tools = bool(request.POST.get("available_for_coach_tools"))
+                phone = _sanitize_task_text(str(request.POST.get("phone") or "").strip(), multiline=False, max_len=40)
+                has_agent = str(request.POST.get("has_agent") or "").strip().lower() in {"1", "on", "true", "yes", "si", "sí"}
+                agent_name = _sanitize_task_text(str(request.POST.get("agent_name") or "").strip(), multiline=False, max_len=160) if has_agent else ""
+                agent_phone = _sanitize_task_text(str(request.POST.get("agent_phone") or "").strip(), multiline=False, max_len=40) if has_agent else ""
                 target, _created = ScoutingTarget.objects.get_or_create(
                     workspace=workspace,
                     player=None,
@@ -33032,6 +33036,10 @@ def scouting_board_page(request):
                         "status": status,
                         "available_for_coach_tools": available_for_coach_tools,
                         "priority": priority,
+                        "phone": phone,
+                        "has_agent": has_agent,
+                        "agent_name": agent_name,
+                        "agent_phone": agent_phone,
                         "created_by": request.user,
                         "assigned_to": request.user if can_manage_workspace else None,
                     },
@@ -33044,6 +33052,10 @@ def scouting_board_page(request):
                     target.status = status
                     target.available_for_coach_tools = available_for_coach_tools
                     target.priority = priority
+                    target.phone = phone
+                    target.has_agent = has_agent
+                    target.agent_name = agent_name
+                    target.agent_phone = agent_phone
                     target.assigned_to = request.user if can_manage_workspace else target.assigned_to
                     target.save(update_fields=[
                         "subject_team_name",
@@ -33053,6 +33065,10 @@ def scouting_board_page(request):
                         "status",
                         "available_for_coach_tools",
                         "priority",
+                        "phone",
+                        "has_agent",
+                        "agent_name",
+                        "agent_phone",
                         "assigned_to",
                         "updated_at",
                     ])
