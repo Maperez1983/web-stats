@@ -16,6 +16,10 @@ con .rows y .counts. Autocontenido (estilos scoped por .cdd-).{% endcomment %}
     .cdd table{width:100%;border-collapse:collapse;font-size:.82rem;min-width:640px;}
     .cdd thead th{text-align:center;font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;opacity:.6;padding:.4rem .35rem;border-bottom:1px solid rgba(255,255,255,.12);font-weight:800;}
     .cdd thead th.l{text-align:left;}
+    .cdd thead th.sortable{cursor:pointer;user-select:none;}
+    .cdd thead th.sortable:hover{color:#cbd5e1;}
+    .cdd thead th.sortable.active{color:#e8eef7;}
+    .cdd .cdd-arrow{font-size:.62rem;opacity:.9;margin-left:.15rem;}
     .cdd tbody td{padding:.42rem .35rem;border-bottom:1px solid rgba(255,255,255,.06);text-align:center;}
     .cdd tbody tr.row-pending{background:rgba(250,204,21,.06);}
     .cdd tbody tr:hover{background:rgba(255,255,255,.04);}
@@ -58,12 +62,12 @@ con .rows y .counts. Autocontenido (estilos scoped por .cdd-).{% endcomment %}
     <table>
       <thead>
         <tr>
-          <th class="l">Jugador</th>
-          <th class="l">Pos · Edad</th>
-          <th>Global</th>
-          <th>Téc</th><th>Tác</th><th>Fís</th><th>Men</th>
-          <th>Estado</th>
-          <th>Decisión</th>
+          <th class="l sortable" data-type="text">Jugador</th>
+          <th class="l sortable" data-type="text">Pos · Edad</th>
+          <th class="sortable" data-type="num">Global</th>
+          <th class="sortable" data-type="num">Téc</th><th class="sortable" data-type="num">Tác</th><th class="sortable" data-type="num">Fís</th><th class="sortable" data-type="num">Men</th>
+          <th class="sortable" data-type="text">Estado</th>
+          <th class="sortable" data-type="text">Decisión</th>
         </tr>
       </thead>
       <tbody>
@@ -86,4 +90,46 @@ con .rows y .counts. Autocontenido (estilos scoped por .cdd-).{% endcomment %}
     </table>
   </div>
   {% endwith %}
+  <script>
+    (function () {
+      var table = document.querySelector('.cdd table');
+      if (!table || !table.tBodies.length) return;
+      var tbody = table.tBodies[0];
+      var headers = Array.prototype.slice.call(table.querySelectorAll('th.sortable'));
+      headers.forEach(function (th, idx) {
+        th.addEventListener('click', function () {
+          var type = th.dataset.type || 'text';
+          var asc = th.dataset.asc !== 'true';
+          headers.forEach(function (h) {
+            h.dataset.asc = '';
+            h.classList.remove('active');
+            var a = h.querySelector('.cdd-arrow');
+            if (a) a.remove();
+          });
+          th.dataset.asc = asc ? 'true' : 'false';
+          th.classList.add('active');
+          var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr')).filter(function (r) {
+            return r.children.length >= headers.length;
+          });
+          rows.sort(function (a, b) {
+            var av = a.children[idx].textContent.trim();
+            var bv = b.children[idx].textContent.trim();
+            if (type === 'num') {
+              var an = parseFloat(av.replace(',', '.'));
+              var bn = parseFloat(bv.replace(',', '.'));
+              if (isNaN(an)) an = -Infinity;
+              if (isNaN(bn)) bn = -Infinity;
+              return asc ? an - bn : bn - an;
+            }
+            return asc ? av.localeCompare(bv, 'es') : bv.localeCompare(av, 'es');
+          });
+          rows.forEach(function (r) { tbody.appendChild(r); });
+          var arrow = document.createElement('span');
+          arrow.className = 'cdd-arrow';
+          arrow.textContent = asc ? '▲' : '▼';
+          th.appendChild(arrow);
+        });
+      });
+    })();
+  </script>
 </section>
