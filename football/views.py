@@ -33185,6 +33185,23 @@ def scouting_board_page(request):
         if workspace
         else 0
     )
+
+    # Comparativa por posición: candidatos agrupados por zona del campo y
+    # ordenados por nota global (los sin informe quedan al final). Alimenta el
+    # "shortlist en campo" que ayuda a decidir un fichaje por puesto.
+    shortlist_zones = {"gk": [], "def": [], "mid": [], "att": []}
+    for item in items:
+        shortlist_zones.get(item.pos_bucket, shortlist_zones["mid"]).append(item)
+    for _zone_items in shortlist_zones.values():
+        _zone_items.sort(key=lambda t: (t.nota_global is None, -(t.nota_global or 0), t.priority != "urgent"))
+    # Bandas del campo de arriba (ataque) a abajo (portería), con etiqueta.
+    shortlist_bands = [
+        ("att", "Ataque", shortlist_zones["att"]),
+        ("mid", "Medio", shortlist_zones["mid"]),
+        ("def", "Defensa", shortlist_zones["def"]),
+        ("gk", "Portería", shortlist_zones["gk"]),
+    ]
+
     return render(
         request,
         "football/scouting_board.html",
@@ -33202,6 +33219,7 @@ def scouting_board_page(request):
             "funnel_prueba": funnel_prueba,
             "funnel_fichados": funnel_fichados,
             "discarded_count": discarded_count,
+            "shortlist_bands": shortlist_bands,
             "search_filter": search_filter,
             "status_filter": status_filter,
             "priority_filter": priority_filter,

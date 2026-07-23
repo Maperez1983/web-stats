@@ -580,6 +580,48 @@
       .scout-nota.none { color: rgba(226,232,240,0.42); font-size: 1rem; }
       .scout-card-badges { display: flex; flex-wrap: wrap; gap: 0.35rem; }
       .scout-card-foot { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: auto; padding-top: 0.2rem; }
+
+      /* Comparativa por posición (shortlist en campo) */
+      .shortlist-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; flex-wrap: wrap; margin-top: 1rem; }
+      .pos-filter { display: inline-flex; gap: 0.3rem; padding: 0.25rem; border-radius: 999px; border: 1px solid rgba(255,255,255,0.12); background: rgba(7,16,30,0.6); flex-wrap: wrap; }
+      .pos-filter-btn { border: 0; background: transparent; color: rgba(226,232,240,0.72); border-radius: 999px; padding: 0.4rem 0.85rem; cursor: pointer; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; font-size: 0.64rem; }
+      .pos-filter-btn.is-active { background: rgba(244,180,0,0.9); color: #14213d; }
+
+      .pitch {
+        position: relative;
+        margin-top: 1rem;
+        display: flex;
+        flex-direction: column;
+        padding: 1.4rem 1rem;
+        border-radius: 20px;
+        border: 2px solid rgba(226,232,240,0.32);
+        background: repeating-linear-gradient(180deg, rgba(17,94,55,0.96) 0 46px, rgba(14,82,48,0.96) 46px 92px);
+        overflow: hidden;
+        min-height: 540px;
+        box-shadow: inset 0 0 60px rgba(0,0,0,0.35);
+      }
+      .pitch::before { content: ""; position: absolute; left: 4%; right: 4%; top: 50%; height: 2px; background: rgba(226,232,240,0.32); }
+      .pitch::after { content: ""; position: absolute; left: 50%; top: 50%; width: 128px; height: 128px; transform: translate(-50%,-50%); border: 2px solid rgba(226,232,240,0.32); border-radius: 50%; }
+      .pitch-band { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; transition: opacity 0.15s ease; }
+      .pitch-band.is-dim { opacity: 0.18; }
+      .pitch-band-label { font-size: 0.58rem; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255,255,255,0.78); font-weight: 900; }
+      .pitch-band-chips { display: flex; gap: 0.55rem; flex-wrap: wrap; justify-content: center; align-items: center; }
+      .pitch-empty { font-size: 0.7rem; color: rgba(255,255,255,0.55); font-style: italic; }
+      .pitch-more { font-size: 0.68rem; font-weight: 800; color: #fff; background: rgba(0,0,0,0.38); border-radius: 999px; padding: 0.3rem 0.6rem; }
+
+      .pitch-chip { display: flex; align-items: center; gap: 0.45rem; padding: 0.32rem 0.6rem 0.32rem 0.32rem; border-radius: 999px; background: rgba(7,16,30,0.85); border: 1px solid rgba(255,255,255,0.18); text-decoration: none; max-width: 210px; transition: transform 0.12s ease, border-color 0.12s ease; }
+      .pitch-chip:hover { transform: translateY(-2px); border-color: rgba(244,180,0,0.6); }
+      .pitch-avatar { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.7rem; color: #f8fafc; flex: 0 0 auto; background: linear-gradient(135deg, #475569, #334155); }
+      .pitch-avatar[data-pos="gk"] { background: linear-gradient(135deg, #f59e0b, #b45309); }
+      .pitch-avatar[data-pos="def"] { background: linear-gradient(135deg, #38bdf8, #0369a1); }
+      .pitch-avatar[data-pos="mid"] { background: linear-gradient(135deg, #34d399, #047857); }
+      .pitch-avatar[data-pos="att"] { background: linear-gradient(135deg, #f87171, #b91c1c); }
+      .pitch-chip-name { color: #f8fafc; font-weight: 700; font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .pitch-nota { flex: 0 0 auto; min-width: 24px; text-align: center; font-weight: 900; font-size: 0.85rem; border-radius: 7px; padding: 0.05rem 0.28rem; }
+      .pitch-nota.high { background: rgba(47,125,50,0.32); color: #bbf7d0; }
+      .pitch-nota.mid { background: rgba(244,180,0,0.3); color: #fde68a; }
+      .pitch-nota.low { background: rgba(248,113,113,0.26); color: #fecaca; }
+      .pitch-nota.none { color: rgba(255,255,255,0.55); }
     </style>
   </head>
   <body class="prod-commercial">
@@ -611,6 +653,7 @@
         <button class="workspace-tab is-active" type="button" data-scout-tab-target="create">Crear</button>
         {% endif %}
         <button class="workspace-tab" type="button" data-scout-tab-target="list">Listado</button>
+        <button class="workspace-tab" type="button" data-scout-tab-target="shortlist">Comparativa</button>
       </div>
 
       {% if can_manage_workspace %}
@@ -916,6 +959,42 @@
         <div class="empty">No hay jugadores ojeados con estos filtros.</div>
         {% endif %}
       </section>
+
+      <section class="workspace-panel" data-scout-panel="shortlist">
+        <div class="shortlist-head">
+          <div>
+            <h2 style="margin:0;">Comparativa por posición</h2>
+            <p class="sub" style="margin:0.35rem 0 0;">Los mejores candidatos por zona del campo, ordenados por nota global. Elige un puesto para aislarlo y decidir un fichaje.</p>
+          </div>
+          <div class="pos-filter" role="tablist" aria-label="Filtrar por zona">
+            <button class="pos-filter-btn is-active" type="button" data-zone-filter="all">Todo</button>
+            <button class="pos-filter-btn" type="button" data-zone-filter="att">Ataque</button>
+            <button class="pos-filter-btn" type="button" data-zone-filter="mid">Medio</button>
+            <button class="pos-filter-btn" type="button" data-zone-filter="def">Defensa</button>
+            <button class="pos-filter-btn" type="button" data-zone-filter="gk">Portería</button>
+          </div>
+        </div>
+
+        <div class="pitch" aria-label="Campo con candidatos por posición">
+          {% for zone_key, zone_label, zone_list in shortlist_bands %}
+          <div class="pitch-band" data-zone="{{ zone_key }}">
+            <span class="pitch-band-label">{{ zone_label }}</span>
+            <div class="pitch-band-chips">
+              {% for t in zone_list|slice:":6" %}
+              <a class="pitch-chip" href="{% url 'scouting-target-detail' t.id %}" title="{{ t.display_name|display_text }}">
+                <span class="pitch-avatar" data-pos="{{ t.pos_bucket }}">{{ t.initials }}</span>
+                <span class="pitch-chip-name">{{ t.display_name|display_text }}</span>
+                <span class="pitch-nota {% if t.nota_global >= 8 %}high{% elif t.nota_global >= 6 %}mid{% elif t.nota_global %}low{% else %}none{% endif %}">{% if t.nota_global %}{{ t.nota_global }}{% else %}--{% endif %}</span>
+              </a>
+              {% empty %}
+              <span class="pitch-empty">Sin candidatos en esta zona</span>
+              {% endfor %}
+              {% if zone_list|length > 6 %}<span class="pitch-more">+{{ zone_list|length|add:"-6" }} más</span>{% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
     </div>
     <script>
       (() => {
@@ -960,6 +1039,17 @@
         let initial = 'cards';
         try { initial = window.localStorage.getItem(storageKey) || 'cards'; } catch (e) {}
         apply(initial === 'table' ? 'table' : 'cards');
+      })();
+
+      (() => {
+        const btns = Array.from(document.querySelectorAll('[data-zone-filter]'));
+        const bands = Array.from(document.querySelectorAll('.pitch-band'));
+        if (!btns.length || !bands.length) return;
+        const apply = (zone) => {
+          btns.forEach((b) => b.classList.toggle('is-active', b.dataset.zoneFilter === zone));
+          bands.forEach((band) => band.classList.toggle('is-dim', zone !== 'all' && band.dataset.zone !== zone));
+        };
+        btns.forEach((b) => b.addEventListener('click', () => apply(b.dataset.zoneFilter || 'all')));
       })();
     </script>
   </body>
