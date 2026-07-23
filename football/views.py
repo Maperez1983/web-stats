@@ -4694,7 +4694,7 @@ def _roster_preview_bucket(position_text: str) -> str:
 
 # Sube este numero cuando cambie el DISENO del informe: invalida todas las
 # imagenes cacheadas y fuerza que se regeneren con el render nuevo.
-_ROSTER_PREVIEW_RENDER_VERSION = "7"
+_ROSTER_PREVIEW_RENDER_VERSION = "8"
 
 
 def _coach_roster_preview_signature(*, primary_team, active_club_season, board_rows) -> str:
@@ -4830,12 +4830,22 @@ _KIT_AVATAR_BY_BUCKET = {
     "att": "kit_home.png",
     "oth": "kit_home.png",
 }
+# Estados con avatar propio (tienen prioridad sobre el kit de posicion):
+# el lesionado sale con muletas y el jugador a prueba en chandal negro.
+_KIT_AVATAR_BY_STATE = {
+    "injured": "injured_crutches.png",
+    "trial": "chandal_black.png",
+}
 
 
-def _coach_kit_avatar_path(bucket):
-    """Avatar realista con el KIT del club segun la posicion (portero vs campo).
+def _coach_kit_avatar_path(bucket, state_key=None):
+    """Avatar realista segun el estado (lesionado/a prueba) o, si no aplica,
+    segun la posicion (portero vs campo).  El estado manda sobre el kit.
     Devuelve None si el fichero no existe (para caer al avatar por estado)."""
-    name = _KIT_AVATAR_BY_BUCKET.get(str(bucket or "").strip().lower(), "kit_home.png")
+    st = str(state_key or "").strip().lower()
+    name = _KIT_AVATAR_BY_STATE.get(st) or _KIT_AVATAR_BY_BUCKET.get(
+        str(bucket or "").strip().lower(), "kit_home.png"
+    )
     p = (
         Path(settings.BASE_DIR)
         / "football" / "static" / "football" / "images" / "coach_roster_avatars" / "library" / name
@@ -5362,7 +5372,7 @@ def _render_coach_roster_preview_png(
 
         # 1) avatar realista con el KIT del club por posicion; si no existe,
         #    cae al avatar de biblioteca por estado + tono de piel.
-        library_path = _coach_kit_avatar_path(item.get("bucket")) or _coach_library_avatar_path(
+        library_path = _coach_kit_avatar_path(item.get("bucket"), state_key) or _coach_library_avatar_path(
             state_key, item.get("skin_tone"), item.get("id")
         )
         if library_path is not None:
