@@ -4694,7 +4694,7 @@ def _roster_preview_bucket(position_text: str) -> str:
 
 # Sube este numero cuando cambie el DISENO del informe: invalida todas las
 # imagenes cacheadas y fuerza que se regeneren con el render nuevo.
-_ROSTER_PREVIEW_RENDER_VERSION = "6"
+_ROSTER_PREVIEW_RENDER_VERSION = "7"
 
 
 def _coach_roster_preview_signature(*, primary_team, active_club_season, board_rows) -> str:
@@ -4815,6 +4815,30 @@ def _coach_library_avatar_path(state_key, skin_tone, player_id=0):
     p = (
         Path(settings.BASE_DIR)
         / "football" / "static" / "football" / "images" / "coach_roster_avatars" / "library" / f"{st}_{skin}.png"
+    )
+    return p if p.exists() else None
+
+
+# Kit del club por linea del campo: los jugadores de campo visten la 1a
+# equipacion (verde a rayas, la real del club) y el portero un kit propio.
+# El estado (lesionado/prueba/inactivo) se sigue indicando con la chapa y el
+# desaturado, no cambiando el avatar.  Fichero por bucket de _roster_preview_bucket.
+_KIT_AVATAR_BY_BUCKET = {
+    "gk": "gk_magenta.png",
+    "def": "kit_home.png",
+    "mid": "kit_home.png",
+    "att": "kit_home.png",
+    "oth": "kit_home.png",
+}
+
+
+def _coach_kit_avatar_path(bucket):
+    """Avatar realista con el KIT del club segun la posicion (portero vs campo).
+    Devuelve None si el fichero no existe (para caer al avatar por estado)."""
+    name = _KIT_AVATAR_BY_BUCKET.get(str(bucket or "").strip().lower(), "kit_home.png")
+    p = (
+        Path(settings.BASE_DIR)
+        / "football" / "static" / "football" / "images" / "coach_roster_avatars" / "library" / name
     )
     return p if p.exists() else None
 
@@ -5336,8 +5360,11 @@ def _render_coach_roster_preview_png(
             "inactive": "INACTIVO",
         }.get(state_key, "DISPONIBLE")
 
-        # 1) avatar de la BIBLIOTECA IA (ya recortado) segun estado + tono de piel
-        library_path = _coach_library_avatar_path(state_key, item.get("skin_tone"), item.get("id"))
+        # 1) avatar realista con el KIT del club por posicion; si no existe,
+        #    cae al avatar de biblioteca por estado + tono de piel.
+        library_path = _coach_kit_avatar_path(item.get("bucket")) or _coach_library_avatar_path(
+            state_key, item.get("skin_tone"), item.get("id")
+        )
         if library_path is not None:
             avatar_img = _load_image_source(str(library_path))
         else:
