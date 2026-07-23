@@ -3295,6 +3295,18 @@
       {% endif %}
       {% endif %}
       {% if role_key == 'trainer' %}
+      <style>
+        .trainer-tabs{display:flex;gap:.45rem;flex-wrap:wrap;margin:0 0 1.1rem;}
+        .trainer-tab{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:#c7d2e0;border-radius:999px;padding:.45rem 1rem;font-size:.8rem;font-weight:800;letter-spacing:.02em;cursor:pointer;transition:background .15s,color .15s;}
+        .trainer-tab:hover{color:#fff;}
+        .trainer-tab.is-active{background:rgba(244,180,0,.20);border-color:rgba(244,180,0,.55);color:#fff;}
+      </style>
+      <nav class="trainer-tabs" role="tablist" aria-label="Secciones del entrenador">
+        <button type="button" class="trainer-tab" data-tab-target="player" role="tab">Jugadores</button>
+        <button type="button" class="trainer-tab" data-tab-target="summary" role="tab">Resumen</button>
+        <button type="button" class="trainer-tab" data-tab-target="sessions" role="tab">Sesiones</button>
+        <button type="button" class="trainer-tab" data-tab-target="charts" role="tab">Gráficos</button>
+      </nav>
       <section class="workspace-panel is-active" data-tab-panel="summary">
         <div class="workspace-stack">
           {% if coach_match_rows %}
