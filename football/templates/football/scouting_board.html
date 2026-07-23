@@ -458,6 +458,128 @@
         .create-grid,
         .mini-grid { grid-template-columns: 1fr; }
       }
+
+      /* Embudo de decisión (pipeline) */
+      .funnel {
+        margin-top: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+        padding: 0.9rem 1.1rem;
+        border-radius: 18px;
+        border: 1px solid rgba(244,180,0,0.22);
+        background: linear-gradient(135deg, rgba(7,16,30,0.85), rgba(17,30,52,0.7));
+      }
+      .funnel-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.1rem;
+        min-width: 84px;
+        padding: 0.35rem 0.65rem;
+        border-radius: 12px;
+      }
+      .funnel-step.is-goal { background: rgba(47,125,50,0.16); border: 1px solid rgba(47,125,50,0.34); }
+      .funnel-value { font-size: 1.6rem; font-weight: 900; color: #fde68a; line-height: 1; }
+      .funnel-step.is-goal .funnel-value { color: #bbf7d0; }
+      .funnel-label {
+        font-size: 0.6rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.66);
+        font-weight: 800;
+      }
+      .funnel-arrow { color: rgba(244,180,0,0.5); font-size: 1.3rem; font-weight: 900; }
+      .funnel-aside { margin-left: auto; display: flex; gap: 0.4rem; flex-wrap: wrap; }
+      .funnel-tag {
+        font-size: 0.66rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        padding: 0.3rem 0.6rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.14);
+      }
+      .funnel-tag.urgent { background: rgba(248,113,113,0.14); color: #fecaca; border-color: rgba(248,113,113,0.34); }
+      .funnel-tag.muted { color: rgba(226,232,240,0.6); }
+
+      /* Toggle Tarjetas / Tabla */
+      .view-toggle { margin-top: 1rem; display: inline-flex; gap: 0.3rem; padding: 0.25rem; border-radius: 999px; border: 1px solid rgba(255,255,255,0.12); background: rgba(7,16,30,0.6); }
+      .view-toggle-btn {
+        border: 0;
+        background: transparent;
+        color: rgba(226,232,240,0.7);
+        border-radius: 999px;
+        padding: 0.4rem 0.95rem;
+        cursor: pointer;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-size: 0.68rem;
+      }
+      .view-toggle-btn.is-active { background: rgba(244,180,0,0.9); color: #14213d; }
+
+      /* Vistas conmutables */
+      .scout-cards { display: none; }
+      .scout-cards.is-active { display: grid; grid-template-columns: repeat(auto-fill, minmax(258px, 1fr)); gap: 0.85rem; margin-top: 1rem; }
+      .list-wrap[data-view-panel] { display: none; }
+      .list-wrap[data-view-panel].is-active { display: block; }
+
+      /* Tarjeta premium de ojeado */
+      .scout-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.7rem;
+        padding: 1rem;
+        border-radius: 18px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(7,16,30,0.72);
+        transition: border-color 0.15s ease, transform 0.15s ease;
+      }
+      .scout-card:hover { border-color: rgba(244,180,0,0.4); transform: translateY(-2px); }
+      .scout-card-top { display: flex; align-items: flex-start; gap: 0.7rem; }
+      .scout-avatar {
+        flex: 0 0 auto;
+        width: 46px;
+        height: 46px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+        font-size: 1rem;
+        color: #f8fafc;
+        letter-spacing: 0.02em;
+        background: linear-gradient(135deg, #475569, #334155);
+      }
+      .scout-avatar[data-pos="gk"] { background: linear-gradient(135deg, #f59e0b, #b45309); }
+      .scout-avatar[data-pos="def"] { background: linear-gradient(135deg, #38bdf8, #0369a1); }
+      .scout-avatar[data-pos="mid"] { background: linear-gradient(135deg, #34d399, #047857); }
+      .scout-avatar[data-pos="att"] { background: linear-gradient(135deg, #f87171, #b91c1c); }
+      .scout-card-id { flex: 1 1 auto; min-width: 0; }
+      .scout-card-name { display: block; color: #f8fafc; font-weight: 800; font-size: 0.98rem; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .scout-card-name:hover { color: #fde68a; }
+      .scout-card-meta { font-size: 0.74rem; color: rgba(226,232,240,0.7); margin-top: 0.1rem; }
+      .scout-card-club { font-size: 0.72rem; color: rgba(226,232,240,0.5); margin-top: 0.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .scout-nota {
+        flex: 0 0 auto;
+        min-width: 40px;
+        height: 40px;
+        padding: 0 0.35rem;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+        font-size: 1.25rem;
+        border: 1px solid rgba(255,255,255,0.14);
+      }
+      .scout-nota.high { background: rgba(47,125,50,0.18); color: #bbf7d0; border-color: rgba(47,125,50,0.4); }
+      .scout-nota.mid { background: rgba(244,180,0,0.16); color: #fde68a; border-color: rgba(244,180,0,0.36); }
+      .scout-nota.low { background: rgba(248,113,113,0.14); color: #fecaca; border-color: rgba(248,113,113,0.34); }
+      .scout-nota.none { color: rgba(226,232,240,0.42); font-size: 1rem; }
+      .scout-card-badges { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+      .scout-card-foot { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: auto; padding-top: 0.2rem; }
     </style>
   </head>
   <body class="prod-commercial">
@@ -650,27 +772,76 @@
           </div>
         </form>
 
-        <section class="stats" aria-label="Resumen de ojeados">
-          <article class="stat">
-            <div class="label">Ojeados</div>
-            <div class="value">{{ total_targets }}</div>
-          </article>
-          <article class="stat">
-            <div class="label">Activos</div>
-            <div class="value">{{ active_targets }}</div>
-          </article>
-          <article class="stat">
-            <div class="label">Revisar</div>
-            <div class="value">{{ review_targets }}</div>
-          </article>
-          <article class="stat">
-            <div class="label">Urgentes</div>
-            <div class="value">{{ urgent_targets }}</div>
-          </article>
+        <section class="funnel" aria-label="Embudo de decisión">
+          <div class="funnel-step">
+            <span class="funnel-value">{{ funnel_objetivos }}</span>
+            <span class="funnel-label">Objetivos</span>
+          </div>
+          <span class="funnel-arrow" aria-hidden="true">›</span>
+          <div class="funnel-step">
+            <span class="funnel-value">{{ funnel_seguimiento }}</span>
+            <span class="funnel-label">En seguimiento</span>
+          </div>
+          <span class="funnel-arrow" aria-hidden="true">›</span>
+          <div class="funnel-step">
+            <span class="funnel-value">{{ funnel_prueba }}</span>
+            <span class="funnel-label">A prueba</span>
+          </div>
+          <span class="funnel-arrow" aria-hidden="true">›</span>
+          <div class="funnel-step is-goal">
+            <span class="funnel-value">{{ funnel_fichados }}</span>
+            <span class="funnel-label">Fichados</span>
+          </div>
+          <div class="funnel-aside">
+            {% if urgent_targets %}<span class="funnel-tag urgent">{{ urgent_targets }} urgentes</span>{% endif %}
+            {% if discarded_count %}<span class="funnel-tag muted">{{ discarded_count }} descartados</span>{% endif %}
+          </div>
         </section>
 
+        <div class="view-toggle" role="tablist" aria-label="Formato del listado">
+          <button class="view-toggle-btn is-active" type="button" data-view-target="cards">Tarjetas</button>
+          <button class="view-toggle-btn" type="button" data-view-target="table">Tabla</button>
+        </div>
+
         {% if items %}
-        <div class="list-wrap" aria-label="Jugadores ojeados">
+        <div class="scout-cards is-active" data-view-panel="cards" aria-label="Jugadores ojeados">
+          {% for target in items %}
+          <article class="scout-card">
+            <div class="scout-card-top">
+              <span class="scout-avatar" data-pos="{{ target.pos_bucket }}">{{ target.initials }}</span>
+              <div class="scout-card-id">
+                <a class="scout-card-name" href="{% url 'scouting-target-detail' target.id %}">{{ target.display_name|display_text }}</a>
+                <div class="scout-card-meta">
+                  {% if target.position %}{{ target.position|display_position }}{% else %}Sin posición{% endif %}
+                  {% if target.birth_date %} · {{ target.birth_date|date:"Y" }}{% endif %}
+                </div>
+                {% if target.subject_team_name %}<div class="scout-card-club">{{ target.subject_team_name|display_text }}</div>{% endif %}
+              </div>
+              <span class="scout-nota {% if target.nota_global >= 8 %}high{% elif target.nota_global >= 6 %}mid{% elif target.nota_global %}low{% else %}none{% endif %}">
+                {% if target.nota_global %}{{ target.nota_global }}{% else %}--{% endif %}
+              </span>
+            </div>
+            <div class="scout-card-badges">
+              <span class="badge {% if target.priority == 'urgent' %}critical{% elif target.priority == 'high' %}warning{% else %}ok{% endif %}">{{ target.get_priority_display }}</span>
+              <span class="badge">{{ target.get_status_display }}</span>
+              {% if target.available_for_coach_tools and target.status != 'discarded' %}
+              <span class="badge warning">A prueba</span>
+              {% elif target.player_id %}
+              <span class="badge ok">En plantilla</span>
+              {% endif %}
+              {% if target.recommendation_display %}
+              <span class="badge {% if target.recommendation_code == 'sign' %}ok{% elif target.recommendation_code == 'discard' %}critical{% elif target.recommendation_code == 'follow' %}cyan{% else %}warning{% endif %}">{{ target.recommendation_display }}</span>
+              {% endif %}
+            </div>
+            <div class="scout-card-foot">
+              <a class="card-action primary" href="{% url 'scouting-target-detail' target.id %}">Abrir ficha</a>
+              {% if target.player_id %}<a class="card-action" href="{% url 'player-detail' target.player_id %}">Jugador</a>{% endif %}
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+
+        <div class="list-wrap" data-view-panel="table" aria-label="Jugadores ojeados (tabla)">
           <table class="list-table">
             <thead>
               <tr>
@@ -773,6 +944,22 @@
           initial = 'list';
         }
         activate(initial === 'create' ? 'create' : 'list');
+      })();
+
+      (() => {
+        const toggles = Array.from(document.querySelectorAll('[data-view-target]'));
+        const views = Array.from(document.querySelectorAll('[data-view-panel]'));
+        if (!toggles.length || !views.length) return;
+        const storageKey = 'scout-list-view';
+        const apply = (name) => {
+          toggles.forEach((btn) => btn.classList.toggle('is-active', btn.dataset.viewTarget === name));
+          views.forEach((view) => view.classList.toggle('is-active', view.dataset.viewPanel === name));
+          try { window.localStorage.setItem(storageKey, name); } catch (e) {}
+        };
+        toggles.forEach((btn) => btn.addEventListener('click', () => apply(btn.dataset.viewTarget || 'cards')));
+        let initial = 'cards';
+        try { initial = window.localStorage.getItem(storageKey) || 'cards'; } catch (e) {}
+        apply(initial === 'table' ? 'table' : 'cards');
       })();
     </script>
   </body>

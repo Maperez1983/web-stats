@@ -33118,6 +33118,73 @@ def scouting_board_page(request):
     active_targets = sum(1 for item in items if item.status in {ScoutingTarget.STATUS_ACTIVE, ScoutingTarget.STATUS_WATCHLIST})
     review_targets = sum(1 for item in items if item.status == ScoutingTarget.STATUS_REVIEW)
     urgent_targets = sum(1 for item in items if item.priority == ScoutingTarget.PRIORITY_URGENT)
+
+    # Enriquecer cada objetivo con nota global (media del último informe) y recomendación,
+    # para pintar tarjetas premium en el listado sin N+1 (una sola consulta de informes).
+    _RATING_FIELDS = (
+        "technical_rating",
+        "tactical_rating",
+        "physical_rating",
+        "mental_rating",
+        "potential_rating",
+        "fit_rating",
+    )
+    latest_report_by_target = {}
+    if items:
+        _target_ids = [item.id for item in items]
+        for _rep in ScoutingReport.objects.filter(target_id__in=_target_ids).order_by(
+            "target_id", "-observed_on", "-created_at", "-id"
+        ):
+            if _rep.target_id not in latest_report_by_target:
+                latest_report_by_target[_rep.target_id] = _rep
+    for item in items:
+        _rep = latest_report_by_target.get(item.id)
+        if _rep:
+            _vals = [int(getattr(_rep, f)) for f in _RATING_FIELDS if getattr(_rep, f)]
+            item.nota_global = int(round(sum(_vals) / len(_vals))) if _vals else None
+            item.recommendation_code = _rep.recommendation
+            item.recommendation_display = _rep.get_recommendation_display()
+        else:
+            item.nota_global = None
+            item.recommendation_code = ""
+            item.recommendation_display = ""
+        # Monograma (iniciales) y zona de posición para el avatar de la tarjeta.
+        _name = (item.display_name or "").strip()
+        _parts = [p for p in _name.split() if p]
+        if len(_parts) >= 2:
+            item.initials = (_parts[0][:1] + _parts[1][:1]).upper()
+        elif _parts:
+            item.initials = _parts[0][:2].upper()
+        else:
+            item.initials = "?"
+        _pos = (item.position or "").strip().upper()
+        if _pos in {"POR", "GK"}:
+            item.pos_bucket = "gk"
+        elif _pos in {"DFC", "LD", "LI", "DEF", "CB", "RB", "LB"}:
+            item.pos_bucket = "def"
+        elif _pos in {"MC", "MCD", "MP", "MCO", "MID"}:
+            item.pos_bucket = "mid"
+        elif _pos in {"DC", "ED", "EI", "SD", "DEL", "FW", "ST"}:
+            item.pos_bucket = "att"
+        else:
+            item.pos_bucket = "mid"
+
+    # Embudo de decisión (pipeline) para la cabecera comercial.
+    funnel_objetivos = sum(1 for item in items if item.status == ScoutingTarget.STATUS_TARGET)
+    funnel_seguimiento = sum(
+        1
+        for item in items
+        if item.status in {ScoutingTarget.STATUS_WATCHLIST, ScoutingTarget.STATUS_ACTIVE, ScoutingTarget.STATUS_REVIEW}
+    )
+    funnel_prueba = sum(
+        1 for item in items if item.available_for_coach_tools and item.status != ScoutingTarget.STATUS_SIGNED
+    )
+    funnel_fichados = sum(1 for item in items if item.status == ScoutingTarget.STATUS_SIGNED)
+    discarded_count = (
+        ScoutingTarget.objects.filter(workspace=workspace, status=ScoutingTarget.STATUS_DISCARDED).count()
+        if workspace
+        else 0
+    )
     return render(
         request,
         "football/scouting_board.html",
@@ -33130,6 +33197,11 @@ def scouting_board_page(request):
             "active_targets": active_targets,
             "review_targets": review_targets,
             "urgent_targets": urgent_targets,
+            "funnel_objetivos": funnel_objetivos,
+            "funnel_seguimiento": funnel_seguimiento,
+            "funnel_prueba": funnel_prueba,
+            "funnel_fichados": funnel_fichados,
+            "discarded_count": discarded_count,
             "search_filter": search_filter,
             "status_filter": status_filter,
             "priority_filter": priority_filter,
