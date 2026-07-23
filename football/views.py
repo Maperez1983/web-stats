@@ -33043,11 +33043,14 @@ def _build_scouting_pitch_payload(items):
         state_key, tone, label = sem_to_render.get(sem.get("color"), sem_to_render["grey"])
         bucket = getattr(item, "pos_bucket", None) or _scouting_pos_bucket(getattr(item, "position", ""))
         group = position_groups.get(bucket) or position_groups["oth"]
+        nota = int(getattr(item, "nota_global", 0) or 0)
+        pos_txt = (getattr(item, "position", "") or "-").strip() or "-"
         group["players"].append({
             "id": int(getattr(item, "id", 0) or 0),
             "name": (getattr(item, "display_name", "") or "").strip(),
             "number": None,
-            "position": (getattr(item, "position", "") or "-").strip() or "-",
+            "position": f"{pos_txt} · {nota}/10" if nota else pos_txt,
+            "nota": nota,
             "state_key": state_key,
             "state_tone": tone,
             "badge_label": label,
@@ -33056,11 +33059,11 @@ def _build_scouting_pitch_payload(items):
             "is_active": True,
             "bucket": bucket,
         })
-    # Comparativa = mejores por zona: limitamos para que el campo no se
-    # amontone ni se solapen los nombres (fichados y a prueba primero).
+    # Comparativa = los MEJORES por zona: ordenamos por nota global (desc) y,
+    # como desempate, fichados/a prueba antes; limitamos a 5 para no amontonar.
     _order = {"available": 0, "trial": 1, "signed_other": 2, "process": 3, "injured": 4}
     for group in position_groups.values():
-        group["players"].sort(key=lambda r: _order.get(r["state_tone"], 5))
+        group["players"].sort(key=lambda r: (-int(r.get("nota") or 0), _order.get(r["state_tone"], 5)))
         group["players"] = group["players"][:5]
     field_cards = _roster_field_positions(position_groups)
     for group in position_groups.values():
@@ -33107,9 +33110,24 @@ def scouting_pitch_png(request):
         if active_team:
             qs = qs.filter(Q(player__team=active_team) | Q(player__isnull=True))
         items = list(qs[:44])
+    # Nota global (media del último informe) para elegir a los MEJORES por zona.
+    _RATING_FIELDS = ("technical_rating", "tactical_rating", "physical_rating", "mental_rating", "potential_rating", "fit_rating")
+    _latest_report = {}
+    if items:
+        for _rep in ScoutingReport.objects.filter(target_id__in=[i.id for i in items]).order_by(
+            "target_id", "-observed_on", "-created_at", "-id"
+        ):
+            if _rep.target_id not in _latest_report:
+                _latest_report[_rep.target_id] = _rep
     for item in items:
         item.pos_bucket = _scouting_pos_bucket(item.position)
         item.semaphore = _scouting_semaphore(item.status, item.available_for_coach_tools)
+        _rep = _latest_report.get(item.id)
+        if _rep:
+            _vals = [int(getattr(_rep, f)) for f in _RATING_FIELDS if getattr(_rep, f)]
+            item.nota_global = int(round(sum(_vals) / len(_vals))) if _vals else 0
+        else:
+            item.nota_global = 0
     sem_signed = sum(1 for i in items if i.status == ScoutingTarget.STATUS_SIGNED)
     sem_trial = sum(
         1
