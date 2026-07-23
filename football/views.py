@@ -19546,7 +19546,10 @@ def coach_overview_page(request):
     team_display_name = str(
         getattr(primary_team, "display_name", "") or getattr(primary_team, "name", "") or "Club"
     ).strip()
-    team_crest_url = resolve_team_crest_url(request, primary_team, sync=True) if primary_team else ""
+    # sync=False: en un GET no queremos que resolver el escudo dispare team.save()+invalidación de
+    # caché (sync_team_crest_from_sources escribe si crest_url quedó obsoleto). La sincronización del
+    # escudo ya la hace sync_workspace_competition_context; aquí sólo leemos, como en la clasificación.
+    team_crest_url = resolve_team_crest_url(request, primary_team, sync=False) if primary_team else ""
     # Estos cuatro alimentan el dashboard de decisión y la imagen de plantilla (ambos sí se pintan).
     active_club_season = None
     roster_memberships = {}
