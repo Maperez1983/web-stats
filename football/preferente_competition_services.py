@@ -15,10 +15,22 @@ sesión/cookies para minimizar 403.
 from __future__ import annotations
 
 import re
+import time
 
 from bs4 import BeautifulSoup
 
 from .competition_season_services import normalize_season_name
+
+# Endpoint jaxon (mismo que usa el JS de la web) para el panel de partidos. Se puede llamar
+# servidor->web con `requests` (verificado): en pretemporada devuelve un error PHP porque no hay
+# jornada, y cuando el calendario esté sorteado devolverá el HTML del panel de resultados.
+_JAXON_URL = 'https://www.lapreferente.com/jaxon/ajax.php'
+_JAXON_VERSION = '4.0.2'
+
+# href de equipo en la clasificación: E<team>C<competition>-<n>/slug
+_TEAM_COMP_HREF_RE = re.compile(r'\bE(\d+)C(\d+)\b', re.IGNORECASE)
+# id de equipo en la URL de la ficha: /E147/cd-benagalbon
+_URL_TEAM_ID_RE = re.compile(r'/E(\d+)\b', re.IGNORECASE)
 
 # La tabla de clasificación de la ficha de equipo tiene id fijo `tableClasif` (class lpfTable01).
 # OJO: hay una tabla duplicada (versión móvil) sin id que concatena todas las filas; NO usarla.
@@ -168,4 +180,115 @@ def fetch_preferente_standings(url):
     rows = parse_preferente_standings(html)
     if not rows:
         return [], {}
-    return rows, parse_preferente_competition_meta(html)
+    meta = parse_preferente_competition_meta(html)
+    competition_code = extract_preferente_competition_code(html)
+    if competition_code:
+        meta['competition_code'] = competition_code
+    return rows, meta
+
+
+def extract_preferente_competition_code(html):
+    """El código de competición (C#####) compartido por los enlaces de equipo de la clasificación."""
+    if not html:
+        return ''
+    codes = {}
+    for match in _TEAM_COMP_HREF_RE.finditer(html):
+        code = match.group(2)
+        codes[code] = codes.get(code, 0) + 1
+    if not codes:
+        return ''
+    return max(codes, key=codes.get)
+
+
+def _preferente_team_id_from_url(url):
+    match = _URL_TEAM_ID_RE.search(str(url or ''))
+    return match.group(1) if match else ''
+
+
+def _looks_like_php_error(text):
+    lowered = str(text or '').lower()
+    return 'fatal error' in lowered or 'uncaught' in lowered or '<b>warning</b>' in lowered
+
+
+def parse_preferente_next_match(panel_html, *, team_id=''):
+    """
+    Extrae el próximo partido del panel de resultados de La Preferente.
+
+    NOTA DE VALIDACIÓN: en pretemporada 2026 el calendario no está sorteado, así que no hay HTML de
+    panel real contra el que validar el desglose fila a fila. Este parser es best-effort y degrada a
+    {} si no encuentra un partido con fecha futura y rival claros; nunca inventa. Cuando el calendario
+    exista, hay que revisar el mapeo de celdas con un panel poblado (el endpoint y el flujo ya están
+    verificados de punta a punta).
+    """
+    if not panel_html or _looks_like_php_error(panel_html):
+        return {}
+    soup = BeautifulSoup(panel_html, 'html.parser')
+    text = soup.get_text(' ', strip=True)
+    if not text:
+        return {}
+    # Estructura esperada (a confirmar con datos reales): filas con equipos enlazados y una fecha.
+    date_match = re.search(r'\b(\d{2}/\d{2}/\d{4})\b', text)
+    team_links = [a.get_text(' ', strip=True) for a in soup.find_all('a') if a.get_text(strip=True)]
+    if not date_match or len(team_links) < 2:
+        return {}
+    from datetime import datetime
+
+    try:
+        match_date = datetime.strptime(date_match.group(1), '%d/%m/%Y').date().isoformat()
+    except ValueError:
+        return {}
+    home_name, away_name = team_links[0], team_links[1]
+    opponent = away_name if home_name else away_name
+    return {
+        'round': '',
+        'date': match_date,
+        'time': '',
+        'location': '',
+        'opponent': {'name': opponent, 'full_name': opponent, 'crest_url': ''},
+        'home': True,
+        'status': 'next',
+        'source': 'lapreferente',
+    }
+
+
+def fetch_preferente_next_match(preferente_url, *, competition_code=''):
+    """
+    Próximo partido desde La Preferente vía el endpoint jaxon `Ajax.Partidos.recargaPanelResultados`.
+
+    Devuelve un payload de próximo partido normalizado, o {} si el calendario aún no está sorteado
+    (La Preferente responde con error PHP en ese caso) o si no se puede resolver. Diseñado para
+    correr servidor->web sin navegador (verificado).
+    """
+    url = str(preferente_url or '').strip()
+    team_id = _preferente_team_id_from_url(url)
+    if not team_id:
+        return {}
+    from .services import _fetch_preferente_response, _get_preferente_session, _preferente_headers
+
+    if not competition_code:
+        try:
+            page = _fetch_preferente_response(url)
+            competition_code = extract_preferente_competition_code(page.text or '')
+        except Exception:
+            competition_code = ''
+    if not competition_code:
+        return {}
+
+    session = _get_preferente_session()
+    headers = _preferente_headers(url)
+    headers['X-Requested-With'] = 'XMLHttpRequest'
+    body = {
+        'jxnr': str(int(time.time() * 1000)),
+        'jxnv': _JAXON_VERSION,
+        'jxncls': 'Ajax.Partidos',
+        'jxnmthd': 'recargaPanelResultados',
+        # Codificación de args jaxon: N<numero>. Firma: (competición, equipo, panel=1).
+        'jxnargs[]': [f'N{competition_code}', f'N{team_id}', 'N1'],
+    }
+    try:
+        response = session.post(_JAXON_URL, data=body, headers=headers, timeout=20)
+    except Exception:
+        return {}
+    if getattr(response, 'status_code', 0) != 200:
+        return {}
+    return parse_preferente_next_match(response.text or '', team_id=team_id)

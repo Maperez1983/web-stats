@@ -48,6 +48,31 @@ class ParsePreferenteStandingsTests(SimpleTestCase):
     def test_empty_input(self):
         self.assertEqual(pcs.parse_preferente_standings(''), [])
 
+    def test_extracts_competition_code(self):
+        self.assertEqual(pcs.extract_preferente_competition_code(self.html), '26717')
+
+    def test_extracts_competition_code_empty_without_links(self):
+        self.assertEqual(pcs.extract_preferente_competition_code('<html>nada</html>'), '')
+
+    def test_team_id_from_url(self):
+        self.assertEqual(pcs._preferente_team_id_from_url('https://www.lapreferente.com/E147/cd-benagalbon'), '147')
+        self.assertEqual(pcs._preferente_team_id_from_url('https://www.lapreferente.com/no-id/foo'), '')
+
+    def test_next_match_returns_empty_on_php_error_preseason(self):
+        # Respuesta real del endpoint jaxon en pretemporada (sin jornada sorteada).
+        php_error = (
+            '<br /><b>Warning</b>: Trying to access array offset ... '
+            '<b>Fatal error</b>: Uncaught Error: Call to a member function fetch_assoc() on bool'
+        )
+        self.assertEqual(pcs.parse_preferente_next_match(php_error), {})
+
+    def test_next_match_returns_empty_on_blank_panel(self):
+        self.assertEqual(pcs.parse_preferente_next_match(''), {})
+        self.assertEqual(pcs.parse_preferente_next_match('<div></div>'), {})
+
+    def test_fetch_next_match_returns_empty_without_team_id_in_url(self):
+        self.assertEqual(pcs.fetch_preferente_next_match('https://www.lapreferente.com/no-id/foo'), {})
+
     def test_derives_points_and_goal_difference_when_absent(self):
         html = (
             '<table id="tableClasif"><tr>'

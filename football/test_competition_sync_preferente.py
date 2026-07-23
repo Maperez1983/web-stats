@@ -72,6 +72,12 @@ class SyncPreferenteStandingsTests(TestCase):
             season=self.season,
             provider=WorkspaceCompetitionContext.PROVIDER_PREFERENTE,
         )
+        # El próximo partido de Preferente no es objeto de estos tests (y saldría por red): lo
+        # neutralizamos a {} para que el sync sea determinista y offline. En pretemporada real
+        # devuelve {} igualmente (La Preferente responde error PHP sin jornada).
+        next_patcher = mock.patch('football.competition_sync.fetch_preferente_next_match', return_value={})
+        next_patcher.start()
+        self.addCleanup(next_patcher.stop)
 
     def test_sync_writes_preferente_standings_into_snapshot(self):
         with mock.patch(

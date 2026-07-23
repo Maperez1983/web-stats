@@ -3,7 +3,7 @@ import logging
 from django.utils import timezone
 
 from .dashboard_cache import invalidate_team_dashboard_caches
-from .preferente_competition_services import fetch_preferente_standings
+from .preferente_competition_services import fetch_preferente_next_match, fetch_preferente_standings
 from .match_payload_services import (
     build_local_next_match_payload,
     build_workspace_schedule_payload,
@@ -100,13 +100,16 @@ def sync_workspace_competition_context(workspace, primary_team=None):
     # (una sola vez, reutilizada abajo) para poder servirla vía snapshot aunque el equipo no tenga
     # Group en BD; así la clasificación "aparece" también en un club recién dado de alta en Preferente.
     preferente_standings = []
+    preferente_meta = {}
+    preferente_url_used = ''
     if provider_key == WorkspaceCompetitionContext.PROVIDER_PREFERENTE:
         pref_url = str(getattr(context, 'external_source_url', '') or '').strip() or str(
             getattr(primary_team, 'preferente_url', '') or ''
         ).strip()
+        preferente_url_used = pref_url
         if pref_url:
             try:
-                preferente_standings, _pref_meta = fetch_preferente_standings(pref_url)
+                preferente_standings, preferente_meta = fetch_preferente_standings(pref_url)
             except Exception:
                 logger.exception(
                     'No se pudo sincronizar clasificación La Preferente para workspace %s',
@@ -168,6 +171,22 @@ def sync_workspace_competition_context(workspace, primary_team=None):
     convocation_next = build_next_match_from_convocation(primary_team)
     provider_next = find_universo_next_match_for_context(context, primary_team)
     preferred_next = load_preferred_next_match_payload(primary_team=primary_team, competition_context=context)
+    # La Preferente: próximo partido vía el endpoint jaxon de resultados. En pretemporada devuelve {}
+    # (La Preferente responde con error PHP porque no hay jornada); se activa solo al sortearse el
+    # calendario. La convocatoria del staff sigue teniendo prioridad si existe.
+    preferente_next = {}
+    if provider_key == WorkspaceCompetitionContext.PROVIDER_PREFERENTE and preferente_url_used:
+        try:
+            preferente_next = fetch_preferente_next_match(
+                preferente_url_used,
+                competition_code=str((preferente_meta or {}).get('competition_code') or ''),
+            )
+        except Exception:
+            logger.exception(
+                'No se pudo resolver próximo partido de La Preferente para workspace %s',
+                getattr(workspace, 'id', None),
+            )
+            preferente_next = {}
     snapshot_next = {}
     try:
         universo_snapshot = load_universo_snapshot()
@@ -207,6 +226,7 @@ def sync_workspace_competition_context(workspace, primary_team=None):
     next_match_payload = (
         (convocation_next if next_match_payload_is_usable(convocation_next) else {})
         or (provider_next if next_match_payload_is_usable(provider_next) else {})
+        or (preferente_next if next_match_payload_is_usable(preferente_next) else {})
         or (preferred_next if next_match_payload_is_usable(preferred_next) else {})
         or (snapshot_next if next_match_payload_is_usable(snapshot_next) else {})
         or local_next
