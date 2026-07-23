@@ -4841,6 +4841,134 @@ def _load_avatar_cutout(path_str, thresh=50):
     return result
 
 
+def _coach_decision_rating_tone(value):
+    if value is None:
+        return "none"
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return "none"
+    if v >= 7.0:
+        return "good"
+    if v >= 5.0:
+        return "warn"
+    return "bad"
+
+
+def _build_coach_decision_dashboard(*, primary_team, active_club_season, players, memberships, active_injury_ids=None):
+    """Arma el dashboard de decisión de pretemporada: una fila por jugador con
+    su estado, su valoración (última PlayerEvaluation cerrada) y la decisión
+    (sigue / no sigue / por decidir), ordenado por nota global con los
+    'por decidir' arriba.  Degrada con gracia si un jugador no tiene evaluación."""
+    active_injury_ids = active_injury_ids or set()
+    player_ids = [int(getattr(p, "id", 0) or 0) for p in players if getattr(p, "id", None)]
+    latest_by_player = {}
+    try:
+        qs = PlayerEvaluation.objects.filter(
+            player_id__in=player_ids,
+            status=PlayerEvaluation.STATUS_CLOSED,
+        )
+        if active_club_season:
+            qs = qs.filter(club_season=active_club_season)
+        for ev in qs.order_by("player_id", "-evaluated_on", "-updated_at", "-id"):
+            latest_by_player.setdefault(int(ev.player_id), ev)
+    except Exception:
+        latest_by_player = {}
+
+    def _num(value):
+        try:
+            return float(value) if value is not None else None
+        except (TypeError, ValueError):
+            return None
+
+    today = timezone.localdate()
+    rows = []
+    counts = {"pending": 0, "confirmed": 0, "discarded": 0, "injured": 0, "total": 0}
+    for player in players:
+        pid = int(getattr(player, "id", 0) or 0)
+        membership = memberships.get(pid)
+        season_status = str(getattr(membership, "status", "") or "").strip() if membership else ""
+        confirmed = bool(
+            membership
+            and getattr(membership, "is_confirmed", False)
+            and season_status == WorkspaceSeasonPlayer.STATUS_CONFIRMED
+        )
+        is_injured = bool(pid and pid in active_injury_ids)
+        is_inactive = not bool(getattr(player, "is_active", True)) or season_status in {
+            WorkspaceSeasonPlayer.STATUS_LEFT,
+            WorkspaceSeasonPlayer.STATUS_INACTIVE,
+        }
+        if is_injured:
+            state_key, state_label, state_tone = "injured", "Lesionado", "injured"
+        elif is_inactive:
+            state_key, state_label, state_tone = "inactive", "Inactivo", "inactive"
+        elif confirmed:
+            state_key, state_label, state_tone = "confirmed", "Disponible", "available"
+        else:
+            state_key, state_label, state_tone = "trial", "A prueba", "trial"
+
+        if season_status == WorkspaceSeasonPlayer.STATUS_CONFIRMED:
+            decision, decision_label = "keep", "Sigue"
+        elif season_status in {WorkspaceSeasonPlayer.STATUS_LEFT, WorkspaceSeasonPlayer.STATUS_INACTIVE}:
+            decision, decision_label = "cut", "No sigue"
+        else:
+            decision, decision_label = "pending", "Por decidir"
+
+        counts["total"] += 1
+        if is_injured:
+            counts["injured"] += 1
+        if decision == "keep":
+            counts["confirmed"] += 1
+        elif decision == "cut":
+            counts["discarded"] += 1
+        else:
+            counts["pending"] += 1
+
+        ev = latest_by_player.get(pid)
+        overall = _num(getattr(ev, "overall_rating", None)) if ev else None
+        ratings = {
+            "technical": _num(getattr(ev, "technical_rating", None)) if ev else None,
+            "tactical": _num(getattr(ev, "tactical_rating", None)) if ev else None,
+            "physical": _num(getattr(ev, "physical_rating", None)) if ev else None,
+            "mental": _num(getattr(ev, "mental_rating", None)) if ev else None,
+            "availability": _num(getattr(ev, "availability_rating", None)) if ev else None,
+        }
+
+        birth = getattr(player, "birth_date", None)
+        age = None
+        if birth:
+            try:
+                age = today.year - birth.year - ((today.month, today.day) < (birth.month, birth.day))
+            except Exception:
+                age = None
+
+        rows.append({
+            "id": pid,
+            "name": str(getattr(player, "name", "") or getattr(player, "full_name", "") or f"Jugador {pid}").strip(),
+            "number": getattr(player, "number", None),
+            "position": str(getattr(player, "position", "") or getattr(player, "preferred_position", "") or "-").strip() or "-",
+            "age": age,
+            "state_key": state_key,
+            "state_label": state_label,
+            "state_tone": state_tone,
+            "decision": decision,
+            "decision_label": decision_label,
+            "overall": overall,
+            "overall_display": f"{overall:.1f}" if overall is not None else "–",
+            "overall_tone": _coach_decision_rating_tone(overall),
+            "ratings": ratings,
+            "has_eval": ev is not None,
+        })
+
+    def _sort_key(row):
+        priority = 0 if row["decision"] == "pending" else 1
+        overall = row["overall"] if row["overall"] is not None else -1.0
+        return (priority, -overall, row["name"].lower())
+
+    rows.sort(key=_sort_key)
+    return {"rows": rows, "counts": counts}
+
+
 def _build_coach_roster_preview_payload(*, primary_team, active_club_season, players, memberships, request=None):
     status_labels = dict(WorkspaceSeasonPlayer.STATUS_CHOICES)
     active_ids = [int(getattr(player, "id", 0) or 0) for player in players if getattr(player, "id", None)]
@@ -19636,6 +19764,16 @@ def coach_overview_page(request):
         )
     except Exception:
         coach_roster_preview_image_url = ""
+    try:
+        coach_decision_dashboard = _build_coach_decision_dashboard(
+            primary_team=primary_team,
+            active_club_season=active_club_season,
+            players=roster_players,
+            memberships=roster_memberships,
+            active_injury_ids=active_injury_ids,
+        )
+    except Exception:
+        coach_decision_dashboard = {"rows": [], "counts": {"pending": 0, "confirmed": 0, "discarded": 0, "injured": 0, "total": 0}}
     for target in pitch_targets:
         target_players = [item for item in coach_pitch_players if item.get("bucket") == target["key"]]
         coach_pitch_groups.append(
@@ -19738,6 +19876,7 @@ def coach_overview_page(request):
             "coach_squad_reinforcement_rows": coach_squad_reinforcement_rows,
             "coach_pitch_has_players": bool(coach_pitch_players),
             "coach_roster_preview_image_url": coach_roster_preview_image_url,
+            "coach_decision_dashboard": coach_decision_dashboard,
         },
     )
 
