@@ -33412,6 +33412,35 @@ def scouting_board_page(request):
         ("gk", "Portería", shortlist_zones["gk"]),
     ]
 
+    # Gráficos del dashboard: candidatos por zona y por estado (barras %).
+    _zmax = max([len(z) for _, _, z in shortlist_bands] + [1])
+    charts_zones = [
+        {"label": lbl, "count": len(z), "pct": int(round(len(z) * 100 / _zmax))}
+        for _, lbl, z in shortlist_bands
+    ]
+    _en_proceso = sum(
+        1
+        for item in items
+        if item.status
+        not in {
+            ScoutingTarget.STATUS_SIGNED,
+            ScoutingTarget.STATUS_SIGNED_OTHER,
+        }
+        and not item.available_for_coach_tools
+    )
+    _state_rows = [
+        ("Fichados", sem_signed, "green"),
+        ("A prueba", sem_trial, "yellow"),
+        ("En proceso", _en_proceso, "grey"),
+        ("Fichado x otro", sem_signed_other, "blue"),
+        ("Descartados", discarded_count, "red"),
+    ]
+    _smax = max([c for _, c, _ in _state_rows] + [1])
+    charts_states = [
+        {"label": lbl, "count": c, "color": col, "pct": int(round(c * 100 / _smax))}
+        for lbl, c, col in _state_rows
+    ]
+
     # Jugadores de la plantilla para poder VINCULAR un ojeado en vez de duplicarlo.
     plantilla_players = (
         list(active_team.players.filter(is_active=True).order_by("name")) if active_team else []
@@ -33437,6 +33466,8 @@ def scouting_board_page(request):
             "sem_signed": sem_signed,
             "sem_signed_other": sem_signed_other,
             "sem_trial": sem_trial,
+            "charts_zones": charts_zones,
+            "charts_states": charts_states,
             "shortlist_bands": shortlist_bands,
             "plantilla_players": plantilla_players,
             "search_filter": search_filter,

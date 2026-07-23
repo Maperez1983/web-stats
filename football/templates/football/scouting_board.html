@@ -658,6 +658,26 @@
       .sem-chip[data-sem="grey"] { background: rgba(148,163,184,0.14); color: #e2e8f0; border-color: rgba(148,163,184,0.34); }
       .sem-chip .sem-dot { width: 8px; height: 8px; box-shadow: none; }
 
+      /* Gráficos del dashboard de ojeo */
+      .charts-grid { margin-top: 1rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.85rem; }
+      .chart-card { padding: 1rem 1.1rem; border-radius: 18px; border: 1px solid rgba(255,255,255,0.1); background: rgba(7,16,30,0.6); }
+      .chart-title { margin: 0 0 0.85rem; font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(226,232,240,0.62); font-weight: 900; }
+      .chart-row { display: grid; grid-template-columns: 86px 1fr 28px; align-items: center; gap: 0.6rem; margin-bottom: 0.55rem; }
+      .chart-row:last-child { margin-bottom: 0; }
+      .chart-label { font-size: 0.72rem; font-weight: 700; color: rgba(226,232,240,0.85); }
+      .chart-bar { height: 12px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; }
+      .chart-fill { display: block; height: 100%; border-radius: 999px; background: #64748b; min-width: 3px; transition: width 0.4s ease; }
+      .chart-val { font-size: 0.82rem; font-weight: 900; color: #f8fafc; text-align: right; }
+      .chart-fill[data-sem="green"] { background: #34d399; }
+      .chart-fill[data-sem="yellow"] { background: #f4b400; }
+      .chart-fill[data-sem="red"] { background: #f87171; }
+      .chart-fill[data-sem="blue"] { background: #60a5fa; }
+      .chart-fill[data-sem="grey"] { background: #94a3b8; }
+      .chart-fill[data-zone="ata"] { background: #f87171; }
+      .chart-fill[data-zone="med"] { background: #34d399; }
+      .chart-fill[data-zone="def"] { background: #38bdf8; }
+      .chart-fill[data-zone="por"] { background: #f59e0b; }
+
       /* Campo fotorealista de la comparativa */
       .pitch-photo-wrap { margin: 1rem 0 0; }
       .pitch-photo { width: 100%; height: auto; display: block; border-radius: 20px; border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 18px 48px rgba(0,0,0,0.45); }
@@ -1060,6 +1080,29 @@
           <img class="pitch-photo" src="{% url 'scouting-pitch-png' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" alt="Campo de ojeo por posición con estado" loading="lazy" />
           <figcaption>Campo por posición · color = estado (🟢 fichado · 🟡 a prueba · 🔵 fichado por otro · ⚪ objetivo)</figcaption>
         </figure>
+
+        <div class="charts-grid">
+          <div class="chart-card">
+            <h3 class="chart-title">Candidatos por zona</h3>
+            {% for z in charts_zones %}
+            <div class="chart-row">
+              <span class="chart-label">{{ z.label }}</span>
+              <span class="chart-bar"><span class="chart-fill" data-zone="{{ z.label|slice:':3'|lower }}" style="width: {{ z.pct }}%;"></span></span>
+              <span class="chart-val">{{ z.count }}</span>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="chart-card">
+            <h3 class="chart-title">Por estado (semáforo)</h3>
+            {% for s in charts_states %}
+            <div class="chart-row">
+              <span class="chart-label">{{ s.label }}</span>
+              <span class="chart-bar"><span class="chart-fill" data-sem="{{ s.color }}" style="width: {{ s.pct }}%;"></span></span>
+              <span class="chart-val">{{ s.count }}</span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
 
         <details class="pitch-interactive">
           <summary>Vista interactiva (filtro por zona)</summary>
