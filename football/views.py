@@ -33006,9 +33006,11 @@ def scouting_board_page(request):
                 target_team_name = _sanitize_task_text(
                     str(request.POST.get("subject_team_name") or "").strip(), multiline=False, max_len=160
                 )
-                position = _sanitize_task_text(str(request.POST.get("position") or "").strip(), multiline=False, max_len=60)
-                dominant_foot = _sanitize_task_text(
-                    str(request.POST.get("dominant_foot") or "").strip(), multiline=False, max_len=16
+                position = normalize_position_value(
+                    _sanitize_task_text(str(request.POST.get("position") or "").strip(), multiline=False, max_len=60)
+                )
+                dominant_foot = normalize_foot_value(
+                    _sanitize_task_text(str(request.POST.get("dominant_foot") or "").strip(), multiline=False, max_len=16)
                 )
                 birth_date = parse_date(str(request.POST.get("birth_date") or "").strip() or "") or None
                 priority = str(request.POST.get("priority") or ScoutingTarget.PRIORITY_MEDIUM).strip().lower()
@@ -33055,6 +33057,8 @@ def scouting_board_page(request):
                         "updated_at",
                     ])
                 feedback = "Seguimiento creado."
+                # PRG: volvemos al LISTADO para que el ojeado recién creado se vea.
+                return redirect(f"{reverse('scouting-board')}?created=1" + (f"&team={active_team.id}" if active_team else ""))
             elif action == "delete-target" and target_id:
                 target = ScoutingTarget.objects.filter(id=target_id, workspace=workspace).first()
                 if target:
@@ -33118,6 +33122,9 @@ def scouting_board_page(request):
             "error": error,
             "status_choices": ScoutingTarget.STATUS_CHOICES,
             "priority_choices": ScoutingTarget.PRIORITY_CHOICES,
+            "position_choices": POSITION_CHOICES,
+            "foot_choices": FOOT_CHOICES,
+            "just_created": bool(request.GET.get("created")),
         },
     )
 

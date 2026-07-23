@@ -510,11 +510,21 @@
               </label>
               <label>
                 Posición
-                <input type="text" name="position" maxlength="60" placeholder="Extremo, central..." />
+                <select name="position">
+                  <option value="">Sin definir</option>
+                  {% for value,label in position_choices %}
+                  <option value="{{ value }}">{{ label }} ({{ value }})</option>
+                  {% endfor %}
+                </select>
               </label>
               <label>
                 Pie
-                <input type="text" name="dominant_foot" maxlength="16" placeholder="Derecho, izquierdo..." />
+                <select name="dominant_foot">
+                  <option value="">Sin definir</option>
+                  {% for value,label in foot_choices %}
+                  <option value="{{ value }}">{{ label }}</option>
+                  {% endfor %}
+                </select>
               </label>
               <label>
                 Fecha nacimiento
@@ -726,6 +736,10 @@
           initial = window.localStorage.getItem(storageKey) || 'list';
         } catch (e) {}
         if (initial === 'create' && !hasCreatePanel) {
+          initial = 'list';
+        }
+        // Tras crear un ojeado (redirect ?created=1) mostramos siempre el LISTADO.
+        if (new URLSearchParams(window.location.search).has('created')) {
           initial = 'list';
         }
         activate(initial === 'create' ? 'create' : 'list');
