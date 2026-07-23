@@ -73,6 +73,40 @@ services:
       # Seguridad: desactiva fallback monoclub en producción si no lo necesitas.
       - key: ALLOW_SINGLE_CLUB_FALLBACK
         value: "false"
+  # Cron: refresca la clasificación/próximo rival de TODOS los clubes sin intervención.
+  # Se despliega solo con la rama (autoDeploy). Horario en UTC: 06:00 y 20:00 a diario
+  # (madrugada y tras la franja de partidos de fin de semana en España).
+  - type: cron
+    name: web-stats-refresh-standings
+    runtime: python
+    plan: standard
+    branch: main
+    schedule: "0 6,20 * * *"
+    buildCommand: ./build.sh
+    startCommand: python manage.py refresh_competition_snapshots
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: RUN_MIGRATIONS
+        value: "false"
+      - key: RUN_COLLECTSTATIC
+        value: "false"
+      - key: INSTALL_OLLAMA
+        value: "false"
+      - key: INSTALL_PLAYWRIGHT_BROWSERS
+        value: "false"
+      - key: INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME
+        value: "false"
+      - key: SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DEBUG
+        value: "false"
+
   - type: worker
     name: web-stats-ollana-operator
     runtime: python
