@@ -4694,7 +4694,7 @@ def _roster_preview_bucket(position_text: str) -> str:
 
 # Sube este numero cuando cambie el DISENO del informe: invalida todas las
 # imagenes cacheadas y fuerza que se regeneren con el render nuevo.
-_ROSTER_PREVIEW_RENDER_VERSION = "8"
+_ROSTER_PREVIEW_RENDER_VERSION = "9"
 
 
 def _coach_roster_preview_signature(*, primary_team, active_club_season, board_rows) -> str:
