@@ -1,5 +1,8 @@
 import re
 
+from django.core.cache import cache
+
+from .competition_season_services import current_season_name, pick_current_season_row, season_names_match
 from .event_taxonomy import normalize_label
 from .models import Group, WorkspaceCompetitionContext
 from .query_helpers import _normalize_team_lookup_key
@@ -28,6 +31,47 @@ def context_team_lookup_keys(context, primary_team):
     return {key for key in keys if key}
 
 
+REBIND_THROTTLE_SECONDS = 6 * 3600
+
+
+def binding_season_is_stale(context, primary_team):
+    """
+    True si el vínculo externo (grupo/equipo en Universo) apunta a una temporada que ya pasó.
+
+    Dos señales independientes:
+    - El contexto quedó atado a una `Season` distinta de la del grupo actual del equipo.
+    - La temporada vinculada no es la vigente según el calendario.
+    """
+    if not context:
+        return False
+    team_season_id = int(getattr(getattr(primary_team, 'group', None), 'season_id', 0) or 0)
+    context_season_id = int(getattr(context, 'season_id', 0) or 0)
+    if team_season_id and context_season_id and team_season_id != context_season_id:
+        return True
+    season = getattr(context, 'season', None) or getattr(getattr(primary_team, 'group', None), 'season', None)
+    bound_name = str(getattr(season, 'name', '') or '').strip()
+    if not bound_name:
+        return False
+    return not season_names_match(bound_name, current_season_name())
+
+
+def _should_rebind_for_season(context, primary_team):
+    """Revincula como mucho una vez cada `REBIND_THROTTLE_SECONDS`: el rebind hace red."""
+    if not binding_season_is_stale(context, primary_team):
+        return False
+    context_id = int(getattr(context, 'id', 0) or 0)
+    if not context_id:
+        return True
+    cache_key = f'universo-context-rebind:{context_id}'
+    try:
+        if cache.get(cache_key):
+            return False
+        cache.set(cache_key, 1, REBIND_THROTTLE_SECONDS)
+    except Exception:
+        pass
+    return True
+
+
 def ensure_universo_context_binding(context, primary_team):
     if (
         not context
@@ -35,10 +79,16 @@ def ensure_universo_context_binding(context, primary_team):
         != WorkspaceCompetitionContext.PROVIDER_UNIVERSO
     ):
         return context
-    if str(getattr(context, 'external_group_key', '') or '').strip() and (
-        str(getattr(context, 'external_team_key', '') or '').strip()
-        or str(getattr(context, 'external_team_name', '') or '').strip()
-    ):
+    already_bound = bool(
+        str(getattr(context, 'external_group_key', '') or '').strip()
+        and (
+            str(getattr(context, 'external_team_key', '') or '').strip()
+            or str(getattr(context, 'external_team_name', '') or '').strip()
+        )
+    )
+    # Antes se salía siempre que hubiera `external_group_key`, así que un club vinculado en
+    # 2025/2026 seguía leyendo el grupo de esa temporada para siempre.
+    if already_bound and not _should_rebind_for_season(context, primary_team):
         return context
     if not primary_team:
         return context
@@ -101,6 +151,10 @@ def _find_existing_group_match(*, group_query, competition_query):
                 candidate_competition_name,
                 min_overlap=2,
             ) else 0
+        # Desempate por temporada: entre dos grupos con el mismo nombre, gana el de la vigente.
+        # Sin esto, revincular tras el cambio de temporada volvería a elegir el grupo antiguo.
+        if season_names_match(getattr(getattr(candidate_group, 'season', None), 'name', ''), current_season_name()):
+            score += 30
         if score > best_group_score:
             best_group_match = candidate_group
             best_group_score = score
@@ -153,12 +207,7 @@ def _catalog_binding_candidates(*, team_query, competition_query, group_query):
 def _live_binding_candidates(*, team_query, competition_query, group_query):
     candidates = []
     seasons = fetch_universo_live_seasons()
-    season_row = next(
-        (row for row in seasons if str(row.get('nombre') or '').strip() == '2025-2026'),
-        None,
-    )
-    if not season_row and seasons:
-        season_row = seasons[0]
+    season_row = pick_current_season_row(seasons)
     season_id = str((season_row or {}).get('cod_temporada') or '').strip()
     season_name = str((season_row or {}).get('nombre') or '').strip()
     delegations = fetch_universo_live_delegations()

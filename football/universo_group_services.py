@@ -3,6 +3,7 @@ import re
 
 from django.utils.text import slugify
 
+from .competition_season_services import current_season_name, season_names_match
 from .models import Competition, Group, Season, Team
 from .query_helpers import _normalize_team_lookup_key
 
@@ -55,7 +56,7 @@ def ensure_universo_group_models_from_live(*, group_key, live_payload, primary_t
         ).strip()
     except Exception:
         season_name = ''
-    season_name = (season_name or '2025/2026')[:80]
+    season_name = (season_name or current_season_name())[:80]
 
     group_obj, season_obj = ensure_universo_group_models_from_candidate(
         group_key=group_key,
@@ -96,7 +97,7 @@ def ensure_universo_group_models_from_candidate(
         return (None, None) if return_models else None
     competition_name = str(competition_name or '').strip() or 'Universo RFAF'
     group_name = str(group_name or '').strip() or f'Grupo {group_key}'
-    season_name = (str(season_name or '').strip() or '2025/2026')[:80]
+    season_name = (str(season_name or '').strip() or current_season_name())[:80]
     competition_code = str(competition_code or '').strip()
 
     comp_slug_source = f'universo-{competition_code}-{competition_name}' if competition_code else competition_name
@@ -106,11 +107,18 @@ def ensure_universo_group_models_from_candidate(
         region='',
         defaults={'slug': comp_slug},
     )
-    season_obj, _ = Season.objects.get_or_create(
+    # Sólo marcamos la temporada nueva como vigente si de verdad lo es según el calendario, y en
+    # ese caso desmarcamos las anteriores de la misma competición para no dejar dos `is_current`.
+    season_is_current = season_names_match(season_name, current_season_name())
+    season_obj, season_created = Season.objects.get_or_create(
         competition=competition_obj,
         name=season_name,
-        defaults={'is_current': True},
+        defaults={'is_current': season_is_current},
     )
+    if season_created and season_is_current:
+        Season.objects.filter(competition=competition_obj, is_current=True).exclude(pk=season_obj.pk).update(
+            is_current=False
+        )
     group_obj = Group.objects.filter(season=season_obj, external_id=str(group_key).strip()).first()
     if not group_obj:
         group_slug = unique_group_slug_for_season(season_obj, group_name or f'grupo-{group_key}')

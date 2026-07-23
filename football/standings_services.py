@@ -17,13 +17,22 @@ def latest_standings_group_for_team(primary_team):
     if not primary_team:
         return None
     try:
-        standing = (
+        base_qs = (
             TeamStanding.objects
             .select_related('group')
             .filter(team=primary_team)
             .order_by('-last_updated', '-played', '-id')
-            .first()
         )
+        # Prioridad a la clasificación de la temporada a la que el equipo está asignado ahora
+        # (`Team.group.season`). Sin esto, en pretemporada —con la tabla nueva aún vacía— el
+        # "más reciente por last_updated" era el grupo de la campaña pasada, y la portada pintaba
+        # la clasificación vieja como si fuera la actual.
+        current_season_id = int(getattr(getattr(primary_team, 'group', None), 'season_id', 0) or 0)
+        if current_season_id:
+            in_season = base_qs.filter(group__season_id=current_season_id).first()
+            if in_season:
+                return in_season.group
+        standing = base_qs.first()
         return standing.group if standing else None
     except Exception:
         return None

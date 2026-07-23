@@ -19,6 +19,7 @@ from django.template.defaultfilters import slugify
 from openpyxl import load_workbook
 from django.utils import timezone
 
+from football.competition_season_services import current_season_name
 from football.models import Competition, Group, Season, Team, TeamStanding
 
 
@@ -249,7 +250,9 @@ def ensure_league_structure(competition_name, season_name, group_name):
     return competition, season, group
 
 
-def update_team_standings(rows, source_label, source_url, competition_name='División de Honor Andaluza', season_name='2025/2026', group_name='Grupo 2'):
+def update_team_standings(rows, source_label, source_url, competition_name='División de Honor Andaluza', season_name=None, group_name='Grupo 2'):
+    # `None` (no la temporada del año en que se importó el módulo) para que siga la campaña vigente.
+    season_name = str(season_name or '').strip() or current_season_name()
     allow_single_club_fallback = str(os.getenv('ALLOW_SINGLE_CLUB_FALLBACK', '0') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     _, season, group = ensure_league_structure(competition_name, season_name, group_name)
     updated_slugs = set()
