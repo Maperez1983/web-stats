@@ -34378,6 +34378,7 @@ def coach_roster_page(request):
                     WorkspaceSeasonPlayer(
                         season=active_club_season,
                         player_id=pid,
+                        team=primary_team,
                         is_confirmed=False,
                         status=WorkspaceSeasonPlayer.STATUS_PENDING,
                     )

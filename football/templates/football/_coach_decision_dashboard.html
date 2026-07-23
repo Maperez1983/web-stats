@@ -1,5 +1,6 @@
 {% comment %}Dashboard de decisión de pretemporada. Espera `coach_decision_dashboard`
 con .rows y .counts. Autocontenido (estilos scoped por .cdd-).{% endcomment %}
+{% load football_extras %}
 <section class="card cdd" aria-label="Decisión de plantilla" style="padding:1rem;">
   <style>
     .cdd .cdd-head{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:.6rem;margin-bottom:.85rem;}
@@ -13,7 +14,14 @@ con .rows y .counts. Autocontenido (estilos scoped por .cdd-).{% endcomment %}
     .cdd .dk-cut{color:#fecaca;border-color:rgba(248,113,113,.4);background:rgba(248,113,113,.12);}
     .cdd .dk-inj{color:#fca5a5;border-color:rgba(239,68,68,.35);background:rgba(239,68,68,.1);}
     .cdd .cdd-scroll{overflow-x:auto;}
-    .cdd table{width:100%;border-collapse:collapse;font-size:.82rem;min-width:640px;}
+    .cdd table{width:100%;border-collapse:collapse;font-size:.82rem;min-width:660px;table-layout:fixed;}
+    .cdd th:nth-child(1),.cdd td:nth-child(1){width:23%;}
+    .cdd th:nth-child(2),.cdd td:nth-child(2){width:14%;}
+    .cdd th:nth-child(3),.cdd td:nth-child(3){width:9%;}
+    .cdd th:nth-child(4),.cdd td:nth-child(4),.cdd th:nth-child(5),.cdd td:nth-child(5),.cdd th:nth-child(6),.cdd td:nth-child(6),.cdd th:nth-child(7),.cdd td:nth-child(7){width:6.2%;}
+    .cdd th:nth-child(8),.cdd td:nth-child(8){width:12%;}
+    .cdd th:nth-child(9),.cdd td:nth-child(9){width:11%;}
+    .cdd td.pl,.cdd td.meta{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
     .cdd thead th{text-align:center;font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;opacity:.6;padding:.4rem .35rem;border-bottom:1px solid rgba(255,255,255,.12);font-weight:800;}
     .cdd thead th.l{text-align:left;}
     .cdd thead th.sortable{cursor:pointer;user-select:none;}
@@ -74,7 +82,7 @@ con .rows y .counts. Autocontenido (estilos scoped por .cdd-).{% endcomment %}
         {% for r in dash.rows %}
         <tr class="{% if r.decision == 'pending' %}row-pending{% endif %}">
           <td class="pl"><a href="{% url 'player-detail' r.id %}"><span class="pl-num">{{ r.number|default:'—' }}</span>{{ r.name }}</a></td>
-          <td class="meta">{{ r.position }}{% if r.age %} · {{ r.age }} a{% endif %}</td>
+          <td class="meta">{{ r.position|default:"-"|display_position }}{% if r.age %} · {{ r.age }} a{% endif %}</td>
           <td><span class="ov ov-{{ r.overall_tone }}">{{ r.overall_display }}</span></td>
           <td class="sub{% if r.ratings.technical == None %} dim{% endif %}">{% if r.ratings.technical != None %}{{ r.ratings.technical|floatformat:1 }}{% else %}–{% endif %}</td>
           <td class="sub{% if r.ratings.tactical == None %} dim{% endif %}">{% if r.ratings.tactical != None %}{{ r.ratings.tactical|floatformat:1 }}{% else %}–{% endif %}</td>

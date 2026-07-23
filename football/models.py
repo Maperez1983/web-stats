@@ -652,6 +652,16 @@ class Player(models.Model):
     def __str__(self):
         return f'{self.name} ({self.team.name})'
 
+    @property
+    def age(self):
+        """Edad en años a partir de la fecha de nacimiento (None si no hay)."""
+        if not self.birth_date:
+            return None
+        today = timezone.localdate()
+        return today.year - self.birth_date.year - (
+            (today.month, today.day) < (self.birth_date.month, self.birth_date.day)
+        )
+
     def save(self, *args, **kwargs):
         changed_fields = normalize_player_record(self)
         update_fields = kwargs.get('update_fields')

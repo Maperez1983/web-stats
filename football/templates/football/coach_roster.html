@@ -179,6 +179,7 @@
         text-transform: uppercase;
         letter-spacing: 0.1em;
         color: var(--prod-muted, rgba(15, 23, 42, 0.64));
+        white-space: nowrap;
       }
       .badge {
         display: inline-block;
@@ -1244,6 +1245,7 @@
               <th>Dorsal</th>
               <th>Nombre</th>
               <th>Posición</th>
+              <th>Edad</th>
               <th>Estado</th>
               <th>Temporada</th>
               <th>Acción</th>
@@ -1255,6 +1257,7 @@
               <td>{{ player.number|default:"--" }}</td>
               <td><a style="color:var(--prod-text, #f5f7fa); text-decoration:none;" href="{% url 'player-detail' player_id=player.id %}{% if active_club_season %}?club_season_id={{ active_club_season.id }}{% endif %}">{{ player.name|display_text }}</a></td>
               <td>{{ player.position|default:"-"|display_position }}</td>
+              <td>{% if player.age %}{{ player.age }}{% else %}-{% endif %}</td>
               <td>
                 {% if player.is_active %}
                 <span class="badge ok">Activo</span>
