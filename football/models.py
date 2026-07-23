@@ -909,13 +909,15 @@ class ScoutingTarget(models.Model):
     STATUS_REVIEW = 'review'
     STATUS_DISCARDED = 'discarded'
     STATUS_SIGNED = 'signed'
+    STATUS_SIGNED_OTHER = 'signed_other'
     STATUS_CHOICES = [
         (STATUS_TARGET, 'Objetivo'),
         (STATUS_WATCHLIST, 'En seguimiento'),
         (STATUS_ACTIVE, 'Seguimiento activo'),
         (STATUS_REVIEW, 'Revisar'),
         (STATUS_DISCARDED, 'Descartado'),
-        (STATUS_SIGNED, 'Firmado'),
+        (STATUS_SIGNED, 'Fichado'),
+        (STATUS_SIGNED_OTHER, 'Fichado por otro equipo'),
     ]
 
     PRIORITY_LOW = 'low'

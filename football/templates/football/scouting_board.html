@@ -635,6 +635,34 @@
       .pitch-nota.mid { background: rgba(244,180,0,0.3); color: #fde68a; }
       .pitch-nota.low { background: rgba(248,113,113,0.26); color: #fecaca; }
       .pitch-nota.none { color: rgba(255,255,255,0.55); }
+
+      /* Semáforo de decisión (verde/amarillo/rojo/azul/gris) */
+      .semaphore { margin-top: 1rem; display: flex; align-items: center; gap: 1.1rem; flex-wrap: wrap; padding: 0.85rem 1.1rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); background: rgba(7,16,30,0.6); }
+      .semaphore-title { font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(226,232,240,0.6); font-weight: 900; }
+      .sem-item { display: flex; align-items: center; gap: 0.4rem; }
+      .sem-item .sem-num { font-size: 1.3rem; font-weight: 900; color: #f8fafc; }
+      .sem-item .sem-label { font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(226,232,240,0.6); font-weight: 800; }
+      .sem-dot { width: 12px; height: 12px; border-radius: 50%; flex: 0 0 auto; box-shadow: 0 0 8px currentColor; }
+      [data-sem="green"] .sem-dot, .sem-dot[data-sem="green"] { background: #34d399; color: #34d399; }
+      [data-sem="yellow"] .sem-dot { background: #f4b400; color: #f4b400; }
+      [data-sem="red"] .sem-dot { background: #f87171; color: #f87171; }
+      [data-sem="blue"] .sem-dot { background: #60a5fa; color: #60a5fa; }
+      [data-sem="grey"] .sem-dot { background: #94a3b8; color: #94a3b8; }
+
+      /* Chip de semáforo en la tarjeta */
+      .sem-chip { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.55rem; border-radius: 999px; font-size: 0.64rem; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; border: 1px solid rgba(255,255,255,0.16); }
+      .sem-chip[data-sem="green"] { background: rgba(47,125,50,0.18); color: #bbf7d0; border-color: rgba(52,211,153,0.4); }
+      .sem-chip[data-sem="yellow"] { background: rgba(244,180,0,0.16); color: #fde68a; border-color: rgba(244,180,0,0.4); }
+      .sem-chip[data-sem="red"] { background: rgba(248,113,113,0.16); color: #fecaca; border-color: rgba(248,113,113,0.4); }
+      .sem-chip[data-sem="blue"] { background: rgba(96,165,250,0.16); color: #bfdbfe; border-color: rgba(96,165,250,0.4); }
+      .sem-chip[data-sem="grey"] { background: rgba(148,163,184,0.14); color: #e2e8f0; border-color: rgba(148,163,184,0.34); }
+      .sem-chip .sem-dot { width: 8px; height: 8px; box-shadow: none; }
+
+      /* Anillo de semáforo en el chip de la comparativa */
+      .pitch-chip[data-sem="green"] { border-color: rgba(52,211,153,0.7); }
+      .pitch-chip[data-sem="yellow"] { border-color: rgba(244,180,0,0.75); }
+      .pitch-chip[data-sem="red"] { border-color: rgba(248,113,113,0.7); }
+      .pitch-chip[data-sem="blue"] { border-color: rgba(96,165,250,0.7); }
     </style>
   </head>
   <body class="prod-commercial">
@@ -883,6 +911,14 @@
           </div>
         </section>
 
+        <section class="semaphore" aria-label="Totales por estado de decisión">
+          <span class="semaphore-title">Totales por estado</span>
+          <div class="sem-item" data-sem="green"><span class="sem-dot"></span><span class="sem-num">{{ sem_signed }}</span><span class="sem-label">Fichados</span></div>
+          <div class="sem-item" data-sem="yellow"><span class="sem-dot"></span><span class="sem-num">{{ sem_trial }}</span><span class="sem-label">A prueba</span></div>
+          <div class="sem-item" data-sem="red"><span class="sem-dot"></span><span class="sem-num">{{ discarded_count }}</span><span class="sem-label">Descartados</span></div>
+          <div class="sem-item" data-sem="blue"><span class="sem-dot"></span><span class="sem-num">{{ sem_signed_other }}</span><span class="sem-label">Fichado por otro</span></div>
+        </section>
+
         <div class="view-toggle" role="tablist" aria-label="Formato del listado">
           <button class="view-toggle-btn is-active" type="button" data-view-target="cards">Tarjetas</button>
           <button class="view-toggle-btn" type="button" data-view-target="table">Tabla</button>
@@ -907,13 +943,9 @@
               </span>
             </div>
             <div class="scout-card-badges">
+              <span class="sem-chip" data-sem="{{ target.semaphore.color }}"><span class="sem-dot"></span>{{ target.semaphore.label }}</span>
               <span class="badge {% if target.priority == 'urgent' %}critical{% elif target.priority == 'high' %}warning{% else %}ok{% endif %}">{{ target.get_priority_display }}</span>
-              <span class="badge">{{ target.get_status_display }}</span>
-              {% if target.available_for_coach_tools and target.status != 'discarded' %}
-              <span class="badge warning">A prueba</span>
-              {% elif target.player_id %}
-              <span class="badge ok">En plantilla</span>
-              {% endif %}
+              {% if target.player_id %}<span class="badge ok">En plantilla</span>{% endif %}
               {% if target.recommendation_display %}
               <span class="badge {% if target.recommendation_code == 'sign' %}ok{% elif target.recommendation_code == 'discard' %}critical{% elif target.recommendation_code == 'follow' %}cyan{% else %}warning{% endif %}">{{ target.recommendation_display }}</span>
               {% endif %}
@@ -1023,7 +1055,7 @@
             <span class="pitch-band-label">{{ zone_label }}</span>
             <div class="pitch-band-chips">
               {% for t in zone_list|slice:":6" %}
-              <a class="pitch-chip" href="{% url 'scouting-target-detail' t.id %}" title="{{ t.display_name|display_text }}">
+              <a class="pitch-chip" data-sem="{{ t.semaphore.color }}" href="{% url 'scouting-target-detail' t.id %}" title="{{ t.display_name|display_text }} · {{ t.semaphore.label }}">
                 <span class="pitch-avatar" data-pos="{{ t.pos_bucket }}">{{ t.initials }}</span>
                 <span class="pitch-chip-name">{{ t.display_name|display_text }}</span>
                 <span class="pitch-nota {% if t.nota_global >= 8 %}high{% elif t.nota_global >= 6 %}mid{% elif t.nota_global %}low{% else %}none{% endif %}">{% if t.nota_global %}{{ t.nota_global }}{% else %}--{% endif %}</span>

@@ -32979,6 +32979,20 @@ def coach_abp_board_page(request):
     )
 
 
+def _scouting_semaphore(status, available):
+    """Semáforo de decisión del ojeo: verde fichado, amarillo a prueba,
+    rojo descartado, azul fichado por otro, gris en proceso."""
+    if status == ScoutingTarget.STATUS_SIGNED:
+        return {"key": "signed", "label": "Fichado", "color": "green"}
+    if status == ScoutingTarget.STATUS_SIGNED_OTHER:
+        return {"key": "signed_other", "label": "Fichado por otro", "color": "blue"}
+    if status == ScoutingTarget.STATUS_DISCARDED:
+        return {"key": "discarded", "label": "Descartado", "color": "red"}
+    if available:
+        return {"key": "trial", "label": "A prueba", "color": "yellow"}
+    return {"key": "process", "label": "En proceso", "color": "grey"}
+
+
 @login_required
 @require_http_methods(["GET", "POST"])
 def scouting_board_page(request):
@@ -33179,6 +33193,18 @@ def scouting_board_page(request):
             item.pos_bucket = "att"
         else:
             item.pos_bucket = "mid"
+        # Semáforo de decisión (verde/amarillo/rojo/azul/gris).
+        item.semaphore = _scouting_semaphore(item.status, item.available_for_coach_tools)
+
+    # Semáforo global (los descartados se cuentan aparte porque el listado los excluye).
+    sem_signed = sum(1 for item in items if item.status == ScoutingTarget.STATUS_SIGNED)
+    sem_signed_other = sum(1 for item in items if item.status == ScoutingTarget.STATUS_SIGNED_OTHER)
+    sem_trial = sum(
+        1
+        for item in items
+        if item.available_for_coach_tools
+        and item.status not in {ScoutingTarget.STATUS_SIGNED, ScoutingTarget.STATUS_SIGNED_OTHER}
+    )
 
     # Embudo de decisión (pipeline) para la cabecera comercial.
     funnel_objetivos = sum(1 for item in items if item.status == ScoutingTarget.STATUS_TARGET)
@@ -33235,6 +33261,9 @@ def scouting_board_page(request):
             "funnel_prueba": funnel_prueba,
             "funnel_fichados": funnel_fichados,
             "discarded_count": discarded_count,
+            "sem_signed": sem_signed,
+            "sem_signed_other": sem_signed_other,
+            "sem_trial": sem_trial,
             "shortlist_bands": shortlist_bands,
             "plantilla_players": plantilla_players,
             "search_filter": search_filter,
