@@ -575,6 +575,7 @@
         <button class="tab-btn" data-tab="injuries" role="tab">Lesiones</button>
         <button class="tab-btn" data-tab="discipline" role="tab">Comunicación y multas</button>
         <button class="tab-btn" data-tab="physical" role="tab">Físico</button>
+        <button class="tab-btn" data-tab="tracking" role="tab">Seguimiento</button>
       </div>
 
       <section class="panel tab-pane" data-pane="personal">
@@ -1028,6 +1029,92 @@
         </div>
         <div class="empty" style="margin-top:0.9rem;">
           Aquí no hay métricas físicas separadas del ojeo. El detalle físico se toma de los informes y, si entra en plantilla, se completa en la ficha del jugador.
+        </div>
+      </section>
+
+      <section class="panel tab-pane" data-pane="tracking">
+        <div class="section">
+          <h2>Seguimiento por temporadas</h2>
+          <p>Histórico del jugador ojeado: partidos, goles, asistencias y tarjetas por temporada.</p>
+
+          {% if season_stats %}
+          <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:0.86rem;">
+              <thead>
+                <tr style="text-align:center;">
+                  <th style="text-align:left;padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.14);">Temporada</th>
+                  <th style="text-align:left;padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.14);">Equipo</th>
+                  <th style="text-align:left;padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.14);">División</th>
+                  <th style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.14);">Titular</th>
+                  <th style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.14);">Compl.</th>
+                  <th style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.14);">Goles</th>
+                  <th style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.14);">Asist.</th>
+                  <th style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.14);" title="Amarillas">🟨</th>
+                  <th style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.14);" title="Rojas">🟥</th>
+                  <th style="border-bottom:1px solid rgba(255,255,255,0.14);"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for s in season_stats %}
+                <tr style="text-align:center;">
+                  <td style="text-align:left;padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.06);font-weight:700;">{{ s.season|default:'—' }}</td>
+                  <td style="text-align:left;padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.06);">{{ s.team|default:'—' }}</td>
+                  <td style="text-align:left;padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.06);">{{ s.division|default:'—' }}</td>
+                  <td style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.06);">{{ s.matches_starter }}</td>
+                  <td style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.06);">{{ s.matches_completed }}</td>
+                  <td style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.06);font-weight:700;">{{ s.goals }}</td>
+                  <td style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.06);">{{ s.assists }}</td>
+                  <td style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.06);">{{ s.yellow_cards }}</td>
+                  <td style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.06);">{{ s.red_cards }}</td>
+                  <td style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.06);">
+                    {% if can_manage_workspace %}
+                    <form method="post" style="display:inline;">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="delete-season-stat" />
+                      <input type="hidden" name="stat_id" value="{{ s.id }}" />
+                      <button class="btn danger icon-btn" type="submit" title="Eliminar temporada" aria-label="Eliminar">✕</button>
+                    </form>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+              <tfoot>
+                <tr style="text-align:center;font-weight:800;">
+                  <td colspan="3" style="text-align:left;padding:0.5rem 0.4rem;border-top:2px solid rgba(255,255,255,0.18);">TOTAL</td>
+                  <td style="padding:0.5rem 0.4rem;border-top:2px solid rgba(255,255,255,0.18);">{{ season_stats_totals.matches_starter }}</td>
+                  <td style="padding:0.5rem 0.4rem;border-top:2px solid rgba(255,255,255,0.18);">{{ season_stats_totals.matches_completed }}</td>
+                  <td style="padding:0.5rem 0.4rem;border-top:2px solid rgba(255,255,255,0.18);">{{ season_stats_totals.goals }}</td>
+                  <td style="padding:0.5rem 0.4rem;border-top:2px solid rgba(255,255,255,0.18);">{{ season_stats_totals.assists }}</td>
+                  <td style="padding:0.5rem 0.4rem;border-top:2px solid rgba(255,255,255,0.18);">{{ season_stats_totals.yellow_cards }}</td>
+                  <td style="padding:0.5rem 0.4rem;border-top:2px solid rgba(255,255,255,0.18);">{{ season_stats_totals.red_cards }}</td>
+                  <td style="border-top:2px solid rgba(255,255,255,0.18);"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          {% else %}
+          <p class="subtle">Aún no hay temporadas registradas para este jugador.</p>
+          {% endif %}
+
+          {% if can_manage_workspace %}
+          <form method="post" style="margin-top:1.1rem;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add-season-stat" />
+            <div class="form-grid">
+              <label>Temporada<input type="text" name="season" placeholder="2025/2026" /></label>
+              <label>Equipo<input type="text" name="stat_team" placeholder="Club de esa temporada" /></label>
+              <label>División<input type="text" name="division" placeholder="Ej. 1ª Andaluza" /></label>
+              <label>Partidos titular<input type="number" name="matches_starter" min="0" value="0" /></label>
+              <label>Partidos completados<input type="number" name="matches_completed" min="0" value="0" /></label>
+              <label>Goles<input type="number" name="goals" min="0" value="0" /></label>
+              <label>Asistencias<input type="number" name="assists" min="0" value="0" /></label>
+              <label>Tarjetas amarillas<input type="number" name="yellow_cards" min="0" value="0" /></label>
+              <label>Tarjetas rojas<input type="number" name="red_cards" min="0" value="0" /></label>
+            </div>
+            <button class="btn primary" type="submit" style="margin-top:0.75rem;">Añadir temporada</button>
+          </form>
+          {% endif %}
         </div>
       </section>
 

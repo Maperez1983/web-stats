@@ -1046,6 +1046,34 @@ class ScoutingFollowUp(models.Model):
         return f'{self.target.display_name} · {self.title}'
 
 
+class ScoutingTargetSeasonStat(models.Model):
+    """Histórico por temporada de un jugador OJEADO: partidos/goles/tarjetas
+    que el ojeador anota a mano (el jugador de plantilla usa PlayerStatistic)."""
+    target = models.ForeignKey(ScoutingTarget, on_delete=models.CASCADE, related_name='season_stats')
+    season = models.CharField(max_length=40, blank=True, help_text='Temporada, ej. 2025/2026.')
+    team = models.CharField(max_length=160, blank=True, help_text='Equipo/club en esa temporada.')
+    division = models.CharField(max_length=120, blank=True, help_text='División o categoría.')
+    matches_starter = models.PositiveSmallIntegerField(default=0, help_text='Partidos como titular.')
+    matches_completed = models.PositiveSmallIntegerField(default=0, help_text='Partidos completados.')
+    goals = models.PositiveSmallIntegerField(default=0)
+    assists = models.PositiveSmallIntegerField(default=0)
+    yellow_cards = models.PositiveSmallIntegerField(default=0)
+    red_cards = models.PositiveSmallIntegerField(default=0)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='scouting_season_stats')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-season', '-created_at', '-id']
+        indexes = [
+            models.Index(fields=['target', 'season'], name='scout_seasonstat_target_idx'),
+        ]
+        verbose_name = 'Temporada de ojeo'
+        verbose_name_plural = 'Temporadas de ojeo'
+
+    def __str__(self):
+        return f'{self.target.display_name} · {self.season or "temporada"}'
+
+
 class PlayerFine(models.Model):
     REASON_ABSENCE = 'absence'
     REASON_LATE = 'late'

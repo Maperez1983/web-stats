@@ -363,6 +363,7 @@ from football.models import (
     ScoutingFollowUp,
     ScoutingReport,
     ScoutingTarget,
+    ScoutingTargetSeasonStat,
     CustomMetric,
     DataSource,
     Group,
@@ -33218,9 +33219,40 @@ def scouting_target_detail_page(request, target_id):
                     target.status = ScoutingTarget.STATUS_ACTIVE
                 target.save(update_fields=["player", "available_for_coach_tools", "status", "updated_at"])
                 feedback = "El seguimiento ahora queda enlazado a plantilla."
+            if action == "add-season-stat":
+                ScoutingTargetSeasonStat.objects.create(
+                    target=target,
+                    season=_sanitize_task_text(str(request.POST.get("season") or "").strip(), multiline=False, max_len=40),
+                    team=_sanitize_task_text(str(request.POST.get("stat_team") or "").strip(), multiline=False, max_len=160),
+                    division=_sanitize_task_text(str(request.POST.get("division") or "").strip(), multiline=False, max_len=120),
+                    matches_starter=max(0, _parse_int(request.POST.get("matches_starter")) or 0),
+                    matches_completed=max(0, _parse_int(request.POST.get("matches_completed")) or 0),
+                    goals=max(0, _parse_int(request.POST.get("goals")) or 0),
+                    assists=max(0, _parse_int(request.POST.get("assists")) or 0),
+                    yellow_cards=max(0, _parse_int(request.POST.get("yellow_cards")) or 0),
+                    red_cards=max(0, _parse_int(request.POST.get("red_cards")) or 0),
+                    created_by=request.user if request.user.is_authenticated else None,
+                )
+                feedback = "Temporada añadida al seguimiento."
+                return redirect(f"{reverse('scouting-target-detail', args=[target.id])}?saved=1&tab=tracking")
+            if action == "delete-season-stat":
+                stat_id = _parse_int(request.POST.get("stat_id"))
+                if stat_id:
+                    ScoutingTargetSeasonStat.objects.filter(id=stat_id, target=target).delete()
+                feedback = "Temporada eliminada."
+                return redirect(f"{reverse('scouting-target-detail', args=[target.id])}?saved=1&tab=tracking")
         except Exception as exc:
             error = str(exc)
 
+    season_stats = list(target.season_stats.all())
+    season_stats_totals = {
+        "matches_starter": sum(s.matches_starter for s in season_stats),
+        "matches_completed": sum(s.matches_completed for s in season_stats),
+        "goals": sum(s.goals for s in season_stats),
+        "assists": sum(s.assists for s in season_stats),
+        "yellow_cards": sum(s.yellow_cards for s in season_stats),
+        "red_cards": sum(s.red_cards for s in season_stats),
+    }
     reports = list(target.reports.select_related("created_by").order_by("-observed_on", "-created_at", "-id")[:12])
     open_followups = list(target.followups.select_related("created_by").filter(is_done=False)[:12])
     done_followups = list(target.followups.select_related("created_by").filter(is_done=True)[:12])
@@ -33352,6 +33384,8 @@ def scouting_target_detail_page(request, target_id):
             "error": error,
             "position_choices": POSITION_CHOICES,
             "foot_choices": FOOT_CHOICES,
+            "season_stats": season_stats,
+            "season_stats_totals": season_stats_totals,
             "attribute_radar_data": attribute_radar_data,
             "fm_attribute_groups": fm_attribute_groups,
             "fm_attribute_radar_data": fm_attribute_radar_data,
