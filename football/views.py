@@ -85,6 +85,7 @@ from . import (
     workspace_ui,
 )
 from .ai_trainer import ai_trainer_index_task, ai_trainer_tokenize, normalize_ai_trainer_text
+from .competition_season_services import current_season_name, pick_current_season_row
 from .competition_sync import sync_workspace_competition_context
 from .dashboard_cache import (
     dashboard_cache_key,
@@ -9010,9 +9011,7 @@ def _search_universo_competition_candidates(*, team_query="", competition_query=
     normalized_group_query = normalize_label(group_query)
     live_candidates = []
     seasons = _fetch_universo_live_seasons()
-    season_row = next((row for row in seasons if str(row.get("nombre") or "").strip() == "2025-2026"), None)
-    if not season_row and seasons:
-        season_row = seasons[0]
+    season_row = pick_current_season_row(seasons)
     season_id = str((season_row or {}).get("cod_temporada") or "").strip()
     season_name = str((season_row or {}).get("nombre") or "").strip()
     delegations = _fetch_universo_live_delegations()
@@ -9144,11 +9143,7 @@ def _import_universo_competition_candidate(*, competition_key, group_key, team_k
         live_classification = _fetch_universo_live_classification(group_key)
         if isinstance(live_classification, dict) and live_classification.get("clasificacion"):
             live_seasons = _fetch_universo_live_seasons()
-            season_row = next(
-                (row for row in live_seasons if str(row.get("nombre") or "").strip() == "2025-2026"), None
-            )
-            if not season_row and live_seasons:
-                season_row = live_seasons[0]
+            season_row = pick_current_season_row(live_seasons)
             competition_meta = {
                 "code": competition_key,
                 "name": str(live_classification.get("competicion") or "").strip(),
@@ -33601,10 +33596,11 @@ def scouting_target_detail_page(request, target_id):
                     )
                 target.player = player
                 target.available_for_coach_tools = True
-                if target.status != ScoutingTarget.STATUS_SIGNED:
-                    target.status = ScoutingTarget.STATUS_ACTIVE
+                # Pasar a plantilla = fichaje: estado Fichado → se archiva en Histórico
+                # y sale del pipeline activo (ya no tiene sentido seguir ojeándolo).
+                target.status = ScoutingTarget.STATUS_SIGNED
                 target.save(update_fields=["player", "available_for_coach_tools", "status", "updated_at"])
-                feedback = "El seguimiento ahora queda enlazado a plantilla."
+                feedback = "Fichado y enlazado a plantilla. Se archiva en el Histórico."
             if action == "add-season-stat":
                 ScoutingTargetSeasonStat.objects.create(
                     target=target,
