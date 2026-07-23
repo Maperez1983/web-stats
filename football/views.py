@@ -19475,95 +19475,11 @@ def coach_overview_page(request):
     forbidden = _forbid_if_workspace_module_disabled(request, "coach_overview", label="portada staff")
     if forbidden:
         return forbidden
-    sources = list(ScrapeSource.objects.filter(is_active=True))
     workspace = _get_active_workspace(request)
     primary_team = _get_primary_team_for_request(request)
-    technical_roles = {
-        AppUserRole.ROLE_COACH,
-        AppUserRole.ROLE_FITNESS,
-        AppUserRole.ROLE_GOALKEEPER,
-        AppUserRole.ROLE_ANALYST,
-        AppUserRole.ROLE_ADMIN,
-    }
-    role_labels = dict(AppUserRole.ROLE_CHOICES)
-    role_labels[AppUserRole.ROLE_GOALKEEPER] = "Preparador de porteros"
     can_access_platform = _can_access_platform(request.user)
-    # Staff visible se restringe a la categoría activa del cliente.
-    default_team_id = (
-        WorkspaceTeam.objects.filter(workspace=workspace, is_default=True).values_list("team_id", flat=True).first()
-        if workspace and workspace.kind == Workspace.KIND_CLUB
-        else None
-    )
-    membership_rows = []
-    if workspace:
-        try:
-            membership_rows = list(
-                WorkspaceMembership.objects.filter(workspace=workspace, user__is_active=True).values_list(
-                    "user_id", "role"
-                )
-            )
-        except Exception:
-            membership_rows = []
-        try:
-            owner_id = int(getattr(workspace, "owner_user_id", 0) or 0)
-            if owner_id and all(int(uid or 0) != owner_id for uid, _ in membership_rows):
-                membership_rows.append((owner_id, WorkspaceMembership.ROLE_OWNER))
-        except Exception:
-            pass
-    member_user_ids = {int(uid) for uid, _ in membership_rows if uid}
-    membership_role_by_user_id = {int(uid): role for uid, role in membership_rows if uid}
-    access_rows = (
-        list(
-            WorkspaceTeamAccess.objects.filter(workspace=workspace, user_id__in=member_user_ids).values_list(
-                "user_id", "team_id"
-            )
-        )
-        if workspace and member_user_ids
-        else []
-    )
-    users_with_any_access = {int(uid) for uid, _ in access_rows if uid}
-    allowed_for_team = {
-        int(uid)
-        for uid, tid in access_rows
-        if uid and primary_team and int(tid or 0) == int(getattr(primary_team, "id", 0) or 0)
-    }
-    allowed_staff_ids = set()
-    for user_id in member_user_ids:
-        role = membership_role_by_user_id.get(int(user_id)) or ""
-        if role in {WorkspaceMembership.ROLE_OWNER, WorkspaceMembership.ROLE_ADMIN}:
-            allowed_staff_ids.add(int(user_id))
-            continue
-        if int(user_id) in users_with_any_access:
-            if int(user_id) in allowed_for_team:
-                allowed_staff_ids.add(int(user_id))
-            continue
-        if primary_team and default_team_id and int(default_team_id) == int(getattr(primary_team, "id", 0) or 0):
-            allowed_staff_ids.add(int(user_id))
-
-    role_rows = list(
-        AppUserRole.objects.select_related("user")
-        .filter(role__in=technical_roles, user__is_active=True)
-        .filter(user_id__in=allowed_staff_ids)
-        if allowed_staff_ids
-        else AppUserRole.objects.none()
-    )
-    technical_members = []
-    technical_members_lower = set()
-    for role_row in role_rows:
-        if not role_row.user.is_active:
-            continue
-        full_name = role_row.user.get_full_name().strip() or role_row.user.username
-        label = f'{role_labels.get(role_row.role, "Técnico")} · {full_name}'
-        normalized = label.lower()
-        if normalized in technical_members_lower:
-            continue
-        technical_members.append(label)
-        technical_members_lower.add(normalized)
-
-    if not technical_members:
-        technical_members = ["Sin miembros técnicos configurados en Admin"]
+    # weekly_brief se conserva porque enriquece el payload de `next_match` más abajo.
     weekly_brief = _build_weekly_staff_brief_context(primary_team)
-    rival_summary = _build_coach_rival_summary(primary_team)
     competition_payload = _competition_payload_for_team(workspace, primary_team, allow_auto_sync=False)
     standings = competition_payload.get("standings") or []
     convocation_next = _build_next_match_from_convocation(primary_team)
@@ -19631,15 +19547,8 @@ def coach_overview_page(request):
         getattr(primary_team, "display_name", "") or getattr(primary_team, "name", "") or "Club"
     ).strip()
     team_crest_url = resolve_team_crest_url(request, primary_team, sync=True) if primary_team else ""
-    coach_pitch_players = []
-    coach_pitch_groups = []
-    coach_squad_active_count = 0
-    coach_available_count = 0
-    coach_trial_count = 0
-    coach_injured_count = 0
-    coach_squad_reinforcement_rows = []
+    # Estos cuatro alimentan el dashboard de decisión y la imagen de plantilla (ambos sí se pintan).
     active_club_season = None
-    active_club_season_is_current = False
     roster_memberships = {}
     roster_players = []
     try:
@@ -19648,12 +19557,6 @@ def coach_overview_page(request):
         roster_players = []
     try:
         active_club_season = selected_club_season_for_request(request, workspace=workspace) if workspace else None
-        workspace_current_season_id = int(getattr(workspace, "active_season_id", 0) or 0) if workspace else 0
-        active_club_season_is_current = bool(
-            active_club_season
-            and int(getattr(active_club_season, "id", 0) or 0) == workspace_current_season_id
-            and bool(getattr(active_club_season, "is_active", False))
-        )
         if active_club_season and primary_team:
             roster_memberships = {
                 int(row.player_id): row
@@ -19664,131 +19567,18 @@ def coach_overview_page(request):
             }
     except Exception:
         active_club_season = None
-        active_club_season_is_current = False
         roster_memberships = {}
     if not roster_players and primary_team:
         try:
             roster_players = list(Player.objects.filter(team=primary_team, is_active=True).order_by("number", "name", "id"))
         except Exception:
             roster_players = []
-    coach_player_cards = []
+    roster_player_ids = [int(getattr(player, "id", 0) or 0) for player in roster_players if getattr(player, "id", None)]
     try:
-        coach_player_cards = compute_player_cards(primary_team, request=request) if primary_team else []
-    except Exception:
-        coach_player_cards = []
-    coach_player_ids = []
-    cards_by_player_id = {}
-    for card in coach_player_cards:
-        pid = _parse_int(card.get("player_id") or card.get("id"))
-        if pid:
-            cards_by_player_id[pid] = card
-            coach_player_ids.append(pid)
-    if not coach_player_ids:
-        coach_player_ids = [int(getattr(player, "id", 0) or 0) for player in roster_players if getattr(player, "id", None)]
-    try:
-        active_injury_ids = set(get_active_injury_player_ids(coach_player_ids))
+        active_injury_ids = set(get_active_injury_player_ids(roster_player_ids))
     except Exception:
         active_injury_ids = set()
 
-    def _coach_pitch_bucket(position_value):
-        value = str(position_value or "").strip().lower()
-        if not value:
-            return "midfield"
-        if any(token in value for token in ("portero", "goalkeeper", "gk", "por", "pt")):
-            return "goalkeeper"
-        if any(token in value for token in ("def", "lateral", "central", "cierre", "ld", "li")):
-            return "defense"
-        if any(token in value for token in ("mc", "mcd", "mco", "pivote", "medio", "centro", "interior")):
-            return "midfield"
-        if any(token in value for token in ("del", "punta", "extremo", "ataque", "dc", "ed", "ei", "9")):
-            return "attack"
-        return "midfield"
-
-    pitch_targets = [
-        {"key": "goalkeeper", "label": "Portería", "target": 1},
-        {"key": "defense", "label": "Defensa", "target": 4},
-        {"key": "midfield", "label": "Centro del campo", "target": 5},
-        {"key": "attack", "label": "Ataque", "target": 4},
-    ]
-    pitch_slots = {
-        "goalkeeper": [{"left": 50, "top": 84}],
-        "defense": [
-            {"left": 16, "top": 66},
-            {"left": 37, "top": 68},
-            {"left": 63, "top": 68},
-            {"left": 84, "top": 66},
-        ],
-        "midfield": [
-            {"left": 13, "top": 47},
-            {"left": 31, "top": 44},
-            {"left": 50, "top": 43},
-            {"left": 69, "top": 44},
-            {"left": 87, "top": 47},
-        ],
-        "attack": [
-            {"left": 22, "top": 26},
-            {"left": 42, "top": 23},
-            {"left": 58, "top": 23},
-            {"left": 78, "top": 26},
-        ],
-    }
-    pitch_counts = {item["key"]: 0 for item in pitch_targets}
-    for player in roster_players:
-        pid = _parse_int(getattr(player, "id", None))
-        if not pid:
-            continue
-        card = cards_by_player_id.get(pid, {})
-        bucket = _coach_pitch_bucket(getattr(player, "position", "") or card.get("position") or "")
-        bucket_index = pitch_counts.get(bucket, 0)
-        pitch_counts[bucket] = bucket_index + 1
-        slot_pool = pitch_slots.get(bucket) or pitch_slots["midfield"]
-        slot = slot_pool[bucket_index % len(slot_pool)]
-        row = bucket_index // len(slot_pool)
-        left = max(5, min(90, slot["left"] + (row * 4 if bucket != "goalkeeper" else 0)))
-        top = max(6, min(88, slot["top"] + (row * 6 if bucket != "goalkeeper" else 0)))
-        confirmed_value = bool(
-            getattr(player, "season_confirmed", False)
-            if hasattr(player, "season_confirmed")
-            else card.get("season_confirmed", True)
-        )
-        if pid in active_injury_ids:
-            state_tone = "injured"
-            state_label = "Lesionado"
-        elif not confirmed_value:
-            state_tone = "trial"
-            state_label = "A prueba"
-        else:
-            state_tone = "available"
-            state_label = "Disponible"
-        player_name = str(getattr(player, "name", "") or getattr(player, "full_name", "") or "").strip()
-        if not player_name:
-            player_name = str(card.get("name") or card.get("label") or f"Jugador {pid}").strip()
-        coach_pitch_players.append(
-            {
-                **card,
-                "id": pid,
-                "card_key": f"player-{pid}",
-                "bucket": bucket,
-                "left": left,
-                "top": top,
-                "name": player_name,
-                "number": getattr(player, "number", None) or card.get("number"),
-                "position": str(getattr(player, "position", "") or card.get("position") or "").strip(),
-                "photo_url": resolve_player_photo_url(request, player) if player else str(card.get("photo_url") or ""),
-                "accent": {
-                    "goalkeeper": "keeper",
-                    "defense": "defense",
-                    "midfield": "midfield",
-                    "attack": "attack",
-                }.get(bucket, "midfield"),
-                "state_label": state_label,
-                "state_tone": state_tone,
-            }
-        )
-    coach_squad_active_count = len(coach_pitch_players)
-    coach_available_count = sum(1 for item in coach_pitch_players if item.get("state_tone") == "available")
-    coach_trial_count = sum(1 for item in coach_pitch_players if item.get("state_tone") == "trial")
-    coach_injured_count = sum(1 for item in coach_pitch_players if item.get("state_tone") == "injured")
     coach_roster_preview_image_url = ""
     try:
         preview_payload = _build_coach_roster_preview_payload(
@@ -19816,36 +19606,6 @@ def coach_overview_page(request):
         )
     except Exception:
         coach_decision_dashboard = {"rows": [], "counts": {"pending": 0, "confirmed": 0, "discarded": 0, "injured": 0, "total": 0}}
-    for target in pitch_targets:
-        target_players = [item for item in coach_pitch_players if item.get("bucket") == target["key"]]
-        coach_pitch_groups.append(
-            {
-                **target,
-                "players": target_players,
-                "preview_players": target_players[:4],
-                "extra_count": max(0, len(target_players) - 4),
-            }
-        )
-    for target in pitch_targets:
-        current = pitch_counts.get(target["key"], 0)
-        missing = max(0, int(target["target"]) - int(current))
-        coach_squad_reinforcement_rows.append(
-            {
-                **target,
-                "current": current,
-                "missing": missing,
-                "tone": "critical" if missing >= 2 else "warning" if missing == 1 else "ok",
-                "status": "Refuerzo urgente" if missing >= 2 else "Revisar" if missing == 1 else "Cubierto",
-            }
-        )
-    pending_items = []
-    if isinstance(weekly_brief, dict):
-        if int(weekly_brief.get("convocated_count") or 0) <= 0:
-            pending_items.append("Falta cerrar la convocatoria actual.")
-        if int(weekly_brief.get("probable_eleven_count") or 0) <= 0:
-            pending_items.append("No hay 11 probable definido.")
-        if int(weekly_brief.get("available_count") or 0) <= 0:
-            pending_items.append("No hay disponibilidad consolidada del equipo.")
     module_hub = [
         {
             "title": "Partido",
@@ -19873,24 +19633,10 @@ def coach_overview_page(request):
             "url": reverse("club-onboarding"),
         },
     ]
-    probable_eleven_names = []
-    if isinstance(weekly_brief, dict):
-        probable_preview = str(weekly_brief.get("probable_eleven_preview") or "").strip()
-        probable_eleven_names = [item.strip() for item in probable_preview.split(",") if item.strip()][:5]
-    staff_preview = technical_members[:4]
-    staff_extra_count = max(0, len(technical_members) - len(staff_preview))
-    pending_cards = _build_team_pending_cards(primary_team, weekly_brief)
-    recent_activity = _build_team_recent_activity(primary_team)
     return render(
         request,
         "football/coach_overview.html",
         {
-            "sources": sources,
-            "weekly_brief": weekly_brief,
-            "technical_members": technical_members,
-            "staff_preview": staff_preview,
-            "staff_extra_count": staff_extra_count,
-            "rival_summary": rival_summary,
             "hero_image_url": hero_image_url,
             "hero_image_data_uri": hero_image_data_uri,
             "team_display_name": team_display_name,
@@ -19903,20 +19649,8 @@ def coach_overview_page(request):
             "standings": standings_rows,
             "highlighted_standing": highlighted_standing,
             "opponent_standing": opponent_standing,
-            "probable_eleven_names": probable_eleven_names,
             "module_hub": module_hub,
-            "pending_items": pending_items,
-            "pending_cards": pending_cards,
-            "recent_activity": recent_activity,
             "can_access_platform": can_access_platform,
-            "coach_pitch_players": coach_pitch_players,
-            "coach_pitch_groups": coach_pitch_groups,
-            "coach_squad_active_count": coach_squad_active_count,
-            "coach_available_count": coach_available_count,
-            "coach_trial_count": coach_trial_count,
-            "coach_injured_count": coach_injured_count,
-            "coach_squad_reinforcement_rows": coach_squad_reinforcement_rows,
-            "coach_pitch_has_players": bool(coach_pitch_players),
             "coach_roster_preview_image_url": coach_roster_preview_image_url,
             "coach_decision_dashboard": coach_decision_dashboard,
         },
