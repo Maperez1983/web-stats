@@ -32901,16 +32901,9 @@ def coach_role_goalkeeper_page(request):
             "link": "coach-abp-board",
         },
     ]
-    return render(
-        request,
-        "football/coach_role_hub.html",
-        {
-            "role_title": "Preparador de porteros",
-            "role_key": "goalkeeper",
-            "role_description": "Repositorio técnico especializado para trabajo específico de portería.",
-            "modules": modules,
-        },
-    )
+    # El hub de rol no renderiza 'modules' (salía en blanco): llevamos directo
+    # a la pantalla operativa de tareas de portero.
+    return redirect("sessions-goalkeeper")
 
 
 @login_required
@@ -32935,16 +32928,7 @@ def coach_role_fitness_page(request):
             "link": "player-dashboard",
         },
     ]
-    return render(
-        request,
-        "football/coach_role_hub.html",
-        {
-            "role_title": "Preparación física",
-            "role_key": "fitness",
-            "role_description": "Base preparada para incorporar carga interna/externa y control físico.",
-            "modules": modules,
-        },
-    )
+    return redirect("sessions-fitness")
 
 
 @login_required
@@ -32964,16 +32948,8 @@ def coach_role_abp_page(request):
             "link": "coach-abp-board",
         },
     ]
-    return render(
-        request,
-        "football/coach_role_hub.html",
-        {
-            "role_title": "ABP",
-            "role_key": "abp",
-            "role_description": "Acciones a balón parado: diseño, simulación y biblioteca de jugadas.",
-            "modules": modules,
-        },
-    )
+    # Evita el bucle con el "Volver" del tablero ABP: vamos a la planificación.
+    return redirect("sessions")
 
 
 @login_required
