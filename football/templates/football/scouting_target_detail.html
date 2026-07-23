@@ -779,7 +779,7 @@
               </label>
               <label style="grid-column:1 / -1; display:flex; align-items:center; gap:0.5rem; text-transform:none; letter-spacing:0;">
                 <input type="checkbox" name="available_for_coach_tools" value="1" {% if target.available_for_coach_tools and target.status != 'discarded' %}checked{% endif %} />
-                <span>Disponible para entrenos y pizarra del entrenador, aunque ya esté en plantilla</span>
+                <span><strong>A prueba</strong> — disponible para entrenos y pizarra del entrenador, aunque ya esté en plantilla</span>
               </label>
               <p style="grid-column:1 / -1; margin:0; color:rgba(226,232,240,0.72); font-size:0.82rem; line-height:1.45;">
                 Si mantienes esta casilla activa, el jugador seguirá apareciendo como <strong>A prueba</strong> en la plantilla del entrenador y en los entrenos, aunque ya esté convertido.
@@ -845,6 +845,10 @@
                 <textarea name="next_steps"></textarea>
               </label>
             </div>
+            <label style="display:flex;align-items:center;gap:0.5rem;margin-top:0.6rem;font-weight:600;text-transform:none;letter-spacing:0;color:rgba(226,232,240,0.8);">
+              <input type="checkbox" name="apply_state" value="1" checked style="width:16px;height:16px;accent-color:#f4b400;" />
+              Aplicar la recomendación al estado del ojeado (Descartar→Descartado, Fichar→A prueba, Seguir→Seguimiento activo)
+            </label>
             <div class="actions-row">
               <button class="btn primary" type="submit">Guardar informe</button>
             </div>

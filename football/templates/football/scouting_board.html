@@ -592,7 +592,13 @@
       .scout-nota.low { background: rgba(248,113,113,0.14); color: #fecaca; border-color: rgba(248,113,113,0.34); }
       .scout-nota.none { color: rgba(226,232,240,0.42); font-size: 1rem; }
       .scout-card-badges { display: flex; flex-wrap: wrap; gap: 0.35rem; }
-      .scout-card-foot { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: auto; padding-top: 0.2rem; }
+      .scout-card-foot { display: flex; gap: 0.4rem; flex-wrap: wrap; padding-top: 0.2rem; }
+      .quick-actions { display: flex; gap: 0.35rem; margin-top: 0.5rem; }
+      .qa { flex: 1; border: 1px solid rgba(255,255,255,0.14); background: rgba(15,23,42,0.6); border-radius: 10px; padding: 0.36rem 0.25rem; font-size: 0.64rem; font-weight: 900; letter-spacing: 0.02em; cursor: pointer; color: rgba(226,232,240,0.82); transition: transform 0.1s ease, background 0.12s ease, border-color 0.12s ease; }
+      .qa:hover { transform: translateY(-1px); }
+      .qa-green:hover { background: rgba(47,125,50,0.28); color: #bbf7d0; border-color: rgba(52,211,153,0.55); }
+      .qa-yellow:hover { background: rgba(244,180,0,0.24); color: #fde68a; border-color: rgba(244,180,0,0.55); }
+      .qa-red:hover { background: rgba(248,113,113,0.24); color: #fecaca; border-color: rgba(248,113,113,0.55); }
 
       /* Comparativa por posición (shortlist en campo) */
       .shortlist-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; flex-wrap: wrap; margin-top: 1rem; }
@@ -857,7 +863,7 @@
               </label>
               <label style="grid-column:1 / -1; display:flex; align-items:center; gap:0.5rem; text-transform:none; letter-spacing:0;">
                 <input type="checkbox" name="available_for_coach_tools" value="1" />
-                <span>Disponible para entrenos y pizarra del entrenador</span>
+                <span><strong>A prueba</strong> — disponible para entrenos y pizarra del entrenador</span>
               </label>
               <label style="grid-column:1 / -1; display:flex; align-items:center; gap:0.5rem; text-transform:none; letter-spacing:0;">
                 <input type="checkbox" name="create_player" value="1" />
@@ -982,6 +988,16 @@
               <a class="card-action primary" href="{% url 'scouting-target-detail' target.id %}">Abrir ficha</a>
               {% if target.player_id %}<a class="card-action" href="{% url 'player-detail' target.player_id %}">Jugador</a>{% endif %}
             </div>
+            {% if can_manage_workspace %}
+            <form method="post" class="quick-actions">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="set-state" />
+              <input type="hidden" name="target_id" value="{{ target.id }}" />
+              <button class="qa qa-green" name="state" value="signed" title="Marcar Fichado (pasa a Histórico)">✓ Fichar</button>
+              <button class="qa qa-yellow" name="state" value="trial" title="Poner A prueba">A prueba</button>
+              <button class="qa qa-red" name="state" value="discarded" title="Descartar (pasa a Histórico)">✕ Descartar</button>
+            </form>
+            {% endif %}
           </article>
           {% endfor %}
         </div>
@@ -1078,8 +1094,10 @@
         </div>
 
         <figure class="pitch-photo-wrap">
-          <img class="pitch-photo" src="{% url 'scouting-pitch-png' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" alt="Campo de ojeo por posición con estado" loading="lazy" />
-          <figcaption>Campo por posición · color = estado (🟢 fichado · 🟡 a prueba · 🔵 fichado por otro · ⚪ objetivo)</figcaption>
+          <a href="{% url 'scouting-pitch-png' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" target="_blank" rel="noopener" title="Ver a pantalla completa">
+            <img class="pitch-photo" src="{% url 'scouting-pitch-png' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" alt="Campo de ojeo por posición con estado" loading="lazy" />
+          </a>
+          <figcaption>Campo por posición · color = estado (🟢 fichado · 🟡 a prueba · 🔵 fichado por otro · ⚪ objetivo) · <a href="{% url 'scouting-pitch-png' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" target="_blank" rel="noopener" style="color:#fde68a;">ver a pantalla completa ↗</a></figcaption>
         </figure>
 
         <div class="charts-grid">

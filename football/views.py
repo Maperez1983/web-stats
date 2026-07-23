@@ -33140,6 +33140,23 @@ def scouting_pitch_png(request):
     )
     payload = _build_scouting_pitch_payload(items)
     pitch_src = _roster_pitch_source(for_pillow=True)
+    # Caché por firma: solo regeneramos el PNG (caro) cuando cambian los datos.
+    import hashlib
+
+    _sig = [f"v1:{getattr(active_team, 'id', 0) or 0}:{sem_signed}:{sem_trial}:{discarded_count}"]
+    for _it in sorted(items, key=lambda x: x.id):
+        _sig.append(
+            f"{_it.id}:{_it.status}:{int(bool(_it.available_for_coach_tools))}:{getattr(_it, 'nota_global', 0)}:{_it.pos_bucket}"
+        )
+    signature = hashlib.md5("|".join(_sig).encode("utf-8")).hexdigest()[:20]
+    team_slug = slugify(str(getattr(active_team, "display_name", "") or getattr(active_team, "name", "") or "team")) or "team"
+    rel_path = f"generated/scouting-pitch/{team_slug}/{signature}.png"
+    try:
+        if default_storage.exists(rel_path):
+            return redirect(default_storage.url(rel_path))
+    except Exception:
+        pass
+
     png_bytes = _render_coach_roster_preview_png(
         team_name="",
         division_label="Dirección deportiva",
@@ -33159,9 +33176,24 @@ def scouting_pitch_png(request):
     )
     if not png_bytes:
         return HttpResponse(status=503)
-    response = HttpResponse(png_bytes, content_type="image/png")
-    response["Cache-Control"] = "no-cache"
-    return response
+    try:
+        saved = default_storage.save(rel_path, ContentFile(png_bytes))
+        try:
+            _dir = f"generated/scouting-pitch/{team_slug}"
+            _subs, _files = default_storage.listdir(_dir)
+            for _fn in _files:
+                if _fn.endswith(".png") and _fn != f"{signature}.png":
+                    try:
+                        default_storage.delete(f"{_dir}/{_fn}")
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        return redirect(default_storage.url(saved))
+    except Exception:
+        response = HttpResponse(png_bytes, content_type="image/png")
+        response["Cache-Control"] = "no-cache"
+        return response
 
 
 @login_required
@@ -33276,6 +33308,30 @@ def scouting_board_page(request):
                 if target:
                     target.delete()
                     feedback = "Seguimiento eliminado."
+            elif action == "set-state" and target_id:
+                # Acción rápida desde la tarjeta: cambiar estado en 1 clic.
+                target = ScoutingTarget.objects.filter(id=target_id, workspace=workspace).first()
+                if target:
+                    state = str(request.POST.get("state") or "").strip().lower()
+                    if state == "signed":
+                        target.status = ScoutingTarget.STATUS_SIGNED
+                        target.available_for_coach_tools = False
+                    elif state == "trial":
+                        target.available_for_coach_tools = True
+                        if target.status in {ScoutingTarget.STATUS_SIGNED, ScoutingTarget.STATUS_SIGNED_OTHER, ScoutingTarget.STATUS_DISCARDED}:
+                            target.status = ScoutingTarget.STATUS_ACTIVE
+                    elif state == "discarded":
+                        target.status = ScoutingTarget.STATUS_DISCARDED
+                        target.available_for_coach_tools = False
+                    elif state == "signed_other":
+                        target.status = ScoutingTarget.STATUS_SIGNED_OTHER
+                        target.available_for_coach_tools = False
+                    elif state == "reset":
+                        target.status = ScoutingTarget.STATUS_TARGET
+                        target.available_for_coach_tools = False
+                    target.save(update_fields=["status", "available_for_coach_tools", "updated_at"])
+                    feedback = "Estado actualizado."
+                return redirect(f"{reverse('scouting-board')}" + (f"?team={active_team.id}" if active_team else ""))
             else:
                 raise ValueError("Acción no reconocida.")
         except Exception as exc:
@@ -33644,6 +33700,25 @@ def scouting_target_detail_page(request, target_id):
                     summary=_sanitize_task_text(str(request.POST.get("summary") or "").strip(), multiline=True, max_len=8000),
                     next_steps=_sanitize_task_text(str(request.POST.get("next_steps") or "").strip(), multiline=True, max_len=4000),
                 )
+                # Enlaza la recomendación del informe con el estado del ojeado
+                # (casilla "aplicar al estado"): Descartar->Descartado, Fichar->A prueba
+                # activa, Seguir->Seguimiento activo, Esperar->En seguimiento.
+                if request.POST.get("apply_state"):
+                    rec_val = rec if rec in valid_rec else ScoutingReport.RECOMMENDATION_WAIT
+                    if rec_val == ScoutingReport.RECOMMENDATION_DISCARD:
+                        target.status = ScoutingTarget.STATUS_DISCARDED
+                        target.available_for_coach_tools = False
+                    elif rec_val == ScoutingReport.RECOMMENDATION_SIGN:
+                        target.available_for_coach_tools = True
+                        if target.status not in {ScoutingTarget.STATUS_SIGNED}:
+                            target.status = ScoutingTarget.STATUS_ACTIVE
+                    elif rec_val == ScoutingReport.RECOMMENDATION_FOLLOW:
+                        if target.status not in {ScoutingTarget.STATUS_SIGNED, ScoutingTarget.STATUS_SIGNED_OTHER}:
+                            target.status = ScoutingTarget.STATUS_ACTIVE
+                    elif rec_val == ScoutingReport.RECOMMENDATION_WAIT:
+                        if target.status == ScoutingTarget.STATUS_TARGET:
+                            target.status = ScoutingTarget.STATUS_WATCHLIST
+                    target.save(update_fields=["status", "available_for_coach_tools", "updated_at"])
                 feedback = "Informe de ojeo guardado."
                 return redirect(f"{reverse('scouting-target-detail', args=[target.id])}?saved=1")
             if action == "create-followup":
