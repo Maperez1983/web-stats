@@ -719,6 +719,7 @@
       <div class="workspace-tabs" role="tablist" aria-label="Vistas de dirección deportiva">
         <button class="workspace-tab is-active" type="button" data-scout-tab-target="list">Listado</button>
         <button class="workspace-tab" type="button" data-scout-tab-target="shortlist">Comparativa</button>
+        <button class="workspace-tab" type="button" data-scout-tab-target="archive">Histórico{% if archived_count %} · {{ archived_count }}{% endif %}</button>
         {% if can_manage_workspace %}
         <button class="workspace-tab" type="button" data-scout-tab-target="create">Crear</button>
         {% endif %}
@@ -1126,6 +1127,36 @@
           {% endfor %}
         </div>
         </details>
+      </section>
+
+      <section class="workspace-panel" data-scout-panel="archive">
+        <h2 style="margin:0;">Histórico de ojeo</h2>
+        <p class="sub" style="margin:0.35rem 0 1rem;">Ojeados ya resueltos: fichados por ti, fichados por otro club o descartados. Se conservan para trazabilidad; no cuentan en el pipeline activo.</p>
+        {% if archived_items %}
+        <div class="scout-cards is-active" style="display:grid;">
+          {% for target in archived_items %}
+          <article class="scout-card">
+            <div class="scout-card-top">
+              <span class="scout-avatar" data-pos="{{ target.pos_bucket|default:'mid' }}">{{ target.display_name|display_text|slice:':2'|upper }}</span>
+              <div class="scout-card-id">
+                <a class="scout-card-name" href="{% url 'scouting-target-detail' target.id %}">{{ target.display_name|display_text }}</a>
+                <div class="scout-card-meta">{% if target.position %}{{ target.position|display_position }}{% else %}Sin posición{% endif %}{% if target.subject_team_name %} · {{ target.subject_team_name|display_text }}{% endif %}</div>
+              </div>
+            </div>
+            <div class="scout-card-badges">
+              <span class="sem-chip" data-sem="{{ target.semaphore.color }}"><span class="sem-dot"></span>{{ target.semaphore.label }}</span>
+              {% if target.player_id %}<span class="badge ok">En plantilla</span>{% endif %}
+            </div>
+            <div class="scout-card-foot">
+              <a class="card-action primary" href="{% url 'scouting-target-detail' target.id %}">Abrir ficha</a>
+              {% if target.player_id %}<a class="card-action" href="{% url 'player-detail' target.player_id %}">Jugador</a>{% endif %}
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty">Aún no hay ojeados resueltos. Cuando marques a uno como Fichado, Descartado o Fichado por otro equipo, aparecerá aquí.</div>
+        {% endif %}
       </section>
     </div>
     <script>

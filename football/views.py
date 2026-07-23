@@ -33104,7 +33104,11 @@ def scouting_pitch_png(request):
         qs = (
             ScoutingTarget.objects.filter(workspace=workspace)
             .select_related("player")
-            .exclude(status=ScoutingTarget.STATUS_DISCARDED)
+            .exclude(status__in=[
+                ScoutingTarget.STATUS_DISCARDED,
+                ScoutingTarget.STATUS_SIGNED,
+                ScoutingTarget.STATUS_SIGNED_OTHER,
+            ])
             .order_by("-priority", "status", "-updated_at", "-id")
         )
         if active_team:
@@ -33128,13 +33132,12 @@ def scouting_pitch_png(request):
             item.nota_global = int(round(sum(_vals) / len(_vals))) if _vals else 0
         else:
             item.nota_global = 0
-    sem_signed = sum(1 for i in items if i.status == ScoutingTarget.STATUS_SIGNED)
-    sem_trial = sum(
-        1
-        for i in items
-        if i.available_for_coach_tools
-        and i.status not in {ScoutingTarget.STATUS_SIGNED, ScoutingTarget.STATUS_SIGNED_OTHER}
+    sem_signed = (
+        ScoutingTarget.objects.filter(workspace=workspace, status=ScoutingTarget.STATUS_SIGNED).count()
+        if workspace
+        else 0
     )
+    sem_trial = sum(1 for i in items if i.available_for_coach_tools)
     discarded_count = (
         ScoutingTarget.objects.filter(workspace=workspace, status=ScoutingTarget.STATUS_DISCARDED).count()
         if workspace
@@ -33288,7 +33291,6 @@ def scouting_board_page(request):
         items_qs = (
             ScoutingTarget.objects.filter(workspace=workspace)
             .select_related("player", "player__team", "assigned_to", "created_by")
-            .exclude(status=ScoutingTarget.STATUS_DISCARDED)
             .order_by("-priority", "status", "-updated_at", "-id")
         )
         if active_team:
@@ -33303,8 +33305,17 @@ def scouting_board_page(request):
             | Q(subject_team_name__icontains=search_filter)
             | Q(position__icontains=search_filter)
         )
+    _closed_states = [
+        ScoutingTarget.STATUS_DISCARDED,
+        ScoutingTarget.STATUS_SIGNED,
+        ScoutingTarget.STATUS_SIGNED_OTHER,
+    ]
     if status_filter != "all":
         items_qs = items_qs.filter(status=status_filter)
+    else:
+        # Por defecto el listado muestra el PIPELINE activo; los resueltos
+        # (fichados / descartados / fichado por otro) viven en el Histórico.
+        items_qs = items_qs.exclude(status__in=_closed_states)
     if priority_filter != "all":
         items_qs = items_qs.filter(priority=priority_filter)
     if assignment_filter == "linked":
@@ -33370,31 +33381,37 @@ def scouting_board_page(request):
         item.semaphore = _scouting_semaphore(item.status, item.available_for_coach_tools)
 
     # Semáforo global (los descartados se cuentan aparte porque el listado los excluye).
-    sem_signed = sum(1 for item in items if item.status == ScoutingTarget.STATUS_SIGNED)
-    sem_signed_other = sum(1 for item in items if item.status == ScoutingTarget.STATUS_SIGNED_OTHER)
-    sem_trial = sum(
-        1
-        for item in items
-        if item.available_for_coach_tools
-        and item.status not in {ScoutingTarget.STATUS_SIGNED, ScoutingTarget.STATUS_SIGNED_OTHER}
+    # Contadores globales (semáforo/embudo) desde una consulta base, para que
+    # reflejen TODOS los estados y no solo el pipeline que se está mostrando.
+    _base_counts = ScoutingTarget.objects.filter(workspace=workspace) if workspace else ScoutingTarget.objects.none()
+    if workspace and active_team:
+        _base_counts = _base_counts.filter(Q(player__team=active_team) | Q(player__isnull=True))
+    sem_signed = _base_counts.filter(status=ScoutingTarget.STATUS_SIGNED).count()
+    sem_signed_other = _base_counts.filter(status=ScoutingTarget.STATUS_SIGNED_OTHER).count()
+    discarded_count = _base_counts.filter(status=ScoutingTarget.STATUS_DISCARDED).count()
+    sem_trial = (
+        _base_counts.filter(available_for_coach_tools=True)
+        .exclude(status__in=_closed_states)
+        .count()
     )
+    funnel_objetivos = _base_counts.filter(status=ScoutingTarget.STATUS_TARGET).count()
+    funnel_seguimiento = _base_counts.filter(
+        status__in=[ScoutingTarget.STATUS_WATCHLIST, ScoutingTarget.STATUS_ACTIVE, ScoutingTarget.STATUS_REVIEW]
+    ).count()
+    funnel_prueba = sem_trial
+    funnel_fichados = sem_signed
 
-    # Embudo de decisión (pipeline) para la cabecera comercial.
-    funnel_objetivos = sum(1 for item in items if item.status == ScoutingTarget.STATUS_TARGET)
-    funnel_seguimiento = sum(
-        1
-        for item in items
-        if item.status in {ScoutingTarget.STATUS_WATCHLIST, ScoutingTarget.STATUS_ACTIVE, ScoutingTarget.STATUS_REVIEW}
-    )
-    funnel_prueba = sum(
-        1 for item in items if item.available_for_coach_tools and item.status != ScoutingTarget.STATUS_SIGNED
-    )
-    funnel_fichados = sum(1 for item in items if item.status == ScoutingTarget.STATUS_SIGNED)
-    discarded_count = (
-        ScoutingTarget.objects.filter(workspace=workspace, status=ScoutingTarget.STATUS_DISCARDED).count()
-        if workspace
-        else 0
-    )
+    # Histórico: ojeados resueltos (fichados / fichado por otro / descartados).
+    archived_items = []
+    if workspace:
+        archived_items = list(
+            _base_counts.filter(status__in=_closed_states)
+            .select_related("player")
+            .order_by("status", "-updated_at", "-id")[:120]
+        )
+    for _a in archived_items:
+        _a.semaphore = _scouting_semaphore(_a.status, _a.available_for_coach_tools)
+    archived_count = len(archived_items)
 
     # Comparativa por posición: candidatos agrupados por zona del campo y
     # ordenados por nota global (los sin informe quedan al final). Alimenta el
@@ -33468,6 +33485,8 @@ def scouting_board_page(request):
             "sem_trial": sem_trial,
             "charts_zones": charts_zones,
             "charts_states": charts_states,
+            "archived_items": archived_items,
+            "archived_count": archived_count,
             "shortlist_bands": shortlist_bands,
             "plantilla_players": plantilla_players,
             "search_filter": search_filter,
