@@ -662,11 +662,11 @@
       </header>
 
       <div class="workspace-tabs" role="tablist" aria-label="Vistas de dirección deportiva">
-        {% if can_manage_workspace %}
-        <button class="workspace-tab is-active" type="button" data-scout-tab-target="create">Crear</button>
-        {% endif %}
-        <button class="workspace-tab" type="button" data-scout-tab-target="list">Listado</button>
+        <button class="workspace-tab is-active" type="button" data-scout-tab-target="list">Listado</button>
         <button class="workspace-tab" type="button" data-scout-tab-target="shortlist">Comparativa</button>
+        {% if can_manage_workspace %}
+        <button class="workspace-tab" type="button" data-scout-tab-target="create">+ Nuevo ojeado</button>
+        {% endif %}
       </div>
 
       {% if can_manage_workspace %}
@@ -1024,18 +1024,14 @@
         tabs.forEach((tab) => {
           tab.addEventListener('click', () => activate(tab.dataset.scoutTabTarget || 'list'));
         });
+        // La home abre SIEMPRE en el panel premium (Listado). Crear y Comparativa
+        // son clics deliberados; ya no se "recuerda" Crear como landing (confundía).
         let initial = 'list';
-        try {
-          initial = window.localStorage.getItem(storageKey) || 'list';
-        } catch (e) {}
-        if (initial === 'create' && !hasCreatePanel) {
-          initial = 'list';
+        const urlTab = new URLSearchParams(window.location.search).get('tab');
+        if (urlTab && tabs.some((tab) => tab.dataset.scoutTabTarget === urlTab) && (urlTab !== 'create' || hasCreatePanel)) {
+          initial = urlTab;
         }
-        // Tras crear un ojeado (redirect ?created=1) mostramos siempre el LISTADO.
-        if (new URLSearchParams(window.location.search).has('created')) {
-          initial = 'list';
-        }
-        activate(initial === 'create' ? 'create' : 'list');
+        activate(initial);
       })();
 
       (() => {
