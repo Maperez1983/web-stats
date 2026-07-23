@@ -4647,25 +4647,52 @@ def _normalize_roster_preview_label(value: object) -> str:
     return normalize_label(str(value or "").strip())
 
 
+# Mapa de ABREVIATURAS de posicion -> linea del campo (formato habitual en
+# fichas de fútbol español, que es como se guardan realmente: POR, DFC, MC, DC...).
+# OJO: "DC" = Delantero Centro (ataque), NO defensa.
+_POSITION_BUCKET_ABBR = {
+    # Portería
+    "POR": "gk", "PT": "gk", "GK": "gk", "P": "gk", "PO": "gk",
+    # Defensa
+    "DFC": "def", "DFI": "def", "DFD": "def", "DF": "def", "DEF": "def", "CT": "def",
+    "LD": "def", "LI": "def", "LAT": "def", "CAI": "def", "CAD": "def", "CI": "def", "CD": "def",
+    "LB": "def", "RB": "def", "CB": "def", "RWB": "def", "LWB": "def", "SW": "def",
+    # Medio
+    "MC": "mid", "MCD": "mid", "MCO": "mid", "MP": "mid", "MI": "mid", "MD": "mid", "MED": "mid",
+    "PIV": "mid", "ORG": "mid", "VOL": "mid", "INT": "mid", "CM": "mid", "DM": "mid", "AM": "mid",
+    "MMD": "mid", "MMI": "mid", "MCE": "mid",
+    # Delantero / extremos
+    "DC": "att", "SD": "att", "ED": "att", "EI": "att", "EXT": "att", "DEL": "att", "DL": "att",
+    "ST": "att", "CF": "att", "LW": "att", "RW": "att", "EXD": "att", "EXI": "att", "DELC": "att",
+}
+
+
 def _roster_preview_bucket(position_text: str) -> str:
-    text = _normalize_roster_preview_label(position_text or "")
+    raw = str(position_text or "").strip()
+    if not raw:
+        return "mid"
+    # 1) coincidencia exacta por abreviatura (POR, DFC, MC, DC, ED, LD, ...)
+    key = _normalize_roster_preview_label(raw).upper().replace(" ", "").replace(".", "").replace("-", "")
+    if key in _POSITION_BUCKET_ABBR:
+        return _POSITION_BUCKET_ABBR[key]
+    # 2) fallback por palabras completas (orden con cuidado de ambigüedades)
+    text = _normalize_roster_preview_label(raw)
     if any(token in text for token in ("portero", "goalkeeper", "guardameta", "porteria", "puerta")):
         return "gk"
-    if any(token in text for token in ("defensa", "central", "lateral", "carrilero", "libero", "zaguero")):
-        return "def"
-    if any(
-        token in text
-        for token in ("medio", "centro", "pivote", "pivot", "interior", "volante", "mediocentro", "media punta", "mediapunta")
-    ):
+    if "mediapunta" in text or "media punta" in text:
         return "mid"
-    if any(token in text for token in ("delantero", "extremo", "punta", "ataque", "segundo punta", "ariete")):
+    if any(token in text for token in ("delantero", "extremo", "ariete", "atacante", "striker", "forward", "winger", "punta")):
         return "att"
+    if any(token in text for token in ("defensa", "central", "lateral", "carrilero", "libero", "zaguero", "back")):
+        return "def"
+    if any(token in text for token in ("medio", "mediocentro", "pivote", "pivot", "interior", "volante", "midfield", "centrocampista")):
+        return "mid"
     return "mid"
 
 
 # Sube este numero cuando cambie el DISENO del informe: invalida todas las
 # imagenes cacheadas y fuerza que se regeneren con el render nuevo.
-_ROSTER_PREVIEW_RENDER_VERSION = "3"
+_ROSTER_PREVIEW_RENDER_VERSION = "4"
 
 
 def _coach_roster_preview_signature(*, primary_team, active_club_season, board_rows) -> str:
@@ -34397,16 +34424,8 @@ def coach_roster_pdf(request):
         active_injury_ids = set()
 
     def _roster_bucket(position_text: str) -> str:
-        text = normalize_label(position_text or '')
-        if any(token in text for token in ('portero', 'goalkeeper', 'guardameta', 'porteria', 'puerta')):
-            return 'gk'
-        if any(token in text for token in ('defensa', 'central', 'lateral', 'carrilero', 'libero', 'zaguero')):
-            return 'def'
-        if any(token in text for token in ('medio', 'centro', 'pivote', 'pivot', 'interior', 'volante', 'mediocentro', 'media punta', 'mediapunta')):
-            return 'mid'
-        if any(token in text for token in ('delantero', 'extremo', 'punta', 'ataque', 'segundo punta', 'ariete')):
-            return 'att'
-        return 'mid'
+        # unificado con el clasificador del informe (entiende abreviaturas: POR, DFC, MC, DC...)
+        return _roster_preview_bucket(position_text)
 
     bucket_meta = {
         'gk': {'label': 'Portería', 'short': 'GK', 'x': 4, 'y': 44, 'w': 20},
