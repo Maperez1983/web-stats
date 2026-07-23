@@ -678,9 +678,19 @@
             {% csrf_token %}
             <input type="hidden" name="action" value="create" />
             <div class="create-grid">
+              <label style="grid-column:1 / -1;">
+                ¿Ya está en tu plantilla?
+                <select name="linked_player_id" id="scout-linked-player">
+                  <option value="">No — es un jugador externo</option>
+                  {% for p in plantilla_players %}
+                  <option value="{{ p.id }}">{{ p.name }}</option>
+                  {% endfor %}
+                </select>
+                <small style="display:block;margin-top:0.35rem;font-weight:600;text-transform:none;letter-spacing:0;color:rgba(226,232,240,0.62);">Si el jugador ya existe en tu plantilla, selecciónalo aquí para <strong>vincularlo y no duplicarlo</strong>. Si es de fuera, déjalo en «externo» y escribe su nombre.</small>
+              </label>
               <label>
                 Nombre
-                <input type="text" name="subject_name" maxlength="160" required />
+                <input type="text" name="subject_name" maxlength="160" />
               </label>
               <label>
                 Club
@@ -762,6 +772,25 @@
                   function upd() {
                     var show = sel.value === '1';
                     document.querySelectorAll('.scout-agent-field').forEach(function (el) { el.style.display = show ? '' : 'none'; });
+                  }
+                  sel.addEventListener('change', upd); upd();
+                })();
+              </script>
+              <script>
+                (function () {
+                  var sel = document.getElementById('scout-linked-player');
+                  var nameInput = document.querySelector('input[name="subject_name"]');
+                  if (!sel || !nameInput) return;
+                  function upd() {
+                    if (sel.value) {
+                      nameInput.value = sel.options[sel.selectedIndex].text;
+                      nameInput.readOnly = true;
+                      nameInput.style.opacity = '0.6';
+                    } else {
+                      if (nameInput.readOnly) { nameInput.value = ''; }
+                      nameInput.readOnly = false;
+                      nameInput.style.opacity = '';
+                    }
                   }
                   sel.addEventListener('change', upd); upd();
                 })();

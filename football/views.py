@@ -33001,8 +33001,19 @@ def scouting_board_page(request):
                 subject_name = _sanitize_task_text(
                     str(request.POST.get("subject_name") or "").strip(), multiline=False, max_len=160
                 )
+                # Vínculo a jugador de plantilla para NO duplicar a quien ya existe como
+                # Player (p.ej. fichajes metidos directos sin pasar por el ojeo).
+                linked_player = None
+                linked_player_id = _parse_int(request.POST.get("linked_player_id"))
+                if linked_player_id and active_team:
+                    linked_player = Player.objects.filter(id=linked_player_id, team=active_team).first()
+                if linked_player is None and subject_name and active_team:
+                    # Red de seguridad: si el nombre coincide con la plantilla, vinculamos.
+                    linked_player = Player.objects.filter(team=active_team, name__iexact=subject_name).first()
+                if linked_player is not None:
+                    subject_name = linked_player.name
                 if not subject_name:
-                    raise ValueError("El nombre es obligatorio.")
+                    raise ValueError("Indica un nombre o vincula un jugador de la plantilla.")
                 target_team_name = _sanitize_task_text(
                     str(request.POST.get("subject_team_name") or "").strip(), multiline=False, max_len=160
                 )
@@ -33026,7 +33037,7 @@ def scouting_board_page(request):
                 agent_phone = _sanitize_task_text(str(request.POST.get("agent_phone") or "").strip(), multiline=False, max_len=40) if has_agent else ""
                 target, _created = ScoutingTarget.objects.get_or_create(
                     workspace=workspace,
-                    player=None,
+                    player=linked_player,
                     subject_name=subject_name,
                     defaults={
                         "subject_team_name": target_team_name,
@@ -33202,6 +33213,11 @@ def scouting_board_page(request):
         ("gk", "Portería", shortlist_zones["gk"]),
     ]
 
+    # Jugadores de la plantilla para poder VINCULAR un ojeado en vez de duplicarlo.
+    plantilla_players = (
+        list(active_team.players.filter(is_active=True).order_by("name")) if active_team else []
+    )
+
     return render(
         request,
         "football/scouting_board.html",
@@ -33220,6 +33236,7 @@ def scouting_board_page(request):
             "funnel_fichados": funnel_fichados,
             "discarded_count": discarded_count,
             "shortlist_bands": shortlist_bands,
+            "plantilla_players": plantilla_players,
             "search_filter": search_filter,
             "status_filter": status_filter,
             "priority_filter": priority_filter,
