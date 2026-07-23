@@ -4692,7 +4692,7 @@ def _roster_preview_bucket(position_text: str) -> str:
 
 # Sube este numero cuando cambie el DISENO del informe: invalida todas las
 # imagenes cacheadas y fuerza que se regeneren con el render nuevo.
-_ROSTER_PREVIEW_RENDER_VERSION = "4"
+_ROSTER_PREVIEW_RENDER_VERSION = "5"
 
 
 def _coach_roster_preview_signature(*, primary_team, active_club_season, board_rows) -> str:
@@ -4755,14 +4755,20 @@ def _roster_field_positions(position_groups, *, bucket_order=("gk", "def", "mid"
             col_x = [base_x]
         else:
             col_x = [base_x - spread + (2 * spread) * i / (cols - 1) for i in range(cols)]
+        # El portero va centrado frente a la portería (banda vertical estrecha),
+        # no repartido de arriba a abajo como el resto de líneas.
+        if bucket_key == "gk":
+            top_min, top_max = 40.0, 60.0
+        else:
+            top_min, top_max = _ROSTER_TOP_MIN, _ROSTER_TOP_MAX
         for ci, col in enumerate(columns):
             k = len(col)
             x = col_x[ci]
             for i, row in enumerate(col):
                 if k == 1:
-                    y = (_ROSTER_TOP_MIN + _ROSTER_TOP_MAX) / 2.0
+                    y = (top_min + top_max) / 2.0
                 else:
-                    y = _ROSTER_TOP_MIN + (_ROSTER_TOP_MAX - _ROSTER_TOP_MIN) * i / (k - 1)
+                    y = top_min + (top_max - top_min) * i / (k - 1)
                 cards.append({
                     **row,
                     "bucket": bucket_key,
@@ -5393,9 +5399,9 @@ def _render_coach_roster_preview_png(
         top_pct = float(item.get("top") or 50.0)
         width_pct = float(item.get("width") or 13.5)
         card_w = int(field_w * (width_pct / 100.0))
-        # Tarjeta compacta: la altura total (avatar + etiqueta) debe caber en el
-        # hueco vertical entre jugadores de una misma columna para no solaparse.
-        card_h = max(150, int(card_w * 1.15))
+        # Avatar mas grande (mas cerca de la referencia) pero sin solapar: la
+        # altura total (avatar + etiqueta) debe caber en el hueco vertical.
+        card_h = max(160, int(card_w * 1.2))
         cx = field_box[0] + int(field_w * (left_pct / 100.0))
         cy = field_box[1] + int(field_h * (top_pct / 100.0))
         x = max(field_box[0] + pitch_margin_x, min(field_box[2] - card_w - pitch_margin_x, cx - card_w // 2))
@@ -5405,8 +5411,8 @@ def _render_coach_roster_preview_png(
             item=item,
             x=x,
             y=y,
-            avatar_w=max(52, min(74, card_w - 60)),
-            avatar_h=max(60, min(72, card_h - 74)),
+            avatar_w=max(58, min(92, card_w - 44)),
+            avatar_h=max(74, min(96, card_h - 60)),
             accent=accent,
             glow=glow,
         )
@@ -67122,6 +67128,17 @@ def player_detail_page(request, player_id):
                 player.birth_date = _parse_date_value(request.POST.get("birth_date"))
                 player.height_cm = _parse_int(request.POST.get("height_cm"))
                 player.weight_kg = _parse_decimal_value(request.POST.get("weight_kg_base"))
+                player.phone = request.POST.get("phone", "").strip()
+                player.origin_team = request.POST.get("origin_team", "").strip()
+                player.current_club = request.POST.get("current_club", "").strip()
+                player.has_agent = str(request.POST.get("has_agent") or "").strip().lower() in {"on", "1", "true", "yes", "si", "sí"}
+                if player.has_agent:
+                    player.agent_name = request.POST.get("agent_name", "").strip()
+                    player.agent_phone = request.POST.get("agent_phone", "").strip()
+                else:
+                    # si no tiene agente, no dejamos datos de agente colgando
+                    player.agent_name = ""
+                    player.agent_phone = ""
                 player.manual_sanction_active = manual_sanction_active
                 player.manual_sanction_reason = manual_sanction_reason
                 player.manual_sanction_until = manual_sanction_until

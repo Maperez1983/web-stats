@@ -1629,6 +1629,44 @@
               <label>Peso base (kg)
                 <input type="number" step="0.01" min="0" name="weight_kg_base" value="{{ player.weight_kg|unlocalize|default:'' }}" />
               </label>
+
+              <div style="grid-column:1/-1;margin:0.5rem 0 -0.15rem;font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.6;font-weight:800;">Contacto y club</div>
+              <label>Teléfono
+                <input type="tel" name="phone" value="{{ player.phone|default:'' }}" placeholder="Ej. 600 000 000" />
+              </label>
+              <label>Club de origen
+                <input type="text" name="origin_team" value="{{ player.origin_team|default:'' }}" placeholder="Club de procedencia" />
+              </label>
+              <label>Club actual
+                <input type="text" name="current_club" value="{{ player.current_club|default:'' }}" placeholder="Club actual" />
+              </label>
+
+              <div style="grid-column:1/-1;margin:0.5rem 0 -0.15rem;font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.6;font-weight:800;">Representación</div>
+              <label>¿Tiene agente?
+                <select name="has_agent" id="player-has-agent">
+                  <option value="0" {% if not player.has_agent %}selected{% endif %}>No</option>
+                  <option value="1" {% if player.has_agent %}selected{% endif %}>Sí</option>
+                </select>
+              </label>
+              <label class="agent-field" {% if not player.has_agent %}style="display:none;"{% endif %}>Nombre / contacto del agente
+                <input type="text" name="agent_name" value="{{ player.agent_name|default:'' }}" placeholder="Nombre del agente o agencia" />
+              </label>
+              <label class="agent-field" {% if not player.has_agent %}style="display:none;"{% endif %}>Teléfono del agente
+                <input type="tel" name="agent_phone" value="{{ player.agent_phone|default:'' }}" placeholder="Ej. 600 000 000" />
+              </label>
+              <script>
+                (function () {
+                  var sel = document.getElementById('player-has-agent');
+                  if (!sel) return;
+                  function upd() {
+                    var show = sel.value === '1';
+                    document.querySelectorAll('.agent-field').forEach(function (el) { el.style.display = show ? '' : 'none'; });
+                  }
+                  sel.addEventListener('change', upd);
+                  upd();
+                })();
+              </script>
+
               <label>Foto del jugador
                 <input type="file" name="player_photo" accept="image/*" />
               </label>
