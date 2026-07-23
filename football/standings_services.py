@@ -67,7 +67,9 @@ def serialize_standings(group):
         if sibling_is_better:
             standings = TeamStanding.objects.filter(group_id=sibling_group['group_id'])
 
-    standings = standings.order_by('position')
+    # select_related('team'): sin esto la comprensión de abajo dispara una query por fila
+    # (standing.team.name, standing.team.crest_url, ...), ~20 queries de más al pintar la home.
+    standings = standings.select_related('team').order_by('position')
     crest_lookup = build_team_crest_lookup()
     return [
         {

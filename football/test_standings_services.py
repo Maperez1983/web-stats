@@ -117,6 +117,34 @@ class StandingsServicesTests(TestCase):
 
         self.assertEqual(group, other_group)
 
+    def test_serialize_standings_is_not_n_plus_one(self):
+        # El nº de queries debe ser independiente del nº de equipos: si escalara, sería N+1.
+        def _seed(group, count):
+            for i in range(count):
+                team = Team.objects.create(name=f'NQ Team {group.slug} {i}', slug=f'nq-{group.slug}-{i}', group=group)
+                TeamStanding.objects.create(season=self.season, group=group, team=team, position=i + 1, points=i)
+
+        small_group = Group.objects.create(season=self.season, name='NQ Small', slug='nq-small')
+        big_group = Group.objects.create(season=self.season, name='NQ Big', slug='nq-big')
+        _seed(small_group, 3)
+        _seed(big_group, 18)
+
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        with CaptureQueriesContext(connection) as small_ctx:
+            small_rows = standings_services.serialize_standings(small_group)
+        with CaptureQueriesContext(connection) as big_ctx:
+            big_rows = standings_services.serialize_standings(big_group)
+
+        self.assertEqual(len(small_rows), 3)
+        self.assertEqual(len(big_rows), 18)
+        self.assertEqual(
+            len(small_ctx.captured_queries),
+            len(big_ctx.captured_queries),
+            'serialize_standings escala el nº de queries con el nº de equipos (N+1)',
+        )
+
     def test_universo_snapshot_support_requires_legacy_primary_match(self):
         snapshot = {'standings': [{'team': 'Equipo Standings'}]}
 
