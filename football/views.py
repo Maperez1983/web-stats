@@ -33335,16 +33335,22 @@ def scouting_target_detail_page(request, target_id):
         "tactical": int(getattr(latest_report, "tactical_rating", 0) or 0) if latest_report else 0,
         "physical": int(getattr(latest_report, "physical_rating", 0) or 0) if latest_report else 0,
         "mental": int(getattr(latest_report, "mental_rating", 0) or 0) if latest_report else 0,
-        "social": int(getattr(latest_report, "social_rating", 0) or 0) if latest_report else 0,
-        "overall": int(getattr(latest_report, "overall_rating", 0) or 0) if latest_report else 0,
+        "potential": int(getattr(latest_report, "potential_rating", 0) or 0) if latest_report else 0,
+        "fit": int(getattr(latest_report, "fit_rating", 0) or 0) if latest_report else 0,
     }
+    _present_ratings = [v for v in latest_ratings.values() if v]
+    latest_ratings["overall"] = (
+        int(round(sum(_present_ratings) / len(_present_ratings))) if _present_ratings else 0
+    )
+    latest_ratings["social"] = latest_ratings["fit"]
     attribute_radar_data = {
         "axes": [
             {"label": "Técnica", "value": latest_ratings["technical"], "max": 10},
             {"label": "Táctica", "value": latest_ratings["tactical"], "max": 10},
             {"label": "Físico", "value": latest_ratings["physical"], "max": 10},
             {"label": "Mental", "value": latest_ratings["mental"], "max": 10},
-            {"label": "Social", "value": latest_ratings["social"], "max": 10},
+            {"label": "Potencial", "value": latest_ratings["potential"], "max": 10},
+            {"label": "Encaje", "value": latest_ratings["fit"], "max": 10},
         ],
         "overall": latest_ratings["overall"],
         "reports_count": len(reports),
@@ -33359,7 +33365,7 @@ def scouting_target_detail_page(request, target_id):
         radius = 140.0
         points = []
         for idx, value in enumerate(attribute_radar_data["axes"]):
-            angle = (-90.0 + (idx * 72.0)) * (_math.pi / 180.0)
+            angle = (-90.0 + (idx * 60.0)) * (_math.pi / 180.0)
             score = max(0.0, min(float(value.get("value") or 0) / 10.0, 1.0))
             point_radius = radius * score
             x = cx + (_math.cos(angle) * point_radius)
@@ -33416,11 +33422,18 @@ def scouting_target_detail_page(request, target_id):
                     hint="Concentración, ritmo mental y lectura.",
                 ),
                 _fm_metric_row(
-                    "Social",
-                    latest_ratings["social"],
+                    "Potencial",
+                    latest_ratings["potential"],
                     source_max=10,
-                    display=f"{latest_ratings['social']}/10" if latest_report else "-",
-                    hint="Encaje competitivo y comunicación.",
+                    display=f"{latest_ratings['potential']}/10" if latest_report else "-",
+                    hint="Margen de mejora proyectado.",
+                ),
+                _fm_metric_row(
+                    "Encaje",
+                    latest_ratings["fit"],
+                    source_max=10,
+                    display=f"{latest_ratings['fit']}/10" if latest_report else "-",
+                    hint="Encaje con el modelo de juego del club.",
                 ),
                 _fm_metric_row(
                     "Informes",
@@ -33495,16 +33508,22 @@ def scouting_target_pdf(request, target_id):
         "tactical": int(getattr(latest_report, "tactical_rating", 0) or 0) if latest_report else 0,
         "physical": int(getattr(latest_report, "physical_rating", 0) or 0) if latest_report else 0,
         "mental": int(getattr(latest_report, "mental_rating", 0) or 0) if latest_report else 0,
-        "social": int(getattr(latest_report, "social_rating", 0) or 0) if latest_report else 0,
-        "overall": int(getattr(latest_report, "overall_rating", 0) or 0) if latest_report else 0,
+        "potential": int(getattr(latest_report, "potential_rating", 0) or 0) if latest_report else 0,
+        "fit": int(getattr(latest_report, "fit_rating", 0) or 0) if latest_report else 0,
     }
+    _present_ratings = [v for v in latest_ratings.values() if v]
+    latest_ratings["overall"] = (
+        int(round(sum(_present_ratings) / len(_present_ratings))) if _present_ratings else 0
+    )
+    latest_ratings["social"] = latest_ratings["fit"]
     attribute_radar_data = {
         "axes": [
             {"label": "Técnica", "value": latest_ratings["technical"], "max": 10},
             {"label": "Táctica", "value": latest_ratings["tactical"], "max": 10},
             {"label": "Físico", "value": latest_ratings["physical"], "max": 10},
             {"label": "Mental", "value": latest_ratings["mental"], "max": 10},
-            {"label": "Social", "value": latest_ratings["social"], "max": 10},
+            {"label": "Potencial", "value": latest_ratings["potential"], "max": 10},
+            {"label": "Encaje", "value": latest_ratings["fit"], "max": 10},
         ],
         "overall": latest_ratings["overall"],
         "reports_count": len(reports),
@@ -33519,7 +33538,7 @@ def scouting_target_pdf(request, target_id):
         radius = 140.0
         points = []
         for idx, value in enumerate(attribute_radar_data["axes"]):
-            angle = (-90.0 + (idx * 72.0)) * (_math.pi / 180.0)
+            angle = (-90.0 + (idx * 60.0)) * (_math.pi / 180.0)
             score = max(0.0, min(float(value.get("value") or 0) / 10.0, 1.0))
             point_radius = radius * score
             x = cx + (_math.cos(angle) * point_radius)
@@ -33576,11 +33595,18 @@ def scouting_target_pdf(request, target_id):
                     hint="Concentración, ritmo mental y lectura.",
                 ),
                 _fm_metric_row(
-                    "Social",
-                    latest_ratings["social"],
+                    "Potencial",
+                    latest_ratings["potential"],
                     source_max=10,
-                    display=f"{latest_ratings['social']}/10" if latest_report else "-",
-                    hint="Encaje competitivo y comunicación.",
+                    display=f"{latest_ratings['potential']}/10" if latest_report else "-",
+                    hint="Margen de mejora proyectado.",
+                ),
+                _fm_metric_row(
+                    "Encaje",
+                    latest_ratings["fit"],
+                    source_max=10,
+                    display=f"{latest_ratings['fit']}/10" if latest_report else "-",
+                    hint="Encaje con el modelo de juego del club.",
                 ),
                 _fm_metric_row(
                     "Informes",

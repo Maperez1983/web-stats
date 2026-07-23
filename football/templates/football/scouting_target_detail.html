@@ -466,6 +466,59 @@
         border: 1px solid rgba(248,113,113,0.28);
         color: #fee2e2;
       }
+      .decision-bar {
+        margin-top: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+        padding: 1rem 1.25rem;
+        border: 1px solid rgba(244,180,0,0.22);
+        border-radius: 16px;
+        background: linear-gradient(135deg, rgba(15,23,42,0.72), rgba(30,41,59,0.55));
+      }
+      .decision-score {
+        display: flex;
+        align-items: baseline;
+        gap: 0.3rem;
+        position: relative;
+        padding-right: 1.5rem;
+      }
+      .decision-score::after {
+        content: "";
+        position: absolute;
+        right: 0;
+        top: -0.2rem;
+        bottom: -0.2rem;
+        width: 1px;
+        background: rgba(148,163,184,0.24);
+      }
+      .decision-score-num { font-size: 2.4rem; font-weight: 900; color: #fde68a; line-height: 1; }
+      .decision-score-den { font-size: 1rem; font-weight: 700; color: rgba(226,232,240,0.55); }
+      .decision-score-label {
+        margin-left: 0.5rem;
+        font-size: 0.62rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.6);
+      }
+      .decision-reco { display: flex; flex-direction: column; gap: 0.35rem; }
+      .decision-reco-label {
+        font-size: 0.62rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.6);
+      }
+      .decision-reco-badge { font-size: 0.82rem; padding: 0.34rem 0.7rem; }
+      .decision-metrics { display: flex; gap: 1.4rem; margin-left: auto; flex-wrap: wrap; }
+      .decision-metric { display: flex; flex-direction: column; gap: 0.15rem; text-align: center; }
+      .decision-metric-value { font-size: 1.15rem; font-weight: 800; color: rgba(245,247,250,0.94); }
+      .decision-metric-label {
+        font-size: 0.58rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.55);
+      }
       .tabs {
         margin-top: 0.95rem;
         display: flex;
@@ -568,17 +621,43 @@
         </div>
       </header>
 
+      <section class="decision-bar" aria-label="Resumen de decisión">
+        <div class="decision-score">
+          <span class="decision-score-num">{% if attribute_radar_data.overall %}{{ attribute_radar_data.overall }}{% else %}--{% endif %}</span>
+          <span class="decision-score-den">/10</span>
+          <span class="decision-score-label">Nota global</span>
+        </div>
+        <div class="decision-reco">
+          <span class="decision-reco-label">Recomendación</span>
+          {% if latest_report %}
+            <span class="badge {% if latest_report.recommendation == 'sign' %}ok{% elif latest_report.recommendation == 'discard' %}critical{% elif latest_report.recommendation == 'follow' %}cyan{% else %}warning{% endif %} decision-reco-badge">{{ latest_report.get_recommendation_display }}</span>
+          {% else %}
+            <span class="badge decision-reco-badge">Sin informe</span>
+          {% endif %}
+        </div>
+        <div class="decision-metrics">
+          <div class="decision-metric">
+            <span class="decision-metric-value">{{ reports|length }}</span>
+            <span class="decision-metric-label">Informes</span>
+          </div>
+          <div class="decision-metric">
+            <span class="decision-metric-value">{{ open_followups|length }}</span>
+            <span class="decision-metric-label">Seguimientos</span>
+          </div>
+          <div class="decision-metric">
+            <span class="decision-metric-value">{% if latest_report %}{{ latest_report.observed_on|date:"d/m/y" }}{% else %}--{% endif %}</span>
+            <span class="decision-metric-label">Última obs.</span>
+          </div>
+        </div>
+      </section>
+
       <div class="tabs" role="tablist">
-        <button class="tab-btn" data-tab="personal" role="tab">Datos personales y Evaluación previa</button>
-        <button class="tab-btn" data-tab="stats" role="tab">Estadísticas y KPI mapa</button>
-        <button class="tab-btn" data-tab="attributes" role="tab">Atributos</button>
-        <button class="tab-btn" data-tab="injuries" role="tab">Lesiones</button>
-        <button class="tab-btn" data-tab="discipline" role="tab">Comunicación y multas</button>
-        <button class="tab-btn" data-tab="physical" role="tab">Físico</button>
+        <button class="tab-btn" data-tab="profile" role="tab">Perfil y valoración</button>
+        <button class="tab-btn" data-tab="reports" role="tab">Informes</button>
         <button class="tab-btn" data-tab="tracking" role="tab">Seguimiento</button>
       </div>
 
-      <section class="panel tab-pane" data-pane="personal">
+      <section class="panel tab-pane" data-pane="profile">
         <div class="grid-top">
           <div>
             <h2 style="margin:0;font-size:0.9rem;letter-spacing:0.12em;text-transform:uppercase;">Resumen</h2>
@@ -776,9 +855,9 @@
         {% endif %}
       </section>
 
-      <section class="panel tab-pane" data-pane="stats">
-        <h2 style="margin-top:0;">Estadísticas y KPI mapa</h2>
-        <p class="sub">Bloque de lectura técnica, táctica y física basado en informes y comparativa de seguimiento.</p>
+      <section class="panel tab-pane" data-pane="reports">
+        <h2 style="margin-top:0;">Informes de scouting</h2>
+        <p class="sub">Histórico de observaciones con valoración técnica, táctica, física y de encaje.</p>
         <div class="summary-grid">
           <div class="summary">
             <div class="label">Informes</div>
@@ -836,7 +915,7 @@
         </div>
       </section>
 
-      <section class="panel tab-pane" data-pane="attributes">
+      <section class="panel tab-pane" data-pane="profile">
         <h2 style="margin-top:0;">Atributos</h2>
         <div class="fm-attributes-shell" style="margin-top:0.9rem;">
           <div class="fm-attributes-header">
@@ -934,18 +1013,11 @@
         {% endif %}
       </section>
 
-      <section class="panel tab-pane" data-pane="discipline">
-        <h2 style="margin-top:0;">Comunicación y multas</h2>
-        <div class="split">
+      <section class="panel tab-pane" data-pane="tracking">
+        <h2 style="margin-top:0;">Tareas de seguimiento</h2>
+        <div>
           <section class="section" style="margin-top:0;">
-            <h2>Multas</h2>
-            <p>Por ahora este seguimiento no tiene una bolsa de multas propia.</p>
-            <div class="empty" style="margin-top:0.85rem;">Sin multas registradas en el seguimiento.</div>
-          </section>
-
-          <section class="section" style="margin-top:0;">
-            <h2>Comunicación</h2>
-            <p>Usa los seguimientos para dejar trazabilidad operativa del ojeo.</p>
+            <p>Deja trazabilidad operativa del ojeo: próximos partidos a observar, llamadas al agente, decisiones pendientes.</p>
             {% if can_manage_workspace %}
             <form method="post">
               {% csrf_token %}
@@ -1125,15 +1197,18 @@
     <script>
       (() => {
         const tabAliases = {
-          general: 'personal',
-          stats: 'stats',
-          personal: 'personal',
-          attributes: 'attributes',
-          discipline: 'discipline',
-          injuries: 'injuries',
-          physical: 'physical',
+          general: 'profile',
+          personal: 'profile',
+          attributes: 'profile',
+          profile: 'profile',
+          stats: 'reports',
+          reports: 'reports',
+          discipline: 'tracking',
+          injuries: 'tracking',
+          physical: 'tracking',
+          tracking: 'tracking',
         };
-        const rawTab = '{{ request.GET.tab|default:"personal"|escapejs }}' || 'personal';
+        const rawTab = '{{ request.GET.tab|default:"profile"|escapejs }}' || 'profile';
         const fallbackTab = tabAliases[rawTab] || rawTab;
         const buttons = Array.from(document.querySelectorAll('.tab-btn'));
         const panes = Array.from(document.querySelectorAll('.tab-pane'));
@@ -1145,7 +1220,7 @@
           window.history.replaceState({}, '', url);
         };
         buttons.forEach((btn) => btn.addEventListener('click', () => activate(btn.dataset.tab)));
-        activate(buttons.some((b) => b.dataset.tab === fallbackTab) ? fallbackTab : 'personal');
+        activate(buttons.some((b) => b.dataset.tab === fallbackTab) ? fallbackTab : 'profile');
       })();
     </script>
   </body>
