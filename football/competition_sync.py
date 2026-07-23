@@ -96,10 +96,29 @@ def sync_workspace_competition_context(workspace, primary_team=None):
             except Exception:
                 logger.exception('No se pudo preparar grupo Universo para workspace %s', getattr(workspace, 'id', None))
 
-    if not getattr(primary_team, 'group', None):
+    # La Preferente: se vincula por preferente_url, no por group local. Bajamos la clasificación aquí
+    # (una sola vez, reutilizada abajo) para poder servirla vía snapshot aunque el equipo no tenga
+    # Group en BD; así la clasificación "aparece" también en un club recién dado de alta en Preferente.
+    preferente_standings = []
+    if provider_key == WorkspaceCompetitionContext.PROVIDER_PREFERENTE:
+        pref_url = str(getattr(context, 'external_source_url', '') or '').strip() or str(
+            getattr(primary_team, 'preferente_url', '') or ''
+        ).strip()
+        if pref_url:
+            try:
+                preferente_standings, _pref_meta = fetch_preferente_standings(pref_url)
+            except Exception:
+                logger.exception(
+                    'No se pudo sincronizar clasificación La Preferente para workspace %s',
+                    getattr(workspace, 'id', None),
+                )
+
+    if not getattr(primary_team, 'group', None) and not preferente_standings:
         context.sync_status = WorkspaceCompetitionContext.STATUS_ERROR
         if provider_key == WorkspaceCompetitionContext.PROVIDER_UNIVERSO and not str(getattr(context, 'external_group_key', '') or '').strip():
             context.sync_error = 'Falta el ID de grupo de Universo. Indícalo o usa “Buscar en Universo”.'
+        elif provider_key == WorkspaceCompetitionContext.PROVIDER_PREFERENTE:
+            context.sync_error = 'No se pudo leer la clasificación de La Preferente. Revisa la URL del equipo.'
         else:
             context.sync_error = 'El cliente no tiene grupo/competición vinculada.'
         context.last_sync_at = timezone.now()
@@ -137,21 +156,9 @@ def sync_workspace_competition_context(workspace, primary_team=None):
                 logger.exception('No se pudo sincronizar clasificación Universo para workspace %s', getattr(workspace, 'id', None))
                 standings_payload = []
     elif provider_key == WorkspaceCompetitionContext.PROVIDER_PREFERENTE:
-        # La Preferente: la clasificación viene de la ficha de equipo (external_source_url o
-        # Team.preferente_url). El spike confirmó que es legible servidor->web.
-        pref_url = str(getattr(context, 'external_source_url', '') or '').strip() or str(
-            getattr(primary_team, 'preferente_url', '') or ''
-        ).strip()
-        if pref_url:
-            try:
-                pref_rows, _pref_meta = fetch_preferente_standings(pref_url)
-                if pref_rows:
-                    standings_payload = pref_rows
-            except Exception:
-                logger.exception(
-                    'No se pudo sincronizar clasificación La Preferente para workspace %s',
-                    getattr(workspace, 'id', None),
-                )
+        # Reutiliza la clasificación ya bajada antes del guard (evita una segunda petición).
+        if preferente_standings:
+            standings_payload = preferente_standings
     if not standings_payload:
         standings_payload = resolve_standings_for_team(
             primary_team,

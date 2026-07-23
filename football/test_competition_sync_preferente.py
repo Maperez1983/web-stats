@@ -93,6 +93,31 @@ class SyncPreferenteStandingsTests(TestCase):
         self.assertEqual(snapshot.standings_payload[0]['full_name'], 'C.D. Benagalbón')
         self.assertEqual(snapshot.standings_payload[0]['points'], 7)
 
+    def test_sync_serves_standings_for_club_without_group(self):
+        # Club recién dado de alta en Preferente: su Team aún no tiene Group en BD. La clasificación
+        # debe aparecer igualmente (vía snapshot), no fallar con "sin grupo/competición vinculada".
+        groupless = Team.objects.create(
+            name='Nuevo C.F.',
+            slug='nuevo-cf',
+            is_primary=True,
+            preferente_url='https://www.lapreferente.com/E999/nuevo-cf',
+        )
+        ws = Workspace.objects.create(name='Nuevo', slug='nuevo', kind=Workspace.KIND_CLUB, primary_team=groupless)
+        ctx = WorkspaceCompetitionContext.objects.create(
+            workspace=ws, team=groupless, provider=WorkspaceCompetitionContext.PROVIDER_PREFERENTE
+        )
+
+        with mock.patch(
+            'football.competition_sync.fetch_preferente_standings',
+            return_value=(_FAKE_ROWS, {}),
+        ):
+            context, error = competition_sync.sync_workspace_competition_context(ws, primary_team=groupless)
+
+        self.assertEqual(error, '')
+        self.assertEqual(context.sync_status, WorkspaceCompetitionContext.STATUS_READY)
+        snapshot = WorkspaceCompetitionSnapshot.objects.get(context=context)
+        self.assertEqual(len(snapshot.standings_payload), 2)
+
     def test_sync_falls_back_when_preferente_blocked(self):
         # Si Preferente viene bloqueado (rows vacías), no revienta y cae al fallback de BD.
         with mock.patch(
