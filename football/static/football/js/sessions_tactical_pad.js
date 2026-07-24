@@ -37377,7 +37377,7 @@
 				      const button = event.target.closest('.resource-panel button');
 				      if (!button) return;
 				      const add = safeText(button.dataset.add);
-              if (libraryManageMode && add) {
+              if (false /* libraryManageMode retirado (commit 9c9eea20) */ && add) {
                 try { event.preventDefault(); } catch (e) { /* ignore */ }
                 try { event.stopPropagation(); } catch (e) { /* ignore */ }
                 hiddenLibraryResources.add(add);
@@ -38842,7 +38842,7 @@
 					      if (!button) return;
 						      const add = safeText(button.dataset.add);
 						      if (!add) return;
-                if (libraryManageMode) {
+                if (false /* libraryManageMode retirado (commit 9c9eea20) */) {
                   try { event.preventDefault(); } catch (e) { /* ignore */ }
                   try { event.stopPropagation(); } catch (e) { /* ignore */ }
                   hiddenLibraryResources.add(add);
