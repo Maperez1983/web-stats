@@ -67954,6 +67954,31 @@ def player_detail_page(request, player_id):
         if request.method == "POST" and not is_player_readonly:
             form_action = (request.POST.get("form_action") or "profile").strip().lower()
 
+            if form_action == "to-scouting":
+                # Pasar de plantilla a ojeado: crea/enlaza un ScoutingTarget (a prueba,
+                # seguimiento activo) y da de baja al Player de la plantilla activa.
+                _ws = _get_active_workspace(request)
+                if _ws is not None:
+                    _subject = (getattr(player, "full_name", "") or getattr(player, "name", "") or "").strip() or player.name
+                    _target, _ = ScoutingTarget.objects.get_or_create(
+                        workspace=_ws,
+                        player=player,
+                        subject_name=_subject,
+                        defaults={
+                            "subject_team_name": getattr(player, "origin_team", "") or "",
+                            "position": getattr(player, "position", "") or "",
+                            "dominant_foot": getattr(player, "dominant_foot", "") or "",
+                            "birth_date": getattr(player, "birth_date", None),
+                        },
+                    )
+                    _target.status = ScoutingTarget.STATUS_ACTIVE
+                    _target.available_for_coach_tools = True
+                    _target.save(update_fields=["status", "available_for_coach_tools", "updated_at"])
+                    player.is_active = False
+                    player.save(update_fields=["is_active"])
+                    return redirect(reverse("scouting-board"))
+                return redirect(f"{reverse('player-detail', args=[player.id])}?error=no-workspace")
+
             if form_action == "profile":
                 uploaded_photo = request.FILES.get("player_photo")
                 uploaded_license = request.FILES.get("player_license")

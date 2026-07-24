@@ -1449,6 +1449,13 @@
 
       <section class="card tab-pane" data-pane="personal">
         <h2 style="margin-top:0;">Datos personales y evaluación previa</h2>
+        {% if not is_player_readonly %}
+        <form method="post" style="margin:0 0 1rem;" onsubmit="return confirm('¿Pasar este jugador a la bandeja de ojeo (a prueba) y darlo de baja de la plantilla activa? Su ficha se conserva.');">
+          {% csrf_token %}
+          <input type="hidden" name="form_action" value="to-scouting" />
+          <button class="btn alt" type="submit" title="Lo mueve a Dirección deportiva como ojeado a prueba y lo baja de la plantilla">↩ Pasar a ojeado (a prueba)</button>
+        </form>
+        {% endif %}
         <div class="attendance-summary-card">
           <div class="attendance-summary-head">
             <div>
