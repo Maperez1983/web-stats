@@ -20195,6 +20195,12 @@ def coach_overview_page(request):
             "icon": "direction",
         },
         {
+            "title": "Análisis",
+            "description": "Rival, vídeo e informes",
+            "url": reverse("analysis"),
+            "icon": "analysis",
+        },
+        {
             "title": "Entrenamiento",
             "description": "Sesiones, tareas y microciclos",
             "url": reverse("sessions"),
