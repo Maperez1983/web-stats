@@ -723,8 +723,8 @@
       </header>
 
       <div class="workspace-tabs" role="tablist" aria-label="Vistas de dirección deportiva">
-        <button class="workspace-tab is-active" type="button" data-scout-tab-target="list">Listado</button>
-        <button class="workspace-tab" type="button" data-scout-tab-target="shortlist">Comparativa</button>
+        <button class="workspace-tab" type="button" data-scout-tab-target="list">Listado</button>
+        <button class="workspace-tab is-active" type="button" data-scout-tab-target="shortlist">Dashboard</button>
         <button class="workspace-tab" type="button" data-scout-tab-target="archive">Histórico{% if archived_count %} · {{ archived_count }}{% endif %}</button>
         {% if can_manage_workspace %}
         <button class="workspace-tab" type="button" data-scout-tab-target="create">Crear</button>
@@ -880,7 +880,7 @@
       </section>
       {% endif %}
 
-      <section class="workspace-panel is-active" data-scout-panel="list">
+      <section class="workspace-panel" data-scout-panel="list">
         <form class="filters" method="get">
           {% if active_team %}<input type="hidden" name="team" value="{{ active_team.id }}" />{% endif %}
           <label>
@@ -1078,7 +1078,7 @@
         {% endif %}
       </section>
 
-      <section class="workspace-panel" data-scout-panel="shortlist">
+      <section class="workspace-panel is-active" data-scout-panel="shortlist">
         <div class="shortlist-head">
           <div>
             <h2 style="margin:0;">Comparativa por posición</h2>
@@ -1192,9 +1192,9 @@
         tabs.forEach((tab) => {
           tab.addEventListener('click', () => activate(tab.dataset.scoutTabTarget || 'list'));
         });
-        // La home abre SIEMPRE en el panel premium (Listado). Crear y Comparativa
+        // La home abre en el Dashboard (Comparativa por posicion); el resto de vistas
         // son clics deliberados; ya no se "recuerda" Crear como landing (confundía).
-        let initial = 'list';
+        let initial = 'shortlist';
         const urlTab = new URLSearchParams(window.location.search).get('tab');
         if (urlTab && tabs.some((tab) => tab.dataset.scoutTabTarget === urlTab) && (urlTab !== 'create' || hasCreatePanel)) {
           initial = urlTab;

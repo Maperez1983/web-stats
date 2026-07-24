@@ -772,6 +772,7 @@
                   {% endfor %}
                 </select>
               </label>
+              <div class="js-discard-group" style="display: {% if target.status == 'discarded' %}contents{% else %}none{% endif %};">
               <label>Motivo del descarte
                 <select name="discard_reason">
                   <option value="">—</option>
@@ -787,6 +788,7 @@
                 <input type="checkbox" name="discard_permanent" value="1" {% if target.discard_permanent %}checked{% endif %} />
                 <span><strong>Descarte definitivo</strong> — no volver a por él</span>
               </label>
+              </div>
               <label>Prioridad
                 <select name="priority">
                   {% for value,label in priority_choices %}
@@ -818,6 +820,15 @@
               <button class="btn primary" type="submit">Guardar</button>
             </div>
           </form>
+          <script>
+          (function(){
+            var sel=document.querySelector('form select[name="status"]');
+            var grp=document.querySelector('.js-discard-group');
+            if(!sel||!grp){return;}
+            function upd(){ grp.style.display = (sel.value==='discarded') ? 'contents' : 'none'; }
+            sel.addEventListener('change', upd); upd();
+          })();
+          </script>
         </section>
 
         <section class="section">
