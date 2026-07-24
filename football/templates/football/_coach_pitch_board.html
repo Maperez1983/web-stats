@@ -1,0 +1,182 @@
+{% load static %}
+{% comment %}
+  Pizarra interactiva de plantilla: chips de jugador sobre el campo HD.
+  - Clic (sin arrastrar) -> ficha del jugador.
+  - Arrastrar (ratón o táctil / iPad) -> recolocar; la posición se guarda por equipo en el
+    navegador (localStorage), así el cuerpo técnico mantiene su disposición entre visitas.
+  Reutiliza los avatares realistas por estado (lesionado -> muletas, a prueba -> chándal).
+{% endcomment %}
+<section class="card pb-card" aria-label="Pizarra de plantilla">
+  <div class="pb-head">
+    <div>
+      <h2>Plantilla en el campo</h2>
+      <p class="muted" style="margin:0;">Toca un jugador para abrir su ficha · arrástralo para recolocarlo.</p>
+    </div>
+    <button type="button" class="pb-reset" data-pb-reset aria-label="Restablecer posiciones">Reordenar</button>
+  </div>
+  {% if coach_pitch_players %}
+  <div class="pb-field" data-pb-team="{{ primary_team_id|default:0 }}"
+       style="background-image:url('{% static 'football/images/pitch3d/coach_home_pitch_surface.png' %}');">
+    {% for p in coach_pitch_players %}
+    <a class="pb-chip pb-{{ p.state }}" href="{{ p.ficha_url }}" data-pb-pid="{{ p.id }}"
+       style="left:{{ p.left }}%;top:{{ p.top }}%;"
+       title="{{ p.name }} · {{ p.state_label }}" aria-label="{{ p.name }}, {{ p.position|default:'jugador' }}, {{ p.state_label }}. Abrir ficha.">
+      <span class="pb-avatar"><img src="{% static p.avatar %}" alt="" draggable="false" /></span>
+      {% if p.number %}<span class="pb-num">{{ p.number }}</span>{% endif %}
+      <span class="pb-name">{{ p.name }}</span>
+      <span class="pb-badge">{{ p.state_label }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  <div class="pb-legend">
+    <span class="pb-dot pb-available"></span> Disponible
+    <span class="pb-dot pb-trial"></span> A prueba
+    <span class="pb-dot pb-injured"></span> Lesionado
+  </div>
+  {% else %}
+  <p class="muted" style="margin:0;">Aún no hay jugadores en la plantilla.</p>
+  {% endif %}
+</section>
+
+<style>
+  .pb-card { padding: 1.1rem; overflow: hidden; }
+  .pb-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
+  .pb-head h2 { margin: 0 0 0.2rem; }
+  .pb-reset {
+    border: 1px solid rgba(244, 180, 0, 0.28); background: rgba(244, 180, 0, 0.08); color: var(--accent, #f4b400);
+    border-radius: 999px; padding: 0.4rem 0.9rem; font-size: 0.76rem; font-weight: 800; letter-spacing: 0.04em;
+    text-transform: uppercase; cursor: pointer;
+  }
+  .pb-reset:hover { background: rgba(244, 180, 0, 0.16); }
+  .pb-field {
+    position: relative; width: 100%; aspect-ratio: 1664 / 945;
+    background-size: cover; background-position: center; border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.14); overflow: hidden; touch-action: none;
+    box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.35);
+  }
+  .pb-chip {
+    position: absolute; transform: translate(-50%, -50%); z-index: 1;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    width: 82px; text-decoration: none; color: #fff; cursor: grab; user-select: none;
+    -webkit-user-select: none; touch-action: none;
+  }
+  .pb-chip.pb-dragging { cursor: grabbing; z-index: 5; }
+  .pb-chip:focus-visible { outline: 2px solid var(--accent, #f4b400); outline-offset: 3px; border-radius: 12px; }
+  .pb-avatar {
+    width: 56px; height: 66px; display: flex; align-items: flex-end; justify-content: center;
+    filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.55));
+  }
+  .pb-avatar img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+  .pb-num {
+    position: absolute; top: -6px; left: 50%; transform: translateX(-140%);
+    min-width: 20px; height: 20px; padding: 0 4px; border-radius: 999px;
+    background: #0b1220; border: 2px solid #fff; color: #fff; font-size: 0.72rem; font-weight: 800;
+    display: flex; align-items: center; justify-content: center; line-height: 1;
+  }
+  .pb-name {
+    margin-top: 2px; max-width: 92px; padding: 2px 8px; border-radius: 8px;
+    background: rgba(7, 12, 22, 0.86); font-size: 0.74rem; font-weight: 700; text-align: center;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+  .pb-badge {
+    padding: 1px 7px; border-radius: 999px; font-size: 0.6rem; font-weight: 800; letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .pb-available .pb-badge { background: rgba(134, 239, 172, 0.18); color: #86efac; border: 1px solid rgba(134, 239, 172, 0.4); }
+  .pb-trial .pb-badge { background: rgba(244, 180, 0, 0.18); color: #fde68a; border: 1px solid rgba(244, 180, 0, 0.45); }
+  .pb-injured .pb-badge { background: rgba(248, 113, 113, 0.18); color: #fca5a5; border: 1px solid rgba(248, 113, 113, 0.45); }
+  .pb-available .pb-num { border-color: #86efac; }
+  .pb-trial .pb-num { border-color: #fde68a; }
+  .pb-injured .pb-num { border-color: #fca5a5; }
+  .pb-legend { display: flex; gap: 1rem; align-items: center; margin-top: 0.7rem; font-size: 0.76rem; color: var(--muted, #91a1b9); flex-wrap: wrap; }
+  .pb-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 0.2rem; }
+  .pb-dot.pb-available { background: #86efac; }
+  .pb-dot.pb-trial { background: #fde68a; }
+  .pb-dot.pb-injured { background: #fca5a5; }
+  @media (max-width: 640px) {
+    .pb-chip { width: 62px; }
+    .pb-avatar { width: 44px; height: 52px; }
+    .pb-name { font-size: 0.68rem; max-width: 70px; }
+  }
+</style>
+
+<script>
+  (function () {
+    var field = document.currentScript.previousElementSibling; // <style>
+    // El <style> precede al script; el .pb-field está antes. Buscamos por si acaso.
+    field = document.querySelector('.pb-field');
+    if (!field) return;
+    var team = field.getAttribute('data-pb-team') || '0';
+    var storeKey = function (pid) { return 'pb2j:' + team + ':' + pid; };
+
+    // Aplica posiciones guardadas.
+    Array.prototype.forEach.call(field.querySelectorAll('.pb-chip'), function (chip) {
+      var saved = null;
+      try { saved = localStorage.getItem(storeKey(chip.getAttribute('data-pb-pid'))); } catch (e) {}
+      if (saved) {
+        var parts = saved.split(',');
+        if (parts.length === 2) { chip.style.left = parts[0] + '%'; chip.style.top = parts[1] + '%'; }
+      }
+    });
+
+    var DRAG_THRESHOLD = 5; // px antes de considerar arrastre (para no bloquear el clic)
+    var active = null;
+
+    function onDown(e) {
+      var chip = e.target.closest('.pb-chip');
+      if (!chip) return;
+      var point = e.touches ? e.touches[0] : e;
+      active = { chip: chip, startX: point.clientX, startY: point.clientY, moved: false };
+      chip.setPointerCapture && e.pointerId != null && chip.setPointerCapture(e.pointerId);
+    }
+    function onMove(e) {
+      if (!active) return;
+      var point = e.touches ? e.touches[0] : e;
+      var dx = point.clientX - active.startX, dy = point.clientY - active.startY;
+      if (!active.moved && Math.abs(dx) + Math.abs(dy) < DRAG_THRESHOLD) return;
+      active.moved = true;
+      active.chip.classList.add('pb-dragging');
+      var rect = field.getBoundingClientRect();
+      var left = ((point.clientX - rect.left) / rect.width) * 100;
+      var top = ((point.clientY - rect.top) / rect.height) * 100;
+      left = Math.max(3, Math.min(97, left));
+      top = Math.max(6, Math.min(94, top));
+      active.chip.style.left = left.toFixed(1) + '%';
+      active.chip.style.top = top.toFixed(1) + '%';
+      if (e.cancelable) e.preventDefault();
+    }
+    function onUp(e) {
+      if (!active) return;
+      var chip = active.chip, moved = active.moved;
+      chip.classList.remove('pb-dragging');
+      if (moved) {
+        // Guarda posición y evita que el clic navegue a la ficha.
+        var l = parseFloat(chip.style.left), t = parseFloat(chip.style.top);
+        try { localStorage.setItem(storeKey(chip.getAttribute('data-pb-pid')), l.toFixed(1) + ',' + t.toFixed(1)); } catch (err) {}
+        var block = function (ev) { ev.preventDefault(); ev.stopPropagation(); chip.removeEventListener('click', block, true); };
+        chip.addEventListener('click', block, true);
+      }
+      active = null;
+    }
+
+    field.addEventListener('pointerdown', onDown);
+    window.addEventListener('pointermove', onMove, { passive: false });
+    window.addEventListener('pointerup', onUp);
+    // Fallback táctil por si el navegador no soporta Pointer Events.
+    if (!window.PointerEvent) {
+      field.addEventListener('touchstart', onDown, { passive: true });
+      window.addEventListener('touchmove', onMove, { passive: false });
+      window.addEventListener('touchend', onUp);
+    }
+
+    var reset = document.querySelector('[data-pb-reset]');
+    if (reset) {
+      reset.addEventListener('click', function () {
+        Array.prototype.forEach.call(field.querySelectorAll('.pb-chip'), function (chip) {
+          try { localStorage.removeItem(storeKey(chip.getAttribute('data-pb-pid'))); } catch (e) {}
+        });
+        location.reload();
+      });
+    }
+  })();
+</script>

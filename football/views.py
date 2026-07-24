@@ -19994,23 +19994,50 @@ def coach_overview_page(request):
     except Exception:
         active_injury_ids = set()
 
-    coach_roster_preview_image_url = ""
-    try:
-        preview_payload = _build_coach_roster_preview_payload(
-            primary_team=primary_team,
-            active_club_season=active_club_season,
-            players=roster_players,
-            memberships=roster_memberships,
-            request=request,
+    # Pizarra interactiva de plantilla (HTML): sustituye a la imagen PNG generada en el request.
+    # Cada jugador es un chip posicionado por zona; enlaza a su ficha y se puede arrastrar. Reutiliza
+    # los avatares realistas por estado (lesionado -> muletas, a prueba -> chandal) y por posición
+    # (portero / jugador de campo). Sin generación de imagen -> sin coste de render en el GET.
+    # La posición se guarda como código (POR, LD, DFC, MC, DC, ED...). Reutilizamos el mismo bucketing
+    # que la imagen de plantilla para agrupar por línea de forma coherente.
+    _pitch_left = {"gk": 8, "def": 26, "mid": 48, "att": 74, "oth": 50}
+    _pitch_groups = {"gk": [], "def": [], "mid": [], "att": [], "oth": []}
+    for player in roster_players:
+        pid = int(getattr(player, "id", 0) or 0)
+        if not pid:
+            continue
+        membership = roster_memberships.get(pid)
+        if pid in active_injury_ids:
+            p_state, p_state_label, p_avatar = "injured", "Lesionado", "injured_crutches.png"
+        elif membership is not None and not bool(getattr(membership, "is_confirmed", False)):
+            p_state, p_state_label, p_avatar = "trial", "A prueba", "chandal_black.png"
+        else:
+            p_state, p_state_label, p_avatar = "available", "Disponible", None
+        bucket = _roster_preview_bucket(getattr(player, "position", "") or "")
+        if p_avatar is None:
+            p_avatar = "gk_magenta.png" if bucket == "gk" else "kit_home.png"
+        _pitch_groups.setdefault(bucket, []).append(
+            {
+                "id": pid,
+                "name": str(getattr(player, "name", "") or getattr(player, "full_name", "") or "").strip() or f"Jugador {pid}",
+                "number": getattr(player, "number", None),
+                "position": str(getattr(player, "position", "") or "").strip(),
+                "state": p_state,
+                "state_label": p_state_label,
+                "avatar": "football/images/coach_roster_avatars/library/" + p_avatar,
+                "left": _pitch_left.get(bucket, 50),
+            }
         )
-        coach_roster_preview_image_url = _save_coach_roster_preview_image(
-            request,
-            primary_team=primary_team,
-            active_club_season=active_club_season,
-            preview_payload=preview_payload,
-        )
-    except Exception:
-        coach_roster_preview_image_url = ""
+    coach_pitch_players = []
+    for bucket, group in _pitch_groups.items():
+        n = len(group)
+        for i, item in enumerate(group):
+            item["top"] = 50 if n <= 1 else int(round(16 + i * (68.0 / (n - 1))))
+            try:
+                item["ficha_url"] = reverse("player-detail", args=[item["id"]])
+            except Exception:
+                item["ficha_url"] = ""
+            coach_pitch_players.append(item)
     try:
         coach_decision_dashboard = _build_coach_decision_dashboard(
             primary_team=primary_team,
@@ -20073,7 +20100,7 @@ def coach_overview_page(request):
             "opponent_standing": opponent_standing,
             "module_hub": module_hub,
             "can_access_platform": can_access_platform,
-            "coach_roster_preview_image_url": coach_roster_preview_image_url,
+            "coach_pitch_players": coach_pitch_players,
             "coach_decision_dashboard": coach_decision_dashboard,
         },
     )

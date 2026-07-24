@@ -701,28 +701,9 @@
           </div>
         </section>
 
-        {% include 'football/_coach_decision_dashboard.html' %}
+        {% include 'football/_coach_pitch_board.html' %}
 
-        {% if coach_roster_preview_image_url %}
-        <section class="card" aria-label="Vista visual de la plantilla" style="padding:1rem; overflow:hidden;">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.85rem;">
-            <div>
-              <h2 style="margin:0 0 0.35rem;">Plantilla visual</h2>
-              <p class="panel-copy" style="margin:0;">Imagen generada automáticamente con el estado real de la plantilla para ver la estructura del equipo de un vistazo.</p>
-            </div>
-            <a class="hero-badge-link" href="{{ coach_roster_preview_image_url }}" target="_blank" rel="noopener">
-              <span class="hero-badge">Abrir imagen</span>
-            </a>
-          </div>
-          <a href="{{ coach_roster_preview_image_url }}" target="_blank" rel="noopener" style="display:block;">
-            <img
-              src="{{ coach_roster_preview_image_url }}"
-              alt="Vista visual generada de la plantilla"
-              style="display:block;width:100%;height:auto;border-radius:20px;border:1px solid rgba(144, 161, 185, 0.22);box-shadow:0 24px 46px rgba(0,0,0,0.24);"
-            />
-          </a>
-        </section>
-        {% endif %}
+        {% include 'football/_coach_decision_dashboard.html' %}
 
       </article>
     </div>
