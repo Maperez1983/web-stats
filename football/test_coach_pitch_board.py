@@ -62,6 +62,22 @@ class CoachPitchBoardPersistenceTests(TestCase):
         self.assertTrue(resp.json().get('reset'))
         self.assertEqual(CoachPitchBoardLayout.objects.get(team=self.team).positions, {})
 
+    def test_baja_drops_saved_position(self):
+        from football.season_history_services import mark_player_left_current_season
+
+        other = Player.objects.create(team=self.team, name='Otro', position='Central', number=4, is_active=True)
+        WorkspaceSeasonPlayer.objects.create(
+            season=self.workspace.active_season, player=other, team=self.team,
+            status=WorkspaceSeasonPlayer.STATUS_CONFIRMED,
+        )
+        CoachPitchBoardLayout.objects.create(
+            team=self.team, positions={str(self.player.id): [30.0, 40.0], str(other.id): [70.0, 80.0]}
+        )
+        mark_player_left_current_season(self.workspace.active_season, other)
+        positions = CoachPitchBoardLayout.objects.get(team=self.team).positions
+        self.assertNotIn(str(other.id), positions)  # su posición se borró
+        self.assertIn(str(self.player.id), positions)  # el resto intacto
+
     def test_out_of_range_is_clamped(self):
         self._save(team_id=self.team.id, player_id=self.player.id, left='250', top='-40')
         pos = CoachPitchBoardLayout.objects.get(team=self.team).positions[str(self.player.id)]

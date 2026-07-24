@@ -378,7 +378,27 @@ def mark_player_left_current_season(season, player, *, notes=''):
         membership.status_notes = str(notes or '')[:220]
         membership.save(update_fields=['is_confirmed', 'status', 'left_at', 'status_notes', 'updated_at'])
     WorkspacePlayer.objects.filter(workspace=season.workspace, player=player).update(is_active=False)
+    _drop_pitch_board_position(getattr(player, 'team_id', None), getattr(player, 'id', None))
     return membership
+
+
+def _drop_pitch_board_position(team_id, player_id):
+    """Al dar de baja a un jugador, borra su posición guardada en la pizarra de plantilla, para que
+    si se reincorpora entre en su hueco por defecto (y no reaparezca donde estaba)."""
+    if not team_id or not player_id:
+        return
+    from .models import CoachPitchBoardLayout
+
+    try:
+        layout = CoachPitchBoardLayout.objects.filter(team_id=team_id).first()
+        if not layout:
+            return
+        positions = dict(layout.positions or {})
+        if positions.pop(str(player_id), None) is not None:
+            layout.positions = positions
+            layout.save(update_fields=['positions', 'updated_at'])
+    except Exception:
+        pass
 
 
 def team_season_history(team):
