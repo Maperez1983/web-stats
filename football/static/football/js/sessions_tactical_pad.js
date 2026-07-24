@@ -30352,7 +30352,7 @@
 		        baseRadius = radius;
 		        const isAway = kind === 'player_away';
         const isGoalkeeper = isGoalkeeperKind;
-		        if (style === 'photo') {
+		        if (false && style === 'photo') { // Foto = figura entera (rama sprite); circular legacy deshabilitado
 		          const tokenShadow = new fabric.Circle({
 		            radius: radius + 4.5,
 		            fill: 'rgba(2,6,23,0.30)',
@@ -30598,7 +30598,7 @@
 		          });
 		          nameText.data = { role: 'token_name' };
 		          tokenParts.push(nameText);
-			        } else if (style === 'sprite') {
+			        } else if (style === 'sprite' || style === 'photo') {
 			          const tokenShadow = new fabric.Ellipse({
 			            rx: 18,
 			            ry: 6,
@@ -30730,7 +30730,7 @@
 			          // Avatar HD: si la imagen ya esta precargada, superponemos la figura ENTERA
 			          // (sincrona; el muñeco vectorial de arriba queda de fallback si no esta lista).
 			          try {
-			            const __avUrl = resolveAvatarUrlForToken(kind, stripeColor);
+			            const __avUrl = (style === 'photo') ? (photoUrl || resolveAvatarUrlForToken(kind, stripeColor)) : resolveAvatarUrlForToken(kind, stripeColor);
 			            ensureAvatarImage(__avUrl);
 			            const __avEl = getReadyAvatarImage(__avUrl);
 			            if (__avEl) {
@@ -33786,6 +33786,8 @@
 		        button.type = 'button';
 		        button.className = 'player-token-bank';
 		        button.dataset.playerId = String(player.id || '');
+		        // Precarga la foto real del jugador para poder pintarla SINCRONA (estilo Foto).
+		        try { ensureAvatarImage(resolvePlayerPhotoUrl(player?.photo_url)); } catch (e) { /* ignore */ }
 			        const copy = document.createElement('span');
 			        copy.className = 'player-token-bank-copy';
 			        const name = document.createElement('span');
