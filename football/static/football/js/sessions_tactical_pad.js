@@ -30247,7 +30247,65 @@
               return group;
             };
 
-				    const playerTokenFactory = (kind, player, options = {}) => (left, top) => {
+				    // --- Avatar HD: chapa fotorrealista circular usando los avatares por posicion + color de equipo ---
+    const __avatarHexToRgb = (hex) => {
+      const m = String(hex || '').trim().replace('#', '');
+      if (m.length === 3) return [parseInt(m[0] + m[0], 16), parseInt(m[1] + m[1], 16), parseInt(m[2] + m[2], 16)];
+      if (m.length >= 6) return [parseInt(m.slice(0, 2), 16), parseInt(m.slice(2, 4), 16), parseInt(m.slice(4, 6), 16)];
+      return [30, 138, 60];
+    };
+    const AVATAR_BASE_URL = '/static/football/images/players/';
+    const AVATAR_FIELD_COLORS = { verde: [30, 138, 60], amarilla: [240, 206, 20], blanca: [238, 238, 238], turquesa: [26, 163, 163] };
+    const AVATAR_GK_COLORS = { azul: [37, 99, 235], rojo: [214, 40, 40], negro: [26, 26, 29], magenta: [190, 44, 150] };
+    const nearestAvatarColorKey = (hex, table) => {
+      const rgb = __avatarHexToRgb(hex);
+      let best = null; let bestD = Infinity;
+      Object.keys(table).forEach((k) => {
+        const c = table[k];
+        const d = (c[0] - rgb[0]) ** 2 + (c[1] - rgb[1]) ** 2 + (c[2] - rgb[2]) ** 2;
+        if (d < bestD) { bestD = d; best = k; }
+      });
+      return best || Object.keys(table)[0];
+    };
+    const resolveAvatarUrlForToken = (kind, colorHex) => {
+      const isGk = kind === 'goalkeeper_local' || kind === 'goalkeeper_rival';
+      if (isGk) return `${AVATAR_BASE_URL}act-gk-frente-${nearestAvatarColorKey(colorHex, AVATAR_GK_COLORS)}.png`;
+      return `${AVATAR_BASE_URL}act-conduccion-${nearestAvatarColorKey(colorHex, AVATAR_FIELD_COLORS)}.png`;
+    };
+    // Carga el avatar (figura de cuerpo entero) recortado en circulo, encuadrado a la cabeza/torso.
+    const loadAvatarIntoGroup = (group, url, radius, focusY) => {
+      const src = resolvePlayerPhotoUrl(url);
+      if (!group || !src) return;
+      try {
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const targetSize = Math.max(1, radius * 2);
+            const source = getHiResRasterSource(img, { desiredDisplay: targetSize, maxSide: 3072 });
+            const naturalW = Number(source?.naturalWidth || source?.width || img.naturalWidth || img.width || 1);
+            const naturalH = Number(source?.naturalHeight || source?.height || img.naturalHeight || img.height || 1);
+            const scale = targetSize / Math.max(1, naturalW); // la figura rellena el ancho del circulo
+            const scaledH = naturalH * scale;
+            const fY = (focusY == null) ? 0.28 : Math.max(0, Math.min(1, Number(focusY)));
+            const yOff = (0.5 - fY) * scaledH; // sube la imagen para encuadrar cabeza/torso
+            const avatar = new fabric.Image(source, {
+              left: 0, top: yOff, originX: 'center', originY: 'center',
+              selectable: false, evented: false, scaleX: scale, scaleY: scale,
+            });
+            applyRenderableQuality(avatar, { strokeUniform: false });
+            try { avatar.minimumScaleTrigger = 0; } catch (e) { /* ignore */ }
+            avatar.clipPath = new fabric.Circle({ radius, originX: 'center', originY: 'center', left: 0, top: -yOff });
+            avatar.data = { role: 'token_photo' };
+            group.addWithUpdate(avatar);
+            group.dirty = true;
+            canvas?.requestRenderAll?.();
+          } catch (e) { /* ignore */ }
+        };
+        img.onerror = () => { /* ignore */ };
+        img.src = src;
+      } catch (e) { /* ignore */ }
+    };
+    const playerTokenFactory = (kind, player, options = {}) => (left, top) => {
 		      const preferredName = safeText(player?.nickname || player?.name, '');
 		      const playerNameLower = preferredName.toLowerCase();
 		      const goalkeeperPreferBlue = playerNameLower.includes('trivi') || playerNameLower.includes('antonio');
@@ -30289,7 +30347,7 @@
 		        baseRadius = radius;
 		        const isAway = kind === 'player_away';
         const isGoalkeeper = isGoalkeeperKind;
-		        if (style === 'photo') {
+		        if (style === 'photo' || style === 'sprite') {
 		          const tokenShadow = new fabric.Circle({
 		            radius: radius + 4.5,
 		            fill: 'rgba(2,6,23,0.30)',
@@ -31493,6 +31551,8 @@
           applyRenderableQualityToGroup(group, tokenParts);
 			      if (style === 'photo' && photoUrl) {
 			        try { loadPhotoIntoGroup(group, photoUrl, 19.2); } catch (e) { /* ignore */ }
+			      } else if (style === 'sprite') {
+			        try { loadAvatarIntoGroup(group, resolveAvatarUrlForToken(kind, stripeColor), 19.6, 0.28); } catch (e) { /* ignore */ }
 			      }
 			      try { setTokenFov(group, { visible: !!group?.data?.fov_visible, widthDeg: group?.data?.fov_width_deg }); } catch (e) { /* ignore */ }
 			      try { setTokenFacing(group, group?.data?.facing_deg); } catch (e) { /* ignore */ }
