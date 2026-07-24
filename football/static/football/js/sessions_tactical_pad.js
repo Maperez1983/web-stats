@@ -30269,8 +30269,16 @@
     };
     const resolveAvatarUrlForToken = (kind, colorHex) => {
       const isGk = kind === 'goalkeeper_local' || kind === 'goalkeeper_rival';
-      if (isGk) return `${AVATAR_BASE_URL}act-gk-frente-${nearestAvatarColorKey(colorHex, AVATAR_GK_COLORS)}.png`;
-      return `${AVATAR_BASE_URL}act-conduccion-${nearestAvatarColorKey(colorHex, AVATAR_FIELD_COLORS)}.png`;
+      // Override de pose/equipacion elegido por el usuario (lo pone la carcasa 2D).
+      let ov = null; try { ov = window.__edcAvatar || null; } catch (e) { /* ignore */ }
+      if (isGk) {
+        const c = (ov && ov.gkColor) || nearestAvatarColorKey(colorHex, AVATAR_GK_COLORS);
+        const p = (ov && ov.gkPose) || 'frente';
+        return `${AVATAR_BASE_URL}act-gk-${p}-${c}.png`;
+      }
+      const c = (ov && ov.color) || nearestAvatarColorKey(colorHex, AVATAR_FIELD_COLORS);
+      const p = (ov && ov.pose) || 'conduccion';
+      return `${AVATAR_BASE_URL}act-${p}-${c}.png`;
     };
     // El token se re-hidrata tras colocarse, asi que añadir la imagen ASYNC al grupo original
     // NO llega al token en pantalla (queda desconectado). Solucion: PRECARGAR los avatares y
