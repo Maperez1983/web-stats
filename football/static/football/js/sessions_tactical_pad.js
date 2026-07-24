@@ -28376,7 +28376,15 @@
 	      // Proporción del SVG (viewBox -2 -2 1054x684). En vertical, intercambiamos.
 	      const ratio = pitchOrientation === 'portrait' ? (684 / 1054) : (1054 / 684); // width / height
 	      const maxWByHeight = vh * ratio;
-	      const wideDesktopLandscape = !!(isTacticsModeNow && pitchOrientation !== 'portrait' && (Number(window.innerWidth) || 0) >= 1600);
+	      // El campo llena el ANCHO disponible (a sangre) en desktop apaisado, tanto en
+      // modo táctica como en el editor 2D comercial (body.ed-chrome). Así el campo es
+      // el protagonista y ocupa la pantalla; el tirador/botones lo encogen desde ahí.
+      const isEdChromeNow = !!document.body?.classList?.contains?.('ed-chrome');
+      const wideDesktopLandscape = !!(
+        pitchOrientation !== 'portrait'
+        && (Number(window.innerWidth) || 0) >= 1280
+        && (isTacticsModeNow || isEdChromeNow)
+      );
 	      const fitBase = wideDesktopLandscape ? vw : Math.min(vw, maxWByHeight);
 	      const fitW = Math.floor(Math.max(320, fitBase - 2));
 	      setStageFitMaxWidth(fitW);
