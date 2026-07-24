@@ -496,6 +496,18 @@ body.ed-chrome #task-roster-bank .player-bank-head { flex-wrap: wrap !important;
 body.ed-chrome #task-roster-bank .player-bank-quickbar,
 body.ed-chrome #task-roster-bank .player-bank-tools { flex-wrap: wrap !important; width: 100% !important; min-width: 0 !important; }
 
+/* Toast de ayuda: espeja el estado del editor (oculto) para que se vean las pistas
+   tipo "Haz clic en el campo para colocar X" al activar una herramienta. */
+body.ed-chrome .edc-toast {
+  position: fixed; left: 50%; bottom: calc(var(--edc-bottom, 66px) + 16px);
+  transform: translateX(-50%) translateY(8px); z-index: 9995; max-width: 62vw;
+  padding: 10px 16px; border-radius: 12px; background: rgba(11, 27, 17, 0.94); color: #eafff0;
+  border: 1px solid var(--edc-line); font-size: 13px; font-weight: 600; text-align: center;
+  box-shadow: 0 14px 40px rgba(0,0,0,.5); backdrop-filter: blur(10px);
+  opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .18s ease, transform .18s ease;
+}
+body.ed-chrome .edc-toast.is-show { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
+
 /* ============================================================
    BOTONES REALES DEL SISTEMA dentro del cajón (con su preview)
    ============================================================ */
