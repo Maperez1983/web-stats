@@ -88,3 +88,6 @@
 	      {% endif %}
       {% include 'football/includes/task_builder/topbar.html' %}
       {% include 'football/includes/task_builder/body.html' %}
+      {% if editor_lab_compact or request.GET.chrome == '1' %}
+      {% include 'football/includes/task_builder/editor_chrome.html' %}
+      {% endif %}
