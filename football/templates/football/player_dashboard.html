@@ -574,6 +574,9 @@
             </select>
             <button type="button" id="sortDir" aria-label="Cambiar dirección de orden" title="Ascendente/Descendente">↓ Desc</button>
             <input id="playerSearch" type="search" placeholder="Buscar jugador" />
+            <select id="posFilter" aria-label="Filtrar por posición">
+              <option value="">Todas las posiciones</option>
+            </select>
             <button type="submit">Aplicar</button>
           </form>
           {% if selected_match %}
@@ -604,6 +607,7 @@
 	          <article
               class="card broadcast-card"
               data-player-name="{{ player.name|lower }} {{ player.nickname|default:''|lower }}"
+              data-player-pos="{{ player.position|default:''|upper }}"
               data-player="{{ player.player_id }}"
               data-minutes="{{ player.minutes|default:0 }}"
               data-goals="{{ player.goals|default:0 }}"
@@ -812,15 +816,32 @@
     <script>
 	      (() => {
 	        const searchInput = document.getElementById('playerSearch');
+	        const posFilter = document.getElementById('posFilter');
 	        const cards = Array.from(document.querySelectorAll('#playersGrid .card'));
-	        if (!searchInput || !cards.length) return;
-	        searchInput.addEventListener('input', () => {
-	          const term = (searchInput.value || '').trim().toLowerCase();
+	        if (!cards.length) return;
+	        // Poblar el desplegable de posiciones con las presentes en la plantilla actual.
+	        if (posFilter) {
+	          const positions = Array.from(new Set(cards.map((c) => (c.dataset.playerPos || '').trim()).filter(Boolean))).sort();
+	          positions.forEach((p) => {
+	            const opt = document.createElement('option');
+	            opt.value = p; opt.textContent = p;
+	            posFilter.appendChild(opt);
+	          });
+	        }
+	        const applyPlayerFilter = () => {
+	          const term = (searchInput && searchInput.value || '').trim().toLowerCase();
+	          const pos = (posFilter && posFilter.value || '').trim().toUpperCase();
 	          cards.forEach((card) => {
 	            const name = card.dataset.playerName || '';
-	            card.style.display = !term || name.includes(term) ? '' : 'none';
+	            const cpos = (card.dataset.playerPos || '').toUpperCase();
+	            const okName = !term || name.includes(term);
+	            const okPos = !pos || cpos === pos;
+	            card.style.display = okName && okPos ? '' : 'none';
 	          });
-	        });
+	        };
+	        if (searchInput) searchInput.addEventListener('input', applyPlayerFilter);
+	        if (posFilter) posFilter.addEventListener('change', applyPlayerFilter);
+	        applyPlayerFilter();
 	      })();
 	    </script>
 	    <script>
@@ -964,6 +985,12 @@
             const searchInput = document.getElementById('playerSearch');
             if (searchInput) {
               searchInput.addEventListener('input', () => {
+                window.requestAnimationFrame(applySort);
+              });
+            }
+            const posFilter = document.getElementById('posFilter');
+            if (posFilter) {
+              posFilter.addEventListener('change', () => {
                 window.requestAnimationFrame(applySort);
               });
             }
