@@ -31167,6 +31167,21 @@
 			            shadow: 'rgba(15,23,42,0.32) 0 10px 22px',
 			          });
 			          baseCircle.data = { role: isAway ? 'token_fill' : 'token_base' };
+			          // Chapa HD: gradiente radial para un disco con volumen (dome 3D real).
+			          try {
+			            const __cf = isAway ? stripeColor : effectiveBase;
+			            const __lighten = (hex, f) => { const c = hexToRgb(hex); return c ? rgbToHex(Math.round(c.r + (255 - c.r) * f), Math.round(c.g + (255 - c.g) * f), Math.round(c.b + (255 - c.b) * f)) : hex; };
+			            baseCircle.set('fill', new fabric.Gradient({
+			              type: 'radial',
+			              gradientUnits: 'pixels',
+			              coords: { x1: radius * 0.72, y1: radius * 0.60, r1: radius * 0.05, x2: radius, y2: radius * 1.04, r2: radius * 1.30 },
+			              colorStops: [
+			                { offset: 0, color: __lighten(__cf, 0.36) },
+			                { offset: 0.52, color: __cf },
+			                { offset: 1, color: darkenHex(__cf, 0.36) },
+			              ],
+			            }));
+			          } catch (e) { /* ignore: se queda el fill plano */ }
 			          tokenParts.push(baseCircle);
 
 			          const rimLight = new fabric.Circle({
