@@ -35559,6 +35559,20 @@ def coach_roster_page(request):
         )
     except Exception:
         roster_preview_image_url = ""
+    # Pizarra interactiva de plantilla (mismo tablero arrastrable que la portada del entrenador
+    # y el área de ojeo; comparte posiciones por equipo). Sustituye a la imagen PNG estática.
+    coach_pitch_players = []
+    try:
+        _roster_pids = [int(getattr(p, "id", 0) or 0) for p in players if getattr(p, "id", None)]
+        try:
+            _active_injury_ids = set(get_active_injury_player_ids(_roster_pids))
+        except Exception:
+            _active_injury_ids = set()
+        coach_pitch_players = _build_coach_pitch_board_players(
+            primary_team, players, memberships or {}, _active_injury_ids
+        )
+    except Exception:
+        coach_pitch_players = []
     if active_tab == "stats":
         try:
             force_refresh = str(request.GET.get("refresh") or "").strip().lower() in {"1", "true", "yes", "on"}
@@ -35671,6 +35685,8 @@ def coach_roster_page(request):
         {
             "team_name": primary_team.display_name,
             "players": players,
+            "coach_pitch_players": coach_pitch_players,
+            "primary_team_id": int(getattr(primary_team, "id", 0) or 0),
             "club_player_options": club_player_options,
             "roster_birth_year_filter": roster_birth_year_filter,
             "inactive_club_player_options": inactive_club_player_options,

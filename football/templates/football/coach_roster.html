@@ -772,7 +772,11 @@
       <section class="panel">
         {% if message %}<p class="alert ok">{{ message }}</p>{% endif %}
         {% if error %}<p class="alert err">{{ error }}</p>{% endif %}
-        {% if roster_preview_image_url %}
+        {% if coach_pitch_players %}
+          <div style="margin:0 0 1rem;">
+            {% include 'football/_coach_pitch_board.html' %}
+          </div>
+        {% elif roster_preview_image_url %}
           <div style="margin:0 0 1rem;">
             <a href="{{ roster_preview_image_url }}" target="_blank" rel="noopener" style="display:block;">
               <img
