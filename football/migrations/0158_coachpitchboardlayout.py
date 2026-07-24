@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('football', '0156_scoutingtarget_discard_permanent'),
+        ('football', '0157_player_besoccer_url_player_preferente_profile_url_and_more'),
     ]
 
     operations = [
