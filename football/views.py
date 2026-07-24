@@ -19866,6 +19866,106 @@ def _coach_pitch_board_positions(team):
     return positions
 
 
+def _build_coach_pitch_board_players(primary_team, roster_players, roster_memberships, active_injury_ids):
+    """Datos de la pizarra interactiva de plantilla (fuente ÚNICA para toda la app).
+
+    Cada jugador es un chip posicionado por línea (portero/defensa/medio/ataque), con avatar realista
+    por estado (lesionado -> muletas, a prueba -> chandal) y por posición (portero vs campo), enlace a
+    su ficha y su posición guardada (compartida por equipo) si el staff lo recolocó.
+    """
+    pitch_left = {"gk": 8, "def": 26, "mid": 48, "att": 74, "oth": 50}
+    groups = {"gk": [], "def": [], "mid": [], "att": [], "oth": []}
+    memberships = roster_memberships or {}
+    injury_ids = active_injury_ids or set()
+    for player in roster_players or []:
+        pid = int(getattr(player, "id", 0) or 0)
+        if not pid:
+            continue
+        membership = memberships.get(pid)
+        if pid in injury_ids:
+            state, state_label, avatar = "injured", "Lesionado", "injured_crutches.png"
+        elif membership is not None and not bool(getattr(membership, "is_confirmed", False)):
+            state, state_label, avatar = "trial", "A prueba", "chandal_black.png"
+        else:
+            state, state_label, avatar = "available", "Disponible", None
+        bucket = _roster_preview_bucket(getattr(player, "position", "") or "")
+        if avatar is None:
+            avatar = "gk_magenta.png" if bucket == "gk" else "kit_home.png"
+        groups.setdefault(bucket, []).append(
+            {
+                "id": pid,
+                "name": str(getattr(player, "name", "") or getattr(player, "full_name", "") or "").strip() or f"Jugador {pid}",
+                "number": getattr(player, "number", None),
+                "position": str(getattr(player, "position", "") or "").strip(),
+                "state": state,
+                "state_label": state_label,
+                "avatar": "football/images/coach_roster_avatars/library/" + avatar,
+                "left": pitch_left.get(bucket, 50),
+            }
+        )
+    saved_positions = _coach_pitch_board_positions(primary_team)
+    players = []
+    COL_OFFSET = 6.5  # separación horizontal (%) entre columnas cuando una línea va cargada
+    for bucket, group in groups.items():
+        n = len(group)
+        base_left = pitch_left.get(bucket, 50)
+        # Con muchos jugadores en una línea, repartir en 2 columnas evita que los avatares
+        # (grandes) se solapen verticalmente.
+        cols = 1 if n <= 5 else 2
+        columns = [group[c::cols] for c in range(cols)]
+        for c, colgroup in enumerate(columns):
+            m = len(colgroup)
+            col_left = base_left + (c - (cols - 1) / 2.0) * COL_OFFSET
+            for j, item in enumerate(colgroup):
+                item["left"] = round(col_left, 1)
+                item["top"] = 50 if m <= 1 else int(round(14 + j * (72.0 / (m - 1))))
+                saved = saved_positions.get(item["id"])
+                if saved:
+                    item["left"], item["top"] = saved[0], saved[1]
+                try:
+                    item["ficha_url"] = reverse("player-detail", args=[item["id"]])
+                except Exception:
+                    item["ficha_url"] = ""
+                players.append(item)
+    return players
+
+
+def _coach_pitch_players_for_request(request, primary_team, workspace=None):
+    """Carga la plantilla del equipo y devuelve los chips de la pizarra (para reutilizar la misma
+    pizarra en cualquier página, no solo en la portada)."""
+    if not primary_team:
+        return []
+    if workspace is None:
+        workspace = _get_active_workspace(request)
+    try:
+        players = list(_operational_roster_players_for_team(request, primary_team, confirmed_only=False))
+    except Exception:
+        players = []
+    if not players:
+        try:
+            players = list(Player.objects.filter(team=primary_team, is_active=True).order_by("number", "name", "id"))
+        except Exception:
+            players = []
+    memberships = {}
+    try:
+        active_club_season = selected_club_season_for_request(request, workspace=workspace) if workspace else None
+        if active_club_season:
+            memberships = {
+                int(row.player_id): row
+                for row in WorkspaceSeasonPlayer.objects.filter(
+                    season=active_club_season,
+                    player_id__in=[int(getattr(p, "id", 0) or 0) for p in players if getattr(p, "id", None)],
+                ).only("player_id", "is_confirmed", "status")
+            }
+    except Exception:
+        memberships = {}
+    try:
+        injuries = set(get_active_injury_player_ids([int(getattr(p, "id", 0) or 0) for p in players if getattr(p, "id", None)]))
+    except Exception:
+        injuries = set()
+    return _build_coach_pitch_board_players(primary_team, players, memberships, injuries)
+
+
 @login_required
 @require_POST
 def coach_pitch_board_save(request):
@@ -20061,56 +20161,10 @@ def coach_overview_page(request):
     except Exception:
         active_injury_ids = set()
 
-    # Pizarra interactiva de plantilla (HTML): sustituye a la imagen PNG generada en el request.
-    # Cada jugador es un chip posicionado por zona; enlaza a su ficha y se puede arrastrar. Reutiliza
-    # los avatares realistas por estado (lesionado -> muletas, a prueba -> chandal) y por posición
-    # (portero / jugador de campo). Sin generación de imagen -> sin coste de render en el GET.
-    # La posición se guarda como código (POR, LD, DFC, MC, DC, ED...). Reutilizamos el mismo bucketing
-    # que la imagen de plantilla para agrupar por línea de forma coherente.
-    _pitch_left = {"gk": 8, "def": 26, "mid": 48, "att": 74, "oth": 50}
-    _pitch_groups = {"gk": [], "def": [], "mid": [], "att": [], "oth": []}
-    for player in roster_players:
-        pid = int(getattr(player, "id", 0) or 0)
-        if not pid:
-            continue
-        membership = roster_memberships.get(pid)
-        if pid in active_injury_ids:
-            p_state, p_state_label, p_avatar = "injured", "Lesionado", "injured_crutches.png"
-        elif membership is not None and not bool(getattr(membership, "is_confirmed", False)):
-            p_state, p_state_label, p_avatar = "trial", "A prueba", "chandal_black.png"
-        else:
-            p_state, p_state_label, p_avatar = "available", "Disponible", None
-        bucket = _roster_preview_bucket(getattr(player, "position", "") or "")
-        if p_avatar is None:
-            p_avatar = "gk_magenta.png" if bucket == "gk" else "kit_home.png"
-        _pitch_groups.setdefault(bucket, []).append(
-            {
-                "id": pid,
-                "name": str(getattr(player, "name", "") or getattr(player, "full_name", "") or "").strip() or f"Jugador {pid}",
-                "number": getattr(player, "number", None),
-                "position": str(getattr(player, "position", "") or "").strip(),
-                "state": p_state,
-                "state_label": p_state_label,
-                "avatar": "football/images/coach_roster_avatars/library/" + p_avatar,
-                "left": _pitch_left.get(bucket, 50),
-            }
-        )
-    # Posiciones guardadas (compartidas por equipo): si el staff ha recolocado a alguien, esa
-    # posición manda sobre la de la formación por defecto, y la ve todo el mundo.
-    _saved_positions = _coach_pitch_board_positions(primary_team)
-    coach_pitch_players = []
-    for bucket, group in _pitch_groups.items():
-        n = len(group)
-        for i, item in enumerate(group):
-            item["top"] = 50 if n <= 1 else int(round(16 + i * (68.0 / (n - 1))))
-            saved = _saved_positions.get(item["id"])
-            if saved:
-                item["left"], item["top"] = saved[0], saved[1]
-            try:
-                item["ficha_url"] = reverse("player-detail", args=[item["id"]])
-            except Exception:
-                item["ficha_url"] = ""
-            coach_pitch_players.append(item)
+    # Pizarra interactiva de plantilla (fuente única, reutilizada en portada y cabina del entrenador).
+    coach_pitch_players = _build_coach_pitch_board_players(
+        primary_team, roster_players, roster_memberships, active_injury_ids
+    )
     try:
         coach_decision_dashboard = _build_coach_decision_dashboard(
             primary_team=primary_team,
@@ -33144,6 +33198,9 @@ def coach_role_trainer_page(request):
             'coach_player_view': coach_player_view,
             'trainer_workspace_options': [],
             'active_team': primary_team,
+            # Pizarra interactiva unificada (misma que la portada): sustituye al campo propio del hub.
+            'coach_pitch_players': _coach_pitch_players_for_request(request, primary_team, workspace),
+            'primary_team_id': int(getattr(primary_team, 'id', 0) or 0) or None,
         },
     )
 
