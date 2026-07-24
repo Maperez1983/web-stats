@@ -6473,6 +6473,11 @@ def _resolve_player_for_request_scope(request, player_id):
         qs = Player.objects.filter(id=player_id).select_related("team")
         if allowed_team_ids:
             qs = qs.filter(team_id__in=allowed_team_ids)
+        elif not _is_admin_user(request.user):
+            # Sin equipos permitidos y sin privilegios de admin no resolvemos un jugador
+            # arbitrario por id (evita IDOR); el control _forbid_if_no_player_access posterior
+            # sigue siendo la última red.
+            qs = qs.none()
         player = qs.first()
         if player and getattr(player, "team", None):
             primary_team = player.team
@@ -68239,6 +68244,23 @@ def player_detail_page(request, player_id):
                     return redirect(reverse("scouting-board"))
                 return redirect(f"{reverse('player-detail', args=[player.id])}?error=no-workspace")
 
+            if form_action == "to-roster":
+                # Reverso de "to-scouting": devuelve el jugador a la plantilla activa. La ficha
+                # de ojeo se marca como fichada (deja de excluirlo de los listados) y el Player
+                # se reactiva.
+                _ws = _get_active_workspace(request)
+                if _ws is not None:
+                    _targets = ScoutingTarget.objects.filter(workspace=_ws, player=player).exclude(
+                        status__in=[ScoutingTarget.STATUS_SIGNED, ScoutingTarget.STATUS_DISCARDED]
+                    )
+                    for _t in _targets:
+                        _t.status = ScoutingTarget.STATUS_SIGNED
+                        _t.save(update_fields=["status", "updated_at"])
+                    player.is_active = True
+                    player.save(update_fields=["is_active"])
+                    return redirect(f"{reverse('coach-roster')}?tab=manage")
+                return redirect(f"{reverse('player-detail', args=[player.id])}?error=no-workspace")
+
             if form_action == "profile":
                 uploaded_photo = request.FILES.get("player_photo")
                 uploaded_license = request.FILES.get("player_license")
@@ -68377,13 +68399,15 @@ def player_detail_page(request, player_id):
                 return redirect(f"{reverse('player-detail', args=[player.id])}?tab=general")
 
             if form_action == "physical":
+                # weight_kg es DecimalField: un valor no numérico crudo reventaba con 500
+                # genérico. Se coacciona igual que en el resto de la ficha.
                 PlayerPhysicalMetric.objects.create(
                     player=player,
                     recorded_on=_parse_date_value(request.POST.get("recorded_on")) or timezone.localdate(),
                     workload=request.POST.get("workload", "").strip(),
                     rpe=_parse_int(request.POST.get("rpe")),
                     wellness=_parse_int(request.POST.get("wellness")),
-                    weight_kg=request.POST.get("weight_kg", "").strip() or None,
+                    weight_kg=_parse_decimal_value(request.POST.get("weight_kg")),
                     notes=request.POST.get("physical_notes", "").strip(),
                 )
                 return redirect(f"{reverse('player-detail', args=[player.id])}?tab=physical")
@@ -69321,6 +69345,20 @@ def player_detail_page(request, player_id):
         except Exception:
             season_state_label = ""
 
+        # ¿El jugador está actualmente en ojeo (ficha de scouting en curso, no fichado ni
+        # descartado)? Determina si mostramos "Pasar a ojeado" o "Devolver a plantilla".
+        player_in_scouting = False
+        try:
+            _pd_ws = _get_active_workspace(request)
+            if _pd_ws is not None:
+                player_in_scouting = (
+                    ScoutingTarget.objects.filter(workspace=_pd_ws, player=player)
+                    .exclude(status__in=[ScoutingTarget.STATUS_SIGNED, ScoutingTarget.STATUS_DISCARDED])
+                    .exists()
+                )
+        except Exception:
+            player_in_scouting = False
+
         # Radar mini tipo card (para contrastar con el radar staff, y reutilizar en PDF).
         try:
             card_radar_data = _build_player_card_radar_data(safe_stats, matches)
@@ -69501,6 +69539,7 @@ def player_detail_page(request, player_id):
                 "season_history_rows": season_history_rows,
             "preferente_history_rows": preferente_history_rows,
             "season_state_label": season_state_label,
+            "player_in_scouting": player_in_scouting,
                 "fines_summary": fines_summary,
                 "fines_records": fines_records,
                 "stats_error": stats_error,

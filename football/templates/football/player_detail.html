@@ -1450,11 +1450,19 @@
       <section class="card tab-pane" data-pane="personal">
         <h2 style="margin-top:0;">Datos personales y evaluación previa</h2>
         {% if not is_player_readonly %}
+        {% if player_in_scouting %}
+        <form method="post" style="margin:0 0 1rem;" onsubmit="return confirm('¿Devolver este jugador a la plantilla activa? Su ficha de ojeo se marcará como fichado.');">
+          {% csrf_token %}
+          <input type="hidden" name="form_action" value="to-roster" />
+          <button class="btn" type="submit" title="Lo reactiva en la plantilla y cierra su ficha de ojeo como fichado">↪ Devolver a plantilla</button>
+        </form>
+        {% else %}
         <form method="post" style="margin:0 0 1rem;" onsubmit="return confirm('¿Pasar este jugador a la bandeja de ojeo (a prueba) y darlo de baja de la plantilla activa? Su ficha se conserva.');">
           {% csrf_token %}
           <input type="hidden" name="form_action" value="to-scouting" />
           <button class="btn alt" type="submit" title="Lo mueve a Dirección deportiva como ojeado a prueba y lo baja de la plantilla">↩ Pasar a ojeado (a prueba)</button>
         </form>
+        {% endif %}
         {% endif %}
         <div class="attendance-summary-card">
           <div class="attendance-summary-head">
@@ -1612,10 +1620,20 @@
                 {% endwith %}
               </label>
               <label>Posición preferida
-                <input type="text" name="preferred_position" value="{{ player.preferred_position|default:'' }}" placeholder="Ej. MC" />
+                <select name="preferred_position">
+                  <option value="" {% if not player.preferred_position %}selected{% endif %}>Sin definir</option>
+                  {% for value,label in position_choices %}
+                  <option value="{{ value }}" {% if player.preferred_position == value %}selected{% endif %}>{{ label }} ({{ value }})</option>
+                  {% endfor %}
+                </select>
               </label>
               <label>Posición temporada anterior
-                <input type="text" name="previous_season_position" value="{{ player.previous_season_position|default:'' }}" placeholder="Ej. LD" />
+                <select name="previous_season_position">
+                  <option value="" {% if not player.previous_season_position %}selected{% endif %}>Sin definir</option>
+                  {% for value,label in position_choices %}
+                  <option value="{{ value }}" {% if player.previous_season_position == value %}selected{% endif %}>{{ label }} ({{ value }})</option>
+                  {% endfor %}
+                </select>
               </label>
               <label>Fecha nacimiento
                 <input type="date" name="birth_date" value="{{ player.birth_date|date:'Y-m-d' }}" />

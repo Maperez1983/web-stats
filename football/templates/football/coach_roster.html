@@ -1154,7 +1154,10 @@
                 </label>
                 <label>
                   Posición actual
-                  <input type="text" name="position" maxlength="60" placeholder="MC, DC, LD..." />
+                  <select name="position">
+                    <option value="">Sin definir</option>
+                    {% for value,label in position_choices %}<option value="{{ value }}">{{ label }} ({{ value }})</option>{% endfor %}
+                  </select>
                 </label>
                 <label>
                   Estado
@@ -1207,15 +1210,24 @@
                 </label>
                 <label>
                   Posición favorita
-                  <input type="text" name="preferred_position" maxlength="60" placeholder="MC, DC, LD..." />
+                  <select name="preferred_position">
+                    <option value="">Sin definir</option>
+                    {% for value,label in position_choices %}<option value="{{ value }}">{{ label }} ({{ value }})</option>{% endfor %}
+                  </select>
                 </label>
                 <label>
                   Posición temp. anterior
-                  <input type="text" name="previous_season_position" maxlength="60" placeholder="MC, DC, LD..." />
+                  <select name="previous_season_position">
+                    <option value="">Sin definir</option>
+                    {% for value,label in position_choices %}<option value="{{ value }}">{{ label }} ({{ value }})</option>{% endfor %}
+                  </select>
                 </label>
                 <label>
                   Posición actual
-                  <input type="text" name="position" maxlength="60" placeholder="MC, DC, LD..." />
+                  <select name="position">
+                    <option value="">Sin definir</option>
+                    {% for value,label in position_choices %}<option value="{{ value }}">{{ label }} ({{ value }})</option>{% endfor %}
+                  </select>
                 </label>
                 <label>
                   Dorsal
