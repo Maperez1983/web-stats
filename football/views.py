@@ -19571,6 +19571,25 @@ def coach_overview_page(request):
             and str(row_copy.get("team") or "").strip() == str(highlighted_standing.get("team") or "").strip()
         )
         standings_rows.append(row_copy)
+    # Ventana de clasificación para la portada: en vez de volcar la tabla entera (que empuja el resto
+    # de la home hacia abajo), mostramos ~5 filas centradas en el equipo. La tabla completa sigue a un
+    # clic. Si el equipo no aparece, mostramos la cabecera de la tabla.
+    STANDINGS_WINDOW_SIZE = 5
+    standings_window = standings_rows
+    standings_window_truncated = False
+    if len(standings_rows) > STANDINGS_WINDOW_SIZE:
+        standings_window_truncated = True
+        team_index = next((i for i, row in enumerate(standings_rows) if row.get("is_team")), None)
+        if team_index is None:
+            standings_window = standings_rows[:STANDINGS_WINDOW_SIZE]
+        else:
+            half = STANDINGS_WINDOW_SIZE // 2
+            start = max(0, team_index - half)
+            end = start + STANDINGS_WINDOW_SIZE
+            if end > len(standings_rows):
+                end = len(standings_rows)
+                start = max(0, end - STANDINGS_WINDOW_SIZE)
+            standings_window = standings_rows[start:end]
     opponent_standing = None
     next_match_opponent_folded = next_match_opponent.strip().lower()
     for row in standings_rows:
@@ -19664,26 +19683,31 @@ def coach_overview_page(request):
             "title": "Partido",
             "description": "Convoca · 11 · acciones · PDFs",
             "url": reverse("match-hub"),
+            "icon": "match",
         },
         {
             "title": "Plantilla",
             "description": "Fichas, estados, KPIs y PDF",
             "url": reverse("coach-roster"),
+            "icon": "roster",
         },
         {
             "title": "Dirección",
             "description": "Ojeo, seguimiento y altas",
             "url": reverse("scouting-board"),
+            "icon": "direction",
         },
         {
             "title": "Entrenamiento",
             "description": "Sesiones, tareas y microciclos",
             "url": reverse("sessions"),
+            "icon": "training",
         },
         {
             "title": "Configuración",
             "description": "Staff, módulos y ajustes del club",
             "url": reverse("club-onboarding"),
+            "icon": "config",
         },
     ]
     return render(
@@ -19700,6 +19724,8 @@ def coach_overview_page(request):
             "next_match_opponent": next_match_opponent,
             "next_match_date": next_match_date,
             "standings": standings_rows,
+            "standings_window": standings_window,
+            "standings_window_truncated": standings_window_truncated,
             "highlighted_standing": highlighted_standing,
             "opponent_standing": opponent_standing,
             "module_hub": module_hub,

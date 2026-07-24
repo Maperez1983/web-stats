@@ -41,9 +41,15 @@
         box-shadow: 0 30px 68px rgba(0, 0, 0, 0.38);
         overflow: visible;
         background:
+          {% if hero_image_data_uri or hero_image_url %}
           linear-gradient(135deg, rgba(14, 24, 40, 0.72), rgba(8, 16, 28, 0.7)),
           linear-gradient(180deg, rgba(3, 7, 18, 0.16), rgba(3, 7, 18, 0.88)),
-          url('{% if hero_image_data_uri %}{{ hero_image_data_uri }}{% elif hero_image_url %}{{ hero_image_url|default_if_none:"" }}{% else %}{% static "football/campo-futbol-fallback.jpg" %}{% endif %}') center/contain no-repeat;
+          url('{% if hero_image_data_uri %}{{ hero_image_data_uri }}{% else %}{{ hero_image_url|default_if_none:"" }}{% endif %}') center/cover no-repeat;
+          {% else %}
+          radial-gradient(circle at 18% 0%, rgba(244, 180, 0, 0.14), transparent 42%),
+          radial-gradient(circle at 100% 100%, rgba(47, 125, 50, 0.22), transparent 46%),
+          linear-gradient(135deg, rgba(14, 24, 40, 0.96), rgba(6, 12, 22, 0.98));
+          {% endif %}
         position: relative;
       }
       .hero::before {
@@ -64,11 +70,15 @@
         margin-bottom: 1.3rem;
       }
       .club-row img {
-        width: 72px;
-        height: 72px;
-        border-radius: 18px;
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        background: rgba(255, 255, 255, 0.03);
+        width: 88px;
+        height: 88px;
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        /* Chip tipo "coin": fondo claro sólido + sombra para que el escudo no se ensucie sobre el hero oscuro. */
+        background: radial-gradient(circle at 30% 25%, #ffffff, #e7edf5);
+        object-fit: contain;
+        padding: 8px;
+        box-shadow: 0 12px 26px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
       }
       .club-row span {
         letter-spacing: 0.18em;
@@ -211,8 +221,14 @@
       .team-hero-media {
         min-height: 280px;
         background:
+          {% if hero_image_data_uri or hero_image_url %}
           linear-gradient(180deg, rgba(3, 7, 18, 0.16), rgba(3, 7, 18, 0.88)),
-          url('{% if hero_image_data_uri %}{{ hero_image_data_uri }}{% elif hero_image_url %}{{ hero_image_url|default_if_none:"" }}{% else %}{% static "football/campo-futbol-fallback.jpg" %}{% endif %}') center/contain no-repeat;
+          url('{% if hero_image_data_uri %}{{ hero_image_data_uri }}{% else %}{{ hero_image_url|default_if_none:"" }}{% endif %}') center/cover no-repeat;
+          {% else %}
+          radial-gradient(circle at 20% 0%, rgba(244, 180, 0, 0.12), transparent 44%),
+          radial-gradient(circle at 100% 100%, rgba(47, 125, 50, 0.24), transparent 48%),
+          linear-gradient(135deg, rgba(14, 24, 40, 0.96), rgba(6, 12, 22, 0.98));
+          {% endif %}
         display: flex;
         align-items: end;
       }
@@ -303,9 +319,83 @@
         font-size: 0.86rem;
         color: rgba(226, 232, 240, 0.82);
       }
-      .standings-table tr.is-team td {
+      /* Normaliza el <th scope="row"> (posición) para que no herede el estilo de cabecera. */
+      .standings-table tbody th {
+        font-size: 0.86rem;
+        font-weight: 400;
+        text-transform: none;
+        letter-spacing: 0;
+        color: rgba(226, 232, 240, 0.82);
+        text-align: left;
+      }
+      .standings-table tr.is-team td,
+      .standings-table tr.is-team th {
         color: #fde68a;
         font-weight: 700;
+      }
+      .standings-table caption {
+        caption-side: top;
+        text-align: left;
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        padding-bottom: 0.4rem;
+      }
+      /* Accesibilidad: oculta visualmente pero deja el texto para lectores de pantalla. */
+      .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .ico {
+        width: 18px;
+        height: 18px;
+        flex: none;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 1.7;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .hub-link {
+        position: relative;
+      }
+      .hub-link .hub-head {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .hub-link .hub-head .ico {
+        stroke: var(--accent);
+      }
+      .hero-badge .ico {
+        width: 15px;
+        height: 15px;
+      }
+      .empty-cta {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        margin-top: 0.6rem;
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        color: var(--accent);
+        text-decoration: none;
+        border-bottom: 1px dashed rgba(244, 180, 0, 0.5);
+        padding-bottom: 1px;
+        width: fit-content;
+      }
+      .empty-cta:hover {
+        color: #fff7dd;
+        border-bottom-color: #fff7dd;
       }
       .staff-pill {
         border-radius: 999px;
@@ -444,7 +534,19 @@
     </style>
   </head>
   <body class="prod-commercial">
+    <!-- Sprite de iconos (line, monocromo). Se referencian con <use href="#ico-..."> y heredan currentColor. -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+      <symbol id="ico-match" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7l4 3-1.5 4.5h-5L8 10z"/><path d="M12 3v4M4.5 9l3.5 1M19.5 9L16 10M7 20l1.5-4M17 20l-1.5-4"/></symbol>
+      <symbol id="ico-roster" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M4 20a5 5 0 0 1 10 0"/><path d="M16 5.5a3 3 0 0 1 0 5.5M15 15a5 5 0 0 1 5 5"/></symbol>
+      <symbol id="ico-direction" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3"/></symbol>
+      <symbol id="ico-training" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/></symbol>
+      <symbol id="ico-config" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 0 0-1.7-1L14.5 2h-4l-.4 2.6a7 7 0 0 0-1.7 1l-2.3-1-2 3.4L4.1 11a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7 7 0 0 0 1.7-1l2.3 1 2-3.4-2-1.5a7 7 0 0 0 .1-1z"/></symbol>
+      <symbol id="ico-competition" viewBox="0 0 24 24"><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 5H4v2a3 3 0 0 0 3 3M17 5h3v2a3 3 0 0 1-3 3M9 13.5V17M15 13.5V17M8 20h8M10 17h4"/></symbol>
+      <symbol id="ico-agenda" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4M9 14h2M14 14h2"/></symbol>
+      <symbol id="ico-scouting" viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="M14.5 14.5L21 21"/></symbol>
+    </svg>
     <div class="product-page product-shell" style="padding-bottom:3rem;">
+      <h1 class="visually-hidden">Portada del cuerpo técnico · {{ team_display_name }}</h1>
       <header class="product-topbar">
 	        <div class="product-brand-strip">
 	          <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J Club" />
@@ -469,23 +571,23 @@
         </div>
           <div class="hero-badges">
             <a class="hero-badge-link" href="{% url 'coach-rivals' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}" aria-label="Abrir competición y rivales">
-              <span class="hero-badge">Competición</span>
+              <span class="hero-badge"><svg class="ico" aria-hidden="true"><use href="#ico-competition"/></svg>Competición</span>
             </a>
             <a class="hero-badge-link" href="{% url 'team-agenda' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}" aria-label="Abrir plan semanal">
-              <span class="hero-badge">Plan semanal</span>
+              <span class="hero-badge"><svg class="ico" aria-hidden="true"><use href="#ico-agenda"/></svg>Plan semanal</span>
             </a>
             <a class="hero-badge-link" href="{% url 'scouting-board' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}" aria-label="Abrir dirección deportiva">
-              <span class="hero-badge">Scouting</span>
+              <span class="hero-badge"><svg class="ico" aria-hidden="true"><use href="#ico-scouting"/></svg>Scouting</span>
             </a>
           </div>
 
           <section class="card compact" aria-label="Áreas principales">
-            <h3>Áreas</h3>
+            <h2>Áreas</h2>
             <p class="muted" style="margin:0;">Accesos rápidos con lo importante siempre a mano.</p>
             <div class="hub-grid areas-grid">
               {% for item in module_hub %}
               <a class="hub-link {% if forloop.counter <= 2 %}is-primary{% endif %}" href="{{ item.url }}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}">
-                <strong>{{ item.title }}</strong>
+                <strong class="hub-head">{% if item.icon %}<svg class="ico" aria-hidden="true"><use href="#ico-{{ item.icon }}"/></svg>{% endif %}{{ item.title }}</strong>
                 <span>{{ item.description }}</span>
               </a>
               {% endfor %}
@@ -565,22 +667,32 @@
             </div>
             {% if standings %}
             <table class="standings-table">
+              <caption class="visually-hidden">Clasificación de {{ competition_label|default:"la competición" }}, tu equipo resaltado.</caption>
               <thead>
-                <tr><th>Pos</th><th>Equipo</th><th>Pts</th><th>PJ</th></tr>
+                <tr>
+                  <th scope="col">Pos</th>
+                  <th scope="col">Equipo</th>
+                  <th scope="col">Pts</th>
+                  <th scope="col">PJ</th>
+                </tr>
               </thead>
               <tbody>
-                {% for row in standings %}
+                {% for row in standings_window %}
                 <tr class="{% if row.is_team %}is-team{% endif %}">
-                  <td>{{ row.rank|default:"-" }}</td>
-                  <td>{{ row.team|default:"-" }}</td>
+                  <th scope="row">{{ row.rank|default:"-" }}</th>
+                  <td>{{ row.team|default:"-" }}{% if row.is_team %} <span class="visually-hidden">(tu equipo)</span>{% endif %}</td>
                   <td>{{ row.points|default:"-" }}</td>
                   <td>{{ row.played|default:"-" }}</td>
                 </tr>
                 {% endfor %}
               </tbody>
             </table>
+            {% if standings_window_truncated %}
+            <a class="empty-cta" style="border-bottom:none;" href="{% url 'coach-rivals' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}">Ver tabla completa ({{ standings|length }} equipos) →</a>
+            {% endif %}
             {% else %}
-            <p class="muted">No hay clasificación disponible.</p>
+            <p class="muted" style="margin:0;">Aún no hay clasificación. Se muestra en cuanto vincules tu competición.</p>
+            <a class="empty-cta" href="{% url 'club-onboarding' %}">Configurar competición →</a>
             {% endif %}
           </div>
         </section>
