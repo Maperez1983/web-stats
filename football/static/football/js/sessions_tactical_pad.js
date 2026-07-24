@@ -6256,7 +6256,11 @@
 	        const manualDisplay = safeText(group?.data?.token_display, 'name_number');
 	        const nameTag = normalizeTokenNameTagMode(group?.data?.token_name_tag);
 	        const canShowName = manualDisplay !== 'number_only' && nameTag !== 'none';
-	        const showName = canShowName && (active || zoom >= (veryDense ? 1.34 : dense ? 1.2 : 1.02));
+	        // ed-chrome (editor 2D comercial): el zoom del motor se queda en 1.0 (tamaño por stage-factor),
+        // asi que la regla de zoom ocultaba SIEMPRE el nombre. Mostramos el nombre por defecto para
+        // que la ficha represente al jugador (salvo con muchisimas fichas: anti-agobio).
+        const edChromeNames = (function(){ try { return document.body.classList.contains('ed-chrome'); } catch (e) { return false; } })();
+        const showName = canShowName && (active || (edChromeNames && !veryDense) || zoom >= (veryDense ? 1.34 : dense ? 1.2 : 1.02));
 	        setTokenChildVisibility(group, ['token_name', 'token_name_bg'], showName, 1);
 	        const tokenSize = safeText(group?.data?.token_size, 'm');
 	        if (tokenSize === 'm') {
