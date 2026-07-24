@@ -30272,50 +30272,36 @@
       if (isGk) return `${AVATAR_BASE_URL}act-gk-frente-${nearestAvatarColorKey(colorHex, AVATAR_GK_COLORS)}.png`;
       return `${AVATAR_BASE_URL}act-conduccion-${nearestAvatarColorKey(colorHex, AVATAR_FIELD_COLORS)}.png`;
     };
-    // Carga el avatar (figura de cuerpo entero) recortado en circulo, encuadrado a la cabeza/torso.
-    const loadAvatarIntoGroup = (group, url, targetH, numberLabel) => {
-      const dbg = (m) => { try { (window.__avatarDebug = window.__avatarDebug || []).push(String(m)); } catch (e) { /* ignore */ } };
-      const src = resolvePlayerPhotoUrl(url);
-      if (!group || !src) { dbg('abort no-group-or-src src=' + src); return; }
-      try {
-        const img = new Image();
-        img.onload = () => {
-          try {
-            dbg('onload ' + url);
-            const source = getHiResRasterSource(img, { desiredDisplay: Math.max(1, targetH), maxSide: 3072 });
-            dbg('source tag=' + (source && (source.tagName || 'img')) + ' w=' + (source && (source.width || source.naturalWidth)) + ' h=' + (source && (source.height || source.naturalHeight)));
-            const naturalH = Number(source?.naturalHeight || source?.height || img.naturalHeight || img.height || 1);
-            const scale = Math.max(1, targetH) / Math.max(1, naturalH); // ajusta a la ALTURA: figura entera
-            dbg('scale=' + scale.toFixed(4) + ' naturalH=' + naturalH);
-            const avatar = new fabric.Image(source, {
-              left: 0, top: 0, originX: 'center', originY: 'center',
-              selectable: false, evented: false, scaleX: scale, scaleY: scale,
-            });
-            applyRenderableQuality(avatar, { strokeUniform: false });
-            try { avatar.minimumScaleTrigger = 0; } catch (e) { /* ignore */ }
-            avatar.data = { role: 'token_photo' };
-            group.addWithUpdate(avatar);
-            dbg('added avatar, group children=' + (group._objects ? group._objects.length : '?'));
-            // dorsal en un chip sobre la base de la figura (siempre encima)
-            const num = String(numberLabel == null ? '' : numberLabel).slice(0, 2);
-            if (num) {
-              const chip = new fabric.Circle({ radius: 8.5, fill: 'rgba(2,6,23,0.82)', stroke: 'rgba(255,255,255,0.92)', strokeWidth: 1.6, originX: 'center', originY: 'center', left: 0, top: 23, selectable: false, evented: false });
-              chip.data = { role: 'token_number_bg' };
-              group.addWithUpdate(chip);
-              const numText = new fabric.Text(num, { originX: 'center', originY: 'center', left: 0, top: 23, fontSize: 9.6, fontWeight: '900', fill: '#f8fafc', selectable: false, evented: false });
-              numText.data = { role: 'token_number' };
-              group.addWithUpdate(numText);
-            }
-            group.dirty = true;
-            canvas?.requestRenderAll?.();
-            dbg('rendered OK');
-          } catch (e) { dbg('ERR onload: ' + (e && e.message)); }
-        };
-        img.onerror = () => { dbg('onerror ' + url); };
-        img.src = src;
-        dbg('src set');
-      } catch (e) { dbg('ERR outer: ' + (e && e.message)); }
+    // El token se re-hidrata tras colocarse, asi que añadir la imagen ASYNC al grupo original
+    // NO llega al token en pantalla (queda desconectado). Solucion: PRECARGAR los avatares y
+    // pintarlos SINCRONOS dentro del token (parte del grupo desde el inicio; fabric los
+    // re-obtiene por `src` al recargar el estado).
+    const __avatarImgCache = new Map();
+    const ensureAvatarImage = (url) => {
+      if (!url) return null;
+      if (__avatarImgCache.has(url)) return __avatarImgCache.get(url);
+      const im = new Image();
+      __avatarImgCache.set(url, im);
+      try { im.decoding = 'async'; } catch (e) { /* ignore */ }
+      try { im.src = url; } catch (e) { /* ignore */ }
+      return im;
     };
+    const getReadyAvatarImage = (url) => {
+      const im = url ? __avatarImgCache.get(url) : null;
+      return (im && im.complete && (im.naturalWidth || im.width)) ? im : null;
+    };
+    const preloadAllAvatars = () => {
+      try {
+        const fieldPoses = ['conduccion', 'control', 'defensa', 'esp-conducir', 'esp-correr', 'esp-pie', 'pase', 'remate', 'run', 'saque', 'sprint', 'tiro'];
+        Object.keys(AVATAR_FIELD_COLORS).forEach((c) => fieldPoses.forEach((p) => ensureAvatarImage(`${AVATAR_BASE_URL}act-${p}-${c}.png`)));
+        const gkPoses = ['estirada', 'frente', 'salto'];
+        Object.keys(AVATAR_GK_COLORS).forEach((c) => gkPoses.forEach((p) => ensureAvatarImage(`${AVATAR_BASE_URL}act-gk-${p}-${c}.png`)));
+      } catch (e) { /* ignore */ }
+    };
+    try {
+      if (window.requestIdleCallback) window.requestIdleCallback(preloadAllAvatars, { timeout: 2500 });
+      else setTimeout(preloadAllAvatars, 800);
+    } catch (e) { try { preloadAllAvatars(); } catch (e2) { /* ignore */ } }
     const playerTokenFactory = (kind, player, options = {}) => (left, top) => {
 		      const preferredName = safeText(player?.nickname || player?.name, '');
 		      const playerNameLower = preferredName.toLowerCase();
@@ -30733,6 +30719,26 @@
 			          });
 			          sprite.data = { role: 'token_sprite' };
 			          tokenParts.push(sprite);
+			          // Avatar HD: si la imagen ya esta precargada, superponemos la figura ENTERA
+			          // (sincrona; el muñeco vectorial de arriba queda de fallback si no esta lista).
+			          try {
+			            const __avUrl = resolveAvatarUrlForToken(kind, stripeColor);
+			            ensureAvatarImage(__avUrl);
+			            const __avEl = getReadyAvatarImage(__avUrl);
+			            if (__avEl) {
+			              const __avScale = 52 / Math.max(1, __avEl.naturalHeight || __avEl.height || 1);
+			              const __avImg = new fabric.Image(__avEl, { left: 0, top: 2, originX: 'center', originY: 'center', selectable: false, evented: false, scaleX: __avScale, scaleY: __avScale });
+			              applyRenderableQuality(__avImg, { strokeUniform: false });
+			              __avImg.data = { role: 'token_avatar' };
+			              tokenParts.push(__avImg);
+			              const __numChipBg = new fabric.Circle({ radius: 8.5, fill: 'rgba(2,6,23,0.82)', stroke: 'rgba(255,255,255,0.92)', strokeWidth: 1.6, originX: 'center', originY: 'center', left: 0, top: 26, selectable: false, evented: false });
+			              __numChipBg.data = { role: 'token_number_bg' };
+			              tokenParts.push(__numChipBg);
+			              const __numChipTxt = new fabric.Text(isGoalkeeper ? 'GK' : label, { originX: 'center', originY: 'center', left: 0, top: 26, fontSize: 9.6, fontWeight: '900', fill: '#f8fafc', selectable: false, evented: false });
+			              __numChipTxt.data = { role: 'token_number' };
+			              tokenParts.push(__numChipTxt);
+			            }
+			          } catch (e) { /* ignore */ }
 
 			          const nameBg = new fabric.Rect({
 			            originX: 'center',
@@ -31562,8 +31568,6 @@
           applyRenderableQualityToGroup(group, tokenParts);
 			      if (style === 'photo' && photoUrl) {
 			        try { loadPhotoIntoGroup(group, photoUrl, 19.2); } catch (e) { /* ignore */ }
-			      } else if (style === 'sprite') {
-			        try { loadAvatarIntoGroup(group, resolveAvatarUrlForToken(kind, stripeColor), 52, isGoalkeeperKind ? 'GK' : label); } catch (e) { /* ignore */ }
 			      }
 			      try { setTokenFov(group, { visible: !!group?.data?.fov_visible, widthDeg: group?.data?.fov_width_deg }); } catch (e) { /* ignore */ }
 			      try { setTokenFacing(group, group?.data?.facing_deg); } catch (e) { /* ignore */ }
