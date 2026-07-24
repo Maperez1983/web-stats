@@ -33410,6 +33410,88 @@ def _build_scouting_pitch_payload(items):
     }
 
 
+def _build_scouting_board_players(items, saved_positions):
+    """Tokens arrastrables de la pizarra de ojeo (mismo formato que la del coach)."""
+    sem_map = {
+        "green": ("signed", "Fichado", True),
+        "blue": ("signed_other", "Fich. x otro", True),
+        "red": ("discarded", "Descartado", True),
+        "yellow": ("trial", "A prueba", False),
+        "amber": ("active", "Seguim. activo", False),
+        "cyan": ("watch", "En seguimiento", False),
+        "grey": ("target", "Objetivo", False),
+    }
+    zone_left = {"gk": 8, "def": 27, "mid": 50, "att": 73, "oth": 50}
+    groups = {}
+    for it in items:
+        sem = _scouting_semaphore(it.status, it.available_for_coach_tools, getattr(it, "discard_permanent", False))
+        state, label, closed = sem_map.get(sem.get("color"), sem_map["grey"])
+        bucket = _scouting_pos_bucket(getattr(it, "position", ""))
+        groups.setdefault(bucket, []).append((it, state, label, closed, bucket))
+    players = []
+    for bucket, rows in groups.items():
+        m = len(rows)
+        for j, (it, state, label, closed, bk) in enumerate(rows):
+            left = zone_left.get(bk, 50)
+            top = 50 if m <= 1 else int(round(14 + j * (72.0 / (m - 1))))
+            tid = int(getattr(it, "id", 0) or 0)
+            saved = saved_positions.get(str(tid)) if saved_positions else None
+            if saved and len(saved) == 2:
+                left, top = saved[0], saved[1]
+            players.append({
+                "id": tid,
+                "name": (getattr(it, "display_name", "") or "").strip() or f"Ojeado {tid}",
+                "number": None,
+                "position": (getattr(it, "position", "") or "").strip(),
+                "state": state,
+                "state_label": label,
+                "closed": closed,
+                "avatar": "football/images/coach_roster_avatars/library/chandal_black.png",
+                "left": left,
+                "top": top,
+                "ficha_url": reverse("scouting-target-detail", args=[tid]),
+            })
+    return players
+
+
+@login_required
+def scouting_pitch_board_save(request):
+    """Guarda (compartido por equipo) la posicion de un ojeado en la pizarra de ojeo."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+    from .models import ScoutingPitchBoardLayout
+    if str(request.POST.get("reset") or "").strip() in {"1", "true", "yes"}:
+        try:
+            team_id = int(request.POST.get("team_id") or 0)
+        except (TypeError, ValueError):
+            team_id = 0
+        if team_id:
+            ScoutingPitchBoardLayout.objects.filter(team_id=team_id).update(positions={}, updated_by=request.user)
+        return JsonResponse({"ok": True, "reset": True})
+    try:
+        team_id = int(request.POST.get("team_id") or 0)
+        target_id = int(request.POST.get("player_id") or 0)
+        left = float(request.POST.get("left"))
+        top = float(request.POST.get("top"))
+    except (TypeError, ValueError):
+        return JsonResponse({"ok": False, "error": "bad_params"}, status=400)
+    if not team_id or not target_id:
+        return JsonResponse({"ok": False, "error": "missing"}, status=400)
+    team = Team.objects.filter(id=team_id).first()
+    if not team:
+        return JsonResponse({"ok": False, "error": "no_team"}, status=404)
+    left = max(2.0, min(98.0, left))
+    top = max(4.0, min(96.0, top))
+    layout, _created = ScoutingPitchBoardLayout.objects.get_or_create(team=team)
+    positions = dict(layout.positions or {})
+    positions[str(target_id)] = [round(left, 1), round(top, 1)]
+    layout.positions = positions
+    layout.updated_by = request.user
+    layout.save(update_fields=["positions", "updated_by", "updated_at"])
+    return JsonResponse({"ok": True})
+
+
 @login_required
 def scouting_pitch_png(request):
     """Campo fotorealista de la comparativa de ojeo (reutiliza el render del
@@ -33839,11 +33921,30 @@ def scouting_board_page(request):
         list(active_team.players.filter(is_active=True).order_by("name")) if active_team else []
     )
 
+    _board_saved = {}
+    scouting_board_players = []
+    try:
+        from .models import ScoutingPitchBoardLayout as _SPBL
+        if active_team:
+            _lay = _SPBL.objects.filter(team=active_team).only("positions").first()
+            if _lay:
+                _board_saved = dict(_lay.positions or {})
+        _board_qs = ScoutingTarget.objects.filter(workspace=workspace) if workspace else ScoutingTarget.objects.none()
+        if active_team:
+            _board_qs = _board_qs.filter(Q(player__team=active_team) | Q(player__isnull=True))
+        scouting_board_players = _build_scouting_board_players(
+            list(_board_qs.order_by("status", "-priority", "-id")[:60]), _board_saved
+        )
+    except Exception:
+        scouting_board_players = []
+
     return render(
         request,
         "football/scouting_board.html",
         {
             "active_team": active_team,
+            "scouting_board_players": scouting_board_players,
+            "primary_team_id": getattr(active_team, "id", 0) or 0,
             "workspace": workspace,
             "can_manage_workspace": can_manage_workspace,
             "items": items,

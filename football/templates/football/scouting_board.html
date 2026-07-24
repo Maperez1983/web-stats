@@ -1084,21 +1084,9 @@
             <h2 style="margin:0;">Comparativa por posición</h2>
             <p class="sub" style="margin:0.35rem 0 0;">Los mejores candidatos por zona del campo, ordenados por nota global. Elige un puesto para aislarlo y decidir un fichaje.</p>
           </div>
-          <div class="pos-filter" role="tablist" aria-label="Filtrar por zona">
-            <button class="pos-filter-btn is-active" type="button" data-zone-filter="all">Todo</button>
-            <button class="pos-filter-btn" type="button" data-zone-filter="att">Ataque</button>
-            <button class="pos-filter-btn" type="button" data-zone-filter="mid">Medio</button>
-            <button class="pos-filter-btn" type="button" data-zone-filter="def">Defensa</button>
-            <button class="pos-filter-btn" type="button" data-zone-filter="gk">Portería</button>
-          </div>
         </div>
 
-        <figure class="pitch-photo-wrap">
-          <a href="{% url 'scouting-pitch-png' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" target="_blank" rel="noopener" title="Ver a pantalla completa">
-            <img class="pitch-photo" src="{% url 'scouting-pitch-png' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" alt="Campo de ojeo por posición con estado" loading="lazy" />
-          </a>
-          <figcaption>Campo por posición · color = estado (🟢 fichado · 🟡 a prueba · 🔵 fichado por otro · ⚪ objetivo) · <a href="{% url 'scouting-pitch-png' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" target="_blank" rel="noopener" style="color:#fde68a;">ver a pantalla completa ↗</a></figcaption>
-        </figure>
+        {% include 'football/_scouting_pitch_board.html' %}
 
         <div class="charts-grid">
           <div class="chart-card">

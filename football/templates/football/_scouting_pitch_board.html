@@ -1,0 +1,100 @@
+{% load static l10n %}
+{% comment %}Pizarra interactiva de ojeo: chips arrastrables + filtros por estado.{% endcomment %}
+<section class="card spb-card" aria-label="Pizarra de ojeo">
+  {% csrf_token %}
+  <div class="spb-head">
+    <p class="muted" style="margin:0;">Toca un ojeado para abrir su ficha · arrástralo para recolocarlo · filtra por estado.</p>
+    <button type="button" class="spb-reset" data-spb-reset>Reordenar</button>
+  </div>
+  <div class="spb-filters" role="group" aria-label="Filtrar por estado">
+    <button type="button" class="spb-filter is-active" data-spb-filter="activos">En ojeo <span class="spb-count" data-count="activos">0</span></button>
+    <button type="button" class="spb-filter" data-spb-filter="trial">A prueba <span class="spb-count" data-count="trial">0</span></button>
+    <button type="button" class="spb-filter" data-spb-filter="signed">Fichados <span class="spb-count" data-count="signed">0</span></button>
+    <button type="button" class="spb-filter" data-spb-filter="discarded">Descartados <span class="spb-count" data-count="discarded">0</span></button>
+    <button type="button" class="spb-filter" data-spb-filter="all">Todos <span class="spb-count" data-count="all">0</span></button>
+  </div>
+  {% if scouting_board_players %}
+  <div class="spb-field" data-spb-team="{{ primary_team_id|default:0 }}" data-spb-save-url="{% url 'scouting-pitch-board-save' %}"
+       style="background-image:url('{% static 'football/images/pitch3d/coach_home_pitch_surface.png' %}');">
+    {% for p in scouting_board_players %}
+    <a class="spb-chip spb-{{ p.state }}" href="{{ p.ficha_url }}" data-spb-pid="{{ p.id }}" data-state="{{ p.state }}" draggable="false"
+       style="left:{{ p.left|unlocalize }}%;top:{{ p.top|unlocalize }}%;"
+       title="{{ p.name }} · {{ p.state_label }}" aria-label="{{ p.name }}, {{ p.state_label }}. Abrir ficha.">
+      <span class="spb-avatar"><img src="{% static p.avatar %}" alt="" draggable="false" /></span>
+      <span class="spb-name">{{ p.name }}</span>
+      <span class="spb-badge">{{ p.state_label }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="muted" style="margin:0;">Aún no hay ojeados que mostrar.</p>
+  {% endif %}
+</section>
+<style>
+  .spb-card { padding: 1.1rem; overflow: hidden; }
+  .spb-head { display:flex; align-items:flex-start; justify-content:space-between; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.7rem; }
+  .spb-reset { border:1px solid rgba(244,180,0,0.28); background:rgba(244,180,0,0.08); color:#f4b400; border-radius:999px; padding:0.4rem 0.9rem; font-size:0.74rem; font-weight:800; text-transform:uppercase; cursor:pointer; }
+  .spb-filters { display:flex; gap:0.4rem; flex-wrap:wrap; margin-bottom:0.7rem; }
+  .spb-filter { border:1px solid rgba(148,163,184,0.28); background:rgba(148,163,184,0.1); color:rgba(226,232,240,0.9); border-radius:999px; padding:0.35rem 0.8rem; font-size:0.78rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:0.35rem; }
+  .spb-filter:hover { background:rgba(148,163,184,0.18); }
+  .spb-filter.is-active { background:rgba(56,189,210,0.18); border-color:rgba(56,189,210,0.5); color:#67e8f9; }
+  .spb-count { font-size:0.68rem; opacity:0.85; background:rgba(0,0,0,0.28); border-radius:999px; padding:0 0.4rem; min-width:1.3em; text-align:center; }
+  .spb-field { position:relative; width:100%; aspect-ratio:1664/945; background-size:cover; background-position:center; border-radius:18px; border:1px solid rgba(255,255,255,0.14); overflow:hidden; touch-action:none; box-shadow:inset 0 0 60px rgba(0,0,0,0.35); }
+  .spb-chip { position:absolute; transform:translate(-50%,-50%); z-index:1; display:flex; flex-direction:column; align-items:center; gap:2px; width:104px; text-decoration:none; color:#fff; cursor:grab; user-select:none; -webkit-user-select:none; touch-action:none; -webkit-user-drag:none; user-drag:none; }
+  .spb-chip.spb-hidden { display:none; }
+  .spb-chip img { -webkit-user-drag:none; user-drag:none; }
+  .spb-chip.spb-dragging { cursor:grabbing; z-index:5; }
+  .spb-avatar { width:82px; height:96px; display:flex; align-items:flex-end; justify-content:center; filter:drop-shadow(0 7px 9px rgba(0,0,0,0.55)); }
+  .spb-avatar img { width:100%; height:100%; object-fit:contain; pointer-events:none; }
+  .spb-name { margin-top:2px; max-width:116px; padding:2px 9px; border-radius:8px; background:rgba(7,12,22,0.86); font-size:0.8rem; font-weight:700; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; border:1px solid rgba(255,255,255,0.12); }
+  .spb-badge { padding:1px 7px; border-radius:999px; font-size:0.58rem; font-weight:800; letter-spacing:0.05em; text-transform:uppercase; }
+  .spb-target .spb-badge, .spb-signed_other .spb-badge { background:rgba(148,163,184,0.2); color:#cbd5e1; border:1px solid rgba(148,163,184,0.45); }
+  .spb-watch .spb-badge { background:rgba(56,189,210,0.18); color:#67e8f9; border:1px solid rgba(56,189,210,0.5); }
+  .spb-active .spb-badge { background:rgba(245,180,60,0.18); color:#fcd34d; border:1px solid rgba(245,180,60,0.5); }
+  .spb-trial .spb-badge { background:rgba(244,180,0,0.18); color:#fde68a; border:1px solid rgba(244,180,0,0.5); }
+  .spb-signed .spb-badge { background:rgba(134,239,172,0.18); color:#86efac; border:1px solid rgba(134,239,172,0.45); }
+  .spb-discarded .spb-badge { background:rgba(248,113,113,0.18); color:#fca5a5; border:1px solid rgba(248,113,113,0.45); }
+  @media (max-width:640px){ .spb-chip{width:78px;} .spb-avatar{width:60px;height:72px;} .spb-name{font-size:0.72rem;max-width:88px;} }
+</style>
+<script>
+(function(){
+  var field = document.querySelector('.spb-field');
+  var SETS = { activos:['target','watch','active','trial'], trial:['trial'], signed:['signed','signed_other'], discarded:['discarded'], all:null };
+  var chips = Array.prototype.slice.call(document.querySelectorAll('.spb-chip'));
+  function applyFilter(key){
+    var set = SETS[key];
+    chips.forEach(function(c){
+      var st = c.getAttribute('data-state');
+      var show = (set === null) || set.indexOf(st) !== -1;
+      c.classList.toggle('spb-hidden', !show);
+    });
+    document.querySelectorAll('.spb-filter').forEach(function(b){ b.classList.toggle('is-active', b.getAttribute('data-spb-filter')===key); });
+  }
+  // contadores
+  (function(){
+    var counts = { activos:0, trial:0, signed:0, discarded:0, all: chips.length };
+    chips.forEach(function(c){
+      var st = c.getAttribute('data-state');
+      Object.keys(SETS).forEach(function(k){ if(SETS[k] && SETS[k].indexOf(st)!==-1) counts[k]++; });
+    });
+    Object.keys(counts).forEach(function(k){ var el=document.querySelector('.spb-count[data-count="'+k+'"]'); if(el) el.textContent=counts[k]; });
+  })();
+  document.querySelectorAll('.spb-filter').forEach(function(b){ b.addEventListener('click', function(){ applyFilter(b.getAttribute('data-spb-filter')); }); });
+  applyFilter('activos');
+  // drag + save
+  if (field){
+    var team = field.getAttribute('data-spb-team') || '0';
+    var saveUrl = field.getAttribute('data-spb-save-url') || '';
+    function csrf(){ var i=document.querySelector('.spb-card input[name=csrfmiddlewaretoken]'); if(i&&i.value) return i.value; var m=document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/); return m?decodeURIComponent(m[1]):''; }
+    function post(data){ if(!saveUrl) return; var body=Object.keys(data).map(function(k){return encodeURIComponent(k)+'='+encodeURIComponent(data[k]);}).join('&'); fetch(saveUrl,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','X-CSRFToken':csrf(),'X-Requested-With':'XMLHttpRequest'},body:body,credentials:'same-origin'}).catch(function(){}); }
+    var TH=5, active=null;
+    function down(e){ var chip=e.target.closest('.spb-chip'); if(!chip) return; var p=e.touches?e.touches[0]:e; active={chip:chip,x:p.clientX,y:p.clientY,moved:false}; if(e.cancelable) e.preventDefault(); }
+    function move(e){ if(!active) return; var p=e.touches?e.touches[0]:e; var dx=p.clientX-active.x, dy=p.clientY-active.y; if(!active.moved && Math.abs(dx)+Math.abs(dy)<TH) return; active.moved=true; active.chip.classList.add('spb-dragging'); var r=field.getBoundingClientRect(); var l=Math.max(3,Math.min(97,((p.clientX-r.left)/r.width)*100)); var t=Math.max(6,Math.min(94,((p.clientY-r.top)/r.height)*100)); active.chip.style.left=l.toFixed(1)+'%'; active.chip.style.top=t.toFixed(1)+'%'; if(e.cancelable) e.preventDefault(); }
+    function up(){ if(!active) return; var chip=active.chip, moved=active.moved; chip.classList.remove('spb-dragging'); if(moved){ var l=parseFloat(chip.style.left), t=parseFloat(chip.style.top); post({team_id:team, player_id:chip.getAttribute('data-spb-pid'), left:l.toFixed(1), top:t.toFixed(1)}); var block=function(ev){ev.preventDefault();ev.stopPropagation();chip.removeEventListener('click',block,true);}; chip.addEventListener('click',block,true); } active=null; }
+    field.addEventListener('pointerdown',down); window.addEventListener('pointermove',move,{passive:false}); window.addEventListener('pointerup',up);
+    if(!window.PointerEvent){ field.addEventListener('touchstart',down,{passive:true}); window.addEventListener('touchmove',move,{passive:false}); window.addEventListener('touchend',up); }
+    var reset=document.querySelector('[data-spb-reset]');
+    if(reset) reset.addEventListener('click', function(){ if(!confirm('¿Restablecer las posiciones para todo el equipo?')) return; post({team_id:team, reset:'1'}); setTimeout(function(){location.reload();},250); });
+  }
+})();
+</script>

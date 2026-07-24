@@ -4123,6 +4123,22 @@ class SystemSetting(models.Model):
         return self.key
 
 
+class ScoutingPitchBoardLayout(models.Model):
+    """Disposicion de la pizarra de ojeo (comparativa por posicion), compartida por equipo.
+    positions es un dict {"<scouting_target_id>": [left_pct, top_pct]}."""
+    team = models.OneToOneField(Team, on_delete=models.CASCADE, related_name='scouting_board_layout')
+    positions = models.JSONField(default=dict, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+
+    class Meta:
+        verbose_name = 'Pizarra de ojeo'
+        verbose_name_plural = 'Pizarras de ojeo'
+
+    def __str__(self):
+        return f'Pizarra ojeo · {self.team.name}'
+
+
 class CoachPitchBoardLayout(models.Model):
     """
     Disposición de la pizarra de plantilla (portada del entrenador), compartida por equipo.
