@@ -33702,6 +33702,7 @@ def scouting_board_page(request):
             "error": error,
             "status_choices": ScoutingTarget.STATUS_CHOICES,
             "priority_choices": ScoutingTarget.PRIORITY_CHOICES,
+            "discard_reason_choices": ScoutingTarget.DISCARD_REASON_CHOICES,
             "position_choices": POSITION_CHOICES,
             "foot_choices": FOOT_CHOICES,
             "just_created": bool(request.GET.get("created")),
@@ -33767,6 +33768,12 @@ def scouting_target_detail_page(request, target_id):
                     str(request.POST.get("budget_note") or "").strip(), multiline=False, max_len=160
                 )
                 target.summary = _sanitize_task_text(str(request.POST.get("summary") or "").strip(), multiline=True, max_len=12000)
+                target.discard_reason = str(request.POST.get("discard_reason") or "").strip().lower()
+                if target.discard_reason not in {c[0] for c in ScoutingTarget.DISCARD_REASON_CHOICES}:
+                    target.discard_reason = ""
+                target.discard_club = _sanitize_task_text(
+                    str(request.POST.get("discard_club") or "").strip(), multiline=False, max_len=160
+                )
                 target.save(
                     update_fields=[
                         "subject_name",
@@ -33781,6 +33788,8 @@ def scouting_target_detail_page(request, target_id):
                         "next_review_on",
                         "budget_note",
                         "summary",
+                        "discard_reason",
+                        "discard_club",
                         "updated_at",
                     ]
                 )

@@ -706,6 +706,12 @@
                 <div class="label">Prioridad</div>
                 <div class="value">{{ target.get_priority_display }}</div>
               </div>
+              {% if target.discard_reason %}
+              <div class="summary">
+                <div class="label">Motivo descarte</div>
+                <div class="value">{{ target.get_discard_reason_display }}{% if target.discard_club %} · {{ target.discard_club }}{% endif %}</div>
+              </div>
+              {% endif %}
               <div class="summary">
                 <div class="label">Revisión</div>
                 <div class="value">{% if target.next_review_on %}{{ target.next_review_on|date:"d/m/Y" }}{% else %}-{% endif %}</div>
@@ -765,6 +771,17 @@
                   <option value="{{ value }}"{% if target.status == value %} selected{% endif %}>{{ label }}</option>
                   {% endfor %}
                 </select>
+              </label>
+              <label>Motivo del descarte
+                <select name="discard_reason">
+                  <option value="">—</option>
+                  {% for value,label in discard_reason_choices %}
+                  <option value="{{ value }}"{% if target.discard_reason == value %} selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>Club que lo fichó
+                <input type="text" name="discard_club" value="{{ target.discard_club }}" maxlength="160" placeholder="Si fichó por otro club" />
               </label>
               <label>Prioridad
                 <select name="priority">

@@ -931,6 +931,25 @@ class ScoutingTarget(models.Model):
         (PRIORITY_URGENT, 'Urgente'),
     ]
 
+    DISCARD_COACH = 'coach'
+    DISCARD_SIGNED_OTHER = 'signed_other'
+    DISCARD_LEVEL = 'level'
+    DISCARD_ECONOMIC = 'economic'
+    DISCARD_AGE = 'age'
+    DISCARD_PHYSICAL = 'physical'
+    DISCARD_ATTITUDE = 'attitude'
+    DISCARD_OTHER = 'other'
+    DISCARD_REASON_CHOICES = [
+        (DISCARD_COACH, 'Descartado por el entrenador'),
+        (DISCARD_SIGNED_OTHER, 'Fichó por otro club'),
+        (DISCARD_LEVEL, 'Nivel insuficiente'),
+        (DISCARD_ECONOMIC, 'Motivo económico'),
+        (DISCARD_AGE, 'Edad'),
+        (DISCARD_PHYSICAL, 'Lesión / condición física'),
+        (DISCARD_ATTITUDE, 'Actitud / comportamiento'),
+        (DISCARD_OTHER, 'Otro'),
+    ]
+
     workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name='scouting_targets')
     player = models.ForeignKey(Player, on_delete=models.SET_NULL, null=True, blank=True, related_name='scouting_targets')
     subject_name = models.CharField(max_length=160, help_text='Nombre del jugador ojeado, aunque no exista como ficha local.')
@@ -954,6 +973,8 @@ class ScoutingTarget(models.Model):
     )
     next_review_on = models.DateField(null=True, blank=True)
     budget_note = models.CharField(max_length=160, blank=True)
+    discard_reason = models.CharField(max_length=24, choices=DISCARD_REASON_CHOICES, blank=True, default='', db_index=True)
+    discard_club = models.CharField(max_length=160, blank=True, help_text='Club que lo fichó, si el motivo es que fichó por otro.')
     phone = models.CharField(max_length=40, blank=True)
     has_agent = models.BooleanField(default=False)
     agent_name = models.CharField(max_length=160, blank=True)
