@@ -180,7 +180,7 @@
   var MAT_FAMILY = { material:'equipamiento', porterias:'porterias', marcadores:'marcadores', importados:'importados' };
   function stripCount(el){ return el? el.querySelectorAll('button, .tool-icon').length : 0; }
   // -------- Avatares de jugador (fotorrealistas, por acción y color de equipo) --------
-  // Base estática robusta ante STATIC_URL: derivamos de un {% static %} conocido.
+  // Base estática robusta ante STATIC_URL: derivamos de una URL estatica conocida (STATIC_URL).
   var EDC_PLAYERS_BASE = "{% static 'football/images/players/act-conduccion-verde.png' %}".replace('act-conduccion-verde.png','');
   // Jugadores de campo: 12 acciones x 4 colores de equipo.
   var EDC_AV_FIELD = { colors:['amarilla','blanca','turquesa','verde'], acts:[
