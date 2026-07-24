@@ -76,6 +76,14 @@
 (function(){
   document.body.classList.add('ed-chrome');
   var proxyClick = function(id){ try{ var el=document.getElementById(id); if(el) el.click(); }catch(e){} };
+  // Fija la orientación exacta (landscape/portrait) usando el toggle real del editor.
+  function setOrientation(target){
+    try{
+      var oi=document.getElementById('draw-task-pitch-orientation');
+      var cur=oi?String(oi.value||'').toLowerCase():'landscape';
+      if(cur!==target){ var t=document.getElementById('pitch-orientation-toggle-quick'); if(t) t.click(); }
+    }catch(e){}
+  }
   var setActive = function(group, btn){
     try{
       document.querySelectorAll('[data-edc-group="'+group+'"] .edc-btn, [data-edc-group="'+group+'"] .edc-fmt').forEach(function(b){ b.classList.remove('is-active'); });
@@ -124,8 +132,8 @@
     reset: function(){ proxyClick('pitch-zoom-reset'); proxyClick('pitch-size-fit'); },
     wide: function(this_btn){ setActive('focus', this_btn); document.body.classList.remove('task-focus-mode'); },
     only_pitch: function(this_btn){ setActive('focus', this_btn); proxyClick('task-focus-toggle'); },
-    horizontal: function(this_btn){ setActive('orient', this_btn); proxyClick('pitch-orientation-toggle'); },
-    vertical: function(this_btn){ setActive('orient', this_btn); proxyClick('pitch-orientation-toggle'); },
+    horizontal: function(this_btn){ setActive('orient', this_btn); setOrientation('landscape'); },
+    vertical: function(this_btn){ setActive('orient', this_btn); setOrientation('portrait'); },
     undo: function(){ try{ if(window.__tpadCanvasAction) window.__tpadCanvasAction('undo'); }catch(e){} },
     redo: function(){ try{ if(window.__tpadCanvasAction) window.__tpadCanvasAction('redo'); }catch(e){} },
     present: function(){ proxyClick('task-focus-toggle'); },
