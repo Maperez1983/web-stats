@@ -83,7 +83,7 @@ services:
     branch: main
     schedule: "0 6,20 * * *"
     buildCommand: ./build.sh
-    startCommand: python manage.py refresh_competition_snapshots
+    startCommand: python manage.py refresh_competition_snapshots && python manage.py sync_preferente_player_stats --seasons auto
     autoDeploy: true
     envVars:
       - key: PYTHON_VERSION

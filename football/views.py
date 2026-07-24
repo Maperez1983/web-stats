@@ -68975,6 +68975,25 @@ def player_detail_page(request, player_id):
         except Exception:
             season_history_rows = []
 
+        preferente_history_rows = []
+        try:
+            from football.models import ExternalSeasonStat as _ExtStat
+            for _st in _ExtStat.objects.filter(player=player, source=_ExtStat.SOURCE_PREFERENTE).order_by("-season_label"):
+                preferente_history_rows.append({
+                    "label": _st.season_label,
+                    "team_name": _st.team_name,
+                    "matches": _st.matches,
+                    "starts": _st.starts,
+                    "minutes": _st.minutes,
+                    "goals": _st.goals,
+                    "goals_conceded": _st.goals_conceded,
+                    "yellow": _st.yellow_cards,
+                    "red": _st.red_cards,
+                    "updated_at": _st.updated_at,
+                })
+        except Exception:
+            preferente_history_rows = []
+
         # Radar mini tipo card (para contrastar con el radar staff, y reutilizar en PDF).
         try:
             card_radar_data = _build_player_card_radar_data(safe_stats, matches)
@@ -69153,6 +69172,7 @@ def player_detail_page(request, player_id):
                 "selected_club_season": selected_club_season,
                 "selected_club_season_id": int(getattr(selected_club_season, "id", 0) or 0),
                 "season_history_rows": season_history_rows,
+            "preferente_history_rows": preferente_history_rows,
                 "fines_summary": fines_summary,
                 "fines_records": fines_records,
                 "stats_error": stats_error,

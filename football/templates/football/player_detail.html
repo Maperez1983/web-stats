@@ -1954,6 +1954,40 @@
             <div class="value" style="font-size:1rem;">Sin temporadas registradas todavía.</div>
           </div>
         {% endif %}
+        {% if preferente_history_rows %}
+          <h3 style="margin:1.4rem 0 0.4rem;">Histórico La Preferente</h3>
+          <p class="subtle" style="margin:0 0 0.6rem;">Estadísticas por temporada según La Preferente (se actualizan solas).</p>
+          <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+              <thead>
+                <tr style="text-align:left; color:rgba(226,232,240,0.7);">
+                  <th style="padding:0.4rem 0.6rem;">Temporada</th>
+                  <th style="padding:0.4rem 0.6rem;">Equipo</th>
+                  <th style="padding:0.4rem 0.6rem;">PJ</th>
+                  <th style="padding:0.4rem 0.6rem;">Tit.</th>
+                  <th style="padding:0.4rem 0.6rem;">Min</th>
+                  <th style="padding:0.4rem 0.6rem;">Goles</th>
+                  <th style="padding:0.4rem 0.6rem;">TA</th>
+                  <th style="padding:0.4rem 0.6rem;">TR</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in preferente_history_rows %}
+                <tr style="border-top:1px solid rgba(255,255,255,0.08);">
+                  <td style="padding:0.4rem 0.6rem;"><strong>{{ r.label }}</strong></td>
+                  <td style="padding:0.4rem 0.6rem;">{{ r.team_name|default:'—' }}</td>
+                  <td style="padding:0.4rem 0.6rem;">{{ r.matches }}</td>
+                  <td style="padding:0.4rem 0.6rem;">{{ r.starts }}</td>
+                  <td style="padding:0.4rem 0.6rem;">{{ r.minutes }}</td>
+                  <td style="padding:0.4rem 0.6rem;">{% if r.goals_conceded is not None %}{{ r.goals_conceded }} enc.{% else %}{{ r.goals }}{% endif %}</td>
+                  <td style="padding:0.4rem 0.6rem;">{{ r.yellow }}</td>
+                  <td style="padding:0.4rem 0.6rem;">{{ r.red }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
       </section>
 
       <section class="card tab-pane" data-pane="evaluations">

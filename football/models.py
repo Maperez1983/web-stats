@@ -1357,6 +1357,45 @@ class TeamStatistic(models.Model):
         return f'{self.team.name} - {self.name}: {self.value}'
 
 
+class ExternalSeasonStat(models.Model):
+    """Estadisticas por temporada raspadas de una fuente externa (La Preferente,
+    etc.). NO pisa las stats propias; es un historico de referencia que alimenta
+    la pestana de historico de la ficha, tanto para jugadores de plantilla como
+    para ojeados."""
+    SOURCE_PREFERENTE = 'lapreferente'
+    SOURCE_CHOICES = [(SOURCE_PREFERENTE, 'La Preferente')]
+
+    player = models.ForeignKey('Player', on_delete=models.CASCADE, related_name='external_season_stats', null=True, blank=True)
+    scouting_target = models.ForeignKey('ScoutingTarget', on_delete=models.CASCADE, related_name='external_season_stats', null=True, blank=True)
+    source = models.CharField(max_length=24, choices=SOURCE_CHOICES, default=SOURCE_PREFERENTE, db_index=True)
+    season_label = models.CharField(max_length=16, db_index=True)
+    team_name = models.CharField(max_length=160, blank=True)
+    competition = models.CharField(max_length=160, blank=True)
+    external_name = models.CharField(max_length=200, blank=True)
+    position = models.CharField(max_length=60, blank=True)
+    matches = models.PositiveIntegerField(default=0)
+    starts = models.PositiveIntegerField(default=0)
+    minutes = models.PositiveIntegerField(default=0)
+    goals = models.PositiveIntegerField(default=0)
+    goals_conceded = models.IntegerField(null=True, blank=True)
+    yellow_cards = models.PositiveIntegerField(default=0)
+    red_cards = models.PositiveIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['player', 'source', 'season_label'], name='extstat_player_idx'),
+            models.Index(fields=['scouting_target', 'source', 'season_label'], name='extstat_target_idx'),
+        ]
+        ordering = ['-season_label']
+        verbose_name = 'Estadistica externa por temporada'
+        verbose_name_plural = 'Estadisticas externas por temporada'
+
+    def __str__(self):
+        who = self.player or self.scouting_target or self.external_name
+        return f'{who} · {self.season_label} · {self.get_source_display()}'
+
+
 class PlayerStatistic(models.Model):
     player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='statistics')
     season = models.ForeignKey(Season, on_delete=models.CASCADE, related_name='player_statistics')
