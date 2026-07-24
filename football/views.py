@@ -471,6 +471,7 @@ from football.season_history_services import (
     set_team_season_status,
     team_season_history,
 )
+from football.rival_seed_services import seed_rivals_from_standings
 from football.services import (
     _parse_int,
     assign_lineup_slots,
@@ -52492,69 +52493,10 @@ def analysis_page(request):
                 if not standings_rows:
                     rivals_error = "No hay clasificación disponible para crear rivales (para este equipo)."
                 else:
-                    created = 0
-                    updated = 0
-                    skipped = 0
-                    primary_keys = {
-                        _normalize_team_lookup_key(getattr(primary_team, "name", "") or ""),
-                        _normalize_team_lookup_key(getattr(primary_team, "display_name", "") or ""),
-                    }
-                    for row in standings_rows:
-                        if not isinstance(row, dict):
-                            continue
-                        full_name = str(row.get("full_name") or row.get("team") or "").strip()
-                        if not full_name:
-                            continue
-                        if _normalize_team_lookup_key(full_name) in primary_keys:
-                            skipped += 1
-                            continue
-                        team_code = str(row.get("team_code") or "").strip()
-                        crest_url = str(row.get("crest_url") or "").strip()
-                        home_stadium = str(row.get("location") or row.get("field") or row.get("stadium") or "").strip()
-                        team_obj = None
-                        if team_code:
-                            team_obj = Team.objects.filter(external_id=team_code).first()
-                        if not team_obj:
-                            team_obj = Team.objects.filter(
-                                Q(name__iexact=full_name)
-                                | Q(short_name__iexact=full_name)
-                                | Q(slug__iexact=slugify(full_name))
-                            ).first()
-                        if not team_obj:
-                            try:
-                                team_obj = Team.objects.create(
-                                    name=full_name[:150],
-                                    slug=_unique_team_slug(full_name),
-                                    external_id=team_code[:120] if team_code else "",
-                                    crest_url=crest_url[:600] if crest_url else "",
-                                    home_stadium=home_stadium[:200] if home_stadium else "",
-                                    is_primary=False,
-                                )
-                                created += 1
-                            except Exception:
-                                skipped += 1
-                                continue
-                        else:
-                            changed = False
-                            if team_code and (team_obj.external_id or "").strip() != team_code:
-                                team_obj.external_id = team_code[:120]
-                                changed = True
-                            if crest_url and not (team_obj.crest_url or "").strip():
-                                team_obj.crest_url = crest_url[:600]
-                                changed = True
-                            if home_stadium and not (team_obj.home_stadium or "").strip():
-                                team_obj.home_stadium = home_stadium[:200]
-                                changed = True
-                            if changed:
-                                try:
-                                    team_obj.save(update_fields=["external_id", "crest_url", "home_stadium"])
-                                    updated += 1
-                                except Exception:
-                                    pass
-                            else:
-                                skipped += 1
+                    seeded = seed_rivals_from_standings(primary_team, standings_rows)
                     rivals_message = (
-                        f"Rivales listos. Creados: {created}, actualizados: {updated}, sin cambios: {skipped}."
+                        f"Rivales listos. Creados: {seeded['created']}, "
+                        f"actualizados: {seeded['updated']}, sin cambios: {seeded['skipped']}."
                     )
         elif form_action == "rivals_refresh_snapshot":
             target_id = _parse_int(request.POST.get("rival_team_id"))

@@ -17,6 +17,7 @@ from .next_match_services import (
     load_preferred_next_match_payload,
 )
 from .query_helpers import _normalize_team_lookup_key
+from .rival_seed_services import seed_rivals_from_standings
 from .standings_services import resolve_standings_for_team
 from .team_media_services import sync_team_crest_from_sources
 from .universo_catalog_services import build_universo_competition_catalog
@@ -168,6 +169,14 @@ def sync_workspace_competition_context(workspace, primary_team=None):
             snapshot=load_universo_snapshot(),
             provider=getattr(context, 'provider', None),
         )
+    # Sembrado de fichas de rival: al conectar/sincronizar la liga, materializamos un Team por
+    # cada equipo de la clasificación para que todos tengan ficha (plantilla, informe, vídeos).
+    # Idempotente y best-effort: nunca debe romper la sincronización.
+    if standings_payload:
+        try:
+            seed_rivals_from_standings(primary_team, standings_payload)
+        except Exception:
+            logger.exception('No se pudieron sembrar rivales para workspace %s', getattr(workspace, 'id', None))
     convocation_next = build_next_match_from_convocation(primary_team)
     provider_next = find_universo_next_match_for_context(context, primary_team)
     preferred_next = load_preferred_next_match_payload(primary_team=primary_team, competition_context=context)
