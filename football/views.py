@@ -5653,6 +5653,8 @@ def _render_coach_roster_preview_png(
         # Tonos extra para el semáforo de ojeo (fichado por otro / en proceso).
         "signed_other": ((18, 40, 74, 190), (96, 165, 250, 215), (96, 165, 250, 255)),
         "process": ((30, 42, 60, 182), (148, 163, 184, 200), (191, 219, 254, 255)),
+        "active": ((70, 50, 10, 186), (245, 180, 60, 210), (250, 190, 70, 255)),
+        "watch": ((14, 44, 60, 186), (56, 189, 210, 210), (103, 232, 249, 255)),
     }
     field_w = field_box[2] - field_box[0]
     field_h = field_box[3] - field_box[1]
@@ -33141,18 +33143,28 @@ def coach_abp_board_page(request):
     )
 
 
-def _scouting_semaphore(status, available):
-    """Semáforo de decisión del ojeo: verde fichado, amarillo a prueba,
-    rojo descartado, azul fichado por otro, gris en proceso."""
+def _scouting_semaphore(status, available, discard_permanent=False):
+    """Semáforo de decisión del ojeo siguiendo el embudo real:
+    fichado (verde), fichado por otro (azul), descartado/definitivo (rojo),
+    a prueba (amarillo), seguimiento activo toda la temporada (ámbar),
+    en seguimiento (cian), revisar/objetivo (gris)."""
     if status == ScoutingTarget.STATUS_SIGNED:
         return {"key": "signed", "label": "Fichado", "color": "green"}
     if status == ScoutingTarget.STATUS_SIGNED_OTHER:
         return {"key": "signed_other", "label": "Fichado por otro", "color": "blue"}
     if status == ScoutingTarget.STATUS_DISCARDED:
+        if discard_permanent:
+            return {"key": "discarded_final", "label": "Descartado definitivo", "color": "red"}
         return {"key": "discarded", "label": "Descartado", "color": "red"}
     if available:
         return {"key": "trial", "label": "A prueba", "color": "yellow"}
-    return {"key": "process", "label": "En proceso", "color": "grey"}
+    if status == ScoutingTarget.STATUS_ACTIVE:
+        return {"key": "active", "label": "Seguimiento activo", "color": "amber"}
+    if status == ScoutingTarget.STATUS_WATCHLIST:
+        return {"key": "watchlist", "label": "En seguimiento", "color": "cyan"}
+    if status == ScoutingTarget.STATUS_REVIEW:
+        return {"key": "review", "label": "Revisar", "color": "grey"}
+    return {"key": "target", "label": "Objetivo", "color": "grey"}
 
 
 def _scouting_pos_bucket(position):
@@ -33183,6 +33195,8 @@ def _build_scouting_pitch_payload(items):
     sem_to_render = {
         "green": ("available", "available", "FICHADO"),
         "yellow": ("trial", "trial", "A PRUEBA"),
+        "amber": ("available", "active", "SEGUIM. ACTIVO"),
+        "cyan": ("available", "watch", "EN SEGUIMIENTO"),
         "red": ("injured", "injured", "DESCARTADO"),
         "blue": ("inactive", "signed_other", "FICHADO X OTRO"),
         "grey": ("available", "process", "OBJETIVO"),
@@ -33274,7 +33288,7 @@ def scouting_pitch_png(request):
                 _latest_report[_rep.target_id] = _rep
     for item in items:
         item.pos_bucket = _scouting_pos_bucket(item.position)
-        item.semaphore = _scouting_semaphore(item.status, item.available_for_coach_tools)
+        item.semaphore = _scouting_semaphore(item.status, item.available_for_coach_tools, getattr(item, "discard_permanent", False))
         _rep = _latest_report.get(item.id)
         if _rep:
             _vals = [int(getattr(_rep, f)) for f in _RATING_FIELDS if getattr(_rep, f)]
@@ -33297,7 +33311,7 @@ def scouting_pitch_png(request):
     # Caché por firma: solo regeneramos el PNG (caro) cuando cambian los datos.
     import hashlib
 
-    _sig = [f"v3:{getattr(active_team, 'id', 0) or 0}:{sem_signed}:{sem_trial}:{discarded_count}"]
+    _sig = [f"v4:{getattr(active_team, 'id', 0) or 0}:{sem_signed}:{sem_trial}:{discarded_count}"]
     for _it in sorted(items, key=lambda x: x.id):
         _sig.append(
             f"{_it.id}:{_it.status}:{int(bool(_it.available_for_coach_tools))}:{getattr(_it, 'nota_global', 0)}:{_it.pos_bucket}"
@@ -33583,7 +33597,7 @@ def scouting_board_page(request):
         else:
             item.pos_bucket = "mid"
         # Semáforo de decisión (verde/amarillo/rojo/azul/gris).
-        item.semaphore = _scouting_semaphore(item.status, item.available_for_coach_tools)
+        item.semaphore = _scouting_semaphore(item.status, item.available_for_coach_tools, getattr(item, "discard_permanent", False))
 
     # Semáforo global (los descartados se cuentan aparte porque el listado los excluye).
     # Contadores globales (semáforo/embudo) desde una consulta base, para que
@@ -33615,7 +33629,7 @@ def scouting_board_page(request):
             .order_by("status", "-updated_at", "-id")[:120]
         )
     for _a in archived_items:
-        _a.semaphore = _scouting_semaphore(_a.status, _a.available_for_coach_tools)
+        _a.semaphore = _scouting_semaphore(_a.status, _a.available_for_coach_tools, getattr(_a, "discard_permanent", False))
     archived_count = len(archived_items)
 
     # Comparativa por posición: candidatos agrupados por zona del campo y
@@ -33774,6 +33788,7 @@ def scouting_target_detail_page(request, target_id):
                 target.discard_club = _sanitize_task_text(
                     str(request.POST.get("discard_club") or "").strip(), multiline=False, max_len=160
                 )
+                target.discard_permanent = bool(request.POST.get("discard_permanent"))
                 target.save(
                     update_fields=[
                         "subject_name",
@@ -33790,6 +33805,7 @@ def scouting_target_detail_page(request, target_id):
                         "summary",
                         "discard_reason",
                         "discard_club",
+                        "discard_permanent",
                         "updated_at",
                     ]
                 )

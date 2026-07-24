@@ -975,6 +975,7 @@ class ScoutingTarget(models.Model):
     budget_note = models.CharField(max_length=160, blank=True)
     discard_reason = models.CharField(max_length=24, choices=DISCARD_REASON_CHOICES, blank=True, default='', db_index=True)
     discard_club = models.CharField(max_length=160, blank=True, help_text='Club que lo fichó, si el motivo es que fichó por otro.')
+    discard_permanent = models.BooleanField(default=False, help_text='Descarte definitivo: no volver a por él.')
     phone = models.CharField(max_length=40, blank=True)
     has_agent = models.BooleanField(default=False)
     agent_name = models.CharField(max_length=160, blank=True)

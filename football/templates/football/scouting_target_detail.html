@@ -709,7 +709,7 @@
               {% if target.discard_reason %}
               <div class="summary">
                 <div class="label">Motivo descarte</div>
-                <div class="value">{{ target.get_discard_reason_display }}{% if target.discard_club %} · {{ target.discard_club }}{% endif %}</div>
+                <div class="value">{{ target.get_discard_reason_display }}{% if target.discard_club %} · {{ target.discard_club }}{% endif %}{% if target.discard_permanent %} · <strong>Definitivo</strong>{% endif %}</div>
               </div>
               {% endif %}
               <div class="summary">
@@ -782,6 +782,10 @@
               </label>
               <label>Club que lo fichó
                 <input type="text" name="discard_club" value="{{ target.discard_club }}" maxlength="160" placeholder="Si fichó por otro club" />
+              </label>
+              <label style="grid-column:1 / -1; display:flex; align-items:center; gap:0.5rem; text-transform:none; letter-spacing:0;">
+                <input type="checkbox" name="discard_permanent" value="1" {% if target.discard_permanent %}checked{% endif %} />
+                <span><strong>Descarte definitivo</strong> — no volver a por él</span>
               </label>
               <label>Prioridad
                 <select name="priority">
