@@ -30273,30 +30273,34 @@
       return `${AVATAR_BASE_URL}act-conduccion-${nearestAvatarColorKey(colorHex, AVATAR_FIELD_COLORS)}.png`;
     };
     // Carga el avatar (figura de cuerpo entero) recortado en circulo, encuadrado a la cabeza/torso.
-    const loadAvatarIntoGroup = (group, url, radius, focusY) => {
+    const loadAvatarIntoGroup = (group, url, targetH, numberLabel) => {
       const src = resolvePlayerPhotoUrl(url);
       if (!group || !src) return;
       try {
         const img = new Image();
         img.onload = () => {
           try {
-            const targetSize = Math.max(1, radius * 2);
-            const source = getHiResRasterSource(img, { desiredDisplay: targetSize, maxSide: 3072 });
-            const naturalW = Number(source?.naturalWidth || source?.width || img.naturalWidth || img.width || 1);
+            const source = getHiResRasterSource(img, { desiredDisplay: Math.max(1, targetH), maxSide: 3072 });
             const naturalH = Number(source?.naturalHeight || source?.height || img.naturalHeight || img.height || 1);
-            const scale = targetSize / Math.max(1, naturalW); // la figura rellena el ancho del circulo
-            const scaledH = naturalH * scale;
-            const fY = (focusY == null) ? 0.28 : Math.max(0, Math.min(1, Number(focusY)));
-            const yOff = (0.5 - fY) * scaledH; // sube la imagen para encuadrar cabeza/torso
+            const scale = Math.max(1, targetH) / Math.max(1, naturalH); // ajusta a la ALTURA: figura entera
             const avatar = new fabric.Image(source, {
-              left: 0, top: yOff, originX: 'center', originY: 'center',
+              left: 0, top: 28, originX: 'center', originY: 'bottom',
               selectable: false, evented: false, scaleX: scale, scaleY: scale,
             });
             applyRenderableQuality(avatar, { strokeUniform: false });
             try { avatar.minimumScaleTrigger = 0; } catch (e) { /* ignore */ }
-            avatar.clipPath = new fabric.Circle({ radius, originX: 'center', originY: 'center', left: 0, top: -yOff });
             avatar.data = { role: 'token_photo' };
             group.addWithUpdate(avatar);
+            // dorsal en un chip sobre la base de la figura (siempre encima)
+            const num = String(numberLabel == null ? '' : numberLabel).slice(0, 2);
+            if (num) {
+              const chip = new fabric.Circle({ radius: 8.5, fill: 'rgba(2,6,23,0.82)', stroke: 'rgba(255,255,255,0.92)', strokeWidth: 1.6, originX: 'center', originY: 'center', left: 0, top: 23, selectable: false, evented: false });
+              chip.data = { role: 'token_number_bg' };
+              group.addWithUpdate(chip);
+              const numText = new fabric.Text(num, { originX: 'center', originY: 'center', left: 0, top: 23, fontSize: 9.6, fontWeight: '900', fill: '#f8fafc', selectable: false, evented: false });
+              numText.data = { role: 'token_number' };
+              group.addWithUpdate(numText);
+            }
             group.dirty = true;
             canvas?.requestRenderAll?.();
           } catch (e) { /* ignore */ }
@@ -30347,7 +30351,7 @@
 		        baseRadius = radius;
 		        const isAway = kind === 'player_away';
         const isGoalkeeper = isGoalkeeperKind;
-		        if (style === 'photo' || style === 'sprite') {
+		        if (style === 'photo') {
 		          const tokenShadow = new fabric.Circle({
 		            radius: radius + 4.5,
 		            fill: 'rgba(2,6,23,0.30)',
@@ -31552,7 +31556,7 @@
 			      if (style === 'photo' && photoUrl) {
 			        try { loadPhotoIntoGroup(group, photoUrl, 19.2); } catch (e) { /* ignore */ }
 			      } else if (style === 'sprite') {
-			        try { loadAvatarIntoGroup(group, resolveAvatarUrlForToken(kind, stripeColor), 19.6, 0.28); } catch (e) { /* ignore */ }
+			        try { loadAvatarIntoGroup(group, resolveAvatarUrlForToken(kind, stripeColor), 52, isGoalkeeperKind ? 'GK' : label); } catch (e) { /* ignore */ }
 			      }
 			      try { setTokenFov(group, { visible: !!group?.data?.fov_visible, widthDeg: group?.data?.fov_width_deg }); } catch (e) { /* ignore */ }
 			      try { setTokenFacing(group, group?.data?.facing_deg); } catch (e) { /* ignore */ }
