@@ -83,7 +83,11 @@ services:
     branch: main
     schedule: "0 6,20 * * *"
     buildCommand: ./build.sh
-    startCommand: python manage.py refresh_competition_snapshots && python manage.py sync_preferente_player_stats --seasons auto
+    # 1) Autolink Universo (server-side): ata equipos nuevos a su liga por nombre. Solo Universo:
+    #    La Preferente da 403 desde el datacenter (los senior se vinculan aparte, desde IP residencial).
+    #    `|| true` evita que un fallo de autolink bloquee el refresco de clasificaciones.
+    # 2) Refresca clasificaciones. 3) Stats de jugadores Preferente.
+    startCommand: (python manage.py autolink_competition_contexts --only-universo --commit --sync || true) && python manage.py refresh_competition_snapshots && python manage.py sync_preferente_player_stats --seasons auto
     autoDeploy: true
     envVars:
       - key: PYTHON_VERSION

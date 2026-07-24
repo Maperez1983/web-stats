@@ -60,3 +60,18 @@ class AutolinkCommandFlagsTests(TestCase):
                 stdout=StringIO(),
             )
         universo.assert_not_called()
+
+    def test_only_universo_does_not_call_preferente(self):
+        # Con --only-universo (cron de Render) no debe tocarse La Preferente (403 desde el datacenter).
+        with mock.patch("football.views._search_universo_competition_candidates", return_value=[]) as universo, \
+             mock.patch("football.services.find_preferente_team_url") as preferente:
+            call_command("autolink_competition_contexts", "--only-universo", stdout=StringIO())
+        self.assertTrue(universo.called)
+        preferente.assert_not_called()
+
+    def test_only_flags_are_mutually_exclusive(self):
+        err = StringIO()
+        call_command(
+            "autolink_competition_contexts", "--only-universo", "--only-preferente", stderr=err
+        )
+        self.assertIn("No uses", err.getvalue())
