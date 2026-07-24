@@ -474,6 +474,7 @@ from football.season_history_services import (
 from football.services import (
     _parse_int,
     assign_lineup_slots,
+    build_rival_briefing,
     build_rival_insights,
     canonical_roster_key,
     compute_formation,
@@ -53426,11 +53427,13 @@ def analysis_page(request):
         except Exception:
             folder_reports = []
 
+    rival_briefing = build_rival_briefing(insights, formation, extracted)
     return render(
         request,
         "football/coach_analysis.html",
         {
             "section_title": "Análisis rival",
+            "rival_briefing": rival_briefing,
             "description": "Indicadores y notas tácticas para el próximo rival.",
             "team_url": team_url,
             "team_id": team_id,

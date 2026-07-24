@@ -591,6 +591,47 @@
 		        text-transform: uppercase;
 		        color: rgba(226, 232, 240, 0.72);
 		      }
+		      .rival-briefing {
+		        display: grid;
+		        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+		        gap: 0.6rem;
+		      }
+		      .rival-briefing-key {
+		        display: flex;
+		        align-items: center;
+		        gap: 0.65rem;
+		        padding: 0.7rem 0.85rem;
+		        border: 1px solid rgba(255, 255, 255, 0.1);
+		        border-radius: 14px;
+		        background: rgba(255, 255, 255, 0.04);
+		      }
+		      .rival-briefing-icon { font-size: 1.35rem; line-height: 1; }
+		      .rival-briefing-body { display: flex; flex-direction: column; min-width: 0; }
+		      .rival-briefing-label {
+		        font-size: 0.68rem;
+		        letter-spacing: 0.08em;
+		        text-transform: uppercase;
+		        color: rgba(226, 232, 240, 0.62);
+		      }
+		      .rival-briefing-text { font-weight: 800; font-size: 0.95rem; }
+		      .lineup-empty {
+		        position: absolute;
+		        inset: 0;
+		        display: grid;
+		        place-items: center;
+		        text-align: center;
+		        padding: 1.2rem;
+		      }
+		      .empty-analysis {
+		        text-align: center;
+		        padding: 2.4rem 1.2rem;
+		        border: 1px dashed rgba(255, 255, 255, 0.16);
+		        border-radius: 18px;
+		        margin-top: 1rem;
+		        background: rgba(255, 255, 255, 0.03);
+		      }
+		      .empty-analysis h3 { margin: 0 0 0.5rem; }
+		      .empty-analysis .actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
 		    </style>
 		  </head>
 	  <body class="prod-commercial" data-active-tab="{{ active_tab|default:'reports' }}">
@@ -1187,6 +1228,23 @@
 	        <div data-tab="insights">
 	        {% if roster %}
 	        <div class="grid">
+          {% if rival_briefing %}
+          <div class="item item-wide">
+            <h3>Claves del rival</h3>
+            <p class="meta" style="margin:0.35rem 0 0.75rem;">Resumen rápido para preparar el partido (datos reales de plantilla y clasificación).</p>
+            <div class="rival-briefing">
+              {% for key in rival_briefing %}
+              <div class="rival-briefing-key">
+                <span class="rival-briefing-icon" aria-hidden="true">{{ key.icon }}</span>
+                <span class="rival-briefing-body">
+                  <span class="rival-briefing-label">{{ key.label }}</span>
+                  <span class="rival-briefing-text">{{ key.text }}</span>
+                </span>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
           <div class="item">
             <h3>Perfil competitivo</h3>
             <p class="meta" style="margin:0.35rem 0 0;">
@@ -1225,12 +1283,14 @@
               <strong>{{ formation }}</strong>
             </div>
             <div class="lineup-field">
-              <img src="{% static 'football/campo-futbol.jpg' %}" alt="Campo de fútbol" />
+              <img src="{% static 'football/images/pitch3d/coach_home_pitch_surface.png' %}" alt="Campo de fútbol" onerror="this.onerror=null;this.src='{% static 'football/campo-futbol.jpg' %}';" />
               {% for player in lineup %}
                 <span class="lineup-player" style="left: {{ player.left }}%; top: {{ player.top }}%;">
                   <span class="lineup-badge">{{ player.badge }}</span>
                   <span class="lineup-name">{{ player.name }}</span>
                 </span>
+              {% empty %}
+                <span class="lineup-empty meta">Sin datos de minutos para estimar el once. Carga la plantilla del rival.</span>
               {% endfor %}
             </div>
           </div>
@@ -1242,6 +1302,8 @@
                 <strong>{{ player.name }}</strong>
                 <span class="meta">· {{ player.goals }} goles · {{ player.minutes }} min</span>
               </li>
+              {% empty %}
+              <li class="meta">Sin datos de goleadores.</li>
               {% endfor %}
             </ul>
           </div>
@@ -1253,6 +1315,8 @@
                 <strong>{{ player.name }}</strong>
                 <span class="meta">· {{ player.minutes }} min · {{ player.position }}</span>
               </li>
+              {% empty %}
+              <li class="meta">Sin datos de minutos.</li>
               {% endfor %}
             </ul>
           </div>
@@ -1264,6 +1328,8 @@
                 <strong>{{ player.name }}</strong>
                 <span class="meta">· {{ player.yellow_cards }}A · {{ player.red_cards }}R</span>
               </li>
+              {% empty %}
+              <li class="meta">Sin datos de tarjetas.</li>
               {% endfor %}
             </ul>
           </div>
@@ -1314,6 +1380,18 @@
                 </div>
               </div>
             </details>
+          </div>
+        </div>
+        {% else %}
+        <div class="empty-analysis">
+          <h3>Aún no hay plantilla del rival cargada</h3>
+          <p class="meta">
+            El análisis (once probable, goleadores, minutos y claves) aparece al cargar la plantilla del rival.
+            Se obtiene automáticamente del próximo rival cuando hay calendario, o puedes cargarla manualmente.
+          </p>
+          <div class="actions" style="justify-content:center; margin-top:0.85rem;">
+            <a class="button" href="{{ tab_link_reports }}">Cargar rival / informe</a>
+            <a class="button ghost" href="{{ tab_link_rivals }}">Biblioteca de rivales</a>
           </div>
         </div>
         {% endif %}

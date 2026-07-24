@@ -996,6 +996,77 @@ def build_rival_insights(players: list[dict]) -> dict:
     }
 
 
+def build_rival_briefing(insights: Optional[dict], formation: Optional[str] = None, extracted: Optional[dict] = None) -> list[dict]:
+    """Resumen corto y accionable del rival para el entrenador.
+
+    Buenas prácticas de scouting: pocas claves, directas y aplicables. Todo se deriva
+    de datos reales (plantilla parseada + clasificación); no se inventa nada. Cada clave
+    es {'icon': str, 'label': str, 'text': str}. Devuelve [] si no hay datos suficientes.
+    """
+    insights = insights or {}
+    extracted = extracted or {}
+    keys: list[dict] = []
+
+    def _num(value):
+        try:
+            return int(str(value).strip())
+        except (TypeError, ValueError):
+            return None
+
+    # Formación estimada (solo si se pudo inferir de la plantilla).
+    if formation and str(formation).strip() and str(formation).strip().lower() != 'auto':
+        keys.append({'icon': '📐', 'label': 'Sistema', 'text': f'Formación estimada {formation}'})
+
+    # Amenaza principal: máximo goleador con goles reales.
+    scorers = insights.get('top_scorers') or []
+    if scorers:
+        top = scorers[0]
+        goals = _num(top.get('goals')) or 0
+        if goals > 0:
+            keys.append({'icon': '🎯', 'label': 'Amenaza', 'text': f"{top.get('name', 'Jugador')} · {goals} goles"})
+
+    # Jugador de referencia por minutos (columna del equipo).
+    minutes_rows = insights.get('most_minutes') or []
+    if minutes_rows:
+        core = minutes_rows[0]
+        mins = _num(core.get('minutes')) or 0
+        if mins > 0:
+            keys.append({'icon': '🧱', 'label': 'Referente', 'text': f"{core.get('name', 'Jugador')} · {mins}′ jugados"})
+
+    # Riesgo disciplinario: jugador con más tarjetas (útil para provocar/evitar duelos).
+    cards_rows = insights.get('most_cards') or []
+    if cards_rows:
+        rough = cards_rows[0]
+        yc = _num(rough.get('yellow_cards')) or 0
+        rc = _num(rough.get('red_cards')) or 0
+        if yc + rc > 0:
+            keys.append({'icon': '🟨', 'label': 'Disciplina', 'text': f"{rough.get('name', 'Jugador')} · {yc}A/{rc}R"})
+
+    # Estilo por promedios de gol (a favor / en contra) sobre partidos jugados.
+    gf = _num(extracted.get('rival_gf'))
+    ga = _num(extracted.get('rival_ga'))
+    pj = _num(extracted.get('rival_played'))
+    if pj and pj > 0 and gf is not None and ga is not None:
+        avg_gf = gf / pj
+        avg_ga = ga / pj
+        keys.append({
+            'icon': '⚔️',
+            'label': 'Ritmo',
+            'text': f'{avg_gf:.1f} GF · {avg_ga:.1f} GC por partido ({pj} PJ)',
+        })
+
+    # Estructura de plantilla (líneas) como contexto rápido.
+    rb = insights.get('role_breakdown') or {}
+    if any((rb.get('DEF'), rb.get('MID'), rb.get('ATT'))):
+        keys.append({
+            'icon': '👥',
+            'label': 'Plantilla',
+            'text': f"{rb.get('DEF', 0)} def · {rb.get('MID', 0)} med · {rb.get('ATT', 0)} del",
+        })
+
+    return keys
+
+
 def assign_lineup_slots(players: list[dict], formation: Optional[str] = None) -> list[dict]:
     assigned = []
 
