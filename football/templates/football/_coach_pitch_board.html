@@ -18,7 +18,7 @@
   <div class="pb-field" data-pb-team="{{ primary_team_id|default:0 }}"
        style="background-image:url('{% static 'football/images/pitch3d/coach_home_pitch_surface.png' %}');">
     {% for p in coach_pitch_players %}
-    <a class="pb-chip pb-{{ p.state }}" href="{{ p.ficha_url }}" data-pb-pid="{{ p.id }}"
+    <a class="pb-chip pb-{{ p.state }}" href="{{ p.ficha_url }}" data-pb-pid="{{ p.id }}" draggable="false"
        style="left:{{ p.left }}%;top:{{ p.top }}%;"
        title="{{ p.name }} · {{ p.state_label }}" aria-label="{{ p.name }}, {{ p.position|default:'jugador' }}, {{ p.state_label }}. Abrir ficha.">
       <span class="pb-avatar"><img src="{% static p.avatar %}" alt="" draggable="false" /></span>
@@ -59,7 +59,9 @@
     display: flex; flex-direction: column; align-items: center; gap: 2px;
     width: 82px; text-decoration: none; color: #fff; cursor: grab; user-select: none;
     -webkit-user-select: none; touch-action: none;
+    -webkit-user-drag: none; -khtml-user-drag: none; -moz-user-drag: none; user-drag: none;
   }
+  .pb-chip img { -webkit-user-drag: none; user-drag: none; }
   .pb-chip.pb-dragging { cursor: grabbing; z-index: 5; }
   .pb-chip:focus-visible { outline: 2px solid var(--accent, #f4b400); outline-offset: 3px; border-radius: 12px; }
   .pb-avatar {
@@ -127,7 +129,9 @@
       if (!chip) return;
       var point = e.touches ? e.touches[0] : e;
       active = { chip: chip, startX: point.clientX, startY: point.clientY, moved: false };
-      chip.setPointerCapture && e.pointerId != null && chip.setPointerCapture(e.pointerId);
+      // Evita el drag NATIVO del enlace (los <a> son arrastrables por defecto y bloqueaban el
+      // arrastre real de ratón/dedo). El clic normal sigue funcionando (no cancela el click).
+      if (e.cancelable) e.preventDefault();
     }
     function onMove(e) {
       if (!active) return;
