@@ -1716,6 +1716,13 @@
                 <a href="{{ player_license_url }}" target="_blank" rel="noopener" class="subtle" style="margin-top:0.4rem;">Ver licencia actual</a>
                 {% endif %}
               </label>
+              <label>Nº licencia federativa
+                <input type="text" name="federation_license_number" maxlength="80" value="{{ player.federation_license_number|default:'' }}" placeholder="Opcional" />
+              </label>
+              <label>Caducidad de la licencia
+                <input type="date" name="federation_license_expires_at" value="{{ player.federation_license_expires_at|date:'Y-m-d' }}" />
+                {% if license_expiry_badge %}<span class="pill {{ license_expiry_badge.tone }}" style="margin-top:0.4rem;">{{ license_expiry_badge.label }}</span>{% endif %}
+              </label>
               <label>Sanción manual
                 <select name="manual_sanction_active">
                   <option value="0" {% if not player.manual_sanction_active %}selected{% endif %}>No</option>

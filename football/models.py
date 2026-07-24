@@ -644,6 +644,9 @@ class Player(models.Model):
     manual_sanction_active = models.BooleanField(default=False)
     manual_sanction_reason = models.CharField(max_length=180, blank=True)
     manual_sanction_until = models.DateField(null=True, blank=True)
+    federation_license_number = models.CharField(max_length=80, blank=True, help_text='Nº licencia federativa (opcional).')
+    federation_license_expires_at = models.DateField(null=True, blank=True, help_text='Caducidad de la licencia federativa (para avisos de renovación).')
+    license_updated_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     # Control de caché de foto (para busting sin depender de caches por proceso).
     photo_updated_at = models.DateTimeField(null=True, blank=True)

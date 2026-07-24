@@ -68310,6 +68310,12 @@ def player_detail_page(request, player_id):
                 player.manual_sanction_active = manual_sanction_active
                 player.manual_sanction_reason = manual_sanction_reason
                 player.manual_sanction_until = manual_sanction_until
+                _lic_num = request.POST.get("federation_license_number", "").strip()
+                _lic_exp = _parse_date_value(request.POST.get("federation_license_expires_at"))
+                if _lic_num != player.federation_license_number or _lic_exp != player.federation_license_expires_at:
+                    player.license_updated_at = timezone.now()
+                player.federation_license_number = _lic_num
+                player.federation_license_expires_at = _lic_exp
                 player.save()
                 try:
                     if uploaded_photo:
@@ -69359,6 +69365,21 @@ def player_detail_page(request, player_id):
         except Exception:
             player_in_scouting = False
 
+        # Aviso de caducidad de licencia federativa (renovación). tone = clase pill (ok/warn).
+        license_expiry_badge = None
+        try:
+            _lic_exp = getattr(player, "federation_license_expires_at", None)
+            if _lic_exp:
+                _lic_days = (_lic_exp - timezone.localdate()).days
+                if _lic_days < 0:
+                    license_expiry_badge = {"tone": "warn", "label": f"Licencia caducada ({_lic_exp.strftime('%d/%m/%Y')})"}
+                elif _lic_days <= 30:
+                    license_expiry_badge = {"tone": "warn", "label": f"Licencia caduca en {_lic_days} día{'s' if _lic_days != 1 else ''}"}
+                else:
+                    license_expiry_badge = {"tone": "ok", "label": f"Licencia vigente hasta {_lic_exp.strftime('%d/%m/%Y')}"}
+        except Exception:
+            license_expiry_badge = None
+
         # Radar mini tipo card (para contrastar con el radar staff, y reutilizar en PDF).
         try:
             card_radar_data = _build_player_card_radar_data(safe_stats, matches)
@@ -69540,6 +69561,7 @@ def player_detail_page(request, player_id):
             "preferente_history_rows": preferente_history_rows,
             "season_state_label": season_state_label,
             "player_in_scouting": player_in_scouting,
+            "license_expiry_badge": license_expiry_badge,
                 "fines_summary": fines_summary,
                 "fines_records": fines_records,
                 "stats_error": stats_error,
