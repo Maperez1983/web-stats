@@ -167,6 +167,7 @@
   // -------- Cajón: reubica los STRIPS REALES del sistema (botones con su preview) por categoría --------
   var MAT_CATS = [
     { key:'fichas',     label:'Fichas',     strips:['#task-basic-tools'] },
+    { key:'plantilla',  label:'Plantilla',  roster:true },
     { key:'avatares',   label:'Jugadores',  avatars:true },
     { key:'material',   label:'Material',   strips:['[data-material-family="equipamiento"] .resource-strip'] },
     { key:'porterias',  label:'Porterías',  strips:['[data-material-family="porterias"] .resource-strip'] },
@@ -222,6 +223,13 @@
     var grid=document.querySelector('#edc-mat-body .edc-mat-grid[data-cat="'+cat.key+'"]');
     if(!grid) return;
     if(cat.avatars){ buildAvatars(grid); return; }
+    if(cat.roster){
+      // Reubica el banco de plantilla REAL (dorsales/fotos) dentro del cajón, en vez de
+      // dejarlo huérfano al fondo de la página. El CSS lo envuelve para que quepa.
+      var roster=document.getElementById('task-roster-bank');
+      if(roster && !roster.closest('#edc-mat-body')){ roster.hidden=false; grid.appendChild(roster); }
+      return;
+    }
     var current=grid.querySelector('.edc-real-strip');
     if(current && stripCount(current)>0) return; // ya tiene contenido
     // Carga perezosa: activa la familia de material si aplica.

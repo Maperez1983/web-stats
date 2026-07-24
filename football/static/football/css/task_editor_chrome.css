@@ -478,6 +478,22 @@ body.ed-chrome .edc-av-btn {
 body.ed-chrome .edc-av-btn:hover { border-color: var(--edc-accent); background: #123420; }
 body.ed-chrome .edc-av-btn img { max-width: 100% !important; max-height: 100% !important; width: auto; height: 100%; object-fit: contain; }
 
+/* Pestaña Plantilla: reubica el banco de plantilla REAL (#task-roster-bank) dentro del
+   cajón en vez de dejarlo huérfano al fondo de la página. Oculto fuera del cajón; dentro,
+   envuelto para que quepa en el ancho estrecho (2 columnas de fichas). */
+body.ed-chrome #task-roster-bank { display: none; }
+body.ed-chrome #edc-mat-body #task-roster-bank {
+  display: flex !important; flex-direction: column; width: 100% !important; max-width: 100% !important;
+  min-width: 0 !important; padding: 0 !important; margin: 0 !important;
+  background: transparent !important; box-shadow: none !important; border: 0 !important;
+}
+body.ed-chrome .edc-mat-grid[data-cat="plantilla"] { grid-template-columns: 1fr !important; overflow: auto !important; align-content: start; }
+body.ed-chrome #task-roster-bank .player-bank { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 6px !important; width: 100% !important; overflow: visible !important; }
+body.ed-chrome #task-roster-bank .player-token-bank { width: 100% !important; min-width: 0 !important; margin: 0 !important; }
+body.ed-chrome #task-roster-bank .player-bank-head { flex-wrap: wrap !important; width: 100% !important; gap: 6px !important; }
+body.ed-chrome #task-roster-bank .player-bank-quickbar,
+body.ed-chrome #task-roster-bank .player-bank-tools { flex-wrap: wrap !important; width: 100% !important; min-width: 0 !important; }
+
 /* ============================================================
    BOTONES REALES DEL SISTEMA dentro del cajón (con su preview)
    ============================================================ */
