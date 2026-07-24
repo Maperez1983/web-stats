@@ -632,6 +632,28 @@
 		      }
 		      .empty-analysis h3 { margin: 0 0 0.5rem; }
 		      .empty-analysis .actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+		      .rival-plan { display: flex; flex-direction: column; gap: 0.55rem; }
+		      .rival-plan-row {
+		        display: grid;
+		        grid-template-columns: 150px 1fr;
+		        gap: 0.75rem;
+		        padding: 0.55rem 0.7rem;
+		        border: 1px solid rgba(255, 255, 255, 0.08);
+		        border-radius: 12px;
+		        background: rgba(255, 255, 255, 0.03);
+		        align-items: start;
+		      }
+		      .rival-plan-label {
+		        font-size: 0.68rem;
+		        letter-spacing: 0.08em;
+		        text-transform: uppercase;
+		        color: rgba(226, 232, 240, 0.62);
+		        font-weight: 800;
+		      }
+		      .rival-plan-alert { border-color: rgba(248, 180, 90, 0.4); background: rgba(248, 180, 90, 0.08); }
+		      @media (max-width: 640px) {
+		        .rival-plan-row { grid-template-columns: 1fr; gap: 0.25rem; }
+		      }
 		    </style>
 		  </head>
 	  <body class="prod-commercial" data-active-tab="{{ active_tab|default:'reports' }}">
@@ -1242,6 +1264,37 @@
                 </span>
               </div>
               {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+          <div class="item">
+            <h3>Forma reciente</h3>
+            <p class="meta" id="rival-form-summary" style="margin:0.35rem 0 0;">Cargando últimos partidos…</p>
+            <ul class="list" id="rival-form-list" style="margin-top:0.65rem;">
+              <li class="meta">…</li>
+            </ul>
+          </div>
+          {% if manual_initial.tactical_system or manual_initial.key_players or manual_initial.weaknesses or manual_initial.opportunities or manual_initial.set_pieces_for or manual_initial.set_pieces_against or manual_initial.match_plan or manual_initial.alert_notes %}
+          <div class="item item-wide">
+            <h3>Plan del cuerpo técnico</h3>
+            <p class="meta" style="margin:0.35rem 0 0.75rem;">Del informe manual guardado para este rival · <a href="{{ tab_link_reports }}">editar</a></p>
+            <div class="rival-plan">
+              {% if manual_initial.tactical_system %}<div class="rival-plan-row"><span class="rival-plan-label">Sistema</span><span>{{ manual_initial.tactical_system }}</span></div>{% endif %}
+              {% if manual_initial.key_players %}<div class="rival-plan-row"><span class="rival-plan-label">Jugadores clave</span><span>{{ manual_initial.key_players|linebreaksbr }}</span></div>{% endif %}
+              {% if manual_initial.weaknesses %}<div class="rival-plan-row"><span class="rival-plan-label">Debilidades</span><span>{{ manual_initial.weaknesses|linebreaksbr }}</span></div>{% endif %}
+              {% if manual_initial.opportunities %}<div class="rival-plan-row"><span class="rival-plan-label">Dónde hacer daño</span><span>{{ manual_initial.opportunities|linebreaksbr }}</span></div>{% endif %}
+              {% if manual_initial.set_pieces_for %}<div class="rival-plan-row"><span class="rival-plan-label">ABP a favor</span><span>{{ manual_initial.set_pieces_for|linebreaksbr }}</span></div>{% endif %}
+              {% if manual_initial.set_pieces_against %}<div class="rival-plan-row"><span class="rival-plan-label">ABP en contra</span><span>{{ manual_initial.set_pieces_against|linebreaksbr }}</span></div>{% endif %}
+              {% if manual_initial.match_plan %}<div class="rival-plan-row"><span class="rival-plan-label">Plan de partido</span><span>{{ manual_initial.match_plan|linebreaksbr }}</span></div>{% endif %}
+              {% if manual_initial.alert_notes %}<div class="rival-plan-row rival-plan-alert"><span class="rival-plan-label">Alertas</span><span>{{ manual_initial.alert_notes|linebreaksbr }}</span></div>{% endif %}
+            </div>
+          </div>
+          {% else %}
+          <div class="item">
+            <h3>Plan del cuerpo técnico</h3>
+            <p class="meta" style="margin:0.35rem 0 0;">Aún no hay informe manual del rival (sistema, ABP, debilidades, plan de partido).</p>
+            <div class="actions" style="justify-content:flex-start; margin-top:0.75rem;">
+              <a class="button ghost" href="{{ tab_link_reports }}">Crear informe del rival</a>
             </div>
           </div>
           {% endif %}

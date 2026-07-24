@@ -20095,6 +20095,24 @@ def coach_overview_page(request):
         next_match_date = parsed_next_match_date.strftime("%d/%m/%Y")
     elif isinstance(next_match, dict):
         next_match_date = str(next_match.get("date") or "").strip()
+    # Deep-link de la tarjeta "Análisis": si hay un próximo rival fiable y lo resolvemos a un equipo del
+    # sistema, entramos directos a su ficha (?tab=insights&team_id=...) para que las Claves salgan llenas.
+    # Si no, la tarjeta va al análisis genérico (estado vacío que guía a cargar el rival).
+    analysis_card_query = "tab=insights"
+    if isinstance(next_match, dict) and next_match and next_match_opponent and next_match_opponent != "Rival por confirmar":
+        try:
+            rival_qs = Team.objects.filter(is_primary=False)
+            if workspace and getattr(workspace, "kind", "") == Workspace.KIND_CLUB:
+                ws_team_ids = set(
+                    WorkspaceTeam.objects.filter(workspace=workspace).values_list("team_id", flat=True)
+                )
+                if ws_team_ids:
+                    rival_qs = rival_qs.exclude(id__in=ws_team_ids)
+            rival_guess = rival_qs.filter(name__icontains=next_match_opponent[:12]).order_by("name").first()
+            if rival_guess:
+                analysis_card_query = f"tab=insights&team_id={rival_guess.id}"
+        except Exception:
+            pass
     hero_image_data_uri, hero_image_url = _build_team_hero_payload(request, workspace, primary_team)
     team_name_folded = (primary_team.name or "").strip().lower() if primary_team else ""
     highlighted_standing = None
@@ -20228,7 +20246,7 @@ def coach_overview_page(request):
             "title": "Análisis",
             "description": "Rival, vídeo e informes",
             "url": reverse("analysis"),
-            "query": "tab=insights",
+            "query": analysis_card_query,
             "icon": "analysis",
         },
         {
