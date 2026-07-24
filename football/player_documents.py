@@ -57,6 +57,10 @@ def save_player_license(player, uploaded_license):
         raw_bytes = uploaded_license.read()
         if not raw_bytes:
             return ''
+        # No fiarse solo de la extensión/content-type (los controla el cliente): si dice ser
+        # PDF, validamos la firma real (%PDF en la cabecera). Las imágenes se validan luego con PIL.
+        if is_pdf and b'%PDF' not in raw_bytes[:1024]:
+            raise ValueError('El archivo de licencia no es un PDF válido.')
 
         target_ext = '.pdf' if is_pdf else (extension if extension in {'.jpg', '.jpeg', '.png', '.webp'} else '.jpg')
         if is_pdf:
