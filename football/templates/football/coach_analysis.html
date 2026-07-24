@@ -619,8 +619,11 @@
 		          <p>{{ description }}</p>
 		        {% endif %}
 			        <nav class="tab-nav" aria-label="Secciones análisis">
-			          <a class="{% if active_tab == 'videos' %}is-active{% endif %}" href="{{ tab_link_videos }}">Vídeos</a>
+			          <a class="{% if active_tab == 'insights' %}is-active{% endif %}" href="{{ tab_link_insights }}">Análisis rival</a>
+				          <a class="{% if active_tab == 'reports' %}is-active{% endif %}" href="{{ tab_link_reports }}">Informe</a>
+				          <a class="{% if active_tab == 'videos' %}is-active{% endif %}" href="{{ tab_link_videos }}">Vídeos</a>
 				          <a class="{% if active_tab == 'studio' %}is-active{% endif %}" href="{{ tab_link_studio }}">Editor</a>
+				          <a class="{% if active_tab == 'rivals' %}is-active{% endif %}" href="{{ tab_link_rivals }}">Rivales</a>
 			        </nav>
               <section class="analysis-workflow" aria-label="Flujo de análisis de vídeo">
                 <div class="analysis-workflow-step">
@@ -1329,11 +1332,15 @@
                   <input type="hidden" name="form_action" value="rivals_seed_from_standings" />
                   <button class="button ghost" type="submit">Crear rivales desde clasificación</button>
                 </form>
+                {% if preferente_live_available %}
                 <form method="post" style="margin:0;">
                   {% csrf_token %}
                   <input type="hidden" name="form_action" value="rivals_autolink_preferente" />
                   <button class="button ghost" type="submit">Buscar enlaces La Preferente</button>
                 </form>
+                {% else %}
+                <button class="button ghost" type="button" disabled title="La Preferente bloquea las cargas en vivo desde el servidor. Usa Universo RFAF o pega el HTML manualmente.">Buscar enlaces La Preferente (no disponible en servidor)</button>
+                {% endif %}
               </div>
               {% if rivals_message %}<p class="ok">{{ rivals_message }}</p>{% endif %}
               {% if rivals_error %}<p class="error">{{ rivals_error }}</p>{% endif %}

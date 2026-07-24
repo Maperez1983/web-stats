@@ -594,7 +594,7 @@
             <p class="muted" style="margin:0;">Accesos rápidos con lo importante siempre a mano.</p>
             <div class="hub-grid areas-grid">
               {% for item in module_hub %}
-              <a class="hub-link {% if forloop.counter <= 2 %}is-primary{% endif %}" href="{{ item.url }}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}">
+              <a class="hub-link {% if forloop.counter <= 2 %}is-primary{% endif %}" href="{{ item.url }}{% if item.query %}?{{ item.query }}{% if primary_team_id %}&team={{ primary_team_id }}{% endif %}{% elif primary_team_id %}?team={{ primary_team_id }}{% endif %}">
                 <strong class="hub-head">{% if item.icon %}<svg class="ico" aria-hidden="true"><use href="#ico-{{ item.icon }}"/></svg>{% endif %}{{ item.title }}</strong>
                 <span>{{ item.description }}</span>
               </a>

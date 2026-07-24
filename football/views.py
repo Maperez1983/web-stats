@@ -20222,6 +20222,7 @@ def coach_overview_page(request):
             "title": "Análisis",
             "description": "Rival, vídeo e informes",
             "url": reverse("analysis"),
+            "query": "tab=insights",
             "icon": "analysis",
         },
         {
@@ -52947,8 +52948,22 @@ def analysis_page(request):
         "next_match_location": preferred_next.get("location") if isinstance(preferred_next, dict) else "",
         "preferente_url": selected_team.preferente_url if selected_team else "",
     }
+    # Guard de temporada (igual que la portada /coach/): si el grupo del equipo pertenece a una
+    # temporada que ya no es la vigente, la clasificación/próximo partido son del año pasado. No los
+    # mostramos como "actuales" para no enseñar datos rancios de pretemporada en el resumen del rival.
+    _analysis_group_season = str(
+        getattr(getattr(getattr(primary_team, "group", None), "season", None), "name", "") or ""
+    ).strip()
+    _analysis_season_stale = bool(
+        _analysis_group_season and not season_names_match(_analysis_group_season, current_season_name())
+    )
+    if _analysis_season_stale or not _next_match_payload_is_reliable(preferred_next):
+        extracted["next_match_round"] = ""
+        extracted["next_match_date"] = ""
+        extracted["next_match_time"] = ""
+        extracted["next_match_location"] = ""
     # Métricas compactas del rival (desde clasificación Universo/RFAF).
-    if isinstance(rival_meta, dict) and rival_meta:
+    if isinstance(rival_meta, dict) and rival_meta and not _analysis_season_stale:
         try:
             extracted.update(
                 {
@@ -53468,6 +53483,12 @@ def analysis_page(request):
             # Import YouTube: por defecto habilitado (solo guarda enlace). Si el env var existe y es falsy, se oculta.
             "youtube_import_enabled": (lambda raw: (not raw) or (raw in {"1", "true", "yes", "on"}))(
                 str(os.getenv("ANALYSIS_YOUTUBE_IMPORT_ENABLED") or "").strip().lower()
+            ),
+            # La Preferente está bloqueada por Cloudflare desde la IP del datacenter (Render): las cargas
+            # en vivo dan 403. Sólo ofrecemos los botones de Preferente cuando NO corremos en Render
+            # (entorno local con IP residencial). En prod queda Universo + snapshot + pegado manual.
+            "preferente_live_available": not bool(
+                (os.getenv("RENDER") or os.getenv("RENDER_SERVICE_ID") or os.getenv("RENDER_GIT_COMMIT") or "").strip()
             ),
         },
     )
