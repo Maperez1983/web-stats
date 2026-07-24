@@ -508,6 +508,11 @@ body.ed-chrome .edc-toast {
 }
 body.ed-chrome .edc-toast.is-show { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
 
+/* Botón Salir (volver a la portada del entrenador) */
+body.ed-chrome .edc-home { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
+body.ed-chrome .edc-home:hover { color: var(--edc-accent); border-color: var(--edc-accent); background: rgba(255,255,255,.06); }
+body.ed-chrome .edc-home svg { width: 16px; height: 16px; }
+
 /* Selector de pose + equipación del avatar (pestaña Plantilla) */
 body.ed-chrome .edc-avcfg { grid-column: 1 / -1; margin: 0 0 8px; }
 body.ed-chrome .edc-avcfg-mode { display: flex; gap: 4px; margin: 2px 0 2px; }

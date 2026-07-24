@@ -5,6 +5,9 @@
 <link rel="stylesheet" href="{% static 'football/css/task_editor_chrome.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
 
 <div class="edc-topbar" role="toolbar" aria-label="Vista del campo">
+  <a href="/coach/" class="edc-btn edc-home" title="Salir del editor · volver a la portada del entrenador" aria-label="Salir a la portada">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10.5V20h5v-6h4v6h5v-9.5"/></svg>Salir
+  </a>
   <button type="button" class="edc-btn edc-icon-btn" data-edc="menu" aria-label="Menú">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
   </button>
@@ -198,7 +201,10 @@
   function stripCount(el){ return el? el.querySelectorAll('button, .tool-icon').length : 0; }
   // -------- Avatares de jugador (fotorrealistas, por acción y color de equipo) --------
   // Base estática robusta ante STATIC_URL: derivamos de una URL estatica conocida (STATIC_URL).
-  var EDC_PLAYERS_BASE = "{% static 'football/images/players/act-conduccion-verde.png' %}".replace('act-conduccion-verde.png','');
+  // OJO: con el manifest de estáticos el fichero lleva hash (act-...-verde.HASH.png), asi que
+  // NO se puede quitar 'act-conduccion-verde.png' literal. Quitamos el nombre de fichero (regex)
+  // para quedarnos con el directorio; las miniaturas cargan por URL sin hash (Whitenoise las sirve).
+  var EDC_PLAYERS_BASE = "{% static 'football/images/players/act-conduccion-verde.png' %}".replace(/[^\/]*$/, '');
   // Jugadores de campo: 12 acciones x 4 colores de equipo.
   var EDC_AV_FIELD = { colors:['amarilla','blanca','turquesa','verde'], acts:[
     ['conduccion','Conducción'],['control','Control'],['defensa','Defensa'],
