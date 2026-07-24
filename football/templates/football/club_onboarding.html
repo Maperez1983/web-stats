@@ -756,8 +756,14 @@
             </div>
           </div>
 
+        <p class="field-help" style="margin:0 0 0.5rem;">
+          <strong>Vincular automáticamente</strong> busca tu equipo por nombre en Universo RFAF y, si hay una única
+          coincidencia, deja la liga lista y sincronizada. Para equipos senior de La Preferente, la detección solo
+          funciona desde una conexión doméstica (el proveedor bloquea el servidor): si falla, pega la URL manualmente.
+        </p>
         <div class="actions">
-          <button class="btn btn-primary" type="submit" name="action" value="save_and_sync">Guardar y sincronizar</button>
+          <button id="btn-autolink-liga" class="btn btn-primary" type="submit" name="action" value="autolink">🔗 Vincular mi liga automáticamente</button>
+          <button class="btn btn-ghost" type="submit" name="action" value="save_and_sync">Guardar y sincronizar</button>
           <button class="btn btn-ghost" type="submit" name="action" value="save">Guardar</button>
           <button class="btn btn-ghost" type="submit" name="action" value="search_universo">Buscar en Universo</button>
           <button class="btn btn-ghost" type="submit" name="action" value="import_roster">Importar plantilla</button>
@@ -768,6 +774,25 @@
           <a class="btn btn-ghost" href="{% url 'dashboard-home' %}">Volver a Home</a>
         </div>
       </form>
+      <script>
+        (function () {
+          // Auto-detección de liga en el primer onboarding sin liga vinculada.
+          // Reutiliza el botón "Vincular mi liga automáticamente" (misma acción del servidor).
+          var btn = document.getElementById('btn-autolink-liga');
+          if (!btn) return;
+          var hasUniverso = {{ form.external_group_key|yesno:"true,false" }};
+          var hasPreferente = {{ form.preferente_url|yesno:"true,false" }};
+          if (hasUniverso || hasPreferente) return;
+          var teamId = String('{{ workspace.primary_team_id|default:"" }}');
+          if (!teamId) return;
+          var key = '2j_autolink_tried_' + teamId;
+          try { if (window.localStorage && window.localStorage.getItem(key)) return; } catch (e) {}
+          try { window.localStorage && window.localStorage.setItem(key, '1'); } catch (e) {}
+          btn.textContent = 'Detectando tu liga…';
+          btn.disabled = true;
+          setTimeout(function () { btn.disabled = false; btn.click(); }, 500);
+        })();
+      </script>
 
         <div class="notice" style="margin-top:1rem;">
           <strong>Temporada del club:</strong> al iniciar una nueva temporada, todo lo anterior queda como histórico.

@@ -12938,7 +12938,81 @@ def club_onboarding_page(request):
                         break
                 return parsed_rows
 
-            if action == "search_universo":
+            if action == "autolink":
+                # Un clic: engancha la liga automáticamente.
+                # - Universo (funciona en servidor): busca por nombre; si hay UNA sola coincidencia,
+                #   la vincula y sincroniza. Si hay varias, las ofrece para elegir.
+                # - La Preferente (senior): sólo se puede descubrir desde IP residencial (Cloudflare
+                #   bloquea el datacenter de Render); si falla, se explica al usuario.
+                linked = False
+                candidates = _search_universo_competition_candidates(team_query=team_name) or []
+                if len(candidates) == 1:
+                    item = candidates[0]
+                    c_group = str(item.get("external_group_key") or "").strip()
+                    c_team = str(item.get("external_team_key") or "").strip()
+                    if c_group and c_team:
+                        competition_context = _bootstrap_workspace_competition_context(
+                            workspace,
+                            primary_team=primary_team,
+                            provider=WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
+                            external_competition_key=str(item.get("external_competition_key") or ""),
+                            external_group_key=c_group,
+                            external_team_key=c_team,
+                            external_team_name=str(item.get("team_name") or item.get("external_team_name") or team_name),
+                            auto_sync_enabled=True,
+                        )
+                        _ensure_universo_group_models_from_candidate(
+                            group_key=c_group,
+                            competition_name=str(item.get("competition_name") or ""),
+                            group_name=str(item.get("group_name") or ""),
+                            season_name=str(item.get("season_name") or ""),
+                            competition_code=str(item.get("external_competition_key") or ""),
+                            primary_team=primary_team,
+                            context=competition_context,
+                        )
+                        form["provider"] = WorkspaceCompetitionContext.PROVIDER_UNIVERSO
+                        form["external_group_key"] = c_group
+                        synced_context, sync_error = _sync_workspace_competition_context(
+                            workspace, primary_team=primary_team
+                        )
+                        competition_context = synced_context or competition_context
+                        linked = True
+                        success = f"Liga vinculada automáticamente en Universo: {item.get('team_name') or team_name}." + (
+                            "" if not sync_error else " (Pendiente de sincronizar: revisa el token de Universo.)"
+                        )
+                elif len(candidates) > 1:
+                    universo_candidates = candidates
+                    linked = True  # tratado: se ofrece elegir abajo
+                    success = f"Se encontraron {len(candidates)} coincidencias en Universo: elige la correcta abajo."
+                if not linked:
+                    # Sin coincidencia única en Universo: probamos La Preferente (senior).
+                    pref_url = ""
+                    try:
+                        pref_url = str(find_preferente_team_url(team_name) or "").strip()
+                    except Exception:
+                        pref_url = ""
+                    if pref_url:
+                        if str(getattr(primary_team, "preferente_url", "") or "").strip() != pref_url:
+                            primary_team.preferente_url = pref_url
+                            primary_team.save(update_fields=["preferente_url"])
+                        competition_context = _bootstrap_workspace_competition_context(
+                            workspace,
+                            primary_team=primary_team,
+                            provider=WorkspaceCompetitionContext.PROVIDER_PREFERENTE,
+                            external_source_url=pref_url,
+                            external_team_name=team_name,
+                            auto_sync_enabled=True,
+                        )
+                        form["provider"] = WorkspaceCompetitionContext.PROVIDER_PREFERENTE
+                        form["preferente_url"] = pref_url
+                        success = f"Liga vinculada en La Preferente: {pref_url}"
+                    else:
+                        error = (
+                            "No pudimos detectar la liga automáticamente. En Universo no hubo una coincidencia única "
+                            "y La Preferente no es accesible desde el servidor (el proveedor bloquea el datacenter). "
+                            "Para senior: pega la URL de LaPreferente abajo, o busca en Universo y elige el equipo."
+                        )
+            elif action == "search_universo":
                 # No requiere guardar nada; solo devuelve candidatos para seleccionar.
                 # Si no hay token de Universo, la función usa el catálogo local (si existe).
                 universo_candidates = _search_universo_competition_candidates(team_query=team_name)
