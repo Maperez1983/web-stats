@@ -614,7 +614,7 @@
 			    const preset = String(presetKey || 'full_pitch').trim();
 			    const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
 			    const normalizedGrass = safeText(grassStyleKey, 'classic').toLowerCase();
-			    let grassStyle = (['classic', 'realistic', 'pro', 'broadcast', 'broadcast_premium', 'stadium_native', 'stadium_top', 'stadium_top_h', 'stadium_top_v', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'].includes(normalizedGrass))
+			    let grassStyle = (['flat_2d', 'classic', 'realistic', 'pro', 'broadcast', 'broadcast_premium', 'stadium_native', 'stadium_top', 'stadium_top_h', 'stadium_top_v', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'].includes(normalizedGrass))
 			      ? normalizedGrass
 			      : 'classic';
           const isStadiumTopFamily = ['stadium_top', 'stadium_top_h', 'stadium_top_v'].includes(grassStyle);
@@ -5111,6 +5111,7 @@
 			    // y provocar un fallback a `full_pitch` inesperado (parece que "cambia la superficie" al guardar un clip).
 			    let pitchPreset = safeText(presetSelect?.value, 'full_pitch') || 'full_pitch';
 					    const GRASS_STYLE_LABEL = {
+					      flat_2d: '2D plano',
 					      classic: 'Césped',
 					      broadcast: 'Broadcast',
 					      broadcast_premium: 'Broadcast Premium',
@@ -5126,7 +5127,7 @@
 					      dry: 'Seco',
 					      wet: 'Mojado',
 					    };
-					    const GRASS_STYLE_ORDER = ['classic', 'broadcast', 'broadcast_premium', 'stadium_native', 'realistic', 'pro', 'uefa_b', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet'];
+					    const GRASS_STYLE_ORDER = ['flat_2d', 'classic', 'broadcast', 'broadcast_premium', 'stadium_native', 'realistic', 'pro', 'uefa_b', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet'];
 					    const normalizeGrassStyleForMode = (value) => {
 					      const next = safeText(value, 'classic').toLowerCase();
 					      if (!GRASS_STYLE_ORDER.includes(next)) {
@@ -37449,6 +37450,9 @@
                 }
                 activateFactory(simpleFactory(kind), RESOURCE_LABELS[kind] || kind, kind);
               };
+              // Globales para cablear barras de herramientas externas (rail izquierdo del editor).
+              try { window.__tpadActivateTool = (kind) => activateAddKind(kind, { fromQuickbar: true }); } catch (e) { /* ignore */ }
+              try { window.__tpadCanvasAction = (action) => handleCanvasAction(action); } catch (e) { /* ignore */ }
 
 	              // ----------------------------
 	              // TÁCTICA INTERACTIVA (opcional)
