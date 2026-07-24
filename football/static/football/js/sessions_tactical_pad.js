@@ -37548,6 +37548,40 @@
               // Globales para cablear barras de herramientas externas (rail izquierdo del editor).
               try { window.__tpadActivateTool = (kind) => activateAddKind(kind, { fromQuickbar: true }); } catch (e) { /* ignore */ }
               try { window.__tpadCanvasAction = (action) => handleCanvasAction(action); } catch (e) { /* ignore */ }
+              // Editor 2D: cambia la pose/equipacion del avatar de la(s) ficha(s) seleccionada(s).
+              try {
+                window.__tpadSetAvatarStyle = (pose, color, gkPose, gkColor) => {
+                  try {
+                    let actives = [];
+                    try { actives = (typeof canvas.getActiveObjects === 'function') ? canvas.getActiveObjects() : []; } catch (e) { /* ignore */ }
+                    if (!actives || !actives.length) { const a = canvas.getActiveObject && canvas.getActiveObject(); actives = a ? [a] : []; }
+                    let changed = 0;
+                    actives.forEach((grp) => {
+                      if (!grp || !Array.isArray(grp._objects)) return;
+                      if (!grp._objects.some((o) => o && o.data && o.data.role === 'token_avatar')) return;
+                      const kind = safeText(grp?.data?.kind);
+                      const isGk = kind.indexOf('goalkeeper') >= 0;
+                      const p = isGk ? (gkPose || 'frente') : (pose || 'conduccion');
+                      const c = isGk ? (gkColor || 'azul') : (color || 'verde');
+                      const url = isGk ? `${AVATAR_BASE_URL}act-gk-${p}-${c}.png` : `${AVATAR_BASE_URL}act-${p}-${c}.png`;
+                      const el = getReadyAvatarImage(url) || ensureAvatarImage(url);
+                      if (!el || !el.complete || !(el.naturalWidth || el.width)) return;
+                      grp._objects.filter((o) => o && o.data && o.data.role === 'token_avatar').forEach((o) => grp.remove(o));
+                      const scale = 52 / Math.max(1, el.naturalHeight || el.height || 1);
+                      const img = new fabric.Image(el, { left: 0, top: 2, originX: 'center', originY: 'center', selectable: false, evented: false, scaleX: scale, scaleY: scale });
+                      try { applyRenderableQuality(img, { strokeUniform: false }); } catch (e) { /* ignore */ }
+                      img.data = { role: 'token_avatar' };
+                      grp.add(img);
+                      // dorsal y nombre por encima de la figura
+                      grp._objects.filter((o) => o && o.data && ['token_number_bg', 'token_number', 'token_name_bg', 'token_name'].indexOf(o.data.role) >= 0).forEach((o) => { grp.remove(o); grp.add(o); });
+                      grp.dirty = true;
+                      changed += 1;
+                    });
+                    if (changed) { try { canvas.requestRenderAll(); } catch (e) { /* ignore */ } }
+                    return changed;
+                  } catch (e) { return 0; }
+                };
+              } catch (e) { /* ignore */ }
 
 	              // ----------------------------
 	              // TÁCTICA INTERACTIVA (opcional)
