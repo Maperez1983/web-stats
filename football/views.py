@@ -1687,6 +1687,331 @@ TASK_RESOURCE_LIBRARY_BASE_GROUPS = [
             },
         ],
     },
+    {
+        "category": "Acción · Local (verde)",
+        "items": [
+            {
+                "label": "Correr",
+                "add_key": f'image_url:{static("football/images/players/act-run-verde.png")}',
+                "static_path": "football/images/players/act-run-verde.png",
+            },
+            {
+                "label": "Sprint",
+                "add_key": f'image_url:{static("football/images/players/act-sprint-verde.png")}',
+                "static_path": "football/images/players/act-sprint-verde.png",
+            },
+            {
+                "label": "Pase",
+                "add_key": f'image_url:{static("football/images/players/act-pase-verde.png")}',
+                "static_path": "football/images/players/act-pase-verde.png",
+            },
+            {
+                "label": "Tiro",
+                "add_key": f'image_url:{static("football/images/players/act-tiro-verde.png")}',
+                "static_path": "football/images/players/act-tiro-verde.png",
+            },
+            {
+                "label": "Conducción",
+                "add_key": f'image_url:{static("football/images/players/act-conduccion-verde.png")}',
+                "static_path": "football/images/players/act-conduccion-verde.png",
+            },
+            {
+                "label": "Control",
+                "add_key": f'image_url:{static("football/images/players/act-control-verde.png")}',
+                "static_path": "football/images/players/act-control-verde.png",
+            },
+            {
+                "label": "Remate cabeza",
+                "add_key": f'image_url:{static("football/images/players/act-remate-verde.png")}',
+                "static_path": "football/images/players/act-remate-verde.png",
+            },
+            {
+                "label": "Defensa",
+                "add_key": f'image_url:{static("football/images/players/act-defensa-verde.png")}',
+                "static_path": "football/images/players/act-defensa-verde.png",
+            },
+            {
+                "label": "Saque banda",
+                "add_key": f'image_url:{static("football/images/players/act-saque-verde.png")}',
+                "static_path": "football/images/players/act-saque-verde.png",
+            },
+            {
+                "label": "Espaldas correr",
+                "add_key": f'image_url:{static("football/images/players/act-esp-correr-verde.png")}',
+                "static_path": "football/images/players/act-esp-correr-verde.png",
+            },
+            {
+                "label": "Espaldas de pie",
+                "add_key": f'image_url:{static("football/images/players/act-esp-pie-verde.png")}',
+                "static_path": "football/images/players/act-esp-pie-verde.png",
+            },
+            {
+                "label": "Espaldas conducir",
+                "add_key": f'image_url:{static("football/images/players/act-esp-conducir-verde.png")}',
+                "static_path": "football/images/players/act-esp-conducir-verde.png",
+            },
+        ],
+    },
+    {
+        "category": "Acción · 2ª (amarilla)",
+        "items": [
+            {
+                "label": "Correr",
+                "add_key": f'image_url:{static("football/images/players/act-run-amarilla.png")}',
+                "static_path": "football/images/players/act-run-amarilla.png",
+            },
+            {
+                "label": "Sprint",
+                "add_key": f'image_url:{static("football/images/players/act-sprint-amarilla.png")}',
+                "static_path": "football/images/players/act-sprint-amarilla.png",
+            },
+            {
+                "label": "Pase",
+                "add_key": f'image_url:{static("football/images/players/act-pase-amarilla.png")}',
+                "static_path": "football/images/players/act-pase-amarilla.png",
+            },
+            {
+                "label": "Tiro",
+                "add_key": f'image_url:{static("football/images/players/act-tiro-amarilla.png")}',
+                "static_path": "football/images/players/act-tiro-amarilla.png",
+            },
+            {
+                "label": "Conducción",
+                "add_key": f'image_url:{static("football/images/players/act-conduccion-amarilla.png")}',
+                "static_path": "football/images/players/act-conduccion-amarilla.png",
+            },
+            {
+                "label": "Control",
+                "add_key": f'image_url:{static("football/images/players/act-control-amarilla.png")}',
+                "static_path": "football/images/players/act-control-amarilla.png",
+            },
+            {
+                "label": "Remate cabeza",
+                "add_key": f'image_url:{static("football/images/players/act-remate-amarilla.png")}',
+                "static_path": "football/images/players/act-remate-amarilla.png",
+            },
+            {
+                "label": "Defensa",
+                "add_key": f'image_url:{static("football/images/players/act-defensa-amarilla.png")}',
+                "static_path": "football/images/players/act-defensa-amarilla.png",
+            },
+            {
+                "label": "Saque banda",
+                "add_key": f'image_url:{static("football/images/players/act-saque-amarilla.png")}',
+                "static_path": "football/images/players/act-saque-amarilla.png",
+            },
+            {
+                "label": "Espaldas correr",
+                "add_key": f'image_url:{static("football/images/players/act-esp-correr-amarilla.png")}',
+                "static_path": "football/images/players/act-esp-correr-amarilla.png",
+            },
+            {
+                "label": "Espaldas de pie",
+                "add_key": f'image_url:{static("football/images/players/act-esp-pie-amarilla.png")}',
+                "static_path": "football/images/players/act-esp-pie-amarilla.png",
+            },
+            {
+                "label": "Espaldas conducir",
+                "add_key": f'image_url:{static("football/images/players/act-esp-conducir-amarilla.png")}',
+                "static_path": "football/images/players/act-esp-conducir-amarilla.png",
+            },
+        ],
+    },
+    {
+        "category": "Acción · 3ª (blanca/negro)",
+        "items": [
+            {
+                "label": "Correr",
+                "add_key": f'image_url:{static("football/images/players/act-run-blanca.png")}',
+                "static_path": "football/images/players/act-run-blanca.png",
+            },
+            {
+                "label": "Sprint",
+                "add_key": f'image_url:{static("football/images/players/act-sprint-blanca.png")}',
+                "static_path": "football/images/players/act-sprint-blanca.png",
+            },
+            {
+                "label": "Pase",
+                "add_key": f'image_url:{static("football/images/players/act-pase-blanca.png")}',
+                "static_path": "football/images/players/act-pase-blanca.png",
+            },
+            {
+                "label": "Tiro",
+                "add_key": f'image_url:{static("football/images/players/act-tiro-blanca.png")}',
+                "static_path": "football/images/players/act-tiro-blanca.png",
+            },
+            {
+                "label": "Conducción",
+                "add_key": f'image_url:{static("football/images/players/act-conduccion-blanca.png")}',
+                "static_path": "football/images/players/act-conduccion-blanca.png",
+            },
+            {
+                "label": "Control",
+                "add_key": f'image_url:{static("football/images/players/act-control-blanca.png")}',
+                "static_path": "football/images/players/act-control-blanca.png",
+            },
+            {
+                "label": "Remate cabeza",
+                "add_key": f'image_url:{static("football/images/players/act-remate-blanca.png")}',
+                "static_path": "football/images/players/act-remate-blanca.png",
+            },
+            {
+                "label": "Defensa",
+                "add_key": f'image_url:{static("football/images/players/act-defensa-blanca.png")}',
+                "static_path": "football/images/players/act-defensa-blanca.png",
+            },
+            {
+                "label": "Saque banda",
+                "add_key": f'image_url:{static("football/images/players/act-saque-blanca.png")}',
+                "static_path": "football/images/players/act-saque-blanca.png",
+            },
+            {
+                "label": "Espaldas correr",
+                "add_key": f'image_url:{static("football/images/players/act-esp-correr-blanca.png")}',
+                "static_path": "football/images/players/act-esp-correr-blanca.png",
+            },
+            {
+                "label": "Espaldas de pie",
+                "add_key": f'image_url:{static("football/images/players/act-esp-pie-blanca.png")}',
+                "static_path": "football/images/players/act-esp-pie-blanca.png",
+            },
+            {
+                "label": "Espaldas conducir",
+                "add_key": f'image_url:{static("football/images/players/act-esp-conducir-blanca.png")}',
+                "static_path": "football/images/players/act-esp-conducir-blanca.png",
+            },
+        ],
+    },
+    {
+        "category": "Acción · 4ª (turquesa/negro)",
+        "items": [
+            {
+                "label": "Correr",
+                "add_key": f'image_url:{static("football/images/players/act-run-turquesa.png")}',
+                "static_path": "football/images/players/act-run-turquesa.png",
+            },
+            {
+                "label": "Sprint",
+                "add_key": f'image_url:{static("football/images/players/act-sprint-turquesa.png")}',
+                "static_path": "football/images/players/act-sprint-turquesa.png",
+            },
+            {
+                "label": "Pase",
+                "add_key": f'image_url:{static("football/images/players/act-pase-turquesa.png")}',
+                "static_path": "football/images/players/act-pase-turquesa.png",
+            },
+            {
+                "label": "Tiro",
+                "add_key": f'image_url:{static("football/images/players/act-tiro-turquesa.png")}',
+                "static_path": "football/images/players/act-tiro-turquesa.png",
+            },
+            {
+                "label": "Conducción",
+                "add_key": f'image_url:{static("football/images/players/act-conduccion-turquesa.png")}',
+                "static_path": "football/images/players/act-conduccion-turquesa.png",
+            },
+            {
+                "label": "Control",
+                "add_key": f'image_url:{static("football/images/players/act-control-turquesa.png")}',
+                "static_path": "football/images/players/act-control-turquesa.png",
+            },
+            {
+                "label": "Remate cabeza",
+                "add_key": f'image_url:{static("football/images/players/act-remate-turquesa.png")}',
+                "static_path": "football/images/players/act-remate-turquesa.png",
+            },
+            {
+                "label": "Defensa",
+                "add_key": f'image_url:{static("football/images/players/act-defensa-turquesa.png")}',
+                "static_path": "football/images/players/act-defensa-turquesa.png",
+            },
+            {
+                "label": "Saque banda",
+                "add_key": f'image_url:{static("football/images/players/act-saque-turquesa.png")}',
+                "static_path": "football/images/players/act-saque-turquesa.png",
+            },
+            {
+                "label": "Espaldas correr",
+                "add_key": f'image_url:{static("football/images/players/act-esp-correr-turquesa.png")}',
+                "static_path": "football/images/players/act-esp-correr-turquesa.png",
+            },
+            {
+                "label": "Espaldas de pie",
+                "add_key": f'image_url:{static("football/images/players/act-esp-pie-turquesa.png")}',
+                "static_path": "football/images/players/act-esp-pie-turquesa.png",
+            },
+            {
+                "label": "Espaldas conducir",
+                "add_key": f'image_url:{static("football/images/players/act-esp-conducir-turquesa.png")}',
+                "static_path": "football/images/players/act-esp-conducir-turquesa.png",
+            },
+        ],
+    },
+    {
+        "category": "Acción · Porteros",
+        "items": [
+            {
+                "label": "Estirada Rojo",
+                "add_key": f'image_url:{static("football/images/players/act-gk-estirada-rojo.png")}',
+                "static_path": "football/images/players/act-gk-estirada-rojo.png",
+            },
+            {
+                "label": "Estirada Magenta",
+                "add_key": f'image_url:{static("football/images/players/act-gk-estirada-magenta.png")}',
+                "static_path": "football/images/players/act-gk-estirada-magenta.png",
+            },
+            {
+                "label": "Estirada Azul",
+                "add_key": f'image_url:{static("football/images/players/act-gk-estirada-azul.png")}',
+                "static_path": "football/images/players/act-gk-estirada-azul.png",
+            },
+            {
+                "label": "Estirada Negro",
+                "add_key": f'image_url:{static("football/images/players/act-gk-estirada-negro.png")}',
+                "static_path": "football/images/players/act-gk-estirada-negro.png",
+            },
+            {
+                "label": "De frente Rojo",
+                "add_key": f'image_url:{static("football/images/players/act-gk-frente-rojo.png")}',
+                "static_path": "football/images/players/act-gk-frente-rojo.png",
+            },
+            {
+                "label": "De frente Magenta",
+                "add_key": f'image_url:{static("football/images/players/act-gk-frente-magenta.png")}',
+                "static_path": "football/images/players/act-gk-frente-magenta.png",
+            },
+            {
+                "label": "De frente Azul",
+                "add_key": f'image_url:{static("football/images/players/act-gk-frente-azul.png")}',
+                "static_path": "football/images/players/act-gk-frente-azul.png",
+            },
+            {
+                "label": "De frente Negro",
+                "add_key": f'image_url:{static("football/images/players/act-gk-frente-negro.png")}',
+                "static_path": "football/images/players/act-gk-frente-negro.png",
+            },
+            {
+                "label": "Salto Rojo",
+                "add_key": f'image_url:{static("football/images/players/act-gk-salto-rojo.png")}',
+                "static_path": "football/images/players/act-gk-salto-rojo.png",
+            },
+            {
+                "label": "Salto Magenta",
+                "add_key": f'image_url:{static("football/images/players/act-gk-salto-magenta.png")}',
+                "static_path": "football/images/players/act-gk-salto-magenta.png",
+            },
+            {
+                "label": "Salto Azul",
+                "add_key": f'image_url:{static("football/images/players/act-gk-salto-azul.png")}',
+                "static_path": "football/images/players/act-gk-salto-azul.png",
+            },
+            {
+                "label": "Salto Negro",
+                "add_key": f'image_url:{static("football/images/players/act-gk-salto-negro.png")}',
+                "static_path": "football/images/players/act-gk-salto-negro.png",
+            },
+        ],
+    },
 ]
 SCRAPE_LOCK_KEY = "football:refresh_scraping_running"
 SCRAPE_LOCK_TIMEOUT_SECONDS = 900
