@@ -35,12 +35,26 @@ class Command(BaseCommand):
             default='universo',
             help='Proveedor a intentar primero cuando el equipo no tiene ninguno (por defecto universo).',
         )
+        parser.add_argument(
+            '--only-preferente',
+            action='store_true',
+            help='Solo intenta La Preferente (no toca Universo). Pensado para el pase de senior desde IP residencial.',
+        )
+        parser.add_argument(
+            '--senior-only',
+            action='store_true',
+            help='Limita a equipos senior (category contiene "senior", o el equipo principal del club sin categoría).',
+        )
 
     def handle(self, *args, **options):
         slug = str(options.get('workspace_slug') or '').strip()
         commit = bool(options.get('commit'))
         do_sync = bool(options.get('sync')) and commit
         prefer = str(options.get('prefer') or 'universo')
+        only_preferente = bool(options.get('only_preferente'))
+        senior_only = bool(options.get('senior_only'))
+        if only_preferente:
+            prefer = 'lapreferente'
 
         workspaces = Workspace.objects.filter(kind=Workspace.KIND_CLUB, is_active=True).order_by('name', 'id')
         if slug:
@@ -59,11 +73,16 @@ class Command(BaseCommand):
             if primary_id and primary_id not in team_ids:
                 team_ids.append(primary_id)
             teams = list(Team.objects.filter(id__in=team_ids).order_by('name', 'id')) if team_ids else []
+            if senior_only:
+                teams = [t for t in teams if self._is_senior_team(t, primary_id)]
             if not teams:
                 continue
             self.stdout.write(f'{workspace.name} ({workspace.slug})')
             for team in teams:
-                self._process_team(workspace, team, commit=commit, do_sync=do_sync, prefer=prefer, counters=counters)
+                self._process_team(
+                    workspace, team, commit=commit, do_sync=do_sync, prefer=prefer,
+                    only_preferente=only_preferente, counters=counters,
+                )
 
         mode = 'APLICADO' if commit else 'SIMULACIÓN (usa --commit para aplicar)'
         self.stdout.write('')
@@ -81,7 +100,15 @@ class Command(BaseCommand):
                 )
             )
 
-    def _process_team(self, workspace, team, *, commit, do_sync, prefer, counters):
+    @staticmethod
+    def _is_senior_team(team, primary_id):
+        category = str(getattr(team, 'category', '') or '').strip().lower()
+        if 'senior' in category:
+            return True
+        # El equipo principal del club, si no tiene categoría marcada, se asume senior.
+        return not category and int(getattr(team, 'id', 0) or 0) == int(primary_id or 0)
+
+    def _process_team(self, workspace, team, *, commit, do_sync, prefer, counters, only_preferente=False):
         label = f'  {team.name}'
         context = None
         if commit:
@@ -112,7 +139,10 @@ class Command(BaseCommand):
         universo = WorkspaceCompetitionContext.PROVIDER_UNIVERSO
         preferente = WorkspaceCompetitionContext.PROVIDER_PREFERENTE
         prefer_provider = preferente if prefer == 'lapreferente' else universo
-        if provider in {universo, preferente}:
+        if only_preferente:
+            # Pase de senior desde IP residencial: no tocamos Universo.
+            order = [preferente]
+        elif provider in {universo, preferente}:
             order = [provider]
         elif prefer_provider == preferente:
             order = [preferente, universo]
