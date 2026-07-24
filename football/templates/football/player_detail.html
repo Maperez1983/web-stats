@@ -1284,6 +1284,7 @@
               Disponible
             {% endif %}
           </div>
+          {% if season_state_label %}<div style="margin-top:0.4rem;"><span class="pill {% if season_state_label == 'Inactivo' %}warn{% else %}ok{% endif %}">{{ season_state_label }}</span></div>{% endif %}
           <div class="meta">
             {% if has_active_injury %}
               Ver historial de lesiones y alta prevista.

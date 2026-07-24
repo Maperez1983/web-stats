@@ -68994,6 +68994,23 @@ def player_detail_page(request, player_id):
         except Exception:
             preferente_history_rows = []
 
+        season_state_label = ""
+        try:
+            for _r in season_history_rows:
+                if _r.get("is_active"):
+                    _st = _r.get("status")
+                    if _st == "confirmed":
+                        season_state_label = "Confirmado"
+                    elif _st in ("inactive", "left"):
+                        season_state_label = "Inactivo"
+                    elif _st == "pending":
+                        season_state_label = "A prueba"
+                    else:
+                        season_state_label = _r.get("status_label", "")
+                    break
+        except Exception:
+            season_state_label = ""
+
         # Radar mini tipo card (para contrastar con el radar staff, y reutilizar en PDF).
         try:
             card_radar_data = _build_player_card_radar_data(safe_stats, matches)
@@ -69173,6 +69190,7 @@ def player_detail_page(request, player_id):
                 "selected_club_season_id": int(getattr(selected_club_season, "id", 0) or 0),
                 "season_history_rows": season_history_rows,
             "preferente_history_rows": preferente_history_rows,
+            "season_state_label": season_state_label,
                 "fines_summary": fines_summary,
                 "fines_records": fines_records,
                 "stats_error": stats_error,
