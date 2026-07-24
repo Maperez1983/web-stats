@@ -289,6 +289,13 @@
       .tab-btn.is-active { background: linear-gradient(120deg, var(--prod-secondary, #f4b400), #f5c538); color: var(--prod-midnight, #0b1626); border-color: var(--prod-line-strong, rgba(244, 180, 0, 0.28)); }
       .tab-pane { display: none; }
       .tab-pane.is-active { display: block; }
+      .form-strip { display: flex; align-items: center; gap: 0.3rem; margin-top: 0.45rem; flex-wrap: wrap; }
+      .form-strip-label { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--prod-muted, rgba(15,23,42,0.6)); margin-right: 0.2rem; font-weight: 800; }
+      .form-dot { width: 22px; height: 22px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 800; color: #fff; }
+      .form-dot.form-win { background: #2f7d32; }
+      .form-dot.form-draw { background: #9aa4b2; }
+      .form-dot.form-loss { background: #d24141; }
+      .form-dot.form-muted { background: rgba(148,163,184,0.5); color: #0b1626; }
       .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; }
       label { display: flex; flex-direction: column; font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--prod-muted, rgba(15, 23, 42, 0.64)); gap: 0.35rem; }
       input, select, textarea { border-radius: 0.65rem; border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28)); padding: 0.6rem 0.75rem; background: rgba(2, 6, 23, 0.08); color: var(--prod-text, #f5f7fa); font-size: 0.95rem; }
@@ -1285,6 +1292,15 @@
             {% endif %}
           </div>
           {% if season_state_label %}<div style="margin-top:0.4rem;"><span class="pill {% if season_state_label == 'Inactivo' %}warn{% else %}ok{% endif %}">{{ season_state_label }}</span></div>{% endif %}
+          {% if form_last5 %}
+          <div class="form-strip" title="Resultados de los últimos partidos jugados">
+            <span class="form-strip-label">Forma</span>
+            {% for f in form_last5 %}<span class="form-dot form-{{ f.tone }}" title="{{ f.label }}">{{ f.ch }}</span>{% endfor %}
+          </div>
+          {% endif %}
+          <div style="margin-top:0.4rem;">
+            <button type="button" class="tab-btn" data-copy-ficha-link title="Copiar el enlace de esta ficha (requiere sesión del club)">🔗 Copiar enlace</button>
+          </div>
           <div class="meta">
             {% if has_active_injury %}
               Ver historial de lesiones y alta prevista.
@@ -3224,5 +3240,20 @@
 	      })();
 	    </script>
 	    <script src="{% static 'football/js/kpi_customizer.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
+    <script>
+      (() => {
+        const btn = document.querySelector('[data-copy-ficha-link]');
+        if (!btn) return;
+        btn.addEventListener('click', () => {
+          const url = window.location.href.split('#')[0];
+          const done = () => { btn.textContent = '✓ Enlace copiado'; setTimeout(() => { btn.textContent = '🔗 Copiar enlace'; }, 1800); };
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(done).catch(() => { window.prompt('Copia el enlace de la ficha:', url); });
+          } else {
+            window.prompt('Copia el enlace de la ficha:', url);
+          }
+        });
+      })();
+    </script>
 	  </body>
 	</html>

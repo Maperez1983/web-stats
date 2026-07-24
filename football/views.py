@@ -69398,6 +69398,35 @@ def player_detail_page(request, player_id):
         except Exception:
             license_expiry_badge = None
 
+        # Estado de forma: resultado (V/E/D) de los últimos 5 partidos jugados por el jugador,
+        # desde la perspectiva de su equipo. tone = clase de color en la plantilla.
+        form_last5 = []
+        try:
+            _fm = safe_stats.get("matches") if isinstance(safe_stats, dict) else None
+            _fm_list = list(_fm.values()) if isinstance(_fm, dict) else (list(_fm) if _fm else [])
+            _fm_list = [m for m in _fm_list if isinstance(m, dict) and m.get("played") and m.get("date")]
+            _fm_list.sort(key=lambda m: str(m.get("date") or ""), reverse=True)
+            for _m in _fm_list[:5]:
+                _hs, _as = _m.get("home_score"), _m.get("away_score")
+                _home = bool(_m.get("home"))
+                _tone, _ch, _lbl = "muted", "–", "Sin resultado"
+                if _hs is not None and _as is not None:
+                    _gf, _ga = (_hs, _as) if _home else (_as, _hs)
+                    if _gf > _ga:
+                        _tone, _ch, _lbl = "win", "V", f"Victoria {_gf}-{_ga}"
+                    elif _gf < _ga:
+                        _tone, _ch, _lbl = "loss", "D", f"Derrota {_gf}-{_ga}"
+                    else:
+                        _tone, _ch, _lbl = "draw", "E", f"Empate {_gf}-{_ga}"
+                form_last5.append({
+                    "tone": _tone,
+                    "ch": _ch,
+                    "label": f"{_lbl} · {_m.get('opponent', '') or 'Rival'}",
+                })
+            form_last5.reverse()  # cronológico ascendente (izquierda→derecha, el más reciente a la derecha)
+        except Exception:
+            form_last5 = []
+
         # Radar mini tipo card (para contrastar con el radar staff, y reutilizar en PDF).
         try:
             card_radar_data = _build_player_card_radar_data(safe_stats, matches)
@@ -69580,6 +69609,7 @@ def player_detail_page(request, player_id):
             "season_state_label": season_state_label,
             "player_in_scouting": player_in_scouting,
             "license_expiry_badge": license_expiry_badge,
+            "form_last5": form_last5,
                 "fines_summary": fines_summary,
                 "fines_records": fines_records,
                 "stats_error": stats_error,
