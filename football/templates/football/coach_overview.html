@@ -44,7 +44,7 @@
           {% if hero_image_data_uri or hero_image_url %}
           linear-gradient(135deg, rgba(14, 24, 40, 0.72), rgba(8, 16, 28, 0.7)),
           linear-gradient(180deg, rgba(3, 7, 18, 0.16), rgba(3, 7, 18, 0.88)),
-          url('{% if hero_image_data_uri %}{{ hero_image_data_uri }}{% else %}{{ hero_image_url|default_if_none:"" }}{% endif %}') center/cover no-repeat;
+          url('{% if hero_image_data_uri %}{{ hero_image_data_uri }}{% else %}{{ hero_image_url|default_if_none:"" }}{% endif %}') center 28%/cover no-repeat;
           {% else %}
           radial-gradient(circle at 18% 0%, rgba(244, 180, 0, 0.14), transparent 42%),
           radial-gradient(circle at 100% 100%, rgba(47, 125, 50, 0.22), transparent 46%),
@@ -223,7 +223,7 @@
         background:
           {% if hero_image_data_uri or hero_image_url %}
           linear-gradient(180deg, rgba(3, 7, 18, 0.16), rgba(3, 7, 18, 0.88)),
-          url('{% if hero_image_data_uri %}{{ hero_image_data_uri }}{% else %}{{ hero_image_url|default_if_none:"" }}{% endif %}') center/cover no-repeat;
+          url('{% if hero_image_data_uri %}{{ hero_image_data_uri }}{% else %}{{ hero_image_url|default_if_none:"" }}{% endif %}') center 28%/cover no-repeat;
           {% else %}
           radial-gradient(circle at 20% 0%, rgba(244, 180, 0, 0.12), transparent 44%),
           radial-gradient(circle at 100% 100%, rgba(47, 125, 50, 0.24), transparent 48%),
@@ -530,6 +530,14 @@
           min-height: 0;
           padding: 1rem;
         }
+        /* En móvil la tabla no debe forzar 440px (provocaba scroll horizontal). Con la ventana de
+           5 filas y ellipsis en el nombre de equipo, cabe holgada. */
+        .standings-table {
+          min-width: 0;
+        }
+        .standing-highlight {
+          grid-template-columns: repeat(3, 1fr);
+        }
       }
     </style>
   </head>
@@ -600,10 +608,11 @@
 	              <div class="team-hero-copy">
                 <div class="hero-kicker">
                   <span>{{ competition_label|default:"Competición por definir" }}</span>
-                  <span>Puesto {{ highlighted_standing.rank|default:"-" }}</span>
+                  {# "Puesto" solo si hay clasificación real (en pretemporada no mostramos "Puesto -"). #}
+                  {% if highlighted_standing %}<span>Puesto {{ highlighted_standing.rank|default:"-" }}</span>{% endif %}
                 </div>
                 <strong>{{ team_display_name }}</strong>
-                <span>{{ competition_label|default:"Competición por definir" }}</span>
+                {# El subtítulo con competition_label era redundante (ya está en el chip del kicker). #}
               </div>
             </div>
           </div>
