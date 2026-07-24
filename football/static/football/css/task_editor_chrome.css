@@ -510,6 +510,9 @@ body.ed-chrome .edc-toast.is-show { opacity: 1; visibility: visible; transform: 
 
 /* Selector de pose + equipación del avatar (pestaña Plantilla) */
 body.ed-chrome .edc-avcfg { grid-column: 1 / -1; margin: 0 0 8px; }
+body.ed-chrome .edc-avcfg-mode { display: flex; gap: 4px; margin: 2px 0 2px; }
+body.ed-chrome .edc-avcfg-mbtn { flex: 1; padding: 5px 6px; border-radius: 7px; border: 1px solid var(--edc-line); background: #0e2416; color: var(--edc-ink); font-size: 11px; font-weight: 700; cursor: pointer; }
+body.ed-chrome .edc-avcfg-mbtn.is-active { border-color: var(--edc-accent); color: var(--edc-accent); background: rgba(255,255,255,.05); }
 body.ed-chrome .edc-avcfg-h { font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--edc-ink); opacity: .6; margin: 8px 2px 4px; }
 body.ed-chrome .edc-avcfg-row { display: flex; gap: 5px; overflow-x: auto; padding-bottom: 3px; }
 body.ed-chrome .edc-avcfg-poses { flex-wrap: nowrap; }
