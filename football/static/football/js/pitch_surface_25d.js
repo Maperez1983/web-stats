@@ -31,18 +31,6 @@
       textureDark: 'rgba(34,77,18,0.05)',
       shadow: 'rgba(22,46,12,0.1)',
     },
-    // 2D cenital plano y fotorrealista, sin gradas ni estadio (look de pizarra táctica televisiva).
-    flat_2d: {
-      outer: '#4f7f3a',
-      frame: '#6fa04d',
-      frameEdge: '#4f7f3a',
-      base: '#5c9445',
-      stripeA: '#6ba852',
-      stripeB: '#528a3e',
-      textureLight: 'rgba(255,255,255,0.03)',
-      textureDark: 'rgba(20,52,16,0.08)',
-      shadow: 'rgba(15,36,12,0.16)',
-    },
     realistic: {
       outer: '#65883d',
       frame: '#9ab85a',
@@ -366,30 +354,6 @@
     return '/static/football/images/pitch3d/grass_premium_albedo.png';
   };
 
-  // Imagen fotorrealista de campo cenital completo (césped a rayas + líneas + porterías) usada
-  // como superficie del 2D plano. Permite override desde el form (data-pitch2d-surface-src).
-  const resolveFlatPitchImageHref = () => {
-    try {
-      const form = document.getElementById('task-builder-form');
-      const custom = safeText(form?.dataset?.pitch2dSurfaceSrc);
-      if (custom) return custom;
-    } catch (e) { /* ignore */ }
-    return '/static/football/images/pitch3d/coach_home_pitch_surface.png';
-  };
-
-  // Caja del campo (dentro de las líneas) dentro de la imagen coach_home_pitch_surface.png (1664×945).
-  const FLAT_PITCH_IMAGE = { sceneW: 1664, sceneH: 945, field: { x: 62, y: 32, w: 1538, h: 879 } };
-
-  // Césped real recortado del campo completo (banda con franjas nativas), para las superficies medias.
-  const resolveFlatGrassImageHref = () => {
-    try {
-      const form = document.getElementById('task-builder-form');
-      const custom = safeText(form?.dataset?.pitch2dGrassSrc);
-      if (custom) return custom;
-    } catch (e) { /* ignore */ }
-    return '/static/football/images/pitch3d/grass_flat.jpg';
-  };
-
   const buildDefs = (idPrefix, pitch, grass) => `
     <defs>
       <linearGradient id="${idPrefix}-backdrop" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -432,21 +396,20 @@
         <path d="M 10 108 L 18 90 M 40 104 L 48 80 M 72 114 L 80 92 M 96 56 L 104 34" stroke="rgba(255,255,255,0.018)" stroke-width="0.9" stroke-linecap="round"/>
         <path d="M 22 28 L 30 8 M 60 70 L 68 48 M 108 112 L 116 90" stroke="rgba(17,46,10,0.035)" stroke-width="0.8" stroke-linecap="round"/>
       </pattern>
-      <pattern id="${idPrefix}-goal-net" width="8" height="8" patternUnits="userSpaceOnUse">
-        <rect x="0" y="0" width="8" height="8" fill="rgba(255,255,255,0.10)"/>
-        <path d="M 0 0 H 8 M 0 0 V 8" stroke="rgba(255,255,255,0.9)" stroke-width="0.6"/>
+      <pattern id="${idPrefix}-goal-net" width="14" height="14" patternUnits="userSpaceOnUse">
+        <path d="M 0 0 L 14 14 M 14 0 L 0 14" stroke="rgba(236,242,247,0.7)" stroke-width="0.9"/>
       </pattern>
       <linearGradient id="${idPrefix}-goal-post" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stop-color="#ffffff"/>
-        <stop offset="100%" stop-color="#eef2f6"/>
+        <stop offset="100%" stop-color="#dee6ed"/>
       </linearGradient>
       <linearGradient id="${idPrefix}-goal-side" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stop-color="#f4f7fa"/>
-        <stop offset="100%" stop-color="#d8e0e8"/>
+        <stop offset="0%" stop-color="#dfe7ee"/>
+        <stop offset="100%" stop-color="#a9b8c6"/>
       </linearGradient>
       <linearGradient id="${idPrefix}-goal-net-shade" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stop-color="rgba(255,255,255,0.42)"/>
-        <stop offset="100%" stop-color="rgba(226,232,240,0.14)"/>
+        <stop offset="0%" stop-color="rgba(255,255,255,0.28)"/>
+        <stop offset="100%" stop-color="rgba(148,163,184,0.08)"/>
       </linearGradient>
       <radialGradient id="${idPrefix}-pitch-light" cx="50%" cy="48%" r="66%">
         <stop offset="0%" stop-color="rgba(255,255,255,0.045)"/>
@@ -871,24 +834,47 @@
     `;
   };
 
-  // Portería cenital blanca tipo campo completo: marco blanco rectangular + red de cuadrícula fina.
   const buildGoal = (side, pitch, lineWidth, idPrefix) => {
-    const mouth = pitch.h * 0.152;
-    const depth = Math.max(30, pitch.w * 0.052);
+    const mouth = pitch.h * 0.146;
+    const depth = Math.max(24, pitch.w * 0.034);
     const y = pitch.y + ((pitch.h - mouth) / 2);
-    const post = Math.max(2.8, lineWidth * 0.82);
-    const dir = side === 'left' ? -1 : 1;
-    const front = side === 'left' ? pitch.x : pitch.x + pitch.w;
-    const back = front + (dir * depth);
-    const boxX = Math.min(front, back);
-    const frame = Math.max(1.4, post * 0.5);
+    const post = Math.max(2.6, lineWidth * 0.72);
+    const backInset = Math.max(5, post * 1.25);
+    const shadowRx = depth * 1.04;
+    const shadowRy = mouth * 0.5;
+    const lip = Math.max(1.6, post * 0.48);
+    if (side === 'left') {
+      const front = pitch.x;
+      const back = pitch.x - depth;
+      return `
+        <g class="goal-left" filter="url(#${idPrefix}-goal-shadow)">
+          <ellipse cx="${front - (depth * 0.58)}" cy="${y + mouth / 2}" rx="${shadowRx}" ry="${shadowRy}" fill="rgba(9,18,28,0.15)"/>
+          <polygon points="${front},${y} ${back},${y + backInset} ${back},${y + mouth - backInset} ${front},${y + mouth}" fill="url(#${idPrefix}-goal-net)" opacity="0.96"/>
+          <polygon points="${front},${y} ${back},${y + backInset} ${back},${y + mouth - backInset} ${front},${y + mouth}" fill="url(#${idPrefix}-goal-net-shade)" opacity="0.32"/>
+          <polygon points="${front},${y} ${front - post},${y + post * 0.45} ${front - post},${y + mouth + post * 0.45} ${front},${y + mouth}" fill="url(#${idPrefix}-goal-post)" opacity="0.99"/>
+          <polygon points="${front - post},${y + post * 0.45} ${back - post * 0.45},${y + backInset} ${back - post * 0.45},${y + mouth - backInset} ${front - post},${y + mouth + post * 0.45}" fill="url(#${idPrefix}-goal-side)" opacity="0.54"/>
+          ${buildLine(front, y, front, y + mouth, '#ffffff', post)}
+          ${buildLine(back, y + backInset, back, y + mouth - backInset, 'rgba(226,232,240,0.86)', post * 0.52)}
+          ${buildLine(front, y, back, y + backInset, 'rgba(255,255,255,0.78)', post * 0.48)}
+          ${buildLine(front, y + mouth, back, y + mouth - backInset, 'rgba(255,255,255,0.78)', post * 0.48)}
+          ${buildLine(front - lip, y + (post * 0.5), front - lip, y + mouth + (post * 0.5), 'rgba(208,218,228,0.7)', 0.9)}
+        </g>
+      `;
+    }
+    const front = pitch.x + pitch.w;
+    const back = pitch.x + pitch.w + depth;
     return `
-      <g class="goal-${side}" filter="url(#${idPrefix}-goal-shadow)">
-        <ellipse cx="${front + (dir * depth * 0.55)}" cy="${y + mouth / 2}" rx="${depth * 1.05}" ry="${mouth * 0.5}" fill="rgba(9,18,28,0.14)"/>
-        <rect x="${boxX}" y="${y}" width="${depth}" height="${mouth}" fill="url(#${idPrefix}-goal-net)"/>
-        <rect x="${boxX}" y="${y}" width="${depth}" height="${mouth}" fill="url(#${idPrefix}-goal-net-shade)" opacity="0.3"/>
-        <rect x="${boxX}" y="${y}" width="${depth}" height="${mouth}" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="${frame}"/>
-        ${buildLine(front, y - post * 0.3, front, y + mouth + post * 0.3, '#ffffff', post)}
+      <g class="goal-right" filter="url(#${idPrefix}-goal-shadow)">
+          <ellipse cx="${front + (depth * 0.58)}" cy="${y + mouth / 2}" rx="${shadowRx}" ry="${shadowRy}" fill="rgba(9,18,28,0.15)"/>
+          <polygon points="${front},${y} ${back},${y + backInset} ${back},${y + mouth - backInset} ${front},${y + mouth}" fill="url(#${idPrefix}-goal-net)" opacity="0.96"/>
+          <polygon points="${front},${y} ${back},${y + backInset} ${back},${y + mouth - backInset} ${front},${y + mouth}" fill="url(#${idPrefix}-goal-net-shade)" opacity="0.32"/>
+        <polygon points="${front},${y} ${front + post},${y + post * 0.45} ${front + post},${y + mouth + post * 0.45} ${front},${y + mouth}" fill="url(#${idPrefix}-goal-post)" opacity="0.99"/>
+        <polygon points="${front + post},${y + post * 0.45} ${back + post * 0.45},${y + backInset} ${back + post * 0.45},${y + mouth - backInset} ${front + post},${y + mouth + post * 0.45}" fill="url(#${idPrefix}-goal-side)" opacity="0.54"/>
+        ${buildLine(front, y, front, y + mouth, '#ffffff', post)}
+        ${buildLine(back, y + backInset, back, y + mouth - backInset, 'rgba(226,232,240,0.86)', post * 0.52)}
+        ${buildLine(front, y, back, y + backInset, 'rgba(255,255,255,0.78)', post * 0.48)}
+        ${buildLine(front, y + mouth, back, y + mouth - backInset, 'rgba(255,255,255,0.78)', post * 0.48)}
+        ${buildLine(front + lip, y + (post * 0.5), front + lip, y + mouth + (post * 0.5), 'rgba(208,218,228,0.7)', 0.9)}
       </g>
     `;
   };
@@ -1006,22 +992,11 @@
       const smallDepth = 4.5 * mx;
       const smallWidth = 12 * my;
       const smallTop = pitch.y + ((pitch.h - smallWidth) / 2);
-      // Línea de fuera de juego del F7: amarilla continua, a la altura del área grande (13 m),
-      // cruzando todo el ancho a cada lado. Solo en la capa superior para no duplicarla.
-      const offsideX1 = pitch.x + areaDepth;
-      const offsideX2 = pitch.x + pitch.w - areaDepth;
-      const offsideStroke = '#ffd21f';
-      const offsideWidth = strokeWidth * 1.05;
-      const offsideLines = isTopLayer ? `
-        ${buildLine(offsideX1, pitch.y, offsideX1, pitch.y + pitch.h, offsideStroke, offsideWidth)}
-        ${buildLine(offsideX2, pitch.y, offsideX2, pitch.y + pitch.h, offsideStroke, offsideWidth)}
-      ` : '';
       return `
         ${buildRect(pitch.x, pitch.y, pitch.w, pitch.h, 0, 'none', `stroke="${stroke}" stroke-width="${strokeWidth}"`)}
         ${buildLine(centerX, pitch.y, centerX, pitch.y + pitch.h, stroke, strokeWidth)}
         ${buildCircle(centerX, centerY, pitch.h * 0.17, stroke, strokeWidth)}
         ${buildCircle(centerX, centerY, spotRadius, 'none', 0, stroke)}
-        ${offsideLines}
         ${buildRect(pitch.x, areaTop, areaDepth, areaWidth, 0, 'none', `stroke="${stroke}" stroke-width="${strokeWidth}"`)}
         ${buildRect(pitch.x + pitch.w - areaDepth, areaTop, areaDepth, areaWidth, 0, 'none', `stroke="${stroke}" stroke-width="${strokeWidth}"`)}
         ${buildRect(pitch.x, smallTop, smallDepth, smallWidth, 0, 'none', `stroke="${stroke}" stroke-width="${strokeWidth}"`)}
@@ -1277,163 +1252,6 @@
     `.trim();
   };
 
-  // Defs del césped 2D: franjas de segado anchas y vivas (dos tonos) con degradado vertical suave.
-  const buildFlatGrassDefs = (idPrefix) => `
-    <defs>
-      <linearGradient id="${idPrefix}-flat-stripe-a" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stop-color="#6fb257"/>
-        <stop offset="100%" stop-color="#5aa048"/>
-      </linearGradient>
-      <linearGradient id="${idPrefix}-flat-stripe-b" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stop-color="#559644"/>
-        <stop offset="100%" stop-color="#468638"/>
-      </linearGradient>
-      <radialGradient id="${idPrefix}-flat-light" cx="50%" cy="46%" r="66%">
-        <stop offset="0%" stop-color="rgba(255,255,255,0.10)"/>
-        <stop offset="60%" stop-color="rgba(255,255,255,0.02)"/>
-        <stop offset="100%" stop-color="rgba(0,0,0,0.05)"/>
-      </radialGradient>
-    </defs>
-  `;
-
-  // Capa de césped 2D con el CÉSPED REAL del campo completo (mismas franjas y grano),
-  // teselado SIN estirar (misma proporción que la banda real) y SIN degradados artificiales.
-  const buildFlatGrassLayer = (pitch, grass, grassTextureSrc) => {
-    const idPrefix = pitch.idPrefix;
-    const grassImg = resolveFlatGrassImageHref();
-    if (!grassImg) {
-      return `
-        <g clip-path="url(#${idPrefix}-pitch-clip)">
-          <rect x="${pitch.x}" y="${pitch.y}" width="${pitch.w}" height="${pitch.h}" fill="#4f8f43"/>
-        </g>`;
-    }
-    // La banda real es 300x845 (3 franjas). La escalamos para que la franja ≈ ancho del campo/10,
-    // manteniendo su proporción (sin distorsión). Una tesela cubre el alto (sin costura vertical).
-    const scale = pitch.w / 1000;
-    const tileW = 300 * scale;
-    const tileH = 845 * scale;
-    return `
-      <defs>
-        <pattern id="${idPrefix}-grass-real" width="${tileW}" height="${tileH}" patternUnits="userSpaceOnUse" patternTransform="translate(${pitch.x} ${pitch.y})">
-          <image href="${grassImg}" x="0" y="0" width="${tileW}" height="${tileH}" preserveAspectRatio="none"/>
-        </pattern>
-      </defs>
-      <g clip-path="url(#${idPrefix}-pitch-clip)">
-        <rect x="${pitch.x}" y="${pitch.y}" width="${pitch.w}" height="${pitch.h}" fill="url(#${idPrefix}-grass-real)"/>
-      </g>
-    `;
-  };
-
-  // Campo 2D cenital plano: césped fotorrealista + líneas + porterías, sin gradas/vallas/banquillos.
-  // El campo ocupa casi todo el marco (borde de césped fino), como la referencia del entrenador.
-  // Campo completo 2D con la imagen fotorrealista real (coach_home_pitch_surface.png).
-  // Ya trae césped a rayas, líneas y porterías: no dibujamos líneas/porterías SVG encima.
-  const buildFlatPitchImageSvg = (orientation) => {
-    const img = resolveFlatPitchImageHref();
-    const scene = FLAT_PITCH_IMAGE;
-    const field = scene.field;
-    const sceneW = orientation === 'portrait' ? scene.sceneH : scene.sceneW;
-    const sceneH = orientation === 'portrait' ? scene.sceneW : scene.sceneH;
-    const body = `<image href="${img}" x="0" y="0" width="${scene.sceneW}" height="${scene.sceneH}" preserveAspectRatio="xMidYMid slice"/>`;
-    let pitchBox = `${field.x} ${field.y} ${field.w} ${field.h}`;
-    let content = body;
-    if (orientation === 'portrait') {
-      const rotatedX = scene.sceneH - (field.y + field.h);
-      const rotatedY = field.x;
-      pitchBox = `${rotatedX} ${rotatedY} ${field.h} ${field.w}`;
-      content = `<g transform="translate(${scene.sceneH} 0) rotate(90)">${body}</g>`;
-    }
-    return `
-      <svg xmlns="http://www.w3.org/2000/svg"
-           viewBox="0 0 ${sceneW} ${sceneH}"
-           preserveAspectRatio="xMidYMid meet"
-           shape-rendering="geometricPrecision"
-           data-pitch-box="${pitchBox}">
-        ${content}
-      </svg>
-    `.trim();
-  };
-
-  const buildFlatPitchSvg = (presetKey, orientation, grass) => {
-    const preset = PRESET_METRICS[safeText(presetKey, 'full_pitch')] ? safeText(presetKey, 'full_pitch') : 'full_pitch';
-    const metrics = PRESET_METRICS[preset] || PRESET_METRICS.full_pitch;
-    // Campo completo → imagen fotorrealista real. Otras superficies → césped SVG (respaldo).
-    if (metrics.mode === 'full') {
-      return buildFlatPitchImageSvg(orientation);
-    }
-    // Lienzo AJUSTADO al campo: margen de césped fino y uniforme (deja hueco para porterías).
-    // Así cada superficie (media cancha, F7, futsal…) llena el marco sin césped de sobra alrededor.
-    const aspect = metrics.width / metrics.height;
-    const MARGIN = 56;
-    const TARGET = 1080; // dimensión mayor del campo
-    let pitchW;
-    let pitchH;
-    if (aspect >= 1) { pitchW = TARGET; pitchH = TARGET / aspect; }
-    else { pitchH = TARGET; pitchW = TARGET * aspect; }
-    const sceneLandscape = { sceneW: Math.round(pitchW + MARGIN * 2), sceneH: Math.round(pitchH + MARGIN * 2) };
-    // Media cancha y tercios son más altos que anchos: se giran 90° para verse apaisados y llenar el marco.
-    const tallMode = ['half', 'attacking_third', 'middle_third', 'defensive_third'].includes(metrics.mode);
-    const effectiveRotate = tallMode ? (orientation !== 'portrait') : (orientation === 'portrait');
-    const sceneW = effectiveRotate ? sceneLandscape.sceneH : sceneLandscape.sceneW;
-    const sceneH = effectiveRotate ? sceneLandscape.sceneW : sceneLandscape.sceneH;
-    const pitch = {
-      x: MARGIN,
-      y: MARGIN,
-      w: pitchW,
-      h: pitchH,
-      metrics,
-    };
-    const idPrefix = `pitch2d-${preset}-${orientation}`.replace(/[^a-z0-9_-]/gi, '-');
-    pitch.idPrefix = idPrefix;
-    const mode = pitch.metrics.mode;
-    const lineStroke = '#fdfefe';
-    const lineUnderStroke = 'rgba(9,18,28,0.12)';
-    const lineWidth = clamp(pitch.h / 150, 2.7, 5.8);
-    const leftGoalModes = new Set(['full', 'seven_side', 'seven_side_single', 'futsal', 'defensive_third']);
-    const rightGoalModes = new Set(['full', 'seven_side', 'seven_side_single', 'futsal', 'half', 'attacking_third']);
-    const grassTextureSrc = resolveGrassTextureHref();
-
-    const sceneBody = `
-      ${buildDefs(idPrefix, pitch, grass)}
-      ${buildFlatGrassDefs(idPrefix)}
-      <g id="surface-base-2d">
-        <rect x="0" y="0" width="${sceneLandscape.sceneW}" height="${sceneLandscape.sceneH}" fill="#3f7f38"/>
-        ${(function(){ const gi = resolveFlatGrassImageHref(); return gi ? `<image href="${gi}" x="0" y="0" width="${sceneLandscape.sceneW}" height="${sceneLandscape.sceneH}" preserveAspectRatio="xMidYMid slice"/>` : ''; })()}
-        <rect x="0" y="0" width="${sceneLandscape.sceneW}" height="${sceneLandscape.sceneH}" fill="rgba(8,26,15,0.18)"/>
-        <rect x="${pitch.x - 8}" y="${pitch.y - 8}" width="${pitch.w + 16}" height="${pitch.h + 16}" rx="14" ry="14" fill="rgba(0,0,0,0.10)"/>
-      </g>
-      <g id="pitch" filter="url(#${idPrefix}-field-shadow)">
-        ${buildFlatGrassLayer(pitch, grass, grassTextureSrc)}
-        <rect x="${pitch.x + 5}" y="${pitch.y + 5}" width="${pitch.w - 10}" height="${pitch.h - 10}" rx="14" ry="14" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1.1"/>
-        ${buildPitchLines(pitch, mode, lineUnderStroke, lineWidth + 1.15)}
-        ${leftGoalModes.has(mode) ? buildGoal('left', pitch, lineWidth + 0.55, idPrefix) : ''}
-        ${rightGoalModes.has(mode) ? buildGoal('right', pitch, lineWidth + 0.55, idPrefix) : ''}
-        ${buildPitchLines(pitch, mode, lineStroke, lineWidth, true)}
-        ${buildCornerFlags(pitch)}
-      </g>
-    `;
-
-    const pitchBoxLandscape = `${pitch.x} ${pitch.y} ${pitch.w} ${pitch.h}`;
-    let pitchBox = pitchBoxLandscape;
-    let content = sceneBody;
-    if (effectiveRotate) {
-      const rotatedX = sceneLandscape.sceneH - (pitch.y + pitch.h);
-      const rotatedY = pitch.x;
-      pitchBox = `${rotatedX} ${rotatedY} ${pitch.h} ${pitch.w}`;
-      content = `<g transform="translate(${sceneLandscape.sceneH} 0) rotate(90)">${sceneBody}</g>`;
-    }
-
-    return `
-      <svg xmlns="http://www.w3.org/2000/svg"
-           viewBox="0 0 ${sceneW} ${sceneH}"
-           preserveAspectRatio="xMidYMid meet"
-           shape-rendering="geometricPrecision"
-           data-pitch-box="${pitchBox}">
-        ${content}
-      </svg>
-    `.trim();
-  };
-
   const buildPitchSvg = (presetKey, orientationKey = 'landscape', grassStyleKey = 'classic') => {
     const preset = PRESET_METRICS[safeText(presetKey, 'full_pitch')] ? safeText(presetKey, 'full_pitch') : 'full_pitch';
     const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
@@ -1441,9 +1259,6 @@
     const grass = GRASS_PRESETS[normalizedGrass] || GRASS_PRESETS.classic;
     if (normalizedGrass === 'stadium_native') {
       return buildNativePitchSvg(preset, orientation, grass);
-    }
-    if (normalizedGrass === 'flat_2d') {
-      return buildFlatPitchSvg(preset, orientation, grass);
     }
     const sceneLandscape = { sceneW: 1200, sceneH: 820 };
     const sceneW = orientation === 'portrait' ? sceneLandscape.sceneH : sceneLandscape.sceneW;

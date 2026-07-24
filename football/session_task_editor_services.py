@@ -684,14 +684,10 @@ def _task_builder_initial_values(task):
         "pitch_orientation": str(meta.get("pitch_orientation") or "landscape"),
         "pitch_zoom": str(meta.get("pitch_zoom") or "1.00"),
         "pitch_grass_style": (
-            # Tarea nueva (sin superficie guardada) → 2D cenital plano, sin estética de estadio 3D.
-            "flat_2d"
-            if not str(meta.get("pitch_grass_style") or "").strip()
-            # Compatibilidad: tareas guardadas con variantes "top" mantienen el estadio.
-            else "stadium_native"
+            "stadium_native"
             if str(meta.get("pitch_grass_style") or "").strip().lower()
-            in {"stadium_top", "stadium_top_h", "stadium_top_v"}
-            else str(meta.get("pitch_grass_style") or "flat_2d")
+            in {"", "stadium_top", "stadium_top_h", "stadium_top_v"}
+            else str(meta.get("pitch_grass_style") or "stadium_native")
         ),
         "series": str(meta.get("series") or ""),
         "repetitions": str(meta.get("repetitions") or ""),

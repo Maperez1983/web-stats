@@ -448,15 +448,6 @@ var cfg = window.__TASK_BUILDER_CONFIG || {};
                 return;
               }
               closeTimelineDock();
-              // El modo 2D usa el campo cenital plano (fotorrealista, sin gradas).
-              // Reutilizamos el handler del selector de césped para redibujar la superficie.
-              try {
-                const grassSel = document.getElementById('pitch-grass-select');
-                if (grassSel && String(grassSel.value || '') !== 'flat_2d') {
-                  grassSel.value = 'flat_2d';
-                  grassSel.dispatchEvent(new Event('change', { bubbles: true }));
-                }
-              } catch (e) { /* ignore */ }
               openBoardDrawer('resources');
               activateResourceTab('');
               syncTopResourceButtons('');
