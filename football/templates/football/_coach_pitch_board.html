@@ -1,4 +1,4 @@
-{% load static %}
+{% load static l10n %}
 {% comment %}
   Pizarra interactiva de plantilla: chips de jugador sobre el campo HD.
   - Clic (sin arrastrar) -> ficha del jugador.
@@ -7,6 +7,7 @@
   Reutiliza los avatares realistas por estado (lesionado -> muletas, a prueba -> chándal).
 {% endcomment %}
 <section class="card pb-card" aria-label="Pizarra de plantilla">
+  {% csrf_token %}
   <div class="pb-head">
     <div>
       <h2>Plantilla en el campo</h2>
@@ -15,11 +16,11 @@
     <button type="button" class="pb-reset" data-pb-reset aria-label="Restablecer posiciones">Reordenar</button>
   </div>
   {% if coach_pitch_players %}
-  <div class="pb-field" data-pb-team="{{ primary_team_id|default:0 }}"
+  <div class="pb-field" data-pb-team="{{ primary_team_id|default:0 }}" data-pb-save-url="{% url 'coach-pitch-board-save' %}"
        style="background-image:url('{% static 'football/images/pitch3d/coach_home_pitch_surface.png' %}');">
     {% for p in coach_pitch_players %}
     <a class="pb-chip pb-{{ p.state }}" href="{{ p.ficha_url }}" data-pb-pid="{{ p.id }}" draggable="false"
-       style="left:{{ p.left }}%;top:{{ p.top }}%;"
+       style="left:{{ p.left|unlocalize }}%;top:{{ p.top|unlocalize }}%;"
        title="{{ p.name }} · {{ p.state_label }}" aria-label="{{ p.name }}, {{ p.position|default:'jugador' }}, {{ p.state_label }}. Abrir ficha.">
       <span class="pb-avatar"><img src="{% static p.avatar %}" alt="" draggable="false" /></span>
       {% if p.number %}<span class="pb-num">{{ p.number }}</span>{% endif %}
@@ -104,22 +105,29 @@
 
 <script>
   (function () {
-    var field = document.currentScript.previousElementSibling; // <style>
-    // El <style> precede al script; el .pb-field está antes. Buscamos por si acaso.
-    field = document.querySelector('.pb-field');
+    var field = document.querySelector('.pb-field');
     if (!field) return;
     var team = field.getAttribute('data-pb-team') || '0';
-    var storeKey = function (pid) { return 'pb2j:' + team + ':' + pid; };
+    var saveUrl = field.getAttribute('data-pb-save-url') || '';
+    // Las posiciones vienen ya del servidor (renderizadas en el HTML), así que todos ven lo mismo.
+    // Al soltar un jugador, se envían al servidor por POST.
 
-    // Aplica posiciones guardadas.
-    Array.prototype.forEach.call(field.querySelectorAll('.pb-chip'), function (chip) {
-      var saved = null;
-      try { saved = localStorage.getItem(storeKey(chip.getAttribute('data-pb-pid'))); } catch (e) {}
-      if (saved) {
-        var parts = saved.split(',');
-        if (parts.length === 2) { chip.style.left = parts[0] + '%'; chip.style.top = parts[1] + '%'; }
-      }
-    });
+    function csrfToken() {
+      var input = document.querySelector('.pb-card input[name=csrfmiddlewaretoken]');
+      if (input && input.value) return input.value;
+      var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+      return m ? decodeURIComponent(m[1]) : '';
+    }
+    function postForm(data) {
+      if (!saveUrl) return;
+      var body = Object.keys(data).map(function (k) { return encodeURIComponent(k) + '=' + encodeURIComponent(data[k]); }).join('&');
+      fetch(saveUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
+        body: body,
+        credentials: 'same-origin'
+      }).catch(function () {});
+    }
 
     var DRAG_THRESHOLD = 5; // px antes de considerar arrastre (para no bloquear el clic)
     var active = null;
@@ -154,9 +162,9 @@
       var chip = active.chip, moved = active.moved;
       chip.classList.remove('pb-dragging');
       if (moved) {
-        // Guarda posición y evita que el clic navegue a la ficha.
+        // Guarda posición en el servidor (compartida) y evita que el clic navegue a la ficha.
         var l = parseFloat(chip.style.left), t = parseFloat(chip.style.top);
-        try { localStorage.setItem(storeKey(chip.getAttribute('data-pb-pid')), l.toFixed(1) + ',' + t.toFixed(1)); } catch (err) {}
+        postForm({ team_id: team, player_id: chip.getAttribute('data-pb-pid'), left: l.toFixed(1), top: t.toFixed(1) });
         var block = function (ev) { ev.preventDefault(); ev.stopPropagation(); chip.removeEventListener('click', block, true); };
         chip.addEventListener('click', block, true);
       }
@@ -176,10 +184,9 @@
     var reset = document.querySelector('[data-pb-reset]');
     if (reset) {
       reset.addEventListener('click', function () {
-        Array.prototype.forEach.call(field.querySelectorAll('.pb-chip'), function (chip) {
-          try { localStorage.removeItem(storeKey(chip.getAttribute('data-pb-pid'))); } catch (e) {}
-        });
-        location.reload();
+        if (!confirm('¿Restablecer la formación por defecto para todo el equipo?')) return;
+        postForm({ team_id: team, reset: '1' });
+        setTimeout(function () { location.reload(); }, 250);
       });
     }
   })();

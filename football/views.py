@@ -19845,6 +19845,73 @@ def _build_team_hero_payload(request, workspace, primary_team):
     return hero_image_data_uri, hero_image_url
 
 
+def _coach_pitch_board_positions(team):
+    """Posiciones guardadas de la pizarra de plantilla para un equipo: {pid(int): [left, top]}."""
+    if not team:
+        return {}
+    from .models import CoachPitchBoardLayout
+
+    try:
+        layout = CoachPitchBoardLayout.objects.filter(team=team).only("positions").first()
+    except Exception:
+        return {}
+    positions = {}
+    for raw_pid, coords in (getattr(layout, "positions", None) or {}).items():
+        try:
+            pid = int(raw_pid)
+            left, top = float(coords[0]), float(coords[1])
+        except (TypeError, ValueError, IndexError):
+            continue
+        positions[pid] = [left, top]
+    return positions
+
+
+@login_required
+@require_POST
+def coach_pitch_board_save(request):
+    """Guarda (compartido por equipo) la posición de un jugador en la pizarra de plantilla.
+    Así todo el cuerpo técnico ve la misma disposición desde cualquier dispositivo."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+    from .models import CoachPitchBoardLayout
+
+    # "Reordenar": borra las posiciones guardadas del equipo -> vuelve a la formación por defecto.
+    if str(request.POST.get("reset") or "").strip() in {"1", "true", "yes"}:
+        try:
+            team_id = int(request.POST.get("team_id") or 0)
+        except (TypeError, ValueError):
+            team_id = 0
+        if team_id:
+            CoachPitchBoardLayout.objects.filter(team_id=team_id).update(positions={}, updated_by=request.user)
+        return JsonResponse({"ok": True, "reset": True})
+
+    try:
+        team_id = int(request.POST.get("team_id") or 0)
+        player_id = int(request.POST.get("player_id") or 0)
+        left = float(request.POST.get("left"))
+        top = float(request.POST.get("top"))
+    except (TypeError, ValueError):
+        return JsonResponse({"ok": False, "error": "bad_params"}, status=400)
+    if not team_id or not player_id:
+        return JsonResponse({"ok": False, "error": "missing"}, status=400)
+    # Guardrail: el jugador debe pertenecer a ese equipo (evita escrituras arbitrarias).
+    if not Player.objects.filter(id=player_id, team_id=team_id).exists():
+        return JsonResponse({"ok": False, "error": "not_in_team"}, status=400)
+    team = Team.objects.filter(id=team_id).first()
+    if not team:
+        return JsonResponse({"ok": False, "error": "no_team"}, status=404)
+    left = max(2.0, min(98.0, left))
+    top = max(4.0, min(96.0, top))
+    layout, _created = CoachPitchBoardLayout.objects.get_or_create(team=team)
+    positions = dict(layout.positions or {})
+    positions[str(player_id)] = [round(left, 1), round(top, 1)]
+    layout.positions = positions
+    layout.updated_by = request.user
+    layout.save(update_fields=["positions", "updated_by", "updated_at"])
+    return JsonResponse({"ok": True})
+
+
 @login_required
 def coach_overview_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
@@ -20028,11 +20095,17 @@ def coach_overview_page(request):
                 "left": _pitch_left.get(bucket, 50),
             }
         )
+    # Posiciones guardadas (compartidas por equipo): si el staff ha recolocado a alguien, esa
+    # posición manda sobre la de la formación por defecto, y la ve todo el mundo.
+    _saved_positions = _coach_pitch_board_positions(primary_team)
     coach_pitch_players = []
     for bucket, group in _pitch_groups.items():
         n = len(group)
         for i, item in enumerate(group):
             item["top"] = 50 if n <= 1 else int(round(16 + i * (68.0 / (n - 1))))
+            saved = _saved_positions.get(item["id"])
+            if saved:
+                item["left"], item["top"] = saved[0], saved[1]
             try:
                 item["ficha_url"] = reverse("player-detail", args=[item["id"]])
             except Exception:
