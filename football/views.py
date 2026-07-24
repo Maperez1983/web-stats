@@ -35253,6 +35253,27 @@ def coach_roster_page(request):
         }
     else:
         players = list(Player.objects.filter(team=primary_team).order_by("is_active", "number", "name"))
+    # Jugadores "pasados a ojeado": si tienen una ficha de ojeo en curso (no fichado ni
+    # descartado) pertenecen ya al área de Dirección y no deben seguir listándose en la
+    # plantilla, aunque conserven su membership de temporada. Ver acción "to-scouting".
+    try:
+        _roster_player_ids = [int(getattr(p, "id", 0) or 0) for p in players if getattr(p, "id", None)]
+        scouting_moved_ids = set(
+            ScoutingTarget.objects.filter(
+                workspace=workspace,
+                player_id__in=_roster_player_ids,
+            )
+            .exclude(status__in=[ScoutingTarget.STATUS_SIGNED, ScoutingTarget.STATUS_DISCARDED])
+            .values_list("player_id", flat=True)
+        )
+    except Exception:
+        scouting_moved_ids = set()
+    if scouting_moved_ids:
+        players = [p for p in players if int(getattr(p, "id", 0) or 0) not in scouting_moved_ids]
+        try:
+            season_performance_player_ids -= scouting_moved_ids
+        except NameError:
+            pass
     club_player_options = []
     inactive_club_player_options = []
     club_team_options = []
