@@ -76,6 +76,22 @@
 (function(){
   document.body.classList.add('ed-chrome');
   var proxyClick = function(id){ try{ var el=document.getElementById(id); if(el) el.click(); }catch(e){} };
+  // Aviso visible (toast): el editor escribe pistas tipo "Haz clic en el campo para
+  // colocar X" en #task-builder-status, pero la carcasa lo deja a 0x0 (invisible), asi
+  // que parecia que las herramientas no hacian nada. Espejamos ese estado como toast.
+  var edcToast = function(msg){
+    try{
+      msg = String(msg||'').trim(); if(!msg) return;
+      var t=document.getElementById('edc-toast');
+      if(!t){ t=document.createElement('div'); t.id='edc-toast'; t.className='edc-toast'; document.body.appendChild(t); }
+      t.textContent=msg; t.classList.add('is-show');
+      clearTimeout(edcToast._t); edcToast._t=setTimeout(function(){ t.classList.remove('is-show'); }, 2600);
+    }catch(e){}
+  };
+  try{
+    var _edcStatus=document.getElementById('task-builder-status');
+    if(_edcStatus){ new MutationObserver(function(){ edcToast(_edcStatus.textContent); }).observe(_edcStatus,{childList:true,characterData:true,subtree:true}); }
+  }catch(e){}
   // Fija la orientación exacta (landscape/portrait) usando el toggle real del editor.
   function setOrientation(target){
     try{
