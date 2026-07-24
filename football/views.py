@@ -85,7 +85,7 @@ from . import (
     workspace_ui,
 )
 from .ai_trainer import ai_trainer_index_task, ai_trainer_tokenize, normalize_ai_trainer_text
-from .competition_season_services import current_season_name, pick_current_season_row
+from .competition_season_services import current_season_name, pick_current_season_row, season_names_match
 from .competition_sync import sync_workspace_competition_context
 from .dashboard_cache import (
     dashboard_cache_key,
@@ -19532,6 +19532,15 @@ def coach_overview_page(request):
     weekly_brief = _build_weekly_staff_brief_context(primary_team)
     competition_payload = _competition_payload_for_team(workspace, primary_team, allow_auto_sync=False)
     standings = competition_payload.get("standings") or []
+    # Guard de temporada: si el grupo del equipo pertenece a una temporada que ya no es la vigente
+    # (según el calendario), la clasificación es del año pasado (p.ej. tabla final con PJ completos).
+    # En ese caso no la mostramos: la portada queda en estado de pretemporada hasta que se vincule la
+    # competición nueva. Evita enseñar datos de 2025/2026 cuando ya estamos en 2026/2027.
+    _group_season_name = str(
+        getattr(getattr(getattr(primary_team, "group", None), "season", None), "name", "") or ""
+    ).strip()
+    if standings and _group_season_name and not season_names_match(_group_season_name, current_season_name()):
+        standings = []
     convocation_next = _build_next_match_from_convocation(primary_team)
     next_match = (
         competition_payload.get("next_match")
@@ -19548,6 +19557,12 @@ def coach_overview_page(request):
     if isinstance(weekly_brief, dict):
         weekly_brief["match"] = next_match
         next_match = weekly_brief.get("match") or {}
+    # Guard de "próximo": no mostramos como próximo rival un partido que en realidad es el ÚLTIMO de
+    # la temporada pasada. get_next_match, si no hay partido futuro, devuelve status="latest" con la
+    # fecha vieja; _next_match_payload_is_reliable exige status="next" y fecha no pasada. Si no lo es,
+    # dejamos el bloque en "Rival por confirmar".
+    if not _next_match_payload_is_reliable(next_match):
+        next_match = {}
     next_match_opponent = _payload_opponent_name(next_match) or "Rival por confirmar"
     next_match_date = ""
     parsed_next_match_date = _parse_payload_date(next_match.get("date")) if isinstance(next_match, dict) else None
