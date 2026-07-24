@@ -33324,7 +33324,7 @@ def _build_scouting_pitch_payload(items):
         })
     # Comparativa = los MEJORES por zona: ordenamos por nota global (desc) y,
     # como desempate, fichados/a prueba antes; limitamos a 5 para no amontonar.
-    _order = {"available": 0, "trial": 1, "signed_other": 2, "process": 3, "injured": 4}
+    _order = {"available": 0, "active": 1, "trial": 2, "watch": 3, "process": 4, "signed_other": 5, "injured": 6}
     for group in position_groups.values():
         group["players"].sort(key=lambda r: (-int(r.get("nota") or 0), _order.get(r["state_tone"], 5)))
         group["players"] = group["players"][:4]
@@ -33411,7 +33411,7 @@ def scouting_pitch_png(request):
     # Caché por firma: solo regeneramos el PNG (caro) cuando cambian los datos.
     import hashlib
 
-    _sig = [f"v4:{getattr(active_team, 'id', 0) or 0}:{sem_signed}:{sem_trial}:{discarded_count}"]
+    _sig = [f"v5:{getattr(active_team, 'id', 0) or 0}:{sem_signed}:{sem_trial}:{discarded_count}"]
     for _it in sorted(items, key=lambda x: x.id):
         _sig.append(
             f"{_it.id}:{_it.status}:{int(bool(_it.available_for_coach_tools))}:{getattr(_it, 'nota_global', 0)}:{_it.pos_bucket}"
