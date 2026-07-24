@@ -111,7 +111,14 @@ body.ed-chrome .pitch-viewport {
   position: fixed; top: 60px; left: 84px; right: 0; bottom: 74px; z-index: 20;
   display: flex; align-items: center; justify-content: center; padding: 22px;
 }
-body.ed-chrome #task-pitch-stage { max-width: 100%; max-height: 100%; }
+/* NO clavamos el ancho: replicamos la fórmula NATIVA a nuestra especificidad para
+   que gobierne el factor de tamaño (`--stage-max-user`) y el límite de ajuste
+   (`--stage-max-fit`). Así los botones de tamaño y el tirador de arrastre
+   redimensionan el campo de verdad (y no se corta la portería). */
+body.ed-chrome #task-pitch-stage {
+  max-width: min(var(--stage-max-user, 1500px), var(--stage-max-fit, 9999px));
+  max-height: 100%;
+}
 
 body.ed-chrome .edc-tool { text-transform: none !important; font-size: 10.5px; letter-spacing: 0; }
 body.ed-chrome .edc-rail { width: 94px; }
@@ -181,8 +188,22 @@ body.ed-chrome.edc-drawer-open .pitch-viewport { left: var(--edc-rail-w); } /* a
 body.ed-chrome .tpad-support-fab,
 body.ed-chrome #task-assistant-fab,
 body.ed-chrome .assistant-fab,
-body.ed-chrome [class*="ollana" i],
-body.ed-chrome .pitch-resize-handle { display: none !important; }
+body.ed-chrome [class*="ollana" i] { display: none !important; }
+
+/* Tirador de redimensionado del campo (esquina inferior-derecha), estilo "ventana".
+   Se arrastra para agrandar/encoger el campo, como una ventana de Windows/Mac.
+   Siempre algo visible para que se descubra; se resalta al pasar el ratón. */
+body.ed-chrome .pitch-resize-handle {
+  display: flex !important;
+  opacity: 0.55;
+  transform: none;
+  right: 12px; bottom: 12px;
+  z-index: 7;
+  cursor: nwse-resize;
+}
+body.ed-chrome .pitch-stage:hover .pitch-resize-handle,
+body.ed-chrome .pitch-resize-handle:hover,
+body.ed-chrome .pitch-resize-handle:focus-visible { opacity: 1 !important; transform: none !important; }
 
 /* ============================================================
    CAJÓN DE MATERIAL · picker limpio y fácil (reutiliza los recursos reales)

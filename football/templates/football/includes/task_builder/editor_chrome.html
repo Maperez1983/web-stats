@@ -122,36 +122,36 @@
       try{ if(window.__webstatsTaskBuilderSetPreset) window.__webstatsTaskBuilderSetPreset(preset); }catch(e){}
     });
   });
-  // -------- Zoom VISUAL de la carcasa --------
-  // El motor (modo viewportTransform) solo escala el contenido del canvas (fichas),
-  // no la superficie SVG del césped, así que su zoom es invisible cuando el campo está vacío.
-  // Aquí escalamos TODO el stage (césped + líneas + fichas juntos) con un transform propio,
-  // de forma que el zoom SÍ agranda/reduce el campo visiblemente. "Ajustar campo" vuelve a 1.
-  var edcZoom = 1;
-  var edcApplyZoom = function(){
-    var stage = document.getElementById('task-pitch-stage');
-    if(stage){
-      stage.style.transformOrigin = 'center center';
-      stage.style.transform = (edcZoom === 1) ? '' : ('scale(' + edcZoom + ')');
-    }
-    var rb = document.querySelector('[data-edc="zoom_reset"]');
-    if(rb) rb.textContent = Math.round(edcZoom * 100) + '%';
-    // Mantén el label del motor en sync por si algo lo lee.
-    try{ var lbl = document.getElementById('pitch-zoom-label'); if(lbl) lbl.textContent = Math.round(edcZoom*100)+'%'; }catch(e){}
+  // -------- Tamaño del campo (redimensionado real, tipo "ventana") --------
+  // Usamos el mecanismo NATIVO del motor: los botones pitch-size-up/down/fit cambian el
+  // factor de tamaño del stage (--stage-max-user), que redimensiona el campo COMPLETO
+  // (césped + líneas + fichas) y lo recuerda. Es lo mismo que arrastrar el tirador de la
+  // esquina. Reflejamos el % en la barra inferior leyendo el label nativo.
+  var edcSyncSizeLabel = function(){
+    try{
+      var lbl = document.getElementById('pitch-size-label');
+      var rb = document.querySelector('[data-edc="zoom_reset"]');
+      if(lbl && rb){
+        var m = String(lbl.textContent||'').match(/(\d+)\s*%/);
+        rb.textContent = m ? (m[1] + '%') : 'Ajustar';
+      }
+    }catch(e){}
   };
-  var edcSetZoom = function(z){
-    var n = Math.round((Number(z)||1) * 100) / 100;
-    edcZoom = Math.min(2.4, Math.max(0.6, n));
-    edcApplyZoom();
-  };
+  var edcSize = function(id){ proxyClick(id); setTimeout(edcSyncSizeLabel, 30); };
+  // Refleja el tamaño inicial y ante cambios del motor (arrastre del tirador incluido).
+  try{
+    var _szLbl = document.getElementById('pitch-size-label');
+    if(_szLbl){ new MutationObserver(edcSyncSizeLabel).observe(_szLbl, {childList:true, characterData:true, subtree:true}); }
+    setTimeout(edcSyncSizeLabel, 400);
+  }catch(e){}
   // Barra superior + acciones.
   var actions = {
-    fit: function(){ edcSetZoom(1); proxyClick('pitch-size-fit'); },
-    center: function(){ edcSetZoom(1); proxyClick('pitch-size-fit'); },
-    zoom_in: function(){ edcSetZoom(edcZoom + 0.12); },
-    zoom_out: function(){ edcSetZoom(edcZoom - 0.12); },
-    zoom_reset: function(){ edcSetZoom(1); },
-    reset: function(){ edcSetZoom(1); proxyClick('pitch-size-fit'); },
+    fit: function(){ edcSize('pitch-size-fit'); },
+    center: function(){ edcSize('pitch-size-fit'); },
+    zoom_in: function(){ edcSize('pitch-size-up'); },
+    zoom_out: function(){ edcSize('pitch-size-down'); },
+    zoom_reset: function(){ edcSize('pitch-size-fit'); },
+    reset: function(){ edcSize('pitch-size-fit'); },
     wide: function(this_btn){ setActive('focus', this_btn); document.body.classList.remove('task-focus-mode'); },
     only_pitch: function(this_btn){ setActive('focus', this_btn); proxyClick('task-focus-toggle'); },
     horizontal: function(this_btn){ setActive('orient', this_btn); setOrientation('landscape'); },
