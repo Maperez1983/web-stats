@@ -15,6 +15,10 @@ except Exception:  # pragma: no cover
 
 logger = logging.getLogger(__name__)
 
+# Tope de tamaño por documento subido (licencia/foto). Evita cargar en RAM ficheros enormes
+# (save_player_license hace uploaded.read() completo) — protección frente a DoS por memoria.
+MAX_PLAYER_DOCUMENT_BYTES = 15 * 1024 * 1024  # 15 MB
+
 
 def player_license_storage_candidates(player):
     if not player:
@@ -35,6 +39,9 @@ def save_player_license(player, uploaded_license):
     """
     if not player or not uploaded_license:
         return ''
+    upload_size = int(getattr(uploaded_license, 'size', 0) or 0)
+    if upload_size > MAX_PLAYER_DOCUMENT_BYTES:
+        raise ValueError('La licencia supera el tamaño máximo permitido (15 MB).')
     try:
         storage = storages['default']
         if isinstance(storage, FileSystemStorage):

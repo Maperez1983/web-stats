@@ -2987,6 +2987,8 @@ def account_delete(request):
 def save_player_photo(player, uploaded_photo):
     if not player or not uploaded_photo:
         return ""
+    if int(getattr(uploaded_photo, "size", 0) or 0) > player_documents.MAX_PLAYER_DOCUMENT_BYTES:
+        raise ValueError("La foto supera el tamaño máximo permitido (15 MB).")
     storage_candidates = _player_photo_storage_candidates(player)
     target_name = storage_candidates[0]
     content = uploaded_photo
@@ -19390,6 +19392,28 @@ def player_dashboard_page(request):
         tournament_name=tournament_filter,
         request=request,
     )
+    # Coherencia con la plantilla del entrenador: los jugadores "pasados a ojeado" (ficha de
+    # ojeo en curso, no fichada ni descartada) ya pertenecen a Dirección y no deben listarse
+    # como tarjetas del equipo. Se filtra aquí, en la vista, para NO alterar el núcleo
+    # compute_player_dashboard (compartido y cacheado por coach home, PDFs y pestaña stats).
+    try:
+        _dash_ws = _get_active_workspace(request)
+        if _dash_ws is not None and player_stats:
+            _dash_pids = [int(_parse_int(r.get("player_id")) or 0) for r in player_stats]
+            _scouting_ids = set(
+                ScoutingTarget.objects.filter(
+                    workspace=_dash_ws,
+                    player_id__in=[p for p in _dash_pids if p],
+                )
+                .exclude(status__in=[ScoutingTarget.STATUS_SIGNED, ScoutingTarget.STATUS_DISCARDED])
+                .values_list("player_id", flat=True)
+            )
+            if _scouting_ids:
+                player_stats = [
+                    r for r in player_stats if int(_parse_int(r.get("player_id")) or 0) not in _scouting_ids
+                ]
+    except Exception:
+        pass
     # Rendimiento: el dropdown de partidos no debe arrastrar el coste completo de `_team_match_queryset()`
     # (que añade IDs por eventos/convocatorias/stats y puede disparar queries). Aquí usamos el filtro directo
     # home/away del equipo, suficiente para navegación. Si faltase un partido concreto, se puede abrir por URL.
@@ -34979,10 +35003,14 @@ def coach_roster_page(request):
                     raise ValueError("Solo se puede confirmar plantilla sobre la temporada activa.")
                 if not player_id:
                     raise ValueError("Jugador no válido.")
+                # El jugador debe pertenecer al equipo actual: evita crear una membership de
+                # nuestra temporada apuntando a un jugador de otro equipo/workspace (IDOR).
+                if not Player.objects.filter(id=player_id, team=primary_team).exists():
+                    raise ValueError("Jugador no válido.")
                 membership, _created = WorkspaceSeasonPlayer.objects.get_or_create(
                     season=active_club_season,
                     player_id=player_id,
-                    defaults={"is_confirmed": False},
+                    defaults={"is_confirmed": False, "team": primary_team},
                 )
                 if action == "confirm_season_player":
                     membership.is_confirmed = True
@@ -35193,13 +35221,17 @@ def coach_roster_page(request):
                 target_player = Player.objects.filter(team=primary_team, name__iexact=name).order_by("id").first()
                 if target_player:
                     target_player.number = number
-                    target_player.position = position[:60]
+                    # No vaciar la posición existente si el alta llega con el campo en blanco.
+                    if position:
+                        target_player.position = position[:60]
                     target_player.is_active = is_active
                     updates = ["number", "position", "is_active"]
                     updates.extend(_apply_player_profile_fields(target_player))
                     target_player.save(update_fields=sorted(set(updates)))
                     ensure_workspace_player(workspace, target_player, current_team=primary_team, is_active=is_active)
-                    message = f"Jugador actualizado: {target_player.name}."
+                    # Aviso explícito: se ha editado un jugador existente con el mismo nombre,
+                    # no se ha creado uno nuevo (evita machacar un homónimo por confusión).
+                    message = f"Ya existía un jugador con ese nombre: se actualizó «{target_player.name}» en lugar de crear uno nuevo."
                 else:
                     target_player = Player.objects.create(
                         team=primary_team,
@@ -68078,7 +68110,9 @@ def player_detail_page(request, player_id):
             force_new = str(injury_record_mode or "").strip().lower() in {"new", "add", "create"}
             record = None
             injury_record_id = _parse_int(request.POST.get("injury_record_id"))
-            if injury_record_id:
+            # "Añadir lesión al historial" (force_new) debe crear SIEMPRE un registro nuevo,
+            # aunque el formulario arrastre el hidden injury_record_id de la lesión mostrada.
+            if injury_record_id and not force_new:
                 record = PlayerInjuryRecord.objects.filter(id=injury_record_id, player=player).first()
             if record is None and not force_new:
                 record = (
@@ -68128,11 +68162,26 @@ def player_detail_page(request, player_id):
                     notes=str(injury_notes or "").strip(),
                     is_active=not is_recovered and (not injury_return_date or injury_return_date > timezone.localdate()),
                 )
-            player.injury = injury_name
-            player.injury_type = str(injury_type or "").strip()
-            player.injury_zone = str(injury_zone or "").strip()
-            player.injury_side = str(injury_side or "").strip()
-            player.injury_date = injury_date or player.injury_date
+            # La denormalización "lesión actual" del Player debe reflejar la lesión ACTIVA más
+            # reciente, no la que se acabe de tocar: al editar una lesión antigua o marcar una
+            # como recuperada, el jugador debe dejar de figurar lesionado si ya no tiene ninguna
+            # activa (antes se re-estampaban estos campos de forma incondicional).
+            active_record = (
+                PlayerInjuryRecord.objects.filter(player=player, is_active=True)
+                .order_by("-injury_date", "-id")
+                .first()
+            )
+            if active_record:
+                player.injury = active_record.injury
+                player.injury_type = str(active_record.injury_type or "").strip()
+                player.injury_zone = str(active_record.injury_zone or "").strip()
+                player.injury_side = str(active_record.injury_side or "").strip()
+                player.injury_date = active_record.injury_date or player.injury_date
+            else:
+                player.injury = ""
+                player.injury_type = ""
+                player.injury_zone = ""
+                player.injury_side = ""
             player.save(update_fields=["injury", "injury_type", "injury_zone", "injury_side", "injury_date"])
             return record
 
@@ -68145,17 +68194,19 @@ def player_detail_page(request, player_id):
                 _ws = _get_active_workspace(request)
                 if _ws is not None:
                     _subject = (getattr(player, "full_name", "") or getattr(player, "name", "") or "").strip() or player.name
-                    _target, _ = ScoutingTarget.objects.get_or_create(
-                        workspace=_ws,
-                        player=player,
-                        subject_name=_subject,
-                        defaults={
-                            "subject_team_name": getattr(player, "origin_team", "") or "",
-                            "position": getattr(player, "position", "") or "",
-                            "dominant_foot": getattr(player, "dominant_foot", "") or "",
-                            "birth_date": getattr(player, "birth_date", None),
-                        },
-                    )
+                    # Idempotencia: buscamos por (workspace, player), NO por subject_name, para
+                    # no duplicar la ficha de ojeo si el nombre difiere de un target previo.
+                    _target = ScoutingTarget.objects.filter(workspace=_ws, player=player).order_by("id").first()
+                    if _target is None:
+                        _target = ScoutingTarget.objects.create(
+                            workspace=_ws,
+                            player=player,
+                            subject_name=_subject,
+                            subject_team_name=getattr(player, "origin_team", "") or "",
+                            position=getattr(player, "position", "") or "",
+                            dominant_foot=getattr(player, "dominant_foot", "") or "",
+                            birth_date=getattr(player, "birth_date", None),
+                        )
                     _target.status = ScoutingTarget.STATUS_ACTIVE
                     _target.available_for_coach_tools = True
                     _target.save(update_fields=["status", "available_for_coach_tools", "updated_at"])
@@ -68214,10 +68265,16 @@ def player_detail_page(request, player_id):
                 player.manual_sanction_reason = manual_sanction_reason
                 player.manual_sanction_until = manual_sanction_until
                 player.save()
-                if uploaded_photo:
-                    save_player_photo(player, uploaded_photo)
-                if uploaded_license:
-                    save_player_license(player, uploaded_license)
+                try:
+                    if uploaded_photo:
+                        save_player_photo(player, uploaded_photo)
+                    if uploaded_license:
+                        save_player_license(player, uploaded_license)
+                except ValueError as exc:
+                    # Fichero rechazado (p. ej. supera el tamaño máximo): mensaje claro en vez
+                    # del 500 genérico. El resto de la ficha ya se ha guardado arriba.
+                    messages.error(request, str(exc))
+                    return redirect(f"{reverse('player-detail', args=[player.id])}?tab=general")
                 if injury_name or injury_notes or injury_date or injury_return_date:
                     _persist_player_injury(
                         injury_name=injury_name,
@@ -69150,13 +69207,32 @@ def player_detail_page(request, player_id):
                 hist_start, hist_end = club_season_date_bounds(season_row)
                 hist_stats = {}
                 try:
-                    hist_rows = compute_player_dashboard(
-                        primary_team,
-                        request=request,
-                        date_start=hist_start,
-                        date_end=hist_end,
-                        refresh_photo_urls=False,
-                    )
+                    # N+1: compute_player_dashboard con ventana de fechas NO usa la caché interna
+                    # (can_use_cache exige date_start/end vacíos), así que cada temporada recomputa
+                    # el dashboard completo del equipo. Como el resultado por ventana es idéntico
+                    # para todas las fichas del equipo, lo cacheamos por (equipo, ventana). Las
+                    # temporadas pasadas son inmutables; para la activa no cacheamos (datos vivos).
+                    season_is_active = bool(getattr(season_row, "is_active", False))
+                    hist_rows = None
+                    hist_cache_key = f"player_hist_dash:{int(primary_team.id)}:{hist_start}:{hist_end}"
+                    if not season_is_active:
+                        try:
+                            hist_rows = cache.get(hist_cache_key)
+                        except Exception:
+                            hist_rows = None
+                    if hist_rows is None:
+                        hist_rows = compute_player_dashboard(
+                            primary_team,
+                            request=request,
+                            date_start=hist_start,
+                            date_end=hist_end,
+                            refresh_photo_urls=False,
+                        )
+                        if not season_is_active:
+                            try:
+                                cache.set(hist_cache_key, hist_rows, 1800)
+                            except Exception:
+                                pass
                     hist_stats = next(
                         (item for item in hist_rows if int(item.get("player_id") or 0) == int(player.id)),
                         {},
