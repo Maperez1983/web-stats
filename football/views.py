@@ -69501,6 +69501,48 @@ def player_detail_page(request, player_id):
         except Exception:
             form_last5 = []
 
+        # Disponibilidad para el próximo partido: estado actual del jugador (lesión/sanción)
+        # + el fixture cacheado del equipo si está disponible (sin fetch externo).
+        next_match_availability = None
+        try:
+            _today = timezone.localdate()
+            _sanction_until = getattr(player, "manual_sanction_until", None)
+            _sanction_live = bool(getattr(player, "manual_sanction_active", False)) and (
+                not _sanction_until or _sanction_until >= _today
+            )
+            if has_active_injury:
+                _avail, _reason, _tone = False, "Lesionado", "warn"
+            elif _sanction_live:
+                _reason = "Sancionado"
+                if _sanction_until:
+                    _reason = f"Sancionado hasta {_sanction_until.strftime('%d/%m/%Y')}"
+                _avail, _tone = False, "warn"
+            else:
+                _avail, _reason, _tone = True, "Disponible", "ok"
+            _nm_date_label, _nm_opponent = "", ""
+            try:
+                _nm_raw = get_next_match(primary_team, getattr(primary_team, "group", None), allow_external_fetch=False) or {}
+                if _nm_raw:
+                    _nm_date = match_payload_services.parse_payload_date(_nm_raw.get("date"))
+                    if _nm_date:
+                        _nm_date_label = _nm_date.strftime("%d/%m/%Y")
+                    _opp = _nm_raw.get("opponent")
+                    if isinstance(_opp, dict):
+                        _nm_opponent = str(_opp.get("name") or _opp.get("full_name") or "").strip()
+                    elif _opp:
+                        _nm_opponent = str(_opp).strip()
+            except Exception:
+                _nm_date_label, _nm_opponent = "", ""
+            next_match_availability = {
+                "available": _avail,
+                "reason": _reason,
+                "tone": _tone,
+                "match_date": _nm_date_label,
+                "opponent": _nm_opponent,
+            }
+        except Exception:
+            next_match_availability = None
+
         # Radar mini tipo card (para contrastar con el radar staff, y reutilizar en PDF).
         try:
             card_radar_data = _build_player_card_radar_data(safe_stats, matches)
@@ -69684,6 +69726,7 @@ def player_detail_page(request, player_id):
             "player_in_scouting": player_in_scouting,
             "license_expiry_badge": license_expiry_badge,
             "form_last5": form_last5,
+            "next_match_availability": next_match_availability,
                 "fines_summary": fines_summary,
                 "fines_records": fines_records,
                 "stats_error": stats_error,

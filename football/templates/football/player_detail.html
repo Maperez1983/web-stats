@@ -296,6 +296,14 @@
       .form-dot.form-draw { background: #9aa4b2; }
       .form-dot.form-loss { background: #d24141; }
       .form-dot.form-muted { background: rgba(148,163,184,0.5); color: #0b1626; }
+      .avail-card { display: inline-flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; padding: 0.4rem 0.7rem; border-radius: 10px; border: 1px solid rgba(148,163,184,0.28); }
+      .avail-card .avail-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
+      .avail-card .avail-text { display: flex; flex-direction: column; line-height: 1.2; }
+      .avail-card .avail-sub { font-size: 0.7rem; color: var(--prod-muted, rgba(15,23,42,0.6)); text-transform: none; letter-spacing: 0; }
+      .avail-ok { background: rgba(47,125,50,0.12); border-color: rgba(47,125,50,0.35); }
+      .avail-ok .avail-dot { background: #2f7d32; }
+      .avail-warn { background: rgba(210,65,65,0.12); border-color: rgba(210,65,65,0.35); }
+      .avail-warn .avail-dot { background: #d24141; }
       .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; }
       label { display: flex; flex-direction: column; font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--prod-muted, rgba(15, 23, 42, 0.64)); gap: 0.35rem; }
       input, select, textarea { border-radius: 0.65rem; border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28)); padding: 0.6rem 0.75rem; background: rgba(2, 6, 23, 0.08); color: var(--prod-text, #f5f7fa); font-size: 0.95rem; }
@@ -1296,6 +1304,15 @@
           <div class="form-strip" title="Resultados de los últimos partidos jugados">
             <span class="form-strip-label">Forma</span>
             {% for f in form_last5 %}<span class="form-dot form-{{ f.tone }}" title="{{ f.label }}">{{ f.ch }}</span>{% endfor %}
+          </div>
+          {% endif %}
+          {% if next_match_availability %}
+          <div class="avail-card avail-{{ next_match_availability.tone }}" title="Disponibilidad para el próximo partido">
+            <span class="avail-dot"></span>
+            <span class="avail-text">
+              <strong>{{ next_match_availability.reason }}</strong>
+              {% if next_match_availability.match_date %}<span class="avail-sub">Próx. partido: {{ next_match_availability.match_date }}{% if next_match_availability.opponent %} · {{ next_match_availability.opponent }}{% endif %}</span>{% endif %}
+            </span>
           </div>
           {% endif %}
           <div style="margin-top:0.4rem;">
