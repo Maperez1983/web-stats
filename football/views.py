@@ -5019,7 +5019,7 @@ def _roster_preview_bucket(position_text: str) -> str:
 
 # Sube este numero cuando cambie el DISENO del informe: invalida todas las
 # imagenes cacheadas y fuerza que se regeneren con el render nuevo.
-_ROSTER_PREVIEW_RENDER_VERSION = "10"
+_ROSTER_PREVIEW_RENDER_VERSION = "11"
 
 
 def _coach_roster_preview_signature(*, primary_team, active_club_season, board_rows) -> str:
@@ -5509,7 +5509,8 @@ def _render_coach_roster_preview_png(
 ):
     if Image is None or ImageDraw is None:
         return b""
-    width, height = 1800, 1200
+    S = 2  # supersampling HD
+    width, height = 1800 * S, 1200 * S
     canvas = Image.new("RGBA", (width, height), (7, 14, 26, 255))
     draw = ImageDraw.Draw(canvas)
     # fondo premium
@@ -5578,16 +5579,16 @@ def _render_coach_roster_preview_png(
         badge.alpha_composite(border)
         target_card.alpha_composite(badge, (x0, y0))
 
-    font_title = _roster_preview_font(30, bold=True) or ImageFont.load_default()
-    font_sub = _roster_preview_font(19, bold=False) or ImageFont.load_default()
-    font_chip = _roster_preview_font(13, bold=True) or ImageFont.load_default()
-    font_card_name = _roster_preview_font(18, bold=True) or ImageFont.load_default()
-    font_card_pos = _roster_preview_font(13, bold=False) or ImageFont.load_default()
-    font_card_state = _roster_preview_font(11, bold=True) or ImageFont.load_default()
-    font_big = _roster_preview_font(26, bold=True) or ImageFont.load_default()
-    font_avatar_name = _roster_preview_font(16, bold=True) or ImageFont.load_default()
-    font_avatar_meta = _roster_preview_font(11, bold=True) or ImageFont.load_default()
-    font_avatar_small = _roster_preview_font(10, bold=False) or ImageFont.load_default()
+    font_title = _roster_preview_font(30 * S, bold=True) or ImageFont.load_default()
+    font_sub = _roster_preview_font(19 * S, bold=False) or ImageFont.load_default()
+    font_chip = _roster_preview_font(13 * S, bold=True) or ImageFont.load_default()
+    font_card_name = _roster_preview_font(18 * S, bold=True) or ImageFont.load_default()
+    font_card_pos = _roster_preview_font(13 * S, bold=False) or ImageFont.load_default()
+    font_card_state = _roster_preview_font(11 * S, bold=True) or ImageFont.load_default()
+    font_big = _roster_preview_font(26 * S, bold=True) or ImageFont.load_default()
+    font_avatar_name = _roster_preview_font(16 * S, bold=True) or ImageFont.load_default()
+    font_avatar_meta = _roster_preview_font(11 * S, bold=True) or ImageFont.load_default()
+    font_avatar_small = _roster_preview_font(10 * S, bold=False) or ImageFont.load_default()
     static_base_dir = Path(settings.BASE_DIR) / "football" / "static"
     fallback_static_base_dir = Path(settings.BASE_DIR) / "static"
     state_avatar_sources = {
@@ -5605,43 +5606,43 @@ def _render_coach_roster_preview_png(
         }
 
     # top header
-    header_box = (38, 28, width - 38, 150)
-    draw.rounded_rectangle(header_box, radius=28, fill=(10, 20, 34, 230), outline=(109, 98, 54, 180), width=2)
+    header_box = (38 * S, 28 * S, width - 38 * S, 150 * S)
+    draw.rounded_rectangle(header_box, radius=28 * S, fill=(10, 20, 34, 230), outline=(109, 98, 54, 180), width=2 * S)
     if crest_src:
         crest_img = _load_image_source(crest_src)
         if crest_img is not None:
-            crest_img = crest_img.resize((88, 88))
-            canvas.alpha_composite(crest_img, (58, 44))
-    draw.text((160, 50), header_title or "2J CLUB · BENAGALBÓN", font=font_title, fill=(255, 250, 240, 255))
-    draw.text((160, 88), f"{division_label or 'División'} · {season_label or 'Temporada actual'}", font=font_sub, fill=(191, 219, 254, 235))
+            crest_img = crest_img.resize((88 * S, 88 * S))
+            canvas.alpha_composite(crest_img, (58 * S, 44 * S))
+    draw.text((160 * S, 50 * S), header_title or "2J CLUB · BENAGALBÓN", font=font_title, fill=(255, 250, 240, 255))
+    draw.text((160 * S, 88 * S), f"{division_label or 'División'} · {season_label or 'Temporada actual'}", font=font_sub, fill=(191, 219, 254, 235))
     top_chips = top_chips or [
         ("Plantilla activa", str(payload.get("total_players", 0))),
         ("Disponibles", str(payload.get("state_counts", {}).get("confirmed", 0))),
         ("A prueba", str(payload.get("state_counts", {}).get("trial", 0))),
         ("Lesionados", str(payload.get("state_counts", {}).get("injured", 0))),
     ]
-    chip_x = width - 40
+    chip_x = width - 40 * S
     for label, value in reversed(top_chips):
         chip_text = f"{label} · {value}"
         bbox = draw.textbbox((0, 0), chip_text, font=font_chip)
-        chip_w = (bbox[2] - bbox[0]) + 28
-        chip_h = (bbox[3] - bbox[1]) + 18
+        chip_w = (bbox[2] - bbox[0]) + 28 * S
+        chip_h = (bbox[3] - bbox[1]) + 18 * S
         chip_x -= chip_w
-        draw.rounded_rectangle((chip_x, 50, chip_x + chip_w, 50 + chip_h), radius=999, fill=(18, 28, 44, 230), outline=(244, 180, 0, 130), width=1)
-        draw.text((chip_x + 14, 50 + 8), chip_text, font=font_chip, fill=(245, 247, 250, 255))
-        chip_x -= 14
+        draw.rounded_rectangle((chip_x, 50 * S, chip_x + chip_w, 50 * S + chip_h), radius=999, fill=(18, 28, 44, 230), outline=(244, 180, 0, 130), width=1 * S)
+        draw.text((chip_x + 14 * S, 50 * S + 8 * S), chip_text, font=font_chip, fill=(245, 247, 250, 255))
+        chip_x -= 14 * S
 
     # main board
-    field_box = (40, 190, width - 40, 980)
+    field_box = (40 * S, 190 * S, width - 40 * S, 980 * S)
     field_img = _load_image_source(pitch_src)
     if field_img is not None:
         field_img = field_img.resize((field_box[2] - field_box[0], field_box[3] - field_box[1]))
         canvas.alpha_composite(field_img, (field_box[0], field_box[1]))
     else:
-        draw.rounded_rectangle(field_box, radius=34, fill=(31, 90, 35, 255), outline=(255, 255, 255, 90), width=2)
-    draw.rounded_rectangle(field_box, radius=34, outline=(255, 255, 255, 130), width=3)
-    field_inner = (field_box[0] + 28, field_box[1] + 28, field_box[2] - 28, field_box[3] - 28)
-    draw.rounded_rectangle(field_inner, radius=24, outline=(255, 255, 255, 85), width=2)
+        draw.rounded_rectangle(field_box, radius=34 * S, fill=(31, 90, 35, 255), outline=(255, 255, 255, 90), width=2 * S)
+    draw.rounded_rectangle(field_box, radius=34 * S, outline=(255, 255, 255, 130), width=3 * S)
+    field_inner = (field_box[0] + 28 * S, field_box[1] + 28 * S, field_box[2] - 28 * S, field_box[3] - 28 * S)
+    draw.rounded_rectangle(field_inner, radius=24 * S, outline=(255, 255, 255, 85), width=2 * S)
 
     field_cards = list(payload.get("field_cards") or [])
     card_base = {
@@ -5655,8 +5656,8 @@ def _render_coach_roster_preview_png(
     }
     field_w = field_box[2] - field_box[0]
     field_h = field_box[3] - field_box[1]
-    pitch_margin_x = max(42, int(field_w * 0.028))
-    pitch_margin_y = max(34, int(field_h * 0.035))
+    pitch_margin_x = max(42 * S, int(field_w * 0.028))
+    pitch_margin_y = max(34 * S, int(field_h * 0.035))
 
     def _resolve_avatar_layer(source: str, max_w: int, max_h: int):
         src_img = _load_image_source(source)
@@ -5685,7 +5686,7 @@ def _render_coach_roster_preview_png(
         accent,
         glow,
     ):
-        layer = Image.new("RGBA", (avatar_w + 36, avatar_h + 62), (0, 0, 0, 0))
+        layer = Image.new("RGBA", (avatar_w + 36 * S, avatar_h + 62 * S), (0, 0, 0, 0))
         ldraw = ImageDraw.Draw(layer)
 
         state_key = str(item.get("state_key") or "available").strip()
@@ -5744,8 +5745,8 @@ def _render_coach_roster_preview_png(
         num_bbox = ldraw.textbbox((0, 0), number, font=num_font)
         num_w = num_bbox[2] - num_bbox[0]
         num_h = num_bbox[3] - num_bbox[1]
-        num_box = (12, 8, 12 + max(30, num_w + 14), 8 + max(30, num_h + 10))
-        ldraw.rounded_rectangle(num_box, radius=12, fill=(7, 10, 18, 185), outline=glow, width=2)
+        num_box = (12 * S, 8 * S, 12 * S + max(30 * S, num_w + 14 * S), 8 * S + max(30 * S, num_h + 10 * S))
+        ldraw.rounded_rectangle(num_box, radius=12 * S, fill=(7, 10, 18, 185), outline=glow, width=2 * S)
         ldraw.text(
             (num_box[0] + (num_box[2] - num_box[0] - num_w) / 2, num_box[1] + (num_box[3] - num_box[1] - num_h) / 2 - 1),
             number,
@@ -5754,17 +5755,17 @@ def _render_coach_roster_preview_png(
         )
 
         name = str(item.get("name") or "").strip() or "Jugador"
-        name_lines = _roster_preview_wrap_text(ldraw, name, font_avatar_name, avatar_w + 40, max_lines=2)
-        label_w = max(108, avatar_w + 26)
-        label_h = 50 if len(name_lines) > 1 else 44
-        label_x = max(6, int((layer.width - label_w) / 2))
-        label_y = avatar_h + 8
-        ldraw.rounded_rectangle((label_x, label_y, label_x + label_w, label_y + label_h), radius=14, fill=(12, 18, 28, 190), outline=glow, width=2)
-        label_text_y = label_y + 5
+        name_lines = _roster_preview_wrap_text(ldraw, name, font_avatar_name, avatar_w + 40 * S, max_lines=2)
+        label_w = max(108 * S, avatar_w + 26 * S)
+        label_h = (50 if len(name_lines) > 1 else 44) * S
+        label_x = max(6 * S, int((layer.width - label_w) / 2))
+        label_y = avatar_h + 8 * S
+        ldraw.rounded_rectangle((label_x, label_y, label_x + label_w, label_y + label_h), radius=14 * S, fill=(12, 18, 28, 190), outline=glow, width=2 * S)
+        label_text_y = label_y + 5 * S
         for idx, line in enumerate(name_lines[:2]):
             bbox = ldraw.textbbox((0, 0), line, font=font_avatar_name)
             text_w = bbox[2] - bbox[0]
-            ldraw.text((label_x + (label_w - text_w) / 2, label_text_y + idx * 16), line, font=font_avatar_name, fill=(255, 250, 240, 245))
+            ldraw.text((label_x + (label_w - text_w) / 2, label_text_y + idx * 16 * S), line, font=font_avatar_name, fill=(255, 250, 240, 245))
 
         pos_text = str(item.get("position") or "-").strip().upper()
         state_label = str(item.get("state_label") or "").strip().upper() or "DISPONIBLE"
@@ -5772,12 +5773,12 @@ def _render_coach_roster_preview_png(
         meta_bbox = ldraw.textbbox((0, 0), meta_text, font=font_avatar_meta)
         meta_w = meta_bbox[2] - meta_bbox[0]
         meta_x = label_x + (label_w - meta_w) / 2
-        meta_y = label_y + label_h - 17
+        meta_y = label_y + label_h - 17 * S
         ldraw.text((meta_x, meta_y), meta_text, font=font_avatar_meta, fill=glow)
 
-        state_chip_w = min(label_w - 18, max(74, len(label_state) * 6 + 16))
-        state_chip = (label_x + (label_w - state_chip_w) / 2, label_y + label_h - 16, label_x + (label_w + state_chip_w) / 2, label_y + label_h - 2)
-        ldraw.rounded_rectangle(state_chip, radius=999, fill=(*accent[:3], 190), outline=glow, width=1)
+        state_chip_w = min(label_w - 18 * S, max(74 * S, len(label_state) * 6 * S + 16 * S))
+        state_chip = (label_x + (label_w - state_chip_w) / 2, label_y + label_h - 16 * S, label_x + (label_w + state_chip_w) / 2, label_y + label_h - 2 * S)
+        ldraw.rounded_rectangle(state_chip, radius=999, fill=(*accent[:3], 190), outline=glow, width=1 * S)
         chip_text = label_state
         chip_bbox = ldraw.textbbox((0, 0), chip_text, font=font_avatar_small)
         chip_w = chip_bbox[2] - chip_bbox[0]
@@ -5788,7 +5789,7 @@ def _render_coach_roster_preview_png(
             font=font_avatar_small,
             fill=(255, 250, 240, 250),
         )
-        target.alpha_composite(layer, (x - 22, y - 4))
+        target.alpha_composite(layer, (x - 22 * S, y - 4 * S))
 
     for item in field_cards:
         state = str(item.get("state_tone") or item.get("state_key") or "available").strip()
@@ -5799,7 +5800,7 @@ def _render_coach_roster_preview_png(
         card_w = int(field_w * (width_pct / 100.0))
         # Avatar mas grande (mas cerca de la referencia) pero sin solapar: la
         # altura total (avatar + etiqueta) debe caber en el hueco vertical.
-        card_h = max(160, int(card_w * 1.2))
+        card_h = max(160 * S, int(card_w * 1.2))
         cx = field_box[0] + int(field_w * (left_pct / 100.0))
         cy = field_box[1] + int(field_h * (top_pct / 100.0))
         x = max(field_box[0] + pitch_margin_x, min(field_box[2] - card_w - pitch_margin_x, cx - card_w // 2))
@@ -5809,14 +5810,14 @@ def _render_coach_roster_preview_png(
             item=item,
             x=x,
             y=y,
-            avatar_w=max(58, min(92, card_w - 44)),
-            avatar_h=max(74, min(96, card_h - 60)),
+            avatar_w=max(58 * S, min(92 * S, card_w - 44 * S)),
+            avatar_h=max(74 * S, min(96 * S, card_h - 60 * S)),
             accent=accent,
             glow=glow,
         )
 
     # footer summaries
-    footer_box = (40, 980, width - 40, 1158)
+    footer_box = (40 * S, 980 * S, width - 40 * S, 1158 * S)
     draw.rounded_rectangle(footer_box, radius=24, fill=(9, 16, 29, 235), outline=(255, 255, 255, 55), width=2)
     footer_sections = [
         ("Portería", next((row for row in payload.get("position_total_rows") or [] if row.get("label") == "Portería"), None)),
@@ -5824,26 +5825,26 @@ def _render_coach_roster_preview_png(
         ("Centro", next((row for row in payload.get("position_total_rows") or [] if row.get("label") == "Centro del campo"), None)),
         ("Ataque", next((row for row in payload.get("position_total_rows") or [] if row.get("label") == "Ataque"), None)),
     ]
-    sec_x = footer_box[0] + 18
-    sec_w = 300
+    sec_x = footer_box[0] + 18 * S
+    sec_w = 300 * S
     for label, row in footer_sections:
-        draw.rounded_rectangle((sec_x, footer_box[1] + 16, sec_x + sec_w, footer_box[3] - 16), radius=18, fill=(15, 23, 39, 255), outline=(244, 180, 0, 70), width=1)
-        draw.text((sec_x + 16, footer_box[1] + 28), label.upper(), font=font_chip, fill=(191, 219, 254, 235))
+        draw.rounded_rectangle((sec_x, footer_box[1] + 16 * S, sec_x + sec_w, footer_box[3] - 16 * S), radius=18 * S, fill=(15, 23, 39, 255), outline=(244, 180, 0, 70), width=1 * S)
+        draw.text((sec_x + 16 * S, footer_box[1] + 28 * S), label.upper(), font=font_chip, fill=(191, 219, 254, 235))
         if row:
-            draw.text((sec_x + 16, footer_box[1] + 56), str(int(row.get("count") or 0)), font=font_big, fill=(245, 247, 250, 255))
+            draw.text((sec_x + 16 * S, footer_box[1] + 56 * S), str(int(row.get("count") or 0)), font=font_big, fill=(245, 247, 250, 255))
             detail = footer_detail_fmt.format(
                 confirmed=int(row.get("confirmed") or 0),
                 trial=int(row.get("trial") or 0),
                 injured=int(row.get("injured") or 0),
                 inactive=int(row.get("inactive") or 0),
             )
-            draw.text((sec_x + 92, footer_box[1] + 62), detail, font=font_card_pos, fill=(226, 232, 240, 220))
-        sec_x += sec_w + 14
+            draw.text((sec_x + 92 * S, footer_box[1] + 62 * S), detail, font=font_card_pos, fill=(226, 232, 240, 220))
+        sec_x += sec_w + 14 * S
     total = int(payload.get("total_players", 0) or 0)
-    draw.rounded_rectangle((sec_x, footer_box[1] + 16, footer_box[2] - 18, footer_box[3] - 16), radius=18, fill=(19, 34, 24, 255), outline=(134, 239, 172, 70), width=1)
-    draw.text((sec_x + 16, footer_box[1] + 28), footer_total_label, font=font_chip, fill=(134, 239, 172, 240))
-    draw.text((sec_x + 16, footer_box[1] + 56), str(total), font=font_big, fill=(245, 247, 250, 255))
-    draw.text((sec_x + 86, footer_box[1] + 62), footer_total_sub, font=font_card_pos, fill=(226, 232, 240, 220))
+    draw.rounded_rectangle((sec_x, footer_box[1] + 16 * S, footer_box[2] - 18 * S, footer_box[3] - 16 * S), radius=18 * S, fill=(19, 34, 24, 255), outline=(134, 239, 172, 70), width=1 * S)
+    draw.text((sec_x + 16 * S, footer_box[1] + 28 * S), footer_total_label, font=font_chip, fill=(134, 239, 172, 240))
+    draw.text((sec_x + 16 * S, footer_box[1] + 56 * S), str(total), font=font_big, fill=(245, 247, 250, 255))
+    draw.text((sec_x + 86 * S, footer_box[1] + 62 * S), footer_total_sub, font=font_card_pos, fill=(226, 232, 240, 220))
 
     out = io.BytesIO()
     canvas.convert("RGB").save(out, format="PNG", optimize=True)
@@ -33296,7 +33297,7 @@ def scouting_pitch_png(request):
     # Caché por firma: solo regeneramos el PNG (caro) cuando cambian los datos.
     import hashlib
 
-    _sig = [f"v2:{getattr(active_team, 'id', 0) or 0}:{sem_signed}:{sem_trial}:{discarded_count}"]
+    _sig = [f"v3:{getattr(active_team, 'id', 0) or 0}:{sem_signed}:{sem_trial}:{discarded_count}"]
     for _it in sorted(items, key=lambda x: x.id):
         _sig.append(
             f"{_it.id}:{_it.status}:{int(bool(_it.available_for_coach_tools))}:{getattr(_it, 'nota_global', 0)}:{_it.pos_bucket}"
