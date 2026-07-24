@@ -167,6 +167,7 @@
   // -------- Cajón: reubica los STRIPS REALES del sistema (botones con su preview) por categoría --------
   var MAT_CATS = [
     { key:'fichas',     label:'Fichas',     strips:['#task-basic-tools'] },
+    { key:'avatares',   label:'Jugadores',  avatars:true },
     { key:'material',   label:'Material',   strips:['[data-material-family="equipamiento"] .resource-strip'] },
     { key:'porterias',  label:'Porterías',  strips:['[data-material-family="porterias"] .resource-strip'] },
     { key:'marcadores', label:'Marcadores', strips:['[data-material-family="marcadores"] .resource-strip'] },
@@ -178,10 +179,49 @@
   // Familia de material que hay que activar (carga perezosa) para que su strip tenga botones.
   var MAT_FAMILY = { material:'equipamiento', porterias:'porterias', marcadores:'marcadores', importados:'importados' };
   function stripCount(el){ return el? el.querySelectorAll('button, .tool-icon').length : 0; }
+  // -------- Avatares de jugador (fotorrealistas, por acción y color de equipo) --------
+  // Base estática robusta ante STATIC_URL: derivamos de un {% static %} conocido.
+  var EDC_PLAYERS_BASE = "{% static 'football/images/players/act-conduccion-verde.png' %}".replace('act-conduccion-verde.png','');
+  // Jugadores de campo: 12 acciones x 4 colores de equipo.
+  var EDC_AV_FIELD = { colors:['amarilla','blanca','turquesa','verde'], acts:[
+    ['conduccion','Conducción'],['control','Control'],['defensa','Defensa'],
+    ['esp-conducir','Conducir'],['esp-correr','Correr'],['esp-pie','Con el pie'],
+    ['pase','Pase'],['remate','Remate'],['run','Carrera'],
+    ['saque','Saque'],['sprint','Sprint'],['tiro','Tiro'] ] };
+  // Porteros: 3 poses x 4 colores.
+  var EDC_AV_GK = { colors:['azul','magenta','negro','rojo'], acts:[
+    ['estirada','Estirada'],['frente','De frente'],['salto','Salto'] ] };
+  function edcAvBtn(file, label){
+    var url = EDC_PLAYERS_BASE + file;
+    var add = 'image_url:' + url;
+    var b = document.createElement('button');
+    b.type='button'; b.className='tool-icon edc-av-btn'; b.dataset.add=add; b.title=label;
+    b.setAttribute('aria-label', label);
+    var img=document.createElement('img'); img.className='tool-preview-img'; img.src=url; img.alt=label; img.loading='lazy';
+    b.appendChild(img);
+    // Coloca el avatar como ficha usando el mecanismo real del motor.
+    b.addEventListener('click', function(){ try{ if(window.__tpadActivateTool) window.__tpadActivateTool(add); }catch(e){} });
+    return b;
+  }
+  function buildAvatars(grid){
+    if(grid.querySelector('.edc-real-strip')) return; // ya construido
+    var strip=document.createElement('div'); strip.className='resource-strip edc-real-strip edc-av-strip';
+    function group(title, def, gkPrefix){
+      var h=document.createElement('div'); h.className='edc-av-head'; h.textContent=title; strip.appendChild(h);
+      def.acts.forEach(function(a){ def.colors.forEach(function(c){
+        var file=(gkPrefix?'act-gk-':'act-')+a[0]+'-'+c+'.png';
+        strip.appendChild(edcAvBtn(file, a[1]+' · '+c));
+      }); });
+    }
+    group('Jugadores', EDC_AV_FIELD, false);
+    group('Porteros', EDC_AV_GK, true);
+    grid.appendChild(strip);
+  }
   // Rellena la pestaña de una categoria con el strip REAL. Reintenta si vino vacia (carga tardia).
   function grabStrip(cat){
     var grid=document.querySelector('#edc-mat-body .edc-mat-grid[data-cat="'+cat.key+'"]');
     if(!grid) return;
+    if(cat.avatars){ buildAvatars(grid); return; }
     var current=grid.querySelector('.edc-real-strip');
     if(current && stripCount(current)>0) return; // ya tiene contenido
     // Carga perezosa: activa la familia de material si aplica.

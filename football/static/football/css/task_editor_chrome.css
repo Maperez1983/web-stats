@@ -459,6 +459,25 @@ body.ed-chrome .edc-mat-grid[data-cat="importados"] .resource-strip button {
 }
 body.ed-chrome .edc-mat-grid[data-cat="importados"] .resource-strip img { max-width: 84%; max-height: 30px; }
 
+/* Pestaña Jugadores (avatares fotorrealistas): rejilla vertical con secciones.
+   4 columnas = los 4 colores de equipo de cada acción alineados en una fila. */
+body.ed-chrome .edc-mat-grid[data-cat="avatares"] { grid-template-columns: 1fr !important; overflow: auto !important; align-content: start; }
+body.ed-chrome .edc-mat-grid[data-cat="avatares"] .edc-av-strip {
+  grid-column: 1 / -1; display: grid !important; grid-template-columns: repeat(4, 1fr); gap: 6px;
+}
+body.ed-chrome .edc-av-head {
+  grid-column: 1 / -1; margin: 8px 2px 2px; font-size: 10.5px; font-weight: 700;
+  letter-spacing: .05em; text-transform: uppercase; color: var(--edc-ink); opacity: .62;
+}
+body.ed-chrome .edc-av-head:first-child { margin-top: 0; }
+body.ed-chrome .edc-av-btn {
+  aspect-ratio: 3 / 4; border-radius: 10px; border: 1px solid var(--edc-line);
+  background: #0e2416; padding: 2px; cursor: pointer; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+body.ed-chrome .edc-av-btn:hover { border-color: var(--edc-accent); background: #123420; }
+body.ed-chrome .edc-av-btn img { max-width: 100% !important; max-height: 100% !important; width: auto; height: 100%; object-fit: contain; }
+
 /* ============================================================
    BOTONES REALES DEL SISTEMA dentro del cajón (con su preview)
    ============================================================ */
