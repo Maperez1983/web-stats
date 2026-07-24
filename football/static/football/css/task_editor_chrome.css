@@ -265,7 +265,7 @@ body.ed-chrome .guard-widget-shell { display: none !important; }
    MENÚ ☰ · reúne TODO lo que no cabe en las barras (nada se pierde)
    ============================================================ */
 body.ed-chrome .edc-menu-drawer {
-  position: fixed; top: var(--edc-top,56px); bottom: var(--edc-bottom,66px); right: 0; width: 360px; z-index: 46;
+  position: fixed; top: var(--edc-top,56px); bottom: var(--edc-bottom,66px); right: 0; width: 360px; z-index: 9990;
   background: linear-gradient(270deg,#122b1a,#0e2216); border-left: 1px solid var(--edc-line);
   transform: translateX(116%); transition: transform .2s ease; overflow: auto; padding: 16px;
   box-shadow: -14px 0 40px rgba(0,0,0,.4);
@@ -308,7 +308,9 @@ body.ed-chrome .resource-section.pitch-side { display: none !important; }
 
 body.ed-chrome .edc-mat-drawer {
   position: fixed; top: var(--edc-top,56px); bottom: var(--edc-bottom,66px); left: var(--edc-rail-w,78px);
-  width: 340px; z-index: 47; display: flex; flex-direction: column;
+  /* z alto: el <main> del editor es position:fixed z-index:120 y crea un contexto de
+     apilamiento; con z:47 el cajón quedaba DETRÁS del campo (invisible). */
+  width: 340px; z-index: 9990; display: flex; flex-direction: column;
   background: linear-gradient(90deg,#122b1a,#0e2216); border-right: 1px solid var(--edc-line);
   transform: translateX(-116%); transition: transform .2s ease; box-shadow: 14px 0 40px rgba(0,0,0,.4);
 }
