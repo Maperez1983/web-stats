@@ -6450,6 +6450,33 @@ def _team_tournament_name_options(primary_team):
     return sorted(set(names), key=lambda v: v.lower())
 
 
+def _player_operational_status(player, workspace=None):
+    """Estado operativo canónico de un jugador — fuente única para plantilla/dirección.
+
+    Evita que cada vista reimplemente (y desincronice) la combinación de is_active +
+    membership de temporada + ScoutingTarget. Devuelve un dict:
+      {code, label, tone, in_scouting, is_active}
+    - in_scouting: tiene una ficha de ojeo en curso (ni fichado ni descartado); estos
+      jugadores pertenecen a Dirección y no deben listarse como plantilla activa.
+    """
+    is_active = bool(getattr(player, "is_active", False))
+    in_scouting = False
+    try:
+        if workspace is not None and getattr(player, "id", None):
+            in_scouting = (
+                ScoutingTarget.objects.filter(workspace=workspace, player=player)
+                .exclude(status__in=[ScoutingTarget.STATUS_SIGNED, ScoutingTarget.STATUS_DISCARDED])
+                .exists()
+            )
+    except Exception:
+        in_scouting = False
+    if in_scouting:
+        return {"code": "scouting", "label": "En ojeo (a prueba)", "tone": "warn", "in_scouting": True, "is_active": is_active}
+    if not is_active:
+        return {"code": "inactive", "label": "Inactivo", "tone": "warn", "in_scouting": False, "is_active": False}
+    return {"code": "active", "label": "En plantilla", "tone": "ok", "in_scouting": False, "is_active": True}
+
+
 def _resolve_player_for_request_scope(request, player_id):
     """
     Resuelve (primary_team, player) de forma robusta para navegación desde listados.
@@ -69443,19 +69470,13 @@ def player_detail_page(request, player_id):
         except Exception:
             season_state_label = ""
 
-        # ¿El jugador está actualmente en ojeo (ficha de scouting en curso, no fichado ni
-        # descartado)? Determina si mostramos "Pasar a ojeado" o "Devolver a plantilla".
-        player_in_scouting = False
+        # Estado operativo canónico (fuente única). Determina si mostramos "Pasar a ojeado"
+        # o "Devolver a plantilla" y unifica la lógica is_active/membership/ScoutingTarget.
         try:
-            _pd_ws = _get_active_workspace(request)
-            if _pd_ws is not None:
-                player_in_scouting = (
-                    ScoutingTarget.objects.filter(workspace=_pd_ws, player=player)
-                    .exclude(status__in=[ScoutingTarget.STATUS_SIGNED, ScoutingTarget.STATUS_DISCARDED])
-                    .exists()
-                )
+            _pd_status = _player_operational_status(player, _get_active_workspace(request))
         except Exception:
-            player_in_scouting = False
+            _pd_status = {"in_scouting": False}
+        player_in_scouting = bool(_pd_status.get("in_scouting"))
 
         # Aviso de caducidad de licencia federativa (renovación). tone = clase pill (ok/warn).
         license_expiry_badge = None
