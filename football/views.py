@@ -67910,6 +67910,9 @@ def player_detail_page(request, player_id):
                 player.skin_tone = _skin if _skin in {"light", "medium", "dark"} else ""
                 player.full_name = request.POST.get("full_name", "").strip()
                 player.nickname = request.POST.get("nickname", "").strip()
+                player.preferente_profile_url = (request.POST.get("preferente_profile_url", "") or "").strip()
+                player.transfermarkt_url = (request.POST.get("transfermarkt_url", "") or "").strip()
+                player.besoccer_url = (request.POST.get("besoccer_url", "") or "").strip()
                 player.birth_date = _parse_date_value(request.POST.get("birth_date"))
                 player.height_cm = _parse_int(request.POST.get("height_cm"))
                 player.weight_kg = _parse_decimal_value(request.POST.get("weight_kg_base"))

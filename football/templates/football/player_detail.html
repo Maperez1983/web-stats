@@ -1620,6 +1620,15 @@
                   {% endfor %}
                 </select>
               </label>
+              <label>Perfil La Preferente (URL)
+                <input type="url" name="preferente_profile_url" value="{{ player.preferente_profile_url|default:'' }}" placeholder="https://www.lapreferente.com/J..." />
+              </label>
+              <label>Perfil Transfermarkt (URL)
+                <input type="url" name="transfermarkt_url" value="{{ player.transfermarkt_url|default:'' }}" placeholder="https://www.transfermarkt.es/..." />
+              </label>
+              <label>Perfil BeSoccer (URL)
+                <input type="url" name="besoccer_url" value="{{ player.besoccer_url|default:'' }}" placeholder="https://es.besoccer.com/jugador/..." />
+              </label>
               <label>Tono de piel (avatar)
                 <select name="skin_tone">
                   <option value="" {% if not player.skin_tone %}selected{% endif %}>Automático</option>
