@@ -30274,23 +30274,28 @@
     };
     // Carga el avatar (figura de cuerpo entero) recortado en circulo, encuadrado a la cabeza/torso.
     const loadAvatarIntoGroup = (group, url, targetH, numberLabel) => {
+      const dbg = (m) => { try { (window.__avatarDebug = window.__avatarDebug || []).push(String(m)); } catch (e) { /* ignore */ } };
       const src = resolvePlayerPhotoUrl(url);
-      if (!group || !src) return;
+      if (!group || !src) { dbg('abort no-group-or-src src=' + src); return; }
       try {
         const img = new Image();
         img.onload = () => {
           try {
+            dbg('onload ' + url);
             const source = getHiResRasterSource(img, { desiredDisplay: Math.max(1, targetH), maxSide: 3072 });
+            dbg('source tag=' + (source && (source.tagName || 'img')) + ' w=' + (source && (source.width || source.naturalWidth)) + ' h=' + (source && (source.height || source.naturalHeight)));
             const naturalH = Number(source?.naturalHeight || source?.height || img.naturalHeight || img.height || 1);
             const scale = Math.max(1, targetH) / Math.max(1, naturalH); // ajusta a la ALTURA: figura entera
+            dbg('scale=' + scale.toFixed(4) + ' naturalH=' + naturalH);
             const avatar = new fabric.Image(source, {
-              left: 0, top: 28, originX: 'center', originY: 'bottom',
+              left: 0, top: 0, originX: 'center', originY: 'center',
               selectable: false, evented: false, scaleX: scale, scaleY: scale,
             });
             applyRenderableQuality(avatar, { strokeUniform: false });
             try { avatar.minimumScaleTrigger = 0; } catch (e) { /* ignore */ }
             avatar.data = { role: 'token_photo' };
             group.addWithUpdate(avatar);
+            dbg('added avatar, group children=' + (group._objects ? group._objects.length : '?'));
             // dorsal en un chip sobre la base de la figura (siempre encima)
             const num = String(numberLabel == null ? '' : numberLabel).slice(0, 2);
             if (num) {
@@ -30303,11 +30308,13 @@
             }
             group.dirty = true;
             canvas?.requestRenderAll?.();
-          } catch (e) { /* ignore */ }
+            dbg('rendered OK');
+          } catch (e) { dbg('ERR onload: ' + (e && e.message)); }
         };
-        img.onerror = () => { /* ignore */ };
+        img.onerror = () => { dbg('onerror ' + url); };
         img.src = src;
-      } catch (e) { /* ignore */ }
+        dbg('src set');
+      } catch (e) { dbg('ERR outer: ' + (e && e.message)); }
     };
     const playerTokenFactory = (kind, player, options = {}) => (left, top) => {
 		      const preferredName = safeText(player?.nickname || player?.name, '');
