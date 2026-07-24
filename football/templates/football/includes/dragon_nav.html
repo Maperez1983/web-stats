@@ -27,6 +27,18 @@
       height: 2.9rem;
     }
   }
+  .nav-primary-links { display: contents; }
+  .nav-primary-links.is-collapsed { display: none; }
+  .nav-collapse-toggle {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.42rem 0.85rem; border-radius: 0.7rem; cursor: pointer;
+    font-weight: 800; font-size: 0.86rem;
+    color: rgba(226,232,240,0.92);
+    background: rgba(148,163,184,0.14);
+    border: 1px solid rgba(148,163,184,0.28);
+  }
+  .nav-collapse-toggle:hover { background: rgba(148,163,184,0.22); }
+  .nav-collapse-toggle[aria-expanded="true"] { background: rgba(250,204,21,0.16); border-color: rgba(250,204,21,0.4); color: #fde68a; }
 </style>
 {% if not hide_dragon_logo %}
 <div class="dragon-nav">
@@ -181,6 +193,8 @@
   {% endif %}
   {% with nav_path=request.path|default:'' nav_url_name=request.resolver_match.url_name|default:'' cdurl=club_dashboard_url|default:'' %}
   {# Orden tabs (staff): Entrenador → Entrenamiento → Partido → Jugador #}
+  <button type="button" class="nav-collapse-toggle" data-nav-toggle aria-expanded="{% if nav_url_name == 'scouting-board' or nav_url_name == 'scouting-target-detail' or nav_url_name == 'player-detail' %}false{% else %}true{% endif %}" aria-label="Mostrar u ocultar navegacion" title="Mostrar/ocultar navegacion">&#8801; Menu</button>
+  <span class="nav-primary-links{% if nav_url_name == 'scouting-board' or nav_url_name == 'scouting-target-detail' or nav_url_name == 'player-detail' %} is-collapsed{% endif %}" data-nav-primary>
   {% if can_access_staff|default:False %}
   <a href="{% url 'coach-role-trainer' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Abre la cabina del entrenador: jugadores, partidos, gráficas y seguimiento individual del equipo." class="{% if nav_url_name == 'coach-role-trainer' or 'coach/roles/entrenador' in nav_path %}is-active{% endif %}" {% if nav_url_name == 'coach-role-trainer' or 'coach/roles/entrenador' in nav_path %}aria-current="page"{% endif %}>Entrenador</a>
   <a href="{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Abre las fichas del cuerpo técnico de este equipo: datos, foto, rol y acceso al sistema." class="{% if nav_url_name == 'staff-directory' or nav_url_name == 'staff-member-create' or nav_url_name == 'staff-member-detail' %}is-active{% endif %}" {% if nav_url_name == 'staff-directory' or nav_url_name == 'staff-member-create' or nav_url_name == 'staff-member-detail' %}aria-current="page"{% endif %}>Staff</a>
@@ -208,6 +222,7 @@
   {% if can_configure_active_team and active_workspace and active_workspace.kind == 'club' %}
   <a href="{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Configura el club o equipo: temporada, identidad, módulos, permisos y datos base." class="{% if nav_url_name == 'club-onboarding' or nav_url_name == 'club-season-wizard' %}is-active{% endif %}" {% if nav_url_name == 'club-onboarding' or nav_url_name == 'club-season-wizard' %}aria-current="page"{% endif %}>Configurar</a>
   {% endif %}
+  </span>
   {% if show_legacy_nav_menu|default:False %}
   {# Menú general heredado: desactivado por defecto; la navegación principal debe ser contextual. #}
   <details class="nav-more {% if nav_url_name != 'dashboard-home' and nav_path != '/' and not 'coach/sesiones' in nav_path and not 'coach/tactica' in nav_path and not 'registro-acciones' in nav_path and not 'convocatoria' in nav_path and not '11-inicial' in nav_path and nav_path|slice:":9" != '/partido/' and nav_path|slice:":7" != '/match/' and nav_path|slice:":12" != '/incidencias/' %}is-active{% endif %}">
@@ -530,5 +545,18 @@
   });
   // Refuerzo: al enviar un formulario, ping inmediato (no bloqueante).
   document.addEventListener('submit', () => { ping('submit'); }, true);
+})();
+</script>
+
+<script>
+(() => {
+  document.querySelectorAll('[data-nav-toggle]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const links = document.querySelector('[data-nav-primary]');
+      if (!links) return;
+      const collapsed = links.classList.toggle('is-collapsed');
+      btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    });
+  });
 })();
 </script>
