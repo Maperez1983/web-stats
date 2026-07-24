@@ -33296,7 +33296,7 @@ def scouting_pitch_png(request):
     # Caché por firma: solo regeneramos el PNG (caro) cuando cambian los datos.
     import hashlib
 
-    _sig = [f"v1:{getattr(active_team, 'id', 0) or 0}:{sem_signed}:{sem_trial}:{discarded_count}"]
+    _sig = [f"v2:{getattr(active_team, 'id', 0) or 0}:{sem_signed}:{sem_trial}:{discarded_count}"]
     for _it in sorted(items, key=lambda x: x.id):
         _sig.append(
             f"{_it.id}:{_it.status}:{int(bool(_it.available_for_coach_tools))}:{getattr(_it, 'nota_global', 0)}:{_it.pos_bucket}"
