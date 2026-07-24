@@ -570,14 +570,13 @@
           <span>2J Club · {{ team_display_name }}</span>
         </div>
           <div class="hero-badges">
-            <a class="hero-badge-link" href="{% url 'coach-rivals' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}" aria-label="Abrir competición y rivales">
-              <span class="hero-badge"><svg class="ico" aria-hidden="true"><use href="#ico-competition"/></svg>Competición</span>
-            </a>
+            {% comment %}
+              Competición y Scouting se quitaron por redundantes (ya están en la card "Estado
+              competitivo"/"Clasificación" y en el área "Dirección"). Plan semanal es el único
+              acceso a la agenda en esta portada, así que se conserva.
+            {% endcomment %}
             <a class="hero-badge-link" href="{% url 'team-agenda' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}" aria-label="Abrir plan semanal">
               <span class="hero-badge"><svg class="ico" aria-hidden="true"><use href="#ico-agenda"/></svg>Plan semanal</span>
-            </a>
-            <a class="hero-badge-link" href="{% url 'scouting-board' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}" aria-label="Abrir dirección deportiva">
-              <span class="hero-badge"><svg class="ico" aria-hidden="true"><use href="#ico-scouting"/></svg>Scouting</span>
             </a>
           </div>
 
@@ -659,12 +658,8 @@
 
         <section class="secondary-grid">
           <div class="card">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;">
-              <h2 style="margin:0;">Clasificación</h2>
-              <a class="hero-badge-link" href="{% url 'coach-rivals' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}" aria-label="Ver rivales completos">
-                <span class="hero-badge">Ver rivales</span>
-              </a>
-            </div>
+            {# "Ver rivales" se quitó: era redundante con "Ver tabla completa" (ambos -> coach-rivals). #}
+            <h2 style="margin:0 0 0.2rem;">Clasificación</h2>
             {% if standings %}
             <table class="standings-table">
               <caption class="visually-hidden">Clasificación de {{ competition_label|default:"la competición" }}, tu equipo resaltado.</caption>
