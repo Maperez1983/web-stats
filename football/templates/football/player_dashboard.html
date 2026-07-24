@@ -620,7 +620,13 @@
               data-match-goals="{{ player.match_goals|default:0 }}"
               data-match-assists="{{ player.match_assists|default:0 }}"
               data-match-success-rate="{{ player.match_success_rate|default:0 }}"
+              data-inf="{{ player.influence_score|default:0 }}"
+              data-imp="{{ player.importance_score|default:0 }}"
+              data-display-name="{{ player.name }}"
             >
+              <label class="cmp-toggle" title="Seleccionar para comparar">
+                <input type="checkbox" class="cmp-check" data-player="{{ player.player_id }}" /> vs
+              </label>
               <a class="card-link" href="{% url 'player-detail' player.player_id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% if stats_scope %}&scope={{ stats_scope }}{% endif %}{% if stats_scope == 'tournament' and tournament_filter %}&tournament={{ tournament_filter|urlencode }}{% endif %}{% elif stats_scope %}?scope={{ stats_scope }}{% if stats_scope == 'tournament' and tournament_filter %}&tournament={{ tournament_filter|urlencode }}{% endif %}{% endif %}">
                 <div class="broadcast-head">
                   <div class="broadcast-head-left">
@@ -812,6 +818,120 @@
         {% endif %}
       </div>
     </div>
+
+    <style>
+      .broadcast-card { position: relative; }
+      .cmp-toggle { position: absolute; top: 8px; left: 8px; z-index: 4; display: inline-flex; align-items: center; gap: 3px;
+        background: rgba(11,22,38,0.72); color: #fff; border-radius: 999px; padding: 2px 8px 2px 5px; font-size: 0.66rem; font-weight: 800;
+        letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; border: 1px solid rgba(255,255,255,0.18); }
+      .cmp-toggle input { margin: 0; cursor: pointer; }
+      .broadcast-card.cmp-selected { outline: 2px solid var(--prod-secondary, #f4b400); outline-offset: 2px; }
+      .cmp-bar { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 60; display: none;
+        align-items: center; gap: 0.75rem; background: #0b1626; color: #fff; border: 1px solid rgba(244,180,0,0.4);
+        border-radius: 999px; padding: 0.55rem 0.9rem; box-shadow: 0 10px 30px rgba(0,0,0,0.35); }
+      .cmp-bar.is-visible { display: flex; }
+      .cmp-bar button { border: 0; border-radius: 999px; padding: 0.45rem 1rem; font-weight: 800; cursor: pointer; }
+      .cmp-bar .cmp-go { background: linear-gradient(120deg, #f4b400, #f5c538); color: #0b1626; }
+      .cmp-bar .cmp-clear { background: rgba(255,255,255,0.12); color: #fff; }
+      .cmp-modal { position: fixed; inset: 0; z-index: 70; display: none; align-items: center; justify-content: center;
+        background: rgba(3,6,15,0.62); padding: 1rem; }
+      .cmp-modal.is-open { display: flex; }
+      .cmp-panel { background: var(--prod-surface, #0f1b2e); color: var(--prod-text, #f5f7fa); border-radius: 16px; max-width: 760px; width: 100%;
+        max-height: 86vh; overflow: auto; border: 1px solid rgba(148,163,184,0.24); box-shadow: 0 24px 60px rgba(0,0,0,0.5); }
+      .cmp-panel-head { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.2rem; position: sticky; top: 0;
+        background: inherit; border-bottom: 1px solid rgba(148,163,184,0.2); }
+      .cmp-panel-head h3 { margin: 0; }
+      .cmp-close { background: none; border: 0; color: inherit; font-size: 1.4rem; cursor: pointer; line-height: 1; }
+      table.cmp-table { width: 100%; border-collapse: collapse; }
+      table.cmp-table th, table.cmp-table td { padding: 0.55rem 0.8rem; text-align: center; border-bottom: 1px solid rgba(148,163,184,0.16); font-variant-numeric: tabular-nums; }
+      table.cmp-table th:first-child, table.cmp-table td:first-child { text-align: left; color: var(--prod-muted, rgba(203,213,225,0.7)); font-size: 0.82rem; }
+      table.cmp-table thead th { position: sticky; top: 56px; background: inherit; font-size: 0.82rem; }
+      table.cmp-table td.cmp-best { color: #86efac; font-weight: 800; }
+    </style>
+
+    <div class="cmp-bar" id="cmpBar" aria-live="polite">
+      <span id="cmpCount">0 seleccionados</span>
+      <button type="button" class="cmp-go" id="cmpGo">Comparar</button>
+      <button type="button" class="cmp-clear" id="cmpClear">Limpiar</button>
+    </div>
+    <div class="cmp-modal" id="cmpModal" role="dialog" aria-modal="true" aria-label="Comparativa de jugadores">
+      <div class="cmp-panel">
+        <div class="cmp-panel-head">
+          <h3>Comparativa de jugadores</h3>
+          <button type="button" class="cmp-close" id="cmpCloseBtn" aria-label="Cerrar">×</button>
+        </div>
+        <div id="cmpBody" style="padding:0.5rem 0.6rem 1rem;"></div>
+      </div>
+    </div>
+
+    <script>
+      (() => {
+        const MAX = 3;
+        const bar = document.getElementById('cmpBar');
+        const countEl = document.getElementById('cmpCount');
+        const modal = document.getElementById('cmpModal');
+        const body = document.getElementById('cmpBody');
+        const checks = Array.from(document.querySelectorAll('.cmp-check'));
+        if (!checks.length || !bar) return;
+        const METRICS = [
+          { label: 'Minutos', key: 'minutes', dec: 0 },
+          { label: 'Goles', key: 'goals', dec: 0 },
+          { label: 'Asistencias', key: 'assists', dec: 0 },
+          { label: '% Éxito', key: 'successRate', dec: 1, suffix: '%' },
+          { label: 'Participación %', key: 'participationPct', dec: 1, suffix: '%' },
+          { label: 'Partidos jugados %', key: 'participationMatchesPct', dec: 1, suffix: '%' },
+          { label: 'Titularidad %', key: 'starterPct', dec: 1, suffix: '%' },
+          { label: 'Influencia', key: 'inf', dec: 0 },
+          { label: 'Importancia', key: 'imp', dec: 0 },
+        ];
+        const num = (v) => { const n = Number(String(v ?? '').replace(',', '.')); return Number.isFinite(n) ? n : 0; };
+        const selected = () => checks.filter((c) => c.checked);
+        const update = () => {
+          const sel = selected();
+          checks.forEach((c) => {
+            const card = c.closest('.broadcast-card');
+            if (card) card.classList.toggle('cmp-selected', c.checked);
+            // limitar a MAX: deshabilitar los no marcados si ya hay MAX
+            if (!c.checked) c.disabled = sel.length >= MAX;
+          });
+          countEl.textContent = sel.length + ' seleccionado' + (sel.length === 1 ? '' : 's');
+          bar.classList.toggle('is-visible', sel.length >= 1);
+          const go = document.getElementById('cmpGo');
+          if (go) go.disabled = sel.length < 2;
+        };
+        const render = () => {
+          const sel = selected();
+          if (sel.length < 2) return;
+          const cards = sel.map((c) => c.closest('.broadcast-card'));
+          let html = '<table class="cmp-table"><thead><tr><th>Métrica</th>';
+          cards.forEach((card) => { html += '<th>' + (card.dataset.displayName || '—') + (card.dataset.playerPos ? ' <small>(' + card.dataset.playerPos + ')</small>' : '') + '</th>'; });
+          html += '</tr></thead><tbody>';
+          METRICS.forEach((m) => {
+            const vals = cards.map((card) => num(card.dataset[m.key]));
+            const best = Math.max.apply(null, vals);
+            html += '<tr><td>' + m.label + '</td>';
+            vals.forEach((v) => {
+              const isBest = v === best && best > 0 && vals.filter((x) => x === best).length < vals.length;
+              html += '<td class="' + (isBest ? 'cmp-best' : '') + '">' + v.toFixed(m.dec) + (m.suffix || '') + '</td>';
+            });
+            html += '</tr>';
+          });
+          html += '</tbody></table>';
+          body.innerHTML = html;
+          modal.classList.add('is-open');
+        };
+        checks.forEach((c) => c.addEventListener('change', update));
+        // Evita que marcar el checkbox navegue por el enlace de la card.
+        document.querySelectorAll('.cmp-toggle').forEach((t) => t.addEventListener('click', (e) => e.stopPropagation()));
+        document.getElementById('cmpGo').addEventListener('click', render);
+        document.getElementById('cmpClear').addEventListener('click', () => { checks.forEach((c) => { c.checked = false; }); update(); });
+        const closeModal = () => modal.classList.remove('is-open');
+        document.getElementById('cmpCloseBtn').addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+        update();
+      })();
+    </script>
 
     <script>
 	      (() => {
