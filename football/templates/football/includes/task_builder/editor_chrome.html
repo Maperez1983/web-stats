@@ -122,14 +122,36 @@
       try{ if(window.__webstatsTaskBuilderSetPreset) window.__webstatsTaskBuilderSetPreset(preset); }catch(e){}
     });
   });
+  // -------- Zoom VISUAL de la carcasa --------
+  // El motor (modo viewportTransform) solo escala el contenido del canvas (fichas),
+  // no la superficie SVG del césped, así que su zoom es invisible cuando el campo está vacío.
+  // Aquí escalamos TODO el stage (césped + líneas + fichas juntos) con un transform propio,
+  // de forma que el zoom SÍ agranda/reduce el campo visiblemente. "Ajustar campo" vuelve a 1.
+  var edcZoom = 1;
+  var edcApplyZoom = function(){
+    var stage = document.getElementById('task-pitch-stage');
+    if(stage){
+      stage.style.transformOrigin = 'center center';
+      stage.style.transform = (edcZoom === 1) ? '' : ('scale(' + edcZoom + ')');
+    }
+    var rb = document.querySelector('[data-edc="zoom_reset"]');
+    if(rb) rb.textContent = Math.round(edcZoom * 100) + '%';
+    // Mantén el label del motor en sync por si algo lo lee.
+    try{ var lbl = document.getElementById('pitch-zoom-label'); if(lbl) lbl.textContent = Math.round(edcZoom*100)+'%'; }catch(e){}
+  };
+  var edcSetZoom = function(z){
+    var n = Math.round((Number(z)||1) * 100) / 100;
+    edcZoom = Math.min(2.4, Math.max(0.6, n));
+    edcApplyZoom();
+  };
   // Barra superior + acciones.
   var actions = {
-    fit: function(){ proxyClick('pitch-size-fit'); },
-    center: function(){ proxyClick('pitch-zoom-reset'); proxyClick('pitch-size-fit'); },
-    zoom_in: function(){ proxyClick('pitch-zoom-in'); },
-    zoom_out: function(){ proxyClick('pitch-zoom-out'); },
-    zoom_reset: function(){ proxyClick('pitch-zoom-reset'); },
-    reset: function(){ proxyClick('pitch-zoom-reset'); proxyClick('pitch-size-fit'); },
+    fit: function(){ edcSetZoom(1); proxyClick('pitch-size-fit'); },
+    center: function(){ edcSetZoom(1); proxyClick('pitch-size-fit'); },
+    zoom_in: function(){ edcSetZoom(edcZoom + 0.12); },
+    zoom_out: function(){ edcSetZoom(edcZoom - 0.12); },
+    zoom_reset: function(){ edcSetZoom(1); },
+    reset: function(){ edcSetZoom(1); proxyClick('pitch-size-fit'); },
     wide: function(this_btn){ setActive('focus', this_btn); document.body.classList.remove('task-focus-mode'); },
     only_pitch: function(this_btn){ setActive('focus', this_btn); proxyClick('task-focus-toggle'); },
     horizontal: function(this_btn){ setActive('orient', this_btn); setOrientation('landscape'); },
@@ -153,31 +175,47 @@
     { key:'emojis',     label:'Emojis',     strips:['#task-emoji-tools'] },
     { key:'importados', label:'Importados', strips:['#task-custom-library-assets','[data-material-family="importados"] .resource-strip'] }
   ];
+  // Familia de material que hay que activar (carga perezosa) para que su strip tenga botones.
+  var MAT_FAMILY = { material:'equipamiento', porterias:'porterias', marcadores:'marcadores', importados:'importados' };
+  function stripCount(el){ return el? el.querySelectorAll('button, .tool-icon').length : 0; }
+  // Rellena la pestaña de una categoria con el strip REAL. Reintenta si vino vacia (carga tardia).
+  function grabStrip(cat){
+    var grid=document.querySelector('#edc-mat-body .edc-mat-grid[data-cat="'+cat.key+'"]');
+    if(!grid) return;
+    var current=grid.querySelector('.edc-real-strip');
+    if(current && stripCount(current)>0) return; // ya tiene contenido
+    // Carga perezosa: activa la familia de material si aplica.
+    var fam=MAT_FAMILY[cat.key];
+    if(fam){ var ft=document.querySelector('[data-material-family-toggle="'+fam+'"]'); if(ft){ try{ ft.click(); }catch(e){} } }
+    cat.strips.forEach(function(sel){
+      var best=null, max=-1;
+      document.querySelectorAll(sel).forEach(function(s){ var n=stripCount(s); if(n>max){ max=n; best=s; } });
+      if(best && stripCount(best)>0){ best.classList.add('edc-real-strip'); grid.appendChild(best); }
+    });
+  }
   function buildMatDrawer(){
     var nav=document.getElementById('edc-mat-nav'), body=document.getElementById('edc-mat-body');
-    if(!nav || !body || nav.dataset.ready==='1') return;
-    MAT_CATS.forEach(function(cat, i){
-      var tab=document.createElement('button'); tab.type='button'; tab.className='edc-mat-tab'+(i===0?' is-active':'');
-      tab.textContent=cat.label; tab.dataset.cat=cat.key;
-      tab.addEventListener('click', function(){ showCat(cat.key); });
-      nav.appendChild(tab);
-      var grid=document.createElement('div'); grid.className='edc-mat-grid edc-mat-real'; grid.dataset.cat=cat.key; if(i!==0) grid.hidden=true;
-      cat.strips.forEach(function(sel){
-        // Puede haber strips duplicados por familia: cogemos el que MÁS botones tiene (el completo).
-        var best=null, max=-1;
-        document.querySelectorAll(sel).forEach(function(s){
-          var n=s.querySelectorAll('button, .tool-icon').length;
-          if(n>max){ max=n; best=s; }
-        });
-        if(best){ best.classList.add('edc-real-strip'); grid.appendChild(best); } // reubica el strip REAL (botones con preview)
+    if(!nav || !body) return;
+    if(nav.dataset.built!=='1'){
+      MAT_CATS.forEach(function(cat, i){
+        var tab=document.createElement('button'); tab.type='button'; tab.className='edc-mat-tab'+(i===0?' is-active':'');
+        tab.textContent=cat.label; tab.dataset.cat=cat.key;
+        tab.addEventListener('click', function(){ showCat(cat.key); });
+        nav.appendChild(tab);
+        var grid=document.createElement('div'); grid.className='edc-mat-grid edc-mat-real'; grid.dataset.cat=cat.key; if(i!==0) grid.hidden=true;
+        body.appendChild(grid);
       });
-      body.appendChild(grid);
-    });
-    nav.dataset.ready='1';
+      nav.dataset.built='1';
+    }
+    // Intenta rellenar todas (las que aun esten vacias). Idempotente y robusto a carga tardia.
+    MAT_CATS.forEach(grabStrip);
   }
   function showCat(key){
     document.querySelectorAll('#edc-mat-nav .edc-mat-tab').forEach(function(t){ t.classList.toggle('is-active', t.dataset.cat===key); });
     document.querySelectorAll('#edc-mat-body .edc-mat-grid').forEach(function(g){ g.hidden = g.dataset.cat!==key; });
+    // Reintenta cargar el strip de esta categoria por si vino vacio (familia perezosa).
+    var cat=null; for(var i=0;i<MAT_CATS.length;i++){ if(MAT_CATS[i].key===key){ cat=MAT_CATS[i]; break; } }
+    if(cat){ grabStrip(cat); }
   }
   function toggleDrawer(){
     if(document.body.classList.contains('edc-menu-open')) document.body.classList.remove('edc-menu-open');
