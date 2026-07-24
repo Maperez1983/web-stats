@@ -234,6 +234,27 @@
     group('Porteros', EDC_AV_GK, true);
     grid.appendChild(strip);
   }
+  // -------- Selector de POSE + EQUIPACIÓN del avatar (afecta al estilo "Avatar") --------
+  var EDC_AV_POSES = [['conduccion','Conducción'],['control','Control'],['pase','Pase'],['remate','Remate'],['tiro','Tiro'],['sprint','Sprint'],['run','Carrera'],['defensa','Defensa'],['esp-conducir','Conducir'],['esp-correr','Correr'],['esp-pie','Con el pie'],['saque','Saque']];
+  var EDC_AV_COLORS_F = [['verde','Verde'],['blanca','Blanca'],['amarilla','Amarilla'],['turquesa','Turquesa']];
+  try { window.__edcAvatar = window.__edcAvatar || { pose:'conduccion', color:'verde', gkPose:'frente', gkColor:'azul' }; } catch(e){}
+  function edcAvThumbImg(file){ var i=document.createElement('img'); i.className='edc-avcfg-thumb'; i.loading='lazy'; i.src=EDC_PLAYERS_BASE+file; return i; }
+  function buildAvatarConfig(grid){
+    try{
+      var old=grid.querySelector('.edc-avcfg'); if(old) old.remove();
+      var st=window.__edcAvatar||{pose:'conduccion',color:'verde'};
+      var wrap=document.createElement('div'); wrap.className='edc-avcfg';
+      var h1=document.createElement('div'); h1.className='edc-avcfg-h'; h1.textContent='Avatar · equipación'; wrap.appendChild(h1);
+      var r1=document.createElement('div'); r1.className='edc-avcfg-row';
+      EDC_AV_COLORS_F.forEach(function(c){ var b=document.createElement('button'); b.type='button'; b.className='edc-avcfg-btn'+(st.color===c[0]?' is-active':''); b.title=c[1]; b.appendChild(edcAvThumbImg('act-'+st.pose+'-'+c[0]+'.png')); b.addEventListener('click',function(){ st.color=c[0]; buildAvatarConfig(grid); }); r1.appendChild(b); });
+      wrap.appendChild(r1);
+      var h2=document.createElement('div'); h2.className='edc-avcfg-h'; h2.textContent='Avatar · pose'; wrap.appendChild(h2);
+      var r2=document.createElement('div'); r2.className='edc-avcfg-row edc-avcfg-poses';
+      EDC_AV_POSES.forEach(function(p){ var b=document.createElement('button'); b.type='button'; b.className='edc-avcfg-btn'+(st.pose===p[0]?' is-active':''); b.title=p[1]; b.appendChild(edcAvThumbImg('act-'+p[0]+'-'+st.color+'.png')); b.addEventListener('click',function(){ st.pose=p[0]; buildAvatarConfig(grid); }); r2.appendChild(b); });
+      wrap.appendChild(r2);
+      grid.insertBefore(wrap, grid.firstChild);
+    }catch(e){}
+  }
   // Rellena la pestaña de una categoria con el strip REAL. Reintenta si vino vacia (carga tardia).
   function grabStrip(cat){
     var grid=document.querySelector('#edc-mat-body .edc-mat-grid[data-cat="'+cat.key+'"]');
@@ -244,6 +265,7 @@
       // dejarlo huérfano al fondo de la página. El CSS lo envuelve para que quepa.
       var roster=document.getElementById('task-roster-bank');
       if(roster && !roster.closest('#edc-mat-body')){ roster.hidden=false; grid.appendChild(roster); }
+      try{ buildAvatarConfig(grid); }catch(e){}
       return;
     }
     var current=grid.querySelector('.edc-real-strip');
