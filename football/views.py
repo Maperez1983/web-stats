@@ -20172,8 +20172,10 @@ def coach_overview_page(request):
     )
     if _season_guard_blanked:
         standings = []
-    # Diagnóstico staff-only: por qué la home muestra (o no) la clasificación. `/coach/?diag=standings`.
-    if str(request.GET.get("diag") or "").strip() == "standings" and getattr(request.user, "is_staff", False):
+    # Diagnóstico: por qué la home muestra (o no) la clasificación. `/coach/?diag=standings`.
+    # La página ya está protegida por acceso de entrenador (arriba), y solo expone metadatos de la
+    # competición del propio club, así que basta con estar viendo su portada.
+    if str(request.GET.get("diag") or "").strip() == "standings":
         _diag_ctx = (
             WorkspaceCompetitionContext.objects.filter(workspace=workspace, team=primary_team).first()
             if (workspace and primary_team)
