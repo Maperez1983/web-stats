@@ -20198,6 +20198,17 @@ def coach_overview_page(request):
         # Con ?diag=standings se muestra siempre (para depurar cualquier caso).
         # Búsqueda en vivo en Universo del equipo (solo con ?diag explícito, porque hace red):
         # nos dice si Universo encuentra al equipo por nombre y cuántos candidatos hay.
+        _universo_token = "—"
+        if _diag_requested:
+            try:
+                _tok = _load_universo_access_token()
+                _memo = getattr(universo_client.load_universo_access_token, "_memo", None) or {}
+                if _tok:
+                    _universo_token = f"OK (fuente: {_memo.get('source', '?')})"
+                else:
+                    _universo_token = f"SIN TOKEN — {_memo.get('error', 'sin detalle')}"
+            except Exception as exc:  # noqa: BLE001
+                _universo_token = f"error: {exc}"
         _universo_probe = "—"
         if _diag_requested and primary_team:
             try:
@@ -20228,6 +20239,7 @@ def coach_overview_page(request):
                 "provider": getattr(_diag_ctx, "provider", None),
                 "universo_group_key": str(getattr(_diag_ctx, "external_group_key", "") or "") or "—",
                 "universo_team_key": str(getattr(_diag_ctx, "external_team_key", "") or "") or "—",
+                "universo_token": _universo_token,
                 "universo_search": _universo_probe,
                 "sync_status": getattr(_diag_ctx, "sync_status", None),
                 "sync_error": getattr(_diag_ctx, "sync_error", None),
