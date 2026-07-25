@@ -71,6 +71,24 @@ def _validate_external_fetch_url(url: str, *, allowed_hosts: Optional[set[str]] 
     return raw
 
 
+def safe_external_get(url, *, timeout=6, max_redirects=3, allowed_hosts=None, headers=None, stream=False):
+    """GET seguro anti-SSRF. Valida el destino (rechaza IP privada/reservada, y opcionalmente
+    allowlist de hosts) en CADA salto: NO delega los redirects a `requests` (allow_redirects=False)
+    sino que los sigue a mano re-validando el `Location`. Así un host público que responda
+    `302 -> http://169.254.169.254/…` (o loopback/IP interna) se corta en vez de seguirse."""
+    current = _validate_external_fetch_url(url, allowed_hosts=allowed_hosts)
+    for _ in range(max(1, int(max_redirects)) + 1):
+        resp = requests.get(current, timeout=timeout, allow_redirects=False, headers=headers, stream=stream)
+        if resp.status_code in (301, 302, 303, 307, 308):
+            location = resp.headers.get('Location')
+            if not location:
+                return resp
+            current = _validate_external_fetch_url(urljoin(current, location), allowed_hosts=allowed_hosts)
+            continue
+        return resp
+    raise ValueError('URL externa no permitida: demasiadas redirecciones.')
+
+
 def _get_preferente_session() -> requests.Session:
     global _PREFERENTE_SESSION
     if _PREFERENTE_SESSION is None:
@@ -450,14 +468,15 @@ def _parse_png_rows(content):
 
 def fetch_official_rows(url):
     url = _validate_external_fetch_url(url)
-    response = requests.get(url, headers={'User-Agent': USER_AGENT}, timeout=15)
+    # SSRF: safe_external_get valida el destino en cada redirect (no delega redirects a requests).
+    response = safe_external_get(url, headers={'User-Agent': USER_AGENT}, timeout=15)
     response.raise_for_status()
     soup = BeautifulSoup(response.text, 'html.parser')
     download_href = _find_download_link(soup)
     if download_href:
         file_url = urljoin(url, download_href)
         file_url = _validate_external_fetch_url(file_url)
-        file_response = requests.get(file_url, headers={'User-Agent': USER_AGENT}, timeout=15)
+        file_response = safe_external_get(file_url, headers={'User-Agent': USER_AGENT}, timeout=15)
         file_response.raise_for_status()
         ext = urlparse(file_url).path.lower()
         if ext.endswith('.csv'):

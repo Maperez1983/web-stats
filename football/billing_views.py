@@ -664,11 +664,10 @@ def apple_receipt_api(request):
     if status != 0:
         return api_error(f'Apple rechazó el recibo ({status}).', status=400, code='apple_receipt_invalid')
 
+    # SEGURIDAD: los entitlements se conceden SOLO a partir de los product_ids que Apple confirma
+    # en el recibo verificado. NUNCA se confía en el `product_id` que envía el cliente (era forja
+    # directa de entitlements: recibo válido cualquiera + product_id pedido = módulo no pagado).
     active_product_ids = _apple_active_product_ids(verified)
-    if requested_product_id and requested_product_id in _apple_product_map():
-        # Si Apple devuelve el recibo con retraso pero la compra acaba de finalizar,
-        # aceptamos el producto solicitado solo si pertenece a nuestro catálogo.
-        active_product_ids.add(requested_product_id)
     entitlements = _apple_entitlements_from_products(active_product_ids)
     if not entitlements:
         return api_error('No hay suscripciones Apple activas para este club.', status=402, code='apple_no_active_products')

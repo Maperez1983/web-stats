@@ -5967,7 +5967,10 @@ def _image_url_as_small_data_uri_for_pdf(request, image_url, *, max_width=240, m
         pass
     if parsed and parsed.scheme in {"http", "https"} and requests is not None:
         try:
-            response = requests.get(raw_url, timeout=4)
+            from football.services import safe_external_get
+
+            # SSRF: valida el destino (rechaza IP privada/reservada) y sigue redirects re-validando.
+            response = safe_external_get(raw_url, timeout=4)
             if response.status_code == 200:
                 content_type = str(response.headers.get("Content-Type") or "").split(";", 1)[0].strip() or "image/png"
                 raw = response.content or b""
@@ -9187,8 +9190,12 @@ def _universo_fetch_public_html(universo_url: str) -> str:
     if not raw or not raw.startswith("http"):
         return ""
     try:
-        response = requests.get(
+        from football.services import safe_external_get
+
+        # SSRF: allowlist estricta de host + redirects validados en cada salto.
+        response = safe_external_get(
             raw,
+            allowed_hosts={"universorfaf.es", "www.universorfaf.es"},
             headers={
                 "User-Agent": "2j-football-intelligence/1.0",
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -9229,8 +9236,9 @@ def _universo_extract_ids_from_url(universo_url: str) -> dict:
     # Universo a veces usa IDs distintos en URL pública vs API. Si es una URL "pública"
     # conocida (results / team), intentamos extraer los IDs reales desde el HTML.
     try:
-        host = str(getattr(url, "netloc", "") or "").strip().lower()
-        is_universo = "universorfaf.es" in host
+        host = str(getattr(url, "netloc", "") or "").strip().lower().split("@")[-1].split(":")[0]
+        # SSRF: coincidencia EXACTA de host (antes `in` permitía universorfaf.es.attacker.com).
+        is_universo = host == "universorfaf.es" or host.endswith(".universorfaf.es")
         is_public_page = any(
             needle in str(getattr(url, "path", "") or "") for needle in ("/competitions/results/", "/team/", "/teams/")
         )
