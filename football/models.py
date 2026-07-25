@@ -1110,6 +1110,12 @@ class Player(models.Model):
     transferred_at = models.DateField(
         null=True, blank=True, help_text='Fecha en que fichó por otro club (salida de la plantilla).'
     )
+    # Categoría/equipo destino DENTRO del club (Senior, Juvenil, Cadete…). Un club agrupa varias
+    # categorías: sin esto, "fichó por Rincón" se confundiría con la única categoría que tengamos
+    # de ese club. Texto libre porque el equipo destino puede no existir en nuestro sistema.
+    transferred_to_category = models.CharField(
+        max_length=60, blank=True, help_text='Categoría/equipo dentro del club destino (ej. Senior, Cadete).'
+    )
     # Control de caché de foto (para busting sin depender de caches por proceso).
     photo_updated_at = models.DateTimeField(null=True, blank=True)
     notes = models.TextField(blank=True)

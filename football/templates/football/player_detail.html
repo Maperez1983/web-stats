@@ -1187,7 +1187,7 @@
           </div>
           {% if season_state_label %}<div style="margin-top:0.4rem;"><span class="pill {% if season_state_label == 'Inactivo' %}warn{% else %}ok{% endif %}">{{ season_state_label }}</span></div>{% endif %}
           {% if player.transferred_to_club %}
-          <div style="margin-top:0.4rem;"><span class="pill warn" title="Fichó por otro club — su ficha, histórico e identidad de persona se conservan.">Fichó por {{ player.transferred_to_club.name }}{% if player.transferred_at %} · {{ player.transferred_at|date:"M Y" }}{% endif %}</span></div>
+          <div style="margin-top:0.4rem;"><span class="pill warn" title="Fichó por otro club — su ficha, histórico e identidad de persona se conservan.">Fichó por {{ player.transferred_to_club.name }}{% if player.transferred_to_category %} · {{ player.transferred_to_category }}{% endif %}{% if player.transferred_at %} · {{ player.transferred_at|date:"M Y" }}{% endif %}</span></div>
           {% endif %}
           {% if form_last5 %}
           <div class="form-strip" title="Resultados de los últimos partidos jugados">
@@ -1339,7 +1339,7 @@
         <div style="margin:0 0 1rem;padding:0.7rem 0.85rem;border:1px solid rgba(148,163,184,0.35);border-radius:12px;">
           <div style="font-weight:800;font-size:0.8rem;letter-spacing:0.04em;text-transform:uppercase;color:var(--prod-muted,rgba(15,23,42,0.6));margin-bottom:0.5rem;">Salida / traspaso a otro club</div>
           {% if player.transferred_to_club %}
-          <p style="margin:0 0 0.5rem;">Fichó por <strong>{{ player.transferred_to_club.name }}</strong>{% if player.transferred_at %} · {{ player.transferred_at|date:"d/m/Y" }}{% endif %}. Fuera de la plantilla activa (ficha, histórico e identidad conservados).</p>
+          <p style="margin:0 0 0.5rem;">Fichó por <strong>{{ player.transferred_to_club.name }}{% if player.transferred_to_category %} · {{ player.transferred_to_category }}{% endif %}</strong>{% if player.transferred_at %} · {{ player.transferred_at|date:"d/m/Y" }}{% endif %}. Fuera de la plantilla activa (ficha, histórico e identidad conservados).</p>
           <form method="post" style="margin:0;" onsubmit="return confirm('¿Deshacer el traspaso y devolverlo a la plantilla activa?');">
             {% csrf_token %}
             <input type="hidden" name="form_action" value="transfer_undo" />
@@ -1351,11 +1351,15 @@
             {% csrf_token %}
             <input type="hidden" name="form_action" value="transfer_out" />
             <input type="text" name="destination_club" list="ficha-club-catalog" placeholder="Fichó por… (club)" aria-label="Club por el que fichó" autocomplete="off" style="min-width:11rem;" />
+            <input type="text" name="destination_category" list="ficha-category-catalog" placeholder="Categoría (ej. Senior)" aria-label="Categoría/equipo destino dentro del club" autocomplete="off" style="min-width:8rem;" />
             <input type="date" name="transfer_date" aria-label="Fecha del traspaso" />
             <button class="btn alt" type="submit">Registrar traspaso</button>
           </form>
           <datalist id="ficha-club-catalog">
             {% for club_name in club_catalog %}<option value="{{ club_name }}"></option>{% endfor %}
+          </datalist>
+          <datalist id="ficha-category-catalog">
+            <option value="Senior"></option><option value="Juvenil"></option><option value="Cadete"></option><option value="Cadete A"></option><option value="Cadete B"></option><option value="Infantil"></option><option value="Alevín"></option><option value="Benjamín"></option><option value="Prebenjamín"></option><option value="Bebé"></option>
           </datalist>
           {% endif %}
         </div>

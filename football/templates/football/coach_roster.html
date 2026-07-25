@@ -1358,7 +1358,8 @@
                     {% csrf_token %}
                     <input type="hidden" name="action" value="transfer_out" />
                     <input type="hidden" name="player_id" value="{{ player.id }}" />
-                    <input type="text" name="destination_club" list="club-catalog" placeholder="Fichó por…" aria-label="Club por el que fichó" autocomplete="off" style="min-width:9rem;" />
+                    <input type="text" name="destination_club" list="club-catalog" placeholder="Fichó por… (club)" aria-label="Club por el que fichó" autocomplete="off" style="min-width:9rem;" />
+                    <input type="text" name="destination_category" list="category-catalog" placeholder="Categoría" aria-label="Categoría/equipo destino" autocomplete="off" style="min-width:7rem;" />
                     <button class="inline-ghost" type="submit">Traspaso</button>
                   </form>
                   {% endif %}
@@ -1393,6 +1394,9 @@
         </table>
         <datalist id="club-catalog">
           {% for club_name in club_catalog %}<option value="{{ club_name }}"></option>{% endfor %}
+        </datalist>
+        <datalist id="category-catalog">
+          <option value="Senior"></option><option value="Juvenil"></option><option value="Cadete"></option><option value="Cadete A"></option><option value="Cadete B"></option><option value="Infantil"></option><option value="Alevín"></option><option value="Benjamín"></option><option value="Prebenjamín"></option><option value="Bebé"></option>
         </datalist>
         </div>
         {% endif %}
