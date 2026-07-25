@@ -20172,9 +20172,9 @@ def coach_overview_page(request):
     )
     if _season_guard_blanked:
         standings = []
-    # Diagnóstico: por qué la home muestra (o no) la clasificación. `/coach/?diag=standings`.
-    # La página ya está protegida por acceso de entrenador (arriba), y solo expone metadatos de la
-    # competición del propio club, así que basta con estar viendo su portada.
+    # Diagnóstico visible: por qué la home muestra (o no) la clasificación. `/coach/?diag=standings`.
+    # Se pinta como panel en la propia portada (no JSON) para que sea fácil de ver/capturar.
+    standings_diag = None
     if str(request.GET.get("diag") or "").strip() == "standings":
         _diag_ctx = (
             WorkspaceCompetitionContext.objects.filter(workspace=workspace, team=primary_team).first()
@@ -20184,26 +20184,35 @@ def coach_overview_page(request):
         _diag_snap = (
             WorkspaceCompetitionSnapshot.objects.filter(context=_diag_ctx).first() if _diag_ctx else None
         )
-        return JsonResponse(
-            {
-                "provider": getattr(_diag_ctx, "provider", None),
-                "sync_status": getattr(_diag_ctx, "sync_status", None),
-                "sync_error": getattr(_diag_ctx, "sync_error", None),
-                "last_sync_at": str(getattr(_diag_ctx, "last_sync_at", None)),
-                "context_source_url": getattr(_diag_ctx, "external_source_url", None),
-                "preferente_url": getattr(primary_team, "preferente_url", None),
-                "has_snapshot": bool(_diag_snap),
-                "snapshot_standings_count": len(getattr(_diag_snap, "standings_payload", None) or []),
-                "snapshot_updated_at": str(getattr(_diag_snap, "updated_at", None)) if _diag_snap else None,
-                "team_group_id": getattr(primary_team, "group_id", None),
-                "group_season_name": _group_season_name,
-                "current_season_name": current_season_name(),
-                "season_guard_blanked": _season_guard_blanked,
-                "payload_standings_count": _payload_standings_count,
-                "final_standings_count": len(standings),
-            },
-            json_dumps_params={"ensure_ascii": False},
-        )
+        _snap_count = len(getattr(_diag_snap, "standings_payload", None) or [])
+        _has_group = bool(getattr(primary_team, "group_id", None))
+        if _season_guard_blanked:
+            _reason = "El guard de temporada borró la clasificación (temporada del grupo distinta a la vigente)."
+        elif _snap_count:
+            _reason = "Hay clasificación en el snapshot; si no se ve, revisar el render."
+        elif not _diag_ctx or str(getattr(_diag_ctx, "provider", "") or "") == WorkspaceCompetitionContext.PROVIDER_MANUAL:
+            _reason = "El contexto de competición está en 'manual' / sin proveedor: no hay de dónde traer la tabla."
+        elif not _has_group:
+            _reason = "El equipo no tiene grupo en BD y no hay snapshot: el fallback local no puede servir la tabla."
+        else:
+            _reason = "Hay grupo pero sin filas de clasificación en BD ni snapshot: falta persistir un sync con tabla."
+        standings_diag = {
+            "reason": _reason,
+            "provider": getattr(_diag_ctx, "provider", None),
+            "sync_status": getattr(_diag_ctx, "sync_status", None),
+            "sync_error": getattr(_diag_ctx, "sync_error", None),
+            "last_sync_at": str(getattr(_diag_ctx, "last_sync_at", None) or "—"),
+            "preferente_url": getattr(primary_team, "preferente_url", None) or "—",
+            "has_snapshot": bool(_diag_snap),
+            "snapshot_standings_count": _snap_count,
+            "snapshot_updated_at": str(getattr(_diag_snap, "updated_at", None) or "—") if _diag_snap else "—",
+            "team_group_id": getattr(primary_team, "group_id", None) or "—",
+            "group_season_name": _group_season_name or "—",
+            "current_season_name": current_season_name(),
+            "season_guard_blanked": _season_guard_blanked,
+            "payload_standings_count": _payload_standings_count,
+            "final_standings_count": len(standings),
+        }
     convocation_next = _build_next_match_from_convocation(primary_team)
     next_match = (
         competition_payload.get("next_match")
@@ -20422,6 +20431,7 @@ def coach_overview_page(request):
             "can_access_platform": can_access_platform,
             "coach_pitch_players": coach_pitch_players,
             "coach_decision_dashboard": coach_decision_dashboard,
+            "standings_diag": standings_diag,
         },
     )
 

@@ -589,6 +589,24 @@
             </a>
           </div>
 
+          {% if standings_diag %}
+          <section class="card compact" aria-label="Diagnóstico de clasificación" style="border:1px solid rgba(248,180,90,0.5);background:rgba(248,180,90,0.08);">
+            <h2 style="margin:0 0 0.3rem;">Diagnóstico · clasificación</h2>
+            <p style="margin:0 0 0.6rem;font-weight:800;">{{ standings_diag.reason }}</p>
+            <ul class="detail-list" style="font-size:0.85rem;">
+              <li><span>Proveedor</span><strong>{{ standings_diag.provider|default:"—" }}</strong></li>
+              <li><span>Estado sync</span><strong>{{ standings_diag.sync_status|default:"—" }}</strong></li>
+              <li><span>Error sync</span><strong>{{ standings_diag.sync_error|default:"—" }}</strong></li>
+              <li><span>Último sync</span><strong>{{ standings_diag.last_sync_at }}</strong></li>
+              <li><span>URL Preferente</span><strong style="word-break:break-all;">{{ standings_diag.preferente_url }}</strong></li>
+              <li><span>¿Hay snapshot?</span><strong>{{ standings_diag.has_snapshot|yesno:"sí,no" }} · {{ standings_diag.snapshot_standings_count }} filas · {{ standings_diag.snapshot_updated_at }}</strong></li>
+              <li><span>Grupo en BD (id)</span><strong>{{ standings_diag.team_group_id }}</strong></li>
+              <li><span>Temporada grupo / vigente</span><strong>{{ standings_diag.group_season_name }} / {{ standings_diag.current_season_name }}</strong></li>
+              <li><span>¿Guard borró la tabla?</span><strong>{{ standings_diag.season_guard_blanked|yesno:"sí,no" }}</strong></li>
+              <li><span>Filas payload → final</span><strong>{{ standings_diag.payload_standings_count }} → {{ standings_diag.final_standings_count }}</strong></li>
+            </ul>
+          </section>
+          {% endif %}
           <section class="card compact" aria-label="Áreas principales">
             <h2>Áreas</h2>
             <p class="muted" style="margin:0;">Accesos rápidos con lo importante siempre a mano.</p>
