@@ -26,10 +26,19 @@ class GroupAdmin(admin.ModelAdmin):
 
 @admin.register(models.Team)
 class TeamAdmin(admin.ModelAdmin):
-    list_display = ('name', 'category', 'game_format', 'group', 'is_primary', 'city')
+    list_display = ('name', 'name_key', 'external_id', 'possible_duplicates', 'group', 'is_primary', 'city')
     list_filter = ('game_format', 'group', 'is_primary')
-    search_fields = ('name', 'short_name', 'slug', 'category')
+    search_fields = ('name', 'short_name', 'slug', 'category', 'name_key', 'external_id', 'preferente_url')
     prepopulated_fields = {'slug': ('name',)}
+    ordering = ('name_key', 'name')
+
+    @admin.display(description='Posibles duplicados')
+    def possible_duplicates(self, obj):
+        # Otros equipos con la MISMA clave de nombre normalizada (candidatos a ser el mismo real).
+        if not obj.name_key:
+            return '—'
+        count = models.Team.objects.filter(name_key=obj.name_key).exclude(pk=obj.pk).count()
+        return f'⚠ {count}' if count else '—'
 
 
 class WorkspaceTeamInline(admin.TabularInline):

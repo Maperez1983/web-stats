@@ -3,6 +3,8 @@ from django.db.models import Q
 from django.db.models.functions import Lower
 from django.contrib.auth.hashers import check_password, make_password
 from django.utils import timezone
+from django.utils.text import slugify
+import unicodedata
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
@@ -70,6 +72,17 @@ class Group(models.Model):
         return f'{self.name} ({self.season.name})'
 
 
+def normalize_team_name_key(name):
+    """
+    Clave canónica de un nombre de equipo, robusta a acentos, mayúsculas, puntuación y espacios,
+    para detectar el MISMO equipo escrito distinto ("C.D. Rincón" == "CD Rincón" == "cd rincon").
+    Solo [a-z0-9], sin espacios. Conservador: no elimina sufijos (CF/CD/UD) para no fusionar
+    equipos distintos.
+    """
+    text = unicodedata.normalize("NFKD", str(name or "")).encode("ascii", "ignore").decode("ascii")
+    return "".join(ch for ch in text.lower() if ch.isalnum())
+
+
 class Team(models.Model):
     name = models.CharField(max_length=150)
     slug = models.SlugField(max_length=150, unique=True)
@@ -77,6 +90,9 @@ class Team(models.Model):
     city = models.CharField(max_length=100, blank=True)
     group = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True, blank=True, related_name='teams')
     external_id = models.CharField(max_length=120, blank=True, help_text='Identificador oficial en la web')
+    # Clave de nombre normalizada (identidad de equipo): para no duplicar el mismo equipo real
+    # escrito con variaciones. Se calcula en save() (backfill en migración).
+    name_key = models.CharField(max_length=160, blank=True, db_index=True)
     preferente_url = models.URLField(blank=True, help_text='URL del equipo en LaPreferente')
     crest_url = models.URLField(blank=True, help_text='URL sincronizada del escudo del equipo')
     crest_image = models.ImageField(upload_to='team-crests/', null=True, blank=True)
@@ -110,8 +126,64 @@ class Team(models.Model):
     def display_name(self):
         return (self.short_name or self.name or '').strip()
 
+    def save(self, *args, **kwargs):
+        self.name_key = normalize_team_name_key(self.name)
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None and 'name' in set(update_fields):
+            kwargs['update_fields'] = sorted(set(update_fields) | {'name_key'})
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.name
+
+
+def _unique_team_slug(name):
+    base = slugify(str(name or ''))[:140] or 'equipo'
+    slug = base
+    i = 2
+    while Team.objects.filter(slug=slug).exists():
+        slug = f"{base}-{i}"[:150]
+        i += 1
+    return slug
+
+
+def resolve_or_create_team(*, name, external_id='', preferente_url='', group=None, defaults=None):
+    """
+    Devuelve (team, created) evitando duplicar el MISMO equipo real. Orden de identidad:
+    external_id -> preferente_url -> nombre normalizado (name_key, priorizando el mismo grupo).
+    Crea solo si no hay coincidencia. Reúne en un helper la lógica de dedup para todos los
+    puntos de creación (importación de clasificación, rivales, etc.).
+    """
+    external_id = str(external_id or '').strip()
+    preferente_url = str(preferente_url or '').strip()
+
+    if external_id:
+        team = Team.objects.filter(external_id=external_id).first()
+        if team:
+            return team, False
+    if preferente_url:
+        team = Team.objects.filter(preferente_url=preferente_url).first()
+        if team:
+            return team, False
+
+    key = normalize_team_name_key(name)
+    if key:
+        qs = Team.objects.filter(name_key=key)
+        team = None
+        if group is not None:
+            team = qs.filter(group=group).first()
+        team = team or qs.first()
+        if team:
+            return team, False
+
+    values = dict(defaults or {})
+    values.setdefault('external_id', external_id)
+    if preferente_url:
+        values.setdefault('preferente_url', preferente_url)
+    if group is not None:
+        values.setdefault('group', group)
+    team = Team.objects.create(name=str(name or '').strip()[:150], slug=_unique_team_slug(name), **values)
+    return team, True
 
 
 class Workspace(models.Model):
