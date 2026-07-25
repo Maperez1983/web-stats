@@ -69453,6 +69453,35 @@ def player_detail_page(request, player_id):
         latest_evaluation_improvement_rows = (
             _evaluation_improvement_rows(latest_closed_evaluation) if latest_closed_evaluation else []
         )
+        # Objetivos de trabajo del jugador: texto de la última evaluación cerrada (qué está
+        # trabajando, en qué mejorar). Se muestra en cabecera para tenerlo a la vista.
+        work_focus = {}
+        if latest_closed_evaluation is not None:
+            _wf = {
+                "objectives": str(getattr(latest_closed_evaluation, "objectives_next", "") or "").strip(),
+                "improvements": str(getattr(latest_closed_evaluation, "improvements", "") or "").strip(),
+                "strengths": str(getattr(latest_closed_evaluation, "strengths", "") or "").strip(),
+                "evaluated_on": getattr(latest_closed_evaluation, "evaluated_on", None),
+            }
+            if _wf["objectives"] or _wf["improvements"] or _wf["strengths"]:
+                work_focus = _wf
+        # Carga de minutos: vistazo rápido para decisiones de rotación (minutos, titularidades,
+        # media por partido). Datos de la temporada seleccionada (ya calculados en el dashboard).
+        minutes_load = {}
+        try:
+            _ml_pj = int(safe_stats.get("pj") or 0)
+            _ml_pt = int(safe_stats.get("pt") or 0)
+            _ml_min = int(safe_stats.get("minutes") or 0)
+            if _ml_pj or _ml_min:
+                minutes_load = {
+                    "minutes": _ml_min,
+                    "pj": _ml_pj,
+                    "starts": _ml_pt,
+                    "avg_per_match": int(round(_ml_min / _ml_pj)) if _ml_pj else 0,
+                    "starter_pct": int(round(100 * _ml_pt / _ml_pj)) if _ml_pj else 0,
+                }
+        except Exception:
+            minutes_load = {}
         physical_metrics = player.physical_metrics.all()[:20]
         latest_physical_metric = physical_metrics[0] if physical_metrics else None
         communications = player.communications.select_related("match").all()[:20]
@@ -70132,6 +70161,8 @@ def player_detail_page(request, player_id):
                 "active_tab": active_tab,
                 "player_evaluations": player_evaluations,
                 "evaluation_summary": evaluation_summary,
+                "work_focus": work_focus,
+                "minutes_load": minutes_load,
                 "evaluation_chart_context": evaluation_chart_context,
                 "latest_evaluation_improvement_rows": latest_evaluation_improvement_rows,
                 "evaluation_type_choices": PlayerEvaluation.TYPE_CHOICES,

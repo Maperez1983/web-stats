@@ -1308,6 +1308,50 @@
       </div>
       {% endif %}
 
+      {% if work_focus %}
+      <section class="card" aria-label="Objetivos de trabajo" style="margin-top:1rem;border:1px solid rgba(56,189,248,0.28);">
+        <h2 style="margin:0 0 0.2rem;">Objetivos de trabajo</h2>
+        <p class="subtle" style="margin:0 0 0.7rem;">De la última evaluación{% if work_focus.evaluated_on %} · {{ work_focus.evaluated_on|date:"d/m/Y" }}{% endif %} · <a href="{% url 'player-detail' player.id %}?tab=evaluations">ver valoración</a></p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0.7rem;">
+          {% if work_focus.objectives %}
+          <div style="border-left:3px solid rgba(56,189,248,0.6);padding:0.2rem 0 0.2rem 0.7rem;">
+            <span class="subtle" style="text-transform:uppercase;letter-spacing:0.08em;font-size:0.7rem;">Objetivos próximos</span>
+            <p style="margin:0.2rem 0 0;">{{ work_focus.objectives|linebreaksbr }}</p>
+          </div>
+          {% endif %}
+          {% if work_focus.improvements %}
+          <div style="border-left:3px solid rgba(248,180,90,0.6);padding:0.2rem 0 0.2rem 0.7rem;">
+            <span class="subtle" style="text-transform:uppercase;letter-spacing:0.08em;font-size:0.7rem;">A mejorar</span>
+            <p style="margin:0.2rem 0 0;">{{ work_focus.improvements|linebreaksbr }}</p>
+          </div>
+          {% endif %}
+          {% if work_focus.strengths %}
+          <div style="border-left:3px solid rgba(34,197,94,0.55);padding:0.2rem 0 0.2rem 0.7rem;">
+            <span class="subtle" style="text-transform:uppercase;letter-spacing:0.08em;font-size:0.7rem;">Fortalezas</span>
+            <p style="margin:0.2rem 0 0;">{{ work_focus.strengths|linebreaksbr }}</p>
+          </div>
+          {% endif %}
+        </div>
+      </section>
+      {% endif %}
+
+      {% if minutes_load %}
+      <section class="card" aria-label="Carga de minutos" style="margin-top:1rem;">
+        <h2 style="margin:0 0 0.5rem;">Carga de minutos</h2>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:0.7rem;">
+          <div><span class="subtle" style="display:block;text-transform:uppercase;letter-spacing:0.08em;font-size:0.7rem;">Minutos</span><strong style="font-size:1.15rem;">{{ minutes_load.minutes }}′</strong></div>
+          <div><span class="subtle" style="display:block;text-transform:uppercase;letter-spacing:0.08em;font-size:0.7rem;">Partidos</span><strong style="font-size:1.15rem;">{{ minutes_load.pj }}</strong></div>
+          <div><span class="subtle" style="display:block;text-transform:uppercase;letter-spacing:0.08em;font-size:0.7rem;">Titular</span><strong style="font-size:1.15rem;">{{ minutes_load.starts }}</strong> <span class="subtle">({{ minutes_load.starter_pct }}%)</span></div>
+          <div><span class="subtle" style="display:block;text-transform:uppercase;letter-spacing:0.08em;font-size:0.7rem;">Media/partido</span><strong style="font-size:1.15rem;">{{ minutes_load.avg_per_match }}′</strong></div>
+          <div><span class="subtle" style="display:block;text-transform:uppercase;letter-spacing:0.08em;font-size:0.7rem;">Próximo partido</span>
+            {% if has_active_injury %}<strong style="color:#f87171;">Baja (lesión)</strong>
+            {% elif has_manual_sanction %}<strong style="color:#f87171;">Baja (sanción)</strong>
+            {% else %}<strong style="color:#22c55e;">Disponible</strong>{% endif %}
+          </div>
+        </div>
+      </section>
+      {% endif %}
+
       <div class="tabs" role="tablist">
         <button class="tab-btn" data-tab="personal" role="tab">Datos personales y Evaluación previa</button>
         <button class="tab-btn" data-tab="stats" role="tab">Estadísticas y KPI mapa</button>
