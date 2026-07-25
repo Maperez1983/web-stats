@@ -5399,15 +5399,20 @@
 		      }
 			      // Evita la caja azul de Fabric en los objetos de pizarra y escalados accidentales.
 			      // EXCEPTO en el editor 2D comercial (ed-chrome): allí SÍ queremos el recuadro de
-			      // selección (borde cian) y los tiradores, para que se vea qué está seleccionado y
-			      // se pueda redimensionar arrastrando. El borde/tiradores ya van estilizados (cian),
-			      // no es la "caja azul" fea de Fabric.
+			      // selección (borde cian) para que se vea qué está seleccionado. El borde va
+			      // estilizado (cian), no es la "caja azul" fea de Fabric.
 			      const isEdChromeSel = (function(){ try { return !!document.body?.classList?.contains?.('ed-chrome'); } catch (e) { return false; } })();
 			      const hideBoardSelectionChrome = !locked && !isTacticsMode && !isEdChromeSel && (!isBackground || !backgroundEdit);
 			      const hideTokenSelectionChrome = !locked && kind === 'token' && !isEdChromeSel;
 			      const hideSelectionChrome = hideBoardSelectionChrome || hideTokenSelectionChrome;
+			      // IMPORTANTE: las FICHAS (jugador/portero/balón) en ed-chrome muestran el recuadro
+			      // pero NO los tiradores de resize. En una ficha pequeña, los tiradores ocupan casi
+			      // todo el borde: al intentar arrastrarla se agarraba un tirador y se redimensionaba
+			      // en vez de moverse ("no se puede mover"). El tamaño se ajusta con los presets del
+			      // inspector. Los elementos de pizarra (conos, flechas, figuras) sí llevan tiradores.
+			      const edChromeTokenBordersOnly = isEdChromeSel && kind === 'token' && !locked;
 			      object.set({
-			        hasControls: hideSelectionChrome ? false : !locked,
+			        hasControls: (hideSelectionChrome || edChromeTokenBordersOnly) ? false : !locked,
 			        hasBorders: hideSelectionChrome ? false : true,
 			        transparentCorners: false,
 			        cornerStyle: 'circle',
