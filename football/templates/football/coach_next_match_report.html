@@ -1,0 +1,237 @@
+{% load static l10n %}<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Próximo partido{% if opponent_name %} · vs {{ opponent_name }}{% endif %}</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<style>
+  html,body{margin:0;background:#EAF0E9}
+  @media (prefers-color-scheme:dark){ html,body{background:#0B1310} }
+  .sqr{
+    --bg:#EAF0E9; --surface:#FFFFFF; --surface-2:#F3F7F2; --surface-3:#EAF0E9;
+    --ink:#12201A; --ink-soft:#4B584F; --ink-faint:#7C877E;
+    --line:#D3DCD3; --line-soft:#E2E9E1;
+    --accent:#0F8A4B; --accent-deep:#0A5E33;
+    --ok:#1C9A53; --ok-wash:#DCEFE1; --trial:#B87614; --trial-wash:#F6E9CF;
+    --pending:#356FA6; --pending-wash:#DBE8F3; --injured:#C6443C; --injured-wash:#F6DEDB;
+    --out:#828B83; --out-wash:#E7EAE6;
+    --shadow:0 1px 2px rgba(18,32,26,.06), 0 8px 24px rgba(18,32,26,.06); --radius:14px;
+    max-width:1180px;margin:0 auto;padding:22px 18px 40px;color:var(--ink);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.5;
+  }
+  @media (prefers-color-scheme:dark){
+    .sqr{
+      --bg:#0B1310; --surface:#121C17; --surface-2:#0F1813; --surface-3:#0C1511;
+      --ink:#E9F0EA; --ink-soft:#A0B1A6; --ink-faint:#6E8074; --line:#22302A; --line-soft:#1A251F;
+      --accent:#33C77B; --accent-deep:#7FE0AA; --ok:#3CC079; --ok-wash:#122A1B; --trial:#E0A63C; --trial-wash:#2C2413;
+      --pending:#5C9AD6; --pending-wash:#12212E; --injured:#E56E66; --injured-wash:#2C1614; --out:#8A968C; --out-wash:#1B231E;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  .sqr *{box-sizing:border-box}
+  .sqr .num{font-variant-numeric:tabular-nums}
+
+  .sqr .jr{display:inline-flex;gap:8px;align-items:center;margin-bottom:14px;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:700}
+  .sqr .jr .pill{background:var(--accent);color:#fff;padding:4px 10px;border-radius:999px}
+  .sqr .jr .ha{padding:4px 10px;border-radius:999px}
+  .sqr .jr .ha.home{background:var(--ok-wash);color:var(--ok)} .sqr .jr .ha.away{background:var(--pending-wash);color:var(--pending)}
+
+  .sqr header.hd{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:end;padding-bottom:16px;border-bottom:2px solid var(--ink);margin-bottom:20px}
+  .sqr .eyebrow{font-size:12px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;color:var(--accent-deep);margin:0 0 8px}
+  .sqr .vs{display:flex;align-items:center;gap:14px}
+  .sqr .crest{width:44px;height:44px;border-radius:10px;background:radial-gradient(circle at 50% 36%,var(--accent) 0 40%,transparent 41%),var(--accent-deep);flex-shrink:0;background-size:cover;background-position:center}
+  .sqr h1.title{font-size:clamp(23px,3.8vw,38px);line-height:1;margin:0;font-weight:800;letter-spacing:-.01em}
+  .sqr h1.title small{display:block;font-size:13px;font-weight:600;color:var(--ink-faint);margin-bottom:3px;text-transform:none;letter-spacing:.01em}
+  .sqr .hd-meta{text-align:right;font-size:13px;color:var(--ink-soft)}
+  .sqr .hd-meta .big{font-size:15px;font-weight:700;color:var(--ink);display:block}
+  .sqr .dl-btn{margin-top:10px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;color:#fff;background:var(--accent);border:1px solid var(--accent);padding:8px 14px;border-radius:10px}
+  .sqr .dl-btn:hover{background:var(--accent-deep)}
+
+  .sqr .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+  .sqr .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
+  .sqr .card h3{margin:0 0 3px;font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px}
+  .sqr .card h3 .dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+  .sqr .card .sub{margin:0 0 14px;font-size:12.5px;color:var(--ink-faint)}
+
+  .sqr .pitch{position:relative;width:100%;max-width:420px;margin:0 auto;aspect-ratio:3/4;border-radius:12px;overflow:hidden;border:1px solid var(--line);
+    background:repeating-linear-gradient(0deg,#1f7a46 0 12%,#1c7040 12% 24%),#1c7040;box-shadow:inset 0 0 40px rgba(0,0,0,.28)}
+  .sqr .pitch::before{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.26);border-radius:8px}
+  .sqr .pitch::after{content:"";position:absolute;left:7px;right:7px;top:50%;height:2px;background:rgba(255,255,255,.2)}
+  .sqr .pl{position:absolute;transform:translate(-50%,-50%);text-align:center;width:66px;z-index:1}
+  .sqr .pl .n{width:30px;height:30px;margin:0 auto;border-radius:50%;background:#0b1220;border:2px solid #fff;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12.5px}
+  .sqr .pl .badge{position:absolute;top:-4px;right:12px;font-size:8px;font-weight:800;background:var(--accent);color:#fff;border-radius:4px;padding:1px 3px;letter-spacing:.02em}
+  .sqr .pl .nm{margin-top:3px;font-size:10px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sqr .form-badge{position:absolute;left:12px;top:10px;z-index:2;background:rgba(7,12,22,.82);color:#fff;font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;letter-spacing:.06em}
+
+  .sqr .warn{background:var(--trial-wash);border:1px dashed var(--trial);border-radius:12px;padding:16px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+  .sqr .warn p{margin:0;font-size:13px} .sqr .warn b{color:var(--trial)}
+  .sqr .warn a{font-size:13px;font-weight:700;color:#fff;background:var(--trial);border-radius:9px;padding:8px 13px;text-decoration:none;white-space:nowrap}
+
+  .sqr .brief{display:flex;flex-direction:column;gap:9px}
+  .sqr .brief .b{display:grid;grid-template-columns:24px 1fr;gap:10px;align-items:start;background:var(--surface-2);border:1px solid var(--line-soft);border-radius:10px;padding:9px 11px}
+  .sqr .brief .b .ic{font-size:15px;text-align:center}
+  .sqr .brief .b b{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);display:block}
+  .sqr .brief .b span{font-size:13px;font-weight:600}
+  .sqr .rf{padding:8px 0;border-top:1px solid var(--line-soft)}
+  .sqr .rf:first-child{border-top:0}
+  .sqr .rf b{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-faint);display:block;margin-bottom:2px}
+  .sqr .rf span{font-size:13px}
+  .sqr .lines{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .sqr .lines .c{font-size:12px;font-weight:600;background:var(--surface-2);border:1px solid var(--line-soft);border-radius:999px;padding:4px 10px}
+
+  .sqr .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+  .sqr .avail{display:flex;flex-direction:column;gap:10px}
+  .sqr .arow{display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:start}
+  .sqr .arow .lab{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;text-align:center;padding:5px 6px;border-radius:8px}
+  .sqr .lab.inj{color:var(--injured);background:var(--injured-wash)} .sqr .lab.sanc{color:var(--out);background:var(--out-wash)} .sqr .lab.aper{color:var(--trial);background:var(--trial-wash)}
+  .sqr .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .sqr .chips .c{font-size:12.5px;font-weight:600;background:var(--surface-2);border:1px solid var(--line-soft);border-radius:999px;padding:4px 10px}
+  .sqr .chips .none{color:var(--ink-faint);font-size:12.5px}
+
+  .sqr .h2h{display:flex;flex-direction:column;gap:7px}
+  .sqr .h2h .m{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;background:var(--surface-2);border:1px solid var(--line-soft);border-radius:10px;padding:7px 11px;font-size:13px}
+  .sqr .h2h .r{width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fff}
+  .sqr .r.V{background:var(--ok)} .sqr .r.E{background:var(--trial)} .sqr .r.D{background:var(--injured)}
+  .sqr .h2h .sc{font-weight:800;font-variant-numeric:tabular-nums}
+  .sqr .h2h small{color:var(--ink-faint)}
+  .sqr .h2h-sum{font-size:12.5px;color:var(--ink-soft);margin-bottom:12px}
+
+  .sqr .actions{counter-reset:a}
+  .sqr .act{display:grid;grid-template-columns:26px 1fr;gap:12px;align-items:start;padding:10px 0;border-top:1px solid var(--line-soft)}
+  .sqr .act:first-child{border-top:0}
+  .sqr .act::before{counter-increment:a;content:counter(a);width:26px;height:26px;border-radius:8px;background:var(--accent);color:#fff;font-weight:800;font-size:13px;display:grid;place-items:center}
+  .sqr .act b{font-size:13.5px;font-weight:600}
+  .sqr .empty{font-size:12.5px;color:var(--ink-faint);padding:8px 2px}
+  .sqr .nomatch{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:40px 22px;text-align:center;box-shadow:var(--shadow)}
+  .sqr .nomatch h2{margin:0 0 6px;font-size:18px}
+  .sqr .nomatch p{margin:0;color:var(--ink-soft);font-size:14px}
+
+  .sqr footer.ft{margin-top:20px;padding-top:14px;border-top:1px solid var(--line);font-size:11.5px;color:var(--ink-faint)}
+  .sqr footer.ft b{color:var(--ink-soft)}
+
+  @media (max-width:860px){ .sqr .grid,.sqr .grid2{grid-template-columns:1fr} .sqr header.hd{grid-template-columns:1fr} .sqr .hd-meta{text-align:left} }
+  @media print{ .sqr{padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact} .sqr *{-webkit-print-color-adjust:exact;print-color-adjust:exact} .sqr .no-print{display:none!important} .sqr .card{box-shadow:none;break-inside:avoid} }
+</style>
+</head>
+<body>
+<div class="sqr">
+
+  {% if not has_match %}
+  <header class="hd"><div><p class="eyebrow">Informe al cuerpo técnico · Próximo partido</p><h1 class="title">Próximo partido</h1></div></header>
+  <div class="nomatch">
+    <h2>No hay un próximo partido confirmado</h2>
+    <p>Cuando haya convocatoria o el calendario marque el siguiente partido, aquí verás el rival, su 11 probable y tu disponibilidad.</p>
+  </div>
+  {% else %}
+
+  <div class="jr">
+    {% if round_label %}<span class="pill">{{ round_label }}{% if competition_label %} · {{ competition_label }}{% endif %}</span>{% elif competition_label %}<span class="pill">{{ competition_label }}</span>{% endif %}
+    {% if is_home %}<span class="ha home">Local</span>{% else %}<span class="ha away">Visitante</span>{% endif %}
+  </div>
+
+  <header class="hd">
+    <div>
+      <p class="eyebrow">Informe al cuerpo técnico · Próximo partido</p>
+      <div class="vs">
+        <span class="crest" aria-hidden="true"{% if opp_crest %} style="background-image:url('{{ opp_crest }}')"{% endif %}></span>
+        <h1 class="title"><small>{{ team_display_name }} {% if is_home %}recibe a{% else %}visita a{% endif %}</small>{{ opponent_name }}</h1>
+      </div>
+    </div>
+    <div class="hd-meta">
+      <span class="big">{% if match_date %}{{ match_date|date:"D j M"|capfirst }}{% else %}Fecha por confirmar{% endif %}{% if match_time %} · {{ match_time }}{% endif %}</span>
+      {% if location %}{{ location }}{% else %}Campo por confirmar{% endif %}
+      <div class="no-print"><button type="button" class="dl-btn" onclick="window.print()">⤓ Descargar PDF</button></div>
+    </div>
+  </header>
+
+  <section class="grid">
+    <div class="card">
+      <h3><span class="dot"></span>11 probable del rival</h3>
+      <p class="sub">Desde la plantilla cargada del rival (Universo/Preferente) y su distribución por líneas.</p>
+      {% if probable_xi %}
+      <div class="pitch">
+        <span class="form-badge">{{ formation }}</span>
+        {% for p in probable_xi %}
+        <div class="pl" style="left:{{ p.left|unlocalize }}%;top:{{ p.top|unlocalize }}%">
+          <div class="n num">{{ p.number|default:"·" }}{% if p.badge %}<span class="badge">{{ p.badge }}</span>{% endif %}</div>
+          <div class="nm">{{ p.name|default:"" }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="warn">
+        <p><b>Falta la plantilla del rival.</b> Sin ella no se puede calcular el 11 probable. Cárgala desde su ficha (Universo RFAF o La Preferente).</p>
+        {% if load_rival_url %}<a href="{{ load_rival_url }}">Cargar plantilla del rival</a>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h3><span class="dot" style="background:var(--injured)"></span>Ficha del rival</h3>
+      <p class="sub">Briefing automático{% if rival_report_fields %} + informe del analista{% endif %}.</p>
+      {% if briefing %}
+      <div class="brief">
+        {% for b in briefing %}
+        <div class="b"><span class="ic">{{ b.icon|default:"•" }}</span><div><b>{{ b.label }}</b><span>{{ b.text }}</span></div></div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if rival_report_fields %}
+      <div style="margin-top:12px">
+        {% for f in rival_report_fields %}<div class="rf"><b>{{ f.label }}</b><span>{{ f.text }}</span></div>{% endfor %}
+      </div>
+      {% endif %}
+      {% if rival_lines %}
+      <div class="lines">{% for l in rival_lines %}<span class="c">{{ l.label }}: {{ l.value }}</span>{% endfor %}</div>
+      {% endif %}
+      {% if not briefing and not rival_report_fields and not rival_lines %}
+      <div class="empty">Aún no hay análisis del rival. Carga su plantilla y crea un informe de rival para completar esta ficha.</div>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="grid2">
+    <div class="card">
+      <h3><span class="dot" style="background:var(--injured)"></span>Nuestra disponibilidad</h3>
+      <p class="sub">Con quién contamos para la convocatoria.</p>
+      <div class="avail">
+        <div class="arow"><span class="lab inj">Bajas</span><div class="chips">{% for p in injured %}<span class="c">{% if p.number %}{{ p.number }} · {% endif %}{{ p.name }}</span>{% empty %}<span class="none">Sin lesionados. 👌</span>{% endfor %}</div></div>
+        <div class="arow"><span class="lab sanc">Sancionados</span><div class="chips">{% for p in sanctioned %}<span class="c">{% if p.number %}{{ p.number }} · {% endif %}{{ p.name }}</span>{% empty %}<span class="none">Ninguno.</span>{% endfor %}</div></div>
+        <div class="arow"><span class="lab aper">Apercibidos</span><div class="chips">{% for p in apercibidos %}<span class="c">{% if p.number %}{{ p.number }} · {% endif %}{{ p.name }}</span>{% empty %}<span class="none">Ninguno en riesgo.</span>{% endfor %}</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="dot"></span>Historial contra {{ opponent_name }}</h3>
+      <p class="sub">Vuestros últimos enfrentamientos.</p>
+      {% if head_to_head %}
+      <div class="h2h-sum">{{ h2h_summary.w }}V · {{ h2h_summary.d }}E · {{ h2h_summary.l }}D</div>
+      <div class="h2h">
+        {% for m in head_to_head %}
+        <div class="m"><span class="r {{ m.res }}">{{ m.res }}</span>
+          <span>{% if m.date %}{{ m.date|date:"j M Y" }}{% endif %} · {% if m.home %}Local{% else %}Visitante{% endif %}</span>
+          <span class="sc">{{ m.gf }}–{{ m.ga }}</span></div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty">Sin enfrentamientos previos registrados contra este rival.</div>
+      {% endif %}
+    </div>
+  </section>
+
+  {% if plan_points %}
+  <section class="card">
+    <h3><span class="dot"></span>Claves del partido</h3>
+    <p class="sub">Del plan del analista (informe del rival).</p>
+    <div class="actions">{% for pt in plan_points %}<div class="act"><b>{{ pt }}</b></div>{% endfor %}</div>
+  </section>
+  {% endif %}
+
+  <footer class="ft">
+    <b>Fuente:</b> próximo partido (Universo/convocatoria) · plantilla y 11 probable del rival desde su ficha · análisis del rival · disponibilidad propia (lesiones/sanciones/apercibidos) · head-to-head de partidos jugados.
+  </footer>
+
+  {% endif %}
+</div>
+</body>
+</html>

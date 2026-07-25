@@ -36715,6 +36715,244 @@ def microcycle_report_page(request):
     return render(request, "football/coach_microcycle_report.html", context)
 
 
+def _nm_fold(text):
+    return "".join(ch for ch in str(text or "").strip().lower() if ch.isalnum())
+
+
+@login_required
+def next_match_report_page(request):
+    """Informe de próximo partido para el cuerpo técnico: partido + clasificación, ficha del
+    rival con su 11 probable (desde su plantilla cargada), forma, head-to-head y nuestra
+    disponibilidad (bajas/sancionados/apercibidos).  Ensambla piezas existentes; degrada con
+    gracia cuando falta algún dato (p.ej. la plantilla del rival sin cargar)."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    workspace = _get_active_workspace(request)
+    if not workspace or getattr(workspace, "kind", None) != Workspace.KIND_CLUB:
+        return HttpResponse("Selecciona un club (workspace) antes de ver el informe.", status=400)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404("Equipo principal no configurado")
+
+    today = timezone.localdate()
+
+    # --- 1) Próximo partido ---
+    next_match = None
+    try:
+        next_match = load_preferred_next_match_payload(primary_team)
+    except Exception:
+        next_match = None
+    if not next_match:
+        try:
+            next_match = get_next_match(primary_team, getattr(primary_team, "group", None), allow_external_fetch=False)
+        except Exception:
+            next_match = None
+    try:
+        conv = _build_next_match_from_convocation(primary_team)
+        if conv and _next_match_payload_is_reliable(conv):
+            next_match = conv
+    except Exception:
+        pass
+
+    opponent_name = ""
+    opp_crest = ""
+    match_date = None
+    match_time = location = round_label = ""
+    is_home = True
+    if next_match:
+        try:
+            opponent_name = _payload_opponent_name(next_match) or ""
+        except Exception:
+            opponent_name = ""
+        opp = next_match.get("opponent") if isinstance(next_match, dict) else {}
+        opp = opp or {}
+        opp_crest = str(opp.get("crest_url") or "").strip()
+        match_time = str(next_match.get("time") or "").strip()
+        location = str(next_match.get("location") or "").strip()
+        round_label = str(next_match.get("round") or "").strip()
+        is_home = bool(next_match.get("home", True))
+        try:
+            match_date = _parse_payload_date(next_match.get("date"))
+        except Exception:
+            match_date = None
+    has_match = bool(opponent_name)
+
+    competition_label = ""
+    try:
+        grp = getattr(primary_team, "group", None)
+        if grp:
+            comp = getattr(getattr(grp, "season", None), "competition", None)
+            competition_label = " · ".join(
+                x for x in [str(getattr(comp, "name", "") or "").strip(), str(getattr(grp, "name", "") or "").strip()] if x
+            )
+    except Exception:
+        competition_label = ""
+
+    # --- 2) Rival: equipo, plantilla cargada y 11 probable ---
+    rival_team = None
+    try:
+        opp = (next_match.get("opponent") if isinstance(next_match, dict) else {}) or {}
+        code = str(opp.get("team_code") or "").strip()
+        if code:
+            rival_team = Team.objects.filter(external_id=code).first()
+        if not rival_team and opponent_name:
+            rival_team = (
+                Team.objects.filter(name__iexact=opponent_name).first()
+                or Team.objects.filter(name_key=_nm_fold(opponent_name)).first()
+            )
+    except Exception:
+        rival_team = None
+
+    rival_roster = []
+    if rival_team:
+        try:
+            snap = TeamRosterSnapshot.objects.filter(team=rival_team).order_by("-updated_at").first()
+            if snap and isinstance(getattr(snap, "roster_payload", None), list):
+                rival_roster = snap.roster_payload
+        except Exception:
+            rival_roster = []
+    rival_roster_loaded = bool(rival_roster)
+
+    # Ficha del rival (RivalAnalysisReport) + formación
+    rival_summary = {}
+    rival_report = None
+    formation = ""
+    try:
+        rival_summary = _build_coach_rival_summary(primary_team) or {}
+        rival_report = rival_summary.get("report")
+        if rival_report is not None:
+            formation = str(getattr(rival_report, "tactical_system", "") or "").strip()
+    except Exception:
+        rival_summary = {}
+
+    probable_xi = []
+    if rival_roster:
+        try:
+            eleven = compute_probable_eleven(rival_roster)
+            if not formation:
+                try:
+                    formation = compute_formation(eleven)
+                except Exception:
+                    formation = ""
+            probable_xi = assign_lineup_slots(eleven, formation or None)
+        except Exception:
+            probable_xi = []
+
+    briefing = []
+    if rival_roster:
+        try:
+            briefing = build_rival_briefing(build_rival_insights(rival_roster), formation or None, None) or []
+        except Exception:
+            briefing = []
+
+    rival_report_fields = []
+    if rival_report is not None:
+        for attr, label in [
+            ("tactical_system", "Sistema"),
+            ("attacking_patterns", "En ataque"),
+            ("defensive_patterns", "En defensa"),
+            ("set_pieces_against", "Balón parado en contra"),
+            ("weaknesses", "Debilidades"),
+            ("key_players", "Jugadores clave"),
+        ]:
+            val = str(getattr(rival_report, attr, "") or "").strip()
+            if val:
+                rival_report_fields.append({"label": label, "text": val})
+    match_plan = str(getattr(rival_report, "match_plan", "") or "").strip() if rival_report is not None else ""
+    plan_points = [ln.strip("-• \t") for ln in match_plan.splitlines() if ln.strip()][:6] if match_plan else []
+
+    # --- 3) Nuestra disponibilidad (bajas/sancionados/apercibidos) ---
+    injured, sanctioned, apercibidos = [], [], []
+    try:
+        active_club_season = None
+        try:
+            active_club_season = selected_club_season_for_request(request, workspace=workspace)
+        except Exception:
+            active_club_season = None
+        dash = compute_player_dashboard(
+            primary_team, request=request, club_season=active_club_season, scope="league", refresh_photo_urls=False
+        )
+        for row in dash or []:
+            entry = {"name": row.get("name"), "number": row.get("number")}
+            if row.get("has_active_injury"):
+                injured.append(entry)
+            elif row.get("is_sanctioned"):
+                sanctioned.append(entry)
+            elif row.get("is_apercibido"):
+                apercibidos.append(entry)
+    except Exception:
+        injured, sanctioned, apercibidos = [], [], []
+
+    # --- 4) Head-to-head (consulta simple: partidos jugados contra este rival) ---
+    head_to_head = []
+    h2h_summary = {"w": 0, "d": 0, "l": 0}
+    if opponent_name:
+        try:
+            fold_opp = _nm_fold(opponent_name)
+            qs = (
+                Match.objects.filter(Q(home_team=primary_team) | Q(away_team=primary_team))
+                .filter(date__lt=today, home_score__isnull=False, away_score__isnull=False)
+                .select_related("home_team", "away_team")
+                .order_by("-date")
+            )
+            for m in qs:
+                other = m.away_team if m.home_team_id == getattr(primary_team, "id", None) else m.home_team
+                if _nm_fold(getattr(other, "name", "")) != fold_opp:
+                    continue
+                we_home = m.home_team_id == getattr(primary_team, "id", None)
+                gf = m.home_score if we_home else m.away_score
+                ga = m.away_score if we_home else m.home_score
+                res = "V" if gf > ga else ("E" if gf == ga else "D")
+                h2h_summary["w" if res == "V" else ("d" if res == "E" else "l")] += 1
+                head_to_head.append({
+                    "date": m.date,
+                    "home": we_home,
+                    "gf": gf,
+                    "ga": ga,
+                    "res": res,
+                })
+                if len(head_to_head) >= 6:
+                    break
+        except Exception:
+            head_to_head = []
+
+    # CTA para cargar plantilla del rival (a la zona de análisis).
+    try:
+        load_rival_url = reverse("analysis")
+    except Exception:
+        load_rival_url = ""
+
+    context = {
+        "has_match": has_match,
+        "team_display_name": str(getattr(primary_team, "name", "") or "Equipo"),
+        "opponent_name": opponent_name or "Rival por confirmar",
+        "opp_crest": opp_crest,
+        "match_date": match_date,
+        "match_time": match_time,
+        "location": location,
+        "round_label": round_label,
+        "is_home": is_home,
+        "competition_label": competition_label,
+        "today": today,
+        "rival_roster_loaded": rival_roster_loaded,
+        "rival_squad_count": len(rival_roster),
+        "formation": formation or "—",
+        "probable_xi": probable_xi,
+        "briefing": briefing,
+        "rival_report_fields": rival_report_fields,
+        "rival_lines": rival_summary.get("lines") or [],
+        "plan_points": plan_points,
+        "injured": injured,
+        "sanctioned": sanctioned,
+        "apercibidos": apercibidos,
+        "head_to_head": head_to_head,
+        "h2h_summary": h2h_summary,
+        "load_rival_url": load_rival_url,
+    }
+    return render(request, "football/coach_next_match_report.html", context)
+
+
 @login_required
 @pdf_view_guard
 def coach_roster_pdf(request):
