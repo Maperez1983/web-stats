@@ -37822,25 +37822,32 @@
 	                  const key = safeText(ev.key);
 	                  const isDel = key === 'Backspace' || key === 'Delete';
 	                  if (!isDel) return;
-	                  try { ev.preventDefault(); } catch (e) { /* ignore */ }
-	                  try { ev.stopPropagation(); } catch (e) { /* ignore */ }
+	                  // Solo interceptamos Supr/Borrar para RUTAS cuando el elemento
+	                  // seleccionado realmente tiene rutas. Si no las tiene, NO cortamos
+	                  // la propagación: dejamos que el atajo de borrado de elemento
+	                  // (handleCanvasAction('delete') en el keydown de burbuja) elimine la
+	                  // figura. Antes se hacía preventDefault()+stopPropagation() SIEMPRE,
+	                  // por lo que las fichas sin rutas no se podían borrar con la tecla.
+	                  const hasRoutes = (obj) => !!(obj && Array.isArray(obj?.data?.interactive_routes) && obj.data.interactive_routes.length);
 	                  if (ev.shiftKey) {
+	                    const anyRoute = (canvas.getObjects() || []).some((o) => o && isTokenLike(o) && hasRoutes(o));
+	                    if (!anyRoute) return; // sin rutas: deja pasar (borrado normal)
+	                    try { ev.preventDefault(); } catch (e) { /* ignore */ }
+	                    try { ev.stopPropagation(); } catch (e) { /* ignore */ }
 	                    clearInteractiveRoutes();
 	                    return;
 	                  }
 	                  const active = canvas.getActiveObject?.();
+	                  let routeTarget = null;
 	                  if (active && safeText(active?.type) === 'activeSelection' && Array.isArray(active?._objects) && active._objects.length) {
-	                    const first = active._objects.find((o) => o && isTokenLike(o)) || null;
-	                    if (first) {
-	                      removeLastInteractiveRouteForObject(first);
-	                      return;
-	                    }
+	                    routeTarget = active._objects.find((o) => o && isTokenLike(o) && hasRoutes(o)) || null;
+	                  } else if (active && isTokenLike(active) && hasRoutes(active)) {
+	                    routeTarget = active;
 	                  }
-	                  if (active && isTokenLike(active)) {
-	                    removeLastInteractiveRouteForObject(active);
-	                    return;
-	                  }
-	                  setStatus('Selecciona una ficha (o el balón) para borrar su última ruta.');
+	                  if (!routeTarget) return; // sin rutas que borrar: deja pasar (borrado normal)
+	                  try { ev.preventDefault(); } catch (e) { /* ignore */ }
+	                  try { ev.stopPropagation(); } catch (e) { /* ignore */ }
+	                  removeLastInteractiveRouteForObject(routeTarget);
 	                }, true);
 	              } catch (e) { /* ignore */ }
 
