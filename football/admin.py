@@ -445,3 +445,10 @@ class AcademyProgressAdmin(admin.ModelAdmin):
     list_filter = ('status',)
     search_fields = ('workspace__name', 'user__username', 'lesson__title')
     autocomplete_fields = ('workspace', 'team', 'user', 'lesson', 'assignment')
+
+
+@admin.register(models.PlayerObjective)
+class PlayerObjectiveAdmin(admin.ModelAdmin):
+    list_display = ('player', 'status', 'text', 'target_date', 'created_at')
+    list_filter = ('status',)
+    search_fields = ('player__name', 'text')

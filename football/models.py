@@ -1479,6 +1479,36 @@ class PlayerPhysicalMetric(models.Model):
         return f'{self.player.name} · métrica {self.recorded_on:%d/%m/%Y}'
 
 
+class PlayerObjective(models.Model):
+    """Objetivo de trabajo del jugador con seguimiento de estado. Antes `objectives_next` era un
+    texto enterrado en el histórico de evaluaciones; ahora es una lista accionable."""
+
+    STATUS_PENDING = 'pending'
+    STATUS_PROGRESS = 'in_progress'
+    STATUS_DONE = 'done'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pendiente'),
+        (STATUS_PROGRESS, 'En curso'),
+        (STATUS_DONE, 'Cumplido'),
+    ]
+
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='objectives')
+    text = models.CharField(max_length=240)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    target_date = models.DateField(null=True, blank=True, help_text='Fecha objetivo (opcional).')
+    created_at = models.DateTimeField(auto_now_add=True)
+    done_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.CharField(max_length=120, blank=True)
+
+    class Meta:
+        ordering = ['status', 'target_date', '-created_at', '-id']
+        verbose_name = 'Objetivo de jugador'
+        verbose_name_plural = 'Objetivos de jugador'
+
+    def __str__(self):
+        return f'{self.player.name} · {self.get_status_display()} · {self.text[:40]}'
+
+
 class PlayerCommunication(models.Model):
     CATEGORY_CONVOCATION = 'convocatoria'
     CATEGORY_INTERNAL = 'interna'

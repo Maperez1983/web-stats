@@ -379,6 +379,7 @@ from football.models import (
     PdfGraphicAsset,
     Player,
     PlayerCommunication,
+    PlayerObjective,
     PlayerEvaluation,
     PlayerFine,
     PlayerInjuryRecord,
@@ -69153,6 +69154,33 @@ def player_detail_page(request, player_id):
                     )
                 return redirect(f"{reverse('player-detail', args=[player.id])}?tab=communication")
 
+            if form_action == "add_objective":
+                _obj_text = (request.POST.get("objective_text") or "").strip()[:240]
+                if _obj_text:
+                    PlayerObjective.objects.create(
+                        player=player,
+                        text=_obj_text,
+                        target_date=_parse_date_value(request.POST.get("objective_target")),
+                        created_by=(request.user.get_username() if request.user.is_authenticated else ""),
+                    )
+                return redirect(f"{reverse('player-detail', args=[player.id])}?tab=evaluations")
+
+            if form_action == "objective_status":
+                _obj_id = _parse_int(request.POST.get("objective_id"))
+                _obj_st = (request.POST.get("status") or "").strip()
+                _obj = PlayerObjective.objects.filter(id=_obj_id, player=player).first() if _obj_id else None
+                if _obj and _obj_st in dict(PlayerObjective.STATUS_CHOICES):
+                    _obj.status = _obj_st
+                    _obj.done_at = timezone.now() if _obj_st == PlayerObjective.STATUS_DONE else None
+                    _obj.save(update_fields=["status", "done_at"])
+                return redirect(f"{reverse('player-detail', args=[player.id])}?tab=evaluations")
+
+            if form_action == "delete_objective":
+                _obj_id = _parse_int(request.POST.get("objective_id"))
+                if _obj_id:
+                    PlayerObjective.objects.filter(id=_obj_id, player=player).delete()
+                return redirect(f"{reverse('player-detail', args=[player.id])}?tab=evaluations")
+
             if form_action == "evaluation":
                 active_workspace_for_eval = _get_active_workspace(request)
                 club_season = None
@@ -69692,6 +69720,11 @@ def player_detail_page(request, player_id):
         latest_physical_metric = physical_metrics[0] if physical_metrics else None
         physical_viz = _build_physical_viz(physical_metrics)
         communications = player.communications.select_related("match").all()[:20]
+        # Activos (pendiente, en curso) primero; cumplidos al final; dentro, más nuevos arriba.
+        player_objectives = sorted(
+            player.objectives.all(),
+            key=lambda o: ({"pending": 0, "in_progress": 1, "done": 2}.get(o.status, 0), -(o.id or 0)),
+        )
         assigned_analysis_videos = list(
             player.assigned_analysis_videos.select_related("rival_team", "folder").order_by("-created_at")[:20]
         )
@@ -70390,6 +70423,7 @@ def player_detail_page(request, player_id):
                 "evaluation_type_choices": PlayerEvaluation.TYPE_CHOICES,
                 "evaluation_status_choices": PlayerEvaluation.STATUS_CHOICES,
                 "physical_metrics": physical_metrics,
+                "player_objectives": player_objectives,
                 "latest_physical_metric": latest_physical_metric,
                 "physical_viz": physical_viz,
                 "communications": communications,

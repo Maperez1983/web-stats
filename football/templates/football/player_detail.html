@@ -1984,6 +1984,35 @@
 
       <section class="card tab-pane" data-pane="evaluations">
         <h2 style="margin-top:0;">Evaluaciones</h2>
+        <section aria-label="Objetivos de trabajo" style="border:1px solid rgba(56,189,248,0.3);border-radius:12px;padding:0.7rem 0.85rem;margin:0 0 1rem;">
+          <h3 style="margin:0 0 0.5rem;">Objetivos de trabajo</h3>
+          {% if not is_player_readonly %}
+          <form method="post" style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;margin:0 0 0.6rem;">
+            {% csrf_token %}
+            <input type="hidden" name="form_action" value="add_objective" />
+            <input type="text" name="objective_text" maxlength="240" placeholder="Nuevo objetivo (ej. mejorar salida de balón)…" style="flex:1 1 16rem;" required />
+            <input type="date" name="objective_target" aria-label="Fecha objetivo" />
+            <button type="submit">Añadir</button>
+          </form>
+          {% endif %}
+          {% for o in player_objectives %}
+          <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;padding:0.42rem 0;border-top:1px solid rgba(148,163,184,0.18);">
+            <span class="pill {% if o.status == 'done' %}ok{% elif o.status == 'in_progress' %}warn{% endif %}">{{ o.get_status_display }}</span>
+            <span style="flex:1 1 12rem;{% if o.status == 'done' %}text-decoration:line-through;opacity:0.65;{% endif %}">{{ o.text }}</span>
+            {% if o.target_date %}<span class="subtle" style="font-size:0.72rem;white-space:nowrap;">🎯 {{ o.target_date|date:"d/m/Y" }}</span>{% endif %}
+            {% if not is_player_readonly %}
+            <span style="display:flex;gap:0.25rem;flex-wrap:wrap;">
+              {% if o.status != 'pending' %}<form method="post" style="margin:0;">{% csrf_token %}<input type="hidden" name="form_action" value="objective_status" /><input type="hidden" name="objective_id" value="{{ o.id }}" /><input type="hidden" name="status" value="pending" /><button class="inline-ghost" type="submit">Pendiente</button></form>{% endif %}
+              {% if o.status != 'in_progress' %}<form method="post" style="margin:0;">{% csrf_token %}<input type="hidden" name="form_action" value="objective_status" /><input type="hidden" name="objective_id" value="{{ o.id }}" /><input type="hidden" name="status" value="in_progress" /><button class="inline-ghost" type="submit">En curso</button></form>{% endif %}
+              {% if o.status != 'done' %}<form method="post" style="margin:0;">{% csrf_token %}<input type="hidden" name="form_action" value="objective_status" /><input type="hidden" name="objective_id" value="{{ o.id }}" /><input type="hidden" name="status" value="done" /><button class="inline-ok" type="submit">Cumplido</button></form>{% endif %}
+              <form method="post" style="margin:0;" onsubmit="return confirm('¿Eliminar este objetivo?');">{% csrf_token %}<input type="hidden" name="form_action" value="delete_objective" /><input type="hidden" name="objective_id" value="{{ o.id }}" /><button class="inline" type="submit" title="Eliminar">✕</button></form>
+            </span>
+            {% endif %}
+          </div>
+          {% empty %}
+          <p class="subtle" style="margin:0;">Sin objetivos registrados. Añade los del plan de trabajo del jugador.</p>
+          {% endfor %}
+        </section>
         <div class="attendance-summary-card">
           <div class="attendance-summary-head">
             <div>
