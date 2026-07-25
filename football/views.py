@@ -69777,7 +69777,7 @@ EVALUATION_PARAMETER_CATALOG = [
         "params": [
             ("concentracion", "Concentración"),
             ("determinacion", "Determinación"),
-            ("compostura", "Compostura"),
+            ("compostura", "Tolerancia a la presión"),
             ("valentia", "Valentía"),
             ("agresividad", "Agresividad / intensidad"),
             ("liderazgo", "Liderazgo"),
