@@ -443,6 +443,7 @@ from football.models import (
     WorkspaceTeam,
     WorkspaceTeamAccess,
     _norm_identity_name,
+    normalize_team_name_key,
     resolve_or_create_category,
     resolve_or_create_club,
 )
@@ -35282,21 +35283,32 @@ def coach_transfer_team_search(request):
             {"club": club, "category": category, "label": club + (" · " + category if category else "")}
         )
 
+    # Clave normalizada (sin acentos ni espacios) para que la búsqueda no dependa de la tilde:
+    # "RINCÓN" encuentra "RINCON"/"Rincón de la Victoria".
+    key = normalize_team_name_key(q)
+
+    team_filter = Q(name__icontains=q) | Q(club__name__icontains=q) | Q(category__icontains=q)
+    cat_filter = Q(name__icontains=q) | Q(club__name__icontains=q)
+    club_filter = Q(name__icontains=q)
+    if key:
+        team_filter |= Q(name_key__icontains=key) | Q(club__name_key__icontains=key)
+        cat_filter |= Q(name_key__icontains=key) | Q(club__name_key__icontains=key)
+        club_filter |= Q(name_key__icontains=key)
+
     for team in (
-        Team.objects.select_related("club", "category_ref")
-        .filter(Q(name__icontains=q) | Q(club__name__icontains=q) | Q(category__icontains=q))
-        .order_by("club__name", "category")[:30]
+        Team.objects.select_related("club", "category_ref").filter(team_filter).order_by("club__name", "category")[:40]
     ):
         club_name = team.club.name if team.club_id else team.name
         category = team.category or (team.category_ref.name if team.category_ref_id else "")
         add(club_name, category)
     for cat in (
-        ClubCategory.objects.select_related("club")
-        .filter(Q(name__icontains=q) | Q(club__name__icontains=q))
-        .order_by("club__name", "order")[:30]
+        ClubCategory.objects.select_related("club").filter(cat_filter).order_by("club__name", "order")[:40]
     ):
         add(cat.club.name, cat.name)
-    return JsonResponse({"results": results[:25]})
+    # Clubes sueltos: permite elegir solo el club (y teclear la categoría después).
+    for club in Club.objects.filter(club_filter).order_by("name")[:20]:
+        add(club.name, "")
+    return JsonResponse({"results": results[:30]})
 
 
 @login_required

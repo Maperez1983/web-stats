@@ -1450,26 +1450,43 @@
               var url = "{% url 'coach-transfer-team-search' %}";
               var timer = null;
               function hide() { results.hidden = true; results.innerHTML = ''; }
-              function render(items) {
+              function makeRow(html, onPick) {
+                var row = document.createElement('div');
+                row.innerHTML = html;
+                row.setAttribute('role', 'option');
+                row.style.cssText = 'padding:0.42rem 0.6rem;cursor:pointer;font-size:0.86rem;';
+                row.addEventListener('mousedown', function (e) { e.preventDefault(); onPick(); });
+                row.addEventListener('mouseover', function () { row.style.background = 'rgba(148,163,184,0.16)'; });
+                row.addEventListener('mouseout', function () { row.style.background = ''; });
+                return row;
+              }
+              function esc(s) { return (s || '').replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+              function render(items, q) {
                 results.innerHTML = '';
-                if (!items || !items.length) { hide(); return; }
-                items.forEach(function (it) {
-                  var row = document.createElement('div');
-                  row.textContent = it.label;
-                  row.setAttribute('role', 'option');
-                  row.style.cssText = 'padding:0.42rem 0.6rem;cursor:pointer;font-size:0.86rem;';
-                  row.addEventListener('mousedown', function (e) {
-                    e.preventDefault();
+                (items || []).forEach(function (it) {
+                  results.appendChild(makeRow(esc(it.label), function () {
                     clubIn.value = it.club || '';
                     catIn.value = it.category || '';
                     clubIn.dispatchEvent(new Event('input'));
                     box.value = it.label;
                     hide();
-                  });
-                  row.addEventListener('mouseover', function () { row.style.background = 'rgba(148,163,184,0.16)'; });
-                  row.addEventListener('mouseout', function () { row.style.background = ''; });
-                  results.appendChild(row);
+                    if (!it.category) { catIn.focus(); }
+                  }));
                 });
+                // Siempre: opción de crear el club tecleado (aunque no haya resultados).
+                if (q && q.length >= 2) {
+                  var create = makeRow('➕ Crear club «<strong>' + esc(q) + '</strong>» y elegir categoría', function () {
+                    clubIn.value = q;
+                    catIn.value = '';
+                    clubIn.dispatchEvent(new Event('input'));
+                    box.value = '';
+                    hide();
+                    catIn.focus();
+                  });
+                  create.style.borderTop = '1px solid rgba(148,163,184,0.3)';
+                  create.style.fontWeight = '700';
+                  results.appendChild(create);
+                }
                 results.hidden = false;
               }
               box.addEventListener('input', function () {
@@ -1479,8 +1496,8 @@
                 timer = setTimeout(function () {
                   fetch(url + '?q=' + encodeURIComponent(q), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                     .then(function (r) { return r.json(); })
-                    .then(function (d) { render((d && d.results) || []); })
-                    .catch(function () { hide(); });
+                    .then(function (d) { render((d && d.results) || [], q); })
+                    .catch(function () { render([], q); });
                 }, 220);
               });
               box.addEventListener('blur', function () { setTimeout(hide, 150); });
