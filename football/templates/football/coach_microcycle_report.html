@@ -91,6 +91,8 @@
   .sqr table.mtx{border-collapse:collapse;width:100%;font-size:12.5px}
   .sqr table.mtx th,.sqr table.mtx td{padding:6px 8px;text-align:center;border-bottom:1px solid var(--line-soft)}
   .sqr table.mtx thead th{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-faint);font-weight:700;white-space:nowrap}
+  .sqr table.mtx thead th a.sh{color:var(--accent);text-decoration:none;border-bottom:1px dotted color-mix(in srgb,var(--accent) 50%,transparent)}
+  .sqr table.mtx thead th a.sh:hover{color:var(--accent-deep);border-bottom-style:solid}
   .sqr table.mtx th.pl,.sqr table.mtx td.pl{text-align:left;white-space:nowrap;font-weight:600}
   .sqr table.mtx td.pl small{color:var(--ink-faint);font-weight:500;margin-left:5px}
   .sqr .cell{display:inline-flex;width:22px;height:22px;border-radius:6px;align-items:center;justify-content:center;font-size:11px;font-weight:800;border:1px solid var(--line)}
@@ -214,14 +216,14 @@
   <section class="grid">
     <div class="card">
       <h3><span class="dot"></span>Asistencia por jugador</h3>
-      <p class="sub">Estado de cada jugador en cada sesión de la semana. Ordenado por incidencias.</p>
+      <p class="sub">Estado de cada jugador en cada sesión de la semana. Ordenado por incidencias. Pulsa el día para abrir/editar la lista de esa sesión.</p>
       {% if player_rows %}
       <div class="mtx-wrap">
         <table class="mtx">
           <thead>
             <tr>
               <th class="pl">Jugador</th>
-              {% for s in sessions %}<th title="{{ s.focus }}{% if s.intensity %} · {{ s.intensity }}{% endif %}">{% if s.date %}{{ s.date|date:"D j"|capfirst }}{% else %}S{{ forloop.counter }}{% endif %}</th>{% endfor %}
+              {% for s in sessions %}<th title="{{ s.focus }}{% if s.intensity %} · {{ s.intensity }}{% endif %} · abrir sesión">{% if s.url %}<a class="sh" href="{{ s.url }}">{% endif %}{% if s.date %}{{ s.date|date:"D j"|capfirst }}{% else %}S{{ forloop.counter }}{% endif %}{% if s.url %}</a>{% endif %}</th>{% endfor %}
               <th>Aus</th>
             </tr>
           </thead>

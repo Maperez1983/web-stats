@@ -67,6 +67,7 @@ class MicrocycleReportTests(TestCase):
         self.assertIn("10€", body)               # multa de la semana
         self.assertIn("Incidencias", body)
         self.assertIn("Sin avisar", body)        # nota de ausencia como incidencia
+        self.assertIn('class="sh"', body)         # drill-down: cabecera de sesión enlazada
 
     def test_repeat_absence_alert(self):
         body = self._get().content.decode("utf-8")

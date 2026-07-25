@@ -36543,11 +36543,16 @@ def microcycle_report_page(request):
             intensity = str(getattr(s, "get_intensity_display", lambda: "")() or "").strip()
         except Exception:
             intensity = ""
+        try:
+            session_url = reverse("training-session-detail", args=[int(s.id)])
+        except Exception:
+            session_url = ""
         sessions_ctx.append({
             "id": int(s.id),
             "focus": str(getattr(s, "focus", "") or "Sesión").strip() or "Sesión",
             "date": getattr(s, "session_date", None),
             "intensity": intensity,
+            "url": session_url,
         })
 
     # Matriz por jugador (solo jugadores con alguna marca en la semana).
@@ -44103,8 +44108,11 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
                     )
 
             elif planner_action == "create_session_absence_fines":
-                if not _is_admin_user(request.user):
-                    raise ValueError("Solo administradores pueden registrar multas.")
+                if not (
+                    _is_admin_user(request.user)
+                    or (active_workspace and _can_manage_workspace(request.user, active_workspace))
+                ):
+                    raise ValueError("No tienes permisos para registrar multas.")
                 session_id = _parse_int(request.POST.get("fine_session_id") or request.POST.get("selected_session_id"))
                 amount = _parse_int(request.POST.get("fine_amount")) or 0
                 if not session_id:
@@ -53042,10 +53050,13 @@ def fines_page(request):
         return JsonResponse({"error": "No hay equipo principal configurado"}, status=400)
     error = ""
     message = ""
-    can_manage_fines = _is_admin_user(request.user)
+    _fines_workspace = _get_active_workspace(request)
+    can_manage_fines = _is_admin_user(request.user) or bool(
+        _fines_workspace and _can_manage_workspace(request.user, _fines_workspace)
+    )
     if request.method == "POST":
         if not can_manage_fines:
-            error = "Solo administradores pueden registrar o eliminar multas."
+            error = "No tienes permisos para registrar o eliminar multas."
         else:
             form_action = (request.POST.get("form_action") or "add").strip().lower()
             if form_action == "delete":
