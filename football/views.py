@@ -17351,14 +17351,13 @@ def admin_page(request):
                         except ValueError:
                             actions_error = "Hora inválida. Usa HH:MM."
                     if not actions_error:
-                        rival_team = Team.objects.filter(name__iexact=opponent_name).first()
-                        if not rival_team:
-                            rival_team = Team.objects.create(
-                                slug=_unique_team_slug(opponent_name),
-                                name=opponent_name,
-                                short_name=opponent_name[:24],
-                                group=primary_team.group,
-                            )
+                        from football.models import resolve_or_create_team
+
+                        rival_team, _ = resolve_or_create_team(
+                            name=opponent_name,
+                            group=primary_team.group,
+                            defaults={"short_name": opponent_name[:24]},
+                        )
                         season_obj = resolve_stats_season(primary_team) or getattr(
                             getattr(primary_team, "group", None), "season", None
                         )
@@ -24107,14 +24106,13 @@ def team_agenda_page(request):
         if home_away not in {"home", "away"}:
             home_away = "home"
 
-        rival_team = Team.objects.filter(name__iexact=opponent_name).first()
-        if not rival_team:
-            rival_team = Team.objects.create(
-                slug=_unique_team_slug(opponent_name),
-                name=opponent_name,
-                short_name=opponent_name[:24],
-                group=primary_team.group,
-            )
+        from football.models import resolve_or_create_team
+
+        rival_team, _ = resolve_or_create_team(
+            name=opponent_name,
+            group=primary_team.group,
+            defaults={"short_name": opponent_name[:24]},
+        )
         season_obj = resolve_stats_season(primary_team) or getattr(getattr(primary_team, "group", None), "season", None)
         if not season_obj:
             return HttpResponse("No hay temporada activa para asignar el partido.", status=400)
@@ -27961,14 +27959,13 @@ def save_convocation(request):
         if season:
             rival_team = None
             if opponent_value and normalize_label(opponent_value) != normalize_label(primary_team.name):
-                rival_team = Team.objects.filter(name__iexact=opponent_value).first()
-                if not rival_team:
-                    rival_team = Team.objects.create(
-                        name=opponent_value,
-                        slug=_unique_team_slug(opponent_value),
-                        short_name=opponent_value[:60],
-                        group=primary_team.group,
-                    )
+                from football.models import resolve_or_create_team
+
+                rival_team, _ = resolve_or_create_team(
+                    name=opponent_value,
+                    group=primary_team.group,
+                    defaults={"short_name": opponent_value[:60]},
+                )
             home_team = primary_team if home_away == "home" else rival_team
             away_team = rival_team if home_away == "home" else primary_team
             target_match = Match.objects.create(
