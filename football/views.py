@@ -35254,6 +35254,49 @@ def _club_category_ui_data():
 
 
 @login_required
+def coach_transfer_team_search(request):
+    """Buscador para el DESTINO de un traspaso: devuelve combinaciones (club · categoría) existentes
+    que coincidan con `q`, para ELEGIR una en vez de teclear (evita duplicados). Si no hay ninguna,
+    el usuario la crea tecleando club + categoría (el handler los resuelve/crea)."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return JsonResponse({"results": []}, status=403)
+    q = (request.GET.get("q") or "").strip()
+    if len(q) < 2:
+        return JsonResponse({"results": []})
+    results, seen = [], set()
+
+    def add(club, category):
+        club = (club or "").strip()
+        category = (category or "").strip()
+        if not club:
+            return
+        key = (club.lower(), category.lower())
+        if key in seen:
+            return
+        seen.add(key)
+        results.append(
+            {"club": club, "category": category, "label": club + (" · " + category if category else "")}
+        )
+
+    for team in (
+        Team.objects.select_related("club", "category_ref")
+        .filter(Q(name__icontains=q) | Q(club__name__icontains=q) | Q(category__icontains=q))
+        .order_by("club__name", "category")[:30]
+    ):
+        club_name = team.club.name if team.club_id else team.name
+        category = team.category or (team.category_ref.name if team.category_ref_id else "")
+        add(club_name, category)
+    for cat in (
+        ClubCategory.objects.select_related("club")
+        .filter(Q(name__icontains=q) | Q(club__name__icontains=q))
+        .order_by("club__name", "order")[:30]
+    ):
+        add(cat.club.name, cat.name)
+    return JsonResponse({"results": results[:25]})
+
+
+@login_required
 def coach_roster_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
     if forbidden:

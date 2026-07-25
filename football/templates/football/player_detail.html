@@ -1392,6 +1392,11 @@
           </form>
           {% else %}
           <p style="margin:0 0 0.5rem;" class="subtle">Si fichó por otro club, regístralo aquí: sale de la plantilla conservando ficha, histórico e identidad de persona.</p>
+          <div style="position:relative;margin:0 0 0.4rem;max-width:24rem;">
+            <input type="search" id="dest-search" placeholder="🔎 Buscar equipo o club destino…" autocomplete="off" aria-label="Buscar el equipo/club destino" style="width:100%;" />
+            <div id="dest-results" role="listbox" hidden style="position:absolute;z-index:30;left:0;right:0;background:var(--prod-surface,#fff);border:1px solid rgba(148,163,184,0.4);border-radius:10px;max-height:240px;overflow:auto;box-shadow:0 8px 24px rgba(15,23,42,0.15);"></div>
+          </div>
+          <p style="margin:0 0 0.5rem;font-size:0.74rem;" class="subtle">Elige de la lista (equipo + categoría). Si no está en el sistema, rellena club y categoría abajo y se crea al registrar.</p>
           <form method="post" style="margin:0;display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;" onsubmit="return confirm('¿Registrar que fichó por otro club y sacarlo de la plantilla activa?');">
             {% csrf_token %}
             <input type="hidden" name="form_action" value="transfer_out" />
@@ -1433,6 +1438,52 @@
               }
               clubInput.addEventListener('input', refresh);
               clubInput.addEventListener('change', refresh);
+            })();
+          </script>
+          <script>
+            (function () {
+              var box = document.getElementById('dest-search');
+              var results = document.getElementById('dest-results');
+              var clubIn = document.getElementById('ficha-dest-club');
+              var catIn = document.getElementById('ficha-dest-category');
+              if (!box || !results || !clubIn || !catIn) return;
+              var url = "{% url 'coach-transfer-team-search' %}";
+              var timer = null;
+              function hide() { results.hidden = true; results.innerHTML = ''; }
+              function render(items) {
+                results.innerHTML = '';
+                if (!items || !items.length) { hide(); return; }
+                items.forEach(function (it) {
+                  var row = document.createElement('div');
+                  row.textContent = it.label;
+                  row.setAttribute('role', 'option');
+                  row.style.cssText = 'padding:0.42rem 0.6rem;cursor:pointer;font-size:0.86rem;';
+                  row.addEventListener('mousedown', function (e) {
+                    e.preventDefault();
+                    clubIn.value = it.club || '';
+                    catIn.value = it.category || '';
+                    clubIn.dispatchEvent(new Event('input'));
+                    box.value = it.label;
+                    hide();
+                  });
+                  row.addEventListener('mouseover', function () { row.style.background = 'rgba(148,163,184,0.16)'; });
+                  row.addEventListener('mouseout', function () { row.style.background = ''; });
+                  results.appendChild(row);
+                });
+                results.hidden = false;
+              }
+              box.addEventListener('input', function () {
+                var q = box.value.trim();
+                if (timer) clearTimeout(timer);
+                if (q.length < 2) { hide(); return; }
+                timer = setTimeout(function () {
+                  fetch(url + '?q=' + encodeURIComponent(q), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(function (r) { return r.json(); })
+                    .then(function (d) { render((d && d.results) || []); })
+                    .catch(function () { hide(); });
+                }, 220);
+              });
+              box.addEventListener('blur', function () { setTimeout(hide, 150); });
             })();
           </script>
           {% endif %}
