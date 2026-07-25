@@ -28,6 +28,7 @@ class GroupAdmin(admin.ModelAdmin):
 class ClubAdmin(admin.ModelAdmin):
     list_display = ('name', 'name_key', 'team_count', 'updated_at')
     search_fields = ('name', 'short_name', 'name_key', 'external_id', 'preferente_url')
+    actions = ('merge_selected_clubs',)
 
     def get_queryset(self, request):
         return super().get_queryset(request).prefetch_related('teams')
@@ -35,6 +36,28 @@ class ClubAdmin(admin.ModelAdmin):
     @admin.display(description='Equipos')
     def team_count(self, obj):
         return obj.teams.count()
+
+    @admin.action(description='Fusionar clubes seleccionados en uno (el más antiguo)')
+    def merge_selected_clubs(self, request, queryset):
+        from django.contrib import messages
+        clubs = list(queryset.order_by('id'))
+        if len(clubs) < 2:
+            self.message_user(request, 'Selecciona al menos 2 clubes para fusionar.', level=messages.WARNING)
+            return
+        keep = clubs[0]
+        merged = 0
+        for drop in clubs[1:]:
+            try:
+                models.merge_clubs(keep, drop)
+                merged += 1
+            except Exception as exc:  # noqa: BLE001
+                self.message_user(request, f'No se pudo fusionar «{drop.name}»: {exc}', level=messages.ERROR)
+        if merged:
+            self.message_user(
+                request,
+                f'Fusionados {merged + 1} clubes en «{keep.name}» (id {keep.id}); sus equipos se reasignaron.',
+                level=messages.SUCCESS,
+            )
 
 
 @admin.register(models.Team)

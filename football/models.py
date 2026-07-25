@@ -243,6 +243,26 @@ def resolve_or_create_team(*, name, external_id='', preferente_url='', group=Non
     return team, True
 
 
+def merge_clubs(keep, drop):
+    """
+    Fusiona el club `drop` dentro de `keep`: reasigna todos sus EQUIPOS (Team.club) a keep,
+    completa en keep los campos vacíos y elimina drop. Ligero: el club solo agrupa equipos.
+    Un mismo club real escrito de dos formas ("Benagalbón" y "Benagalbon c. d.") pasa a ser uno.
+    """
+    if keep is None or drop is None or keep.pk == drop.pk:
+        return keep
+    Team.objects.filter(club_id=drop.pk).update(club=keep)
+    changed = []
+    for field in ('external_id', 'preferente_url', 'crest_url', 'short_name'):
+        if not getattr(keep, field, '') and getattr(drop, field, ''):
+            setattr(keep, field, getattr(drop, field))
+            changed.append(field)
+    if changed:
+        keep.save(update_fields=changed + ['updated_at'])
+    drop.delete()
+    return keep
+
+
 def merge_teams(keep, drop):
     """
     Fusiona el equipo `drop` dentro de `keep`: reasigna TODOS los objetos relacionados
