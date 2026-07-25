@@ -68481,6 +68481,124 @@ def manual_player_stats_page(request):
         )
 
 
+def _persist_player_injury(
+    *,
+    player,
+    injury_record_id=None,
+    injury_name,
+    injury_type,
+    injury_zone,
+    injury_side,
+    injury_notes,
+    injury_date,
+    injury_return_date,
+    injury_record_mode,
+    catalog_code="",
+    severity_grade=None,
+    diagnosed_on=None,
+    rehab_started_on=None,
+    estimated_return_date=None,
+    return_to_train_on=None,
+    return_to_play_on=None,
+    blocks_training=False,
+    is_recovered=False,
+    training_status="",
+):
+    injury_name = str(injury_name or "").strip()
+    if not injury_name:
+        return None
+    catalog_entry = None
+    if catalog_code:
+        catalog_entry = InjuryCatalogEntry.objects.filter(code=str(catalog_code).strip(), is_active=True).first()
+        if catalog_entry and not injury_name:
+            injury_name = catalog_entry.name
+    if catalog_entry and not estimated_return_date and injury_date:
+        estimated_return_date = estimate_return_date_from_catalog(
+            injury_date,
+            catalog_entry.typical_min_days,
+            catalog_entry.typical_max_days,
+            severity_grade=severity_grade,
+        )
+    if injury_return_date and not is_recovered:
+        is_recovered = True
+    force_new = str(injury_record_mode or "").strip().lower() in {"new", "add", "create"}
+    record = None
+    # "Añadir lesión al historial" (force_new) debe crear SIEMPRE un registro nuevo,
+    # aunque el formulario arrastre el hidden injury_record_id de la lesión mostrada.
+    if injury_record_id and not force_new:
+        record = PlayerInjuryRecord.objects.filter(id=injury_record_id, player=player).first()
+    if record is None and not force_new:
+        record = (
+            PlayerInjuryRecord.objects.filter(player=player, injury__iexact=injury_name)
+            .order_by("-injury_date", "-id")
+            .first()
+        )
+    if record:
+        record.catalog_entry = catalog_entry or record.catalog_entry
+        record.injury = injury_name
+        record.injury_type = str(injury_type or "").strip()
+        record.injury_zone = str(injury_zone or "").strip()
+        record.injury_side = str(injury_side or "").strip()
+        record.severity_grade = severity_grade
+        record.injury_date = injury_date or record.injury_date
+        record.diagnosed_on = diagnosed_on
+        record.rehab_started_on = rehab_started_on
+        record.estimated_return_date = estimated_return_date
+        record.return_date = injury_return_date or record.return_date
+        record.return_to_train_on = return_to_train_on
+        record.return_to_play_on = return_to_play_on
+        record.blocks_training = bool(blocks_training)
+        record.is_recovered = bool(is_recovered)
+        record.training_status = str(training_status or "").strip()
+        record.notes = str(injury_notes or "").strip()
+        record.is_active = not record.is_recovered and (not record.return_date or record.return_date > timezone.localdate())
+        record.save()
+    else:
+        record = PlayerInjuryRecord.objects.create(
+            player=player,
+            catalog_entry=catalog_entry,
+            injury=injury_name,
+            injury_type=str(injury_type or "").strip(),
+            injury_zone=str(injury_zone or "").strip(),
+            injury_side=str(injury_side or "").strip(),
+            severity_grade=severity_grade,
+            injury_date=injury_date or timezone.localdate(),
+            diagnosed_on=diagnosed_on,
+            rehab_started_on=rehab_started_on,
+            estimated_return_date=estimated_return_date,
+            return_date=injury_return_date,
+            return_to_train_on=return_to_train_on,
+            return_to_play_on=return_to_play_on,
+            blocks_training=bool(blocks_training),
+            is_recovered=bool(is_recovered),
+            training_status=str(training_status or "").strip(),
+            notes=str(injury_notes or "").strip(),
+            is_active=not is_recovered and (not injury_return_date or injury_return_date > timezone.localdate()),
+        )
+    # La denormalización "lesión actual" del Player debe reflejar la lesión ACTIVA más
+    # reciente, no la que se acabe de tocar: al editar una lesión antigua o marcar una
+    # como recuperada, el jugador debe dejar de figurar lesionado si ya no tiene ninguna
+    # activa (antes se re-estampaban estos campos de forma incondicional).
+    active_record = (
+        PlayerInjuryRecord.objects.filter(player=player, is_active=True)
+        .order_by("-injury_date", "-id")
+        .first()
+    )
+    if active_record:
+        player.injury = active_record.injury
+        player.injury_type = str(active_record.injury_type or "").strip()
+        player.injury_zone = str(active_record.injury_zone or "").strip()
+        player.injury_side = str(active_record.injury_side or "").strip()
+        player.injury_date = active_record.injury_date or player.injury_date
+    else:
+        player.injury = ""
+        player.injury_type = ""
+        player.injury_zone = ""
+        player.injury_side = ""
+    player.save(update_fields=["injury", "injury_type", "injury_zone", "injury_side", "injury_date"])
+    return record
+
+
 @login_required
 def player_detail_page(request, player_id):
     try:
@@ -68582,122 +68700,6 @@ def player_detail_page(request, player_id):
             if primary_team.group and primary_team.group.season:
                 return primary_team.group.season
             return Season.objects.filter(is_current=True).order_by("-start_date", "-id").first()
-
-        def _persist_player_injury(
-            *,
-            injury_name,
-            injury_type,
-            injury_zone,
-            injury_side,
-            injury_notes,
-            injury_date,
-            injury_return_date,
-            injury_record_mode,
-            catalog_code="",
-            severity_grade=None,
-            diagnosed_on=None,
-            rehab_started_on=None,
-            estimated_return_date=None,
-            return_to_train_on=None,
-            return_to_play_on=None,
-            blocks_training=False,
-            is_recovered=False,
-            training_status="",
-        ):
-            injury_name = str(injury_name or "").strip()
-            if not injury_name:
-                return None
-            catalog_entry = None
-            if catalog_code:
-                catalog_entry = InjuryCatalogEntry.objects.filter(code=str(catalog_code).strip(), is_active=True).first()
-                if catalog_entry and not injury_name:
-                    injury_name = catalog_entry.name
-            if catalog_entry and not estimated_return_date and injury_date:
-                estimated_return_date = estimate_return_date_from_catalog(
-                    injury_date,
-                    catalog_entry.typical_min_days,
-                    catalog_entry.typical_max_days,
-                    severity_grade=severity_grade,
-                )
-            if injury_return_date and not is_recovered:
-                is_recovered = True
-            force_new = str(injury_record_mode or "").strip().lower() in {"new", "add", "create"}
-            record = None
-            injury_record_id = _parse_int(request.POST.get("injury_record_id"))
-            # "Añadir lesión al historial" (force_new) debe crear SIEMPRE un registro nuevo,
-            # aunque el formulario arrastre el hidden injury_record_id de la lesión mostrada.
-            if injury_record_id and not force_new:
-                record = PlayerInjuryRecord.objects.filter(id=injury_record_id, player=player).first()
-            if record is None and not force_new:
-                record = (
-                    PlayerInjuryRecord.objects.filter(player=player, injury__iexact=injury_name)
-                    .order_by("-injury_date", "-id")
-                    .first()
-                )
-            if record:
-                record.catalog_entry = catalog_entry or record.catalog_entry
-                record.injury = injury_name
-                record.injury_type = str(injury_type or "").strip()
-                record.injury_zone = str(injury_zone or "").strip()
-                record.injury_side = str(injury_side or "").strip()
-                record.severity_grade = severity_grade
-                record.injury_date = injury_date or record.injury_date
-                record.diagnosed_on = diagnosed_on
-                record.rehab_started_on = rehab_started_on
-                record.estimated_return_date = estimated_return_date
-                record.return_date = injury_return_date or record.return_date
-                record.return_to_train_on = return_to_train_on
-                record.return_to_play_on = return_to_play_on
-                record.blocks_training = bool(blocks_training)
-                record.is_recovered = bool(is_recovered)
-                record.training_status = str(training_status or "").strip()
-                record.notes = str(injury_notes or "").strip()
-                record.is_active = not record.is_recovered and (not record.return_date or record.return_date > timezone.localdate())
-                record.save()
-            else:
-                record = PlayerInjuryRecord.objects.create(
-                    player=player,
-                    catalog_entry=catalog_entry,
-                    injury=injury_name,
-                    injury_type=str(injury_type or "").strip(),
-                    injury_zone=str(injury_zone or "").strip(),
-                    injury_side=str(injury_side or "").strip(),
-                    severity_grade=severity_grade,
-                    injury_date=injury_date or timezone.localdate(),
-                    diagnosed_on=diagnosed_on,
-                    rehab_started_on=rehab_started_on,
-                    estimated_return_date=estimated_return_date,
-                    return_date=injury_return_date,
-                    return_to_train_on=return_to_train_on,
-                    return_to_play_on=return_to_play_on,
-                    blocks_training=bool(blocks_training),
-                    is_recovered=bool(is_recovered),
-                    training_status=str(training_status or "").strip(),
-                    notes=str(injury_notes or "").strip(),
-                    is_active=not is_recovered and (not injury_return_date or injury_return_date > timezone.localdate()),
-                )
-            # La denormalización "lesión actual" del Player debe reflejar la lesión ACTIVA más
-            # reciente, no la que se acabe de tocar: al editar una lesión antigua o marcar una
-            # como recuperada, el jugador debe dejar de figurar lesionado si ya no tiene ninguna
-            # activa (antes se re-estampaban estos campos de forma incondicional).
-            active_record = (
-                PlayerInjuryRecord.objects.filter(player=player, is_active=True)
-                .order_by("-injury_date", "-id")
-                .first()
-            )
-            if active_record:
-                player.injury = active_record.injury
-                player.injury_type = str(active_record.injury_type or "").strip()
-                player.injury_zone = str(active_record.injury_zone or "").strip()
-                player.injury_side = str(active_record.injury_side or "").strip()
-                player.injury_date = active_record.injury_date or player.injury_date
-            else:
-                player.injury = ""
-                player.injury_type = ""
-                player.injury_zone = ""
-                player.injury_side = ""
-            player.save(update_fields=["injury", "injury_type", "injury_zone", "injury_side", "injury_date"])
-            return record
 
         if request.method == "POST" and not is_player_readonly:
             form_action = (request.POST.get("form_action") or "profile").strip().lower()
@@ -68876,6 +68878,8 @@ def player_detail_page(request, player_id):
                     return redirect(f"{reverse('player-detail', args=[player.id])}?tab=general")
                 if injury_name or injury_notes or injury_date or injury_return_date:
                     _persist_player_injury(
+                        player=player,
+                        injury_record_id=_parse_int(request.POST.get("injury_record_id")),
                         injury_name=injury_name,
                         injury_type=injury_type,
                         injury_zone=injury_zone,
@@ -68916,6 +68920,8 @@ def player_detail_page(request, player_id):
                 training_status = request.POST.get("training_status", "").strip()
                 catalog_code = (request.POST.get("catalog_code") or "").strip()
                 _persist_player_injury(
+                    player=player,
+                    injury_record_id=_parse_int(request.POST.get("injury_record_id")),
                     injury_name=injury_name,
                     injury_type=injury_type,
                     injury_zone=injury_zone,

@@ -51,6 +51,30 @@ class PlayerInjuriesTests(TestCase):
         self.assertEqual(rec.injury_zone, "Isquiotibiales")
         self.assertEqual(rec.injury_date, datetime.date(2026, 2, 10))
 
+    def test_update_existing_injury_marks_recovered(self):
+        rec = PlayerInjuryRecord.objects.create(
+            player=self.player, injury="Tobillo", injury_date=datetime.date(2026, 1, 5), is_active=True
+        )
+        resp = self.client.post(
+            self._url(),
+            {
+                "form_action": "injuries",
+                "injury": "Tobillo",
+                "injury_date": "2026-01-05",
+                "injury_return_date": "2026-01-20",
+                "injury_record_id": rec.id,
+                "injury_record_mode": "update",
+            },
+            HTTP_HOST="localhost",
+        )
+        self.assertEqual(resp.status_code, 302)
+        rec.refresh_from_db()
+        self.assertEqual(rec.return_date, datetime.date(2026, 1, 20))
+        self.assertTrue(rec.is_recovered)
+        self.assertFalse(rec.is_active)
+        self.player.refresh_from_db()
+        self.assertEqual(self.player.injury, "")  # ya no figura lesionado
+
     # --- Borrado múltiple ---
     def test_bulk_delete_selected_injuries(self):
         i1 = PlayerInjuryRecord.objects.create(player=self.player, injury="A", injury_date=datetime.date(2026, 1, 1))
