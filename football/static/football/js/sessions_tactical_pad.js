@@ -31590,7 +31590,7 @@
 		      // Evita blur por cache rasterizado al escalar/zoomear; los tokens son vectoriales.
           applyRenderableQualityToGroup(group, tokenParts);
 			      if (style === 'photo' && photoUrl) {
-			        try { loadPhotoIntoGroup(group, photoUrl, 19.2); } catch (e) { /* ignore */ }
+			        void 0; /* loadPhotoIntoGroup ELIMINADO: añadia un token_photo descolocado (bbox gigante) que rompia la seleccion/arrastre de TODAS las fichas. La Foto se pinta sincrona arriba. */
 			      }
 			      try { setTokenFov(group, { visible: !!group?.data?.fov_visible, widthDeg: group?.data?.fov_width_deg }); } catch (e) { /* ignore */ }
 			      try { setTokenFacing(group, group?.data?.facing_deg); } catch (e) { /* ignore */ }
