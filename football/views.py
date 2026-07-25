@@ -20198,8 +20198,11 @@ def coach_overview_page(request):
         # Con ?diag=standings se muestra siempre (para depurar cualquier caso).
         # Búsqueda en vivo en Universo del equipo (solo con ?diag explícito, porque hace red):
         # nos dice si Universo encuentra al equipo por nombre y cuántos candidatos hay.
+        # Las sondas hacen red (login + búsqueda). Se ejecutan cuando vamos a pintar el panel,
+        # es decir con ?diag explícito o en el auto-mostrado (clasificación vacía + liga configurada).
+        _run_probes = bool(_diag_requested or _has_real_competition)
         _universo_token = "—"
-        if _diag_requested:
+        if _run_probes:
             try:
                 _tok = _load_universo_access_token()
                 _memo = getattr(universo_client.load_universo_access_token, "_memo", None) or {}
@@ -20210,7 +20213,7 @@ def coach_overview_page(request):
             except Exception as exc:  # noqa: BLE001
                 _universo_token = f"error: {exc}"
         _universo_probe = "—"
-        if _diag_requested and primary_team:
+        if _run_probes and primary_team:
             try:
                 _cands = _search_universo_competition_candidates(team_query=primary_team.name) or []
                 if _cands:
