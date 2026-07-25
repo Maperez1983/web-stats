@@ -5395,8 +5395,13 @@
 		        normalizeArrowHead(object);
 		      }
 			      // Evita la caja azul de Fabric en los objetos de pizarra y escalados accidentales.
-			      const hideBoardSelectionChrome = !locked && !isTacticsMode && (!isBackground || !backgroundEdit);
-			      const hideTokenSelectionChrome = !locked && kind === 'token';
+			      // EXCEPTO en el editor 2D comercial (ed-chrome): allí SÍ queremos el recuadro de
+			      // selección (borde cian) y los tiradores, para que se vea qué está seleccionado y
+			      // se pueda redimensionar arrastrando. El borde/tiradores ya van estilizados (cian),
+			      // no es la "caja azul" fea de Fabric.
+			      const isEdChromeSel = (function(){ try { return !!document.body?.classList?.contains?.('ed-chrome'); } catch (e) { return false; } })();
+			      const hideBoardSelectionChrome = !locked && !isTacticsMode && !isEdChromeSel && (!isBackground || !backgroundEdit);
+			      const hideTokenSelectionChrome = !locked && kind === 'token' && !isEdChromeSel;
 			      const hideSelectionChrome = hideBoardSelectionChrome || hideTokenSelectionChrome;
 			      object.set({
 			        hasControls: hideSelectionChrome ? false : !locked,

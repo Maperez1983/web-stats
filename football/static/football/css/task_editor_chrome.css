@@ -558,8 +558,18 @@ body.ed-chrome .board-overlay-controls { display: none !important; }
 body.ed-chrome .edc-tool { font-size: 9.5px !important; letter-spacing: -.2px; }
 
 /* Inspector flotante (derecha) — aparece al seleccionar un elemento */
-body.ed-chrome .edc-inspector { position: fixed; top: calc(var(--edc-top,56px) + 12px); right: 12px; width: 270px; z-index: 46; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+/* z-index alto: el <main> del editor es position:fixed z-index:120 y crea contexto de
+   apilamiento; con z:46 el inspector de propiedades quedaba DETRÁS del campo (invisible),
+   por lo que no había forma de ver la selección ni de cambiar color/grosor/tamaño. */
+body.ed-chrome .edc-inspector { position: fixed; top: calc(var(--edc-top,56px) + 12px); right: 12px; width: 300px; z-index: 9993; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
 body.ed-chrome .edc-inspector > * { pointer-events: auto; }
+/* El contenido del inspector debe caber en el panel (si no, se corta por la derecha). */
+body.ed-chrome .edc-inspector #task-selection-toolbar,
+body.ed-chrome .edc-inspector #task-selection-dock { width: 100% !important; box-sizing: border-box !important; }
+body.ed-chrome .edc-inspector #task-selection-toolbar *,
+body.ed-chrome .edc-inspector #task-selection-dock * { max-width: 100% !important; }
+body.ed-chrome .edc-inspector .selection-grid { grid-template-columns: 1fr !important; }
+body.ed-chrome .edc-inspector input[type="range"] { width: 100% !important; }
 body.ed-chrome .edc-inspector #task-selection-toolbar:not([hidden]),
 body.ed-chrome .edc-inspector #task-selection-dock:not([hidden]) {
   position: static !important; display: block !important;
