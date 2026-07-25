@@ -68440,6 +68440,14 @@ def player_detail_page(request, player_id):
                 player.federation_license_number = _lic_num
                 player.federation_license_expires_at = _lic_exp
                 player.save()
+                # Re-evaluar identidad global: si al editar se ha añadido/cambiado una URL de
+                # perfil o la fecha de nacimiento y ahora coincide con otra persona ya existente,
+                # se reenlaza (cierra el hueco: añadir una URL a un jugador ya creado).
+                try:
+                    from football.models import relink_player_identity as _relink_identity
+                    _relink_identity(player)
+                except Exception:
+                    pass
                 try:
                     if uploaded_photo:
                         save_player_photo(player, uploaded_photo)

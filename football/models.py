@@ -635,18 +635,15 @@ class PlayerIdentity(models.Model):
         return self.display_name or self.full_name or f'Identidad #{self.pk}'
 
 
-def resolve_or_create_player_identity(player):
-    """
-    Devuelve la PlayerIdentity que corresponde a `player`, reutilizando una existente si
-    coincide una clave FUERTE (misma URL de perfil no vacía, o mismo nombre + misma fecha de
-    nacimiento) y creándola si no. Es la versión en tiempo de ejecución del backfill 0163:
-    su objetivo es que crear/importar un jugador NO duplique su identidad de persona.
+def _norm_identity_name(value):
+    return " ".join(str(value or "").strip().lower().split())
 
-    No enlaza al player (no toca player.identity); eso lo hace Player.save().
-    """
-    def _norm(value):
-        return " ".join(str(value or "").strip().lower().split())
 
+def find_existing_player_identity(player, *, exclude_id=None):
+    """
+    Busca (SIN crear) la PlayerIdentity existente que corresponde a `player` por clave FUERTE:
+    misma URL de perfil no vacía, o mismo nombre + misma fecha de nacimiento. None si no hay.
+    """
     urls = [
         str(getattr(player, "preferente_profile_url", "") or "").strip(),
         str(getattr(player, "transfermarkt_url", "") or "").strip(),
@@ -655,23 +652,39 @@ def resolve_or_create_player_identity(player):
     urls = [u for u in urls if u]
 
     for url in urls:
-        match = PlayerIdentity.objects.filter(
+        qs = PlayerIdentity.objects.filter(
             models.Q(preferente_profile_url=url)
             | models.Q(transfermarkt_url=url)
             | models.Q(besoccer_url=url)
-        ).first()
+        )
+        if exclude_id:
+            qs = qs.exclude(pk=exclude_id)
+        match = qs.first()
         if match:
             return match
 
-    norm_name = _norm(getattr(player, "full_name", "") or getattr(player, "name", ""))
+    norm_name = _norm_identity_name(getattr(player, "full_name", "") or getattr(player, "name", ""))
     dob = getattr(player, "birth_date", None)
     if norm_name and dob is not None:
-        for cand in PlayerIdentity.objects.filter(birth_date=dob).only(
-            "id", "full_name", "display_name"
-        ):
-            if _norm(cand.full_name) == norm_name or _norm(cand.display_name) == norm_name:
+        qs = PlayerIdentity.objects.filter(birth_date=dob)
+        if exclude_id:
+            qs = qs.exclude(pk=exclude_id)
+        for cand in qs.only("id", "full_name", "display_name"):
+            if _norm_identity_name(cand.full_name) == norm_name or _norm_identity_name(cand.display_name) == norm_name:
                 return cand
+    return None
 
+
+def resolve_or_create_player_identity(player):
+    """
+    Igual que find_existing_player_identity pero crea la identidad si no existe. Versión en
+    tiempo de ejecución del backfill 0163: crear/importar un jugador no duplica la persona.
+    No enlaza al player (eso lo hace Player.save()).
+    """
+    existing = find_existing_player_identity(player)
+    if existing is not None:
+        return existing
+    dob = getattr(player, "birth_date", None)
     return PlayerIdentity.objects.create(
         full_name=str(getattr(player, "full_name", "") or getattr(player, "name", "") or "")[:180],
         display_name=str(getattr(player, "name", "") or "")[:120],
@@ -680,6 +693,46 @@ def resolve_or_create_player_identity(player):
         transfermarkt_url=str(getattr(player, "transfermarkt_url", "") or "")[:300],
         besoccer_url=str(getattr(player, "besoccer_url", "") or "")[:300],
     )
+
+
+def relink_player_identity(player):
+    """
+    Re-evalúa la identidad de un jugador YA existente (p. ej. tras añadirle una URL de perfil o
+    la fecha de nacimiento). Si ahora coincide con OTRA identidad existente (misma persona), lo
+    reenlaza y elimina la identidad anterior si queda huérfana. Devuelve True si cambió.
+    """
+    match = find_existing_player_identity(player, exclude_id=getattr(player, "identity_id", None))
+    if match is None or match.id == getattr(player, "identity_id", None):
+        return False
+    old_id = getattr(player, "identity_id", None)
+    Player.objects.filter(pk=player.pk).update(identity=match)
+    player.identity_id = match.id
+    if old_id and not Player.objects.filter(identity_id=old_id).exists():
+        PlayerIdentity.objects.filter(pk=old_id).delete()
+    return True
+
+
+def merge_player_identities(keep, drop):
+    """
+    Fusiona la identidad `drop` en `keep`: reasigna todas las fichas Player de `drop` a `keep`,
+    completa en `keep` los campos que tenga vacíos, y elimina `drop`. Seguro: la identidad tiene
+    pocos dependientes (solo el FK identity de Player). No toca las fichas Player en sí.
+    """
+    if keep is None or drop is None or keep.id == drop.id:
+        return keep
+    Player.objects.filter(identity_id=drop.id).update(identity=keep)
+    changed = []
+    for field in ("full_name", "display_name", "preferente_profile_url", "transfermarkt_url", "besoccer_url"):
+        if not getattr(keep, field, "") and getattr(drop, field, ""):
+            setattr(keep, field, getattr(drop, field))
+            changed.append(field)
+    if keep.birth_date is None and drop.birth_date is not None:
+        keep.birth_date = drop.birth_date
+        changed.append("birth_date")
+    if changed:
+        keep.save(update_fields=changed + ["updated_at"])
+    drop.delete()
+    return keep
 
 
 class Player(models.Model):
