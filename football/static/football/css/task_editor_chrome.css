@@ -578,3 +578,42 @@ body.ed-chrome #edc-menu-body .surface-trigger,
 body.ed-chrome #edc-menu-body .board-overlay-controls a,
 body.ed-chrome #edc-menu-body button { border-radius: 9px; }
 body.ed-chrome #edc-menu-body .pitch-view-menu[open] { width: 100%; }
+
+/* ============================================================
+   CAJÓN DE MATERIAL · "TODO EN SU SITIO SIN SCROLL"
+   Reconfiguración del cajón para que cada categoría quepa sola,
+   sin apilar todas ni provocar scroll lateral.
+   ------------------------------------------------------------
+   PROBLEMA RAÍZ: cada categoría es un .edc-mat-grid con el atributo
+   [hidden] salvo la activa, pero la regla `.edc-mat-grid{display:grid}`
+   anula el `display:none` del atributo hidden -> las 10 categorías se
+   pintaban apiladas (scrollHeight ~2528px). Esta regla lo corrige:
+   ============================================================ */
+body.ed-chrome .edc-mat-grid[hidden] { display: none !important; }
+
+/* Las categorías "pesadas" (plantilla y jugadores/avatares) necesitan
+   algo más de ancho para que sus rejillas quepan sin scroll lateral.
+   El resto de categorías mantienen el cajón estrecho (176px). */
+body.ed-chrome .edc-mat-drawer:has(.edc-mat-grid[data-cat="plantilla"]:not([hidden])),
+body.ed-chrome .edc-mat-drawer:has(.edc-mat-grid[data-cat="avatares"]:not([hidden])) { width: 320px !important; }
+
+/* --- PLANTILLA: config que envuelve + roster en rejilla de 3 columnas --- */
+/* El grid de la categoría no debe expandirse con el min-content de sus hijos */
+body.ed-chrome .edc-mat-grid[data-cat="plantilla"] { grid-template-columns: 1fr !important; overflow: hidden !important; min-width: 0 !important; }
+body.ed-chrome .edc-mat-grid[data-cat="plantilla"] .edc-avcfg,
+body.ed-chrome .edc-mat-grid[data-cat="plantilla"] .edc-avcfg > * { min-width: 0 !important; }
+/* Las filas de equipación/poses envuelven en vez de scroll horizontal */
+body.ed-chrome .edc-mat-grid[data-cat="plantilla"] .edc-avcfg-row { flex-wrap: wrap !important; overflow-x: visible !important; }
+/* Banco de plantilla real: rejilla en vez de fila horizontal de 3777px */
+body.ed-chrome #edc-mat-body #task-roster-bank { display: block !important; width: 100% !important; min-width: 0 !important; max-width: 100% !important; }
+body.ed-chrome #edc-mat-body #task-roster-bank .player-bank {
+  display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 6px !important; width: 100% !important; min-width: 0 !important; overflow: visible !important;
+}
+body.ed-chrome #edc-mat-body #task-roster-bank .player-token-bank { width: 100% !important; min-width: 0 !important; box-sizing: border-box !important; }
+/* Las mini-previsualizaciones de estilo dentro de cada ficha envuelven (no desbordan) */
+body.ed-chrome #edc-mat-body #task-roster-bank .player-token-bank-visuals { flex-wrap: wrap !important; justify-content: center !important; }
+
+/* --- JUGADORES (avatares): tiras de 5 columnas + cabeceras finas => sin scroll --- */
+body.ed-chrome .edc-mat-grid[data-cat="avatares"] .edc-av-strip { grid-template-columns: repeat(5, 1fr) !important; gap: 4px !important; }
+body.ed-chrome .edc-mat-grid[data-cat="avatares"] .edc-av-head { margin: 4px 2px 1px !important; font-size: 9px !important; }
