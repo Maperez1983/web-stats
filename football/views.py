@@ -37805,11 +37805,41 @@ def coach_matches_page(request):
         except Exception:
             pass
 
+    # Temporadas disponibles (de los partidos del equipo) para el filtro. Por defecto se muestra
+    # SOLO la temporada actual; 'all' muestra todas; o se puede elegir una concreta.
+    season_options = []
+    try:
+        seen_seasons = {}
+        for s_id, s_name in (
+            _team_match_queryset(primary_team)
+            .exclude(season__isnull=True)
+            .values_list("season_id", "season__name")
+            .distinct()
+        ):
+            if s_id and s_id not in seen_seasons:
+                seen_seasons[s_id] = str(s_name or s_id)
+        season_options = [{"id": sid, "label": nm} for sid, nm in seen_seasons.items()]
+    except Exception:
+        season_options = []
+    current_season_id = int(getattr(season, "id", 0) or 0)
+    season_filter = str(request.GET.get("season") or "").strip()
+    if not season_filter:
+        active_season_id = current_season_id  # por defecto: temporada actual
+    elif season_filter == "all":
+        active_season_id = 0
+    else:
+        try:
+            active_season_id = int(season_filter)
+        except (TypeError, ValueError):
+            active_season_id = current_season_id
+
     qs = (
         _team_match_queryset(primary_team)
         .select_related("home_team", "away_team", "staff_captain", "staff_mvp")
         .order_by("-date", "-id")
     )
+    if active_season_id:
+        qs = qs.filter(season_id=active_season_id)
     if context_filter and context_filter in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY}:
         qs = qs.filter(context=context_filter)
     if q:
@@ -38058,6 +38088,9 @@ def coach_matches_page(request):
             "registered_only": registered_only,
             "context_filter": context_filter,
             "context_options": context_options,
+            "season_options": season_options,
+            "season_filter": season_filter,
+            "active_season_id": active_season_id,
             "sort_key": sort_key,
             "sort_dir": sort_dir,
             "total_matches": total_matches or len(raw),

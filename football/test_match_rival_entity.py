@@ -77,6 +77,30 @@ class MatchRivalEntityTests(TestCase):
         self.assertIn("Nuevo partido", body)
         self.assertIn("Guardar partido", body)  # el formulario de alta está en la propia página
 
+    def test_calendar_filters_by_season(self):
+        today = timezone.localdate()
+        # Sin grupo para que no aparezcan en el datalist del formulario (que lista equipos del grupo);
+        # así las aserciones miran solo el LISTADO de partidos.
+        rival = Team.objects.create(name="Rival Actual", slug="ra")
+        old_season = Season.objects.create(competition=self.comp, name="2024/2025", is_current=False)
+        old_rival = Team.objects.create(name="Rival Viejo", slug="rv")
+        Match.objects.create(
+            season=self.season, home_team=self.team, away_team=rival,
+            date=today, context=Match.CONTEXT_LEAGUE,
+        )
+        Match.objects.create(
+            season=old_season, home_team=self.team, away_team=old_rival,
+            date=datetime.date(2025, 1, 15), context=Match.CONTEXT_LEAGUE,
+        )
+        # Por defecto: solo la temporada actual.
+        body = self.client.get("/coach/partidos/", HTTP_HOST="localhost").content.decode("utf-8")
+        self.assertIn("Rival Actual", body)
+        self.assertNotIn("Rival Viejo", body)
+        # ?season=all -> todas.
+        body_all = self.client.get("/coach/partidos/?season=all", HTTP_HOST="localhost").content.decode("utf-8")
+        self.assertIn("Rival Actual", body_all)
+        self.assertIn("Rival Viejo", body_all)
+
     def test_match_hub_modal_create_dedups_rival(self):
         """El modal 'Nuevo partido' (match-hub-create) también deduplica el rival al escribirlo."""
         today = timezone.localdate()
