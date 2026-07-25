@@ -437,6 +437,44 @@ def render_task_preview_png(
 
     safe_state = _inject_strike_flash(safe_state)
 
+    def _inject_player_shadows(state: dict) -> dict:
+        # Fase 4 · puente 2D: sombra de suelo (elipse suave) bajo cada jugador, para dar
+        # profundidad y que la figura no parezca un recorte flotando. Solo en la card
+        # (no toca el editor). La sombra se inserta ANTES del jugador para quedar debajo.
+        if not isinstance(state, dict):
+            return state
+        objects = state.get("objects") if isinstance(state.get("objects"), list) else []
+        if not objects:
+            return state
+        player_kinds = {"player_local", "player_away", "player_rival", "goalkeeper_local", "goalkeeper_rival"}
+        out = []
+        for item in objects:
+            if isinstance(item, dict):
+                data = item.get("data") if isinstance(item.get("data"), dict) else {}
+                token_kind = str(data.get("token_kind") or "")
+                if str(data.get("kind") or "") == "token" and (token_kind in player_kinds or token_kind == ""):
+                    try:
+                        left = float(item.get("left") or 0.0)
+                        top = float(item.get("top") or 0.0)
+                        sc = float(item.get("scaleX") or 1.0) or 1.0
+                        out.append({
+                            "type": "ellipse",
+                            "left": left, "top": top + 19.0 * sc,
+                            "rx": 16.0 * sc, "ry": 5.2 * sc,
+                            "originX": "center", "originY": "center",
+                            "fill": "rgba(6,10,8,0.32)",
+                            "selectable": False, "evented": False,
+                            "shadow": "rgba(0,0,0,0.35) 0 0 7px",
+                            "data": {"base": True, "kind": "fx", "role": "player_shadow"},
+                        })
+                    except Exception:
+                        pass
+            out.append(item)
+        state["objects"] = out
+        return state
+
+    safe_state = _inject_player_shadows(safe_state)
+
     grass_tiles = {}
     if grass_style == "uefa_b":
         try:
