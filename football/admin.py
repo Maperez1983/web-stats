@@ -24,20 +24,35 @@ class GroupAdmin(admin.ModelAdmin):
     list_display = ('name', 'season', 'external_id')
 
 
+@admin.register(models.Club)
+class ClubAdmin(admin.ModelAdmin):
+    list_display = ('name', 'name_key', 'team_count', 'updated_at')
+    search_fields = ('name', 'short_name', 'name_key', 'external_id', 'preferente_url')
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related('teams')
+
+    @admin.display(description='Equipos')
+    def team_count(self, obj):
+        return obj.teams.count()
+
+
 @admin.register(models.Team)
 class TeamAdmin(admin.ModelAdmin):
-    list_display = ('name', 'name_key', 'external_id', 'possible_duplicates', 'group', 'is_primary', 'city')
+    list_display = ('name', 'club', 'category', 'name_key', 'external_id', 'possible_duplicates', 'group', 'is_primary')
     list_filter = ('game_format', 'group', 'is_primary')
     search_fields = ('name', 'short_name', 'slug', 'category', 'name_key', 'external_id', 'preferente_url')
     prepopulated_fields = {'slug': ('name',)}
+    autocomplete_fields = ('club',)
     ordering = ('name_key', 'name')
 
     @admin.display(description='Posibles duplicados')
     def possible_duplicates(self, obj):
-        # Otros equipos con la MISMA clave de nombre normalizada (candidatos a ser el mismo real).
+        # Otros equipos con la MISMA clave de nombre EN EL MISMO grupo (mismo club+categoría =
+        # candidatos a fusionar). Distinto grupo = otra categoría del club, no es duplicado.
         if not obj.name_key:
             return '—'
-        count = models.Team.objects.filter(name_key=obj.name_key).exclude(pk=obj.pk).count()
+        count = models.Team.objects.filter(name_key=obj.name_key, group=obj.group).exclude(pk=obj.pk).count()
         return f'⚠ {count}' if count else '—'
 
 

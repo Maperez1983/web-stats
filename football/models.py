@@ -83,8 +83,53 @@ def normalize_team_name_key(name):
     return "".join(ch for ch in text.lower() if ch.isalnum())
 
 
+class Club(models.Model):
+    """
+    Club real (Benagalbón, CD Rincón…), la entidad que agrupa sus EQUIPOS por categoría
+    (senior, cadete, benjamín…). Un club no se duplica; cada `Team` es (club + categoría/liga).
+    Distingue 'club' de 'equipo': dos equipos del mismo club en categorías distintas comparten
+    Club pero son Team distintos.
+    """
+
+    name = models.CharField(max_length=150)
+    name_key = models.CharField(max_length=160, blank=True, db_index=True)
+    short_name = models.CharField(max_length=80, blank=True)
+    external_id = models.CharField(max_length=120, blank=True)
+    preferente_url = models.URLField(blank=True)
+    crest_url = models.URLField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name', 'id']
+        verbose_name = 'Club'
+        verbose_name_plural = 'Clubes'
+
+    def save(self, *args, **kwargs):
+        self.name_key = normalize_team_name_key(self.name)
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None and 'name' in set(update_fields):
+            kwargs['update_fields'] = sorted(set(update_fields) | {'name_key'})
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+
+def resolve_or_create_club(name):
+    """Devuelve el Club de `name` reutilizando el existente por name_key (o creándolo)."""
+    key = normalize_team_name_key(name)
+    if key:
+        club = Club.objects.filter(name_key=key).first()
+        if club:
+            return club
+    return Club.objects.create(name=str(name or '').strip()[:150] or 'Club', name_key=key)
+
+
 class Team(models.Model):
     name = models.CharField(max_length=150)
+    # Club real al que pertenece este equipo. Varios equipos por categoría comparten club.
+    club = models.ForeignKey('Club', null=True, blank=True, on_delete=models.SET_NULL, related_name='teams')
     slug = models.SlugField(max_length=150, unique=True)
     short_name = models.CharField(max_length=60, blank=True)
     city = models.CharField(max_length=100, blank=True)
@@ -128,9 +173,18 @@ class Team(models.Model):
 
     def save(self, *args, **kwargs):
         self.name_key = normalize_team_name_key(self.name)
+        # Enlaza el equipo a su Club (por name_key) si aún no lo tiene: agrupa las categorías
+        # del mismo club sin fusionarlas como equipo.
+        extra_fields = {'name_key'}
+        if self.club_id is None:
+            try:
+                self.club = resolve_or_create_club(self.name)
+                extra_fields.add('club')
+            except Exception:
+                pass
         update_fields = kwargs.get('update_fields')
         if update_fields is not None and 'name' in set(update_fields):
-            kwargs['update_fields'] = sorted(set(update_fields) | {'name_key'})
+            kwargs['update_fields'] = sorted(set(update_fields) | extra_fields)
         super().save(*args, **kwargs)
 
     def __str__(self):
