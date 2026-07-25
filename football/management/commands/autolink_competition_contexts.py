@@ -139,6 +139,11 @@ class Command(BaseCommand):
             provider == WorkspaceCompetitionContext.PROVIDER_PREFERENTE
             and str(getattr(team, 'preferente_url', '') or '').strip()
         )
+        # En modo --only-universo NO tratamos "ya en Preferente" como enganchado: el objetivo es
+        # mover el equipo a Universo (que sí funciona en servidor). Así el cron reengancha a Universo
+        # equipos que quedaron en Preferente cuando el proveedor publica la temporada nueva.
+        if only_universo:
+            already_preferente = False
         if already_universo or already_preferente:
             counters['ready'] += 1
             self.stdout.write(self.style.SUCCESS(f'{label}: ya enganchado ({provider}).'))
