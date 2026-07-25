@@ -1353,20 +1353,18 @@
       {% endif %}
 
       <div class="tabs" role="tablist">
-        <button class="tab-btn" data-tab="personal" role="tab">Datos personales y Evaluación previa</button>
-        <button class="tab-btn" data-tab="stats" role="tab">Estadísticas y KPI mapa</button>
-
-        <button class="tab-btn" data-tab="attributes" role="tab">Atributos</button>
-        <button class="tab-btn" data-tab="evaluations" role="tab">Valoración</button>
-        <button class="tab-btn" data-tab="seasons" role="tab">Histórico</button>
+        <button class="tab-btn" data-tab="stats" role="tab">Rendimiento</button>
+        <button class="tab-btn" data-tab="physical" role="tab">Físico</button>
+        <button class="tab-btn" data-tab="evaluations" role="tab">Evaluación</button>
         <button class="tab-btn" data-tab="injuries" role="tab">Lesiones</button>
         <button class="tab-btn" data-tab="discipline" role="tab">Comunicación y multas</button>
-        <button class="tab-btn" data-tab="physical" role="tab">Físico</button>
+        <button class="tab-btn" data-tab="seasons" role="tab">Histórico</button>
+        <button class="tab-btn" data-tab="personal" role="tab">Datos personales</button>
         <button class="tab-btn" data-tab="videos" role="tab">Vídeos</button>
       </div>
 
       <section class="card tab-pane" data-pane="personal">
-        <h2 style="margin-top:0;">Datos personales y evaluación previa</h2>
+        <h2 style="margin-top:0;">Datos personales</h2>
         {% if not is_player_readonly %}
         {% if player_in_scouting %}
         <form method="post" style="margin:0 0 1rem;" onsubmit="return confirm('¿Devolver este jugador a la plantilla activa? Su ficha de ojeo se marcará como fichado.');">
@@ -2585,8 +2583,9 @@
         {% endif %}
       </section>
 
-      <section class="card tab-pane" data-pane="attributes">
-        <h2 style="margin-top:0;">Atributos</h2>
+      <section class="card tab-pane" data-pane="stats">
+        <h2 style="margin-top:0;">Atributos · lectura FM</h2>
+        <p class="subtle" style="margin:0 0 0.4rem;">Radar derivado de las mismas estadísticas y percentiles de arriba (perfil objetivo, no editable).</p>
         <div class="fm-attributes-shell" style="margin-top:0.9rem;">
           <div class="fm-attributes-header">
             <div>
@@ -3027,11 +3026,11 @@
         const tabAliases = {
           general: 'personal',
           performance: 'stats',
-          attributes: 'attributes',
+          attributes: 'stats',
           communication: 'discipline',
           fines: 'discipline',
         };
-        const rawTab = '{{ active_tab|default:"personal"|escapejs }}' || 'personal';
+        const rawTab = '{{ active_tab|default:"stats"|escapejs }}' || 'stats';
         const fallbackTab = tabAliases[rawTab] || rawTab;
         const buttons = Array.from(document.querySelectorAll('.tab-btn'));
         const panes = Array.from(document.querySelectorAll('.tab-pane'));
@@ -3043,7 +3042,7 @@
           window.history.replaceState({}, '', url);
         };
         buttons.forEach((btn) => btn.addEventListener('click', () => activate(btn.dataset.tab)));
-	        activate(buttons.some((b) => b.dataset.tab === fallbackTab) ? fallbackTab : 'personal');
+	        activate(buttons.some((b) => b.dataset.tab === fallbackTab) ? fallbackTab : 'stats');
 		      })();
 		    </script>
 		    <script>
