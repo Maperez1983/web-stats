@@ -4580,8 +4580,14 @@
             originY: 'center',
             scaleX: baseScale,
             scaleY: baseScale,
-            selectable: options.selectable === true,
-            evented: options.evented === true,
+            // Por defecto las imagenes-asset (avatares del panel JUGADORES, importadas, material,
+            // recursos PDF) deben poder seleccionarse y moverse como cualquier elemento. Antes se
+            // creaban con selectable/evented = false y normalizeEditableObject NO los reactiva
+            // (solo toca figuras de fondo), asi que quedaban "muertas": al clicar encima no pasaba
+            // nada. Ahora son interactivas por defecto; quien necesite un asset de fondo/no editable
+            // (p.ej. el kit2d incrustado en un token) pasa explicitamente selectable:false.
+            selectable: options.selectable !== false,
+            evented: options.evented !== false,
             angle: Number(options.angle) || 0,
             data,
           });

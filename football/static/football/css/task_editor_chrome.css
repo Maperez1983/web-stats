@@ -364,10 +364,10 @@ body.ed-chrome .edc-mat-lbl em { display: block; font-style: normal; font-size: 
 body.ed-chrome .edc-mat-sub { grid-column: 1/4; font-size: 11px; font-weight: 700; color: var(--edc-muted); text-transform: uppercase; letter-spacing: .04em; margin: 10px 2px 2px; }
 /* Los strips reubicados (importados/emojis) dentro de extras: rejilla */
 body.ed-chrome .edc-mat-grid .resource-strip,
-body.ed-chrome .edc-mat-grid #task-emoji-tools { grid-column: 1/4; display: grid !important; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+body.ed-chrome .edc-mat-grid #task-emoji-tools { grid-column: 1/4; display: grid !important; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 body.ed-chrome .edc-mat-grid .resource-strip button,
 body.ed-chrome .edc-mat-grid #task-emoji-tools button { aspect-ratio: 1; border-radius: 10px; border: 1px solid var(--edc-line); background: #0e2416; color: var(--edc-ink); cursor: pointer; padding: 4px; font-size: 16px; }
-body.ed-chrome .edc-mat-grid img { max-width: 80%; max-height: 30px; }
+body.ed-chrome .edc-mat-grid img { max-width: 92%; max-height: 44px; }
 
 /* ============================================================
    CAJONES SEMITRANSPARENTES (cristal) · el campo nunca pierde protagonismo
@@ -480,14 +480,14 @@ body.ed-chrome .edc-mat-grid[data-cat="importados"] {
 }
 body.ed-chrome .edc-mat-grid[data-cat="emojis"] #task-emoji-tools,
 body.ed-chrome .edc-mat-grid[data-cat="importados"] .resource-strip {
-  grid-column: 1 / -1; display: grid !important; grid-template-columns: repeat(4, 1fr); gap: 5px;
+  grid-column: 1 / -1; display: grid !important; grid-template-columns: repeat(3, 1fr); gap: 6px;
 }
 body.ed-chrome .edc-mat-grid[data-cat="emojis"] #task-emoji-tools button,
 body.ed-chrome .edc-mat-grid[data-cat="importados"] .resource-strip button {
   aspect-ratio: 1; border-radius: 9px; border: 1px solid var(--edc-line); background: rgba(20,53,31,.72);
   color: var(--edc-ink); cursor: pointer; font-size: 17px; padding: 3px; display: flex; align-items: center; justify-content: center;
 }
-body.ed-chrome .edc-mat-grid[data-cat="importados"] .resource-strip img { max-width: 84%; max-height: 30px; }
+body.ed-chrome .edc-mat-grid[data-cat="importados"] .resource-strip img { max-width: 92%; max-height: 44px; }
 
 /* Pestaña Jugadores (avatares fotorrealistas): rejilla vertical con secciones.
    4 columnas = los 4 colores de equipo de cada acción alineados en una fila. */
