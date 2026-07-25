@@ -22,7 +22,19 @@ def is_subscription_active(workspace) -> bool:
     if not workspace:
         return False
     status = str(getattr(workspace, 'subscription_status', '') or '').strip().lower()
-    return status in {'active'}
+    if status != 'active':
+        return False
+    # A2: revalidar contra el fin de periodo. Si `subscription_current_period_end` ya pasó (p. ej.
+    # se perdió el webhook de cancelación), no se considera activo. Margen de 2 días por el lag de
+    # renovación/webhook para no cortar accesos legítimos durante la renovación.
+    period_end = getattr(workspace, 'subscription_current_period_end', None)
+    if period_end:
+        try:
+            if period_end + timedelta(days=2) < timezone.now():
+                return False
+        except Exception:
+            pass
+    return True
 
 
 def is_trial_active(workspace) -> bool:

@@ -10128,14 +10128,16 @@ def _dashboard_cache_key(team_id):
 
 
 def _dashboard_cache_key_for_request(team_id, request, workspace=None):
-    key = dashboard_cache_key(team_id)
+    # La temporada entra en la clave de forma DETERMINISTA (no best-effort): así dos temporadas del
+    # mismo equipo nunca comparten entrada de caché. Si la resolución falla, se usa un marcador
+    # aislado ("err") en vez de caer a la clave base y mezclar datos entre temporadas.
+    base = dashboard_cache_key(team_id)
     try:
         selected_season = season_history_services.selected_club_season_for_request(request, workspace=workspace)
-        if selected_season:
-            key = f"{key}:club-season:{int(selected_season.id)}"
+        season_part = str(int(selected_season.id)) if selected_season else "none"
     except Exception:
-        pass
-    return key
+        season_part = "err"
+    return f"{base}:club-season:{season_part}"
 
 
 def _selected_club_season_payload(request, workspace=None):
