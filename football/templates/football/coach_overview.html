@@ -691,6 +691,7 @@
           <div class="card">
             {# "Ver rivales" se quitó: era redundante con "Ver tabla completa" (ambos -> coach-rivals). #}
             <h2 style="margin:0 0 0.2rem;">Clasificación</h2>
+            {% if standings_season_label %}<p class="muted" style="margin:0 0 0.5rem;font-size:0.82rem;">Temporada {{ standings_season_label }} (última disponible · se actualizará al publicarse la nueva)</p>{% endif %}
             {% if standings %}
             <table class="standings-table">
               <caption class="visually-hidden">Clasificación de {{ competition_label|default:"la competición" }}, tu equipo resaltado.</caption>

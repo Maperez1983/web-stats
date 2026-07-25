@@ -20159,21 +20159,14 @@ def coach_overview_page(request):
         getattr(getattr(getattr(primary_team, "group", None), "season", None), "name", "") or ""
     ).strip()
     _payload_standings_count = len(standings)
-    # Una tabla de PRETEMPORADA (todos los equipos con 0 partidos jugados) no es "datos del año
-    # pasado": es la liga nueva recién creada. Solo consideramos "rancia" una tabla con partidos
-    # jugados. Así el guard oculta la tabla final del año anterior, pero NO la tabla nueva a 0 aunque
-    # el grupo en BD siga etiquetado con la temporada previa.
-    _standings_has_played = any(
-        int((row or {}).get("played") or 0) > 0 for row in standings if isinstance(row, dict)
+    # En pretemporada, la clasificación disponible es la de la temporada anterior hasta que el
+    # proveedor publica la nueva. En vez de OCULTARLA (dejaba la home en blanco), la mostramos y la
+    # ETIQUETAMOS con su temporada. Cuando se sincronice la nueva, se reemplaza sola.
+    _standings_is_previous_season = bool(
+        standings and _group_season_name and not season_names_match(_group_season_name, current_season_name())
     )
-    _season_guard_blanked = bool(
-        standings
-        and _standings_has_played
-        and _group_season_name
-        and not season_names_match(_group_season_name, current_season_name())
-    )
-    if _season_guard_blanked:
-        standings = []
+    _season_guard_blanked = False  # ya no se borra: se muestra la última disponible, etiquetada
+    standings_season_label = _group_season_name if _standings_is_previous_season else ""
     # Diagnóstico visible: por qué la home muestra (o no) la clasificación.
     # Se pinta como panel en la propia portada (no JSON). Aparece automáticamente cuando la
     # clasificación queda vacía (para no tener que teclear ?diag=standings), o siempre con el param.
@@ -20477,6 +20470,7 @@ def coach_overview_page(request):
             "coach_pitch_players": coach_pitch_players,
             "coach_decision_dashboard": coach_decision_dashboard,
             "standings_diag": standings_diag,
+            "standings_season_label": standings_season_label,
         },
     )
 
