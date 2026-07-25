@@ -702,8 +702,11 @@ body.ed-chrome #edc-mat-body #task-roster-bank .player-token-bank {
   gap: 7px !important; padding: 4px 7px !important; text-align: left !important; min-height: 0 !important;
 }
 body.ed-chrome #edc-mat-body #task-roster-bank .player-token-bank-visuals { flex: 0 0 auto !important; width: auto !important; }
-/* La preview del estilo ACTIVO (disco / camiseta-kit / foto) en pequeño. El motor ya
-   muestra solo la del estilo elegido; aquí solo la ajustamos de tamaño. */
+/* En el chip mostramos SOLO la preview del estilo activo (la marcada .is-active por el
+   selector de arriba); el resto de variantes del selector por-ficha se ocultan, porque
+   aquí el estilo se elige una vez arriba, no jugador a jugador. */
+body.ed-chrome #edc-mat-body #task-roster-bank .player-token-bank-visuals .is-preview:not(.is-active) { display: none !important; }
+/* La preview activa (disco / camiseta-kit / foto) en pequeño. */
 body.ed-chrome #edc-mat-body #task-roster-bank .token-jersey.is-preview,
 body.ed-chrome #edc-mat-body #task-roster-bank .token-photo.is-preview {
   width: 26px !important; height: 29px !important; min-width: 26px !important; margin: 0 !important;
