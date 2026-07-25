@@ -68,6 +68,21 @@ def bootstrap_workspace_competition_context(
     if auto_sync_enabled is not None and context.is_auto_sync_enabled != bool(auto_sync_enabled):
         context.is_auto_sync_enabled = bool(auto_sync_enabled)
         changed = True
+    # Auto-corrección: un equipo con URL de La Preferente y contexto sin proveedor real ('manual')
+    # es, de facto, un equipo de La Preferente. Sin esto, el sync no baja su clasificación (solo la
+    # baja si provider == lapreferente) y la home ignora cualquier snapshot. No tocamos contextos
+    # con proveedor explícito ni con clave de grupo de Universo.
+    if (
+        provider is None
+        and str(getattr(context, 'provider', '') or '') == WorkspaceCompetitionContext.PROVIDER_MANUAL
+        and not str(getattr(context, 'external_group_key', '') or '').strip()
+    ):
+        _pref_url = str(getattr(primary_team, 'preferente_url', '') or '').strip()
+        if _pref_url:
+            context.provider = WorkspaceCompetitionContext.PROVIDER_PREFERENTE
+            if not str(getattr(context, 'external_source_url', '') or '').strip():
+                context.external_source_url = _pref_url
+            changed = True
     if changed:
         context.save()
     return context
