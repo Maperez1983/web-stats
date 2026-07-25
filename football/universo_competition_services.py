@@ -104,14 +104,16 @@ def serialize_universo_live_classification(payload):
         ).strip()
         crest_url = sanitize_universo_external_image(absolute_universo_url(crest_url)) if crest_url else ''
         gf = safe_int(
-            row.get('gf')
+            row.get('goles_a_favor')  # clave real de Universo (ver capture_universo_rfaf_data)
+            or row.get('gf')
             or row.get('goles_favor')
             or row.get('goals_for')
             or row.get('favor')
             or row.get('golesFavor')
         )
         ga = safe_int(
-            row.get('gc')
+            row.get('goles_en_contra')  # clave real de Universo
+            or row.get('gc')
             or row.get('goles_contra')
             or row.get('goals_against')
             or row.get('contra')
