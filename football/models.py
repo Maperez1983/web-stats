@@ -604,8 +604,48 @@ class TeamRosterSnapshot(models.Model):
         return f'Plantilla · {self.team.name} · {self.get_provider_display()}'
 
 
+class PlayerIdentity(models.Model):
+    """
+    Identidad GLOBAL de una persona-jugador, independiente de equipo, club (workspace),
+    temporada o liga.
+
+    Varias fichas `Player` (una por equipo/temporada/club) pueden apuntar a la MISMA
+    persona: así, cuando un jugador cambia de equipo, de club o de liga, no se duplica su
+    identidad — se reutiliza esta entidad y se conserva su historia.
+
+    Claves de identidad (de más a menos fuerte): URL de perfil externo (La Preferente /
+    Transfermarkt / BeSoccer), y nombre + fecha de nacimiento.
+    """
+
+    full_name = models.CharField(max_length=180)
+    display_name = models.CharField(max_length=120, blank=True)
+    birth_date = models.DateField(null=True, blank=True)
+    preferente_profile_url = models.URLField(max_length=300, blank=True, db_index=True)
+    transfermarkt_url = models.URLField(max_length=300, blank=True, db_index=True)
+    besoccer_url = models.URLField(max_length=300, blank=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['full_name', 'id']
+        verbose_name = 'Identidad de jugador'
+        verbose_name_plural = 'Identidades de jugador'
+
+    def __str__(self):
+        return self.display_name or self.full_name or f'Identidad #{self.pk}'
+
+
 class Player(models.Model):
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='players')
+    # Identidad global de persona: agrupa las fichas del MISMO jugador a través de equipos,
+    # clubes y ligas para no duplicar su entidad. Nullable/aditivo (backfill en migración).
+    identity = models.ForeignKey(
+        'PlayerIdentity',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='player_records',
+    )
     # Vínculo explícito con el usuario del jugador para evitar ambigüedades al resolver
     # la ficha en base a nombre/username (puede mezclar jugadores con nombres similares).
     user = models.OneToOneField(

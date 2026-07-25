@@ -72,10 +72,18 @@ class WorkspaceSeasonPlayerAdmin(admin.ModelAdmin):
     autocomplete_fields = ('season', 'player', 'confirmed_by')
 
 
+@admin.register(models.PlayerIdentity)
+class PlayerIdentityAdmin(admin.ModelAdmin):
+    list_display = ('full_name', 'display_name', 'birth_date', 'updated_at')
+    search_fields = ('full_name', 'display_name', 'preferente_profile_url', 'transfermarkt_url', 'besoccer_url')
+    list_filter = ('birth_date',)
+
+
 @admin.register(models.Player)
 class PlayerAdmin(admin.ModelAdmin):
-    list_display = ('name', 'team', 'number', 'position', 'injury', 'injury_date')
+    list_display = ('name', 'team', 'number', 'position', 'identity', 'injury', 'injury_date')
     search_fields = ('name', 'full_name', 'nickname', 'team__name')
+    autocomplete_fields = ('identity',)
 
 
 @admin.register(models.PlayerEvaluation)
