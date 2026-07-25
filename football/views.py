@@ -20196,6 +20196,22 @@ def coach_overview_page(request):
         ) or _has_group
         # Auto-mostrado (sin ?diag): solo si hay competición configurada pero la tabla sale vacía.
         # Con ?diag=standings se muestra siempre (para depurar cualquier caso).
+        # Búsqueda en vivo en Universo del equipo (solo con ?diag explícito, porque hace red):
+        # nos dice si Universo encuentra al equipo por nombre y cuántos candidatos hay.
+        _universo_probe = "—"
+        if _diag_requested and primary_team:
+            try:
+                _cands = _search_universo_competition_candidates(team_query=primary_team.name) or []
+                if _cands:
+                    _names = " · ".join(
+                        f"{c.get('team_name', '?')} [{c.get('season_name', '?')} · g{c.get('external_group_key', '?')}]"
+                        for c in _cands[:4]
+                    )
+                    _universo_probe = f"{len(_cands)} → {_names}"
+                else:
+                    _universo_probe = "0 (Universo no encuentra el equipo por nombre)"
+            except Exception as exc:  # noqa: BLE001
+                _universo_probe = f"error: {exc}"
         if _diag_requested or _has_real_competition:
             if _season_guard_blanked:
                 _reason = "El guard de temporada borró la clasificación (temporada del grupo distinta a la vigente)."
@@ -20212,6 +20228,7 @@ def coach_overview_page(request):
                 "provider": getattr(_diag_ctx, "provider", None),
                 "universo_group_key": str(getattr(_diag_ctx, "external_group_key", "") or "") or "—",
                 "universo_team_key": str(getattr(_diag_ctx, "external_team_key", "") or "") or "—",
+                "universo_search": _universo_probe,
                 "sync_status": getattr(_diag_ctx, "sync_status", None),
                 "sync_error": getattr(_diag_ctx, "sync_error", None),
                 "last_sync_at": str(getattr(_diag_ctx, "last_sync_at", None) or "—"),
