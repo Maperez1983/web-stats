@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import re
 import time
+from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 
@@ -62,6 +63,39 @@ _COL = {
 
 # href de equipo: E<code>C<competition>-<n>/slug  ->  capturamos E<code> y C<competition>.
 _TEAM_HREF_RE = re.compile(r'\bE(\d+)C(\d+)\b', re.IGNORECASE)
+
+_PREFERENTE_BASE = 'https://www.lapreferente.com/'
+
+
+def _extract_row_crest(tr):
+    """URL absoluta del escudo de una fila de la clasificación (o '' si no hay).
+
+    La Preferente pinta el escudo como <img> en la celda 1. Toleramos src / data-src,
+    URLs relativas y protocol-relative, y descartamos placeholders (blank/spacer/data:).
+    """
+    def _clean(src):
+        src = str(src or '').strip().strip('\'"')
+        if not src:
+            return ''
+        low = src.lower()
+        if low.startswith('data:') or 'blank' in low or 'spacer' in low or 'pixel' in low:
+            return ''
+        if src.startswith('//'):
+            return 'https:' + src
+        return urljoin(_PREFERENTE_BASE, src)
+
+    for img in tr.find_all('img'):
+        resolved = _clean(img.get('src') or img.get('data-src') or img.get('data-original'))
+        if resolved:
+            return resolved
+    # Fallback: algunos escudos se pintan como background-image en un <div>/<span> con estilo inline.
+    for el in tr.find_all(style=True):
+        match = re.search(r'background(?:-image)?\s*:\s*url\(([^)]+)\)', str(el.get('style') or ''), re.IGNORECASE)
+        if match:
+            resolved = _clean(match.group(1))
+            if resolved:
+                return resolved
+    return ''
 
 
 def _to_int(value):
@@ -126,7 +160,7 @@ def parse_preferente_standings(html):
                 'team': name.upper(),
                 'full_name': name,
                 'team_code': team_code,
-                'crest_url': '',
+                'crest_url': _extract_row_crest(tr),
                 'played': _to_int(cells[_COL['played']]) or 0,
                 'wins': wins or 0,
                 'draws': draws or 0,
