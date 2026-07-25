@@ -63,8 +63,10 @@ class TeamAdmin(admin.ModelAdmin):
         if len(teams) < 2:
             self.message_user(request, 'Selecciona al menos 2 equipos para fusionar.', level=messages.WARNING)
             return
+        # Conserva el equipo "oficial": primero el que tenga external_id (registrado en La
+        # Preferente); si ninguno, el de nombre más largo/completo (suele ser el oficial).
         with_ext = sorted((t for t in teams if str(t.external_id or '').strip()), key=lambda t: t.id)
-        keep = with_ext[0] if with_ext else sorted(teams, key=lambda t: t.id)[0]
+        keep = with_ext[0] if with_ext else sorted(teams, key=lambda t: (-len(t.name or ''), t.id))[0]
         merged = 0
         for drop in teams:
             if drop.id == keep.id:
