@@ -1777,9 +1777,11 @@
             </div>
             <div>
               <p class="general-season">Estadísticas {{ season_label }}</p>
+              <form method="get" style="display:contents;">
+                {% if selected_club_season_id %}<input type="hidden" name="club_season_id" value="{{ selected_club_season_id }}" />{% endif %}
               <div class="scope-filter">
                 <label for="playerScopeSelect">Ámbito</label>
-                <select id="playerScopeSelect" aria-label="Ámbito estadísticas">
+                <select id="playerScopeSelect" name="scope" aria-label="Ámbito estadísticas">
                   <option value="league" {% if scope_value == 'league' %}selected{% endif %}>Liga</option>
                   <option value="tournament" {% if scope_value == 'tournament' %}selected{% endif %}>Torneos</option>
                   <option value="friendly" {% if scope_value == 'friendly' %}selected{% endif %}>Amistosos</option>
@@ -1789,7 +1791,7 @@
               {% if scope_value == 'tournament' %}
               <div class="scope-filter" style="margin-left:0.8rem;">
                 <label for="playerTournamentSelect">Torneo</label>
-                <select id="playerTournamentSelect" aria-label="Torneo">
+                <select id="playerTournamentSelect" name="tournament" aria-label="Torneo">
                   <option value="">Todos</option>
                   {% for name in tournament_options %}
                     <option value="{{ name }}" {% if tournament_filter == name %}selected{% endif %}>{{ name }}</option>
@@ -1797,6 +1799,8 @@
                 </select>
               </div>
               {% endif %}
+                <button class="btn alt" type="submit" style="margin-left:0.5rem;">Ver</button>
+              </form>
               <h3 class="general-team">{{ player.team.display_name }}</h3>
               <p class="general-division">{{ division_label|default:'Categoría principal' }}</p>
             </div>
@@ -2340,7 +2344,7 @@
 	                </div>
 		                <div class="radar-legend">
 		                  <h4>Radar (normalizado)</h4>
-		                  <p>Escala 0–100 (Pxx dentro del equipo/filtro). Ejes: Compromiso, Esfuerzo, Calidad, Importancia e Influencia.</p>
+		                  <p>Escala 0–100 (Pxx dentro del equipo/filtro). Ejes: <strong title="Combina participación en partidos, disponibilidad y asistencia a entrenos">Compromiso</strong>, Esfuerzo, Calidad, Importancia e Influencia.</p>
 		                  <ul class="radar-axes" id="radar-axes-list"></ul>
 		                  <div class="radar-trends" id="radar-trends">
 	                    <div class="trend-card">
