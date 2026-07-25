@@ -20040,6 +20040,47 @@ def _build_coach_pitch_board_players(primary_team, roster_players, roster_member
                 "left": pitch_left.get(bucket, 50),
             }
         )
+    # Ojeados "A prueba": los ScoutingTarget marcados `available_for_coach_tools` aparecen en la
+    # pizarra como chips "A prueba" AUNQUE NO sean plantilla (honra el propósito del flag). Se
+    # excluyen los ya representados por un Player del roster para no duplicar. El chip enlaza a la
+    # ficha de OJEO (no a player-detail) y no persiste posición (id no numérico).
+    try:
+        from .models import ScoutingTarget, Workspace as _Workspace
+
+        _ws = _Workspace.objects.filter(primary_team=primary_team).first()
+        if _ws is not None:
+            _roster_pids = {int(getattr(p, "id", 0) or 0) for p in (roster_players or [])}
+            _scout_qs = (
+                ScoutingTarget.objects.filter(workspace=_ws, available_for_coach_tools=True)
+                .exclude(status=ScoutingTarget.STATUS_DISCARDED)
+                .only("id", "subject_name", "position", "player_id")
+            )
+            for _tgt in _scout_qs:
+                if _tgt.player_id and int(_tgt.player_id) in _roster_pids:
+                    continue  # ya se ve como jugador de la plantilla
+                _bucket = _roster_preview_bucket(getattr(_tgt, "position", "") or "")
+                _avatar = "gk_magenta.png" if _bucket == "gk" else "chandal_black.png"
+                try:
+                    _ficha = reverse("scouting-target-detail", args=[_tgt.id])
+                except Exception:
+                    _ficha = ""
+                groups.setdefault(_bucket, []).append(
+                    {
+                        "id": f"scout-{_tgt.id}",
+                        "name": (str(_tgt.subject_name or "").strip() or "Ojeado"),
+                        "number": None,
+                        "position": str(getattr(_tgt, "position", "") or "").strip(),
+                        "state": "trial",
+                        "state_label": "A prueba (ojeado)",
+                        "avatar": "football/images/coach_roster_avatars/library/" + _avatar,
+                        "left": pitch_left.get(_bucket, 50),
+                        "is_scout": True,
+                        "ficha_url": _ficha,
+                    }
+                )
+    except Exception:
+        pass
+
     saved_positions = _coach_pitch_board_positions(primary_team)
     players = []
     COL_OFFSET = 6.5  # separación horizontal (%) entre columnas cuando una línea va cargada
@@ -20059,10 +20100,12 @@ def _build_coach_pitch_board_players(primary_team, roster_players, roster_member
                 saved = saved_positions.get(item["id"])
                 if saved:
                     item["left"], item["top"] = saved[0], saved[1]
-                try:
-                    item["ficha_url"] = reverse("player-detail", args=[item["id"]])
-                except Exception:
-                    item["ficha_url"] = ""
+                # Los chips de ojeado ya traen su ficha_url (a la ficha de ojeo); no la pisamos.
+                if not item.get("ficha_url"):
+                    try:
+                        item["ficha_url"] = reverse("player-detail", args=[item["id"]])
+                    except Exception:
+                        item["ficha_url"] = ""
                 players.append(item)
     return players
 
@@ -68626,6 +68669,53 @@ def player_detail_page(request, player_id):
                     return redirect(f"{reverse('coach-roster')}?tab=manage")
                 return redirect(f"{reverse('player-detail', args=[player.id])}?error=no-workspace")
 
+            if form_action == "transfer_out":
+                # "Fichó por otro club" desde la ficha (zona personal): saca al jugador de la
+                # plantilla conservando ficha, histórico e identidad; registra club destino + fecha.
+                _ws = _get_active_workspace(request)
+                _dest_name = (request.POST.get("destination_club") or "").strip()
+                _dest_club = resolve_or_create_club(_dest_name) if _dest_name else None
+                _tdate = timezone.localdate()
+                _raw_date = (request.POST.get("transfer_date") or "").strip()
+                if _raw_date:
+                    try:
+                        _tdate = datetime.strptime(_raw_date, "%Y-%m-%d").date()
+                    except (ValueError, TypeError):
+                        pass
+                player.transferred_to_club = _dest_club
+                player.transferred_at = _tdate
+                player.is_active = False
+                player.save(update_fields=["transferred_to_club", "transferred_at", "is_active"])
+                if _ws is not None:
+                    try:
+                        _acs = selected_club_season_for_request(request, workspace=_ws)
+                    except Exception:
+                        _acs = None
+                    try:
+                        if _acs is not None:
+                            mark_player_left_current_season(
+                                _acs, player,
+                                notes=(f"Fichó por {_dest_club.name}." if _dest_club else "Fichó por otro club."),
+                            )
+                        ensure_workspace_player(_ws, player, current_team=primary_team, is_active=False)
+                    except Exception:
+                        pass
+                return redirect(f"{reverse('player-detail', args=[player.id])}?saved=1&tab=personal")
+
+            if form_action == "transfer_undo":
+                # Deshacer el traspaso: vuelve a la plantilla activa y limpia el destino.
+                _ws = _get_active_workspace(request)
+                player.transferred_to_club = None
+                player.transferred_at = None
+                player.is_active = True
+                player.save(update_fields=["transferred_to_club", "transferred_at", "is_active"])
+                if _ws is not None:
+                    try:
+                        ensure_workspace_player(_ws, player, current_team=primary_team, is_active=True)
+                    except Exception:
+                        pass
+                return redirect(f"{reverse('player-detail', args=[player.id])}?saved=1&tab=personal")
+
             if form_action == "profile":
                 uploaded_photo = request.FILES.get("player_photo")
                 uploaded_license = request.FILES.get("player_license")
@@ -70022,6 +70112,7 @@ def player_detail_page(request, player_id):
             "preferente_history_rows": preferente_history_rows,
             "season_state_label": season_state_label,
             "player_in_scouting": player_in_scouting,
+            "club_catalog": list(Club.objects.order_by("name").values_list("name", flat=True)),
             "identity_other_records": identity_other_records,
             "license_expiry_badge": license_expiry_badge,
             "form_last5": form_last5,

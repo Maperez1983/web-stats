@@ -19,7 +19,7 @@
   <div class="pb-field" data-pb-team="{{ primary_team_id|default:0 }}" data-pb-save-url="{% url 'coach-pitch-board-save' %}"
        style="background-image:url('{% static 'football/images/pitch3d/coach_home_pitch_surface.png' %}');">
     {% for p in coach_pitch_players %}
-    <a class="pb-chip pb-{{ p.state }}" href="{{ p.ficha_url }}" data-pb-pid="{{ p.id }}" draggable="false"
+    <a class="pb-chip pb-{{ p.state }}{% if p.is_scout %} pb-scout{% endif %}" href="{{ p.ficha_url }}" data-pb-pid="{{ p.id }}"{% if p.is_scout %} data-pb-scout="1"{% endif %} draggable="false"
        style="left:{{ p.left|unlocalize }}%;top:{{ p.top|unlocalize }}%;"
        title="{{ p.name }} · {{ p.state_label }}" aria-label="{{ p.name }}, {{ p.position|default:'jugador' }}, {{ p.state_label }}. Abrir ficha.">
       <span class="pb-avatar"><img src="{% static p.avatar %}" alt="" draggable="false" /></span>
@@ -163,8 +163,11 @@
       chip.classList.remove('pb-dragging');
       if (moved) {
         // Guarda posición en el servidor (compartida) y evita que el clic navegue a la ficha.
-        var l = parseFloat(chip.style.left), t = parseFloat(chip.style.top);
-        postForm({ team_id: team, player_id: chip.getAttribute('data-pb-pid'), left: l.toFixed(1), top: t.toFixed(1) });
+        // Los ojeados (chips sin Player) no persisten posición: su id no es numérico.
+        if (chip.getAttribute('data-pb-scout') !== '1') {
+          var l = parseFloat(chip.style.left), t = parseFloat(chip.style.top);
+          postForm({ team_id: team, player_id: chip.getAttribute('data-pb-pid'), left: l.toFixed(1), top: t.toFixed(1) });
+        }
         var block = function (ev) { ev.preventDefault(); ev.stopPropagation(); chip.removeEventListener('click', block, true); };
         chip.addEventListener('click', block, true);
       }

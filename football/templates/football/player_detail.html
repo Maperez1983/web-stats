@@ -1336,6 +1336,29 @@
           <button class="btn alt" type="submit" title="Lo mueve a Dirección deportiva como ojeado a prueba y lo baja de la plantilla">↩ Pasar a ojeado (a prueba)</button>
         </form>
         {% endif %}
+        <div style="margin:0 0 1rem;padding:0.7rem 0.85rem;border:1px solid rgba(148,163,184,0.35);border-radius:12px;">
+          <div style="font-weight:800;font-size:0.8rem;letter-spacing:0.04em;text-transform:uppercase;color:var(--prod-muted,rgba(15,23,42,0.6));margin-bottom:0.5rem;">Salida / traspaso a otro club</div>
+          {% if player.transferred_to_club %}
+          <p style="margin:0 0 0.5rem;">Fichó por <strong>{{ player.transferred_to_club.name }}</strong>{% if player.transferred_at %} · {{ player.transferred_at|date:"d/m/Y" }}{% endif %}. Fuera de la plantilla activa (ficha, histórico e identidad conservados).</p>
+          <form method="post" style="margin:0;" onsubmit="return confirm('¿Deshacer el traspaso y devolverlo a la plantilla activa?');">
+            {% csrf_token %}
+            <input type="hidden" name="form_action" value="transfer_undo" />
+            <button class="btn" type="submit">↩ Deshacer traspaso</button>
+          </form>
+          {% else %}
+          <p style="margin:0 0 0.5rem;" class="subtle">Si fichó por otro club, regístralo aquí: sale de la plantilla conservando ficha, histórico e identidad de persona.</p>
+          <form method="post" style="margin:0;display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;" onsubmit="return confirm('¿Registrar que fichó por otro club y sacarlo de la plantilla activa?');">
+            {% csrf_token %}
+            <input type="hidden" name="form_action" value="transfer_out" />
+            <input type="text" name="destination_club" list="ficha-club-catalog" placeholder="Fichó por… (club)" aria-label="Club por el que fichó" autocomplete="off" style="min-width:11rem;" />
+            <input type="date" name="transfer_date" aria-label="Fecha del traspaso" />
+            <button class="btn alt" type="submit">Registrar traspaso</button>
+          </form>
+          <datalist id="ficha-club-catalog">
+            {% for club_name in club_catalog %}<option value="{{ club_name }}"></option>{% endfor %}
+          </datalist>
+          {% endif %}
+        </div>
         {% endif %}
         <div class="attendance-summary-card">
           <div class="attendance-summary-head">
