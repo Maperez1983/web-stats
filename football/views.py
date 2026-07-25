@@ -33884,6 +33884,74 @@ def scouting_board_page(request):
         action = str(request.POST.get("action") or "").strip().lower()
         target_id = _parse_int(request.POST.get("target_id"))
         try:
+            if action == "import_preferente":
+                # Importa un jugador ojeado pegando el texto de su ficha de La Preferente
+                # (Cmd+A, Cmd+C en la página del jugador). No hace fetch: se parsea lo pegado.
+                from football.preferente_player_services import parse_preferente_player
+
+                parsed = parse_preferente_player(str(request.POST.get("preferente_text") or ""))
+                imp_name = _sanitize_task_text(parsed.get("name") or "", multiline=False, max_len=160)
+                if not imp_name:
+                    raise ValueError(
+                        "No pude leer el nombre en el texto pegado. Copia toda la página del jugador "
+                        "(Cmd+A, Cmd+C) y pégala completa."
+                    )
+                imp_current = str(parsed.get("current_team") or "").strip()
+                imp_origin = str(parsed.get("origin_team") or "").strip()
+                if "sin equipo" in imp_current.lower() and imp_origin:
+                    imp_team_label = f"Sin equipo (ex {imp_origin})"
+                else:
+                    imp_team_label = imp_current or imp_origin
+                imp_position = normalize_position_value(
+                    _sanitize_task_text(
+                        parsed.get("specific_position") or parsed.get("position") or "",
+                        multiline=False,
+                        max_len=60,
+                    )
+                )
+                imp_birth = parse_date(str(parsed.get("birth_date") or "").strip() or "") or None
+                imp_team_clean = _sanitize_task_text(imp_team_label, multiline=False, max_len=160)
+                # No duplicar: si ya hay un ojeado con ese nombre (externo, sin vincular), lo actualizamos.
+                target = ScoutingTarget.objects.filter(
+                    workspace=workspace, player__isnull=True, subject_name__iexact=imp_name
+                ).first()
+                if target is None:
+                    target = ScoutingTarget.objects.create(
+                        workspace=workspace,
+                        subject_name=imp_name,
+                        subject_team_name=imp_team_clean,
+                        position=imp_position,
+                        birth_date=imp_birth,
+                        status=ScoutingTarget.STATUS_WATCHLIST,
+                        priority=ScoutingTarget.PRIORITY_MEDIUM,
+                        created_by=request.user,
+                        assigned_to=request.user if can_manage_workspace else None,
+                    )
+                else:
+                    target.subject_team_name = imp_team_clean
+                    target.position = imp_position or target.position
+                    target.birth_date = imp_birth or target.birth_date
+                    target.save(update_fields=["subject_team_name", "position", "birth_date", "updated_at"])
+                # Reemplaza el historial por temporada (idempotente: re-pegar refresca).
+                target.season_stats.all().delete()
+                imp_seasons = 0
+                for srow in parsed.get("seasons") or []:
+                    if not (srow.get("team") or srow.get("goals") or srow.get("matches_completed")):
+                        continue
+                    ScoutingTargetSeasonStat.objects.create(
+                        target=target,
+                        season=str(srow.get("season") or "")[:40],
+                        team=str(srow.get("team") or "")[:160],
+                        division=str(srow.get("division") or "")[:120],
+                        matches_completed=int(srow.get("matches_completed") or 0),
+                        matches_starter=int(srow.get("matches_starter") or 0),
+                        goals=int(srow.get("goals") or 0),
+                        yellow_cards=int(srow.get("yellow_cards") or 0),
+                        red_cards=int(srow.get("red_cards") or 0),
+                        created_by=request.user,
+                    )
+                    imp_seasons += 1
+                return redirect(f"{reverse('scouting-target-detail', args=[target.id])}?saved=1&imported={imp_seasons}")
             if action == "create":
                 subject_name = _sanitize_task_text(
                     str(request.POST.get("subject_name") or "").strip(), multiline=False, max_len=160

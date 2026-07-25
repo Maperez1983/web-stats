@@ -733,6 +733,21 @@
 
       {% if can_manage_workspace %}
       <section class="workspace-panel" data-scout-panel="create">
+        <section class="create-panel" style="margin-bottom:1.1rem;border:1px solid rgba(120,200,160,0.28);">
+          <h2>Importar de La Preferente</h2>
+          <p>Abre la ficha del jugador en La Preferente, selecciónala entera (<strong>Cmd+A</strong>), cópiala (<strong>Cmd+C</strong>) y pégala aquí. Se crea el ojeado con sus datos y todo el historial (equipos, partidos, goles, tarjetas).</p>
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="import_preferente" />
+            <label style="display:block;">
+              Texto de la ficha del jugador
+              <textarea name="preferente_text" rows="6" style="width:100%;font-family:inherit;" placeholder="Pega aquí el contenido de la página del jugador de La Preferente…" required></textarea>
+            </label>
+            <div class="actions" style="margin-top:0.6rem;">
+              <button class="btn primary" type="submit">Importar jugador ojeado</button>
+            </div>
+          </form>
+        </section>
         <section class="create-panel">
           <h2>Nuevo ojeado</h2>
           <p>Alta rápida para meter un jugador en la bandeja y empezar a seguirlo desde hoy.</p>
