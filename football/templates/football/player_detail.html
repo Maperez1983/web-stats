@@ -304,6 +304,12 @@
       .avail-ok .avail-dot { background: #2f7d32; }
       .avail-warn { background: rgba(210,65,65,0.12); border-color: rgba(210,65,65,0.35); }
       .avail-warn .avail-dot { background: #d24141; }
+      .identity-records { margin: 0 0 1.1rem; padding: 0.8rem 0.9rem; border-radius: 12px; border: 1px solid rgba(148,163,184,0.22); background: rgba(2,6,23,0.18); }
+      .identity-records-list { display: flex; flex-direction: column; gap: 0.4rem; }
+      .identity-record { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; text-decoration: none; color: var(--prod-text, #f5f7fa); padding: 0.5rem 0.65rem; border-radius: 9px; border: 1px solid rgba(148,163,184,0.18); background: rgba(2,6,23,0.28); }
+      .identity-record:hover { border-color: rgba(244,180,0,0.4); }
+      .identity-record-team { font-weight: 800; }
+      .identity-record-meta { color: var(--prod-muted, rgba(203,213,225,0.7)); font-size: 0.88rem; margin-right: auto; }
       .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; }
       label { display: flex; flex-direction: column; font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--prod-muted, rgba(15, 23, 42, 0.64)); gap: 0.35rem; }
       input, select, textarea { border-radius: 0.65rem; border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28)); padding: 0.6rem 0.75rem; background: rgba(2, 6, 23, 0.08); color: var(--prod-text, #f5f7fa); font-size: 0.95rem; }
@@ -1990,6 +1996,21 @@
         <p class="subtle" style="margin-top:0;">
           La ficha del jugador permanece aunque cambie de estado. Cada temporada conserva su pertenencia, confirmación y documentos filtrados por año.
         </p>
+        {% if identity_other_records %}
+          <div class="identity-records">
+            <h3 style="margin:0.2rem 0 0.5rem;">Misma persona en otros equipos</h3>
+            <p class="subtle" style="margin-top:0;">Este jugador es la misma entidad en estas fichas (no se duplica al cambiar de equipo).</p>
+            <div class="identity-records-list">
+              {% for r in identity_other_records %}
+                <a class="identity-record" href="{{ r.url }}">
+                  <span class="identity-record-team">{{ r.team }}</span>
+                  <span class="identity-record-meta">{% if r.number %}#{{ r.number }} · {% endif %}{{ r.name }}</span>
+                  <span class="pill {% if r.is_active %}ok{% else %}warn{% endif %}">{% if r.is_active %}Activo{% else %}Inactivo{% endif %}</span>
+                </a>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
         {% if season_history_rows %}
           <div class="season-history-grid">
             {% for row in season_history_rows %}

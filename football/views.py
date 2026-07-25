@@ -69500,6 +69500,34 @@ def player_detail_page(request, player_id):
             _pd_status = {"in_scouting": False}
         player_in_scouting = bool(_pd_status.get("in_scouting"))
 
+        # Identidad global (Fase 4): otras fichas de la MISMA persona en equipos que el usuario
+        # puede ver (otras categorías/temporadas del club). Materializa la "entidad propia" y
+        # respeta el alcance (no filtra datos de equipos no permitidos).
+        identity_other_records = []
+        try:
+            _ident_id = getattr(player, "identity_id", None)
+            if _ident_id:
+                _allowed_ids = _allowed_team_ids_for_request(request)
+                _other_qs = (
+                    Player.objects.filter(identity_id=_ident_id)
+                    .exclude(pk=player.pk)
+                    .select_related("team")
+                )
+                if _allowed_ids:
+                    _other_qs = _other_qs.filter(team_id__in=_allowed_ids)
+                for _op in _other_qs.order_by("-is_active", "team__name", "id")[:20]:
+                    _team = getattr(_op, "team", None)
+                    identity_other_records.append({
+                        "id": int(_op.id),
+                        "name": _op.name,
+                        "team": (getattr(_team, "display_name", "") or getattr(_team, "name", "") or "—"),
+                        "number": _op.number,
+                        "is_active": bool(_op.is_active),
+                        "url": reverse("player-detail", args=[_op.id]),
+                    })
+        except Exception:
+            identity_other_records = []
+
         # Aviso de caducidad de licencia federativa (renovación). tone = clase pill (ok/warn).
         license_expiry_badge = None
         try:
@@ -69767,6 +69795,7 @@ def player_detail_page(request, player_id):
             "preferente_history_rows": preferente_history_rows,
             "season_state_label": season_state_label,
             "player_in_scouting": player_in_scouting,
+            "identity_other_records": identity_other_records,
             "license_expiry_badge": license_expiry_badge,
             "form_last5": form_last5,
             "next_match_availability": next_match_availability,
