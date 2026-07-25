@@ -126,6 +126,57 @@ def resolve_or_create_club(name):
     return Club.objects.create(name=str(name or '').strip()[:150] or 'Club', name_key=key)
 
 
+class ClubCategory(models.Model):
+    """
+    Categoría (sección) dentro de un Club: Senior, Juvenil, Cadete A, Prebenjamín…
+
+    Es la SUB-ENTIDAD del club, con id propio: agrupa los equipos de esa categoría a lo largo de
+    las temporadas y sirve como destino ESTABLE (p. ej. de un traspaso) aunque no exista un `Team`
+    en una liga concreta. Formaliza la jerarquía Club → Categoría → Equipo y escala mejor que
+    llevar la categoría como texto suelto en cada sitio.
+    """
+
+    club = models.ForeignKey('Club', on_delete=models.CASCADE, related_name='categories')
+    name = models.CharField(max_length=60)
+    name_key = models.CharField(max_length=80, blank=True, db_index=True)
+    order = models.PositiveSmallIntegerField(default=0, help_text='Orden por edad/nivel (0 = sin definir).')
+    game_format = models.CharField(max_length=8, blank=True, help_text='F7/F11 si aplica.')
+    external_id = models.CharField(max_length=120, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['club_id', 'order', 'name', 'id']
+        unique_together = ('club', 'name_key')
+        verbose_name = 'Categoría de club'
+        verbose_name_plural = 'Categorías de club'
+
+    def save(self, *args, **kwargs):
+        self.name_key = normalize_team_name_key(self.name)
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None and 'name' in set(update_fields):
+            kwargs['update_fields'] = sorted(set(update_fields) | {'name_key'})
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'{self.club.name} · {self.name}'
+
+
+def resolve_or_create_category(club, name):
+    """Devuelve la `ClubCategory` de `name` DENTRO de `club`, reutilizando por name_key (o
+    creándola). Dedup por (club, name_key): dos categorías del mismo club no se duplican, y la
+    misma categoría de clubes distintos son entidades distintas."""
+    if club is None:
+        return None
+    key = normalize_team_name_key(name)
+    if not key:
+        return None
+    cat = ClubCategory.objects.filter(club=club, name_key=key).first()
+    if cat is not None:
+        return cat
+    return ClubCategory.objects.create(club=club, name=str(name or '').strip()[:60], name_key=key)
+
+
 class Team(models.Model):
     name = models.CharField(max_length=150)
     # Club real al que pertenece este equipo. Varios equipos por categoría comparten club.
@@ -154,6 +205,16 @@ class Team(models.Model):
         blank=True,
         help_text='Categoría del club (ej. Prebenjamín, Cadete, Senior). Solo se usa para equipos propios.',
     )
+    # Categoría como ENTIDAD (sub-id del club). Convive con el texto `category` durante la
+    # transición; se autoenlaza en save() por (club, nombre). Additivo/nullable.
+    category_ref = models.ForeignKey(
+        'ClubCategory',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='teams',
+        help_text='Categoría (sub-entidad del club) a la que pertenece este equipo.',
+    )
     GAME_FORMAT_F7 = 'f7'
     GAME_FORMAT_F11 = 'f11'
     GAME_FORMAT_CHOICES = [
@@ -180,6 +241,13 @@ class Team(models.Model):
             try:
                 self.club = resolve_or_create_club(self.name)
                 extra_fields.add('club')
+            except Exception:
+                pass
+        # Autoenlaza la categoría-entidad (sub-id del club) desde el texto `category`, si falta.
+        if self.category_ref_id is None and self.club_id and (self.category or '').strip():
+            try:
+                self.category_ref = resolve_or_create_category(self.club, self.category)
+                extra_fields.add('category_ref')
             except Exception:
                 pass
         update_fields = kwargs.get('update_fields')
@@ -1115,6 +1183,17 @@ class Player(models.Model):
     # de ese club. Texto libre porque el equipo destino puede no existir en nuestro sistema.
     transferred_to_category = models.CharField(
         max_length=60, blank=True, help_text='Categoría/equipo dentro del club destino (ej. Senior, Cadete).'
+    )
+    # Destino del traspaso como ENTIDAD: la categoría (sub-id del club), estable aunque no exista
+    # su equipo en ninguna liga. Convive con el texto durante la transición; se rellena en el
+    # handler vía resolve_or_create_category(club, categoría).
+    transferred_to_category_ref = models.ForeignKey(
+        'ClubCategory',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='incoming_transfers',
+        help_text='Categoría destino (sub-entidad del club) del traspaso.',
     )
     # Control de caché de foto (para busting sin depender de caches por proceso).
     photo_updated_at = models.DateTimeField(null=True, blank=True)

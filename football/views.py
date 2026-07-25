@@ -442,6 +442,7 @@ from football.models import (
     WorkspaceTeam,
     WorkspaceTeamAccess,
     _norm_identity_name,
+    resolve_or_create_category,
     resolve_or_create_club,
 )
 from football.query_helpers import (
@@ -35437,7 +35438,8 @@ def coach_roster_page(request):
                 player.transferred_to_club = None
                 player.transferred_at = None
                 player.transferred_to_category = ""
-                player.save(update_fields=["team", "is_active", "transferred_to_club", "transferred_at", "transferred_to_category"])
+                player.transferred_to_category_ref = None
+                player.save(update_fields=["team", "is_active", "transferred_to_club", "transferred_at", "transferred_to_category", "transferred_to_category_ref"])
                 ensure_workspace_player(workspace, player, current_team=primary_team, is_active=True)
                 if active_club_season and active_club_season_is_current:
                     membership = ensure_player_season_membership(
@@ -35487,11 +35489,13 @@ def coach_roster_page(request):
                     except (ValueError, TypeError):
                         pass
                 dest_category = (request.POST.get("destination_category") or "").strip()[:60]
+                dest_cat_ref = resolve_or_create_category(dest_club, dest_category) if (dest_club and dest_category) else None
                 player.transferred_to_club = dest_club
                 player.transferred_at = transfer_date
                 player.transferred_to_category = dest_category
+                player.transferred_to_category_ref = dest_cat_ref
                 player.is_active = False
-                player.save(update_fields=["transferred_to_club", "transferred_at", "transferred_to_category", "is_active"])
+                player.save(update_fields=["transferred_to_club", "transferred_at", "transferred_to_category", "transferred_to_category_ref", "is_active"])
                 _club_label = (f"{dest_club.name} · {dest_category}" if dest_club and dest_category else (dest_club.name if dest_club else "otro club"))
                 left_note = f"Fichó por {_club_label}."
                 if active_club_season:
@@ -68695,11 +68699,13 @@ def player_detail_page(request, player_id):
                     except (ValueError, TypeError):
                         pass
                 _dest_category = (request.POST.get("destination_category") or "").strip()[:60]
+                _dest_cat_ref = resolve_or_create_category(_dest_club, _dest_category) if (_dest_club and _dest_category) else None
                 player.transferred_to_club = _dest_club
                 player.transferred_at = _tdate
                 player.transferred_to_category = _dest_category
+                player.transferred_to_category_ref = _dest_cat_ref
                 player.is_active = False
-                player.save(update_fields=["transferred_to_club", "transferred_at", "transferred_to_category", "is_active"])
+                player.save(update_fields=["transferred_to_club", "transferred_at", "transferred_to_category", "transferred_to_category_ref", "is_active"])
                 _label = (f"{_dest_club.name} · {_dest_category}" if _dest_club and _dest_category else (_dest_club.name if _dest_club else "otro club"))
                 if _ws is not None:
                     try:
@@ -68723,8 +68729,9 @@ def player_detail_page(request, player_id):
                 player.transferred_to_club = None
                 player.transferred_at = None
                 player.transferred_to_category = ""
+                player.transferred_to_category_ref = None
                 player.is_active = True
-                player.save(update_fields=["transferred_to_club", "transferred_at", "transferred_to_category", "is_active"])
+                player.save(update_fields=["transferred_to_club", "transferred_at", "transferred_to_category", "transferred_to_category_ref", "is_active"])
                 if _ws is not None:
                     try:
                         ensure_workspace_player(_ws, player, current_team=primary_team, is_active=True)

@@ -143,13 +143,28 @@ class ClubAdmin(admin.ModelAdmin):
             )
 
 
+@admin.register(models.ClubCategory)
+class ClubCategoryAdmin(admin.ModelAdmin):
+    list_display = ('name', 'club', 'order', 'game_format', 'team_count', 'name_key')
+    search_fields = ('name', 'name_key', 'club__name', 'external_id')
+    autocomplete_fields = ('club',)
+    ordering = ('club__name', 'order', 'name')
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('club').prefetch_related('teams')
+
+    @admin.display(description='Equipos')
+    def team_count(self, obj):
+        return obj.teams.count()
+
+
 @admin.register(models.Team)
 class TeamAdmin(admin.ModelAdmin):
-    list_display = ('name', 'club', 'category', 'name_key', 'external_id', 'possible_duplicates', 'possible_duplicates_fuzzy', 'group', 'is_primary')
+    list_display = ('name', 'club', 'category', 'category_ref', 'name_key', 'external_id', 'possible_duplicates', 'possible_duplicates_fuzzy', 'group', 'is_primary')
     list_filter = ('game_format', 'group', 'is_primary')
     search_fields = ('name', 'short_name', 'slug', 'category', 'name_key', 'external_id', 'preferente_url')
     prepopulated_fields = {'slug': ('name',)}
-    autocomplete_fields = ('club',)
+    autocomplete_fields = ('club', 'category_ref')
     ordering = ('name_key', 'name')
     actions = ('merge_selected_teams',)
 
