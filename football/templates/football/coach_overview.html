@@ -301,7 +301,9 @@
       .standings-table th:nth-child(5),
       .standings-table td:nth-child(5),
       .standings-table th:nth-child(6),
-      .standings-table td:nth-child(6) {
+      .standings-table td:nth-child(6),
+      .standings-table th:nth-child(7),
+      .standings-table td:nth-child(7) {
         width: 2.6rem;
         text-align: right;
       }
@@ -321,7 +323,8 @@
       .standings-table td:nth-child(3),
       .standings-table td:nth-child(4),
       .standings-table td:nth-child(5),
-      .standings-table td:nth-child(6) {
+      .standings-table td:nth-child(6),
+      .standings-table td:nth-child(7) {
         font-size: 0.86rem;
         color: rgba(226, 232, 240, 0.82);
       }
@@ -709,6 +712,7 @@
                   <th scope="col">PJ</th>
                   <th scope="col" title="Goles a favor">GF</th>
                   <th scope="col" title="Goles en contra">GC</th>
+                  <th scope="col" title="Diferencia de goles">DG</th>
                 </tr>
               </thead>
               <tbody>
@@ -720,6 +724,7 @@
                   <td>{{ row.played|default:"-" }}</td>
                   <td>{{ row.goals_for|default:"-" }}</td>
                   <td>{{ row.goals_against|default:"-" }}</td>
+                  <td>{% if row.goal_difference != None %}{% if row.goal_difference > 0 %}+{% endif %}{{ row.goal_difference }}{% else %}-{% endif %}</td>
                 </tr>
                 {% endfor %}
               </tbody>
