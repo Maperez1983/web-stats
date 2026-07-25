@@ -212,7 +212,7 @@ class Command(BaseCommand):
                 if team_code:
                     team = Team.objects.filter(external_id=team_code).first()
                 if not team:
-                    team = Team.objects.filter(name_key=normalize_team_name_key(team_name)).first()
+                    team = Team.objects.filter(name_key=normalize_team_name_key(team_name), group=group).first()
                 if not team:
                     team = Team.objects.create(
                         name=team_name,
@@ -375,7 +375,7 @@ class Command(BaseCommand):
 
                 team = Team.objects.filter(external_id=team_code).first()
                 if not team:
-                    team = Team.objects.filter(name_key=normalize_team_name_key(team_name)).first()
+                    team = Team.objects.filter(name_key=normalize_team_name_key(team_name), group=group).first()
                 if not team:
                     team = Team.objects.create(
                         name=team_name,

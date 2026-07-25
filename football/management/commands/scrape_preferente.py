@@ -13,6 +13,7 @@ from football.models import (
     Season,
     Team,
     TeamStanding,
+    resolve_or_create_team,
 )
 
 
@@ -116,14 +117,22 @@ class Command(BaseCommand):
             if not team_name:
                 continue
 
-            team, _ = Team.objects.update_or_create(
-                slug=slugify(team_name),
-                defaults={
-                    'name': team_name,
-                    'group': group,
-                    'is_primary': 'benagalbon' in team_name.lower(),
-                },
+            team, _team_created = resolve_or_create_team(
+                name=team_name,
+                group=group,
+                defaults={'is_primary': 'benagalbon' in team_name.lower()},
             )
+            # Mantener grupo/primary al día en equipos ya existentes (sin renombrar el canónico).
+            _sp_changed = []
+            if group and team.group_id != getattr(group, 'id', None):
+                team.group = group
+                _sp_changed.append('group')
+            _sp_is_primary = 'benagalbon' in team_name.lower()
+            if team.is_primary != _sp_is_primary:
+                team.is_primary = _sp_is_primary
+                _sp_changed.append('is_primary')
+            if _sp_changed:
+                team.save(update_fields=_sp_changed)
 
             standing_values = {
                 'position': parse_number(

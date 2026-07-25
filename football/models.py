@@ -168,13 +168,16 @@ def resolve_or_create_team(*, name, external_id='', preferente_url='', group=Non
 
     key = normalize_team_name_key(name)
     if key:
-        qs = Team.objects.filter(name_key=key)
-        team = None
+        # name_key SOLO desambigua dentro del mismo grupo (o cuando es único globalmente): dos
+        # categorías del mismo club comparten name_key y NO deben fusionarse.
         if group is not None:
-            team = qs.filter(group=group).first()
-        team = team or qs.first()
-        if team:
-            return team, False
+            team = Team.objects.filter(name_key=key, group=group).first()
+            if team:
+                return team, False
+        else:
+            candidates = list(Team.objects.filter(name_key=key)[:2])
+            if len(candidates) == 1:
+                return candidates[0], False
 
     values = dict(defaults or {})
     values.setdefault('external_id', external_id)

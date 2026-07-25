@@ -42,7 +42,7 @@ from football.local_llm import call_ollama_json, call_ollama_vision_json, local_
 from football.database_inspector import inspect_database_readonly
 from football.render_api import inspect_render_service, list_render_services, render_api_key
 from football.web_research import MAX_URLS, compact_web_research, fetch_web_research_with_browser, parse_research_urls, search_web_research
-from football.models import Competition, ConvocationRecord, Group, Match, Player, RivalAnalysisReport, SessionTask, Team, TrainingMicrocycle, TrainingSession, WorkspaceCompetitionContext, WorkspacePreference, WorkspaceSeason, WorkspaceTeam
+from football.models import Competition, ConvocationRecord, Group, Match, Player, RivalAnalysisReport, SessionTask, Team, TrainingMicrocycle, TrainingSession, WorkspaceCompetitionContext, WorkspacePreference, WorkspaceSeason, WorkspaceTeam, resolve_or_create_team
 from football.task_backups import write_task_backup
 from football.session_import_services import get_or_create_inbox_microcycle, get_or_create_library_session_with_repository
 from football.session_plan_fields import serialize_session_plan_fields
@@ -6803,15 +6803,9 @@ def _ensure_match_from_payload(payload: dict, *, workspace=None, team=None) -> t
     rival_name = str(payload.get("rival") or "").strip()
     rival = None
     if rival_name:
-        rival = Team.objects.filter(name__iexact=rival_name).order_by("id").first()
-    if rival is None and rival_name:
-        rival_slug_base = slugify(rival_name)[:140] or f"rival-{int(team.id)}"
-        rival = Team.objects.create(
-            name=rival_name[:150],
-            slug=f"{rival_slug_base}-{int(time.time())}"[:150],
-            group=group,
-            is_primary=False,
-        )
+        # Dedup por identidad de equipo (external_id/preferente_url/name_key): antes se creaba
+        # SIEMPRE un equipo con slug por timestamp si el nombre no casaba exacto -> duplicaba.
+        rival, _rival_created = resolve_or_create_team(name=rival_name, group=group, defaults={'is_primary': False})
     is_home = bool(payload.get("is_home"))
     is_away = bool(payload.get("is_away"))
     home_team = team if is_home or not is_away else rival

@@ -187,11 +187,8 @@ class Command(BaseCommand):
             if not match:
                 opponent = opponents.get(rival_name)
                 if not opponent:
-                    opponent_slug = slugify(rival_name) or f'rival-{partido_id}'
-                    opponent, _ = Team.objects.get_or_create(
-                        slug=opponent_slug,
-                        defaults={'name': rival_name, 'group': group},
-                    )
+                    from football.models import resolve_or_create_team
+                    opponent, _ = resolve_or_create_team(name=rival_name, group=group)
                     opponents[rival_name] = opponent
 
                 round_label = self.safe_text(row.get('jornada'), default=f'Partido {partido_id}')

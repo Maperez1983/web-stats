@@ -9646,18 +9646,13 @@ def _import_universo_competition_candidate(*, competition_key, group_key, team_k
         row_team_crest = _absolute_universo_url(row.get("escudo_equipo") or row.get("escudo"))
         if not row_team_name:
             continue
-        team = Team.objects.filter(external_id=row_team_key).first() if row_team_key else None
-        if not team:
-            team = Team.objects.filter(group=group, name__iexact=row_team_name).first()
-        if not team:
-            team = Team.objects.create(
-                name=row_team_name,
-                slug=_unique_team_slug(row_team_name),
-                short_name=row_team_name[:60],
-                group=group,
-                external_id=row_team_key,
-                is_primary=False,
-            )
+        from football.models import resolve_or_create_team
+        team, _ = resolve_or_create_team(
+            name=row_team_name,
+            external_id=row_team_key or "",
+            group=group,
+            defaults={"short_name": row_team_name[:60], "is_primary": False},
+        )
         changed_fields = []
         if team.group_id != group.id:
             team.group = group
@@ -9711,14 +9706,11 @@ def _import_universo_competition_candidate(*, competition_key, group_key, team_k
         opponent_key = _normalize_team_lookup_key(opponent_name)
         opponent = Team.objects.filter(group=group, external_id__iexact=opponent_key).first()
         if not opponent:
-            opponent = Team.objects.filter(group=group, name__iexact=opponent_name).first()
-        if not opponent:
-            opponent = Team.objects.create(
+            from football.models import resolve_or_create_team
+            opponent, _ = resolve_or_create_team(
                 name=opponent_name,
-                slug=_unique_team_slug(opponent_name),
-                short_name=opponent_name[:60],
                 group=group,
-                is_primary=False,
+                defaults={"short_name": opponent_name[:60], "is_primary": False},
             )
         opponent_crest = ""
         opponent_payload = next_payload.get("opponent")
@@ -10254,11 +10246,11 @@ def _upsert_match_from_next_match_payload(primary_team, payload):
         .first()
     )
     if not opponent:
-        opponent = Team.objects.create(
+        from football.models import resolve_or_create_team
+        opponent, _ = resolve_or_create_team(
             name=opponent_name,
-            slug=_unique_team_slug(opponent_name),
-            short_name=opponent_name[:60],
             group=group,
+            defaults={"short_name": opponent_name[:60]},
         )
     is_home = payload.get("home")
     if is_home is None:

@@ -20,7 +20,7 @@ from openpyxl import load_workbook
 from django.utils import timezone
 
 from football.competition_season_services import current_season_name
-from football.models import Competition, Group, Season, Team, TeamStanding
+from football.models import Competition, Group, Season, Team, TeamStanding, resolve_or_create_team
 
 
 USER_AGENT = 'webstats-crm/1.0'
@@ -329,10 +329,10 @@ def _resolve_team_for_standings(team_name: str, group: Group) -> Team:
     by_slug = Team.objects.filter(slug=team_slug).first()
     if by_slug:
         return by_slug
-    for candidate in Team.objects.filter(group=group):
-        if _normalize_team_key(candidate.name) == normalized_name:
-            return candidate
-    return Team.objects.create(slug=team_slug, name=team_name, group=group)
+    # Fuente única de dedup (external_id -> preferente_url -> name_key), evita duplicar el
+    # mismo equipo real escrito con variaciones al importar la clasificación.
+    team, _created = resolve_or_create_team(name=team_name, group=group)
+    return team
 
 
 def _normalize_team_key(value: str) -> str:
