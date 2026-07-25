@@ -73,6 +73,45 @@ class ParsePreferenteStandingsTests(SimpleTestCase):
     def test_fetch_next_match_returns_empty_without_team_id_in_url(self):
         self.assertEqual(pcs.fetch_preferente_next_match('https://www.lapreferente.com/no-id/foo'), {})
 
+    def test_active_season_extra_column_does_not_scramble(self):
+        # Maqueta de temporada activa: una columna extra antes de PT desplaza los índices
+        # fijos (bug "PJ=puntos / PTS vacío"). El parser se ancla en title="Puntos del...".
+        html = (
+            '<table id="tableClasif"><tr>'
+            '<th></th><th colspan="2">Equipo</th><th title="Puntos">PT</th>'
+            '<th title="Partidos Jugados">PJ</th><th>PG</th><th>PE</th><th>PP</th>'
+            '<th>GF</th><th>GC</th><th>DG</th></tr>'
+            '<tr>'
+            '<td>4</td>'
+            '<td><a href="E147C26717-1/cd-benagalbon"><img/></a></td>'
+            '<td><a href="E147C26717-1/cd-benagalbon">C.D. Benagalbón</a></td>'
+            '<td class="extra">&nbsp;</td>'
+            '<td title="Puntos del C.D. Benagalbón">55</td>'
+            '<td>30</td><td>16</td><td>7</td><td>7</td>'
+            '<td>44</td><td>20</td><td>24</td></tr></table>'
+        )
+        rows = pcs.parse_preferente_standings(html)
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertEqual(row['full_name'], 'C.D. Benagalbón')
+        self.assertEqual(row['points'], 55)
+        self.assertEqual(row['played'], 30)
+        self.assertEqual(row['wins'], 16)
+        self.assertEqual(row['goals_for'], 44)
+        self.assertEqual(row['goals_against'], 20)
+        self.assertEqual(row['goal_difference'], 24)
+
+    def test_impossible_played_discards_table(self):
+        # Guardia: si PJ sale imposible (>60), no devolvemos clasificación revuelta.
+        html = (
+            '<table id="tableClasif"><tr>'
+            '<th></th><th>Equipo</th><th>PT</th><th>PJ</th><th>PG</th><th>PE</th>'
+            '<th>PP</th><th>GF</th><th>GC</th><th>DG</th></tr>'
+            '<tr><td>1</td><td></td><td>Test FC</td><td></td><td>99</td><td>0</td>'
+            '<td>0</td><td>0</td><td>5</td><td>44</td><td></td></tr></table>'
+        )
+        self.assertEqual(pcs.parse_preferente_standings(html), [])
+
     def test_derives_points_and_goal_difference_when_absent(self):
         html = (
             '<table id="tableClasif"><tr>'

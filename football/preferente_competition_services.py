@@ -106,6 +106,13 @@ def _to_int(value):
     return int(match.group(0)) if match else None
 
 
+def _cell_int(cells, index):
+    """_to_int de cells[index] tolerando índices fuera de rango o None."""
+    if index is None or index < 0 or index >= len(cells):
+        return None
+    return _to_int(cells[index])
+
+
 def _row_cells(row):
     # recursive=False: la web anida tablas dentro de celdas; sin esto salen cientos de celdas basura.
     return [cell.get_text(' ', strip=True) for cell in row.find_all(['td', 'th'], recursive=False)]
@@ -129,29 +136,65 @@ def parse_preferente_standings(html):
 
     rows = []
     for tr in table.find_all('tr'):
-        cells = _row_cells(tr)
+        cell_els = tr.find_all(['td', 'th'], recursive=False)
+        # recursive=False: la web anida tablas dentro de celdas; sin esto salen cientos de basura.
+        cells = [cell.get_text(' ', strip=True) for cell in cell_els]
         if len(cells) <= _COL['goal_difference']:
             continue
-        name = str(cells[_COL['team']] or '').strip()
+        position = _to_int(cells[_COL['position']])
+        if position is None:  # cabecera / filas basura: la 1ª celda no es un puesto
+            continue
+        # El escudo y el nombre son DOS enlaces con el MISMO href E<code>C<comp>; el del
+        # escudo es una <img> sin texto. Cogemos el código de cualquiera y el nombre del
+        # enlace que lleva texto (fallback a la columna de equipo si no hay).
+        team_link = None
+        name_link = None
+        for anchor in tr.find_all('a', href=True):
+            if not _TEAM_HREF_RE.search(anchor['href']):
+                continue
+            if team_link is None:
+                team_link = anchor
+            if name_link is None and anchor.get_text(' ', strip=True).strip():
+                name_link = anchor
+        team_code = ''
+        if team_link is not None:
+            code_match = _TEAM_HREF_RE.search(team_link['href'])
+            team_code = f'E{code_match.group(1)}' if code_match else ''
+        if name_link is not None:
+            name = name_link.get_text(' ', strip=True).strip()
+        else:
+            name = str(cells[_COL['team']] or '').strip()
         if not name or name.lower() == 'equipo':  # cabecera
             continue
-        position = _to_int(cells[_COL['position']])
-        if position is None:
-            continue
-        team_code = ''
-        link = tr.find('a', href=True)
-        if link:
-            match = _TEAM_HREF_RE.search(link['href'])
-            if match:
-                team_code = f'E{match.group(1)}'
-        goals_for = _to_int(cells[_COL['goals_for']])
-        goals_against = _to_int(cells[_COL['goals_against']])
-        goal_difference = _to_int(cells[_COL['goal_difference']])
+        # Anclaje de columnas por la CELDA de puntos (title="Puntos del <equipo>"): leer las
+        # stats RELATIVAS a ella es inmune a que La Preferente inserte/quite columnas en
+        # temporada activa. Ese desplazamiento era el bug de "PJ=puntos / PTS vacío".
+        points_idx = None
+        for i, cell in enumerate(cell_els):
+            if str(cell.get('title') or '').strip().lower().startswith('puntos'):
+                points_idx = i
+                break
+        if points_idx is not None:
+            idx = {
+                'points': points_idx,
+                'played': points_idx + 1,
+                'wins': points_idx + 2,
+                'draws': points_idx + 3,
+                'losses': points_idx + 4,
+                'goals_for': points_idx + 5,
+                'goals_against': points_idx + 6,
+                'goal_difference': points_idx + 7,
+            }
+        else:
+            idx = _COL
+        goals_for = _cell_int(cells, idx.get('goals_for'))
+        goals_against = _cell_int(cells, idx.get('goals_against'))
+        goal_difference = _cell_int(cells, idx.get('goal_difference'))
         if goal_difference is None and goals_for is not None and goals_against is not None:
             goal_difference = goals_for - goals_against
-        wins = _to_int(cells[_COL['wins']])
-        draws = _to_int(cells[_COL['draws']])
-        points = _to_int(cells[_COL['points']])
+        wins = _cell_int(cells, idx.get('wins'))
+        draws = _cell_int(cells, idx.get('draws'))
+        points = _cell_int(cells, idx.get('points'))
         if points is None and wins is not None and draws is not None:
             points = wins * 3 + draws
         rows.append(
@@ -161,16 +204,20 @@ def parse_preferente_standings(html):
                 'full_name': name,
                 'team_code': team_code,
                 'crest_url': _extract_row_crest(tr),
-                'played': _to_int(cells[_COL['played']]) or 0,
+                'played': _cell_int(cells, idx.get('played')) or 0,
                 'wins': wins or 0,
                 'draws': draws or 0,
-                'losses': _to_int(cells[_COL['losses']]) or 0,
+                'losses': _cell_int(cells, idx.get('losses')) or 0,
                 'goals_for': goals_for or 0,
                 'goals_against': goals_against or 0,
                 'goal_difference': goal_difference if goal_difference is not None else 0,
                 'points': points or 0,
             }
         )
+    # Guardia de cordura: un nº de partidos jugados imposible (>50; el máximo real ronda 34-42)
+    # indica que la maqueta no encaja; preferimos NO mostrar clasificación antes que datos revueltos.
+    if any((row['played'] or 0) > 50 for row in rows):
+        return []
     rows.sort(key=lambda item: (item['rank'] <= 0, item['rank']))
     return rows
 
