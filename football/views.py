@@ -20219,6 +20219,13 @@ def coach_overview_page(request):
                     _universo_probe = "0 (Universo no encuentra el equipo por nombre)"
             except Exception as exc:  # noqa: BLE001
                 _universo_probe = f"error: {exc}"
+        _sample_row = next((r for r in standings if isinstance(r, dict)), {})
+        _sample = (
+            f"{_sample_row.get('team', '?')}: PJ={_sample_row.get('played', '?')} "
+            f"Pts={_sample_row.get('points', '?')} GF={_sample_row.get('goals_for', '?')} "
+            f"GC={_sample_row.get('goals_against', '?')} DG={_sample_row.get('goal_difference', '?')}"
+            if _sample_row else "—"
+        )
         if _diag_requested or _has_real_competition:
             if _season_guard_blanked:
                 _reason = "El guard de temporada borró la clasificación (temporada del grupo distinta a la vigente)."
@@ -20237,6 +20244,7 @@ def coach_overview_page(request):
                 "universo_team_key": str(getattr(_diag_ctx, "external_team_key", "") or "") or "—",
                 "universo_token": _universo_token,
                 "universo_search": _universo_probe,
+                "sample_row": _sample,
                 "sync_status": getattr(_diag_ctx, "sync_status", None),
                 "sync_error": getattr(_diag_ctx, "sync_error", None),
                 "last_sync_at": str(getattr(_diag_ctx, "last_sync_at", None) or "—"),
