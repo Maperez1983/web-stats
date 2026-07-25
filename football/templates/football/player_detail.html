@@ -2817,6 +2817,36 @@
             <div class="value">{% if latest_physical_metric and latest_physical_metric.weight_kg %}{{ latest_physical_metric.weight_kg }}{% else %}--{% endif %}</div>
           </article>
         </div>
+        {% if physical_viz.charts or physical_viz.acwr or physical_viz.maturity %}
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0.6rem;margin:0.9rem 0 0.4rem;">
+          {% for c in physical_viz.charts %}
+          <div style="border:1px solid rgba(148,163,184,0.28);border-radius:12px;padding:0.55rem 0.65rem;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:0.4rem;">
+              <span class="subtle" style="text-transform:uppercase;letter-spacing:0.06em;font-size:0.64rem;font-weight:800;">{{ c.label }}</span>
+              <strong style="font-size:0.9rem;white-space:nowrap;">{{ c.last }}<span class="subtle" style="font-size:0.68rem;"> {{ c.unit }}</span></strong>
+            </div>
+            <svg viewBox="0 0 {{ c.width }} {{ c.height }}" preserveAspectRatio="none" style="width:100%;height:34px;margin-top:0.25rem;overflow:visible;" aria-hidden="true">
+              <polyline points="{{ c.points }}" fill="none" stroke="{% if c.tone == 'good' %}#22c55e{% elif c.tone == 'bad' %}#f87171{% else %}#60a5fa{% endif %}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"></polyline>
+            </svg>
+            <div class="subtle" style="font-size:0.64rem;margin-top:0.15rem;">{{ c.count }} regs · Δ {{ c.delta }}</div>
+          </div>
+          {% endfor %}
+          {% if physical_viz.acwr %}
+          <div style="border:1px solid rgba(148,163,184,0.28);border-radius:12px;padding:0.55rem 0.65rem;">
+            <span class="subtle" style="text-transform:uppercase;letter-spacing:0.06em;font-size:0.64rem;font-weight:800;">Carga ACWR</span>
+            <div style="font-size:1.5rem;font-weight:800;line-height:1.1;color:{% if physical_viz.acwr.zone == 'ok' %}#22c55e{% elif physical_viz.acwr.zone == 'warn' %}#f5c538{% else %}#f87171{% endif %};">{{ physical_viz.acwr.ratio }}</div>
+            <div class="subtle" style="font-size:0.64rem;">agudo {{ physical_viz.acwr.acute }} · crónico {{ physical_viz.acwr.chronic }} au{% if physical_viz.acwr.zone == 'danger' %} · ⚠ pico de carga{% elif physical_viz.acwr.zone == 'warn' %} · infra-carga{% else %} · zona óptima{% endif %}</div>
+          </div>
+          {% endif %}
+          {% if physical_viz.maturity %}
+          <div style="border:1px solid rgba(148,163,184,0.28);border-radius:12px;padding:0.55rem 0.65rem;">
+            <span class="subtle" style="text-transform:uppercase;letter-spacing:0.06em;font-size:0.64rem;font-weight:800;">Madurez / PHV</span>
+            <div style="font-size:1.05rem;font-weight:800;line-height:1.2;">{{ physical_viz.maturity.status|default:"—" }}</div>
+            <div class="subtle" style="font-size:0.64rem;">{% if physical_viz.maturity.offset is not None %}Offset {{ physical_viz.maturity.offset }} años{% endif %}{% if physical_viz.maturity.growth is not None %} · {{ physical_viz.maturity.growth }} cm/año{% endif %}</div>
+          </div>
+          {% endif %}
+        </div>
+        {% endif %}
         <form method="post">
           {% csrf_token %}
           <input type="hidden" name="form_action" value="physical" />

@@ -68625,6 +68625,84 @@ def _persist_player_injury(
     return record
 
 
+def _physical_sparkline(values, *, width=132, height=34):
+    """Devuelve un mini-gráfico SVG (polyline en 0..width × 0..height) para una serie CRONOLÓGICA
+    de números; None si hay menos de 2 puntos. Sin librerías externas (CSP-safe)."""
+    vals = [float(v) for v in values if v is not None]
+    if len(vals) < 2:
+        return None
+    lo, hi = min(vals), max(vals)
+    rng = (hi - lo) or 1.0
+    n = len(vals)
+    pts = []
+    for i, v in enumerate(vals):
+        x = (i / (n - 1)) * width
+        y = height - ((v - lo) / rng) * height
+        pts.append(f"{round(x, 1)},{round(y, 1)}")
+    return {
+        "points": " ".join(pts),
+        "first": round(vals[0], 2),
+        "last": round(vals[-1], 2),
+        "delta": round(vals[-1] - vals[0], 2),
+        "count": n,
+        "width": width,
+        "height": height,
+    }
+
+
+def _build_physical_viz(metrics):
+    """Cuadro de mando físico desde los PlayerPhysicalMetric (que llegan -recorded_on): sparklines
+    de tests/peso/carga, ACWR (sRPE agudo 7d : crónico 28d) y la última madurez/PHV registrada."""
+    ms = sorted(list(metrics or []), key=lambda m: (m.recorded_on, m.id))
+    charts = []
+    specs = [
+        ("CMJ", "cmj_cm", "cm", "up"),
+        ("Sprint 10m", "sprint_10m_s", "s", "down"),
+        ("Sprint 20m", "sprint_20m_s", "s", "down"),
+        ("Yo-Yo IR1", "yo_yo_ir1_m", "m", "up"),
+        ("Peso", "weight_kg", "kg", "flat"),
+        ("Carga sRPE", "srpe_load", "au", "flat"),
+    ]
+    for label, attr, unit, better in specs:
+        spark = _physical_sparkline([getattr(m, attr) for m in ms])
+        if spark is None:
+            continue
+        delta = spark["delta"]
+        if better == "up":
+            tone = "good" if delta > 0 else ("bad" if delta < 0 else "flat")
+        elif better == "down":
+            tone = "good" if delta < 0 else ("bad" if delta > 0 else "flat")
+        else:
+            tone = "flat"
+        charts.append({**spark, "label": label, "unit": unit, "tone": tone})
+
+    acwr = None
+    loads = [(m.recorded_on, m.srpe_load) for m in ms if m.srpe_load is not None]
+    if loads:
+        last_day = max(d for d, _ in loads)
+        acute = [l for d, l in loads if (last_day - d).days < 7]
+        chronic = [l for d, l in loads if (last_day - d).days < 28]
+        if acute and chronic:
+            a = sum(acute) / len(acute)
+            c = sum(chronic) / len(chronic)
+            if c:
+                ratio = a / c
+                zone = "ok" if 0.8 <= ratio <= 1.3 else ("warn" if ratio < 0.8 else "danger")
+                acwr = {"ratio": round(ratio, 2), "acute": round(a), "chronic": round(c), "zone": zone}
+
+    maturity = None
+    for m in reversed(ms):
+        if m.maturation_status or m.maturity_offset_years is not None or m.growth_velocity_cm_year is not None:
+            maturity = {
+                "status": m.get_maturation_status_display() if m.maturation_status else "",
+                "offset": m.maturity_offset_years,
+                "growth": m.growth_velocity_cm_year,
+                "on": m.recorded_on,
+            }
+            break
+    return {"charts": charts, "acwr": acwr, "maturity": maturity}
+
+
 @login_required
 def player_detail_page(request, player_id):
     try:
@@ -69608,6 +69686,7 @@ def player_detail_page(request, player_id):
             minutes_load = {}
         physical_metrics = player.physical_metrics.all()[:20]
         latest_physical_metric = physical_metrics[0] if physical_metrics else None
+        physical_viz = _build_physical_viz(physical_metrics)
         communications = player.communications.select_related("match").all()[:20]
         assigned_analysis_videos = list(
             player.assigned_analysis_videos.select_related("rival_team", "folder").order_by("-created_at")[:20]
@@ -70294,6 +70373,7 @@ def player_detail_page(request, player_id):
                 "evaluation_status_choices": PlayerEvaluation.STATUS_CHOICES,
                 "physical_metrics": physical_metrics,
                 "latest_physical_metric": latest_physical_metric,
+                "physical_viz": physical_viz,
                 "communications": communications,
                 "assigned_analysis_videos": assigned_analysis_videos,
                 "injury_records": injury_records,
