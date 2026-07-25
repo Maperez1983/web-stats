@@ -68889,6 +68889,14 @@ def player_detail_page(request, player_id):
 
                 return redirect(f"{reverse('player-detail', args=[player.id])}?tab=general")
 
+            if form_action == "delete-injuries":
+                # Borrado múltiple de lesiones (para limpiar registros duplicados).
+                raw_ids = request.POST.getlist("injury_ids")
+                ids = [int(x) for x in raw_ids if str(x).strip().isdigit()]
+                if ids:
+                    PlayerInjuryRecord.objects.filter(player=player, id__in=ids).delete()
+                    _invalidate_team_dashboard_caches(primary_team)
+                return redirect(f"{reverse('player-detail', args=[player.id])}?tab=injuries")
             if form_action == "injuries":
                 injury_name = request.POST.get("injury", "").strip()
                 injury_type = request.POST.get("injury_type", "").strip()
