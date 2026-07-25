@@ -243,6 +243,50 @@ def resolve_or_create_team(*, name, external_id='', preferente_url='', group=Non
     return team, True
 
 
+def merge_teams(keep, drop):
+    """
+    Fusiona el equipo `drop` dentro de `keep`: reasigna TODOS los objetos relacionados
+    (jugadores, partidos, clasificaciones, memberships, vídeos…) de drop a keep y elimina drop.
+
+    - Reasignación GENÉRICA vía las relaciones inversas de Django (no hay que enumerar 50+ FKs).
+    - Si un objeto choca con una restricción de unicidad en keep (p. ej. ya existe ese jugador
+      por nombre en keep), se descarta ese duplicado en lugar de romper.
+    - NUNCA usa cascada para borrar datos: cuando se elimina `drop` ya no le cuelga nada.
+
+    Devuelve `keep`. Operación IRREVERSIBLE: la vista/acción que la use debe confirmar antes.
+    """
+    from django.db import IntegrityError, transaction
+    if keep is None or drop is None or keep.pk == drop.pk:
+        return keep
+    reassigned, dropped = 0, 0
+    for rel in list(drop._meta.related_objects):
+        field = rel.field
+        model = rel.related_model
+        for obj_pk in list(model.objects.filter(**{field.attname: drop.pk}).values_list('pk', flat=True)):
+            try:
+                with transaction.atomic():
+                    model.objects.filter(pk=obj_pk).update(**{field.attname: keep.pk})
+                reassigned += 1
+            except IntegrityError:
+                # Ya existe el equivalente en keep -> el de drop es un duplicado: se descarta.
+                with transaction.atomic():
+                    model.objects.filter(pk=obj_pk).delete()
+                dropped += 1
+    # Completa en keep los campos de identidad que tenga vacíos.
+    changed = []
+    for f in ('external_id', 'preferente_url', 'crest_url', 'short_name'):
+        if not getattr(keep, f, '') and getattr(drop, f, ''):
+            setattr(keep, f, getattr(drop, f))
+            changed.append(f)
+    if changed:
+        keep.save(update_fields=changed)
+    if getattr(keep, 'club_id', None) is None and getattr(drop, 'club_id', None):
+        keep.club_id = drop.club_id
+        keep.save(update_fields=['club'])
+    drop.delete()
+    return keep
+
+
 class Workspace(models.Model):
     KIND_CLUB = 'club'
     KIND_TASK_STUDIO = 'task_studio'

@@ -45,6 +45,7 @@ class TeamAdmin(admin.ModelAdmin):
     prepopulated_fields = {'slug': ('name',)}
     autocomplete_fields = ('club',)
     ordering = ('name_key', 'name')
+    actions = ('merge_selected_teams',)
 
     @admin.display(description='Posibles duplicados')
     def possible_duplicates(self, obj):
@@ -54,6 +55,31 @@ class TeamAdmin(admin.ModelAdmin):
             return '—'
         count = models.Team.objects.filter(name_key=obj.name_key, group=obj.group).exclude(pk=obj.pk).count()
         return f'⚠ {count}' if count else '—'
+
+    @admin.action(description='Fusionar equipos seleccionados en uno (conserva el que tenga external_id, o el más antiguo)')
+    def merge_selected_teams(self, request, queryset):
+        from django.contrib import messages
+        teams = list(queryset)
+        if len(teams) < 2:
+            self.message_user(request, 'Selecciona al menos 2 equipos para fusionar.', level=messages.WARNING)
+            return
+        with_ext = sorted((t for t in teams if str(t.external_id or '').strip()), key=lambda t: t.id)
+        keep = with_ext[0] if with_ext else sorted(teams, key=lambda t: t.id)[0]
+        merged = 0
+        for drop in teams:
+            if drop.id == keep.id:
+                continue
+            try:
+                models.merge_teams(keep, drop)
+                merged += 1
+            except Exception as exc:  # noqa: BLE001
+                self.message_user(request, f'No se pudo fusionar «{drop.name}»: {exc}', level=messages.ERROR)
+        if merged:
+            self.message_user(
+                request,
+                f'Fusionados {merged + 1} equipos en «{keep.name}» (id {keep.id}). Se reasignó todo y se borraron los duplicados.',
+                level=messages.SUCCESS,
+            )
 
 
 class WorkspaceTeamInline(admin.TabularInline):
