@@ -8,7 +8,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 from django.utils.text import slugify
 
-from football.models import Team, TeamRosterSnapshot, TeamStanding, Group, Season, Competition
+from football.models import Team, TeamRosterSnapshot, TeamStanding, Group, Season, Competition, normalize_team_name_key
 from football.services import fetch_preferente_team_roster, find_preferente_team_url
 
 
@@ -212,7 +212,7 @@ class Command(BaseCommand):
                 if team_code:
                     team = Team.objects.filter(external_id=team_code).first()
                 if not team:
-                    team = Team.objects.filter(name__iexact=team_name).first()
+                    team = Team.objects.filter(name_key=normalize_team_name_key(team_name)).first()
                 if not team:
                     team = Team.objects.create(
                         name=team_name,
@@ -316,7 +316,7 @@ class Command(BaseCommand):
                             if str(primary_team.name or '').strip().lower() == team_name.strip().lower():
                                 team = primary_team
                         if not team:
-                            team = Team.objects.filter(group=group_for_standings, name__iexact=team_name).first()
+                            team = Team.objects.filter(group=group_for_standings, name_key=normalize_team_name_key(team_name)).first()
                         if not team:
                             team = Team.objects.create(
                                 name=team_name,
@@ -375,7 +375,7 @@ class Command(BaseCommand):
 
                 team = Team.objects.filter(external_id=team_code).first()
                 if not team:
-                    team = Team.objects.filter(name__iexact=team_name).first()
+                    team = Team.objects.filter(name_key=normalize_team_name_key(team_name)).first()
                 if not team:
                     team = Team.objects.create(
                         name=team_name,
