@@ -182,7 +182,7 @@
           </div>
           <div>
             <label>Temporada</label>
-            <select name="season">
+            <select name="season" onchange="this.form.submit()">
               <option value="" {% if not season_filter %}selected{% endif %}>Temporada actual</option>
               {% for opt in season_options %}
                 <option value="{{ opt.id }}" {% if season_filter == opt.id|stringformat:'s' %}selected{% endif %}>{{ opt.label }}</option>
