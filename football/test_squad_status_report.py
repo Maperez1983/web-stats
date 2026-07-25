@@ -50,6 +50,7 @@ class SquadStatusReportTests(TestCase):
         self.assertIn("Completar por líneas", body)
         self.assertIn("Tablero de decisiones", body)
         self.assertIn("Plantilla en el campo", body)  # el campo con avatares (pizarra reutilizada)
+        self.assertIn("Sin valorar", body)  # jugadores sin evaluación cerrada quedan marcados
         self.assertIn("C.D. Prueba", body)
         # La estructura por líneas debe pintar las 4 líneas objetivo.
         self.assertIn("Portería", body)

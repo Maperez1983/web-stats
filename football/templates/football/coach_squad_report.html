@@ -139,6 +139,12 @@
   .sqr .rt.lo{color:var(--out);background:var(--out-wash)}
   .sqr .col.decidir .p{border-left:3px solid var(--pending)}
   .sqr .p .badge-inj{font-size:9.5px;font-weight:700;color:var(--injured);background:var(--injured-wash);border-radius:5px;padding:1px 5px}
+  .sqr .rt.novalue{color:var(--trial);background:var(--trial-wash);font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+  .sqr .areas{grid-column:2 / -1;display:flex;gap:4px;align-items:flex-end;margin-top:7px}
+  .sqr .areas .ab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+  .sqr .areas .ab .bar{width:100%;height:20px;background:var(--surface-3);border:1px solid var(--line-soft);border-radius:3px;display:flex;align-items:flex-end;overflow:hidden}
+  .sqr .areas .ab .bar i{width:100%;background:var(--accent);border-radius:2px 2px 0 0;min-height:2px}
+  .sqr .areas .ab small{font-size:8.5px;color:var(--ink-faint);letter-spacing:.01em;text-transform:uppercase}
   .sqr .empty{font-size:12px;color:var(--ink-faint);padding:8px 2px}
 
   .sqr .grid2{display:grid;grid-template-columns:1fr 1.15fr;gap:16px}
@@ -256,7 +262,7 @@
 
   <section class="card board">
     <h3><span class="dot"></span>Tablero de decisiones</h3>
-    <p class="sub">Cada jugador, su nota global (última evaluación cerrada) y hacia dónde va la decisión.</p>
+    <p class="sub">Nota global (última evaluación cerrada) y, en confirmados, el desglose por área (Téc·Tác·Fís·Men·Dis). «Sin valorar» = aún sin evaluación cerrada.</p>
     <div class="cols">
       <div class="col sigue">
         <h4>Sigue <span class="cnt num">{{ board.keep|length }}</span></h4>
@@ -264,7 +270,9 @@
           {% for p in board.keep|slice:":8" %}
           <div class="p"><span class="no num">{{ p.number|default:"–" }}</span>
             <span class="pn">{{ p.name }} <small>{{ p.position }}</small></span>
-            <span class="rt {{ p.rt_class }} num">{{ p.overall_display }}</span></div>
+            {% if p.has_eval %}<span class="rt {{ p.rt_class }} num">{{ p.overall_display }}</span>{% else %}<span class="rt novalue" title="Sin evaluación cerrada">Sin valorar</span>{% endif %}
+            {% if p.has_eval %}<div class="areas">{% for a in p.areas %}<div class="ab" title="{{ a.short }}: {{ a.value }}"><div class="bar"><i style="height:{{ a.pct }}%"></i></div><small>{{ a.short }}</small></div>{% endfor %}</div>{% endif %}
+          </div>
           {% empty %}<div class="empty">Sin confirmados todavía.</div>{% endfor %}
           {% if board.keep|length > 8 %}<div class="empty">+{{ board.keep|length|add:"-8" }} confirmados más</div>{% endif %}
         </div>
@@ -275,7 +283,7 @@
           {% for p in board.pending|slice:":8" %}
           <div class="p"><span class="no num">{{ p.number|default:"–" }}</span>
             <span class="pn">{{ p.name }} <small>{{ p.position }}</small>{% if p.injured %} <span class="badge-inj">Lesión</span>{% endif %}</span>
-            <span class="rt {{ p.rt_class }} num">{{ p.overall_display }}</span></div>
+            {% if p.has_eval %}<span class="rt {{ p.rt_class }} num">{{ p.overall_display }}</span>{% else %}<span class="rt novalue" title="Sin evaluación cerrada">Sin valorar</span>{% endif %}</div>
           {% empty %}<div class="empty">Nada pendiente. 👌</div>{% endfor %}
         </div>
       </div>
@@ -285,7 +293,7 @@
           {% for p in board.cut|slice:":8" %}
           <div class="p"><span class="no num">{{ p.number|default:"–" }}</span>
             <span class="pn">{{ p.name }} <small>{{ p.position }}</small></span>
-            <span class="rt {{ p.rt_class }} num">{{ p.overall_display }}</span></div>
+            {% if p.has_eval %}<span class="rt {{ p.rt_class }} num">{{ p.overall_display }}</span>{% else %}<span class="rt novalue" title="Sin evaluación cerrada">Sin valorar</span>{% endif %}</div>
           {% empty %}<div class="empty">Sin bajas marcadas.</div>{% endfor %}
         </div>
       </div>

@@ -36290,8 +36290,21 @@ def squad_status_report_page(request):
         active_injury_ids=active_injury_ids,
     )
     counts = decision.get("counts", {})
+    _area_meta = [
+        ("technical", "Téc"), ("tactical", "Tác"), ("physical", "Fís"),
+        ("mental", "Men"), ("availability", "Dis"),
+    ]
     board = {"keep": [], "pending": [], "cut": []}
     for row in decision.get("rows", []):
+        ratings = row.get("ratings") or {}
+        areas = []
+        for key, short in _area_meta:
+            val = ratings.get(key)
+            areas.append({
+                "short": short,
+                "value": f"{val:.1f}" if val is not None else "–",
+                "pct": int(round((float(val) / 10.0) * 100)) if val is not None else 0,
+            })
         item = {
             "name": row.get("name"),
             "number": row.get("number"),
@@ -36299,6 +36312,8 @@ def squad_status_report_page(request):
             "overall_display": row.get("overall_display"),
             "rt_class": _squad_report_rating_class(row.get("overall")),
             "injured": row.get("state_key") == "injured",
+            "has_eval": bool(row.get("has_eval")),
+            "areas": areas,
         }
         board.get(row.get("decision") or "pending", board["pending"]).append(item)
 
