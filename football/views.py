@@ -77997,13 +77997,12 @@ def match_hub_create_match(request):
             match_time = None
 
     if not rival_team:
-        rival_team = Team.objects.filter(name__iexact=opponent_name).first()
-    if not rival_team:
-        rival_team = Team.objects.create(
-            slug=_unique_team_slug(opponent_name),
+        from football.models import resolve_or_create_team
+
+        rival_team, _ = resolve_or_create_team(
             name=opponent_name,
-            short_name=opponent_name[:24],
             group=primary_team.group,
+            defaults={"short_name": opponent_name[:24]},
         )
     if not location_value:
         if home_away == "away":

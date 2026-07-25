@@ -68,3 +68,25 @@ class MatchRivalEntityTests(TestCase):
         self.assertEqual(
             Match.objects.filter(home_team=self.team, away_team=rival).count(), 2
         )
+
+    def test_match_hub_modal_create_dedups_rival(self):
+        """El modal 'Nuevo partido' (match-hub-create) también deduplica el rival al escribirlo."""
+        today = timezone.localdate()
+        key = normalize_team_name_key("U.D. Nueva")
+
+        def _create(opponent, date):
+            return self.client.post(
+                "/partido/crear/",
+                {
+                    "opponent": opponent,
+                    "context": Match.CONTEXT_FRIENDLY,
+                    "home_away": "home",
+                    "date": date.strftime("%Y-%m-%d"),
+                },
+                HTTP_HOST="localhost",
+            )
+
+        _create("U.D. Nueva", today + datetime.timedelta(days=3))
+        self.assertEqual(Team.objects.filter(name_key=key).count(), 1)
+        _create("UD Nueva", today + datetime.timedelta(days=10))
+        self.assertEqual(Team.objects.filter(name_key=key).count(), 1)
