@@ -4132,7 +4132,10 @@
 		        // ignore
 		      }
 		    };
-		    runWhenIdle(() => { try { void loadKit2dTokensPreference(); } catch (e) { /* ignore */ } }, 650);
+		    // Precarga INMEDIATA del kit 2D del club. Antes iba con 650 ms de idle: si colocabas
+		    // fichas nada más abrir el editor, salían con la camiseta genérica hasta que cargaba.
+		    // Ahora se pide al abrir para que la ficha Camiseta muestre el kit real cuanto antes.
+		    try { void loadKit2dTokensPreference(); } catch (e) { /* ignore */ }
 
 		    // Assets extraídos de PDFs importados. El catálogo de iconos se ha eliminado,
 		    // pero seguimos renderizando cualquier `pdf_asset:<id>` existente en tareas previas.
