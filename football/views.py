@@ -74819,7 +74819,14 @@ def compute_player_dashboard(
     # Los overrides manuales son fuente de verdad del usuario y deben seguir aplicando aunque la vista
     # filtre por temporada activa (`date_start/date_end`).
     use_external_base_stats = scope_value in {Match.CONTEXT_LEAGUE, "all"} and not (date_start or date_end)
-    use_manual_base_stats = scope_value in {Match.CONTEXT_LEAGUE, "all"} and not dashboard_roster_season
+    # Los overrides manuales de base se guardan por la temporada federativa vigente (`season_obj`),
+    # así que aplican con la temporada ACTIVA (o sin filtro), pero NO en una temporada histórica
+    # (aplicaría los de la actual). Antes se apagaban en cuanto había cualquier temporada de club
+    # activa, con lo que el "Ajuste manual" no surtía efecto en la ficha (contradecía el comentario).
+    _dashboard_season_is_current = (not dashboard_roster_season) or bool(
+        getattr(dashboard_roster_season, "is_active", False)
+    )
+    use_manual_base_stats = scope_value in {Match.CONTEXT_LEAGUE, "all"} and _dashboard_season_is_current
     # La caché de La Preferente es legacy y solo aplica al equipo principal.
     # En multicategoría, evitar mezclar stats base entre equipos.
     roster_cache = (
