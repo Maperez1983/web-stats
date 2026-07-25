@@ -21325,7 +21325,18 @@ def _load_matchday_quick_buttons_for_workspace(*, user, workspace):
     except Exception:
         raw_items = []
     items = _normalize_matchday_quick_buttons(raw_items)
-    return items or base
+    result = items or base
+    # "Parada" y "Regate" alimentan stats que no se pueden capturar de otra forma (paradas de
+    # portero, regates completados/intentados). Si el workspace personalizó sus botones y los quitó,
+    # los reañadimos al final para que siempre se puedan registrar en vivo.
+    _essential = ("Parada", "Regate")
+    _present = {str(b.get("action") or "").strip().lower() for b in result if isinstance(b, dict)}
+    for _name in _essential:
+        if _name.lower() not in _present:
+            result = result + [
+                {"label": _name, "action": _name, "result": "", "hotkey": "", "team_only": False}
+            ]
+    return result
 
 
 @login_required
@@ -69673,7 +69684,6 @@ def player_detail_page(request, player_id):
         assists = _to_int_value(stats_source.get("assists"))
         yellow_cards = _to_int_value(stats_source.get("yellow_cards"))
         red_cards = _to_int_value(stats_source.get("red_cards"))
-        second_yellow_cards = _to_int_value(stats_source.get("second_yellow_cards"))
         competition_total_rounds = _to_int_value(
             stats_source.get("competition_total_rounds")
         ) or get_competition_total_rounds(primary_team)
@@ -69763,11 +69773,9 @@ def player_detail_page(request, player_id):
             {"label": "Influencia", "value": influence_score, "pct": influence_score, "help": influence_help},
             {"label": "Amarillas", "value": yellow_cards, "pct": round(min(yellow_cards * 15, 100), 1)},
             {"label": "Rojas", "value": red_cards, "pct": round(min(red_cards * 30, 100), 1)},
-            {
-                "label": "Doble amarilla",
-                "value": second_yellow_cards,
-                "pct": round(min(second_yellow_cards * 30, 100), 1),
-            },
+            # "Doble amarilla" se retiró: no hay fuente que lo produzca (ni evento de registro ni
+            # campo manual), así que siempre salía 0. Si en el futuro se añade un campo manual
+            # 'manual_second_yellow_cards', volver a mostrarlo aquí con su valor real.
         ]
         home_url = (
             _workspace_entry_url(active_workspace, user=request.user) if active_workspace else reverse("dashboard-home")
