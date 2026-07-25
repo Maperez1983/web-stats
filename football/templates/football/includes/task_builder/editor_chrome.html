@@ -64,6 +64,27 @@
   <button type="button" class="edc-btn edc-save" data-edc="save"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h7V3M8 21v-6h8v6"/></svg>Guardar</button>
 </div>
 
+<!-- Barra de alineación/orden: aparece al seleccionar elementos. Cablea a __tpadCanvasAction. -->
+<div class="edc-align" id="edc-align" role="toolbar" aria-label="Alinear y ordenar la selección">
+  <span class="edc-align-title">Alinear</span>
+  <button type="button" class="edc-align-btn" data-edc-align="row" title="Alinear en fila y repartir · Cmd/Ctrl+Shift+H">
+    <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2.5" y="9.5" width="5" height="5" rx="1.2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1.2"/><rect x="16.5" y="9.5" width="5" height="5" rx="1.2"/></svg>
+    <span>Fila</span>
+  </button>
+  <button type="button" class="edc-align-btn" data-edc-align="col" title="Alinear en columna y repartir · Cmd/Ctrl+Shift+K">
+    <svg viewBox="0 0 24 24" fill="currentColor"><rect x="9.5" y="2.5" width="5" height="5" rx="1.2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1.2"/><rect x="9.5" y="16.5" width="5" height="5" rx="1.2"/></svg>
+    <span>Columna</span>
+  </button>
+  <button type="button" class="edc-align-btn" data-edc-align="grid" title="Ordenar en cuadrícula · Cmd/Ctrl+Shift+L">
+    <svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1.3"/><rect x="14" y="3" width="7" height="7" rx="1.3"/><rect x="3" y="14" width="7" height="7" rx="1.3"/><rect x="14" y="14" width="7" height="7" rx="1.3"/></svg>
+    <span>Cuadrícula</span>
+  </button>
+  <button type="button" class="edc-align-btn edc-align-snap" data-edc-align="snap" title="Imantar a la rejilla al mover · Shift+G" aria-pressed="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v16H4z"/><path d="M4 10h16M4 15h16M10 4v16M15 4v16"/></svg>
+    <span>Imán</span>
+  </button>
+</div>
+
 <div class="edc-mat-drawer" id="edc-mat-drawer">
   <div class="edc-mat-head"><strong>Elementos gráficos</strong><button type="button" class="edc-mat-close" data-edc="close-mat" aria-label="Cerrar">×</button></div>
   <div class="edc-mat-nav" id="edc-mat-nav"></div>
@@ -139,6 +160,17 @@
       if(group){ group.querySelectorAll('.edc-fmt').forEach(function(b){ b.classList.remove('is-active'); }); btn.classList.add('is-active'); }
       var preset = btn.getAttribute('data-edc-preset');
       try{ if(window.__webstatsTaskBuilderSetPreset) window.__webstatsTaskBuilderSetPreset(preset); }catch(e){}
+    });
+  });
+  // Barra de alineación/orden: cada botón invoca la acción del motor.
+  document.querySelectorAll('[data-edc-align]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var a = btn.getAttribute('data-edc-align');
+      var action = a==='row' ? 'align_row' : a==='col' ? 'align_col' : a==='grid' ? 'arrange_grid' : a==='snap' ? 'grid_snap_toggle' : '';
+      if(!action) return;
+      try{ if(window.__tpadCanvasAction) window.__tpadCanvasAction(action); }catch(e){}
+      // El botón de imán refleja su estado (encendido/apagado) localmente.
+      if(a==='snap'){ btn.classList.toggle('is-active'); try{ btn.setAttribute('aria-pressed', btn.classList.contains('is-active')?'true':'false'); }catch(e){} }
     });
   });
   // -------- Tamaño del campo (redimensionado real, tipo "ventana") --------

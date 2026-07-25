@@ -8042,6 +8042,88 @@
 		      refreshLivePreview();
 		      setStatus(axis === 'x' ? 'Distribución horizontal aplicada.' : 'Distribución vertical aplicada.');
 		    };
+		    // Alinear en línea recta y repartir en UNA sola acción (fila u columna).
+		    // Ideal para hileras de conos/picas: quedan perfectamente alineados y equidistantes.
+		    const alignInLine = (orientation) => {
+		      const objects = getSelectionObjects().filter((obj) => obj && !obj?.data?.locked);
+		      if (objects.length < 2) {
+		        setStatus('Selecciona al menos 2 elementos para alinear en línea.', true);
+		        return;
+		      }
+		      const isRow = orientation !== 'col';
+		      const center = selectionCenter();
+		      const shared = isRow ? center.y : center.x;
+		      const items = objects
+		        .map((obj) => ({ obj, center: obj.getCenterPoint() }))
+		        .sort((a, b) => (isRow ? a.center.x - b.center.x : a.center.y - b.center.y));
+		      const firstC = items[0].center;
+		      const lastC = items[items.length - 1].center;
+		      const span = isRow ? (lastC.x - firstC.x) : (lastC.y - firstC.y);
+		      // Separación cómoda según el tamaño medio (para que no se solapen si venían apilados).
+		      const avgSize = items.reduce((acc, it) => {
+		        const w = typeof it.obj.getScaledWidth === 'function' ? it.obj.getScaledWidth() : (it.obj.width || 40);
+		        const h = typeof it.obj.getScaledHeight === 'function' ? it.obj.getScaledHeight() : (it.obj.height || 40);
+		        return acc + (isRow ? w : h);
+		      }, 0) / items.length;
+		      const minSpacing = Math.max(avgSize * 1.25, 24);
+		      let start = isRow ? firstC.x : firstC.y;
+		      let step;
+		      if (Math.abs(span) < minSpacing * (items.length - 1) * 0.5) {
+		        // Estaban casi apilados: los abanicamos centrados en la selección.
+		        step = minSpacing;
+		        start = (isRow ? center.x : center.y) - (step * (items.length - 1)) / 2;
+		      } else {
+		        step = span / (items.length - 1);
+		      }
+		      items.forEach((item, index) => {
+		        const spreadVal = start + step * index;
+		        const next = isRow ? new fabric.Point(spreadVal, shared) : new fabric.Point(shared, spreadVal);
+		        item.obj.setPositionByOrigin(next, 'center', 'center');
+		        item.obj.setCoords();
+		      });
+		      canvas.requestRenderAll();
+		      pushHistory();
+		      syncInspector();
+		      refreshLivePreview();
+		      setStatus(isRow ? 'Alineados en fila y repartidos.' : 'Alineados en columna y repartidos.');
+		    };
+		    // Ordenar la selección en una cuadrícula NxM (útil para rondos/escaleras de conos).
+		    const arrangeInGrid = (cols) => {
+		      const objects = getSelectionObjects().filter((obj) => obj && !obj?.data?.locked);
+		      if (objects.length < 3) {
+		        setStatus('Selecciona al menos 3 elementos para la cuadrícula.', true);
+		        return;
+		      }
+		      const n = objects.length;
+		      const columns = Math.max(1, Math.min(Math.round(cols) || Math.ceil(Math.sqrt(n)), n));
+		      const rows = Math.ceil(n / columns);
+		      const centers = objects.map((o) => o.getCenterPoint());
+		      const xs = centers.map((c) => c.x);
+		      const ys = centers.map((c) => c.y);
+		      const minX = Math.min.apply(null, xs);
+		      const maxX = Math.max.apply(null, xs);
+		      const minY = Math.min.apply(null, ys);
+		      const maxY = Math.max.apply(null, ys);
+		      const avgW = objects.reduce((a, o) => a + (typeof o.getScaledWidth === 'function' ? o.getScaledWidth() : (o.width || 40)), 0) / n;
+		      const avgH = objects.reduce((a, o) => a + (typeof o.getScaledHeight === 'function' ? o.getScaledHeight() : (o.height || 40)), 0) / n;
+		      const stepX = columns > 1 ? Math.max((maxX - minX) / (columns - 1), avgW * 1.25) : 0;
+		      const stepY = rows > 1 ? Math.max((maxY - minY) / (rows - 1), avgH * 1.25) : 0;
+		      const sorted = objects
+		        .map((obj) => ({ obj, c: obj.getCenterPoint() }))
+		        .sort((a, b) => (a.c.y - b.c.y) || (a.c.x - b.c.x));
+		      sorted.forEach((item, i) => {
+		        const r = Math.floor(i / columns);
+		        const cc = i % columns;
+		        const next = new fabric.Point(minX + stepX * cc, minY + stepY * r);
+		        item.obj.setPositionByOrigin(next, 'center', 'center');
+		        item.obj.setCoords();
+		      });
+		      canvas.requestRenderAll();
+		      pushHistory();
+		      syncInspector();
+		      refreshLivePreview();
+		      setStatus(`Cuadrícula ${columns}×${rows} aplicada.`);
+		    };
 		    const cloneObjectAsync = (obj) => new Promise((resolve) => {
 		      try {
 		        obj.clone((cloned) => resolve(cloned || null), ['data']);
@@ -37149,6 +37231,10 @@
 	      }
 	      if (action === 'undo') return performUndo();
 	      if (action === 'redo') return performRedo();
+	      if (action === 'align_row') { alignInLine('row'); return true; }
+	      if (action === 'align_col') { alignInLine('col'); return true; }
+	      if (action === 'arrange_grid') { arrangeInGrid(0); return true; }
+	      if (action === 'grid_snap_toggle') { toggleGridSnap(); return true; }
       if (action === 'delete') {
 	        const active = canvas.getActiveObject();
 	        if (!active) {
@@ -38983,7 +39069,8 @@
 				      }
 				      if (!isMod && key === 'g') {
 				        event.preventDefault();
-				        toggleGridVisible();
+				        if (isShift) toggleGridSnap(); // Shift+G: imantar a la rejilla al mover
+				        else toggleGridVisible();
 				        return;
 				      }
 				      if (!isMod && key === 'h') {
@@ -39097,6 +39184,21 @@
           if (did) event.preventDefault();
           return;
         }
+	      if (isMod && isShift && key === 'h') { // Cmd/Ctrl+Shift+H: alinear en fila (+ repartir)
+	        event.preventDefault();
+	        handleCanvasAction('align_row');
+	        return;
+	      }
+	      if (isMod && isShift && key === 'k') { // Cmd/Ctrl+Shift+K: alinear en columna (+ repartir)
+	        event.preventDefault();
+	        handleCanvasAction('align_col');
+	        return;
+	      }
+	      if (isMod && isShift && key === 'l') { // Cmd/Ctrl+Shift+L: ordenar en cuadrícula
+	        event.preventDefault();
+	        handleCanvasAction('arrange_grid');
+	        return;
+	      }
 	      if (isMod && key === 'd') {
 	        event.preventDefault();
 	        duplicateActiveObject();
