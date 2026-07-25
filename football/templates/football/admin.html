@@ -442,7 +442,10 @@
           <input type="hidden" name="active_tab" value="teams" />
           <label>
             <span>Categoría</span>
-            <input type="text" name="category" placeholder="Ej. Prebenjamín" required />
+            <input type="text" name="category" list="own-category-catalog" placeholder="Ej. Prebenjamín" required />
+            <datalist id="own-category-catalog">
+              {% for cat_name in category_catalog %}<option value="{{ cat_name }}"></option>{% endfor %}
+            </datalist>
           </label>
           <label>
             <span>Formato</span>
@@ -528,7 +531,7 @@
               <input type="hidden" name="form_action" value="team_update" />
               <label style="width:100%;">
                 <span>Categoría</span>
-                <input type="text" name="category" value="{{ link.team.category }}" />
+                <input type="text" name="category" list="own-category-catalog" value="{{ link.team.category }}" />
               </label>
               <label style="width:100%;">
                 <span>Formato</span>

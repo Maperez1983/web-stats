@@ -1601,7 +1601,10 @@
               <input type="hidden" name="form_action" value="platform_team_create" />
               <label>
                 Categoría
-                <input type="text" name="category" placeholder="Ej. Prebenjamín" required />
+                <input type="text" name="category" list="own-category-catalog" placeholder="Ej. Prebenjamín" required />
+                <datalist id="own-category-catalog">
+                  {% for cat_name in category_catalog %}<option value="{{ cat_name }}"></option>{% endfor %}
+                </datalist>
               </label>
               <label>
                 Formato

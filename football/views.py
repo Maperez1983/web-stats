@@ -15692,6 +15692,7 @@ def platform_workspace_detail_page(request, workspace_id):
         {
             "workspace": workspace,
             "active_workspace": _build_active_workspace_badge(request),
+            "category_catalog": _club_category_ui_data()[0],
             "feedback": feedback,
             "error": error,
             "can_manage_workspace": can_manage_workspace,
@@ -16309,6 +16310,7 @@ def admin_page(request):
                     {
                         "primary_team": primary_team,
                         "team_name": getattr(primary_team, "display_name", None) or getattr(primary_team, "name", ""),
+                        "category_catalog": _club_category_ui_data()[0],
                         "is_admin_user": is_admin_user,
                         "active_tab": active_tab,
                         "roster_message": roster_message,
@@ -17778,6 +17780,7 @@ def admin_page(request):
         {
             "workspace": workspace,
             "can_manage_workspace": can_manage_workspace,
+            "category_catalog": _club_category_ui_data()[0],
             "roster_players": roster_players,
             "roster_message": roster_message,
             "roster_error": roster_error,
