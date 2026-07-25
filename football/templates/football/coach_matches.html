@@ -3,7 +3,7 @@
 <html lang="es">
   <head>
     <meta charset="utf-8" />
-    <title>Partidos · {{ team_name }}</title>
+    <title>Calendario · {{ team_name }}</title>
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
@@ -87,8 +87,8 @@
       {% include 'football/includes/dragon_nav.html' %}
       <header>
         <div>
-          <p>Partidos · {{ team_name }}</p>
-          <h1>Calendario / limpieza</h1>
+          <p>Calendario · {{ team_name }}</p>
+          <h1>Calendario de partidos</h1>
           <p>{{ season_label }}</p>
         </div>
         <div class="header-actions">
