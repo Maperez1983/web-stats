@@ -1306,6 +1306,9 @@
             {% endif %}
           </div>
           {% if season_state_label %}<div style="margin-top:0.4rem;"><span class="pill {% if season_state_label == 'Inactivo' %}warn{% else %}ok{% endif %}">{{ season_state_label }}</span></div>{% endif %}
+          {% if player.transferred_to_club %}
+          <div style="margin-top:0.4rem;"><span class="pill warn" title="Fichó por otro club — su ficha, histórico e identidad de persona se conservan.">Fichó por {{ player.transferred_to_club.name }}{% if player.transferred_at %} · {{ player.transferred_at|date:"M Y" }}{% endif %}</span></div>
+          {% endif %}
           {% if form_last5 %}
           <div class="form-strip" title="Resultados de los últimos partidos jugados">
             <span class="form-strip-label">Forma</span>

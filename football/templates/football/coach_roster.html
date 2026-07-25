@@ -1353,6 +1353,15 @@
                   <input type="hidden" name="player_id" value="{{ player.id }}" />
                   <button class="inline" type="submit">Sale del club</button>
                   </form>
+                  {% if can_edit %}
+                  <form method="post" style="margin:0;display:flex;gap:0.35rem;align-items:center;flex-wrap:wrap;" title="Sale de la plantilla y se registra el club por el que fichó (conserva su histórico e identidad).">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="transfer_out" />
+                    <input type="hidden" name="player_id" value="{{ player.id }}" />
+                    <input type="text" name="destination_club" list="club-catalog" placeholder="Fichó por…" aria-label="Club por el que fichó" autocomplete="off" style="min-width:9rem;" />
+                    <button class="inline-ghost" type="submit">Traspaso</button>
+                  </form>
+                  {% endif %}
                   {% if active_club_season and can_edit and club_team_options %}
                   <form method="post" style="margin:0;display:flex;gap:0.35rem;align-items:center;flex-wrap:wrap;">
                     {% csrf_token %}
@@ -1382,6 +1391,9 @@
             {% endfor %}
           </tbody>
         </table>
+        <datalist id="club-catalog">
+          {% for club_name in club_catalog %}<option value="{{ club_name }}"></option>{% endfor %}
+        </datalist>
         </div>
         {% endif %}
         {% endif %}

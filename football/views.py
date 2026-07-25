@@ -359,6 +359,7 @@ from football.models import (
     AuditEvent,
     AuditLogEntry,
     ChunkedRivalVideoUpload,
+    Club,
     Competition,
     ConvocationRecord,
     ScoutingFollowUp,
@@ -440,6 +441,8 @@ from football.models import (
     WorkspaceSeasonTeam,
     WorkspaceTeam,
     WorkspaceTeamAccess,
+    _norm_identity_name,
+    resolve_or_create_club,
 )
 from football.query_helpers import (
     _normalize_team_lookup_key,
@@ -35302,7 +35305,9 @@ def coach_roster_page(request):
                     raise ValueError("Jugador no encontrado para reactivar.")
                 player.team = primary_team
                 player.is_active = True
-                player.save(update_fields=["team", "is_active"])
+                player.transferred_to_club = None
+                player.transferred_at = None
+                player.save(update_fields=["team", "is_active", "transferred_to_club", "transferred_at"])
                 ensure_workspace_player(workspace, player, current_team=primary_team, is_active=True)
                 if active_club_season and active_club_season_is_current:
                     membership = ensure_player_season_membership(
@@ -35331,6 +35336,38 @@ def coach_roster_page(request):
                             ]
                         )
                 message = f"{player.name} reactivado en {primary_team.display_name}."
+            elif action == "transfer_out":
+                # "Fichó por otro club": saca al jugador de la plantilla (is_active=False, membresía
+                # de temporada -> No continúa) PERO conserva su ficha, su histórico y su identidad de
+                # persona, y registra el club destino (del catálogo, sin duplicar) + la fecha.
+                if active_club_season and not active_club_season_is_current:
+                    raise ValueError("Solo se puede traspasar desde la temporada activa.")
+                if not player_id:
+                    raise ValueError("Jugador no válido para traspasar.")
+                player = Player.objects.filter(id=player_id, team=primary_team).first()
+                if not player:
+                    raise ValueError("Jugador no encontrado.")
+                dest_name = (request.POST.get("destination_club") or "").strip()
+                dest_club = resolve_or_create_club(dest_name) if dest_name else None
+                transfer_date = timezone.localdate()
+                raw_transfer_date = (request.POST.get("transfer_date") or "").strip()
+                if raw_transfer_date:
+                    try:
+                        transfer_date = datetime.strptime(raw_transfer_date, "%Y-%m-%d").date()
+                    except (ValueError, TypeError):
+                        pass
+                player.transferred_to_club = dest_club
+                player.transferred_at = transfer_date
+                player.is_active = False
+                player.save(update_fields=["transferred_to_club", "transferred_at", "is_active"])
+                left_note = f"Fichó por {dest_club.name}." if dest_club else "Fichó por otro club."
+                if active_club_season:
+                    mark_player_left_current_season(active_club_season, player, notes=left_note)
+                ensure_workspace_player(workspace, player, current_team=primary_team, is_active=False)
+                if dest_club:
+                    message = f"{player.name} fichó por {dest_club.name}."
+                else:
+                    message = f"{player.name} marcado como fichado por otro club."
             elif action == "move_team":
                 if not active_club_season:
                     raise ValueError("No hay temporada activa para mover al jugador.")
@@ -35794,6 +35831,7 @@ def coach_roster_page(request):
             "roster_birth_year_filter": roster_birth_year_filter,
             "inactive_club_player_options": inactive_club_player_options,
             "club_team_options": club_team_options,
+            "club_catalog": list(Club.objects.order_by("name").values_list("name", flat=True)),
             "player_cards": player_cards,
             "active_club_season": active_club_season,
             "active_club_season_is_current": active_club_season_is_current,
@@ -37639,6 +37677,47 @@ def _initial_eleven_page_impl(request):
     )
 
 
+def _ex_squad_identity_index(workspace):
+    """
+    Índice de jugadores que SALIERON de nuestra plantilla, para reconocerlos si aparecen en la
+    convocatoria de un rival: {nombre_normalizado: {from_team, to_club_id, to_club_name}}.
+
+    Solo incluye fichas inactivas (is_active=False) con identidad de persona, de los equipos del
+    club (workspace). Reutiliza la MISMA normalización de nombre que la resolución de identidad,
+    de modo que "misma persona" se detecte igual que en el resto del sistema.
+    """
+    index = {}
+    if workspace is None:
+        return index
+    team_ids = list(
+        WorkspaceTeam.objects.filter(workspace=workspace).values_list("team_id", flat=True)
+    )
+    if not team_ids:
+        return index
+    qs = (
+        Player.objects.filter(team_id__in=team_ids, is_active=False)
+        .exclude(identity__isnull=True)
+        .select_related("identity", "team", "transferred_to_club")
+    )
+    for player in qs:
+        identity = player.identity
+        names = {
+            _norm_identity_name(getattr(identity, "full_name", "")),
+            _norm_identity_name(getattr(identity, "display_name", "")),
+            _norm_identity_name(player.name),
+            _norm_identity_name(player.full_name),
+        }
+        info = {
+            "from_team": player.team.display_name if player.team else "",
+            "to_club_id": player.transferred_to_club_id,
+            "to_club_name": player.transferred_to_club.name if player.transferred_to_club_id else "",
+        }
+        for name in names:
+            if name and name not in index:
+                index[name] = info
+    return index
+
+
 @login_required
 def coach_rival_page(request):
     """
@@ -37857,6 +37936,24 @@ def coach_rival_page(request):
         )
     roster_rows.sort(key=lambda item: ((item.get("number") or 999), (item.get("name") or "").lower()))
 
+    # Fase 2: marca a nuestros ex-jugadores (misma persona) que salieron de la plantilla y aparecen
+    # en la convocatoria de este rival. "signed_here" = su traspaso registrado apunta a este club.
+    ex_players_found = []
+    try:
+        ex_index = _ex_squad_identity_index(workspace)
+    except Exception:
+        ex_index = {}
+    if ex_index:
+        rival_club_id = getattr(selected_rival, "club_id", None) if selected_rival else None
+        for row in roster_rows:
+            info = ex_index.get(_norm_identity_name(row.get("name")))
+            if info:
+                row["ex_player"] = {
+                    "from_team": info.get("from_team", ""),
+                    "signed_here": bool(rival_club_id and info.get("to_club_id") == rival_club_id),
+                }
+                ex_players_found.append(row)
+
     team_crest_url = resolve_team_crest_url(request, primary_team, sync=True)
     return render(
         request,
@@ -37874,6 +37971,7 @@ def coach_rival_page(request):
             "selected_rival": selected_rival,
             "snapshot": snapshot,
             "roster_rows": roster_rows,
+            "ex_players_found": ex_players_found,
             "selected_convoked_count": len(selected_convoked),
             "selected_starters_count": len(selected_starters),
             "message": message,

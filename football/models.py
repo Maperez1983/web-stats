@@ -981,6 +981,20 @@ class Player(models.Model):
     federation_license_expires_at = models.DateField(null=True, blank=True, help_text='Caducidad de la licencia federativa (para avisos de renovación).')
     license_updated_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    # Traspaso: cuando el jugador SALE de la plantilla porque ficha por otro club, se registra el
+    # club destino (del catálogo Club, sin duplicar) y la fecha. La ficha y su identidad de persona
+    # (PlayerIdentity) se conservan intactas; solo se pone is_active=False. Nullable/aditivo.
+    transferred_to_club = models.ForeignKey(
+        'Club',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='incoming_transfers',
+        help_text='Club por el que fichó el jugador al salir de la plantilla.',
+    )
+    transferred_at = models.DateField(
+        null=True, blank=True, help_text='Fecha en que fichó por otro club (salida de la plantilla).'
+    )
     # Control de caché de foto (para busting sin depender de caches por proceso).
     photo_updated_at = models.DateTimeField(null=True, blank=True)
     notes = models.TextField(blank=True)
