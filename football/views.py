@@ -76545,6 +76545,12 @@ def compute_player_dashboard(
         merged["decisive_actions_per90"] = influence["decisive_actions_per90"]
         merged["influence_score"] = influence["influence_score"]
         _apply_manual_master_overrides(merged, manual_entry, report_manual_entry, include_report_derived=True)
+        # Acciones/90: lo consumen la ficha del jugador y el snapshot (stats.actions_per90); antes
+        # solo lo adjuntaba player_dashboard_page, así que en la ficha salía 0. Se calcula aquí, tras
+        # los overrides manuales, para respetar los minutos ajustados a mano.
+        _a90_minutes = int(merged.get("minutes", 0) or 0)
+        _a90_actions = int(merged.get("total_actions", 0) or 0)
+        merged["actions_per90"] = round((_a90_actions / _a90_minutes) * 90, 1) if _a90_minutes > 0 else 0.0
         profile, profile_label, smart_kpis = build_smart_kpis(merged)
         merged["profile"] = profile
         merged["profile_label"] = profile_label

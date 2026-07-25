@@ -63,6 +63,8 @@ class ManualOverridesActiveSeasonTests(TestCase):
         self.assertIsNotNone(row)
         self.assertEqual(int(row.get("goals") or 0), 5)
         self.assertEqual(int(row.get("pj") or 0), 10)
+        # actions_per90 debe venir adjunto en la fila (la ficha lo lee como stats.actions_per90).
+        self.assertIn("actions_per90", row)
 
     def test_manual_override_skipped_on_historical_season(self):
         row = self._dashboard(season_active=False)

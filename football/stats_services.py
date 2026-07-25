@@ -429,8 +429,14 @@ def compute_player_cards(
                 'goalkeeper_saves': int(row.get('goalkeeper_saves', 0) or 0),
                 'success_rate': float(row.get('success_rate', 0) or 0),
                 'duel_rate': float(row.get('duel_rate', 0) or 0),
-                'passes_accuracy': float(row.get('passes_accuracy', 0) or 0),
-                'shots_accuracy': float(row.get('shots_accuracy', 0) or 0),
+                # El dashboard emite passes/shots anidados ({accuracy: ...}); antes se leía la clave
+                # plana inexistente -> "% Pase"/"% Tiro" salían siempre 0 en la plantilla del entrenador.
+                'passes_accuracy': float(
+                    row.get('passes_accuracy', (row.get('passes') or {}).get('accuracy', 0)) or 0
+                ),
+                'shots_accuracy': float(
+                    row.get('shots_accuracy', (row.get('shots') or {}).get('accuracy', 0)) or 0
+                ),
                 'participation_pct': float(row.get('participation_pct', 0) or 0),
                 'availability_pct': float(row.get('availability_pct', 0) or 0),
                 'importance_score': float(row.get('importance_score', 0) or 0),
