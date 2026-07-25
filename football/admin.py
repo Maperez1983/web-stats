@@ -26,9 +26,9 @@ class GroupAdmin(admin.ModelAdmin):
 
 @admin.register(models.Club)
 class ClubAdmin(admin.ModelAdmin):
-    list_display = ('name', 'name_key', 'team_count', 'updated_at')
+    list_display = ('name', 'name_key', 'team_count', 'possible_same_club', 'updated_at')
     search_fields = ('name', 'short_name', 'name_key', 'external_id', 'preferente_url')
-    actions = ('merge_selected_clubs',)
+    actions = ('reconcile_selected_clubs', 'merge_selected_clubs')
 
     def get_queryset(self, request):
         return super().get_queryset(request).prefetch_related('teams')
@@ -36,6 +36,16 @@ class ClubAdmin(admin.ModelAdmin):
     @admin.display(description='Equipos')
     def team_count(self, obj):
         return obj.teams.count()
+
+    @admin.display(description='Posible mismo club (parecido)')
+    def possible_same_club(self, obj):
+        # Detector fuzzy: clubes de nombre PARECIDO (no exacto) que probablemente son el mismo real
+        # escrito distinto — p. ej. un destino de traspaso/ojeo "Pizarra" vs el "C.D. Pizarra
+        # Atlético C.F." que luego aparece por la liga. Se reconcilian con la acción de arriba.
+        cands = models.fuzzy_duplicate_clubs(obj, limit=3)
+        if not cands:
+            return '—'
+        return '≈ ' + ', '.join(c.name for c in cands)
 
     @admin.action(description='Fusionar clubes seleccionados en uno (el más antiguo)')
     def merge_selected_clubs(self, request, queryset):
@@ -56,6 +66,38 @@ class ClubAdmin(admin.ModelAdmin):
             self.message_user(
                 request,
                 f'Fusionados {merged + 1} clubes en «{keep.name}» (id {keep.id}); sus equipos se reasignaron.',
+                level=messages.SUCCESS,
+            )
+
+    @admin.action(description='Reconciliar: unificar conservando el club REAL (con equipos/oficial)')
+    def reconcile_selected_clubs(self, request, queryset):
+        # Para el caso "club referenciado (destino de traspaso u ojeo) que luego aparece de verdad
+        # en la liga por scraping": fusiona conservando el club REAL — el que tiene equipos /
+        # external_id / URL (no el más antiguo, que suele ser el tecleado a mano y vacío).
+        from django.contrib import messages
+        clubs = list(queryset)
+        if len(clubs) < 2:
+            self.message_user(request, 'Selecciona al menos 2 clubes para reconciliar.', level=messages.WARNING)
+            return
+
+        def score(club):
+            return (club.teams.count(), 1 if club.external_id else 0, 1 if club.preferente_url else 0, -club.id)
+
+        keep = max(clubs, key=score)
+        merged = 0
+        for drop in clubs:
+            if drop.pk == keep.pk:
+                continue
+            try:
+                models.merge_clubs(keep, drop)
+                merged += 1
+            except Exception as exc:  # noqa: BLE001
+                self.message_user(request, f'No se pudo reconciliar «{drop.name}»: {exc}', level=messages.ERROR)
+        if merged:
+            self.message_user(
+                request,
+                f'Reconciliados {merged + 1} clubes en «{keep.name}» (id {keep.id}); '
+                'equipos, traspasos y ojeos reasignados al club real.',
                 level=messages.SUCCESS,
             )
 

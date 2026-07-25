@@ -245,13 +245,28 @@ def resolve_or_create_team(*, name, external_id='', preferente_url='', group=Non
 
 def merge_clubs(keep, drop):
     """
-    Fusiona el club `drop` dentro de `keep`: reasigna todos sus EQUIPOS (Team.club) a keep,
-    completa en keep los campos vacíos y elimina drop. Ligero: el club solo agrupa equipos.
-    Un mismo club real escrito de dos formas ("Benagalbón" y "Benagalbon c. d.") pasa a ser uno.
+    Fusiona el club `drop` dentro de `keep`: reasigna GENÉRICAMENTE todas sus relaciones inversas
+    (equipos `Team.club`, destinos de traspaso `Player.transferred_to_club`, clubes de ojeo, y
+    cualquier FK futuro a Club), completa en keep los campos de identidad vacíos y elimina drop.
+
+    Un mismo club real escrito de dos formas ("Pizarra" y "C.D. Pizarra Atlético C.F.") pasa a ser
+    uno solo SIN perder ninguna referencia. Reasignación por `_meta.related_objects` (no hay que
+    enumerar los FKs). Operación IRREVERSIBLE: la vista/acción que la use debe confirmar antes.
     """
+    from django.db import IntegrityError, transaction
     if keep is None or drop is None or keep.pk == drop.pk:
         return keep
-    Team.objects.filter(club_id=drop.pk).update(club=keep)
+    for rel in list(drop._meta.related_objects):
+        field = rel.field
+        model = rel.related_model
+        for obj_pk in list(model.objects.filter(**{field.attname: drop.pk}).values_list('pk', flat=True)):
+            try:
+                with transaction.atomic():
+                    model.objects.filter(pk=obj_pk).update(**{field.attname: keep.pk})
+            except IntegrityError:
+                # Ya existe el equivalente en keep -> el de drop es un duplicado: se descarta.
+                with transaction.atomic():
+                    model.objects.filter(pk=obj_pk).delete()
     changed = []
     for field in ('external_id', 'preferente_url', 'crest_url', 'short_name'):
         if not getattr(keep, field, '') and getattr(drop, field, ''):
@@ -261,6 +276,33 @@ def merge_clubs(keep, drop):
         keep.save(update_fields=changed + ['updated_at'])
     drop.delete()
     return keep
+
+
+def _fuzzy_club_key_match(a_key, b_key, *, min_len=5):
+    """True si dos name_key de club se parecen lo bastante para ser el MISMO club escrito distinto
+    (uno contenido en el otro, p. ej. 'pizarra' ⊂ 'cdpizarraatleticocf'). No exacto (eso ya lo
+    cubre name_key) y con longitud mínima para evitar coincidencias triviales."""
+    a_key = (a_key or '').strip()
+    b_key = (b_key or '').strip()
+    if not a_key or not b_key or a_key == b_key:
+        return False
+    short, long = (a_key, b_key) if len(a_key) <= len(b_key) else (b_key, a_key)
+    return len(short) >= min_len and short in long
+
+
+def fuzzy_duplicate_clubs(club, *, limit=5):
+    """Devuelve otros Club que probablemente son el MISMO club real que `club` pero escrito de
+    otra forma (para reconciliar un club solo-referenciado con el que aparece en la liga)."""
+    key = getattr(club, 'name_key', '') or normalize_team_name_key(getattr(club, 'name', ''))
+    if not key:
+        return []
+    matches = []
+    for other in Club.objects.exclude(pk=getattr(club, 'pk', None)).only('id', 'name', 'name_key'):
+        if _fuzzy_club_key_match(key, other.name_key):
+            matches.append(other)
+            if len(matches) >= limit:
+                break
+    return matches
 
 
 def merge_teams(keep, drop):
@@ -1340,6 +1382,17 @@ class ScoutingTarget(models.Model):
     budget_note = models.CharField(max_length=160, blank=True)
     discard_reason = models.CharField(max_length=24, choices=DISCARD_REASON_CHOICES, blank=True, default='', db_index=True)
     discard_club = models.CharField(max_length=160, blank=True, help_text='Club que lo fichó, si el motivo es que fichó por otro.')
+    # Identidad de club para el ojeo: mismo catálogo `Club` que la plantilla, para poder reconciliar
+    # con los clubes reales de la liga (y no perder el vínculo si el club aparece luego por scraping).
+    # Se autopueblan desde subject_team_name / discard_club en save().
+    subject_club = models.ForeignKey(
+        'Club', null=True, blank=True, on_delete=models.SET_NULL, related_name='scouting_current',
+        help_text='Club actual del ojeado, enlazado al catálogo (autollenado desde el texto).',
+    )
+    signed_club = models.ForeignKey(
+        'Club', null=True, blank=True, on_delete=models.SET_NULL, related_name='scouting_signed',
+        help_text='Club que fichó al ojeado, si el descarte es "fichó por otro" (autollenado).',
+    )
     discard_permanent = models.BooleanField(default=False, help_text='Descarte definitivo: no volver a por él.')
     phone = models.CharField(max_length=40, blank=True)
     has_agent = models.BooleanField(default=False)
@@ -1381,6 +1434,24 @@ class ScoutingTarget(models.Model):
             merged.update(changed_fields)
             kwargs['update_fields'] = sorted(merged)
         super().save(*args, **kwargs)
+        # Auto-enlace al catálogo de clubes (identidad de club) para poder reconciliar el ojeo con
+        # los clubes reales de la liga. No pisa un FK ya asignado a mano; se escribe con UPDATE
+        # directo para no re-disparar save().
+        club_updates = {}
+        if self.subject_club_id is None and (self.subject_team_name or '').strip():
+            try:
+                club_updates['subject_club'] = resolve_or_create_club(self.subject_team_name)
+            except Exception:
+                pass
+        if self.signed_club_id is None and (self.discard_club or '').strip():
+            try:
+                club_updates['signed_club'] = resolve_or_create_club(self.discard_club)
+            except Exception:
+                pass
+        if club_updates:
+            type(self).objects.filter(pk=self.pk).update(**club_updates)
+            for key, val in club_updates.items():
+                setattr(self, key, val)
 
 
 class ScoutingReport(models.Model):
