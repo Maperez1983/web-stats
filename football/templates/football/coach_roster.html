@@ -52,6 +52,21 @@
         flex-wrap: wrap;
         justify-content: flex-end;
       }
+      .export-menu { position: relative; }
+      .export-menu > summary { list-style: none; cursor: pointer; }
+      .export-menu > summary::-webkit-details-marker { display: none; }
+      .export-menu-list {
+        position: absolute; right: 0; top: calc(100% + 6px); z-index: 30;
+        display: flex; flex-direction: column; min-width: 190px; gap: 2px; padding: 6px;
+        border-radius: 12px; border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28));
+        background: var(--prod-panel-flat, rgba(18, 30, 50, 0.98));
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
+      }
+      .export-menu-list a {
+        padding: 0.5rem 0.7rem; border-radius: 8px; text-decoration: none;
+        color: var(--prod-text, #f5f7fa); font-size: 0.9rem;
+      }
+      .export-menu-list a:hover { background: rgba(148, 163, 184, 0.16); }
       .panel {
         margin-top: 1rem;
         border-radius: 18px;
@@ -762,10 +777,14 @@
           <h1>Plantilla · {{ team_name }}</h1>
         </div>
         <div class="top-actions">
-          <a class="button" href="{% url 'coach-roster-pdf' %}{{ roster_html_query|default:'?html=1' }}" target="_blank" rel="noopener">Ficha HTML</a>
-          <a class="button" href="{% url 'coach-roster-pdf' %}{{ roster_image_query|default:'?image=1' }}" target="_blank" rel="noopener">Imagen plantilla</a>
-          <a class="button" href="{% url 'coach-roster-pdf' %}{{ active_team_query|default:'' }}" target="_blank" rel="noopener">PDF plantilla</a>
-          <a class="button" href="{% url 'coach-cards' %}">Volver</a>
+          <details class="export-menu">
+            <summary class="button">Exportar ▾</summary>
+            <div class="export-menu-list">
+              <a href="{% url 'coach-roster-pdf' %}{{ roster_html_query|default:'?html=1' }}" target="_blank" rel="noopener">Ficha HTML</a>
+              <a href="{% url 'coach-roster-pdf' %}{{ roster_image_query|default:'?image=1' }}" target="_blank" rel="noopener">Imagen plantilla</a>
+              <a href="{% url 'coach-roster-pdf' %}{{ active_team_query|default:'' }}" target="_blank" rel="noopener">PDF plantilla</a>
+            </div>
+          </details>
         </div>
       </header>
 
