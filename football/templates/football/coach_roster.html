@@ -1396,7 +1396,8 @@
           {% for club_name in club_catalog %}<option value="{{ club_name }}"></option>{% endfor %}
         </datalist>
         <datalist id="category-catalog">
-          <option value="Senior"></option><option value="Juvenil"></option><option value="Cadete"></option><option value="Cadete A"></option><option value="Cadete B"></option><option value="Infantil"></option><option value="Alevín"></option><option value="Benjamín"></option><option value="Prebenjamín"></option><option value="Bebé"></option>
+          {% for cat_name in category_catalog %}<option value="{{ cat_name }}"></option>{% endfor %}
+          <option value="Senior"></option><option value="Juvenil"></option><option value="Cadete A"></option><option value="Cadete B"></option><option value="Infantil"></option><option value="Alevín"></option><option value="Benjamín"></option><option value="Prebenjamín"></option><option value="Bebé"></option>
         </datalist>
         </div>
         {% endif %}

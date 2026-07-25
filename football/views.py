@@ -360,6 +360,7 @@ from football.models import (
     AuditLogEntry,
     ChunkedRivalVideoUpload,
     Club,
+    ClubCategory,
     Competition,
     ConvocationRecord,
     ScoutingFollowUp,
@@ -35236,6 +35237,22 @@ def _player_matches_birth_year_filter(player, birth_filter):
     return True
 
 
+def _club_category_ui_data():
+    """(nombres de categoría distintos, {club: [categorías]}) para los datalists del traspaso: las
+    sugerencias salen de las categorías-entidad REALES (ClubCategory), no de una lista fija; el mapa
+    permite acotar por club en la ficha."""
+    club_map = {}
+    for cat in ClubCategory.objects.select_related("club").order_by("club__name", "order", "name"):
+        club_map.setdefault(cat.club.name, [])
+        if cat.name not in club_map[cat.club.name]:
+            club_map[cat.club.name].append(cat.name)
+    names = []
+    for name in ClubCategory.objects.order_by("order", "name").values_list("name", flat=True):
+        if name not in names:
+            names.append(name)
+    return names, club_map
+
+
 @login_required
 def coach_roster_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
@@ -35969,6 +35986,7 @@ def coach_roster_page(request):
             "inactive_club_player_options": inactive_club_player_options,
             "club_team_options": club_team_options,
             "club_catalog": list(Club.objects.order_by("name").values_list("name", flat=True)),
+            "category_catalog": _club_category_ui_data()[0],
             "player_cards": player_cards,
             "active_club_season": active_club_season,
             "active_club_season_is_current": active_club_season_is_current,
@@ -70154,6 +70172,7 @@ def player_detail_page(request, player_id):
             ),
         ]
         fm_attribute_radar_data = _build_fm_attribute_radar_data(fm_attribute_groups)
+        _ficha_cat_names, _ficha_cat_map = _club_category_ui_data()
 
         return render(
             request,
@@ -70207,6 +70226,8 @@ def player_detail_page(request, player_id):
             "season_state_label": season_state_label,
             "player_in_scouting": player_in_scouting,
             "club_catalog": list(Club.objects.order_by("name").values_list("name", flat=True)),
+            "category_catalog": _ficha_cat_names,
+            "club_categories_map_json": json.dumps(_ficha_cat_map, ensure_ascii=False),
             "identity_other_records": identity_other_records,
             "license_expiry_badge": license_expiry_badge,
             "form_last5": form_last5,
