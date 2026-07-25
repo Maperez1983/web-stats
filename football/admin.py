@@ -74,9 +74,49 @@ class WorkspaceSeasonPlayerAdmin(admin.ModelAdmin):
 
 @admin.register(models.PlayerIdentity)
 class PlayerIdentityAdmin(admin.ModelAdmin):
-    list_display = ('full_name', 'display_name', 'birth_date', 'updated_at')
+    list_display = ('full_name', 'display_name', 'birth_date', 'record_count', 'record_teams', 'updated_at')
     search_fields = ('full_name', 'display_name', 'preferente_profile_url', 'transfermarkt_url', 'besoccer_url')
     list_filter = ('birth_date',)
+    actions = ('merge_selected_identities',)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related('player_records__team')
+
+    @admin.display(description='Fichas')
+    def record_count(self, obj):
+        return obj.player_records.count()
+
+    @admin.display(description='Equipos')
+    def record_teams(self, obj):
+        names = []
+        for p in obj.player_records.all():
+            team = getattr(p, 'team', None)
+            label = getattr(team, 'name', None) or '—'
+            if label not in names:
+                names.append(label)
+        return ', '.join(names[:6]) or '—'
+
+    @admin.action(description='Fusionar seleccionadas en una sola persona')
+    def merge_selected_identities(self, request, queryset):
+        from django.contrib import messages
+        identities = list(queryset.order_by('id'))
+        if len(identities) < 2:
+            self.message_user(request, 'Selecciona al menos 2 identidades para fusionar.', level=messages.WARNING)
+            return
+        keep = identities[0]
+        merged = 0
+        for drop in identities[1:]:
+            try:
+                models.merge_player_identities(keep, drop)
+                merged += 1
+            except Exception as exc:  # noqa: BLE001
+                self.message_user(request, f'No se pudo fusionar «{drop}»: {exc}', level=messages.ERROR)
+        if merged:
+            self.message_user(
+                request,
+                f'Fusionadas {merged + 1} identidades en «{keep}» (se conserva la más antigua).',
+                level=messages.SUCCESS,
+            )
 
 
 @admin.register(models.Player)
