@@ -36375,7 +36375,15 @@ def squad_status_report_page(request):
         for k, lbl, s in SQUAD_REPORT_PHASES
     ]
 
+    # Campo con avatares: reutiliza la pizarra de plantilla (fuente única para toda la app).
+    try:
+        pitch_players = _coach_pitch_players_for_request(request, primary_team, workspace=workspace)
+    except Exception:
+        pitch_players = []
+
     context = {
+        "coach_pitch_players": pitch_players,
+        "primary_team_id": int(getattr(primary_team, "id", 0) or 0),
         "phase": phase,
         "phase_label": phase_label,
         "phase_sub": phase_sub,

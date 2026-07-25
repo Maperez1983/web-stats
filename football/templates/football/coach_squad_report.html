@@ -87,6 +87,7 @@
   .sqr .stat.c-ok{--c:var(--ok)} .sqr .stat.c-trial{--c:var(--trial)}
   .sqr .stat.c-pending{--c:var(--pending)} .sqr .stat.c-injured{--c:var(--injured)} .sqr .stat.c-out{--c:var(--out)}
 
+  .sqr .pitch-wrap{margin-bottom:16px}
   .sqr .grid{display:grid;grid-template-columns:1.32fr 1fr;gap:16px;margin-bottom:16px}
   .sqr .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
     padding:18px 18px 16px;box-shadow:var(--shadow)}
@@ -213,6 +214,10 @@
     <div class="stat c-pending"><div class="n num">{{ counts.pending|default:0 }}</div><div class="l">Por decidir</div></div>
     <div class="stat c-injured"><div class="n num">{{ counts.injured|default:0 }}</div><div class="l">Lesionados</div></div>
     <div class="stat c-out"><div class="n num">{{ counts.discarded|default:0 }}</div><div class="l">No siguen</div></div>
+  </section>
+
+  <section class="pitch-wrap">
+    {% include 'football/_coach_pitch_board.html' %}
   </section>
 
   <section class="grid">
