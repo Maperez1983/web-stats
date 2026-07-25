@@ -68846,6 +68846,43 @@ def player_detail_page(request, player_id):
                 _invalidate_team_dashboard_caches(primary_team)
                 return redirect(f"{reverse('player-detail', args=[player.id])}?tab=injuries")
 
+            if form_action == "import_preferente_history":
+                # Rellenar el "Histórico La Preferente" pegando el texto de la ficha del jugador
+                # en La Preferente (Cmd+A, Cmd+C). Reutiliza el parser del importador de ojeados.
+                # No hace fetch (La Preferente da 403 al servidor): parsea lo pegado.
+                from football.preferente_player_services import parse_preferente_player
+                from football.models import ExternalSeasonStat as _ExtStat
+
+                parsed = parse_preferente_player(str(request.POST.get("preferente_text") or ""))
+                hist_seasons = [s for s in (parsed.get("seasons") or []) if str(s.get("season") or "").strip()]
+                if not hist_seasons:
+                    return redirect(f"{reverse('player-detail', args=[player.id])}?tab=seasons&hist_error=1")
+                _ext_position = str(parsed.get("specific_position") or parsed.get("position") or "")[:60]
+                _ext_name = str(parsed.get("name") or "")[:200]
+                with transaction.atomic():
+                    # Idempotente: re-pegar refresca (borra el histórico Preferente previo del jugador).
+                    _ExtStat.objects.filter(player=player, source=_ExtStat.SOURCE_PREFERENTE).delete()
+                    _ExtStat.objects.bulk_create([
+                        _ExtStat(
+                            player=player,
+                            source=_ExtStat.SOURCE_PREFERENTE,
+                            season_label=str(s.get("season") or "")[:16],
+                            team_name=str(s.get("team") or "")[:160],
+                            competition=str(s.get("division") or "")[:160],
+                            external_name=_ext_name,
+                            position=_ext_position,
+                            matches=int(s.get("matches_completed") or 0),
+                            starts=int(s.get("matches_starter") or 0),
+                            minutes=int(s.get("minutes") or 0),
+                            goals=int(s.get("goals") or 0),
+                            yellow_cards=int(s.get("yellow_cards") or 0),
+                            red_cards=int(s.get("red_cards") or 0),
+                        )
+                        for s in hist_seasons
+                    ])
+                return redirect(
+                    f"{reverse('player-detail', args=[player.id])}?tab=seasons&hist_imported={len(hist_seasons)}"
+                )
             if form_action == "manual_stats":
                 season = _resolve_season()
                 if season:

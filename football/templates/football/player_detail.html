@@ -1901,7 +1901,19 @@
             </table>
           </div>
         {% else %}
-          <p class="subtle" style="margin:0 0 0.6rem;">Aún no hay datos de La Preferente para este jugador. Se cargan al sincronizar desde una conexión doméstica (el proveedor bloquea el servidor del datacenter).</p>
+          <p class="subtle" style="margin:0 0 0.6rem;">Aún no hay datos de La Preferente para este jugador. El servidor no puede leerlos (el proveedor lo bloquea), pero puedes rellenarlos pegando su ficha de La Preferente aquí abajo.</p>
+        {% endif %}
+        {% if not is_player_readonly %}
+        <details style="margin-top:0.6rem;">
+          <summary style="cursor:pointer;font-weight:800;">Rellenar/actualizar desde La Preferente (pegar)</summary>
+          <p class="subtle" style="margin:0.5rem 0;">Abre la ficha del jugador en La Preferente, selecciónala entera (Cmd+A), cópiala (Cmd+C) y pégala aquí. Se rellena su historial (temporadas, equipos, PJ, minutos, goles, tarjetas).</p>
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="form_action" value="import_preferente_history" />
+            <textarea name="preferente_text" rows="6" style="width:100%;font-family:inherit;" placeholder="Pega aquí el contenido de la página del jugador de La Preferente…" required></textarea>
+            <div style="margin-top:0.6rem;"><button type="submit">Importar historial</button></div>
+          </form>
+        </details>
         {% endif %}
       </section>
 

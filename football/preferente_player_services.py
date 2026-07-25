@@ -113,6 +113,7 @@ def parse_preferente_player(text):
                 "division": division[:120],
                 "matches_completed": _to_int(vals[1]),  # PJ
                 "matches_starter": _to_int(vals[2]),     # PT
+                "minutes": _to_int(vals[3]),             # MIN
                 "goals": _to_int(vals[4]),               # GOL
                 "yellow_cards": _to_int(vals[5]),        # TA
                 "red_cards": _to_int(vals[6]),           # TR
