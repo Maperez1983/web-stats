@@ -152,3 +152,67 @@ TASK_CONSTRAINT_CHOICES = [
     ('bonus_recovery_high', 'Bonus por recuperación alta'),
     ('max_3_passes_before_finish', 'Máx. 3 pases antes de finalizar'),
 ]
+
+
+# ============================================================
+# Fase 2 — Taxonomía canónica del modelo teórico + proyección a columnas.
+# Fuente de verdad para las columnas queryables de SessionTask (biblioteca/filtros).
+# ============================================================
+
+# Momentos del juego (las 5 fases del modelo de juego).
+GAME_MOMENT_CHOICES = [
+    ("offensive_organization", "Organización ofensiva"),
+    ("defensive_transition", "Transición ataque-defensa"),
+    ("defensive_organization", "Organización defensiva"),
+    ("offensive_transition", "Transición defensa-ataque"),
+    ("set_pieces", "ABP"),
+]
+
+# Contenido dominante de la tarea (dominio principal que se entrena).
+TASK_CONTENT_CHOICES = [
+    ("tactical", "Táctico"),
+    ("technical", "Técnico"),
+    ("physical", "Físico-condicional"),
+    ("psychological", "Psicológico-cognitivo"),
+]
+
+# Estructura (periodización táctica): la dimensión del jugador que la tarea moviliza.
+TASK_PERIODIZATION_CHOICES = [
+    ("conditional", "Condicional"),
+    ("coordinative", "Coordinativa"),
+    ("cognitive", "Cognitiva"),
+    ("socio_affective", "Socio-afectiva"),
+    ("emotional_volitional", "Emotivo-volitiva"),
+    ("creative_expressive", "Creativo-expresiva"),
+]
+
+
+def _task_col_str(value, limit):
+    try:
+        s = str(value).strip() if value is not None else ""
+    except Exception:
+        s = ""
+    return s[:limit]
+
+
+def derive_task_columns(tactical_layout):
+    """Proyecta los campos de metodología de tactical_layout['meta'] a un dict de columnas
+    queryables de SessionTask. Fuente única usada por SessionTask.save() y por la migración
+    de backfill, para que columnas y JSON estén siempre sincronizados."""
+    meta = {}
+    try:
+        if isinstance(tactical_layout, dict):
+            m = tactical_layout.get("meta")
+            if isinstance(m, dict):
+                meta = m
+    except Exception:
+        meta = {}
+    return {
+        "game_moment": _task_col_str(meta.get("game_moment"), 40),
+        "principle": _task_col_str(meta.get("principle"), 160),
+        "subprinciple": _task_col_str(meta.get("subprinciple"), 200),
+        "structure_periodization": _task_col_str(meta.get("dominant_structure"), 40),
+        "game_situation": _task_col_str(meta.get("structure"), 40),
+        "content_domain": _task_col_str(meta.get("content_domain"), 30),
+        "age_group": _task_col_str(meta.get("age_group"), 80),
+    }

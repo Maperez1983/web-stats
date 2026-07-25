@@ -2455,6 +2455,20 @@ class SessionTask(models.Model):
     objective = models.TextField(blank=True)
     coaching_points = models.TextField(blank=True, help_text='Consignas clave para ejecutar la tarea')
     confrontation_rules = models.TextField(blank=True, help_text='Reglas de confrontación y puntuación')
+    # --- Fase 2 · Modelo teórico: proyección QUERYABLE de la metodología ---
+    # Se derivan automáticamente de tactical_layout['meta'] en save() (fuente única:
+    # task_choices.derive_task_columns). El JSON sigue siendo la fuente de verdad; estas
+    # columnas son un índice para poder filtrar/buscar (biblioteca de tareas).
+    game_moment = models.CharField(max_length=40, blank=True, default='', db_index=True,
+                                   help_text='Momento del juego (derivado del JSON)')
+    principle = models.CharField(max_length=160, blank=True, default='')
+    subprinciple = models.CharField(max_length=200, blank=True, default='')
+    structure_periodization = models.CharField(max_length=40, blank=True, default='', db_index=True,
+                                               help_text='Estructura (periodización táctica)')
+    game_situation = models.CharField(max_length=40, blank=True, default='')
+    content_domain = models.CharField(max_length=30, blank=True, default='', db_index=True,
+                                      help_text='Contenido dominante: táctico/técnico/físico/psicológico')
+    age_group = models.CharField(max_length=80, blank=True, default='', db_index=True)
     tactical_layout = models.JSONField(default=dict, blank=True)
     task_pdf = models.FileField(upload_to='session-tasks-pdf/', null=True, blank=True)
     task_preview_image = models.ImageField(upload_to='session-tasks-preview/', null=True, blank=True)
@@ -2477,6 +2491,14 @@ class SessionTask(models.Model):
                 self.club_season_id = getattr(self.session, 'club_season_id', None)
             except Exception:
                 self.club_season_id = None
+        # Fase 2: mantiene las columnas de metodología en sync con el JSON en cada guardado.
+        # Cubre TODOS los sitios de guardado (create/update/clone) sin tocar views.py.
+        try:
+            from .task_choices import derive_task_columns
+            for _k, _v in derive_task_columns(self.tactical_layout).items():
+                setattr(self, _k, _v)
+        except Exception:
+            pass
         super().save(*args, **kwargs)
 
 
