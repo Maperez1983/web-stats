@@ -22,10 +22,6 @@
       </div>
     </div>
     <div class="player-bank-tools">
-      <label class="chip-toggle" title="Muestra la nota de la última evaluación cerrada sobre cada ficha (banco y pizarra).">
-        <input type="checkbox" id="task-show-ratings" />
-        Ver notas
-      </label>
       <label class="chip-toggle" title="Oculta jugadores ya colocados en la pizarra (vuelven a aparecer al borrarlos).">
         <input type="checkbox" id="task-hide-used-players" checked />
         Ocultar usados
@@ -70,7 +66,7 @@
       {% for p in tactical_player_catalog %}
         <button type="button" class="player-token-bank{% if p.is_scouted %} is-scouted{% endif %}" data-player-id="{{ p.id }}" data-estado="{{ p.estado|default:'' }}" data-scouted="{% if p.is_scouted %}1{% else %}0{% endif %}"{% if p.rating %} data-rating="{{ p.rating }}"{% endif %} title="{{ p.name|default:'' }}{% if p.is_scouted %} · Ojeado{% endif %}">
           <span class="player-token-bank-visuals">
-            {% if p.rating %}<span class="token-rating-badge{% if p.rating >= 7 %} is-good{% elif p.rating >= 5 %} is-mid{% else %} is-low{% endif %}" aria-hidden="true">{{ p.rating }}</span>{% endif %}
+            <span class="token-rating-badge{% if not p.rating %} is-unrated{% elif p.rating >= 7 %} is-good{% elif p.rating >= 5 %} is-mid{% else %} is-low{% endif %}" aria-hidden="true">{% if p.rating %}{{ p.rating|floatformat:'-1' }}{% else %}–{% endif %}</span>
             {% if p.is_scouted %}<span class="token-scout-flag" title="Ojeado" aria-hidden="true">👁</span>{% endif %}
             <span class="token-disk is-preview{% if p.position and p.position|upper == 'GK' %} is-goalkeeper{% endif %}">
               <span class="token-number">{% if p.position and p.position|upper == 'GK' %}GK{% else %}{{ p.number|default:"J" }}{% endif %}</span>

@@ -31754,12 +31754,13 @@
 		      // agrandar el bbox (eso rompía el arrastre/selección de fichas).
 		      const ratingValue = (player && player.rating != null && Number.isFinite(Number(player.rating)))
 		        ? Number(player.rating) : null;
-		      if (ratingValue != null) {
-		        const rTierFill = ratingValue >= 7 ? '#16a34a' : (ratingValue >= 5 ? '#d97706' : '#dc2626');
+		      if (kind === 'player_local' || kind === 'goalkeeper_local') {
 		        const rCx = baseRadius * 0.6; const rCy = -baseRadius * 0.6;
-		        const rCircle = new fabric.Circle({ radius: 8.5, left: rCx, top: rCy, originX: 'center', originY: 'center', fill: rTierFill, stroke: '#f8fafc', strokeWidth: 1.4, visible: ratingsVisible });
+		        const hasRating = ratingValue != null;
+		        const rTierFill = !hasRating ? '#64748b' : (ratingValue >= 7 ? '#16a34a' : (ratingValue >= 5 ? '#d97706' : '#dc2626'));
+		        const rCircle = new fabric.Circle({ radius: 8.5, left: rCx, top: rCy, originX: 'center', originY: 'center', fill: rTierFill, stroke: '#f8fafc', strokeWidth: 1.4, visible: true });
 		        rCircle.data = { role: 'token_rating' };
-		        const rText = new fabric.Text((Math.round(ratingValue * 10) / 10).toString(), { left: rCx, top: rCy, originX: 'center', originY: 'center', fontSize: 9, fontWeight: '700', fill: '#ffffff', visible: ratingsVisible });
+		        const rText = new fabric.Text(hasRating ? (Math.round(ratingValue * 10) / 10).toString() : '–', { left: rCx, top: rCy, originX: 'center', originY: 'center', fontSize: hasRating ? 9 : 11, fontWeight: '700', fill: '#ffffff', visible: true });
 		        rText.data = { role: 'token_rating' };
 		        tokenParts.push(rCircle); tokenParts.push(rText);
 		      }
@@ -34117,10 +34118,15 @@
               visuals.appendChild(figurePreview);
               // Badge de valoración (visible con el toggle "Ver notas") + marca de ojeado.
               const bankRating = (player && player.rating != null && Number.isFinite(Number(player.rating))) ? Number(player.rating) : null;
-              if (bankRating != null) {
+              {
                 const ratingBadge = document.createElement('span');
-                ratingBadge.className = 'token-rating-badge ' + (bankRating >= 7 ? 'is-good' : (bankRating >= 5 ? 'is-mid' : 'is-low'));
-                ratingBadge.textContent = (Math.round(bankRating * 10) / 10).toString();
+                if (bankRating != null) {
+                  ratingBadge.className = 'token-rating-badge ' + (bankRating >= 7 ? 'is-good' : (bankRating >= 5 ? 'is-mid' : 'is-low'));
+                  ratingBadge.textContent = (Math.round(bankRating * 10) / 10).toString();
+                } else {
+                  ratingBadge.className = 'token-rating-badge is-unrated';
+                  ratingBadge.textContent = '–';
+                }
                 ratingBadge.setAttribute('aria-hidden', 'true');
                 visuals.appendChild(ratingBadge);
               }

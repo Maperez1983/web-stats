@@ -361,7 +361,7 @@
       }
       /* Badge de valoración (nota última evaluación cerrada). Oculto salvo con "Ver notas". */
       .player-bank .token-rating-badge {
-        display: none;
+        display: inline-block;
         position: absolute;
         top: -4px;
         right: -4px;
@@ -382,10 +382,10 @@
         box-shadow: 0 1px 3px rgba(2, 6, 23, 0.45);
         pointer-events: none;
       }
-      #task-roster-bank.show-ratings .token-rating-badge { display: inline-block; }
       .player-bank .token-rating-badge.is-good { background: #16a34a; }
       .player-bank .token-rating-badge.is-mid { background: #d97706; }
       .player-bank .token-rating-badge.is-low { background: #dc2626; }
+      .player-bank .token-rating-badge.is-unrated { background: #64748b; color: #e2e8f0; }
       /* Marca de ojeado (siempre visible). */
       .player-bank .token-scout-flag {
         position: absolute;
