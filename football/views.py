@@ -70269,6 +70269,20 @@ def player_detail_page(request, player_id):
             }
         except Exception:
             player_percentiles = {}
+        # Sugerencia objetiva 1-10 para "KPIs objetivos": media de los percentiles de
+        # rendimiento disponibles (0-100) reescalada a 0-10. Sirve como valor de partida
+        # editable en el formulario de evaluación (el staff puede sobrescribirlo).
+        objective_score_suggestion = None
+        try:
+            _pct_values = [
+                float(v)
+                for v in (player_percentiles or {}).values()
+                if isinstance(v, (int, float))
+            ]
+            if _pct_values:
+                objective_score_suggestion = round((sum(_pct_values) / len(_pct_values)) / 10.0, 1)
+        except Exception:
+            objective_score_suggestion = None
         tab_raw = str(request.GET.get("tab") or "").strip().lower()
         if not tab_raw and is_player_readonly:
             tab_raw = "performance"
@@ -71033,6 +71047,7 @@ def player_detail_page(request, player_id):
                 "player": player,
                 "stats": safe_stats,
                 "player_percentiles": player_percentiles,
+                "objective_score_suggestion": objective_score_suggestion,
                 "card_radar_data": card_radar_data,
                 "scope_value": scope,
                 "tournament_filter": tournament_filter,
