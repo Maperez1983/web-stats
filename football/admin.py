@@ -303,9 +303,10 @@ class PlayerIdentityAdmin(admin.ModelAdmin):
 
 @admin.register(models.Player)
 class PlayerAdmin(admin.ModelAdmin):
-    list_display = ('name', 'team', 'number', 'position', 'identity', 'injury', 'injury_date')
-    search_fields = ('name', 'full_name', 'nickname', 'team__name')
-    autocomplete_fields = ('identity',)
+    list_display = ('name', 'team', 'is_active', 'transferred_to_club', 'transferred_to_category', 'number', 'position', 'identity')
+    list_filter = ('is_active', 'team')
+    search_fields = ('name', 'full_name', 'nickname', 'team__name', 'transferred_to_club__name')
+    autocomplete_fields = ('identity', 'transferred_to_club', 'transferred_to_category_ref')
 
 
 @admin.register(models.PlayerEvaluation)
