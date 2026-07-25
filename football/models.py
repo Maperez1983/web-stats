@@ -278,16 +278,27 @@ def merge_clubs(keep, drop):
     return keep
 
 
-def _fuzzy_club_key_match(a_key, b_key, *, min_len=5):
-    """True si dos name_key de club se parecen lo bastante para ser el MISMO club escrito distinto
-    (uno contenido en el otro, p. ej. 'pizarra' ⊂ 'cdpizarraatleticocf'). No exacto (eso ya lo
-    cubre name_key) y con longitud mínima para evitar coincidencias triviales."""
+def _fuzzy_name_key_similar(a_key, b_key, *, min_len=5, ratio=0.82):
+    """True si dos claves normalizadas se parecen lo bastante para ser el MISMO nombre escrito
+    distinto — SIN ser idénticas (eso ya lo cubre name_key). Cubre dos casos:
+    - abreviatura/sufijo: una contenida en la otra ('pizarra' ⊂ 'cdpizarraatleticocf').
+    - erratas: alta similitud de secuencia ('torremoya' ~ 'torrremoya').
+    Longitud mínima para evitar coincidencias triviales."""
+    import difflib
     a_key = (a_key or '').strip()
     b_key = (b_key or '').strip()
     if not a_key or not b_key or a_key == b_key:
         return False
     short, long = (a_key, b_key) if len(a_key) <= len(b_key) else (b_key, a_key)
-    return len(short) >= min_len and short in long
+    if len(short) < min_len:
+        return False
+    if short in long:
+        return True
+    return difflib.SequenceMatcher(None, a_key, b_key).ratio() >= ratio
+
+
+# Alias retrocompatible (antes solo hacía substring); ahora delega en el matcher genérico.
+_fuzzy_club_key_match = _fuzzy_name_key_similar
 
 
 def fuzzy_duplicate_clubs(club, *, limit=5):
@@ -298,7 +309,69 @@ def fuzzy_duplicate_clubs(club, *, limit=5):
         return []
     matches = []
     for other in Club.objects.exclude(pk=getattr(club, 'pk', None)).only('id', 'name', 'name_key'):
-        if _fuzzy_club_key_match(key, other.name_key):
+        if _fuzzy_name_key_similar(key, other.name_key):
+            matches.append(other)
+            if len(matches) >= limit:
+                break
+    return matches
+
+
+def fuzzy_duplicate_teams(team, *, limit=5):
+    """Otros Team del MISMO grupo con nombre PARECIDO (no exacto) — candidatos a fusionar por
+    erratas/abreviaturas al importar la clasificación ('Torremoya' ~ 'Torrremoya'). Scoped al
+    grupo A PROPÓSITO: dos categorías del mismo club comparten name_key y NO son duplicado."""
+    key = getattr(team, 'name_key', '') or normalize_team_name_key(getattr(team, 'name', ''))
+    if not key:
+        return []
+    qs = Team.objects.exclude(pk=getattr(team, 'pk', None))
+    group_id = getattr(team, 'group_id', None)
+    qs = qs.filter(group_id=group_id) if group_id is not None else qs.filter(group__isnull=True)
+    matches = []
+    for other in qs.only('id', 'name', 'name_key', 'group_id'):
+        if _fuzzy_name_key_similar(key, other.name_key):
+            matches.append(other)
+            if len(matches) >= limit:
+                break
+    return matches
+
+
+def merge_groups(keep, drop):
+    """Fusiona el grupo `drop` en `keep`: reasigna GENÉRICAMENTE todas sus relaciones inversas
+    (equipos, partidos, clasificaciones, contextos…) y elimina drop. Para grupos DUPLICADOS: el
+    mismo grupo real escrito distinto ('Grupo 2 (2025/2026)' vs '2025-2026'). Reasigna la
+    clasificación ANTES de borrar (TeamStanding tiene on_delete=CASCADE con Group). Si un objeto
+    choca con una unicidad en keep, se descarta ese duplicado. IRREVERSIBLE: confirmar antes."""
+    from django.db import IntegrityError, transaction
+    if keep is None or drop is None or keep.pk == drop.pk:
+        return keep
+    for rel in list(drop._meta.related_objects):
+        field = rel.field
+        model = rel.related_model
+        for obj_pk in list(model.objects.filter(**{field.attname: drop.pk}).values_list('pk', flat=True)):
+            try:
+                with transaction.atomic():
+                    model.objects.filter(pk=obj_pk).update(**{field.attname: keep.pk})
+            except IntegrityError:
+                with transaction.atomic():
+                    model.objects.filter(pk=obj_pk).delete()
+    if not getattr(keep, 'external_id', '') and getattr(drop, 'external_id', ''):
+        keep.external_id = drop.external_id
+        keep.save(update_fields=['external_id'])
+    drop.delete()
+    return keep
+
+
+def fuzzy_duplicate_groups(group, *, limit=5):
+    """Otros Group que probablemente son el MISMO grupo real ('Grupo 2 (2025/2026)' vs
+    'Grupo 2 (2025-2026)'): mismo nombre normalizado o muy parecido. Cruza temporadas A PROPÓSITO,
+    porque la propia temporada puede estar duplicada."""
+    key = normalize_team_name_key(getattr(group, 'name', ''))
+    if not key:
+        return []
+    matches = []
+    for other in Group.objects.exclude(pk=getattr(group, 'pk', None)).select_related('season'):
+        okey = normalize_team_name_key(other.name)
+        if okey == key or _fuzzy_name_key_similar(key, okey):
             matches.append(other)
             if len(matches) >= limit:
                 break

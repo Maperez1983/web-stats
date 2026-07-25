@@ -21,7 +21,48 @@ class SeasonAdmin(admin.ModelAdmin):
 
 @admin.register(models.Group)
 class GroupAdmin(admin.ModelAdmin):
-    list_display = ('name', 'season', 'external_id')
+    list_display = ('name', 'season', 'external_id', 'possible_duplicate_groups')
+    search_fields = ('name', 'slug', 'external_id')
+    actions = ('merge_selected_groups',)
+
+    @admin.display(description='Posible mismo grupo')
+    def possible_duplicate_groups(self, obj):
+        # El mismo grupo real escrito distinto ('Grupo 2 (2025/2026)' vs '2025-2026'). Cruza
+        # temporadas porque la temporada también puede estar duplicada.
+        cands = models.fuzzy_duplicate_groups(obj, limit=3)
+        if not cands:
+            return '—'
+        return '≈ ' + ', '.join(f'{c.name} · {c.season.name}' for c in cands)
+
+    @admin.action(description='Fusionar grupos seleccionados (conserva el que tenga más datos)')
+    def merge_selected_groups(self, request, queryset):
+        from django.contrib import messages
+        groups = list(queryset)
+        if len(groups) < 2:
+            self.message_user(request, 'Selecciona al menos 2 grupos para fusionar.', level=messages.WARNING)
+            return
+
+        def score(group):
+            content = group.teams.count() + group.matches.count() + group.standings.count()
+            return (content, 1 if group.external_id else 0, -group.id)
+
+        keep = max(groups, key=score)
+        merged = 0
+        for drop in groups:
+            if drop.pk == keep.pk:
+                continue
+            try:
+                models.merge_groups(keep, drop)
+                merged += 1
+            except Exception as exc:  # noqa: BLE001
+                self.message_user(request, f'No se pudo fusionar «{drop.name}»: {exc}', level=messages.ERROR)
+        if merged:
+            self.message_user(
+                request,
+                f'Fusionados {merged + 1} grupos en «{keep.name}» ({keep.season.name}); '
+                'equipos, partidos y clasificación reasignados.',
+                level=messages.SUCCESS,
+            )
 
 
 @admin.register(models.Club)
@@ -104,7 +145,7 @@ class ClubAdmin(admin.ModelAdmin):
 
 @admin.register(models.Team)
 class TeamAdmin(admin.ModelAdmin):
-    list_display = ('name', 'club', 'category', 'name_key', 'external_id', 'possible_duplicates', 'group', 'is_primary')
+    list_display = ('name', 'club', 'category', 'name_key', 'external_id', 'possible_duplicates', 'possible_duplicates_fuzzy', 'group', 'is_primary')
     list_filter = ('game_format', 'group', 'is_primary')
     search_fields = ('name', 'short_name', 'slug', 'category', 'name_key', 'external_id', 'preferente_url')
     prepopulated_fields = {'slug': ('name',)}
@@ -120,6 +161,15 @@ class TeamAdmin(admin.ModelAdmin):
             return '—'
         count = models.Team.objects.filter(name_key=obj.name_key, group=obj.group).exclude(pk=obj.pk).count()
         return f'⚠ {count}' if count else '—'
+
+    @admin.display(description='Parecidos (posible dup.)')
+    def possible_duplicates_fuzzy(self, obj):
+        # Duplicados por PARECIDO en el mismo grupo (erratas/abreviaturas que name_key exacto no
+        # caza: 'Torremoya' ~ 'Torrremoya'). Se fusionan con la acción de abajo.
+        cands = models.fuzzy_duplicate_teams(obj, limit=3)
+        if not cands:
+            return '—'
+        return '≈ ' + ', '.join(c.name for c in cands)
 
     @admin.action(description='Fusionar equipos seleccionados en uno (conserva el que tenga external_id, o el más antiguo)')
     def merge_selected_teams(self, request, queryset):
