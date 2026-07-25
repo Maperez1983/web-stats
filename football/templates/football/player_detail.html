@@ -1763,6 +1763,19 @@
                 <input type="date" name="federation_license_expires_at" value="{{ player.federation_license_expires_at|date:'Y-m-d' }}" />
                 {% if license_expiry_badge %}<span class="pill {{ license_expiry_badge.tone }}" style="margin-top:0.4rem;">{{ license_expiry_badge.label }}</span>{% endif %}
               </label>
+              <label>Inicio de contrato
+                <input type="date" name="contract_start" value="{{ player.contract_start|date:'Y-m-d' }}" />
+              </label>
+              <label>Fin de contrato
+                <input type="date" name="contract_end" value="{{ player.contract_end|date:'Y-m-d' }}" />
+                {% if contract_badge %}<span class="pill {{ contract_badge.tone }}" style="margin-top:0.4rem;">{{ contract_badge.label }}</span>{% endif %}
+              </label>
+              <label>Cláusula de rescisión
+                <input type="text" name="release_clause" maxlength="80" value="{{ player.release_clause|default:'' }}" placeholder="Ej. 50.000 €" />
+              </label>
+              <label>Notas de contrato
+                <input type="text" name="contract_notes" maxlength="200" value="{{ player.contract_notes|default:'' }}" placeholder="Salario, bonus, vinculación…" />
+              </label>
               <label>Sanción manual
                 <select name="manual_sanction_active">
                   <option value="0" {% if not player.manual_sanction_active %}selected{% endif %}>No</option>

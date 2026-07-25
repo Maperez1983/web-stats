@@ -1163,6 +1163,11 @@ class Player(models.Model):
     federation_license_number = models.CharField(max_length=80, blank=True, help_text='Nº licencia federativa (opcional).')
     federation_license_expires_at = models.DateField(null=True, blank=True, help_text='Caducidad de la licencia federativa (para avisos de renovación).')
     license_updated_at = models.DateTimeField(null=True, blank=True)
+    # Ficha administrativa / dirección deportiva.
+    contract_start = models.DateField(null=True, blank=True, help_text='Inicio de contrato/vinculación.')
+    contract_end = models.DateField(null=True, blank=True, help_text='Fin de contrato (para avisos de renovación).')
+    release_clause = models.CharField(max_length=80, blank=True, help_text='Cláusula de rescisión (texto libre, ej. "50.000 €").')
+    contract_notes = models.CharField(max_length=200, blank=True, help_text='Notas de contrato/ficha (salario, bonus, vinculación…).')
     is_active = models.BooleanField(default=True)
     # Traspaso: cuando el jugador SALE de la plantilla porque ficha por otro club, se registra el
     # club destino (del catálogo Club, sin duplicar) y la fecha. La ficha y su identidad de persona

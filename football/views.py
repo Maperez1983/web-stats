@@ -68961,6 +68961,10 @@ def player_detail_page(request, player_id):
                     player.license_updated_at = timezone.now()
                 player.federation_license_number = _lic_num
                 player.federation_license_expires_at = _lic_exp
+                player.contract_start = _parse_date_value(request.POST.get("contract_start"))
+                player.contract_end = _parse_date_value(request.POST.get("contract_end"))
+                player.release_clause = request.POST.get("release_clause", "").strip()[:80]
+                player.contract_notes = request.POST.get("contract_notes", "").strip()[:200]
                 player.save()
                 # Re-evaluar identidad global: si al editar se ha añadido/cambiado una URL de
                 # perfil o la fecha de nacimiento y ahora coincide con otra persona ya existente,
@@ -70145,6 +70149,20 @@ def player_detail_page(request, player_id):
         except Exception:
             license_expiry_badge = None
 
+        contract_badge = None
+        try:
+            _con_end = getattr(player, "contract_end", None)
+            if _con_end:
+                _con_days = (_con_end - timezone.localdate()).days
+                if _con_days < 0:
+                    contract_badge = {"tone": "warn", "label": f"Contrato finalizado ({_con_end.strftime('%d/%m/%Y')})"}
+                elif _con_days <= 90:
+                    contract_badge = {"tone": "warn", "label": f"Contrato acaba en {_con_days} día{'s' if _con_days != 1 else ''}"}
+                else:
+                    contract_badge = {"tone": "ok", "label": f"Contrato hasta {_con_end.strftime('%d/%m/%Y')}"}
+        except Exception:
+            contract_badge = None
+
         # Estado de forma: resultado (V/E/D) de los últimos 5 partidos jugados por el jugador,
         # desde la perspectiva de su equipo. tone = clase de color en la plantilla.
         form_last5 = []
@@ -70406,6 +70424,7 @@ def player_detail_page(request, player_id):
             "club_categories_map_json": json.dumps(_ficha_cat_map, ensure_ascii=False),
             "identity_other_records": identity_other_records,
             "license_expiry_badge": license_expiry_badge,
+            "contract_badge": contract_badge,
             "form_last5": form_last5,
             "next_match_availability": next_match_availability,
                 "fines_summary": fines_summary,
