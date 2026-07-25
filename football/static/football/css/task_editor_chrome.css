@@ -655,3 +655,42 @@ body.ed-chrome .edc-align-snap { margin-left: 4px; padding-left: 11px; border-le
   body.ed-chrome .edc-align-btn span { display: none; }
   body.ed-chrome .edc-align-title { display: none; }
 }
+
+/* ============================================================
+   PLANTILLA · ficha compacta: SOLO dorsal + nombre
+   El estilo de ficha (Chapa/Camiseta/Figura/Foto) se elige UNA vez en el
+   selector global de arriba; no se muestran todas las opciones por jugador.
+   Así cada ficha es un chip estrecho (disco con dorsal + nombre) y la zona
+   ocupa mucho menos.
+   ============================================================ */
+/* Fichas en 2 columnas de chips (nombres legibles). */
+body.ed-chrome #edc-mat-body #task-roster-bank .player-bank {
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)) !important;
+}
+/* Layout horizontal del chip: [disco dorsal] [nombre]. */
+body.ed-chrome #edc-mat-body #task-roster-bank .player-token-bank {
+  flex-direction: row !important; align-items: center !important; justify-content: flex-start !important;
+  gap: 7px !important; padding: 4px 7px !important; text-align: left !important; min-height: 0 !important;
+}
+/* Oculta camiseta y foto cuando existe el disco (chapa) para sacar el dorsal de él. */
+body.ed-chrome #edc-mat-body #task-roster-bank .player-token-bank-visuals { flex: 0 0 auto !important; width: auto !important; }
+body.ed-chrome #edc-mat-body #task-roster-bank .player-token-bank-visuals:has(.token-disk) .token-jersey,
+body.ed-chrome #edc-mat-body #task-roster-bank .player-token-bank-visuals:has(.token-disk) .token-photo { display: none !important; }
+/* El disco, pequeño, como badge de dorsal. */
+body.ed-chrome #edc-mat-body #task-roster-bank .token-disk.is-preview {
+  width: 26px !important; height: 26px !important; min-width: 26px !important; margin: 0 !important;
+}
+body.ed-chrome #edc-mat-body #task-roster-bank .token-disk.is-preview .token-number { font-size: 10.5px !important; }
+/* Fallback (constructor JS sin disco): encoge el badge que haya. */
+body.ed-chrome #edc-mat-body #task-roster-bank .player-token-bank-visuals:not(:has(.token-disk)) > * {
+  width: 26px !important; height: 26px !important; min-width: 26px !important;
+}
+/* Copia: nombre a la izquierda; posición oculta (solo dorsal + nombre). */
+body.ed-chrome #edc-mat-body #task-roster-bank .player-token-bank-copy {
+  flex: 1 1 auto !important; min-width: 0 !important; align-items: flex-start !important; text-align: left !important; gap: 0 !important;
+}
+body.ed-chrome #edc-mat-body #task-roster-bank .token-name {
+  font-size: 11px !important; line-height: 1.15 !important;
+  white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; max-width: 100% !important;
+}
+body.ed-chrome #edc-mat-body #task-roster-bank .token-meta { display: none !important; }
