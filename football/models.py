@@ -3942,6 +3942,9 @@ class PlayerEvaluation(models.Model):
     single_leg_control_rating = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True, help_text='Control monopodal 1-10.')
     objective_performance_rating = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True, help_text='Síntesis objetiva 1-10 basada en KPIs/datos disponibles.')
     availability_rating = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True, help_text='Disponibilidad/asistencia 1-10.')
+    # Desglose por parámetros de cada área: {"physical": {"velocidad": 7, ...}, "technical": {...}, ...}
+    # La nota de cada área (physical_rating, etc.) es por defecto la media de sus parámetros (ajustable).
+    parameter_scores = models.JSONField(default=dict, blank=True)
     maturation_status = models.CharField(max_length=16, choices=MATURATION_CHOICES, blank=True, default='')
     maturity_offset_years = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True, help_text='Años estimados respecto al PHV.')
     growth_velocity_cm_year = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text='Velocidad de crecimiento cm/año.')

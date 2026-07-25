@@ -69721,6 +69721,97 @@ def _build_physical_viz(metrics):
     return {"charts": charts, "acwr": acwr, "maturity": maturity}
 
 
+# Catálogo de parámetros de evaluación, inspirado en los atributos de Football Manager,
+# repartido en las 4 áreas (Técnico / Táctico / Físico / Mental). Cada parámetro se puntúa 1-10 y
+# la nota del área es por defecto la media de sus parámetros (ajustable a mano).
+EVALUATION_PARAMETER_CATALOG = [
+    {
+        "key": "technical",
+        "label": "Técnico",
+        "rating_field": "technical_rating",
+        "params": [
+            ("control", "Control / primer toque"),
+            ("pase", "Pase"),
+            ("regate", "Regate"),
+            ("definicion", "Definición / tiro"),
+            ("centros", "Centros"),
+            ("cabeza", "Remate de cabeza"),
+            ("entradas", "Entradas"),
+            ("tecnica", "Técnica"),
+            ("balon_parado", "Balón parado"),
+        ],
+    },
+    {
+        "key": "tactical",
+        "label": "Táctico",
+        "rating_field": "tactical_rating",
+        "params": [
+            ("colocacion", "Colocación"),
+            ("anticipacion", "Anticipación"),
+            ("decisiones", "Decisiones"),
+            ("desmarque", "Desmarque"),
+            ("vision", "Visión de juego"),
+            ("trabajo_equipo", "Trabajo en equipo"),
+            ("marcaje", "Marcaje"),
+        ],
+    },
+    {
+        "key": "physical",
+        "label": "Físico",
+        "rating_field": "physical_rating",
+        "params": [
+            ("velocidad", "Velocidad"),
+            ("aceleracion", "Aceleración"),
+            ("resistencia", "Resistencia"),
+            ("fuerza", "Fuerza"),
+            ("agilidad", "Agilidad"),
+            ("equilibrio", "Equilibrio"),
+            ("salto", "Salto"),
+            ("forma_fisica", "Forma física / robustez ante lesiones"),
+        ],
+    },
+    {
+        "key": "mental",
+        "label": "Mental",
+        "rating_field": "mental_rating",
+        "params": [
+            ("concentracion", "Concentración"),
+            ("determinacion", "Determinación"),
+            ("compostura", "Compostura"),
+            ("valentia", "Valentía"),
+            ("agresividad", "Agresividad / intensidad"),
+            ("liderazgo", "Liderazgo"),
+            ("sacrificio", "Sacrificio / trabajo"),
+            ("talento", "Talento / improvisación"),
+        ],
+    },
+]
+
+
+def _parse_evaluation_parameter_scores(post, rating_parser):
+    """Lee param_<area>_<key> del POST. Devuelve (scores, averages):
+    scores  = {area: {key: float 1-10}} (solo parámetros con valor),
+    averages = {area: float redondeado a 0.1 | None}."""
+    scores = {}
+    averages = {}
+    for area in EVALUATION_PARAMETER_CATALOG:
+        akey = area["key"]
+        area_scores = {}
+        for pkey, _label in area["params"]:
+            val = rating_parser(post.get(f"param_{akey}_{pkey}"))
+            if val is not None:
+                try:
+                    area_scores[pkey] = float(val)
+                except (TypeError, ValueError):
+                    continue
+        if area_scores:
+            scores[akey] = area_scores
+            averages[akey] = round(sum(area_scores.values()) / len(area_scores), 1)
+        else:
+            averages[akey] = None
+    return scores, averages
+
+
 @login_required
 def player_detail_page(request, player_id):
     try:
@@ -70236,6 +70327,15 @@ def player_detail_page(request, player_id):
                     "availability_rating": _parse_eval_rating(request.POST.get("availability_rating")),
                     "single_leg_control_rating": _parse_eval_rating(request.POST.get("single_leg_control_rating")),
                 }
+                # Desglose por parámetros (FM): guarda los parámetros y, si no se dio nota de área a
+                # mano, usa la media de sus parámetros. Así cada evaluación es un punto de la evolución.
+                parameter_scores, _param_averages = _parse_evaluation_parameter_scores(
+                    request.POST, _parse_eval_rating
+                )
+                for _area in EVALUATION_PARAMETER_CATALOG:
+                    _field = _area["rating_field"]
+                    if ratings.get(_field) is None and _param_averages.get(_area["key"]) is not None:
+                        ratings[_field] = Decimal(str(_param_averages[_area["key"]]))
                 maturation_status = str(request.POST.get("maturation_status") or "").strip()
                 valid_maturation = {choice[0] for choice in PlayerEvaluation.MATURATION_CHOICES}
                 if maturation_status not in valid_maturation:
@@ -70247,6 +70347,7 @@ def player_detail_page(request, player_id):
                     evaluation_type=evaluation_type,
                     evaluated_on=_parse_date_value(request.POST.get("evaluated_on")) or timezone.localdate(),
                     status=status,
+                    parameter_scores=parameter_scores,
                     role=str(request.POST.get("role") or "").strip(),
                     evaluated_position=str(request.POST.get("evaluated_position") or "").strip(),
                     recommended_position=str(request.POST.get("recommended_position") or "").strip(),
