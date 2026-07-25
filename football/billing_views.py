@@ -280,11 +280,16 @@ def _stripe_sync_workspace_from_subscription(workspace, subscription, *, price_i
         entitlements = {}
 
     if status == 'active':
-        # Si hay entitlements, asumimos modular; si no, bundle legacy.
+        # Si hay entitlements, es modular. Si no, se trata como bundle Pro EXPLÍCITO: se escribe
+        # paid_modules = todos los módulos (en vez de conceder todo por plan_key mágico, que el gate
+        # ya no respeta). Así el acceso lo decide siempre paid_modules. (El caso "precio modular no
+        # resuelto por config" también cae aquí → revisar STRIPE_PRICE_* para que resuelva y no dé
+        # de más; ver nota de seguridad.)
         if entitlements:
             workspace.plan_key = workspace.plan_key or 'modular'
         else:
             workspace.plan_key = workspace.plan_key or 'pro'
+            entitlements = _all_module_entitlements()
     # Precio "principal" (compatibilidad).
     if price_id:
         workspace.stripe_price_id = price_id

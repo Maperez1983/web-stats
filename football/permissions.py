@@ -80,7 +80,11 @@ def workspace_has_module_for_user(workspace, module_key, *, user=None):
     paid = getattr(workspace, 'paid_modules', None)
     plan_key = str(getattr(workspace, 'plan_key', '') or '').strip().lower()
     status = str(getattr(workspace, 'subscription_status', '') or '').strip().lower()
-    if status == 'active' and isinstance(paid, dict) and paid and plan_key not in {'pro', 'club_pro', 'bundle'}:
+    # SEGURIDAD (C1): el acceso a módulos lo decide SIEMPRE `paid_modules` cuando la suscripción
+    # está activa y hay módulos pagados — NO se concede acceso total por tener `plan_key='pro'`
+    # (antes ese valor "mágico" puenteaba `paid_modules` → pagar un módulo daba todos). El bundle
+    # Pro legítimo se representa escribiendo `paid_modules = todos los módulos`, no con el plan_key.
+    if status == 'active' and isinstance(paid, dict) and paid:
         billable = {
             'coach_overview',
             'players',
