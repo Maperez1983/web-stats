@@ -58,17 +58,17 @@ class NextMatchReportTests(TestCase):
         TeamRosterSnapshot.objects.create(
             team=rival,
             roster_payload=[
-                {"name": "Portero R", "number": 1, "position": "Portero"},
-                {"name": "Lat D", "number": 2, "position": "Lateral derecho"},
-                {"name": "Central A", "number": 4, "position": "Central"},
-                {"name": "Central B", "number": 5, "position": "Central"},
-                {"name": "Lat I", "number": 3, "position": "Lateral izquierdo"},
-                {"name": "Pivote R", "number": 6, "position": "Pivote"},
-                {"name": "Int D", "number": 8, "position": "Interior derecho"},
-                {"name": "Int I", "number": 10, "position": "Interior izquierdo"},
-                {"name": "Ext D", "number": 7, "position": "Extremo derecho"},
-                {"name": "Delantero R", "number": 9, "position": "Delantero"},
-                {"name": "Ext I", "number": 11, "position": "Extremo izquierdo"},
+                {"name": "Portero R", "number": 1, "position": "Portero", "minutes": 900},
+                {"name": "Lat D", "number": 2, "position": "Lateral derecho", "minutes": 850},
+                {"name": "Central A", "number": 4, "position": "Central", "minutes": 880},
+                {"name": "Central B", "number": 5, "position": "Central", "minutes": 800},
+                {"name": "Lat I", "number": 3, "position": "Lateral izquierdo", "minutes": 820},
+                {"name": "Pivote R", "number": 6, "position": "Pivote", "minutes": 870},
+                {"name": "Int D", "number": 8, "position": "Interior derecho", "minutes": 760},
+                {"name": "Int I", "number": 10, "position": "Interior izquierdo", "minutes": 810},
+                {"name": "Ext D", "number": 7, "position": "Extremo derecho", "minutes": 700},
+                {"name": "Delantero R", "number": 9, "position": "Delantero", "minutes": 890},
+                {"name": "Ext I", "number": 11, "position": "Extremo izquierdo", "minutes": 690},
             ],
         )
         resp = self._get()
@@ -79,3 +79,4 @@ class NextMatchReportTests(TestCase):
         self.assertIn("C.D. Rival", body)
         self.assertIn("Historial contra", body)
         self.assertIn("2–1", body)  # resultado del enfrentamiento previo
+        self.assertIn('class="pl"', body)  # 11 probable dibujado desde la plantilla del rival

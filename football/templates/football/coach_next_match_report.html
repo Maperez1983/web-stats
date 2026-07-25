@@ -158,6 +158,11 @@
         </div>
         {% endfor %}
       </div>
+      {% elif rival_roster_loaded %}
+      <div class="warn" style="border-color:var(--pending);background:var(--pending-wash)">
+        <p><b style="color:var(--pending)">Plantilla del rival cargada ({{ rival_squad_count }} jugadores).</b> No hay datos de minutos suficientes para dibujar el 11 probable automáticamente; revisa la alineación en la zona de análisis.</p>
+        {% if load_rival_url %}<a href="{{ load_rival_url }}" style="background:var(--pending)">Ir a análisis del rival</a>{% endif %}
+      </div>
       {% else %}
       <div class="warn">
         <p><b>Falta la plantilla del rival.</b> Sin ella no se puede calcular el 11 probable. Cárgala desde su ficha (Universo RFAF o La Preferente).</p>
