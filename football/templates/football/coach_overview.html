@@ -595,6 +595,7 @@
             <p style="margin:0 0 0.6rem;font-weight:800;">{{ standings_diag.reason }}</p>
             <ul class="detail-list" style="font-size:0.85rem;">
               <li><span>Proveedor</span><strong>{{ standings_diag.provider|default:"—" }}</strong></li>
+              <li><span>Grupo Universo / equipo</span><strong>{{ standings_diag.universo_group_key }} / {{ standings_diag.universo_team_key }}</strong></li>
               <li><span>Estado sync</span><strong>{{ standings_diag.sync_status|default:"—" }}</strong></li>
               <li><span>Error sync</span><strong>{{ standings_diag.sync_error|default:"—" }}</strong></li>
               <li><span>Último sync</span><strong>{{ standings_diag.last_sync_at }}</strong></li>

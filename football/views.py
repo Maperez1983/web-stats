@@ -20210,6 +20210,8 @@ def coach_overview_page(request):
             standings_diag = {
                 "reason": _reason,
                 "provider": getattr(_diag_ctx, "provider", None),
+                "universo_group_key": str(getattr(_diag_ctx, "external_group_key", "") or "") or "—",
+                "universo_team_key": str(getattr(_diag_ctx, "external_team_key", "") or "") or "—",
                 "sync_status": getattr(_diag_ctx, "sync_status", None),
                 "sync_error": getattr(_diag_ctx, "sync_error", None),
                 "last_sync_at": str(getattr(_diag_ctx, "last_sync_at", None) or "—"),
