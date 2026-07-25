@@ -1791,37 +1791,6 @@
           })();
         </script>
 
-        {% if not is_player_readonly %}
-        <h3 style="margin-top:1rem;">Ajuste manual de datos generales</h3>
-        <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="form_action" value="manual_stats" />
-          <div class="form-grid">
-            <label>PJ
-              <input type="number" min="0" name="manual_pj" value="{{ stats.pj|default:0 }}" />
-            </label>
-            <label>Titularidades
-              <input type="number" min="0" name="manual_pt" value="{{ stats.pt|default:0 }}" />
-            </label>
-            <label>Minutos
-              <input type="number" min="0" name="manual_minutes" value="{{ stats.minutes|default:0 }}" />
-            </label>
-	            <label>Goles
-	              <input type="number" min="0" name="manual_goals" value="{{ stats.goals|default:0 }}" />
-	            </label>
-	            <label>Asistencias
-	              <input type="number" min="0" name="manual_assists" value="{{ stats.assists|default:0 }}" />
-	            </label>
-	            <label>Amarillas
-	              <input type="number" min="0" name="manual_yellow_cards" value="{{ stats.yellow_cards|default:0 }}" />
-	            </label>
-            <label>Rojas
-              <input type="number" min="0" name="manual_red_cards" value="{{ stats.red_cards|default:0 }}" />
-            </label>
-          </div>
-          <div style="margin-top:0.85rem;"><button type="submit">Guardar ajuste manual</button></div>
-        </form>
-        {% endif %}
 
       </section>
 
@@ -2396,6 +2365,38 @@
         {% else %}
           <p>No hay datos de rendimiento disponibles.</p>
       {% endif %}
+
+        {% if not is_player_readonly %}
+        <h3 style="margin-top:1rem;">Ajuste manual de datos generales</h3>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="form_action" value="manual_stats" />
+          <div class="form-grid">
+            <label>PJ
+              <input type="number" min="0" name="manual_pj" value="{{ stats.pj|default:0 }}" />
+            </label>
+            <label>Titularidades
+              <input type="number" min="0" name="manual_pt" value="{{ stats.pt|default:0 }}" />
+            </label>
+            <label>Minutos
+              <input type="number" min="0" name="manual_minutes" value="{{ stats.minutes|default:0 }}" />
+            </label>
+	            <label>Goles
+	              <input type="number" min="0" name="manual_goals" value="{{ stats.goals|default:0 }}" />
+	            </label>
+	            <label>Asistencias
+	              <input type="number" min="0" name="manual_assists" value="{{ stats.assists|default:0 }}" />
+	            </label>
+	            <label>Amarillas
+	              <input type="number" min="0" name="manual_yellow_cards" value="{{ stats.yellow_cards|default:0 }}" />
+	            </label>
+            <label>Rojas
+              <input type="number" min="0" name="manual_red_cards" value="{{ stats.red_cards|default:0 }}" />
+            </label>
+          </div>
+          <div style="margin-top:0.85rem;"><button type="submit">Guardar ajuste manual</button></div>
+        </form>
+        {% endif %}
       </section>
 
       <section class="card tab-pane" data-pane="attributes">
