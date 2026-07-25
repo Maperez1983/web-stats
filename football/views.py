@@ -36084,6 +36084,321 @@ def coach_roster_page(request):
     )
 
 
+SQUAD_REPORT_PHASES = [
+    ("pretemporada", "Pretemporada", "Cierre de plantilla"),
+    ("amistosos", "Amistosos", "Puesta a punto"),
+    ("liga", "Liga", "Semana de competición"),
+    ("mercado", "Mercado invierno", "Refuerzos y salidas"),
+    ("recta", "Recta final", "Fondo de armario"),
+]
+_SQUAD_REPORT_PHASE_KEYS = {key for key, _label, _sub in SQUAD_REPORT_PHASES}
+SQUAD_ORG_TARGET_DEFAULT = {"gk": 3, "def": 8, "mid": 7, "att": 6}
+_SQUAD_LINE_META = [("gk", "Portería"), ("def", "Defensa"), ("mid", "Medio"), ("att", "Ataque")]
+
+
+def _squad_report_default_phase():
+    """Fase por defecto según el mes (orientativa; el usuario puede forzar con ?phase=)."""
+    try:
+        month = timezone.localdate().month
+    except Exception:
+        return "pretemporada"
+    if month in (6, 7):
+        return "pretemporada"
+    if month == 8:
+        return "amistosos"
+    if month in (12, 1):
+        return "mercado"
+    if month in (4, 5):
+        return "recta"
+    return "liga"
+
+
+def _squad_org_target_for_workspace(workspace):
+    """Organigrama objetivo (plazas por línea). Editable vía WorkspacePreference
+    'squad_org_target:v1'; si no hay override válido, usa los valores por defecto."""
+    target = dict(SQUAD_ORG_TARGET_DEFAULT)
+    if not workspace:
+        return target
+    try:
+        pref = WorkspacePreference.objects.filter(workspace=workspace, key="squad_org_target:v1").first()
+        value = pref.value if pref and isinstance(pref.value, dict) else {}
+        for key in target:
+            raw = value.get(key)
+            if raw is None:
+                continue
+            num = int(raw)
+            if 0 <= num <= 40:
+                target[key] = num
+    except Exception:
+        pass
+    return target
+
+
+def _squad_report_rating_class(overall):
+    if overall is None:
+        return "lo"
+    try:
+        val = float(overall)
+    except (TypeError, ValueError):
+        return "lo"
+    if val >= 7.5:
+        return "hi"
+    if val >= 6.0:
+        return "mid"
+    return "lo"
+
+
+@login_required
+def squad_status_report_page(request):
+    """Informe de estado de plantilla para el cuerpo técnico, por momento de la
+    temporada (pretemporada, amistosos, liga, mercado, recta final).  Reutiliza los
+    agregados que ya existen (decisión de plantilla, buckets de posición, lesiones,
+    ojeados) y los presenta como una página proyectable/imprimible."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, "players", label="plantilla técnica")
+    if forbidden:
+        return forbidden
+    workspace = _get_active_workspace(request)
+    if not workspace or getattr(workspace, "kind", None) != Workspace.KIND_CLUB:
+        return HttpResponse("Selecciona un club (workspace) antes de ver el informe.", status=400)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404("Equipo principal no configurado")
+
+    phase = str(request.GET.get("phase") or "").strip().lower()
+    if phase not in _SQUAD_REPORT_PHASE_KEYS:
+        phase = _squad_report_default_phase()
+
+    active_club_season = None
+    active_club_season_is_current = False
+    try:
+        active_club_season = selected_club_season_for_request(request, workspace=workspace)
+        workspace_current_season_id = int(getattr(workspace, "active_season_id", 0) or 0)
+        active_club_season_is_current = bool(
+            active_club_season
+            and int(getattr(active_club_season, "id", 0) or 0) == workspace_current_season_id
+            and bool(getattr(active_club_season, "is_active", False))
+        )
+    except Exception:
+        active_club_season = None
+        active_club_season_is_current = False
+
+    players = list(Player.objects.filter(team=primary_team).order_by("is_active", "number", "name"))
+    memberships = {}
+    try:
+        if active_club_season:
+            if active_club_season_is_current and players:
+                ensure_team_roster_season_memberships(active_club_season, primary_team, include_inactive=True)
+            memberships = {
+                int(row.player_id): row
+                for row in WorkspaceSeasonPlayer.objects.filter(
+                    season=active_club_season,
+                    player_id__in=[int(p.id) for p in players if getattr(p, "id", None)],
+                ).only("player_id", "is_confirmed", "status")
+            }
+    except Exception:
+        memberships = {}
+
+    active_player_ids = [int(getattr(p, "id", 0) or 0) for p in players if getattr(p, "id", None)]
+    try:
+        active_injury_ids = set(get_active_injury_player_ids(active_player_ids))
+    except Exception:
+        active_injury_ids = set()
+
+    # --- Estado por jugador + conteo por línea ---
+    line_counts = {key: {"confirmed": 0, "trial": 0, "injured": 0} for key, _ in _SQUAD_LINE_META}
+    oth_active = 0
+    today = timezone.localdate()
+    ages = []
+    for player in players:
+        if not bool(getattr(player, "is_active", True)):
+            continue
+        pid = int(getattr(player, "id", 0) or 0)
+        membership = memberships.get(pid)
+        season_status = str(getattr(membership, "status", "") or "").strip() if membership else ""
+        confirmed = bool(
+            membership
+            and getattr(membership, "is_confirmed", False)
+            and season_status == WorkspaceSeasonPlayer.STATUS_CONFIRMED
+        )
+        is_injured = bool(pid and pid in active_injury_ids)
+        is_inactive = season_status in {WorkspaceSeasonPlayer.STATUS_LEFT, WorkspaceSeasonPlayer.STATUS_INACTIVE}
+        if is_inactive:
+            continue
+        bucket = _roster_preview_bucket(getattr(player, "position", "") or getattr(player, "preferred_position", "") or "")
+        state = "injured" if is_injured else ("confirmed" if confirmed else "trial")
+        if bucket in line_counts:
+            line_counts[bucket][state] += 1
+        else:
+            oth_active += 1
+        birth = getattr(player, "birth_date", None)
+        if birth:
+            try:
+                ages.append(today.year - birth.year - ((today.month, today.day) < (birth.month, birth.day)))
+            except Exception:
+                pass
+
+    org_target = _squad_org_target_for_workspace(workspace)
+    lines = []
+    total_target = 0
+    covered = 0
+    gap_labels = []
+    for key, label in _SQUAD_LINE_META:
+        counts = line_counts[key]
+        occupied = counts["confirmed"] + counts["trial"] + counts["injured"]
+        target = int(org_target.get(key, 0) or 0)
+        gap = max(0, target - occupied)
+        total_target += target
+        covered += min(occupied, target)
+        if gap > 0:
+            gap_labels.append(label)
+        slots = (
+            ["ok"] * counts["confirmed"]
+            + ["trial"] * counts["trial"]
+            + ["injured"] * counts["injured"]
+            + ["gap"] * gap
+        )
+        lines.append({
+            "key": key,
+            "label": label,
+            "target": target,
+            "confirmed": counts["confirmed"],
+            "trial": counts["trial"],
+            "injured": counts["injured"],
+            "gap": gap,
+            "full": gap == 0,
+            "slots": slots,
+        })
+    pct_closed = int(round((covered / total_target) * 100)) if total_target else 0
+
+    # --- Tablero de decisiones (reutiliza el helper existente) ---
+    decision = _build_coach_decision_dashboard(
+        primary_team=primary_team,
+        active_club_season=active_club_season,
+        players=players,
+        memberships=memberships,
+        active_injury_ids=active_injury_ids,
+    )
+    counts = decision.get("counts", {})
+    board = {"keep": [], "pending": [], "cut": []}
+    for row in decision.get("rows", []):
+        item = {
+            "name": row.get("name"),
+            "number": row.get("number"),
+            "position": row.get("position"),
+            "overall_display": row.get("overall_display"),
+            "rt_class": _squad_report_rating_class(row.get("overall")),
+            "injured": row.get("state_key") == "injured",
+        }
+        board.get(row.get("decision") or "pending", board["pending"]).append(item)
+
+    # --- Estructura de edad ---
+    age_buckets = [
+        {"label": "Sub-21", "count": sum(1 for a in ages if a < 21)},
+        {"label": "21–25", "count": sum(1 for a in ages if 21 <= a <= 25)},
+        {"label": "26–30", "count": sum(1 for a in ages if 26 <= a <= 30)},
+        {"label": "+30", "count": sum(1 for a in ages if a > 30)},
+    ]
+    age_max = max([b["count"] for b in age_buckets] + [1])
+    for b in age_buckets:
+        b["pct"] = int(round((b["count"] / age_max) * 100)) if age_max else 0
+    age_avg = round(sum(ages) / len(ages), 1) if ages else None
+
+    # --- Ojeados por línea (para tapar huecos) ---
+    scouts_by_line = {key: [] for key, _ in _SQUAD_LINE_META}
+    try:
+        scout_qs = (
+            ScoutingTarget.objects.filter(workspace=workspace, available_for_coach_tools=True)
+            .exclude(status=ScoutingTarget.STATUS_DISCARDED)
+            .only("id", "subject_name", "position")
+        )
+        for tgt in scout_qs:
+            bucket = _roster_preview_bucket(getattr(tgt, "position", "") or "")
+            if bucket in scouts_by_line:
+                scouts_by_line[bucket].append({
+                    "name": str(getattr(tgt, "subject_name", "") or "").strip() or "Ojeado",
+                    "position": str(getattr(tgt, "position", "") or "").strip(),
+                    "url": reverse("scouting-target-detail", args=[tgt.id]),
+                })
+    except Exception:
+        scouts_by_line = {key: [] for key, _ in _SQUAD_LINE_META}
+    scout_lines = [
+        {"key": line["key"], "label": line["label"], "gap": line["gap"], "candidates": scouts_by_line.get(line["key"], [])}
+        for line in lines
+        if line["gap"] > 0 or scouts_by_line.get(line["key"])
+    ]
+
+    # --- Alertas / decisiones a cerrar ---
+    alerts = []
+    for line in sorted(lines, key=lambda l: (l["key"] not in ("att", "def"), -l["gap"])):
+        if line["gap"] > 0:
+            cands = scouts_by_line.get(line["key"], [])
+            detail = (
+                f"{len(cands)} ojeado(s) en seguimiento para esta línea."
+                if cands else "Sin candidatos en Dirección deportiva todavía."
+            )
+            alerts.append({"title": f"Falta {line['gap']} en {line['label']}", "detail": detail})
+    pending_n = int(counts.get("pending", 0) or 0)
+    if pending_n:
+        alerts.append({
+            "title": f"Resolver {pending_n} jugador(es) «por decidir»",
+            "detail": "Confirmar o descartar antes de cerrar la lista.",
+        })
+    injured_n = int(counts.get("injured", 0) or 0)
+    if injured_n:
+        alerts.append({
+            "title": f"Fijar alta de {injured_n} lesionado(s)",
+            "detail": "Confirmar fecha de disponibilidad para no llegar corto de efectivos.",
+        })
+
+    phase_label = next((lbl for k, lbl, _s in SQUAD_REPORT_PHASES if k == phase), "Pretemporada")
+    phase_sub = next((s for k, _l, s in SQUAD_REPORT_PHASES if k == phase), "Cierre de plantilla")
+    if phase == "pretemporada":
+        if gap_labels:
+            verdict_title = f"Plantilla al {pct_closed}% — faltan piezas en {', '.join(gap_labels)}"
+        else:
+            verdict_title = f"Plantilla al {pct_closed}% — cupo por línea completo"
+        verdict_body = (
+            "Revisa los jugadores «por decidir» y los huecos por línea antes del primer amistoso."
+        )
+    else:
+        verdict_title = f"Plantilla al {pct_closed}% de su cupo objetivo"
+        verdict_body = (
+            "Vista específica de esta fase en preparación; abajo, el estado de plantilla común a "
+            "cualquier momento de la temporada."
+        )
+
+    phases_ctx = [
+        {"key": k, "label": lbl, "sub": s, "active": k == phase}
+        for k, lbl, s in SQUAD_REPORT_PHASES
+    ]
+
+    context = {
+        "phase": phase,
+        "phase_label": phase_label,
+        "phase_sub": phase_sub,
+        "phases": phases_ctx,
+        "is_pretemporada": phase == "pretemporada",
+        "team_display_name": str(getattr(primary_team, "name", "") or "Equipo"),
+        "season_label": str(getattr(active_club_season, "label", "") or "") if active_club_season else "",
+        "today": today,
+        "pct_closed": pct_closed,
+        "total_target": total_target,
+        "covered": covered,
+        "counts": counts,
+        "lines": lines,
+        "oth_active": oth_active,
+        "board": board,
+        "age_buckets": age_buckets,
+        "age_avg": age_avg,
+        "scout_lines": scout_lines,
+        "alerts": alerts[:4],
+    }
+    return render(request, "football/coach_squad_report.html", context)
+
+
 @login_required
 @pdf_view_guard
 def coach_roster_pdf(request):

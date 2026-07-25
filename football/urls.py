@@ -552,6 +552,7 @@ urlpatterns = [
     path("coach/rivales/<int:rival_id>/", views.analysis_rival_profile_page, name="coach-rival-profile"),
     path("coach/plantilla/", views.coach_roster_page, name="coach-roster"),
     path("coach/plantilla/pdf/", views.coach_roster_pdf, name="coach-roster-pdf"),
+    path("coach/plantilla/informe/", views.squad_status_report_page, name="coach-squad-report"),
     path("coach/plantilla/pizarra/guardar/", views.coach_pitch_board_save, name="coach-pitch-board-save"),
     path("coach/traspaso/buscar-destino/", views.coach_transfer_team_search, name="coach-transfer-team-search"),
     path("coach/torneos/", views.coach_tournaments_page, name="coach-tournaments"),
