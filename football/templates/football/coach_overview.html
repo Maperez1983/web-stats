@@ -297,7 +297,11 @@
       .standings-table th:nth-child(3),
       .standings-table td:nth-child(3),
       .standings-table th:nth-child(4),
-      .standings-table td:nth-child(4) {
+      .standings-table td:nth-child(4),
+      .standings-table th:nth-child(5),
+      .standings-table td:nth-child(5),
+      .standings-table th:nth-child(6),
+      .standings-table td:nth-child(6) {
         width: 2.6rem;
         text-align: right;
       }
@@ -315,7 +319,9 @@
       }
       .standings-table td:nth-child(1),
       .standings-table td:nth-child(3),
-      .standings-table td:nth-child(4) {
+      .standings-table td:nth-child(4),
+      .standings-table td:nth-child(5),
+      .standings-table td:nth-child(6) {
         font-size: 0.86rem;
         color: rgba(226, 232, 240, 0.82);
       }
@@ -701,6 +707,8 @@
                   <th scope="col">Equipo</th>
                   <th scope="col">Pts</th>
                   <th scope="col">PJ</th>
+                  <th scope="col" title="Goles a favor">GF</th>
+                  <th scope="col" title="Goles en contra">GC</th>
                 </tr>
               </thead>
               <tbody>
@@ -710,6 +718,8 @@
                   <td>{{ row.team|default:"-" }}{% if row.is_team %} <span class="visually-hidden">(tu equipo)</span>{% endif %}</td>
                   <td>{{ row.points|default:"-" }}</td>
                   <td>{{ row.played|default:"-" }}</td>
+                  <td>{{ row.goals_for|default:"-" }}</td>
+                  <td>{{ row.goals_against|default:"-" }}</td>
                 </tr>
                 {% endfor %}
               </tbody>
