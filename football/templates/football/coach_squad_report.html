@@ -61,6 +61,15 @@
     radial-gradient(circle at 50% 38%,var(--accent) 0 38%,transparent 39%),var(--accent-deep);flex-shrink:0}
   .sqr .hd-meta{text-align:right;font-size:13px;color:var(--ink-soft)}
   .sqr .hd-meta .big{font-size:15px;font-weight:700;color:var(--ink);display:block}
+  .sqr .dl-row{margin-top:10px}
+  .sqr .dl-btn{
+    font:inherit;font-size:13px;font-weight:700;cursor:pointer;
+    color:#fff;background:var(--accent);border:1px solid var(--accent);
+    padding:8px 14px;border-radius:10px;letter-spacing:.01em;
+    box-shadow:0 2px 8px color-mix(in srgb,var(--accent) 38%,transparent);
+  }
+  .sqr .dl-btn:hover{background:var(--accent-deep);border-color:var(--accent-deep)}
+  .sqr .dl-btn:focus-visible{outline:2px solid var(--accent-deep);outline-offset:2px}
 
   .sqr .verdict{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center;
     background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--accent);
@@ -174,7 +183,14 @@
     .sqr .hd-meta{text-align:left}
   }
   @media (max-width:460px){ .sqr .stats{grid-template-columns:repeat(2,1fr)} }
-  @media print{ .sqr .card,.sqr .stat,.sqr .verdict{box-shadow:none} }
+  @media print{
+    .sqr{padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .sqr .card,.sqr .stat,.sqr .verdict,.sqr .pb-field{box-shadow:none}
+    .sqr .no-print,.sqr .pb-reset{display:none !important}
+    .sqr *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .sqr .grid2,.sqr .grid{break-inside:avoid}
+    .sqr .board,.sqr .pitch-wrap{break-inside:avoid}
+  }
 </style>
 </head>
 <body>
@@ -199,6 +215,9 @@
     <div class="hd-meta">
       <span class="big">{{ phase_label }}{% if season_label %} · {{ season_label }}{% endif %}</span>
       Actualizado {{ today|date:"j M Y" }}
+      <div class="dl-row no-print">
+        <button type="button" class="dl-btn" onclick="window.print()" aria-label="Descargar o imprimir el informe en PDF">⤓ Descargar PDF</button>
+      </div>
     </div>
   </header>
 
