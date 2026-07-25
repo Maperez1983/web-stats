@@ -36432,6 +36432,284 @@ def squad_status_report_page(request):
     return render(request, "football/coach_squad_report.html", context)
 
 
+_MC_STATUS_META = [
+    ("present", "Presentes", "ok"),
+    ("late", "Tarde", "trial"),
+    ("excused", "Justificados", "pending"),
+    ("injured", "Lesionados", "injured"),
+    ("absent", "Ausentes", "out"),
+]
+_MC_FINE_REASON_LABEL = {
+    "absence": "Ausencia", "late": "Retraso",
+    "indiscipline": "Indisciplina", "expulsion": "Expulsión",
+}
+
+
+def _microcycle_is_special(mc):
+    return bool(_is_inbox_microcycle(mc) or _is_library_microcycle(mc) or _is_trash_microcycle(mc))
+
+
+def _microcycle_pick_for_report(primary_team, today, requested_id=None):
+    """Elige el microciclo del informe: el pedido por id, si no el que cubre hoy, si no el
+    último real; excluyendo siempre los especiales (inbox/biblioteca/papelera)."""
+    qs = TrainingMicrocycle.objects.filter(team=primary_team)
+    if requested_id:
+        mc = qs.filter(id=requested_id).first()
+        if mc and not _microcycle_is_special(mc):
+            return mc
+    for mc in qs.filter(week_start__lte=today, week_end__gte=today).order_by("-week_start"):
+        if not _microcycle_is_special(mc):
+            return mc
+    for mc in qs.order_by("-week_start"):
+        if not _microcycle_is_special(mc):
+            return mc
+    return None
+
+
+@login_required
+def microcycle_report_page(request):
+    """Informe de evaluación del microciclo para el cuerpo técnico: asistencia por jugador y
+    sesión, ausencias, multas (€ y motivo) e incidencias de la semana de entrenamiento."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, "sessions", label="entrenamientos")
+    if forbidden:
+        return forbidden
+    workspace = _get_active_workspace(request)
+    if not workspace or getattr(workspace, "kind", None) != Workspace.KIND_CLUB:
+        return HttpResponse("Selecciona un club (workspace) antes de ver el informe.", status=400)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404("Equipo principal no configurado")
+
+    today = timezone.localdate()
+    try:
+        requested_id = int(request.GET.get("microcycle") or 0) or None
+    except (TypeError, ValueError):
+        requested_id = None
+    microcycle = _microcycle_pick_for_report(primary_team, today, requested_id)
+
+    active_club_season = None
+    try:
+        active_club_season = selected_club_season_for_request(request, workspace=workspace)
+    except Exception:
+        active_club_season = None
+
+    # Jugadores del equipo para mapear id -> nombre/posición.
+    players_by_id = {
+        int(p.id): p
+        for p in Player.objects.filter(team=primary_team).only("id", "name", "number", "position", "preferred_position")
+        if getattr(p, "id", None)
+    }
+
+    sessions = []
+    if microcycle:
+        sessions_qs = TrainingSession.objects.filter(microcycle=microcycle).order_by("session_date", "id")
+        try:
+            sessions_qs = _exclude_library_sessions_qs(sessions_qs)
+        except Exception:
+            pass
+        sessions = list(sessions_qs)
+
+    session_ids = [int(s.id) for s in sessions if getattr(s, "id", None)]
+    # Asistencia por (sesión, jugador).
+    marks = []
+    if session_ids:
+        marks = list(
+            TrainingSessionAttendance.objects.filter(session_id__in=session_ids)
+            .values("session_id", "player_id", "status", "notes")
+        )
+
+    status_counts = {key: 0 for key, _l, _t in _MC_STATUS_META}
+    by_player = {}  # pid -> {sid: status}
+    for m in marks:
+        st = str(m.get("status") or "").strip()
+        if st in status_counts:
+            status_counts[st] += 1
+        pid = int(m.get("player_id") or 0)
+        sid = int(m.get("session_id") or 0)
+        if pid and sid:
+            by_player.setdefault(pid, {})[sid] = st
+
+    total_marks = sum(status_counts.values())
+    # Tasa de asistencia: presentes + tarde sobre los "citables" (excluye lesionados).
+    citable = status_counts["present"] + status_counts["late"] + status_counts["absent"] + status_counts["excused"]
+    attendance_pct = int(round(((status_counts["present"] + status_counts["late"]) / citable) * 100)) if citable else 0
+
+    sessions_ctx = []
+    for s in sessions:
+        try:
+            intensity = str(getattr(s, "get_intensity_display", lambda: "")() or "").strip()
+        except Exception:
+            intensity = ""
+        sessions_ctx.append({
+            "id": int(s.id),
+            "focus": str(getattr(s, "focus", "") or "Sesión").strip() or "Sesión",
+            "date": getattr(s, "session_date", None),
+            "intensity": intensity,
+        })
+
+    # Matriz por jugador (solo jugadores con alguna marca en la semana).
+    player_rows = []
+    for pid, per_session in by_player.items():
+        player = players_by_id.get(pid)
+        name = str(getattr(player, "name", "") or f"Jugador {pid}").strip() if player else f"Jugador {pid}"
+        cells = []
+        absences = 0
+        lates = 0
+        for s in sessions_ctx:
+            st = per_session.get(s["id"], "")
+            if st == "absent":
+                absences += 1
+            elif st == "late":
+                lates += 1
+            cells.append({"status": st})
+        player_rows.append({
+            "id": pid,
+            "name": name,
+            "number": getattr(player, "number", None) if player else None,
+            "position": (str(getattr(player, "position", "") or getattr(player, "preferred_position", "") or "").strip() if player else ""),
+            "cells": cells,
+            "absences": absences,
+            "lates": lates,
+            "issues": absences + lates,
+        })
+    player_rows.sort(key=lambda r: (-r["issues"], -r["absences"], r["name"].lower()))
+    absentees = [r for r in player_rows if r["absences"] or r["lates"]][:8]
+
+    # Multas: de la semana (rango del microciclo) y acumulado de temporada.
+    week_start = getattr(microcycle, "week_start", None) if microcycle else None
+    week_end = getattr(microcycle, "week_end", None) if microcycle else None
+    fines_week = []
+    if week_start and week_end:
+        fines_week = list(
+            PlayerFine.objects.filter(
+                player__team=primary_team,
+                created_at__date__gte=week_start,
+                created_at__date__lte=week_end,
+            ).select_related("player")
+        )
+    season_start = getattr(active_club_season, "start_date", None) if active_club_season else None
+    fines_season_qs = PlayerFine.objects.filter(player__team=primary_team)
+    if season_start:
+        fines_season_qs = fines_season_qs.filter(created_at__date__gte=season_start)
+    fines_week_total = sum(int(getattr(f, "amount", 0) or 0) for f in fines_week)
+    fines_season_total = fines_season_qs.aggregate(t=Sum("amount")).get("t") or 0
+    fines_by_reason = []
+    for reason, label in _MC_FINE_REASON_LABEL.items():
+        group = [f for f in fines_week if str(getattr(f, "reason", "")) == reason]
+        if group:
+            fines_by_reason.append({
+                "label": label,
+                "count": len(group),
+                "amount": sum(int(getattr(f, "amount", 0) or 0) for f in group),
+            })
+    fines_top = {}
+    for f in fines_week:
+        pid = int(getattr(f, "player_id", 0) or 0)
+        entry = fines_top.setdefault(pid, {"name": str(getattr(getattr(f, "player", None), "name", "") or "Jugador").strip(), "count": 0, "amount": 0})
+        entry["count"] += 1
+        entry["amount"] += int(getattr(f, "amount", 0) or 0)
+    fines_top_list = sorted(fines_top.values(), key=lambda e: (-e["amount"], -e["count"], e["name"].lower()))[:6]
+
+    # Incidencias: ausencias/retrasos con nota + multas de indisciplina/expulsión.
+    incidents = []
+    session_focus_by_id = {s["id"]: s["focus"] for s in sessions_ctx}
+    for m in marks:
+        st = str(m.get("status") or "").strip()
+        note = str(m.get("notes") or "").strip()
+        if st in {"absent", "late"} and (note or st == "absent"):
+            pid = int(m.get("player_id") or 0)
+            player = players_by_id.get(pid)
+            label = {"absent": "Ausencia", "late": "Retraso"}.get(st, st)
+            incidents.append({
+                "player": str(getattr(player, "name", "") or f"Jugador {pid}").strip() if player else f"Jugador {pid}",
+                "type": label,
+                "tone": "out" if st == "absent" else "trial",
+                "detail": note or session_focus_by_id.get(int(m.get("session_id") or 0), ""),
+            })
+    for f in fines_week:
+        if str(getattr(f, "reason", "")) in {"indiscipline", "expulsion"}:
+            incidents.append({
+                "player": str(getattr(getattr(f, "player", None), "name", "") or "Jugador").strip(),
+                "type": _MC_FINE_REASON_LABEL.get(str(getattr(f, "reason", "")), "Incidencia"),
+                "tone": "injured",
+                "detail": str(getattr(f, "note", "") or "").strip() or f"Multa de {int(getattr(f, 'amount', 0) or 0)}€",
+            })
+    incidents = incidents[:12]
+
+    # Alertas / decisiones.
+    alerts = []
+    repeat_absent = [r for r in player_rows if r["absences"] >= 2]
+    if repeat_absent:
+        names = ", ".join(r["name"] for r in repeat_absent[:4])
+        alerts.append({"title": f"{len(repeat_absent)} con 2+ ausencias esta semana", "detail": names})
+    if fines_week_total:
+        alerts.append({"title": f"{fines_week_total}€ en multas esta semana", "detail": f"{len(fines_week)} sanción(es) · revisar con el grupo."})
+    expulsions = [f for f in fines_week if str(getattr(f, "reason", "")) == "expulsion"]
+    if expulsions:
+        alerts.append({"title": f"{len(expulsions)} expulsión(es)", "detail": "Posible sanción federativa; confirmar disponibilidad."})
+    if not marks and sessions:
+        alerts.append({"title": "Falta pasar lista", "detail": "Hay sesiones sin asistencia registrada esta semana."})
+
+    # Navegación entre microciclos (semana anterior / siguiente, reales).
+    prev_mc = None
+    next_mc = None
+    if microcycle:
+        for mc in TrainingMicrocycle.objects.filter(team=primary_team, week_start__lt=microcycle.week_start).order_by("-week_start"):
+            if not _microcycle_is_special(mc):
+                prev_mc = mc
+                break
+        for mc in TrainingMicrocycle.objects.filter(team=primary_team, week_start__gt=microcycle.week_start).order_by("week_start"):
+            if not _microcycle_is_special(mc):
+                next_mc = mc
+                break
+
+    ref_opponent = ""
+    ref_match = getattr(microcycle, "reference_match", None) if microcycle else None
+    if ref_match is not None:
+        try:
+            opp = ref_match.away_team if ref_match.home_team_id == primary_team.id else ref_match.home_team
+            ref_opponent = str(getattr(opp, "display_name", "") or getattr(opp, "name", "") or "").strip()
+        except Exception:
+            ref_opponent = ""
+
+    status_cards = [
+        {"key": key, "label": label, "tone": tone, "count": status_counts[key]}
+        for key, label, tone in _MC_STATUS_META
+    ]
+
+    context = {
+        "has_microcycle": microcycle is not None,
+        "microcycle_title": str(getattr(microcycle, "title", "") or "Microciclo semanal") if microcycle else "",
+        "cycle_type_label": str(getattr(microcycle, "get_cycle_type_display", lambda: "")() or "") if microcycle else "",
+        "objective": str(getattr(microcycle, "objective", "") or "") if microcycle else "",
+        "week_start": week_start,
+        "week_end": week_end,
+        "ref_opponent": ref_opponent,
+        "team_display_name": str(getattr(primary_team, "name", "") or "Equipo"),
+        "today": today,
+        "sessions": sessions_ctx,
+        "session_count": len(sessions_ctx),
+        "status_cards": status_cards,
+        "attendance_pct": attendance_pct,
+        "total_marks": total_marks,
+        "roster_marked": len(by_player),
+        "player_rows": player_rows,
+        "absentees": absentees,
+        "fines_week_total": fines_week_total,
+        "fines_season_total": fines_season_total,
+        "fines_by_reason": fines_by_reason,
+        "fines_top": fines_top_list,
+        "incidents": incidents,
+        "alerts": alerts[:4],
+        "prev_microcycle_id": int(prev_mc.id) if prev_mc else 0,
+        "next_microcycle_id": int(next_mc.id) if next_mc else 0,
+    }
+    return render(request, "football/coach_microcycle_report.html", context)
+
+
 @login_required
 @pdf_view_guard
 def coach_roster_pdf(request):

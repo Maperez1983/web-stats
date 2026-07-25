@@ -1,0 +1,316 @@
+{% load static %}<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Informe de microciclo{% if week_start %} · {{ week_start|date:"j M" }}{% endif %}</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<style>
+  html,body{margin:0;background:#EAF0E9}
+  @media (prefers-color-scheme:dark){ html,body{background:#0B1310} }
+  .sqr{
+    --bg:#EAF0E9; --surface:#FFFFFF; --surface-2:#F3F7F2; --surface-3:#EAF0E9;
+    --ink:#12201A; --ink-soft:#4B584F; --ink-faint:#7C877E;
+    --line:#D3DCD3; --line-soft:#E2E9E1;
+    --accent:#0F8A4B; --accent-deep:#0A5E33;
+    --ok:#1C9A53; --ok-wash:#DCEFE1;
+    --trial:#B87614; --trial-wash:#F6E9CF;
+    --pending:#356FA6; --pending-wash:#DBE8F3;
+    --injured:#C6443C; --injured-wash:#F6DEDB;
+    --out:#828B83; --out-wash:#E7EAE6;
+    --shadow:0 1px 2px rgba(18,32,26,.06), 0 8px 24px rgba(18,32,26,.06);
+    --radius:14px;
+    max-width:1180px;margin:0 auto;padding:22px 18px 40px;color:var(--ink);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.5;
+  }
+  @media (prefers-color-scheme:dark){
+    .sqr{
+      --bg:#0B1310; --surface:#121C17; --surface-2:#0F1813; --surface-3:#0C1511;
+      --ink:#E9F0EA; --ink-soft:#A0B1A6; --ink-faint:#6E8074;
+      --line:#22302A; --line-soft:#1A251F;
+      --accent:#33C77B; --accent-deep:#7FE0AA;
+      --ok:#3CC079; --ok-wash:#122A1B;
+      --trial:#E0A63C; --trial-wash:#2C2413;
+      --pending:#5C9AD6; --pending-wash:#12212E;
+      --injured:#E56E66; --injured-wash:#2C1614;
+      --out:#8A968C; --out-wash:#1B231E;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  .sqr *{box-sizing:border-box}
+  .sqr .num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+
+  .sqr .weeknav{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:16px}
+  .sqr .weeknav a,.sqr .weeknav span.cur{
+    font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;
+    padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface-2);
+    color:var(--ink-soft);text-decoration:none;white-space:nowrap;
+  }
+  .sqr .weeknav a:hover{border-color:var(--accent);color:var(--accent)}
+  .sqr .weeknav span.cur{background:var(--accent);border-color:var(--accent);color:#fff}
+  .sqr .weeknav span.disabled{opacity:.4;pointer-events:none}
+
+  .sqr header.hd{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:end;padding-bottom:16px;border-bottom:2px solid var(--ink);margin-bottom:20px}
+  .sqr .eyebrow{font-size:12px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;color:var(--accent-deep);margin:0 0 6px}
+  .sqr h1.title{font-size:clamp(24px,4vw,40px);line-height:1.04;margin:0;font-weight:800;letter-spacing:-.01em;text-wrap:balance}
+  .sqr .club{display:flex;align-items:center;gap:9px;margin-top:10px;color:var(--ink-soft);font-size:14px}
+  .sqr .crest{width:24px;height:24px;border-radius:6px;background:radial-gradient(circle at 50% 38%,var(--accent) 0 38%,transparent 39%),var(--accent-deep);flex-shrink:0}
+  .sqr .hd-meta{text-align:right;font-size:13px;color:var(--ink-soft)}
+  .sqr .hd-meta .big{font-size:15px;font-weight:700;color:var(--ink);display:block}
+  .sqr .dl-row{margin-top:10px}
+  .sqr .dl-btn{font:inherit;font-size:13px;font-weight:700;cursor:pointer;color:#fff;background:var(--accent);border:1px solid var(--accent);padding:8px 14px;border-radius:10px;box-shadow:0 2px 8px color-mix(in srgb,var(--accent) 38%,transparent)}
+  .sqr .dl-btn:hover{background:var(--accent-deep);border-color:var(--accent-deep)}
+  .sqr .dl-btn:focus-visible{outline:2px solid var(--accent-deep);outline-offset:2px}
+
+  .sqr .verdict{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center;background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--accent);border-radius:var(--radius);padding:16px 20px;box-shadow:var(--shadow);margin-bottom:18px}
+  .sqr .gauge{display:flex;flex-direction:column;align-items:center;min-width:118px}
+  .sqr .ring{width:96px;height:96px;border-radius:50%;background:radial-gradient(closest-side,var(--surface) 71%,transparent 72% 100%),conic-gradient(var(--accent) calc(var(--p,0)*1%),var(--line-soft) 0);display:grid;place-items:center}
+  .sqr .ring b{font-size:22px;font-weight:800;line-height:1}
+  .sqr .ring span{font-size:10px;color:var(--ink-faint)}
+  .sqr .gauge-cap{font-size:11px;color:var(--ink-faint);margin-top:7px;text-transform:uppercase;letter-spacing:.06em}
+  .sqr .verdict-txt h2{margin:0 0 6px;font-size:19px;font-weight:800;letter-spacing:-.01em;text-wrap:balance}
+  .sqr .verdict-txt p{margin:0;color:var(--ink-soft);font-size:14.5px;max-width:64ch}
+
+  .sqr .stats{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px}
+  .sqr .stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:13px 14px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .sqr .stat::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c,var(--accent))}
+  .sqr .stat .n{font-size:28px;font-weight:800;line-height:1;letter-spacing:-.02em}
+  .sqr .stat .l{font-size:11.5px;color:var(--ink-soft);margin-top:5px;text-transform:uppercase;letter-spacing:.04em}
+  .sqr .stat.tot{background:var(--ink);color:var(--surface)}
+  .sqr .stat.tot .l{color:color-mix(in srgb,var(--surface) 72%,transparent)}
+  .sqr .stat.c-ok{--c:var(--ok)} .sqr .stat.c-trial{--c:var(--trial)} .sqr .stat.c-pending{--c:var(--pending)}
+  .sqr .stat.c-injured{--c:var(--injured)} .sqr .stat.c-out{--c:var(--out)}
+
+  .sqr .grid{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-bottom:16px}
+  .sqr .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px 18px 16px;box-shadow:var(--shadow)}
+  .sqr .card h3{margin:0 0 3px;font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px}
+  .sqr .card h3 .dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+  .sqr .card .sub{margin:0 0 14px;font-size:12.5px;color:var(--ink-faint)}
+
+  /* Matriz de asistencia */
+  .sqr .mtx-wrap{overflow-x:auto}
+  .sqr table.mtx{border-collapse:collapse;width:100%;font-size:12.5px}
+  .sqr table.mtx th,.sqr table.mtx td{padding:6px 8px;text-align:center;border-bottom:1px solid var(--line-soft)}
+  .sqr table.mtx thead th{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-faint);font-weight:700;white-space:nowrap}
+  .sqr table.mtx th.pl,.sqr table.mtx td.pl{text-align:left;white-space:nowrap;font-weight:600}
+  .sqr table.mtx td.pl small{color:var(--ink-faint);font-weight:500;margin-left:5px}
+  .sqr .cell{display:inline-flex;width:22px;height:22px;border-radius:6px;align-items:center;justify-content:center;font-size:11px;font-weight:800;border:1px solid var(--line)}
+  .sqr .cell.present{background:var(--ok-wash);color:var(--ok);border-color:color-mix(in srgb,var(--ok) 35%,transparent)}
+  .sqr .cell.late{background:var(--trial-wash);color:var(--trial);border-color:color-mix(in srgb,var(--trial) 35%,transparent)}
+  .sqr .cell.excused{background:var(--pending-wash);color:var(--pending);border-color:color-mix(in srgb,var(--pending) 35%,transparent)}
+  .sqr .cell.injured{background:var(--injured-wash);color:var(--injured);border-color:color-mix(in srgb,var(--injured) 30%,transparent)}
+  .sqr .cell.absent{background:var(--out-wash);color:var(--out);border-color:color-mix(in srgb,var(--out) 35%,transparent)}
+  .sqr .cell.none{color:var(--ink-faint);background:var(--surface-3)}
+  .sqr td.abs{font-weight:800;font-variant-numeric:tabular-nums}
+  .sqr td.abs.hot{color:var(--injured)}
+  .sqr .mtx-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line-soft);font-size:11px;color:var(--ink-soft)}
+  .sqr .mtx-legend span{display:inline-flex;align-items:center;gap:6px}
+
+  /* Multas */
+  .sqr .fine-top{display:flex;gap:10px;margin-bottom:14px}
+  .sqr .fine-big{flex:1;background:var(--surface-2);border:1px solid var(--line-soft);border-radius:10px;padding:11px 12px}
+  .sqr .fine-big .n{font-size:24px;font-weight:800;letter-spacing:-.02em}
+  .sqr .fine-big .l{font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.04em;margin-top:3px}
+  .sqr .frow{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--line-soft);font-size:13px}
+  .sqr .frow:first-of-type{border-top:0}
+  .sqr .frow .amt{font-weight:800;font-variant-numeric:tabular-nums}
+  .sqr .frow .cnt{font-size:11px;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+  .sqr .frow small{color:var(--ink-faint)}
+
+  /* Incidencias */
+  .sqr .inc{display:flex;flex-direction:column;gap:8px}
+  .sqr .inc .i{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:baseline;background:var(--surface-2);border:1px solid var(--line-soft);border-radius:10px;padding:8px 11px}
+  .sqr .inc .tag{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:2px 7px;border-radius:999px;white-space:nowrap}
+  .sqr .tag.out{color:var(--out);background:var(--out-wash)} .sqr .tag.trial{color:var(--trial);background:var(--trial-wash)} .sqr .tag.injured{color:var(--injured);background:var(--injured-wash)}
+  .sqr .inc .who{font-size:13px;font-weight:700}
+  .sqr .inc .who small{display:block;font-weight:500;color:var(--ink-faint);font-size:11.5px}
+
+  .sqr .grid2{display:grid;grid-template-columns:1fr 1.05fr;gap:16px}
+  .sqr .actions{counter-reset:a}
+  .sqr .act{display:grid;grid-template-columns:26px 1fr;gap:12px;align-items:start;padding:11px 0;border-top:1px solid var(--line-soft)}
+  .sqr .act:first-child{border-top:0;padding-top:2px}
+  .sqr .act::before{counter-increment:a;content:counter(a);grid-row:span 2;width:26px;height:26px;border-radius:8px;background:var(--accent);color:#fff;font-weight:800;font-size:13px;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+  .sqr .act b{font-size:13.5px;font-weight:700}
+  .sqr .act p{margin:3px 0 0;font-size:12.5px;color:var(--ink-soft)}
+  .sqr .empty{font-size:12.5px;color:var(--ink-faint);padding:8px 2px}
+
+  .sqr .nomc{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:40px 22px;text-align:center;box-shadow:var(--shadow)}
+  .sqr .nomc h2{margin:0 0 6px;font-size:18px}
+  .sqr .nomc p{margin:0;color:var(--ink-soft);font-size:14px}
+
+  .sqr footer.ft{margin-top:22px;padding-top:14px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:8px 18px;justify-content:space-between;font-size:11.5px;color:var(--ink-faint)}
+  .sqr footer.ft b{color:var(--ink-soft)}
+
+  @media (max-width:860px){
+    .sqr .grid,.sqr .grid2{grid-template-columns:1fr}
+    .sqr .stats{grid-template-columns:repeat(3,1fr)}
+    .sqr header.hd{grid-template-columns:1fr}
+    .sqr .hd-meta{text-align:left}
+  }
+  @media (max-width:460px){ .sqr .stats{grid-template-columns:repeat(2,1fr)} }
+  @media print{
+    .sqr{padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .sqr *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .sqr .no-print{display:none !important}
+    .sqr .card,.sqr .stat,.sqr .verdict{box-shadow:none}
+    .sqr .grid,.sqr .grid2,.sqr .card{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+
+<div class="sqr">
+
+  {% if not has_microcycle %}
+  <header class="hd">
+    <div>
+      <p class="eyebrow">Informe al cuerpo técnico · Evaluación de microciclo</p>
+      <h1 class="title">Semana de entrenamiento</h1>
+      <div class="club"><span class="crest" aria-hidden="true"></span> {{ team_display_name }}</div>
+    </div>
+  </header>
+  <div class="nomc">
+    <h2>Aún no hay microciclos</h2>
+    <p>Crea un microciclo en Entrenamiento para ver aquí la evaluación de la semana (asistencia, multas e incidencias).</p>
+  </div>
+  {% else %}
+
+  <nav class="weeknav no-print" aria-label="Navegación de semanas">
+    {% if prev_microcycle_id %}<a href="?microcycle={{ prev_microcycle_id }}">◀ Semana anterior</a>{% else %}<span class="cur disabled">◀ Semana anterior</span>{% endif %}
+    <span class="cur">{% if week_start %}{{ week_start|date:"j M" }} – {{ week_end|date:"j M Y" }}{% else %}Semana actual{% endif %}</span>
+    {% if next_microcycle_id %}<a href="?microcycle={{ next_microcycle_id }}">Semana siguiente ▶</a>{% else %}<span class="cur disabled">Semana siguiente ▶</span>{% endif %}
+  </nav>
+
+  <header class="hd">
+    <div>
+      <p class="eyebrow">Informe al cuerpo técnico · Evaluación de microciclo</p>
+      <h1 class="title">{{ microcycle_title }}</h1>
+      <div class="club"><span class="crest" aria-hidden="true"></span> {{ team_display_name }}{% if cycle_type_label %} · {{ cycle_type_label }}{% endif %}{% if ref_opponent %} · vs {{ ref_opponent }}{% endif %}</div>
+    </div>
+    <div class="hd-meta">
+      <span class="big">{% if week_start %}{{ week_start|date:"j M" }} – {{ week_end|date:"j M Y" }}{% endif %}</span>
+      {{ session_count }} sesión{{ session_count|pluralize:"es" }} · actualizado {{ today|date:"j M" }}
+      <div class="dl-row no-print"><button type="button" class="dl-btn" onclick="window.print()">⤓ Descargar PDF</button></div>
+    </div>
+  </header>
+
+  <section class="verdict">
+    <div class="gauge">
+      <div class="ring" style="--p:{{ attendance_pct }}"><div><b class="num">{{ attendance_pct }}%</b><span>asistencia</span></div></div>
+      <div class="gauge-cap">{{ total_marks }} registro{{ total_marks|pluralize }}</div>
+    </div>
+    <div class="verdict-txt">
+      <h2>{% if objective %}{{ objective }}{% else %}Cumplimiento de la semana{% endif %}</h2>
+      <p>{{ session_count }} sesión{{ session_count|pluralize:"es" }} de entrenamiento · {{ roster_marked }} jugador{{ roster_marked|pluralize:"es" }} con registro de asistencia. La tasa cuenta presentes y llegadas tarde sobre los citables (excluye lesionados).</p>
+    </div>
+  </section>
+
+  <section class="stats" aria-label="Asistencia de la semana">
+    <div class="stat tot"><div class="n num">{{ total_marks }}</div><div class="l">Registros</div></div>
+    {% for s in status_cards %}
+    <div class="stat c-{{ s.tone }}"><div class="n num">{{ s.count }}</div><div class="l">{{ s.label }}</div></div>
+    {% endfor %}
+  </section>
+
+  <section class="grid">
+    <div class="card">
+      <h3><span class="dot"></span>Asistencia por jugador</h3>
+      <p class="sub">Estado de cada jugador en cada sesión de la semana. Ordenado por incidencias.</p>
+      {% if player_rows %}
+      <div class="mtx-wrap">
+        <table class="mtx">
+          <thead>
+            <tr>
+              <th class="pl">Jugador</th>
+              {% for s in sessions %}<th title="{{ s.focus }}{% if s.intensity %} · {{ s.intensity }}{% endif %}">{% if s.date %}{{ s.date|date:"D j"|capfirst }}{% else %}S{{ forloop.counter }}{% endif %}</th>{% endfor %}
+              <th>Aus</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in player_rows %}
+            <tr>
+              <td class="pl">{% if r.number %}<span class="num">{{ r.number }}</span> {% endif %}{{ r.name }}{% if r.position %}<small>{{ r.position }}</small>{% endif %}</td>
+              {% for c in r.cells %}
+              <td>
+                {% if c.status == "present" %}<span class="cell present" title="Presente">✓</span>
+                {% elif c.status == "late" %}<span class="cell late" title="Llega tarde">T</span>
+                {% elif c.status == "excused" %}<span class="cell excused" title="Justificado">J</span>
+                {% elif c.status == "injured" %}<span class="cell injured" title="Lesionado">+</span>
+                {% elif c.status == "absent" %}<span class="cell absent" title="Ausente">✕</span>
+                {% else %}<span class="cell none" title="Sin registrar">·</span>{% endif %}
+              </td>
+              {% endfor %}
+              <td class="abs num{% if r.absences >= 2 %} hot{% endif %}">{{ r.absences }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="mtx-legend">
+        <span><span class="cell present">✓</span> Presente</span>
+        <span><span class="cell late">T</span> Tarde</span>
+        <span><span class="cell excused">J</span> Justificado</span>
+        <span><span class="cell injured">+</span> Lesionado</span>
+        <span><span class="cell absent">✕</span> Ausente</span>
+        <span><span class="cell none">·</span> Sin registrar</span>
+      </div>
+      {% else %}
+      <div class="empty">Sin asistencia registrada esta semana. Pasa lista en cada sesión para ver la matriz.</div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h3><span class="dot" style="background:var(--injured)"></span>Multas</h3>
+      <p class="sub">Sanciones económicas de la semana y acumulado de temporada.</p>
+      <div class="fine-top">
+        <div class="fine-big"><div class="n num">{{ fines_week_total }}€</div><div class="l">Esta semana</div></div>
+        <div class="fine-big"><div class="n num">{{ fines_season_total }}€</div><div class="l">Temporada</div></div>
+      </div>
+      {% for f in fines_by_reason %}
+      <div class="frow"><span>{{ f.label }} <small class="cnt">×{{ f.count }}</small></span><span></span><span class="amt num">{{ f.amount }}€</span></div>
+      {% empty %}
+      <div class="empty">Sin multas esta semana. 👌</div>
+      {% endfor %}
+      {% if fines_top %}
+      <p class="sub" style="margin:14px 0 6px">Más sancionados</p>
+      {% for p in fines_top %}
+      <div class="frow"><span>{{ p.name }}</span><span class="cnt num">×{{ p.count }}</span><span class="amt num">{{ p.amount }}€</span></div>
+      {% endfor %}
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="grid2">
+    <div class="card">
+      <h3><span class="dot" style="background:var(--trial)"></span>Incidencias</h3>
+      <p class="sub">Ausencias y retrasos con nota, expulsiones e indisciplina.</p>
+      <div class="inc">
+        {% for i in incidents %}
+        <div class="i"><span class="tag {{ i.tone }}">{{ i.type }}</span><span class="who">{{ i.player }}{% if i.detail %}<small>{{ i.detail }}</small>{% endif %}</span></div>
+        {% empty %}
+        <div class="empty">Sin incidencias registradas. Semana limpia.</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="dot"></span>Decisiones de la semana</h3>
+      <p class="sub">Lo que conviene hablar con el grupo o resolver.</p>
+      <div class="actions">
+        {% for a in alerts %}
+        <div class="act"><div><b>{{ a.title }}</b><p>{{ a.detail }}</p></div></div>
+        {% empty %}
+        <div class="act"><div><b>Semana sin banderas</b><p>Asistencia correcta, sin multas ni incidencias reseñables.</p></div></div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <footer class="ft">
+    <span><b>Fuente:</b> asistencia de sesiones, multas e incidencias registradas en Entrenamiento.</span>
+    <span><b>Semana:</b> microciclo del equipo (usa ◀ ▶ para cambiar de semana).</span>
+  </footer>
+
+  {% endif %}
+</div>
+</body>
+</html>
