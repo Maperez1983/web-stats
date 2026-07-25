@@ -20496,6 +20496,12 @@ def coach_overview_page(request):
             "icon": "match",
         },
         {
+            "title": "Calendario",
+            "description": "Alta y listado de partidos",
+            "url": reverse("coach-matches"),
+            "icon": "agenda",
+        },
+        {
             "title": "Plantilla",
             "description": "Fichas, estados, KPIs y PDF",
             "url": reverse("coach-roster"),
