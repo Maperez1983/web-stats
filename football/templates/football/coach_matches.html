@@ -93,10 +93,77 @@
         </div>
         <div class="header-actions">
           <a class="btn" href="{% url 'coach-cards' %}?area=match">Volver</a>
-          <a class="btn primary" href="{% url 'match-hub' %}{% if active_team %}?team={{ active_team.id }}&open_create=1{% else %}?open_create=1{% endif %}">Nuevo partido</a>
-          <a class="btn primary" href="{% url 'match-hub' %}">Ir a Partido</a>
+          <a class="btn" href="{% url 'match-hub' %}">Ir a Partido</a>
         </div>
 	      </header>
+
+      <details class="add-match" open>
+        <summary class="btn primary add-match-toggle">➕ Nuevo partido</summary>
+        <form method="post" action="{% url 'match-hub-create' %}" class="add-match-form">
+          {% csrf_token %}
+          <input type="hidden" name="team" value="{{ active_team.id }}" />
+          <input type="hidden" name="next" value="{% url 'coach-matches' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" />
+          <div class="amf-grid">
+            <div class="amf-field amf-wide">
+              <label for="amf-opponent">Rival</label>
+              <input id="amf-opponent" name="opponent" list="amf-rivals" required placeholder="Escribe o elige un rival…" autocomplete="off" />
+              <datalist id="amf-rivals">
+                {% for name in rival_name_options %}<option value="{{ name }}"></option>{% endfor %}
+              </datalist>
+            </div>
+            <div class="amf-field">
+              <label for="amf-date">Fecha</label>
+              <input id="amf-date" type="date" name="date" required />
+            </div>
+            <div class="amf-field">
+              <label for="amf-time">Hora</label>
+              <input id="amf-time" type="time" name="time" />
+            </div>
+            <div class="amf-field">
+              <label for="amf-context">Tipo</label>
+              <select id="amf-context" name="context">
+                <option value="league">Liga</option>
+                <option value="tournament">Torneo</option>
+                <option value="friendly">Amistoso</option>
+              </select>
+            </div>
+            <div class="amf-field">
+              <label for="amf-homeaway">Condición</label>
+              <select id="amf-homeaway" name="home_away">
+                <option value="home">Local</option>
+                <option value="away">Visitante</option>
+              </select>
+            </div>
+            <div class="amf-field">
+              <label for="amf-round">Jornada</label>
+              <input id="amf-round" name="round" placeholder="Jornada 24 / Amistoso" />
+            </div>
+            <div class="amf-field amf-wide">
+              <label for="amf-location">Campo</label>
+              <input id="amf-location" name="location" placeholder="Campo de juego" />
+            </div>
+          </div>
+          <div class="amf-actions">
+            <button type="submit" class="btn primary">Guardar partido</button>
+            <span class="amf-hint">Si el rival ya existe (aunque lo escribas distinto), se reutiliza automáticamente.</span>
+          </div>
+        </form>
+      </details>
+      <style>
+        .add-match{margin:14px 0 4px;border:1px solid var(--prod-border,rgba(148,163,184,.25));border-radius:14px;background:var(--prod-surface,rgba(255,255,255,.03));padding:6px 14px 14px}
+        .add-match-toggle{display:inline-flex;align-items:center;cursor:pointer;margin:8px 0;list-style:none}
+        .add-match-toggle::-webkit-details-marker{display:none}
+        .add-match-form{margin-top:6px}
+        .amf-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+        .amf-field{display:flex;flex-direction:column;gap:4px;min-width:0}
+        .amf-field.amf-wide{grid-column:span 2}
+        .amf-field label{font-size:.72rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;opacity:.72}
+        .amf-field input,.amf-field select{padding:9px 10px;border-radius:9px;border:1px solid var(--prod-border,rgba(148,163,184,.3));background:var(--prod-surface-2,rgba(255,255,255,.04));color:inherit;font:inherit;min-width:0}
+        .amf-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px}
+        .amf-hint{font-size:.78rem;opacity:.7}
+        @media (max-width:820px){.amf-grid{grid-template-columns:repeat(2,1fr)}.amf-field.amf-wide{grid-column:span 2}}
+        @media (max-width:480px){.amf-grid{grid-template-columns:1fr}.amf-field.amf-wide{grid-column:span 1}}
+      </style>
 
 	      {% if messages %}
 	      <div class="flash-wrap" aria-live="polite" aria-label="Mensajes">

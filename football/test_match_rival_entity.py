@@ -69,6 +69,14 @@ class MatchRivalEntityTests(TestCase):
             Match.objects.filter(home_team=self.team, away_team=rival).count(), 2
         )
 
+    def test_calendar_page_renders_with_add_form(self):
+        resp = self.client.get("/coach/partidos/", HTTP_HOST="localhost")
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode("utf-8")
+        self.assertIn("Calendario de partidos", body)
+        self.assertIn("Nuevo partido", body)
+        self.assertIn("Guardar partido", body)  # el formulario de alta está en la propia página
+
     def test_match_hub_modal_create_dedups_rival(self):
         """El modal 'Nuevo partido' (match-hub-create) también deduplica el rival al escribirlo."""
         today = timezone.localdate()
@@ -90,3 +98,21 @@ class MatchRivalEntityTests(TestCase):
         self.assertEqual(Team.objects.filter(name_key=key).count(), 1)
         _create("UD Nueva", today + datetime.timedelta(days=10))
         self.assertEqual(Team.objects.filter(name_key=key).count(), 1)
+
+    def test_create_from_calendar_returns_to_calendar(self):
+        """Al dar de alta desde el Calendario (next=/coach/partidos/), vuelve al Calendario."""
+        today = timezone.localdate()
+        resp = self.client.post(
+            "/partido/crear/",
+            {
+                "opponent": "C.F. Calendario",
+                "context": Match.CONTEXT_FRIENDLY,
+                "home_away": "home",
+                "date": (today + datetime.timedelta(days=4)).strftime("%Y-%m-%d"),
+                "next": "/coach/partidos/",
+            },
+            HTTP_HOST="localhost",
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(resp["Location"].startswith("/coach/partidos/"))
+        self.assertTrue(Team.objects.filter(name_key=normalize_team_name_key("C.F. Calendario")).exists())

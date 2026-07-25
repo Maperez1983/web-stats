@@ -38024,6 +38024,21 @@ def coach_matches_page(request):
         {"key": Match.CONTEXT_TOURNAMENT, "label": "Torneo"},
         {"key": Match.CONTEXT_FRIENDLY, "label": "Amistoso"},
     ]
+    # Nombres de rivales ya existentes (para autocompletar el alta de partido en el Calendario).
+    rival_name_options = []
+    try:
+        _rival_qs = Team.objects.exclude(id=primary_team.id)
+        if getattr(primary_team, "group_id", None):
+            _rival_qs = _rival_qs.filter(group_id=primary_team.group_id)
+        rival_name_options = sorted(
+            {
+                str(getattr(t, "name", "") or "").strip()
+                for t in _rival_qs.only("name", "group_id")
+                if str(getattr(t, "name", "") or "").strip()
+            }
+        )
+    except Exception:
+        rival_name_options = []
     return render(
         request,
         "football/coach_matches.html",
@@ -38031,6 +38046,7 @@ def coach_matches_page(request):
             "team_name": primary_team.display_name,
             "season_label": season_display_name(season),
             "rows": rows,
+            "rival_name_options": rival_name_options,
             "q": q,
             "dup_only": dup_only,
             "registered_only": registered_only,
@@ -78079,6 +78095,11 @@ def match_hub_create_match(request):
         except Exception:
             pass
     _invalidate_team_dashboard_caches(primary_team)
+    # Si el alta viene del Calendario, vuelve al Calendario (no al hub de Partido).
+    next_url = str(request.POST.get("next") or "").strip()
+    if next_url.startswith("/") and not next_url.startswith("//") and "\\" not in next_url:
+        sep = "&" if "?" in next_url else "?"
+        return redirect(f"{next_url}{sep}msg=Partido+creado")
     return redirect(
         f"{reverse('match-hub')}?match_id={int(match_obj.id)}&team={int(primary_team.id)}&msg=Partido+creado"
     )
