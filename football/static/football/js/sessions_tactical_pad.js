@@ -37751,6 +37751,8 @@
               // Editor 2D: "Centrar" real. Resetea el paneo del viewport; el centro base se
               // recalcula solo en applyViewportTransformToWorld, así que el contenido queda centrado.
               try { window.__tpadCenterViewport = () => { try { viewportPanX = 0; viewportPanY = 0; applyViewportTransformToWorld(); } catch (e) { /* ignore */ } }; } catch (e) { /* ignore */ }
+              // DEBUG TEMPORAL: inspeccionar el historial de undo (nº de fichas por entrada).
+              try { window.__dbgHistory = () => ({ len: history.length, idx: historyIndex, tokensPerEntry: history.map((h) => (String(h).match(/"kind":"token"/g) || []).length) }); } catch (e) { /* ignore */ }
               // Editor 2D: cambia la pose/equipacion del avatar de la(s) ficha(s) seleccionada(s).
               try {
                 window.__tpadSetAvatarStyle = (pose, color, gkPose, gkColor) => {
