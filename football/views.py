@@ -20166,8 +20166,42 @@ def coach_overview_page(request):
     _group_season_name = str(
         getattr(getattr(getattr(primary_team, "group", None), "season", None), "name", "") or ""
     ).strip()
-    if standings and _group_season_name and not season_names_match(_group_season_name, current_season_name()):
+    _payload_standings_count = len(standings)
+    _season_guard_blanked = bool(
+        standings and _group_season_name and not season_names_match(_group_season_name, current_season_name())
+    )
+    if _season_guard_blanked:
         standings = []
+    # Diagnóstico staff-only: por qué la home muestra (o no) la clasificación. `/coach/?diag=standings`.
+    if str(request.GET.get("diag") or "").strip() == "standings" and getattr(request.user, "is_staff", False):
+        _diag_ctx = (
+            WorkspaceCompetitionContext.objects.filter(workspace=workspace, team=primary_team).first()
+            if (workspace and primary_team)
+            else None
+        )
+        _diag_snap = (
+            WorkspaceCompetitionSnapshot.objects.filter(context=_diag_ctx).first() if _diag_ctx else None
+        )
+        return JsonResponse(
+            {
+                "provider": getattr(_diag_ctx, "provider", None),
+                "sync_status": getattr(_diag_ctx, "sync_status", None),
+                "sync_error": getattr(_diag_ctx, "sync_error", None),
+                "last_sync_at": str(getattr(_diag_ctx, "last_sync_at", None)),
+                "context_source_url": getattr(_diag_ctx, "external_source_url", None),
+                "preferente_url": getattr(primary_team, "preferente_url", None),
+                "has_snapshot": bool(_diag_snap),
+                "snapshot_standings_count": len(getattr(_diag_snap, "standings_payload", None) or []),
+                "snapshot_updated_at": str(getattr(_diag_snap, "updated_at", None)) if _diag_snap else None,
+                "team_group_id": getattr(primary_team, "group_id", None),
+                "group_season_name": _group_season_name,
+                "current_season_name": current_season_name(),
+                "season_guard_blanked": _season_guard_blanked,
+                "payload_standings_count": _payload_standings_count,
+                "final_standings_count": len(standings),
+            },
+            json_dumps_params={"ensure_ascii": False},
+        )
     convocation_next = _build_next_match_from_convocation(primary_team)
     next_match = (
         competition_payload.get("next_match")
