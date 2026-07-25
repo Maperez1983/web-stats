@@ -598,6 +598,15 @@
           {% if can_manage_workspace %}
           <form class="inline-form" method="post">
             {% csrf_token %}
+            <input type="hidden" name="action" value="toggle-squad" />
+            {% if target.available_for_coach_tools and target.status != 'discarded' %}
+            <button class="btn" type="submit" title="Dejará de aparecer en entrenos y pizarra">Quitar de plantilla</button>
+            {% else %}
+            <button class="btn primary" type="submit" title="Aparecerá en entrenos y en la pizarra del entrenador (A prueba)">Incluir en plantilla</button>
+            {% endif %}
+          </form>
+          <form class="inline-form" method="post">
+            {% csrf_token %}
             <input type="hidden" name="action" value="promote-to-player" />
             <button class="btn primary" type="submit">
               {% if target.player_id %}Sincronizar plantilla{% else %}Convertir a plantilla{% endif %}

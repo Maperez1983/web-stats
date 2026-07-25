@@ -34425,6 +34425,24 @@ def scouting_target_detail_page(request, target_id):
                 target.status = ScoutingTarget.STATUS_SIGNED
                 target.save(update_fields=["player", "available_for_coach_tools", "status", "updated_at"])
                 feedback = "Fichado y enlazado a plantilla. Se archiva en el Histórico."
+            if action == "toggle-squad":
+                # Incluir/quitar el ojeado de la plantilla del entrenador (A prueba): aparece en
+                # entrenos y en la pizarra sin necesidad de ficharlo. Editable en cualquier momento.
+                new_val = not bool(target.available_for_coach_tools)
+                target.available_for_coach_tools = new_val
+                update_fields = ["available_for_coach_tools", "updated_at"]
+                if new_val and target.status in (
+                    ScoutingTarget.STATUS_TARGET,
+                    ScoutingTarget.STATUS_DISCARDED,
+                ):
+                    target.status = ScoutingTarget.STATUS_WATCHLIST
+                    update_fields.append("status")
+                target.save(update_fields=update_fields)
+                feedback = (
+                    "Incluido en la plantilla del entrenador (A prueba): ya aparece en entrenos y pizarra."
+                    if new_val
+                    else "Quitado de la plantilla del entrenador."
+                )
             if action == "add-season-stat":
                 ScoutingTargetSeasonStat.objects.create(
                     target=target,
