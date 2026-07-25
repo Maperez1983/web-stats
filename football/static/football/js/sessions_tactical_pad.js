@@ -8051,10 +8051,18 @@
 		        return;
 		      }
 		      const isRow = orientation !== 'col';
-		      const center = selectionCenter();
-		      const shared = isRow ? center.y : center.x;
+		      // Trabaja en coordenadas ABSOLUTAS: deshaz la selección múltiple para que
+		      // getCenterPoint()/setPositionByOrigin usen el lienzo y no el marco de la
+		      // selección. Si no, se mezclan sistemas de coordenadas y los elementos se
+		      // recolocan fuera del campo y el visual no refresca hasta deseleccionar.
+		      canvas.discardActiveObject();
+		      objects.forEach((obj) => obj.setCoords());
+		      const centers = objects.map((obj) => obj.getCenterPoint());
+		      const cx = centers.reduce((a, p) => a + p.x, 0) / centers.length;
+		      const cy = centers.reduce((a, p) => a + p.y, 0) / centers.length;
+		      const shared = isRow ? cy : cx;
 		      const items = objects
-		        .map((obj) => ({ obj, center: obj.getCenterPoint() }))
+		        .map((obj, i) => ({ obj, center: centers[i] }))
 		        .sort((a, b) => (isRow ? a.center.x - b.center.x : a.center.y - b.center.y));
 		      const firstC = items[0].center;
 		      const lastC = items[items.length - 1].center;
@@ -8069,9 +8077,9 @@
 		      let start = isRow ? firstC.x : firstC.y;
 		      let step;
 		      if (Math.abs(span) < minSpacing * (items.length - 1) * 0.5) {
-		        // Estaban casi apilados: los abanicamos centrados en la selección.
+		        // Estaban casi apilados: los abanicamos centrados en el centroide.
 		        step = minSpacing;
-		        start = (isRow ? center.x : center.y) - (step * (items.length - 1)) / 2;
+		        start = (isRow ? cx : cy) - (step * (items.length - 1)) / 2;
 		      } else {
 		        step = span / (items.length - 1);
 		      }
@@ -8081,6 +8089,9 @@
 		        item.obj.setPositionByOrigin(next, 'center', 'center');
 		        item.obj.setCoords();
 		      });
+		      // Reselecciona el grupo para poder seguir operando y refrescar el visual.
+		      if (objects.length > 1) { canvas.setActiveObject(new fabric.ActiveSelection(objects, { canvas })); }
+		      else { canvas.setActiveObject(objects[0]); }
 		      canvas.requestRenderAll();
 		      pushHistory();
 		      syncInspector();
@@ -8097,6 +8108,9 @@
 		      const n = objects.length;
 		      const columns = Math.max(1, Math.min(Math.round(cols) || Math.ceil(Math.sqrt(n)), n));
 		      const rows = Math.ceil(n / columns);
+		      // Coordenadas absolutas (ver alignInLine): deshaz la selección múltiple.
+		      canvas.discardActiveObject();
+		      objects.forEach((obj) => obj.setCoords());
 		      const centers = objects.map((o) => o.getCenterPoint());
 		      const xs = centers.map((c) => c.x);
 		      const ys = centers.map((c) => c.y);
@@ -8118,6 +8132,7 @@
 		        item.obj.setPositionByOrigin(next, 'center', 'center');
 		        item.obj.setCoords();
 		      });
+		      canvas.setActiveObject(new fabric.ActiveSelection(objects, { canvas }));
 		      canvas.requestRenderAll();
 		      pushHistory();
 		      syncInspector();
