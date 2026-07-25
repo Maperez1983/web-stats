@@ -357,6 +357,61 @@
         gap: 0.4rem;
         flex: 0 0 auto;
         padding: 0.06rem 0.04rem;
+        position: relative;
+      }
+      /* Badge de valoración (nota última evaluación cerrada). Oculto salvo con "Ver notas". */
+      .player-bank .token-rating-badge {
+        display: none;
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        min-width: 17px;
+        height: 17px;
+        padding: 0 3px;
+        box-sizing: border-box;
+        border-radius: 999px;
+        border: 1.4px solid #f8fafc;
+        background: #64748b;
+        color: #fff;
+        font-size: 9.5px;
+        font-weight: 800;
+        line-height: 14px;
+        text-align: center;
+        letter-spacing: 0;
+        z-index: 3;
+        box-shadow: 0 1px 3px rgba(2, 6, 23, 0.45);
+        pointer-events: none;
+      }
+      #task-roster-bank.show-ratings .token-rating-badge { display: inline-block; }
+      .player-bank .token-rating-badge.is-good { background: #16a34a; }
+      .player-bank .token-rating-badge.is-mid { background: #d97706; }
+      .player-bank .token-rating-badge.is-low { background: #dc2626; }
+      /* Marca de ojeado (siempre visible). */
+      .player-bank .token-scout-flag {
+        position: absolute;
+        top: -5px;
+        left: -5px;
+        width: 16px;
+        height: 16px;
+        border-radius: 999px;
+        background: #7c3aed;
+        border: 1.4px solid #f8fafc;
+        color: #fff;
+        font-size: 9px;
+        line-height: 13px;
+        text-align: center;
+        z-index: 3;
+        box-shadow: 0 1px 3px rgba(2, 6, 23, 0.45);
+        pointer-events: none;
+      }
+      .player-bank button.player-token-bank.is-scouted {
+        border-color: rgba(124, 58, 237, 0.55) !important;
+        box-shadow: inset 0 0 0 1px rgba(124, 58, 237, 0.35);
+      }
+      /* Grupo de filtro por estado: hereda el estilo del grupo de filtros existente. */
+      .player-bank-status-group button[data-roster-status].is-active {
+        background: rgba(124, 58, 237, 0.9);
+        color: #fff;
       }
       .player-bank button.player-token-bank .token-meta {
         display: block;

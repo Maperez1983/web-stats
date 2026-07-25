@@ -3839,6 +3839,8 @@
 	    }
 	    if (!Array.isArray(confirmedPlayerIds)) confirmedPlayerIds = [];
 	    let confirmedPlayerIdSet = new Set(confirmedPlayerIds.map((value) => String(value)));
+	    // Toggle "Ver notas": muestra el badge de valoración en banco y pizarra.
+	    let ratingsVisible = false;
 
 		    // Estilo global de fichas (para nuevos jugadores colocados en la pizarra).
 		    const TOKEN_STYLE_STORAGE_KEY = 'webstats:tpad:token-style';
@@ -31748,6 +31750,19 @@
         nameText.data = { role: 'token_name' };
 	        tokenParts.push(nameText);
 	      }
+		      // Badge de valoración (nota última evaluación cerrada). Dentro del disco para no
+		      // agrandar el bbox (eso rompía el arrastre/selección de fichas).
+		      const ratingValue = (player && player.rating != null && Number.isFinite(Number(player.rating)))
+		        ? Number(player.rating) : null;
+		      if (ratingValue != null) {
+		        const rTierFill = ratingValue >= 7 ? '#16a34a' : (ratingValue >= 5 ? '#d97706' : '#dc2626');
+		        const rCx = baseRadius * 0.6; const rCy = -baseRadius * 0.6;
+		        const rCircle = new fabric.Circle({ radius: 8.5, left: rCx, top: rCy, originX: 'center', originY: 'center', fill: rTierFill, stroke: '#f8fafc', strokeWidth: 1.4, visible: ratingsVisible });
+		        rCircle.data = { role: 'token_rating' };
+		        const rText = new fabric.Text((Math.round(ratingValue * 10) / 10).toString(), { left: rCx, top: rCy, originX: 'center', originY: 'center', fontSize: 9, fontWeight: '700', fill: '#ffffff', visible: ratingsVisible });
+		        rText.data = { role: 'token_rating' };
+		        tokenParts.push(rCircle); tokenParts.push(rText);
+		      }
 		      const group = new fabric.Group(tokenParts, {
 	        left,
 	        top,
@@ -31755,6 +31770,9 @@
 	        originY: 'center',
 		        data: {
 			          kind: 'token',
+			          token_rating: ratingValue,
+			          token_estado: safeText(player?.estado),
+			          token_scouted: !!(player && player.is_scouted),
 			          token_kind: kind,
 			          token_base_radius: baseRadius,
 			          token_size: 'm',
@@ -33786,6 +33804,7 @@
 		    }
 		    let playerBankUpdateTimer = null;
         let rosterViewFilter = 'all';
+        let rosterStatusFilter = 'all';
 		    const updatePlayerBankVisibility = () => {
 		      if (!playerBank) return;
 		      const used = hideUsedPlayersEnabled ? computeUsedPlayerIds() : new Set();
@@ -33803,6 +33822,11 @@
           if (!quickBar) return;
           Array.from(quickBar.querySelectorAll('button[data-roster-filter]') || []).forEach((btn) => {
             const active = safeText(btn.dataset.rosterFilter) === rosterViewFilter;
+            btn.classList.toggle('is-active', active);
+            try { btn.setAttribute('aria-pressed', active ? 'true' : 'false'); } catch (e) { /* ignore */ }
+          });
+          Array.from(quickBar.querySelectorAll('button[data-roster-status]') || []).forEach((btn) => {
+            const active = safeText(btn.dataset.rosterStatus) === rosterStatusFilter;
             btn.classList.toggle('is-active', active);
             try { btn.setAttribute('aria-pressed', active ? 'true' : 'false'); } catch (e) { /* ignore */ }
           });
@@ -33950,6 +33974,9 @@
           } else if (rosterViewFilter === 'goalkeepers') {
             roster = roster.filter((p) => isGoalkeeperPlayer(p));
           }
+          if (rosterStatusFilter && rosterStatusFilter !== 'all') {
+            roster = roster.filter((p) => safeText(p?.estado) === rosterStatusFilter);
+          }
 		      if (onlyConfirmedPlayersEnabled && confirmedPlayerIdSet.size > 0) {
 		        roster = roster.filter((p) => confirmedPlayerIdSet.has(String(p?.id || '')));
 		      }
@@ -33980,6 +34007,9 @@
 		        button.type = 'button';
 		        button.className = 'player-token-bank';
 		        button.dataset.playerId = String(player.id || '');
+		        button.dataset.estado = String(player?.estado || '');
+		        button.dataset.scouted = (player && player.is_scouted) ? '1' : '0';
+		        if (player && player.is_scouted) button.classList.add('is-scouted');
 		        // Precarga la foto real del jugador para poder pintarla SINCRONA (estilo Foto).
 		        try { ensureAvatarImage(resolvePlayerPhotoUrl(player?.photo_url)); } catch (e) { /* ignore */ }
 			        const copy = document.createElement('span');
@@ -34085,6 +34115,22 @@
               visuals.appendChild(jerseyPreview);
               visuals.appendChild(photoPreview);
               visuals.appendChild(figurePreview);
+              // Badge de valoración (visible con el toggle "Ver notas") + marca de ojeado.
+              const bankRating = (player && player.rating != null && Number.isFinite(Number(player.rating))) ? Number(player.rating) : null;
+              if (bankRating != null) {
+                const ratingBadge = document.createElement('span');
+                ratingBadge.className = 'token-rating-badge ' + (bankRating >= 7 ? 'is-good' : (bankRating >= 5 ? 'is-mid' : 'is-low'));
+                ratingBadge.textContent = (Math.round(bankRating * 10) / 10).toString();
+                ratingBadge.setAttribute('aria-hidden', 'true');
+                visuals.appendChild(ratingBadge);
+              }
+              if (player && player.is_scouted) {
+                const scoutFlag = document.createElement('span');
+                scoutFlag.className = 'token-scout-flag';
+                scoutFlag.textContent = '👁';
+                scoutFlag.title = 'Ojeado';
+                visuals.appendChild(scoutFlag);
+              }
               copy.appendChild(name);
               copy.appendChild(meta);
 	        button.appendChild(visuals);
@@ -34120,6 +34166,13 @@
             renderPlayerBank();
             return;
           }
+          const statusBtn = event.target.closest('button[data-roster-status]');
+          if (statusBtn) {
+            event.preventDefault();
+            rosterStatusFilter = safeText(statusBtn.dataset.rosterStatus) || 'all';
+            renderPlayerBank();
+            return;
+          }
           const styleBtn = event.target.closest('button[data-bank-style]');
           if (styleBtn) {
             event.preventDefault();
@@ -34131,6 +34184,33 @@
             setStatus(`Estilo de fichas: ${tokenStyleLabel(tokenGlobalStyle)}.`);
           }
         });
+	    const showRatingsToggle = document.getElementById('task-show-ratings');
+	    const rosterBankEl = document.getElementById('task-roster-bank');
+	    const applyCanvasRatingsVisibility = () => {
+	      try {
+	        (canvas?.getObjects?.() || []).forEach((obj) => {
+	          if (!obj || obj.type !== 'group' || !obj.data || obj.data.kind !== 'token') return;
+	          let touched = false;
+	          (obj.getObjects?.() || []).forEach((sub) => {
+	            if (sub && sub.data && sub.data.role === 'token_rating') { sub.set('visible', ratingsVisible); touched = true; }
+	          });
+	          if (touched) obj.dirty = true;
+	        });
+	        canvas?.requestRenderAll?.();
+	      } catch (e) { /* ignore */ }
+	    };
+	    const applyRatingsUi = () => {
+	      try { rosterBankEl?.classList.toggle('show-ratings', ratingsVisible); } catch (e) { /* ignore */ }
+	      applyCanvasRatingsVisibility();
+	    };
+	    if (showRatingsToggle) {
+	      ratingsVisible = !!showRatingsToggle.checked;
+	      applyRatingsUi();
+	      showRatingsToggle.addEventListener('change', () => {
+	        ratingsVisible = !!showRatingsToggle.checked;
+	        applyRatingsUi();
+	      });
+	    }
 	    const selectTimelineStep = (index) => {
 	      if (index < 0 || index >= timeline.length) return;
 	      if (playbackTimer) return;
