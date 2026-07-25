@@ -30406,12 +30406,72 @@
       const im = new Image();
       __avatarImgCache.set(url, im);
       try { im.decoding = 'async'; } catch (e) { /* ignore */ }
+      // Al terminar de cargar, "sube" el avatar a las fichas que se colocaron ANTES de que la
+      // imagen estuviera lista (se pintaron con el muñeco de fallback y no volverían a mostrar la
+      // figura real). Esto arregla "no se muestran todos los jugadores al arrastrar".
+      im.onload = () => { try { upgradeTokensAwaitingAvatar(url); } catch (e) { /* ignore */ } };
       try { im.src = url; } catch (e) { /* ignore */ }
       return im;
     };
     const getReadyAvatarImage = (url) => {
       const im = url ? __avatarImgCache.get(url) : null;
       return (im && im.complete && (im.naturalWidth || im.width)) ? im : null;
+    };
+    // Inyecta la figura HD (avatar) en un token YA colocado que sólo tenía el muñeco de fallback.
+    // Réplica de la composición del build (avatar + chip de dorsal) y de window.__tpadSetAvatarStyle.
+    const injectAvatarIntoGroup = (grp, el) => {
+      try {
+        if (!grp || !Array.isArray(grp._objects)) return false;
+        if (grp._objects.some((o) => o && o.data && o.data.role === 'token_avatar')) return false;
+        if (!el || !el.complete || !(el.naturalWidth || el.width)) return false;
+        const kind = safeText(grp?.data?.token_kind || grp?.data?.kind);
+        const isGk = kind.indexOf('goalkeeper') >= 0;
+        const label = safeText(grp?.data?.playerNumber, isGk ? 'GK' : 'J');
+        const scale = 52 / Math.max(1, el.naturalHeight || el.height || 1);
+        const img = new fabric.Image(el, { left: 0, top: 2, originX: 'center', originY: 'center', selectable: false, evented: false, scaleX: scale, scaleY: scale });
+        try { applyRenderableQuality(img, { strokeUniform: false }); } catch (e) { /* ignore */ }
+        img.data = { role: 'token_avatar' };
+        grp.add(img);
+        const numBg = new fabric.Circle({ radius: 8.5, fill: 'rgba(2,6,23,0.82)', stroke: 'rgba(255,255,255,0.92)', strokeWidth: 1.6, originX: 'center', originY: 'center', left: 0, top: 26, selectable: false, evented: false });
+        numBg.data = { role: 'token_number_bg' };
+        grp.add(numBg);
+        const numTxt = new fabric.Text(isGk ? 'GK' : label, { originX: 'center', originY: 'center', left: 0, top: 26, fontSize: 9.6, fontWeight: '900', fill: '#f8fafc', selectable: false, evented: false });
+        numTxt.data = { role: 'token_number' };
+        grp.add(numTxt);
+        // El nombre debe quedar por encima de la figura.
+        grp._objects.filter((o) => o && o.data && ['token_name_bg', 'token_name'].indexOf(o.data.role) >= 0).forEach((o) => { grp.remove(o); grp.add(o); });
+        grp.dirty = true;
+        return true;
+      } catch (e) { return false; }
+    };
+    // URL de avatar que le corresponde a una ficha (misma lógica que el build en 30848).
+    const avatarUrlForTokenGroup = (grp) => {
+      try {
+        const d = grp && grp.data; if (!d) return '';
+        if (!Array.isArray(grp._objects)) return '';
+        // Sólo fichas tipo avatar/figura (las que llevan el muñeco de fallback).
+        if (!grp._objects.some((o) => o && o.data && o.data.role === 'token_sprite')) return '';
+        const st = d.token_style; const kind = d.token_kind; const stripe = d.token_stripe_color || '';
+        return (st === 'photo')
+          ? (resolvePlayerPhotoUrl(d.playerPhotoUrl) || resolveAvatarUrlForToken(kind, stripe))
+          : resolveAvatarUrlForToken(kind, stripe);
+      } catch (e) { return ''; }
+    };
+    const upgradeTokensAwaitingAvatar = (url) => {
+      if (!url) return;
+      const el = getReadyAvatarImage(url); if (!el) return;
+      let changed = 0;
+      try {
+        const objs = (canvas && typeof canvas.getObjects === 'function') ? canvas.getObjects() : [];
+        objs.forEach((grp) => {
+          if (!grp || !grp.data || grp.data.kind !== 'token') return;
+          if (!Array.isArray(grp._objects)) return;
+          if (grp._objects.some((o) => o && o.data && o.data.role === 'token_avatar')) return;
+          if (avatarUrlForTokenGroup(grp) !== url) return;
+          if (injectAvatarIntoGroup(grp, el)) changed += 1;
+        });
+      } catch (e) { /* ignore */ }
+      if (changed) { try { canvas.requestRenderAll(); } catch (e) { /* ignore */ } }
     };
     const preloadAllAvatars = () => {
       try {
@@ -30421,6 +30481,10 @@
         Object.keys(AVATAR_GK_COLORS).forEach((c) => gkPoses.forEach((p) => ensureAvatarImage(`${AVATAR_BASE_URL}act-gk-${p}-${c}.png`)));
       } catch (e) { /* ignore */ }
     };
+    // Inmediato: arranca las descargas de avatares YA, para que estén listas cuando el usuario
+    // arrastre una ficha (evita que se coloque con el muñeco de fallback). El onload de cada
+    // imagen, además, sube la figura a las fichas que se colocaron antes de tiempo.
+    try { preloadAllAvatars(); } catch (e) { /* ignore */ }
     try {
       if (window.requestIdleCallback) window.requestIdleCallback(preloadAllAvatars, { timeout: 2500 });
       else setTimeout(preloadAllAvatars, 800);
