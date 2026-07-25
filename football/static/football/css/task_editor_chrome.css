@@ -753,3 +753,20 @@ body.ed-chrome #edc-mat-body #task-roster-bank .token-name {
   white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; max-width: 100% !important;
 }
 body.ed-chrome #edc-mat-body #task-roster-bank .token-meta { display: none !important; }
+
+/* ============================================================
+   Fase 3 · Formulario teórico (Configuración / Metodología / Carga) integrado.
+   En modo "sheet" el formulario legacy (aside.panel) se renderizaba a ANCHO
+   COMPLETO desde x:0, y el rail izquierdo (x:0-78) tapaba las etiquetas. Lo
+   contenemos en el área principal: debajo del topbar, a la derecha del rail,
+   con scroll y centrado legible. Solo aplica en modo sheet (no toca la pizarra).
+   ============================================================ */
+body.ed-chrome.task-mode-sheet aside.panel{
+  position:fixed !important; top:var(--edc-top,56px) !important; left:var(--edc-rail-w,78px) !important;
+  right:0 !important; bottom:var(--edc-bottom,66px) !important; width:auto !important; max-width:none !important;
+  height:auto !important; overflow-y:auto !important; z-index:40 !important;
+  background:#0c1712 !important; padding:0 !important; margin:0 !important;
+  border-left:1px solid rgba(255,255,255,.06) !important;
+}
+body.ed-chrome.task-mode-sheet aside.panel .panel-body{max-width:940px !important; margin:0 auto !important; padding:22px 30px 64px !important;}
+body.ed-chrome.task-mode-sheet aside.panel .side-pane{width:auto !important;}
