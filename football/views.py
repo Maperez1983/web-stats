@@ -69788,9 +69788,9 @@ EVALUATION_PARAMETER_CATALOG = [
 ]
 
 
-def _parse_evaluation_parameter_scores(post, rating_parser):
-    """Lee param_<area>_<key> del POST. Devuelve (scores, averages):
-    scores  = {area: {key: float 1-10}} (solo parámetros con valor),
+def _parse_evaluation_parameter_scores(post):
+    """Lee param_<area>_<key> del POST (sliders 0-10, 0 = sin valorar). Devuelve (scores, averages):
+    scores  = {area: {key: float 1-10}} (solo parámetros valorados),
     averages = {area: float redondeado a 0.1 | None}."""
     scores = {}
     averages = {}
@@ -69798,12 +69798,16 @@ def _parse_evaluation_parameter_scores(post, rating_parser):
         akey = area["key"]
         area_scores = {}
         for pkey, _label in area["params"]:
-            val = rating_parser(post.get(f"param_{akey}_{pkey}"))
-            if val is not None:
-                try:
-                    area_scores[pkey] = float(val)
-                except (TypeError, ValueError):
-                    continue
+            raw = str(post.get(f"param_{akey}_{pkey}") or "").strip().replace(",", ".")
+            if not raw:
+                continue
+            try:
+                val = float(raw)
+            except (TypeError, ValueError):
+                continue
+            if val < 1:  # 0 = sin valorar
+                continue
+            area_scores[pkey] = round(max(1.0, min(10.0, val)), 1)
         if area_scores:
             scores[akey] = area_scores
             averages[akey] = round(sum(area_scores.values()) / len(area_scores), 1)
@@ -70329,9 +70333,7 @@ def player_detail_page(request, player_id):
                 }
                 # Desglose por parámetros (FM): guarda los parámetros y, si no se dio nota de área a
                 # mano, usa la media de sus parámetros. Así cada evaluación es un punto de la evolución.
-                parameter_scores, _param_averages = _parse_evaluation_parameter_scores(
-                    request.POST, _parse_eval_rating
-                )
+                parameter_scores, _param_averages = _parse_evaluation_parameter_scores(request.POST)
                 for _area in EVALUATION_PARAMETER_CATALOG:
                     _field = _area["rating_field"]
                     if ratings.get(_field) is None and _param_averages.get(_area["key"]) is not None:
@@ -71555,6 +71557,21 @@ def player_detail_page(request, player_id):
                 "latest_evaluation_improvement_rows": latest_evaluation_improvement_rows,
                 "evaluation_type_choices": PlayerEvaluation.TYPE_CHOICES,
                 "evaluation_status_choices": PlayerEvaluation.STATUS_CHOICES,
+                "evaluation_parameter_catalog": [
+                    {
+                        "key": _a["key"],
+                        "label": _a["label"],
+                        "rating_field": _a["rating_field"],
+                        "accent": {
+                            "technical": "#3b82f6",
+                            "tactical": "#8b5cf6",
+                            "physical": "#22c55e",
+                            "mental": "#f59e0b",
+                        }.get(_a["key"], "#3b82f6"),
+                        "params": [{"key": _k, "label": _l} for _k, _l in _a["params"]],
+                    }
+                    for _a in EVALUATION_PARAMETER_CATALOG
+                ],
                 "physical_metrics": physical_metrics,
                 "player_objectives": player_objectives,
                 "latest_physical_metric": latest_physical_metric,
