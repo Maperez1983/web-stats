@@ -184,6 +184,31 @@ body.ed-chrome #task-pitch-stage { box-shadow: 0 14px 44px rgba(0,0,0,.45); marg
 body.ed-chrome .resource-section.pitch-side { top: var(--edc-top); bottom: var(--edc-bottom); left: var(--edc-rail-w); }
 body.ed-chrome.edc-drawer-open .pitch-viewport { left: var(--edc-rail-w); } /* anula el desplazamiento anterior */
 
+/* ============================================================
+   Modo PRESENTACIÓN / SOLO CAMPO (clase edc-present en body)
+   Oculta el chrome del skin y expande el campo a toda la pantalla.
+   Antes "Solo campo"/"Presentación" proxyclicaban un toggle legacy que ya no
+   ocultaba nada del skin (por eso no hacían nada).
+   ============================================================ */
+body.ed-chrome.edc-present { --edc-top: 0px; --edc-bottom: 0px; --edc-rail-w: 0px; }
+body.ed-chrome.edc-present .edc-topbar,
+body.ed-chrome.edc-present .edc-rail,
+body.ed-chrome.edc-present .edc-bottombar,
+body.ed-chrome.edc-present #edc-align { display: none !important; }
+body.ed-chrome.edc-present .pitch-main,
+body.ed-chrome.edc-present .pitch-viewport { top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; }
+/* Botón flotante para salir de presentación (solo visible en ese modo). */
+.edc-present-exit { display: none; }
+body.ed-chrome.edc-present .edc-present-exit {
+  display: inline-flex; align-items: center; gap: 6px;
+  position: fixed; top: 14px; right: 16px; z-index: 100000;
+  padding: 8px 14px; border-radius: 999px; cursor: pointer;
+  background: rgba(8,20,12,.82); color: #eafff0;
+  border: 1px solid var(--edc-accent, #37d05f);
+  font-size: 13px; font-weight: 700; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+}
+body.ed-chrome.edc-present .edc-present-exit:hover { background: rgba(8,20,12,.96); }
+
 /* Fuera adornos que restan protagonismo al campo */
 body.ed-chrome .tpad-support-fab,
 body.ed-chrome #task-assistant-fab,

@@ -195,21 +195,53 @@
     if(_szLbl){ new MutationObserver(edcSyncSizeLabel).observe(_szLbl, {childList:true, characterData:true, subtree:true}); }
     setTimeout(edcSyncSizeLabel, 400);
   }catch(e){}
+  // Entrar/salir del modo "solo campo" (presentación): ocultamos el chrome del propio skin
+  // (topbar/rail/bottombar) con la clase edc-present. Antes se proxyclicaba un botón legacy
+  // (task-focus-toggle) que ya no oculta nada del skin, por eso no hacía nada.
+  var setPresent = function(on){
+    document.body.classList.toggle('edc-present', !!on);
+    try{
+      var seg=document.querySelector('[data-edc-group="focus"]');
+      if(seg){ var wide=seg.querySelector('[data-edc="wide"]'); var op=seg.querySelector('[data-edc="only_pitch"]');
+        if(wide) wide.classList.toggle('is-active', !on); if(op) op.classList.toggle('is-active', !!on); }
+    }catch(e){}
+  };
+  // Botón flotante para salir del modo presentación (el topbar queda oculto).
+  try{
+    var exitBtn=document.createElement('button'); exitBtn.type='button'; exitBtn.id='edc-present-exit'; exitBtn.className='edc-present-exit';
+    exitBtn.textContent='✕ Salir'; exitBtn.title='Salir del modo presentación';
+    exitBtn.addEventListener('click', function(){ setPresent(false); });
+    document.body.appendChild(exitBtn);
+  }catch(e){}
+  // Refleja el % de ZOOM real en el botón central (antes reflejaba el tamaño del campo).
+  var edcSyncZoomLabel = function(){
+    try{
+      var lbl = document.getElementById('pitch-zoom-label') || document.getElementById('pitch-size-label');
+      var rb = document.querySelector('[data-edc="zoom_reset"]');
+      if(lbl && rb){ var m=String(lbl.textContent||'').match(/(\d+)\s*%/); rb.textContent = m ? (m[1]+'%') : '100%'; }
+    }catch(e){}
+  };
+  try{
+    var _zl=document.getElementById('pitch-zoom-label');
+    if(_zl){ new MutationObserver(edcSyncZoomLabel).observe(_zl,{childList:true,characterData:true,subtree:true}); }
+    setTimeout(edcSyncZoomLabel, 420);
+  }catch(e){}
+  var edcZoom = function(id){ proxyClick(id); setTimeout(edcSyncZoomLabel, 30); };
   // Barra superior + acciones.
   var actions = {
-    fit: function(){ edcSize('pitch-size-fit'); },
-    center: function(){ edcSize('pitch-size-fit'); },
-    zoom_in: function(){ edcSize('pitch-size-up'); },
-    zoom_out: function(){ edcSize('pitch-size-down'); },
-    zoom_reset: function(){ edcSize('pitch-size-fit'); },
-    reset: function(){ edcSize('pitch-size-fit'); },
-    wide: function(this_btn){ setActive('focus', this_btn); document.body.classList.remove('task-focus-mode'); },
-    only_pitch: function(this_btn){ setActive('focus', this_btn); proxyClick('task-focus-toggle'); },
+    fit: function(){ edcSize('pitch-size-fit'); },                                  // ajustar tamaño del campo a la ventana
+    center: function(){ try{ if(window.__tpadCenterViewport) window.__tpadCenterViewport(); }catch(e){} }, // centrar contenido (reset paneo)
+    zoom_in: function(){ edcZoom('pitch-zoom-in'); },                               // ZOOM real (viewport)
+    zoom_out: function(){ edcZoom('pitch-zoom-out'); },
+    zoom_reset: function(){ edcZoom('pitch-zoom-reset'); },                         // zoom al 100%
+    reset: function(){ edcZoom('pitch-zoom-reset'); try{ if(window.__tpadCenterViewport) window.__tpadCenterViewport(); }catch(e){} edcSize('pitch-size-fit'); }, // reset completo: zoom + centro + tamaño
+    wide: function(this_btn){ setPresent(false); },
+    only_pitch: function(this_btn){ setPresent(true); },
     horizontal: function(this_btn){ setActive('orient', this_btn); setOrientation('landscape'); },
     vertical: function(this_btn){ setActive('orient', this_btn); setOrientation('portrait'); },
     undo: function(){ try{ if(window.__tpadCanvasAction) window.__tpadCanvasAction('undo'); }catch(e){} },
     redo: function(){ try{ if(window.__tpadCanvasAction) window.__tpadCanvasAction('redo'); }catch(e){} },
-    present: function(){ proxyClick('task-focus-toggle'); },
+    present: function(){ setPresent(true); },
     save: function(){ proxyClick('task-builder-save-top'); proxyClick('task-builder-save'); },
     menu: function(){ toggleMenu(); },
     more: function(){ toggleDrawer(); },

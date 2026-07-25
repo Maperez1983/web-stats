@@ -37748,6 +37748,9 @@
               // Globales para cablear barras de herramientas externas (rail izquierdo del editor).
               try { window.__tpadActivateTool = (kind) => activateAddKind(kind, { fromQuickbar: true }); } catch (e) { /* ignore */ }
               try { window.__tpadCanvasAction = (action) => handleCanvasAction(action); } catch (e) { /* ignore */ }
+              // Editor 2D: "Centrar" real. Resetea el paneo del viewport; el centro base se
+              // recalcula solo en applyViewportTransformToWorld, así que el contenido queda centrado.
+              try { window.__tpadCenterViewport = () => { try { viewportPanX = 0; viewportPanY = 0; applyViewportTransformToWorld(); } catch (e) { /* ignore */ } }; } catch (e) { /* ignore */ }
               // Editor 2D: cambia la pose/equipacion del avatar de la(s) ficha(s) seleccionada(s).
               try {
                 window.__tpadSetAvatarStyle = (pose, color, gkPose, gkColor) => {
