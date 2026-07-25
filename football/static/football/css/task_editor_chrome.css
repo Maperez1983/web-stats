@@ -667,35 +667,53 @@ body.ed-chrome .edc-align-snap { margin-left: 4px; padding-left: 11px; border-le
 }
 
 /* ============================================================
-   PLANTILLA · ficha compacta: SOLO dorsal + nombre
+   PLANTILLA · ficha compacta: mini-ficha (kit real) + dorsal + nombre
    El estilo de ficha (Chapa/Camiseta/Figura/Foto) se elige UNA vez en el
-   selector global de arriba; no se muestran todas las opciones por jugador.
-   Así cada ficha es un chip estrecho (disco con dorsal + nombre) y la zona
-   ocupa mucho menos.
+   selector "Estilo de ficha" de arriba; el chip muestra la preview de ESE
+   estilo (con Camiseta, el kit 2D real del club) + dorsal + nombre. La zona va
+   estrecha y sin las opciones de avatar (equipación/poses), que viven en la
+   pestaña Jugadores.
    ============================================================ */
+/* Fuera la config de avatar (modo/equipación/poses) de la pestaña Plantilla. */
+body.ed-chrome .edc-mat-grid[data-cat="plantilla"] .edc-avcfg { display: none !important; }
+/* Selector "Estilo de ficha" arriba del todo, destacado. */
+body.ed-chrome #task-roster-bank .player-bank-quickbar {
+  display: flex !important; flex-direction: column !important; gap: 8px !important; align-items: stretch !important;
+}
+body.ed-chrome #task-roster-bank .player-bank-style-group {
+  display: flex !important; flex-wrap: wrap !important; gap: 5px !important; order: -1 !important;
+  padding: 7px 8px !important; border: 1px solid var(--edc-accent) !important; border-radius: 10px !important;
+  background: rgba(55, 208, 95, 0.08) !important; position: relative !important;
+}
+body.ed-chrome #task-roster-bank .player-bank-style-group::before {
+  content: "Estilo de ficha"; display: block; width: 100%;
+  font-size: 9px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--edc-accent); margin-bottom: 2px;
+}
+body.ed-chrome #task-roster-bank .player-bank-style-group button { font-size: 11px !important; padding: 4px 9px !important; }
+
 /* Fichas en 2 columnas de chips (nombres legibles). */
 body.ed-chrome #edc-mat-body #task-roster-bank .player-bank {
   grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)) !important;
 }
-/* Layout horizontal del chip: [disco dorsal] [nombre]. */
+/* Layout horizontal del chip: [preview del estilo activo] [nombre]. */
 body.ed-chrome #edc-mat-body #task-roster-bank .player-token-bank {
   flex-direction: row !important; align-items: center !important; justify-content: flex-start !important;
   gap: 7px !important; padding: 4px 7px !important; text-align: left !important; min-height: 0 !important;
 }
-/* Oculta camiseta y foto cuando existe el disco (chapa) para sacar el dorsal de él. */
 body.ed-chrome #edc-mat-body #task-roster-bank .player-token-bank-visuals { flex: 0 0 auto !important; width: auto !important; }
-body.ed-chrome #edc-mat-body #task-roster-bank .player-token-bank-visuals:has(.token-disk) .token-jersey,
-body.ed-chrome #edc-mat-body #task-roster-bank .player-token-bank-visuals:has(.token-disk) .token-photo { display: none !important; }
-/* El disco, pequeño, como badge de dorsal. */
+/* La preview del estilo ACTIVO (disco / camiseta-kit / foto) en pequeño. El motor ya
+   muestra solo la del estilo elegido; aquí solo la ajustamos de tamaño. */
+body.ed-chrome #edc-mat-body #task-roster-bank .token-jersey.is-preview,
+body.ed-chrome #edc-mat-body #task-roster-bank .token-photo.is-preview {
+  width: 26px !important; height: 29px !important; min-width: 26px !important; margin: 0 !important;
+}
 body.ed-chrome #edc-mat-body #task-roster-bank .token-disk.is-preview {
   width: 26px !important; height: 26px !important; min-width: 26px !important; margin: 0 !important;
 }
+body.ed-chrome #edc-mat-body #task-roster-bank .player-token-bank-visuals .token-number { font-size: 8.5px !important; }
 body.ed-chrome #edc-mat-body #task-roster-bank .token-disk.is-preview .token-number { font-size: 10.5px !important; }
-/* Fallback (constructor JS sin disco): encoge el badge que haya. */
-body.ed-chrome #edc-mat-body #task-roster-bank .player-token-bank-visuals:not(:has(.token-disk)) > * {
-  width: 26px !important; height: 26px !important; min-width: 26px !important;
-}
-/* Copia: nombre a la izquierda; posición oculta (solo dorsal + nombre). */
+/* Copia: nombre a la izquierda; posición oculta. */
 body.ed-chrome #edc-mat-body #task-roster-bank .player-token-bank-copy {
   flex: 1 1 auto !important; min-width: 0 !important; align-items: flex-start !important; text-align: left !important; gap: 0 !important;
 }

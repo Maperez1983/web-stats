@@ -4057,11 +4057,16 @@
 		    const kit2dDataUrlForTokenKind = (kind, overrideSlot = '') => {
 		      const slot = kit2dSlotForTokenKind(kind, overrideSlot);
 		      if (isRivalTokenKind(kind)) return kit2dEditorDataUrlsBySlot[slot] || kit2dCanvasDataUrlsBySlot[slot] || '';
+		      // Portero: solo usa kit si hay uno ESPECÍFICO de portero. Si no, NO cae al kit de
+		      // campo (se vería igual que un jugador); devuelve '' y la ficha usa el portero genérico.
+		      if (slot === 'gk') return kit2dEditorDataUrlsBySlot.gk || kit2dCanvasDataUrlsBySlot.gk || '';
 		      return kit2dEditorDataUrlsBySlot[slot] || kit2dEditorDataUrlsBySlot.home || kit2dCanvasDataUrlsBySlot[slot] || kit2dCanvasDataUrlsBySlot.home || kit2dEditorDataUrl || '';
 		    };
 		    const kit2dImageForTokenKind = (kind, overrideSlot = '') => {
 		      const slot = kit2dSlotForTokenKind(kind, overrideSlot);
 		      if (isRivalTokenKind(kind)) return kit2dCanvasImagesBySlot[slot] || kit2dEditorImagesBySlot[slot] || null;
+		      // Portero: idem, solo kit específico de portero; si no, portero genérico (no kit de campo).
+		      if (slot === 'gk') return kit2dCanvasImagesBySlot.gk || kit2dEditorImagesBySlot.gk || null;
 		      return kit2dCanvasImagesBySlot[slot] || kit2dCanvasImagesBySlot.home || kit2dEditorImagesBySlot[slot] || kit2dEditorImagesBySlot.home || kit2dEditorImageEl;
 		    };
 		    const applyKit2dDefaultTokenStyle = () => {
