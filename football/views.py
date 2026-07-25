@@ -9425,11 +9425,21 @@ def _search_universo_competition_candidates(*, team_query="", competition_query=
     normalized_group_query = normalize_label(group_query)
     live_candidates = []
     seasons = _fetch_universo_live_seasons()
-    season_row = pick_current_season_row(seasons)
-    season_id = str((season_row or {}).get("cod_temporada") or "").strip()
-    season_name = str((season_row or {}).get("nombre") or "").strip()
+    # Temporadas a probar: la vigente primero y, si no hay datos (pretemporada, grupo aún sin
+    # publicar), caemos a las más recientes. Así el buscador encuentra el equipo en la última
+    # temporada disponible (p. ej. 2025/2026) hasta que el proveedor publica la nueva.
+    _current_season_row = pick_current_season_row(seasons)
+    _seasons_to_try = ([_current_season_row] if _current_season_row else []) + [
+        s for s in (seasons or []) if isinstance(s, dict) and s is not _current_season_row
+    ]
     delegations = _fetch_universo_live_delegations()
-    if season_id and delegations:
+    for _season_row in _seasons_to_try:
+        if live_candidates:
+            break  # ya encontrado en una temporada más reciente; no seguimos hacia atrás
+        season_id = str((_season_row or {}).get("cod_temporada") or "").strip()
+        season_name = str((_season_row or {}).get("nombre") or "").strip()
+        if not (season_id and delegations):
+            continue
         for delegation in delegations:
             competitions = _fetch_universo_live_competitions(delegation.get("cod_delegacion"), season_id)
             for competition in competitions:
