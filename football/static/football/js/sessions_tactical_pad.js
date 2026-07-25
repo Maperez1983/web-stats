@@ -28954,7 +28954,8 @@
         try { schedulePlayerBankUpdate(); } catch (e) { /* ignore */ }
       }, { sourceWidth, sourceHeight });
     };
-	    const pushHistory = () => {
+	    // Guarda el snapshot AHORA (uso interno; los callers usan pushHistory, que agrupa).
+	    const pushHistoryNow = () => {
 	      if (isSimulating) return;
 	      const snapshot = JSON.stringify(serializeState());
 	      if (historyIndex >= 0 && history[historyIndex] === snapshot) return;
@@ -28969,8 +28970,21 @@
         historyIndex = Math.max(0, historyIndex - drop);
       }
     };
+    // pushHistory con DEBOUNCE: una misma acción dispara varias veces (p. ej. un drop llama a
+    // pushHistory desde addObject y desde el handler object:added; un arrastre desde object:modified).
+    // Agrupando en ~170 ms, cada acción del usuario = UNA entrada de historial. Antes se creaban 2+
+    // entradas casi idénticas por acción, así que el primer "Deshacer" revertía a un estado igual
+    // (parecía que no hacía nada). No toca serializeState → Guardar y la línea de tiempo intactos.
+    let __historyPushTimer = null;
+    const cancelPendingHistory = () => { if (__historyPushTimer) { clearTimeout(__historyPushTimer); __historyPushTimer = null; } };
+    const pushHistory = () => {
+      if (isSimulating) return;
+      cancelPendingHistory();
+      __historyPushTimer = setTimeout(() => { __historyPushTimer = null; try { pushHistoryNow(); } catch (e) { /* ignore */ } }, 170);
+    };
 
     const performUndo = () => {
+      cancelPendingHistory(); // evita que un push pendiente se cuele DESPUÉS del undo
       if (historyIndex <= 0) return false;
       historyIndex -= 1;
       applySerializedState(JSON.parse(history[historyIndex]));
@@ -28979,6 +28993,7 @@
     };
 
     const performRedo = () => {
+      cancelPendingHistory();
       if (historyIndex < 0 || historyIndex >= history.length - 1) return false;
       historyIndex += 1;
       applySerializedState(JSON.parse(history[historyIndex]));
