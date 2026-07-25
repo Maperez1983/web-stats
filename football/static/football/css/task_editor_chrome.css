@@ -431,7 +431,7 @@ body.ed-chrome .edc-mat-sub { grid-column: 1/2 !important; }
    CAJÓN MINI · 2 columnas de recuadros pequeños → todo cabe sin scroll
    ============================================================ */
 body.ed-chrome .edc-mat-drawer { width: 224px !important; }
-body.ed-chrome .edc-mat-body { padding: 10px 8px 12px !important; overflow: hidden !important; }
+body.ed-chrome .edc-mat-body { padding: 10px 8px 12px !important; overflow-y: auto !important; overflow-x: hidden !important; }
 body.ed-chrome .edc-mat-grid { grid-template-columns: 1fr 1fr !important; gap: 5px !important; }
 body.ed-chrome .edc-mat-item {
   flex-direction: column !important; align-items: center !important; justify-content: center !important;

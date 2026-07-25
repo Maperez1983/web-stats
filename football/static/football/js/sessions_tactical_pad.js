@@ -30504,14 +30504,16 @@
         Object.keys(AVATAR_GK_COLORS).forEach((c) => gkPoses.forEach((p) => ensureAvatarImage(`${AVATAR_BASE_URL}act-gk-${p}-${c}.png`)));
       } catch (e) { /* ignore */ }
     };
-    // Inmediato: arranca las descargas de avatares YA, para que estén listas cuando el usuario
-    // arrastre una ficha (evita que se coloque con el muñeco de fallback). El onload de cada
-    // imagen, además, sube la figura a las fichas que se colocaron antes de tiempo.
-    try { preloadAllAvatars(); } catch (e) { /* ignore */ }
+    // Perf: NO precargamos los ~73 avatares (~135 MB) al abrir el editor — hacerlo de forma
+    // inmediata saturaba la red y ralentizaba la carga. Los avatares se cargan BAJO DEMANDA
+    // (ensureAvatarImage al colocar una ficha o al abrir Figuras/Plantilla) y el upgrade
+    // asincrono sustituye el muñeco de fallback por la figura real en cuanto llega la imagen.
+    // Como red de seguridad, precargamos SOLO en tiempo de inactividad, bien despues de que el
+    // editor ya este interactivo, para no competir con la carga inicial.
     try {
-      if (window.requestIdleCallback) window.requestIdleCallback(preloadAllAvatars, { timeout: 2500 });
-      else setTimeout(preloadAllAvatars, 800);
-    } catch (e) { try { preloadAllAvatars(); } catch (e2) { /* ignore */ } }
+      if (window.requestIdleCallback) window.requestIdleCallback(preloadAllAvatars, { timeout: 8000 });
+      else setTimeout(preloadAllAvatars, 6000);
+    } catch (e) { /* la carga bajo demanda cubre la correccion */ }
     const playerTokenFactory = (kind, player, options = {}) => (left, top) => {
 		      const preferredName = safeText(player?.nickname || player?.name, '');
 		      const playerNameLower = preferredName.toLowerCase();
