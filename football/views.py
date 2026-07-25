@@ -69575,6 +69575,9 @@ def player_detail_page(request, player_id):
         participation_pct = float(stats_source.get("participation_pct") or 0)
         participation_matches_pct = float(stats_source.get("participation_matches_pct") or 0)
         starter_pct = float(stats_source.get("starter_pct") or 0)
+        # Titularidades no pueden superar a los partidos jugados (evita KPIs incoherentes si un
+        # ajuste manual mete pt > pj). Así "Titular" + "Suplente" cuadran con "Partidos".
+        pt = min(pt, pj)
         suplente = max(pj - pt, 0)
         goals_per_match = round((goals / pj), 2) if pj else 0
         match_minutes = _regulation_minutes_for_team(primary_team)

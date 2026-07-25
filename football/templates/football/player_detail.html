@@ -1355,6 +1355,7 @@
       <div class="tabs" role="tablist">
         <button class="tab-btn" data-tab="personal" role="tab">Datos personales y Evaluación previa</button>
         <button class="tab-btn" data-tab="stats" role="tab">Estadísticas y KPI mapa</button>
+
         <button class="tab-btn" data-tab="attributes" role="tab">Atributos</button>
         <button class="tab-btn" data-tab="evaluations" role="tab">Valoración</button>
         <button class="tab-btn" data-tab="seasons" role="tab">Histórico</button>
@@ -1769,102 +1770,6 @@
           {% endif %}
         </div>
 
-        <div class="general-overview">
-          <div class="general-head">
-            <div class="general-score">
-              <span class="value">{{ team_points|default:0 }}</span>
-              <span class="label">Puntos</span>
-            </div>
-            <div>
-              <p class="general-season">Estadísticas {{ season_label }}</p>
-              <form method="get" style="display:contents;">
-                {% if selected_club_season_id %}<input type="hidden" name="club_season_id" value="{{ selected_club_season_id }}" />{% endif %}
-              <div class="scope-filter">
-                <label for="playerScopeSelect">Ámbito</label>
-                <select id="playerScopeSelect" name="scope" aria-label="Ámbito estadísticas">
-                  <option value="league" {% if scope_value == 'league' %}selected{% endif %}>Liga</option>
-                  <option value="tournament" {% if scope_value == 'tournament' %}selected{% endif %}>Torneos</option>
-                  <option value="friendly" {% if scope_value == 'friendly' %}selected{% endif %}>Amistosos</option>
-                  <option value="all" {% if scope_value == 'all' %}selected{% endif %}>Globales</option>
-                </select>
-              </div>
-              {% if scope_value == 'tournament' %}
-              <div class="scope-filter" style="margin-left:0.8rem;">
-                <label for="playerTournamentSelect">Torneo</label>
-                <select id="playerTournamentSelect" name="tournament" aria-label="Torneo">
-                  <option value="">Todos</option>
-                  {% for name in tournament_options %}
-                    <option value="{{ name }}" {% if tournament_filter == name %}selected{% endif %}>{{ name }}</option>
-                  {% endfor %}
-                </select>
-              </div>
-              {% endif %}
-                <button class="btn alt" type="submit" style="margin-left:0.5rem;">Ver</button>
-              </form>
-              <h3 class="general-team">{{ player.team.display_name }}</h3>
-              <p class="general-division">{{ division_label|default:'Categoría principal' }}</p>
-            </div>
-            <div class="general-score">
-              <span class="value">{{ team_rank|default:0 }}º</span>
-              <span class="label">Posición</span>
-            </div>
-          </div>
-          <div class="general-head" style="grid-template-columns: 1fr; margin-top:0.6rem;">
-            <div class="general-crest">
-              {% if player_team_crest_url %}
-                <img src="{{ player_team_crest_url }}" alt="Escudo {{ player.team.display_name }}" />
-              {% endif %}
-            </div>
-          </div>
-          <div class="kpi-rings">
-            {% for item in general_kpis %}
-              <article class="kpi-ring">
-                <div class="kpi-ring-chart" style="--pct: {{ item.pct|default:0 }};">
-                  <span class="kpi-ring-value">{{ item.value|default:0|floatformat:-2 }}</span>
-                </div>
-                <div class="kpi-ring-label" {% if item.help %}title="{{ item.help }}"{% endif %}>{{ item.label }}</div>
-              </article>
-            {% endfor %}
-          </div>
-        </div>
-        <p class="subtle" style="margin-top:0.8rem;">Base estadística consolidada desde fuentes federativas/caché de plantilla y registro interno.</p>
-        {% if stats_error %}
-        <div class="pill warn" style="display:block; margin-top:0.8rem; width:fit-content;">{{ stats_error }}</div>
-        {% endif %}
-
-        <script>
-          (function() {
-            const sel = document.getElementById('playerScopeSelect');
-            if (!sel) return;
-            const tournamentSel = document.getElementById('playerTournamentSelect');
-            sel.addEventListener('change', () => {
-              try {
-                const url = new URL(window.location.href);
-                url.searchParams.set('scope', sel.value);
-                if (sel.value !== 'tournament') url.searchParams.delete('tournament');
-                url.searchParams.delete('refresh');
-                window.location.href = url.toString();
-              } catch (e) {
-                // fallback
-                window.location.search = `?scope=${encodeURIComponent(sel.value)}`;
-              }
-            });
-            if (tournamentSel) {
-              tournamentSel.addEventListener('change', () => {
-                try {
-                  const url = new URL(window.location.href);
-                  url.searchParams.set('scope', 'tournament');
-                  if (tournamentSel.value) url.searchParams.set('tournament', tournamentSel.value);
-                  else url.searchParams.delete('tournament');
-                  url.searchParams.delete('refresh');
-                  window.location.href = url.toString();
-                } catch (e) {
-                  window.location.search = `?scope=tournament&tournament=${encodeURIComponent(tournamentSel.value || '')}`;
-                }
-              });
-            }
-          })();
-        </script>
 
 
       </section>
@@ -2242,6 +2147,103 @@
 
       <section class="card tab-pane" data-pane="stats">
         <h2 style="margin-top:0;">Estadísticas y KPI mapa</h2>
+
+        <div class="general-overview">
+          <div class="general-head">
+            <div class="general-score">
+              <span class="value">{{ team_points|default:0 }}</span>
+              <span class="label">Puntos</span>
+            </div>
+            <div>
+              <p class="general-season">Estadísticas {{ season_label }}</p>
+              <form method="get" style="display:contents;">
+                {% if selected_club_season_id %}<input type="hidden" name="club_season_id" value="{{ selected_club_season_id }}" />{% endif %}
+              <div class="scope-filter">
+                <label for="playerScopeSelect">Ámbito</label>
+                <select id="playerScopeSelect" name="scope" aria-label="Ámbito estadísticas">
+                  <option value="league" {% if scope_value == 'league' %}selected{% endif %}>Liga</option>
+                  <option value="tournament" {% if scope_value == 'tournament' %}selected{% endif %}>Torneos</option>
+                  <option value="friendly" {% if scope_value == 'friendly' %}selected{% endif %}>Amistosos</option>
+                  <option value="all" {% if scope_value == 'all' %}selected{% endif %}>Globales</option>
+                </select>
+              </div>
+              {% if scope_value == 'tournament' %}
+              <div class="scope-filter" style="margin-left:0.8rem;">
+                <label for="playerTournamentSelect">Torneo</label>
+                <select id="playerTournamentSelect" name="tournament" aria-label="Torneo">
+                  <option value="">Todos</option>
+                  {% for name in tournament_options %}
+                    <option value="{{ name }}" {% if tournament_filter == name %}selected{% endif %}>{{ name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              {% endif %}
+                <button class="btn alt" type="submit" style="margin-left:0.5rem;">Ver</button>
+              </form>
+              <h3 class="general-team">{{ player.team.display_name }}</h3>
+              <p class="general-division">{{ division_label|default:'Categoría principal' }}</p>
+            </div>
+            <div class="general-score">
+              <span class="value">{{ team_rank|default:0 }}º</span>
+              <span class="label">Posición</span>
+            </div>
+          </div>
+          <div class="general-head" style="grid-template-columns: 1fr; margin-top:0.6rem;">
+            <div class="general-crest">
+              {% if player_team_crest_url %}
+                <img src="{{ player_team_crest_url }}" alt="Escudo {{ player.team.display_name }}" />
+              {% endif %}
+            </div>
+          </div>
+          <div class="kpi-rings">
+            {% for item in general_kpis %}
+              <article class="kpi-ring">
+                <div class="kpi-ring-chart" style="--pct: {{ item.pct|default:0 }};">
+                  <span class="kpi-ring-value">{{ item.value|default:0|floatformat:-2 }}</span>
+                </div>
+                <div class="kpi-ring-label" {% if item.help %}title="{{ item.help }}"{% endif %}>{{ item.label }}</div>
+              </article>
+            {% endfor %}
+          </div>
+        </div>
+        <p class="subtle" style="margin-top:0.8rem;">Base estadística consolidada desde fuentes federativas/caché de plantilla y registro interno.</p>
+        {% if stats_error %}
+        <div class="pill warn" style="display:block; margin-top:0.8rem; width:fit-content;">{{ stats_error }}</div>
+        {% endif %}
+
+        <script>
+          (function() {
+            const sel = document.getElementById('playerScopeSelect');
+            if (!sel) return;
+            const tournamentSel = document.getElementById('playerTournamentSelect');
+            sel.addEventListener('change', () => {
+              try {
+                const url = new URL(window.location.href);
+                url.searchParams.set('scope', sel.value);
+                if (sel.value !== 'tournament') url.searchParams.delete('tournament');
+                url.searchParams.delete('refresh');
+                window.location.href = url.toString();
+              } catch (e) {
+                // fallback
+                window.location.search = `?scope=${encodeURIComponent(sel.value)}`;
+              }
+            });
+            if (tournamentSel) {
+              tournamentSel.addEventListener('change', () => {
+                try {
+                  const url = new URL(window.location.href);
+                  url.searchParams.set('scope', 'tournament');
+                  if (tournamentSel.value) url.searchParams.set('tournament', tournamentSel.value);
+                  else url.searchParams.delete('tournament');
+                  url.searchParams.delete('refresh');
+                  window.location.href = url.toString();
+                } catch (e) {
+                  window.location.search = `?scope=tournament&tournament=${encodeURIComponent(tournamentSel.value || '')}`;
+                }
+              });
+            }
+          })();
+        </script>
         {% if stats %}
 	          <div class="performance-overview" data-kpi-container>
 	            <h3>KPI de rendimiento</h3>
