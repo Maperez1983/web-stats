@@ -78,18 +78,28 @@ class MatchRivalEntityTests(TestCase):
         self.assertIn("Guardar partido", body)  # el formulario de alta está en la propia página
 
     def test_calendar_filters_by_season(self):
+        from football.models import WorkspaceSeason
+
         today = timezone.localdate()
         # Sin grupo para que no aparezcan en el datalist del formulario (que lista equipos del grupo);
         # así las aserciones miran solo el LISTADO de partidos.
         rival = Team.objects.create(name="Rival Actual", slug="ra")
-        old_season = Season.objects.create(competition=self.comp, name="2024/2025", is_current=False)
         old_rival = Team.objects.create(name="Rival Viejo", slug="rv")
+        # La separación real es por temporada de CLUB (WorkspaceSeason / club_season).
+        cs_active = WorkspaceSeason.objects.create(
+            workspace=self.workspace, label="2026/2027", start_date=datetime.date(2026, 7, 1), is_active=True
+        )
+        cs_old = WorkspaceSeason.objects.create(
+            workspace=self.workspace, label="2024/2025", start_date=datetime.date(2024, 7, 1), is_active=False
+        )
+        self.workspace.active_season = cs_active
+        self.workspace.save()
         Match.objects.create(
-            season=self.season, home_team=self.team, away_team=rival,
+            season=self.season, club_season=cs_active, home_team=self.team, away_team=rival,
             date=today, context=Match.CONTEXT_LEAGUE,
         )
         Match.objects.create(
-            season=old_season, home_team=self.team, away_team=old_rival,
+            season=self.season, club_season=cs_old, home_team=self.team, away_team=old_rival,
             date=datetime.date(2025, 1, 15), context=Match.CONTEXT_LEAGUE,
         )
         # Por defecto: solo la temporada actual.

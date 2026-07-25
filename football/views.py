@@ -37805,26 +37805,34 @@ def coach_matches_page(request):
         except Exception:
             pass
 
-    # Temporadas disponibles (de los partidos del equipo) para el filtro. Por defecto se muestra
-    # SOLO la temporada actual; 'all' muestra todas; o se puede elegir una concreta.
+    # La temporada que separa de verdad los años del CLUB es la de club (club_season /
+    # WorkspaceSeason), NO la federativa (que puede ser común a varios años -> por eso antes
+    # "veía 2026 y los mostraba todos"). Filtramos por club_season, con la activa por defecto.
+    active_club_season = None
+    try:
+        active_club_season = selected_club_season_for_request(request, workspace=workspace)
+    except Exception:
+        active_club_season = None
+    current_season_id = int(getattr(active_club_season, "id", 0) or 0)
     season_options = []
     try:
         seen_seasons = {}
-        for s_id, s_name in (
+        for cs_id, cs_label in (
             _team_match_queryset(primary_team)
-            .exclude(season__isnull=True)
-            .values_list("season_id", "season__name")
+            .exclude(club_season__isnull=True)
+            .values_list("club_season_id", "club_season__label")
             .distinct()
         ):
-            if s_id and s_id not in seen_seasons:
-                seen_seasons[s_id] = str(s_name or s_id)
+            if cs_id and cs_id not in seen_seasons:
+                seen_seasons[cs_id] = str(cs_label or cs_id)
         season_options = [{"id": sid, "label": nm} for sid, nm in seen_seasons.items()]
     except Exception:
         season_options = []
-    current_season_id = int(getattr(season, "id", 0) or 0)
     season_filter = str(request.GET.get("season") or "").strip()
     if not season_filter:
-        active_season_id = current_season_id  # por defecto: temporada actual
+        # Por defecto: temporada de club activa. Si NINGÚN partido tiene temporada de club
+        # asignada, no filtramos (para no ocultarlos todos).
+        active_season_id = current_season_id if season_options else 0
     elif season_filter == "all":
         active_season_id = 0
     else:
@@ -37839,7 +37847,7 @@ def coach_matches_page(request):
         .order_by("-date", "-id")
     )
     if active_season_id:
-        qs = qs.filter(season_id=active_season_id)
+        qs = qs.filter(club_season_id=active_season_id)
     if context_filter and context_filter in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY}:
         qs = qs.filter(context=context_filter)
     if q:
