@@ -24,6 +24,7 @@
        title="{{ p.name }} · {{ p.state_label }}" aria-label="{{ p.name }}, {{ p.position|default:'jugador' }}, {{ p.state_label }}. Abrir ficha.">
       <span class="pb-avatar"><img src="{% static p.avatar %}" alt="" draggable="false" /></span>
       {% if p.number %}<span class="pb-num">{{ p.number }}</span>{% endif %}
+      {% if not p.is_scout %}<span class="pb-rating{% if not p.rating %} is-unrated{% elif p.rating >= 7 %} is-good{% elif p.rating >= 5 %} is-mid{% else %} is-low{% endif %}" title="Nota media (última evaluación cerrada)">{% if p.rating %}{{ p.rating|floatformat:'-1' }}{% else %}–{% endif %}</span>{% endif %}
       <span class="pb-name">{{ p.name }}</span>
       <span class="pb-badge">{{ p.state_label }}</span>
     </a>
@@ -76,6 +77,16 @@
     background: #0b1220; border: 2px solid #fff; color: #fff; font-size: 0.72rem; font-weight: 800;
     display: flex; align-items: center; justify-content: center; line-height: 1;
   }
+  .pb-rating {
+    position: absolute; top: -6px; left: 50%; transform: translateX(40%);
+    min-width: 20px; height: 20px; padding: 0 4px; border-radius: 999px;
+    background: #64748b; border: 2px solid #fff; color: #fff; font-size: 0.7rem; font-weight: 800;
+    display: flex; align-items: center; justify-content: center; line-height: 1; z-index: 2;
+  }
+  .pb-rating.is-good { background: #16a34a; }
+  .pb-rating.is-mid { background: #d97706; }
+  .pb-rating.is-low { background: #dc2626; }
+  .pb-rating.is-unrated { background: #64748b; color: #e2e8f0; }
   .pb-name {
     margin-top: 2px; max-width: 116px; padding: 2px 9px; border-radius: 8px;
     background: rgba(7, 12, 22, 0.86); font-size: 0.8rem; font-weight: 700; text-align: center;

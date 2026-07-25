@@ -20030,6 +20030,13 @@ def _build_coach_pitch_board_players(primary_team, roster_players, roster_member
     groups = {"gk": [], "def": [], "mid": [], "att": [], "oth": []}
     memberships = roster_memberships or {}
     injury_ids = active_injury_ids or set()
+    # Nota media (última evaluación cerrada) por jugador para el badge del campo.
+    try:
+        _pb_ratings = _tactical_latest_closed_ratings(
+            [int(getattr(p, "id", 0) or 0) for p in (roster_players or []) if getattr(p, "id", None)]
+        )
+    except Exception:
+        _pb_ratings = {}
     for player in roster_players or []:
         pid = int(getattr(player, "id", 0) or 0)
         if not pid:
@@ -20054,6 +20061,7 @@ def _build_coach_pitch_board_players(primary_team, roster_players, roster_member
                 "state_label": state_label,
                 "avatar": "football/images/coach_roster_avatars/library/" + avatar,
                 "left": pitch_left.get(bucket, 50),
+                "rating": _pb_ratings.get(pid),
             }
         )
     # Ojeados "A prueba": los ScoutingTarget marcados `available_for_coach_tools` aparecen en la
