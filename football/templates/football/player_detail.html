@@ -2129,7 +2129,7 @@
             <label>KPIs objetivos
               <input type="number" name="objective_performance_rating" min="1" max="10" step="0.1" placeholder="1-10"
                      data-eval-objective
-                     {% if objective_score_suggestion is not None %}value="{{ objective_score_suggestion|floatformat:1 }}" data-eval-objective-suggestion="{{ objective_score_suggestion|floatformat:1 }}"{% endif %} />
+                     {% if objective_score_suggestion is not None %}value="{{ objective_score_suggestion|stringformat:'.1f' }}" data-eval-objective-suggestion="{{ objective_score_suggestion|stringformat:'.1f' }}"{% endif %} />
               <small class="field-hint">
                 {% if objective_score_suggestion is not None %}Calculado de sus KPIs reales (percentiles de rendimiento). Editable.{% else %}Se calculará solo cuando el jugador tenga datos de rendimiento. Editable.{% endif %}
               </small>
