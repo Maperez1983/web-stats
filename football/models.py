@@ -1429,11 +1429,43 @@ class PlayerPhysicalMetric(models.Model):
     player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='physical_metrics')
     recorded_on = models.DateField(default=timezone.localdate)
     workload = models.CharField(max_length=120, blank=True, help_text='Ej. Fuerza + resistencia')
-    rpe = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Percepción del esfuerzo 1-10')
-    wellness = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Bienestar 1-10')
+    rpe = models.PositiveSmallIntegerField(null=True, blank=True, help_text='RPE de la sesión 1-10')
+    wellness = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Bienestar global 1-10')
     weight_kg = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    session_minutes = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Duración de sesión/partido en minutos.')
+    # Wellness por dimensiones (además del `wellness` global heredado).
+    wellness_sleep = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Sueño/descanso 1-10.')
+    wellness_fatigue = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Fatiga percibida 1-10.')
+    wellness_soreness = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Dolor muscular 1-10.')
+    wellness_stress = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Estrés percibido 1-10.')
+    wellness_motivation = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Motivación 1-10.')
+    # Tests físicos (unificados aquí: antes vivían enterrados en PlayerEvaluation).
+    yo_yo_ir1_m = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Yo-Yo IR1 en metros.')
+    sprint_5m_s = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    sprint_10m_s = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    sprint_20m_s = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    agility_505_s = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    cmj_cm = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text='Salto CMJ en cm.')
+    copenhagen_seconds = models.PositiveSmallIntegerField(null=True, blank=True)
+    # Madurez / PHV (antes solo en la evaluación, sin visualizar).
+    MATURATION_CHOICES = [
+        ('', 'Sin definir'),
+        ('pre_phv', 'Pre-PHV'),
+        ('circa_phv', 'Circa-PHV'),
+        ('post_phv', 'Post-PHV'),
+    ]
+    maturation_status = models.CharField(max_length=16, choices=MATURATION_CHOICES, blank=True, default='')
+    maturity_offset_years = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True, help_text='Años respecto al PHV.')
+    growth_velocity_cm_year = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text='Velocidad de crecimiento cm/año.')
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def srpe_load(self):
+        """Carga sRPE = RPE × minutos (au). None si falta algún dato."""
+        if self.rpe is None or self.session_minutes is None:
+            return None
+        return int(self.rpe) * int(self.session_minutes)
 
     class Meta:
         ordering = ['-recorded_on', '-id']
