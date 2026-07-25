@@ -68381,9 +68381,10 @@ def player_detail_page(request, player_id):
         )
         preview_mode = (request.GET.get("preview") or "").strip().lower()
         player_view_preview = can_preview_player_view and preview_mode == "player"
-        is_player_readonly = player_view_preview or (
+        is_player_account = bool(
             current_role == AppUserRole.ROLE_PLAYER and not _is_admin_user(request.user)
         )
+        is_player_readonly = player_view_preview or is_player_account
         active_match = get_active_match(primary_team)
         current_convocation = get_current_convocation_record(primary_team, match=active_match)
         is_called_up = bool(current_convocation and current_convocation.players.filter(id=player.id).exists())
@@ -69422,14 +69423,6 @@ def player_detail_page(request, player_id):
                 team_points = _to_int_value(row.get("points"))
                 team_rank = _to_int_value(row.get("rank"))
                 break
-        if not team_points and not team_rank and standings_rows:
-            preferred_aliases = ("benagalbon", "c.d. benagalbon", "cd benagalbon")
-            for row in standings_rows:
-                full_name = str(row.get("full_name") or row.get("team") or "").lower()
-                if any(alias in full_name for alias in preferred_aliases):
-                    team_points = _to_int_value(row.get("points"))
-                    team_rank = _to_int_value(row.get("rank"))
-                    break
 
         season_label = ""
         division_label = ""
@@ -69639,13 +69632,17 @@ def player_detail_page(request, player_id):
                     # para todas las fichas del equipo, lo cacheamos por (equipo, ventana). Las
                     # temporadas pasadas son inmutables; para la activa no cacheamos (datos vivos).
                     season_is_active = bool(getattr(season_row, "is_active", False))
-                    hist_rows = None
                     hist_cache_key = f"player_hist_dash:{int(primary_team.id)}:{hist_start}:{hist_end}"
-                    if not season_is_active:
-                        try:
-                            hist_rows = cache.get(hist_cache_key)
-                        except Exception:
-                            hist_rows = None
+                    # La activa tiene datos casi vivos → caché corta (3 min); las pasadas son
+                    # inmutables → caché larga. En ambos casos la clave es por (equipo, ventana),
+                    # así que TODAS las fichas del equipo comparten el mismo cálculo (evita que la
+                    # activa recompute el dashboard completo en cada visita a la ficha).
+                    hist_ttl = 180 if season_is_active else 1800
+                    hist_rows = None
+                    try:
+                        hist_rows = cache.get(hist_cache_key)
+                    except Exception:
+                        hist_rows = None
                     if hist_rows is None:
                         hist_rows = compute_player_dashboard(
                             primary_team,
@@ -69654,11 +69651,10 @@ def player_detail_page(request, player_id):
                             date_end=hist_end,
                             refresh_photo_urls=False,
                         )
-                        if not season_is_active:
-                            try:
-                                cache.set(hist_cache_key, hist_rows, 1800)
-                            except Exception:
-                                pass
+                        try:
+                            cache.set(hist_cache_key, hist_rows, hist_ttl)
+                        except Exception:
+                            pass
                     hist_stats = next(
                         (item for item in hist_rows if int(item.get("player_id") or 0) == int(player.id)),
                         {},
@@ -70035,6 +70031,7 @@ def player_detail_page(request, player_id):
                 "stats_error": stats_error,
                 "is_player_readonly": is_player_readonly,
                 "player_view_preview": player_view_preview,
+                "is_player_account": is_player_account,
                 "position_choices": POSITION_CHOICES,
                 "foot_choices": FOOT_CHOICES,
                 "skin_tone_choices": SKIN_TONE_CHOICES,
