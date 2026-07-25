@@ -37805,34 +37805,29 @@ def coach_matches_page(request):
         except Exception:
             pass
 
-    # La temporada que separa de verdad los años del CLUB es la de club (club_season /
-    # WorkspaceSeason), NO la federativa (que puede ser común a varios años -> por eso antes
-    # "veía 2026 y los mostraba todos"). Filtramos por club_season, con la activa por defecto.
-    active_club_season = None
+    # Temporada por FECHA: del 1 de julio al 30 de junio. El "año de temporada" es el año en que
+    # empieza (jul-dic -> ese año; ene-jun -> el año anterior). Así separa de verdad sin depender
+    # de que el partido tenga temporada de club/federativa asignada.
+    def _season_start_year(d):
+        return d.year if d.month >= 7 else d.year - 1
+
+    today = timezone.localdate()
+    current_season_id = _season_start_year(today)
+    season_start_years = set()
     try:
-        active_club_season = selected_club_season_for_request(request, workspace=workspace)
-    except Exception:
-        active_club_season = None
-    current_season_id = int(getattr(active_club_season, "id", 0) or 0)
-    season_options = []
-    try:
-        seen_seasons = {}
-        for cs_id, cs_label in (
-            _team_match_queryset(primary_team)
-            .exclude(club_season__isnull=True)
-            .values_list("club_season_id", "club_season__label")
-            .distinct()
+        for d in (
+            _team_match_queryset(primary_team).exclude(date__isnull=True).dates("date", "month")
         ):
-            if cs_id and cs_id not in seen_seasons:
-                seen_seasons[cs_id] = str(cs_label or cs_id)
-        season_options = [{"id": sid, "label": nm} for sid, nm in seen_seasons.items()]
+            season_start_years.add(_season_start_year(d))
     except Exception:
-        season_options = []
+        season_start_years = set()
+    season_start_years.add(current_season_id)
+    season_options = [
+        {"id": sy, "label": f"{sy}/{sy + 1}"} for sy in sorted(season_start_years, reverse=True)
+    ]
     season_filter = str(request.GET.get("season") or "").strip()
     if not season_filter:
-        # Por defecto: temporada de club activa. Si NINGÚN partido tiene temporada de club
-        # asignada, no filtramos (para no ocultarlos todos).
-        active_season_id = current_season_id if season_options else 0
+        active_season_id = current_season_id  # por defecto: temporada actual
     elif season_filter == "all":
         active_season_id = 0
     else:
@@ -37847,7 +37842,13 @@ def coach_matches_page(request):
         .order_by("-date", "-id")
     )
     if active_season_id:
-        qs = qs.filter(club_season_id=active_season_id)
+        _season_start = datetime(active_season_id, 7, 1).date()
+        _season_end = datetime(active_season_id + 1, 6, 30).date()
+        _date_q = Q(date__gte=_season_start, date__lte=_season_end)
+        if active_season_id == current_season_id:
+            # La temporada actual también muestra los partidos sin fecha aún (recién dados de alta).
+            _date_q = _date_q | Q(date__isnull=True)
+        qs = qs.filter(_date_q)
     if context_filter and context_filter in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY}:
         qs = qs.filter(context=context_filter)
     if q:

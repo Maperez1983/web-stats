@@ -78,38 +78,29 @@ class MatchRivalEntityTests(TestCase):
         self.assertIn("Guardar partido", body)  # el formulario de alta está en la propia página
 
     def test_calendar_filters_by_season(self):
-        from football.models import WorkspaceSeason
-
-        today = timezone.localdate()
-        # Sin grupo para que no aparezcan en el datalist del formulario (que lista equipos del grupo);
-        # así las aserciones miran solo el LISTADO de partidos.
-        rival = Team.objects.create(name="Rival Actual", slug="ra")
-        old_rival = Team.objects.create(name="Rival Viejo", slug="rv")
-        # La separación real es por temporada de CLUB (WorkspaceSeason / club_season).
-        cs_active = WorkspaceSeason.objects.create(
-            workspace=self.workspace, label="2026/2027", start_date=datetime.date(2026, 7, 1), is_active=True
-        )
-        cs_old = WorkspaceSeason.objects.create(
-            workspace=self.workspace, label="2024/2025", start_date=datetime.date(2024, 7, 1), is_active=False
-        )
-        self.workspace.active_season = cs_active
-        self.workspace.save()
+        # Temporada = 1 jul → 30 jun. Rivales sin grupo para que no salgan en el datalist del
+        # formulario; así las aserciones miran solo el LISTADO de partidos.
+        rival_new = Team.objects.create(name="Rival Nuevo", slug="rn")
+        rival_old = Team.objects.create(name="Rival Antiguo", slug="ro")
+        # 2026-09-01 -> temporada 2026/2027 (año inicio 2026).
         Match.objects.create(
-            season=self.season, club_season=cs_active, home_team=self.team, away_team=rival,
-            date=today, context=Match.CONTEXT_LEAGUE,
+            season=self.season, home_team=self.team, away_team=rival_new,
+            date=datetime.date(2026, 9, 1), context=Match.CONTEXT_LEAGUE,
         )
+        # 2025-03-01 -> temporada 2024/2025 (marzo < julio -> año inicio 2024).
         Match.objects.create(
-            season=self.season, club_season=cs_old, home_team=self.team, away_team=old_rival,
-            date=datetime.date(2025, 1, 15), context=Match.CONTEXT_LEAGUE,
+            season=self.season, home_team=self.team, away_team=rival_old,
+            date=datetime.date(2025, 3, 1), context=Match.CONTEXT_LEAGUE,
         )
-        # Por defecto: solo la temporada actual.
-        body = self.client.get("/coach/partidos/", HTTP_HOST="localhost").content.decode("utf-8")
-        self.assertIn("Rival Actual", body)
-        self.assertNotIn("Rival Viejo", body)
-        # ?season=all -> todas.
+        body = self.client.get("/coach/partidos/?season=2026", HTTP_HOST="localhost").content.decode("utf-8")
+        self.assertIn("Rival Nuevo", body)
+        self.assertNotIn("Rival Antiguo", body)
+        body_old = self.client.get("/coach/partidos/?season=2024", HTTP_HOST="localhost").content.decode("utf-8")
+        self.assertIn("Rival Antiguo", body_old)
+        self.assertNotIn("Rival Nuevo", body_old)
         body_all = self.client.get("/coach/partidos/?season=all", HTTP_HOST="localhost").content.decode("utf-8")
-        self.assertIn("Rival Actual", body_all)
-        self.assertIn("Rival Viejo", body_all)
+        self.assertIn("Rival Nuevo", body_all)
+        self.assertIn("Rival Antiguo", body_all)
 
     def test_match_hub_modal_create_dedups_rival(self):
         """El modal 'Nuevo partido' (match-hub-create) también deduplica el rival al escribirlo."""
