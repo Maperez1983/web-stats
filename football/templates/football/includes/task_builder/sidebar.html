@@ -80,7 +80,7 @@
               <div class="side-pane is-active" data-pane="ficha" role="tabpanel">
                 <div class="section">
                   <h3>Configuración de la tarea</h3>
-                  <p class="meta" style="margin-top:0.35rem;">Define aquí la información que luego alimenta la ficha final: identidad, contexto, descripción y consignas.</p>
+                  <p class="meta" style="margin-top:0.35rem;">Lo <strong>esencial</strong> de la tarea: título, objetivo, tipo, jugadores, material y consignas. Con esto ya tienes una tarea completa. La <strong>Metodología</strong> (principios, periodización, carga) es opcional y está en su propia pestaña.</p>
                   <div class="compact-grid">
                   {% if show_session_selector|default:True %}
 	                  <label>
@@ -133,7 +133,18 @@
                   </label>
                   <label>
                     Nº jugadores
-                    <input type="text" name="draw_task_player_count" value="{{ initial.player_count }}" placeholder="Ej: 6v6 + 2 porteros" />
+                    <input list="task-players-options" type="text" name="draw_task_player_count" value="{{ initial.player_count }}" placeholder="Ej: 6v6 + 2 porteros" />
+                    <datalist id="task-players-options">
+                      <option value="3v3"></option>
+                      <option value="4v4"></option>
+                      <option value="4v4 + 2 comodines"></option>
+                      <option value="5v5"></option>
+                      <option value="6v6"></option>
+                      <option value="7v7"></option>
+                      <option value="8v8"></option>
+                      <option value="10v10"></option>
+                      <option value="+ 2 porteros"></option>
+                    </datalist>
                   </label>
                   <label>
                     Dimensiones
@@ -144,8 +155,28 @@
                     <input type="text" name="draw_task_age_group" value="{{ initial.age_group }}" placeholder="Ej: Juvenil, Senior, División de Honor…" />
                   </label>
                   <label>
-                    Tipo
-                    <input type="text" name="draw_task_training_type" value="{{ initial.training_type }}" placeholder="Ej: Conservación / Finalización" />
+                    Tipo de tarea
+                    <input list="task-type-options" type="text" name="draw_task_training_type" value="{{ initial.training_type }}" placeholder="Elige o escribe: Finalización, Posesión…" />
+                    <datalist id="task-type-options">
+                      <option value="Calentamiento / Activación"></option>
+                      <option value="Técnica individual"></option>
+                      <option value="Pase y control"></option>
+                      <option value="Posesión / Rondo"></option>
+                      <option value="Conservación"></option>
+                      <option value="Salida de balón"></option>
+                      <option value="Progresión"></option>
+                      <option value="Finalización"></option>
+                      <option value="Centros y remates"></option>
+                      <option value="1 contra 1"></option>
+                      <option value="Superioridades (2v1, 3v2…)"></option>
+                      <option value="Transiciones"></option>
+                      <option value="Presión / Recuperación"></option>
+                      <option value="Trabajo defensivo"></option>
+                      <option value="Balón parado (ABP)"></option>
+                      <option value="Juego reducido"></option>
+                      <option value="Físico / Coordinación"></option>
+                      <option value="Específico portero"></option>
+                    </datalist>
                   </label>
                   <label style="grid-column:1 / -1;">
                     Formato del campo
@@ -223,7 +254,21 @@
                   </label>
                   <label>
                     Material
-                    <input type="text" name="draw_task_materials" value="{{ initial.materials }}" placeholder="Conos, petos, porterías..." />
+                    <input type="text" name="draw_task_materials" id="draw-task-materials-input" value="{{ initial.materials }}" placeholder="Conos, petos, porterías..." />
+                    <style>.material-chips .chip-add{font-size:0.72rem;padding:0.18rem 0.5rem;border-radius:999px;border:1px solid rgba(148,163,184,0.4);background:rgba(148,163,184,0.12);color:inherit;cursor:pointer;line-height:1.4;}.material-chips .chip-add:hover{background:rgba(15,122,53,0.28);border-color:rgba(15,122,53,0.6);}</style>
+                    <div class="meta" style="margin:0.35rem 0 0.2rem; opacity:0.8;">Toca para añadir:</div>
+                    <div class="material-chips" style="display:flex; flex-wrap:wrap; gap:0.3rem; margin-top:0.15rem;" aria-label="Añadir material rápido">
+                      <button type="button" class="chip-add" onclick="var i=document.getElementById('draw-task-materials-input');if(!i)return;var v=(i.value||'').trim().replace(/,\s*$/,'');var t=this.textContent.trim();if((','+v.toLowerCase()+',').indexOf(','+t.toLowerCase()+',')<0){i.value=(v?v+', ':'')+t;i.dispatchEvent(new Event('input',{bubbles:true}));}">Conos</button>
+                      <button type="button" class="chip-add" onclick="var i=document.getElementById('draw-task-materials-input');if(!i)return;var v=(i.value||'').trim().replace(/,\s*$/,'');var t=this.textContent.trim();if((','+v.toLowerCase()+',').indexOf(','+t.toLowerCase()+',')<0){i.value=(v?v+', ':'')+t;i.dispatchEvent(new Event('input',{bubbles:true}));}">Petos</button>
+                      <button type="button" class="chip-add" onclick="var i=document.getElementById('draw-task-materials-input');if(!i)return;var v=(i.value||'').trim().replace(/,\s*$/,'');var t=this.textContent.trim();if((','+v.toLowerCase()+',').indexOf(','+t.toLowerCase()+',')<0){i.value=(v?v+', ':'')+t;i.dispatchEvent(new Event('input',{bubbles:true}));}">Porterías</button>
+                      <button type="button" class="chip-add" onclick="var i=document.getElementById('draw-task-materials-input');if(!i)return;var v=(i.value||'').trim().replace(/,\s*$/,'');var t=this.textContent.trim();if((','+v.toLowerCase()+',').indexOf(','+t.toLowerCase()+',')<0){i.value=(v?v+', ':'')+t;i.dispatchEvent(new Event('input',{bubbles:true}));}">Mini-porterías</button>
+                      <button type="button" class="chip-add" onclick="var i=document.getElementById('draw-task-materials-input');if(!i)return;var v=(i.value||'').trim().replace(/,\s*$/,'');var t=this.textContent.trim();if((','+v.toLowerCase()+',').indexOf(','+t.toLowerCase()+',')<0){i.value=(v?v+', ':'')+t;i.dispatchEvent(new Event('input',{bubbles:true}));}">Picas</button>
+                      <button type="button" class="chip-add" onclick="var i=document.getElementById('draw-task-materials-input');if(!i)return;var v=(i.value||'').trim().replace(/,\s*$/,'');var t=this.textContent.trim();if((','+v.toLowerCase()+',').indexOf(','+t.toLowerCase()+',')<0){i.value=(v?v+', ':'')+t;i.dispatchEvent(new Event('input',{bubbles:true}));}">Vallas</button>
+                      <button type="button" class="chip-add" onclick="var i=document.getElementById('draw-task-materials-input');if(!i)return;var v=(i.value||'').trim().replace(/,\s*$/,'');var t=this.textContent.trim();if((','+v.toLowerCase()+',').indexOf(','+t.toLowerCase()+',')<0){i.value=(v?v+', ':'')+t;i.dispatchEvent(new Event('input',{bubbles:true}));}">Escaleras</button>
+                      <button type="button" class="chip-add" onclick="var i=document.getElementById('draw-task-materials-input');if(!i)return;var v=(i.value||'').trim().replace(/,\s*$/,'');var t=this.textContent.trim();if((','+v.toLowerCase()+',').indexOf(','+t.toLowerCase()+',')<0){i.value=(v?v+', ':'')+t;i.dispatchEvent(new Event('input',{bubbles:true}));}">Aros</button>
+                      <button type="button" class="chip-add" onclick="var i=document.getElementById('draw-task-materials-input');if(!i)return;var v=(i.value||'').trim().replace(/,\s*$/,'');var t=this.textContent.trim();if((','+v.toLowerCase()+',').indexOf(','+t.toLowerCase()+',')<0){i.value=(v?v+', ':'')+t;i.dispatchEvent(new Event('input',{bubbles:true}));}">Maniquíes</button>
+                      <button type="button" class="chip-add" onclick="var i=document.getElementById('draw-task-materials-input');if(!i)return;var v=(i.value||'').trim().replace(/,\s*$/,'');var t=this.textContent.trim();if((','+v.toLowerCase()+',').indexOf(','+t.toLowerCase()+',')<0){i.value=(v?v+', ':'')+t;i.dispatchEvent(new Event('input',{bubbles:true}));}">Balones</button>
+                    </div>
                   </label>
 	                  <label>
 	                    Espacio
