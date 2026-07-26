@@ -39402,7 +39402,7 @@ def _initial_eleven_page_impl(request):
             fallback_to_latest=False if target_match else True,
         )
     try:
-        convocation_players = list(convocation_record.players.order_by("number", "name")) if convocation_record else []
+        convocation_players = list(convocation_record.players.filter(is_active=True).order_by("number", "name")) if convocation_record else []
     except Exception:
         convocation_players = []
     for player in convocation_players:
@@ -70983,6 +70983,7 @@ def player_detail_page(request, player_id):
                 player.manual_sanction_active = manual_sanction_active
                 player.manual_sanction_reason = manual_sanction_reason
                 player.manual_sanction_until = manual_sanction_until
+                player.has_federative_license = str(request.POST.get("has_federative_license") or "").strip().lower() in {"on", "1", "true", "yes", "si", "s\u00ed"}
                 _lic_num = request.POST.get("federation_license_number", "").strip()
                 _lic_exp = _parse_date_value(request.POST.get("federation_license_expires_at"))
                 if _lic_num != player.federation_license_number or _lic_exp != player.federation_license_expires_at:

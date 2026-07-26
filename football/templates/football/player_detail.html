@@ -1660,6 +1660,10 @@
                 </select>
                 {% endwith %}
               </label>
+              <label style="display:flex;align-items:center;gap:0.5rem;">
+                <input type="checkbox" name="has_federative_license" value="1" {% if player.has_federative_license %}checked{% endif %} />
+                Ficha federativa (fichado)
+              </label>
               <label>Posición preferida
                 <select name="preferred_position">
                   <option value="" {% if not player.preferred_position %}selected{% endif %}>Sin definir</option>
