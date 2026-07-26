@@ -6,7 +6,12 @@ from django.core.cache import cache
 from django.db.models import Count, Q
 from django.templatetags.static import static
 
-from .dashboard_cache import player_metrics_cache_key, team_metrics_cache_key
+from .dashboard_cache import (
+    player_metrics_cache_key,
+    player_metrics_cache_key_scoped,
+    team_metrics_cache_key,
+    team_metrics_cache_key_scoped,
+)
 from .event_signatures import event_signature, is_manual_event_source
 from .event_taxonomy import result_is_success
 from .models import Match, MatchEvent, PlayerEvaluation, PlayerSeasonReport, Workspace
@@ -123,6 +128,24 @@ def active_club_season_date_bounds_from_request(request):
     return None, None
 
 
+def _active_club_season_bounds_and_id(request):
+    """(date_start, date_end, season_id) de la temporada de club seleccionada — resuelve una sola vez."""
+    if request is None:
+        return None, None, None
+    try:
+        from .workspace_context import get_active_workspace
+        from .season_history_services import club_season_date_bounds, selected_club_season_for_request
+
+        workspace = get_active_workspace(request)
+        selected_season = selected_club_season_for_request(request, workspace=workspace)
+        if selected_season:
+            _ds, _de = club_season_date_bounds(selected_season)
+            return _ds, _de, int(selected_season.id)
+    except Exception:
+        logger.debug('No se pudieron resolver límites/temporada activa.', exc_info=True)
+    return None, None, None
+
+
 def _normalize_stats_scope(scope):
     scope_value = str(scope or Match.CONTEXT_LEAGUE).strip().lower() or Match.CONTEXT_LEAGUE
     if scope_value not in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY, 'all'}:
@@ -142,8 +165,8 @@ def compute_team_metrics(primary_team, scope=Match.CONTEXT_LEAGUE, request=None)
     if not primary_team:
         return {'total_events': 0, 'top_event_types': [], 'top_results': []}
     scope_value = _normalize_stats_scope(scope)
-    date_start, date_end = active_club_season_date_bounds_from_request(request)
-    cache_key = f'{team_metrics_cache_key(primary_team.id)}:{scope_value}'
+    date_start, date_end, _season_id = _active_club_season_bounds_and_id(request)
+    cache_key = team_metrics_cache_key_scoped(primary_team.id, scope_value, season_id=_season_id)
     if not date_start and not date_end:
         cached = cache.get(cache_key)
         if isinstance(cached, dict) and cached:
@@ -192,8 +215,8 @@ def compute_player_metrics(primary_team, scope=Match.CONTEXT_LEAGUE, request=Non
     if not primary_team:
         return []
     scope_value = _normalize_stats_scope(scope)
-    date_start, date_end = active_club_season_date_bounds_from_request(request)
-    cache_key = f'{player_metrics_cache_key(primary_team.id)}:{scope_value}'
+    date_start, date_end, _season_id = _active_club_season_bounds_and_id(request)
+    cache_key = player_metrics_cache_key_scoped(primary_team.id, scope_value, season_id=_season_id)
     if not date_start and not date_end:
         cached = cache.get(cache_key)
         if isinstance(cached, list) and cached:

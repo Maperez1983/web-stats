@@ -38419,6 +38419,12 @@ def coach_matches_page(request):
         if active_season_id == current_season_id:
             # La temporada actual también muestra los partidos sin fecha aún (recién dados de alta).
             _date_q = _date_q | Q(date__isnull=True)
+            # Unificación con match_hub_page: un partido asignado explícitamente a la temporada de
+            # club activa pertenece a la actual aunque su fecha caiga fuera de jul-jun (ADITIVO,
+            # no oculta nada de lo que ya se ve).
+            _sel_cs = _home_current_club_season(request, workspace)
+            if _sel_cs:
+                _date_q = _date_q | Q(club_season=_sel_cs)
         qs = qs.filter(_date_q)
     if context_filter and context_filter in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY}:
         qs = qs.filter(context=context_filter)
