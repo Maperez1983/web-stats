@@ -30504,16 +30504,14 @@
         Object.keys(AVATAR_GK_COLORS).forEach((c) => gkPoses.forEach((p) => ensureAvatarImage(`${AVATAR_BASE_URL}act-gk-${p}-${c}.png`)));
       } catch (e) { /* ignore */ }
     };
-    // Perf: NO precargamos los ~73 avatares (~135 MB) al abrir el editor — hacerlo de forma
-    // inmediata saturaba la red y ralentizaba la carga. Los avatares se cargan BAJO DEMANDA
-    // (ensureAvatarImage al colocar una ficha o al abrir Figuras/Plantilla) y el upgrade
-    // asincrono sustituye el muñeco de fallback por la figura real en cuanto llega la imagen.
-    // Como red de seguridad, precargamos SOLO en tiempo de inactividad, bien despues de que el
-    // editor ya este interactivo, para no competir con la carga inicial.
-    try {
-      if (window.requestIdleCallback) window.requestIdleCallback(preloadAllAvatars, { timeout: 8000 });
-      else setTimeout(preloadAllAvatars, 6000);
-    } catch (e) { /* la carga bajo demanda cubre la correccion */ }
+    // Perf: los ~73 avatares pesan ~135 MB. NO se precargan (ni inmediato ni en idle) porque eso
+    // saturaba la red en CADA apertura del editor. Se cargan 100% BAJO DEMANDA:
+    //  - al abrir Figuras/Plantilla las miniaturas del panel (loading=lazy) bajan solo las visibles
+    //    y dejan el avatar en cache, listo para colocarlo sin muñeco de fallback;
+    //  - al colocar una ficha suelta, ensureAvatarImage baja esa figura concreta y el upgrade
+    //    asincrono sustituye el fallback por la figura real en cuanto llega.
+    // (preloadAllAvatars se mantiene definido por si algun flujo quiere precargar explicitamente.)
+    void preloadAllAvatars;
     const playerTokenFactory = (kind, player, options = {}) => (left, top) => {
 		      const preferredName = safeText(player?.nickname || player?.name, '');
 		      const playerNameLower = preferredName.toLowerCase();
