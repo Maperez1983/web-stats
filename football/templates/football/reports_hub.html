@@ -291,6 +291,78 @@
             })();
           </script>
         </section>
+
+        <section class="card">
+          <h2>Ficha de jugador (PDF)</h2>
+          <p>El informe completo de la ficha de un jugador (foto del estado actual).</p>
+          <div class="form-grid">
+            <div class="field">
+              <label for="fpdf-player">Jugador</label>
+              <select id="fpdf-player">
+                {% for p in player_options %}<option value="{{ p.id }}">{{ p.label }}</option>{% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="sections">
+            <div class="actions">
+              <button class="btn primary" type="button" id="fpdf-open">Ver PDF</button>
+            </div>
+          </div>
+          <script>
+            (function () {
+              var teamQ = {% if request.GET.team %}'?team={{ request.GET.team|urlencode }}'{% else %}''{% endif %};
+              var b = document.getElementById('fpdf-open');
+              if (b) b.addEventListener('click', function () {
+                var pid = (document.getElementById('fpdf-player') || {}).value;
+                if (pid) window.open('/player/' + pid + '/pdf/' + teamQ, '_blank', 'noopener');
+              });
+            })();
+          </script>
+        </section>
+
+        <section class="card">
+          <h2>Ficha de ojeado (PDF)</h2>
+          <p>Informe de un jugador en seguimiento (ojeo / dirección).</p>
+          {% if scouting_options %}
+          <div class="form-grid">
+            <div class="field">
+              <label for="scpdf">Ojeado</label>
+              <select id="scpdf">
+                {% for o in scouting_options %}<option value="{{ o.id }}">{{ o.label }}</option>{% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="sections">
+            <div class="actions">
+              <button class="btn primary" type="button" id="scpdf-open">Ver PDF</button>
+            </div>
+          </div>
+          <script>
+            (function () {
+              var b = document.getElementById('scpdf-open');
+              if (b) b.addEventListener('click', function () {
+                var id = (document.getElementById('scpdf') || {}).value;
+                if (id) window.open('/direccion/' + id + '/pdf/', '_blank', 'noopener');
+              });
+            })();
+          </script>
+          {% else %}
+          <p class="hint">No hay ojeados en seguimiento ahora mismo.</p>
+          {% endif %}
+        </section>
+
+        <section class="card">
+          <h2>Otros informes</h2>
+          <p>Se generan en su propia área; accesos directos:</p>
+          <div class="sections">
+            <div class="actions" style="flex-wrap:wrap; gap:8px;">
+              <a class="btn" href="{% url 'coach-squad-report' %}{% if request.GET.team %}?team={{ request.GET.team|urlencode }}{% endif %}" target="_blank" rel="noreferrer">Estado de plantilla por fase</a>
+              <a class="btn" href="{% url 'kpi-explorer' %}{% if request.GET.team %}?team={{ request.GET.team|urlencode }}{% endif %}" target="_blank" rel="noreferrer">KPIs (explorador)</a>
+              <a class="btn" href="{% url 'player-video-inbox' %}" target="_blank" rel="noreferrer">Informes de vídeo</a>
+              <a class="btn" href="{% url 'scouting-board' %}" target="_blank" rel="noreferrer">Dirección / ojeo</a>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
     <script>

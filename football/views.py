@@ -19820,6 +19820,18 @@ def reports_hub_page(request):
         {"id": int(p.id), "label": (f"{p.number} · " if p.number else "") + (p.name or f"Jugador {p.id}")}
         for p in Player.objects.filter(team=primary_team, is_active=True).order_by("number", "name", "id")
     ]
+    scouting_options = []
+    try:
+        _ws = _get_active_workspace(request)
+        if _ws:
+            scouting_options = [
+                {"id": int(t.id), "label": (str(getattr(t, "display_name", "") or "").strip() or f"Ojeado {t.id}")}
+                for t in ScoutingTarget.objects.filter(workspace=_ws)
+                .exclude(status=ScoutingTarget.STATUS_DISCARDED)
+                .order_by("-priority", "-updated_at", "-id")[:120]
+            ]
+    except Exception:
+        scouting_options = []
     return render(
         request,
         "football/reports_hub.html",
@@ -19827,6 +19839,7 @@ def reports_hub_page(request):
             **_build_pdf_nav_urls(request),
             "team_name": primary_team.display_name,
             "player_options": player_options,
+            "scouting_options": scouting_options,
             "match_options": match_options,
             "tournament_options": tournament_options,
             "stats_scope": stats_scope,
