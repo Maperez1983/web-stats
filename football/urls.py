@@ -89,6 +89,7 @@ urlpatterns = [
     path("media/pdf-assets/<int:asset_id>/", views.pdf_graphic_asset_file, name="pdf-graphic-asset-file"),
     path("players/", views.player_dashboard_page, name="player-dashboard"),
     path("player/<int:player_id>/lesiones/<int:record_id>/", views.player_injury_detail_page, name="player-injury-detail"),
+    path("player/<int:player_id>/avatar.png", views.player_avatar_recolored, name="player-avatar-recolored"),
     path("players/attendance/mark/", views.player_attendance_mark, name="player-attendance-mark"),
     path("players/videos/", views.player_video_library_page, name="player-video-library"),
     path("players/videos/view/<int:video_id>/", views.player_video_view_page, name="player-video-view"),

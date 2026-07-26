@@ -20606,6 +20606,90 @@ def _coach_pitch_board_positions(team):
     return positions
 
 
+AVATAR_SKIN_GRADES = {
+    1: (236, 205, 178), 2: (224, 176, 136), 3: (200, 144, 95),
+    4: (165, 106, 60), 5: (109, 67, 40), 6: (74, 45, 26),
+}
+
+
+def _avatar_asset_path(*parts):
+    """Ruta a un asset de avatar: primero en el static recopilado, si no en el source de la app."""
+    from pathlib import Path as _P
+    for base in (
+        _P(settings.BASE_DIR) / "static" / "football" / "images" / "coach_roster_avatars",
+        _P(settings.BASE_DIR) / "football" / "static" / "football" / "images" / "coach_roster_avatars",
+    ):
+        p = base.joinpath(*parts)
+        if p.exists():
+            return p
+    return None
+
+
+def _recolor_avatar_bytes(base_path, skin_mask_path, hair_mask_path, skin_grade=None, hair_color=None):
+    """Recolorea la figura base: piel (grado 1-6) y pelo (hex) usando las máscaras, conservando la
+    iluminación (mantiene la V de cada píxel y fija tono/saturación del objetivo). Devuelve PNG bytes."""
+    import io
+    import colorsys
+    import numpy as np
+    from PIL import Image
+    arr = np.asarray(Image.open(base_path).convert("RGBA")).astype(np.float32)
+
+    def _apply(mask_path, target_rgb):
+        if not target_rgb or not mask_path:
+            return
+        try:
+            m = np.asarray(Image.open(mask_path).convert("L")).astype(np.float32) / 255.0
+        except Exception:
+            return
+        if m.shape[:2] != arr.shape[:2]:
+            return
+        th, ts, _ = colorsys.rgb_to_hsv(*[c / 255.0 for c in target_rgb])
+        lut = np.array([colorsys.hsv_to_rgb(th, ts, v / 255.0) for v in range(256)]) * 255
+        v_idx = np.max(arr[..., :3], axis=2).astype(np.int32).clip(0, 255)
+        tinted = lut[v_idx]
+        mm = m[..., None]
+        arr[..., :3] = arr[..., :3] * (1 - mm) + tinted * mm
+
+    if skin_grade:
+        _apply(skin_mask_path, AVATAR_SKIN_GRADES.get(int(skin_grade)))
+    if hair_color:
+        try:
+            hc = str(hair_color).lstrip("#")
+            _apply(hair_mask_path, (int(hc[0:2], 16), int(hc[2:4], 16), int(hc[4:6], 16)))
+        except Exception:
+            pass
+    out = io.BytesIO()
+    Image.fromarray(arr.astype("uint8"), "RGBA").save(out, "PNG")
+    return out.getvalue()
+
+
+@login_required
+def player_avatar_recolored(request, player_id):
+    """Sirve el avatar del jugador recoloreado (grado de piel + color de pelo) sobre el kit base."""
+    player = Player.objects.filter(id=int(player_id)).only("id", "skin_grade", "hair_color").first()
+    base = _avatar_asset_path("library", "kit_home_hd.png")
+    if not base:
+        raise Http404("avatar base no disponible")
+    skin_m = _avatar_asset_path("masks", "skin_home.png")
+    hair_m = _avatar_asset_path("masks", "hair_home.png")
+    sg = getattr(player, "skin_grade", None) if player else None
+    hc = getattr(player, "hair_color", "") if player else ""
+    cache_key = f"player_avatar_recolor:v1:{player_id}:{sg}:{hc}"
+    data = cache.get(cache_key)
+    if data is None:
+        try:
+            data = _recolor_avatar_bytes(
+                str(base), str(skin_m) if skin_m else None, str(hair_m) if hair_m else None, sg, hc
+            )
+        except Exception:
+            with open(base, "rb") as fh:
+                data = fh.read()
+        cache.set(cache_key, data, 60 * 30)
+    resp = HttpResponse(data, content_type="image/png")
+    resp["Cache-Control"] = "public, max-age=1800"
+    return resp
+
+
 def _build_coach_pitch_board_players(primary_team, roster_players, roster_memberships, active_injury_ids):
     """Datos de la pizarra interactiva de plantilla (fuente ÚNICA para toda la app).
 
