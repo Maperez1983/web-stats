@@ -641,6 +641,11 @@ urlpatterns = [
         "coach/sesiones/tarea/<int:task_id>/preview/", views.session_task_preview_file, name="session-task-preview-file"
     ),
     path(
+        "coach/sesiones/tarea/<int:task_id>/cover/", views.session_task_cover_file, name="session-task-cover-file"
+    ),
+    path("coach/sesiones/portadas/subir/", views.session_task_cover_upload, name="session-task-cover-upload"),
+    path("coach/sesiones/portadas/escenas/", views.session_task_scenes_export, name="session-task-scenes-export"),
+    path(
         "coach/sesiones/tarea/<int:task_id>/pdf-3d-embed/",
         views.session_task_pdf_3d_embed,
         name="session-task-pdf-3d-embed",

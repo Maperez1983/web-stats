@@ -54254,6 +54254,132 @@ def session_task_file(request, task_id):
     return response
 
 
+def _cover_bytes_from_task(task_obj):
+    """Return (raw_bytes, mime) from tactical_layout.meta.cover_image_embedded_v1 (foto IA)."""
+    if not task_obj:
+        return None
+    try:
+        layout = getattr(task_obj, "tactical_layout", None)
+        if isinstance(layout, str):
+            layout = _coerce_json_dict(layout) or {}
+        if not isinstance(layout, dict):
+            return None
+        meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
+        data_url = str(meta.get("cover_image_embedded_v1") or "").strip()
+        if not data_url.startswith("data:image/") or ";base64," not in data_url:
+            return None
+        header, payload = data_url.split(";base64,", 1)
+        mime = header.split(":", 1)[1].strip().lower()
+        raw = base64.b64decode(payload.encode("ascii"))
+        if not raw:
+            return None
+        return raw, mime
+    except Exception:
+        return None
+
+
+@login_required
+def session_task_cover_file(request, task_id):
+    """Sirve la portada fotorrealista (IA) embebida de una tarea, si existe."""
+    if not _can_access_sessions_workspace(request.user):
+        return HttpResponse("No tienes permisos para acceder a sesiones.", status=403)
+    task = SessionTask.objects.filter(id=task_id).first()
+    if not task:
+        raise Http404("Portada no disponible")
+    got = _cover_bytes_from_task(task)
+    if not got:
+        raise Http404("Sin portada")
+    raw, mime = got
+    resp = HttpResponse(raw, content_type=(mime or "image/jpeg"))
+    resp["Content-Disposition"] = f'inline; filename="task-{int(task.id)}-cover.jpg"'
+    resp["Cache-Control"] = "private, max-age=86400"
+    return resp
+
+
+def _cover_factory_token_ok(request):
+    """Autoriza la 'fábrica' local de portadas por token compartido (env COVER_FACTORY_TOKEN)."""
+    import hmac
+
+    token = (os.getenv("COVER_FACTORY_TOKEN") or "").strip()
+    if not token:
+        return False
+    provided = str(request.META.get("HTTP_X_COVER_FACTORY_TOKEN") or "").strip()
+    if not provided:
+        return False
+    try:
+        return hmac.compare_digest(provided, token)
+    except Exception:
+        return False
+
+
+def _cover_parse_int(value):
+    try:
+        return int(str(value).strip())
+    except Exception:
+        return 0
+
+
+@csrf_exempt
+def session_task_cover_upload(request):
+    """La fábrica local sube una portada fotorrealista para una tarea (token-gated)."""
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=405)
+    if not _cover_factory_token_ok(request):
+        return JsonResponse({"error": "unauthorized"}, status=401)
+    task = SessionTask.objects.filter(id=_cover_parse_int(request.POST.get("task_id"))).first()
+    if not task:
+        return JsonResponse({"error": "task not found"}, status=404)
+    f = request.FILES.get("image")
+    if not f:
+        return JsonResponse({"error": "no image"}, status=400)
+    raw = f.read()
+    if not raw or len(raw) > 6 * 1024 * 1024:
+        return JsonResponse({"error": "bad image size"}, status=400)
+    mime = "image/png" if raw[:8].startswith(b"\x89PNG\r\n\x1a\n") else "image/jpeg"
+    data_url = "data:%s;base64,%s" % (mime, base64.b64encode(raw).decode("ascii"))
+    layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else (_coerce_json_dict(task.tactical_layout) or {})
+    if not isinstance(layout, dict):
+        layout = {}
+    meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
+    meta["cover_image_embedded_v1"] = data_url
+    layout["meta"] = meta
+    task.tactical_layout = layout
+    task.save(update_fields=["tactical_layout"])
+    return JsonResponse({"ok": True, "task_id": task.id, "bytes": len(raw), "mime": mime})
+
+
+@csrf_exempt
+def session_task_scenes_export(request):
+    """Devuelve escenas (canvas_state) de tareas para que la fábrica local genere portadas (token-gated)."""
+    if not _cover_factory_token_ok(request):
+        return JsonResponse({"error": "unauthorized"}, status=401)
+    team_id = _cover_parse_int(request.GET.get("team_id"))
+    only_missing = str(request.GET.get("only_missing") or "").strip().lower() in {"1", "true", "yes", "on"}
+    limit = _cover_parse_int(request.GET.get("limit")) or 30
+    limit = max(1, min(120, limit))
+    qs = SessionTask.objects.filter(deleted_at__isnull=True)
+    if team_id:
+        qs = qs.filter(session__microcycle__team_id=team_id)
+    out = []
+    for t in qs.order_by("-id")[:1500]:
+        try:
+            layout = t.tactical_layout if isinstance(t.tactical_layout, dict) else (_coerce_json_dict(t.tactical_layout) or {})
+            meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
+            has_cover = bool(str(meta.get("cover_image_embedded_v1") or "").strip())
+            if only_missing and has_cover:
+                continue
+            cs, _cw, _ch = _extract_canvas_state_for_preview(t)
+            objs = cs.get("objects") if isinstance(cs, dict) and isinstance(cs.get("objects"), list) else []
+            if not objs:
+                continue
+            out.append({"id": t.id, "title": str(t.title or ""), "has_cover": has_cover, "canvas_state": cs})
+        except Exception:
+            continue
+        if len(out) >= limit:
+            break
+    return JsonResponse({"tasks": out, "count": len(out)})
+
+
 @login_required
 def imported_session_preview_file(request, doc_id):
     if not _can_access_sessions_workspace(request.user):

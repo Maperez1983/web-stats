@@ -63,6 +63,7 @@ def prepare_task_library(
         )
         task.is_imported = is_imported_task(task)
         task.is_drawn = bool(_has_canvas_objects(task)) if not task.is_imported else False
+        task.has_cover = bool(str((meta.get('cover_image_embedded_v1') if isinstance(meta, dict) else '') or '').strip())
         task.analysis_summary = sanitize_text(
             str(analysis_meta.get('summary') or '').strip(),
             multiline=True,
