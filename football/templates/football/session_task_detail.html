@@ -800,6 +800,10 @@
       .presentation-task-hero .coach-summary-note {
         margin: 0;
       }
+      /* UX: ocultar slots de representacion grafica vacios ("Sin vista 3D", "Sin recreacion...")
+         para que la ficha se vea siempre acabada. Solo vista HTML; el PDF (WeasyPrint) no soporta :has. */
+      .club-panel-body div[style*="display:grid"] > div:has(.task-detail-empty),
+      .uefa-box div[style*="display:grid"] > div:has(.task-detail-empty) { display: none !important; }
       .presentation-format-uefa .presentation-task-hero,
       .presentation-format-club .presentation-task-hero {
         padding: 0.62rem 0.75rem;
