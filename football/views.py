@@ -72228,19 +72228,31 @@ def player_detail_page(request, player_id):
                 }
         except Exception:
             minutes_load = {}
-        physical_metrics = player.physical_metrics.all()[:20]
+        _pm_qs = player.physical_metrics.all()
+        if club_date_start and club_date_end:
+            _pm_qs = _pm_qs.filter(recorded_on__gte=club_date_start, recorded_on__lte=club_date_end)
+        physical_metrics = _pm_qs[:20]
         latest_physical_metric = physical_metrics[0] if physical_metrics else None
         physical_viz = _build_physical_viz(physical_metrics)
-        communications = player.communications.select_related("match").all()[:20]
+        _comm_qs = player.communications.select_related("match").all()
+        if club_date_start and club_date_end:
+            _comm_qs = _comm_qs.filter(created_at__date__gte=club_date_start, created_at__date__lte=club_date_end)
+        communications = _comm_qs[:20]
         # Activos (pendiente, en curso) primero; cumplidos al final; dentro, más nuevos arriba.
+        _obj_qs = player.objectives.all()
+        if club_date_start and club_date_end:
+            _obj_qs = _obj_qs.filter(created_at__date__gte=club_date_start, created_at__date__lte=club_date_end)
         player_objectives = sorted(
-            player.objectives.all(),
+            _obj_qs,
             key=lambda o: ({"pending": 0, "in_progress": 1, "done": 2}.get(o.status, 0), -(o.id or 0)),
         )
         assigned_analysis_videos = list(
             player.assigned_analysis_videos.select_related("rival_team", "folder").order_by("-created_at")[:20]
         )
-        injury_records = list(player.injury_records.select_related("catalog_entry").all()[:20])
+        _inj_qs = player.injury_records.select_related("catalog_entry").all()
+        if club_date_start and club_date_end:
+            _inj_qs = _inj_qs.filter(injury_date__gte=club_date_start, injury_date__lte=club_date_end)
+        injury_records = list(_inj_qs[:20])
         for record in injury_records:
             try:
                 record.days_lost = time_loss_days(record.injury_date, record.return_date)
@@ -72280,7 +72292,10 @@ def player_detail_page(request, player_id):
             "total": 0,
         }
         fines_records = []
-        player_fines = list(player.fines.all()[:80])
+        _fines_qs = player.fines.all()
+        if club_date_start and club_date_end:
+            _fines_qs = _fines_qs.filter(created_at__date__gte=club_date_start, created_at__date__lte=club_date_end)
+        player_fines = list(_fines_qs[:80])
         reason_labels = dict(PlayerFine.REASON_CHOICES)
         for fine in player_fines:
             fines_summary["registered_fines"] += 1
