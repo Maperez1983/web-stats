@@ -148,7 +148,7 @@
                     <input type="text" name="draw_task_training_type" value="{{ initial.training_type }}" placeholder="Ej: Conservación / Finalización" />
                   </label>
                   <label style="grid-column:1 / -1;">
-                    Formato real
+                    Formato del campo
                     <select name="draw_task_pitch_format" id="draw-task-pitch-format">
                       {% for value, label in task_pitch_choices %}
                       <option value="{{ value }}" {% if initial.pitch_format == value %}selected{% endif %}>{{ label }}</option>

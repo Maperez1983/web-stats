@@ -580,6 +580,14 @@ body.ed-chrome .edc-mat-real .edc-real-strip .sr-only { position:absolute !impor
 body.ed-chrome .board-overlay-controls { display: none !important; }
 
 /* ============================================================
+   Ocultar selector de PUBLICIDAD del estadio (Ads) en el editor de tareas:
+   irrelevante para un entrenador creando una tarea (solo aplica a estilos
+   broadcast/estadio). Mantiene su valor por defecto via el input oculto.
+   ============================================================ */
+body.ed-chrome .pitch-grass-select-wrap:has(#pitch-ad-select) { display: none !important; }
+body.ed-chrome #pitch-ad-select { display: none !important; }
+
+/* ============================================================
    BARRA DE MODO visible (Pizarra/Datos/Metodologia/Carga/Exportar)
    Antes las pestañas estaban escondidas en el menu; ahora se ven en la topbar.
    ============================================================ */
