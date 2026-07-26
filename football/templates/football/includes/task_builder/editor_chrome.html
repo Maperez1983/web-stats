@@ -419,6 +419,44 @@
     document.body.classList.add('edc-mat-open');
     try{ showCat(cat); }catch(e){}
   }
+
+  // Rail comercial: el rail izquierdo pasa a ser el LANZADOR DE CATEGORIAS (Seleccion + familias
+  // del cajon) en lugar de herramientas sueltas que duplicaban el cajon (Jugador/Cono/Porteria...
+  // repetian Fichas/Material/Porterias). Cada categoria abre el cajon en su pestaña reutilizando
+  // openDrawerCat(). El boton "Elementos" deja de hacer falta. Salvaguarda: si esto no llega a
+  // ejecutarse, no se añade la clase edc-rail-cats y el rail antiguo sigue visible (degradacion).
+  (function buildRailCategories(){
+    try{
+      var rail=document.querySelector('.edc-rail');
+      if(!rail || rail.dataset.catsBuilt==='1' || typeof MAT_CATS==='undefined') return;
+      rail.dataset.catsBuilt='1';
+      var ICONS={
+        fichas:'<circle cx="9" cy="12" r="5"/><circle cx="15" cy="12" r="5"/>',
+        plantilla:'<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v3H9z"/><path d="M8 11h8M8 15h5"/>',
+        avatares:'<circle cx="13" cy="5" r="2"/><path d="M13 8l-3 4 3 2 1 5M16 11l3-1M8 17l2-5"/>',
+        material:'<path d="M12 4l5 15H7z"/><path d="M5 19h14"/>',
+        porterias:'<path d="M4 7h16v11H4z"/><path d="M8 7v11M12 7v11M16 7v11M4 11h16M4 15h16"/>',
+        marcadores:'<path d="M12 21s6-5.5 6-10a6 6 0 10-12 0c0 4.5 6 10 6 10z"/><circle cx="12" cy="11" r="2"/>',
+        flechas:'<path d="M5 19L19 5M11 5h8v8"/>',
+        zonas:'<rect x="4" y="4" width="7" height="7" rx="1"/><circle cx="16.5" cy="16.5" r="3.5"/>',
+        emojis:'<circle cx="12" cy="12" r="8"/><circle cx="9" cy="10" r="0.9" fill="currentColor"/><circle cx="15" cy="10" r="0.9" fill="currentColor"/><path d="M8.5 14a4 4 0 007 0"/>',
+        importados:'<rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4 16l4-3 3 2 4-4 5 5"/>'
+      };
+      MAT_CATS.forEach(function(cat){
+        var b=document.createElement('button');
+        b.type='button'; b.className='edc-tool edc-tool-cat'; b.dataset.cat=cat.key;
+        b.setAttribute('aria-label', cat.label);
+        b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+(ICONS[cat.key]||'')+'</svg>'+cat.label;
+        b.addEventListener('click', function(){
+          document.querySelectorAll('.edc-rail .edc-tool').forEach(function(x){ x.classList.remove('is-active'); });
+          b.classList.add('is-active');
+          try{ openDrawerCat(cat.key); }catch(e){}
+        });
+        rail.appendChild(b);
+      });
+      document.body.classList.add('edc-rail-cats');
+    }catch(e){}
+  })();
   // Reubica (NO borra) los controles funcionales dentro del menú ☰: fases, superficie, césped, exportar, 3D…
   function relocateIntoMenu(){
     var body = document.getElementById('edc-menu-body');
