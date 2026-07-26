@@ -2436,34 +2436,34 @@
       <section class="card tab-pane" data-pane="stats">
         <h2 style="margin-top:0;">Estadísticas y KPI mapa</h2>
 
-        {% if minutes_load %}
+        {% if season_minutes_load %}
         <div style="border:1px solid var(--prod-line, rgba(144,161,185,0.28));border-radius:0.95rem;padding:0.9rem 1rem;margin-bottom:1rem;background:rgba(2,6,23,0.06);">
           <div style="display:flex;justify-content:space-between;align-items:baseline;gap:0.6rem;flex-wrap:wrap;">
             <strong style="font-size:1rem;">Carga de minutos</strong>
             <span style="font-size:0.78rem;opacity:0.7;">{% if selected_club_season %}Temporada {{ selected_club_season.label|default:selected_club_season }}{% else %}Temporada actual{% endif %} · no incluye años anteriores</span>
           </div>
-          {% if minutes_load.has_season %}
+          {% if season_minutes_load.has_season %}
           <div style="display:flex;gap:0.7rem;flex-wrap:wrap;margin-top:0.7rem;">
             <div style="flex:1 1 150px;min-width:150px;border:1px solid rgba(59,130,246,0.35);background:rgba(59,130,246,0.08);border-radius:0.75rem;padding:0.7rem 0.85rem;">
-              <div style="font-size:1.7rem;font-weight:800;line-height:1;">{{ minutes_load.training_minutes }}'</div>
+              <div style="font-size:1.7rem;font-weight:800;line-height:1;">{{ season_minutes_load.training_minutes }}'</div>
               <div style="font-size:0.8rem;opacity:0.85;margin-top:0.15rem;">Entrenamientos</div>
-              <div style="font-size:0.72rem;opacity:0.6;">{{ minutes_load.training_sessions }} sesión{{ minutes_load.training_sessions|pluralize:"es" }} · {{ minutes_load.training_pct }}%</div>
+              <div style="font-size:0.72rem;opacity:0.6;">{{ season_minutes_load.training_sessions }} sesión{{ season_minutes_load.training_sessions|pluralize:"es" }} · {{ season_minutes_load.training_pct }}%</div>
             </div>
             <div style="flex:1 1 150px;min-width:150px;border:1px solid rgba(34,197,94,0.35);background:rgba(34,197,94,0.08);border-radius:0.75rem;padding:0.7rem 0.85rem;">
-              <div style="font-size:1.7rem;font-weight:800;line-height:1;">{{ minutes_load.match_minutes }}'</div>
+              <div style="font-size:1.7rem;font-weight:800;line-height:1;">{{ season_minutes_load.match_minutes }}'</div>
               <div style="font-size:0.8rem;opacity:0.85;margin-top:0.15rem;">Partidos</div>
-              <div style="font-size:0.72rem;opacity:0.6;">{{ minutes_load.matches_played }} partido{{ minutes_load.matches_played|pluralize }} · {{ minutes_load.match_pct }}%</div>
+              <div style="font-size:0.72rem;opacity:0.6;">{{ season_minutes_load.matches_played }} partido{{ season_minutes_load.matches_played|pluralize }} · {{ season_minutes_load.match_pct }}%</div>
             </div>
             <div style="flex:1 1 130px;min-width:130px;border:1px solid var(--prod-line, rgba(144,161,185,0.28));border-radius:0.75rem;padding:0.7rem 0.85rem;">
-              <div style="font-size:1.7rem;font-weight:800;line-height:1;">{{ minutes_load.total_minutes }}'</div>
+              <div style="font-size:1.7rem;font-weight:800;line-height:1;">{{ season_minutes_load.total_minutes }}'</div>
               <div style="font-size:0.8rem;opacity:0.85;margin-top:0.15rem;">Total</div>
               <div style="font-size:0.72rem;opacity:0.6;">carga acumulada</div>
             </div>
           </div>
-          {% if minutes_load.total_minutes %}
+          {% if season_minutes_load.total_minutes %}
           <div style="display:flex;height:8px;border-radius:6px;overflow:hidden;margin-top:0.7rem;background:rgba(120,140,170,0.18);">
-            <div style="width:{{ minutes_load.training_pct }}%;background:#3b82f6;"></div>
-            <div style="width:{{ minutes_load.match_pct }}%;background:#22c55e;"></div>
+            <div style="width:{{ season_minutes_load.training_pct }}%;background:#3b82f6;"></div>
+            <div style="width:{{ season_minutes_load.match_pct }}%;background:#22c55e;"></div>
           </div>
           {% endif %}
           {% else %}

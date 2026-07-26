@@ -72161,7 +72161,7 @@ def player_detail_page(request, player_id):
         pj = _to_int_value(stats_source.get("pj"))
         pt = _to_int_value(stats_source.get("pt"))
         minutes = _to_int_value(stats_source.get("minutes"))
-        minutes_load = _build_player_minutes_load(player, selected_club_season, minutes, pj)
+        season_minutes_load = _build_player_minutes_load(player, selected_club_season, minutes, pj)
         goals = _to_int_value(stats_source.get("goals"))
         assists = _to_int_value(stats_source.get("assists"))
         yellow_cards = _to_int_value(stats_source.get("yellow_cards"))
@@ -72785,6 +72785,7 @@ def player_detail_page(request, player_id):
                 "evaluation_summary": evaluation_summary,
                 "work_focus": work_focus,
                 "minutes_load": minutes_load,
+                "season_minutes_load": season_minutes_load,
                 "evaluation_chart_context": evaluation_chart_context,
                 "latest_evaluation_improvement_rows": latest_evaluation_improvement_rows,
                 "evaluation_type_choices": PlayerEvaluation.TYPE_CHOICES,
@@ -72814,6 +72815,7 @@ def player_detail_page(request, player_id):
                 "latest_injury_record": latest_injury_record,
                 "has_active_injury": has_active_injury,
                 "minutes_load": minutes_load,
+                "season_minutes_load": season_minutes_load,
                 "injury_allows_training": injury_allows_training,
                 "has_manual_sanction": has_manual_sanction,
                 "is_called_up": is_called_up,
