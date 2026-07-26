@@ -1173,6 +1173,11 @@ class Player(models.Model):
     release_clause = models.CharField(max_length=80, blank=True, help_text='Cláusula de rescisión (texto libre, ej. "50.000 €").')
     contract_notes = models.CharField(max_length=200, blank=True, help_text='Notas de contrato/ficha (salario, bonus, vinculación…).')
     is_active = models.BooleanField(default=True)
+    has_federative_license = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text='Tiene ficha federativa (licencia oficial de la temporada).',
+    )
     # Traspaso: cuando el jugador SALE de la plantilla porque ficha por otro club, se registra el
     # club destino (del catálogo Club, sin duplicar) y la fecha. La ficha y su identidad de persona
     # (PlayerIdentity) se conservan intactas; solo se pone is_active=False. Nullable/aditivo.

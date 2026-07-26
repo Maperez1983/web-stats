@@ -5270,6 +5270,95 @@ def _coach_decision_rating_tone(value):
     return "bad"
 
 
+_FEDERATIVE_LICENSE_CAP = 25
+
+# Mínimos por puesto para avisar de qué falta cubrir (código canónico -> mínimo). Ver POSITION_CHOICES.
+_SQUAD_MIN_REQUIREMENTS = (
+    ("POR", "Porteros", 2),
+    ("LD", "Laterales derechos", 2),
+    ("LI", "Laterales izquierdos", 2),
+    ("DFC", "Defensas centrales", 2),
+    ("MCD", "Mediocentros defensivos", 2),
+    ("MC", "Mediocentros", 2),
+    ("MP", "Mediapuntas", 2),
+    ("ED", "Extremos derechos", 2),
+    ("EI", "Extremos izquierdos", 2),
+    ("DC", "Delanteros", 3),
+)
+
+# Agrupa variantes canónicas en la clave de requisito (carrilero->lateral, interior->MC, SD->DC).
+_SQUAD_REQ_ALIASES = {
+    "POR": "POR",
+    "LD": "LD", "CARRILERO D": "LD",
+    "LI": "LI", "CARRILERO I": "LI",
+    "DFC": "DFC",
+    "MCD": "MCD",
+    "MC": "MC", "INTERIOR D": "MC", "INTERIOR I": "MC",
+    "MP": "MP",
+    "ED": "ED",
+    "EI": "EI",
+    "DC": "DC", "SD": "DC",
+}
+
+
+def _squad_requirement_key(position_text):
+    code = normalize_position_value(position_text or "")
+    if not code:
+        return None
+    return _SQUAD_REQ_ALIASES.get(str(code).strip().upper())
+
+
+def _build_federative_squad_report(request, primary_team):
+    """Contadores federativos de la home + cobertura por puesto.
+
+    fichados = activos con ficha federativa; a_prueba = activos sin ficha; lesionados = activos con
+    lesión activa; fichas_disponibles = 25 - fichados. Cobertura: mínimo por puesto y qué falta.
+    """
+    if not primary_team:
+        return None
+    players = list(
+        Player.objects.filter(team=primary_team, is_active=True)
+        .only("id", "position", "preferred_position", "has_federative_license")
+    )
+    total = len(players)
+    fichados = sum(1 for p in players if bool(getattr(p, "has_federative_license", False)))
+    a_prueba = total - fichados
+    try:
+        injured_ids = set(get_active_injury_player_ids([int(p.id) for p in players]))
+    except Exception:
+        injured_ids = set()
+    lesionados = sum(1 for p in players if int(p.id) in injured_ids)
+    fichas_disponibles = max(0, _FEDERATIVE_LICENSE_CAP - fichados)
+    have = {key: 0 for key, _label, _min in _SQUAD_MIN_REQUIREMENTS}
+    sin_posicion = 0
+    for p in players:
+        req = _squad_requirement_key(getattr(p, "position", "") or getattr(p, "preferred_position", ""))
+        if req and req in have:
+            have[req] += 1
+        else:
+            sin_posicion += 1
+    coverage = []
+    faltantes = []
+    for key, label, minimum in _SQUAD_MIN_REQUIREMENTS:
+        h = int(have.get(key, 0))
+        missing = max(0, int(minimum) - h)
+        coverage.append({"code": key, "label": label, "min": int(minimum), "have": h, "missing": missing})
+        if missing:
+            faltantes.append({"code": key, "label": label, "missing": missing})
+    return {
+        "cap": _FEDERATIVE_LICENSE_CAP,
+        "fichados": fichados,
+        "a_prueba": a_prueba,
+        "lesionados": lesionados,
+        "fichas_disponibles": fichas_disponibles,
+        "total_activos": total,
+        "coverage": coverage,
+        "faltantes": faltantes,
+        "sin_posicion": sin_posicion,
+        "cubierta": len(faltantes) == 0,
+    }
+
+
 def _build_coach_decision_dashboard(*, primary_team, active_club_season, players, memberships, active_injury_ids=None):
     """Arma el dashboard de decisión de pretemporada: una fila por jugador con
     su estado, su valoración (última PlayerEvaluation cerrada) y la decisión
@@ -21197,6 +21286,10 @@ def coach_overview_page(request):
         )
     except Exception:
         coach_decision_dashboard = {"rows": [], "counts": {"pending": 0, "confirmed": 0, "discarded": 0, "injured": 0, "total": 0}}
+    try:
+        federative_report = _build_federative_squad_report(request, primary_team)
+    except Exception:
+        federative_report = None
     module_hub = [
         {
             "title": "Partido",
@@ -21276,6 +21369,7 @@ def coach_overview_page(request):
             "can_access_platform": can_access_platform,
             "coach_pitch_players": coach_pitch_players,
             "coach_decision_dashboard": coach_decision_dashboard,
+            "federative_report": federative_report,
             "standings_diag": standings_diag,
             "standings_season_label": standings_season_label,
         },
@@ -36151,6 +36245,8 @@ def coach_roster_page(request):
         number_raw = (request.POST.get("number") or "").strip()
         position = (request.POST.get("position") or "").strip()
         is_active = (request.POST.get("is_active") or "1").strip() in {"1", "true", "on", "yes"}
+        federative_present = bool(request.POST.get("federative_present"))
+        federative_license = str(request.POST.get("has_federative_license") or "").strip().lower() in {"1", "true", "on", "yes"}
         if dominant_foot and dominant_foot not in {"right", "left", "both"}:
             dominant_foot = ""
 
@@ -36201,6 +36297,11 @@ def coach_roster_page(request):
             if weight is not None and player.weight_kg != weight:
                 player.weight_kg = weight
                 updates.append("weight_kg")
+            # Ficha federativa: solo si el formulario la incluía (marca oculta), para no borrarla
+            # al guardar desde formularios que no muestran la casilla.
+            if federative_present and bool(getattr(player, "has_federative_license", False)) != federative_license:
+                player.has_federative_license = federative_license
+                updates.append("has_federative_license")
             return updates
 
         try:
@@ -36246,6 +36347,19 @@ def coach_roster_page(request):
                         update_fields=["is_confirmed", "confirmed_at", "confirmed_by", "status", "updated_at"]
                     )
                     message = "Jugador marcado como pendiente para la temporada."
+            elif action == "toggle_federative":
+                if not player_id:
+                    raise ValueError("Jugador no válido.")
+                player = Player.objects.filter(id=player_id, team=primary_team).first()
+                if not player:
+                    raise ValueError("Jugador no encontrado.")
+                player.has_federative_license = not bool(getattr(player, "has_federative_license", False))
+                player.save(update_fields=["has_federative_license"])
+                message = (
+                    f"{player.name}: ficha federativa marcada."
+                    if player.has_federative_license
+                    else f"{player.name}: ficha federativa quitada."
+                )
             elif action == "deactivate":
                 if active_club_season and not active_club_season_is_current:
                     raise ValueError("Solo se puede desactivar desde la temporada activa.")
@@ -36497,6 +36611,7 @@ def coach_roster_page(request):
                         number=number,
                         position=position[:60],
                         is_active=is_active,
+                        has_federative_license=(federative_license if federative_present else False),
                     )
                     ensure_workspace_player(workspace, target_player, current_team=primary_team, is_active=is_active)
                     message = f"Jugador añadido: {name}."

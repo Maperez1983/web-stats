@@ -1215,6 +1215,11 @@
                     <option value="0">Inactivo</option>
                   </select>
                 </label>
+                <label style="display:flex;align-items:center;gap:0.4rem;">
+                  <input type="hidden" name="federative_present" value="1" />
+                  <input type="checkbox" name="has_federative_license" value="1" />
+                  Ficha federativa
+                </label>
                 <button class="primary" type="submit">Añadir al equipo</button>
               </form>
             </section>
@@ -1289,6 +1294,11 @@
                     <option value="0">Inactivo</option>
                   </select>
                 </label>
+                <label style="display:flex;align-items:center;gap:0.4rem;">
+                  <input type="hidden" name="federative_present" value="1" />
+                  <input type="checkbox" name="has_federative_license" value="1" />
+                  Ficha federativa
+                </label>
                 <div class="span-4">
                   <button class="primary" type="submit">Guardar jugador</button>
                 </div>
@@ -1308,6 +1318,7 @@
               <th>Posición</th>
               <th>Edad</th>
               <th>Estado</th>
+              <th>Ficha fed.</th>
               <th>Temporada</th>
               <th>Acción</th>
             </tr>
@@ -1324,6 +1335,22 @@
                 <span class="badge ok">Activo</span>
                 {% else %}
                 <span class="badge off">Inactivo</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if can_edit %}
+                <form method="post" style="margin:0;">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="toggle_federative" />
+                  <input type="hidden" name="player_id" value="{{ player.id }}" />
+                  {% if player.has_federative_license %}
+                    <button class="inline-ok" type="submit" title="Con ficha federativa (clic para quitar)">✔ Federado</button>
+                  {% else %}
+                    <button class="inline-ghost" type="submit" title="Sin ficha federativa (clic para marcar)">Marcar</button>
+                  {% endif %}
+                </form>
+                {% else %}
+                  {% if player.has_federative_license %}<span class="badge ok">Federado</span>{% else %}<span class="badge off">—</span>{% endif %}
                 {% endif %}
               </td>
               <td>

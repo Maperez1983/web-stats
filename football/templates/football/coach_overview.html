@@ -742,6 +742,43 @@
 
         {% include 'football/_coach_pitch_board.html' %}
 
+        {% if federative_report %}
+        <section class="card" aria-label="Fichas y cobertura de plantilla" style="margin-top:1rem;">
+          <h2 style="margin:0 0 0.6rem;font-size:1.05rem;">Fichas y cobertura de plantilla</h2>
+          <div style="display:flex;flex-wrap:wrap;gap:0.6rem;margin-bottom:0.8rem;">
+            <div style="flex:1 1 120px;min-width:120px;border:1px solid rgba(120,200,140,0.35);background:rgba(60,180,100,0.10);border-radius:10px;padding:0.6rem 0.8rem;">
+              <div style="font-size:1.5rem;font-weight:800;line-height:1;">{{ federative_report.fichados }}</div>
+              <div style="font-size:0.78rem;opacity:0.8;">Fichados</div>
+            </div>
+            <div style="flex:1 1 120px;min-width:120px;border:1px solid rgba(240,200,90,0.4);background:rgba(240,200,90,0.10);border-radius:10px;padding:0.6rem 0.8rem;">
+              <div style="font-size:1.5rem;font-weight:800;line-height:1;">{{ federative_report.a_prueba }}</div>
+              <div style="font-size:0.78rem;opacity:0.8;">A prueba</div>
+            </div>
+            <div style="flex:1 1 120px;min-width:120px;border:1px solid rgba(240,120,120,0.4);background:rgba(240,120,120,0.10);border-radius:10px;padding:0.6rem 0.8rem;">
+              <div style="font-size:1.5rem;font-weight:800;line-height:1;">{{ federative_report.lesionados }}</div>
+              <div style="font-size:0.78rem;opacity:0.8;">Lesionados</div>
+            </div>
+            <div style="flex:1 1 140px;min-width:140px;border:1px solid rgba(120,160,240,0.4);background:rgba(120,160,240,0.10);border-radius:10px;padding:0.6rem 0.8rem;">
+              <div style="font-size:1.5rem;font-weight:800;line-height:1;">{{ federative_report.fichas_disponibles }}<span style="font-size:0.9rem;opacity:0.6;"> / {{ federative_report.cap }}</span></div>
+              <div style="font-size:0.78rem;opacity:0.8;">Fichas disponibles</div>
+            </div>
+          </div>
+          {% if federative_report.cubierta %}
+            <p style="margin:0;color:#7bd88f;font-weight:600;">✓ Todos los puestos cubiertos (mínimos alcanzados).</p>
+          {% else %}
+            <p style="margin:0 0 0.4rem;font-weight:600;">Puestos por cubrir:</p>
+            <ul style="margin:0;padding-left:1.1rem;line-height:1.6;">
+              {% for f in federative_report.faltantes %}
+                <li>{{ f.label }}: faltan <strong>{{ f.missing }}</strong> <span style="opacity:0.65;">({{ f.code }})</span></li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+          {% if federative_report.sin_posicion %}
+            <p style="margin:0.5rem 0 0;font-size:0.8rem;opacity:0.7;">{{ federative_report.sin_posicion }} jugador(es) sin posición reconocida (no cuentan para la cobertura).</p>
+          {% endif %}
+        </section>
+        {% endif %}
+
         {% include 'football/_coach_decision_dashboard.html' %}
 
       </article>
