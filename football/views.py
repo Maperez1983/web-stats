@@ -6863,7 +6863,7 @@ def _competition_payload_for_team(workspace, primary_team, *, allow_auto_sync: b
         else []
     )
     next_match_payload = {}
-    if primary_team and getattr(primary_team, "group", None):
+    if primary_team:
         next_match_payload = (
             load_preferred_next_match_payload(primary_team=primary_team, competition_context=context)
             or load_preferred_next_match_payload(primary_team=primary_team)
@@ -20880,7 +20880,7 @@ def coach_overview_page(request):
         or load_preferred_next_match_payload(primary_team=primary_team)
         or (
             get_next_match(primary_team, primary_team.group, allow_external_fetch=False)
-            if primary_team and primary_team.group
+            if primary_team
             else {}
         )
         or {}
@@ -23405,7 +23405,7 @@ def finalize_match_actions(request):
             if record:
                 try:
                     record.captain_id = int(captain_id)
-                    record.save(update_fields=["captain", "updated_at"])
+                    record.save(update_fields=["captain"])
                 except Exception:
                     try:
                         record.save(update_fields=["captain"])
@@ -23451,7 +23451,7 @@ def finalize_match_actions(request):
         if record and bool(getattr(record, "is_current", False)):
             try:
                 record.is_current = False
-                record.save(update_fields=["is_current", "updated_at"])
+                record.save(update_fields=["is_current"])
             except Exception:
                 try:
                     record.save(update_fields=["is_current"])
@@ -23660,8 +23660,6 @@ def reset_match_action_register(request):
     )
 
 
-@login_required
-@pdf_view_guard
 @login_required
 @pdf_view_guard
 def match_report_pdf(request):
@@ -28179,7 +28177,7 @@ def convocation_page(request):
             goalkeeper_id = int(convocation_record.goalkeeper_id)
 
     next_match_payload = load_preferred_next_match_payload(primary_team=primary_team)
-    if not next_match_payload and primary_team.group:
+    if not next_match_payload and primary_team:
         next_match_payload = get_next_match(primary_team, primary_team.group, allow_external_fetch=False)
     if isinstance(next_match_payload, dict) and str(next_match_payload.get("status") or "").lower() != "next":
         next_match_payload = None
@@ -78423,8 +78421,14 @@ def match_hub_page(request):
     )
     active_match = _resolve_active_match_for_flow(request, primary_team)
     if match_selected_season and active_match and getattr(active_match, "date", None):
-        if (match_season_start and active_match.date < match_season_start) or (
-            match_season_end and active_match.date > match_season_end
+        # Un partido ya asignado a la temporada seleccionada es válido aunque su fecha sea
+        # futura (el fin de la temporada activa sin end_date se recorta a hoy). El filtro por
+        # fechas solo se aplica a partidos SIN club_season de esa temporada (legacy).
+        _match_cs_id = getattr(active_match, "club_season_id", None)
+        _in_selected_season = _match_cs_id is not None and _match_cs_id == getattr(match_selected_season, "id", None)
+        if not _in_selected_season and (
+            (match_season_start and active_match.date < match_season_start)
+            or (match_season_end and active_match.date > match_season_end)
         ):
             active_match = None
     convocation_record = None
