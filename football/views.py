@@ -21057,6 +21057,12 @@ def coach_overview_page(request):
             "icon": "training",
         },
         {
+            "title": "Informes",
+            "description": "PDF: jugador, líneas y dirección",
+            "url": reverse("reports-hub"),
+            "icon": "agenda",
+        },
+        {
             "title": "Configuración",
             "description": "Staff, módulos y ajustes del club",
             "url": reverse("club-onboarding"),
