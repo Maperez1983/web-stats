@@ -843,6 +843,10 @@
             <select id="posFilter" aria-label="Filtrar por posición">
               <option value="">Todas las posiciones</option>
             </select>
+            <div class="pc-view-toggle" role="group" aria-label="Vista">
+              <button type="button" class="pc-view-btn is-active" data-pc-view="cards">Cards</button>
+              <button type="button" class="pc-view-btn" data-pc-view="table">Tabla</button>
+            </div>
           </div>
 
           <div class="grid" id="playersGrid">
@@ -1011,6 +1015,51 @@
               </article>
             {% endfor %}
           </div>
+          <table id="playersTable" class="pc-table" hidden>
+            <thead><tr><th>#</th><th>Jugador</th><th>Pos</th><th>Nota</th><th>PJ</th><th>Min</th><th>G</th><th>A</th><th>INF</th><th>IMP</th></tr></thead>
+            <tbody>
+              {% for card in player_cards %}
+              <tr data-player-name="{{ card.name|display_text|lower }} {{ card.nickname|default:''|display_text|lower }}" data-player-pos="{{ card.position|default:''|upper }}">
+                <td class="pc-num">{{ card.number|default:'—' }}</td>
+                <td class="pc-nm"><a href="{% url 'player-detail' player_id=card.player_id %}{{ active_team_query|default:'' }}">{{ card.nickname|default:card.name|display_text }}</a></td>
+                <td>{{ card.profile_label|default:card.position|default:'-'|display_position }}</td>
+                <td><strong>{{ card.staff_rating_display|default:'--' }}</strong></td>
+                <td>{{ card.pj|default:0 }}</td>
+                <td>{{ card.minutes|default:0 }}</td>
+                <td>{{ card.goals|default:0 }}</td>
+                <td>{{ card.assists|default:0 }}</td>
+                <td>{{ card.influence_score|default:0|floatformat:0 }}</td>
+                <td>{{ card.importance_score|default:0|floatformat:0 }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <style>
+            .pc-view-toggle { display:inline-flex; border:1px solid rgba(255,255,255,0.14); border-radius:999px; overflow:hidden; }
+            .pc-view-btn { border:0; background:transparent; color:var(--prod-muted,#94a3b8); padding:0.4rem 0.85rem; font-size:0.74rem; font-weight:800; letter-spacing:0.04em; text-transform:uppercase; cursor:pointer; }
+            .pc-view-btn.is-active { background:rgba(244,180,0,0.16); color:var(--accent,#f4b400); }
+            .pc-table[hidden] { display:none; }
+            .pc-table { width:100%; border-collapse:collapse; margin-top:0.5rem; font-size:0.86rem; }
+            .pc-table th, .pc-table td { padding:0.5rem 0.6rem; text-align:center; border-bottom:1px solid rgba(144,161,185,0.14); white-space:nowrap; }
+            .pc-table th { font-size:0.68rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--prod-muted,#94a3b8); }
+            .pc-table .pc-nm { text-align:left; }
+            .pc-table .pc-nm a { color:var(--prod-text,#e5e7eb); text-decoration:none; font-weight:700; }
+            .pc-table tbody tr:hover { background:rgba(255,255,255,0.04); }
+          </style>
+          <script>
+            (function(){
+              var toggle=document.querySelector('.pc-view-toggle');
+              var grid=document.getElementById('playersGrid');
+              var table=document.getElementById('playersTable');
+              if(!toggle||!grid||!table) return;
+              function apply(v){ var t=v==='table'; grid.hidden=t; table.hidden=!t;
+                toggle.querySelectorAll('.pc-view-btn').forEach(function(b){ b.classList.toggle('is-active', b.getAttribute('data-pc-view')===v); });
+                try{ localStorage.setItem('pc-view', v); }catch(e){} }
+              toggle.querySelectorAll('.pc-view-btn').forEach(function(b){ b.addEventListener('click', function(){ apply(b.getAttribute('data-pc-view')); }); });
+              var saved='cards'; try{ saved=localStorage.getItem('pc-view')||'cards'; }catch(e){}
+              apply(saved);
+            })();
+          </script>
           <script>
             (function() {
               const sel = document.getElementById('scopeSelect');
@@ -1050,7 +1099,7 @@
             (function() {
               const searchInput = document.getElementById('playerSearch');
               const posFilter = document.getElementById('posFilter');
-              const cards = Array.from(document.querySelectorAll('#playersGrid .card'));
+              const cards = Array.from(document.querySelectorAll('#playersGrid .card, #playersTable tbody tr'));
               if (!cards.length) return;
               if (posFilter) {
                 const positions = Array.from(new Set(cards.map((c) => (c.dataset.playerPos || '').trim()).filter(Boolean))).sort();
