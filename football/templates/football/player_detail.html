@@ -1310,49 +1310,7 @@
       </div>
       {% endif %}
 
-      {% if work_focus %}
-      <section class="card" aria-label="Objetivos de trabajo" style="margin-top:1rem;border:1px solid rgba(56,189,248,0.28);">
-        <h2 style="margin:0 0 0.2rem;">Objetivos de trabajo</h2>
-        <p class="subtle" style="margin:0 0 0.7rem;">De la última evaluación{% if work_focus.evaluated_on %} · {{ work_focus.evaluated_on|date:"d/m/Y" }}{% endif %} · <a href="{% url 'player-detail' player.id %}?tab=evaluations">ver valoración</a></p>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0.7rem;">
-          {% if work_focus.objectives %}
-          <div style="border-left:3px solid rgba(56,189,248,0.6);padding:0.2rem 0 0.2rem 0.7rem;">
-            <span class="subtle" style="text-transform:uppercase;letter-spacing:0.08em;font-size:0.7rem;">Objetivos próximos</span>
-            <p style="margin:0.2rem 0 0;">{{ work_focus.objectives|linebreaksbr }}</p>
-          </div>
-          {% endif %}
-          {% if work_focus.improvements %}
-          <div style="border-left:3px solid rgba(248,180,90,0.6);padding:0.2rem 0 0.2rem 0.7rem;">
-            <span class="subtle" style="text-transform:uppercase;letter-spacing:0.08em;font-size:0.7rem;">A mejorar</span>
-            <p style="margin:0.2rem 0 0;">{{ work_focus.improvements|linebreaksbr }}</p>
-          </div>
-          {% endif %}
-          {% if work_focus.strengths %}
-          <div style="border-left:3px solid rgba(34,197,94,0.55);padding:0.2rem 0 0.2rem 0.7rem;">
-            <span class="subtle" style="text-transform:uppercase;letter-spacing:0.08em;font-size:0.7rem;">Fortalezas</span>
-            <p style="margin:0.2rem 0 0;">{{ work_focus.strengths|linebreaksbr }}</p>
-          </div>
-          {% endif %}
-        </div>
-      </section>
-      {% endif %}
 
-      {% if minutes_load %}
-      <section class="card" aria-label="Minutos de temporada" style="margin-top:1rem;">
-        <h2 style="margin:0 0 0.5rem;">Minutos de temporada</h2>
-        <div class="stat-grid">
-          <div class="stat-card"><span class="stat-label">Minutos</span><strong class="stat-value">{{ minutes_load.minutes }}′</strong></div>
-          <div class="stat-card"><span class="stat-label">Partidos</span><strong class="stat-value">{{ minutes_load.pj }}</strong></div>
-          <div class="stat-card"><span class="stat-label">Titular</span><strong class="stat-value">{{ minutes_load.starts }}</strong><span class="stat-sub">{{ minutes_load.starter_pct }}%</span></div>
-          <div class="stat-card"><span class="stat-label">Media/partido</span><strong class="stat-value">{{ minutes_load.avg_per_match }}′</strong></div>
-          <div class="stat-card"><span class="stat-label">Próximo partido</span>
-            {% if has_active_injury %}<strong class="stat-value" style="font-size:1rem;color:#ef4444;">Baja (lesión)</strong>
-            {% elif has_manual_sanction %}<strong class="stat-value" style="font-size:1rem;color:#ef4444;">Baja (sanción)</strong>
-            {% else %}<strong class="stat-value" style="font-size:1rem;color:#22c55e;">Disponible</strong>{% endif %}
-          </div>
-        </div>
-      </section>
-      {% endif %}
 
       <div class="tabs" role="tablist">
         <button class="tab-btn" data-tab="stats" role="tab">Rendimiento</button>
@@ -2377,6 +2335,23 @@
 
       <section class="card tab-pane" data-pane="stats">
         <h2 style="margin-top:0;">Estadísticas y KPI mapa</h2>
+
+      {% if minutes_load %}
+      <section class="card" aria-label="Minutos de temporada" style="margin-top:1rem;">
+        <h2 style="margin:0 0 0.5rem;">Minutos de temporada</h2>
+        <div class="stat-grid">
+          <div class="stat-card"><span class="stat-label">Minutos</span><strong class="stat-value">{{ minutes_load.minutes }}′</strong></div>
+          <div class="stat-card"><span class="stat-label">Partidos</span><strong class="stat-value">{{ minutes_load.pj }}</strong></div>
+          <div class="stat-card"><span class="stat-label">Titular</span><strong class="stat-value">{{ minutes_load.starts }}</strong><span class="stat-sub">{{ minutes_load.starter_pct }}%</span></div>
+          <div class="stat-card"><span class="stat-label">Media/partido</span><strong class="stat-value">{{ minutes_load.avg_per_match }}′</strong></div>
+          <div class="stat-card"><span class="stat-label">Próximo partido</span>
+            {% if has_active_injury %}<strong class="stat-value" style="font-size:1rem;color:#ef4444;">Baja (lesión)</strong>
+            {% elif has_manual_sanction %}<strong class="stat-value" style="font-size:1rem;color:#ef4444;">Baja (sanción)</strong>
+            {% else %}<strong class="stat-value" style="font-size:1rem;color:#22c55e;">Disponible</strong>{% endif %}
+          </div>
+        </div>
+      </section>
+      {% endif %}
 
         {% if season_minutes_load %}
         <div style="border:1px solid var(--prod-line, rgba(144,161,185,0.28));border-radius:0.95rem;padding:0.9rem 1rem;margin-bottom:1rem;background:rgba(2,6,23,0.06);">
