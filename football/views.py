@@ -8147,10 +8147,12 @@ def _operational_roster_players_for_team(request, team, *, season=None, confirme
             selected_season = None
     if selected_season and bool(getattr(selected_season, "is_active", False)):
         if include_all_active:
-            # "Todos los activos" (p.ej. convocatoria de amistoso): la plantilla activa completa del
-            # equipo, incluidos los jugadores "a prueba" aún sin confirmar en la temporada. Solo se
-            # excluye a quienes han causado baja en la temporada (No continúa / Inactivo).
-            excluded_ids = set(
+            # "Todos los activos" (p.ej. convocatoria de amistoso): la UNIÓN de la plantilla activa
+            # (Player.is_active) y de los inscritos en la temporada que no son baja, para incluir tanto
+            # a los "a prueba" aún sin confirmar (activos sin alta confirmada, p.ej. Andrews) como a los
+            # confirmados que puedan tener is_active=False. Solo se excluye a quien ha causado baja en la
+            # temporada (No continúa / Inactivo). Así el amistoso nunca muestra menos que el oficial.
+            baja_ids = set(
                 WorkspaceSeasonPlayer.objects.filter(
                     season=selected_season,
                     team=team,
@@ -8160,9 +8162,23 @@ def _operational_roster_players_for_team(request, team, *, season=None, confirme
                     ],
                 ).values_list("player_id", flat=True)
             )
-            qs = Player.objects.filter(team=team, is_active=True).order_by("number", "name", "id")
-            if excluded_ids:
-                qs = qs.exclude(id__in=excluded_ids)
+            member_ids = set(
+                WorkspaceSeasonPlayer.objects.filter(season=selected_season, team=team)
+                .exclude(
+                    status__in=[
+                        WorkspaceSeasonPlayer.STATUS_LEFT,
+                        WorkspaceSeasonPlayer.STATUS_INACTIVE,
+                    ]
+                )
+                .values_list("player_id", flat=True)
+            )
+            qs = (
+                Player.objects.filter(team=team)
+                .filter(Q(is_active=True) | Q(id__in=member_ids))
+                .order_by("number", "name", "id")
+            )
+            if baja_ids:
+                qs = qs.exclude(id__in=baja_ids)
             return list(qs)
         memberships = _season_player_memberships_for_team(
             selected_season,
