@@ -485,6 +485,7 @@
               script.src = src;
               script.defer = true;
               script.dataset.webstatsPitch25dInjected = '1';
+              script.onload = () => { try { if (isReady()) finish(true); } catch (e) { /* ignore */ } };
               document.head.appendChild(script);
             }
           } catch (e) { /* ignore */ }
@@ -499,6 +500,10 @@
         });
         return __pitch25dRuntimePromise;
       };
+      // Perf/anti-flash: precargamos el runtime del cesped 2.5D DE INMEDIATO (no perezoso) para que
+      // WebstatsPitch25D este listo cuando se pinta el cesped por primera vez. Antes se inyectaba solo
+      // al primer buildPitchSvg y, mientras cargaba, se veia el fallback plano (el barrido/flash).
+      try { ensurePitch25dRuntime(); } catch (e) { /* preload best-effort */ }
 
       const buildEmergencyPitchSvg = (orientationKey = 'landscape') => {
         const portrait = safeText(orientationKey, 'landscape') === 'portrait';
