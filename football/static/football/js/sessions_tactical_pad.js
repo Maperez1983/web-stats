@@ -40999,13 +40999,27 @@
 			        }
 			        // Enviar preview HD al guardar (se usa también en la card y en el PDF).
 			        // Usamos PNG para evitar artefactos en líneas/flechas dentro del PDF.
-			        await syncHiddenBuilderFields({
-			          previewOptions: { maxSide: 6144, mime: 'image/png', quality: 0.98 },
-			          applyLivePreview: false,
-			        });
+			        // El guardado NUNCA debe depender de que el render del preview termine.
+			        // En equipos lentos o con canvas pesado (muchos avatares) el render de 6144px
+			        // podia colgarse/lanzar error y dejaba el guardado bloqueado en silencio
+			        // (boton deshabilitado, sin POST, sin aviso). Timeout + continuar siempre.
+			        try {
+			          await Promise.race([
+			            syncHiddenBuilderFields({
+			              previewOptions: { maxSide: 6144, mime: 'image/png', quality: 0.98 },
+			              applyLivePreview: false,
+			            }),
+			            new Promise((resolve) => { try { setTimeout(resolve, 12000); } catch (e) { resolve(); } }),
+			          ]);
+			        } catch (previewError) {
+			          try { setStatus('Guardando la tarea (sin vista previa HD)...', false); } catch (e) { /* ignore */ }
+			        }
 			        form.dataset.previewReady = '1';
 			        form.requestSubmit();
 			      } catch (error) {
+			        // Nunca dejar el guardado bloqueado: intentar enviar igualmente.
+			        try { setStatus('Reintentando guardar...', true); } catch (e) { /* ignore */ }
+			        try { form.dataset.previewReady = '1'; form.requestSubmit(); return; } catch (e2) { /* ignore */ }
 			        resetSubmitState();
 			      }
 			    });
