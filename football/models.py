@@ -1152,7 +1152,7 @@ class Player(models.Model):
     # recolorea en la app sobre la figura base usando las máscaras de piel/pelo.
     skin_grade = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Grado de piel 1 (muy clara) a 6 (muy oscura) para el avatar.')
     hair_color = models.CharField(max_length=16, blank=True, help_text='Color de pelo del avatar en hex (ej. #4a2d1a).')
-    HAIRSTYLE_CHOICES = [('corto', 'Corto'), ('medio', 'Medio'), ('rizado', 'Rizado')]
+    HAIRSTYLE_CHOICES = [('corto', 'Corto'), ('medio', 'Medio'), ('rizado', 'Rizado'), ('largo', 'Largo')]
     hairstyle = models.CharField(max_length=16, blank=True, choices=HAIRSTYLE_CHOICES, help_text='Forma del peinado del avatar (corto/medio/rizado).')
     # Avatar final generado OFFLINE (face-swap con la foto + peinado + color + altura). Se cachea como
     # imagen y avatar_source_key guarda el hash de las entradas para regenerar solo si cambian.

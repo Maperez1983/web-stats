@@ -22,7 +22,7 @@ from django.core.management.base import BaseCommand
 
 from football.models import Player
 
-STYLE_OVERLAYS = {"medio": "medio.png", "rizado": "rizado.png"}  # 'corto'/'' = pelo base
+STYLE_OVERLAYS = {"medio": "medio.png", "rizado": "rizado.png", "largo": "largo.png"}  # 'corto'/'' = pelo base
 
 
 def _asset(*parts):

@@ -71157,7 +71157,7 @@ def player_detail_page(request, player_id):
                     _hair if (len(_hair) == 7 and _hair[0] == "#" and all(c in "0123456789abcdef" for c in _hair[1:])) else ""
                 )
                 _style = str(request.POST.get("hairstyle", "") or "").strip().lower()
-                player.hairstyle = _style if _style in {"corto", "medio", "rizado"} else ""
+                player.hairstyle = _style if _style in {"corto", "medio", "rizado", "largo"} else ""
                 player.full_name = request.POST.get("full_name", "").strip()
                 player.nickname = request.POST.get("nickname", "").strip()
                 player.preferente_profile_url = (request.POST.get("preferente_profile_url", "") or "").strip()
