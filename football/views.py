@@ -71797,6 +71797,13 @@ def player_detail_page(request, player_id):
         if not has_active_injury and latest_injury_record:
             has_active_injury = is_injury_record_active(latest_injury_record)
         has_manual_sanction = is_manual_sanction_active(player)
+        # Lesión que permite entrenar (blocks_training=False): se muestra distinto (no igual de grave
+        # que una lesión que impide entrenar).
+        injury_allows_training = bool(
+            has_active_injury
+            and latest_injury_record is not None
+            and not bool(getattr(latest_injury_record, "blocks_training", False))
+        )
         player_photo_url = resolve_player_photo_url(request, player)
         player_license_url = resolve_player_license_url(request, player)
         try:
@@ -72497,6 +72504,7 @@ def player_detail_page(request, player_id):
                 "injury_records": injury_records,
                 "latest_injury_record": latest_injury_record,
                 "has_active_injury": has_active_injury,
+                "injury_allows_training": injury_allows_training,
                 "has_manual_sanction": has_manual_sanction,
                 "is_called_up": is_called_up,
                 "current_convocation": current_convocation,

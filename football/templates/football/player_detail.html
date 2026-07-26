@@ -142,6 +142,13 @@
         border-color: rgba(244, 180, 0, 0.34);
         background: rgba(244, 180, 0, 0.08);
       }
+      .decision-card.is-danger {
+        border-color: rgba(239, 68, 68, 0.42);
+        background: rgba(239, 68, 68, 0.08);
+      }
+      .injury-cross { font-weight: 900; margin-right: 0.15rem; }
+      .injury-cross.blocks { color: #ef4444; }
+      .injury-cross.trainable { color: #f5b301; }
       .decision-card .label {
         display: block;
         margin: 0;
@@ -1173,11 +1180,11 @@
 
       {% with latest_comm=communications|first latest_eval=evaluation_summary.latest next_session=upcoming_sessions|first %}
       <div class="decision-board" aria-label="Resumen rápido del jugador">
-        <article class="decision-card {% if has_active_injury or has_manual_sanction %}is-accent{% endif %}">
+        <article class="decision-card {% if has_active_injury and not injury_allows_training %}is-danger{% elif has_active_injury or has_manual_sanction %}is-accent{% endif %}">
           <span class="label">Estado</span>
           <div class="value">
             {% if has_active_injury %}
-              Lesionado
+              {% if injury_allows_training %}<span class="injury-cross trainable">✚</span>Lesionado · apto entreno{% else %}<span class="injury-cross blocks">✚</span>Lesionado{% endif %}
             {% elif has_manual_sanction %}
               Sancionado
             {% elif is_called_up %}
@@ -1612,11 +1619,11 @@
               {% endif %}
             </div>
           </article>
-          <article class="decision-card">
+          <article class="decision-card {% if has_active_injury and not injury_allows_training %}is-danger{% elif has_active_injury or has_manual_sanction %}is-accent{% endif %}">
             <span class="label">Estado operativo</span>
             <div class="value">
               {% if has_active_injury %}
-                Lesionado
+                {% if injury_allows_training %}<span class="injury-cross trainable">✚</span>Lesionado · apto entreno{% else %}<span class="injury-cross blocks">✚</span>Lesionado{% endif %}
               {% elif has_manual_sanction %}
                 Sancionado
               {% else %}
