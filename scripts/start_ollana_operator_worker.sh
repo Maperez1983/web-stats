@@ -78,6 +78,28 @@ if [ "${force_flag}" = "true" ] || [ "${force_flag}" = "1" ] || [ "${force_flag}
   force_args+=(--force)
 fi
 
+# --- Autogeneración de avatares en 2º plano (reusa este worker; sin servicio/cron nuevo) ---
+# Corre generate_player_avatars cada AVATAR_AUTOGEN_INTERVAL_SECONDS. Es INCREMENTAL: si no
+# cambió nada, sale enseguida y consume poco. Guardado con salvaguardas para no tumbar al operador:
+#   - solo si AVATAR_AUTOGEN_ENABLED=true y el modelo está presente,
+#   - toda la generación va con `|| true` (un fallo/OOM del batch no mata el operador),
+#   - primera pasada tras 120s (deja arrancar al operador antes).
+avatar_flag="$(echo "${AVATAR_AUTOGEN_ENABLED:-false}" | tr '[:upper:]' '[:lower:]' | xargs)"
+avatar_model="${AVATAR_INSWAPPER:-/opt/render/project/src/vendor/inswapper_128.onnx}"
+if { [ "${avatar_flag}" = "true" ] || [ "${avatar_flag}" = "1" ] || [ "${avatar_flag}" = "yes" ]; } && [ -f "${avatar_model}" ]; then
+  (
+    sleep 120
+    while true; do
+      echo "[avatars] pasada de generación ($(date -u))" >&2
+      python manage.py generate_player_avatars --all || echo "[avatars] la pasada falló; sigo" >&2
+      sleep "${AVATAR_AUTOGEN_INTERVAL_SECONDS:-86400}"
+    done
+  ) &
+  echo "[avatars] autogeneración activada (cada ${AVATAR_AUTOGEN_INTERVAL_SECONDS:-86400}s)" >&2
+else
+  echo "[avatars] autogeneración desactivada (AVATAR_AUTOGEN_ENABLED=${AVATAR_AUTOGEN_ENABLED:-false}, modelo=${avatar_model})" >&2
+fi
+
 exec python manage.py run_ollana_operator \
   --workspace-id "${OLLANA_OPERATOR_WORKSPACE_ID}" \
   --actor-id "${OLLANA_OPERATOR_ACTOR_ID}" \

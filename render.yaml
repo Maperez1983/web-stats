@@ -111,20 +111,15 @@ services:
       - key: DEBUG
         value: "false"
 
-  # Cron: genera/actualiza los avatares de los jugadores sin intervención. Incremental
-  # (solo regenera lo que cambió por la huella), así que las pasadas diarias son baratas.
-  # Corre APARTE del web: instala insightface + baja el modelo de face-swap solo aquí.
-  # Horario UTC 03:30 diario (madrugada). Requiere las credenciales AWS/S3 y DATABASE_URL
-  # (mismos que el web) puestas en el dashboard de este servicio o vía env group.
-  # NOTA RAM: si da OOM en 'standard' (2 GB), sube este servicio a 'pro' (4 GB).
-  - type: cron
-    name: web-stats-generate-avatars
+  - type: worker
+    name: web-stats-ollana-operator
     runtime: python
     plan: standard
     branch: main
-    schedule: "30 3 * * *"
-    buildCommand: ./build.sh && pip install -r requirements-avatars.txt && bash scripts/fetch_avatar_model.sh
-    startCommand: python manage.py generate_player_avatars --all
+    # Instala también las deps de avatares y baja el modelo. NO fatal: si algo falla, el
+    # worker (operador) sigue arrancando igual; la autogeneración de avatares simplemente no corre.
+    buildCommand: ./build.sh && ( pip install -r requirements-avatars.txt && bash scripts/fetch_avatar_model.sh || echo "[avatars] setup opcional falló; el operador sigue" )
+    startCommand: ./scripts/start_ollana_operator_worker.sh
     autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
@@ -133,18 +128,17 @@ services:
         value: "1"
       - key: RUN_MIGRATIONS
         value: "false"
-      - key: RUN_COLLECTSTATIC
-        value: "false"
-      - key: INSTALL_OLLAMA
-        value: "false"
-      - key: INSTALL_PLAYWRIGHT_BROWSERS
-        value: "false"
-      - key: INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME
-        value: "false"
-      # Ruta local del modelo descargado en build.
+      # --- Autogeneración de avatares (reusa este worker; sin servicio nuevo) ---
+      # El worker corre generate_player_avatars en 2º plano cada AVATAR_AUTOGEN_INTERVAL_SECONDS
+      # (por defecto 24h). Incremental: normalmente no hay nada que hacer y sale rápido.
+      # Ponlo a "false" si en los logs ves OOM o interferencia con el operador.
+      - key: AVATAR_AUTOGEN_ENABLED
+        value: "true"
+      - key: AVATAR_AUTOGEN_INTERVAL_SECONDS
+        value: "86400"
       - key: AVATAR_INSWAPPER
         value: "/opt/render/project/src/vendor/inswapper_128.onnx"
-      # El avatar se guarda en el MISMO media que el web: S3 en producción.
+      # Guarda los avatares en el MISMO media que el web (S3 en producción).
       - key: USE_S3_MEDIA
         value: "true"
       - key: AWS_ACCESS_KEY_ID
@@ -155,28 +149,6 @@ services:
         sync: false
       - key: AWS_S3_REGION_NAME
         sync: false
-      - key: SECRET_KEY
-        sync: false
-      - key: DATABASE_URL
-        sync: false
-      - key: DEBUG
-        value: "false"
-
-  - type: worker
-    name: web-stats-ollana-operator
-    runtime: python
-    plan: standard
-    branch: main
-    buildCommand: ./build.sh
-    startCommand: ./scripts/start_ollana_operator_worker.sh
-    autoDeploy: true
-    envVars:
-      - key: PYTHON_VERSION
-        value: "3.11.9"
-      - key: PYTHONUNBUFFERED
-        value: "1"
-      - key: RUN_MIGRATIONS
-        value: "false"
       - key: OLLANA_OPERATOR_ENABLED
         value: "true"
       - key: OLLANA_OPERATOR_WORKSPACE_ID
