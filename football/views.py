@@ -77202,7 +77202,75 @@ def _player_evaluation_chart_context(evaluations):
                 ],
             }
         )
-    return {"trend_rows": trend_rows, "area_rows": area_rows}
+    # Radar (última evaluación) + línea de evolución de la nota Global: geometría lista para SVG.
+    _last_by_field = {r["field"]: r.get("last") for r in area_rows}
+    _radar_def = [
+        ("technical_rating", "Técnico"),
+        ("tactical_rating", "Táctico"),
+        ("physical_rating", "Físico"),
+        ("mental_rating", "Mental"),
+    ]
+    _cx, _cy, _R = 110.0, 110.0, 80.0
+    _axes, _poly = [], []
+    _n = len(_radar_def)
+    for _i, (_f, _lbl) in enumerate(_radar_def):
+        _ang = math.radians(-90.0 + _i * 360.0 / _n)
+        _v = _last_by_field.get(_f)
+        try:
+            _vv = float(_v) if _v is not None else 0.0
+        except (TypeError, ValueError):
+            _vv = 0.0
+        _rr = _R * max(0.0, min(_vv / 10.0, 1.0))
+        _cos, _sin = math.cos(_ang), math.sin(_ang)
+        _x, _y = _cx + _rr * _cos, _cy + _rr * _sin
+        _axes.append({
+            "label": _lbl,
+            "value": (round(_vv, 1) if _v is not None else None),
+            "x": round(_x, 1), "y": round(_y, 1),
+            "ax": round(_cx + _R * _cos, 1), "ay": round(_cy + _R * _sin, 1),
+            "lx": round(_cx + (_R + 18.0) * _cos, 1), "ly": round(_cy + (_R + 18.0) * _sin, 1),
+        })
+        _poly.append(f"{round(_x, 1)},{round(_y, 1)}")
+    radar = {
+        "cx": _cx, "cy": _cy, "R": _R,
+        "axes": _axes, "points": " ".join(_poly),
+        "rings": [round(_R * 0.33, 1), round(_R * 0.66, 1), round(_R, 1)],
+        "has_data": any(a["value"] is not None for a in _axes),
+    }
+    _ov = [
+        (row.get("label"), row.get("overall_rating"))
+        for row in trend_rows
+        if row.get("overall_rating") is not None
+    ]
+    evolution = None
+    if _ov:
+        _W, _H, _padL, _padR, _padT, _padB = 320.0, 140.0, 30.0, 12.0, 14.0, 26.0
+        _plot_w, _plot_h = _W - _padL - _padR, _H - _padT - _padB
+        _m = len(_ov)
+        _pts = []
+        for _i, (_lbl, _val) in enumerate(_ov):
+            _fx = (_i / (_m - 1)) if _m > 1 else 0.5
+            try:
+                _fy = max(0.0, min(float(_val) / 10.0, 1.0))
+            except (TypeError, ValueError):
+                _fy = 0.0
+            _yy = _padT + _plot_h * (1.0 - _fy)
+            _pts.append({
+                "x": round(_padL + _plot_w * _fx, 1),
+                "y": round(_yy, 1),
+                "ly": round(_yy - 8.0, 1),
+                "label": _lbl,
+                "value": round(float(_val), 1),
+            })
+        evolution = {
+            "w": _W, "h": _H,
+            "points": _pts,
+            "path": "M " + " L ".join(f"{_p['x']} {_p['y']}" for _p in _pts),
+            "grid": [round(_padT, 1), round(_padT + _plot_h * 0.5, 1), round(_padT + _plot_h, 1)],
+            "x0": _padL, "x1": round(_W - _padR, 1),
+            "single": _m == 1,
+        }
+    return {"trend_rows": trend_rows, "area_rows": area_rows, "radar": radar, "evolution": evolution}
 
 
 def compute_player_dashboard(
