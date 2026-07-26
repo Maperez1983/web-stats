@@ -1027,18 +1027,6 @@
         body.is-player-home #radar-trends,
         body.is-player-home .decision-board { display:none !important; }
 
-	      /* Player presentation mode (broadcast-like): hide chrome, focus on rendimiento. */
-	      body.is-player-present { padding: 0.8rem; }
-	      body.is-player-present .container { max-width: none; }
-	      body.is-player-present header,
-	      body.is-player-present .tabs,
-	      body.is-player-present .preview-banner { display: none !important; }
-	      body.is-player-present .card { margin-top: 0.6rem; }
-      body.is-player-present [data-pane="stats"] { display: block !important; }
-	      body.is-player-present .performance-map,
-	      body.is-player-present .performance-table { display: none !important; }
-	      body.is-player-present .performance-radar { padding: 0.95rem; border-radius: 1.05rem; }
-	      body.is-player-present .radar-figure svg { width: min(520px, 100%); }
 	    </style>
   </head>
   <body class="prod-commercial{% if is_player_readonly %} is-player-home{% endif %}">
@@ -3345,7 +3333,7 @@
         const tabAliases = {
           general: 'personal',
           performance: 'stats',
-          attributes: 'stats',
+          attributes: 'evaluations',
           communication: 'discipline',
           fines: 'discipline',
         };
@@ -3362,29 +3350,6 @@
         };
         buttons.forEach((btn) => btn.addEventListener('click', () => activate(btn.dataset.tab)));
 	        activate(buttons.some((b) => b.dataset.tab === fallbackTab) ? fallbackTab : 'stats');
-		      })();
-		    </script>
-		    <script>
-		      (function () {
-		        const btn = document.getElementById('playerPresentToggle');
-		        if (!btn) return;
-		        const key = 'player_detail:present:v1';
-		        const activatePerformance = () => {
-		          try {
-		            const perfBtn = document.querySelector('.tab-btn[data-tab="stats"]');
-		            if (perfBtn) perfBtn.click();
-		          } catch (e) {}
-		        };
-		        const apply = (on) => {
-		          document.body.classList.toggle('is-player-present', !!on);
-		          btn.textContent = on ? 'Salir' : 'Presentación';
-		          try { window.localStorage.setItem(key, on ? '1' : '0'); } catch (e) {}
-		          if (on) activatePerformance();
-		        };
-		        let initial = false;
-		        try { initial = window.localStorage.getItem(key) === '1'; } catch (e) {}
-		        apply(initial);
-		        btn.addEventListener('click', () => apply(!document.body.classList.contains('is-player-present')));
 		      })();
 		    </script>
 		    <script>

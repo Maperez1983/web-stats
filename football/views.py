@@ -70675,6 +70675,7 @@ def _persist_player_injury(
     blocks_training=False,
     is_recovered=False,
     training_status="",
+    preserve_clinical=False,
 ):
     injury_name = str(injury_name or "").strip()
     if not injury_name:
@@ -70711,18 +70712,21 @@ def _persist_player_injury(
         record.injury_type = str(injury_type or "").strip()
         record.injury_zone = str(injury_zone or "").strip()
         record.injury_side = str(injury_side or "").strip()
-        record.severity_grade = severity_grade
         record.injury_date = injury_date or record.injury_date
-        record.diagnosed_on = diagnosed_on
-        record.rehab_started_on = rehab_started_on
-        record.estimated_return_date = estimated_return_date
         record.return_date = injury_return_date or record.return_date
-        record.return_to_train_on = return_to_train_on
-        record.return_to_play_on = return_to_play_on
-        record.blocks_training = bool(blocks_training)
         record.is_recovered = bool(is_recovered)
-        record.training_status = str(training_status or "").strip()
         record.notes = str(injury_notes or "").strip()
+        # Campos clínicos: la edición rápida desde la ficha (formulario de perfil) NO los envía;
+        # con preserve_clinical NO se pisan, para no borrar lo introducido en el detalle de la lesión.
+        if not preserve_clinical:
+            record.severity_grade = severity_grade
+            record.diagnosed_on = diagnosed_on
+            record.rehab_started_on = rehab_started_on
+            record.estimated_return_date = estimated_return_date
+            record.return_to_train_on = return_to_train_on
+            record.return_to_play_on = return_to_play_on
+            record.blocks_training = bool(blocks_training)
+            record.training_status = str(training_status or "").strip()
         record.is_active = not record.is_recovered and (not record.return_date or record.return_date > timezone.localdate())
         record.save()
     else:
@@ -71370,6 +71374,7 @@ def player_detail_page(request, player_id):
                         injury_date=injury_date,
                         injury_return_date=injury_return_date,
                         injury_record_mode=injury_record_mode,
+                        preserve_clinical=True,
                     )
                 _invalidate_team_dashboard_caches(primary_team)
 
