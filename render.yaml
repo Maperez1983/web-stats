@@ -73,6 +73,10 @@ services:
       # Seguridad: desactiva fallback monoclub en producción si no lo necesitas.
       - key: ALLOW_SINGLE_CLUB_FALLBACK
         value: "false"
+      # Ollana: activa el razonamiento LLM dentro del ciclo proactivo del guard. Solo aquí
+      # (el web ya arranca Ollama); en el worker NO se pone, así que allí sigue sin LLM ni RAM extra.
+      - key: OLLANA_GUARD_LLM_ENABLED
+        value: "true"
   # Cron: refresca la clasificación/próximo rival de TODOS los clubes sin intervención.
   # Se despliega solo con la rama (autoDeploy). Horario en UTC: 06:00 y 20:00 a diario
   # (madrugada y tras la franja de partidos de fin de semana en España).

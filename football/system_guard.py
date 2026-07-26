@@ -432,6 +432,8 @@ OBJECTIVE_MEMORY_PREF_KEY = "system_guard:objective_memory:v1"
 OPERATOR_RUNTIME_PREF_KEY = "system_guard:operator_runtime:v1"
 OPERATOR_LEASE_PREF_KEY = "system_guard:operator_lease:v1"
 OPERATOR_CONTROL_PREF_KEY = "system_guard:operator_control:v1"
+OPERATOR_DIGEST_PREF_KEY = "system_guard:operator_digest:v1"
+OPERATOR_DIGEST_INTERVAL_SECONDS = 24 * 3600
 SCHEDULED_GUARD_INTERVAL_SECONDS = 300
 AUTONOMOUS_BACKLOG_MAX_TASKS = 3
 OPERATOR_LEASE_SECONDS = 240
@@ -3928,7 +3930,7 @@ def run_proactive_guard_cycle(*, workspace, actor_id=None, allow_safe_repairs: b
     report = run_system_guard(
         run_smoke=False,
         smoke_verbosity=1,
-        run_llm=False,
+        run_llm=_guard_llm_enabled(),
         auto_fix=False,
         page_context=page_context or {"page": "guard-proactive"},
         memory=_merge_memory(_load_memory(workspace), _load_memory_for_actor(workspace, actor_id=actor_id)),
@@ -3972,10 +3974,13 @@ def run_proactive_guard_cycle(*, workspace, actor_id=None, allow_safe_repairs: b
         "last_improvements": improvements[:6],
         "last_strategy_mode": str(strategy.get("mode") or "")[:64],
         "last_strategy_band": str(strategy.get("band") or "")[:24],
+        # Valoración del LLM (si está activado y disponible); si no, {available: False}.
+        "last_llm_assessment": _summarize_llm_review(report),
     }
     backlog_cycle = _run_autonomous_backlog_cycle(workspace=workspace, page_context=page_context, strategy=strategy)
     state_payload["last_backlog_executed_count"] = _safe_int(backlog_cycle.get("executed_count"), 0)
     _store_proactive_state(workspace, state_payload)
+    digest_result = _maybe_build_daily_digest(workspace)
     _append_audit_log(workspace, {
         "created_at": _now_iso(),
         "actor_id": int(actor_id or 0),
@@ -4000,6 +4005,7 @@ def run_proactive_guard_cycle(*, workspace, actor_id=None, allow_safe_repairs: b
         "queue_counts": _task_state_counts(queue_rows),
         "state": state_payload,
         "autonomous_backlog": backlog_cycle,
+        "digest": digest_result,
     }
 
 
@@ -4575,6 +4581,108 @@ def _store_proactive_state(workspace, payload: dict):
     if not workspace:
         return
     _store_pref_value(workspace, PROACTIVE_STATE_PREF_KEY, payload if isinstance(payload, dict) else {})
+
+
+def _guard_llm_enabled() -> bool:
+    """¿Activar el razonamiento LLM dentro del ciclo proactivo? (por defecto NO).
+    Donde no hay LLM local disponible (p. ej. el worker sin Ollama), run_system_guard sale
+    sin cargar nada, así que activarlo es seguro: solo actúa donde el modelo ya corre (web)."""
+    return str(os.getenv("OLLANA_GUARD_LLM_ENABLED", "") or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _summarize_llm_review(report: dict) -> dict:
+    """Extrae de forma DEFENSIVA (no asumimos el schema exacto del modelo) el review del LLM
+    para poder mostrarlo/registrarlo y meterlo en el digest."""
+    lr = report.get("llm_review") if isinstance(report.get("llm_review"), dict) else {}
+    review = lr.get("review") if isinstance(lr.get("review"), dict) else {}
+    out = {"available": bool(lr.get("available")), "error": str(lr.get("error") or "")[:200]}
+    for k in ("summary", "assessment", "verdict", "status", "risk", "root_cause", "recommendation"):
+        v = review.get(k)
+        if isinstance(v, str) and v.strip():
+            out[k] = _truncate(v, 300)
+    for k in ("actions", "insights", "issues", "recommendations", "next_steps"):
+        v = review.get(k)
+        if isinstance(v, list) and v:
+            out[k] = [_truncate(str(x), 160) for x in v[:5]]
+    return out
+
+
+def _build_operator_digest(workspace) -> dict:
+    """Resumen del operador a partir de lo YA recopilado (100% read-only): estado del último
+    ciclo, cola, incidencias recurrentes, actividad reciente y, si lo hay, la valoración del LLM."""
+    state = _load_proactive_state(workspace)
+    counts = _task_state_counts(_load_task_queue(workspace))
+    audit = _load_audit_log(workspace)
+    objectives = _load_objective_memory(workspace)
+    profile = _load_operator_profile(workspace)
+
+    recurring: dict[str, int] = {}
+    for row in objectives if isinstance(objectives, list) else []:
+        if not isinstance(row, dict):
+            continue
+        key = str(row.get("detector") or row.get("title") or "").strip()
+        if key:
+            recurring[key] = recurring.get(key, 0) + 1
+    top_recurring = sorted(recurring.items(), key=lambda kv: kv[1], reverse=True)[:5]
+
+    cutoff_ts = datetime.now(timezone.utc).timestamp() - 24 * 3600
+    events_24h = 0
+    for row in audit if isinstance(audit, list) else []:
+        if not isinstance(row, dict):
+            continue
+        parsed = _parse_iso_datetime(row.get("created_at"))
+        if parsed is not None and parsed.timestamp() >= cutoff_ts:
+            events_24h += 1
+
+    return {
+        "generated_at": _now_iso(),
+        "queue_counts": counts,
+        "last_cycle_at": state.get("last_cycle_at"),
+        "last_detection_count": _safe_int(state.get("last_detection_count"), 0),
+        "last_improvement_count": _safe_int(state.get("last_improvement_count"), 0),
+        "last_executed_count": _safe_int(state.get("last_executed_count"), 0)
+        + _safe_int(state.get("last_backlog_executed_count"), 0),
+        "last_strategy_mode": state.get("last_strategy_mode"),
+        "recent_detections": (state.get("last_detections") or [])[:6],
+        "recent_improvements": (state.get("last_improvements") or [])[:6],
+        "top_recurring": [{"key": k, "count": c} for k, c in top_recurring],
+        "audit_events_24h": events_24h,
+        "llm_assessment": state.get("last_llm_assessment") or {"available": False},
+        "preferred_route": profile.get("preferred_route_key") if isinstance(profile, dict) else None,
+    }
+
+
+def _maybe_build_daily_digest(workspace) -> dict:
+    """Genera el digest como mucho una vez al día (throttle por timestamp). Lo persiste y lo
+    registra en el audit log (visible en el histórico del guard)."""
+    if not workspace:
+        return {"built": False, "reason": "workspace_required"}
+    prev = _pref_value(workspace, OPERATOR_DIGEST_PREF_KEY, {})
+    prev = prev if isinstance(prev, dict) else {}
+    now_ts = int(time.time())
+    last_ts = _safe_int(prev.get("_ts"), 0)
+    if last_ts and (now_ts - last_ts) < OPERATOR_DIGEST_INTERVAL_SECONDS:
+        return {"built": False, "reason": "interval_not_elapsed"}
+    digest = _build_operator_digest(workspace)
+    digest["_ts"] = now_ts
+    _store_pref_value(workspace, OPERATOR_DIGEST_PREF_KEY, digest)
+    _append_audit_log(workspace, {
+        "created_at": _now_iso(),
+        "actor_id": 0,
+        "question": "Digest diario del operador",
+        "status": "ok",
+        "task_kind": "daily_digest",
+        "runbook": "silent_diagnostics",
+        "confirmed": False,
+        "executed_tools": [],
+        "silent_mode": True,
+        "digest": {
+            k: digest[k]
+            for k in ("queue_counts", "last_detection_count", "audit_events_24h", "top_recurring", "last_strategy_mode", "llm_assessment")
+            if k in digest
+        },
+    })
+    return {"built": True, "digest": digest}
 
 
 def _permission_profile(page_context=None) -> dict:
