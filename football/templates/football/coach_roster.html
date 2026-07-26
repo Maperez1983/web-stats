@@ -1052,7 +1052,7 @@
               var grid=document.getElementById('playersGrid');
               var table=document.getElementById('playersTable');
               if(!toggle||!grid||!table) return;
-              function apply(v){ var t=v==='table'; grid.hidden=t; table.hidden=!t;
+              function apply(v){ var t=v==='table'; grid.style.display=t?'none':''; table.hidden=!t;
                 toggle.querySelectorAll('.pc-view-btn').forEach(function(b){ b.classList.toggle('is-active', b.getAttribute('data-pc-view')===v); });
                 try{ localStorage.setItem('pc-view', v); }catch(e){} }
               toggle.querySelectorAll('.pc-view-btn').forEach(function(b){ b.addEventListener('click', function(){ apply(b.getAttribute('data-pc-view')); }); });
