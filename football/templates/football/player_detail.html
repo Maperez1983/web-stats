@@ -1368,8 +1368,8 @@
       {% endif %}
 
       {% if minutes_load %}
-      <section class="card" aria-label="Carga de minutos" style="margin-top:1rem;">
-        <h2 style="margin:0 0 0.5rem;">Carga de minutos</h2>
+      <section class="card" aria-label="Minutos de temporada" style="margin-top:1rem;">
+        <h2 style="margin:0 0 0.5rem;">Minutos de temporada</h2>
         <div class="stat-grid">
           <div class="stat-card"><span class="stat-label">Minutos</span><strong class="stat-value">{{ minutes_load.minutes }}′</strong></div>
           <div class="stat-card"><span class="stat-label">Partidos</span><strong class="stat-value">{{ minutes_load.pj }}</strong></div>
@@ -1386,13 +1386,13 @@
 
       <div class="tabs" role="tablist">
         <button class="tab-btn" data-tab="stats" role="tab">Rendimiento</button>
-        <button class="tab-btn" data-tab="physical" role="tab">Físico</button>
         <button class="tab-btn" data-tab="evaluations" role="tab">Evaluación</button>
+        <button class="tab-btn" data-tab="physical" role="tab">Físico</button>
         <button class="tab-btn" data-tab="injuries" role="tab">Lesiones</button>
-        <button class="tab-btn" data-tab="discipline" role="tab">Comunicación y multas</button>
         <button class="tab-btn" data-tab="seasons" role="tab">Histórico</button>
-        <button class="tab-btn" data-tab="personal" role="tab">Datos personales</button>
+        <button class="tab-btn" data-tab="discipline" role="tab">Comunicación y multas</button>
         <button class="tab-btn" data-tab="videos" role="tab">Vídeos</button>
+        <button class="tab-btn" data-tab="personal" role="tab">Datos personales</button>
       </div>
 
       <section class="card tab-pane" data-pane="personal">
@@ -2460,7 +2460,7 @@
         {% if season_minutes_load %}
         <div style="border:1px solid var(--prod-line, rgba(144,161,185,0.28));border-radius:0.95rem;padding:0.9rem 1rem;margin-bottom:1rem;background:rgba(2,6,23,0.06);">
           <div style="display:flex;justify-content:space-between;align-items:baseline;gap:0.6rem;flex-wrap:wrap;">
-            <strong style="font-size:1rem;">Carga de minutos</strong>
+            <strong style="font-size:1rem;">Reparto de carga · entrenos vs partidos</strong>
             <span style="font-size:0.78rem;opacity:0.7;">{% if selected_club_season %}Temporada {{ selected_club_season.label|default:selected_club_season }}{% else %}Temporada actual{% endif %} · no incluye años anteriores</span>
           </div>
           {% if season_minutes_load.has_season %}
@@ -2833,9 +2833,9 @@
         {% endif %}
       </section>
 
-      <section class="card tab-pane" data-pane="stats">
+      <section class="card tab-pane" data-pane="evaluations">
         <h2 style="margin-top:0;">Atributos · lectura FM</h2>
-        <p class="subtle" style="margin:0 0 0.4rem;">Radar derivado de las mismas estadísticas y percentiles de arriba (perfil objetivo, no editable).</p>
+        <p class="subtle" style="margin:0 0 0.4rem;">Radar derivado de las estadísticas y percentiles del jugador (perfil objetivo, no editable) · complementa el radar de valoración.</p>
         <div class="fm-attributes-shell" style="margin-top:0.9rem;">
           <div class="fm-attributes-header">
             <div>
