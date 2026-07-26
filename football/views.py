@@ -76001,14 +76001,13 @@ def _apply_match_info_overrides(match, primary_team, match_info_payload):
             match.away_team = rival_team
             changed_fields.extend(["home_team", "away_team"])
     elif opponent_name and normalize_label(opponent_name) != normalize_label(primary_team.name):
-        rival_team = Team.objects.filter(name__iexact=opponent_name).first()
-        if not rival_team:
-            rival_team = Team.objects.create(
-                name=opponent_name,
-                slug=_unique_team_slug(opponent_name),
-                short_name=opponent_name[:60],
-                group=match.group or primary_team.group,
-            )
+        # Dedup: usa resolve_or_create_team (name_key por grupo) en vez de filter/create manual,
+        # que duplicaba rivales con el mismo nombre. Ver [[team-identity-dedup]].
+        rival_team, _ = resolve_or_create_team(
+            name=opponent_name,
+            group=match.group or primary_team.group,
+            defaults={"short_name": opponent_name[:60]},
+        )
         if match.home_team_id == primary_team.id:
             if match.away_team_id != rival_team.id:
                 match.away_team = rival_team
