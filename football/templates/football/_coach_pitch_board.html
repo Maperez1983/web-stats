@@ -22,7 +22,7 @@
     <a class="pb-chip pb-{{ p.state }}{% if p.is_scout %} pb-scout{% endif %}" href="{{ p.ficha_url }}" data-pb-pid="{{ p.id }}"{% if p.is_scout %} data-pb-scout="1"{% endif %} draggable="false"
        style="left:{{ p.left|unlocalize }}%;top:{{ p.top|unlocalize }}%;"
        title="{{ p.name }} · {{ p.state_label }}" aria-label="{{ p.name }}, {{ p.position|default:'jugador' }}, {{ p.state_label }}. Abrir ficha.">
-      <span class="pb-avatar"><img src="{% static p.avatar %}" alt="" draggable="false" /></span>
+      <span class="pb-avatar"><img src="{% if p.avatar_url %}{{ p.avatar_url }}{% else %}{% static p.avatar %}{% endif %}" alt="" draggable="false" /></span>
       {% if p.number %}<span class="pb-num">{{ p.number }}</span>{% endif %}
       {% if not p.is_scout %}<span class="pb-rating{% if not p.rating %} is-unrated{% elif p.rating >= 7 %} is-good{% elif p.rating >= 5 %} is-mid{% else %} is-low{% endif %}" title="Nota media (última evaluación cerrada)">{% if p.rating %}{{ p.rating|floatformat:'-1' }}{% else %}–{% endif %}</span>{% endif %}
       <span class="pb-name">{{ p.name }}</span>

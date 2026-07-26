@@ -20722,6 +20722,16 @@ def _build_coach_pitch_board_players(primary_team, roster_players, roster_member
         bucket = _roster_preview_bucket(getattr(player, "position", "") or "")
         if avatar is None:
             avatar = "gk_magenta.png" if bucket == "gk" else "kit_home.png"
+        # Avatar personalizado (grado de piel / color de pelo) para jugadores de campo con el kit
+        # base: se sirve recoloreado desde el endpoint. El resto mantiene el PNG estático.
+        _avatar_url = ""
+        if avatar == "kit_home.png" and (
+            getattr(player, "skin_grade", None) or str(getattr(player, "hair_color", "") or "").strip()
+        ):
+            try:
+                _avatar_url = reverse("player-avatar-recolored", args=[pid])
+            except Exception:
+                _avatar_url = ""
         groups.setdefault(bucket, []).append(
             {
                 "id": pid,
@@ -20731,6 +20741,7 @@ def _build_coach_pitch_board_players(primary_team, roster_players, roster_member
                 "state": state,
                 "state_label": state_label,
                 "avatar": "football/images/coach_roster_avatars/library/" + avatar,
+                "avatar_url": _avatar_url,
                 "left": pitch_left.get(bucket, 50),
                 "rating": _pb_ratings.get(pid),
             }
