@@ -649,6 +649,13 @@ PROACTIVE_IMPROVEMENT_CATALOG = {
         "summary": "Hay patrones repetidos del usuario y conviene reforzar accesos rápidos y memoria operativa.",
         "tools": ["inspect_guard_history"],
     },
+    "infra_and_enrichment": {
+        "severity": "info",
+        "runbook": "silent_diagnostics",
+        "task_kind": "improve",
+        "summary": "Revisar la infraestructura (Render) y refrescar datos derivados (previews, índice IA, dedupe).",
+        "tools": ["list_render_services", "inspect_release_pipeline", "regenerate_task_previews", "ai_trainer_reindex", "dedupe_session_tasks"],
+    },
 }
 OLLANA_CAPABILITY_VERSION = "v3"
 OLLANA_SYSTEM_OS_VERSION = "v2"
@@ -3385,6 +3392,89 @@ def _append_audit_log(workspace, event: dict):
     _store_pref_value(workspace, AUDIT_PREF_KEY, rows[:60])
 
 
+def _ollana_flag(name: str) -> bool:
+    return str(os.getenv(name, "") or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _detect_repair_candidates(report: dict) -> list[dict]:
+    """(#2 auditoría) Casa las incidencias con un arreglo del CODE_INTERVENTION_CATALOG por sus
+    match_terms y propone una tarea de reparación. SEGURO: por defecto NO auto-ejecuta (se encola
+    para confirmación humana); solo prepara/valida si OLLANA_SELF_HEAL_ENABLED. NUNCA hace
+    commit/push autónomo (eso sigue en el chat con su guard check->patch->recheck + flag de releases)."""
+    issues = report.get("issues") if isinstance(report.get("issues"), list) else []
+    haystack = " ".join(
+        f"{row.get('id','')} {row.get('title','')} {row.get('detail','')} {row.get('message','')}".lower()
+        for row in issues if isinstance(row, dict)
+    )
+    if not haystack.strip():
+        return []
+    self_heal = _ollana_flag("OLLANA_SELF_HEAL_ENABLED")
+    out = []
+    for key, item in CODE_INTERVENTION_CATALOG.items():
+        terms = [str(t).lower() for t in (item.get("match_terms") or []) if str(t or "").strip()]
+        if not any(t in haystack for t in terms):
+            continue
+        out.append({
+            "detector": f"repair::{key}",
+            "severity": "warning",
+            "runbook": "code_repair",
+            "task_kind": "repair",
+            "title": f"Arreglo disponible: {item.get('title') or key}",
+            "summary": str(item.get("summary") or "")[:300],
+            "tools": ["run_operator_validation", f"apply_code_fix:{key}"],
+            "auto_execute": bool(self_heal),
+        })
+    return out[:3]
+
+
+def _detect_remote_incidents() -> list[dict]:
+    """(#3 auditoría) Sondea logs remotos y pipeline de release (si el monitor está ON y los
+    conectores configurados) y levanta incidencias ante picos de error o deploys fallidos."""
+    if not _ollana_flag("OLLANA_REMOTE_MONITOR_ENABLED"):
+        return []
+    out = []
+    try:
+        logs = _inspect_remote_logs()
+        if isinstance(logs, dict) and logs.get("ok"):
+            patterns = logs.get("patterns") if isinstance(logs.get("patterns"), list) else []
+            err = sum(
+                _safe_int(p.get("count"), 0)
+                for p in patterns
+                if isinstance(p, dict) and str(p.get("name") or "").lower() in {"error", "critical", "fatal", "err"}
+            )
+            if err >= _safe_int(os.getenv("OLLANA_REMOTE_ERROR_THRESHOLD"), 5):
+                out.append({
+                    "detector": "remote_log_error_spike",
+                    "severity": "critical",
+                    "runbook": "silent_diagnostics",
+                    "task_kind": "diagnose",
+                    "title": f"Pico de errores en logs remotos ({err})",
+                    "summary": "Los logs de producción muestran un pico de errores; conviene diagnosticar.",
+                    "tools": ["inspect_remote_logs", "inspect_recent_errors", "check_critical_routes"],
+                    "auto_execute": True,
+                })
+    except Exception:
+        pass
+    try:
+        rel = _inspect_release_pipeline()
+        if isinstance(rel, dict) and rel.get("ok"):
+            state = str(rel.get("pipeline_state") or "").lower()
+            if state in {"failed", "error", "canceled", "cancelled", "build_failed", "update_failed"}:
+                out.append({
+                    "detector": "release_pipeline_failure",
+                    "severity": "critical",
+                    "runbook": "silent_diagnostics",
+                    "task_kind": "diagnose",
+                    "title": f"Deploy en estado '{state}'",
+                    "summary": "El pipeline de release reporta un fallo; conviene revisar el despliegue.",
+                    "tools": ["inspect_release_pipeline", "inspect_public_deployment", "inspect_remote_logs"],
+                    "auto_execute": True,
+                })
+    except Exception:
+        pass
+    return out
+
+
 def _detect_proactive_incidents(report: dict, *, workspace=None) -> list[dict]:
     issues = report.get("issues") if isinstance(report.get("issues"), list) else []
     issue_ids = {str(row.get("id") or "").strip() for row in issues if isinstance(row, dict)}
@@ -3430,7 +3520,9 @@ def _detect_proactive_incidents(report: dict, *, workspace=None) -> list[dict]:
             "tools": meta["tools"],
             "auto_execute": bool(meta["auto_execute"]),
         })
-    return detections[:8]
+    detections.extend(_detect_repair_candidates(report))   # #2: arreglos catalogados (seguro)
+    detections.extend(_detect_remote_incidents())          # #3: monitor de logs/release remotos
+    return detections[:10]
 
 
 def _detect_proactive_improvements(report: dict, *, workspace=None, actor_id=None) -> list[dict]:
@@ -3448,6 +3540,19 @@ def _detect_proactive_improvements(report: dict, *, workspace=None, actor_id=Non
             "title": "Consolidar estabilidad actual",
             "summary": meta["summary"],
             "tools": meta["tools"],
+            "auto_execute": False,
+        })
+        # (#5 auditoría) Con el sistema estable, proponer revisión de infra + refresco de datos
+        # derivados. auto_execute=False -> se encola para confirmación, no se ejecuta solo.
+        meta_ie = PROACTIVE_IMPROVEMENT_CATALOG["infra_and_enrichment"]
+        improvements.append({
+            "detector": "infra_and_enrichment",
+            "severity": meta_ie["severity"],
+            "runbook": meta_ie["runbook"],
+            "task_kind": meta_ie["task_kind"],
+            "title": "Revisar infraestructura y refrescar datos derivados",
+            "summary": meta_ie["summary"],
+            "tools": meta_ie["tools"],
             "auto_execute": False,
         })
     recurring = [row for row in (profile.get("recurring_intents") or []) if isinstance(row, dict)]
@@ -11643,6 +11748,64 @@ def _serialize_execution(tool_key: str, result: dict) -> dict:
     }
 
 
+def _tool_render_services() -> dict:
+    """(#5) Inspección read-only de los servicios de Render (si hay API key)."""
+    if not render_api_key():
+        return {"ok": False, "error": "render_api_not_configured"}
+    try:
+        res = list_render_services()
+        if isinstance(res, dict):
+            res.setdefault("ok", True)
+            return res
+        return {"ok": False, "error": "unexpected_response"}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)[:200]}
+
+
+def _tool_render_service_detail(*, page_context=None) -> dict:
+    """(#5) Detalle read-only de un servicio (id de page_context o OLLANA_RENDER_SERVICE_ID)."""
+    sid = str((page_context or {}).get("render_service_id") or os.getenv("OLLANA_RENDER_SERVICE_ID") or "").strip()
+    if not render_api_key():
+        return {"ok": False, "error": "render_api_not_configured"}
+    if not sid:
+        return {"ok": False, "error": "render_service_id_required"}
+    try:
+        res = inspect_render_service(sid)
+        if isinstance(res, dict):
+            res.setdefault("ok", True)
+            return res
+        return {"ok": False, "error": "unexpected_response"}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)[:200]}
+
+
+def _guarded_apply_code_fix(candidate_key: str) -> dict:
+    """(#2) Aplica un arreglo del catálogo SOLO si OLLANA_SELF_HEAL_ENABLED; si no, indica que
+    requiere confirmación (la vía interactiva del chat, con su guard, sigue igual). Tras aplicar,
+    RE-VALIDA con `manage.py check`. NO hace commit/push (eso queda fuera, tras el flag de releases)."""
+    key = str(candidate_key or "").strip()
+    if key not in CODE_INTERVENTION_CATALOG:
+        return {"ok": False, "error": "unknown_candidate", "candidate_key": key}
+    if not _ollana_flag("OLLANA_SELF_HEAL_ENABLED"):
+        return {
+            "ok": False, "action": "apply_code_fix", "candidate_key": key,
+            "status": "requires_confirmation",
+            "detail": "Auto-reparación desactivada (OLLANA_SELF_HEAL_ENABLED=false). Confírmalo en el chat de Ollana.",
+        }
+    applied = _execute_catalog_code_intervention(key)
+    if not applied.get("ok"):
+        return {"ok": False, "action": "apply_code_fix", "candidate_key": key, "apply": applied}
+    validation = _run_operator_validation()
+    return {
+        "ok": bool(validation.get("ok")),
+        "action": "apply_code_fix",
+        "candidate_key": key,
+        "apply": applied,
+        "validation": validation,
+        "note": "Cambios aplicados y validados en local; el commit/push sigue requiriendo el flag de releases + confirmación.",
+    }
+
+
 def _execute_tools(requested_tools: list[str], *, smoke_verbosity: int = 1, workspace=None, question: str = "", page_context=None) -> list[dict]:
     executions = []
     for tool_key in requested_tools or []:
@@ -11692,6 +11855,12 @@ def _execute_tools(requested_tools: list[str], *, smoke_verbosity: int = 1, work
             result = _git_commit_changes(question)
         elif tool_key == "git_push":
             result = _git_push_changes()
+        elif tool_key == "list_render_services":
+            result = _tool_render_services()
+        elif tool_key == "inspect_render_service":
+            result = _tool_render_service_detail(page_context=page_context)
+        elif tool_key.startswith("apply_code_fix:"):
+            result = _guarded_apply_code_fix(tool_key.split(":", 1)[1])
         else:
             result = {"ok": False, "error": "unsupported_tool"}
         executions.append(_serialize_execution(tool_key, result))
