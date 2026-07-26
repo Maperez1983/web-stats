@@ -32484,11 +32484,16 @@ def training_session_detail_page(request, session_id):
     except Exception:
         workload_points = None
 
+    try:
+        recommended_tasks = _ai_trainer_suggest_tasks_for_session(session_obj, limit=6)
+    except Exception:
+        recommended_tasks = []
     return render(
         request,
         "football/training_session_detail.html",
         {
             "session": session_obj,
+            "recommended_tasks": recommended_tasks,
             "session_display_title": session_display_title,
             "session_number": session_number,
             "season_label": season_label,
@@ -52759,6 +52764,46 @@ def _ai_trainer_suggest_library_tasks(team, *, text_norm: str, signals: dict, li
         }.get(str(repo or ""), str(repo or ""))
         out.append(task)
     return out
+
+
+def _ai_trainer_suggest_tasks_for_session(session, *, limit=6):
+    """(Fase 2) Recomendador CONTEXTUAL de tareas: construye texto + señales desde la propia
+    sesión y su microciclo (focus, momento de juego, principio, objetivo del ciclo) y REUSA el
+    motor léxico existente. Adaptador fino, no un motor nuevo."""
+    if not session:
+        return []
+    mc = getattr(session, "microcycle", None)
+    team = getattr(mc, "team", None) if mc else None
+    if team is None:
+        team = getattr(session, "team", None)
+    if not team:
+        return []
+    bits = []
+    for attr in ("focus", "game_moment", "principle", "subprinciple", "content"):
+        v = str(getattr(session, attr, "") or "").strip()
+        if v:
+            bits.append(v)
+    if mc:
+        for attr in ("objective", "game_moment", "principle", "subprinciple", "game_model_focus"):
+            v = str(getattr(mc, attr, "") or "").strip()
+            if v:
+                bits.append(v)
+    text = " ".join(bits).strip()
+    if not text:
+        return []
+    signals = {"principles": [], "zones": [], "phases": [], "figures": []}
+    for v in {str(getattr(session, "principle", "") or "").strip(), (str(getattr(mc, "principle", "") or "").strip() if mc else "")}:
+        if v:
+            signals["principles"].append({"label": v})
+    for v in {str(getattr(session, "game_moment", "") or "").strip(), (str(getattr(mc, "game_moment", "") or "").strip() if mc else "")}:
+        if v:
+            signals["phases"].append({"label": v})
+    try:
+        return _ai_trainer_suggest_library_tasks(
+            team, text_norm=_ai_trainer_normalize_text(text), signals=signals, limit=limit
+        )
+    except Exception:
+        return []
 
 
 @login_required

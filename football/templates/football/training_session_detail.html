@@ -380,6 +380,26 @@
                 <span>Tareas de la sesión</span>
                 <a class="btn secondary" href="{{ planner_url }}">➕ Añadir tareas</a>
               </div>
+              {% if recommended_tasks %}
+              <div class="box" style="border-top:none; padding:10px 12px; margin-bottom:10px; background:rgba(120,160,240,0.08); border:1px solid rgba(120,160,240,0.35); border-radius:10px;">
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;">
+                  <strong>💡 Tareas recomendadas</strong>
+                  <span style="font-size:0.78rem;opacity:0.7;">según el objetivo de la sesión y el microciclo</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:0.4rem;">
+                  {% for t in recommended_tasks %}
+                  <a href="{% url 'session-task-detail' t.id %}" style="display:flex;justify-content:space-between;gap:0.7rem;align-items:center;text-decoration:none;color:inherit;border:1px solid rgba(148,163,184,0.28);border-radius:8px;padding:0.45rem 0.65rem;">
+                    <span style="min-width:0;">
+                      <span style="display:block;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ t.title|default:'Tarea' }}</span>
+                      {% if t.objective %}<span style="display:block;font-size:0.8rem;opacity:0.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ t.objective }}</span>{% endif %}
+                    </span>
+                    <span style="font-size:0.72rem;opacity:0.7;white-space:nowrap;">{{ t.ai_trainer_repo_label }}</span>
+                  </a>
+                  {% endfor %}
+                </div>
+                <div style="margin-top:0.5rem;font-size:0.78rem;"><a href="{{ planner_url }}">Ver más en la Biblioteca →</a></div>
+              </div>
+              {% endif %}
 		          <div class="box" style="border-top:none; padding-top:10px;">
 		            {% if tasks_by_block %}
 	              <div class="tasks">
