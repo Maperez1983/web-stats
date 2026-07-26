@@ -48140,7 +48140,8 @@ def _build_tactical_player_catalog(request, primary_team):
         return catalog
     players = list(
         Player.objects.filter(team=primary_team, is_active=True)
-        .only("id", "name", "nickname", "number", "position", "photo_updated_at")
+        .only("id", "name", "nickname", "number", "position", "photo_updated_at",
+              "skin_grade", "hair_color", "avatar_generated")
         .order_by("number", "name")[:60]
     )
     squad_ids = [int(player.id) for player in players]
@@ -48159,6 +48160,18 @@ def _build_tactical_player_catalog(request, primary_team):
         except Exception:
             photo_url = ""
         estado = "lesionado" if pid in active_injury_ids else "disponible"
+        # Representación resuelta (fuente única): al colocar el jugador en el editor se decide
+        # solo -> avatar generado/recoloreado si lo tiene, si no su foto, si no chapa.
+        try:
+            _avatar_url = resolve_player_avatar_url(player)
+        except Exception:
+            _avatar_url = ""
+        if _avatar_url:
+            display = {"mode": "avatar", "url": _avatar_url}
+        elif photo_url:
+            display = {"mode": "photo", "url": photo_url}
+        else:
+            display = {"mode": "disk", "url": ""}
         catalog.append(
             {
                 "id": pid,
@@ -48170,6 +48183,7 @@ def _build_tactical_player_catalog(request, primary_team):
                 "rating": ratings.get(pid),
                 "estado": estado,
                 "is_scouted": False,
+                "display": display,
             }
         )
     # Ojeados marcados como "disponibles para la pizarra del entrenador".

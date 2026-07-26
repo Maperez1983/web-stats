@@ -66,6 +66,21 @@ class PlayerAvatarFichaTests(TestCase):
         self.player.avatar_generated.save("gen.png", ContentFile(b"\x89PNG\r\n\x1a\n"), save=True)
         self.assertIn("player-avatars/", resolve_player_avatar_url(self.player))
 
+    def test_editor_catalog_exposes_display(self):
+        from django.test import RequestFactory
+        from football.views import _build_tactical_player_catalog
+
+        req = RequestFactory().get("/")
+        req.user = self.user
+        # jugador con grado de piel -> display.mode = 'avatar'
+        self.player.skin_grade = 2
+        self.player.save()
+        catalog = _build_tactical_player_catalog(req, self.team)
+        entry = next((c for c in catalog if c.get("id") == self.player.id), None)
+        self.assertIsNotNone(entry)
+        self.assertEqual(entry["display"]["mode"], "avatar")
+        self.assertIn("display", entry)
+
     def test_profile_form_saves_hairstyle(self):
         url = reverse("player-detail", args=[self.player.id])
         self.client.post(url, {"form_action": "profile", "hairstyle": "rizado"}, HTTP_HOST="localhost")

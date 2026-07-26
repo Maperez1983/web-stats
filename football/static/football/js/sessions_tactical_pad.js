@@ -30541,7 +30541,11 @@
         .toUpperCase() || label;
 		      const tokenParts = [];
 		      let baseRadius = 22;
-		      const style = normalizeTokenStyle(options?.style || player?.token_style || tokenGlobalStyle);
+		      // Representación resuelta por el servidor (display.mode): al colocar un jugador se
+		      // usa su avatar/foto sin tener que elegir en la biblioteca. Un override manual (options
+		      // o token_style ya guardado) siempre gana.
+		      const _displayStyle = (player?.display?.mode === 'avatar' || player?.display?.mode === 'photo') ? 'photo' : '';
+		      const style = normalizeTokenStyle(options?.style || player?.token_style || _displayStyle || tokenGlobalStyle);
 			      const pattern = normalizeTokenPattern(options?.pattern || player?.token_pattern || 'striped');
 	      const defaultBase = kind === 'player_away' ? (isTacticsMode ? tokenGlobalColorLocal : '#facc15') : (isTacticsMode ? tokenGlobalColorLocalBase : '#ffffff');
       const defaultStripe = isTacticsMode
@@ -30549,7 +30553,7 @@
         : (kind === 'player_local' ? '#0f7a35' : palette.fill);
 		      const baseColor = parseColorToHex(options?.base, parseColorToHex(player?.token_base_color, defaultBase)) || defaultBase;
 		      const stripeColor = parseColorToHex(options?.stripe, parseColorToHex(player?.token_stripe_color, defaultStripe)) || defaultStripe;
-		      const photoUrl = resolvePlayerPhotoUrl(options?.photoUrl || player?.photo_url);
+		      const photoUrl = resolvePlayerPhotoUrl(options?.photoUrl || player?.display?.url || player?.photo_url);
 		      const tokenKitSlot = normalizeKit2dSlot(options?.kit_slot || player?.token_kit_slot || player?.kit_slot || '');
 		      const effectiveBase = pattern === 'solid' ? stripeColor : baseColor;
 		      // Estilo "chapa" (igual que en la plantilla de abajo): disco con dorsal centrado y nombre simple.
