@@ -124,6 +124,7 @@ urlpatterns = [
     path("coach/informes/", views.reports_hub_page, name="reports-hub"),
     path("coach/informes/jugadores/zip/", views.player_reports_zip, name="player-reports-zip"),
     path("coach/informes/jugadores/evolucion/zip/", views.player_evolution_zip, name="player-evolution-zip"),
+    path("coach/informes/lineas/pdf/", views.squad_lines_report_pdf, name="squad-lines-report-pdf"),
     path("coach/dashboard/", views.kpi_dashboard_page, name="kpi-dashboard"),
     path("direccion/", views.scouting_board_page, name="scouting-board"),
     path("direccion/campo.png", views.scouting_pitch_png, name="scouting-pitch-png"),

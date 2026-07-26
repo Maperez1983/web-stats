@@ -20166,6 +20166,119 @@ def player_evolution_zip(request):
     return response
 
 
+@login_required
+def squad_lines_report_pdf(request):
+    """Informe por líneas (Porteros/Defensa/Medio/Ataque): media del grupo, ranking y
+    quién sube/baja en el periodo, agregando la última evaluación cerrada de cada jugador."""
+    if not _can_edit_match_actions(request.user):
+        return HttpResponse("Solo el cuerpo técnico puede generar informes.", status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, "players", label="informes de jugadores")
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request) or _team_from_request_param(request)
+    if not primary_team:
+        raise Http404("Equipo principal no configurado")
+    date_from, date_to = _resolve_evolution_report_range(request)
+
+    players = list(Player.objects.filter(team=primary_team, is_active=True).order_by("number", "name", "id"))
+    pids = [int(p.id) for p in players]
+    try:
+        injury_ids = set(get_active_injury_player_ids(pids))
+    except Exception:
+        injury_ids = set()
+    by_player = {}
+    for ev in (
+        PlayerEvaluation.objects.filter(
+            player_id__in=pids,
+            status=PlayerEvaluation.STATUS_CLOSED,
+            evaluated_on__gte=date_from,
+            evaluated_on__lte=date_to,
+        ).order_by("player_id", "evaluated_on", "id")
+    ):
+        by_player.setdefault(int(ev.player_id), []).append(ev)
+
+    def _f(value):
+        try:
+            return float(value) if value is not None else None
+        except (TypeError, ValueError):
+            return None
+
+    def _avg(values):
+        clean = [x for x in values if x is not None]
+        return round(sum(clean) / len(clean), 1) if clean else None
+
+    line_defs = [("gk", "Porteros"), ("def", "Defensa"), ("mid", "Centro del campo"), ("att", "Ataque")]
+    buckets = {key: [] for key, _ in line_defs}
+    for player in players:
+        bucket = _roster_preview_bucket(getattr(player, "position", "") or "")
+        if bucket not in buckets:
+            bucket = "mid"
+        plist = by_player.get(int(player.id), [])
+        last = plist[-1] if plist else None
+        media = _f(last.average_rating) if last else None
+        first = _f(plist[0].average_rating) if plist else None
+        delta = (
+            round(media - first, 1)
+            if (media is not None and first is not None and len(plist) > 1)
+            else None
+        )
+        trend = "up" if (delta or 0) > 0 else ("down" if (delta or 0) < 0 else "neutral")
+        buckets[bucket].append(
+            {
+                "number": _parse_int(getattr(player, "number", None)) or "",
+                "name": str(getattr(player, "name", "") or "").strip() or f"Jugador {player.id}",
+                "position": str(getattr(player, "position", "") or "").strip(),
+                "media": media,
+                "delta": delta,
+                "trend": trend,
+                "injured": int(player.id) in injury_ids,
+                "t": _f(getattr(last, "technical_rating", None)) if last else None,
+                "ta": _f(getattr(last, "tactical_rating", None)) if last else None,
+                "ph": _f(getattr(last, "physical_rating", None)) if last else None,
+                "me": _f(getattr(last, "mental_rating", None)) if last else None,
+            }
+        )
+
+    lines = []
+    for key, label in line_defs:
+        rows = buckets[key]
+        rows.sort(key=lambda r: (r["media"] is None, -(r["media"] or 0)))
+        area_t = _avg([r["t"] for r in rows])
+        area_ta = _avg([r["ta"] for r in rows])
+        area_ph = _avg([r["ph"] for r in rows])
+        area_me = _avg([r["me"] for r in rows])
+        lines.append(
+            {
+                "key": key,
+                "label": label,
+                "players": rows,
+                "total": len(rows),
+                "available": sum(1 for r in rows if not r["injured"]),
+                "injured": sum(1 for r in rows if r["injured"]),
+                "unrated": sum(1 for r in rows if r["media"] is None),
+                "group_media": _avg([r["media"] for r in rows]),
+                "area_technical": area_t,
+                "area_tactical": area_ta,
+                "area_physical": area_ph,
+                "area_mental": area_me,
+                "areas_any": any(x is not None for x in (area_t, area_ta, area_ph, area_me)),
+            }
+        )
+
+    ctx = {
+        "team_name": getattr(primary_team, "display_name", "") or "",
+        "date_from": date_from,
+        "date_to": date_to,
+        "lines": lines,
+    }
+    html = render_to_string("football/squad_lines_report_pdf.html", ctx, request=request)
+    if str(request.GET.get("format") or "").strip().lower() == "html":
+        return HttpResponse(html, content_type="text/html; charset=utf-8")
+    slug = slugify(getattr(primary_team, "display_name", "") or "equipo") or "equipo"
+    return _build_pdf_response_or_html_fallback(request, html, f"lineas-{slug}", inline=True, force_pdf=True)
+
+
+
 def _build_team_hero_payload(request, workspace, primary_team):
     """Construye URL y data-uri del hero con imagen de equipo o fallback global."""
     hero_image_url = ""

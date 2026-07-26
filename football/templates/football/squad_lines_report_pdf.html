@@ -1,0 +1,88 @@
+{% load static %}
+{% load football_extras %}
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Informe por líneas · {{ team_name }}</title>
+<style>
+  @page { size: A4; margin: 14mm 12mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #0f172a; font-size: 11px; line-height: 1.45; margin: 0; }
+  .muted { color: #64748b; }
+  h1 { font-size: 19px; margin: 0 0 2px; }
+  .head { border-bottom: 3px solid #0f7a35; padding-bottom: 10px; }
+  .head .meta { color: #475569; font-size: 11px; margin-top: 2px; }
+  section { margin-top: 16px; page-break-inside: avoid; }
+  .line-head { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #0f7a35; padding-bottom: 4px; margin-bottom: 6px; }
+  .line-head h2 { font-size: 14px; margin: 0; text-transform: uppercase; letter-spacing: 0.05em; color: #0b3a2e; }
+  .line-head .agg { font-size: 11px; color: #475569; }
+  .gmedia { font-size: 22px; font-weight: 800; margin-left: 6px; }
+  .up { color: #16a34a; } .down { color: #dc2626; } .flat, .neutral { color: #64748b; }
+  .badge { display: inline-block; border-radius: 999px; padding: 1px 8px; font-weight: 800; font-size: 10px; }
+  .b-good { background: #dcfce7; color: #166534; } .b-mid { background: #fef3c7; color: #92400e; } .b-bad { background: #fee2e2; color: #991b1b; } .b-flat { background: #e2e8f0; color: #334155; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 4px 7px; border-bottom: 1px solid #e2e8f0; }
+  th { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .st { display: inline-block; border-radius: 999px; padding: 0 7px; font-size: 9.5px; font-weight: 800; }
+  .st-ok { background: rgba(22,163,74,0.14); color: #166534; } .st-inj { background: rgba(220,38,38,0.14); color: #991b1b; }
+  .areas { margin: 4px 0 8px; font-size: 10.5px; color: #334155; }
+  .areas span { display: inline-block; margin-right: 12px; }
+  .empty { color: #94a3b8; padding: 4px 0; }
+  .foot { margin-top: 18px; color: #94a3b8; font-size: 9px; border-top: 1px solid #e2e8f0; padding-top: 6px; }
+</style>
+</head>
+<body>
+
+  <div class="head">
+    <h1>Informe por líneas · {{ team_name }}</h1>
+    <div class="meta muted">Medias de la última evaluación cerrada por jugador · {{ date_from|date:"d/m/Y" }} → {{ date_to|date:"d/m/Y" }}</div>
+  </div>
+
+  {% for line in lines %}
+  <section>
+    <div class="line-head">
+      <div>
+        <h2>{{ line.label }}</h2>
+        <div class="agg">{{ line.total }} jugador{{ line.total|pluralize:"es" }} · {{ line.available }} disponible{{ line.available|pluralize:"s" }} · {{ line.injured }} lesionado{{ line.injured|pluralize:"s" }}{% if line.unrated %} · {{ line.unrated }} sin evaluar{% endif %}</div>
+      </div>
+      <div class="agg">Media del grupo
+        {% if line.group_media is not None %}<span class="gmedia {% if line.group_media >= 7 %}up{% elif line.group_media >= 5 %}flat{% else %}down{% endif %}">{{ line.group_media|floatformat:"-1" }}</span>{% else %}<span class="gmedia muted">–</span>{% endif %}
+      </div>
+    </div>
+
+    {% if line.areas_any %}
+    <div class="areas">
+      <span>Téc <strong>{{ line.area_technical|floatformat:"-1"|default:"–" }}</strong></span>
+      <span>Tác <strong>{{ line.area_tactical|floatformat:"-1"|default:"–" }}</strong></span>
+      <span>Fís <strong>{{ line.area_physical|floatformat:"-1"|default:"–" }}</strong></span>
+      <span>Men <strong>{{ line.area_mental|floatformat:"-1"|default:"–" }}</strong></span>
+    </div>
+    {% endif %}
+
+    {% if line.players %}
+    <table>
+      <thead><tr><th>#</th><th>Jugador</th><th>Pos.</th><th class="num">Media</th><th class="num">Δ</th><th>Estado</th></tr></thead>
+      <tbody>
+      {% for p in line.players %}
+        <tr>
+          <td class="num">{{ p.number|default:"–" }}</td>
+          <td>{{ p.name }}</td>
+          <td class="muted">{% if p.position %}{{ p.position|display_position }}{% else %}–{% endif %}</td>
+          <td class="num">{% if p.media is not None %}<span class="badge {% if p.media >= 7 %}b-good{% elif p.media >= 5 %}b-mid{% else %}b-bad{% endif %}">{{ p.media|floatformat:"-1" }}</span>{% else %}<span class="muted">sin eval</span>{% endif %}</td>
+          <td class="num {{ p.trend }}">{% if p.delta is not None %}{% if p.delta > 0 %}+{% endif %}{{ p.delta|floatformat:"-1" }}{% else %}–{% endif %}</td>
+          <td>{% if p.injured %}<span class="st st-inj">Lesionado</span>{% else %}<span class="st st-ok">Disponible</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">Sin jugadores en esta línea.</div>
+    {% endif %}
+  </section>
+  {% endfor %}
+
+  <div class="foot">Segunda Jugada · Informe por líneas de {{ team_name }} · generado {{ date_to|date:"d/m/Y" }}</div>
+</body>
+</html>
