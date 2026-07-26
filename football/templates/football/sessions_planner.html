@@ -2028,7 +2028,15 @@
         {% endfor %}
       </datalist>
       {% include 'football/includes/dragon_nav.html' %}
-		      <div class="top" id="planner-top">
+      <style>
+        .top.planner-hero{position:relative;overflow:hidden;border-radius:18px;padding:26px 28px;border:1px solid rgba(148,163,184,0.16);
+          background-image:linear-gradient(90deg,rgba(8,12,20,0.94),rgba(8,12,20,0.58) 52%,rgba(8,12,20,0.22)),url("{% static 'football/images/marketing/home_training_hero.jpg' %}");
+          background-size:cover;background-position:center 40%;}
+        .top.planner-hero .top-copy,.top.planner-hero .top-actions{position:relative;z-index:1}
+        .top.planner-hero .top-subcopy{color:#c9d5e4}
+        .top.planner-hero .top-kicker{color:#9fb2c7}
+      </style>
+		      <div class="top planner-hero" id="planner-top">
 		        <div class="top-copy">
               <span class="top-kicker">Centro de entrenamiento</span>
 		          <h1>{{ scope_title|default:"Sesiones" }} · Planificación</h1>
