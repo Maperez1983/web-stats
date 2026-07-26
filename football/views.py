@@ -20611,6 +20611,17 @@ AVATAR_SKIN_GRADES = {
     4: (165, 106, 60), 5: (109, 67, 40), 6: (74, 45, 26),
 }
 
+# Paleta de colores de pelo para el selector de la ficha (hex -> etiqueta).
+AVATAR_HAIR_COLORS = [
+    ("#1a1a1a", "Negro"),
+    ("#3b2a1a", "Castaño oscuro"),
+    ("#6b4423", "Castaño"),
+    ("#a5682a", "Castaño claro"),
+    ("#c9a15a", "Rubio"),
+    ("#d94f2b", "Pelirrojo"),
+    ("#9a9a9a", "Canoso"),
+]
+
 
 def _avatar_asset_path(*parts):
     """Ruta a un asset de avatar: primero en el static recopilado, si no en el source de la app."""
@@ -20674,6 +20685,14 @@ def player_avatar_recolored(request, player_id):
     hair_m = _avatar_asset_path("masks", "hair_home.png")
     sg = getattr(player, "skin_grade", None) if player else None
     hc = getattr(player, "hair_color", "") if player else ""
+    # Overrides para previsualización en vivo desde la ficha (?g=1-6 & h=#rrggbb),
+    # sin necesidad de guardar. Solo válidos; si no, se usan los del jugador.
+    _qg = (request.GET.get("g") or "").strip()
+    if _qg.isdigit() and 1 <= int(_qg) <= 6:
+        sg = int(_qg)
+    _qh = (request.GET.get("h") or "").strip().lower()
+    if len(_qh) == 7 and _qh[0] == "#" and all(c in "0123456789abcdef" for c in _qh[1:]):
+        hc = _qh
     cache_key = f"player_avatar_recolor:v1:{player_id}:{sg}:{hc}"
     data = cache.get(cache_key)
     if data is None:
@@ -21711,12 +21730,22 @@ def _safe_initial_eleven_player_card(player):
         number = getattr(player, "number", None)
     except Exception:
         number = None
+    _skin = getattr(player, "skin_grade", None)
+    _hair = str(getattr(player, "hair_color", "") or "").strip()
+    _avatar_url = ""
+    if player_id and (_skin or _hair):
+        try:
+            _avatar_url = reverse("player-avatar-recolored", args=[player_id])
+        except Exception:
+            _avatar_url = ""
     return {
         "id": player_id,
         "name": str(getattr(player, "name", "") or "").strip(),
         "number": number if number is not None else "--",
         "position": str(getattr(player, "position", "") or "").strip(),
         "photo_url": str(getattr(player, "photo_url", "") or "").strip(),
+        # Avatar personalizado (recoloreado) como respaldo cuando no hay foto real.
+        "avatar_url": _avatar_url,
     }
 
 
@@ -70760,6 +70789,14 @@ def player_detail_page(request, player_id):
                 player.dominant_foot = normalize_foot_value(request.POST.get("dominant_foot", ""))
                 _skin = str(request.POST.get("skin_tone", "") or "").strip().lower()
                 player.skin_tone = _skin if _skin in {"light", "medium", "dark"} else ""
+                # Avatar personalizado (grado de piel 1-6 + color de pelo hex). Se sirven
+                # recoloreados por player_avatar_recolored y aparecen en la pizarra/11.
+                _grade = _parse_int(request.POST.get("skin_grade"))
+                player.skin_grade = _grade if _grade and 1 <= _grade <= 6 else None
+                _hair = str(request.POST.get("hair_color", "") or "").strip().lower()
+                player.hair_color = (
+                    _hair if (len(_hair) == 7 and _hair[0] == "#" and all(c in "0123456789abcdef" for c in _hair[1:])) else ""
+                )
                 player.full_name = request.POST.get("full_name", "").strip()
                 player.nickname = request.POST.get("nickname", "").strip()
                 player.preferente_profile_url = (request.POST.get("preferente_profile_url", "") or "").strip()
@@ -72334,6 +72371,7 @@ def player_detail_page(request, player_id):
                 "position_choices": POSITION_CHOICES,
                 "foot_choices": FOOT_CHOICES,
                 "skin_tone_choices": SKIN_TONE_CHOICES,
+                "avatar_hair_choices": AVATAR_HAIR_COLORS,
                 "can_preview_player_view": can_preview_player_view,
                 "player_list_back_url": player_list_back_url,
                 "workspace_entry_url": home_url,

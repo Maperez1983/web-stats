@@ -258,6 +258,10 @@
         font-size: 0.7rem;
         border: 1px solid rgba(148, 163, 184, 0.3);
       }
+      .player-card img.figure-avatar {
+        object-fit: cover;
+        object-position: 50% 0;
+      }
       .player-card input {
         transform: scale(1.2);
       }
@@ -2038,9 +2042,11 @@
           {% endif %}
           <div class="players" id="player-list">
             {% for player in convocation_players %}
-            <label class="player-card" data-player-id="{{ player.id }}" data-player-name="{{ player.name|upper|escape }}" data-player-number="{{ player.number|default:'--' }}" data-player-position="{% if player.position %}{{ player.position|display_position|escape }}{% endif %}" data-player-photo="{{ player.photo_url|default:''|escape }}">
+            <label class="player-card" data-player-id="{{ player.id }}" data-player-name="{{ player.name|upper|escape }}" data-player-number="{{ player.number|default:'--' }}" data-player-position="{% if player.position %}{{ player.position|display_position|escape }}{% endif %}" data-player-photo="{{ player.photo_url|default:player.avatar_url|default:''|escape }}">
               {% if player.photo_url %}
               <img src="{{ player.photo_url }}" alt="{{ player.name }}" loading="lazy" />
+              {% elif player.avatar_url %}
+              <img class="figure-avatar" src="{{ player.avatar_url }}" alt="{{ player.name }}" loading="lazy" />
               {% else %}
               <span class="avatar">{{ player.name|initials }}</span>
               {% endif %}
