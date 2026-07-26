@@ -580,16 +580,6 @@ body.ed-chrome .edc-mat-real .edc-real-strip .sr-only { position:absolute !impor
 body.ed-chrome .board-overlay-controls { display: none !important; }
 
 /* ============================================================
-   RAIL COMERCIAL · lanzador de categorias (Seleccion + familias del cajon)
-   Oculta las herramientas sueltas (duplicaban el cajon) y el boton Elementos,
-   SOLO cuando el rail de categorias se ha construido (body.edc-rail-cats).
-   Si el JS fallara, no hay clase y el rail antiguo sigue visible (degradacion segura).
-   ============================================================ */
-body.ed-chrome.edc-rail-cats .edc-rail .edc-tool[data-edc-tool]:not([data-edc-tool="select"]) { display: none !important; }
-body.ed-chrome.edc-rail-cats .edc-rail .edc-tool-lib { display: none !important; }
-body.ed-chrome .edc-tool-cat { cursor: pointer; }
-
-/* ============================================================
    PULIDO FINAL · inspector flotante, rail sin cortes, menú ☰
    ============================================================ */
 /* Rail: que "Selección" no se parta */
