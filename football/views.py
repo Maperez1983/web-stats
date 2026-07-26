@@ -21034,7 +21034,7 @@ def coach_overview_page(request):
     module_hub = [
         {
             "title": "Partido",
-            "description": "Convoca · 11 · acciones · PDFs",
+            "description": "Convocatoria, once inicial y datos del partido",
             "url": reverse("match-hub"),
             "icon": "match",
         },
@@ -21046,26 +21046,26 @@ def coach_overview_page(request):
         },
         {
             "title": "Plantilla",
-            "description": "Fichas, estados, KPIs y PDF",
+            "description": "Fichas, estado y rendimiento de jugadores",
             "url": reverse("coach-roster"),
             "icon": "roster",
         },
         {
             "title": "Dirección",
-            "description": "Ojeo, seguimiento y altas",
+            "description": "Ojeo y fichajes: seguimiento y altas",
             "url": reverse("scouting-board"),
             "icon": "direction",
         },
         {
             "title": "Análisis",
-            "description": "Rival, vídeo e informes",
+            "description": "Análisis del rival y vídeo",
             "url": reverse("analysis"),
             "query": analysis_card_query,
             "icon": "analysis",
         },
         {
             "title": "Entrenamiento",
-            "description": "Sesiones, tareas y microciclos",
+            "description": "Sesiones, tareas y planificación",
             "url": reverse("sessions"),
             "icon": "training",
         },
@@ -21077,13 +21077,13 @@ def coach_overview_page(request):
         },
         {
             "title": "Informes",
-            "description": "PDF: jugador, líneas y dirección",
+            "description": "Informes en PDF: jugador y equipo",
             "url": reverse("reports-hub"),
             "icon": "agenda",
         },
         {
-            "title": "Configuración",
-            "description": "Staff, módulos y ajustes del club",
+            "title": "Ajustes",
+            "description": "Ajustes del club y del equipo",
             "url": reverse("club-onboarding"),
             "icon": "config",
         },

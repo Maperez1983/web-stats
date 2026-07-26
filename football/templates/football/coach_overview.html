@@ -574,7 +574,7 @@
 	          </div>
 	        </div>
         {% if can_access_platform %}
-        <a class="product-pill-cta" style="padding:0.68rem 1rem;" href="{% url 'platform-overview' %}">Ir a plataforma</a>
+        <a class="product-pill-cta" style="padding:0.68rem 1rem;" href="{% url 'platform-overview' %}">Gobierno del club</a>
         {% endif %}
       </header>
 
@@ -583,7 +583,7 @@
 	          {% if team_crest_url %}
 	          <img src="{{ team_crest_url }}" alt="Escudo {{ team_display_name }}" />
 	          {% else %}
-	          <img src="{% static 'football/images/cdb-logo.png' %}" alt="Escudo {{ team_display_name }}" />
+	          <img src="{% static 'football/images/2j-mark.svg' %}" alt="Escudo {{ team_display_name }}" />
           {% endif %}
           <span>2J Club · {{ team_display_name }}</span>
         </div>
