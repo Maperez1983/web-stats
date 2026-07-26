@@ -42,35 +42,51 @@ def _asset(*parts):
     return None
 
 
-def _inputs_key(player):
+def _find_player_photo_name(player):
+    """La foto del jugador NO es un campo del modelo: se guarda por convención en
+    player-photos/player-<id>.<ext>. Devuelve el nombre de almacenamiento que exista, o ''."""
+    from django.core.files.storage import default_storage
+    pid = int(getattr(player, "id", 0) or 0)
+    if not pid:
+        return ""
+    for ext in ("png", "jpg", "jpeg", "webp"):
+        name = f"player-photos/player-{pid}.{ext}"
+        try:
+            if default_storage.exists(name):
+                return name
+        except Exception:
+            pass
+    return ""
+
+
+def _inputs_key(player, photo_name=""):
     """Hash de las entradas del avatar. Agnóstico del almacenamiento (local o S3): usa
-    name+size del fichero de foto (no rutas locales, que no existen con S3)."""
+    name+size del fichero de foto (resuelto por convención) + características."""
+    from django.core.files.storage import default_storage
     h = hashlib.sha1()
-    photo = getattr(player, "photo", None)
-    try:
-        if photo and photo.name:
-            h.update(f"{photo.name}:{photo.size}".encode())
-        else:
-            h.update(b"nophoto")
-    except Exception:
+    if photo_name:
+        try:
+            h.update(f"{photo_name}:{default_storage.size(photo_name)}".encode())
+        except Exception:
+            h.update(photo_name.encode())
+    else:
         h.update(b"nophoto")
     for v in (player.hairstyle, player.hair_color, player.skin_grade, player.height_cm):
         h.update(f"|{v}".encode())
     return h.hexdigest()
 
 
-def _read_photo_bgr(photo):
+def _read_photo_bgr(photo_name):
     """Lee la foto (local o S3) como BGR para OpenCV, vía la API de almacenamiento (no .path)."""
     import numpy as np
     import cv2
+    from django.core.files.storage import default_storage
     try:
-        photo.open("rb")
-        data = photo.read()
-    finally:
-        try:
-            photo.close()
-        except Exception:
-            pass
+        f = default_storage.open(photo_name, "rb")
+        data = f.read()
+        f.close()
+    except Exception:
+        return None
     if not data:
         return None
     return cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
@@ -182,14 +198,14 @@ class Command(BaseCommand):
             _pos = str(getattr(player, "position", "") or "").strip().lower()
             if _pos in {"por", "gk"} or "porter" in _pos or "goalkeep" in _pos:
                 continue
-            photo = getattr(player, "photo", None)
-            has_photo = bool(photo and getattr(photo, "name", ""))
+            photo_name = _find_player_photo_name(player)
+            has_photo = bool(photo_name)
             # Nada que personalizar y sin foto -> se deja la figura estática (resolver cae al PNG base).
             if not has_photo and not (
                 player.skin_grade or player.hairstyle or player.hair_color or player.height_cm
             ):
                 continue
-            key = _inputs_key(player)
+            key = _inputs_key(player, photo_name)
             if key == player.avatar_source_key and player.avatar_generated and not opts["force"]:
                 skipped += 1
                 continue
@@ -197,7 +213,7 @@ class Command(BaseCommand):
                 # ¿Hay cara utilizable en la foto? Si sí -> face-swap; si no -> sintético.
                 sface = None
                 if has_photo:
-                    src = _read_photo_bgr(photo)
+                    src = _read_photo_bgr(photo_name)
                     sfaces = app.get(src) if src is not None else []
                     if sfaces:
                         sface = sorted(sfaces, key=lambda f: (f.bbox[2] - f.bbox[0]))[-1]

@@ -20830,18 +20830,22 @@ def player_avatar_pending(player):
     hay cambios pendientes de la próxima pasada de generación (comando/worker). Solo es un aviso."""
     if player is None:
         return False
+    try:
+        from football.management.commands.generate_player_avatars import _inputs_key, _find_player_photo_name
+        photo_name = _find_player_photo_name(player)
+    except Exception:
+        return False
     has_custom = bool(
         getattr(player, "skin_grade", None)
         or (getattr(player, "hairstyle", "") or "").strip()
         or (getattr(player, "hair_color", "") or "").strip()
         or getattr(player, "height_cm", None)
-        or (getattr(getattr(player, "photo", None), "name", "") or "")
+        or photo_name
     )
     if not has_custom:
         return False
     try:
-        from football.management.commands.generate_player_avatars import _inputs_key
-        return _inputs_key(player) != (getattr(player, "avatar_source_key", "") or "")
+        return _inputs_key(player, photo_name) != (getattr(player, "avatar_source_key", "") or "")
     except Exception:
         return False
 
