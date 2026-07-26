@@ -8236,11 +8236,11 @@ def _operational_roster_players_for_team(request, team, *, season=None, confirme
             selected_season = None
     if selected_season and bool(getattr(selected_season, "is_active", False)):
         if include_all_active:
-            # "Todos los activos" (p.ej. convocatoria de amistoso): la UNIÓN de la plantilla activa
-            # (Player.is_active) y de los inscritos en la temporada que no son baja, para incluir tanto
-            # a los "a prueba" aún sin confirmar (activos sin alta confirmada, p.ej. Andrews) como a los
-            # confirmados que puedan tener is_active=False. Solo se excluye a quien ha causado baja en la
-            # temporada (No continúa / Inactivo). Así el amistoso nunca muestra menos que el oficial.
+            # "Todos los activos" (convocatoria de amistoso): toda la plantilla ACTIVA del equipo
+            # (Player.is_active=True), incluidos los "a prueba" aún sin confirmar en la temporada
+            # (p.ej. Andrews). Se excluye a quien ha causado baja en la temporada (No continúa /
+            # Inactivo). Los jugadores inactivos (is_active=False: descartados, dados de baja) NUNCA
+            # entran. Como oficial = confirmados activos, el amistoso siempre es un superconjunto.
             baja_ids = set(
                 WorkspaceSeasonPlayer.objects.filter(
                     season=selected_season,
@@ -8251,21 +8251,7 @@ def _operational_roster_players_for_team(request, team, *, season=None, confirme
                     ],
                 ).values_list("player_id", flat=True)
             )
-            member_ids = set(
-                WorkspaceSeasonPlayer.objects.filter(season=selected_season, team=team)
-                .exclude(
-                    status__in=[
-                        WorkspaceSeasonPlayer.STATUS_LEFT,
-                        WorkspaceSeasonPlayer.STATUS_INACTIVE,
-                    ]
-                )
-                .values_list("player_id", flat=True)
-            )
-            qs = (
-                Player.objects.filter(team=team)
-                .filter(Q(is_active=True) | Q(id__in=member_ids))
-                .order_by("number", "name", "id")
-            )
+            qs = Player.objects.filter(team=team, is_active=True).order_by("number", "name", "id")
             if baja_ids:
                 qs = qs.exclude(id__in=baja_ids)
             return list(qs)
@@ -8275,7 +8261,14 @@ def _operational_roster_players_for_team(request, team, *, season=None, confirme
             confirmed_only=confirmed_only,
             include_pending=not confirmed_only,
         )
-        return [row.player for row in memberships if getattr(row, "player", None)]
+        # Un jugador inactivo (is_active=False: descartado, dado de baja...) nunca forma parte del
+        # roster operativo aunque conserve un alta de temporada confirmada. Así desaparece de la home
+        # (pizarra/dashboard) y de la convocatoria de forma coherente.
+        return [
+            row.player
+            for row in memberships
+            if getattr(row, "player", None) and getattr(row.player, "is_active", True)
+        ]
     return list(Player.objects.filter(team=team, is_active=True).order_by("number", "name", "id"))
 
 
