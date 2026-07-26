@@ -54390,6 +54390,16 @@ def session_task_scenes_export(request):
                 v = analysis.get(key)
                 return [str(x)[:40] for x in v][:6] if isinstance(v, list) else []
 
+            task_sheet = meta.get("task_sheet") if isinstance(meta.get("task_sheet"), dict) else {}
+
+            def _mstr(*keys):
+                for src in (meta, task_sheet):
+                    for k in keys:
+                        v = str(src.get(k) or "").strip()
+                        if v:
+                            return v[:160]
+                return ""
+
             out.append({
                 "id": t.id,
                 "title": title,
@@ -54398,6 +54408,12 @@ def session_task_scenes_export(request):
                 "block": t.get_block_display(),
                 "duration": int(getattr(t, "duration_minutes", 0) or 0),
                 "players": players,
+                "training_type": _mstr("training_type"),
+                "player_count": _mstr("player_count", "players"),
+                "dimensions": _mstr("dimensions"),
+                "materials": _mstr("materials", "resources_summary"),
+                "surface": _mstr("surface"),
+                "pitch_format": _mstr("pitch_format"),
                 "exercise_types": _lst("exercise_types"),
                 "phase_tags": _lst("phase_tags"),
                 "work_contexts": _lst("work_contexts"),
