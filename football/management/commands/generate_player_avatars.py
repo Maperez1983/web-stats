@@ -23,6 +23,11 @@ from django.core.management.base import BaseCommand
 from football.models import Player
 
 STYLE_OVERLAYS = {"medio": "medio.png", "rizado": "rizado.png", "largo": "largo.png"}  # 'corto'/'' = pelo base
+# Paleta de grado de piel 1-6 (igual que views.AVATAR_SKIN_GRADES) para el avatar SIN foto.
+AVATAR_SKIN_GRADES = {
+    1: (236, 205, 178), 2: (224, 176, 136), 3: (200, 144, 95),
+    4: (165, 106, 60), 5: (109, 67, 40), 6: (74, 45, 26),
+}
 
 
 def _asset(*parts):
@@ -49,14 +54,11 @@ def _inputs_key(player, photo_path):
     return h.hexdigest()
 
 
-def _recolor_hair(arr, mask01, hair_hex):
-    """Recolorea (in place) la zona de pelo (mask 0-1) al hex dado, conservando la luminancia."""
+def _recolor_rgb(arr, mask01, rgb):
+    """Recolorea (in place) la zona (mask 0-1) al RGB dado, conservando la luminancia (V)."""
     import colorsys
     import numpy as np
-    try:
-        hc = hair_hex.lstrip("#")
-        rgb = (int(hc[0:2], 16), int(hc[2:4], 16), int(hc[4:6], 16))
-    except Exception:
+    if not rgb:
         return
     th, ts, _ = colorsys.rgb_to_hsv(*[c / 255 for c in rgb])
     lut = np.array([colorsys.hsv_to_rgb(th, ts, v / 255.0) for v in range(256)]) * 255
@@ -66,11 +68,20 @@ def _recolor_hair(arr, mask01, hair_hex):
     arr[:, :, :3] = arr[:, :, :3] * (1 - mm) + tint * mm
 
 
+def _recolor_hair(arr, mask01, hair_hex):
+    """Recolorea el pelo (mask 0-1) al hex '#rrggbb'."""
+    try:
+        hc = str(hair_hex).lstrip("#")
+        _recolor_rgb(arr, mask01, (int(hc[0:2], 16), int(hc[2:4], 16), int(hc[4:6], 16)))
+    except Exception:
+        return
+
+
 class Command(BaseCommand):
-    help = "Genera el avatar (face-swap) de los jugadores con foto."
+    help = "Genera el avatar por jugador: face-swap si tiene foto, si no sintético (piel/peinado/altura)."
 
     def add_arguments(self, parser):
-        parser.add_argument("--all", action="store_true", help="Todos los jugadores activos con foto.")
+        parser.add_argument("--all", action="store_true", help="Todos los jugadores activos (con foto o por características).")
         parser.add_argument("--player", type=int, default=0, help="Solo este id de jugador.")
         parser.add_argument("--force", action="store_true", help="Regenerar aunque no cambien las entradas.")
 
@@ -102,6 +113,9 @@ class Command(BaseCommand):
         base_face = sorted(base_faces, key=lambda f: (f.bbox[2] - f.bbox[0]))[-1]
         kps = base_face.kps
         hair_mask = np.asarray(Image.open(hair_mask_path).convert("L")).astype(np.float32) / 255.0
+        # Máscara de piel para el avatar SIN foto (recolor por grado de piel).
+        _skin_mask_path = _asset("masks", "skin_home.png")
+        skin_mask = (np.asarray(Image.open(_skin_mask_path).convert("L")).astype(np.float32) / 255.0) if _skin_mask_path else None
 
         # Figura base DEDICADA para el rapado (buzz generado nativo): el face-swap va sobre ella,
         # sin overlay ni recolor. El rapado no funciona como overlay (se pega al cráneo).
@@ -125,30 +139,43 @@ class Command(BaseCommand):
         for player in qs:
             photo = getattr(player, "photo", None)
             photo_path = getattr(photo, "path", None) if photo else None
-            if not photo_path or not os.path.exists(photo_path):
+            has_photo_file = bool(photo_path and os.path.exists(photo_path))
+            # Nada que personalizar y sin foto -> se deja la figura estática (resolver cae al PNG base).
+            if not has_photo_file and not (
+                player.skin_grade or player.hairstyle or player.hair_color or player.height_cm
+            ):
                 continue
-            key = _inputs_key(player, photo_path)
+            key = _inputs_key(player, photo_path or "")
             if key == player.avatar_source_key and player.avatar_generated and not opts["force"]:
                 skipped += 1
                 continue
             try:
-                src = cv2.imread(photo_path)
-                sfaces = app.get(src)
-                if not sfaces:
-                    self.stdout.write(f"· {player.id} {player.name}: sin cara en la foto, saltado")
-                    failed += 1
-                    continue
-                sface = sorted(sfaces, key=lambda f: (f.bbox[2] - f.bbox[0]))[-1]
-                style = (player.hairstyle or "").strip().lower()
+                # ¿Hay cara utilizable en la foto? Si sí -> face-swap; si no -> sintético.
+                sface = None
+                if has_photo_file:
+                    src = cv2.imread(photo_path)
+                    sfaces = app.get(src) if src is not None else []
+                    if sfaces:
+                        sface = sorted(sfaces, key=lambda f: (f.bbox[2] - f.bbox[0]))[-1]
 
-                if style == "rapado" and rapado_face is not None:
-                    # face-swap sobre la figura rapada dedicada; sin overlay ni recolor.
-                    res = swapper.get(rapado_bgr.copy(), rapado_face, sface, paste_back=True)
-                    arr = np.dstack([res[:, :, ::-1], rapado_alpha]).astype(np.float32)
-                    style = ""  # ya resuelto: evita el bloque de overlays/recolor de abajo
+                style = (player.hairstyle or "").strip().lower()
+                use_rapado = style == "rapado" and rapado_face is not None
+                b_bgr, b_alpha, b_face = (
+                    (rapado_bgr, rapado_alpha, rapado_face) if use_rapado else (base_bgr, base_alpha, base_face)
+                )
+
+                if sface is not None:
+                    # CON foto: face-swap de su cara real sobre la figura elegida.
+                    res = swapper.get(b_bgr.copy(), b_face, sface, paste_back=True)
+                    arr = np.dstack([res[:, :, ::-1], b_alpha]).astype(np.float32)
                 else:
-                    res = swapper.get(base_bgr.copy(), base_face, sface, paste_back=True)
-                    arr = np.dstack([res[:, :, ::-1], base_alpha]).astype(np.float32)  # RGBA
+                    # SIN foto (o sin cara): sintético = figura base + grado de piel del jugador.
+                    arr = np.dstack([b_bgr[:, :, ::-1], b_alpha]).astype(np.float32)
+                    if not use_rapado and player.skin_grade and skin_mask is not None:
+                        _recolor_rgb(arr, skin_mask, AVATAR_SKIN_GRADES.get(int(player.skin_grade)))
+
+                if use_rapado:
+                    style = ""  # rapado ya resuelto por la figura dedicada; sin overlay/recolor
 
                 if style in STYLE_OVERLAYS:
                     # borrar pelo base (cuero cabelludo con su tono de frente) + overlay del peinado
@@ -183,7 +210,9 @@ class Command(BaseCommand):
                 player.avatar_source_key = key
                 player.save(update_fields=["avatar_generated", "avatar_source_key"])
                 done += 1
-                self.stdout.write(f"✓ {player.id} {player.name} [{style or 'base'}]")
+                _src = "foto" if sface is not None else "sintético"
+                _st = "rapado" if use_rapado else (style or "base")
+                self.stdout.write(f"✓ {player.id} {player.name} [{_src}·{_st}]")
             except Exception as exc:
                 failed += 1
                 self.stderr.write(f"✗ {player.id} {player.name}: {exc}")
