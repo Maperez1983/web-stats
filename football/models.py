@@ -1148,6 +1148,10 @@ class Player(models.Model):
     agent_phone = models.CharField(max_length=40, blank=True)
     dominant_foot = models.CharField(max_length=16, blank=True)
     skin_tone = models.CharField(max_length=16, blank=True, help_text='Tono de piel para el avatar generado: light / medium / dark.')
+    # Personalización de avatar (estilo FM): grado de piel 1-6 y color de pelo (hex). El avatar se
+    # recolorea en la app sobre la figura base usando las máscaras de piel/pelo.
+    skin_grade = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Grado de piel 1 (muy clara) a 6 (muy oscura) para el avatar.')
+    hair_color = models.CharField(max_length=16, blank=True, help_text='Color de pelo del avatar en hex (ej. #4a2d1a).')
     preferred_position = models.CharField(max_length=60, blank=True)
     previous_season_position = models.CharField(max_length=60, blank=True)
     number = models.PositiveSmallIntegerField(null=True, blank=True)
