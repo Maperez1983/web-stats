@@ -8134,7 +8134,7 @@ def _season_player_memberships_for_team(season, team, *, confirmed_only=False, i
     return list(qs)
 
 
-def _operational_roster_players_for_team(request, team, *, season=None, confirmed_only=True):
+def _operational_roster_players_for_team(request, team, *, season=None, confirmed_only=True, include_all_active=False):
     if not team:
         return []
     selected_season = season
@@ -8146,6 +8146,24 @@ def _operational_roster_players_for_team(request, team, *, season=None, confirme
         except Exception:
             selected_season = None
     if selected_season and bool(getattr(selected_season, "is_active", False)):
+        if include_all_active:
+            # "Todos los activos" (p.ej. convocatoria de amistoso): la plantilla activa completa del
+            # equipo, incluidos los jugadores "a prueba" aún sin confirmar en la temporada. Solo se
+            # excluye a quienes han causado baja en la temporada (No continúa / Inactivo).
+            excluded_ids = set(
+                WorkspaceSeasonPlayer.objects.filter(
+                    season=selected_season,
+                    team=team,
+                    status__in=[
+                        WorkspaceSeasonPlayer.STATUS_LEFT,
+                        WorkspaceSeasonPlayer.STATUS_INACTIVE,
+                    ],
+                ).values_list("player_id", flat=True)
+            )
+            qs = Player.objects.filter(team=team, is_active=True).order_by("number", "name", "id")
+            if excluded_ids:
+                qs = qs.exclude(id__in=excluded_ids)
+            return list(qs)
         memberships = _season_player_memberships_for_team(
             selected_season,
             team,
@@ -27935,9 +27953,6 @@ def convocation_page(request):
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404("Equipo principal no configurado")
-    all_players = _operational_roster_players_for_team(request, primary_team, confirmed_only=True)
-    for player in all_players:
-        player.photo_url = resolve_player_photo_url(request, player)
     active_match = _resolve_active_match_for_flow(request, primary_team)
     requested_context = str(request.GET.get("context") or "").strip().lower()
     active_match_context = str(getattr(active_match, "context", "") or "").strip().lower()
@@ -27945,6 +27960,17 @@ def convocation_page(request):
     scope_value = requested_context or active_match_context or Match.CONTEXT_LEAGUE
     if scope_value not in allowed_contexts:
         scope_value = Match.CONTEXT_LEAGUE
+    # Convocatoria: en amistoso entran TODOS los jugadores activos (incluidos los "a prueba" aún sin
+    # confirmar en la temporada); en partido oficial (liga/torneo), solo la plantilla confirmada.
+    _conv_friendly = scope_value == Match.CONTEXT_FRIENDLY
+    all_players = _operational_roster_players_for_team(
+        request,
+        primary_team,
+        confirmed_only=not _conv_friendly,
+        include_all_active=_conv_friendly,
+    )
+    for player in all_players:
+        player.photo_url = resolve_player_photo_url(request, player)
 
     # Stats base (Universo/LaPreferente) solo son fiables para Liga.
     if scope_value == Match.CONTEXT_LEAGUE:
@@ -28425,7 +28451,15 @@ def save_convocation(request):
     if home_away not in {"home", "away"}:
         home_away = "home"
 
-    allowed_season_players = _operational_roster_players_for_team(request, primary_team, confirmed_only=True)
+    # Coherente con convocation_page: en amistoso se permite convocar a todos los activos ("a prueba"
+    # incluidos); en oficial (liga/torneo), solo la plantilla confirmada de la temporada.
+    _conv_friendly = context_value == Match.CONTEXT_FRIENDLY
+    allowed_season_players = _operational_roster_players_for_team(
+        request,
+        primary_team,
+        confirmed_only=not _conv_friendly,
+        include_all_active=_conv_friendly,
+    )
     allowed_season_player_ids = [int(player.id) for player in allowed_season_players if getattr(player, "id", None)]
     players = Player.objects.filter(team=primary_team, is_active=True, id__in=player_ids)
     if allowed_season_player_ids:
