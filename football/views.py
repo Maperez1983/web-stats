@@ -21070,6 +21070,12 @@ def coach_overview_page(request):
             "icon": "training",
         },
         {
+            "title": "Staff",
+            "description": "Cuerpo técnico: fichas y roles",
+            "url": reverse("staff-directory"),
+            "icon": "roster",
+        },
+        {
             "title": "Informes",
             "description": "PDF: jugador, líneas y dirección",
             "url": reverse("reports-hub"),

@@ -196,8 +196,6 @@
   <button type="button" class="nav-collapse-toggle" data-nav-toggle aria-expanded="{% if nav_url_name == 'scouting-board' or nav_url_name == 'scouting-target-detail' or nav_url_name == 'player-detail' %}false{% else %}true{% endif %}" aria-label="Mostrar u ocultar navegacion" title="Mostrar/ocultar navegacion">&#8801; Menu</button>
   <span class="nav-primary-links{% if nav_url_name == 'scouting-board' or nav_url_name == 'scouting-target-detail' or nav_url_name == 'player-detail' %} is-collapsed{% endif %}" data-nav-primary>
   {% if can_access_staff|default:False %}
-  <a href="{% url 'coach-detail' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Abre la portada del entrenador: plantilla en el campo, competición, próximo rival y accesos." class="{% if nav_url_name == 'coach-detail' or nav_url_name == 'coach-role-trainer' or 'coach/roles/entrenador' in nav_path %}is-active{% endif %}" {% if nav_url_name == 'coach-detail' or nav_url_name == 'coach-role-trainer' or 'coach/roles/entrenador' in nav_path %}aria-current="page"{% endif %}>Entrenador</a>
-  <a href="{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Abre las fichas del cuerpo técnico de este equipo: datos, foto, rol y acceso al sistema." class="{% if nav_url_name == 'staff-directory' or nav_url_name == 'staff-member-create' or nav_url_name == 'staff-member-detail' %}is-active{% endif %}" {% if nav_url_name == 'staff-directory' or nav_url_name == 'staff-member-create' or nav_url_name == 'staff-member-detail' %}aria-current="page"{% endif %}>Staff</a>
   <a href="{% url 'scouting-board' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Abre la bandeja de dirección deportiva: ojeados, informes, seguimiento y prioridades." class="{% if nav_url_name == 'scouting-board' or nav_url_name == 'scouting-target-detail' %}is-active{% endif %}" {% if nav_url_name == 'scouting-board' or nav_url_name == 'scouting-target-detail' %}aria-current="page"{% endif %}>Dirección</a>
   {% endif %}
   {% if workspace_module_access.sessions|default:True %}
@@ -208,9 +206,9 @@
   {% endif %}
   {% if workspace_module_access.players|default:True %}
     {% if can_manage_workspace or is_admin_user %}
-    <a href="{% url 'coach-roster' %}?tab=stats{% if active_team %}&team={{ active_team.id }}{% endif %}" data-help="Abre la plantilla: fichas de jugadores, estadísticas, valoraciones, lesiones y seguimiento individual." class="{% if nav_url_name == 'coach-roster' or 'coach/plantilla' in nav_path %}is-active{% endif %}" {% if nav_url_name == 'coach-roster' or 'coach/plantilla' in nav_path %}aria-current="page"{% endif %}>Jugador</a>
+    <a href="{% url 'coach-roster' %}?tab=stats{% if active_team %}&team={{ active_team.id }}{% endif %}" data-help="Abre la plantilla: fichas de jugadores, estadísticas, valoraciones, lesiones y seguimiento individual." class="{% if nav_url_name == 'coach-roster' or 'coach/plantilla' in nav_path %}is-active{% endif %}" {% if nav_url_name == 'coach-roster' or 'coach/plantilla' in nav_path %}aria-current="page"{% endif %}>Plantilla</a>
     {% else %}
-    <a href="{% url 'player-dashboard' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Abre el espacio de jugadores con fichas, vídeos, informes y seguimiento disponible para tu rol." class="{% if nav_url_name == 'player-dashboard' %}is-active{% endif %}" {% if nav_url_name == 'player-dashboard' %}aria-current="page"{% endif %}>Jugador</a>
+    <a href="{% url 'player-dashboard' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Abre el espacio de jugadores con fichas, vídeos, informes y seguimiento disponible para tu rol." class="{% if nav_url_name == 'player-dashboard' %}is-active{% endif %}" {% if nav_url_name == 'player-dashboard' %}aria-current="page"{% endif %}>Plantilla</a>
     {% endif %}
   {% endif %}
   {% if workspace_module_access.dashboard|default:True %}
@@ -218,9 +216,6 @@
   {% endif %}
   {% if workspace_module_access.tactics|default:True %}
   <a href="{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Abre herramientas tácticas: modelo de juego, pizarra, ABP y recursos para preparar el partido." class="{% if 'coach/tactica' in nav_path %}is-active{% endif %}" {% if 'coach/tactica' in nav_path %}aria-current="page"{% endif %}>Táctica</a>
-  {% endif %}
-  {% if can_configure_active_team and active_workspace and active_workspace.kind == 'club' %}
-  <a href="{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Configura el club o equipo: temporada, identidad, módulos, permisos y datos base." class="{% if nav_url_name == 'club-onboarding' or nav_url_name == 'club-season-wizard' %}is-active{% endif %}" {% if nav_url_name == 'club-onboarding' or nav_url_name == 'club-season-wizard' %}aria-current="page"{% endif %}>Configurar</a>
   {% endif %}
   </span>
   {% if show_legacy_nav_menu|default:False %}
