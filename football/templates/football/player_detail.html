@@ -1257,24 +1257,6 @@
           </div>
         </article>
         <article class="decision-card">
-          <span class="label">Última evaluación</span>
-          <div class="value">
-            {% if latest_eval %}
-              {{ latest_eval.evaluated_on|date:"d/m/Y" }}
-            {% else %}
-              Sin evaluación cerrada
-            {% endif %}
-          </div>
-          <div class="meta">
-            {% if latest_eval %}
-              {{ latest_eval.get_evaluation_type_display }} · Global {{ latest_eval.overall_rating|default:"--" }}
-              {% if evaluation_summary.days_since is not None %} · Hace {{ evaluation_summary.days_since }} días{% endif %}
-            {% else %}
-              No hay una evaluación cerrada visible para este jugador.
-            {% endif %}
-          </div>
-        </article>
-        <article class="decision-card">
           <span class="label">Última comunicación</span>
           <div class="value">
             {% if latest_comm %}
@@ -1595,55 +1577,6 @@
               {% endif %}
             </div>
           {% endif %}
-        </div>
-        <div class="decision-board" aria-label="Evaluación previa">
-          <article class="decision-card">
-            <span class="label">Última evaluación</span>
-            <div class="value">
-              {% if latest_eval %}
-                {{ latest_eval.evaluated_on|date:"d/m/Y" }}
-              {% else %}
-                Sin evaluación cerrada
-              {% endif %}
-            </div>
-            <div class="meta">
-              {% if latest_eval %}
-                {{ latest_eval.get_evaluation_type_display }} · Global {{ latest_eval.overall_rating|default:"--" }}
-              {% else %}
-                No hay una evaluación cerrada visible para este jugador.
-              {% endif %}
-            </div>
-          </article>
-          <article class="decision-card">
-            <span class="label">Contexto</span>
-            <div class="value">
-              {% if evaluation_summary.days_since is not None %}
-                Hace {{ evaluation_summary.days_since }} días
-              {% else %}
-                Sin histórico
-              {% endif %}
-            </div>
-            <div class="meta">
-              {% if latest_eval %}
-                Revisión previa disponible para comparar con la evolución actual.
-              {% else %}
-                La primera evaluación servirá de línea base.
-              {% endif %}
-            </div>
-          </article>
-          <article class="decision-card {% if player.has_federative_license %}is-accent{% endif %}">
-            <span class="label">Ficha federativa</span>
-            <div class="value">
-              {% if player.has_federative_license %}✅ Fichado{% else %}Sin ficha{% endif %}
-            </div>
-            <div class="meta">
-              {% if player.has_federative_license %}
-                Tiene licencia federativa (cuenta para el cupo de fichas del equipo).
-              {% else %}
-                Aún sin ficha federativa: no consume cupo y no es convocable en partido oficial.
-              {% endif %}
-            </div>
-          </article>
         </div>
         <div class="personal-layout">
           {% if not is_player_readonly %}
