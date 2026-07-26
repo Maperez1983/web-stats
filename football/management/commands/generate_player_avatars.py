@@ -103,6 +103,18 @@ class Command(BaseCommand):
         kps = base_face.kps
         hair_mask = np.asarray(Image.open(hair_mask_path).convert("L")).astype(np.float32) / 255.0
 
+        # Figura base DEDICADA para el rapado (buzz generado nativo): el face-swap va sobre ella,
+        # sin overlay ni recolor. El rapado no funciona como overlay (se pega al cráneo).
+        rapado_path = _asset("library", "kit_rapado_hd.png")
+        rapado_bgr = rapado_alpha = rapado_face = None
+        if rapado_path:
+            _r = np.asarray(Image.open(rapado_path).convert("RGBA"))
+            rapado_alpha = _r[:, :, 3]
+            rapado_bgr = _r[:, :, :3][:, :, ::-1].copy()
+            _rf = app.get(rapado_bgr)
+            if _rf:
+                rapado_face = sorted(_rf, key=lambda f: (f.bbox[2] - f.bbox[0]))[-1]
+
         qs = Player.objects.filter(is_active=True)
         if opts["player"]:
             qs = Player.objects.filter(id=opts["player"])
@@ -127,10 +139,17 @@ class Command(BaseCommand):
                     failed += 1
                     continue
                 sface = sorted(sfaces, key=lambda f: (f.bbox[2] - f.bbox[0]))[-1]
-                res = swapper.get(base_bgr.copy(), base_face, sface, paste_back=True)
-                arr = np.dstack([res[:, :, ::-1], base_alpha]).astype(np.float32)  # RGBA
-
                 style = (player.hairstyle or "").strip().lower()
+
+                if style == "rapado" and rapado_face is not None:
+                    # face-swap sobre la figura rapada dedicada; sin overlay ni recolor.
+                    res = swapper.get(rapado_bgr.copy(), rapado_face, sface, paste_back=True)
+                    arr = np.dstack([res[:, :, ::-1], rapado_alpha]).astype(np.float32)
+                    style = ""  # ya resuelto: evita el bloque de overlays/recolor de abajo
+                else:
+                    res = swapper.get(base_bgr.copy(), base_face, sface, paste_back=True)
+                    arr = np.dstack([res[:, :, ::-1], base_alpha]).astype(np.float32)  # RGBA
+
                 if style in STYLE_OVERLAYS:
                     # borrar pelo base (cuero cabelludo con su tono de frente) + overlay del peinado
                     ex, ey = int((kps[0][0] + kps[1][0]) / 2), int((kps[0][1] + kps[1][1]) / 2)
