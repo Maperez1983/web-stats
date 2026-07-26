@@ -4085,6 +4085,15 @@
 			          Estás viendo la carpeta:
 			          <strong>{% if library_source_tab == 'imported' %}Importadas{% elif library_source_tab == 'performed' %}Realizadas{% else %}Creadas{% endif %}</strong>.
 			        </p>
+			        {% if library_source_tab != 'imported' and library_source_tab != 'performed' %}
+			        <form method="post" style="margin:-0.4rem 0 0.9rem;" onsubmit="return confirm('¿Enviar a la papelera los borradores vacíos (sin título, objetivo, dibujo ni PDF)? Se pueden restaurar.');">
+			          {% csrf_token %}
+			          <input type="hidden" name="planner_action" value="delete_empty_library_drafts" />
+			          <input type="hidden" name="planner_tab" value="library" />
+			          <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+			          <button type="submit" class="button secondary small" title="Enviar a papelera los borradores que no corresponden a nada" aria-label="Limpiar borradores vacíos">🧹 Limpiar borradores vacíos</button>
+			        </form>
+			        {% endif %}
 
                 <details class="box" style="margin:0 0 1rem;">
                   <summary style="cursor:pointer; font-weight:900;">

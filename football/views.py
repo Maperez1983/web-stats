@@ -43008,6 +43008,7 @@ def _sessions_tab_from_action(action):
         "auto_fix_task_text",
         "duplicate_library_task",
         "delete_library_task",
+        "delete_empty_library_drafts",
         "restore_library_task",
         "purge_library_task",
         "update_library_task",
@@ -46520,6 +46521,61 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
                 )
                 target_task.save(update_fields=["deleted_at", "deleted_by"])
                 feedback = f"Tarea enviada a papelera: {task_title}. (Puedes restaurarla cuando quieras)"
+
+            elif planner_action == "delete_empty_library_drafts":
+                # Envía a papelera (restaurable) los borradores que "no corresponden a nada":
+                # título por defecto, sin objetivo/consignas/reglas/notas, sin PDF, sin imagen y sin dibujo.
+                def _draft_is_empty_orphan(t):
+                    title = str(t.title or "").strip().lower()
+                    if title not in ("", "nueva tarea", "nueva tarea táctica", "nueva tarea tactica"):
+                        return False
+                    for txt in (t.objective, t.coaching_points, t.confrontation_rules, t.notes):
+                        if str(txt or "").strip():
+                            return False
+                    if t.task_pdf or t.task_preview_image:
+                        return False
+                    try:
+                        layout = t.tactical_layout if isinstance(t.tactical_layout, dict) else {}
+                        meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
+                        graphic = meta.get("graphic_editor") if isinstance(meta.get("graphic_editor"), dict) else {}
+                        state = graphic.get("canvas_state") if isinstance(graphic.get("canvas_state"), dict) else {}
+                        objects = state.get("objects") if isinstance(state.get("objects"), list) else []
+                        if objects:
+                            return False
+                    except Exception:
+                        return False
+                    return True
+
+                candidates = SessionTask.objects.select_related("session__microcycle").filter(
+                    session__microcycle__team=primary_team, deleted_at__isnull=True
+                )
+                removed = 0
+                actor_username = (
+                    request.user.username
+                    if getattr(request, "user", None) and request.user.is_authenticated
+                    else ""
+                )
+                for t in candidates:
+                    if _task_scope_for_item(t) != scope_key:
+                        continue
+                    if not _draft_is_empty_orphan(t):
+                        continue
+                    try:
+                        write_task_backup(
+                            t, kind="session_task", reason="delete_empty_draft", actor_username=actor_username
+                        )
+                    except Exception:
+                        pass
+                    t.deleted_at = timezone.localtime()
+                    t.deleted_by = (
+                        request.user if getattr(request, "user", None) and request.user.is_authenticated else None
+                    )
+                    t.save(update_fields=["deleted_at", "deleted_by"])
+                    removed += 1
+                if removed:
+                    feedback = f"{removed} borrador(es) vacío(s) enviados a papelera. (Puedes restaurarlos si hiciera falta)"
+                else:
+                    feedback = "No hay borradores vacíos que limpiar."
 
             elif planner_action == "restore_library_task":
                 task_id = _parse_int(request.POST.get("task_id"))
