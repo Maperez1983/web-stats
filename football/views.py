@@ -20940,6 +20940,54 @@ def _build_coach_alerts(*, primary_team, roster_players, active_injury_ids, fede
     return alerts[:8]
 
 
+def _suggest_probable_eleven(primary_team):
+    """(Fase 4) 11 probable sugerido: por disponibilidad (sin lesión) + valoración + puesto,
+    en 4-3-3. Solo LECTURA (propone, no guarda). Devuelve {formation, lines, available}."""
+    if not primary_team:
+        return {"formation": "", "lines": [], "available": 0}
+    roster = list(Player.objects.filter(team=primary_team, is_active=True))
+    ids = [int(p.id) for p in roster if getattr(p, "id", None)]
+    try:
+        injured = set(get_active_injury_player_ids(ids))
+    except Exception:
+        injured = set()
+    try:
+        ratings = _tactical_latest_closed_ratings(ids)
+    except Exception:
+        ratings = {}
+    avail = [p for p in roster if int(p.id) not in injured]
+    buckets = {"gk": [], "def": [], "mid": [], "att": []}
+    for p in avail:
+        b = _roster_preview_bucket(getattr(p, "position", "") or "")
+        buckets[b if b in buckets else "mid"].append(p)
+    for b in buckets:
+        buckets[b].sort(key=lambda p: (ratings.get(int(p.id)) or 0), reverse=True)
+    need = {"gk": 1, "def": 4, "mid": 3, "att": 3}
+    label = {"gk": "Portero", "def": "Defensa", "mid": "Medio", "att": "Ataque"}
+    used = set()
+    lines = []
+    for b in ["gk", "def", "mid", "att"]:
+        picks = []
+        for p in buckets[b]:
+            if len(picks) >= need[b]:
+                break
+            picks.append(p)
+            used.add(int(p.id))
+        if len(picks) < need[b]:  # completar con cualquier disponible si falta gente en la línea
+            for p in avail:
+                if len(picks) >= need[b]:
+                    break
+                if int(p.id) in used:
+                    continue
+                picks.append(p)
+                used.add(int(p.id))
+        lines.append({
+            "line": label[b],
+            "players": [{"name": p.name or f"#{p.id}", "number": p.number, "rating": ratings.get(int(p.id))} for p in picks],
+        })
+    return {"formation": "4-3-3", "lines": lines, "available": len(avail)}
+
+
 def answer_coach_question(request, primary_team, question):
     """Asistente del entrenador (fase 3). Intenciones DETERMINISTAS (sin depender de IA) sobre
     preguntas de SOLO LECTURA: lesionados, próximo partido, disponibles, cobertura, licencias,
@@ -21040,8 +21088,24 @@ def answer_coach_question(request, primary_team, question):
         links = [{"label": "Ver plantilla", "url": reverse("coach-roster")}]
         return {"answer": ans, "links": links, "intent": "evaluations"}
 
-    # 7) Acciones que mutan -> aún no, guío a la herramienta (fase 3b)
-    if has("crea", "convoca", "alinea", "planifica", "programa", "da de alta"):
+    # 7) 11 probable sugerido (solo lectura: propone, no guarda)
+    if has("11 probable", "once probable", "posible 11", "posible once", "sugiere el 11", "sugiere once",
+           "mejor 11", "mejor once", "que 11", "que once", "alineacion", "quien juega"):
+        xi = _suggest_probable_eleven(primary_team)
+        if not xi.get("lines"):
+            ans = "No tengo jugadores disponibles suficientes para proponer un 11."
+        else:
+            parts = []
+            for ln in xi["lines"]:
+                names = ", ".join(
+                    (pl["name"] + (f" ({pl['rating']:.1f})" if pl.get("rating") else "")) for pl in ln["players"]
+                ) or "—"
+                parts.append(f"{ln['line']}: {names}")
+            ans = f"11 probable ({xi['formation']}): " + " · ".join(parts) + "."
+        return {"answer": ans, "links": [{"label": "Once inicial", "url": reverse("match-hub")}], "intent": "suggested_xi"}
+
+    # 8) Acciones que mutan -> aún no, guío a la herramienta (fase 3b)
+    if has("crea ", "convoca", "planifica", "programa", "da de alta"):
         return {"answer": "Crear o convocar todavía lo hago desde la herramienta correspondiente (por seguridad). Te llevo:",
                 "links": [{"label": "Entrenamiento", "url": reverse("sessions")}, {"label": "Convocatoria", "url": reverse("match-hub")}],
                 "intent": "action_redirect"}

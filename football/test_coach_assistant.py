@@ -39,3 +39,20 @@ class CoachAssistantTests(TestCase):
     def test_unknown_gives_help(self):
         r = answer_coach_question(self.req, self.team, "cuéntame un chiste")
         self.assertEqual(r["intent"], "help")
+
+    def test_suggested_eleven(self):
+        from football.views import _suggest_probable_eleven
+        pos = ["Portero", "LD", "DFC", "DFC", "LI", "MC", "MC", "MC", "ED", "DC", "EI"]
+        for i, ps in enumerate(pos):
+            Player.objects.create(team=self.team, name=f"X{i}", position=ps, is_active=True, number=20 + i)
+        xi = _suggest_probable_eleven(self.team)
+        self.assertEqual(xi["formation"], "4-3-3")
+        counts = {ln["line"]: len(ln["players"]) for ln in xi["lines"]}
+        self.assertEqual(counts["Portero"], 1)
+        self.assertEqual(counts["Defensa"], 4)
+        self.assertEqual(counts["Medio"], 3)
+        self.assertEqual(counts["Ataque"], 3)
+        # intención del asistente
+        r = answer_coach_question(self.req, self.team, "sugiere el 11 probable")
+        self.assertEqual(r["intent"], "suggested_xi")
+        self.assertIn("4-3-3", r["answer"])
