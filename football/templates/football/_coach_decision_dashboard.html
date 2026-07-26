@@ -81,7 +81,7 @@ con .rows y .counts. Autocontenido (estilos scoped por .cdd-).{% endcomment %}
       <tbody>
         {% for r in dash.rows %}
         <tr class="{% if r.decision == 'pending' %}row-pending{% endif %}">
-          <td class="pl"><a href="{% url 'player-detail' r.id %}"><span class="pl-num">{{ r.number|default:'—' }}</span>{{ r.name }}</a></td>
+          <td class="pl"><a href="{% url 'player-detail' r.id %}"><span class="pl-num">{{ r.number|default:'—' }}</span>{{ r.name }}{% if r.signed %} <span title="Fichado (ficha federativa)" aria-label="Fichado">✅</span>{% endif %}</a></td>
           <td class="meta">{{ r.position|default:"-"|display_position }}{% if r.age %} · {{ r.age }} a{% endif %}</td>
           <td><span class="ov ov-{{ r.overall_tone }}">{{ r.overall_display }}</span></td>
           <td class="sub{% if r.ratings.technical == None %} dim{% endif %}">{% if r.ratings.technical != None %}{{ r.ratings.technical|floatformat:1 }}{% else %}–{% endif %}</td>

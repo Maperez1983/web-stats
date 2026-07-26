@@ -5462,6 +5462,7 @@ def _build_coach_decision_dashboard(*, primary_team, active_club_season, players
             "overall_tone": _coach_decision_rating_tone(overall),
             "ratings": ratings,
             "has_eval": ev is not None,
+            "signed": bool(getattr(player, "has_federative_license", False)),
         })
 
     def _sort_key(row):
