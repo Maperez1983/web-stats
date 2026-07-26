@@ -1011,21 +1011,16 @@
       }
       .create-hero-top .meta { margin: 0; }
       .create-hero-pitch {
-        height: clamp(280px, 28vw, 420px);
-	        background:
-          linear-gradient(180deg, rgba(2, 10, 22, 0.18), rgba(2, 10, 22, 0.82)),
-          url('{% static "football/images/marketing/training_home_pizarra_candidate.png" %}') center/contain no-repeat;
-	        background-size: 100% auto, contain;
-	        background-position: center center, center center;
-	        background-repeat: no-repeat;
+        height: clamp(220px, 22vw, 320px);
+	        background: linear-gradient(180deg, rgba(2, 10, 22, 0.06), rgba(2, 10, 22, 0.30));
 	        display: grid;
 	        place-items: center;
 	        position: relative;
 	        overflow: hidden;
 	      }
-      /* Evita que se “corten” bordes/sombras por el recorte del contenedor. */
-      .create-hero-preview { display: none; }
-      .create-hero-pitch svg { display: none; }
+      /* Mini-pizarra ligera (SVG inline) en vez de imagen pesada de fondo. */
+      .create-hero-preview { display: block; width: 100%; height: 100%; }
+      .create-hero-pitch svg { display: block; width: 100%; height: 100%; }
 	      .create-hero-guide {
 	        padding: 0.8rem 0.85rem 0.9rem;
 	        display: grid;
