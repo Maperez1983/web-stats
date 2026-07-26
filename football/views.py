@@ -20101,7 +20101,8 @@ def _evolution_parameter_movers(evaluations, top=4):
         return {"up": [], "down": [], "available": False}
     first, last = scored[0], scored[-1]
     deltas = []
-    for area in EVALUATION_PARAMETER_CATALOG:
+    _movers_catalog = _evaluation_catalog_for_player(getattr(first, "player", None))
+    for area in _movers_catalog:
         akey = area["key"]
         fa = first.parameter_scores.get(akey) or {}
         la = last.parameter_scores.get(akey) or {}
@@ -70849,13 +70850,93 @@ EVALUATION_PARAMETER_CATALOG = [
 ]
 
 
-def _parse_evaluation_parameter_scores(post):
+EVALUATION_PARAMETER_CATALOG_GK = [
+    {
+        "key": "technical",
+        "label": "T\u00e9cnico",
+        "rating_field": "technical_rating",
+        "params": [
+            ("gk_blocaje", "Blocaje / seguridad de manos"),
+            ("gk_reflejos", "Reflejos"),
+            ("gk_mano_a_mano", "Mano a mano"),
+            ("gk_juego_aereo", "Juego a\u00e9reo / salidas"),
+            ("gk_despejes", "Despejes / pu\u00f1os"),
+            ("gk_saque_mano", "Saque con la mano"),
+            ("gk_saque_pie", "Saque / distribuci\u00f3n con el pie"),
+            ("gk_juego_pies", "Juego con los pies"),
+            ("gk_penaltis", "Paradas de penalti / bal\u00f3n parado"),
+        ],
+    },
+    {
+        "key": "tactical",
+        "label": "T\u00e1ctico",
+        "rating_field": "tactical_rating",
+        "params": [
+            ("gk_colocacion", "Colocaci\u00f3n"),
+            ("gk_salidas", "Salidas / dominio del \u00e1rea"),
+            ("gk_anticipacion", "Anticipaci\u00f3n / lectura"),
+            ("gk_decisiones", "Decisiones (salir/quedarse)"),
+            ("gk_inicio", "Inicio de juego / portero-l\u00edbero"),
+            ("gk_comunicacion", "Comunicaci\u00f3n / organizaci\u00f3n de la defensa"),
+            ("gk_reduccion_angulo", "Reducci\u00f3n de \u00e1ngulo"),
+        ],
+    },
+    {
+        "key": "physical",
+        "label": "F\u00edsico",
+        "rating_field": "physical_rating",
+        "params": [
+            ("gk_agilidad", "Agilidad"),
+            ("gk_reaccion", "Velocidad de reacci\u00f3n"),
+            ("gk_salto", "Salto / alcance"),
+            ("gk_fuerza", "Fuerza / robustez"),
+            ("gk_coordinacion", "Coordinaci\u00f3n"),
+            ("gk_equilibrio", "Equilibrio"),
+            ("gk_resistencia", "Resistencia"),
+            ("gk_forma_fisica", "Forma f\u00edsica / robustez ante lesiones"),
+        ],
+    },
+    {
+        "key": "mental",
+        "label": "Mental",
+        "rating_field": "mental_rating",
+        "params": [
+            ("gk_concentracion", "Concentraci\u00f3n"),
+            ("gk_valentia", "Valent\u00eda"),
+            ("gk_compostura", "Tolerancia a la presi\u00f3n"),
+            ("gk_determinacion", "Determinaci\u00f3n"),
+            ("gk_decision", "Decisi\u00f3n"),
+            ("gk_mando", "Mando del \u00e1rea / liderazgo"),
+            ("gk_serenidad", "Serenidad"),
+            ("gk_talento", "Talento"),
+        ],
+    },
+]
+
+
+def _evaluation_catalog_for_player(player):
+    """Cat\u00e1logo de par\u00e1metros de valoraci\u00f3n seg\u00fan la posici\u00f3n: los porteros tienen atributos
+    propios (estilo Football Manager: reflejos, blocaje, juego a\u00e9reo, mano a mano, salidas...);
+    el resto usa el cat\u00e1logo de jugador de campo. Mismas 4 \u00e1reas y rating_field en ambos."""
+    pos = str(getattr(player, "position", "") or getattr(player, "preferred_position", "") or "").strip().lower()
+    if (
+        pos in {"por", "pt", "gk", "goalkeeper", "portero", "guardameta"}
+        or pos.startswith("por")
+        or pos.startswith("gk")
+        or "portero" in pos
+        or "guardameta" in pos
+    ):
+        return EVALUATION_PARAMETER_CATALOG_GK
+    return EVALUATION_PARAMETER_CATALOG
+
+
+def _parse_evaluation_parameter_scores(post, catalog=None):
     """Lee param_<area>_<key> del POST (sliders 0-10, 0 = sin valorar). Devuelve (scores, averages):
     scores  = {area: {key: float 1-10}} (solo parámetros valorados),
     averages = {area: float redondeado a 0.1 | None}."""
     scores = {}
     averages = {}
-    for area in EVALUATION_PARAMETER_CATALOG:
+    for area in (catalog or EVALUATION_PARAMETER_CATALOG):
         akey = area["key"]
         area_scores = {}
         for pkey, _label in area["params"]:
@@ -71447,7 +71528,7 @@ def player_detail_page(request, player_id):
                 }
                 # Desglose por parámetros (FM): guarda los parámetros y, si no se dio nota de área a
                 # mano, usa la media de sus parámetros. Así cada evaluación es un punto de la evolución.
-                parameter_scores, _param_averages = _parse_evaluation_parameter_scores(request.POST)
+                parameter_scores, _param_averages = _parse_evaluation_parameter_scores(request.POST, catalog=_evaluation_catalog_for_player(player))
                 for _area in EVALUATION_PARAMETER_CATALOG:
                     _field = _area["rating_field"]
                     if ratings.get(_field) is None and _param_averages.get(_area["key"]) is not None:
@@ -72692,7 +72773,7 @@ def player_detail_page(request, player_id):
                         }.get(_a["key"], "#3b82f6"),
                         "params": [{"key": _k, "label": _l} for _k, _l in _a["params"]],
                     }
-                    for _a in EVALUATION_PARAMETER_CATALOG
+                    for _a in _evaluation_catalog_for_player(player)
                 ],
                 "physical_metrics": physical_metrics,
                 "player_objectives": player_objectives,
