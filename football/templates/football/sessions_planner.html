@@ -2050,7 +2050,7 @@
               <a href="{% url 'dashboard-home' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}" class="button">Volver</a>
             </div>
 		      </div>
-	      <p class="meta scope-meta">Espacio activo: <strong>{{ scope_title|default:"Sesiones" }}</strong> <span class="product-chip role">Sesiones · Microciclos · Biblioteca · Crear tarea</span></p>
+	      {# Breadcrumb "Espacio activo" retirado: era redundante con las pestañas (menos capas). #}
 
       {% if messages %}
         {% for message in messages %}
@@ -2069,9 +2069,9 @@
       {% else %}
 
       <section class="panel intro-strip">
-        <p class="panel-kicker">Guía rápida</p>
-        <h2>Planificación</h2>
-        <p class="meta" style="margin-top: -0.1rem; margin-bottom: 0.7rem;">Crea primero la base táctica y luego programa la estructura semanal.</p>
+        <p class="panel-kicker">Crear</p>
+        <h2>¿Qué quieres crear?</h2>
+        <p class="meta" style="margin-top: -0.1rem; margin-bottom: 0.7rem;">Tarea, sesión o microciclo — elige por dónde empezar.</p>
         <div class="workflow-grid flow-steps" style="margin-bottom:0;">
           <div class="workflow-card">
             <div class="workflow-step"><span class="step-number">1</span> Tareas</div>
