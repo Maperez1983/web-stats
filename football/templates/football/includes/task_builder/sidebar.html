@@ -140,8 +140,8 @@
                     <input type="text" name="draw_task_dimensions" value="{{ initial.dimensions }}" placeholder="Ej: 40x30 m" />
                   </label>
                   <label>
-                    Edad
-                    <input type="text" name="draw_task_age_group" value="{{ initial.age_group }}" placeholder="Ej: Cadete / Juvenil" />
+                    Edad / categoría
+                    <input type="text" name="draw_task_age_group" value="{{ initial.age_group }}" placeholder="Ej: Juvenil, Senior, División de Honor…" />
                   </label>
                   <label>
                     Tipo
@@ -479,7 +479,7 @@
                         <button type="button" class="button secondary" onclick="try{document.querySelector('#task-side-tabs [data-pane=&quot;preview&quot;]')?.click();}catch(e){};return false;">Vista previa</button>
                       </div>
                     </div>
-                    <p class="meta" style="margin:0.4rem 0 0.85rem;">Aquí defines la lógica metodológica de la tarea, sus principios y sus variantes sin tocar la pizarra.</p>
+                    <p class="meta" style="margin:0.4rem 0 0.85rem;"><strong>Opcional · avanzado.</strong> Solo si trabajas por principios/metodología. La tarea funciona con rellenar «Datos» (título, objetivo, descripción). Aquí, si quieres, defines la lógica metodológica, sus principios y variantes, sin tocar la pizarra.</p>
 		                  <div class="meta" style="margin:-0.2rem 0 0.85rem;">
 		                    <label class="chip-toggle" style="display:inline-flex; gap:10px; align-items:center;">
 		                      <input type="checkbox" name="draw_task_multi_board" id="task-multi-board-toggle" value="1" {% if initial.multi_board_enabled %}checked{% endif %} />
