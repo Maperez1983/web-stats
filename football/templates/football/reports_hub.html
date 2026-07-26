@@ -255,6 +255,42 @@
             })();
           </script>
         </section>
+
+        <section class="card">
+          <h2>Informe de dirección (club)</h2>
+          <p>Resumen ejecutivo para la junta: estado de plantilla, líneas, desarrollo, pipeline de ojeo y alertas.</p>
+          <div class="form-grid">
+            <div class="field">
+              <label for="dir-from">Desde</label>
+              <input type="date" id="dir-from" />
+            </div>
+            <div class="field">
+              <label for="dir-to">Hasta</label>
+              <input type="date" id="dir-to" />
+            </div>
+          </div>
+          <div class="sections">
+            <div class="actions">
+              <button class="btn primary" type="button" id="dir-open">Ver informe (PDF)</button>
+              <span class="hint">Si no eliges fechas, se usan los últimos 12 meses.</span>
+            </div>
+          </div>
+          <script>
+            (function () {
+              var teamQ = {% if request.GET.team %}'team={{ request.GET.team|urlencode }}'{% else %}''{% endif %};
+              var b = document.getElementById('dir-open');
+              if (b) b.addEventListener('click', function () {
+                var f = (document.getElementById('dir-from') || {}).value || '';
+                var t = (document.getElementById('dir-to') || {}).value || '';
+                var q = [];
+                if (f) q.push('from=' + f);
+                if (t) q.push('to=' + t);
+                if (teamQ) q.push(teamQ);
+                window.open('{% url 'direction-report-pdf' %}' + (q.length ? ('?' + q.join('&')) : ''), '_blank', 'noopener');
+              });
+            })();
+          </script>
+        </section>
       </div>
     </div>
     <script>

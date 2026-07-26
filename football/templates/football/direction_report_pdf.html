@@ -1,0 +1,129 @@
+{% load static %}
+{% load football_extras %}
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Informe de dirección · {{ team_name }}</title>
+<style>
+  @page { size: A4; margin: 14mm 12mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #0f172a; font-size: 11px; line-height: 1.45; margin: 0; }
+  .muted { color: #64748b; }
+  h1 { font-size: 19px; margin: 0 0 2px; }
+  h2 { font-size: 13px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.06em; color: #0b3a2e; border-bottom: 2px solid #0f7a35; padding-bottom: 4px; }
+  .head { border-bottom: 3px solid #0f7a35; padding-bottom: 10px; }
+  .head .meta { color: #475569; font-size: 11px; margin-top: 2px; }
+  section { margin-top: 15px; page-break-inside: avoid; }
+  .kpis { display: flex; gap: 8px; margin-top: 12px; }
+  .kpi { flex: 1; border: 1px solid #e2e8f0; border-radius: 10px; padding: 8px 9px; text-align: center; }
+  .kpi .v { font-size: 22px; font-weight: 800; line-height: 1; }
+  .kpi .l { font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-top: 3px; }
+  .kpi.ok .v { color: #16a34a; } .kpi.warn .v { color: #dc2626; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 4px 7px; border-bottom: 1px solid #e2e8f0; }
+  th { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .up { color: #16a34a; } .down { color: #dc2626; } .muted2 { color: #94a3b8; }
+  .cols { display: flex; gap: 14px; }
+  .col { flex: 1; }
+  .row { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px dashed #e2e8f0; }
+  .row:last-child { border-bottom: none; }
+  .badge { display: inline-block; border-radius: 999px; padding: 1px 8px; font-weight: 800; font-size: 10px; }
+  .b-up { background: #dcfce7; color: #166534; } .b-down { background: #fee2e2; color: #991b1b; }
+  .pri-high { color: #dc2626; font-weight: 800; } .pri-medium { color: #d97706; font-weight: 700; } .pri-low { color: #64748b; }
+  .alert { border-left: 3px solid #f59e0b; background: #fffbeb; padding: 5px 9px; border-radius: 0 8px 8px 0; margin: 5px 0; }
+  .alert.danger { border-left-color: #dc2626; background: #fef2f2; }
+  .empty { color: #94a3b8; }
+  .foot { margin-top: 18px; color: #94a3b8; font-size: 9px; border-top: 1px solid #e2e8f0; padding-top: 6px; }
+</style>
+</head>
+<body>
+
+  <div class="head">
+    <h1>Informe de dirección · {{ team_name }}</h1>
+    <div class="meta muted">Resumen ejecutivo de plantilla · {{ date_from|date:"d/m/Y" }} → {{ date_to|date:"d/m/Y" }}</div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="v">{{ kpi.total }}</div><div class="l">Jugadores</div></div>
+    <div class="kpi ok"><div class="v">{{ kpi.available }}</div><div class="l">Disponibles</div></div>
+    <div class="kpi {% if kpi.injured %}warn{% endif %}"><div class="v">{{ kpi.injured }}</div><div class="l">Lesionados</div></div>
+    <div class="kpi"><div class="v">{% if kpi.squad_media is not None %}{{ kpi.squad_media|floatformat:"-1" }}{% else %}–{% endif %}</div><div class="l">Nota media</div></div>
+    <div class="kpi"><div class="v">{% if kpi.avg_age is not None %}{{ kpi.avg_age|floatformat:"-1" }}{% else %}–{% endif %}</div><div class="l">Edad media</div></div>
+  </div>
+
+  <section>
+    <h2>Plantilla por líneas</h2>
+    <table>
+      <thead><tr><th>Línea</th><th class="num">Jugadores</th><th class="num">Disponibles</th><th class="num">Lesionados</th><th class="num">Media</th></tr></thead>
+      <tbody>
+      {% for l in lines %}
+        <tr>
+          <td>{{ l.label }}</td>
+          <td class="num">{{ l.total }}</td>
+          <td class="num">{{ l.available }}</td>
+          <td class="num {% if l.injured %}down{% endif %}">{{ l.injured }}</td>
+          <td class="num">{% if l.group_media is not None %}{{ l.group_media|floatformat:"-1" }}{% else %}<span class="muted2">–</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Desarrollo — quién progresa y quién retrocede</h2>
+    {% if development.available %}
+    <div class="cols">
+      <div class="col">
+        <div class="muted" style="margin-bottom:4px;">▲ Más progresan</div>
+        {% for p in development.up %}<div class="row"><span>{{ p.name }} <span class="muted2">· {{ p.line }}</span></span><span class="badge b-up">+{{ p.delta|floatformat:"-1" }}</span></div>{% empty %}<div class="empty">Sin subidas destacadas.</div>{% endfor %}
+      </div>
+      <div class="col">
+        <div class="muted" style="margin-bottom:4px;">▼ Más retroceden</div>
+        {% for p in development.down %}<div class="row"><span>{{ p.name }} <span class="muted2">· {{ p.line }}</span></span><span class="badge b-down">{{ p.delta|floatformat:"-1" }}</span></div>{% empty %}<div class="empty">Sin bajadas destacadas.</div>{% endfor %}
+      </div>
+    </div>
+    {% else %}
+    <p class="empty">Hacen falta al menos dos evaluaciones cerradas por jugador en el periodo para medir progreso.</p>
+    {% endif %}
+  </section>
+
+  <section>
+    <h2>Pipeline de ojeo</h2>
+    <div class="cols" style="margin-bottom:6px;">
+      <div class="col"><strong>{{ scout.total }}</strong> ojeados en seguimiento</div>
+      <div class="col"><strong>{{ scout.pizarra }}</strong> disponibles para la pizarra del entrenador</div>
+    </div>
+    {% if scout.top %}
+    <table>
+      <thead><tr><th>Objetivo</th><th>Pos.</th><th>Prioridad</th><th>Estado</th></tr></thead>
+      <tbody>
+      {% for t in scout.top %}
+        <tr><td>{{ t.name }}</td><td class="muted">{{ t.position|default:"–" }}</td><td class="pri-{{ t.priority_key }}">{{ t.priority }}</td><td class="muted">{{ t.status }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty">Sin ojeados en seguimiento.</p>
+    {% endif %}
+  </section>
+
+  {% if alerts.injured or alerts.contracts or alerts.unrated_count %}
+  <section>
+    <h2>Alertas</h2>
+    {% if alerts.injured %}
+      <div class="alert danger"><strong>Lesionados ({{ alerts.injured|length }}):</strong> {% for n in alerts.injured %}{{ n }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
+    {% endif %}
+    {% if alerts.contracts %}
+      <div class="alert"><strong>Contratos que terminan pronto:</strong> {% for c in alerts.contracts %}{{ c.name }} ({{ c.date|date:"d/m/Y" }}){% if not forloop.last %}, {% endif %}{% endfor %}</div>
+    {% endif %}
+    {% if alerts.unrated_count %}
+      <div class="alert"><strong>Sin evaluar ({{ alerts.unrated_count }}):</strong> conviene una evaluación para completar el seguimiento{% if alerts.unrated_names %} — {% for n in alerts.unrated_names %}{{ n }}{% if not forloop.last %}, {% endif %}{% endfor %}{% if alerts.unrated_more %}…{% endif %}{% endif %}.</div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <div class="foot">Segunda Jugada · Informe de dirección de {{ team_name }} · generado {{ date_to|date:"d/m/Y" }}</div>
+</body>
+</html>

@@ -20278,6 +20278,172 @@ def squad_lines_report_pdf(request):
     return _build_pdf_response_or_html_fallback(request, html, f"lineas-{slug}", inline=True, force_pdf=True)
 
 
+@login_required
+def direction_report_pdf(request):
+    """Informe de dirección / club: resumen ejecutivo de plantilla (KPIs, líneas,
+    desarrollo, pipeline de ojeo y alertas) para la junta."""
+    from datetime import timedelta as _td
+
+    if not _can_edit_match_actions(request.user):
+        return HttpResponse("Solo el cuerpo técnico puede generar informes.", status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, "players", label="informes")
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request) or _team_from_request_param(request)
+    if not primary_team:
+        raise Http404("Equipo principal no configurado")
+    date_from, date_to = _resolve_evolution_report_range(request)
+
+    players = list(Player.objects.filter(team=primary_team, is_active=True).order_by("number", "name", "id"))
+    pids = [int(p.id) for p in players]
+    try:
+        injury_ids = set(get_active_injury_player_ids(pids))
+    except Exception:
+        injury_ids = set()
+
+    by_player = {}
+    for ev in (
+        PlayerEvaluation.objects.filter(
+            player_id__in=pids,
+            status=PlayerEvaluation.STATUS_CLOSED,
+            evaluated_on__gte=date_from,
+            evaluated_on__lte=date_to,
+        ).order_by("player_id", "evaluated_on", "id")
+    ):
+        by_player.setdefault(int(ev.player_id), []).append(ev)
+
+    def _f(value):
+        try:
+            return float(value) if value is not None else None
+        except (TypeError, ValueError):
+            return None
+
+    def _avg(values):
+        clean = [x for x in values if x is not None]
+        return round(sum(clean) / len(clean), 1) if clean else None
+
+    line_defs = [("gk", "Porteros"), ("def", "Defensa"), ("mid", "Centro del campo"), ("att", "Ataque")]
+    line_label = {k: l for k, l in line_defs}
+    buckets = {k: [] for k, _ in line_defs}
+    per = []
+    for player in players:
+        bk = _roster_preview_bucket(getattr(player, "position", "") or "")
+        if bk not in buckets:
+            bk = "mid"
+        plist = by_player.get(int(player.id), [])
+        media = _f(plist[-1].average_rating) if plist else None
+        first = _f(plist[0].average_rating) if plist else None
+        delta = round(media - first, 1) if (media is not None and first is not None and len(plist) > 1) else None
+        info = {
+            "name": str(getattr(player, "name", "") or "").strip() or f"Jugador {player.id}",
+            "line": line_label[bk],
+            "media": media,
+            "delta": delta,
+            "injured": int(player.id) in injury_ids,
+        }
+        buckets[bk].append(info)
+        per.append(info)
+
+    total = len(players)
+    lesionados = sum(1 for p in per if p["injured"])
+    medias = [p["media"] for p in per if p["media"] is not None]
+    ages = []
+    for player in players:
+        try:
+            a = getattr(player, "age", None)
+            if a:
+                ages.append(int(a))
+        except Exception:
+            pass
+    unrated = [p for p in per if p["media"] is None]
+
+    lines = []
+    for k, l in line_defs:
+        rows = buckets[k]
+        lines.append(
+            {
+                "label": l,
+                "total": len(rows),
+                "available": sum(1 for r in rows if not r["injured"]),
+                "injured": sum(1 for r in rows if r["injured"]),
+                "group_media": _avg([r["media"] for r in rows]),
+            }
+        )
+
+    movers = [p for p in per if p["delta"] is not None]
+    development = {
+        "available": bool(movers),
+        "up": sorted([p for p in movers if p["delta"] > 0], key=lambda x: -x["delta"])[:5],
+        "down": sorted([p for p in movers if p["delta"] < 0], key=lambda x: x["delta"])[:5],
+    }
+
+    scout = {"total": 0, "pizarra": 0, "top": []}
+    try:
+        ws = _get_active_workspace(request)
+    except Exception:
+        ws = None
+    if ws:
+        try:
+            qs = ScoutingTarget.objects.filter(workspace=ws).exclude(status=ScoutingTarget.STATUS_DISCARDED)
+            scout["total"] = qs.count()
+            scout["pizarra"] = qs.filter(available_for_coach_tools=True).count()
+            prio_rank = {"high": 0, "medium": 1, "low": 2}
+            cand = list(qs[:80])
+            cand.sort(key=lambda t: prio_rank.get(str(getattr(t, "priority", "") or ""), 1))
+            for t in cand[:6]:
+                scout["top"].append(
+                    {
+                        "name": str(getattr(t, "display_name", "") or "").strip() or "Ojeado",
+                        "position": str(getattr(t, "position", "") or "").strip(),
+                        "priority": t.get_priority_display() if hasattr(t, "get_priority_display") else "",
+                        "priority_key": str(getattr(t, "priority", "") or "medium"),
+                        "status": t.get_status_display() if hasattr(t, "get_status_display") else "",
+                    }
+                )
+        except Exception:
+            pass
+
+    today = timezone.localdate()
+    soon = today + _td(days=120)
+    contracts = []
+    for player in players:
+        ce = getattr(player, "contract_end", None)
+        if ce and today <= ce <= soon:
+            contracts.append({"name": str(getattr(player, "name", "") or "").strip(), "date": ce})
+    contracts.sort(key=lambda c: c["date"])
+
+    alerts = {
+        "injured": [p["name"] for p in per if p["injured"]],
+        "contracts": contracts,
+        "unrated_count": len(unrated),
+        "unrated_names": [p["name"] for p in unrated[:8]],
+        "unrated_more": len(unrated) > 8,
+    }
+
+    ctx = {
+        "team_name": getattr(primary_team, "display_name", "") or "",
+        "date_from": date_from,
+        "date_to": date_to,
+        "kpi": {
+            "total": total,
+            "available": total - lesionados,
+            "injured": lesionados,
+            "squad_media": _avg(medias),
+            "avg_age": round(sum(ages) / len(ages), 1) if ages else None,
+        },
+        "lines": lines,
+        "development": development,
+        "scout": scout,
+        "alerts": alerts,
+    }
+    html = render_to_string("football/direction_report_pdf.html", ctx, request=request)
+    if str(request.GET.get("format") or "").strip().lower() == "html":
+        return HttpResponse(html, content_type="text/html; charset=utf-8")
+    slug = slugify(getattr(primary_team, "display_name", "") or "equipo") or "equipo"
+    return _build_pdf_response_or_html_fallback(request, html, f"direccion-{slug}", inline=True, force_pdf=True)
+
+
+
 
 def _build_team_hero_payload(request, workspace, primary_team):
     """Construye URL y data-uri del hero con imagen de equipo o fallback global."""
