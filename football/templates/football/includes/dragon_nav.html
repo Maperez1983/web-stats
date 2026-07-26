@@ -212,9 +212,6 @@
     <a href="{% url 'player-dashboard' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Abre el espacio de jugadores con fichas, vídeos, informes y seguimiento disponible para tu rol." class="{% if nav_url_name == 'player-dashboard' %}is-active{% endif %}" {% if nav_url_name == 'player-dashboard' %}aria-current="page"{% endif %}>Plantilla</a>
     {% endif %}
   {% endif %}
-  {% if workspace_module_access.dashboard|default:True %}
-  <a href="{% if cdurl %}{{ cdurl }}{% else %}{% url 'dashboard-home' %}{% endif %}{% if active_team %}{% if cdurl and '?' in cdurl %}&{% else %}?{% endif %}team={{ active_team.id }}{% endif %}" data-help="Vuelve a la portada del equipo: resumen, contexto, próximos eventos y accesos rápidos." class="{% if nav_url_name == 'dashboard-home' or nav_path == '/' %}is-active{% endif %}" {% if nav_url_name == 'dashboard-home' or nav_path == '/' %}aria-current="page"{% endif %}>Portada</a>
-  {% endif %}
   {% if workspace_module_access.tactics|default:True %}
   <a href="{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Abre herramientas tácticas: modelo de juego, pizarra, ABP y recursos para preparar el partido." class="{% if 'coach/tactica' in nav_path %}is-active{% endif %}" {% if 'coach/tactica' in nav_path %}aria-current="page"{% endif %}>Táctica</a>
   {% endif %}
