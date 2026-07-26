@@ -133,19 +133,19 @@ services:
       - key: RUN_MIGRATIONS
         value: "false"
       # --- Autogeneración de avatares (reusa este worker; sin servicio nuevo) ---
-      # OPT-IN y SEGURO: por defecto DESACTIVADO y sin forzar S3, así el worker (operador) se
-      # comporta como siempre. Para ACTIVAR la generación en producción, en el DASHBOARD de este
-      # servicio pon: AVATAR_AUTOGEN_ENABLED=true, USE_S3_MEDIA=true y las 4 credenciales AWS.
-      # (No pongas USE_S3_MEDIA=true sin las AWS_*: la app exige la config S3 y el worker no arrancaría.)
+      # ACTIVADO: el worker ya tiene las credenciales AWS + DATABASE_URL, así que es seguro forzar
+      # S3 aquí (no tumbará el operador). Genera generate_player_avatars en 2º plano cada
+      # AVATAR_AUTOGEN_INTERVAL_SECONDS (24h), incremental. Si en logs hay OOM -> subir plan a 'pro'
+      # o poner AVATAR_AUTOGEN_ENABLED=false en el dashboard.
       - key: AVATAR_AUTOGEN_ENABLED
-        value: "false"
+        value: "true"
       - key: AVATAR_AUTOGEN_INTERVAL_SECONDS
         value: "86400"
       - key: AVATAR_INSWAPPER
         value: "/opt/render/project/src/vendor/inswapper_128.onnx"
-      # No se fuerza S3 aquí; actívalo en el dashboard JUNTO con las credenciales AWS.
+      # Guarda los avatares en el MISMO S3 que el web (credenciales AWS ya puestas en el worker).
       - key: USE_S3_MEDIA
-        value: "false"
+        value: "true"
       - key: AWS_ACCESS_KEY_ID
         sync: false
       - key: AWS_SECRET_ACCESS_KEY
