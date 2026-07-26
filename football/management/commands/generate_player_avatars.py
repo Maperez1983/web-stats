@@ -157,6 +157,25 @@ class Command(BaseCommand):
         elif not opts["all"]:
             self.stderr.write("Indica --all o --player <id>."); return
 
+        # Altura por PERCENTIL de la plantilla: el más bajo del equipo -> escala mínima, el más
+        # alto -> máxima, anclando en p10-p90 para que un outlier no comprima al resto (la mediana
+        # queda en ~1.0). Usa SIEMPRE la plantilla completa, no solo los que se regeneran ahora.
+        # Nota: si cambia mucho la plantilla, relanza con --force para refrescar la escala de todos.
+        HEIGHT_MIN_F, HEIGHT_MAX_F = 0.88, 1.12
+        _sq = sorted(h for h in Player.objects.filter(is_active=True).values_list("height_cm", flat=True) if h)
+        _h_lo = _sq[int(0.10 * (len(_sq) - 1))] if len(_sq) >= 3 else None
+        _h_hi = _sq[int(0.90 * (len(_sq) - 1))] if len(_sq) >= 3 else None
+
+        def _height_factor(h_cm):
+            if not h_cm or _h_lo is None or _h_hi <= _h_lo:
+                return 1.0
+            t = max(0.0, min(1.0, (h_cm - _h_lo) / (_h_hi - _h_lo)))
+            return HEIGHT_MIN_F + t * (HEIGHT_MAX_F - HEIGHT_MIN_F)
+
+        if _h_lo is not None:
+            self.stdout.write(f"Altura por percentil de plantilla: p10={_h_lo}cm p90={_h_hi}cm "
+                              f"-> escala {HEIGHT_MIN_F}–{HEIGHT_MAX_F}")
+
         done = skipped = failed = 0
         for player in qs:
             photo = getattr(player, "photo", None)
@@ -214,17 +233,15 @@ class Command(BaseCommand):
                 elif player.hair_color:
                     _recolor_hair(arr, hair_mask, player.hair_color)
 
-                # altura: escala suave de la figura (pies abajo) según height_cm
+                # altura: escala la figura (pies abajo) según el percentil de la plantilla.
                 out = Image.fromarray(arr.astype("uint8"), "RGBA")
-                h_cm = getattr(player, "height_cm", None) or 0
-                if h_cm:
-                    f = max(0.9, min(1.08, h_cm / 178.0))
-                    if abs(f - 1.0) > 0.01:
-                        W, H = out.size
-                        sc = out.resize((int(W * f), int(H * f)), Image.LANCZOS)
-                        canvas = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-                        canvas.paste(sc, ((W - sc.width) // 2, H - sc.height), sc)
-                        out = canvas
+                f = _height_factor(getattr(player, "height_cm", None))
+                if abs(f - 1.0) > 0.01:
+                    W, H = out.size
+                    sc = out.resize((max(1, int(W * f)), max(1, int(H * f))), Image.LANCZOS)
+                    canvas = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+                    canvas.paste(sc, ((W - sc.width) // 2, H - sc.height), sc)
+                    out = canvas
 
                 buf = io.BytesIO(); out.save(buf, "PNG")
                 player.avatar_generated.save(f"player-{player.id}.png", ContentFile(buf.getvalue()), save=False)
