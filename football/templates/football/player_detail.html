@@ -79,23 +79,31 @@
         min-width: 220px;
       }
       .season-context-card {
-        margin-top: 1rem;
-        border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28));
-        border-radius: 1rem;
-        padding: 0.9rem 1rem;
-        background: rgba(15, 23, 42, 0.42);
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 0.85rem;
+        margin-top: 0.8rem;
+        border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.22));
+        border-radius: 0.7rem;
+        padding: 0.4rem 0.85rem;
+        background: rgba(15, 23, 42, 0.22);
+        display: flex;
         align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+      .season-context-card > div {
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        min-width: 0;
       }
       .season-context-card strong {
-        display: block;
-        font-size: 0.82rem;
-        letter-spacing: 0.11em;
+        font-size: 0.66rem;
+        letter-spacing: 0.1em;
         text-transform: uppercase;
+        opacity: 0.65;
       }
-      .season-context-card .subtle { margin-top: 0.2rem; }
+      .season-context-card .subtle { margin-top: 0; font-size: 0.8rem; }
       .season-context-form {
         display: flex;
         align-items: center;
