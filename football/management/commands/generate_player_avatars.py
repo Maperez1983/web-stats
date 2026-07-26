@@ -42,16 +42,38 @@ def _asset(*parts):
     return None
 
 
-def _inputs_key(player, photo_path):
+def _inputs_key(player):
+    """Hash de las entradas del avatar. Agnóstico del almacenamiento (local o S3): usa
+    name+size del fichero de foto (no rutas locales, que no existen con S3)."""
     h = hashlib.sha1()
+    photo = getattr(player, "photo", None)
     try:
-        st = os.stat(photo_path)
-        h.update(f"{st.st_size}:{int(st.st_mtime)}".encode())
-    except OSError:
+        if photo and photo.name:
+            h.update(f"{photo.name}:{photo.size}".encode())
+        else:
+            h.update(b"nophoto")
+    except Exception:
         h.update(b"nophoto")
     for v in (player.hairstyle, player.hair_color, player.skin_grade, player.height_cm):
         h.update(f"|{v}".encode())
     return h.hexdigest()
+
+
+def _read_photo_bgr(photo):
+    """Lee la foto (local o S3) como BGR para OpenCV, vía la API de almacenamiento (no .path)."""
+    import numpy as np
+    import cv2
+    try:
+        photo.open("rb")
+        data = photo.read()
+    finally:
+        try:
+            photo.close()
+        except Exception:
+            pass
+    if not data:
+        return None
+    return cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
 
 
 def _recolor_rgb(arr, mask01, rgb):
@@ -138,22 +160,21 @@ class Command(BaseCommand):
         done = skipped = failed = 0
         for player in qs:
             photo = getattr(player, "photo", None)
-            photo_path = getattr(photo, "path", None) if photo else None
-            has_photo_file = bool(photo_path and os.path.exists(photo_path))
+            has_photo = bool(photo and getattr(photo, "name", ""))
             # Nada que personalizar y sin foto -> se deja la figura estática (resolver cae al PNG base).
-            if not has_photo_file and not (
+            if not has_photo and not (
                 player.skin_grade or player.hairstyle or player.hair_color or player.height_cm
             ):
                 continue
-            key = _inputs_key(player, photo_path or "")
+            key = _inputs_key(player)
             if key == player.avatar_source_key and player.avatar_generated and not opts["force"]:
                 skipped += 1
                 continue
             try:
                 # ¿Hay cara utilizable en la foto? Si sí -> face-swap; si no -> sintético.
                 sface = None
-                if has_photo_file:
-                    src = cv2.imread(photo_path)
+                if has_photo:
+                    src = _read_photo_bgr(photo)
                     sfaces = app.get(src) if src is not None else []
                     if sfaces:
                         sface = sorted(sfaces, key=lambda f: (f.bbox[2] - f.bbox[0]))[-1]
