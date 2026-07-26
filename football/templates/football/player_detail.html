@@ -153,6 +153,13 @@
       .ph-badge.ph-danger { border-color: rgba(239, 68, 68, 0.45); background: rgba(239, 68, 68, 0.10); color: #ef4444; }
       .ph-badge.ph-accent { border-color: rgba(139, 92, 246, 0.45); background: rgba(139, 92, 246, 0.10); color: #8b5cf6; }
       .ph-badge.ph-muted { color: var(--prod-muted, #94a3b8); }
+      /* Componente único de tarjeta de dato (etiqueta + valor grande) reutilizable en el área de jugador. */
+      .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.6rem; }
+      .stat-card { border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.22)); border-radius: 0.85rem; padding: 0.7rem 0.85rem; background: rgba(2, 6, 23, 0.06); display: flex; flex-direction: column; gap: 0.15rem; }
+      .stat-card .stat-label { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.7rem; font-weight: 800; color: var(--prod-muted, #94a3b8); }
+      .stat-card .stat-value { font-size: 1.35rem; font-weight: 800; line-height: 1.05; color: var(--prod-text, #f5f7fa); }
+      .stat-card .stat-sub { font-size: 0.72rem; color: var(--prod-muted, #94a3b8); }
+      .stat-card.is-accent { border-color: rgba(244, 180, 0, 0.34); background: rgba(244, 180, 0, 0.08); }
       .injury-cross { font-weight: 900; margin-right: 0.15rem; }
       .injury-cross.blocks { color: #ef4444; }
       .injury-cross.trainable { color: #f5b301; }
@@ -1363,15 +1370,15 @@
       {% if minutes_load %}
       <section class="card" aria-label="Carga de minutos" style="margin-top:1rem;">
         <h2 style="margin:0 0 0.5rem;">Carga de minutos</h2>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:0.7rem;">
-          <div><span class="subtle" style="display:block;text-transform:uppercase;letter-spacing:0.08em;font-size:0.7rem;">Minutos</span><strong style="font-size:1.15rem;">{{ minutes_load.minutes }}′</strong></div>
-          <div><span class="subtle" style="display:block;text-transform:uppercase;letter-spacing:0.08em;font-size:0.7rem;">Partidos</span><strong style="font-size:1.15rem;">{{ minutes_load.pj }}</strong></div>
-          <div><span class="subtle" style="display:block;text-transform:uppercase;letter-spacing:0.08em;font-size:0.7rem;">Titular</span><strong style="font-size:1.15rem;">{{ minutes_load.starts }}</strong> <span class="subtle">({{ minutes_load.starter_pct }}%)</span></div>
-          <div><span class="subtle" style="display:block;text-transform:uppercase;letter-spacing:0.08em;font-size:0.7rem;">Media/partido</span><strong style="font-size:1.15rem;">{{ minutes_load.avg_per_match }}′</strong></div>
-          <div><span class="subtle" style="display:block;text-transform:uppercase;letter-spacing:0.08em;font-size:0.7rem;">Próximo partido</span>
-            {% if has_active_injury %}<strong style="color:#f87171;">Baja (lesión)</strong>
-            {% elif has_manual_sanction %}<strong style="color:#f87171;">Baja (sanción)</strong>
-            {% else %}<strong style="color:#22c55e;">Disponible</strong>{% endif %}
+        <div class="stat-grid">
+          <div class="stat-card"><span class="stat-label">Minutos</span><strong class="stat-value">{{ minutes_load.minutes }}′</strong></div>
+          <div class="stat-card"><span class="stat-label">Partidos</span><strong class="stat-value">{{ minutes_load.pj }}</strong></div>
+          <div class="stat-card"><span class="stat-label">Titular</span><strong class="stat-value">{{ minutes_load.starts }}</strong><span class="stat-sub">{{ minutes_load.starter_pct }}%</span></div>
+          <div class="stat-card"><span class="stat-label">Media/partido</span><strong class="stat-value">{{ minutes_load.avg_per_match }}′</strong></div>
+          <div class="stat-card"><span class="stat-label">Próximo partido</span>
+            {% if has_active_injury %}<strong class="stat-value" style="font-size:1rem;color:#ef4444;">Baja (lesión)</strong>
+            {% elif has_manual_sanction %}<strong class="stat-value" style="font-size:1rem;color:#ef4444;">Baja (sanción)</strong>
+            {% else %}<strong class="stat-value" style="font-size:1rem;color:#22c55e;">Disponible</strong>{% endif %}
           </div>
         </div>
       </section>
