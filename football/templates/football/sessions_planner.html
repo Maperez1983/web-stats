@@ -2068,6 +2068,23 @@
       <div class="panel"><p class="empty">El módulo no está listo por migraciones pendientes.</p></div>
       {% else %}
 
+      {% if main_tab == 'create' and not create_page and home_next_session %}
+      <section class="panel" style="margin-bottom:1rem;">
+        <p class="panel-kicker">Esta semana</p>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          <div style="width:54px;height:54px;border-radius:13px;flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(180deg,rgba(34,197,94,0.18),rgba(34,197,94,0.05));border:1px solid rgba(34,197,94,0.32);">
+            <span style="font-size:0.6rem;letter-spacing:0.08em;font-weight:800;color:#8ff0b3;text-transform:uppercase;">{{ home_next_session.date|date:"D" }}</span>
+            <span style="font-size:1.3rem;font-weight:800;line-height:1;">{{ home_next_session.date|date:"d" }}</span>
+          </div>
+          <div style="min-width:0;">
+            <strong>Próxima sesión{% if home_next_session.focus %}: {{ home_next_session.focus }}{% endif %}</strong>
+            <div class="meta" style="margin-top:2px;">{{ home_next_session.date|date:"l, d/m" }}{% if home_next_session.time %} · {{ home_next_session.time }}{% endif %}{% if home_next_session.tasks %} · {{ home_next_session.tasks }} tarea{{ home_next_session.tasks|pluralize }}{% endif %}{% if home_next_session.duration %} · {{ home_next_session.duration }} min{% endif %}</div>
+          </div>
+          <a class="button secondary" style="margin-left:auto;" href="{{ home_next_session.url }}">Abrir sesión →</a>
+        </div>
+      </section>
+      {% endif %}
+
       {% if main_tab == 'create' and not create_page %}
       <section class="panel intro-strip">
         <p class="panel-kicker">Crear</p>

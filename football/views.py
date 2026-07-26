@@ -48116,10 +48116,36 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
     model_value = _model_of_play_preference(active_workspace)
     model_principle_options = _model_principle_options(model_value)
 
+    # Panel "Esta semana" de la home (Inicio): proxima sesion del equipo (reutiliza la
+    # misma logica que el resto de la app). Si falla, no rompemos la pagina.
+    home_next_session = None
+    try:
+        _hoy = timezone.localdate()
+        _ns = (
+            TrainingSession.objects.select_related("microcycle")
+            .filter(microcycle__team=primary_team, session_date__gte=_hoy)
+            .exclude(status=TrainingSession.STATUS_CANCELED)
+            .order_by("session_date", "start_time", "order", "id")
+            .first()
+        )
+        if _ns:
+            home_next_session = {
+                "id": int(_ns.id),
+                "focus": str(getattr(_ns, "focus", "") or "").strip(),
+                "date": getattr(_ns, "session_date", None),
+                "time": (_ns.start_time.strftime("%H:%M") if getattr(_ns, "start_time", None) else ""),
+                "duration": int(getattr(_ns, "duration_minutes", 0) or 0),
+                "tasks": int(_ns.tasks.filter(deleted_at__isnull=True).count()),
+                "url": reverse("training-session-detail", args=[int(_ns.id)]),
+            }
+    except Exception:
+        home_next_session = None
+
     return render(
         request,
         "football/sessions_planner.html",
         {
+            "home_next_session": home_next_session,
             "team_name": primary_team.display_name,
             "primary_team_id": int(primary_team.id),
             "active_workspace_id": active_workspace_id,
