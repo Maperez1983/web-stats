@@ -580,6 +580,16 @@ body.ed-chrome .edc-mat-real .edc-real-strip .sr-only { position:absolute !impor
 body.ed-chrome .board-overlay-controls { display: none !important; }
 
 /* ============================================================
+   BARRA DE MODO visible (Pizarra/Datos/Metodologia/Carga/Exportar)
+   Antes las pestañas estaban escondidas en el menu; ahora se ven en la topbar.
+   ============================================================ */
+body.ed-chrome .edc-modeslot { display: flex; gap: 3px; align-items: center; margin: 0 6px; }
+body.ed-chrome .edc-mode { padding: 6px 11px; border-radius: 9px; border: 1px solid var(--edc-line); background: rgba(20,53,31,.5); color: var(--edc-ink); font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+body.ed-chrome .edc-mode:hover { border-color: var(--edc-accent); }
+body.ed-chrome .edc-mode.is-active { background: var(--edc-accent,#37d05f); color: #06210f; border-color: var(--edc-accent,#37d05f); }
+body.ed-chrome.edc-modebar-on .task-mode-tabs { display: none !important; }
+
+/* ============================================================
    RAIL COMERCIAL · lanzador de categorias (Seleccion + familias del cajon)
    Oculta las herramientas sueltas (duplicaban el cajon) y el boton Elementos,
    SOLO cuando el rail de categorias se ha construido (body.edc-rail-cats).
