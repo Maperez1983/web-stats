@@ -37175,8 +37175,12 @@ def coach_roster_page(request):
             _active_injury_ids = set(get_active_injury_player_ids(_roster_pids))
         except Exception:
             _active_injury_ids = set()
+        # La pizarra interactiva solo muestra jugadores ACTIVOS (igual que la portada del
+        # entrenador); los inactivos / dados de baja (is_active=False, p.ej. ojeados descartados)
+        # NO aparecen aunque sigan en la tabla de gestion de plantilla.
+        _pitch_players = [p for p in players if bool(getattr(p, "is_active", True))]
         coach_pitch_players = _build_coach_pitch_board_players(
-            primary_team, players, memberships or {}, _active_injury_ids
+            primary_team, _pitch_players, memberships or {}, _active_injury_ids
         )
     except Exception:
         coach_pitch_players = []
