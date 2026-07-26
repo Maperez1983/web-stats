@@ -20839,6 +20839,107 @@ def player_avatar_pending(player):
         return False
 
 
+def _build_coach_alerts(*, primary_team, roster_players, active_injury_ids, federative_report, next_match):
+    """Alertas proactivas para el cuerpo técnico en la home. REGLAS deterministas (sin IA),
+    reusando lo que ya se calcula + consultas pequeñas. Cada bloque va aislado para no romper
+    la portada si algo falla. Devuelve lista de {level, icon, title, detail, url}."""
+    from datetime import timedelta
+    from django.db.models import Q
+    alerts = []
+    if not primary_team:
+        return alerts
+    today = timezone.localdate()
+    roster_players = roster_players or []
+    active_injury_ids = active_injury_ids or set()
+    ids = [int(getattr(p, "id", 0) or 0) for p in roster_players if getattr(p, "id", None)]
+
+    # 1) Próximo partido sin fijar
+    try:
+        if not next_match:
+            alerts.append({"level": "warning", "icon": "📅", "title": "Sin próximo partido fijado",
+                           "detail": "Fija el próximo partido en el Calendario para activar convocatoria y análisis.",
+                           "url": reverse("coach-matches")})
+    except Exception:
+        pass
+
+    # 2) Cobertura por puesto insuficiente (del informe federativo ya calculado)
+    try:
+        fr = federative_report if isinstance(federative_report, dict) else {}
+        gaps = [c for c in (fr.get("coverage") or []) if isinstance(c, dict) and _safe_int(c.get("missing"), 0) > 0]
+        if gaps:
+            worst = any(_safe_int(g.get("have"), 0) == 0 for g in gaps)
+            names = ", ".join(f"{g.get('label') or g.get('code')} (faltan {_safe_int(g.get('missing'), 0)})" for g in gaps[:6])
+            alerts.append({"level": "critical" if worst else "warning", "icon": "🧩",
+                           "title": "Cobertura de plantilla insuficiente",
+                           "detail": f"Puestos por reforzar: {names}.", "url": reverse("coach-roster")})
+    except Exception:
+        pass
+
+    # 3) Licencias federativas caducadas / por caducar (≤30 días)
+    try:
+        soon = today + timedelta(days=30)
+        rows = [p for p in roster_players if getattr(p, "federation_license_expires_at", None)]
+        expired = [p for p in rows if p.federation_license_expires_at < today]
+        expiring = [p for p in rows if today <= p.federation_license_expires_at <= soon]
+        if expired:
+            alerts.append({"level": "critical", "icon": "🪪", "title": f"{len(expired)} licencia(s) caducada(s)",
+                           "detail": ", ".join((p.name or f"#{p.id}") for p in expired[:6]), "url": reverse("coach-roster")})
+        if expiring:
+            alerts.append({"level": "warning", "icon": "🪪", "title": f"{len(expiring)} licencia(s) caducan pronto",
+                           "detail": ", ".join(f"{(p.name or '')} ({p.federation_license_expires_at:%d/%m})" for p in expiring[:6]),
+                           "url": reverse("coach-roster")})
+    except Exception:
+        pass
+
+    # 4) Lesionados que vuelven esta semana
+    try:
+        wk = today + timedelta(days=7)
+        rec = list(
+            PlayerInjuryRecord.objects.filter(player__team=primary_team, is_active=True)
+            .filter(Q(estimated_return_date__gte=today, estimated_return_date__lte=wk)
+                    | Q(return_date__gte=today, return_date__lte=wk))
+            .select_related("player")[:8]
+        )
+        if rec:
+            alerts.append({"level": "info", "icon": "➕", "title": f"{len(rec)} vuelven de lesión esta semana",
+                           "detail": ", ".join((getattr(r.player, "name", "") or "") for r in rec[:6]), "url": reverse("coach-roster")})
+    except Exception:
+        pass
+
+    # 5) Evaluaciones desactualizadas (>60 días o sin evaluación cerrada)
+    try:
+        if ids:
+            cutoff = today - timedelta(days=60)
+            latest = {}
+            for pid, d in PlayerEvaluation.objects.filter(
+                team=primary_team, status=PlayerEvaluation.STATUS_CLOSED, player_id__in=ids
+            ).values_list("player_id", "evaluated_on"):
+                if d and (pid not in latest or d > latest[pid]):
+                    latest[pid] = d
+            stale = sum(
+                1 for p in roster_players
+                if int(getattr(p, "id", 0) or 0) not in active_injury_ids
+                and (latest.get(int(getattr(p, "id", 0) or 0)) is None or latest[int(getattr(p, "id", 0) or 0)] < cutoff)
+            )
+            if stale >= 3:
+                alerts.append({"level": "info", "icon": "📝", "title": f"{stale} sin evaluación reciente",
+                               "detail": "Llevan más de 60 días sin evaluación cerrada.", "url": reverse("coach-roster")})
+    except Exception:
+        pass
+
+    # 6) Convocatoria pendiente para el próximo partido
+    try:
+        if next_match and not ConvocationRecord.objects.filter(team=primary_team, is_current=True).exists():
+            alerts.append({"level": "warning", "icon": "📋", "title": "Convocatoria del próximo partido pendiente",
+                           "detail": "Aún no hay convocatoria activa para el próximo partido.", "url": reverse("match-hub")})
+    except Exception:
+        pass
+
+    order = {"critical": 0, "warning": 1, "info": 2}
+    alerts.sort(key=lambda a: order.get(a.get("level"), 3))
+    return alerts[:8]
+
+
 def _build_coach_pitch_board_players(primary_team, roster_players, roster_memberships, active_injury_ids):
     """Datos de la pizarra interactiva de plantilla (fuente ÚNICA para toda la app).
 
@@ -21327,6 +21428,16 @@ def coach_overview_page(request):
         federative_report = _build_federative_squad_report(request, primary_team)
     except Exception:
         federative_report = None
+    try:
+        coach_alerts = _build_coach_alerts(
+            primary_team=primary_team,
+            roster_players=roster_players,
+            active_injury_ids=active_injury_ids,
+            federative_report=federative_report,
+            next_match=next_match,
+        )
+    except Exception:
+        coach_alerts = []
     module_hub = [
         {
             "title": "Partido",
@@ -21406,6 +21517,7 @@ def coach_overview_page(request):
             "can_access_platform": can_access_platform,
             "coach_pitch_players": coach_pitch_players,
             "coach_decision_dashboard": coach_decision_dashboard,
+            "coach_alerts": coach_alerts,
             "federative_report": federative_report,
             "standings_diag": standings_diag,
             "standings_season_label": standings_season_label,
