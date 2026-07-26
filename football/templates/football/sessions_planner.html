@@ -2034,7 +2034,7 @@
             <div class="top-actions">
               <button type="button" class="button primary" id="planner-save-top" disabled title="Guardar (sección activa)">Guardar</button>
               {% if request.user.is_staff or request.user.is_superuser %}
-              <a href="{% url 'platform-overview' %}" class="button">Platform</a>
+              <a href="{% url 'platform-overview' %}" class="button">Gobierno del club</a>
               {% endif %}
               <a href="{% url 'dashboard-home' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}" class="button">Volver</a>
             </div>
