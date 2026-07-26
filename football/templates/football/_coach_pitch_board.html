@@ -13,7 +13,13 @@
       <h2>Plantilla en el campo</h2>
       <p class="muted" style="margin:0;">Toca un jugador para abrir su ficha · arrástralo para recolocarlo.</p>
     </div>
-    <button type="button" class="pb-reset" data-pb-reset aria-label="Restablecer posiciones">Reordenar</button>
+    <div class="pb-head-actions">
+      <div class="pb-view-toggle" role="group" aria-label="Cambiar vista">
+        <button type="button" class="pb-view-btn is-active" data-pb-view="field">Campo</button>
+        <button type="button" class="pb-view-btn" data-pb-view="list">Lista</button>
+      </div>
+      <button type="button" class="pb-reset" data-pb-reset aria-label="Restablecer posiciones">Reordenar</button>
+    </div>
   </div>
   {% if coach_pitch_players %}
   <div class="pb-field" data-pb-team="{{ primary_team_id|default:0 }}" data-pb-save-url="{% url 'coach-pitch-board-save' %}"
@@ -27,6 +33,17 @@
       {% if not p.is_scout %}<span class="pb-rating{% if not p.rating %} is-unrated{% elif p.rating >= 7 %} is-good{% elif p.rating >= 5 %} is-mid{% else %} is-low{% endif %}" title="Nota media (última evaluación cerrada)">{% if p.rating %}{{ p.rating|floatformat:'-1' }}{% else %}–{% endif %}</span>{% endif %}
       <span class="pb-name">{{ p.name }}{% if p.signed %} <span class="pb-signed" title="Fichado (ficha federativa)" aria-label="Fichado">✅</span>{% endif %}</span>
       <span class="pb-badge">{{ p.state_label }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  <div class="pb-list" data-pb-list hidden>
+    {% for p in coach_pitch_players %}
+    <a class="pb-list-row" data-pb-state="{{ p.state }}" href="{{ p.ficha_url }}" title="{{ p.name }} · {{ p.state_label }}">
+      <span class="pb-list-num">{{ p.number|default:'–' }}</span>
+      <span class="pb-list-name">{{ p.name }}{% if p.signed %} <span class="pb-signed" title="Fichado (ficha federativa)" aria-label="Fichado">✅</span>{% endif %}</span>
+      <span class="pb-list-pos">{{ p.position|default:'' }}</span>
+      <span class="pb-list-state">{{ p.state_label }}</span>
+      {% if not p.is_scout %}<span class="pb-list-rating{% if not p.rating %} is-unrated{% elif p.rating >= 7 %} is-good{% elif p.rating >= 5 %} is-mid{% else %} is-low{% endif %}" title="Nota media">{% if p.rating %}{{ p.rating|floatformat:'-1' }}{% else %}–{% endif %}</span>{% endif %}
     </a>
     {% endfor %}
   </div>
@@ -50,6 +67,27 @@
     text-transform: uppercase; cursor: pointer;
   }
   .pb-reset:hover { background: rgba(244, 180, 0, 0.16); }
+  .pb-head-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+  .pb-view-toggle { display: inline-flex; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 999px; overflow: hidden; }
+  .pb-view-btn { border: 0; background: transparent; color: var(--prod-muted, #94a3b8); padding: 0.4rem 0.85rem; font-size: 0.74rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer; }
+  .pb-view-btn.is-active { background: rgba(244, 180, 0, 0.16); color: var(--accent, #f4b400); }
+  .pb-list { display: flex; flex-direction: column; gap: 0.35rem; }
+  .pb-list[hidden] { display: none; }
+  .pb-list-row { display: grid; grid-template-columns: 2.2rem 1fr auto auto auto; align-items: center; gap: 0.6rem; padding: 0.5rem 0.7rem; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.08); border-left: 4px solid rgba(148, 163, 184, 0.5); background: rgba(2, 6, 23, 0.14); text-decoration: none; color: var(--prod-text, #e5e7eb); }
+  .pb-list-row:hover { background: rgba(255, 255, 255, 0.06); }
+  .pb-list-row[data-pb-state="available"] { border-left-color: #22c55e; }
+  .pb-list-row[data-pb-state="trial"] { border-left-color: #f5b301; }
+  .pb-list-row[data-pb-state="injured"] { border-left-color: #ef4444; }
+  .pb-list-num { font-weight: 800; text-align: center; color: var(--prod-muted, #94a3b8); }
+  .pb-list-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pb-list-pos { font-size: 0.78rem; color: var(--prod-muted, #94a3b8); min-width: 2.5rem; text-align: right; }
+  .pb-list-state { font-size: 0.72rem; color: var(--prod-muted, #94a3b8); min-width: 5rem; text-align: right; }
+  .pb-list-rating { font-weight: 800; min-width: 2rem; text-align: center; }
+  .pb-list-rating.is-good { color: #22c55e; }
+  .pb-list-rating.is-mid { color: #f5b301; }
+  .pb-list-rating.is-low { color: #ef4444; }
+  .pb-list-rating.is-unrated { color: var(--prod-muted, #64748b); }
+  @media (max-width: 560px) { .pb-list-pos, .pb-list-state { display: none; } .pb-list-row { grid-template-columns: 2rem 1fr auto; } }
   .pb-field {
     position: relative; width: 100%; aspect-ratio: 1664 / 945;
     background-size: cover; background-position: center; border-radius: 18px;
@@ -203,5 +241,37 @@
         setTimeout(function () { location.reload(); }, 250);
       });
     }
+  })();
+</script>
+
+<script>
+  (function () {
+    document.querySelectorAll('.pb-card').forEach(function (card) {
+      var toggle = card.querySelector('.pb-view-toggle');
+      var field = card.querySelector('.pb-field');
+      var list = card.querySelector('[data-pb-list]');
+      var legend = card.querySelector('.pb-legend');
+      if (!toggle || !list) return;
+      var KEY = 'pb-view';
+      function apply(view) {
+        var isList = view === 'list';
+        if (field) field.hidden = isList;
+        list.hidden = !isList;
+        if (legend) legend.hidden = isList;
+        toggle.querySelectorAll('.pb-view-btn').forEach(function (b) {
+          b.classList.toggle('is-active', b.getAttribute('data-pb-view') === view);
+        });
+      }
+      toggle.querySelectorAll('.pb-view-btn').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var v = b.getAttribute('data-pb-view');
+          try { localStorage.setItem(KEY, v); } catch (e) {}
+          apply(v);
+        });
+      });
+      var saved = 'field';
+      try { saved = localStorage.getItem(KEY) || 'field'; } catch (e) {}
+      apply(saved);
+    });
   })();
 </script>
