@@ -36,6 +36,11 @@ class CoachAssistantTests(TestCase):
         r = answer_coach_question(self.req, self.team, "crea una sesión de fuerza")
         self.assertEqual(r["intent"], "action_redirect")
 
+    def test_weekly_summary(self):
+        r = answer_coach_question(self.req, self.team, "resumen de la semana")
+        self.assertEqual(r["intent"], "weekly_summary")
+        self.assertIn("Plantilla", r["answer"])
+
     def test_unknown_gives_help(self):
         r = answer_coach_question(self.req, self.team, "cuéntame un chiste")
         self.assertEqual(r["intent"], "help")

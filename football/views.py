@@ -21007,6 +21007,33 @@ def answer_coach_question(request, primary_team, question):
 
     today = timezone.localdate()
     roster = list(Player.objects.filter(team=primary_team, is_active=True).order_by("number", "name"))
+    # 0) Resumen / digest de la semana (visión de conjunto)
+    if has("resumen", "digest", "como vamos", "como va la semana", "estado del equipo", "que tal la semana", "situacion del equipo"):
+        try:
+            _ids0 = [int(p.id) for p in roster if getattr(p, "id", None)]
+            _inj0 = set(get_active_injury_player_ids(_ids0))
+        except Exception:
+            _inj0 = set()
+        bits = [f"Plantilla: {len(roster)} activos, {len(roster) - len(_inj0)} disponibles, {len(_inj0)} lesionados"]
+        try:
+            _conv = ConvocationRecord.objects.filter(team=primary_team, is_current=True).first()
+            if _conv and (_conv.opponent_name or _conv.match_date):
+                _w = _conv.match_date.strftime("%d/%m") if _conv.match_date else "fecha por confirmar"
+                bits.append(f"próximo partido vs {_conv.opponent_name or 'rival'} ({_w})")
+            else:
+                bits.append("sin próximo partido fijado")
+        except Exception:
+            pass
+        try:
+            _fr = _build_federative_squad_report(request, primary_team)
+            _gaps = [c for c in (_fr.get("coverage") or []) if isinstance(c, dict) and _safe_int(c.get("missing"), 0) > 0]
+            bits.append("cobertura completa" if not _gaps else f"{len(_gaps)} puesto(s) por reforzar")
+        except Exception:
+            pass
+        return {"answer": "Resumen: " + "; ".join(bits) + ".",
+                "links": [{"label": "Ver plantilla", "url": reverse("coach-roster")}, {"label": "Partido", "url": reverse("match-hub")}],
+                "intent": "weekly_summary"}
+
     ids = [int(p.id) for p in roster if getattr(p, "id", None)]
     try:
         injured_ids = set(get_active_injury_player_ids(ids))
