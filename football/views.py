@@ -54817,10 +54817,19 @@ def session_task_scenes_export(request):
                 objs = cs.get("objects") if isinstance(cs, dict) and isinstance(cs.get("objects"), list) else []
             except Exception:
                 objs = []
-            players = 0
+            players = goals = cones = mannequins = 0
             for o in objs:
-                if isinstance(o, dict) and isinstance(o.get("data"), dict) and str(o["data"].get("kind")) == "token":
+                if not (isinstance(o, dict) and isinstance(o.get("data"), dict)):
+                    continue
+                _k = str(o["data"].get("kind") or "")
+                if _k == "token":
                     players += 1
+                elif "goal" in _k:
+                    goals += 1
+                elif _k in ("cone", "cone_striped", "pole_marker"):
+                    cones += 1
+                elif _k in ("mannequin", "barrier"):
+                    mannequins += 1
             objective = str(getattr(t, "objective", "") or "").strip()
             title = str(t.title or "").strip()
             # Salta solo lo que no da para un prompt (borrador vacío sin nada).
@@ -54861,6 +54870,12 @@ def session_task_scenes_export(request):
                 "work_contexts": _lst("work_contexts"),
                 "objective_tags": _lst("objective_tags"),
                 "summary": str(analysis.get("summary") or "").strip()[:600],
+                "description": str(task_sheet.get("description") or "").strip()[:600],
+                "coaching_points": str(getattr(t, "coaching_points", "") or "").strip()[:400],
+                "rules": str(getattr(t, "confrontation_rules", "") or "").strip()[:400],
+                "goals": goals,
+                "cones": cones,
+                "mannequins": mannequins,
             })
         except Exception:
             continue
