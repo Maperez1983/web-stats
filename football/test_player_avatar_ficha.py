@@ -81,6 +81,25 @@ class PlayerAvatarFichaTests(TestCase):
         self.assertEqual(entry["display"]["mode"], "avatar")
         self.assertIn("display", entry)
 
+    def test_avatar_pending_flag(self):
+        from football.views import player_avatar_pending
+        from football.management.commands.generate_player_avatars import _inputs_key
+
+        # Sin características ni foto -> no hay nada pendiente.
+        self.assertFalse(player_avatar_pending(self.player))
+        # Con característica y sin avatar generado -> pendiente.
+        self.player.skin_grade = 3
+        self.player.save()
+        self.assertTrue(player_avatar_pending(self.player))
+        # Tras "generar" (clave al día) -> ya no pendiente.
+        self.player.avatar_source_key = _inputs_key(self.player)
+        self.player.save()
+        self.assertFalse(player_avatar_pending(self.player))
+        # Si cambia una característica -> vuelve a pendiente.
+        self.player.hairstyle = "rizado"
+        self.player.save()
+        self.assertTrue(player_avatar_pending(self.player))
+
     def test_profile_form_saves_hairstyle(self):
         url = reverse("player-detail", args=[self.player.id])
         self.client.post(url, {"form_action": "profile", "hairstyle": "rizado"}, HTTP_HOST="localhost")

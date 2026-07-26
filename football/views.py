@@ -20818,6 +20818,27 @@ def resolve_player_avatar_url(player):
     return ""
 
 
+def player_avatar_pending(player):
+    """True si la foto/características actuales NO cuadran con el último avatar generado, es decir,
+    hay cambios pendientes de la próxima pasada de generación (comando/worker). Solo es un aviso."""
+    if player is None:
+        return False
+    has_custom = bool(
+        getattr(player, "skin_grade", None)
+        or (getattr(player, "hairstyle", "") or "").strip()
+        or (getattr(player, "hair_color", "") or "").strip()
+        or getattr(player, "height_cm", None)
+        or (getattr(getattr(player, "photo", None), "name", "") or "")
+    )
+    if not has_custom:
+        return False
+    try:
+        from football.management.commands.generate_player_avatars import _inputs_key
+        return _inputs_key(player) != (getattr(player, "avatar_source_key", "") or "")
+    except Exception:
+        return False
+
+
 def _build_coach_pitch_board_players(primary_team, roster_players, roster_memberships, active_injury_ids):
     """Datos de la pizarra interactiva de plantilla (fuente ÚNICA para toda la app).
 
@@ -72873,6 +72894,7 @@ def player_detail_page(request, player_id):
                 "foot_choices": FOOT_CHOICES,
                 "skin_tone_choices": SKIN_TONE_CHOICES,
                 "avatar_hair_choices": AVATAR_HAIR_COLORS,
+                "avatar_pending": player_avatar_pending(player),
                 "can_preview_player_view": can_preview_player_view,
                 "player_list_back_url": player_list_back_url,
                 "workspace_entry_url": home_url,

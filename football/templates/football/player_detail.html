@@ -1724,6 +1724,11 @@
                   {% endfor %}
                 </select>
               </label>
+              {% if avatar_pending %}
+              <div style="grid-column:1/-1;display:flex;align-items:center;gap:0.5rem;background:rgba(244,180,0,0.12);border:1px solid rgba(244,180,0,0.4);color:#b45309;border-radius:10px;padding:0.5rem 0.75rem;font-size:0.82rem;font-weight:700;margin:0.2rem 0 0;">
+                <span aria-hidden="true">⏳</span> Avatar pendiente de regenerar — se actualizará en la próxima pasada (o al guardar y regenerar).
+              </div>
+              {% endif %}
               <div class="avatar-perso" style="grid-column:1/-1;display:grid;grid-template-columns:auto 1fr;gap:0.9rem;align-items:start;border:1px solid rgba(148,163,184,0.22);border-radius:12px;padding:0.8rem 0.9rem;margin:0.2rem 0;">
                 <div style="text-align:center;">
                   <img id="avatarPersoPreview" src="{% url 'player-avatar-recolored' player.id %}" alt="Avatar del jugador"
