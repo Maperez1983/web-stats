@@ -191,9 +191,11 @@
 
               <div class="section">
                 <h3>Contenido</h3>
+                <p class="meta" style="margin:0.15rem 0 0.6rem;">Rellena solo lo que necesites. Cada bloque tiene una función distinta: <strong>Desarrollo</strong> (cómo va), <strong>Puntos clave</strong> (qué corregir), <strong>Reglas</strong> (condiciones) y <strong>Material</strong>.</p>
                 <div class="stack">
                   <label>
-                    Descripción
+                    Desarrollo
+                    <div class="meta" style="margin:0.1rem 0 0.35rem; opacity:0.72;">Cómo funciona la tarea, paso a paso.</div>
                     <div class="rich-editor" data-rich-editor data-rich-name="draw_task_description" data-rich-html-name="draw_task_description_html">
                       <div class="rich-toolbar" aria-label="Formato de texto">
                         <button type="button" data-rich-cmd="bold" title="Negrita">B</button>
@@ -213,7 +215,8 @@
                     <input type="hidden" name="draw_task_description_html" id="draw-task-description-html" value="{{ initial.description_html|default:''|escape }}" />
                   </label>
                   <label>
-                    Consignas
+                    Puntos clave
+                    <div class="meta" style="margin:0.1rem 0 0.35rem; opacity:0.72;">Qué observar y corregir en los jugadores (consignas).</div>
                     <div class="rich-editor" data-rich-editor data-rich-name="draw_task_coaching_points" data-rich-html-name="draw_task_coaching_points_html">
                       <div class="rich-toolbar" aria-label="Formato de texto">
                         <button type="button" data-rich-cmd="bold" title="Negrita">B</button>
@@ -233,7 +236,8 @@
                     <input type="hidden" name="draw_task_coaching_points_html" id="draw-task-coaching-points-html" value="{{ initial.coaching_points_html|default:''|escape }}" />
                   </label>
                   <label>
-                    Normas de confrontación
+                    Reglas y puntuación
+                    <div class="meta" style="margin:0.1rem 0 0.35rem; opacity:0.72;">Condiciones del juego y cómo se puntúa o se gana.</div>
                     <div class="rich-editor" data-rich-editor data-rich-name="draw_task_confrontation_rules" data-rich-html-name="draw_task_confrontation_rules_html">
                       <div class="rich-toolbar" aria-label="Formato de texto">
                         <button type="button" data-rich-cmd="bold" title="Negrita">B</button>
@@ -274,8 +278,8 @@
 	                    Espacio
 	                    <input type="text" name="draw_task_space" value="{{ initial.space }}" placeholder="Ej: zona central + 2 carriles" />
 	                  </label>
-		                  <label style="grid-column:1 / -1;">
-		                    Pictogramas (opcional)
+		                  <details style="grid-column:1 / -1;">
+		                    <summary style="cursor:pointer; font-weight:600; opacity:0.92;">🏃 Pictogramas físicos / calentamiento (opcional)</summary>
 		                    <div class="meta" style="margin-top:0.25rem; margin-bottom:0.45rem; opacity:0.86;">
 		                      Útil para calentamientos (técnica de carrera / movilidad). Se imprimen en el PDF como secuencia visual.
 		                    </div>
@@ -312,7 +316,7 @@
 		                      </label>
 		                      {% endfor %}
 		                    </div>
-	                  </label>
+	                  </details>
 	                </div>
 		              </div>
 		              </div>
