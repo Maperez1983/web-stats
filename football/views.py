@@ -54370,11 +54370,40 @@ def session_task_scenes_export(request):
             has_cover = bool(str(meta.get("cover_image_embedded_v1") or "").strip())
             if only_missing and has_cover:
                 continue
-            cs, _cw, _ch = _extract_canvas_state_for_preview(t)
-            objs = cs.get("objects") if isinstance(cs, dict) and isinstance(cs.get("objects"), list) else []
-            if not objs:
+            try:
+                cs, _cw, _ch = _extract_canvas_state_for_preview(t)
+                objs = cs.get("objects") if isinstance(cs, dict) and isinstance(cs.get("objects"), list) else []
+            except Exception:
+                objs = []
+            players = 0
+            for o in objs:
+                if isinstance(o, dict) and isinstance(o.get("data"), dict) and str(o["data"].get("kind")) == "token":
+                    players += 1
+            objective = str(getattr(t, "objective", "") or "").strip()
+            title = str(t.title or "").strip()
+            # Salta solo lo que no da para un prompt (borrador vacío sin nada).
+            if not players and not objective and title.lower() in ("", "nueva tarea", "nueva tarea táctica", "nueva tarea tactica"):
                 continue
-            out.append({"id": t.id, "title": str(t.title or ""), "has_cover": has_cover, "canvas_state": cs})
+            analysis = meta.get("analysis") if isinstance(meta.get("analysis"), dict) else {}
+
+            def _lst(key):
+                v = analysis.get(key)
+                return [str(x)[:40] for x in v][:6] if isinstance(v, list) else []
+
+            out.append({
+                "id": t.id,
+                "title": title,
+                "has_cover": has_cover,
+                "objective": objective[:600],
+                "block": t.get_block_display(),
+                "duration": int(getattr(t, "duration_minutes", 0) or 0),
+                "players": players,
+                "exercise_types": _lst("exercise_types"),
+                "phase_tags": _lst("phase_tags"),
+                "work_contexts": _lst("work_contexts"),
+                "objective_tags": _lst("objective_tags"),
+                "summary": str(analysis.get("summary") or "").strip()[:600],
+            })
         except Exception:
             continue
         if len(out) >= limit:
