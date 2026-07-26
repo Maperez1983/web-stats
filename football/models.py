@@ -1658,11 +1658,20 @@ class ScoutingTarget(models.Model):
     def save(self, *args, **kwargs):
         changed_fields = normalize_scouting_target_record(self)
         update_fields = kwargs.get('update_fields')
+        status_will_persist = True
         if update_fields is not None:
             merged = set(update_fields)
             merged.update(changed_fields)
             kwargs['update_fields'] = sorted(merged)
+            status_will_persist = 'status' in merged
+        old_status = None
+        if self.pk is not None and status_will_persist:
+            old_status = (
+                type(self).objects.filter(pk=self.pk).values_list('status', flat=True).first()
+            )
         super().save(*args, **kwargs)
+        if status_will_persist:
+            self._sync_linked_player_active(old_status)
         # Auto-enlace al catálogo de clubes (identidad de club) para poder reconciliar el ojeo con
         # los clubes reales de la liga. No pisa un FK ya asignado a mano; se escribe con UPDATE
         # directo para no re-disparar save().
@@ -1681,6 +1690,32 @@ class ScoutingTarget(models.Model):
             type(self).objects.filter(pk=self.pk).update(**club_updates)
             for key, val in club_updates.items():
                 setattr(self, key, val)
+
+    def _sync_linked_player_active(self, old_status):
+        """Sincroniza la ficha (Player) enlazada con el estado del ojeo.
+
+        Al DESCARTAR un ojeado, su jugador enlazado se desactiva (is_active=False) para que
+        desaparezca de la home, la pizarra interactiva y la convocatoria. Al sacarlo de
+        'descartado' (volver a 'a prueba' / seguir / fichar), se reactiva. Reversible y
+        silencioso ante cualquier error (nunca debe romper el guardado del ojeo).
+        """
+        try:
+            player = self.player
+        except Exception:
+            player = None
+        if player is None:
+            return
+        now_discarded = self.status == self.STATUS_DISCARDED
+        was_discarded = old_status == self.STATUS_DISCARDED
+        try:
+            if now_discarded and not was_discarded and player.is_active:
+                player.is_active = False
+                player.save(update_fields=['is_active'])
+            elif was_discarded and not now_discarded and not player.is_active:
+                player.is_active = True
+                player.save(update_fields=['is_active'])
+        except Exception:
+            pass
 
 
 class ScoutingReport(models.Model):
