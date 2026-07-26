@@ -364,7 +364,24 @@
     cat.strips.forEach(function(sel){
       var best=null, max=-1;
       document.querySelectorAll(sel).forEach(function(s){ var n=stripCount(s); if(n>max){ max=n; best=s; } });
-      if(best && stripCount(best)>0){ best.classList.add('edc-real-strip'); grid.appendChild(best); }
+      if(best && stripCount(best)>0){
+        best.classList.add('edc-real-strip'); grid.appendChild(best);
+        // FIX colocacion: el handler de los botones data-add/data-action estaba DELEGADO en
+        // `toolStrip`, pero aqui movemos el strip al cajon (fuera de toolStrip) y perdian ese
+        // handler => al clicarlos no se armaba la colocacion. Los cableamos directamente a los
+        // globales de colocacion, igual que hacen los avatares (buildAvatars). Solo se ejecuta
+        // para strips de recursos (avatares/roster hacen return antes), asi que no hay doble disparo.
+        best.querySelectorAll('button[data-add], button[data-action]').forEach(function(b){
+          if(b.dataset.edcWired==='1') return; b.dataset.edcWired='1';
+          b.addEventListener('click', function(){
+            var action=b.getAttribute('data-action'), add=b.getAttribute('data-add');
+            try{
+              if(action){ if(window.__tpadCanvasAction) window.__tpadCanvasAction(action); return; }
+              if(add && window.__tpadActivateTool) window.__tpadActivateTool(add);
+            }catch(e){}
+          });
+        });
+      }
     });
   }
   function buildMatDrawer(){
