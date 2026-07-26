@@ -51,3 +51,27 @@ class PlayerAvatarFichaTests(TestCase):
         self.player.save()
         card = _safe_initial_eleven_player_card(self.player)
         self.assertEqual(card["avatar_url"], reverse("player-avatar-recolored", args=[self.player.id]))
+
+    def test_resolver_priority(self):
+        from django.core.files.base import ContentFile
+        from football.views import resolve_player_avatar_url
+
+        # 1) nada -> ''
+        self.assertEqual(resolve_player_avatar_url(self.player), "")
+        # 2) grado de piel -> avatar recoloreado (sintético)
+        self.player.skin_grade = 4
+        self.player.save()
+        self.assertEqual(resolve_player_avatar_url(self.player), reverse("player-avatar-recolored", args=[self.player.id]))
+        # 3) avatar generado (face-swap) -> tiene prioridad sobre el sintético
+        self.player.avatar_generated.save("gen.png", ContentFile(b"\x89PNG\r\n\x1a\n"), save=True)
+        self.assertIn("player-avatars/", resolve_player_avatar_url(self.player))
+
+    def test_profile_form_saves_hairstyle(self):
+        url = reverse("player-detail", args=[self.player.id])
+        self.client.post(url, {"form_action": "profile", "hairstyle": "rizado"}, HTTP_HOST="localhost")
+        self.player.refresh_from_db()
+        self.assertEqual(self.player.hairstyle, "rizado")
+        # valor inválido -> vacío
+        self.client.post(url, {"form_action": "profile", "hairstyle": "mohicano"}, HTTP_HOST="localhost")
+        self.player.refresh_from_db()
+        self.assertEqual(self.player.hairstyle, "")

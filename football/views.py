@@ -20791,6 +20791,32 @@ def player_avatar_recolored(request, player_id):
     return resp
 
 
+def resolve_player_avatar_url(player):
+    """Fuente ÚNICA del avatar de un jugador (pizarra, 11, editor…). Devuelve la mejor URL:
+      1) avatar generado offline (face-swap con su foto + peinado + color + altura) si existe,
+      2) avatar sintético recoloreado (grado de piel / color de pelo) si tiene esos campos,
+      3) '' -> el llamante cae a foto / chapa / PNG estático.
+    No decide foto vs chapa; solo aporta la capa 'avatar' cuando procede."""
+    if player is None:
+        return ""
+    try:
+        gen = getattr(player, "avatar_generated", None)
+        if gen:
+            return gen.url
+    except Exception:
+        pass
+    try:
+        pid = int(getattr(player, "id", 0) or 0)
+    except Exception:
+        pid = 0
+    if pid and (getattr(player, "skin_grade", None) or str(getattr(player, "hair_color", "") or "").strip()):
+        try:
+            return reverse("player-avatar-recolored", args=[pid])
+        except Exception:
+            return ""
+    return ""
+
+
 def _build_coach_pitch_board_players(primary_team, roster_players, roster_memberships, active_injury_ids):
     """Datos de la pizarra interactiva de plantilla (fuente ÚNICA para toda la app).
 
@@ -20825,14 +20851,9 @@ def _build_coach_pitch_board_players(primary_team, roster_players, roster_member
             avatar = "gk_magenta.png" if bucket == "gk" else "kit_home.png"
         # Avatar personalizado (grado de piel / color de pelo) para jugadores de campo con el kit
         # base: se sirve recoloreado desde el endpoint. El resto mantiene el PNG estático.
-        _avatar_url = ""
-        if avatar == "kit_home.png" and (
-            getattr(player, "skin_grade", None) or str(getattr(player, "hair_color", "") or "").strip()
-        ):
-            try:
-                _avatar_url = reverse("player-avatar-recolored", args=[pid])
-            except Exception:
-                _avatar_url = ""
+        # Jugadores de campo con el kit base: avatar generado (face-swap) o recoloreado.
+        # Los porteros conservan su PNG (la figura base es de campo).
+        _avatar_url = resolve_player_avatar_url(player) if avatar == "kit_home.png" else ""
         groups.setdefault(bucket, []).append(
             {
                 "id": pid,
@@ -21817,22 +21838,14 @@ def _safe_initial_eleven_player_card(player):
         number = getattr(player, "number", None)
     except Exception:
         number = None
-    _skin = getattr(player, "skin_grade", None)
-    _hair = str(getattr(player, "hair_color", "") or "").strip()
-    _avatar_url = ""
-    if player_id and (_skin or _hair):
-        try:
-            _avatar_url = reverse("player-avatar-recolored", args=[player_id])
-        except Exception:
-            _avatar_url = ""
     return {
         "id": player_id,
         "name": str(getattr(player, "name", "") or "").strip(),
         "number": number if number is not None else "--",
         "position": str(getattr(player, "position", "") or "").strip(),
         "photo_url": str(getattr(player, "photo_url", "") or "").strip(),
-        # Avatar personalizado (recoloreado) como respaldo cuando no hay foto real.
-        "avatar_url": _avatar_url,
+        # Avatar (generado o recoloreado) como respaldo cuando no hay foto real. Fuente única.
+        "avatar_url": resolve_player_avatar_url(player),
     }
 
 
@@ -70961,6 +70974,8 @@ def player_detail_page(request, player_id):
                 player.hair_color = (
                     _hair if (len(_hair) == 7 and _hair[0] == "#" and all(c in "0123456789abcdef" for c in _hair[1:])) else ""
                 )
+                _style = str(request.POST.get("hairstyle", "") or "").strip().lower()
+                player.hairstyle = _style if _style in {"corto", "medio", "rizado"} else ""
                 player.full_name = request.POST.get("full_name", "").strip()
                 player.nickname = request.POST.get("nickname", "").strip()
                 player.preferente_profile_url = (request.POST.get("preferente_profile_url", "") or "").strip()

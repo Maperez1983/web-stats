@@ -1738,6 +1738,14 @@
                       {% endfor %}
                     </select>
                   </label>
+                  <label style="margin:0;">Peinado
+                    <select name="hairstyle" id="avatarPersoStyle">
+                      <option value="" {% if not player.hairstyle %}selected{% endif %}>Base</option>
+                      <option value="corto" {% if player.hairstyle == 'corto' %}selected{% endif %}>Corto</option>
+                      <option value="medio" {% if player.hairstyle == 'medio' %}selected{% endif %}>Medio</option>
+                      <option value="rizado" {% if player.hairstyle == 'rizado' %}selected{% endif %}>Rizado</option>
+                    </select>
+                  </label>
                   <p class="muted" style="margin:0;font-size:0.72rem;">La vista previa se actualiza al elegir; se aplica en la pizarra y el 11 al guardar.</p>
                 </div>
               </div>
