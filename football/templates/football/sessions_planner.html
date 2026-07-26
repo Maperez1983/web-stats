@@ -2068,6 +2068,7 @@
       <div class="panel"><p class="empty">El módulo no está listo por migraciones pendientes.</p></div>
       {% else %}
 
+      {% if main_tab == 'create' and not create_page %}
       <section class="panel intro-strip">
         <p class="panel-kicker">Crear</p>
         <h2>¿Qué quieres crear?</h2>
@@ -2096,9 +2097,10 @@
           </div>
         </div>
       </section>
+      {% endif %}
 
 			      <div class="tabs" id="planner-tabs">
-			        <a class="tab-link {% if main_tab == 'create' %}is-active{% endif %}" href="?tab=create&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Crear</a>
+			        <a class="tab-link {% if main_tab == 'create' %}is-active{% endif %}" href="?tab=create&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Inicio</a>
 				        <a class="tab-link {% if main_tab == 'library' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_source={{ library_source_tab|default:'created' }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Biblioteca</a>
 				        <a class="tab-link {% if main_tab == 'import' %}is-active{% endif %}" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Importar</a>
 				      </div>
