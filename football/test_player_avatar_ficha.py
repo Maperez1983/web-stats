@@ -40,3 +40,14 @@ class PlayerAvatarFichaTests(TestCase):
         plain = self.client.get(base, HTTP_HOST="localhost").content
         tinted = self.client.get(base + "?g=6&h=%231a1a1a", HTTP_HOST="localhost").content
         self.assertNotEqual(plain, tinted)
+
+    def test_lineup_card_exposes_avatar_url_when_personalized(self):
+        from football.views import _safe_initial_eleven_player_card
+
+        # Sin personalización: sin avatar_url (usa kit genérico por rol en el campo).
+        self.assertEqual(_safe_initial_eleven_player_card(self.player)["avatar_url"], "")
+        # Con grado de piel: la tarjeta expone la URL del avatar recoloreado.
+        self.player.skin_grade = 3
+        self.player.save()
+        card = _safe_initial_eleven_player_card(self.player)
+        self.assertEqual(card["avatar_url"], reverse("player-avatar-recolored", args=[self.player.id]))

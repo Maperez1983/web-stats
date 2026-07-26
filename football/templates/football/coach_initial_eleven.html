@@ -2042,7 +2042,7 @@
           {% endif %}
           <div class="players" id="player-list">
             {% for player in convocation_players %}
-            <label class="player-card" data-player-id="{{ player.id }}" data-player-name="{{ player.name|upper|escape }}" data-player-number="{{ player.number|default:'--' }}" data-player-position="{% if player.position %}{{ player.position|display_position|escape }}{% endif %}" data-player-photo="{{ player.photo_url|default:player.avatar_url|default:''|escape }}">
+            <label class="player-card" data-player-id="{{ player.id }}" data-player-name="{{ player.name|upper|escape }}" data-player-number="{{ player.number|default:'--' }}" data-player-position="{% if player.position %}{{ player.position|display_position|escape }}{% endif %}" data-player-photo="{{ player.photo_url|default:''|escape }}" data-player-avatar="{{ player.avatar_url|default:''|escape }}">
               {% if player.photo_url %}
               <img src="{{ player.photo_url }}" alt="{{ player.name }}" loading="lazy" />
               {% elif player.avatar_url %}
@@ -2941,7 +2941,7 @@
             notSelected.forEach((player) => {
               const chip = document.createElement('span');
               chip.className = 'broadcast-baja-chip';
-              const photo = String(player.photo || '').trim();
+              const photo = String(player.photo || '').trim() || String(player.avatar || '').trim();
               const name = String(player.name || 'Jugador');
               chip.innerHTML = `
                 ${photo ? `<img src="${escapeHtml(photo)}" alt="${escapeHtml(name)}" loading="lazy" />` : `<span class="broadcast-baja-avatar">${escapeHtml(getInitials(name))}</span>`}
@@ -2964,7 +2964,7 @@
             subs.forEach((player) => {
               const chip = document.createElement('span');
               chip.className = 'broadcast-sub-chip';
-              const photo = String(player.photo || '').trim();
+              const photo = String(player.photo || '').trim() || String(player.avatar || '').trim();
               const name = String(player.name || 'Jugador').toUpperCase();
               const number = String(player.number || '--');
               chip.innerHTML = `
@@ -3100,7 +3100,10 @@
           const role = String(player.role || roleFromPosition(player.position) || 'mid');
           const photoRaw = String(player.photo || '').trim();
           const photoSafe = photoRaw ? photoRaw.replace(/'/g, '%27') : '';
-          const kitRaw = kit2dUrlForLineupRole(role);
+          // La figura del campo usa el avatar personalizado del jugador (recoloreado) si lo
+          // tiene; si no, el kit genérico por rol. El inset (token-photo) sigue siendo su foto real.
+          const avatarRaw = String(player.avatar || '').trim();
+          const kitRaw = avatarRaw || kit2dUrlForLineupRole(role);
           const kitSafe = kitRaw ? kitRaw.replace(/'/g, '%27') : '';
           const kitHtml = kitSafe ? `
             <span class="token-kit2d" aria-hidden="true">
@@ -3184,6 +3187,7 @@
         number: String(card.dataset.playerNumber || '--'),
         position: String(card.dataset.playerPosition || ''),
         photo: String(card.dataset.playerPhoto || ''),
+        avatar: String(card.dataset.playerAvatar || ''),
       });
 
       const normalizePosition = (value) => String(value || '').toLowerCase().trim();
@@ -4018,7 +4022,7 @@
         shadow.rotation.x = -Math.PI / 2;
         group.add(shadow);
 
-        const kitUrl = kit2dUrlForLineupRole(role);
+        const kitUrl = String(player.avatar || '').trim() || kit2dUrlForLineupRole(role);
         const photoUrl = String(player.photo || '').trim();
         const kitTexture = await loadImageTexture(THREE, kitUrl);
         const photoTexture = await loadImageTexture(THREE, photoUrl);
