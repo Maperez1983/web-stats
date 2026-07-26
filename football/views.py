@@ -20940,6 +20940,138 @@ def _build_coach_alerts(*, primary_team, roster_players, active_injury_ids, fede
     return alerts[:8]
 
 
+def answer_coach_question(request, primary_team, question):
+    """Asistente del entrenador (fase 3). Intenciones DETERMINISTAS (sin depender de IA) sobre
+    preguntas de SOLO LECTURA: lesionados, próximo partido, disponibles, cobertura, licencias,
+    evaluaciones. Devuelve {answer, links, intent}. Cada bloque aislado para no romper."""
+    from datetime import timedelta
+    from django.db.models import Q
+    q_norm = _ai_trainer_normalize_text(str(question or ""))
+    links = []
+    if not primary_team:
+        return {"answer": "Primero configura tu equipo.", "links": [], "intent": "none"}
+    if not q_norm:
+        return {"answer": "Pregúntame por: lesionados, próximo partido, disponibles, cobertura, licencias o evaluaciones.",
+                "links": [], "intent": "help"}
+
+    def has(*words):
+        return any(w in q_norm for w in words)
+
+    today = timezone.localdate()
+    roster = list(Player.objects.filter(team=primary_team, is_active=True).order_by("number", "name"))
+    ids = [int(p.id) for p in roster if getattr(p, "id", None)]
+    try:
+        injured_ids = set(get_active_injury_player_ids(ids))
+    except Exception:
+        injured_ids = set()
+
+    # 1) Lesionados
+    if has("lesionad", "lesion", "baja", "tocado", "enfermeria", "quien esta fuera"):
+        inj = [p for p in roster if int(p.id) in injured_ids]
+        if not inj:
+            ans = "No hay jugadores lesionados ahora mismo. 💪"
+        else:
+            ans = f"Hay {len(inj)} lesionado(s): " + ", ".join((p.name or f"#{p.id}") for p in inj) + "."
+        links = [{"label": "Ver plantilla", "url": reverse("coach-roster")}]
+        return {"answer": ans, "links": links, "intent": "injured"}
+
+    # 2) Disponibles / cuántos jugadores
+    if has("disponible", "cuantos jugador", "cuantos tengo", "plantilla", "cuanta gente"):
+        available = [p for p in roster if int(p.id) not in injured_ids]
+        ans = f"Plantilla activa: {len(roster)} jugadores; disponibles (sin lesión): {len(available)}."
+        links = [{"label": "Ver plantilla", "url": reverse("coach-roster")}]
+        return {"answer": ans, "links": links, "intent": "available"}
+
+    # 3) Próximo partido
+    if has("proximo partido", "cuando jugamos", "cuando es el partido", "rival", "siguiente partido"):
+        conv = ConvocationRecord.objects.filter(team=primary_team, is_current=True).first()
+        if conv and (conv.opponent_name or conv.match_date):
+            when = conv.match_date.strftime("%d/%m") if conv.match_date else "fecha por confirmar"
+            ans = f"Próximo partido: vs {conv.opponent_name or 'rival por confirmar'} ({when})."
+        else:
+            ans = "No hay próximo partido fijado. Añádelo en el Calendario."
+        links = [{"label": "Partido", "url": reverse("match-hub")}, {"label": "Calendario", "url": reverse("coach-matches")}]
+        return {"answer": ans, "links": links, "intent": "next_match"}
+
+    # 4) Cobertura por puesto
+    if has("cobertura", "faltan", "puesto", "que necesito", "reforzar"):
+        try:
+            fr = _build_federative_squad_report(request, primary_team)
+        except Exception:
+            fr = {}
+        gaps = [c for c in (fr.get("coverage") or []) if isinstance(c, dict) and _safe_int(c.get("missing"), 0) > 0]
+        if not gaps:
+            ans = "Todos los puestos tienen la cobertura mínima. ✓"
+        else:
+            ans = "Puestos por reforzar: " + ", ".join(f"{g.get('label') or g.get('code')} (faltan {_safe_int(g.get('missing'),0)})" for g in gaps[:8]) + "."
+        links = [{"label": "Ver plantilla", "url": reverse("coach-roster")}]
+        return {"answer": ans, "links": links, "intent": "coverage"}
+
+    # 5) Licencias
+    if has("licencia", "caduca", "federativa", "renova"):
+        soon = today + timedelta(days=30)
+        rows = [p for p in roster if getattr(p, "federation_license_expires_at", None)]
+        expired = [p for p in rows if p.federation_license_expires_at < today]
+        expiring = [p for p in rows if today <= p.federation_license_expires_at <= soon]
+        parts = []
+        if expired:
+            parts.append(f"{len(expired)} caducada(s): " + ", ".join((p.name or "") for p in expired[:6]))
+        if expiring:
+            parts.append(f"{len(expiring)} caducan en 30 días: " + ", ".join((p.name or "") for p in expiring[:6]))
+        ans = ". ".join(parts) + "." if parts else "Ninguna licencia caducada ni por caducar en 30 días. ✓"
+        links = [{"label": "Ver plantilla", "url": reverse("coach-roster")}]
+        return {"answer": ans, "links": links, "intent": "licenses"}
+
+    # 6) Evaluaciones desactualizadas
+    if has("evaluaci", "valoraci", "sin evaluar", "nota de"):
+        try:
+            cutoff = today - timedelta(days=60)
+            latest = {}
+            for pid, d in PlayerEvaluation.objects.filter(team=primary_team, status=PlayerEvaluation.STATUS_CLOSED, player_id__in=ids).values_list("player_id", "evaluated_on"):
+                if d and (pid not in latest or d > latest[pid]):
+                    latest[pid] = d
+            stale = [p for p in roster if int(p.id) not in injured_ids and (latest.get(int(p.id)) is None or latest[int(p.id)] < cutoff)]
+            if not stale:
+                ans = "Todas las evaluaciones están al día (últimos 60 días). ✓"
+            else:
+                ans = f"{len(stale)} jugador(es) sin evaluación reciente (>60 días): " + ", ".join((p.name or "") for p in stale[:8]) + "."
+        except Exception:
+            ans = "No pude consultar las evaluaciones ahora mismo."
+        links = [{"label": "Ver plantilla", "url": reverse("coach-roster")}]
+        return {"answer": ans, "links": links, "intent": "evaluations"}
+
+    # 7) Acciones que mutan -> aún no, guío a la herramienta (fase 3b)
+    if has("crea", "convoca", "alinea", "planifica", "programa", "da de alta"):
+        return {"answer": "Crear o convocar todavía lo hago desde la herramienta correspondiente (por seguridad). Te llevo:",
+                "links": [{"label": "Entrenamiento", "url": reverse("sessions")}, {"label": "Convocatoria", "url": reverse("match-hub")}],
+                "intent": "action_redirect"}
+
+    return {"answer": "Puedo responderte sobre: lesionados, disponibles, próximo partido, cobertura de plantilla, licencias y evaluaciones.",
+            "links": [], "intent": "help"}
+
+
+@login_required
+def coach_assistant_api(request):
+    """Endpoint del asistente conversacional del entrenador (solo lectura)."""
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "method"}, status=405)
+    try:
+        primary_team = _get_primary_team_for_request(request)
+    except Exception:
+        primary_team = None
+    question = ""
+    try:
+        import json as _json
+        body = _json.loads((request.body or b"{}").decode("utf-8") or "{}")
+        question = str(body.get("question") or "").strip()
+    except Exception:
+        question = ""
+    if not question:
+        question = str(request.POST.get("question") or "").strip()
+    result = answer_coach_question(request, primary_team, question[:300])
+    return JsonResponse({"ok": True, **result})
+
+
 def _build_coach_pitch_board_players(primary_team, roster_players, roster_memberships, active_injury_ids):
     """Datos de la pizarra interactiva de plantilla (fuente ÚNICA para toda la app).
 

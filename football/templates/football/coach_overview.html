@@ -759,6 +759,46 @@
         </section>
         {% endif %}
 
+        <section class="card" aria-label="Asistente del entrenador" style="margin-top:1rem;">
+          <h2 style="margin:0 0 0.5rem;font-size:1.05rem;">🤖 Pregúntale al asistente</h2>
+          {% csrf_token %}
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+            <input id="coachAskInput" type="text" autocomplete="off" placeholder="p. ej. ¿quién está lesionado? · próximo partido · cobertura" style="flex:1 1 260px;min-width:0;padding:0.55rem 0.7rem;border-radius:8px;border:1px solid rgba(148,163,184,0.4);background:rgba(2,6,23,0.35);color:inherit;" />
+            <button id="coachAskBtn" type="button" class="btn">Preguntar</button>
+          </div>
+          <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.5rem;">
+            <button type="button" class="ask-chip" data-q="¿quién está lesionado?">Lesionados</button>
+            <button type="button" class="ask-chip" data-q="próximo partido">Próximo partido</button>
+            <button type="button" class="ask-chip" data-q="cobertura de plantilla">Cobertura</button>
+            <button type="button" class="ask-chip" data-q="licencias que caducan">Licencias</button>
+            <button type="button" class="ask-chip" data-q="jugadores disponibles">Disponibles</button>
+          </div>
+          <div id="coachAskAnswer" role="status" style="margin-top:0.7rem;display:none;border-radius:10px;padding:0.6rem 0.8rem;background:rgba(120,160,240,0.10);border:1px solid rgba(120,160,240,0.3);"></div>
+          <style>.ask-chip{border:1px solid rgba(148,163,184,0.35);background:rgba(148,163,184,0.10);color:inherit;border-radius:999px;padding:0.3rem 0.7rem;font-size:0.78rem;cursor:pointer;}.ask-chip:hover{background:rgba(148,163,184,0.2);}</style>
+          <script>
+          (function(){
+            var url="{% url 'coach-assistant' %}";
+            var input=document.getElementById('coachAskInput'), btn=document.getElementById('coachAskBtn'), out=document.getElementById('coachAskAnswer');
+            function csrf(){var i=document.querySelector('input[name=csrfmiddlewaretoken]');if(i&&i.value)return i.value;var m=document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);return m?decodeURIComponent(m[1]):'';}
+            function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+            function ask(q){
+              q=(q||'').trim(); if(!q) return;
+              out.style.display='block'; out.textContent='…';
+              fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf(),'X-Requested-With':'XMLHttpRequest'},credentials:'same-origin',body:JSON.stringify({question:q})})
+                .then(function(r){return r.json();})
+                .then(function(d){
+                  var html=esc(d.answer);
+                  if(d.links&&d.links.length){d.links.forEach(function(l){html+=' <a href="'+encodeURI(l.url)+'" style="text-decoration:underline;font-weight:600;">'+esc(l.label)+'</a>';});}
+                  out.innerHTML=html;
+                }).catch(function(){out.textContent='No pude responder ahora mismo.';});
+            }
+            if(btn) btn.addEventListener('click',function(){ask(input.value);});
+            if(input) input.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();ask(input.value);}});
+            document.querySelectorAll('.ask-chip').forEach(function(c){c.addEventListener('click',function(){input.value=c.getAttribute('data-q');ask(c.getAttribute('data-q'));});});
+          })();
+          </script>
+        </section>
+
         {% if federative_report %}
         <section class="card" aria-label="Fichas y cobertura de plantilla" style="margin-top:1rem;">
           <h2 style="margin:0 0 0.6rem;font-size:1.05rem;">Fichas y cobertura de plantilla</h2>

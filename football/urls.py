@@ -502,6 +502,7 @@ urlpatterns = [
         name="tactical-playbook-versions-api",
     ),
     path("coach/", views.coach_overview_page, name="coach-detail"),
+    path("coach/asistente/", views.coach_assistant_api, name="coach-assistant"),
     path("player/<int:player_id>/", views.player_detail_page, name="player-detail"),
     path("player/<int:player_id>/photo/", views.player_photo_file, name="player-photo-file"),
     path("player/<int:player_id>/license/", views.player_license_file, name="player-license-file"),
