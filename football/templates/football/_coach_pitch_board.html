@@ -25,7 +25,7 @@
       <span class="pb-avatar"><img src="{% if p.avatar_url %}{{ p.avatar_url }}{% else %}{% static p.avatar %}{% endif %}" alt="" draggable="false" /></span>
       {% if p.number %}<span class="pb-num">{{ p.number }}</span>{% endif %}
       {% if not p.is_scout %}<span class="pb-rating{% if not p.rating %} is-unrated{% elif p.rating >= 7 %} is-good{% elif p.rating >= 5 %} is-mid{% else %} is-low{% endif %}" title="Nota media (última evaluación cerrada)">{% if p.rating %}{{ p.rating|floatformat:'-1' }}{% else %}–{% endif %}</span>{% endif %}
-      <span class="pb-name">{{ p.name }}</span>
+      <span class="pb-name">{{ p.name }}{% if p.signed %} <span class="pb-signed" title="Fichado (ficha federativa)" aria-label="Fichado">✅</span>{% endif %}</span>
       <span class="pb-badge">{{ p.state_label }}</span>
     </a>
     {% endfor %}

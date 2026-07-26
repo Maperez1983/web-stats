@@ -20866,6 +20866,7 @@ def _build_coach_pitch_board_players(primary_team, roster_players, roster_member
                 "avatar_url": _avatar_url,
                 "left": pitch_left.get(bucket, 50),
                 "rating": _pb_ratings.get(pid),
+                "signed": bool(getattr(player, "has_federative_license", False)),
             }
         )
     # Ojeados "A prueba": los ScoutingTarget marcados `available_for_coach_tools` aparecen en la
