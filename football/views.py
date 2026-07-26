@@ -533,6 +533,24 @@ def _refresh_rfaf_standings_inline(*, allow_fallback=False):
         return False, f"No se pudo cargar el módulo RFAF: {exc}", None
     try:
         rows, html = import_from_rfef.parse_table(allow_fallback=bool(allow_fallback))
+        # Guardia de cordura: el parseo POSICIONAL de la RFAF sale revuelto si la maqueta cambia
+        # (PJ=puntos, PTS=0...). Si hay partidos jugados pero NADIE tiene puntos, o los PJ son
+        # imposibles, NO escribimos: mejor conservar la clasificación previa que meter basura.
+        def _rfaf_int(value):
+            try:
+                return int(str(value).strip())
+            except (TypeError, ValueError):
+                return 0
+        _played = [_rfaf_int(r.get("played")) for r in (rows or [])]
+        _points = [_rfaf_int(r.get("points")) for r in (rows or [])]
+        _max_played = max(_played) if _played else 0
+        _max_points = max(_points) if _points else 0
+        if rows and ((_max_played > 0 and _max_points == 0) or _max_played > 2 * len(rows) + 6):
+            return (
+                False,
+                f"Clasificación RFAF descartada por incoherente (parseo revuelto): PJ máx={_max_played}, Pts máx={_max_points}.",
+                None,
+            )
         next_match = import_from_rfef.extract_next_match_from_classification(html)
         if not next_match:
             next_match = import_from_rfef.fetch_next_match_from_classification(html)
