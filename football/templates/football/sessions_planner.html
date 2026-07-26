@@ -814,12 +814,20 @@
 	        background: rgba(255,255,255,0.02);
 		      }
 	      .task-media-fallback {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
         text-align: center;
         padding: 0 0.8rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        font-size: 0.72rem;
-        color: rgba(226, 232, 240, 0.84);
+        font-size: 0.78rem;
+        color: rgba(148, 163, 184, 0.7);
+	      }
+	      .task-media-fallback svg {
+        width: 42px;
+        height: 28px;
+        opacity: 0.55;
 	      }
 	      .task-trash {
 	        position: absolute;
@@ -4377,7 +4385,7 @@
 	                {% if t.task_preview_image or t.task_pdf or t.is_drawn %}
 		              <img src="{% url 'session-task-preview-file' t.id %}?hd=1&amp;v={% if t.task_preview_image %}{{ t.task_preview_image.name|urlencode }}{% else %}{{ t.id }}{% endif %}" alt="Representacion grafica de {{ t.title }}" loading="lazy" />
 	              {% else %}
-	              <div class="task-media-fallback">Sin representacion grafica<br />{{ t.get_block_display }}</div>
+	              <div class="task-media-fallback"><svg viewBox="0 0 48 32" aria-hidden="true" focusable="false"><rect x="1.5" y="1.5" width="45" height="29" rx="3" fill="none" stroke="currentColor" stroke-width="1.4"/><line x1="24" y1="1.5" x2="24" y2="30.5" stroke="currentColor" stroke-width="1.2"/><circle cx="24" cy="16" r="5" fill="none" stroke="currentColor" stroke-width="1.2"/></svg><span>Sin imagen · {{ t.get_block_display }}</span></div>
 	              {% endif %}
 	            </div>
             <div class="task-content">
@@ -4385,23 +4393,19 @@
               <p class="task-objective">{{ t.objective_summary|truncatechars:140 }}</p>
               <p class="meta"><strong>{{ t.reference_date|date:"d/m/Y" }}</strong>{% if t.reference_date_is_detected %} · Fecha detectada{% endif %} · {{ t.get_block_display }} · {{ t.duration_minutes }}'</p>
               <div class="task-kpis">
-                {% if t.completeness_score %}<span class="badge">Completa {{ t.completeness_score }}%</span>{% endif %}
-                {% if t.analysis_meta.quality_score %}<span class="badge">Score {{ t.analysis_meta.quality_score }}/100</span>{% endif %}
-                {% if t.analysis_confidence.overall %}<span class="badge">Conf {{ t.analysis_confidence.overall }}/100</span>{% endif %}
                 {% if t.needs_review %}<span class="badge" style="border-color:rgba(248,113,113,0.65); color:#fecaca;">Revisión</span>{% endif %}
                 {% for item in t.exercise_types|slice:":2" %}<span class="badge">Tipo: {{ item }}</span>{% endfor %}
                 {% for phase in t.phase_tags|slice:":2" %}<span class="badge">Fase: {{ phase }}</span>{% endfor %}
-                {% for ctx in t.work_contexts|slice:":2" %}<span class="badge">Ctx: {{ ctx }}</span>{% endfor %}
-                {% for obj in t.objective_tags|slice:":2" %}<span class="badge">Obj: {{ obj }}</span>{% endfor %}
                 {% if t.players_band %}<span class="badge">{{ t.players_band }}</span>{% endif %}
                 {% if t.duration_band %}<span class="badge">{{ t.duration_band }}</span>{% endif %}
-                {% if t.quality_warnings %}<span class="badge" style="border-color:rgba(251,191,36,0.55); color:#fde68a;">Faltan {{ t.quality_warnings|length }}</span>{% endif %}
               </div>
               {% if t.analysis_meta %}
               <details style="margin-bottom:0.55rem;">
-                <summary class="button secondary" style="display:inline-flex; width:max-content;">Detalle / etiquetas</summary>
+                <summary class="button secondary" style="display:inline-flex; width:max-content;">Detalle y métricas</summary>
                 <div style="display:flex; gap:0.35rem; flex-wrap:wrap; margin-top:0.55rem;">
                   {% if t.completeness_score %}<span class="badge">Completa {{ t.completeness_score }}%</span>{% endif %}
+                  {% if t.analysis_meta.quality_score %}<span class="badge">Calidad {{ t.analysis_meta.quality_score }}/100</span>{% endif %}
+                  {% if t.analysis_confidence.overall %}<span class="badge">Confianza {{ t.analysis_confidence.overall }}/100</span>{% endif %}
                   {% if t.quality_warnings %}
                   {% for warn in t.quality_warnings|slice:":10" %}
                   <span class="badge" style="border-color:rgba(251,191,36,0.55); color:#fde68a;">{{ warn }}</span>
@@ -4414,10 +4418,10 @@
                   <span class="badge">Fase: {{ phase }}</span>
                   {% endfor %}
                   {% for ctx in t.work_contexts %}
-                  <span class="badge">Ctx: {{ ctx }}</span>
+                  <span class="badge">Contexto: {{ ctx }}</span>
                   {% endfor %}
                   {% for obj in t.objective_tags %}
-                  <span class="badge">Obj: {{ obj }}</span>
+                  <span class="badge">Objetivo: {{ obj }}</span>
                   {% endfor %}
                   {% if t.players_band %}<span class="badge">{{ t.players_band }}</span>{% endif %}
                   {% if t.duration_band %}<span class="badge">{{ t.duration_band }}</span>{% endif %}
