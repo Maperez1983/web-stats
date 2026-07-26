@@ -19816,12 +19816,17 @@ def reports_hub_page(request):
 
     stats_scope = _get_stats_scope_for_request(request, primary_team)
     tournament_options = _team_tournament_name_options(primary_team)
+    player_options = [
+        {"id": int(p.id), "label": (f"{p.number} · " if p.number else "") + (p.name or f"Jugador {p.id}")}
+        for p in Player.objects.filter(team=primary_team, is_active=True).order_by("number", "name", "id")
+    ]
     return render(
         request,
         "football/reports_hub.html",
         {
             **_build_pdf_nav_urls(request),
             "team_name": primary_team.display_name,
+            "player_options": player_options,
             "match_options": match_options,
             "tournament_options": tournament_options,
             "stats_scope": stats_scope,
@@ -19920,6 +19925,244 @@ def player_reports_zip(request):
     response["Cache-Control"] = "no-store, max-age=0"
     response["Pragma"] = "no-cache"
     response["Expires"] = "0"
+    return response
+
+
+def _sparkline_points(points, width=280, height=42, pad=4):
+    """Puntos de una polyline SVG a partir de [{value: ...}] (o None si <2 valores)."""
+    vals = [p.get("value") for p in (points or []) if p.get("value") is not None]
+    if len(vals) < 2:
+        return None
+    lo, hi = min(vals), max(vals)
+    rng = (hi - lo) or 1.0
+    n = len(vals)
+    coords = []
+    for i, val in enumerate(vals):
+        x = pad + (width - 2 * pad) * (i / (n - 1))
+        y = pad + (height - 2 * pad) * (1 - (val - lo) / rng)
+        coords.append(f"{round(x, 1)},{round(y, 1)}")
+    return {"points": " ".join(coords), "width": width, "height": height, "first": vals[0], "last": vals[-1]}
+
+
+def _evolution_parameter_movers(evaluations, top=4):
+    """Top parámetros que más suben/bajan entre la 1ª y la última evaluación con parameter_scores."""
+    scored = [
+        e for e in (evaluations or [])
+        if isinstance(getattr(e, "parameter_scores", None), dict) and e.parameter_scores
+    ]
+    if len(scored) < 2:
+        return {"up": [], "down": [], "available": False}
+    first, last = scored[0], scored[-1]
+    deltas = []
+    for area in EVALUATION_PARAMETER_CATALOG:
+        akey = area["key"]
+        fa = first.parameter_scores.get(akey) or {}
+        la = last.parameter_scores.get(akey) or {}
+        for pkey, plabel in area["params"]:
+            fv, lv = fa.get(pkey), la.get(pkey)
+            try:
+                fv = float(fv) if fv is not None else None
+                lv = float(lv) if lv is not None else None
+            except (TypeError, ValueError):
+                continue
+            if fv is None or lv is None:
+                continue
+            d = round(lv - fv, 1)
+            if d == 0:
+                continue
+            deltas.append({"label": plabel, "area": area["label"], "first": fv, "last": lv, "delta": d})
+    ups = sorted([d for d in deltas if d["delta"] > 0], key=lambda x: -x["delta"])[:top]
+    downs = sorted([d for d in deltas if d["delta"] < 0], key=lambda x: x["delta"])[:top]
+    return {"up": ups, "down": downs, "available": True}
+
+
+def _resolve_evolution_report_range(request):
+    """(date_from, date_to) del informe de evolución: ?from=&to= (ISO); si falta 'from',
+    cae en la temporada del club (club_season_id) o en los últimos 365 días."""
+    from datetime import timedelta as _td
+
+    def _iso(value):
+        try:
+            return date.fromisoformat(str(value or "").strip())
+        except Exception:
+            return None
+
+    date_from = _iso(request.GET.get("from"))
+    date_to = _iso(request.GET.get("to")) or timezone.localdate()
+    if date_from is None:
+        club_season_id = _parse_int(request.GET.get("club_season_id"))
+        if club_season_id:
+            try:
+                ws = _get_active_workspace(request)
+                cs = (
+                    WorkspaceSeason.objects.filter(id=int(club_season_id), workspace=ws).first()
+                    if ws and getattr(ws, "kind", None) == Workspace.KIND_CLUB
+                    else None
+                )
+                if cs:
+                    date_from = getattr(cs, "start_date", None)
+                    date_to = getattr(cs, "end_date", None) or date_to
+            except Exception:
+                date_from = None
+    if date_from is None:
+        date_from = date_to - _td(days=365)
+    return date_from, date_to
+
+
+@login_required
+@pdf_view_guard
+def player_evolution_pdf(request, player_id):
+    """PDF de EVOLUCIÓN del jugador en un periodo: progreso de valoraciones, parámetros,
+    físico y objetivos (complementa la ficha, que es la foto fija)."""
+    forbidden = _forbid_if_workspace_module_disabled(request, "players", label="módulo de jugadores")
+    if forbidden:
+        return forbidden
+    primary_team, player = _resolve_player_for_request_scope(request, int(player_id))
+    if not primary_team:
+        raise Http404("Equipo principal no configurado")
+    if not player:
+        raise Http404("Jugador no encontrado")
+    if getattr(player, "team", None):
+        primary_team = player.team
+    forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
+    if forbidden:
+        return forbidden
+
+    date_from, date_to = _resolve_evolution_report_range(request)
+
+    evaluations = list(
+        PlayerEvaluation.objects.filter(
+            player=player,
+            status=PlayerEvaluation.STATUS_CLOSED,
+            evaluated_on__gte=date_from,
+            evaluated_on__lte=date_to,
+        ).order_by("evaluated_on", "id")
+    )
+    chart = _player_evaluation_chart_context(evaluations)
+    key_fields = {"overall_rating", "technical_rating", "tactical_rating", "physical_rating", "mental_rating"}
+    area_rows = [r for r in chart.get("area_rows", []) if r.get("field") in key_fields]
+    overall_row = next((r for r in chart.get("area_rows", []) if r.get("field") == "overall_rating"), None)
+    overall_spark = _sparkline_points(overall_row.get("points")) if overall_row else None
+    param_movers = _evolution_parameter_movers(evaluations)
+
+    metrics = list(
+        PlayerPhysicalMetric.objects.filter(
+            player=player, recorded_on__gte=date_from, recorded_on__lte=date_to
+        ).order_by("recorded_on", "id")
+    )
+    physical_viz = _build_physical_viz(metrics)
+
+    try:
+        objectives = list(player.objectives.all())
+    except Exception:
+        objectives = []
+    objectives.sort(key=lambda o: {"in_progress": 0, "pending": 1, "done": 2}.get(getattr(o, "status", ""), 3))
+
+    photo_url = ""
+    try:
+        photo_url = str(resolve_player_photo_url(request, player) or "").strip()
+    except Exception:
+        photo_url = ""
+
+    ctx = {
+        "player": player,
+        "team_name": getattr(primary_team, "display_name", "") or "",
+        "date_from": date_from,
+        "date_to": date_to,
+        "evaluations_count": len(evaluations),
+        "trend_rows": chart.get("trend_rows", []),
+        "area_rows": area_rows,
+        "overall_row": overall_row,
+        "overall_spark": overall_spark,
+        "param_movers": param_movers,
+        "physical_viz": physical_viz,
+        "objectives": objectives,
+        "latest": evaluations[-1] if evaluations else None,
+        "photo_url": photo_url,
+    }
+    html = render_to_string("football/player_evolution_pdf.html", ctx, request=request)
+    if str(request.GET.get("format") or "").strip().lower() == "html":
+        return HttpResponse(html, content_type="text/html; charset=utf-8")
+    slug = slugify(player.name or "") or f"player-{player.id}"
+    return _build_pdf_response_or_html_fallback(request, html, f"evolucion-{slug}", inline=True, force_pdf=True)
+
+
+@login_required
+def player_evolution_zip(request):
+    """Descarga masiva: ZIP con el informe de EVOLUCIÓN (PDF) de todos los jugadores."""
+    if not _can_edit_match_actions(request.user):
+        return HttpResponse("Solo el cuerpo técnico puede generar informes.", status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, "players", label="informes de jugadores")
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request) or _team_from_request_param(request)
+    if not primary_team:
+        raise Http404("Equipo principal no configurado")
+    players = list(Player.objects.filter(team=primary_team, is_active=True).order_by("number", "name", "id"))
+    if not players:
+        raise Http404("Sin jugadores para generar informes")
+
+    base_get = request.GET.copy()
+    try:
+        base_get.pop("format", None)
+    except Exception:
+        pass
+
+    errors = []
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for player in players:
+            forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
+            if forbidden:
+                errors.append(f"{player.id} · {player.name}: sin permisos")
+                continue
+            filename_slug = slugify(player.name or "") or f"player-{player.id}"
+            try:
+                number = int(getattr(player, "number", 0) or 0)
+            except Exception:
+                number = 0
+            zip_name = f"{number:02d}-evolucion-{filename_slug}.pdf" if number else f"evolucion-{filename_slug}.pdf"
+            orig_get = getattr(request, "GET", None)
+            try:
+                request.GET = base_get
+                resp = player_evolution_pdf(request, int(player.id))
+            except Exception as exc:  # pragma: no cover
+                errors.append(f"{player.id} · {player.name}: {exc.__class__.__name__}: {exc}")
+                continue
+            finally:
+                try:
+                    request.GET = orig_get
+                except Exception:
+                    pass
+            status = int(getattr(resp, "status_code", 0) or 0)
+            try:
+                content_type = str(
+                    getattr(resp, "headers", {}).get("Content-Type") or resp.get("Content-Type") or ""
+                ).lower()
+            except Exception:
+                content_type = ""
+            if status != 200 or "application/pdf" not in content_type:
+                errors.append(f"{player.id} · {player.name}: error {status or '??'}")
+                continue
+            try:
+                pdf_bytes = bytes(getattr(resp, "content", b"") or b"")
+            except Exception:
+                pdf_bytes = b""
+            if not pdf_bytes:
+                errors.append(f"{player.id} · {player.name}: PDF vacío")
+                continue
+            zf.writestr(zip_name, pdf_bytes)
+        if errors:
+            zf.writestr("_ERRORES.txt", "\n".join(errors) + "\n")
+
+    zip_bytes = buf.getvalue()
+    buf.close()
+    team_slug = slugify(getattr(primary_team, "display_name", "") or "equipo") or "equipo"
+    stamp = timezone.localdate().strftime("%Y%m%d")
+    out_name = f"evolucion-jugadores-{team_slug}-{stamp}.zip"
+    response = HttpResponse(zip_bytes, content_type="application/zip")
+    response["Content-Disposition"] = f'attachment; filename="{out_name}"'
+    response["Cache-Control"] = "no-store, max-age=0"
     return response
 
 

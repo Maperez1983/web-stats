@@ -1,0 +1,180 @@
+{% load static %}
+{% load football_extras %}
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Evolución · {{ player.name }}</title>
+<style>
+  @page { size: A4; margin: 14mm 12mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #0f172a; font-size: 11px; line-height: 1.45; margin: 0; }
+  .muted { color: #64748b; }
+  h1 { font-size: 19px; margin: 0 0 2px; }
+  h2 { font-size: 13px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.06em; color: #0b3a2e;
+       border-bottom: 2px solid #0f7a35; padding-bottom: 4px; }
+  section { margin-top: 16px; page-break-inside: avoid; }
+  .head { display: flex; align-items: center; gap: 14px; border-bottom: 3px solid #0f7a35; padding-bottom: 12px; }
+  .head .photo { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; background: #e2e8f0; border: 1px solid #cbd5e1; }
+  .head .id { flex: 1; }
+  .head .num { display: inline-block; min-width: 26px; text-align: center; background: #0f172a; color: #fff;
+               border-radius: 8px; padding: 2px 7px; font-weight: 800; margin-right: 6px; }
+  .head .meta { color: #475569; font-size: 11px; margin-top: 2px; }
+  .head .now { text-align: right; }
+  .head .now .big { font-size: 30px; font-weight: 800; line-height: 1; }
+  .badge { display: inline-block; border-radius: 999px; padding: 1px 8px; font-weight: 800; font-size: 10px; }
+  .up { color: #16a34a; } .down { color: #dc2626; } .flat, .neutral { color: #64748b; }
+  .b-up { background: #dcfce7; color: #166534; } .b-down { background: #fee2e2; color: #991b1b; } .b-flat { background: #e2e8f0; color: #334155; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 5px 7px; border-bottom: 1px solid #e2e8f0; }
+  th { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .spark { border: 1px solid #e2e8f0; border-radius: 10px; padding: 8px 10px; margin-bottom: 10px; background: #f8fafc; }
+  .cols { display: flex; gap: 14px; }
+  .col { flex: 1; }
+  .card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 8px 10px; }
+  .pill-row { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px dashed #e2e8f0; }
+  .pill-row:last-child { border-bottom: none; }
+  .obj { padding: 4px 0; border-bottom: 1px solid #f1f5f9; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .d-done { background: #16a34a; } .d-prog { background: #d97706; } .d-pend { background: #94a3b8; }
+  .note { white-space: pre-wrap; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 7px 9px; margin: 4px 0 0; }
+  .foot { margin-top: 18px; color: #94a3b8; font-size: 9px; border-top: 1px solid #e2e8f0; padding-top: 6px; }
+</style>
+</head>
+<body>
+
+  <div class="head">
+    {% if photo_url %}<img class="photo" src="{{ photo_url }}" alt="" />{% endif %}
+    <div class="id">
+      <h1>{% if player.number %}<span class="num">{{ player.number }}</span>{% endif %}{{ player.name }}</h1>
+      <div class="meta">{{ team_name }}{% if player.position %} · {{ player.position|display_position }}{% endif %}</div>
+      <div class="meta muted">Informe de evolución · {{ date_from|date:"d/m/Y" }} → {{ date_to|date:"d/m/Y" }} · {{ evaluations_count }} evaluación{{ evaluations_count|pluralize:"es" }}</div>
+    </div>
+    <div class="now">
+      <div class="muted" style="font-size:9.5px;text-transform:uppercase;letter-spacing:0.05em;">Nota media actual</div>
+      {% if overall_row and overall_row.last is not None %}
+        <div class="big">{{ overall_row.last|floatformat:"-1" }}</div>
+        {% if overall_row.delta is not None %}
+          <div class="{{ overall_row.trend }}">{% if overall_row.trend == 'up' %}▲{% elif overall_row.trend == 'down' %}▼{% else %}▬{% endif %} {{ overall_row.delta|floatformat:"-1" }} vs inicio</div>
+        {% endif %}
+      {% else %}
+        <div class="big muted">–</div>
+        <div class="muted">Sin evaluación cerrada</div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if trend_rows %}
+  <section>
+    <h2>Evolución de valoraciones</h2>
+    {% if overall_spark %}
+    <div class="spark">
+      <div class="muted" style="font-size:9.5px;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;">Nota media en el tiempo</div>
+      <svg viewBox="0 0 {{ overall_spark.width }} {{ overall_spark.height }}" width="100%" height="46" preserveAspectRatio="none">
+        <polyline points="{{ overall_spark.points }}" fill="none" stroke="#0f7a35" stroke-width="2" />
+      </svg>
+      <div style="display:flex;justify-content:space-between;" class="muted"><span>{{ overall_spark.first|floatformat:"-1" }}</span><span>{{ overall_spark.last|floatformat:"-1" }}</span></div>
+    </div>
+    {% endif %}
+    <table>
+      <thead><tr><th>Área</th><th class="num">Primera</th><th class="num">Última</th><th class="num">Δ</th><th>Tendencia</th></tr></thead>
+      <tbody>
+      {% for r in area_rows %}
+        <tr>
+          <td>{{ r.label }}</td>
+          <td class="num">{{ r.first|floatformat:"-1"|default:"–" }}</td>
+          <td class="num">{{ r.last|floatformat:"-1"|default:"–" }}</td>
+          <td class="num {{ r.trend }}">{% if r.delta is not None %}{% if r.delta > 0 %}+{% endif %}{{ r.delta|floatformat:"-1" }}{% else %}–{% endif %}</td>
+          <td class="{{ r.trend }}">{% if r.trend == 'up' %}▲ Mejora{% elif r.trend == 'down' %}▼ Baja{% else %}▬ Estable{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+
+  <section>
+    <h2>Parámetros — qué sube y qué toca trabajar</h2>
+    {% if param_movers.available %}
+    <div class="cols">
+      <div class="col">
+        <div class="muted" style="margin-bottom:4px;">▲ Más mejora</div>
+        {% for p in param_movers.up %}
+          <div class="pill-row"><span>{{ p.label }} <span class="muted">· {{ p.area }}</span></span><span class="badge b-up">+{{ p.delta|floatformat:"-1" }}</span></div>
+        {% empty %}<div class="muted">Sin subidas destacadas.</div>{% endfor %}
+      </div>
+      <div class="col">
+        <div class="muted" style="margin-bottom:4px;">▼ A trabajar</div>
+        {% for p in param_movers.down %}
+          <div class="pill-row"><span>{{ p.label }} <span class="muted">· {{ p.area }}</span></span><span class="badge b-down">{{ p.delta|floatformat:"-1" }}</span></div>
+        {% empty %}<div class="muted">Sin bajadas destacadas.</div>{% endfor %}
+      </div>
+    </div>
+    {% else %}
+    <p class="muted">Hacen falta al menos dos evaluaciones con parámetros puntuados en el periodo para comparar.</p>
+    {% endif %}
+  </section>
+
+  {% if physical_viz.charts or physical_viz.acwr or physical_viz.maturity %}
+  <section>
+    <h2>Físico — tests y carga</h2>
+    {% if physical_viz.charts %}
+    <table>
+      <thead><tr><th>Test</th><th class="num">Último</th><th class="num">Δ</th><th>Tendencia</th></tr></thead>
+      <tbody>
+      {% for c in physical_viz.charts %}
+        <tr>
+          <td>{{ c.label }}</td>
+          <td class="num">{{ c.last|default:"" }} {{ c.unit }}</td>
+          <td class="num">{% if c.delta > 0 %}+{% endif %}{{ c.delta|floatformat:"-1" }}</td>
+          <td class="{% if c.tone == 'good' %}up{% elif c.tone == 'bad' %}down{% else %}flat{% endif %}">{% if c.tone == 'good' %}▲ Bien{% elif c.tone == 'bad' %}▼ Ojo{% else %}▬{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+    <div class="cols" style="margin-top:8px;">
+      {% if physical_viz.acwr %}
+      <div class="col card">
+        <strong>Carga ACWR</strong> <span class="badge {% if physical_viz.acwr.zone == 'ok' %}b-up{% elif physical_viz.acwr.zone == 'danger' %}b-down{% else %}b-flat{% endif %}">{{ physical_viz.acwr.ratio }}</span>
+        <div class="muted">Agudo 7d {{ physical_viz.acwr.acute }} · Crónico 28d {{ physical_viz.acwr.chronic }} · {% if physical_viz.acwr.zone == 'ok' %}Zona óptima{% elif physical_viz.acwr.zone == 'danger' %}Riesgo (carga alta){% else %}Baja carga{% endif %}</div>
+      </div>
+      {% endif %}
+      {% if physical_viz.maturity %}
+      <div class="col card">
+        <strong>Madurez / PHV</strong>
+        <div class="muted">{{ physical_viz.maturity.status }}{% if physical_viz.maturity.offset is not None %} · offset {{ physical_viz.maturity.offset }}a{% endif %}{% if physical_viz.maturity.growth is not None %} · crecimiento {{ physical_viz.maturity.growth }} cm/año{% endif %}</div>
+      </div>
+      {% endif %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if objectives %}
+  <section>
+    <h2>Objetivos</h2>
+    {% for o in objectives %}
+      <div class="obj">
+        <span class="dot {% if o.status == 'done' %}d-done{% elif o.status == 'in_progress' %}d-prog{% else %}d-pend{% endif %}"></span>
+        {{ o.text }}
+        <span class="muted">· {% if o.status == 'done' %}Cumplido{% if o.done_at %} ({{ o.done_at|date:"d/m/Y" }}){% endif %}{% elif o.status == 'in_progress' %}En curso{% else %}Pendiente{% endif %}{% if o.target_date %} · objetivo {{ o.target_date|date:"d/m/Y" }}{% endif %}</span>
+      </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  {% if latest %}
+  <section>
+    <h2>Valoración del cuerpo técnico</h2>
+    {% if latest.strengths %}<div><strong class="up">Fortalezas.</strong><div class="note">{{ latest.strengths }}</div></div>{% endif %}
+    {% if latest.improvements %}<div style="margin-top:6px;"><strong class="down">A mejorar.</strong><div class="note">{{ latest.improvements }}</div></div>{% endif %}
+    {% if latest.objectives_next %}<div style="margin-top:6px;"><strong>Próximos objetivos.</strong><div class="note">{{ latest.objectives_next }}</div></div>{% endif %}
+    {% if latest.coach_comments %}<div style="margin-top:6px;"><strong>Comentario.</strong><div class="note">{{ latest.coach_comments }}</div></div>{% endif %}
+    <div class="muted" style="margin-top:6px;">Última evaluación cerrada: {{ latest.evaluated_on|date:"d/m/Y" }} · {{ latest.get_evaluation_type_display }}</div>
+  </section>
+  {% endif %}
+
+  <div class="foot">Segunda Jugada · Informe de evolución de {{ player.name }} · generado {{ date_to|date:"d/m/Y" }}</div>
+</body>
+</html>

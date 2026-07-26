@@ -167,6 +167,58 @@
             </div>
           </form>
         </section>
+
+        <section class="card">
+          <h2>Informe de evolución (jugador)</h2>
+          <p>Progreso del jugador en el periodo: evolución de notas y parámetros, físico y objetivos.</p>
+          <div class="form-grid">
+            <div class="field">
+              <label for="evo-player">Jugador</label>
+              <select id="evo-player">
+                {% for p in player_options %}<option value="{{ p.id }}">{{ p.label }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="field">
+              <label for="evo-from">Desde</label>
+              <input type="date" id="evo-from" />
+            </div>
+            <div class="field">
+              <label for="evo-to">Hasta</label>
+              <input type="date" id="evo-to" />
+            </div>
+          </div>
+          <div class="sections">
+            <div class="actions">
+              <button class="btn primary" type="button" id="evo-open">Ver informe (PDF)</button>
+              <button class="btn" type="button" id="evo-zip">Descargar ZIP (todos)</button>
+              <span class="hint">Si no eliges fechas, se usan los últimos 12 meses.</span>
+            </div>
+          </div>
+          <script>
+            (function () {
+              var teamQ = {% if request.GET.team %}'team={{ request.GET.team|urlencode }}'{% else %}''{% endif %};
+              function dateQuery() {
+                var f = (document.getElementById('evo-from') || {}).value || '';
+                var t = (document.getElementById('evo-to') || {}).value || '';
+                var q = [];
+                if (f) q.push('from=' + f);
+                if (t) q.push('to=' + t);
+                if (teamQ) q.push(teamQ);
+                return q.length ? ('?' + q.join('&')) : '';
+              }
+              var openBtn = document.getElementById('evo-open');
+              if (openBtn) openBtn.addEventListener('click', function () {
+                var pid = (document.getElementById('evo-player') || {}).value;
+                if (!pid) return;
+                window.open('/player/' + pid + '/evolucion/pdf/' + dateQuery(), '_blank', 'noopener');
+              });
+              var zipBtn = document.getElementById('evo-zip');
+              if (zipBtn) zipBtn.addEventListener('click', function () {
+                window.open('{% url 'player-evolution-zip' %}' + dateQuery(), '_blank', 'noopener');
+              });
+            })();
+          </script>
+        </section>
       </div>
     </div>
     <script>
