@@ -20801,6 +20801,12 @@ def resolve_player_avatar_url(player):
     No decide foto vs chapa; solo aporta la capa 'avatar' cuando procede."""
     if player is None:
         return ""
+    # Porteros: la figura base es de CAMPO. No les damos avatar de campo -> usan su PNG de portero.
+    try:
+        if _roster_preview_bucket(getattr(player, "position", "") or "") == "gk":
+            return ""
+    except Exception:
+        pass
     try:
         gen = getattr(player, "avatar_generated", None)
         if gen:

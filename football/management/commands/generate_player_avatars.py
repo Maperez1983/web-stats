@@ -178,6 +178,10 @@ class Command(BaseCommand):
 
         done = skipped = failed = 0
         for player in qs:
+            # Porteros: la figura base es de campo -> no se les genera avatar de campo (usan su PNG GK).
+            _pos = str(getattr(player, "position", "") or "").strip().lower()
+            if _pos in {"por", "gk"} or "porter" in _pos or "goalkeep" in _pos:
+                continue
             photo = getattr(player, "photo", None)
             has_photo = bool(photo and getattr(photo, "name", ""))
             # Nada que personalizar y sin foto -> se deja la figura estática (resolver cae al PNG base).
