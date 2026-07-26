@@ -1619,24 +1619,16 @@
               {% endif %}
             </div>
           </article>
-          <article class="decision-card {% if has_active_injury and not injury_allows_training %}is-danger{% elif has_active_injury or has_manual_sanction %}is-accent{% endif %}">
-            <span class="label">Estado operativo</span>
+          <article class="decision-card {% if player.has_federative_license %}is-accent{% endif %}">
+            <span class="label">Ficha federativa</span>
             <div class="value">
-              {% if has_active_injury %}
-                {% if injury_allows_training %}<span class="injury-cross trainable">✚</span>Lesionado · apto entreno{% else %}<span class="injury-cross blocks">✚</span>Lesionado{% endif %}
-              {% elif has_manual_sanction %}
-                Sancionado
-              {% else %}
-                Disponible
-              {% endif %}
+              {% if player.has_federative_license %}✅ Fichado{% else %}Sin ficha{% endif %}
             </div>
             <div class="meta">
-              {% if has_active_injury %}
-                Revisa el historial de lesiones y la fecha estimada de alta.
-              {% elif has_manual_sanction %}
-                Comprueba la sanción manual registrada en la ficha.
+              {% if player.has_federative_license %}
+                Tiene licencia federativa (cuenta para el cupo de fichas del equipo).
               {% else %}
-                Sin bloqueo operativo en este momento.
+                Aún sin ficha federativa: no consume cupo y no es convocable en partido oficial.
               {% endif %}
             </div>
           </article>
