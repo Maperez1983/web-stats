@@ -70876,6 +70876,48 @@ def _parse_evaluation_parameter_scores(post):
     return scores, averages
 
 
+def _build_player_minutes_load(player, club_season, match_minutes, matches_played):
+    """Carga de minutos de la temporada seleccionada, separada en Entrenamientos y Partidos.
+
+    Entrenos = suma de duration_minutes de las sesiones de ESA temporada (club_season) a las que el
+    jugador asistio (presente/tarde). Partidos = minutos jugados en partidos de esa temporada. Todo
+    acotado a la temporada seleccionada -> nunca arrastra datos de temporadas anteriores.
+    """
+    training_minutes = 0
+    training_sessions = 0
+    if player is not None and club_season is not None:
+        try:
+            att_ok = [
+                TrainingSessionAttendance.STATUS_PRESENT,
+                TrainingSessionAttendance.STATUS_LATE,
+            ]
+            rows = TrainingSession.objects.filter(
+                club_season=club_season,
+                attendance_marks__player=player,
+                attendance_marks__status__in=att_ok,
+            ).values_list("id", "duration_minutes")
+            by_session = {}
+            for sid, dur in rows:
+                by_session[sid] = int(dur or 0)
+            training_sessions = len(by_session)
+            training_minutes = sum(by_session.values())
+        except Exception:
+            training_minutes, training_sessions = 0, 0
+    match_minutes = int(match_minutes or 0)
+    matches_played = int(matches_played or 0)
+    total = training_minutes + match_minutes
+    return {
+        "training_minutes": training_minutes,
+        "training_sessions": training_sessions,
+        "match_minutes": match_minutes,
+        "matches_played": matches_played,
+        "total_minutes": total,
+        "training_pct": int(round(training_minutes * 100.0 / total)) if total else 0,
+        "match_pct": int(round(match_minutes * 100.0 / total)) if total else 0,
+        "has_season": club_season is not None,
+    }
+
+
 @login_required
 def player_detail_page(request, player_id):
     try:
@@ -72008,6 +72050,7 @@ def player_detail_page(request, player_id):
         pj = _to_int_value(stats_source.get("pj"))
         pt = _to_int_value(stats_source.get("pt"))
         minutes = _to_int_value(stats_source.get("minutes"))
+        minutes_load = _build_player_minutes_load(player, selected_club_season, minutes, pj)
         goals = _to_int_value(stats_source.get("goals"))
         assists = _to_int_value(stats_source.get("assists"))
         yellow_cards = _to_int_value(stats_source.get("yellow_cards"))
@@ -72659,6 +72702,7 @@ def player_detail_page(request, player_id):
                 "injury_records": injury_records,
                 "latest_injury_record": latest_injury_record,
                 "has_active_injury": has_active_injury,
+                "minutes_load": minutes_load,
                 "injury_allows_training": injury_allows_training,
                 "has_manual_sanction": has_manual_sanction,
                 "is_called_up": is_called_up,
