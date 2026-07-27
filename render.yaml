@@ -133,12 +133,13 @@ services:
       - key: RUN_MIGRATIONS
         value: "false"
       # --- Autogeneración de avatares (reusa este worker; sin servicio nuevo) ---
-      # ACTIVADO: el worker ya tiene las credenciales AWS + DATABASE_URL, así que es seguro forzar
-      # S3 aquí (no tumbará el operador). Genera generate_player_avatars en 2º plano cada
-      # AVATAR_AUTOGEN_INTERVAL_SECONDS (24h), incremental. Si en logs hay OOM -> subir plan a 'pro'
-      # o poner AVATAR_AUTOGEN_ENABLED=false en el dashboard.
+      # DESACTIVADO: generate_player_avatars carga insightface+onnx (+modelo 554MB) y, sumado a
+      # ollama (qwen3), supera los 2GB del plan standard -> OOM en bucle cada ~120s -> emails de
+      # fallo sin parar. Las chapas ya se generan en servidor con PIL (sin modelos), así que no
+      # hace falta esto en prod. Para reactivarlo hay que subir el worker a 'pro' (>=4GB) y poner
+      # AVATAR_AUTOGEN_ENABLED=true (aquí y, si estuviera override, en el dashboard).
       - key: AVATAR_AUTOGEN_ENABLED
-        value: "true"
+        value: "false"
       - key: AVATAR_AUTOGEN_INTERVAL_SECONDS
         value: "86400"
       - key: AVATAR_INSWAPPER
