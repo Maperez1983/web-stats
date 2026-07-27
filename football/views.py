@@ -30654,8 +30654,15 @@ def _normalize_task_pdf_meta(meta):
 
 
 def _build_task_pdf_context(
-    request, team, session, microcycle, task, tactical_layout, pdf_style="uefa", preview_url="", one_page: bool = False
+    request, team, session, microcycle, task, tactical_layout, pdf_style="uefa", preview_url="", one_page: bool = False,
+    allow_live_canvas_render: bool = True,
 ):
+    # allow_live_canvas_render=False -> NO reconstruir/renderizar el canvas en servidor.
+    # La presentacion en PANTALLA ya tiene la imagen guardada (preview_url / task_preview_image)
+    # y NO dibuja los tokens vectoriales (solo la imagen). Reconstruir el canvas obliga a leer
+    # task.tactical_layout COMPLETO (des-difiere la columna pesada que diferimos) y a re-renderizar
+    # el PNG en cada visita (~3s en tareas con pizarra rica). El PDF descargable si lo necesita,
+    # asi que su valor por defecto es True.
     def _static_data_url(static_path: str, mime: str) -> str:
         try:
             from django.contrib.staticfiles import finders  # noqa: WPS433
@@ -31148,7 +31155,9 @@ def _build_task_pdf_context(
                 "version": str(tactical_layout.get("version") or "5.3.0"),
                 "objects": tactical_layout.get("objects"),
             }
-    if not isinstance(task_canvas_state.get("objects"), list) or not task_canvas_state.get("objects"):
+    if allow_live_canvas_render and (
+        not isinstance(task_canvas_state.get("objects"), list) or not task_canvas_state.get("objects")
+    ):
         try:
             extracted_canvas_state, extracted_canvas_width, extracted_canvas_height = _extract_canvas_state_for_preview(
                 task
@@ -31373,9 +31382,10 @@ def _build_task_pdf_context(
         pdf_text_superheavy = False
         # En modo compacto respetamos la heurística anterior.
     pdf_tokens = _build_task_pdf_tokens(request, tactical_layout)
-    if not pdf_tokens and task:
+    if allow_live_canvas_render and not pdf_tokens and task:
         # Fallback: si no hay tokens legacy pero existe estado de pizarra (canvas_state),
-        # reconstruimos una vista mínima para que el PDF no quede vacío.
+        # reconstruimos una vista mínima para que el PDF no quede vacío. Solo con render vivo
+        # (PDF descargable); en pantalla se muestra la imagen guardada, no los tokens vectoriales.
         try:
             canvas_state, canvas_width, canvas_height = _extract_canvas_state_for_preview(task)
             if (
@@ -54458,6 +54468,10 @@ def session_task_detail_page(request, task_id):
             pdf_style=_active_fmt,
             preview_url=preview_url_for_pdf,
             one_page=False,
+            # En pantalla (presentacion) NO reconstruimos el canvas: usaria task.tactical_layout completo
+            # -> des-difiere la columna pesada + re-render PNG ~3s. Mostramos la imagen ya guardada.
+            # Solo en modo edicion/PDF (layout completo) permitimos el render vivo.
+            allow_live_canvas_render=_wants_full_layout,
         )
     except Exception:
         task_presentation_pdf_context_by_format = {"uefa": {}, "club": {}}
