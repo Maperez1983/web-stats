@@ -1584,13 +1584,9 @@
                 </div>
                 <div class="editor-grid">
                   <label class="full">
-                    Descripción de la tarea
-                    <textarea name="task_sheet_description">{{ task_sheet.description }}</textarea>
-                  </label>
-                  <label class="full">
-                    📸 Cómo se ve el ejercicio
-                    <textarea name="task_sheet_scene" rows="3" placeholder="Describe la ESCENA tal y como se ve en el campo: dónde están los jugadores, hacia dónde se mueven, qué material se usa y cómo. Ej: 'Un rondo 5 contra 2 dentro de un cuadrado de conos; los 5 se pasan el balón por fuera y 2 presionan en el centro; una portería pequeña al fondo.' Cuanto más visual, mejor sale la portada realista.">{{ task_sheet.scene_note }}</textarea>
-                    <span class="meta" style="display:block;margin-top:.25rem;">Este texto y la pizarra táctica son los que usa el generador para crear la <strong>portada fotorrealista</strong> de la tarea.</span>
+                    Desarrollo — cómo se ve el ejercicio
+                    <textarea name="task_sheet_description" rows="4" placeholder="Describe el ejercicio tal y como se VE en el campo: dónde están los jugadores, hacia dónde se mueven, qué material se usa y cómo. Ej: 'Rondo 5 contra 2 dentro de un cuadrado de conos; los 5 se pasan el balón por fuera y 2 presionan en el centro; una portería pequeña al fondo.'">{{ task_sheet.description }}</textarea>
+                    <span class="meta" style="display:block;margin-top:.25rem;">Un único texto: <strong>explica la tarea</strong> y, junto a la pizarra, genera la <strong>portada fotorrealista</strong>. Cuanto más visual, mejor sale.</span>
                   </label>
                   <label class="full">
                     Organización

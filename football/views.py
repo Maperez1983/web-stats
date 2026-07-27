@@ -43117,6 +43117,13 @@ def _update_library_task_from_post(task, post_data, scope_key=None):
             if sheet_key == "space":
                 touched_space = True
 
+    # Ficha unificada: "Desarrollo" (description) es tambien la escena para la portada FLUX.
+    # El campo "Como se ve" (scene_note) se fusiono en description; si no llega scene_note pero
+    # si description, reflejamos description->scene_note para que la fabrica use ese texto literal.
+    if "task_sheet_description" in post_data and "task_sheet_scene" not in post_data:
+        task_sheet["scene_note"] = task_sheet.get("description", "")
+        task_sheet_touched = True
+
     # Si la edición llega desde la ficha, sincronizamos también su HTML para que el PDF (UEFA/Club)
     # muestre el texto actualizado (el renderer prioriza `*_html` cuando existe).
     if "task_sheet_description" in post_data:
