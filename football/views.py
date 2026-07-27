@@ -36916,6 +36916,115 @@ def coach_upload_avatars(request):
     })
 
 
+@login_required
+def coach_avatar_characteristics_xlsx(request):
+    """Exporta un Excel de características de avatar YA rellenado con el roster real (id, dorsal,
+    nombre, altura) + los ojeados, para que el entrenador solo complete complexión/origen/pelo y
+    lo devuelva. Así los nombres salen de la BD del club, no hay que escribirlos a mano."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    workspace = _get_active_workspace(request)
+    if not workspace or getattr(workspace, "kind", None) != Workspace.KIND_CLUB:
+        return HttpResponse("Selecciona un club (workspace) antes.", status=400)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404("Equipo principal no configurado")
+
+    import io
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.worksheet.datavalidation import DataValidation
+
+    def _is_gk(pos):
+        p = (pos or "").strip().lower()
+        return p in ("por", "gk") or "porter" in p
+
+    players = list(
+        Player.objects.filter(team=primary_team, is_active=True)
+        .only("id", "name", "nickname", "number", "position", "height_cm")
+        .order_by("number", "name")
+    )
+    try:
+        scouted = list(
+            ScoutingTarget.objects.filter(workspace=workspace)
+            .exclude(status=ScoutingTarget.STATUS_DISCARDED)
+            .only("id", "subject_name", "position")
+            .order_by("subject_name")[:80]
+        )
+    except Exception:
+        scouted = []
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Jugadores"
+    cols = ["Nombre", "Dorsal", "Portero", "Altura (cm)", "Complexión", "Origen (piel)", "Pelo", "Tipo", "id_foto (no tocar)"]
+    green = PatternFill("solid", fgColor="0F7A35")
+    white = Font(color="FFFFFF", bold=True, size=11)
+    grey = PatternFill("solid", fgColor="EAF1EC")
+    thin = Side(style="thin", color="C8D6CC")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    ws.merge_cells("A1:I1")
+    ws["A1"] = ("Rellena Complexión (delgado/normal/fuerte/regordete) y, SOLO para ojeados sin foto, "
+                "Origen y Pelo. Nombre/Dorsal/Altura vienen de tu plantilla; corrige la altura si falta. "
+                "No toques id_foto.")
+    ws["A1"].font = Font(italic=True, color="0F7A35", size=10)
+    ws["A1"].alignment = Alignment(wrap_text=True, vertical="center")
+    ws.row_dimensions[1].height = 46
+    for c, name in enumerate(cols, 1):
+        cell = ws.cell(row=2, column=c, value=name)
+        cell.fill = green
+        cell.font = white
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = border
+    ws.freeze_panes = "A3"
+    for c, w in enumerate([22, 8, 9, 11, 15, 18, 14, 12, 16], 1):
+        ws.column_dimensions[chr(64 + c)].width = w
+    r = 3
+    for p in players:
+        ws.cell(row=r, column=1, value=str(getattr(p, "nickname", "") or p.name or "").strip())
+        ws.cell(row=r, column=2, value=(p.number if p.number is not None else ""))
+        ws.cell(row=r, column=3, value=("Sí" if _is_gk(p.position) else "No"))
+        ws.cell(row=r, column=4, value=(p.height_cm if p.height_cm else ""))
+        ws.cell(row=r, column=8, value="jugador")
+        ws.cell(row=r, column=9, value=int(p.id))
+        for c in range(1, 10):
+            ws.cell(row=r, column=c).border = border
+        r += 1
+    ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=9)
+    ws.cell(row=r, column=1, value="— OJEADOS (sin foto: se genera el cuerpo con complexión + origen + pelo) —").fill = grey
+    ws.cell(row=r, column=1).font = Font(bold=True, color="0F7A35")
+    r += 1
+    for t in scouted:
+        ws.cell(row=r, column=1, value=str(getattr(t, "subject_name", "") or "").strip())
+        ws.cell(row=r, column=3, value=("Sí" if _is_gk(getattr(t, "position", "")) else "No"))
+        ws.cell(row=r, column=8, value="ojeado")
+        for c in range(1, 10):
+            ws.cell(row=r, column=c).border = border
+        r += 1
+    for _ in range(8):
+        ws.cell(row=r, column=8, value="ojeado")
+        for c in range(1, 10):
+            ws.cell(row=r, column=c).border = border
+        r += 1
+    last = r - 1
+    origen = '"Mediterráneo,Europeo,Árabe/Magrebí,Africano,Caribeño,Latino/Sudamericano,Americano,Asiático"'
+    for col, form in [("C", '"Sí,No"'), ("E", '"delgado,normal,fuerte,regordete"'), ("F", origen), ("H", '"jugador,ojeado"')]:
+        dv = DataValidation(type="list", formula1=form, allow_blank=True)
+        ws.add_data_validation(dv)
+        dv.add(f"{col}3:{col}{last}")
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    resp = HttpResponse(
+        buf.read(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    resp["Content-Disposition"] = 'attachment; filename="avatares_caracteristicas.xlsx"'
+    return resp
+
+
 def coach_roster_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
     if forbidden:

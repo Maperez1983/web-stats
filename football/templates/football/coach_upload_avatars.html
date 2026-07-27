@@ -42,6 +42,16 @@
     <h1>Subir avatares de jugador</h1>
     <p class="sub">Sube los PNG generados (uno por jugador). Cada archivo se asigna solo al jugador por el número de su nombre: <code>player-&lt;id&gt;.png</code> o, si no, por el <b>dorsal</b>.</p>
 
+    <div class="card" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+      <div style="flex:1 1 300px;">
+        <strong>¿Quieres perfeccionar los avatares?</strong>
+        <p class="hint" style="margin:4px 0 0;">Descarga la tabla ya rellena con tu plantilla (nombre, dorsal, altura) + los ojeados. Completa Complexión y Origen, y me la pasas para regenerar el lote.</p>
+      </div>
+      <a href="{% url 'coach-avatar-characteristics' %}" style="text-decoration:none;">
+        <button type="button">⬇️ Descargar Excel de características</button>
+      </a>
+    </div>
+
     {% if message %}<div class="msg ok">{{ message }}</div>{% endif %}
     {% if error %}<div class="msg err">{{ error }}</div>{% endif %}
 
