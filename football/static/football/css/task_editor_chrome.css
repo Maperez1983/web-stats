@@ -807,6 +807,14 @@ body.ed-chrome #edc-mat-body .edc-roster-compact #task-opponent-bank-section { d
 body.ed-chrome #edc-mat-body .edc-roster-list {
   display: flex; flex-direction: column; gap: 7px; width: 100%; padding: 2px;
 }
+/* Jugadores anónimos (tarea rápida sin personalizar). */
+body.ed-chrome #edc-mat-body .edc-roster-quick { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-bottom: 4px; }
+body.ed-chrome #edc-mat-body .edc-roster-quickbtn {
+  padding: 9px 10px; border-radius: 10px; text-align: center;
+  border: 1px dashed rgba(55,208,95,0.55); background: rgba(55,208,95,0.10);
+  color: var(--edc-ink); cursor: pointer; font-size: 12.5px; font-weight: 700;
+}
+body.ed-chrome #edc-mat-body .edc-roster-quickbtn:hover { background: rgba(55,208,95,0.20); border-color: var(--edc-accent); }
 body.ed-chrome #edc-mat-body .edc-roster-row { position: relative; }
 body.ed-chrome #edc-mat-body .edc-roster-btn {
   display: flex; align-items: center; gap: 10px; width: 100%;

@@ -35900,6 +35900,9 @@
 		      el.style.position = 'absolute';
 		      el.style.zIndex = '140';
 		      el.style.display = 'flex';
+      el.style.flexWrap = 'wrap';
+      el.style.maxWidth = 'min(320px, 86vw)';
+      el.style.justifyContent = 'center';
 		      el.style.gap = '6px';
 		      el.style.padding = '6px';
 		      el.style.borderRadius = '999px';
@@ -36288,6 +36291,8 @@
 		          { key: 'arrow', label: 'Flecha', icon: '↗︎' },
 		          { key: 'line_solid', label: 'Línea', icon: '—' },
 		          { key: 'cone', label: 'Cono', icon: '▲' },
+		          { key: 'zone', label: 'Zona', icon: '▭' },
+		          { key: 'shape_triangle', label: 'Triángulo', icon: '△' },
 		          { key: '__picker__', label: 'Más…', icon: '…' },
 		        ]);
 		        setStatus('Forma convertida.');
@@ -36340,6 +36345,8 @@
 		        { key: 'line_solid', label: 'Línea', icon: '—' },
 		        { key: 'shape_circle', label: 'Círculo', icon: '○' },
 		        { key: 'cone', label: 'Cono', icon: '▲' },
+		        { key: 'zone', label: 'Zona', icon: '▭' },
+		        { key: 'shape_triangle', label: 'Triángulo', icon: '△' },
 		        { key: '__picker__', label: 'Más…', icon: '…' },
 		      ]);
 		      setStatus('Flecha convertida.');

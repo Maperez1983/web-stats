@@ -368,6 +368,15 @@
       if(!items.length){ setTimeout(function(){ buildRosterList(grid); }, 250); return; } // banco aún no renderizado
       var old=grid.querySelector('.edc-roster-list'); if(old) old.remove();
       var host=document.createElement('div'); host.className='edc-roster-list';
+      // Jugadores ANÓNIMOS (tarea rápida sin personalizar): usan el generador genérico del motor
+      // con el estilo global actual (chapa/camiseta/… según la barra 'Todos').
+      var quick=document.createElement('div'); quick.className='edc-roster-quick';
+      [['player_local','＋ Jugador'],['goalkeeper_local','＋ Portero']].forEach(function(q){
+        var qb=document.createElement('button'); qb.type='button'; qb.className='edc-roster-quickbtn'; qb.textContent=q[1]; qb.title='Añadir '+(q[0]==='goalkeeper_local'?'portero':'jugador')+' anónimo (sin personalizar)';
+        qb.addEventListener('click', function(){ try{ if(window.__tpadActivateTool) window.__tpadActivateTool(q[0]); }catch(e){} });
+        quick.appendChild(qb);
+      });
+      host.appendChild(quick);
       // Barra global (opción A): fija la representación por defecto de TODOS; el desplegable de cada
       // jugador la sobreescribe individualmente.
       var gl=document.createElement('div'); gl.className='edc-roster-global';
