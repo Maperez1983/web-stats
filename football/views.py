@@ -3519,7 +3519,18 @@ def _create_staff_access_invitation(
         created_by=request.user.get_username() if request.user.is_authenticated else "",
         is_active=True,
     )
-    return user_obj, request.build_absolute_uri(reverse("user-invite-accept", args=[invitation.token]))
+    accept_url = request.build_absolute_uri(reverse("user-invite-accept", args=[invitation.token]))
+    # Enviar el email de invitación (además de devolver el enlace por si se quiere copiar/pegar).
+    # Con SMTP sin configurar cae en el backend de consola y no rompe nada.
+    invite_email = (user_obj.email or "").strip()
+    if invite_email:
+        try:
+            from .account_views import _send_member_invite_email
+
+            _send_member_invite_email(invite_email, workspace, request.user, accept_url)
+        except Exception:
+            logger.exception("No se pudo enviar el email de invitación de staff a %s", invite_email)
+    return user_obj, accept_url
 
 
 def _save_staff_photo(staff_member, uploaded_photo):
