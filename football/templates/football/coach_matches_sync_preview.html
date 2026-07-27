@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Previsualizar sincronización · {{ team_name }}</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'football/css/product.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <style>
+      .sp-wrap { max-width: 900px; margin: 0 auto; }
+      .sp-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.7rem; margin:.6rem 0 1rem; }
+      .sp-kpis { display:flex; gap:.5rem; flex-wrap:wrap; margin:.4rem 0 1rem; }
+      .sp-kpi { font-size:.78rem; font-weight:800; padding:.35rem .7rem; border-radius:999px; border:1px solid rgba(255,255,255,.14); }
+      .sp-kpi b { font-size:.95rem; }
+      .sp-new { color:#bbf7d0; background:rgba(52,211,153,.12); border-color:rgba(52,211,153,.4); }
+      .sp-upd { color:#fde68a; background:rgba(250,204,21,.12); border-color:rgba(250,204,21,.4); }
+      .sp-skip { color:#cbd5e1; background:rgba(148,163,184,.12); }
+      .sp-note { font-size:.85rem; opacity:.75; margin:0 0 1rem; }
+      table.sp { width:100%; border-collapse:collapse; font-size:.85rem; }
+      table.sp th, table.sp td { padding:.5rem .6rem; border-bottom:1px solid rgba(255,255,255,.08); text-align:left; white-space:nowrap; }
+      table.sp th { font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; opacity:.6; }
+      .sp-tag { font-weight:900; }
+      .sp-tag.new { color:#34d399; } .sp-tag.upd { color:#fbbf24; } .sp-tag.skip { opacity:.4; }
+      .sp-err { color:#fecaca; background:rgba(248,113,113,.12); border:1px solid rgba(248,113,113,.35); border-radius:10px; padding:.7rem .9rem; margin:0 0 1rem; }
+      .sp-empty { opacity:.6; text-align:center; padding:1.5rem; }
+      .sp-actions { display:flex; gap:.6rem; flex-wrap:wrap; margin-top:1.2rem; }
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <main class="page">
+      {% include 'football/includes/dragon_nav.html' %}
+      <div class="sp-wrap">
+        <header>
+          <div>
+            <p>Calendario · {{ team_name }}</p>
+            <h1>Previsualizar sincronización</h1>
+            <p class="sp-note">Esto NO ha escrito nada todavía. Es lo que traería de la competición.</p>
+          </div>
+        </header>
+
+        {% if summary.errors %}
+          {% for err in summary.errors %}<p class="sp-err">⚠ {{ err }}</p>{% endfor %}
+        {% endif %}
+
+        {% if summary.rows %}
+        <div class="sp-kpis">
+          <span class="sp-kpi sp-new"><b>{{ summary.created }}</b> nuevos</span>
+          <span class="sp-kpi sp-upd"><b>{{ summary.updated }}</b> actualizados</span>
+          <span class="sp-kpi sp-skip"><b>{{ summary.skipped }}</b> sin cambios</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="sp">
+            <thead>
+              <tr><th>Fecha</th><th>L/V</th><th>Rival</th><th>Marcador</th><th>Jornada</th><th>Acción</th></tr>
+            </thead>
+            <tbody>
+              {% for r in summary.rows %}
+              <tr>
+                <td>{{ r.date }}</td>
+                <td>{% if r.home %}Local{% else %}Visitante{% endif %}</td>
+                <td>{{ r.opponent }}</td>
+                <td>{{ r.score|default:"—" }}</td>
+                <td>{{ r.round|default:"—" }}</td>
+                <td class="sp-tag {% if r.action == 'created' %}new{% elif r.action == 'updated' %}upd{% else %}skip{% endif %}">
+                  {% if r.action == 'created' %}＋ nuevo{% elif r.action == 'updated' %}↻ {{ r.detail }}{% else %}· sin cambios{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="sp-actions">
+          <form method="post" action="{% url 'coach-matches-sync-universo' %}" style="margin:0;" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Aplicando…';">
+            {% csrf_token %}
+            {% if active_team %}<input type="hidden" name="team" value="{{ active_team.id }}" />{% endif %}
+            <button type="submit" class="btn primary">✅ Aplicar de verdad</button>
+          </form>
+          <a class="btn" href="{% url 'coach-matches' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Cancelar / volver</a>
+        </div>
+        {% elif not summary.errors %}
+        <p class="sp-empty">No se encontraron partidos para tu equipo en la competición. Revisa que el equipo esté vinculado a su grupo de Universo.</p>
+        <a class="btn" href="{% url 'coach-matches' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Volver</a>
+        {% else %}
+        <a class="btn" href="{% url 'coach-matches' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Volver</a>
+        {% endif %}
+      </div>
+    </main>
+  </body>
+</html>

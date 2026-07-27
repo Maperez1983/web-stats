@@ -39482,13 +39482,28 @@ def coach_matches_sync_universo(request):
     if not (_can_access_platform(request.user) or (workspace and _can_manage_workspace(request.user, workspace))):
         return HttpResponse("Solo el administrador del club puede sincronizar el calendario.", status=403)
     team_query = f"&team={int(primary_team.id)}" if primary_team else ""
+    # Modo previsualización (dry-run): NO escribe, solo muestra qué traería. Así se valida
+    # sin terminal antes de aplicar de verdad.
+    preview = str(request.POST.get("preview") or "").strip().lower() in {"1", "true", "yes", "on"}
     try:
         from football.calendar_sync_services import sync_team_calendar_from_universo
 
-        summary = sync_team_calendar_from_universo(primary_team, write=True)
+        summary = sync_team_calendar_from_universo(primary_team, write=not preview)
     except Exception:
         logger.exception("Sync Universo calendario falló (team=%s)", getattr(primary_team, "id", None))
+        if preview:
+            return render(
+                request,
+                "football/coach_matches_sync_preview.html",
+                {"team_name": getattr(primary_team, "display_name", "") or primary_team.name, "summary": {"errors": ["Error inesperado al consultar la competición."], "rows": []}, "active_team": primary_team},
+            )
         return redirect(f"{reverse('coach-matches')}?sync_error=1{team_query}")
+    if preview:
+        return render(
+            request,
+            "football/coach_matches_sync_preview.html",
+            {"team_name": getattr(primary_team, "display_name", "") or primary_team.name, "summary": summary, "active_team": primary_team},
+        )
     if summary.get("errors") and not summary.get("rows"):
         msg = quote(summary["errors"][0][:160])
         return redirect(f"{reverse('coach-matches')}?sync_error_msg={msg}{team_query}")
