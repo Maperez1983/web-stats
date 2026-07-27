@@ -377,6 +377,7 @@ class PerfProbeMiddleware:
 
         counter = collections.Counter()
         timing = collections.Counter()
+        slowest = []  # (ms, sql) individuales, para ver las consultas caras (aunque sean unicas)
         total = {"q": 0}
 
         def _norm(sql):
@@ -395,6 +396,7 @@ class PerfProbeMiddleware:
                 counter[key] += 1
                 timing[key] += dt
                 total["q"] += 1
+                slowest.append((dt, key))
 
         managers = []
         for conn in connections.all():
@@ -427,6 +429,10 @@ class PerfProbeMiddleware:
                 "query_count": total["q"],
                 "db_ms": round(sum(timing.values())),
                 "top_repeated": [{"n": c, "ms": round(timing[k]), "sql": k} for k, c in top],
+                "slowest": [
+                    {"ms": round(ms), "sql": sql}
+                    for ms, sql in sorted(slowest, key=lambda x: x[0], reverse=True)[:10]
+                ],
             },
             json_dumps_params={"indent": 1},
         )
