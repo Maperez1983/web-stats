@@ -5529,7 +5529,7 @@ def _build_federative_squad_report(request, primary_team):
     }
 
 
-def _build_coach_decision_dashboard(*, primary_team, active_club_season, players, memberships, active_injury_ids=None, request=None):
+def _build_coach_decision_dashboard(*, primary_team, active_club_season, players, memberships, active_injury_ids=None, request=None, stats_by_player=None):
     """Arma el dashboard de decisión de pretemporada: una fila por jugador con
     su estado, su valoración (última PlayerEvaluation cerrada) y la decisión
     (sigue / no sigue / por decidir), ordenado por nota global con los
@@ -5622,7 +5622,17 @@ def _build_coach_decision_dashboard(*, primary_team, active_club_season, players
         except Exception:
             _photo_url = ""
         _initials = "".join([w[0] for w in _pname.split()[:2] if w]).upper() or "?"
+        _st = (stats_by_player or {}).get(pid) or {}
+        _season_stats = {
+            "pj": int(_st.get("pj", 0) or 0),
+            "goals": int(_st.get("goals", 0) or 0),
+            "assists": int(_st.get("assists", 0) or 0),
+            "yellow": int(_st.get("yellow", 0) or 0),
+            "red": int(_st.get("red", 0) or 0),
+        }
+        _season_stats["ga"] = _season_stats["goals"] + _season_stats["assists"]
         rows.append({
+            "stats": _season_stats,
             "id": pid,
             "name": _pname,
             "photo_url": _photo_url,
@@ -21833,6 +21843,23 @@ def coach_overview_page(request):
     coach_pitch_players = _build_coach_pitch_board_players(
         primary_team, roster_players, roster_memberships, active_injury_ids
     )
+    # Reutilizamos las stats de temporada ya calculadas (compute_player_dashboard, cacheado)
+    # para la 2ª vista de la tabla (partidos/goles/asistencias/tarjetas). Coste ~0.
+    decision_stats_by_pid = {}
+    try:
+        for _sr in (player_stats or []):
+            _spid = int(_parse_int(_sr.get("player_id")) or 0)
+            if not _spid:
+                continue
+            decision_stats_by_pid[_spid] = {
+                "pj": int(_parse_int(_sr.get("pj")) or 0),
+                "goals": int(_parse_int(_sr.get("goals")) or 0),
+                "assists": int(_parse_int(_sr.get("assists")) or 0),
+                "yellow": int(_parse_int(_sr.get("yellow_cards")) or 0),
+                "red": int(_parse_int(_sr.get("red_cards")) or 0),
+            }
+    except Exception:
+        decision_stats_by_pid = {}
     try:
         coach_decision_dashboard = _build_coach_decision_dashboard(
             primary_team=primary_team,
@@ -21841,6 +21868,7 @@ def coach_overview_page(request):
             memberships=roster_memberships,
             active_injury_ids=active_injury_ids,
             request=request,
+            stats_by_player=decision_stats_by_pid,
         )
     except Exception:
         coach_decision_dashboard = {"rows": [], "counts": {"pending": 0, "confirmed": 0, "discarded": 0, "injured": 0, "total": 0}}

@@ -55,6 +55,17 @@ con .rows y .counts. Autocontenido (estilos scoped por .cdd-).{% endcomment %}
     .cdd .dec-cut{color:#fecaca;border:1px solid rgba(248,113,113,.45);}
     .cdd .dec-pending{color:#fde68a;border:1px solid rgba(250,204,21,.45);}
     .cdd .cdd-empty{opacity:.6;text-align:center;padding:1.4rem;}
+    .cdd .cdd-toggle{display:inline-flex;gap:.15rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:999px;padding:.18rem;margin-bottom:.7rem;}
+    .cdd .cdd-toggle button{border:0;background:transparent;color:inherit;font-size:.72rem;font-weight:800;letter-spacing:.02em;padding:.3rem .8rem;border-radius:999px;cursor:pointer;opacity:.6;}
+    .cdd .cdd-toggle button:hover{opacity:.9;}
+    .cdd .cdd-toggle button.active{background:rgba(255,255,255,.14);opacity:1;}
+    .cdd .cdd-stat{display:none;}
+    .cdd.stats-on .cdd-val{display:none;}
+    .cdd.stats-on .cdd-stat{display:block;}
+    .cdd td.stnum-y{color:#fbbf24;font-weight:700;}
+    .cdd td.stnum-r{color:#f87171;font-weight:700;}
+    .cdd td.stnum-y.z,.cdd td.stnum-r.z{color:inherit;opacity:.35;font-weight:400;}
+    .cdd td.stz{opacity:.35;}
   </style>
   {% with dash=coach_decision_dashboard %}
   <div class="cdd-head">
@@ -69,7 +80,11 @@ con .rows y .counts. Autocontenido (estilos scoped por .cdd-).{% endcomment %}
       <span class="dk dk-inj"><b>{{ dash.counts.injured }}</b> lesionados</span>
     </div>
   </div>
-  <div class="cdd-scroll">
+  <div class="cdd-toggle" role="tablist" aria-label="Vista de la tabla">
+    <button type="button" class="active" data-view="val" role="tab" aria-selected="true">Valoración</button>
+    <button type="button" data-view="stat" role="tab" aria-selected="false">Estadísticas</button>
+  </div>
+  <div class="cdd-scroll cdd-val">
     <table>
       <thead>
         <tr>
@@ -100,10 +115,44 @@ con .rows y .counts. Autocontenido (estilos scoped por .cdd-).{% endcomment %}
       </tbody>
     </table>
   </div>
+  <div class="cdd-scroll cdd-stat">
+    <table>
+      <thead>
+        <tr>
+          <th class="l sortable" data-type="text">Jugador</th>
+          <th class="l sortable" data-type="text">Pos · Edad</th>
+          <th class="sortable" data-type="num" title="Goles + Asistencias">G+A</th>
+          <th class="sortable" data-type="num" title="Partidos jugados">PJ</th>
+          <th class="sortable" data-type="num">Goles</th>
+          <th class="sortable" data-type="num">Asist</th>
+          <th class="sortable" data-type="num" title="Tarjetas amarillas">🟨</th>
+          <th class="sortable" data-type="num" title="Tarjetas rojas">🟥</th>
+          <th class="sortable" data-type="text">Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in dash.rows %}
+        <tr class="{% if r.decision == 'pending' %}row-pending{% endif %}">
+          <td class="pl"><a href="{% url 'player-detail' r.id %}">{% if r.photo_url %}<img class="pl-av" src="{{ r.photo_url }}" alt="" loading="lazy" decoding="async">{% else %}<span class="pl-av pl-av-ph" aria-hidden="true">{{ r.initials }}</span>{% endif %}<span class="pl-num">{{ r.number|default:'—' }}</span><span class="pl-name">{{ r.name }}{% if r.signed %} <span title="Fichado (ficha federativa)" aria-label="Fichado">✅</span>{% endif %}</span></a></td>
+          <td class="meta">{{ r.position|default:"-"|display_position }}{% if r.age %} · {{ r.age }} a{% endif %}</td>
+          <td><span class="ov {% if r.stats.ga > 0 %}ov-good{% else %}ov-none{% endif %}">{{ r.stats.ga }}</span></td>
+          <td class="sub{% if not r.stats.pj %} stz{% endif %}">{{ r.stats.pj }}</td>
+          <td class="sub{% if not r.stats.goals %} stz{% endif %}"><b>{{ r.stats.goals }}</b></td>
+          <td class="sub{% if not r.stats.assists %} stz{% endif %}">{{ r.stats.assists }}</td>
+          <td class="stnum-y{% if not r.stats.yellow %} z{% endif %}">{{ r.stats.yellow }}</td>
+          <td class="stnum-r{% if not r.stats.red %} z{% endif %}">{{ r.stats.red }}</td>
+          <td><span class="st st-{{ r.state_tone }}">{{ r.state_label }}</span></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="9" class="cdd-empty">Aún no hay jugadores en la plantilla.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
   {% endwith %}
   <script>
     (function () {
-      var table = document.querySelector('.cdd table');
+      function initSort(table){
       if (!table || !table.tBodies.length) return;
       var tbody = table.tBodies[0];
       var headers = Array.prototype.slice.call(table.querySelectorAll('th.sortable'));
@@ -139,6 +188,17 @@ con .rows y .counts. Autocontenido (estilos scoped por .cdd-).{% endcomment %}
           arrow.className = 'cdd-arrow';
           arrow.textContent = asc ? '▲' : '▼';
           th.appendChild(arrow);
+        });
+      });
+      }
+      document.querySelectorAll('.cdd table').forEach(initSort);
+      var sec = document.querySelector('.cdd');
+      document.querySelectorAll('.cdd-toggle button').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var view = b.getAttribute('data-view');
+          document.querySelectorAll('.cdd-toggle button').forEach(function (x) { x.classList.remove('active'); x.setAttribute('aria-selected', 'false'); });
+          b.classList.add('active'); b.setAttribute('aria-selected', 'true');
+          if (sec) { if (view === 'stat') sec.classList.add('stats-on'); else sec.classList.remove('stats-on'); }
         });
       });
     })();
