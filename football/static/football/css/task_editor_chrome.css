@@ -825,6 +825,14 @@ body.ed-chrome #edc-mat-body .edc-roster-num {
   font-weight: 800; font-size: 13px; letter-spacing: 0;
 }
 body.ed-chrome #edc-mat-body .edc-roster-num.is-gk { background: #1d4ed8; color: #fff; }
+/* Miniatura de foto del jugador en cada fila (diferencia visualmente las filas). */
+body.ed-chrome #edc-mat-body .edc-roster-photo {
+  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%;
+  background-size: cover; background-position: center top; background-repeat: no-repeat;
+  background-color: var(--edc-bar-2); border: 1px solid var(--edc-line);
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--edc-muted); font-size: 12px; font-weight: 800;
+}
 /* Lesionado: cruz (badge circular) en la esquina del recuadro, además del rojo. */
 body.ed-chrome #edc-mat-body .edc-roster-cross {
   position: absolute; top: -6px; right: -6px;
@@ -847,7 +855,7 @@ body.ed-chrome #edc-mat-body .edc-rep-menu {
 }
 /* El atributo hidden debe ganar al display:flex de arriba (misma raíz, +especificidad). */
 body.ed-chrome #edc-mat-body .edc-rep-menu[hidden] { display: none !important; }
-body.ed-chrome #edc-mat-body .edc-rep-opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+body.ed-chrome #edc-mat-body .edc-rep-opts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
 /* Toggle de equipación (Local / Visitante) dentro del desplegable. */
 body.ed-chrome #edc-mat-body .edc-kit-toggle { display: flex; align-items: center; gap: 6px; }
 body.ed-chrome #edc-mat-body .edc-kit-label {
@@ -871,7 +879,7 @@ body.ed-chrome #edc-mat-body .edc-rep-opt:hover { background: var(--edc-accent);
 
 /* Barra global de representación (opción A: global + override por jugador) */
 body.ed-chrome #edc-mat-body .edc-roster-global {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;
   padding: 8px; margin-bottom: 4px; border-radius: 11px;
   background: var(--edc-bar); border: 1px solid var(--edc-line);
 }

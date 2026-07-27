@@ -37920,11 +37920,23 @@
                       number: numEl ? safeText(numEl.textContent).replace(/[^0-9]/g, '') : '',
                     };
                     if (ratingRaw != null && ratingRaw !== '') { const rn = Number(ratingRaw); if (Number.isFinite(rn)) minP.rating = rn; }
+                    // Foto REAL del jugador (background-image del preview del banco), si la tiene.
+                    let realPhoto = '';
+                    try {
+                      const ph = el ? el.querySelector('.token-photo') : null;
+                      const bg = ph ? (ph.style.backgroundImage || '') : '';
+                      const m = bg.match(/url\(["']?(.*?)["']?\)/);
+                      if (m && m[1]) realPhoto = m[1];
+                    } catch (e) { /* ignore */ }
                     const kind = isGk ? 'goalkeeper_local' : (away ? 'player_away' : 'player_local');
                     // CLAVE: pasamos {style} EXPLÍCITO -> gana sobre display.mode del servidor (que forzaba
-                    // 'photo' e ignoraba la elección Chapa/Camiseta/Figura/Avatar del desplegable).
-                    const st = normalizeTokenStyle(style || tokenGlobalStyle);
-                    const factory = playerTokenFactory(kind, minP, { style: st });
+                    // 'photo' e ignoraba la elección Chapa/Camiseta/Avatar del desplegable).
+                    let st = normalizeTokenStyle(style || tokenGlobalStyle);
+                    // 'Foto' sin foto real -> Chapa (evita caer al avatar por defecto).
+                    if (st === 'photo' && !realPhoto) st = 'disk';
+                    const opts = { style: st };
+                    if (st === 'photo' && realPhoto) opts.photoUrl = realPhoto;
+                    const factory = playerTokenFactory(kind, minP, opts);
                     activateFactory(factory, safeText(minP.name, 'el jugador'), kind);
                     return true;
                   } catch (e) { return false; }
