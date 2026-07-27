@@ -15,8 +15,8 @@ con .rows y .counts. Autocontenido (estilos scoped por .cdd-).{% endcomment %}
     .cdd .dk-inj{color:#fca5a5;border-color:rgba(239,68,68,.35);background:rgba(239,68,68,.1);}
     .cdd .cdd-scroll{overflow-x:auto;}
     .cdd table{width:100%;border-collapse:collapse;font-size:.82rem;min-width:660px;table-layout:fixed;}
-    .cdd th:nth-child(1),.cdd td:nth-child(1){width:23%;}
-    .cdd th:nth-child(2),.cdd td:nth-child(2){width:14%;}
+    .cdd th:nth-child(1),.cdd td:nth-child(1){width:27%;}
+    .cdd th:nth-child(2),.cdd td:nth-child(2){width:12%;}
     .cdd th:nth-child(3),.cdd td:nth-child(3){width:9%;}
     .cdd th:nth-child(4),.cdd td:nth-child(4),.cdd th:nth-child(5),.cdd td:nth-child(5),.cdd th:nth-child(6),.cdd td:nth-child(6),.cdd th:nth-child(7),.cdd td:nth-child(7){width:6.2%;}
     .cdd th:nth-child(8),.cdd td:nth-child(8){width:12%;}
@@ -32,9 +32,12 @@ con .rows y .counts. Autocontenido (estilos scoped por .cdd-).{% endcomment %}
     .cdd tbody tr.row-pending{background:rgba(250,204,21,.06);}
     .cdd tbody tr:hover{background:rgba(255,255,255,.04);}
     .cdd .pl{text-align:left;font-weight:700;}
-    .cdd .pl a{color:inherit;text-decoration:none;}
-    .cdd .pl a:hover{text-decoration:underline;}
-    .cdd .pl-num{display:inline-grid;place-items:center;width:1.4rem;height:1.4rem;border-radius:.4rem;background:rgba(255,255,255,.08);font-size:.72rem;font-weight:800;margin-right:.4rem;}
+    .cdd .pl a{color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:.4rem;max-width:100%;}
+    .cdd .pl a:hover .pl-name{text-decoration:underline;}
+    .cdd .pl-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .cdd .pl-av{width:1.65rem;height:1.65rem;border-radius:50%;object-fit:cover;flex:none;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);}
+    .cdd .pl-av-ph{display:inline-grid;place-items:center;font-size:.62rem;font-weight:800;opacity:.85;color:#cbd5e1;}
+    .cdd .pl-num{display:inline-grid;place-items:center;width:1.4rem;height:1.4rem;border-radius:.4rem;background:rgba(255,255,255,.08);font-size:.72rem;font-weight:800;flex:none;}
     .cdd .meta{opacity:.75;font-size:.76rem;}
     .cdd .ov{display:inline-grid;place-items:center;min-width:2.4rem;padding:.16rem .3rem;border-radius:.5rem;font-weight:900;font-size:.92rem;}
     .cdd .ov-good{color:#0a1f12;background:#34d399;}
@@ -81,7 +84,7 @@ con .rows y .counts. Autocontenido (estilos scoped por .cdd-).{% endcomment %}
       <tbody>
         {% for r in dash.rows %}
         <tr class="{% if r.decision == 'pending' %}row-pending{% endif %}">
-          <td class="pl"><a href="{% url 'player-detail' r.id %}"><span class="pl-num">{{ r.number|default:'—' }}</span>{{ r.name }}{% if r.signed %} <span title="Fichado (ficha federativa)" aria-label="Fichado">✅</span>{% endif %}</a></td>
+          <td class="pl"><a href="{% url 'player-detail' r.id %}">{% if r.photo_url %}<img class="pl-av" src="{{ r.photo_url }}" alt="" loading="lazy" decoding="async">{% else %}<span class="pl-av pl-av-ph" aria-hidden="true">{{ r.initials }}</span>{% endif %}<span class="pl-num">{{ r.number|default:'—' }}</span><span class="pl-name">{{ r.name }}{% if r.signed %} <span title="Fichado (ficha federativa)" aria-label="Fichado">✅</span>{% endif %}</span></a></td>
           <td class="meta">{{ r.position|default:"-"|display_position }}{% if r.age %} · {{ r.age }} a{% endif %}</td>
           <td><span class="ov ov-{{ r.overall_tone }}">{{ r.overall_display }}</span></td>
           <td class="sub{% if r.ratings.technical == None %} dim{% endif %}">{% if r.ratings.technical != None %}{{ r.ratings.technical|floatformat:1 }}{% else %}–{% endif %}</td>

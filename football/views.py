@@ -5529,7 +5529,7 @@ def _build_federative_squad_report(request, primary_team):
     }
 
 
-def _build_coach_decision_dashboard(*, primary_team, active_club_season, players, memberships, active_injury_ids=None):
+def _build_coach_decision_dashboard(*, primary_team, active_club_season, players, memberships, active_injury_ids=None, request=None):
     """Arma el dashboard de decisión de pretemporada: una fila por jugador con
     su estado, su valoración (última PlayerEvaluation cerrada) y la decisión
     (sigue / no sigue / por decidir), ordenado por nota global con los
@@ -5616,9 +5616,17 @@ def _build_coach_decision_dashboard(*, primary_team, active_club_season, players
             except Exception:
                 age = None
 
+        _pname = str(getattr(player, "name", "") or getattr(player, "full_name", "") or f"Jugador {pid}").strip()
+        try:
+            _photo_url = _safe_resolve_player_photo_url(request, player)
+        except Exception:
+            _photo_url = ""
+        _initials = "".join([w[0] for w in _pname.split()[:2] if w]).upper() or "?"
         rows.append({
             "id": pid,
-            "name": str(getattr(player, "name", "") or getattr(player, "full_name", "") or f"Jugador {pid}").strip(),
+            "name": _pname,
+            "photo_url": _photo_url,
+            "initials": _initials,
             "number": getattr(player, "number", None),
             "position": str(getattr(player, "position", "") or getattr(player, "preferred_position", "") or "-").strip() or "-",
             "age": age,
@@ -21832,6 +21840,7 @@ def coach_overview_page(request):
             players=roster_players,
             memberships=roster_memberships,
             active_injury_ids=active_injury_ids,
+            request=request,
         )
     except Exception:
         coach_decision_dashboard = {"rows": [], "counts": {"pending": 0, "confirmed": 0, "discarded": 0, "injured": 0, "total": 0}}

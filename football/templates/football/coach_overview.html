@@ -743,24 +743,30 @@
         {% include 'football/_coach_pitch_board.html' %}
 
         {% if coach_alerts %}
-        <section class="card" aria-label="Alertas del cuerpo técnico" style="margin-top:1rem;">
-          <h2 style="margin:0 0 0.6rem;font-size:1.05rem;">🔔 Alertas del cuerpo técnico</h2>
-          <div style="display:flex;flex-direction:column;gap:0.5rem;">
+        <section class="card home-compact" aria-label="Alertas del cuerpo técnico" style="margin-top:1rem;padding:0.7rem 0.85rem;">
+          <div class="hc-head">
+            <h2>🔔 Alertas del cuerpo técnico</h2>
+            <span class="hc-count">{{ coach_alerts|length }}</span>
+          </div>
+          <div class="hc-alerts">
             {% for a in coach_alerts %}
-            <a href="{{ a.url }}" style="display:flex;gap:0.7rem;align-items:flex-start;text-decoration:none;color:inherit;border-radius:10px;padding:0.6rem 0.8rem;border:1px solid {% if a.level == 'critical' %}rgba(240,120,120,0.5){% elif a.level == 'warning' %}rgba(240,200,90,0.5){% else %}rgba(120,160,240,0.45){% endif %};background:{% if a.level == 'critical' %}rgba(240,120,120,0.10){% elif a.level == 'warning' %}rgba(240,200,90,0.10){% else %}rgba(120,160,240,0.10){% endif %};">
-              <span style="font-size:1.15rem;line-height:1.2;">{{ a.icon }}</span>
-              <span style="min-width:0;">
-                <span style="display:block;font-weight:700;">{{ a.title }}</span>
-                <span style="display:block;font-size:0.82rem;opacity:0.8;">{{ a.detail }}</span>
-              </span>
+            <a href="{{ a.url }}" class="hc-alert hc-{% if a.level == 'critical' %}crit{% elif a.level == 'warning' %}warn{% else %}info{% endif %}">
+              <span class="hc-ico">{{ a.icon }}</span>
+              <span class="hc-txt"><b>{{ a.title }}</b><span class="hc-dt">{{ a.detail }}</span></span>
+              <span class="hc-chev" aria-hidden="true">›</span>
             </a>
             {% endfor %}
           </div>
         </section>
         {% endif %}
 
-        <section class="card" aria-label="Asistente del entrenador" style="margin-top:1rem;">
-          <h2 style="margin:0 0 0.5rem;font-size:1.05rem;">🤖 Pregúntale al asistente</h2>
+        <details class="card home-compact ask-compact" aria-label="Asistente del entrenador" style="margin-top:1rem;padding:0;">
+          <summary class="ask-summary">
+            <span>🤖</span><b>Pregúntale al asistente</b>
+            <span class="ask-hint">lesionados · próximo partido · cobertura</span>
+            <span class="ask-caret" aria-hidden="true">▾</span>
+          </summary>
+          <div class="ask-body">
           {% csrf_token %}
           <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
             <input id="coachAskInput" type="text" autocomplete="off" placeholder="p. ej. ¿quién está lesionado? · próximo partido · cobertura" style="flex:1 1 260px;min-width:0;padding:0.55rem 0.7rem;border-radius:8px;border:1px solid rgba(148,163,184,0.4);background:rgba(2,6,23,0.35);color:inherit;" />
@@ -776,7 +782,33 @@
             <button type="button" class="ask-chip" data-q="resumen de la semana">Resumen</button>
           </div>
           <div id="coachAskAnswer" role="status" style="margin-top:0.7rem;display:none;border-radius:10px;padding:0.6rem 0.8rem;background:rgba(120,160,240,0.10);border:1px solid rgba(120,160,240,0.3);"></div>
-          <style>.ask-chip{border:1px solid rgba(148,163,184,0.35);background:rgba(148,163,184,0.10);color:inherit;border-radius:999px;padding:0.3rem 0.7rem;font-size:0.78rem;cursor:pointer;}.ask-chip:hover{background:rgba(148,163,184,0.2);}</style>
+          </div>
+          <style>
+          .home-compact .hc-head{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.45rem;}
+          .home-compact .hc-head h2{margin:0;font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;opacity:.62;font-weight:800;}
+          .home-compact .hc-count{font-size:.7rem;font-weight:800;opacity:.55;background:rgba(255,255,255,.08);border-radius:999px;padding:.05rem .45rem;}
+          .home-compact .hc-alerts{display:flex;flex-direction:column;gap:.3rem;}
+          .home-compact .hc-alert{display:flex;gap:.55rem;align-items:center;text-decoration:none;color:inherit;border-radius:8px;padding:.42rem .55rem;border-left:3px solid transparent;background:rgba(255,255,255,.03);}
+          .home-compact .hc-alert:hover{background:rgba(255,255,255,.06);}
+          .home-compact .hc-crit{border-left-color:#f07878;}
+          .home-compact .hc-warn{border-left-color:#f0c85a;}
+          .home-compact .hc-info{border-left-color:#78a0f0;}
+          .home-compact .hc-ico{font-size:.95rem;line-height:1;flex:none;}
+          .home-compact .hc-txt{min-width:0;display:flex;flex-direction:column;line-height:1.25;}
+          .home-compact .hc-txt b{font-size:.84rem;font-weight:700;}
+          .home-compact .hc-dt{font-size:.75rem;opacity:.62;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+          .home-compact .hc-chev{margin-left:auto;opacity:.4;font-size:1rem;flex:none;}
+          .ask-compact{overflow:hidden;}
+          .ask-compact>.ask-summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:.5rem;padding:.6rem .85rem;font-size:.88rem;}
+          .ask-compact>.ask-summary::-webkit-details-marker{display:none;}
+          .ask-compact .ask-summary b{font-weight:700;}
+          .ask-compact .ask-hint{font-size:.72rem;opacity:.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+          .ask-compact .ask-caret{margin-left:auto;opacity:.5;transition:transform .15s ease;flex:none;}
+          .ask-compact[open] .ask-caret{transform:rotate(180deg);}
+          .ask-compact .ask-body{padding:0 .85rem .85rem;}
+          .ask-chip{border:1px solid rgba(148,163,184,0.35);background:rgba(148,163,184,0.10);color:inherit;border-radius:999px;padding:0.3rem 0.7rem;font-size:0.78rem;cursor:pointer;}.ask-chip:hover{background:rgba(148,163,184,0.2);}
+          @media (max-width:640px){.ask-compact .ask-hint{display:none;}}
+          </style>
           <script>
           (function(){
             var url="{% url 'coach-assistant' %}";
@@ -799,7 +831,7 @@
             document.querySelectorAll('.ask-chip').forEach(function(c){c.addEventListener('click',function(){input.value=c.getAttribute('data-q');ask(c.getAttribute('data-q'));});});
           })();
           </script>
-        </section>
+        </details>
 
         {% if federative_report %}
         <section class="card" aria-label="Fichas y cobertura de plantilla" style="margin-top:1rem;">
