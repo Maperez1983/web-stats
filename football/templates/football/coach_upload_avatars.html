@@ -1,0 +1,78 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Subir avatares · {{ primary_team.name }}</title>
+  <style>
+    :root { --bg:#0a1a11; --card:#0f2417; --card2:#123019; --line:rgba(255,255,255,0.10); --ink:#eaf3ec; --muted:#9fb6a6; --accent:#37d05f; --accent-ink:#0c1a10; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font-family:-apple-system,Segoe UI,Roboto,sans-serif; padding:24px; }
+    .wrap { max-width:1000px; margin:0 auto; }
+    h1 { font-size:1.4rem; margin:0 0 4px; }
+    .sub { color:var(--muted); margin:0 0 20px; font-size:0.95rem; }
+    a.back { color:var(--accent); text-decoration:none; font-weight:700; font-size:0.9rem; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px; margin-bottom:18px; }
+    .drop { border:2px dashed rgba(55,208,95,0.5); border-radius:14px; padding:22px; text-align:center; background:rgba(55,208,95,0.06); }
+    .drop input[type=file] { display:block; margin:12px auto; color:var(--ink); }
+    .hint { color:var(--muted); font-size:0.88rem; margin:6px 0 0; }
+    code { background:rgba(255,255,255,0.08); padding:1px 6px; border-radius:6px; }
+    button { margin-top:14px; background:var(--accent); color:var(--accent-ink); border:none; border-radius:12px; padding:11px 22px; font-weight:800; font-size:0.95rem; cursor:pointer; }
+    button:hover { filter:brightness(1.05); }
+    .msg { border-radius:12px; padding:12px 14px; margin-bottom:16px; font-weight:600; }
+    .msg.ok { background:rgba(55,208,95,0.14); border:1px solid rgba(55,208,95,0.4); }
+    .msg.err { background:rgba(220,38,38,0.14); border:1px solid rgba(220,38,38,0.5); }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:12px; }
+    .pl { background:var(--card2); border:1px solid var(--line); border-radius:12px; padding:10px; text-align:center; }
+    .pl .ph { width:100%; height:120px; border-radius:10px; background:#0a1a11 center top/contain no-repeat; display:flex; align-items:flex-end; justify-content:center; overflow:hidden; }
+    .pl .ph img { max-width:100%; max-height:120px; }
+    .pl .no { color:var(--muted); font-size:0.8rem; align-self:center; }
+    .pl .nm { font-weight:700; font-size:0.85rem; margin-top:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .pl .dr { color:var(--accent); font-weight:800; font-size:0.8rem; }
+    .pl .id { color:var(--muted); font-size:0.72rem; }
+    .badge { display:inline-block; font-size:0.7rem; font-weight:800; padding:1px 7px; border-radius:999px; }
+    .badge.has { background:rgba(55,208,95,0.2); color:#bff3cf; }
+    .badge.none { background:rgba(148,163,184,0.16); color:var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a class="back" href="{% url 'coach-roster' %}">← Volver a Plantilla</a>
+    <h1>Subir avatares de jugador</h1>
+    <p class="sub">Sube los PNG generados (uno por jugador). Cada archivo se asigna solo al jugador por el número de su nombre: <code>player-&lt;id&gt;.png</code> o, si no, por el <b>dorsal</b>.</p>
+
+    {% if message %}<div class="msg ok">{{ message }}</div>{% endif %}
+    {% if error %}<div class="msg err">{{ error }}</div>{% endif %}
+
+    <form class="card" method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="drop">
+        <strong>Arrastra aquí todos los avatares</strong> (o pulsa para elegir)
+        <input type="file" name="avatars" accept="image/png,image/*" multiple required />
+        <p class="hint">Formato recomendado: <code>player-&lt;id&gt;.png</code>. También vale que el nombre empiece por el dorsal (ej. <code>7-ivan.png</code>).</p>
+      </div>
+      <button type="submit">Subir y asignar</button>
+    </form>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <strong>Plantilla · {{ primary_team.name }}</strong>
+        <span class="hint">{{ players|length }} jugadores</span>
+      </div>
+      <div class="grid">
+        {% for p in players %}
+          <div class="pl">
+            <div class="ph">
+              {% if p.avatar_url %}<img src="{{ p.avatar_url }}" alt="{{ p.name }}" loading="lazy" />{% else %}<span class="no">sin avatar</span>{% endif %}
+            </div>
+            <div class="nm">{{ p.name|default:'Jugador' }}</div>
+            <div><span class="dr">{% if p.number %}#{{ p.number }}{% endif %}</span> <span class="id">id {{ p.id }}</span></div>
+            {% if p.avatar_url %}<span class="badge has">✓ avatar</span>{% else %}<span class="badge none">—</span>{% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</body>
+</html>

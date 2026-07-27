@@ -36817,6 +36817,96 @@ def coach_transfer_team_search(request):
 
 
 @login_required
+@login_required
+def coach_upload_avatars(request):
+    """Subida por lotes de avatares de jugador generados en local (Mac). Empareja cada archivo
+    con su Player por el nombre (player-<id>.png, o por dorsal) y lo guarda en avatar_generated.
+    Flujo: generar en la Mac -> subir aquí, sin depender del worker pesado (que OOMeaba)."""
+    import re
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    workspace = _get_active_workspace(request)
+    if not workspace or getattr(workspace, "kind", None) != Workspace.KIND_CLUB:
+        return HttpResponse("Selecciona un club (workspace) antes de subir avatares.", status=400)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404("Equipo principal no configurado")
+    can_edit = bool(
+        _can_manage_workspace(request.user, workspace)
+        or _can_access_platform(request.user)
+        or _is_admin_user(request.user)
+    )
+    if not can_edit:
+        return HttpResponse("No tienes permiso para subir avatares.", status=403)
+
+    def _roster():
+        return list(
+            Player.objects.filter(team=primary_team, is_active=True)
+            .only("id", "name", "nickname", "number", "position", "avatar_generated")
+            .order_by("number", "name")
+        )
+
+    message = ""
+    error = ""
+    if request.method == "POST":
+        players = _roster()
+        by_id = {int(p.id): p for p in players}
+        by_num = {}
+        for p in players:
+            if p.number is not None:
+                by_num.setdefault(int(p.number), p)
+        files = request.FILES.getlist("avatars")
+        if not files:
+            error = "No seleccionaste ningún archivo."
+        ok = 0
+        skipped = []
+        for f in files:
+            fname = str(getattr(f, "name", "") or "")
+            target = None
+            m = re.search(r"player[\-_ ]?(\d+)", fname, re.IGNORECASE)
+            if not m:
+                m = re.match(r"\s*(\d+)", fname)
+            if m:
+                num = int(m.group(1))
+                target = by_id.get(num) or by_num.get(num)
+            if target is None:
+                skipped.append(fname)
+                continue
+            try:
+                target.avatar_generated.save(f"player-{int(target.id)}.png", f, save=False)
+                target.avatar_source_key = "manual-upload"
+                target.save(update_fields=["avatar_generated", "avatar_source_key"])
+                ok += 1
+            except Exception:
+                skipped.append(fname)
+        message = f"Subidos {ok} avatar(es)."
+        if skipped:
+            extra = ", ".join(skipped[:12]) + ("…" if len(skipped) > 12 else "")
+            message += f" Sin asignar ({len(skipped)}): {extra}"
+
+    rows = []
+    for p in _roster():
+        url = ""
+        try:
+            if getattr(p, "avatar_generated", None):
+                url = p.avatar_generated.url
+        except Exception:
+            url = ""
+        rows.append({
+            "id": int(p.id),
+            "number": p.number if p.number is not None else "",
+            "name": str(getattr(p, "nickname", "") or p.name or "").strip(),
+            "avatar_url": url,
+        })
+    return render(request, "football/coach_upload_avatars.html", {
+        "primary_team": primary_team,
+        "players": rows,
+        "message": message,
+        "error": error,
+    })
+
+
 def coach_roster_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
     if forbidden:
