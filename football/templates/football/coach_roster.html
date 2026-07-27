@@ -1021,13 +1021,25 @@
               {% for card in player_cards %}
               <tr data-player-name="{{ card.name|display_text|lower }} {{ card.nickname|default:''|display_text|lower }}" data-player-pos="{{ card.position|default:''|upper }}">
                 <td class="pc-num">{{ card.number|default:'—' }}</td>
-                <td class="pc-nm"><a href="{% url 'player-detail' player_id=card.player_id %}{{ active_team_query|default:'' }}">{{ card.nickname|default:card.name|display_text }}</a></td>
+                <td class="pc-nm">
+                  <span class="pc-nm-wrap">
+                    <img class="pc-av" src="{% if card.photo_url %}{{ card.photo_url }}{% else %}{% static 'football/images/player-avatar.svg' %}{% endif %}" alt="" loading="lazy" decoding="async" />
+                    <a href="{% url 'player-detail' player_id=card.player_id %}{{ active_team_query|default:'' }}">{{ card.nickname|default:card.name|display_text }}</a>
+                    {% if card.has_active_injury or card.is_sanctioned or card.is_apercibido %}
+                    <span class="status-icons pc-status">
+                      {% if card.has_active_injury %}<span class="status-icon injury" title="Lesión activa">✚</span>{% endif %}
+                      {% if card.is_sanctioned %}<span class="status-icon sanction" title="Sancionado">R</span>{% endif %}
+                      {% if card.is_apercibido %}<span class="status-icon warn" title="Apercibido">!</span>{% endif %}
+                    </span>
+                    {% endif %}
+                  </span>
+                </td>
                 <td>{{ card.profile_label|default:card.position|default:'-'|display_position }}</td>
-                <td><strong>{{ card.staff_rating_display|default:'--' }}</strong></td>
+                <td><span class="pc-ov {% if card.staff_rating_average == None %}pc-ov-none{% elif card.staff_rating_average >= 7 %}pc-ov-good{% elif card.staff_rating_average >= 5 %}pc-ov-warn{% else %}pc-ov-bad{% endif %}">{% if card.staff_rating_average != None %}{{ card.staff_rating_average|floatformat:1 }}{% else %}--{% endif %}</span></td>
                 <td>{{ card.pj|default:0 }}</td>
                 <td>{{ card.minutes|default:0 }}</td>
-                <td>{{ card.goals|default:0 }}</td>
-                <td>{{ card.assists|default:0 }}</td>
+                <td{% if not card.goals %} class="pc-z"{% endif %}>{{ card.goals|default:0 }}</td>
+                <td{% if not card.assists %} class="pc-z"{% endif %}>{{ card.assists|default:0 }}</td>
                 <td>{{ card.influence_score|default:0|floatformat:0 }}</td>
                 <td>{{ card.importance_score|default:0|floatformat:0 }}</td>
               </tr>
@@ -1045,6 +1057,15 @@
             .pc-table .pc-nm { text-align:left; }
             .pc-table .pc-nm a { color:var(--prod-text,#e5e7eb); text-decoration:none; font-weight:700; }
             .pc-table tbody tr:hover { background:rgba(255,255,255,0.04); }
+            .pc-nm-wrap { display:inline-flex; align-items:center; gap:0.4rem; max-width:100%; }
+            .pc-table .pc-av { width:1.6rem; height:1.6rem; border-radius:50%; object-fit:cover; flex:none; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.14); }
+            .pc-status { margin-left:0.1rem; }
+            .pc-table .pc-ov { display:inline-grid; place-items:center; min-width:2.3rem; padding:0.14rem 0.3rem; border-radius:0.5rem; font-weight:900; font-size:0.86rem; }
+            .pc-table .pc-ov-good { color:#0a1f12; background:#34d399; }
+            .pc-table .pc-ov-warn { color:#241a03; background:#fbbf24; }
+            .pc-table .pc-ov-bad { color:#2a0d0d; background:#f87171; }
+            .pc-table .pc-ov-none { color:#cbd5e1; background:rgba(255,255,255,0.08); font-weight:700; }
+            .pc-table td.pc-z { opacity:0.35; }
           </style>
           <script>
             (function(){
