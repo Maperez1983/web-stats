@@ -12430,9 +12430,10 @@ def club_onboarding_page(request):
     primary_team = _get_active_team_for_request(request) if workspace else None
     if not primary_team and workspace:
         primary_team = getattr(workspace, "primary_team", None)
+    # Config del club (temporada, identidad, permisos, staff, suscripción) = SOLO owner/admin.
+    # El staff interno no configura el club aunque sea el único del equipo; su acceso lo define el owner.
     if workspace and not _can_manage_workspace(request.user, workspace):
-        if not workspace_context.can_configure_active_team(request.user, workspace, primary_team):
-            return HttpResponse("No tienes permisos para configurar este workspace.", status=403)
+        return HttpResponse("No tienes permisos para configurar este workspace.", status=403)
     competition_context = None
     if primary_team:
         competition_context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team)
@@ -21898,13 +21899,23 @@ def coach_overview_page(request):
             "url": reverse("reports-hub"),
             "icon": "agenda",
         },
-        {
-            "title": "Ajustes",
-            "description": "Ajustes del club y del equipo",
-            "url": reverse("club-onboarding"),
-            "icon": "config",
-        },
     ]
+    # "Ajustes" = configuración del club (temporada, identidad, permisos, staff, suscripción).
+    # Es el panel de control del club y SOLO lo ven owner/admin (o plataforma). El staff interno
+    # no debe verlo ni acceder: su acceso lo concede el owner, no se autogestiona.
+    can_manage_workspace_home = bool(
+        _can_access_platform(request.user)
+        or (workspace and _can_manage_workspace(request.user, workspace))
+    )
+    if can_manage_workspace_home:
+        module_hub.append(
+            {
+                "title": "Ajustes",
+                "description": "Ajustes del club y del equipo",
+                "url": reverse("club-onboarding"),
+                "icon": "config",
+            }
+        )
     return render(
         request,
         "football/coach_overview.html",

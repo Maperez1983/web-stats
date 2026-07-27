@@ -158,7 +158,7 @@
   {% if workspace_module_access.convocation|default:True %}
   <a href="{% url 'match-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Partido: convocatoria, 11 inicial, acciones e informes." class="{% if nav_url_name == 'match-hub' or 'convocatoria' in nav_path or '11-inicial' in nav_path or 'registro-acciones' in nav_path or nav_path|slice:":7" == '/match/' %}is-active{% endif %}" {% if nav_url_name == 'match-hub' or 'convocatoria' in nav_path or '11-inicial' in nav_path or 'registro-acciones' in nav_path or nav_path|slice:":7" == '/match/' %}aria-current="page"{% endif %}>Partido</a>
   {% endif %}
-  {% if can_configure_active_team and active_workspace and active_workspace.kind == 'club' %}
+  {% if can_manage_workspace and active_workspace and active_workspace.kind == 'club' %}
   <a href="{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Configuración del club: temporada, identidad, permisos y staff." class="{% if nav_url_name == 'club-onboarding' or nav_url_name == 'club-season-wizard' %}is-active{% endif %}" {% if nav_url_name == 'club-onboarding' or nav_url_name == 'club-season-wizard' %}aria-current="page"{% endif %}>Configuración</a>
   {% endif %}
   {% endwith %}
@@ -293,7 +293,7 @@
         <input type="hidden" name="next" value="{{ active_team_current_path|default:'' }}" />
       </form>
       {% endif %}
-      {% if can_configure_active_team and active_workspace and active_workspace.kind == 'club' %}
+      {% if can_manage_workspace and active_workspace and active_workspace.kind == 'club' %}
       <div class="nav-more-subtitle">Gestión</div>
       <a href="{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Configuración</a>
       {% if can_manage_workspace %}
