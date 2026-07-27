@@ -177,8 +177,44 @@
         .club-task-sheet .task-copy p {
           color: var(--club-ink);
         }
+        /* --- Edición IN SITU sobre la ficha Club (WYSIWYG) --- */
+        .club-inline-edit .cev { font: inherit; color: var(--club-ink); width: 100%;
+          box-sizing: border-box; background: rgba(255,255,255,0.72);
+          border: 1px dashed var(--club-border); border-radius: 8px; padding: 0.22rem 0.42rem; }
+        .club-inline-edit .cev:hover { border-color: var(--club-accent); }
+        .club-inline-edit .cev:focus { outline: none; border-style: solid; border-color: var(--club-accent);
+          background: #fff; box-shadow: 0 0 0 3px rgba(46,125,110,0.14); }
+        .club-inline-edit textarea.cev { min-height: 4.6rem; resize: vertical; line-height: 1.4; }
+        .club-inline-edit .cev-title { font-size: inherit; font-weight: 900; letter-spacing: inherit;
+          background: transparent; border: 1px dashed var(--club-border); }
+        .club-inline-edit .cev-strong { font-weight: 800; }
+        .club-inline-edit .club-editable-field { margin: 0.1rem 0; }
+        .club-inline-edit .club-edit-tag { display: inline-flex; align-items: center; gap: 0.3rem;
+          font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em;
+          color: var(--club-accent); margin-bottom: 0.18rem; }
+        .club-inline-edit .club-material-chips { display: flex; flex-wrap: wrap; gap: 0.32rem; margin-top: 0.2rem; }
+        .club-inline-edit .club-material-chip { cursor: pointer; user-select: none; border-radius: 999px;
+          border: 1px solid var(--club-soft-line); background: var(--club-sheet); padding: 0.24rem 0.56rem;
+          font-size: 0.72rem; color: var(--club-ink); transition: all .12s ease; }
+        .club-inline-edit .club-material-chip.is-on { background: var(--club-accent); color: #fff; border-color: var(--club-accent); }
+        .club-edit-savebar { position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center;
+          justify-content: space-between; gap: 0.8rem; margin-top: 0.9rem; padding: 0.7rem 0.9rem;
+          background: rgba(255,255,255,0.96); border: 1px solid var(--club-border); border-radius: 14px;
+          box-shadow: 0 -6px 20px rgba(12,22,34,0.12); backdrop-filter: blur(6px); }
+        .club-edit-savebar .cev-hint { font-size: 0.74rem; color: var(--club-muted); }
+        .club-edit-savebar .cev-save { font-weight: 900; border: 0; border-radius: 10px; cursor: pointer;
+          padding: 0.55rem 1.2rem; background: var(--club-accent); color: #fff; font-size: 0.9rem; }
+        .club-edit-savebar .cev-save:hover { filter: brightness(1.06); }
+        .club-edit-pizarra-btn { display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 800;
+          border-radius: 10px; border: 1px solid var(--club-accent); background: rgba(46,125,110,0.08);
+          color: var(--club-accent); padding: 0.45rem 0.85rem; cursor: pointer; text-decoration: none; }
       </style>
-      <div class="presentation-workbench presentation-task-sheet presentation-format-club club-task-sheet">
+      <div class="presentation-workbench presentation-task-sheet presentation-format-club club-task-sheet{% if presentation_editable %} club-inline-edit{% endif %}">
+        {% if presentation_editable %}
+        <form method="post" id="club-inline-edit-form" data-club-inline-edit>
+          {% csrf_token %}
+          <input type="hidden" name="detail_action" value="update_task_detail" />
+        {% endif %}
         <div class="club-sheet-hero">
           <table class="club-sheet-grid">
             <tr>
@@ -189,7 +225,11 @@
               </td>
               <td style="vertical-align:top; padding:0 0.65rem 0 0;">
                 <div class="club-sheet-kicker">Planificación de tarea</div>
+                {% if presentation_editable %}
+                <input type="text" class="cev cev-title club-sheet-title" name="task_title" value="{{ club_edit_values.title }}" placeholder="Título de la tarea" maxlength="160" />
+                {% else %}
                 <div class="club-sheet-title">{{ task_obj.title|default:task.title|default:"Tarea táctica" }}</div>
+                {% endif %}
                 <div class="club-sheet-meta">
                   {{ pc.team_name|default:"Equipo" }} · {{ pc.coach_name|default:user.get_full_name|default:user.username|default:"Entrenador" }}
                   · {{ pc.session.session_date|date:"d/m/Y"|default:"-" }}
@@ -208,15 +248,32 @@
             <tr>
               <td style="width:25%; background:var(--club-sheet); border:1px solid var(--club-border); border-radius:12px; padding:0.65rem;">
                 <span class="club-label">Duración</span>
+                {% if presentation_editable %}
+                <input type="number" class="cev" name="task_minutes" value="{{ club_edit_values.duration_minutes }}" min="5" max="90" step="5" style="max-width:5.5rem;" /> <span class="club-label" style="display:inline;">min</span>
+                {% else %}
                 <strong>{{ task_obj.duration_minutes|default:task.duration_minutes|default:"-" }} min</strong>
+                {% endif %}
               </td>
               <td style="width:25%; background:var(--club-sheet); border:1px solid var(--club-border); border-radius:12px; padding:0.65rem;">
                 <span class="club-label">Bloque</span>
+                {% if presentation_editable %}
+                <select class="cev" name="task_block">
+                  {% for bval, blabel in task_blocks %}<option value="{{ bval }}"{% if bval == club_edit_values.block %} selected{% endif %}>{{ blabel }}</option>{% endfor %}
+                </select>
+                {% else %}
                 <strong>{{ task_obj.get_block_display|default:"-" }}</strong>
+                {% endif %}
               </td>
               <td style="width:25%; background:var(--club-sheet); border:1px solid var(--club-border); border-radius:12px; padding:0.65rem;">
                 <span class="club-label">Tipo</span>
+                {% if presentation_editable %}
+                <select class="cev" name="task_strategy">
+                  <option value="">—</option>
+                  {% for sval, slabel in task_strategy_choices %}<option value="{{ sval }}"{% if sval == club_edit_values.strategy %} selected{% endif %}>{{ slabel }}</option>{% endfor %}
+                </select>
+                {% else %}
                 <strong>{{ pc.strategy_label|default:"-" }}</strong>
+                {% endif %}
               </td>
               <td style="width:25%; background:var(--club-sheet); border:1px solid var(--club-border); border-radius:12px; padding:0.65rem;">
                 <span class="club-label">Microciclo</span>
@@ -284,6 +341,9 @@
                   {% endif %}
 
                   <div class="task-detail-quick-actions" style="margin-top:0.55rem;">
+                    {% if presentation_editable %}
+                    <a class="club-edit-pizarra-btn" href="{{ edit_graphic_url|default:'?mode=edit&edit_tab=graphic' }}">✏️ Editar pizarra 2D</a>
+                    {% endif %}
                     {% if pc.graphic_view_3d_url or pc.task_preview_3d_embed_url %}
                     <button type="button" class="button" id="task-detail-3d-open">Ir a vista 3D</button>
                     {% elif can_edit_task %}
@@ -313,11 +373,53 @@
             <td class="club-sheet-side">
               <div class="club-panel">
                 <div class="club-panel-head club-panel-soft">Objetivo principal</div>
+                {% if presentation_editable %}
+                <div class="club-panel-body"><textarea class="cev" name="task_objective" rows="2" placeholder="¿Qué se busca con esta tarea?">{{ club_edit_values.objective }}</textarea></div>
+                {% else %}
                 <div class="club-panel-body">{{ task_obj.objective|default:task.objective|default:"-"|linebreaksbr }}</div>
+                {% endif %}
               </div>
               <div class="club-panel">
                 <div class="club-panel-head club-panel-soft">Ficha técnica</div>
                 <div class="club-panel-body">
+                  {% if presentation_editable %}
+                  <div class="club-fact"><span class="club-label">Situación</span>
+                    <select class="cev" name="task_structure"><option value="">—</option>{% for v, l in task_structure_choices %}<option value="{{ v }}"{% if v == club_edit_values.structure %} selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+                  </div>
+                  <div class="club-fact"><span class="club-label">Espacio · medidas</span>
+                    <input type="text" class="cev" name="task_sheet_dimensions" value="{{ club_edit_values.dimensions }}" placeholder="p. ej. 30×20 m" />
+                  </div>
+                  <div class="club-fact"><span class="club-label">Coordinación</span>
+                    <select class="cev" name="task_coordination"><option value="">—</option>{% for v, l in task_coordination_choices %}<option value="{{ v }}"{% if v == club_edit_values.coordination %} selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+                  </div>
+                  <div class="club-fact"><span class="club-label">Intención</span>
+                    <select class="cev" name="task_tactical_intent"><option value="">—</option>{% for v, l in task_tactical_intent_choices %}<option value="{{ v }}"{% if v == club_edit_values.tactical_intent %} selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+                  </div>
+                  <div class="club-fact"><span class="club-label">Series / rep.</span>
+                    <span style="display:inline-flex; gap:0.35rem; align-items:center;">
+                      <input type="text" class="cev" name="task_series" value="{{ club_edit_values.series }}" placeholder="series" style="max-width:5rem;" />
+                      <input type="text" class="cev" name="task_repetitions" value="{{ club_edit_values.repetitions }}" placeholder="rep." style="max-width:5rem;" />
+                    </span>
+                  </div>
+                  <div class="club-fact"><span class="club-label">Trabajo / descanso</span>
+                    <input type="text" class="cev" name="task_work_rest" value="{{ club_edit_values.work_rest }}" placeholder="p. ej. 4' / 2'" />
+                  </div>
+                  <div class="club-fact"><span class="club-label">Material</span>
+                    <input type="hidden" name="task_sheet_materials" id="club-materials-input" value="{{ club_edit_values.materials }}" />
+                    <div class="club-material-chips" id="club-materials-chips" data-current="{{ club_edit_values.materials }}">
+                      <span class="club-material-chip" data-mat="Conos">Conos</span>
+                      <span class="club-material-chip" data-mat="Petos">Petos</span>
+                      <span class="club-material-chip" data-mat="Mini-porterías">Mini-porterías</span>
+                      <span class="club-material-chip" data-mat="Porterías">Porterías</span>
+                      <span class="club-material-chip" data-mat="Vallas">Vallas</span>
+                      <span class="club-material-chip" data-mat="Picas">Picas</span>
+                      <span class="club-material-chip" data-mat="Escaleras">Escaleras</span>
+                      <span class="club-material-chip" data-mat="Balones">Balones</span>
+                      <span class="club-material-chip" data-mat="Maniquíes">Maniquíes</span>
+                      <span class="club-material-chip" data-mat="Aros">Aros</span>
+                    </div>
+                  </div>
+                  {% else %}
                   <div class="club-fact"><span class="club-label">Situación</span>{{ pc.structure_label|default:pc.game_situation_label|default:"-" }}</div>
                   <div class="club-fact"><span class="club-label">Espacio</span>{{ pc.space_label|default:"-" }}</div>
                   <div class="club-fact"><span class="club-label">Coordinación</span>{{ pc.coordination_label|default:"-" }}</div>
@@ -333,6 +435,7 @@
                     {% endfor %}
                   </div>
                   {% endif %}
+                  {% endif %}
                   {% if pc.coordination_skills_label %}
                   <div class="club-fact"><span class="club-label">Carga</span>{{ pc.coordination_skills_label }}</div>
                   {% endif %}
@@ -346,6 +449,12 @@
           <article class="club-copy-card">
             <div class="club-copy-head">Contenido</div>
             <div class="club-copy-body">
+              {% if presentation_editable %}
+              <div class="club-edit-tag">Desarrollo — cómo se ve el ejercicio</div>
+              <textarea class="cev" name="task_sheet_description" rows="5" placeholder="Describe el ejercicio: cómo empieza, qué hacen los jugadores, progresión… (también afina la portada realista)">{{ club_edit_values.description }}</textarea>
+              <div class="club-edit-tag" style="margin-top:0.6rem;">Consignas</div>
+              <textarea class="cev" name="task_coaching_points" rows="2" placeholder="Puntos clave para el entrenador">{{ club_edit_values.coaching_points }}</textarea>
+              {% else %}
               {% if pc.description_rich_html %}
                   <div class="task-copy">{{ pc.description_rich_html|striptags|linebreaksbr }}</div>
               {% elif pc.description_lines %}
@@ -361,11 +470,19 @@
               {% elif task.coaching_points %}
               <div class="task-copy" style="margin-top:0.6rem;"><span class="club-label">Consignas</span>{{ task.coaching_points|linebreaksbr }}</div>
               {% endif %}
+              {% endif %}
             </div>
           </article>
           <article class="club-copy-card">
             <div class="club-copy-head">Normas de confrontación</div>
             <div class="club-copy-body">
+              {% if presentation_editable %}
+              <textarea class="cev" name="task_confrontation_rules" rows="3" placeholder="Reglas y condicionantes de la tarea">{{ club_edit_values.confrontation_rules }}</textarea>
+              <div class="club-edit-tag" style="margin-top:0.6rem;">Criterio de éxito</div>
+              <textarea class="cev" name="task_success_criteria" rows="2" placeholder="¿Cuándo se supera la tarea?">{{ club_edit_values.success_criteria }}</textarea>
+              <div class="club-edit-tag" style="margin-top:0.6rem;">Progresión</div>
+              <textarea class="cev" name="task_progression" rows="2" placeholder="Cómo aumentar o reducir la dificultad">{{ club_edit_values.progression }}</textarea>
+              {% else %}
               {% if pc.rules_rich_html %}
               <div class="task-copy">{{ pc.rules_rich_html|striptags|linebreaksbr }}</div>
               {% elif task.confrontation_rules %}
@@ -383,10 +500,38 @@
                 {% if pc.progression_rich_html %}<div class="task-copy">{{ pc.progression_rich_html|striptags|linebreaksbr }}</div>{% else %}<div class="task-copy">{{ task_meta.progression }}</div>{% endif %}
               </div>
               {% endif %}
+              {% endif %}
             </div>
           </article>
         </div>
 
+        {% if presentation_editable %}
+        <div class="club-edit-savebar">
+          <span class="cev-hint">Editas directamente sobre la ficha Club. El formato UEFA se genera solo.</span>
+          <button type="submit" class="cev-save">💾 Guardar cambios</button>
+        </div>
+        </form>
+        <script>
+        (function(){
+          var chips = document.getElementById('club-materials-chips');
+          var input = document.getElementById('club-materials-input');
+          if (chips && input) {
+            var norm = function(s){ return (s||'').toLowerCase().replace(/[·,;/]+/g,' ').replace(/\s+/g,' ').trim(); };
+            var cur = ' ' + norm(input.value) + ' ';
+            chips.querySelectorAll('.club-material-chip').forEach(function(chip){
+              var m = norm(chip.getAttribute('data-mat'));
+              if (cur.indexOf(' ' + m + ' ') !== -1) chip.classList.add('is-on');
+              chip.addEventListener('click', function(){
+                chip.classList.toggle('is-on');
+                var on = [];
+                chips.querySelectorAll('.club-material-chip.is-on').forEach(function(c){ on.push(c.getAttribute('data-mat')); });
+                input.value = on.join(', ');
+              });
+            });
+          }
+        })();
+        </script>
+        {% endif %}
       </div>
 {% elif presentation_format|lower == 'uefa' %}
       <style>

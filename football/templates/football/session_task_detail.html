@@ -1454,10 +1454,21 @@
         <div class="task-detail-format-bar" role="tablist">
           <button type="button" class="button task-detail-format-tab{% if active_task_format_tab == 'uefa' %} is-active{% endif %}" data-task-format-tab="uefa" role="tab" aria-selected="{% if active_task_format_tab == 'uefa' %}true{% else %}false{% endif %}">Formato UEFA</button>
           <button type="button" class="button task-detail-format-tab{% if active_task_format_tab == 'club' %} is-active{% endif %}" data-task-format-tab="club" role="tab" aria-selected="{% if active_task_format_tab == 'club' %}true{% else %}false{% endif %}">Formato Club</button>
+          {% if can_edit_task %}
+          <span style="flex:1;"></span>
+          {% if presentation_inline_edit %}
+          <button type="button" class="button secondary" onclick="var u=new URL(location.href); u.searchParams.delete('edit'); location.href=u.toString();">Salir de edición</button>
+          {% else %}
+          <button type="button" class="button" onclick="var u=new URL(location.href); u.searchParams.set('edit','ficha'); u.searchParams.set('format','club'); location.href=u.toString();">✏️ Editar ficha</button>
+          {% endif %}
+          {% endif %}
         </div>
+        {% if presentation_inline_edit %}
+        <p class="meta" style="margin:0.3rem 0 0.55rem;">Estás <strong>editando la ficha Club</strong>. Cambia los campos directamente y pulsa <strong>Guardar cambios</strong>. El formato UEFA se genera solo.</p>
+        {% endif %}
         {% if active_task_format_tab == 'club' %}
           <div class="task-detail-format-panel is-active" data-task-format-panel="club">
-            {% include 'football/includes/session_task_presentation_layout.html' with presentation_format='Club' presentation_context=task_presentation_pdf_context_by_format.club %}
+            {% include 'football/includes/session_task_presentation_layout.html' with presentation_format='Club' presentation_context=task_presentation_pdf_context_by_format.club presentation_editable=presentation_inline_edit %}
           </div>
         {% else %}
           <div class="task-detail-format-panel is-active" data-task-format-panel="uefa">

@@ -54599,6 +54599,15 @@ def session_task_detail_page(request, task_id):
         pass
     show_edit_mode = bool(can_edit_task and active_task_tab == "edit")
 
+    # Opción C (WYSIWYG): editar SOBRE la ficha Club. `?edit=ficha` mantiene la vista de PRESENTACIÓN
+    # activa en formato Club, pero con los campos editables in situ (sin saltar al panel de edición
+    # separado -> flujo coherente). El POST vuelve a esta misma URL (conserva ?edit=ficha en el query).
+    _edit_ficha_flag = str(request.GET.get("edit") or "").strip().lower() == "ficha"
+    presentation_inline_edit = bool(can_edit_task and _edit_ficha_flag)
+    if presentation_inline_edit:
+        active_task_tab = "presentation"
+        active_task_format_tab = "club"
+
     # UX: la ficha de tarea es la vista principal; el modo edición reutiliza esa misma ficha y añade los controles debajo.
 
     if request.method == "POST":
@@ -54653,6 +54662,35 @@ def session_task_detail_page(request, task_id):
     detected_materials = (
         analysis_meta.get("detected_materials") if isinstance(analysis_meta.get("detected_materials"), list) else []
     )
+
+    # Valores CRUDOS para editar IN SITU sobre la ficha Club (WYSIWYG). El contexto de presentacion
+    # (pc) trae etiquetas/HTML para leer; aqui damos los valores puros que necesitan los <input>/
+    # <select>/<textarea> (name=task_* que _update_library_task_from_post ya entiende). Solo tienen
+    # sentido en modo edicion (ahi _layout_src es el layout completo).
+    _raw_sheet = analysis_meta.get("task_sheet") if isinstance(analysis_meta.get("task_sheet"), dict) else {}
+    club_edit_values = {
+        "title": str(getattr(task, "title", "") or ""),
+        "duration_minutes": int(getattr(task, "duration_minutes", 0) or 0),
+        "block": str(getattr(task, "block", "") or ""),
+        "objective": str(getattr(task, "objective", "") or ""),
+        "coaching_points": str(getattr(task, "coaching_points", "") or ""),
+        "confrontation_rules": str(getattr(task, "confrontation_rules", "") or ""),
+        "strategy": str(meta.get("strategy") or ""),
+        "structure": str(meta.get("structure") or ""),
+        "coordination": str(meta.get("coordination") or ""),
+        "tactical_intent": str(meta.get("tactical_intent") or ""),
+        "content_domain": str(meta.get("content_domain") or ""),
+        "game_moment": str(meta.get("game_moment") or ""),
+        "series": str(meta.get("series") or ""),
+        "repetitions": str(meta.get("repetitions") or ""),
+        "work_rest": str(meta.get("work_rest") or ""),
+        "description": str(_raw_sheet.get("description") or ""),
+        "dimensions": str(_raw_sheet.get("dimensions") or _raw_sheet.get("space") or ""),
+        "players": str(_raw_sheet.get("players") or ""),
+        "materials": str(_raw_sheet.get("materials") or ""),
+        "success_criteria": str(meta.get("success_criteria") or ""),
+        "progression": str(meta.get("progression") or ""),
+    }
     animation_frames = _normalize_animation_timeline(layout.get("timeline") if isinstance(layout, dict) else [])
     graphic_editor_state = meta.get("graphic_editor", {}) if isinstance(meta.get("graphic_editor"), dict) else {}
     if isinstance(graphic_editor_state, dict) and animation_frames:
@@ -54858,6 +54896,7 @@ def session_task_detail_page(request, task_id):
             ),
             "task_meta": meta,
             "task_sheet": task_sheet,
+            "club_edit_values": club_edit_values,
             "pdf_excerpt": pdf_excerpt,
             "detected_materials": detected_materials,
             "feedback": feedback,
@@ -54894,6 +54933,7 @@ def session_task_detail_page(request, task_id):
             "active_task_edit_tab": active_task_edit_tab,
             "active_task_format_tab": active_task_format_tab,
             "show_edit_mode": show_edit_mode,
+            "presentation_inline_edit": presentation_inline_edit,
             "session_context": session_context,
             "related_tasks": related_tasks,
             "edit_graphic_url": edit_graphic_url,
