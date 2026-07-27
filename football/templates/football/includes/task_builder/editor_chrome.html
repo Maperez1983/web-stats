@@ -145,7 +145,7 @@
     });
   });
   // Flechita "variantes": cada herramienta con variantes deep-linkea a su categoría del cajón.
-  var RAIL_CAT = { player_local:'fichas', goalkeeper_local:'fichas', ball:'fichas', cone:'material', pole_marker:'material', goal:'porterias', zone:'zonas', arrow_solid:'flechas' };
+  var RAIL_CAT = { player_local:'plantilla', goalkeeper_local:'plantilla', cone:'material', pole_marker:'material', goal:'porterias', zone:'zonas', arrow_solid:'flechas' };
   document.querySelectorAll('.edc-tool[data-edc-tool]').forEach(function(btn){
     var cat = RAIL_CAT[btn.getAttribute('data-edc-tool')];
     if(!cat) return;
@@ -248,10 +248,10 @@
     'close-mat': function(){ document.body.classList.remove('edc-mat-open'); }
   };
   // -------- Cajón: reubica los STRIPS REALES del sistema (botones con su preview) por categoría --------
+  // 'fichas' (chapas) y 'avatares' (miniaturas) se retiraron: la representación de cada jugador
+  // se elige ahora en el desplegable de la lista de Plantilla. Plantilla queda como 1ª pestaña.
   var MAT_CATS = [
-    { key:'fichas',     label:'Fichas',     strips:['#task-basic-tools'] },
     { key:'plantilla',  label:'Plantilla',  roster:true },
-    { key:'avatares',   label:'Jugadores',  avatars:true },
     { key:'material',   label:'Material',   strips:['[data-material-family="equipamiento"] .resource-strip'] },
     { key:'porterias',  label:'Porterías',  strips:['[data-material-family="porterias"] .resource-strip'] },
     { key:'marcadores', label:'Marcadores', strips:['[data-material-family="marcadores"] .resource-strip'] },
