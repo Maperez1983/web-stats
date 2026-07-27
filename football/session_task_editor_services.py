@@ -373,12 +373,17 @@ def _forbid_if_workspace_module_disabled(request, module_key, label="módulo"):
                 return HttpResponse("No tienes un workspace de club asignado.", status=403)
             return None
         return None
+    # El paywall de suscripción SOLO aplica a quien gestiona el club (owner/admin),
+    # que es el cliente que paga. El staff creado dentro del equipo es personal interno:
+    # su acceso lo concede el owner (module_access) y NUNCA debe acabar en /billing/
+    # (donde recibiría un 403 "no tienes permisos para gestionar la suscripción").
     try:
         if (
             request
             and getattr(request, "user", None)
             and request.user.is_authenticated
             and not workspace_context.can_access_platform(request.user)
+            and workspace_context.can_manage_workspace(request.user, workspace)
             and module_key not in {"dashboard", "billing"}
             and workspace_subscription.requires_subscription(workspace)
         ):
@@ -415,6 +420,7 @@ def _forbid_if_workspace_module_disabled(request, module_key, label="módulo"):
             and getattr(request, "user", None)
             and request.user.is_authenticated
             and not workspace_context.can_access_platform(request.user)
+            and workspace_context.can_manage_workspace(request.user, workspace)
             and module_key not in {"dashboard", "billing"}
         ):
             status = str(getattr(workspace, "subscription_status", "") or "").strip().lower()
@@ -455,6 +461,22 @@ def _forbid_if_workspace_module_disabled(request, module_key, label="módulo"):
         pass
     if permissions.workspace_has_module_for_user(workspace, module_key, user=request.user if request else None):
         return None
+    # Para el staff no-gestor: mensaje claro (sin billing). Su acceso lo concede el owner.
+    try:
+        if (
+            request
+            and getattr(request, "user", None)
+            and request.user.is_authenticated
+            and not workspace_context.can_access_platform(request.user)
+            and not workspace_context.can_manage_workspace(request.user, workspace)
+        ):
+            return HttpResponse(
+                f"No tienes acceso a «{label}» en este club. "
+                "Si crees que es un error, contacta con el administrador del club.",
+                status=403,
+            )
+    except Exception:
+        pass
     return HttpResponse(f"El {label} no está activo en el workspace actual.", status=403)
 
 
