@@ -81535,7 +81535,7 @@ def team_calendar_ics(request):
         f'X-WR-CALNAME:{_ics_escape(f"2J · {team_label}")}',
     ]
 
-    def add_event(*, uid, dtstart_line, dtend_line="", summary="", description="", location="", url=""):
+    def add_event(*, uid, dtstart_line, dtend_line="", summary="", description="", location="", url="", alarm_trigger="", alarm_desc=""):
         if not uid or not dtstart_line:
             return
         lines.append("BEGIN:VEVENT")
@@ -81552,6 +81552,13 @@ def team_calendar_ics(request):
             lines.append(f"LOCATION:{_ics_escape(location)}")
         if url:
             lines.append(f"URL:{_ics_escape(url)}")
+        if alarm_trigger:
+            # Recordatorio (Apple/Google): un aviso antes del evento.
+            lines.append("BEGIN:VALARM")
+            lines.append("ACTION:DISPLAY")
+            lines.append(f"TRIGGER:{alarm_trigger}")
+            lines.append(f"DESCRIPTION:{_ics_escape(alarm_desc or summary or 'Recordatorio')}")
+            lines.append("END:VALARM")
         lines.append("END:VEVENT")
 
     # Partidos (incluye liga/torneo/amistoso).
@@ -81567,9 +81574,22 @@ def team_calendar_ics(request):
         prefix = f"[{context_label}]"
         if match.context == Match.CONTEXT_TOURNAMENT and str(match.tournament_name or "").strip():
             prefix = f"[Torneo · {str(match.tournament_name).strip()}]"
-        summary = f"{prefix} {team_label} vs {opponent_label}".strip()
+        # Resultado si el partido ya se jugó (marcador relativo al equipo principal).
+        score_txt = ""
+        _hs, _as = getattr(match, "home_score", None), getattr(match, "away_score", None)
+        if _hs is not None and _as is not None:
+            if match.home_team_id == primary_team.id:
+                score_txt = f"{int(_hs)}-{int(_as)}"
+            else:
+                score_txt = f"{int(_as)}-{int(_hs)}"
+        if score_txt:
+            summary = f"{prefix} {team_label} {score_txt} {opponent_label}".strip()
+        else:
+            summary = f"{prefix} {team_label} vs {opponent_label}".strip()
         location = str(match.location or "").strip()
         extra = []
+        if score_txt:
+            extra.append(f"Resultado: {score_txt}")
         round_label = str(match.round or "").strip()
         if round_label:
             extra.append(f"Ronda: {round_label}")
@@ -81592,6 +81612,10 @@ def team_calendar_ics(request):
             dtstart_line = f'DTSTART;VALUE=DATE:{match.date.strftime("%Y%m%d")}'
             dtend_line = f'DTEND;VALUE=DATE:{(match.date + timedelta(days=1)).strftime("%Y%m%d")}'
         uid = f"match-{int(match.id)}@{base_uid_domain}"
+        # Recordatorio solo para partidos futuros (2h antes si hay hora, 1 día antes si es todo el día).
+        match_alarm = ""
+        if match.date and match.date >= today:
+            match_alarm = "-PT2H" if match.kickoff_time else "-P1D"
         add_event(
             uid=uid,
             dtstart_line=dtstart_line,
@@ -81600,6 +81624,8 @@ def team_calendar_ics(request):
             description=description,
             location=location,
             url=url,
+            alarm_trigger=match_alarm,
+            alarm_desc=f"Próximo partido: {team_label} vs {opponent_label}",
         )
 
     # Sesiones
@@ -81637,6 +81663,9 @@ def team_calendar_ics(request):
             dtstart_line = f'DTSTART;VALUE=DATE:{session.session_date.strftime("%Y%m%d")}'
             dtend_line = f'DTEND;VALUE=DATE:{(session.session_date + timedelta(days=1)).strftime("%Y%m%d")}'
         uid = f"session-{int(session.id)}@{base_uid_domain}"
+        session_alarm = ""
+        if session.session_date and session.session_date >= today:
+            session_alarm = "-PT1H" if session.start_time else "-P1D"
         add_event(
             uid=uid,
             dtstart_line=dtstart_line,
@@ -81645,6 +81674,8 @@ def team_calendar_ics(request):
             description=description,
             location="",
             url=url,
+            alarm_trigger=session_alarm,
+            alarm_desc=summary,
         )
 
     lines.append("END:VCALENDAR")
