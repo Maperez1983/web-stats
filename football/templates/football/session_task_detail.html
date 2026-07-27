@@ -1547,10 +1547,6 @@
                     <input type="text" name="task_age_group" value="{{ task_meta.age_group }}" placeholder="Ej: Benjamín / Cadete" />
                   </label>
                   <label>
-                    Tipo de tarea
-                    <input type="text" name="task_training_type" value="{{ task_meta.training_type }}" placeholder="Ej: Conservación / Finalización" />
-                  </label>
-                  <label>
                     Superficie
                     <select name="task_surface">
                       <option value="">-</option>
@@ -1620,7 +1616,7 @@
                 </div>
                 <div class="editor-grid">
                   <label>
-                    Estrategia
+                    Tipología / Estrategia
                     <select name="task_strategy">
                       <option value="">-</option>
                       {% for value, label in task_strategy_choices %}
@@ -1638,7 +1634,7 @@
                     </select>
                   </label>
                   <label>
-                    Situación de juego
+                    Estructura
                     <select name="task_structure">
                       <option value="">-</option>
                       {% for value, label in task_structure_choices %}
@@ -1679,6 +1675,15 @@
                       <option value="">-</option>
                       {% for value, label in game_moment_choices %}
                       <option value="{{ value }}" {% if task_meta.game_moment == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Contenido dominante
+                    <select name="task_content">
+                      <option value="">-</option>
+                      {% for value, label in task_content_choices %}
+                      <option value="{{ value }}" {% if task_meta.content_domain == value %}selected{% endif %}>{{ label }}</option>
                       {% endfor %}
                     </select>
                   </label>
