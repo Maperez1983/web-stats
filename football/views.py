@@ -23913,12 +23913,18 @@ def save_match_lineup(request):
                 team=primary_team, match=target_match, defaults={"lineup_data": normalized}
             )
         except Exception:
-            logger.debug(
-                "No se pudo guardar MatchLineup (team=%s match=%s)",
+            logger.warning(
+                "No se pudo guardar MatchLineup (team=%s match=%s); se borra el stale para caer a la convocatoria.",
                 getattr(primary_team, "id", None),
                 getattr(target_match, "id", None),
                 exc_info=True,
             )
+            # Si la escritura falló, un MatchLineup viejo tapa el dato fresco de la convocatoria
+            # (la lectura lo prefiere). Lo borramos para que _stored_lineup_for_match caiga al fallback.
+            try:
+                MatchLineup.objects.filter(team=primary_team, match=target_match).delete()
+            except Exception:
+                pass
     _invalidate_team_dashboard_caches(primary_team)
     starters_count = len(normalized["starters"])
     return JsonResponse(
@@ -39475,7 +39481,8 @@ def coach_matches_sync_universo(request):
     Solo owner/admin (o plataforma). Idempotente y no pisa marcadores manuales."""
     if not _can_edit_match_actions(request.user):
         return HttpResponse("Solo el cuerpo técnico puede sincronizar.", status=403)
-    primary_team = _get_active_team_for_request(request) or _get_primary_team_for_request(request)
+    # Mismo criterio de equipo que lista/semana/ICS del Calendario (coherencia entre vistas).
+    primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return HttpResponse("Equipo no configurado.", status=400)
     workspace = _get_active_workspace(request)
@@ -39524,7 +39531,8 @@ def coach_calendar_month_page(request):
     forbidden = _forbid_if_workspace_module_disabled(request, "match_actions", label="calendario")
     if forbidden:
         return forbidden
-    primary_team = _get_active_team_for_request(request) or _get_primary_team_for_request(request)
+    # Mismo criterio de equipo que lista/semana/ICS del Calendario (coherencia entre vistas).
+    primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404("Equipo principal no configurado")
 
@@ -39547,10 +39555,11 @@ def coach_calendar_month_page(request):
         .order_by("date", "kickoff_time", "id")
     )
     sessions = list(
-        TrainingSession.objects.select_related("microcycle")
-        .filter(microcycle__team=primary_team, session_date__range=(grid_from, grid_to))
-        .exclude(status=TrainingSession.STATUS_CANCELED)
-        .order_by("session_date", "start_time", "order", "id")
+        _exclude_library_sessions_qs(
+            TrainingSession.objects.select_related("microcycle")
+            .filter(microcycle__team=primary_team, session_date__range=(grid_from, grid_to))
+            .exclude(status=TrainingSession.STATUS_CANCELED)
+        ).order_by("session_date", "start_time", "order", "id")
     )
 
     team_query = f"&team={int(primary_team.id)}"
@@ -39597,7 +39606,7 @@ def coach_calendar_month_page(request):
                 {
                     "num": d.day,
                     "in_month": d.month == month,
-                    "is_today": d == today,
+                    "is_today": d == today and d.month == month,
                     "matches": matches_by_day.get(d, []),
                     "sessions": sessions_by_day.get(d, []),
                 }
@@ -39885,21 +39894,30 @@ def coach_matches_page(request):
         primary_team=primary_team,
         own_kit2d_url="",
     )
+    # Memo por rival (evita el N+1: sin esto se consultaba WorkspacePreference una vez por fila).
+    _rival_kit_cache = {}
     for m in raw:
         is_home = bool(m.home_team_id == primary_team.id)
         opponent = m.away_team if is_home else m.home_team
         opponent_name = (
             str(getattr(opponent, "display_name", "") or getattr(opponent, "name", "") or "").strip() or "Rival"
         )
-        opponent_kit_url = ""
-        if opponent:
-            opponent_kit_url = _rival_kit2d_url(workspace, opponent, "home")
-        opponent_kit_url = opponent_kit_url or _kit2d_url_for_team_name(
-            opponent_name,
-            workspace=workspace,
-            primary_team=primary_team,
-            own_kit2d_url=own_kit_url,
+        _kit_cache_key = (
+            ("id", int(opponent.id)) if opponent and getattr(opponent, "id", None) else ("name", normalize_label(opponent_name))
         )
+        if _kit_cache_key in _rival_kit_cache:
+            opponent_kit_url = _rival_kit_cache[_kit_cache_key]
+        else:
+            opponent_kit_url = ""
+            if opponent:
+                opponent_kit_url = _rival_kit2d_url(workspace, opponent, "home")
+            opponent_kit_url = opponent_kit_url or _kit2d_url_for_team_name(
+                opponent_name,
+                workspace=workspace,
+                primary_team=primary_team,
+                own_kit2d_url=own_kit_url,
+            )
+            _rival_kit_cache[_kit_cache_key] = opponent_kit_url
         key = f"{m.date.isoformat() if m.date else 'no-date'}|{normalize_label(opponent_name)}|{str(m.context or '').strip()}|{normalize_label(str(m.tournament_name or '').strip())}"
         dup_counts[key] += 1
         score_for = m.home_score if is_home else m.away_score
@@ -39963,7 +39981,7 @@ def coach_matches_page(request):
         row["dup_count"] = int(dup_counts.get(row["key"], 0) or 0)
         row["is_duplicate"] = bool(row["dup_count"] > 1)
         row["is_registered"] = bool(
-            int(row.get("actions") or 0) > 0 or int(row.get("manual_stats") or 0) > 0 or int(row.get("videos") or 0) > 0
+            int(row.get("actions") or 0) > 0 or int(row.get("manual_stats") or 0) > 0
         )
     if dup_only:
         rows = [r for r in rows if r.get("is_duplicate")]
@@ -40020,8 +40038,6 @@ def coach_matches_page(request):
             "acc": _k_int("actions"),
             "acciones": _k_int("actions"),
             "stats": _k_int("manual_stats"),
-            "video": _k_int("videos"),
-            "vídeo": _k_int("videos"),
             "status": _k_status,
             "estado": _k_status,
         }
@@ -81776,16 +81792,17 @@ def team_calendar_ics(request):
 
     matches = list(
         _team_match_queryset(primary_team)
-        .filter(Q(date__isnull=True) | Q(date__range=(window_from, window_to)))
+        .filter(date__range=(window_from, window_to))
         .select_related("home_team", "away_team")
         .order_by("date", "kickoff_time", "id")
     )
     sessions = list(
-        TrainingSession.objects.select_related("microcycle")
-        .filter(microcycle__team=primary_team)
-        .filter(session_date__range=(window_from, window_to))
-        .exclude(status=TrainingSession.STATUS_CANCELED)
-        .order_by("session_date", "start_time", "order", "id")
+        _exclude_library_sessions_qs(
+            TrainingSession.objects.select_related("microcycle")
+            .filter(microcycle__team=primary_team)
+            .filter(session_date__range=(window_from, window_to))
+            .exclude(status=TrainingSession.STATUS_CANCELED)
+        ).order_by("session_date", "start_time", "order", "id")
     )
 
     team_label = (

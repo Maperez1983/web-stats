@@ -128,7 +128,7 @@ def sync_team_calendar_from_universo(primary_team, *, write=False, max_rounds=40
     round_ids = _enumerate_round_ids(first, max_rounds=max_rounds) or [str(first.get("jornada") or "").strip()]
 
     today = timezone.localdate()
-    seen_dates = set()
+    seen = set()
     for rid in round_ids:
         try:
             payload = first if (rid and rid == str(first.get("jornada") or "").strip()) else (fetch_results(group_key, rid) or {})
@@ -158,9 +158,11 @@ def sync_team_calendar_from_universo(primary_team, *, write=False, max_rounds=40
             match_date = _parse_date(row.get("fecha"))
             if not match_date:
                 continue
-            if match_date in seen_dates:
+            # Clave por (fecha, rival): permite dos partidos el mismo día vs rivales distintos.
+            seen_key = (match_date, opponent_name.strip().lower())
+            if seen_key in seen:
                 continue
-            seen_dates.add(match_date)
+            seen.add(seen_key)
 
             gh, ga = _parse_int(row.get("Goles_casa")), _parse_int(row.get("Goles_visitante"))
             has_score = gh is not None and ga is not None
@@ -168,8 +170,10 @@ def sync_team_calendar_from_universo(primary_team, *, write=False, max_rounds=40
             score_against = (ga if is_home else gh) if has_score else None
             round_label = str(row.get("nombre_jornada") or row.get("jornada") or fallback_round or "").strip()
 
+            # Solo consideramos partidos de LIGA para el dedup: así el sync no pisa un amistoso o
+            # partido de torneo creado a mano en la misma fecha.
             existing = (
-                Match.objects.filter(season=season)
+                Match.objects.filter(season=season, context=Match.CONTEXT_LEAGUE)
                 .filter(Q(home_team=primary_team) | Q(away_team=primary_team))
                 .filter(date=match_date)
                 .order_by("-id")
