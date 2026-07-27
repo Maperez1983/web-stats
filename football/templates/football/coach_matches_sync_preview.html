@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Previsualizar sincronización · {{ team_name }}</title>
     {% load static %}
-    <link rel="stylesheet" href="{% static 'football/css/product.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <style>
       .sp-wrap { max-width: 900px; margin: 0 auto; }
       .sp-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.7rem; margin:.6rem 0 1rem; }
