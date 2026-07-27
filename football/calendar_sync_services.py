@@ -86,10 +86,31 @@ def sync_team_calendar_from_universo(primary_team, *, write=False, max_rounds=40
     group = getattr(primary_team, "group", None)
     season = getattr(group, "season", None) if group else None
     group_key = str(getattr(group, "external_id", "") or "").strip() if group else ""
+    if not group_key:
+        # Fallback: el código de grupo de Universo puede estar en el contexto de competición
+        # (WorkspaceCompetitionContext.external_group_key) aunque no se haya copiado al Group.
+        try:
+            from .models import WorkspaceCompetitionContext
+
+            ctx = (
+                WorkspaceCompetitionContext.objects.filter(
+                    team=primary_team, provider=WorkspaceCompetitionContext.PROVIDER_UNIVERSO
+                )
+                .exclude(external_group_key="")
+                .order_by("-id")
+                .first()
+            )
+            if ctx:
+                group_key = str(getattr(ctx, "external_group_key", "") or "").strip()
+                if group is None:
+                    group = getattr(ctx, "group", None)
+                    season = getattr(group, "season", None) if group else season
+        except Exception:
+            group_key = group_key
     if not group or not season or not group_key:
         summary["errors"].append(
-            "El equipo no tiene grupo/temporada con ID externo de Universo (Group.external_id). "
-            "Vincula la competición primero."
+            "Tu liga aún no está vinculada a la competición (Universo). Ve a Configuración → "
+            "«🔗 Vincular mi liga automáticamente» y vuelve a sincronizar."
         )
         return summary
 
