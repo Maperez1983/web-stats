@@ -39479,6 +39479,7 @@ def _update_library_task_from_post(task, post_data, scope_key=None):
 
     sheet_field_map = {
         "task_sheet_description": "description",
+        "task_sheet_scene": "scene_note",
         "task_sheet_players": "players",
         "task_sheet_space": "space",
         "task_sheet_dimensions": "dimensions",
@@ -39490,7 +39491,7 @@ def _update_library_task_from_post(task, post_data, scope_key=None):
         if post_key in post_data:
             task_sheet[sheet_key] = _polish_spanish_text(
                 _repair_joined_words_text(str(post_data.get(post_key) or "").strip()),
-                multiline=(sheet_key == "description"),
+                multiline=(sheet_key in ("description", "scene_note")),
             )
             task_sheet_touched = True
             if sheet_key == "space":
@@ -44456,20 +44457,8 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
             )
         # Limita el selector rápido para no cargar UI enorme (la Biblioteca completa está en la pestaña Biblioteca).
         planning_task_source_options = planning_task_source_options[:90]
-    tactical_player_catalog = []
     try:
-        squad_players = Player.objects.filter(team=primary_team, is_active=True).order_by("number", "name")[:60]
-        for player in squad_players:
-            tactical_player_catalog.append(
-                {
-                    "id": int(player.id),
-                    "name": str(player.name or "").strip(),
-                    "nickname": str(getattr(player, "nickname", "") or "").strip(),
-                    "number": _parse_int(player.number) or "",
-                    "position": str(player.position or "").strip(),
-                    "photo_url": str(resolve_player_photo_url(request, player) or "").strip(),
-                }
-            )
+        tactical_player_catalog = _build_tactical_player_catalog(request, primary_team)
     except Exception:
         tactical_player_catalog = []
     planner_summary = {
@@ -44994,31 +44983,116 @@ def _task_builder_resource_library_context(request, primary_team, *, context_cac
     }
 
 
+def _tactical_latest_closed_ratings(player_ids):
+    """{player_id: nota 1-10} de la última evaluación CERRADA de cada jugador."""
+    ratings = {}
+    ids = [int(pid) for pid in player_ids if pid]
+    if not ids:
+        return ratings
+    try:
+        eval_qs = PlayerEvaluation.objects.filter(
+            player_id__in=ids, status=PlayerEvaluation.STATUS_CLOSED
+        ).order_by("player_id", "-evaluated_on", "-updated_at", "-id")
+        seen = set()
+        for ev in eval_qs:
+            pid = int(ev.player_id)
+            if pid in seen:
+                continue
+            seen.add(pid)
+            val = ev.average_rating or ev.overall_rating
+            if val is None:
+                continue
+            try:
+                ratings[pid] = round(float(val), 1)
+            except (TypeError, ValueError):
+                continue
+    except Exception:
+        return {}
+    return ratings
+
+
 def _build_tactical_player_catalog(request, primary_team):
     catalog = []
     if not primary_team:
         return catalog
-    players = (
+    players = list(
         Player.objects.filter(team=primary_team, is_active=True)
         .only("id", "name", "nickname", "number", "position", "photo_updated_at")
         .order_by("number", "name")[:60]
     )
+    squad_ids = [int(player.id) for player in players]
+    squad_id_set = set(squad_ids)
+    # Regla compartida con la pizarra estática: lesionado = lesión activa.
+    try:
+        active_injury_ids = set(get_active_injury_player_ids(squad_ids))
+    except Exception:
+        active_injury_ids = set()
+    ratings = _tactical_latest_closed_ratings(squad_ids)
     for player in players:
+        pid = int(player.id)
         photo_url = ""
         try:
             photo_url = str(resolve_player_photo_url(request, player) or "").strip()
         except Exception:
             photo_url = ""
+        estado = "lesionado" if pid in active_injury_ids else "disponible"
         catalog.append(
             {
-                "id": int(player.id),
+                "id": pid,
                 "name": str(player.name or "").strip(),
                 "nickname": str(getattr(player, "nickname", "") or "").strip(),
                 "number": _parse_int(player.number) or "",
                 "position": str(player.position or "").strip(),
                 "photo_url": str(photo_url or "").strip(),
+                "rating": ratings.get(pid),
+                "estado": estado,
+                "is_scouted": False,
             }
         )
+    # Ojeados marcados como "disponibles para la pizarra del entrenador".
+    try:
+        workspace = _get_active_workspace(request)
+    except Exception:
+        workspace = None
+    if workspace:
+        try:
+            scout_targets = list(
+                ScoutingTarget.objects.filter(
+                    workspace=workspace, available_for_coach_tools=True
+                )
+                .exclude(status=ScoutingTarget.STATUS_DISCARDED)
+                .filter(Q(player__team=primary_team) | Q(player__isnull=True))
+                .select_related("player")
+                .order_by("-priority", "status", "-updated_at", "-id")[:20]
+            )
+        except Exception:
+            scout_targets = []
+        for target in scout_targets:
+            linked = getattr(target, "player", None)
+            linked_id = _parse_int(getattr(linked, "id", None))
+            if linked_id and int(linked_id) in squad_id_set:
+                continue  # ya aparece como jugador de plantilla
+            photo_url = ""
+            if linked:
+                try:
+                    photo_url = str(resolve_player_photo_url(request, linked) or "").strip()
+                except Exception:
+                    photo_url = ""
+            catalog.append(
+                {
+                    "id": f"scout-{int(target.id)}",
+                    "name": str(getattr(target, "display_name", "") or "").strip(),
+                    "nickname": "",
+                    "number": _parse_int(getattr(linked, "number", None)) or "",
+                    "position": str(
+                        getattr(target, "position", "") or getattr(linked, "position", "") or ""
+                    ).strip(),
+                    "photo_url": photo_url,
+                    "rating": None,
+                    "estado": "ojeado",
+                    "is_scouted": True,
+                }
+            )
     return catalog
 
 

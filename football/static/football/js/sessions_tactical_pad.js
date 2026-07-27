@@ -3839,6 +3839,8 @@
 	    }
 	    if (!Array.isArray(confirmedPlayerIds)) confirmedPlayerIds = [];
 	    let confirmedPlayerIdSet = new Set(confirmedPlayerIds.map((value) => String(value)));
+	    // Toggle "Ver notas": muestra el badge de valoración en banco y pizarra.
+	    let ratingsVisible = false;
 
 		    // Estilo global de fichas (para nuevos jugadores colocados en la pizarra).
 		    const TOKEN_STYLE_STORAGE_KEY = 'webstats:tpad:token-style';
@@ -4057,11 +4059,16 @@
 		    const kit2dDataUrlForTokenKind = (kind, overrideSlot = '') => {
 		      const slot = kit2dSlotForTokenKind(kind, overrideSlot);
 		      if (isRivalTokenKind(kind)) return kit2dEditorDataUrlsBySlot[slot] || kit2dCanvasDataUrlsBySlot[slot] || '';
+		      // Portero: solo usa kit si hay uno ESPECÍFICO de portero. Si no, NO cae al kit de
+		      // campo (se vería igual que un jugador); devuelve '' y la ficha usa el portero genérico.
+		      if (slot === 'gk') return kit2dEditorDataUrlsBySlot.gk || kit2dCanvasDataUrlsBySlot.gk || '';
 		      return kit2dEditorDataUrlsBySlot[slot] || kit2dEditorDataUrlsBySlot.home || kit2dCanvasDataUrlsBySlot[slot] || kit2dCanvasDataUrlsBySlot.home || kit2dEditorDataUrl || '';
 		    };
 		    const kit2dImageForTokenKind = (kind, overrideSlot = '') => {
 		      const slot = kit2dSlotForTokenKind(kind, overrideSlot);
 		      if (isRivalTokenKind(kind)) return kit2dCanvasImagesBySlot[slot] || kit2dEditorImagesBySlot[slot] || null;
+		      // Portero: idem, solo kit específico de portero; si no, portero genérico (no kit de campo).
+		      if (slot === 'gk') return kit2dCanvasImagesBySlot.gk || kit2dEditorImagesBySlot.gk || null;
 		      return kit2dCanvasImagesBySlot[slot] || kit2dCanvasImagesBySlot.home || kit2dEditorImagesBySlot[slot] || kit2dEditorImagesBySlot.home || kit2dEditorImageEl;
 		    };
 		    const applyKit2dDefaultTokenStyle = () => {
@@ -4132,7 +4139,10 @@
 		        // ignore
 		      }
 		    };
-		    runWhenIdle(() => { try { void loadKit2dTokensPreference(); } catch (e) { /* ignore */ } }, 650);
+		    // Precarga INMEDIATA del kit 2D del club. Antes iba con 650 ms de idle: si colocabas
+		    // fichas nada más abrir el editor, salían con la camiseta genérica hasta que cargaba.
+		    // Ahora se pide al abrir para que la ficha Camiseta muestre el kit real cuanto antes.
+		    try { void loadKit2dTokensPreference(); } catch (e) { /* ignore */ }
 
 		    // Assets extraídos de PDFs importados. El catálogo de iconos se ha eliminado,
 		    // pero seguimos renderizando cualquier `pdf_asset:<id>` existente en tareas previas.
@@ -4570,8 +4580,14 @@
             originY: 'center',
             scaleX: baseScale,
             scaleY: baseScale,
-            selectable: options.selectable === true,
-            evented: options.evented === true,
+            // Por defecto las imagenes-asset (avatares del panel JUGADORES, importadas, material,
+            // recursos PDF) deben poder seleccionarse y moverse como cualquier elemento. Antes se
+            // creaban con selectable/evented = false y normalizeEditableObject NO los reactiva
+            // (solo toca figuras de fondo), asi que quedaban "muertas": al clicar encima no pasaba
+            // nada. Ahora son interactivas por defecto; quien necesite un asset de fondo/no editable
+            // (p.ej. el kit2d incrustado en un token) pasa explicitamente selectable:false.
+            selectable: options.selectable !== false,
+            evented: options.evented !== false,
             angle: Number(options.angle) || 0,
             data,
           });
@@ -5395,11 +5411,21 @@
 		        normalizeArrowHead(object);
 		      }
 			      // Evita la caja azul de Fabric en los objetos de pizarra y escalados accidentales.
-			      const hideBoardSelectionChrome = !locked && !isTacticsMode && (!isBackground || !backgroundEdit);
-			      const hideTokenSelectionChrome = !locked && kind === 'token';
+			      // EXCEPTO en el editor 2D comercial (ed-chrome): allí SÍ queremos el recuadro de
+			      // selección (borde cian) para que se vea qué está seleccionado. El borde va
+			      // estilizado (cian), no es la "caja azul" fea de Fabric.
+			      const isEdChromeSel = (function(){ try { return !!document.body?.classList?.contains?.('ed-chrome'); } catch (e) { return false; } })();
+			      const hideBoardSelectionChrome = !locked && !isTacticsMode && !isEdChromeSel && (!isBackground || !backgroundEdit);
+			      const hideTokenSelectionChrome = !locked && kind === 'token' && !isEdChromeSel;
 			      const hideSelectionChrome = hideBoardSelectionChrome || hideTokenSelectionChrome;
+			      // IMPORTANTE: las FICHAS (jugador/portero/balón) en ed-chrome muestran el recuadro
+			      // pero NO los tiradores de resize. En una ficha pequeña, los tiradores ocupan casi
+			      // todo el borde: al intentar arrastrarla se agarraba un tirador y se redimensionaba
+			      // en vez de moverse ("no se puede mover"). El tamaño se ajusta con los presets del
+			      // inspector. Los elementos de pizarra (conos, flechas, figuras) sí llevan tiradores.
+			      const edChromeTokenBordersOnly = isEdChromeSel && kind === 'token' && !locked;
 			      object.set({
-			        hasControls: hideSelectionChrome ? false : !locked,
+			        hasControls: (hideSelectionChrome || edChromeTokenBordersOnly) ? false : !locked,
 			        hasBorders: hideSelectionChrome ? false : true,
 			        transparentCorners: false,
 			        cornerStyle: 'circle',
@@ -8041,6 +8067,103 @@
 	      syncInspector();
 		      refreshLivePreview();
 		      setStatus(axis === 'x' ? 'Distribución horizontal aplicada.' : 'Distribución vertical aplicada.');
+		    };
+		    // Alinear en línea recta y repartir en UNA sola acción (fila u columna).
+		    // Ideal para hileras de conos/picas: quedan perfectamente alineados y equidistantes.
+		    const alignInLine = (orientation) => {
+		      const objects = getSelectionObjects().filter((obj) => obj && !obj?.data?.locked);
+		      if (objects.length < 2) {
+		        setStatus('Selecciona al menos 2 elementos para alinear en línea.', true);
+		        return;
+		      }
+		      const isRow = orientation !== 'col';
+		      // Trabaja en coordenadas ABSOLUTAS: deshaz la selección múltiple para que
+		      // getCenterPoint()/setPositionByOrigin usen el lienzo y no el marco de la
+		      // selección. Si no, se mezclan sistemas de coordenadas y los elementos se
+		      // recolocan fuera del campo y el visual no refresca hasta deseleccionar.
+		      canvas.discardActiveObject();
+		      objects.forEach((obj) => obj.setCoords());
+		      const centers = objects.map((obj) => obj.getCenterPoint());
+		      const cx = centers.reduce((a, p) => a + p.x, 0) / centers.length;
+		      const cy = centers.reduce((a, p) => a + p.y, 0) / centers.length;
+		      const shared = isRow ? cy : cx;
+		      const items = objects
+		        .map((obj, i) => ({ obj, center: centers[i] }))
+		        .sort((a, b) => (isRow ? a.center.x - b.center.x : a.center.y - b.center.y));
+		      const firstC = items[0].center;
+		      const lastC = items[items.length - 1].center;
+		      const span = isRow ? (lastC.x - firstC.x) : (lastC.y - firstC.y);
+		      // Separación cómoda según el tamaño medio (para que no se solapen si venían apilados).
+		      const avgSize = items.reduce((acc, it) => {
+		        const w = typeof it.obj.getScaledWidth === 'function' ? it.obj.getScaledWidth() : (it.obj.width || 40);
+		        const h = typeof it.obj.getScaledHeight === 'function' ? it.obj.getScaledHeight() : (it.obj.height || 40);
+		        return acc + (isRow ? w : h);
+		      }, 0) / items.length;
+		      const minSpacing = Math.max(avgSize * 1.25, 24);
+		      let start = isRow ? firstC.x : firstC.y;
+		      let step;
+		      if (Math.abs(span) < minSpacing * (items.length - 1) * 0.5) {
+		        // Estaban casi apilados: los abanicamos centrados en el centroide.
+		        step = minSpacing;
+		        start = (isRow ? cx : cy) - (step * (items.length - 1)) / 2;
+		      } else {
+		        step = span / (items.length - 1);
+		      }
+		      items.forEach((item, index) => {
+		        const spreadVal = start + step * index;
+		        const next = isRow ? new fabric.Point(spreadVal, shared) : new fabric.Point(shared, spreadVal);
+		        item.obj.setPositionByOrigin(next, 'center', 'center');
+		        item.obj.setCoords();
+		      });
+		      // Reselecciona el grupo para poder seguir operando y refrescar el visual.
+		      if (objects.length > 1) { canvas.setActiveObject(new fabric.ActiveSelection(objects, { canvas })); }
+		      else { canvas.setActiveObject(objects[0]); }
+		      canvas.requestRenderAll();
+		      pushHistory();
+		      syncInspector();
+		      refreshLivePreview();
+		      setStatus(isRow ? 'Alineados en fila y repartidos.' : 'Alineados en columna y repartidos.');
+		    };
+		    // Ordenar la selección en una cuadrícula NxM (útil para rondos/escaleras de conos).
+		    const arrangeInGrid = (cols) => {
+		      const objects = getSelectionObjects().filter((obj) => obj && !obj?.data?.locked);
+		      if (objects.length < 3) {
+		        setStatus('Selecciona al menos 3 elementos para la cuadrícula.', true);
+		        return;
+		      }
+		      const n = objects.length;
+		      const columns = Math.max(1, Math.min(Math.round(cols) || Math.ceil(Math.sqrt(n)), n));
+		      const rows = Math.ceil(n / columns);
+		      // Coordenadas absolutas (ver alignInLine): deshaz la selección múltiple.
+		      canvas.discardActiveObject();
+		      objects.forEach((obj) => obj.setCoords());
+		      const centers = objects.map((o) => o.getCenterPoint());
+		      const xs = centers.map((c) => c.x);
+		      const ys = centers.map((c) => c.y);
+		      const minX = Math.min.apply(null, xs);
+		      const maxX = Math.max.apply(null, xs);
+		      const minY = Math.min.apply(null, ys);
+		      const maxY = Math.max.apply(null, ys);
+		      const avgW = objects.reduce((a, o) => a + (typeof o.getScaledWidth === 'function' ? o.getScaledWidth() : (o.width || 40)), 0) / n;
+		      const avgH = objects.reduce((a, o) => a + (typeof o.getScaledHeight === 'function' ? o.getScaledHeight() : (o.height || 40)), 0) / n;
+		      const stepX = columns > 1 ? Math.max((maxX - minX) / (columns - 1), avgW * 1.25) : 0;
+		      const stepY = rows > 1 ? Math.max((maxY - minY) / (rows - 1), avgH * 1.25) : 0;
+		      const sorted = objects
+		        .map((obj) => ({ obj, c: obj.getCenterPoint() }))
+		        .sort((a, b) => (a.c.y - b.c.y) || (a.c.x - b.c.x));
+		      sorted.forEach((item, i) => {
+		        const r = Math.floor(i / columns);
+		        const cc = i % columns;
+		        const next = new fabric.Point(minX + stepX * cc, minY + stepY * r);
+		        item.obj.setPositionByOrigin(next, 'center', 'center');
+		        item.obj.setCoords();
+		      });
+		      canvas.setActiveObject(new fabric.ActiveSelection(objects, { canvas }));
+		      canvas.requestRenderAll();
+		      pushHistory();
+		      syncInspector();
+		      refreshLivePreview();
+		      setStatus(`Cuadrícula ${columns}×${rows} aplicada.`);
 		    };
 		    const cloneObjectAsync = (obj) => new Promise((resolve) => {
 		      try {
@@ -28839,7 +28962,8 @@
         try { schedulePlayerBankUpdate(); } catch (e) { /* ignore */ }
       }, { sourceWidth, sourceHeight });
     };
-	    const pushHistory = () => {
+	    // Guarda el snapshot AHORA (uso interno; los callers usan pushHistory, que agrupa).
+	    const pushHistoryNow = () => {
 	      if (isSimulating) return;
 	      const snapshot = JSON.stringify(serializeState());
 	      if (historyIndex >= 0 && history[historyIndex] === snapshot) return;
@@ -28854,8 +28978,21 @@
         historyIndex = Math.max(0, historyIndex - drop);
       }
     };
+    // pushHistory con DEBOUNCE: una misma acción dispara varias veces (p. ej. un drop llama a
+    // pushHistory desde addObject y desde el handler object:added; un arrastre desde object:modified).
+    // Agrupando en ~170 ms, cada acción del usuario = UNA entrada de historial. Antes se creaban 2+
+    // entradas casi idénticas por acción, así que el primer "Deshacer" revertía a un estado igual
+    // (parecía que no hacía nada). No toca serializeState → Guardar y la línea de tiempo intactos.
+    let __historyPushTimer = null;
+    const cancelPendingHistory = () => { if (__historyPushTimer) { clearTimeout(__historyPushTimer); __historyPushTimer = null; } };
+    const pushHistory = () => {
+      if (isSimulating) return;
+      cancelPendingHistory();
+      __historyPushTimer = setTimeout(() => { __historyPushTimer = null; try { pushHistoryNow(); } catch (e) { /* ignore */ } }, 170);
+    };
 
     const performUndo = () => {
+      cancelPendingHistory(); // evita que un push pendiente se cuele DESPUÉS del undo
       if (historyIndex <= 0) return false;
       historyIndex -= 1;
       applySerializedState(JSON.parse(history[historyIndex]));
@@ -28864,6 +29001,7 @@
     };
 
     const performRedo = () => {
+      cancelPendingHistory();
       if (historyIndex < 0 || historyIndex >= history.length - 1) return false;
       historyIndex += 1;
       applySerializedState(JSON.parse(history[historyIndex]));
@@ -30291,12 +30429,72 @@
       const im = new Image();
       __avatarImgCache.set(url, im);
       try { im.decoding = 'async'; } catch (e) { /* ignore */ }
+      // Al terminar de cargar, "sube" el avatar a las fichas que se colocaron ANTES de que la
+      // imagen estuviera lista (se pintaron con el muñeco de fallback y no volverían a mostrar la
+      // figura real). Esto arregla "no se muestran todos los jugadores al arrastrar".
+      im.onload = () => { try { upgradeTokensAwaitingAvatar(url); } catch (e) { /* ignore */ } };
       try { im.src = url; } catch (e) { /* ignore */ }
       return im;
     };
     const getReadyAvatarImage = (url) => {
       const im = url ? __avatarImgCache.get(url) : null;
       return (im && im.complete && (im.naturalWidth || im.width)) ? im : null;
+    };
+    // Inyecta la figura HD (avatar) en un token YA colocado que sólo tenía el muñeco de fallback.
+    // Réplica de la composición del build (avatar + chip de dorsal) y de window.__tpadSetAvatarStyle.
+    const injectAvatarIntoGroup = (grp, el) => {
+      try {
+        if (!grp || !Array.isArray(grp._objects)) return false;
+        if (grp._objects.some((o) => o && o.data && o.data.role === 'token_avatar')) return false;
+        if (!el || !el.complete || !(el.naturalWidth || el.width)) return false;
+        const kind = safeText(grp?.data?.token_kind || grp?.data?.kind);
+        const isGk = kind.indexOf('goalkeeper') >= 0;
+        const label = safeText(grp?.data?.playerNumber, isGk ? 'GK' : 'J');
+        const scale = 52 / Math.max(1, el.naturalHeight || el.height || 1);
+        const img = new fabric.Image(el, { left: 0, top: 2, originX: 'center', originY: 'center', selectable: false, evented: false, scaleX: scale, scaleY: scale });
+        try { applyRenderableQuality(img, { strokeUniform: false }); } catch (e) { /* ignore */ }
+        img.data = { role: 'token_avatar' };
+        grp.add(img);
+        const numBg = new fabric.Circle({ radius: 8.5, fill: 'rgba(2,6,23,0.82)', stroke: 'rgba(255,255,255,0.92)', strokeWidth: 1.6, originX: 'center', originY: 'center', left: 0, top: 26, selectable: false, evented: false });
+        numBg.data = { role: 'token_number_bg' };
+        grp.add(numBg);
+        const numTxt = new fabric.Text(isGk ? 'GK' : label, { originX: 'center', originY: 'center', left: 0, top: 26, fontSize: 9.6, fontWeight: '900', fill: '#f8fafc', selectable: false, evented: false });
+        numTxt.data = { role: 'token_number' };
+        grp.add(numTxt);
+        // El nombre debe quedar por encima de la figura.
+        grp._objects.filter((o) => o && o.data && ['token_name_bg', 'token_name'].indexOf(o.data.role) >= 0).forEach((o) => { grp.remove(o); grp.add(o); });
+        grp.dirty = true;
+        return true;
+      } catch (e) { return false; }
+    };
+    // URL de avatar que le corresponde a una ficha (misma lógica que el build en 30848).
+    const avatarUrlForTokenGroup = (grp) => {
+      try {
+        const d = grp && grp.data; if (!d) return '';
+        if (!Array.isArray(grp._objects)) return '';
+        // Sólo fichas tipo avatar/figura (las que llevan el muñeco de fallback).
+        if (!grp._objects.some((o) => o && o.data && o.data.role === 'token_sprite')) return '';
+        const st = d.token_style; const kind = d.token_kind; const stripe = d.token_stripe_color || '';
+        return (st === 'photo')
+          ? (resolvePlayerPhotoUrl(d.playerPhotoUrl) || resolveAvatarUrlForToken(kind, stripe))
+          : resolveAvatarUrlForToken(kind, stripe);
+      } catch (e) { return ''; }
+    };
+    const upgradeTokensAwaitingAvatar = (url) => {
+      if (!url) return;
+      const el = getReadyAvatarImage(url); if (!el) return;
+      let changed = 0;
+      try {
+        const objs = (canvas && typeof canvas.getObjects === 'function') ? canvas.getObjects() : [];
+        objs.forEach((grp) => {
+          if (!grp || !grp.data || grp.data.kind !== 'token') return;
+          if (!Array.isArray(grp._objects)) return;
+          if (grp._objects.some((o) => o && o.data && o.data.role === 'token_avatar')) return;
+          if (avatarUrlForTokenGroup(grp) !== url) return;
+          if (injectAvatarIntoGroup(grp, el)) changed += 1;
+        });
+      } catch (e) { /* ignore */ }
+      if (changed) { try { canvas.requestRenderAll(); } catch (e) { /* ignore */ } }
     };
     const preloadAllAvatars = () => {
       try {
@@ -30306,6 +30504,10 @@
         Object.keys(AVATAR_GK_COLORS).forEach((c) => gkPoses.forEach((p) => ensureAvatarImage(`${AVATAR_BASE_URL}act-gk-${p}-${c}.png`)));
       } catch (e) { /* ignore */ }
     };
+    // Inmediato: arranca las descargas de avatares YA, para que estén listas cuando el usuario
+    // arrastre una ficha (evita que se coloque con el muñeco de fallback). El onload de cada
+    // imagen, además, sube la figura a las fichas que se colocaron antes de tiempo.
+    try { preloadAllAvatars(); } catch (e) { /* ignore */ }
     try {
       if (window.requestIdleCallback) window.requestIdleCallback(preloadAllAvatars, { timeout: 2500 });
       else setTimeout(preloadAllAvatars, 800);
@@ -31554,6 +31756,19 @@
         nameText.data = { role: 'token_name' };
 	        tokenParts.push(nameText);
 	      }
+		      // Badge de valoración (nota última evaluación cerrada). Dentro del disco para no
+		      // agrandar el bbox (eso rompía el arrastre/selección de fichas).
+		      const ratingValue = (player && player.rating != null && Number.isFinite(Number(player.rating)))
+		        ? Number(player.rating) : null;
+		      if (ratingValue != null) {
+		        const rTierFill = ratingValue >= 7 ? '#16a34a' : (ratingValue >= 5 ? '#d97706' : '#dc2626');
+		        const rCx = baseRadius * 0.6; const rCy = -baseRadius * 0.6;
+		        const rCircle = new fabric.Circle({ radius: 8.5, left: rCx, top: rCy, originX: 'center', originY: 'center', fill: rTierFill, stroke: '#f8fafc', strokeWidth: 1.4, visible: ratingsVisible });
+		        rCircle.data = { role: 'token_rating' };
+		        const rText = new fabric.Text((Math.round(ratingValue * 10) / 10).toString(), { left: rCx, top: rCy, originX: 'center', originY: 'center', fontSize: 9, fontWeight: '700', fill: '#ffffff', visible: ratingsVisible });
+		        rText.data = { role: 'token_rating' };
+		        tokenParts.push(rCircle); tokenParts.push(rText);
+		      }
 		      const group = new fabric.Group(tokenParts, {
 	        left,
 	        top,
@@ -31561,6 +31776,9 @@
 	        originY: 'center',
 		        data: {
 			          kind: 'token',
+			          token_rating: ratingValue,
+			          token_estado: safeText(player?.estado),
+			          token_scouted: !!(player && player.is_scouted),
 			          token_kind: kind,
 			          token_base_radius: baseRadius,
 			          token_size: 'm',
@@ -33592,6 +33810,7 @@
 		    }
 		    let playerBankUpdateTimer = null;
         let rosterViewFilter = 'all';
+        let rosterStatusFilter = 'all';
 		    const updatePlayerBankVisibility = () => {
 		      if (!playerBank) return;
 		      const used = hideUsedPlayersEnabled ? computeUsedPlayerIds() : new Set();
@@ -33609,6 +33828,11 @@
           if (!quickBar) return;
           Array.from(quickBar.querySelectorAll('button[data-roster-filter]') || []).forEach((btn) => {
             const active = safeText(btn.dataset.rosterFilter) === rosterViewFilter;
+            btn.classList.toggle('is-active', active);
+            try { btn.setAttribute('aria-pressed', active ? 'true' : 'false'); } catch (e) { /* ignore */ }
+          });
+          Array.from(quickBar.querySelectorAll('button[data-roster-status]') || []).forEach((btn) => {
+            const active = safeText(btn.dataset.rosterStatus) === rosterStatusFilter;
             btn.classList.toggle('is-active', active);
             try { btn.setAttribute('aria-pressed', active ? 'true' : 'false'); } catch (e) { /* ignore */ }
           });
@@ -33756,6 +33980,9 @@
           } else if (rosterViewFilter === 'goalkeepers') {
             roster = roster.filter((p) => isGoalkeeperPlayer(p));
           }
+          if (rosterStatusFilter && rosterStatusFilter !== 'all') {
+            roster = roster.filter((p) => safeText(p?.estado) === rosterStatusFilter);
+          }
 		      if (onlyConfirmedPlayersEnabled && confirmedPlayerIdSet.size > 0) {
 		        roster = roster.filter((p) => confirmedPlayerIdSet.has(String(p?.id || '')));
 		      }
@@ -33786,6 +34013,9 @@
 		        button.type = 'button';
 		        button.className = 'player-token-bank';
 		        button.dataset.playerId = String(player.id || '');
+		        button.dataset.estado = String(player?.estado || '');
+		        button.dataset.scouted = (player && player.is_scouted) ? '1' : '0';
+		        if (player && player.is_scouted) button.classList.add('is-scouted');
 		        // Precarga la foto real del jugador para poder pintarla SINCRONA (estilo Foto).
 		        try { ensureAvatarImage(resolvePlayerPhotoUrl(player?.photo_url)); } catch (e) { /* ignore */ }
 			        const copy = document.createElement('span');
@@ -33891,6 +34121,22 @@
               visuals.appendChild(jerseyPreview);
               visuals.appendChild(photoPreview);
               visuals.appendChild(figurePreview);
+              // Badge de valoración (visible con el toggle "Ver notas") + marca de ojeado.
+              const bankRating = (player && player.rating != null && Number.isFinite(Number(player.rating))) ? Number(player.rating) : null;
+              if (bankRating != null) {
+                const ratingBadge = document.createElement('span');
+                ratingBadge.className = 'token-rating-badge ' + (bankRating >= 7 ? 'is-good' : (bankRating >= 5 ? 'is-mid' : 'is-low'));
+                ratingBadge.textContent = (Math.round(bankRating * 10) / 10).toString();
+                ratingBadge.setAttribute('aria-hidden', 'true');
+                visuals.appendChild(ratingBadge);
+              }
+              if (player && player.is_scouted) {
+                const scoutFlag = document.createElement('span');
+                scoutFlag.className = 'token-scout-flag';
+                scoutFlag.textContent = '👁';
+                scoutFlag.title = 'Ojeado';
+                visuals.appendChild(scoutFlag);
+              }
               copy.appendChild(name);
               copy.appendChild(meta);
 	        button.appendChild(visuals);
@@ -33926,6 +34172,13 @@
             renderPlayerBank();
             return;
           }
+          const statusBtn = event.target.closest('button[data-roster-status]');
+          if (statusBtn) {
+            event.preventDefault();
+            rosterStatusFilter = safeText(statusBtn.dataset.rosterStatus) || 'all';
+            renderPlayerBank();
+            return;
+          }
           const styleBtn = event.target.closest('button[data-bank-style]');
           if (styleBtn) {
             event.preventDefault();
@@ -33937,6 +34190,33 @@
             setStatus(`Estilo de fichas: ${tokenStyleLabel(tokenGlobalStyle)}.`);
           }
         });
+	    const showRatingsToggle = document.getElementById('task-show-ratings');
+	    const rosterBankEl = document.getElementById('task-roster-bank');
+	    const applyCanvasRatingsVisibility = () => {
+	      try {
+	        (canvas?.getObjects?.() || []).forEach((obj) => {
+	          if (!obj || obj.type !== 'group' || !obj.data || obj.data.kind !== 'token') return;
+	          let touched = false;
+	          (obj.getObjects?.() || []).forEach((sub) => {
+	            if (sub && sub.data && sub.data.role === 'token_rating') { sub.set('visible', ratingsVisible); touched = true; }
+	          });
+	          if (touched) obj.dirty = true;
+	        });
+	        canvas?.requestRenderAll?.();
+	      } catch (e) { /* ignore */ }
+	    };
+	    const applyRatingsUi = () => {
+	      try { rosterBankEl?.classList.toggle('show-ratings', ratingsVisible); } catch (e) { /* ignore */ }
+	      applyCanvasRatingsVisibility();
+	    };
+	    if (showRatingsToggle) {
+	      ratingsVisible = !!showRatingsToggle.checked;
+	      applyRatingsUi();
+	      showRatingsToggle.addEventListener('change', () => {
+	        ratingsVisible = !!showRatingsToggle.checked;
+	        applyRatingsUi();
+	      });
+	    }
 	    const selectTimelineStep = (index) => {
 	      if (index < 0 || index >= timeline.length) return;
 	      if (playbackTimer) return;
@@ -37149,6 +37429,10 @@
 	      }
 	      if (action === 'undo') return performUndo();
 	      if (action === 'redo') return performRedo();
+	      if (action === 'align_row') { alignInLine('row'); return true; }
+	      if (action === 'align_col') { alignInLine('col'); return true; }
+	      if (action === 'arrange_grid') { arrangeInGrid(0); return true; }
+	      if (action === 'grid_snap_toggle') { toggleGridSnap(); return true; }
       if (action === 'delete') {
 	        const active = canvas.getActiveObject();
 	        if (!active) {
@@ -37565,6 +37849,9 @@
               // Globales para cablear barras de herramientas externas (rail izquierdo del editor).
               try { window.__tpadActivateTool = (kind) => activateAddKind(kind, { fromQuickbar: true }); } catch (e) { /* ignore */ }
               try { window.__tpadCanvasAction = (action) => handleCanvasAction(action); } catch (e) { /* ignore */ }
+              // Editor 2D: "Centrar" real. Resetea el paneo del viewport; el centro base se
+              // recalcula solo en applyViewportTransformToWorld, así que el contenido queda centrado.
+              try { window.__tpadCenterViewport = () => { try { viewportPanX = 0; viewportPanY = 0; applyViewportTransformToWorld(); } catch (e) { /* ignore */ } }; } catch (e) { /* ignore */ }
               // Editor 2D: cambia la pose/equipacion del avatar de la(s) ficha(s) seleccionada(s).
               try {
                 window.__tpadSetAvatarStyle = (pose, color, gkPose, gkColor) => {
@@ -37597,6 +37884,30 @@
                     if (changed) { try { canvas.requestRenderAll(); } catch (e) { /* ignore */ } }
                     return changed;
                   } catch (e) { return 0; }
+                };
+              } catch (e) { /* ignore */ }
+
+              // Editor 2D: coloca un jugador del banco en su SEGUNDA equipación (visitante) con el
+              // estilo dado (chapa/camiseta/figura/avatar). Reutiliza el kind 'player_away'. La carcasa
+              // 2D lo llama desde el desplegable de la lista de plantilla. Foto no usa equipación.
+              try {
+                window.__tpadInsertPlayerAway = (playerId, style) => {
+                  try {
+                    const el = playerBank ? playerBank.querySelector('button.player-token-bank[data-player-id="' + playerId + '"]') : null;
+                    const nameEl = el ? el.querySelector('.token-name') : null;
+                    const numEl = el ? el.querySelector('.token-number') : null;
+                    const isGk = !!(el && el.querySelector('.is-goalkeeper'));
+                    const minP = {
+                      id: playerId,
+                      name: nameEl ? safeText(nameEl.textContent).trim() : '',
+                      number: numEl ? safeText(numEl.textContent).replace(/[^0-9]/g, '') : '',
+                    };
+                    const kind = isGk ? 'goalkeeper_local' : 'player_away';
+                    const st = normalizeTokenStyle(style || tokenGlobalStyle);
+                    const factory = playerTokenFactory(kind, minP, { style: st });
+                    activateFactory(factory, safeText(minP.name, 'el jugador'), kind);
+                    return true;
+                  } catch (e) { return false; }
                 };
               } catch (e) { /* ignore */ }
 
@@ -37822,25 +38133,32 @@
 	                  const key = safeText(ev.key);
 	                  const isDel = key === 'Backspace' || key === 'Delete';
 	                  if (!isDel) return;
-	                  try { ev.preventDefault(); } catch (e) { /* ignore */ }
-	                  try { ev.stopPropagation(); } catch (e) { /* ignore */ }
+	                  // Solo interceptamos Supr/Borrar para RUTAS cuando el elemento
+	                  // seleccionado realmente tiene rutas. Si no las tiene, NO cortamos
+	                  // la propagación: dejamos que el atajo de borrado de elemento
+	                  // (handleCanvasAction('delete') en el keydown de burbuja) elimine la
+	                  // figura. Antes se hacía preventDefault()+stopPropagation() SIEMPRE,
+	                  // por lo que las fichas sin rutas no se podían borrar con la tecla.
+	                  const hasRoutes = (obj) => !!(obj && Array.isArray(obj?.data?.interactive_routes) && obj.data.interactive_routes.length);
 	                  if (ev.shiftKey) {
+	                    const anyRoute = (canvas.getObjects() || []).some((o) => o && isTokenLike(o) && hasRoutes(o));
+	                    if (!anyRoute) return; // sin rutas: deja pasar (borrado normal)
+	                    try { ev.preventDefault(); } catch (e) { /* ignore */ }
+	                    try { ev.stopPropagation(); } catch (e) { /* ignore */ }
 	                    clearInteractiveRoutes();
 	                    return;
 	                  }
 	                  const active = canvas.getActiveObject?.();
+	                  let routeTarget = null;
 	                  if (active && safeText(active?.type) === 'activeSelection' && Array.isArray(active?._objects) && active._objects.length) {
-	                    const first = active._objects.find((o) => o && isTokenLike(o)) || null;
-	                    if (first) {
-	                      removeLastInteractiveRouteForObject(first);
-	                      return;
-	                    }
+	                    routeTarget = active._objects.find((o) => o && isTokenLike(o) && hasRoutes(o)) || null;
+	                  } else if (active && isTokenLike(active) && hasRoutes(active)) {
+	                    routeTarget = active;
 	                  }
-	                  if (active && isTokenLike(active)) {
-	                    removeLastInteractiveRouteForObject(active);
-	                    return;
-	                  }
-	                  setStatus('Selecciona una ficha (o el balón) para borrar su última ruta.');
+	                  if (!routeTarget) return; // sin rutas que borrar: deja pasar (borrado normal)
+	                  try { ev.preventDefault(); } catch (e) { /* ignore */ }
+	                  try { ev.stopPropagation(); } catch (e) { /* ignore */ }
+	                  removeLastInteractiveRouteForObject(routeTarget);
 	                }, true);
 	              } catch (e) { /* ignore */ }
 
@@ -38976,7 +39294,8 @@
 				      }
 				      if (!isMod && key === 'g') {
 				        event.preventDefault();
-				        toggleGridVisible();
+				        if (isShift) toggleGridSnap(); // Shift+G: imantar a la rejilla al mover
+				        else toggleGridVisible();
 				        return;
 				      }
 				      if (!isMod && key === 'h') {
@@ -39090,6 +39409,21 @@
           if (did) event.preventDefault();
           return;
         }
+	      if (isMod && isShift && key === 'h') { // Cmd/Ctrl+Shift+H: alinear en fila (+ repartir)
+	        event.preventDefault();
+	        handleCanvasAction('align_row');
+	        return;
+	      }
+	      if (isMod && isShift && key === 'k') { // Cmd/Ctrl+Shift+K: alinear en columna (+ repartir)
+	        event.preventDefault();
+	        handleCanvasAction('align_col');
+	        return;
+	      }
+	      if (isMod && isShift && key === 'l') { // Cmd/Ctrl+Shift+L: ordenar en cuadrícula
+	        event.preventDefault();
+	        handleCanvasAction('arrange_grid');
+	        return;
+	      }
 	      if (isMod && key === 'd') {
 	        event.preventDefault();
 	        duplicateActiveObject();

@@ -64,6 +64,27 @@
   <button type="button" class="edc-btn edc-save" data-edc="save"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h7V3M8 21v-6h8v6"/></svg>Guardar</button>
 </div>
 
+<!-- Barra de alineación/orden: aparece al seleccionar elementos. Cablea a __tpadCanvasAction. -->
+<div class="edc-align" id="edc-align" role="toolbar" aria-label="Alinear y ordenar la selección">
+  <span class="edc-align-title">Alinear</span>
+  <button type="button" class="edc-align-btn" data-edc-align="row" title="Alinear en fila y repartir · Cmd/Ctrl+Shift+H">
+    <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2.5" y="9.5" width="5" height="5" rx="1.2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1.2"/><rect x="16.5" y="9.5" width="5" height="5" rx="1.2"/></svg>
+    <span>Fila</span>
+  </button>
+  <button type="button" class="edc-align-btn" data-edc-align="col" title="Alinear en columna y repartir · Cmd/Ctrl+Shift+K">
+    <svg viewBox="0 0 24 24" fill="currentColor"><rect x="9.5" y="2.5" width="5" height="5" rx="1.2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1.2"/><rect x="9.5" y="16.5" width="5" height="5" rx="1.2"/></svg>
+    <span>Columna</span>
+  </button>
+  <button type="button" class="edc-align-btn" data-edc-align="grid" title="Ordenar en cuadrícula · Cmd/Ctrl+Shift+L">
+    <svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1.3"/><rect x="14" y="3" width="7" height="7" rx="1.3"/><rect x="3" y="14" width="7" height="7" rx="1.3"/><rect x="14" y="14" width="7" height="7" rx="1.3"/></svg>
+    <span>Cuadrícula</span>
+  </button>
+  <button type="button" class="edc-align-btn edc-align-snap" data-edc-align="snap" title="Imantar a la rejilla al mover · Shift+G" aria-pressed="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v16H4z"/><path d="M4 10h16M4 15h16M10 4v16M15 4v16"/></svg>
+    <span>Imán</span>
+  </button>
+</div>
+
 <div class="edc-mat-drawer" id="edc-mat-drawer">
   <div class="edc-mat-head"><strong>Elementos gráficos</strong><button type="button" class="edc-mat-close" data-edc="close-mat" aria-label="Cerrar">×</button></div>
   <div class="edc-mat-nav" id="edc-mat-nav"></div>
@@ -141,6 +162,17 @@
       try{ if(window.__webstatsTaskBuilderSetPreset) window.__webstatsTaskBuilderSetPreset(preset); }catch(e){}
     });
   });
+  // Barra de alineación/orden: cada botón invoca la acción del motor.
+  document.querySelectorAll('[data-edc-align]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var a = btn.getAttribute('data-edc-align');
+      var action = a==='row' ? 'align_row' : a==='col' ? 'align_col' : a==='grid' ? 'arrange_grid' : a==='snap' ? 'grid_snap_toggle' : '';
+      if(!action) return;
+      try{ if(window.__tpadCanvasAction) window.__tpadCanvasAction(action); }catch(e){}
+      // El botón de imán refleja su estado (encendido/apagado) localmente.
+      if(a==='snap'){ btn.classList.toggle('is-active'); try{ btn.setAttribute('aria-pressed', btn.classList.contains('is-active')?'true':'false'); }catch(e){} }
+    });
+  });
   // -------- Tamaño del campo (redimensionado real, tipo "ventana") --------
   // Usamos el mecanismo NATIVO del motor: los botones pitch-size-up/down/fit cambian el
   // factor de tamaño del stage (--stage-max-user), que redimensiona el campo COMPLETO
@@ -163,21 +195,53 @@
     if(_szLbl){ new MutationObserver(edcSyncSizeLabel).observe(_szLbl, {childList:true, characterData:true, subtree:true}); }
     setTimeout(edcSyncSizeLabel, 400);
   }catch(e){}
+  // Entrar/salir del modo "solo campo" (presentación): ocultamos el chrome del propio skin
+  // (topbar/rail/bottombar) con la clase edc-present. Antes se proxyclicaba un botón legacy
+  // (task-focus-toggle) que ya no oculta nada del skin, por eso no hacía nada.
+  var setPresent = function(on){
+    document.body.classList.toggle('edc-present', !!on);
+    try{
+      var seg=document.querySelector('[data-edc-group="focus"]');
+      if(seg){ var wide=seg.querySelector('[data-edc="wide"]'); var op=seg.querySelector('[data-edc="only_pitch"]');
+        if(wide) wide.classList.toggle('is-active', !on); if(op) op.classList.toggle('is-active', !!on); }
+    }catch(e){}
+  };
+  // Botón flotante para salir del modo presentación (el topbar queda oculto).
+  try{
+    var exitBtn=document.createElement('button'); exitBtn.type='button'; exitBtn.id='edc-present-exit'; exitBtn.className='edc-present-exit';
+    exitBtn.textContent='✕ Salir'; exitBtn.title='Salir del modo presentación';
+    exitBtn.addEventListener('click', function(){ setPresent(false); });
+    document.body.appendChild(exitBtn);
+  }catch(e){}
+  // Refleja el % de ZOOM real en el botón central (antes reflejaba el tamaño del campo).
+  var edcSyncZoomLabel = function(){
+    try{
+      var lbl = document.getElementById('pitch-zoom-label') || document.getElementById('pitch-size-label');
+      var rb = document.querySelector('[data-edc="zoom_reset"]');
+      if(lbl && rb){ var m=String(lbl.textContent||'').match(/(\d+)\s*%/); rb.textContent = m ? (m[1]+'%') : '100%'; }
+    }catch(e){}
+  };
+  try{
+    var _zl=document.getElementById('pitch-zoom-label');
+    if(_zl){ new MutationObserver(edcSyncZoomLabel).observe(_zl,{childList:true,characterData:true,subtree:true}); }
+    setTimeout(edcSyncZoomLabel, 420);
+  }catch(e){}
+  var edcZoom = function(id){ proxyClick(id); setTimeout(edcSyncZoomLabel, 30); };
   // Barra superior + acciones.
   var actions = {
-    fit: function(){ edcSize('pitch-size-fit'); },
-    center: function(){ edcSize('pitch-size-fit'); },
-    zoom_in: function(){ edcSize('pitch-size-up'); },
-    zoom_out: function(){ edcSize('pitch-size-down'); },
-    zoom_reset: function(){ edcSize('pitch-size-fit'); },
-    reset: function(){ edcSize('pitch-size-fit'); },
-    wide: function(this_btn){ setActive('focus', this_btn); document.body.classList.remove('task-focus-mode'); },
-    only_pitch: function(this_btn){ setActive('focus', this_btn); proxyClick('task-focus-toggle'); },
+    fit: function(){ edcSize('pitch-size-fit'); },                                  // ajustar tamaño del campo a la ventana
+    center: function(){ try{ if(window.__tpadCenterViewport) window.__tpadCenterViewport(); }catch(e){} }, // centrar contenido (reset paneo)
+    zoom_in: function(){ edcZoom('pitch-zoom-in'); },                               // ZOOM real (viewport)
+    zoom_out: function(){ edcZoom('pitch-zoom-out'); },
+    zoom_reset: function(){ edcZoom('pitch-zoom-reset'); },                         // zoom al 100%
+    reset: function(){ edcZoom('pitch-zoom-reset'); try{ if(window.__tpadCenterViewport) window.__tpadCenterViewport(); }catch(e){} edcSize('pitch-size-fit'); }, // reset completo: zoom + centro + tamaño
+    wide: function(this_btn){ setPresent(false); },
+    only_pitch: function(this_btn){ setPresent(true); },
     horizontal: function(this_btn){ setActive('orient', this_btn); setOrientation('landscape'); },
     vertical: function(this_btn){ setActive('orient', this_btn); setOrientation('portrait'); },
     undo: function(){ try{ if(window.__tpadCanvasAction) window.__tpadCanvasAction('undo'); }catch(e){} },
     redo: function(){ try{ if(window.__tpadCanvasAction) window.__tpadCanvasAction('redo'); }catch(e){} },
-    present: function(){ proxyClick('task-focus-toggle'); },
+    present: function(){ setPresent(true); },
     save: function(){ proxyClick('task-builder-save-top'); proxyClick('task-builder-save'); },
     menu: function(){ toggleMenu(); },
     more: function(){ toggleDrawer(); },
@@ -208,6 +272,7 @@
   // Jugadores de campo: 12 acciones x 4 colores de equipo.
   var EDC_AV_FIELD = { colors:['amarilla','blanca','turquesa','verde'], acts:[
     ['conduccion','Conducción'],['control','Control'],['defensa','Defensa'],
+    // Poses de espaldas: se usan las imágenes originales (IA) tal cual.
     ['esp-conducir','Conducir'],['esp-correr','Correr'],['esp-pie','Con el pie'],
     ['pase','Pase'],['remate','Remate'],['run','Carrera'],
     ['saque','Saque'],['sprint','Sprint'],['tiro','Tiro'] ] };
@@ -241,6 +306,7 @@
     grid.appendChild(strip);
   }
   // -------- Selector de POSE + EQUIPACIÓN del avatar (campo y portero) --------
+  // Poses de espaldas activas con las imágenes originales (IA) tal cual.
   var EDC_AV_POSES = [['conduccion','Conducción'],['control','Control'],['pase','Pase'],['remate','Remate'],['tiro','Tiro'],['sprint','Sprint'],['run','Carrera'],['defensa','Defensa'],['esp-conducir','Conducir'],['esp-correr','Correr'],['esp-pie','Con el pie'],['saque','Saque']];
   var EDC_AV_COLORS_F = [['verde','Verde'],['blanca','Blanca'],['amarilla','Amarilla'],['turquesa','Turquesa']];
   var EDC_AV_GK_POSES = [['frente','De frente'],['estirada','Estirada'],['salto','Salto']];
@@ -277,6 +343,82 @@
       grid.insertBefore(wrap, grid.firstChild);
     }catch(e){}
   }
+  // -------- Lista de plantilla: botón rectangular (dorsal + nombre) + desplegable de representación --------
+  // Reutiliza el motor existente: fija el estilo global de ficha y activa la inserción del jugador.
+  var EDC_REPS = [['disk','Chapa'],['jersey','Camiseta'],['figure','Figura'],['photo','Foto'],['sprite','Avatar']];
+  function edcSetGlobalStyle(style){ try{ var g=document.querySelector('#task-token-style-global button[data-global-token-style="'+style+'"]'); if(g) g.click(); }catch(e){} }
+  // Coloca al jugador con estilo (chapa/camiseta/figura/foto/avatar) y equipación (local/visitante).
+  // Foto NO usa equipación. Visitante = 2ª equipación (kind player_away) vía global expuesto por el motor.
+  function edcApplyRepresentation(pid, style, away){
+    try{
+      if(style==='photo'){ edcSetGlobalStyle('photo'); var pf=document.querySelector('#task-player-bank button.player-token-bank[data-player-id="'+pid+'"]'); if(pf) pf.click(); return; }
+      edcSetGlobalStyle(style);
+      if(style==='sprite'){ try{ window.__edcAvatar=window.__edcAvatar||{}; window.__edcAvatar.color=away?'amarilla':'verde'; window.__edcAvatar.gkColor=away?'magenta':'azul'; }catch(e){} }
+      if(away){ if(window.__tpadInsertPlayerAway) window.__tpadInsertPlayerAway(pid, style); }
+      else { var pl=document.querySelector('#task-player-bank button.player-token-bank[data-player-id="'+pid+'"]'); if(pl) pl.click(); }
+    }catch(e){}
+  }
+  function buildRosterList(grid){
+    try{
+      var bank=document.getElementById('task-player-bank'); if(!bank) return;
+      var items=Array.from(bank.querySelectorAll('button.player-token-bank'));
+      if(!items.length){ setTimeout(function(){ buildRosterList(grid); }, 250); return; } // banco aún no renderizado
+      var old=grid.querySelector('.edc-roster-list'); if(old) old.remove();
+      var host=document.createElement('div'); host.className='edc-roster-list';
+      // Barra global (opción A): fija la representación por defecto de TODOS; el desplegable de cada
+      // jugador la sobreescribe individualmente.
+      var gl=document.createElement('div'); gl.className='edc-roster-global';
+      var glLabel=document.createElement('span'); glLabel.className='edc-roster-global-label'; glLabel.textContent='Todos'; gl.appendChild(glLabel);
+      EDC_REPS.forEach(function(o){
+        var b=document.createElement('button'); b.type='button'; b.className='edc-roster-gbtn'+(o[0]==='jersey'?' is-active':''); b.textContent=o[1];
+        b.addEventListener('click', function(){
+          var g=document.querySelector('#task-token-style-global button[data-global-token-style="'+o[0]+'"]'); if(g) g.click();
+          Array.prototype.forEach.call(gl.querySelectorAll('.edc-roster-gbtn'), function(x){ x.classList.remove('is-active'); }); b.classList.add('is-active');
+        });
+        gl.appendChild(b);
+      });
+      host.appendChild(gl);
+      items.forEach(function(src){
+        var pid=src.getAttribute('data-player-id')||'';
+        var nameEl=src.querySelector('.token-name'); var name=nameEl?nameEl.textContent.trim():'';
+        var numEl=src.querySelector('.token-number'); var num=numEl?numEl.textContent.trim():'';
+        var isGK=!!src.querySelector('.is-goalkeeper');
+        var estado=(src.getAttribute('data-estado')||'').trim();
+        var row=document.createElement('div'); row.className='edc-roster-row';
+        var btn=document.createElement('button'); btn.type='button'; btn.className='edc-roster-btn';
+        if(estado==='lesionado') btn.classList.add('is-injured');
+        var sNum=document.createElement('span'); sNum.className='edc-roster-num'+(isGK?' is-gk':''); sNum.textContent=(isGK?'GK':(num||'–'));
+        var sName=document.createElement('span'); sName.className='edc-roster-name'; sName.textContent=name||'Jugador';
+        var sCaret=document.createElement('span'); sCaret.className='edc-roster-caret'; sCaret.textContent='▾';
+        btn.appendChild(sNum); btn.appendChild(sName); btn.appendChild(sCaret);
+        var menu=document.createElement('div'); menu.className='edc-rep-menu'; menu.hidden=true;
+        // Toggle de equipación (Local / Visitante). Aplica a todas las representaciones salvo Foto.
+        var awayState={ v:false };
+        var kitRow=document.createElement('div'); kitRow.className='edc-kit-toggle';
+        var kitLabel=document.createElement('span'); kitLabel.className='edc-kit-label'; kitLabel.textContent='Equipación'; kitRow.appendChild(kitLabel);
+        [['local','Local'],['away','Visitante']].forEach(function(k){
+          var kb=document.createElement('button'); kb.type='button'; kb.className='edc-kit-btn'+(k[0]==='local'?' is-active':''); kb.textContent=k[1];
+          kb.addEventListener('click', function(ev){ ev.stopPropagation(); awayState.v=(k[0]==='away'); Array.prototype.forEach.call(kitRow.querySelectorAll('.edc-kit-btn'), function(x){ x.classList.remove('is-active'); }); kb.classList.add('is-active'); });
+          kitRow.appendChild(kb);
+        });
+        menu.appendChild(kitRow);
+        var optsWrap=document.createElement('div'); optsWrap.className='edc-rep-opts';
+        EDC_REPS.forEach(function(o){
+          var mi=document.createElement('button'); mi.type='button'; mi.className='edc-rep-opt'+(o[0]==='photo'?' is-photo':''); mi.textContent=o[1];
+          mi.addEventListener('click', function(ev){ ev.stopPropagation(); menu.hidden=true; row.classList.remove('is-open'); edcApplyRepresentation(pid, o[0], (o[0]!=='photo') && awayState.v); });
+          optsWrap.appendChild(mi);
+        });
+        menu.appendChild(optsWrap);
+        btn.addEventListener('click', function(){
+          Array.prototype.forEach.call(host.querySelectorAll('.edc-roster-row.is-open'), function(r){ if(r!==row){ r.classList.remove('is-open'); var m=r.querySelector('.edc-rep-menu'); if(m) m.hidden=true; } });
+          var open=row.classList.toggle('is-open'); menu.hidden=!open;
+        });
+        row.appendChild(btn); row.appendChild(menu); host.appendChild(row);
+      });
+      grid.insertBefore(host, grid.firstChild);
+      var rb=document.getElementById('task-roster-bank'); if(rb) rb.classList.add('edc-roster-compact');
+    }catch(e){}
+  }
   // Rellena la pestaña de una categoria con el strip REAL. Reintenta si vino vacia (carga tardia).
   function grabStrip(cat){
     var grid=document.querySelector('#edc-mat-body .edc-mat-grid[data-cat="'+cat.key+'"]');
@@ -287,7 +429,7 @@
       // dejarlo huérfano al fondo de la página. El CSS lo envuelve para que quepa.
       var roster=document.getElementById('task-roster-bank');
       if(roster && !roster.closest('#edc-mat-body')){ roster.hidden=false; grid.appendChild(roster); }
-      try{ buildAvatarConfig(grid); }catch(e){}
+      try{ buildRosterList(grid); }catch(e){}
       return;
     }
     var current=grid.querySelector('.edc-real-strip');

@@ -184,6 +184,34 @@ body.ed-chrome #task-pitch-stage { box-shadow: 0 14px 44px rgba(0,0,0,.45); marg
 body.ed-chrome .resource-section.pitch-side { top: var(--edc-top); bottom: var(--edc-bottom); left: var(--edc-rail-w); }
 body.ed-chrome.edc-drawer-open .pitch-viewport { left: var(--edc-rail-w); } /* anula el desplazamiento anterior */
 
+/* ============================================================
+   Modo PRESENTACIÓN / SOLO CAMPO (clase edc-present en body)
+   Oculta el chrome del skin y expande el campo a toda la pantalla.
+   Antes "Solo campo"/"Presentación" proxyclicaban un toggle legacy que ya no
+   ocultaba nada del skin (por eso no hacían nada).
+   ============================================================ */
+body.ed-chrome.edc-present { --edc-top: 0px; --edc-bottom: 0px; --edc-rail-w: 0px; }
+body.ed-chrome.edc-present .edc-topbar,
+body.ed-chrome.edc-present .edc-rail,
+body.ed-chrome.edc-present .edc-bottombar,
+body.ed-chrome.edc-present #edc-align,
+/* Al ocultar el topbar del skin se asomaba el chrome legacy de debajo: lo ocultamos también. */
+body.ed-chrome.edc-present #task-mode-tabs,
+body.ed-chrome.edc-present #task-focus-exit { display: none !important; }
+body.ed-chrome.edc-present .pitch-main,
+body.ed-chrome.edc-present .pitch-viewport { top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; }
+/* Botón flotante para salir de presentación (solo visible en ese modo). */
+.edc-present-exit { display: none; }
+body.ed-chrome.edc-present .edc-present-exit {
+  display: inline-flex; align-items: center; gap: 6px;
+  position: fixed; top: 14px; right: 16px; z-index: 100000;
+  padding: 8px 14px; border-radius: 999px; cursor: pointer;
+  background: rgba(8,20,12,.82); color: #eafff0;
+  border: 1px solid var(--edc-accent, #37d05f);
+  font-size: 13px; font-weight: 700; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+}
+body.ed-chrome.edc-present .edc-present-exit:hover { background: rgba(8,20,12,.96); }
+
 /* Fuera adornos que restan protagonismo al campo */
 body.ed-chrome .tpad-support-fab,
 body.ed-chrome #task-assistant-fab,
@@ -336,10 +364,10 @@ body.ed-chrome .edc-mat-lbl em { display: block; font-style: normal; font-size: 
 body.ed-chrome .edc-mat-sub { grid-column: 1/4; font-size: 11px; font-weight: 700; color: var(--edc-muted); text-transform: uppercase; letter-spacing: .04em; margin: 10px 2px 2px; }
 /* Los strips reubicados (importados/emojis) dentro de extras: rejilla */
 body.ed-chrome .edc-mat-grid .resource-strip,
-body.ed-chrome .edc-mat-grid #task-emoji-tools { grid-column: 1/4; display: grid !important; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+body.ed-chrome .edc-mat-grid #task-emoji-tools { grid-column: 1/4; display: grid !important; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 body.ed-chrome .edc-mat-grid .resource-strip button,
 body.ed-chrome .edc-mat-grid #task-emoji-tools button { aspect-ratio: 1; border-radius: 10px; border: 1px solid var(--edc-line); background: #0e2416; color: var(--edc-ink); cursor: pointer; padding: 4px; font-size: 16px; }
-body.ed-chrome .edc-mat-grid img { max-width: 80%; max-height: 30px; }
+body.ed-chrome .edc-mat-grid img { max-width: 92%; max-height: 44px; }
 
 /* ============================================================
    CAJONES SEMITRANSPARENTES (cristal) · el campo nunca pierde protagonismo
@@ -452,14 +480,14 @@ body.ed-chrome .edc-mat-grid[data-cat="importados"] {
 }
 body.ed-chrome .edc-mat-grid[data-cat="emojis"] #task-emoji-tools,
 body.ed-chrome .edc-mat-grid[data-cat="importados"] .resource-strip {
-  grid-column: 1 / -1; display: grid !important; grid-template-columns: repeat(4, 1fr); gap: 5px;
+  grid-column: 1 / -1; display: grid !important; grid-template-columns: repeat(3, 1fr); gap: 6px;
 }
 body.ed-chrome .edc-mat-grid[data-cat="emojis"] #task-emoji-tools button,
 body.ed-chrome .edc-mat-grid[data-cat="importados"] .resource-strip button {
   aspect-ratio: 1; border-radius: 9px; border: 1px solid var(--edc-line); background: rgba(20,53,31,.72);
   color: var(--edc-ink); cursor: pointer; font-size: 17px; padding: 3px; display: flex; align-items: center; justify-content: center;
 }
-body.ed-chrome .edc-mat-grid[data-cat="importados"] .resource-strip img { max-width: 84%; max-height: 30px; }
+body.ed-chrome .edc-mat-grid[data-cat="importados"] .resource-strip img { max-width: 92%; max-height: 44px; }
 
 /* Pestaña Jugadores (avatares fotorrealistas): rejilla vertical con secciones.
    4 columnas = los 4 colores de equipo de cada acción alineados en una fila. */
@@ -558,8 +586,18 @@ body.ed-chrome .board-overlay-controls { display: none !important; }
 body.ed-chrome .edc-tool { font-size: 9.5px !important; letter-spacing: -.2px; }
 
 /* Inspector flotante (derecha) — aparece al seleccionar un elemento */
-body.ed-chrome .edc-inspector { position: fixed; top: calc(var(--edc-top,56px) + 12px); right: 12px; width: 270px; z-index: 46; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+/* z-index alto: el <main> del editor es position:fixed z-index:120 y crea contexto de
+   apilamiento; con z:46 el inspector de propiedades quedaba DETRÁS del campo (invisible),
+   por lo que no había forma de ver la selección ni de cambiar color/grosor/tamaño. */
+body.ed-chrome .edc-inspector { position: fixed; top: calc(var(--edc-top,56px) + 12px); right: 12px; width: 300px; z-index: 9993; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
 body.ed-chrome .edc-inspector > * { pointer-events: auto; }
+/* El contenido del inspector debe caber en el panel (si no, se corta por la derecha). */
+body.ed-chrome .edc-inspector #task-selection-toolbar,
+body.ed-chrome .edc-inspector #task-selection-dock { width: 100% !important; box-sizing: border-box !important; }
+body.ed-chrome .edc-inspector #task-selection-toolbar *,
+body.ed-chrome .edc-inspector #task-selection-dock * { max-width: 100% !important; }
+body.ed-chrome .edc-inspector .selection-grid { grid-template-columns: 1fr !important; }
+body.ed-chrome .edc-inspector input[type="range"] { width: 100% !important; }
 body.ed-chrome .edc-inspector #task-selection-toolbar:not([hidden]),
 body.ed-chrome .edc-inspector #task-selection-dock:not([hidden]) {
   position: static !important; display: block !important;
@@ -578,3 +616,220 @@ body.ed-chrome #edc-menu-body .surface-trigger,
 body.ed-chrome #edc-menu-body .board-overlay-controls a,
 body.ed-chrome #edc-menu-body button { border-radius: 9px; }
 body.ed-chrome #edc-menu-body .pitch-view-menu[open] { width: 100%; }
+
+/* ============================================================
+   CAJÓN DE MATERIAL · "TODO EN SU SITIO SIN SCROLL"
+   Reconfiguración del cajón para que cada categoría quepa sola,
+   sin apilar todas ni provocar scroll lateral.
+   ------------------------------------------------------------
+   PROBLEMA RAÍZ: cada categoría es un .edc-mat-grid con el atributo
+   [hidden] salvo la activa, pero la regla `.edc-mat-grid{display:grid}`
+   anula el `display:none` del atributo hidden -> las 10 categorías se
+   pintaban apiladas (scrollHeight ~2528px). Esta regla lo corrige:
+   ============================================================ */
+body.ed-chrome .edc-mat-grid[hidden] { display: none !important; }
+
+/* Las categorías "pesadas" (plantilla y jugadores/avatares) necesitan
+   algo más de ancho para que sus rejillas quepan sin scroll lateral.
+   El resto de categorías mantienen el cajón estrecho (176px). */
+body.ed-chrome .edc-mat-drawer:has(.edc-mat-grid[data-cat="plantilla"]:not([hidden])),
+body.ed-chrome .edc-mat-drawer:has(.edc-mat-grid[data-cat="avatares"]:not([hidden])) { width: 320px !important; }
+
+/* --- PLANTILLA: config que envuelve + roster en rejilla de 3 columnas --- */
+/* El grid de la categoría no debe expandirse con el min-content de sus hijos */
+body.ed-chrome .edc-mat-grid[data-cat="plantilla"] { grid-template-columns: 1fr !important; overflow: hidden !important; min-width: 0 !important; }
+body.ed-chrome .edc-mat-grid[data-cat="plantilla"] .edc-avcfg,
+body.ed-chrome .edc-mat-grid[data-cat="plantilla"] .edc-avcfg > * { min-width: 0 !important; }
+/* Las filas de equipación/poses envuelven en vez de scroll horizontal */
+body.ed-chrome .edc-mat-grid[data-cat="plantilla"] .edc-avcfg-row { flex-wrap: wrap !important; overflow-x: visible !important; }
+/* Banco de plantilla real: rejilla en vez de fila horizontal de 3777px */
+body.ed-chrome #edc-mat-body #task-roster-bank { display: block !important; width: 100% !important; min-width: 0 !important; max-width: 100% !important; }
+body.ed-chrome #edc-mat-body #task-roster-bank .player-bank {
+  display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 6px !important; width: 100% !important; min-width: 0 !important; overflow: visible !important;
+}
+body.ed-chrome #edc-mat-body #task-roster-bank .player-token-bank { width: 100% !important; min-width: 0 !important; box-sizing: border-box !important; }
+/* Las mini-previsualizaciones de estilo dentro de cada ficha envuelven (no desbordan) */
+body.ed-chrome #edc-mat-body #task-roster-bank .player-token-bank-visuals { flex-wrap: wrap !important; justify-content: center !important; }
+
+/* --- JUGADORES (avatares): tiras de 5 columnas + cabeceras finas => sin scroll --- */
+body.ed-chrome .edc-mat-grid[data-cat="avatares"] .edc-av-strip { grid-template-columns: repeat(5, 1fr) !important; gap: 4px !important; }
+body.ed-chrome .edc-mat-grid[data-cat="avatares"] .edc-av-head { margin: 4px 2px 1px !important; font-size: 9px !important; }
+
+/* ============================================================
+   BARRA DE ALINEACIÓN / ORDEN · aparece al seleccionar elementos
+   Botones: fila, columna, cuadrícula, imán(snap). Cablea a __tpadCanvasAction.
+   ============================================================ */
+body.ed-chrome .edc-align {
+  position: fixed; top: calc(var(--edc-top, 56px) + 10px); left: 50%;
+  transform: translateX(-50%) translateY(-6px);
+  display: flex; align-items: center; gap: 4px; z-index: 9992;
+  padding: 5px 8px; border-radius: 12px;
+  background: rgba(12, 30, 19, 0.72); border: 1px solid rgba(255, 255, 255, 0.14);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1); backdrop-filter: blur(14px) saturate(1.1);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.45);
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity .16s ease, transform .16s ease;
+}
+/* Visible cuando hay algo seleccionado en el tablero. */
+body.ed-chrome.task-board-has-selection .edc-align {
+  opacity: 1; visibility: visible; pointer-events: auto; transform: translateX(-50%) translateY(0);
+}
+body.ed-chrome .edc-align-title {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--edc-accent); padding: 0 4px 0 2px;
+}
+body.ed-chrome .edc-align-btn {
+  display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px; border-radius: 9px;
+  border: 1px solid var(--edc-line); background: rgba(20, 53, 31, 0.7); color: var(--edc-ink);
+  font-size: 11.5px; font-weight: 600; cursor: pointer; line-height: 1;
+}
+body.ed-chrome .edc-align-btn svg { width: 16px; height: 16px; flex: 0 0 auto; }
+body.ed-chrome .edc-align-btn:hover { border-color: var(--edc-accent); color: var(--edc-accent); transform: translateY(-1px); }
+body.ed-chrome .edc-align-btn.is-active { border-color: var(--edc-accent); color: var(--edc-accent); background: rgba(55, 208, 95, 0.16); }
+body.ed-chrome .edc-align-snap { margin-left: 4px; padding-left: 11px; border-left: 1px solid var(--edc-line); }
+/* En pantallas estrechas, solo iconos. */
+@media (max-width: 900px) {
+  body.ed-chrome .edc-align-btn span { display: none; }
+  body.ed-chrome .edc-align-title { display: none; }
+}
+
+/* ============================================================
+   PLANTILLA · ficha compacta: mini-ficha (kit real) + dorsal + nombre
+   El estilo de ficha (Chapa/Camiseta/Figura/Foto) se elige UNA vez en el
+   selector "Estilo de ficha" de arriba; el chip muestra la preview de ESE
+   estilo (con Camiseta, el kit 2D real del club) + dorsal + nombre. La zona va
+   estrecha y sin las opciones de avatar (equipación/poses), que viven en la
+   pestaña Jugadores.
+   ============================================================ */
+/* Fuera la config de avatar (modo/equipación/poses) de la pestaña Plantilla. */
+body.ed-chrome .edc-mat-grid[data-cat="plantilla"] .edc-avcfg { display: none !important; }
+/* Selector "Estilo de ficha" arriba del todo, destacado. */
+body.ed-chrome #task-roster-bank .player-bank-quickbar {
+  display: flex !important; flex-direction: column !important; gap: 8px !important; align-items: stretch !important;
+}
+body.ed-chrome #task-roster-bank .player-bank-style-group {
+  display: flex !important; flex-wrap: wrap !important; gap: 5px !important; order: -1 !important;
+  padding: 7px 8px !important; border: 1px solid var(--edc-accent) !important; border-radius: 10px !important;
+  background: rgba(55, 208, 95, 0.08) !important; position: relative !important;
+}
+body.ed-chrome #task-roster-bank .player-bank-style-group::before {
+  content: "Estilo de ficha"; display: block; width: 100%;
+  font-size: 9px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--edc-accent); margin-bottom: 2px;
+}
+body.ed-chrome #task-roster-bank .player-bank-style-group button { font-size: 11px !important; padding: 4px 9px !important; }
+
+/* Fichas en 2 columnas de chips (nombres legibles). */
+body.ed-chrome #edc-mat-body #task-roster-bank .player-bank {
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)) !important;
+}
+/* Layout horizontal del chip: [preview del estilo activo] [nombre]. */
+body.ed-chrome #edc-mat-body #task-roster-bank .player-token-bank {
+  flex-direction: row !important; align-items: center !important; justify-content: flex-start !important;
+  gap: 7px !important; padding: 4px 7px !important; text-align: left !important; min-height: 0 !important;
+}
+body.ed-chrome #edc-mat-body #task-roster-bank .player-token-bank-visuals { flex: 0 0 auto !important; width: auto !important; }
+/* En el chip mostramos SOLO la preview del estilo activo (la marcada .is-active por el
+   selector de arriba); el resto de variantes del selector por-ficha se ocultan, porque
+   aquí el estilo se elige una vez arriba, no jugador a jugador. */
+body.ed-chrome #edc-mat-body #task-roster-bank .player-token-bank-visuals .is-preview:not(.is-active) { display: none !important; }
+/* La preview activa (disco / camiseta-kit / foto) en pequeño. */
+body.ed-chrome #edc-mat-body #task-roster-bank .token-jersey.is-preview,
+body.ed-chrome #edc-mat-body #task-roster-bank .token-photo.is-preview {
+  width: 26px !important; height: 29px !important; min-width: 26px !important; margin: 0 !important;
+}
+body.ed-chrome #edc-mat-body #task-roster-bank .token-disk.is-preview {
+  width: 26px !important; height: 26px !important; min-width: 26px !important; margin: 0 !important;
+}
+body.ed-chrome #edc-mat-body #task-roster-bank .player-token-bank-visuals .token-number { font-size: 8.5px !important; }
+body.ed-chrome #edc-mat-body #task-roster-bank .token-disk.is-preview .token-number { font-size: 10.5px !important; }
+/* Copia: nombre a la izquierda; posición oculta. */
+body.ed-chrome #edc-mat-body #task-roster-bank .player-token-bank-copy {
+  flex: 1 1 auto !important; min-width: 0 !important; align-items: flex-start !important; text-align: left !important; gap: 0 !important;
+}
+body.ed-chrome #edc-mat-body #task-roster-bank .token-name {
+  font-size: 11px !important; line-height: 1.15 !important;
+  white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; max-width: 100% !important;
+}
+body.ed-chrome #edc-mat-body #task-roster-bank .token-meta { display: none !important; }
+
+/* -------- Lista de plantilla (botón rectangular dorsal+nombre) + desplegable de representación -------- */
+/* Al activarse, oculta la parrilla de chips original y deja solo la lista limpia. */
+body.ed-chrome #edc-mat-body .edc-roster-compact .player-bank,
+body.ed-chrome #edc-mat-body .edc-roster-compact .player-bank-head,
+body.ed-chrome #edc-mat-body .edc-roster-compact .token-global-style,
+body.ed-chrome #edc-mat-body .edc-roster-compact #task-opponent-bank-section { display: none !important; }
+body.ed-chrome #edc-mat-body .edc-roster-list {
+  display: flex; flex-direction: column; gap: 7px; width: 100%; padding: 2px;
+}
+body.ed-chrome #edc-mat-body .edc-roster-row { position: relative; }
+body.ed-chrome #edc-mat-body .edc-roster-btn {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 9px 12px; border-radius: 11px;
+  border: 1px solid var(--edc-line); background: var(--edc-bar-2);
+  color: var(--edc-ink); cursor: pointer; text-align: left; font: inherit;
+  transition: background .12s ease, border-color .12s ease;
+}
+body.ed-chrome #edc-mat-body .edc-roster-btn:hover { background: rgba(55,208,95,0.12); border-color: rgba(55,208,95,0.4); }
+body.ed-chrome #edc-mat-body .edc-roster-row.is-open .edc-roster-btn { border-color: var(--edc-accent); background: rgba(55,208,95,0.14); }
+body.ed-chrome #edc-mat-body .edc-roster-num {
+  flex: 0 0 auto; min-width: 30px; height: 30px; padding: 0 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 8px; background: var(--edc-accent); color: var(--edc-accent-ink);
+  font-weight: 800; font-size: 13px; letter-spacing: 0;
+}
+body.ed-chrome #edc-mat-body .edc-roster-num.is-gk { background: #1d4ed8; color: #fff; }
+body.ed-chrome #edc-mat-body .edc-roster-name {
+  flex: 1 1 auto; font-weight: 600; font-size: 13px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+body.ed-chrome #edc-mat-body .edc-roster-caret { flex: 0 0 auto; opacity: .6; font-size: 11px; transition: transform .12s ease; }
+body.ed-chrome #edc-mat-body .edc-roster-row.is-open .edc-roster-caret { transform: rotate(180deg); opacity: 1; }
+body.ed-chrome #edc-mat-body .edc-roster-btn.is-injured .edc-roster-num { background: #b91c1c; color: #fff; }
+body.ed-chrome #edc-mat-body .edc-rep-menu {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 8px; margin-top: 5px; border-radius: 11px;
+  background: var(--edc-bar); border: 1px solid var(--edc-line);
+}
+/* El atributo hidden debe ganar al display:flex de arriba (misma raíz, +especificidad). */
+body.ed-chrome #edc-mat-body .edc-rep-menu[hidden] { display: none !important; }
+body.ed-chrome #edc-mat-body .edc-rep-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Toggle de equipación (Local / Visitante) dentro del desplegable. */
+body.ed-chrome #edc-mat-body .edc-kit-toggle { display: flex; align-items: center; gap: 6px; }
+body.ed-chrome #edc-mat-body .edc-kit-label {
+  font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--edc-muted); margin-right: 2px;
+}
+body.ed-chrome #edc-mat-body .edc-kit-btn {
+  flex: 1 1 auto; padding: 6px 8px; border-radius: 8px;
+  border: 1px solid var(--edc-line); background: var(--edc-bar-2);
+  color: var(--edc-ink); cursor: pointer; font-size: 11.5px; font-weight: 700;
+}
+body.ed-chrome #edc-mat-body .edc-kit-btn:hover { border-color: rgba(55,208,95,0.5); }
+body.ed-chrome #edc-mat-body .edc-kit-btn.is-active { background: var(--edc-accent); border-color: var(--edc-accent); color: var(--edc-accent-ink); }
+body.ed-chrome #edc-mat-body .edc-rep-opt {
+  flex: 1 1 auto; min-width: 62px; padding: 8px 10px; border-radius: 8px;
+  border: 1px solid var(--edc-line); background: var(--edc-bar-2);
+  color: var(--edc-ink); cursor: pointer; font-size: 12px; font-weight: 600;
+  transition: background .12s ease, border-color .12s ease;
+}
+body.ed-chrome #edc-mat-body .edc-rep-opt:hover { background: var(--edc-accent); border-color: var(--edc-accent); color: var(--edc-accent-ink); }
+
+/* Barra global de representación (opción A: global + override por jugador) */
+body.ed-chrome #edc-mat-body .edc-roster-global {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding: 8px; margin-bottom: 4px; border-radius: 11px;
+  background: var(--edc-bar); border: 1px solid var(--edc-line);
+}
+body.ed-chrome #edc-mat-body .edc-roster-global-label {
+  font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--edc-muted); margin-right: 2px;
+}
+body.ed-chrome #edc-mat-body .edc-roster-gbtn {
+  flex: 1 1 auto; min-width: 54px; padding: 6px 8px; border-radius: 8px;
+  border: 1px solid var(--edc-line); background: var(--edc-bar-2);
+  color: var(--edc-ink); cursor: pointer; font-size: 11.5px; font-weight: 600;
+}
+body.ed-chrome #edc-mat-body .edc-roster-gbtn:hover { border-color: rgba(55,208,95,0.5); }
+body.ed-chrome #edc-mat-body .edc-roster-gbtn.is-active { background: var(--edc-accent); border-color: var(--edc-accent); color: var(--edc-accent-ink); }
