@@ -344,6 +344,27 @@
           </article>
         </div>
 
+        {% if profile_notice %}<div class="msg-ok">{{ profile_notice }}</div>{% endif %}
+        {% if profile_error %}<div class="msg-ok" style="background:rgba(127,29,29,.25);color:#fecaca">{{ profile_error }}</div>{% endif %}
+
+        <form method="post" style="margin-top:1rem;display:grid;gap:.75rem;max-width:520px">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="update_profile" />
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+            <label style="display:grid;gap:.35rem;font-size:.78rem;font-weight:700;color:#5b6472">Nombre
+              <input type="text" name="first_name" value="{{ request.user.first_name }}" style="min-height:44px;border-radius:12px;border:1px solid rgba(120,130,150,.3);padding:.6rem .7rem;font-size:.95rem" />
+            </label>
+            <label style="display:grid;gap:.35rem;font-size:.78rem;font-weight:700;color:#5b6472">Apellidos
+              <input type="text" name="last_name" value="{{ request.user.last_name }}" style="min-height:44px;border-radius:12px;border:1px solid rgba(120,130,150,.3);padding:.6rem .7rem;font-size:.95rem" />
+            </label>
+          </div>
+          <label style="display:grid;gap:.35rem;font-size:.78rem;font-weight:700;color:#5b6472">Email
+            <input type="email" name="email" value="{{ request.user.email }}" autocapitalize="none" autocorrect="off" spellcheck="false" style="min-height:44px;border-radius:12px;border:1px solid rgba(120,130,150,.3);padding:.6rem .7rem;font-size:.95rem" />
+          </label>
+          <button type="submit" class="pill primary" style="justify-self:start">Guardar cambios</button>
+          <small style="color:#8a93a2">Si cambias el email, te enviaremos un correo para verificar la nueva dirección.</small>
+        </form>
+
         <div class="row">
           <a class="pill primary" href="{% url 'password_change' %}">Cambiar contraseña</a>
           <a class="pill" href="{% url 'workspace-members' %}">Miembros del club</a>

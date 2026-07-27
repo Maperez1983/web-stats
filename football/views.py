@@ -2963,12 +2963,56 @@ def support_page(request):
 
 @login_required
 def account_page(request):
+    notice = ""
+    error = ""
+    if request.method == "POST" and (request.POST.get("action") or "").strip() == "update_profile":
+        user = request.user
+        new_email = re.sub(r"\s+", "", str(request.POST.get("email") or "").strip()).lower()[:190]
+        new_first = str(request.POST.get("first_name") or "").strip()[:150]
+        new_last = str(request.POST.get("last_name") or "").strip()[:150]
+        try:
+            if new_email and "@" not in new_email:
+                raise ValueError("Email inválido.")
+            if new_email and User.objects.filter(email__iexact=new_email).exclude(pk=user.pk).exists():
+                raise ValueError("Ese email ya está en uso por otra cuenta.")
+            email_changed = new_email != (user.email or "").strip().lower()
+            user.email = new_email
+            user.first_name = new_first
+            user.last_name = new_last
+            user.save(update_fields=["email", "first_name", "last_name"])
+            if email_changed:
+                # El nuevo email pasa a "no verificado" y le mandamos un correo para confirmarlo.
+                role = getattr(user, "app_role", None)
+                if role is not None:
+                    try:
+                        role.email_verified = False
+                        role.email_verified_at = None
+                        role.save(update_fields=["email_verified", "email_verified_at", "updated_at"])
+                    except Exception:
+                        pass
+                if new_email:
+                    try:
+                        from .account_views import send_email_verification
+
+                        send_email_verification(request, user)
+                    except Exception:
+                        pass
+            notice = "Datos actualizados."
+            if email_changed and new_email:
+                notice += " Te hemos enviado un correo para verificar la nueva dirección."
+        except ValueError as exc:
+            error = str(exc)
+        except Exception:
+            logger.exception("No se pudieron guardar los datos de la cuenta %s", getattr(user, "id", None))
+            error = "No se pudieron guardar los datos."
     return render(
         request,
         "football/account.html",
         {
             "support_email": _support_email(),
             "deleted_ok": str(request.GET.get("deleted") or "").strip() in {"1", "true", "yes", "ok"},
+            "profile_notice": notice,
+            "profile_error": error,
         },
     )
 
