@@ -42922,6 +42922,7 @@ def _update_library_task_from_post(task, post_data, scope_key=None):
 
     sheet_field_map = {
         "task_sheet_description": "description",
+        "task_sheet_scene": "scene_note",
         "task_sheet_players": "players",
         "task_sheet_space": "space",
         "task_sheet_dimensions": "dimensions",
@@ -42933,7 +42934,7 @@ def _update_library_task_from_post(task, post_data, scope_key=None):
         if post_key in post_data:
             task_sheet[sheet_key] = _polish_spanish_text(
                 _repair_joined_words_text(str(post_data.get(post_key) or "").strip()),
-                multiline=(sheet_key == "description"),
+                multiline=(sheet_key in ("description", "scene_note")),
             )
             task_sheet_touched = True
             if sheet_key == "space":
@@ -54870,6 +54871,7 @@ def session_task_scenes_export(request):
                 "work_contexts": _lst("work_contexts"),
                 "objective_tags": _lst("objective_tags"),
                 "summary": str(analysis.get("summary") or "").strip()[:600],
+                "scene_note": str(task_sheet.get("scene_note") or "").strip()[:600],
                 "description": str(task_sheet.get("description") or "").strip()[:600],
                 "coaching_points": str(getattr(t, "coaching_points", "") or "").strip()[:400],
                 "rules": str(getattr(t, "confrontation_rules", "") or "").strip()[:400],
