@@ -134,9 +134,16 @@ class Command(BaseCommand):
         hair_mask_path = _asset("masks", "hair_home.png")
         if not base_path or not hair_mask_path:
             self.stderr.write("Falta la figura base o la máscara de pelo."); return
-        model_path = os.environ.get("AVATAR_INSWAPPER") or os.path.expanduser("~/ai-image-gen/inswapper_128.onnx")
-        if not os.path.exists(model_path):
-            self.stderr.write(f"No está inswapper_128.onnx en {model_path} (AVATAR_INSWAPPER)."); return
+        # Ruta del modelo: env AVATAR_INSWAPPER, si no varias rutas conocidas (donde lo deja el
+        # build en Render = BASE_DIR/vendor, o el venv local del Mac). Robusto aunque falte la env.
+        _model_candidates = [
+            os.environ.get("AVATAR_INSWAPPER") or "",
+            os.path.join(str(settings.BASE_DIR), "vendor", "inswapper_128.onnx"),
+            os.path.expanduser("~/ai-image-gen/inswapper_128.onnx"),
+        ]
+        model_path = next((p for p in _model_candidates if p and os.path.exists(p)), "")
+        if not model_path:
+            self.stderr.write(f"No encuentro inswapper_128.onnx (probado: {[p for p in _model_candidates if p]}). Define AVATAR_INSWAPPER."); return
 
         app = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])
         app.prepare(ctx_id=-1, det_size=(640, 640))
