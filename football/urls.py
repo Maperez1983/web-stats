@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import academy_views, billing_views, kit2d_views
+from . import academy_views, account_views, billing_views, kit2d_views
 from . import pwa as pwa_views
 from . import (
     season_wizard_views,
@@ -183,6 +183,9 @@ urlpatterns = [
     path("support/", views.support_page, name="support-page"),
     path("account/", views.account_page, name="account-page"),
     path("account/delete/", views.account_delete, name="account-delete"),
+    # Verificación de email (Fase 2). 'reenviar' va ANTES que <token> para no capturarlo como token.
+    path("verify-email/reenviar/", account_views.resend_email_verification, name="resend_email_verification"),
+    path("verify-email/<str:token>/", account_views.verify_email, name="verify_email"),
     path("api/system/kpi-audit/", views.kpi_audit, name="kpi-audit"),
     path("api/analysis/rival-form/", views.analysis_rival_form_api, name="analysis-rival-form-api"),
     path(

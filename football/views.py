@@ -12213,6 +12213,12 @@ def public_signup_page(request):
                 request.session["active_workspace_id"] = workspace.id
             except Exception:
                 pass
+            try:
+                from .account_views import send_email_verification
+
+                send_email_verification(request, user)
+            except Exception:
+                pass
             return redirect("club-onboarding")
         except ValueError as exc:
             error = str(exc)

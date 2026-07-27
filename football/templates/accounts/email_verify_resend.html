@@ -1,0 +1,15 @@
+{% extends "accounts/_auth_shell.html" %}
+{% block title %}Verificar email · 2J{% endblock %}
+{% block eyebrow %}Tu cuenta{% endblock %}
+{% block heading %}{% if already %}Email ya verificado{% elif sent %}Correo enviado{% else %}Verifica tu email{% endif %}{% endblock %}
+{% block subheading %}{% if already %}Tu correo {{ email }} ya está verificado.{% elif sent %}Te hemos enviado un enlace a {{ email }}. Revisa tu bandeja de entrada (y la carpeta de spam).{% elif not has_email %}Tu cuenta no tiene un correo configurado. Añádelo en tu cuenta para poder verificarlo.{% else %}Te enviaremos un enlace de verificación a {{ email }}.{% endif %}{% endblock %}
+{% block content %}
+{% if not already and has_email %}
+<form method="post">{% csrf_token %}
+  <button class="primary-btn" type="submit">{% if sent %}Reenviar de nuevo{% else %}Enviar enlace de verificación{% endif %}</button>
+</form>
+{% else %}
+<a class="ghost-link" href="/">Volver a la app</a>
+{% endif %}
+{% endblock %}
+{% block foot %}<a href="/">← Volver a la app</a>{% endblock %}

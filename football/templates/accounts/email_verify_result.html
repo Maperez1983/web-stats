@@ -1,0 +1,9 @@
+{% extends "accounts/_auth_shell.html" %}
+{% block title %}Verificar email · 2J{% endblock %}
+{% block eyebrow %}Verificación{% endblock %}
+{% block heading %}{% if status == 'ok' %}Email verificado{% elif status == 'expired' %}Enlace caducado{% else %}Enlace no válido{% endif %}{% endblock %}
+{% block subheading %}{% if status == 'ok' %}Tu correo ha quedado confirmado. ¡Gracias!{% elif status == 'expired' %}Este enlace de verificación ha caducado. Pide uno nuevo desde tu cuenta.{% else %}Este enlace no es válido o ya se ha utilizado.{% endif %}{% endblock %}
+{% block content %}
+<a class="primary-btn" href="/">Ir a la app</a>
+{% endblock %}
+{% block foot %}{% endblock %}
