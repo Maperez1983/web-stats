@@ -864,7 +864,7 @@
                       <div class="broadcast-staff-rating" aria-label="Valoración media staff {{ card.staff_rating_display|default:'--/10' }}">
                         <div class="broadcast-staff-row">
                           <span>Staff</span>
-                          <strong>{{ card.staff_rating_display|default:"--/10" }}</strong>
+                          <strong class="broadcast-ov {% if card.staff_rating_average == None %}is-none{% elif card.staff_rating_average >= 7 %}is-good{% elif card.staff_rating_average >= 5 %}is-warn{% else %}is-bad{% endif %}">{% if card.staff_rating_average != None %}{{ card.staff_rating_average|floatformat:1 }}{% else %}--{% endif %}</strong>
                         </div>
                         <div class="broadcast-staff-track">
                           <span class="broadcast-staff-fill" style="--staff-rating-pct:{{ card.staff_rating_pct|default:0 }}%;"></span>
@@ -1058,7 +1058,7 @@
             .pc-table .pc-nm a { color:var(--prod-text,#e5e7eb); text-decoration:none; font-weight:700; }
             .pc-table tbody tr:hover { background:rgba(255,255,255,0.04); }
             .pc-nm-wrap { display:inline-flex; align-items:center; gap:0.4rem; max-width:100%; }
-            .pc-table .pc-av { width:1.6rem; height:1.6rem; border-radius:50%; object-fit:cover; flex:none; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.14); }
+            .pc-table .pc-av { width:1.6rem; height:1.6rem; border-radius:50%; object-fit:cover; object-position:50% 12%; flex:none; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.14); }
             .pc-status { margin-left:0.1rem; }
             .pc-table .pc-ov { display:inline-grid; place-items:center; min-width:2.3rem; padding:0.14rem 0.3rem; border-radius:0.5rem; font-weight:900; font-size:0.86rem; }
             .pc-table .pc-ov-good { color:#0a1f12; background:#34d399; }
@@ -1066,6 +1066,11 @@
             .pc-table .pc-ov-bad { color:#2a0d0d; background:#f87171; }
             .pc-table .pc-ov-none { color:#cbd5e1; background:rgba(255,255,255,0.08); font-weight:700; }
             .pc-table td.pc-z { opacity:0.35; }
+            .broadcast-ov { display:inline-grid; place-items:center; min-width:2.4rem; padding:0.1rem 0.45rem; border-radius:0.5rem; font-weight:900; font-size:0.95rem; }
+            .broadcast-ov.is-good { color:#0a1f12; background:#34d399; }
+            .broadcast-ov.is-warn { color:#241a03; background:#fbbf24; }
+            .broadcast-ov.is-bad { color:#2a0d0d; background:#f87171; }
+            .broadcast-ov.is-none { color:#cbd5e1; background:rgba(255,255,255,0.08); font-weight:700; }
           </style>
           <script>
             (function(){
