@@ -54424,52 +54424,10 @@ def session_task_detail_page(request, task_id):
     except Exception:
         session_context = {}
 
+    # Perf: NO calculamos las "Relacionadas" al abrir la ficha. Antes cargaba cientos de tareas
+    # de biblioteca con su tactical_layout pesado en la ruta critica -> ~5s en toda ficha y 502
+    # en las pesadas. Se pueden cargar de forma diferida via el endpoint session-task-related.
     related_tasks = []
-    try:
-        team = getattr(getattr(getattr(task, "session", None), "microcycle", None), "team", None)
-        repository = _library_repository_for_task(task)
-        if team:
-            candidates_raw = list(
-                SessionTask.objects.select_related("session__microcycle")
-                .defer("preview_data_b64", "cover_data_b64")
-                .filter(session__microcycle__team=team, deleted_at__isnull=True)
-                .filter(
-                    Q(session__microcycle__notes__icontains=LIBRARY_MICROCYCLE_MARKER)
-                    | Q(session__microcycle__title__istartswith="Biblioteca ")
-                )
-                # Perf: 120 candidatos recientes bastan para sugerir 8 relacionadas; antes cargaba
-                # 520 tareas con su tactical_layout pesado en CADA visita (contribuia al 502).
-                .order_by("-id")[:120]
-            )
-            candidates = [
-                item
-                for item in candidates_raw
-                if _task_scope_for_item(item) == scope_key
-                and _is_library_session(getattr(item, "session", None))
-                and _library_repository_for_task(item) == repository
-            ]
-            prepared = prepare_task_library(
-                [task] + candidates,
-                parse_int=_parse_int,
-                sanitize_text=_sanitize_task_text,
-                analysis_confidence_scores=_analysis_confidence_scores,
-                task_upload_date=_task_upload_date,
-                extract_effective_reference_date=_extract_effective_reference_date,
-                detect_keyword_tags=_detect_keyword_tags,
-                task_type_keywords=TASK_TYPE_KEYWORDS,
-                task_phase_keywords=TASK_PHASE_KEYWORDS,
-                players_band_label=_players_band_label,
-                estimate_players_count=_estimate_players_count,
-                duration_band_label=_duration_band_label,
-                phase_folder_key_for_task=_phase_folder_key_for_task,
-                phase_folder_meta=PHASE_FOLDER_META,
-                coerce_reference_date=_coerce_reference_date,
-                is_imported_task=_is_imported_task,
-            )["task_library"]
-            if prepared and len(prepared) > 1:
-                related_tasks = suggest_related_tasks(prepared[1:], prepared[0], limit=8)
-    except Exception:
-        related_tasks = []
     edit_graphic_url = ""
     builder_embed_url = ""
     presentation_url = ""
