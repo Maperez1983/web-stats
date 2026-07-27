@@ -43,7 +43,7 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.base import ContentFile
 from django.core.files.storage import FileSystemStorage, default_storage, storages
-from django.db import IntegrityError, connection, connections, transaction
+from django.db import IntegrityError, connections, transaction
 from django.db.models import Count, F, Max, Q, Sum
 from django.db.utils import OperationalError, ProgrammingError
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse, StreamingHttpResponse
@@ -47269,48 +47269,15 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
                 )
             except Exception:
                 collection_task_ids = set()
-        _library_base_qs = (
+        task_library_raw = list(
             SessionTask.objects.select_related("session__microcycle")
             .filter(session__microcycle__team=primary_team, deleted_at__isnull=True)
             .filter(
                 Q(session__microcycle__notes__icontains=LIBRARY_MICROCYCLE_MARKER)
                 | Q(session__microcycle__title__istartswith="Biblioteca ")
             )
-            .order_by("-id")
+            .order_by("-id")[:600]
         )
-        # Perf: al LISTAR no necesitamos las imagenes base64 embebidas (preview 2D / portada),
-        # que viven en tactical_layout.meta y pesan cientos de KB por tarea. Diferimos el campo
-        # pesado y traemos una version recortada (jsonb '#-') para no arrastrar/parsear los blobs
-        # en cada carga de la biblioteca. Las imagenes de las cards se sirven por endpoints aparte.
-        task_library_raw = None
-        if connection.vendor == "postgresql":
-            try:
-                from django.db.models import TextField as _TextField
-                from django.db.models.expressions import RawSQL as _RawSQL
-
-                _light_layout_sql = (
-                    "(football_sessiontask.tactical_layout "
-                    "#- '{meta,preview_data_embedded_v1}' "
-                    "#- '{meta,cover_image_embedded_v1}' "
-                    "#- '{meta,original_version,preview_data_embedded_v1}' "
-                    "#- '{meta,original_version,cover_image_embedded_v1}')::text"
-                )
-                _rows = list(
-                    _library_base_qs.defer("tactical_layout").annotate(
-                        _layout_light=_RawSQL(_light_layout_sql, [], output_field=_TextField())
-                    )[:600]
-                )
-                for _it in _rows:
-                    try:
-                        _it.tactical_layout = json.loads(_it._layout_light or "{}")
-                    except Exception:
-                        _it.tactical_layout = {}
-                task_library_raw = _rows
-            except Exception:
-                # Si el SELECT recortado fallara por lo que sea, no rompemos: query normal.
-                task_library_raw = None
-        if task_library_raw is None:
-            task_library_raw = list(_library_base_qs[:600])
         task_library = [
             item
             for item in task_library_raw
