@@ -381,7 +381,7 @@
       host.appendChild(gl);
       items.forEach(function(src){
         var pid=src.getAttribute('data-player-id')||'';
-        var nameEl=src.querySelector('.token-name'); var name=nameEl?nameEl.textContent.trim():'';
+        var nameEl=src.querySelector('.token-name'); var name=nameEl?nameEl.textContent.trim().replace(/^\d+\s*/,''):''; // quita el dorsal duplicado al inicio del nombre (el número ya va en el recuadro)
         var numEl=src.querySelector('.token-number'); var num=numEl?numEl.textContent.trim():'';
         var isGK=!!src.querySelector('.is-goalkeeper');
         var estado=(src.getAttribute('data-estado')||'').trim();
@@ -389,6 +389,7 @@
         var btn=document.createElement('button'); btn.type='button'; btn.className='edc-roster-btn';
         if(estado==='lesionado') btn.classList.add('is-injured');
         var sNum=document.createElement('span'); sNum.className='edc-roster-num'+(isGK?' is-gk':''); sNum.textContent=(isGK?'GK':(num||'–'));
+        if(estado==='lesionado'){ var xC=document.createElement('span'); xC.className='edc-roster-cross'; xC.textContent='✚'; xC.title='Lesionado'; sNum.appendChild(xC); } // marca de lesionado (cruz), además del rojo
         var sName=document.createElement('span'); sName.className='edc-roster-name'; sName.textContent=name||'Jugador';
         var sCaret=document.createElement('span'); sCaret.className='edc-roster-caret'; sCaret.textContent='▾';
         btn.appendChild(sNum); btn.appendChild(sName); btn.appendChild(sCaret);

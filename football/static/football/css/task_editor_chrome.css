@@ -818,12 +818,21 @@ body.ed-chrome #edc-mat-body .edc-roster-btn {
 body.ed-chrome #edc-mat-body .edc-roster-btn:hover { background: rgba(55,208,95,0.12); border-color: rgba(55,208,95,0.4); }
 body.ed-chrome #edc-mat-body .edc-roster-row.is-open .edc-roster-btn { border-color: var(--edc-accent); background: rgba(55,208,95,0.14); }
 body.ed-chrome #edc-mat-body .edc-roster-num {
+  position: relative;
   flex: 0 0 auto; min-width: 30px; height: 30px; padding: 0 6px;
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: 8px; background: var(--edc-accent); color: var(--edc-accent-ink);
   font-weight: 800; font-size: 13px; letter-spacing: 0;
 }
 body.ed-chrome #edc-mat-body .edc-roster-num.is-gk { background: #1d4ed8; color: #fff; }
+/* Lesionado: cruz (badge circular) en la esquina del recuadro, además del rojo. */
+body.ed-chrome #edc-mat-body .edc-roster-cross {
+  position: absolute; top: -6px; right: -6px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #fff; color: #dc2626; border: 1px solid #dc2626;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 900; line-height: 1;
+}
 body.ed-chrome #edc-mat-body .edc-roster-name {
   flex: 1 1 auto; font-weight: 600; font-size: 13px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
