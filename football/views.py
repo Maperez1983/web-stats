@@ -54361,25 +54361,18 @@ def session_task_detail_page(request, task_id):
         preview_url_for_pdf = ""
         if getattr(task, "task_preview_image", None):
             preview_url_for_pdf = _file_field_as_data_url(task.task_preview_image)
-        task_presentation_pdf_context_by_format["uefa"] = _build_task_pdf_context(
+        # Perf: construir SOLO el formato activo. El template presenta uno (UEFA o Club) y el
+        # cambio de formato recarga la pagina; antes se construian AMBOS contextos PDF en cada
+        # visita -> doble coste (procesar el canvas 2x), causaba 8s / 502 en tareas pesadas.
+        _active_fmt = active_task_format_tab if active_task_format_tab in ("uefa", "club") else "uefa"
+        task_presentation_pdf_context_by_format[_active_fmt] = _build_task_pdf_context(
             request=request,
             team=team_obj_for_pdf,
             session=session_obj_for_pdf,
             microcycle=microcycle_obj_for_pdf,
             task=task,
             tactical_layout=tactical_layout_for_pdf,
-            pdf_style="uefa",
-            preview_url=preview_url_for_pdf,
-            one_page=False,
-        )
-        task_presentation_pdf_context_by_format["club"] = _build_task_pdf_context(
-            request=request,
-            team=team_obj_for_pdf,
-            session=session_obj_for_pdf,
-            microcycle=microcycle_obj_for_pdf,
-            task=task,
-            tactical_layout=tactical_layout_for_pdf,
-            pdf_style="club",
+            pdf_style=_active_fmt,
             preview_url=preview_url_for_pdf,
             one_page=False,
         )
@@ -54435,7 +54428,9 @@ def session_task_detail_page(request, task_id):
                     Q(session__microcycle__notes__icontains=LIBRARY_MICROCYCLE_MARKER)
                     | Q(session__microcycle__title__istartswith="Biblioteca ")
                 )
-                .order_by("-id")[:520]
+                # Perf: 120 candidatos recientes bastan para sugerir 8 relacionadas; antes cargaba
+                # 520 tareas con su tactical_layout pesado en CADA visita (contribuia al 502).
+                .order_by("-id")[:120]
             )
             candidates = [
                 item
