@@ -79237,6 +79237,14 @@ def compute_player_dashboard(
             # Robustez: en algunos flujos legacy el `season` del PlayerStatistic puede quedar desincronizado.
             # El Match es la fuente de verdad de temporada.
             manual_match_qs = manual_match_qs.filter(match__season=season_obj)
+        # Ventana de temporada de club (date_start/date_end): igual que el resto de fuentes locales
+        # (convocatoria, eventos, player_stat_matches), las fichas por partido deben respetar la
+        # ventana; si no, al recalcular pj/minutos/goles desde `matches_dict` se cuelan partidos de
+        # una temporada anterior (p.ej. la 2025/2026 se veía dentro de la 2026/2027).
+        if date_start:
+            manual_match_qs = manual_match_qs.filter(match__date__gte=date_start)
+        if date_end:
+            manual_match_qs = manual_match_qs.filter(match__date__lte=date_end)
         manual_match_rows = manual_match_qs.values("player_id", "match_id", "name", "value")
         for row in manual_match_rows:
             pid = _parse_int(row.get("player_id"))
