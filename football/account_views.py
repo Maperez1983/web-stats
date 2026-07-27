@@ -103,12 +103,17 @@ def resend_email_verification(request):
 # Fase 3: miembros del club + invitaciones por email
 # ---------------------------------------------------------------------------
 # Cada "rol de acceso" mapea a (AppUserRole global, WorkspaceMembership por club).
+# (clave, etiqueta, rol GLOBAL AppUserRole, rol de CLUB WorkspaceMembership).
+# IMPORTANTE: el "Administrador" de un club NO lleva el rol global `administrador` — ese rol da
+# acceso al panel de PLATAFORMA (superadmin de TODOS los clubes). El admin de club obtiene su
+# poder del rol de CLUB `admin` (can_manage_workspace); su rol global se queda como `entrenador`
+# para no darle acceso multi-club.
 MEMBER_ROLE_PRESETS = [
     ("entrenador", "Entrenador", "entrenador", "member"),
     ("analista", "Analista", "analista", "member"),
     ("preparador_fisico", "Preparador físico", "preparador_fisico", "member"),
     ("preparador_portero", "Preparador de portero", "preparador_portero", "member"),
-    ("administrador", "Administrador", "administrador", "admin"),
+    ("administrador", "Administrador (del club)", "entrenador", "admin"),
     ("viewer", "Solo lectura", "invitado", "viewer"),
 ]
 _MEMBER_PRESET_BY_KEY = {p[0]: p for p in MEMBER_ROLE_PRESETS}

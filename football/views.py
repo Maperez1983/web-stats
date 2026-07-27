@@ -3435,6 +3435,21 @@ def _staff_access_role_choices():
     ]
 
 
+def _staff_role_preset(key):
+    """Traduce el preset de rol único (Entrenador/Analista/Administrador del club/…) a la pareja
+    (rol GLOBAL AppUserRole, rol de CLUB WorkspaceMembership)."""
+    from .account_views import _resolve_member_preset
+
+    _k, _label, app_role, member_role = _resolve_member_preset(key)
+    return app_role, member_role
+
+
+def _staff_role_presets():
+    from .account_views import MEMBER_ROLE_PRESETS
+
+    return MEMBER_ROLE_PRESETS
+
+
 def _staff_invitation_expiry(workspace, validity_value):
     value = str(validity_value or "").strip().lower()
     if value == "season":
@@ -3729,13 +3744,14 @@ def staff_member_create_page(request):
                 except Exception:
                     pass
             if access_action == "invite":
+                _sm_app_role, _sm_member_role = _staff_role_preset(request.POST.get("role_preset"))
                 _, invite_link = _create_staff_access_invitation(
                     request,
                     workspace,
                     member,
-                    app_role=request.POST.get("access_app_role"),
-                    member_role=request.POST.get("access_member_role"),
-                    validity_days=request.POST.get("access_valid_days"),
+                    app_role=_sm_app_role,
+                    member_role=_sm_member_role,
+                    validity_days="season",
                     preferred_username=preferred_invite_username,
                 )
             uploaded_photo = request.FILES.get("photo")
@@ -3786,6 +3802,7 @@ def staff_member_create_page(request):
                         "invite_link": invite_link,
                         "staff_access_role_choices": _staff_access_role_choices(),
                         "workspace_member_role_choices": WorkspaceMembership.ROLE_CHOICES,
+                        "role_presets": _staff_role_presets(),
                     },
                 )
             return redirect("staff-member-detail", staff_id=member.id)
@@ -3805,6 +3822,7 @@ def staff_member_create_page(request):
             "invite_link": invite_link,
             "staff_access_role_choices": _staff_access_role_choices(),
             "workspace_member_role_choices": WorkspaceMembership.ROLE_CHOICES,
+            "role_presets": _staff_role_presets(),
             "can_manage_workspace": True,
         },
     )
@@ -3876,13 +3894,14 @@ def staff_member_detail_page(request, staff_id):
                         pass
             member.save()
             if access_action == "invite":
+                _sm_app_role, _sm_member_role = _staff_role_preset(request.POST.get("role_preset"))
                 _, invite_link = _create_staff_access_invitation(
                     request,
                     workspace,
                     member,
-                    app_role=request.POST.get("access_app_role"),
-                    member_role=request.POST.get("access_member_role"),
-                    validity_days=request.POST.get("access_valid_days"),
+                    app_role=_sm_app_role,
+                    member_role=_sm_member_role,
+                    validity_days="season",
                     preferred_username=preferred_invite_username,
                 )
                 feedback = "Ficha actualizada. Invitación de acceso generada."
@@ -3940,6 +3959,7 @@ def staff_member_detail_page(request, staff_id):
             "invite_link": invite_link,
             "staff_access_role_choices": _staff_access_role_choices(),
             "workspace_member_role_choices": WorkspaceMembership.ROLE_CHOICES,
+            "role_presets": _staff_role_presets(),
         },
     )
 

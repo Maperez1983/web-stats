@@ -356,24 +356,6 @@
               Nombre
               <input name="name" value="{% if member %}{{ member.name }}{% endif %}" {% if mode != 'create' and not can_manage_workspace %}readonly{% endif %} required />
             </label>
-            <label>
-              Usuario existente
-              <input
-                name="user_username"
-                value="{% if member and member.user %}{{ member.user.username }}{% endif %}"
-                {% if mode != 'create' and not can_manage_workspace %}readonly{% endif %}
-                autocomplete="off"
-                placeholder="Opcional: solo si ya existe"
-              />
-              {% if mode != 'create' and can_manage_workspace and member and member.user %}
-              <span style="color: rgba(226,232,240,0.7); font-weight:700; letter-spacing:0.02em; text-transform:none; font-size:0.85rem;">
-                <label style="display:inline-flex; gap:10px; align-items:center; margin-top:0.35rem; font-size:0.75rem; text-transform:none; letter-spacing:0.02em;">
-                  <input type="checkbox" name="unlink_user" value="1" />
-                  Desvincular usuario
-                </label>
-              </span>
-              {% endif %}
-            </label>
             {% if can_manage_workspace %}
             <div class="access-panel">
               <p class="access-panel__title">Acceso al sistema</p>
@@ -389,36 +371,22 @@
               </div>
               <div class="access-grid">
                 <label>
-                  Rol app
-                  <select name="access_app_role">
-                    {% for value, label in staff_access_role_choices %}
-                    <option value="{{ value }}">{{ label }}</option>
+                  Rol de acceso
+                  <select name="role_preset">
+                    {% for key, label, ar, mr in role_presets %}
+                    <option value="{{ key }}">{{ label }}</option>
                     {% endfor %}
-                  </select>
-                </label>
-                <label>
-                  Rol club
-                  <select name="access_member_role">
-                    {% for value, label in workspace_member_role_choices %}
-                    <option value="{{ value }}" {% if value == 'member' %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                  </select>
-                </label>
-                <label>
-                  Validez
-                  <select name="access_valid_days">
-                    <option value="season" selected>Toda la temporada</option>
-                    <option value="7">7 días</option>
-                    <option value="14">14 días</option>
-                    <option value="30">30 días</option>
                   </select>
                 </label>
               </div>
+              <p style="margin:0.4rem 0 0; font-size:0.78rem; color:rgba(226,232,240,0.6); text-transform:none; letter-spacing:0.01em; line-height:1.4;">
+                La invitación llega al <strong>email</strong> de la ficha. Con "Crear invitación" le enviamos el enlace para entrar. Tras aceptar, con el botón <strong>"Configurar qué ve"</strong> (arriba) limitas sus áreas.
+              </p>
             </div>
             {% endif %}
             <label>
-              Rol
-              <input name="role_title" value="{% if member %}{{ member.role_title }}{% endif %}" {% if mode != 'create' and not can_manage_workspace %}readonly{% endif %} placeholder="Entrenador, Delegado..." />
+              Cargo
+              <input name="role_title" value="{% if member %}{{ member.role_title }}{% endif %}" {% if mode != 'create' and not can_manage_workspace %}readonly{% endif %} placeholder="Entrenador, Delegado, Segundo..." />
             </label>
             <label>
               Titulación
@@ -429,7 +397,7 @@
               <input name="dni" value="{% if member %}{{ member.dni }}{% endif %}" {% if mode != 'create' and not can_manage_workspace %}readonly{% endif %} />
             </label>
             <label>
-              Ámbito
+              Ámbito (a qué categoría accede)
               <select name="scope" {% if mode != 'create' and not can_manage_workspace %}disabled{% endif %}>
                 {% if member and member.team %}<option value="team" selected>Solo esta categoría</option>{% else %}<option value="team">Solo esta categoría</option>{% endif %}
                 {% if member and not member.team %}<option value="club" selected>Club completo</option>{% else %}<option value="club">Club completo</option>{% endif %}
@@ -440,8 +408,8 @@
               <input name="phone" value="{% if member %}{{ member.phone }}{% endif %}" {% if mode != 'create' and not can_manage_workspace %}readonly{% endif %} />
             </label>
             <label>
-              Email
-              <input name="email" value="{% if member %}{{ member.email }}{% endif %}" {% if mode != 'create' and not can_manage_workspace %}readonly{% endif %} />
+              Email (a esta dirección llega la invitación)
+              <input name="email" type="email" value="{% if member %}{{ member.email }}{% endif %}" {% if mode != 'create' and not can_manage_workspace %}readonly{% endif %} autocapitalize="none" autocorrect="off" spellcheck="false" />
             </label>
             <label style="grid-column: 1 / -1;">
               Notas
