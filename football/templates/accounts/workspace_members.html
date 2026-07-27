@@ -1,0 +1,146 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Miembros del club · 2J</title>
+    <style>
+      :root{
+        --bg:#07101a; --panel:rgba(14,24,40,.98); --line:rgba(145,161,185,.18);
+        --text:#f5f7fa; --muted:#95a6be; --muted-soft:#c8d3df;
+        --accent:#f4b400; --pitch:#2f7d32;
+        --danger:#fecaca; --danger-bg:rgba(127,29,29,.35);
+        --ok:rgba(220,252,231,.95); --ok-bg:rgba(34,197,94,.12);
+        --warn:#fde68a; --warn-bg:rgba(180,120,10,.18);
+      }
+      *{box-sizing:border-box}
+      body{margin:0;min-height:100vh;color:var(--text);font-family:"Avenir Next","Inter","Segoe UI",sans-serif;
+        background:radial-gradient(circle at top left,rgba(47,125,50,.16),transparent 30%),
+          radial-gradient(circle at top right,rgba(244,180,0,.12),transparent 26%),
+          linear-gradient(180deg,#050b14 0%,#07101a 48%,#09131f 100%);}
+      .wrap{max-width:860px;margin:0 auto;padding:clamp(14px,3vw,32px)}
+      a{color:var(--muted-soft)}
+      .top{display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-bottom:1.2rem;flex-wrap:wrap}
+      .eyebrow{font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:#fff4cf;font-weight:800}
+      h1{margin:.25rem 0 0;font-size:clamp(1.5rem,4vw,2rem);letter-spacing:-.03em}
+      .back{font-size:.82rem;text-decoration:none}
+      .card{border:1px solid var(--line);border-radius:20px;background:var(--panel);padding:1.2rem;margin-bottom:1rem}
+      .card h2{margin:0 0 .2rem;font-size:1.05rem}
+      .card p.hint{margin:0 0 1rem;color:var(--muted);font-size:.9rem;line-height:1.5}
+      .notice{border-radius:14px;padding:.7rem .85rem;font-size:.92rem;margin-bottom:1rem}
+      .notice.ok{color:var(--ok);border:1px solid rgba(34,197,94,.35);background:var(--ok-bg)}
+      .notice.error{color:var(--danger);border:1px solid rgba(248,113,113,.45);background:var(--danger-bg)}
+      form.invite{display:grid;grid-template-columns:1fr 1fr auto;gap:.6rem;align-items:end}
+      @media (max-width:620px){form.invite{grid-template-columns:1fr}}
+      .field{display:grid;gap:.3rem}
+      label{font-size:.7rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:rgba(245,247,250,.8)}
+      input[type=email],input[type=text],select{width:100%;min-height:44px;border-radius:12px;border:1px solid var(--line);
+        background:rgba(18,28,48,.72);color:var(--text);padding:.6rem .7rem;font-size:.95rem}
+      input:focus,select:focus{outline:none;border-color:rgba(244,180,0,.28);box-shadow:0 0 0 3px rgba(244,180,0,.1)}
+      .btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 1rem;border-radius:999px;
+        border:none;font-size:.74rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;text-decoration:none;white-space:nowrap}
+      .btn.primary{background:linear-gradient(135deg,var(--accent),var(--pitch));color:#081320}
+      .btn.ghost{border:1px solid rgba(122,135,151,.3);background:rgba(255,255,255,.03);color:#d7dee8}
+      .btn.danger{border:1px solid rgba(248,113,113,.4);background:rgba(127,29,29,.25);color:var(--danger)}
+      .btn.sm{min-height:38px;padding:0 .8rem;font-size:.68rem}
+      table{width:100%;border-collapse:collapse}
+      .member{display:flex;align-items:center;gap:.8rem;justify-content:space-between;padding:.8rem 0;border-top:1px solid var(--line);flex-wrap:wrap}
+      .member:first-child{border-top:none}
+      .who{min-width:0}
+      .who strong{display:block;font-size:.98rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:38ch}
+      .who span{color:var(--muted);font-size:.82rem}
+      .badges{display:flex;gap:.4rem;align-items:center;flex-wrap:wrap}
+      .tag{font-size:.68rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:.25rem .6rem;border-radius:999px}
+      .tag.role{color:var(--muted-soft);border:1px solid var(--line);background:rgba(255,255,255,.03)}
+      .tag.owner{color:#fff4cf;border:1px solid rgba(244,180,0,.3);background:rgba(244,180,0,.1)}
+      .tag.pending{color:var(--warn);border:1px solid rgba(244,180,0,.25);background:var(--warn-bg)}
+      .actions{display:flex;gap:.4rem;align-items:center;flex-wrap:wrap}
+      .actions form{display:inline-flex;gap:.35rem;align-items:center}
+      .actions select{min-height:38px;font-size:.82rem;padding:.35rem .5rem}
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="top">
+        <div>
+          <div class="eyebrow">Gestión del club</div>
+          <h1>Miembros · {{ workspace.name }}</h1>
+        </div>
+        <a class="back" href="/">← Volver a la app</a>
+      </div>
+
+      {% if notice %}<div class="notice ok">{{ notice }}</div>{% endif %}
+      {% if error %}<div class="notice error">{{ error }}</div>{% endif %}
+
+      <div class="card">
+        <h2>Invitar a un miembro</h2>
+        <p class="hint">Le enviaremos un email con un enlace para unirse y crear su contraseña. Elige su rol.</p>
+        <form class="invite" method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="invite" />
+          <div class="field">
+            <label for="inv_email">Email</label>
+            <input id="inv_email" type="email" name="email" required placeholder="persona@club.com" autocapitalize="none" autocorrect="off" spellcheck="false" />
+          </div>
+          <div class="field">
+            <label for="inv_name">Nombre (opcional)</label>
+            <input id="inv_name" type="text" name="name" placeholder="Nombre y apellidos" />
+          </div>
+          <div class="field">
+            <label for="inv_role">Rol</label>
+            <select id="inv_role" name="role_preset">
+              {% for key, label, ar, mr in role_presets %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+          <button class="btn primary" type="submit" style="grid-column:1/-1">Enviar invitación</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>Miembros ({{ rows|length }})</h2>
+        {% for r in rows %}
+        <div class="member">
+          <div class="who">
+            <strong>{{ r.name }}</strong>
+            <span>{{ r.email|default:"sin email" }}</span>
+          </div>
+          <div class="badges">
+            {% if r.is_owner %}<span class="tag owner">Propietario</span>
+            {% else %}<span class="tag role">{{ r.role_label }}</span>{% endif %}
+            {% if r.pending %}<span class="tag pending">Pendiente</span>{% endif %}
+          </div>
+          {% if not r.is_owner %}
+          <div class="actions">
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="role" />
+              <input type="hidden" name="membership_id" value="{{ r.membership_id }}" />
+              <select name="role_preset" onchange="this.form.submit()">
+                {% for key, label, ar, mr in role_presets %}<option value="{{ key }}" {% if key == r.preset_key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+              </select>
+            </form>
+            {% if r.pending and r.email %}
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="resend" />
+              <input type="hidden" name="membership_id" value="{{ r.membership_id }}" />
+              <button class="btn ghost sm" type="submit">Reenviar</button>
+            </form>
+            {% endif %}
+            {% if not r.is_self %}
+            <form method="post" onsubmit="return confirm('¿Quitar a este miembro del club?');">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="remove" />
+              <input type="hidden" name="membership_id" value="{{ r.membership_id }}" />
+              <button class="btn danger sm" type="submit">Quitar</button>
+            </form>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </body>
+</html>

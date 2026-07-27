@@ -186,6 +186,8 @@ urlpatterns = [
     # Verificación de email (Fase 2). 'reenviar' va ANTES que <token> para no capturarlo como token.
     path("verify-email/reenviar/", account_views.resend_email_verification, name="resend_email_verification"),
     path("verify-email/<str:token>/", account_views.verify_email, name="verify_email"),
+    # Fase 3: gestión de miembros del club (owner/admin).
+    path("coach/miembros/", account_views.workspace_members_page, name="workspace-members"),
     path("api/system/kpi-audit/", views.kpi_audit, name="kpi-audit"),
     path("api/analysis/rival-form/", views.analysis_rival_form_api, name="analysis-rival-form-api"),
     path(

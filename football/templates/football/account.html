@@ -345,7 +345,13 @@
         </div>
 
         <div class="row">
-          <a class="pill primary" href="{% url 'support-page' %}">Soporte</a>
+          <a class="pill primary" href="{% url 'password_change' %}">Cambiar contraseña</a>
+          <a class="pill" href="{% url 'workspace-members' %}">Miembros del club</a>
+          <a class="pill" href="{% url 'resend_email_verification' %}">Verificar email</a>
+        </div>
+
+        <div class="row">
+          <a class="pill" href="{% url 'support-page' %}">Soporte</a>
           <a class="pill" href="{% url 'privacy-policy' %}">Privacidad</a>
           <a class="pill" href="{% url 'terms-page' %}">Términos</a>
         </div>

@@ -97,3 +97,208 @@ def resend_email_verification(request):
         "accounts/email_verify_resend.html",
         {"already": already, "sent": sent, "has_email": has_email, "email": request.user.email},
     )
+
+
+# ---------------------------------------------------------------------------
+# Fase 3: miembros del club + invitaciones por email
+# ---------------------------------------------------------------------------
+# Cada "rol de acceso" mapea a (AppUserRole global, WorkspaceMembership por club).
+MEMBER_ROLE_PRESETS = [
+    ("entrenador", "Entrenador", "entrenador", "member"),
+    ("analista", "Analista", "analista", "member"),
+    ("preparador_fisico", "Preparador físico", "preparador_fisico", "member"),
+    ("preparador_portero", "Preparador de portero", "preparador_portero", "member"),
+    ("administrador", "Administrador", "administrador", "admin"),
+    ("viewer", "Solo lectura", "invitado", "viewer"),
+]
+_MEMBER_PRESET_BY_KEY = {p[0]: p for p in MEMBER_ROLE_PRESETS}
+
+
+def _resolve_member_preset(key):
+    return _MEMBER_PRESET_BY_KEY.get(str(key or "").strip(), _MEMBER_PRESET_BY_KEY["entrenador"])
+
+
+def _preset_key_for_membership(membership):
+    """Deriva la clave de preset a partir del rol de club + rol global (para mostrar el select)."""
+    from .models import WorkspaceMembership
+
+    role = getattr(membership, "role", "")
+    app_role = getattr(getattr(membership.user, "app_role", None), "role", "") if membership else ""
+    if role == WorkspaceMembership.ROLE_VIEWER:
+        return "viewer"
+    if role == WorkspaceMembership.ROLE_ADMIN:
+        return "administrador"
+    for key, _label, ar, _mr in MEMBER_ROLE_PRESETS:
+        if ar == app_role and key not in {"administrador", "viewer"}:
+            return key
+    return "entrenador"
+
+
+def send_workspace_member_invite(request, workspace, email, name, app_role, member_role):
+    """Crea/enlaza el usuario (inactivo), rol global + membresía y envía el email de invitación."""
+    from django.urls import reverse
+    from django.utils import timezone
+    from datetime import timedelta
+    from .models import AppUserRole, WorkspaceMembership, UserInvitation
+    from django.utils.text import slugify
+
+    User = get_user_model()
+    email = (email or "").strip().lower()
+    if not email or "@" not in email:
+        raise ValueError("Email inválido.")
+
+    user_obj = User.objects.filter(email__iexact=email).order_by("id").first()
+    if user_obj is None:
+        base = slugify(email.split("@", 1)[0]).replace("-", ".").strip(".")[:120] or "miembro"
+        username = base
+        n = 2
+        while User.objects.filter(username__iexact=username).exists():
+            username = f"{base}{n}"
+            n += 1
+        first, _, last = (name or "").strip().partition(" ")
+        user_obj = User.objects.create_user(
+            username=username, email=email, password=None,
+            first_name=first[:150], last_name=last[:150], is_active=False,
+        )
+    else:
+        # Usuario ya existe: no tocamos su contraseña; solo aseguramos nombre si está vacío.
+        if name and not (user_obj.first_name or user_obj.last_name):
+            first, _, last = name.strip().partition(" ")
+            user_obj.first_name, user_obj.last_name = first[:150], last[:150]
+            user_obj.save(update_fields=["first_name", "last_name"])
+
+    AppUserRole.objects.update_or_create(user=user_obj, defaults={"role": app_role})
+    WorkspaceMembership.objects.update_or_create(
+        workspace=workspace, user=user_obj, defaults={"role": member_role}
+    )
+
+    # Un solo enlace activo por usuario.
+    UserInvitation.objects.filter(user=user_obj, is_active=True, accepted_at__isnull=True).update(is_active=False)
+    invitation = UserInvitation.objects.create(
+        user=user_obj,
+        token=UserInvitation.generate_token(),
+        email=email,
+        expires_at=timezone.now() + timedelta(days=14),
+        created_by=request.user.get_username() if request.user.is_authenticated else "",
+        is_active=True,
+    )
+    accept_url = request.build_absolute_uri(reverse("user-invite-accept", args=[invitation.token]))
+    _send_member_invite_email(email, workspace, request.user, accept_url)
+    return user_obj, invitation, accept_url
+
+
+def _send_member_invite_email(email, workspace, inviter, accept_url):
+    ctx = {
+        "url": accept_url,
+        "workspace": getattr(workspace, "name", "") or "tu club",
+        "inviter": (getattr(inviter, "get_full_name", lambda: "")() or getattr(inviter, "username", "")),
+    }
+    subject = " ".join(render_to_string("accounts/member_invite_subject.txt", ctx).split())
+    body = render_to_string("accounts/member_invite_email.html", ctx)
+    try:
+        send_mail(subject, body, getattr(settings, "DEFAULT_FROM_EMAIL", None) or None, [email], fail_silently=True)
+        return True
+    except Exception:
+        return False
+
+
+@login_required
+def workspace_members_page(request):
+    from django.contrib import messages
+    from .models import WorkspaceMembership, UserInvitation
+    from .workspace_context import get_active_workspace, can_access_platform
+    from .access_policy import can_manage_workspace, is_workspace_owner_user
+
+    workspace = get_active_workspace(request)
+    platform = can_access_platform(request.user)
+    if not workspace or not can_manage_workspace(request.user, workspace, platform_access=platform):
+        from django.http import HttpResponseForbidden
+
+        return HttpResponseForbidden("No tienes permiso para gestionar los miembros de este club.")
+
+    notice = ""
+    error = ""
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip()
+        try:
+            if action == "invite":
+                key = request.POST.get("role_preset")
+                _k, _label, app_role, member_role = _resolve_member_preset(key)
+                _u, _inv, url = send_workspace_member_invite(
+                    request, workspace,
+                    request.POST.get("email"), request.POST.get("name"),
+                    app_role, member_role,
+                )
+                notice = f"Invitación enviada a {(request.POST.get('email') or '').strip().lower()}."
+            elif action == "role":
+                mid = int(request.POST.get("membership_id") or 0)
+                m = WorkspaceMembership.objects.select_related("user").filter(id=mid, workspace=workspace).first()
+                if not m:
+                    raise ValueError("Miembro no encontrado.")
+                if is_workspace_owner_user(m.user, workspace):
+                    raise ValueError("No se puede cambiar el rol del propietario.")
+                _k, _label, app_role, member_role = _resolve_member_preset(request.POST.get("role_preset"))
+                m.role = member_role
+                m.save(update_fields=["role"])
+                from .models import AppUserRole
+                AppUserRole.objects.update_or_create(user=m.user, defaults={"role": app_role})
+                notice = "Rol actualizado."
+            elif action == "remove":
+                mid = int(request.POST.get("membership_id") or 0)
+                m = WorkspaceMembership.objects.select_related("user").filter(id=mid, workspace=workspace).first()
+                if not m:
+                    raise ValueError("Miembro no encontrado.")
+                if is_workspace_owner_user(m.user, workspace):
+                    raise ValueError("No se puede quitar al propietario del club.")
+                if int(m.user_id) == int(request.user.id):
+                    raise ValueError("No puedes quitarte a ti mismo.")
+                m.delete()
+                notice = "Miembro retirado del club."
+            elif action == "resend":
+                mid = int(request.POST.get("membership_id") or 0)
+                m = WorkspaceMembership.objects.select_related("user").filter(id=mid, workspace=workspace).first()
+                if not m:
+                    raise ValueError("Miembro no encontrado.")
+                key = _preset_key_for_membership(m)
+                _k, _label, app_role, member_role = _resolve_member_preset(key)
+                send_workspace_member_invite(request, workspace, m.user.email, m.user.get_full_name(), app_role, member_role)
+                notice = "Invitación reenviada."
+        except ValueError as exc:
+            error = str(exc)
+        except Exception:
+            error = "No se pudo completar la acción."
+
+    memberships = list(
+        WorkspaceMembership.objects.filter(workspace=workspace).select_related("user", "user__app_role").order_by("role", "user__username")
+    )
+    owner_id = int(getattr(workspace, "owner_user_id", 0) or 0)
+    pending_invites = {
+        inv.user_id: inv
+        for inv in UserInvitation.objects.filter(
+            user__in=[m.user for m in memberships], is_active=True, accepted_at__isnull=True
+        )
+    }
+    rows = []
+    for m in memberships:
+        u = m.user
+        is_owner = int(u.id) == owner_id
+        # "Pendiente" = cuenta inactiva o sin contraseña utilizable (invitación no aceptada).
+        pending = (not u.is_active) or (not u.has_usable_password())
+        rows.append({
+            "membership_id": m.id,
+            "name": (u.get_full_name() or u.username),
+            "email": u.email,
+            "is_owner": is_owner,
+            "is_self": int(u.id) == int(request.user.id),
+            "preset_key": _preset_key_for_membership(m),
+            "role_label": ("Propietario" if is_owner else dict((p[0], p[1]) for p in MEMBER_ROLE_PRESETS).get(_preset_key_for_membership(m), "Miembro")),
+            "pending": bool(pending) and not is_owner,
+        })
+
+    return render(request, "accounts/workspace_members.html", {
+        "workspace": workspace,
+        "rows": rows,
+        "role_presets": MEMBER_ROLE_PRESETS,
+        "notice": notice,
+        "error": error,
+    })

@@ -1,0 +1,12 @@
+{% autoescape off %}Hola,
+
+{% if inviter %}{{ inviter }} te ha invitado{% else %}Te han invitado{% endif %} a unirte a "{{ workspace }}" en Segunda Jugada.
+
+Para aceptar la invitación y crear tu contraseña, entra aquí:
+
+{{ url }}
+
+Si no esperabas esta invitación, puedes ignorar este mensaje.
+
+— Equipo de Segunda Jugada
+{% endautoescape %}
