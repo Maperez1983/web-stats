@@ -372,8 +372,39 @@ class PerfProbeMiddleware:
 
         import collections
         import re as _re
-        from django.db import connections
+        from django.db import connections, connection
         from django.http import JsonResponse
+
+        # Diag: mide DONDE esta el peso de tactical_layout de las tareas de biblioteca.
+        if request.GET.get("diag") == "1":
+            out = {}
+            try:
+                with connection.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT
+                          count(*) AS n,
+                          round(avg(length(t.tactical_layout::text))) AS avg_json,
+                          max(length(t.tactical_layout::text)) AS max_json,
+                          count(*) FILTER (WHERE t.tactical_layout::text LIKE '%%data:image%%') AS n_dataimg,
+                          count(*) FILTER (WHERE t.tactical_layout::text LIKE '%%preview_data_embedded_v1%%') AS n_prev_json,
+                          count(*) FILTER (WHERE t.tactical_layout::text LIKE '%%cover_image_embedded_v1%%') AS n_cov_json,
+                          count(*) FILTER (WHERE coalesce(t.preview_data_b64,'') <> '') AS n_prev_col,
+                          count(*) FILTER (WHERE coalesce(t.cover_data_b64,'') <> '') AS n_cov_col,
+                          round(avg(length(coalesce(t.preview_data_b64,'')))) AS avg_prevcol
+                        FROM football_sessiontask t
+                        JOIN football_trainingsession s ON t.session_id = s.id
+                        JOIN football_trainingmicrocycle m ON s.microcycle_id = m.id
+                        WHERE t.deleted_at IS NULL
+                          AND (m.notes ILIKE '%%[2J_LIBRARY_MICROCYCLE]%%' OR m.title ILIKE 'Biblioteca %%')
+                        """
+                    )
+                    row = cur.fetchone()
+                    cols = ["n","avg_json","max_json","n_dataimg","n_prev_json","n_cov_json","n_prev_col","n_cov_col","avg_prevcol"]
+                    out = {c: (int(v) if v is not None else None) for c, v in zip(cols, row)}
+            except Exception as exc:
+                out = {"error": str(exc)[:300]}
+            return JsonResponse({"diag": out})
 
         counter = collections.Counter()
         timing = collections.Counter()
