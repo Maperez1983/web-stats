@@ -21050,7 +21050,6 @@ def _build_coach_alerts(*, primary_team, roster_players, active_injury_ids, fede
     reusando lo que ya se calcula + consultas pequeñas. Cada bloque va aislado para no romper
     la portada si algo falla. Devuelve lista de {level, icon, title, detail, url}."""
     from datetime import timedelta
-    from django.db.models import Q
     alerts = []
     if not primary_team:
         return alerts
@@ -21199,7 +21198,6 @@ def answer_coach_question(request, primary_team, question):
     preguntas de SOLO LECTURA: lesionados, próximo partido, disponibles, cobertura, licencias,
     evaluaciones. Devuelve {answer, links, intent}. Cada bloque aislado para no romper."""
     from datetime import timedelta
-    from django.db.models import Q
     q_norm = _ai_trainer_normalize_text(str(question or ""))
     links = []
     if not primary_team:
@@ -23204,7 +23202,6 @@ def match_action_page(request):
     # Rendimiento: el selector de partidos no necesita toda la carga/annotate de `_team_match_queryset()`.
     # Solo usamos id + fecha + home/away para el dropdown.
     try:
-        from django.db.models import Q  # noqa: WPS433 (local import)
 
         match_selector_options = list(
             Match.objects.filter(Q(home_team=primary_team) | Q(away_team=primary_team))
@@ -23433,7 +23430,6 @@ def match_video_links_api(request):
     match_id = _parse_int(request.GET.get("match_id")) or 0
     if match_id:
         try:
-            from django.db.models import Q  # noqa: WPS433 (local import)
 
             exists = (
                 Match.objects.filter(id=int(match_id))
@@ -23478,7 +23474,6 @@ def match_video_marker_api(request):
     match_id = _parse_int(payload.get("match_id")) or 0
     if match_id:
         try:
-            from django.db.models import Q  # noqa: WPS433 (local import)
 
             exists = (
                 Match.objects.filter(id=int(match_id))
@@ -24229,6 +24224,41 @@ def match_actions_events_api(request):
 
 @authenticated_write
 @require_POST
+def _reset_matchday_after_finalize(request, primary_team, match):
+    """Cierre matchday compartido: quita el match 'activo' de sesión, marca el finalizado y
+    DESENGANCHA la convocatoria is_current (si no, bloquea el siguiente partido). Lo usan tanto
+    el finalize completo (registro de acciones) como el finalize del Hub, para que cerrar desde
+    cualquiera de los dos deje el mismo estado."""
+    try:
+        if hasattr(request, "session"):
+            mapping = request.session.get("active_match_by_team")
+            if isinstance(mapping, dict) and str(primary_team.id) in mapping:
+                mapping.pop(str(primary_team.id), None)
+                request.session["active_match_by_team"] = mapping
+                request.session.modified = True
+            finalized_mapping = request.session.get("finalized_match_by_team")
+            if not isinstance(finalized_mapping, dict):
+                finalized_mapping = {}
+            finalized_mapping[str(primary_team.id)] = int(match.id)
+            request.session["finalized_match_by_team"] = finalized_mapping
+            request.session.modified = True
+    except Exception:
+        pass
+    try:
+        record = get_current_convocation_record(primary_team, match=match, fallback_to_latest=False)
+    except Exception:
+        record = None
+    if record and bool(getattr(record, "is_current", False)):
+        try:
+            record.is_current = False
+            record.save(update_fields=["is_current"])
+        except Exception:
+            try:
+                record.save(update_fields=["is_current"])
+            except Exception:
+                pass
+
+
 def finalize_match_actions(request):
     if not _can_edit_match_actions(request.user):
         return JsonResponse({"error": "Solo el cuerpo técnico puede editar estadísticas de partido."}, status=403)
@@ -24314,39 +24344,7 @@ def finalize_match_actions(request):
     staff_selection_payload = _save_staff_match_selection()
 
     def _reset_matchday_state_after_finalize():
-        # UX: al finalizar un partido, limpiamos el match "activo" en sesión para que el siguiente
-        # acceso arranque en un flujo nuevo (prepartido) en vez de volver al match ya cerrado.
-        try:
-            if hasattr(request, "session"):
-                mapping = request.session.get("active_match_by_team")
-                if isinstance(mapping, dict) and str(primary_team.id) in mapping:
-                    mapping.pop(str(primary_team.id), None)
-                    request.session["active_match_by_team"] = mapping
-                    request.session.modified = True
-                finalized_mapping = request.session.get("finalized_match_by_team")
-                if not isinstance(finalized_mapping, dict):
-                    finalized_mapping = {}
-                finalized_mapping[str(primary_team.id)] = int(match.id)
-                request.session["finalized_match_by_team"] = finalized_mapping
-                request.session.modified = True
-        except Exception:
-            pass
-        # Reinicio total (matchday): al guardar el partido, la convocatoria "actual" ya no debe
-        # quedar enganchada como `is_current`, porque bloquearía el siguiente partido.
-        # Conservamos el registro para histórico, solo desactivamos el flag current.
-        try:
-            record = get_current_convocation_record(primary_team, match=match, fallback_to_latest=False)
-        except Exception:
-            record = None
-        if record and bool(getattr(record, "is_current", False)):
-            try:
-                record.is_current = False
-                record.save(update_fields=["is_current"])
-            except Exception:
-                try:
-                    record.save(update_fields=["is_current"])
-                except Exception:
-                    pass
+        _reset_matchday_after_finalize(request, primary_team, match)
 
     pending_events = list(
         MatchEvent.objects.filter(
@@ -40260,6 +40258,16 @@ def _initial_eleven_page_impl(request):
             match=target_match,
             fallback_to_latest=False if target_match else True,
         )
+    # Coherencia con Registro de acciones: si hay partido activo pero aún no hay convocatoria,
+    # la creamos aquí también (antes solo lo hacía la pantalla de acciones), para poder alinear
+    # el 11 sin tener que pasar antes por Convocatoria.
+    if not convocation_record and target_match:
+        try:
+            convocation_record = _ensure_matchday_convocation_record(
+                primary_team, match=target_match, request=request
+            )
+        except Exception:
+            convocation_record = None
     try:
         convocation_players = list(convocation_record.players.filter(is_active=True).order_by("number", "name")) if convocation_record else []
     except Exception:
@@ -80912,6 +80920,13 @@ def match_hub_finalize_match(request):
         updated = 0
     try:
         _sync_match_score_from_events(match, primary_team)
+    except Exception:
+        pass
+    # Coherencia con el cierre desde Registro de acciones: desengancha la convocatoria is_current
+    # y limpia el match activo de sesión, para que cerrar desde el Hub NO deje el matchday a medias
+    # (antes quedaba is_current y bloqueaba el siguiente partido).
+    try:
+        _reset_matchday_after_finalize(request, primary_team, match)
     except Exception:
         pass
     _invalidate_team_dashboard_caches(primary_team)
