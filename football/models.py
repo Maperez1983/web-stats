@@ -2604,6 +2604,10 @@ class SessionTask(models.Model):
     cover_data_b64 = models.TextField(blank=True, default='')
     cover_present = models.BooleanField(default=False, db_index=True,
                                         help_text='Flag barato para listados: hay portada IA embebida')
+    # Perf: copia LIGERA de tactical_layout SIN el canvas pesado (tokens/graphic_editor/
+    # original_version/timeline), que pesa ~165KB/tarea. Listados y presentacion solo necesitan
+    # `meta` -> leen esta columna y DIFIEREN tactical_layout. El editor 2D usa el completo.
+    task_layout_light = models.JSONField(default=dict, blank=True)
     task_pdf = models.FileField(upload_to='session-tasks-pdf/', null=True, blank=True)
     task_preview_image = models.ImageField(upload_to='session-tasks-preview/', null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PLANNED)
@@ -2675,6 +2679,23 @@ class SessionTask(models.Model):
             _uf = kwargs.get('update_fields')
             if _uf is not None and _moved:
                 kwargs['update_fields'] = list(set(_uf) | set(_moved) | {'tactical_layout'})
+        except Exception:
+            pass
+        # Perf: mantiene task_layout_light = tactical_layout SIN el canvas pesado, para que
+        # listados/presentacion (que solo necesitan meta) no detoasten ~165KB por tarea.
+        try:
+            _lay = self.tactical_layout if isinstance(self.tactical_layout, dict) else None
+            if isinstance(_lay, dict):
+                _light = {k: v for k, v in _lay.items() if k not in ('tokens', 'timeline')}
+                _m = _light.get('meta')
+                if isinstance(_m, dict):
+                    _light['meta'] = {k: v for k, v in _m.items() if k not in ('graphic_editor', 'original_version')}
+                self.task_layout_light = _light
+            else:
+                self.task_layout_light = {}
+            _uf2 = kwargs.get('update_fields')
+            if _uf2 is not None:
+                kwargs['update_fields'] = list(set(_uf2) | {'task_layout_light'})
         except Exception:
             pass
         super().save(*args, **kwargs)
