@@ -847,7 +847,7 @@ body.ed-chrome #edc-mat-body .edc-rep-menu {
 }
 /* El atributo hidden debe ganar al display:flex de arriba (misma raíz, +especificidad). */
 body.ed-chrome #edc-mat-body .edc-rep-menu[hidden] { display: none !important; }
-body.ed-chrome #edc-mat-body .edc-rep-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+body.ed-chrome #edc-mat-body .edc-rep-opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 /* Toggle de equipación (Local / Visitante) dentro del desplegable. */
 body.ed-chrome #edc-mat-body .edc-kit-toggle { display: flex; align-items: center; gap: 6px; }
 body.ed-chrome #edc-mat-body .edc-kit-label {
@@ -862,7 +862,7 @@ body.ed-chrome #edc-mat-body .edc-kit-btn {
 body.ed-chrome #edc-mat-body .edc-kit-btn:hover { border-color: rgba(55,208,95,0.5); }
 body.ed-chrome #edc-mat-body .edc-kit-btn.is-active { background: var(--edc-accent); border-color: var(--edc-accent); color: var(--edc-accent-ink); }
 body.ed-chrome #edc-mat-body .edc-rep-opt {
-  flex: 1 1 auto; min-width: 62px; padding: 8px 10px; border-radius: 8px;
+  min-width: 0; padding: 8px 10px; border-radius: 8px; text-align: center;
   border: 1px solid var(--edc-line); background: var(--edc-bar-2);
   color: var(--edc-ink); cursor: pointer; font-size: 12px; font-weight: 600;
   transition: background .12s ease, border-color .12s ease;
@@ -871,16 +871,17 @@ body.ed-chrome #edc-mat-body .edc-rep-opt:hover { background: var(--edc-accent);
 
 /* Barra global de representación (opción A: global + override por jugador) */
 body.ed-chrome #edc-mat-body .edc-roster-global {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
   padding: 8px; margin-bottom: 4px; border-radius: 11px;
   background: var(--edc-bar); border: 1px solid var(--edc-line);
 }
 body.ed-chrome #edc-mat-body .edc-roster-global-label {
+  grid-column: 1 / -1;
   font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em;
-  color: var(--edc-muted); margin-right: 2px;
+  color: var(--edc-muted);
 }
 body.ed-chrome #edc-mat-body .edc-roster-gbtn {
-  flex: 1 1 auto; min-width: 54px; padding: 6px 8px; border-radius: 8px;
+  min-width: 0; padding: 6px 8px; border-radius: 8px; text-align: center;
   border: 1px solid var(--edc-line); background: var(--edc-bar-2);
   color: var(--edc-ink); cursor: pointer; font-size: 11.5px; font-weight: 600;
 }

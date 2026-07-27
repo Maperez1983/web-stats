@@ -37906,24 +37906,31 @@
               // estilo dado (chapa/camiseta/figura/avatar). Reutiliza el kind 'player_away'. La carcasa
               // 2D lo llama desde el desplegable de la lista de plantilla. Foto no usa equipación.
               try {
-                window.__tpadInsertPlayerAway = (playerId, style) => {
+                window.__tpadInsertPlayer = (playerId, style, away) => {
                   try {
                     const el = playerBank ? playerBank.querySelector('button.player-token-bank[data-player-id="' + playerId + '"]') : null;
                     const nameEl = el ? el.querySelector('.token-name') : null;
                     const numEl = el ? el.querySelector('.token-number') : null;
                     const isGk = !!(el && el.querySelector('.is-goalkeeper'));
+                    const ratingRaw = el ? el.getAttribute('data-rating') : null;
                     const minP = {
                       id: playerId,
-                      name: nameEl ? safeText(nameEl.textContent).trim() : '',
+                      // Quitamos el dorsal que a veces viene delante del nombre (p.ej. "1TADEO").
+                      name: nameEl ? safeText(nameEl.textContent).trim().replace(/^\d+\s*/, '') : '',
                       number: numEl ? safeText(numEl.textContent).replace(/[^0-9]/g, '') : '',
                     };
-                    const kind = isGk ? 'goalkeeper_local' : 'player_away';
+                    if (ratingRaw != null && ratingRaw !== '') { const rn = Number(ratingRaw); if (Number.isFinite(rn)) minP.rating = rn; }
+                    const kind = isGk ? 'goalkeeper_local' : (away ? 'player_away' : 'player_local');
+                    // CLAVE: pasamos {style} EXPLÍCITO -> gana sobre display.mode del servidor (que forzaba
+                    // 'photo' e ignoraba la elección Chapa/Camiseta/Figura/Avatar del desplegable).
                     const st = normalizeTokenStyle(style || tokenGlobalStyle);
                     const factory = playerTokenFactory(kind, minP, { style: st });
                     activateFactory(factory, safeText(minP.name, 'el jugador'), kind);
                     return true;
                   } catch (e) { return false; }
                 };
+                // Compat: alias antiguo (equipación visitante).
+                window.__tpadInsertPlayerAway = (playerId, style) => window.__tpadInsertPlayer(playerId, style, true);
               } catch (e) { /* ignore */ }
 
 	              // ----------------------------
