@@ -244,7 +244,7 @@
                         {% endif %}
                       </div>
                     </div>
-                    <div{% if not (pc.pdf_live_preview_mode and pc.task_preview_3d_embed_url or pc.graphic_view_3d_url) %} style="display:none"{% endif %}>
+                    <div{% if pc.pdf_live_preview_mode and pc.task_preview_3d_embed_url or pc.graphic_view_3d_url %}{% else %} style="display:none"{% endif %}>
                       <div class="club-label" style="margin-bottom:0.32rem;">Vista 3D (plasmado automático)</div>
                       <div style="border:1px solid var(--club-soft-line); border-radius:12px; overflow:hidden; background:#fff; min-height:180px; display:flex; align-items:center; justify-content:center;">
                         {% if pc.pdf_live_preview_mode and pc.task_preview_3d_embed_url %}
@@ -256,7 +256,7 @@
                         {% endif %}
                       </div>
                     </div>
-                    <div{% if not (pc.recreation_2d_url) %} style="display:none"{% endif %}>
+                    <div{% if not pc.recreation_2d_url %} style="display:none"{% endif %}>
                       <div class="club-label" style="margin-bottom:0.32rem;">Recreación 2D</div>
                       <div style="border:1px solid var(--club-soft-line); border-radius:12px; overflow:hidden; background:#fff; min-height:180px; display:flex; align-items:center; justify-content:center;">
                         {% if pc.recreation_2d_url %}
@@ -266,7 +266,7 @@
                         {% endif %}
                       </div>
                     </div>
-                    <div{% if not (pc.pdf_live_preview_mode and pc.recreation_3d_embed_url or pc.recreation_3d_url) %} style="display:none"{% endif %}>
+                    <div{% if pc.pdf_live_preview_mode and pc.recreation_3d_embed_url or pc.recreation_3d_url %}{% else %} style="display:none"{% endif %}>
                       <div class="club-label" style="margin-bottom:0.32rem;">Recreación 3D</div>
                       <div style="border:1px solid var(--club-soft-line); border-radius:12px; overflow:hidden; background:#fff; min-height:180px; display:flex; align-items:center; justify-content:center;">
                         {% if pc.pdf_live_preview_mode and pc.recreation_3d_embed_url %}
@@ -728,7 +728,7 @@
                     {% endif %}
                   </div>
                 </div>
-                <div{% if not (pc.pdf_live_preview_mode and pc.task_preview_3d_embed_url or pc.graphic_view_3d_url) %} style="display:none"{% endif %}>
+                <div{% if pc.pdf_live_preview_mode and pc.task_preview_3d_embed_url or pc.graphic_view_3d_url %}{% else %} style="display:none"{% endif %}>
                   <div class="uefa-inline-note" style="font-weight:800; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Vista 3D (plasmado automático)</div>
                   <div style="border:1px solid rgba(2,6,23,0.13); border-radius:12px; overflow:hidden; background:#fff; min-height:180px; display:flex; align-items:center; justify-content:center;">
                     {% if pc.pdf_live_preview_mode and pc.task_preview_3d_embed_url %}
@@ -740,7 +740,7 @@
                     {% endif %}
                   </div>
                 </div>
-                <div{% if not (pc.recreation_2d_url) %} style="display:none"{% endif %}>
+                <div{% if not pc.recreation_2d_url %} style="display:none"{% endif %}>
                   <div class="uefa-inline-note" style="font-weight:800; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Recreación 2D</div>
                   <div style="border:1px solid rgba(2,6,23,0.13); border-radius:12px; overflow:hidden; background:#fff; min-height:180px; display:flex; align-items:center; justify-content:center;">
                     {% if pc.recreation_2d_url %}
@@ -750,7 +750,7 @@
                     {% endif %}
                   </div>
                 </div>
-                <div{% if not (pc.pdf_live_preview_mode and pc.recreation_3d_embed_url or pc.recreation_3d_url) %} style="display:none"{% endif %}>
+                <div{% if pc.pdf_live_preview_mode and pc.recreation_3d_embed_url or pc.recreation_3d_url %}{% else %} style="display:none"{% endif %}>
                   <div class="uefa-inline-note" style="font-weight:800; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Recreación 3D</div>
                   <div style="border:1px solid rgba(2,6,23,0.13); border-radius:12px; overflow:hidden; background:#fff; min-height:180px; display:flex; align-items:center; justify-content:center;">
                     {% if pc.pdf_live_preview_mode and pc.recreation_3d_embed_url %}
