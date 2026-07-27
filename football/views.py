@@ -49159,6 +49159,7 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
             "planning_task_source_options": planning_task_source_options,
             "selected_session": selected_session,
             "selected_session_id": selected_session_id,
+            "selected_session_task_count": len(selected_session_tasks),
             "session_hint_id": session_hint_id,
             "task_pick_mode": task_pick_mode,
             "task_pick_kind": task_pick_kind,
