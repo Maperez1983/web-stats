@@ -3004,6 +3004,35 @@ def account_delete(request):
         logger.exception("No se pudo desactivar la cuenta %s", user_id)
         return JsonResponse({"error": str(exc) or "No se pudo eliminar la cuenta."}, status=500)
 
+    # RGPD: además de anonimizar el User, retirar los datos personales vinculados.
+    # Los registros operativos del club (fichas de jugador/staff) permanecen porque son del
+    # CLUB, pero se desvinculan de este login. Se limpian rol global, invitaciones, tokens y
+    # membresías. Cada paso va aislado para que un fallo no bloquee el resto.
+    try:
+        from .models import (
+            AppUserRole,
+            WorkspaceMembership,
+            UserInvitation,
+            ServiceAccessToken,
+            Player,
+            StaffMember,
+        )
+
+        for _cleanup in (
+            lambda: UserInvitation.objects.filter(user_id=user_id).delete(),
+            lambda: ServiceAccessToken.objects.filter(user_id=user_id).delete(),
+            lambda: AppUserRole.objects.filter(user_id=user_id).delete(),
+            lambda: WorkspaceMembership.objects.filter(user_id=user_id).delete(),
+            lambda: Player.objects.filter(user_id=user_id).update(user=None),
+            lambda: StaffMember.objects.filter(user_id=user_id).update(user=None),
+        ):
+            try:
+                _cleanup()
+            except Exception:
+                logger.exception("Limpieza RGPD parcial (paso) para la cuenta %s", user_id)
+    except Exception:
+        logger.exception("Limpieza RGPD parcial para la cuenta %s", user_id)
+
     try:
         auth_logout(request)
     except Exception:
