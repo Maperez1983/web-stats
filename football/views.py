@@ -36956,16 +36956,17 @@ def coach_avatar_characteristics_xlsx(request):
     wb = Workbook()
     ws = wb.active
     ws.title = "Jugadores"
-    cols = ["Nombre", "Dorsal", "Portero", "Altura (cm)", "Complexión", "Origen (piel)", "Pelo", "Tipo", "id_foto (no tocar)"]
+    # A..J: Nombre, Dorsal, Portero, Altura, Complexión, Origen, Peinado, Pelo(color), Tipo, id_foto
+    cols = ["Nombre", "Dorsal", "Portero", "Altura (cm)", "Complexión", "Origen (piel)", "Peinado", "Pelo (color)", "Tipo", "id_foto (no tocar)"]
     green = PatternFill("solid", fgColor="0F7A35")
     white = Font(color="FFFFFF", bold=True, size=11)
     grey = PatternFill("solid", fgColor="EAF1EC")
     thin = Side(style="thin", color="C8D6CC")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
-    ws.merge_cells("A1:I1")
-    ws["A1"] = ("Rellena Complexión (delgado/normal/fuerte/regordete) y, SOLO para ojeados sin foto, "
-                "Origen y Pelo. Nombre/Dorsal/Altura vienen de tu plantilla; corrige la altura si falta. "
-                "No toques id_foto.")
+    ws.merge_cells("A1:J1")
+    ws["A1"] = ("Rellena Complexión y Peinado. Origen y Pelo (color) son SOLO para ojeados sin foto "
+                "(los que tienen id_foto ya llevan cara/pelo real de su foto). Nombre/Dorsal/Altura vienen "
+                "de tu plantilla; corrige la altura si falta. No toques id_foto.")
     ws["A1"].font = Font(italic=True, color="0F7A35", size=10)
     ws["A1"].alignment = Alignment(wrap_text=True, vertical="center")
     ws.row_dimensions[1].height = 46
@@ -36976,7 +36977,7 @@ def coach_avatar_characteristics_xlsx(request):
         cell.alignment = Alignment(horizontal="center", vertical="center")
         cell.border = border
     ws.freeze_panes = "A3"
-    for c, w in enumerate([22, 8, 9, 11, 15, 18, 14, 12, 16], 1):
+    for c, w in enumerate([22, 8, 9, 11, 16, 18, 14, 14, 12, 16], 1):
         ws.column_dimensions[chr(64 + c)].width = w
     r = 3
     for p in players:
@@ -36984,30 +36985,39 @@ def coach_avatar_characteristics_xlsx(request):
         ws.cell(row=r, column=2, value=(p.number if p.number is not None else ""))
         ws.cell(row=r, column=3, value=("Sí" if _is_gk(p.position) else "No"))
         ws.cell(row=r, column=4, value=(p.height_cm if p.height_cm else ""))
-        ws.cell(row=r, column=8, value="jugador")
-        ws.cell(row=r, column=9, value=int(p.id))
-        for c in range(1, 10):
+        ws.cell(row=r, column=9, value="jugador")
+        ws.cell(row=r, column=10, value=int(p.id))
+        for c in range(1, 11):
             ws.cell(row=r, column=c).border = border
         r += 1
-    ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=9)
-    ws.cell(row=r, column=1, value="— OJEADOS (sin foto: se genera el cuerpo con complexión + origen + pelo) —").fill = grey
+    ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=10)
+    ws.cell(row=r, column=1, value="— OJEADOS (sin foto: se genera el cuerpo con complexión + origen + peinado + pelo) —").fill = grey
     ws.cell(row=r, column=1).font = Font(bold=True, color="0F7A35")
     r += 1
     for t in scouted:
         ws.cell(row=r, column=1, value=str(getattr(t, "subject_name", "") or "").strip())
         ws.cell(row=r, column=3, value=("Sí" if _is_gk(getattr(t, "position", "")) else "No"))
-        ws.cell(row=r, column=8, value="ojeado")
-        for c in range(1, 10):
+        ws.cell(row=r, column=9, value="ojeado")
+        for c in range(1, 11):
             ws.cell(row=r, column=c).border = border
         r += 1
     for _ in range(8):
-        ws.cell(row=r, column=8, value="ojeado")
-        for c in range(1, 10):
+        ws.cell(row=r, column=9, value="ojeado")
+        for c in range(1, 11):
             ws.cell(row=r, column=c).border = border
         r += 1
     last = r - 1
     origen = '"Mediterráneo,Europeo,Árabe/Magrebí,Africano,Caribeño,Latino/Sudamericano,Americano,Asiático"'
-    for col, form in [("C", '"Sí,No"'), ("E", '"delgado,normal,fuerte,regordete"'), ("F", origen), ("H", '"jugador,ojeado"')]:
+    peinado = '"corto,medio,rizado,rapado,largo,tupé,coleta,afro,calvo/entradas"'
+    pelo = '"moreno,castaño,rubio,pelirrojo,canoso,teñido"'
+    for col, form in [
+        ("C", '"Sí,No"'),
+        ("E", '"delgado,normal,fuerte,musculado,regordete"'),
+        ("F", origen),
+        ("G", peinado),
+        ("H", pelo),
+        ("I", '"jugador,ojeado"'),
+    ]:
         dv = DataValidation(type="list", formula1=form, allow_blank=True)
         ws.add_data_validation(dv)
         dv.add(f"{col}3:{col}{last}")
