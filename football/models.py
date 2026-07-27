@@ -1944,6 +1944,30 @@ class RivalConvocationRecord(models.Model):
         return f'{base} · {self.match_id or "sin partido"}'
 
 
+class MatchLineup(models.Model):
+    """Alineación (11 inicial + banquillo) de NUESTRO equipo para un partido concreto.
+
+    Fuente de verdad propia, independiente del ciclo de vida de `ConvocationRecord`
+    (is_current / match SET_NULL). Se escribe en paralelo a `ConvocationRecord.lineup_data`
+    (compatibilidad hacia atrás) y se lee con preferencia sobre ella. `match` es CASCADE, así que
+    la alineación no queda huérfana. `lineup_data` = dict {starters:[], bench:[], _meta:{}}.
+    """
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='match_lineups')
+    match = models.ForeignKey('Match', on_delete=models.CASCADE, related_name='team_lineups')
+    lineup_data = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('team', 'match')
+        ordering = ['-updated_at', '-id']
+        indexes = [models.Index(fields=['team', 'match'], name='matchlineup_team_match_idx')]
+
+    def __str__(self):
+        return f'Alineación equipo {self.team_id} · partido {self.match_id}'
+
+
 class Match(models.Model):
     CONTEXT_LEAGUE = 'league'
     CONTEXT_TOURNAMENT = 'tournament'

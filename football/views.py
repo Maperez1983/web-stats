@@ -376,6 +376,7 @@ from football.models import (
     InjuryCatalogEntry,
     Match,
     MatchEvent,
+    MatchLineup,
     MatchReport,
     PdfGraphicAsset,
     Player,
@@ -22994,7 +22995,7 @@ def match_action_page(request):
         match_staff_mvp_id = ""
     initial_lineup_payload = {"starters": [], "bench": []}
     if convocation_record:
-        stored_lineup = convocation_record.lineup_data if isinstance(convocation_record.lineup_data, dict) else {}
+        stored_lineup = _stored_lineup_for_match(primary_team, active_match, convocation_record)
         stored_meta = stored_lineup.get("_meta") if isinstance(stored_lineup.get("_meta"), dict) else {}
         normalized_stored = _normalize_lineup_payload_with_limit(
             stored_lineup,
@@ -23905,6 +23906,19 @@ def save_match_lineup(request):
         normalized["_meta"]["orientation"] = orientation
     convocation_record.lineup_data = normalized
     convocation_record.save(update_fields=["lineup_data"])
+    # Doble escritura al modelo propio (fuente de verdad; no se orfana con el ciclo de convocatoria).
+    if target_match is not None and getattr(target_match, "id", None):
+        try:
+            MatchLineup.objects.update_or_create(
+                team=primary_team, match=target_match, defaults={"lineup_data": normalized}
+            )
+        except Exception:
+            logger.debug(
+                "No se pudo guardar MatchLineup (team=%s match=%s)",
+                getattr(primary_team, "id", None),
+                getattr(target_match, "id", None),
+                exc_info=True,
+            )
     _invalidate_team_dashboard_caches(primary_team)
     starters_count = len(normalized["starters"])
     return JsonResponse(
@@ -23917,6 +23931,23 @@ def save_match_lineup(request):
             "lineup": normalized,
         }
     )
+
+
+def _stored_lineup_for_match(primary_team, match, convocation_record=None):
+    """Fuente de verdad de la alineación de nuestro equipo: prefiere MatchLineup (modelo propio,
+    por partido) y cae a ConvocationRecord.lineup_data si aún no hay MatchLineup (datos antiguos).
+    Devuelve siempre un dict (posiblemente vacío)."""
+    if primary_team is not None and match is not None and getattr(match, "id", None):
+        try:
+            ml = MatchLineup.objects.filter(team=primary_team, match=match).first()
+            if ml and isinstance(ml.lineup_data, dict) and (
+                ml.lineup_data.get("starters") or ml.lineup_data.get("bench")
+            ):
+                return ml.lineup_data
+        except Exception:
+            pass
+    data = getattr(convocation_record, "lineup_data", None) if convocation_record is not None else None
+    return data if isinstance(data, dict) else {}
 
 
 @login_required
@@ -23944,7 +23975,7 @@ def get_match_lineup(request):
         convocation_record = _ensure_matchday_convocation_record(primary_team, match=target_match)
     if not convocation_record:
         return JsonResponse({"error": "No hay convocatoria activa para este partido."}, status=404)
-    stored = convocation_record.lineup_data if isinstance(convocation_record.lineup_data, dict) else {}
+    stored = _stored_lineup_for_match(primary_team, target_match, convocation_record)
     meta = stored.get("_meta") if isinstance(stored.get("_meta"), dict) else {}
     allowed_players = list(convocation_record.players.all())
     normalized = _normalize_lineup_payload_with_limit(stored, allowed_players, starters_limit=starters_limit)
@@ -40496,7 +40527,7 @@ def _initial_eleven_page_impl(request):
     has_pending_lineup = False
     has_pending_convocation = bool(convocation_record and not convocation_players)
     if convocation_record:
-        stored = convocation_record.lineup_data if isinstance(convocation_record.lineup_data, dict) else {}
+        stored = _stored_lineup_for_match(primary_team, target_match, convocation_record)
         stored_meta = stored.get("_meta") if isinstance(stored.get("_meta"), dict) else {}
         try:
             normalized = _normalize_lineup_payload_with_limit(
@@ -80734,7 +80765,7 @@ def match_hub_page(request):
             convocation_players_count = int(convocation_record.players.count() or 0)
         except Exception:
             convocation_players_count = 0
-        stored = convocation_record.lineup_data if isinstance(convocation_record.lineup_data, dict) else {}
+        stored = _stored_lineup_for_match(primary_team, active_match, convocation_record)
         starters = stored.get("starters") if isinstance(stored, dict) else []
         has_lineup = bool(starters)
 
