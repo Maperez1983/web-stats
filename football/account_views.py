@@ -200,11 +200,13 @@ def _send_member_invite_email(email, workspace, inviter, accept_url):
     }
     subject = " ".join(render_to_string("accounts/member_invite_subject.txt", ctx).split())
     body = render_to_string("accounts/member_invite_email.html", ctx)
+    # Devuelve "" si se envía bien, o el motivo del error (para poder mostrarlo al admin en vez de
+    # tragárnoslo en silencio).
     try:
-        send_mail(subject, body, getattr(settings, "DEFAULT_FROM_EMAIL", None) or None, [email], fail_silently=True)
-        return True
-    except Exception:
-        return False
+        send_mail(subject, body, getattr(settings, "DEFAULT_FROM_EMAIL", None) or None, [email], fail_silently=False)
+        return ""
+    except Exception as exc:
+        return (f"{type(exc).__name__}: {exc}")[:280]
 
 
 @login_required

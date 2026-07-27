@@ -3542,9 +3542,18 @@ def _create_staff_access_invitation(
         try:
             from .account_views import _send_member_invite_email
 
-            _send_member_invite_email(invite_email, workspace, request.user, accept_url)
-        except Exception:
+            _send_err = _send_member_invite_email(invite_email, workspace, request.user, accept_url)
+            if _send_err and request is not None:
+                try:
+                    request._sj_invite_email_error = _send_err
+                except Exception:
+                    pass
+        except Exception as _exc:
             logger.exception("No se pudo enviar el email de invitación de staff a %s", invite_email)
+            try:
+                request._sj_invite_email_error = f"{type(_exc).__name__}: {_exc}"[:280]
+            except Exception:
+                pass
     return user_obj, accept_url
 
 
@@ -3905,6 +3914,9 @@ def staff_member_detail_page(request, staff_id):
                     preferred_username=preferred_invite_username,
                 )
                 feedback = "Ficha actualizada. Invitación de acceso generada."
+                _mail_err = getattr(request, "_sj_invite_email_error", "")
+                if _mail_err:
+                    feedback = "Invitación creada, pero el EMAIL NO se pudo enviar. Motivo: " + _mail_err
             uploaded_photo = request.FILES.get("photo")
             if uploaded_photo:
                 _save_staff_photo(member, uploaded_photo)
