@@ -577,6 +577,7 @@ urlpatterns = [
     path("coach/torneos/", views.coach_tournaments_page, name="coach-tournaments"),
     path("coach/partidos/", views.coach_matches_page, name="coach-matches"),
     path("coach/calendario/mes/", views.coach_calendar_month_page, name="coach-calendar-month"),
+    path("coach/partidos/sincronizar/", views.coach_matches_sync_universo, name="coach-matches-sync-universo"),
     path("coach/lesiones/", views.coach_injuries_page, name="coach-injuries"),
     path("coach/carga/", views.coach_load_page, name="coach-load"),
     path("coach/roles/entrenador/", views.coach_role_trainer_page, name="coach-role-trainer"),

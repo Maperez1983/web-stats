@@ -39438,6 +39438,35 @@ def coach_tournaments_page(request):
 
 
 @login_required
+@require_POST
+def coach_matches_sync_universo(request):
+    """Sincroniza el calendario/resultados desde la competición (Universo) hacia Match.
+    Solo owner/admin (o plataforma). Idempotente y no pisa marcadores manuales."""
+    if not _can_edit_match_actions(request.user):
+        return HttpResponse("Solo el cuerpo técnico puede sincronizar.", status=403)
+    primary_team = _get_active_team_for_request(request) or _get_primary_team_for_request(request)
+    if not primary_team:
+        return HttpResponse("Equipo no configurado.", status=400)
+    workspace = _get_active_workspace(request)
+    if not (_can_access_platform(request.user) or (workspace and _can_manage_workspace(request.user, workspace))):
+        return HttpResponse("Solo el administrador del club puede sincronizar el calendario.", status=403)
+    team_query = f"&team={int(primary_team.id)}" if primary_team else ""
+    try:
+        from football.calendar_sync_services import sync_team_calendar_from_universo
+
+        summary = sync_team_calendar_from_universo(primary_team, write=True)
+    except Exception:
+        logger.exception("Sync Universo calendario falló (team=%s)", getattr(primary_team, "id", None))
+        return redirect(f"{reverse('coach-matches')}?sync_error=1{team_query}")
+    if summary.get("errors") and not summary.get("rows"):
+        msg = quote(summary["errors"][0][:160])
+        return redirect(f"{reverse('coach-matches')}?sync_error_msg={msg}{team_query}")
+    return redirect(
+        f"{reverse('coach-matches')}?synced={int(summary.get('created', 0))}-{int(summary.get('updated', 0))}{team_query}"
+    )
+
+
+@login_required
 def coach_calendar_month_page(request):
     """Vista de calendario MENSUAL (rejilla) con partidos + sesiones. Complementa la lista
     (coach-matches) y la semana (team-agenda). Solo lectura."""
@@ -39988,6 +40017,10 @@ def coach_matches_page(request):
             "season_label": season_display_name(season),
             "calendar_ics_url": request.build_absolute_uri(
                 f"{reverse('team-calendar-ics')}?token={quote(make_team_calendar_token(primary_team))}"
+            ),
+            "can_sync_calendar": bool(
+                _can_access_platform(request.user)
+                or (_get_active_workspace(request) and _can_manage_workspace(request.user, _get_active_workspace(request)))
             ),
             "rows": rows,
             "rival_name_options": rival_name_options,

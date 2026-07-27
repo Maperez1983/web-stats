@@ -94,6 +94,13 @@
         <div class="header-actions">
           <a class="btn" href="{% url 'coach-cards' %}?area=match">Volver</a>
           <a class="btn" href="{% url 'coach-calendar-month' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">📅 Mes</a>
+          {% if can_sync_calendar %}
+          <form method="post" action="{% url 'coach-matches-sync-universo' %}" style="display:inline;margin:0;" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Sincronizando…';">
+            {% csrf_token %}
+            {% if active_team %}<input type="hidden" name="team" value="{{ active_team.id }}" />{% endif %}
+            <button type="submit" class="btn" title="Trae partidos y resultados desde la competición (Universo). No pisa marcadores editados a mano.">🔄 Sincronizar competición</button>
+          </form>
+          {% endif %}
           <a class="btn" href="{% url 'match-hub' %}">Ir a Partido</a>
           {% if calendar_ics_url %}
           <button type="button" class="btn" id="btnSubscribeIcs" data-ics="{{ calendar_ics_url }}" title="Suscribir este calendario en Apple/Google Calendar">📅 Suscribir calendario</button>
@@ -101,6 +108,11 @@
           {% endif %}
         </div>
 	      </header>
+      {% if request.GET.synced %}
+      <p style="margin:0 0 1rem;padding:.6rem .9rem;border-radius:10px;background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35);color:#bbf7d0;font-size:.9rem;">✅ Sincronizado desde la competición ({{ request.GET.synced }} = nuevos-actualizados). Los marcadores editados a mano se conservan.</p>
+      {% elif request.GET.sync_error or request.GET.sync_error_msg %}
+      <p style="margin:0 0 1rem;padding:.6rem .9rem;border-radius:10px;background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.35);color:#fecaca;font-size:.9rem;">⚠ No se pudo sincronizar{% if request.GET.sync_error_msg %}: {{ request.GET.sync_error_msg }}{% endif %}. Revisa que la competición esté vinculada.</p>
+      {% endif %}
       {% if calendar_ics_url %}
       <script>
         (function () {
