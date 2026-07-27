@@ -391,7 +391,11 @@ class PerfProbeMiddleware:
                           count(*) FILTER (WHERE t.tactical_layout::text LIKE '%%cover_image_embedded_v1%%') AS n_cov_json,
                           count(*) FILTER (WHERE coalesce(t.preview_data_b64,'') <> '') AS n_prev_col,
                           count(*) FILTER (WHERE coalesce(t.cover_data_b64,'') <> '') AS n_cov_col,
-                          round(avg(length(coalesce(t.preview_data_b64,'')))) AS avg_prevcol
+                          round(avg(length(coalesce(t.preview_data_b64,'')))) AS avg_prevcol,
+                          round(avg(length(coalesce((t.tactical_layout->'meta')::text,'')))) AS avg_meta,
+                          round(avg(length(coalesce((t.tactical_layout->'objects')::text,'')))) AS avg_objects,
+                          round(avg(length(coalesce((t.tactical_layout->'timeline')::text,'')))) AS avg_timeline,
+                          round(avg(length(coalesce((t.tactical_layout->'meta'->'original_version')::text,'')))) AS avg_origver
                         FROM football_sessiontask t
                         JOIN football_trainingsession s ON t.session_id = s.id
                         JOIN football_trainingmicrocycle m ON s.microcycle_id = m.id
@@ -400,7 +404,7 @@ class PerfProbeMiddleware:
                         """
                     )
                     row = cur.fetchone()
-                    cols = ["n","avg_json","max_json","n_dataimg","n_prev_json","n_cov_json","n_prev_col","n_cov_col","avg_prevcol"]
+                    cols = ["n","avg_json","max_json","n_dataimg","n_prev_json","n_cov_json","n_prev_col","n_cov_col","avg_prevcol","avg_meta","avg_objects","avg_timeline","avg_origver"]
                     out = {c: (int(v) if v is not None else None) for c, v in zip(cols, row)}
             except Exception as exc:
                 out = {"error": str(exc)[:300]}
