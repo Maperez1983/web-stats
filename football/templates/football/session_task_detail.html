@@ -1527,16 +1527,8 @@
                     <input type="number" name="task_minutes" min="5" max="90" value="{{ task.duration_minutes }}" />
                   </label>
                   <label>
-                    Nº jugadores
-                    <input type="text" name="task_player_count" value="{{ task_meta.player_count|default:'' }}" placeholder="Ej: 6v6 + 2 porteros" />
-                  </label>
-                  <label>
-                    Espacio
-                    <input type="text" name="task_sheet_space" value="{{ task_sheet.space|default:'' }}" placeholder="Ej: Medio campo / 40x30 m" />
-                  </label>
-                  <label>
-                    Medidas
-                    <input type="text" name="task_sheet_dimensions" value="{{ task_sheet.dimensions }}" placeholder="Ej: 40x30 m" />
+                    Espacio · medidas
+                    <input type="text" name="task_sheet_dimensions" value="{{ task_sheet.dimensions }}" placeholder="Ej: Medio campo · 40x30 m" />
                   </label>
                   <label>
                     Materiales
@@ -1582,8 +1574,8 @@
                     <textarea name="task_objective" rows="2" style="min-height:52px; resize:vertical;">{{ task.objective }}</textarea>
                   </label>
                   <label class="full">
-                    Jugadores / organización base
-                    <input type="text" name="task_sheet_players" value="{{ task_sheet.players }}" placeholder="Ej: 12 jugadores + 2 porteros / 3 equipos de 4" />
+                    Jugadores / organización
+                    <input type="text" name="task_sheet_players" value="{{ task_sheet.players }}" placeholder="Ej: 12 + 2 porteros · 3 equipos de 4" />
                   </label>
                 </div>
               </div>

@@ -43124,6 +43124,13 @@ def _update_library_task_from_post(task, post_data, scope_key=None):
         task_sheet["scene_note"] = task_sheet.get("description", "")
         task_sheet_touched = True
 
+    # Campo fusionado "Espacio · medidas" (task_sheet_dimensions). Reflejamos dimensions->space
+    # para que la ESPACIO de la presentacion muestre el mismo valor (ya no hay input separado).
+    if "task_sheet_dimensions" in post_data and "task_sheet_space" not in post_data:
+        task_sheet["space"] = task_sheet.get("dimensions", "")
+        task_sheet_touched = True
+        touched_space = True
+
     # Si la edición llega desde la ficha, sincronizamos también su HTML para que el PDF (UEFA/Club)
     # muestre el texto actualizado (el renderer prioriza `*_html` cuando existe).
     if "task_sheet_description" in post_data:
