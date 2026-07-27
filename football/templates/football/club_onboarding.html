@@ -887,7 +887,7 @@
                     <span class="page-preview-badge">Home</span>
                   </div>
                   <div>
-                    <h2 class="page-preview-title">{{ primary_team.display_name|default:primary_team.name|default:form.team_name|default:workspace.name }}</h2>
+                    <h2 class="page-preview-title">{% if primary_team %}{{ primary_team.display_name|default:primary_team.name|default:form.team_name|default:workspace.name }}{% else %}{{ form.team_name|default:workspace.name|default:"Tu equipo" }}{% endif %}</h2>
                     <p class="page-preview-subtitle">Así se verá la portada principal del equipo y el fondo de la infografía XI con la imagen y el escudo seleccionados.</p>
                   </div>
                 </div>
