@@ -43346,7 +43346,9 @@ def _embedded_preview_bytes_from_task(task_obj):
         if not isinstance(layout, dict):
             return None
         meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
-        data_url = str(meta.get("preview_data_embedded_v1") or "").strip()
+        data_url = str(getattr(task_obj, "preview_data_b64", "") or "").strip() or str(
+            meta.get("preview_data_embedded_v1") or ""
+        ).strip()
         if not data_url.startswith("data:image/") or ";base64," not in data_url:
             return None
         header, payload = data_url.split(";base64,", 1)
@@ -47271,6 +47273,9 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
                 collection_task_ids = set()
         task_library_raw = list(
             SessionTask.objects.select_related("session__microcycle")
+            # Perf: los blobs base64 (preview/portada) viven en columnas propias; NO los cargamos
+            # al listar (los sirve un endpoint aparte). cover_present da el has_cover barato.
+            .defer("preview_data_b64", "cover_data_b64")
             .filter(session__microcycle__team=primary_team, deleted_at__isnull=True)
             .filter(
                 Q(session__microcycle__notes__icontains=LIBRARY_MICROCYCLE_MARKER)
@@ -52970,6 +52975,7 @@ def _ai_trainer_suggest_library_tasks(team, *, text_norm: str, signals: dict, li
         try:
             raw = list(
                 SessionTask.objects.select_related("session__microcycle")
+                .defer("preview_data_b64", "cover_data_b64")
                 .filter(session__microcycle__team=team, deleted_at__isnull=True)
                 .filter(
                     Q(session__microcycle__notes__icontains=LIBRARY_MICROCYCLE_MARKER)
@@ -54042,6 +54048,7 @@ def session_task_detail_page(request, task_id):
         if team:
             candidates_raw = list(
                 SessionTask.objects.select_related("session__microcycle")
+                .defer("preview_data_b64", "cover_data_b64")
                 .filter(session__microcycle__team=team, deleted_at__isnull=True)
                 .filter(
                     Q(session__microcycle__notes__icontains=LIBRARY_MICROCYCLE_MARKER)
@@ -54710,7 +54717,9 @@ def _cover_bytes_from_task(task_obj):
         if not isinstance(layout, dict):
             return None
         meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
-        data_url = str(meta.get("cover_image_embedded_v1") or "").strip()
+        data_url = str(getattr(task_obj, "cover_data_b64", "") or "").strip() or str(
+            meta.get("cover_image_embedded_v1") or ""
+        ).strip()
         if not data_url.startswith("data:image/") or ";base64," not in data_url:
             return None
         header, payload = data_url.split(";base64,", 1)
@@ -54802,7 +54811,7 @@ def session_task_scenes_export(request):
     only_missing = str(request.GET.get("only_missing") or "").strip().lower() in {"1", "true", "yes", "on"}
     limit = _cover_parse_int(request.GET.get("limit")) or 30
     limit = max(1, min(120, limit))
-    qs = SessionTask.objects.filter(deleted_at__isnull=True)
+    qs = SessionTask.objects.defer("preview_data_b64", "cover_data_b64").filter(deleted_at__isnull=True)
     if team_id:
         qs = qs.filter(session__microcycle__team_id=team_id)
     out = []
@@ -54810,7 +54819,9 @@ def session_task_scenes_export(request):
         try:
             layout = t.tactical_layout if isinstance(t.tactical_layout, dict) else (_coerce_json_dict(t.tactical_layout) or {})
             meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
-            has_cover = bool(str(meta.get("cover_image_embedded_v1") or "").strip())
+            has_cover = bool(getattr(t, "cover_present", False)) or bool(
+                str((t.cover_data_b64 or meta.get("cover_image_embedded_v1")) or "").strip()
+            )
             if only_missing and has_cover:
                 continue
             try:

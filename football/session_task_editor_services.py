@@ -524,7 +524,9 @@ def _task_builder_initial_values(task):
             if not isinstance(raw_layout, dict):
                 raw_layout = {}
             raw_meta = raw_layout.get("meta") if isinstance(raw_layout.get("meta"), dict) else {}
-            embedded = str(raw_meta.get("preview_data_embedded_v1") or "").strip()
+            embedded = str(getattr(task_obj, "preview_data_b64", "") or "").strip() or str(
+                raw_meta.get("preview_data_embedded_v1") or ""
+            ).strip()
             if embedded.startswith("data:image/"):
                 preview_src = embedded
         except Exception:

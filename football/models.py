@@ -2587,6 +2587,14 @@ class SessionTask(models.Model):
                                       help_text='Contenido dominante: táctico/técnico/físico/psicológico')
     age_group = models.CharField(max_length=80, blank=True, default='', db_index=True)
     tactical_layout = models.JSONField(default=dict, blank=True)
+    # Perf: los blobs base64 (preview 2D y portada IA) se guardan FUERA de tactical_layout,
+    # en columnas dedicadas que se DIFIEREN en los listados de biblioteca (así la lista no
+    # lee/parsea cientos de KB por tarea). save() los reubica solo desde meta; los lectores
+    # usan preview_embedded_url()/cover_embedded_url() (campo primero, meta de reserva).
+    preview_data_b64 = models.TextField(blank=True, default='')
+    cover_data_b64 = models.TextField(blank=True, default='')
+    cover_present = models.BooleanField(default=False, db_index=True,
+                                        help_text='Flag barato para listados: hay portada IA embebida')
     task_pdf = models.FileField(upload_to='session-tasks-pdf/', null=True, blank=True)
     task_preview_image = models.ImageField(upload_to='session-tasks-preview/', null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PLANNED)
@@ -2602,6 +2610,19 @@ class SessionTask(models.Model):
     deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
     deleted_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='deleted_session_tasks')
 
+    def _embedded_from_meta(self, key):
+        layout = self.tactical_layout if isinstance(self.tactical_layout, dict) else {}
+        meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+        return str((meta or {}).get(key) or '').strip()
+
+    def preview_embedded_url(self):
+        """Data-URL de la preview 2D: campo dedicado primero, meta de reserva (retrocompat)."""
+        return (self.preview_data_b64 or '').strip() or self._embedded_from_meta('preview_data_embedded_v1')
+
+    def cover_embedded_url(self):
+        """Data-URL de la portada IA: campo dedicado primero, meta de reserva (retrocompat)."""
+        return (self.cover_data_b64 or '').strip() or self._embedded_from_meta('cover_image_embedded_v1')
+
     def save(self, *args, **kwargs):
         if not self.club_season_id:
             try:
@@ -2614,6 +2635,35 @@ class SessionTask(models.Model):
             from .task_choices import derive_task_columns
             for _k, _v in derive_task_columns(self.tactical_layout).items():
                 setattr(self, _k, _v)
+        except Exception:
+            pass
+        # Perf: saca los blobs base64 de tactical_layout.meta a columnas dedicadas. Centralizado
+        # aquí para cubrir TODOS los sitios de guardado sin tocarlos. Mantiene update_fields.
+        try:
+            _moved = []
+            layout = self.tactical_layout if isinstance(self.tactical_layout, dict) else None
+            if isinstance(layout, dict):
+                meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else None
+                if isinstance(meta, dict):
+                    _pv = meta.pop('preview_data_embedded_v1', None)
+                    if isinstance(_pv, str) and _pv.strip():
+                        self.preview_data_b64 = _pv
+                        _moved.append('preview_data_b64')
+                    _cv = meta.pop('cover_image_embedded_v1', None)
+                    if isinstance(_cv, str) and _cv.strip():
+                        self.cover_data_b64 = _cv
+                        _moved.append('cover_data_b64')
+                    _ov = meta.get('original_version')
+                    if isinstance(_ov, dict):
+                        _ov.pop('preview_data_embedded_v1', None)
+                        _ov.pop('cover_image_embedded_v1', None)
+            _flag = bool((self.cover_data_b64 or '').strip())
+            if _flag != bool(self.cover_present):
+                self.cover_present = _flag
+                _moved.append('cover_present')
+            _uf = kwargs.get('update_fields')
+            if _uf is not None and _moved:
+                kwargs['update_fields'] = list(set(_uf) | set(_moved) | {'tactical_layout'})
         except Exception:
             pass
         super().save(*args, **kwargs)
