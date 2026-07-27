@@ -303,6 +303,9 @@
             <span class="label">Usuario</span>
             <div class="value">{% if member.user %}Vinculado{% else %}Sin vincular{% endif %}</div>
             <div class="meta">{% if member.user %}{{ member.user.username }}{% else %}La ficha no tiene acceso de usuario asociado.{% endif %}</div>
+            {% if member.user and access_membership_id and can_manage_workspace %}
+            <a class="btn" href="{% url 'workspace-member-access' access_membership_id %}" style="margin-top:.6rem;display:inline-block;text-decoration:none">Configurar qué ve</a>
+            {% endif %}
           </article>
           <article class="status-card">
             <span class="label">Licencia</span>

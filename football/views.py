@@ -3913,6 +3913,15 @@ def staff_member_detail_page(request, staff_id):
     cert_url = (
         reverse("staff-member-cert-file", args=[member.id]) if getattr(member, "certification_document", None) else ""
     )
+    access_membership_id = None
+    if member and getattr(member, "user_id", None) and workspace:
+        try:
+            _am = WorkspaceMembership.objects.filter(
+                workspace=workspace, user_id=member.user_id
+            ).first()
+            access_membership_id = _am.id if _am else None
+        except Exception:
+            access_membership_id = None
     return render(
         request,
         "football/staff_member_form.html",
@@ -3925,6 +3934,7 @@ def staff_member_detail_page(request, staff_id):
             "active_team": active_team,
             "team_label": _staff_scope_label(active_team),
             "can_manage_workspace": can_manage,
+            "access_membership_id": access_membership_id,
             "error": error,
             "feedback": feedback,
             "invite_link": invite_link,
