@@ -47397,6 +47397,8 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
     library_collection_map = {}
     library_collection_counts = {}
     collection_task_ids = set()
+    library_season_options = []
+    library_season_selected = "all"
     if planner_tables_ready and active_tab == "library":
         try:
             library_collections = list(
@@ -47457,6 +47459,86 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
             and _is_library_session(getattr(item, "session", None))
             and _library_repository_for_task(item) == library_repository
         ]
+
+        # --- FILTRO PRINCIPAL: TEMPORADA (club_season) ---
+        # Resuelve la temporada de cada tarea por club_season_id; si falta, la deriva de la fecha
+        # de creación contra los rangos de temporada del workspace. Filtra el listado por la
+        # temporada seleccionada (GET library_season: id | 'all' | 'none'; por defecto la activa).
+        library_season_options = []
+        library_season_selected = "all"
+        try:
+            _season_opts = season_history_services.club_season_options_for_workspace(active_workspace)
+            if _season_opts:
+                from datetime import date as _date_cls
+
+                def _parse_iso_date(value):
+                    try:
+                        return _date_cls.fromisoformat(value) if value else None
+                    except Exception:
+                        return None
+
+                _season_ranges = [
+                    (int(o["id"]), _parse_iso_date(o.get("start_date")), _parse_iso_date(o.get("end_date")))
+                    for o in _season_opts
+                ]
+                _season_ids = {int(o["id"]) for o in _season_opts}
+
+                def _task_season_id(_t):
+                    _sid = getattr(_t, "club_season_id", None)
+                    if _sid and int(_sid) in _season_ids:
+                        return int(_sid)
+                    _d = getattr(_t, "created_at", None)
+                    _d = _d.date() if hasattr(_d, "date") else _d
+                    if _d:
+                        for _id, _st, _en in _season_ranges:
+                            if _st and _st <= _d and (_en is None or _d <= _en):
+                                return _id
+                    return 0  # sin temporada
+
+                _season_counts = {}
+                for _t in task_library:
+                    _k = _task_season_id(_t)
+                    _season_counts[_k] = _season_counts.get(_k, 0) + 1
+
+                _raw_sel = str(request.GET.get("library_season") or "").strip().lower()
+                _active_id = next((int(o["id"]) for o in _season_opts if o.get("is_active")), None)
+                if _raw_sel == "all":
+                    library_season_selected = "all"
+                elif _raw_sel == "none":
+                    library_season_selected = "none"
+                elif _raw_sel.isdigit() and int(_raw_sel) in _season_ids:
+                    library_season_selected = int(_raw_sel)
+                elif _active_id and _season_counts.get(_active_id, 0) > 0:
+                    # Por defecto la temporada activa, PERO solo si tiene tareas; si no, "Todas"
+                    # (evita mostrar la biblioteca vacia cuando las tareas no tienen temporada).
+                    library_season_selected = _active_id
+                else:
+                    library_season_selected = "all"
+
+                if library_season_selected == "none":
+                    task_library = [t for t in task_library if _task_season_id(t) == 0]
+                elif library_season_selected != "all":
+                    task_library = [t for t in task_library if _task_season_id(t) == library_season_selected]
+
+                library_season_options = [
+                    {"id": "all", "label": "Todas", "is_active": False, "count": sum(_season_counts.values())}
+                ]
+                for o in _season_opts:
+                    library_season_options.append(
+                        {
+                            "id": int(o["id"]),
+                            "label": o.get("label") or "Temporada",
+                            "is_active": bool(o.get("is_active")),
+                            "count": _season_counts.get(int(o["id"]), 0),
+                        }
+                    )
+                if _season_counts.get(0):
+                    library_season_options.append(
+                        {"id": "none", "label": "Sin temporada", "is_active": False, "count": _season_counts.get(0, 0)}
+                    )
+        except Exception:
+            library_season_options = []
+            library_season_selected = "all"
 
         def _is_performed_task(task):
             layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
@@ -48354,6 +48436,8 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
             "library_key": library_key,
             "library_repository": library_repository,
             "library_source_tab": library_source_tab,
+            "library_season_options": library_season_options,
+            "library_season_selected": library_season_selected,
             "library_source_counts": library_source_counts,
             "library_filters_active": library_filters_active,
             "library_q": library_q,

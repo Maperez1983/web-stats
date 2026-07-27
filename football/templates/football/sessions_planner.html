@@ -4005,6 +4005,16 @@
 			      <section class="panel">
 			        <h2>Biblioteca de tareas</h2>
 			        <p class="meta" style="margin-top:0;">Punto de entrada del entrenador: busca tareas por ficha, filtra y monta sesiones sin perder contexto.</p>
+			        {% if library_season_options %}
+			        <div class="library-season-strip" role="tablist" aria-label="Filtrar por temporada" style="display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center; margin:0.2rem 0 0.9rem;">
+			          <span class="meta" style="font-weight:800; letter-spacing:.02em; margin-right:0.15rem;">TEMPORADA</span>
+			          {% for s in library_season_options %}
+			          <a class="tab-link {% if library_season_selected|stringformat:'s' == s.id|stringformat:'s' %}is-active{% endif %}"
+			             href="?tab=library&amp;library_repo={{ library_repository }}&amp;library_source={{ library_source_tab|default:'created' }}&amp;library_season={{ s.id }}&amp;team={{ primary_team_id }}{% if active_workspace_id %}&amp;workspace={{ active_workspace_id }}{% endif %}"
+			             {% if s.is_active %}title="Temporada activa"{% endif %}>{{ s.label }}{% if s.is_active %} ●{% endif %} <span class="meta" style="opacity:.75;">({{ s.count }})</span></a>
+			          {% endfor %}
+			        </div>
+			        {% endif %}
 			        <div class="library-strip">
 			          <div class="library-strip-item">
 			            <small>Total visibles</small>
