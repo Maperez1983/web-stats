@@ -375,6 +375,34 @@ class PerfProbeMiddleware:
         from django.db import connections, connection
         from django.http import JsonResponse
 
+        # Diag2: para la tarea de biblioteca mas grande, tamaño de cada clave (top-level y meta).
+        if request.GET.get("diag") == "keys":
+            out = {}
+            try:
+                with connection.cursor() as cur:
+                    cur.execute(
+                        """
+                        WITH big AS (
+                          SELECT t.tactical_layout AS tl
+                          FROM football_sessiontask t
+                          JOIN football_trainingsession s ON t.session_id = s.id
+                          JOIN football_trainingmicrocycle m ON s.microcycle_id = m.id
+                          WHERE t.deleted_at IS NULL
+                            AND (m.notes ILIKE '%%[2J_LIBRARY_MICROCYCLE]%%' OR m.title ILIKE 'Biblioteca %%')
+                          ORDER BY length(t.tactical_layout::text) DESC
+                          LIMIT 1
+                        )
+                        SELECT
+                          (SELECT jsonb_object_agg(key, length(value::text)) FROM big, jsonb_each(big.tl)),
+                          (SELECT jsonb_object_agg(key, length(value::text)) FROM big, jsonb_each(big.tl->'meta') WHERE jsonb_typeof(big.tl->'meta')='object')
+                        """
+                    )
+                    row = cur.fetchone()
+                    out = {"top_level_keys": row[0], "meta_keys": row[1]}
+            except Exception as exc:
+                out = {"error": str(exc)[:400]}
+            return JsonResponse({"diag_keys": out})
+
         # Diag: mide DONDE esta el peso de tactical_layout de las tareas de biblioteca.
         if request.GET.get("diag") == "1":
             out = {}
