@@ -84,6 +84,9 @@
 	                title="{% if task %}Guardar tarea{% else %}Crear tarea{% endif %}"
 		                onclick="try{var f=document.getElementById('task-builder-form');if(!f)return;var b=document.getElementById('task-submit-btn');if(f.requestSubmit){f.requestSubmit(b||undefined);}else if(b){b.click();}else{f.submit();}}catch(e){};return false;"
 		              >{% if task %}Guardar tarea{% else %}Crear tarea{% endif %}</button>
+		              {% if task %}
+		              <a href="{% url 'session-task-detail' task.id %}?edit=ficha" class="button" id="task-builder-open-ficha" title="Abrir la ficha Club editable de esta tarea">📋 Ficha</a>
+		              {% endif %}
 		              <a href="{{ task_resource_library_url|default:'#' }}" class="button" id="task-resource-library-top">Biblioteca de recursos</a>
 		              {% endif %}
               {% if request.user.is_staff or request.user.is_superuser %}
@@ -244,9 +247,14 @@
       {% if saved_task_info %}
       <div class="alert ok" style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
         <span>{{ saved_task_info.dest_hint }} · ID #{{ saved_task_info.id }}</span>
-        {% if saved_task_info.url %}
+        <span style="display:inline-flex; gap:0.5rem; flex-wrap:wrap;">
+          {% if saved_task_info.id %}
+          <a class="button primary" href="{% url 'session-task-detail' saved_task_info.id %}?edit=ficha" title="Completar la ficha Club de la tarea recién creada">📋 Abrir ficha</a>
+          {% endif %}
+          {% if saved_task_info.url %}
           <a class="button" href="{{ saved_task_info.url }}">Ver en lista</a>
-        {% endif %}
+          {% endif %}
+        </span>
       </div>
       {# Harden: algunas builds antiguas del JS de pizarra referenciaban `diagCopyBtn` como variable global.
          Definimos un placeholder para evitar ReferenceError aunque el botón no exista / esté oculto. #}

@@ -27,7 +27,18 @@
 		            window.location.href = buildPdfViewerUrl(detailUrl, title);
 		            return;
 		          }
-		          window.location.href = detailUrl;
+		          // Opción C: al abrir una TAREA desde su card, entrar directo a la ficha Club
+		          // editable (?edit=ficha). Solo tarjetas de tarea (data-task-id + URL /tarea/N/);
+		          // en tareas no editables el flag es inocuo (la vista cae a solo-lectura).
+		          let _url = detailUrl;
+		          try {
+		            if (card && card.hasAttribute && card.hasAttribute('data-task-id') && /\/tarea\/\d+\//.test(_url)) {
+		              const _u = new URL(_url, window.location.href);
+		              if (!_u.searchParams.has('edit')) _u.searchParams.set('edit', 'ficha');
+		              _url = `${_u.pathname}${_u.search}${_u.hash}`;
+		            }
+		          } catch (e) { /* noop */ }
+		          window.location.href = _url;
 		        };
 		        if (cards.length) {
 		          cards.forEach((card) => {
