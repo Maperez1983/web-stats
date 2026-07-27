@@ -78507,7 +78507,12 @@ def compute_player_dashboard(
                 else roster_entry.get("minutes", 0)
             )
         )
-        base_pc = max(roster_entry.get("pc", 0), base_pj)
+        # P2-5: blindar valores no numéricos del snapshot (p.ej. "-" -> _parse_int devuelve None).
+        # Sin esto, `max(pc, base_pj)` y las sumas posteriores petan con `None > int`.
+        base_pj = int(base_pj or 0)
+        base_pt = int(base_pt or 0)
+        base_minutes = int(base_minutes or 0)
+        base_pc = max(int(roster_entry.get("pc", 0) or 0), base_pj)
         base_goals = (
             manual_entry.get("goals")
             if manual_entry.get("goals") is not None
@@ -78544,16 +78549,34 @@ def compute_player_dashboard(
                 else roster_entry.get("assists", 0)
             )
         )
+        # P2-5: blindar el resto de valores base (mismo motivo que arriba).
+        base_goals = int(base_goals or 0)
+        base_yellow = int(base_yellow or 0)
+        base_red = int(base_red or 0)
+        base_assists = int(base_assists or 0)
         # Manual-base: bloquear solo cuando el override aporta un valor no-cero.
         # (Evita el caso típico: el usuario guarda el formulario en blanco y se crean overrides=0
         # que impiden sumar los eventos reales de partido.)
-        assists_locked = ("assists" in manual_entry) and int(manual_entry.get("assists") or 0) != 0
-        goals_locked = ("goals" in manual_entry) and int(manual_entry.get("goals") or 0) != 0
-        yellow_cards_locked = ("yellow_cards" in manual_entry) and int(manual_entry.get("yellow_cards") or 0) != 0
-        red_cards_locked = ("red_cards" in manual_entry) and int(manual_entry.get("red_cards") or 0) != 0
+        # P0-2 (doble conteo): cuando la base viene del SNAPSHOT EXTERNO (Universo/La Preferente),
+        # esos totales YA son el total oficial de liga; los eventos locales son ESOS MISMOS partidos.
+        # Sumar ambos inflaba PJ/min/goles. Por eso, si el snapshot aporta un valor no-cero para una
+        # métrica, la bloqueamos igual que un override manual (una sola fuente por métrica).
+        _ext = bool(use_external_base_stats)
+        assists_locked = (("assists" in manual_entry) and int(manual_entry.get("assists") or 0) != 0) or (
+            _ext and base_assists > 0
+        )
+        goals_locked = (("goals" in manual_entry) and int(manual_entry.get("goals") or 0) != 0) or (
+            _ext and base_goals > 0
+        )
+        yellow_cards_locked = (
+            ("yellow_cards" in manual_entry) and int(manual_entry.get("yellow_cards") or 0) != 0
+        ) or (_ext and base_yellow > 0)
+        red_cards_locked = (("red_cards" in manual_entry) and int(manual_entry.get("red_cards") or 0) != 0) or (
+            _ext and base_red > 0
+        )
         totals_locked = any(
             int(manual_entry.get(key) or 0) != 0 for key in ("pj", "pt", "minutes") if key in manual_entry
-        )
+        ) or (_ext and base_pj > 0)
         stats = player_stats.setdefault(
             player.id,
             {
