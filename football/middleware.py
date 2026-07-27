@@ -349,3 +349,84 @@ class ServerTimingMiddleware:
             except Exception:
                 logger.debug("No se pudo registrar fallo de Server-Timing", exc_info=True)
         return response
+
+
+class PerfProbeMiddleware:
+    """Sondeo puntual de N+1 (temporal/diagnostico).
+
+    Con `?perf=<token>` (token = env PERF_PROBE_TOKEN o el default) devuelve un JSON con el
+    numero de consultas, el tiempo en BD y las SQL mas repetidas de ESA pagina, en vez del HTML.
+    No cambia el comportamiento normal (sin el token, pasa de largo). Solo normaliza literales,
+    no expone datos.
+    """
+
+    SECRET = os.getenv("PERF_PROBE_TOKEN", "n1probe_7Kd2")
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        token = request.GET.get("perf")
+        if not token or token != self.SECRET:
+            return self.get_response(request)
+
+        import collections
+        import re as _re
+        from django.db import connections
+        from django.http import JsonResponse
+
+        counter = collections.Counter()
+        timing = collections.Counter()
+        total = {"q": 0}
+
+        def _norm(sql):
+            s = _re.sub(r"\d+", "?", str(sql or ""))
+            s = _re.sub(r"'[^']*'", "'?'", s)
+            s = _re.sub(r"\s+", " ", s)
+            return s.strip()[:200]
+
+        def _wrap(execute, sql, params, many, context):
+            t0 = time.perf_counter()
+            try:
+                return execute(sql, params, many, context)
+            finally:
+                dt = (time.perf_counter() - t0) * 1000.0
+                key = _norm(sql)
+                counter[key] += 1
+                timing[key] += dt
+                total["q"] += 1
+
+        managers = []
+        for conn in connections.all():
+            try:
+                managers.append(conn.execute_wrapper(_wrap))
+            except Exception:
+                continue
+
+        started = time.perf_counter()
+        try:
+            for m in managers:
+                try:
+                    m.__enter__()
+                except Exception:
+                    pass
+            resp = self.get_response(request)
+        finally:
+            for m in reversed(managers):
+                try:
+                    m.__exit__(None, None, None)
+                except Exception:
+                    pass
+
+        total_ms = (time.perf_counter() - started) * 1000.0
+        top = counter.most_common(12)
+        return JsonResponse(
+            {
+                "status": getattr(resp, "status_code", 0),
+                "total_ms": round(total_ms),
+                "query_count": total["q"],
+                "db_ms": round(sum(timing.values())),
+                "top_repeated": [{"n": c, "ms": round(timing[k]), "sql": k} for k, c in top],
+            },
+            json_dumps_params={"indent": 1},
+        )

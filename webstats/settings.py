@@ -222,6 +222,8 @@ MIDDLEWARE = [
     'football.middleware.SlowRequestLoggingMiddleware',
     # Diagnóstico (opcional): Server-Timing (Network panel), activable con `PERF_SERVER_TIMING`.
     'football.middleware.ServerTimingMiddleware',
+    # Diagnóstico (temporal): sondeo N+1 con `?perf=<token>` -> JSON de consultas/tiempos.
+    'football.middleware.PerfProbeMiddleware',
 ]
 
 # Rendimiento en producción: comprime HTML/JSON (Cloudflare suele hacerlo, pero esto ayuda si se accede
