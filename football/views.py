@@ -78168,7 +78168,12 @@ def compute_player_dashboard(
     )
     if dashboard_roster_season:
         stats_events = stats_events.filter(player_id__in=list(roster_player_ids))
-    if season_obj:
+    # Multi-temporada: si viene ventana de fechas (date_start/end), la FECHA del partido acota la
+    # temporada (las temporadas son rangos de fechas). Filtrar además por `season_obj`(=group.season)
+    # rompía el histórico por temporadas de la ficha tras un cambio de temporada: al pasar el grupo
+    # a 2026/2027, los partidos de 2025/2026 (season=2025/2026) desaparecían aunque se pidiera su
+    # ventana. Sin ventana (vistas legacy) se mantiene el filtro por temporada federativa.
+    if season_obj and not (date_start or date_end):
         stats_events = stats_events.filter(match__season=season_obj)
     if scope_value != "all":
         if scope_value == Match.CONTEXT_LEAGUE:
@@ -79088,7 +79093,8 @@ def compute_player_dashboard(
     player_stat_matches_qs = PlayerStatistic.objects.filter(player__team=primary_team, match__isnull=False)
     if dashboard_roster_season:
         player_stat_matches_qs = player_stat_matches_qs.filter(player_id__in=list(roster_player_ids))
-    if season_obj:
+    # Multi-temporada: ver comentario en stats_events. Con ventana de fechas, acota la fecha.
+    if season_obj and not (date_start or date_end):
         player_stat_matches_qs = player_stat_matches_qs.filter(season=season_obj)
     if date_start:
         player_stat_matches_qs = player_stat_matches_qs.filter(match__date__gte=date_start)
@@ -79275,9 +79281,10 @@ def compute_player_dashboard(
         )
         if dashboard_roster_season:
             manual_match_qs = manual_match_qs.filter(player_id__in=list(roster_player_ids))
-        if season_obj:
+        if season_obj and not (date_start or date_end):
             # Robustez: en algunos flujos legacy el `season` del PlayerStatistic puede quedar desincronizado.
-            # El Match es la fuente de verdad de temporada.
+            # El Match es la fuente de verdad de temporada. Con ventana de fechas, la fecha del Match
+            # acota la temporada (multi-temporada: ver comentario en stats_events).
             manual_match_qs = manual_match_qs.filter(match__season=season_obj)
         # Ventana de temporada de club (date_start/date_end): igual que el resto de fuentes locales
         # (convocatoria, eventos, player_stat_matches), las fichas por partido deben respetar la
