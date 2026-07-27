@@ -381,10 +381,13 @@ class PerfProbeMiddleware:
         total = {"q": 0}
 
         def _norm(sql):
-            s = _re.sub(r"\d+", "?", str(sql or ""))
+            s = str(sql or "")
+            # Colapsa la larga lista de columnas para dejar visible FROM/JOIN/WHERE (lo que distingue).
+            s = _re.sub(r"SELECT .*? FROM", "SELECT * FROM", s, count=1, flags=_re.DOTALL)
+            s = _re.sub(r"\d+", "?", s)
             s = _re.sub(r"'[^']*'", "'?'", s)
             s = _re.sub(r"\s+", " ", s)
-            return s.strip()[:200]
+            return s.strip()[:240]
 
         def _wrap(execute, sql, params, many, context):
             t0 = time.perf_counter()
