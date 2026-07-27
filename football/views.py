@@ -37033,6 +37033,65 @@ def coach_avatar_characteristics_xlsx(request):
     return resp
 
 
+@login_required
+def coach_download_player_photos_zip(request):
+    """Empaqueta las fotos ACTUALES de la plantilla (player-photos/player-<id>.<ext>) en un ZIP
+    nombrado por id-dorsal-nombre, para poder generar los avatares en local con los IDs correctos
+    (evita el desajuste cuando el snapshot local está desactualizado)."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    workspace = _get_active_workspace(request)
+    if not workspace or getattr(workspace, "kind", None) != Workspace.KIND_CLUB:
+        return HttpResponse("Selecciona un club (workspace) antes.", status=400)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404("Equipo principal no configurado")
+
+    import io
+    import zipfile
+    from django.core.files.storage import default_storage
+
+    players = (
+        Player.objects.filter(team=primary_team, is_active=True)
+        .only("id", "name", "number")
+        .order_by("number", "name")
+    )
+    buf = io.BytesIO()
+    count = 0
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for p in players:
+            pid = int(p.id)
+            name = None
+            ext = None
+            for e in ("png", "jpg", "jpeg", "webp"):
+                cand = f"player-photos/player-{pid}.{e}"
+                try:
+                    if default_storage.exists(cand):
+                        name = cand
+                        ext = e
+                        break
+                except Exception:
+                    pass
+            if not name:
+                continue
+            try:
+                with default_storage.open(name, "rb") as fh:
+                    data = fh.read()
+            except Exception:
+                continue
+            dorsal = p.number if p.number is not None else "sd"
+            safe = "".join(ch for ch in str(p.name or "") if ch.isalnum() or ch in " _-").strip().replace(" ", "_")[:24]
+            zf.writestr(f"player-{pid}-{dorsal}-{safe}.{ext}", data)
+            count += 1
+    if count == 0:
+        return HttpResponse("No hay fotos de jugadores para descargar.", status=404)
+    buf.seek(0)
+    resp = HttpResponse(buf.read(), content_type="application/zip")
+    resp["Content-Disposition"] = 'attachment; filename="fotos_plantilla.zip"'
+    return resp
+
+
 def coach_roster_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
     if forbidden:
