@@ -72905,7 +72905,9 @@ def player_detail_page(request, player_id):
                     # para todas las fichas del equipo, lo cacheamos por (equipo, ventana). Las
                     # temporadas pasadas son inmutables; para la activa no cacheamos (datos vivos).
                     season_is_active = bool(getattr(season_row, "is_active", False))
-                    hist_cache_key = f"player_hist_dash:{int(primary_team.id)}:{hist_start}:{hist_end}"
+                    # v2: la clave sube de versión al corregir el gate de stats base por temporada
+                    # (evita servir el acumulado viejo cacheado para la ventana de la temporada nueva).
+                    hist_cache_key = f"player_hist_dash_v2:{int(primary_team.id)}:{hist_start}:{hist_end}"
                     # La activa tiene datos casi vivos → caché corta (3 min); las pasadas son
                     # inmutables → caché larga. En ambos casos la clave es por (equipo, ventana),
                     # así que TODAS las fichas del equipo comparten el mismo cálculo (evita que la
@@ -77933,12 +77935,29 @@ def compute_player_dashboard(
         digits = re.findall(r"\d{4}", str(value or ""))
         return "/".join(digits[:2]) if digits else ""
 
+    def _season_year_key_from_date(value):
+        # Temporada de fútbol jul–jun: una fecha en jul..dic pertenece a AAAA/AAAA+1;
+        # en ene..jun pertenece a AAAA-1/AAAA. Sirve para llamadores que pasan la ventana
+        # de fechas SIN `club_season` (p.ej. el histórico por temporadas de la ficha).
+        if not isinstance(value, date):
+            return ""
+        start_year = value.year if value.month >= 7 else value.year - 1
+        return f"{start_year}/{start_year + 1}"
+
     base_belongs_to_selected_season = True
-    if dashboard_roster_season is not None and season_obj is not None:
-        _club_year_key = _season_year_key(getattr(dashboard_roster_season, "label", ""))
+    if season_obj is not None:
         _rfaf_year_key = _season_year_key(getattr(season_obj, "name", ""))
-        if _club_year_key and _rfaf_year_key:
-            base_belongs_to_selected_season = _club_year_key == _rfaf_year_key
+        # Año de la ventana que se está mostrando: primero el label de la temporada de club
+        # (si vino `club_season`), y si no, se deriva de la propia ventana de fechas.
+        _window_year_key = (
+            _season_year_key(getattr(dashboard_roster_season, "label", ""))
+            if dashboard_roster_season is not None
+            else ""
+        )
+        if not _window_year_key:
+            _window_year_key = _season_year_key_from_date(date_start or date_end)
+        if _rfaf_year_key and _window_year_key:
+            base_belongs_to_selected_season = _rfaf_year_key == _window_year_key
     # Las estadísticas externas base (Universo/La Preferente) solo aplican a Liga y sin filtro de fechas.
     # Los overrides manuales son fuente de verdad del usuario y deben seguir aplicando aunque la vista
     # filtre por temporada activa (`date_start/date_end`).
