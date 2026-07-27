@@ -94,8 +94,33 @@
         <div class="header-actions">
           <a class="btn" href="{% url 'coach-cards' %}?area=match">Volver</a>
           <a class="btn" href="{% url 'match-hub' %}">Ir a Partido</a>
+          {% if calendar_ics_url %}
+          <button type="button" class="btn" id="btnSubscribeIcs" data-ics="{{ calendar_ics_url }}" title="Suscribir este calendario en Apple/Google Calendar">📅 Suscribir calendario</button>
+          <a class="btn" href="{{ calendar_ics_url }}" download="calendario.ics" title="Descargar .ics">⬇︎ .ics</a>
+          {% endif %}
         </div>
 	      </header>
+      {% if calendar_ics_url %}
+      <script>
+        (function () {
+          var b = document.getElementById('btnSubscribeIcs');
+          if (!b) return;
+          b.addEventListener('click', function () {
+            var url = b.getAttribute('data-ics') || '';
+            if (!url) return;
+            // Apple/Google se suscriben con webcal:// (feed que se actualiza solo).
+            var webcal = url.replace(/^https?:\/\//i, 'webcal://');
+            function copy() {
+              try { navigator.clipboard.writeText(url); } catch (e) {}
+              b.textContent = '✔ Enlace copiado';
+              setTimeout(function () { b.textContent = '📅 Suscribir calendario'; }, 2500);
+            }
+            copy();
+            try { window.location.href = webcal; } catch (e) {}
+          });
+        })();
+      </script>
+      {% endif %}
 
       <details class="add-match" open>
         <summary class="btn primary add-match-toggle">➕ Nuevo partido</summary>

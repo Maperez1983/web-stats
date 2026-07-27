@@ -39815,6 +39815,9 @@ def coach_matches_page(request):
         {
             "team_name": primary_team.display_name,
             "season_label": season_display_name(season),
+            "calendar_ics_url": request.build_absolute_uri(
+                f"{reverse('team-calendar-ics')}?token={quote(make_team_calendar_token(primary_team))}"
+            ),
             "rows": rows,
             "rival_name_options": rival_name_options,
             "q": q,
@@ -81403,15 +81406,59 @@ def _ics_format_dt(dt_value):
             return ""
 
 
-@login_required
+_CALENDAR_ICS_TOKEN_SALT = "team-calendar-ics.v1"
+
+
+def make_team_calendar_token(team):
+    """Token firmado (no caduca) que identifica al equipo para el feed ICS público.
+    Va en la URL de suscripción; al ir firmado no se puede falsificar ni enumerar."""
+    try:
+        from django.core import signing
+
+        return signing.dumps({"team_id": int(getattr(team, "id", 0) or 0)}, salt=_CALENDAR_ICS_TOKEN_SALT)
+    except Exception:
+        return ""
+
+
+def _resolve_team_from_calendar_token(token):
+    if not token:
+        return None
+    try:
+        from django.core import signing
+
+        data = signing.loads(str(token), salt=_CALENDAR_ICS_TOKEN_SALT, max_age=None)
+        team_id = int(data.get("team_id") or 0)
+    except Exception:
+        return None
+    if not team_id:
+        return None
+    try:
+        return Team.objects.filter(id=team_id).first()
+    except Exception:
+        return None
+
+
 def team_calendar_ics(request):
     """
     Exporta calendario (ICS) con partidos + sesiones del equipo activo.
 
     Nota: no pretende cubrir todos los casos (timezone/VTimezone), pero es suficiente para
     suscripción en Apple/Google Calendar y mantener al staff sincronizado.
+
+    Dos modos: (1) con sesión iniciada usa el equipo activo; (2) con `?token=<firmado>`
+    (suscripción real desde Apple/Google, que NO manda cookie de sesión) resuelve el equipo
+    del token. Sin sesión y sin token válido -> se pide login.
     """
-    primary_team = _get_primary_team_for_request(request)
+    token = str(request.GET.get("token") or "").strip()
+    if token:
+        primary_team = _resolve_team_from_calendar_token(token)
+        if not primary_team:
+            return HttpResponse("Enlace de calendario no válido.", status=403)
+    elif not request.user.is_authenticated:
+        login_url = reverse("login")
+        return redirect(f"{login_url}?next={quote(request.get_full_path() or '/')}")
+    else:
+        primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404("Equipo no configurado")
 
