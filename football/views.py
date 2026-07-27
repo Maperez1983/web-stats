@@ -21843,21 +21843,40 @@ def coach_overview_page(request):
     coach_pitch_players = _build_coach_pitch_board_players(
         primary_team, roster_players, roster_memberships, active_injury_ids
     )
-    # Reutilizamos las stats de temporada ya calculadas (compute_player_dashboard, cacheado)
-    # para la 2ª vista de la tabla (partidos/goles/asistencias/tarjetas). Coste ~0.
+    # Stats de temporada por jugador para la 2ª vista de la tabla (partidos/goles/asistencias/
+    # tarjetas). Usa el mismo pipeline cacheado que la pestaña stats, filtrado por competición
+    # (scope: Total/Amistosos/Liga/Copa) elegida en el desplegable. Degrada a vacío si falla.
+    decision_stats_scope = _get_stats_scope_for_request(request, primary_team)
     decision_stats_by_pid = {}
     try:
-        for _sr in (player_stats or []):
-            _spid = int(_parse_int(_sr.get("player_id")) or 0)
-            if not _spid:
-                continue
-            decision_stats_by_pid[_spid] = {
-                "pj": int(_parse_int(_sr.get("pj")) or 0),
-                "goals": int(_parse_int(_sr.get("goals")) or 0),
-                "assists": int(_parse_int(_sr.get("assists")) or 0),
-                "yellow": int(_parse_int(_sr.get("yellow_cards")) or 0),
-                "red": int(_parse_int(_sr.get("red_cards")) or 0),
-            }
+        if primary_team:
+            _ds_start, _ds_end = (None, None)
+            if active_club_season:
+                _ds_start, _ds_end = club_season_date_bounds(active_club_season)
+            _ds_tournament = _get_tournament_filter_for_request(
+                request, primary_team, scope=decision_stats_scope
+            )
+            _ds_rows = compute_player_dashboard(
+                primary_team,
+                force_refresh=False,
+                scope=decision_stats_scope,
+                tournament_name=_ds_tournament,
+                request=request,
+                date_start=_ds_start,
+                date_end=_ds_end,
+                club_season=active_club_season,
+            )
+            for _sr in (_ds_rows or []):
+                _spid = int(_parse_int(_sr.get("player_id")) or 0)
+                if not _spid:
+                    continue
+                decision_stats_by_pid[_spid] = {
+                    "pj": int(_parse_int(_sr.get("pj")) or 0),
+                    "goals": int(_parse_int(_sr.get("goals")) or 0),
+                    "assists": int(_parse_int(_sr.get("assists")) or 0),
+                    "yellow": int(_parse_int(_sr.get("yellow_cards")) or 0),
+                    "red": int(_parse_int(_sr.get("red_cards")) or 0),
+                }
     except Exception:
         decision_stats_by_pid = {}
     try:
@@ -21975,6 +21994,7 @@ def coach_overview_page(request):
             "can_access_platform": can_access_platform,
             "coach_pitch_players": coach_pitch_players,
             "coach_decision_dashboard": coach_decision_dashboard,
+            "decision_stats_scope": decision_stats_scope,
             "coach_alerts": coach_alerts,
             "federative_report": federative_report,
             "standings_diag": standings_diag,

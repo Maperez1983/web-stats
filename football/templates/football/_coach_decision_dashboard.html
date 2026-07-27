@@ -55,7 +55,13 @@ con .rows y .counts. Autocontenido (estilos scoped por .cdd-).{% endcomment %}
     .cdd .dec-cut{color:#fecaca;border:1px solid rgba(248,113,113,.45);}
     .cdd .dec-pending{color:#fde68a;border:1px solid rgba(250,204,21,.45);}
     .cdd .cdd-empty{opacity:.6;text-align:center;padding:1.4rem;}
-    .cdd .cdd-toggle{display:inline-flex;gap:.15rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:999px;padding:.18rem;margin-bottom:.7rem;}
+    .cdd .cdd-controls{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;margin-bottom:.7rem;}
+    .cdd .cdd-toggle{display:inline-flex;gap:.15rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:999px;padding:.18rem;}
+    .cdd .cdd-scope{display:none;align-items:center;gap:.4rem;font-size:.72rem;}
+    .cdd.stats-on .cdd-scope{display:inline-flex;}
+    .cdd .cdd-scope>span{text-transform:uppercase;letter-spacing:.05em;opacity:.55;font-weight:800;}
+    .cdd .cdd-scope select{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:inherit;border-radius:8px;padding:.28rem .5rem;font-size:.76rem;font-weight:700;cursor:pointer;}
+    .cdd .cdd-scope select option{color:#111;}
     .cdd .cdd-toggle button{border:0;background:transparent;color:inherit;font-size:.72rem;font-weight:800;letter-spacing:.02em;padding:.3rem .8rem;border-radius:999px;cursor:pointer;opacity:.6;}
     .cdd .cdd-toggle button:hover{opacity:.9;}
     .cdd .cdd-toggle button.active{background:rgba(255,255,255,.14);opacity:1;}
@@ -80,9 +86,20 @@ con .rows y .counts. Autocontenido (estilos scoped por .cdd-).{% endcomment %}
       <span class="dk dk-inj"><b>{{ dash.counts.injured }}</b> lesionados</span>
     </div>
   </div>
-  <div class="cdd-toggle" role="tablist" aria-label="Vista de la tabla">
-    <button type="button" class="active" data-view="val" role="tab" aria-selected="true">Valoración</button>
-    <button type="button" data-view="stat" role="tab" aria-selected="false">Estadísticas</button>
+  <div class="cdd-controls">
+    <div class="cdd-toggle" role="tablist" aria-label="Vista de la tabla">
+      <button type="button" class="active" data-view="val" role="tab" aria-selected="true">Valoración</button>
+      <button type="button" data-view="stat" role="tab" aria-selected="false">Estadísticas</button>
+    </div>
+    <label class="cdd-scope">
+      <span>Competición</span>
+      <select id="cddScopeSel" aria-label="Filtrar estadísticas por competición">
+        <option value="all"{% if decision_stats_scope == 'all' %} selected{% endif %}>Total</option>
+        <option value="friendly"{% if decision_stats_scope == 'friendly' %} selected{% endif %}>Amistosos</option>
+        <option value="league"{% if decision_stats_scope == 'league' %} selected{% endif %}>Liga</option>
+        <option value="tournament"{% if decision_stats_scope == 'tournament' %} selected{% endif %}>Copa</option>
+      </select>
+    </label>
   </div>
   <div class="cdd-scroll cdd-val">
     <table>
@@ -201,6 +218,23 @@ con .rows y .counts. Autocontenido (estilos scoped por .cdd-).{% endcomment %}
           if (sec) { if (view === 'stat') sec.classList.add('stats-on'); else sec.classList.remove('stats-on'); }
         });
       });
+      function showStats(){
+        if (!sec) return;
+        sec.classList.add('stats-on');
+        document.querySelectorAll('.cdd-toggle button').forEach(function (x) {
+          var on = x.getAttribute('data-view') === 'stat';
+          x.classList.toggle('active', on); x.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+      }
+      var scopeSel = document.getElementById('cddScopeSel');
+      if (scopeSel) {
+        scopeSel.addEventListener('change', function () {
+          var p = new URLSearchParams(window.location.search);
+          p.set('scope', scopeSel.value); p.set('statsview', '1');
+          window.location.search = p.toString();
+        });
+      }
+      try { if (new URLSearchParams(window.location.search).get('statsview') === '1') showStats(); } catch (e) {}
     })();
   </script>
 </section>
