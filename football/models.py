@@ -2530,6 +2530,15 @@ class TrainingSessionTimelineSegment(models.Model):
         return f'{self.session} · {label}'
 
 
+class SessionTaskManager(models.Manager):
+    """Perf: difiere por defecto los blobs base64 (preview 2D / portada IA) para que NINGUN
+    listado/consulta los detoaste (pesan cientos de KB). Solo los 2 endpoints que sirven la
+    imagen los necesitan, y acceden al campo por carga perezosa (o .undefer())."""
+
+    def get_queryset(self):
+        return super().get_queryset().defer('preview_data_b64', 'cover_data_b64')
+
+
 class SessionTask(models.Model):
     BLOCK_ACTIVATION = 'activation'
     BLOCK_MAIN_1 = 'main_1'
@@ -2609,6 +2618,8 @@ class SessionTask(models.Model):
     # Soft-delete (papelera). No borrar físicamente por defecto para permitir restauración.
     deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
     deleted_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='deleted_session_tasks')
+
+    objects = SessionTaskManager()
 
     def _embedded_from_meta(self, key):
         layout = self.tactical_layout if isinstance(self.tactical_layout, dict) else {}
