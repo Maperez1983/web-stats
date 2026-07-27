@@ -575,6 +575,7 @@ urlpatterns = [
     path("coach/traspaso/buscar-destino/", views.coach_transfer_team_search, name="coach-transfer-team-search"),
     path("coach/torneos/", views.coach_tournaments_page, name="coach-tournaments"),
     path("coach/partidos/", views.coach_matches_page, name="coach-matches"),
+    path("coach/calendario/mes/", views.coach_calendar_month_page, name="coach-calendar-month"),
     path("coach/lesiones/", views.coach_injuries_page, name="coach-injuries"),
     path("coach/carga/", views.coach_load_page, name="coach-load"),
     path("coach/roles/entrenador/", views.coach_role_trainer_page, name="coach-role-trainer"),

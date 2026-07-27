@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Calendario · {{ team_name }}</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'football/css/product.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <style>
+      .cmw-wrap { max-width: 1100px; margin: 0 auto; }
+      .cmw-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.7rem; margin:.6rem 0 1rem; }
+      .cmw-nav { display:inline-flex; align-items:center; gap:.4rem; }
+      .cmw-nav a, .cmw-nav .btn { text-decoration:none; }
+      .cmw-title { font-size:1.15rem; font-weight:900; text-transform:capitalize; letter-spacing:.01em; min-width:12rem; text-align:center; }
+      .cmw-views { display:inline-flex; gap:.3rem; }
+      .cmw-grid { display:grid; grid-template-columns: repeat(7, 1fr); gap:.35rem; }
+      .cmw-dow { text-align:center; font-size:.68rem; text-transform:uppercase; letter-spacing:.08em; opacity:.55; font-weight:800; padding:.3rem 0; }
+      .cmw-cell { min-height:6.2rem; border:1px solid rgba(255,255,255,.08); border-radius:10px; padding:.35rem; display:flex; flex-direction:column; gap:.25rem; background:rgba(255,255,255,.02); overflow:hidden; }
+      .cmw-cell.out { opacity:.4; }
+      .cmw-cell.today { border-color:rgba(250,204,21,.55); background:rgba(250,204,21,.06); }
+      .cmw-daynum { font-size:.74rem; font-weight:800; opacity:.7; align-self:flex-end; }
+      .cmw-cell.today .cmw-daynum { color:#fde68a; opacity:1; }
+      .cmw-chip { display:block; text-decoration:none; color:inherit; border-radius:7px; padding:.2rem .4rem; font-size:.72rem; line-height:1.15; border-left:3px solid transparent; background:rgba(255,255,255,.05); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .cmw-chip:hover { background:rgba(255,255,255,.1); }
+      .cmw-chip.m-league { border-left-color:#34d399; }
+      .cmw-chip.m-tournament { border-left-color:#a78bfa; }
+      .cmw-chip.m-friendly { border-left-color:#38bdf8; }
+      .cmw-chip.s-session { border-left-color:#fbbf24; background:rgba(251,191,36,.08); }
+      .cmw-chip b { font-weight:800; }
+      .cmw-legend { display:flex; gap:.9rem; flex-wrap:wrap; font-size:.72rem; opacity:.75; margin-top:.9rem; }
+      .cmw-legend span { display:inline-flex; align-items:center; gap:.35rem; }
+      .cmw-dot { width:.7rem; height:.7rem; border-radius:3px; display:inline-block; }
+      @media (max-width: 640px) {
+        .cmw-cell { min-height:4.2rem; }
+        .cmw-chip { font-size:.64rem; }
+        .cmw-dow { font-size:.6rem; }
+      }
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <main class="page">
+      {% include 'football/includes/dragon_nav.html' %}
+      <div class="cmw-wrap">
+        <header>
+          <div>
+            <p>Calendario · {{ team_name }}</p>
+            <h1>Calendario (mes)</h1>
+          </div>
+          <div class="header-actions">
+            <a class="btn" href="{% url 'coach-matches' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Lista</a>
+            <a class="btn" href="{% url 'team-agenda' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Semana</a>
+            <a class="btn" href="{% url 'match-hub' %}">Ir a Partido</a>
+          </div>
+        </header>
+
+        <div class="cmw-head">
+          <div class="cmw-nav">
+            <a class="btn" href="?month={{ prev_month }}{% if active_team %}&team={{ active_team.id }}{% endif %}" aria-label="Mes anterior">‹</a>
+            <span class="cmw-title">{{ month_label }}</span>
+            <a class="btn" href="?month={{ next_month }}{% if active_team %}&team={{ active_team.id }}{% endif %}" aria-label="Mes siguiente">›</a>
+          </div>
+          <a class="btn" href="?month={{ current_month }}{% if active_team %}&team={{ active_team.id }}{% endif %}">Hoy</a>
+        </div>
+
+        <div class="cmw-grid" role="grid" aria-label="Calendario mensual">
+          <div class="cmw-dow">Lun</div><div class="cmw-dow">Mar</div><div class="cmw-dow">Mié</div>
+          <div class="cmw-dow">Jue</div><div class="cmw-dow">Vie</div><div class="cmw-dow">Sáb</div><div class="cmw-dow">Dom</div>
+          {% for day in days %}
+          <div class="cmw-cell{% if not day.in_month %} out{% endif %}{% if day.is_today %} today{% endif %}" role="gridcell">
+            <span class="cmw-daynum">{{ day.num }}</span>
+            {% for m in day.matches %}
+            <a class="cmw-chip m-{{ m.context }}" href="{{ m.url }}" title="{{ m.title }}">{% if m.time %}<b>{{ m.time }}</b> {% endif %}{{ m.label }}{% if m.score %} · {{ m.score }}{% endif %}</a>
+            {% endfor %}
+            {% for s in day.sessions %}
+            <a class="cmw-chip s-session" href="{{ s.url }}" title="{{ s.title }}">{% if s.time %}<b>{{ s.time }}</b> {% endif %}{{ s.label }}</a>
+            {% endfor %}
+          </div>
+          {% endfor %}
+        </div>
+
+        <div class="cmw-legend">
+          <span><i class="cmw-dot" style="background:#34d399"></i> Liga</span>
+          <span><i class="cmw-dot" style="background:#a78bfa"></i> Torneo</span>
+          <span><i class="cmw-dot" style="background:#38bdf8"></i> Amistoso</span>
+          <span><i class="cmw-dot" style="background:#fbbf24"></i> Entreno</span>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>

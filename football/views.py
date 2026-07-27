@@ -39379,6 +39379,118 @@ def coach_tournaments_page(request):
 
 
 @login_required
+def coach_calendar_month_page(request):
+    """Vista de calendario MENSUAL (rejilla) con partidos + sesiones. Complementa la lista
+    (coach-matches) y la semana (team-agenda). Solo lectura."""
+    import calendar as _calendar
+
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, "match_actions", label="calendario")
+    if forbidden:
+        return forbidden
+    primary_team = _get_active_team_for_request(request) or _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404("Equipo principal no configurado")
+
+    today = timezone.localdate()
+    month_raw = str(request.GET.get("month") or "").strip()
+    try:
+        parts = month_raw.split("-")
+        anchor = today.replace(year=int(parts[0]), month=int(parts[1]), day=1)
+    except Exception:
+        anchor = today.replace(day=1)
+    year, month = anchor.year, anchor.month
+
+    weeks = _calendar.Calendar(firstweekday=0).monthdatescalendar(year, month)
+    grid_from, grid_to = weeks[0][0], weeks[-1][-1]
+
+    matches = list(
+        _team_match_queryset(primary_team)
+        .filter(date__range=(grid_from, grid_to))
+        .select_related("home_team", "away_team")
+        .order_by("date", "kickoff_time", "id")
+    )
+    sessions = list(
+        TrainingSession.objects.select_related("microcycle")
+        .filter(microcycle__team=primary_team, session_date__range=(grid_from, grid_to))
+        .exclude(status=TrainingSession.STATUS_CANCELED)
+        .order_by("session_date", "start_time", "order", "id")
+    )
+
+    team_query = f"&team={int(primary_team.id)}"
+    matches_by_day, sessions_by_day = {}, {}
+    for m in matches:
+        if not m.date:
+            continue
+        opponent = m.away_team if m.home_team_id == primary_team.id else m.home_team
+        opp_label = str(getattr(opponent, "display_name", "") or getattr(opponent, "name", "") or "Rival").strip() or "Rival"
+        score = ""
+        if getattr(m, "home_score", None) is not None and getattr(m, "away_score", None) is not None:
+            score = (
+                f"{int(m.home_score)}-{int(m.away_score)}"
+                if m.home_team_id == primary_team.id
+                else f"{int(m.away_score)}-{int(m.home_score)}"
+            )
+        matches_by_day.setdefault(m.date, []).append(
+            {
+                "label": opp_label,
+                "context": (m.context or "league"),
+                "time": m.kickoff_time.strftime("%H:%M") if m.kickoff_time else "",
+                "score": score,
+                "title": f"{opp_label}{(' · ' + score) if score else ''}",
+                "url": f"{reverse('match-hub')}?match_id={int(m.id)}{team_query}",
+            }
+        )
+    for s in sessions:
+        if not s.session_date:
+            continue
+        focus = str(getattr(s, "focus", "") or "").strip() or "Entreno"
+        sessions_by_day.setdefault(s.session_date, []).append(
+            {
+                "label": focus,
+                "time": s.start_time.strftime("%H:%M") if s.start_time else "",
+                "title": focus,
+                "url": f"{reverse('sessions')}?tab=sessions&session_id={int(s.id)}{team_query}",
+            }
+        )
+
+    days = []
+    for week in weeks:
+        for d in week:
+            days.append(
+                {
+                    "num": d.day,
+                    "in_month": d.month == month,
+                    "is_today": d == today,
+                    "matches": matches_by_day.get(d, []),
+                    "sessions": sessions_by_day.get(d, []),
+                }
+            )
+
+    prev_anchor = (anchor - timedelta(days=1)).replace(day=1)
+    next_anchor = (anchor.replace(day=28) + timedelta(days=7)).replace(day=1)
+    _months_es = [
+        "enero", "febrero", "marzo", "abril", "mayo", "junio",
+        "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+    ]
+    return render(
+        request,
+        "football/coach_calendar_month.html",
+        {
+            "team_name": getattr(primary_team, "display_name", "") or getattr(primary_team, "name", "") or "Equipo",
+            "active_team": primary_team,
+            "days": days,
+            "month_label": f"{_months_es[month - 1]} {year}",
+            "prev_month": prev_anchor.strftime("%Y-%m"),
+            "next_month": next_anchor.strftime("%Y-%m"),
+            "current_month": today.strftime("%Y-%m"),
+        },
+    )
+
+
+@login_required
 def coach_matches_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
     if forbidden:
