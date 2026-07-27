@@ -29275,6 +29275,14 @@ def save_convocation(request):
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({"error": "Equipo principal no configurado"}, status=400)
+    # Coherencia con el resto de escrituras de partido (hub, agenda, acciones): no permitir
+    # crear/modificar convocatoria+partido sobre una temporada de club marcada de solo lectura.
+    _conv_workspace = _get_active_workspace(request)
+    if _selected_club_season_is_read_only(request, workspace=_conv_workspace):
+        return JsonResponse({"error": _historical_club_season_write_message()}, status=409)
+    _conv_selected_club_season = _home_current_club_season(
+        request, _conv_workspace
+    ) or selected_club_season_for_request(request, workspace=_conv_workspace)
     try:
         payload = json.loads(request.body or "[]")
     except json.JSONDecodeError:
@@ -29440,6 +29448,7 @@ def save_convocation(request):
             away_team = rival_team if home_away == "home" else primary_team
             target_match = Match.objects.create(
                 season=season,
+                club_season=_conv_selected_club_season,
                 group=primary_team.group,
                 round=round_value,
                 date=parsed_match_date,
