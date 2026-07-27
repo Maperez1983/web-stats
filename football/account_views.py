@@ -304,6 +304,65 @@ def workspace_members_page(request):
     })
 
 
+@login_required
+def workspace_member_access_page(request, membership_id):
+    """Configura qué áreas ve un miembro concreto (WorkspaceMembership.module_access)."""
+    from .models import WorkspaceMembership
+    from .workspace_context import get_active_workspace, can_access_platform
+    from .access_policy import can_manage_workspace, is_workspace_owner_user
+    from . import views as _views  # catálogo de módulos (lazy para evitar circular)
+
+    workspace = get_active_workspace(request)
+    platform = can_access_platform(request.user)
+    if not workspace or not can_manage_workspace(request.user, workspace, platform_access=platform):
+        from django.http import HttpResponseForbidden
+
+        return HttpResponseForbidden("No tienes permiso para gestionar los miembros de este club.")
+
+    membership = (
+        WorkspaceMembership.objects.select_related("user")
+        .filter(id=membership_id, workspace=workspace)
+        .first()
+    )
+    if membership is None:
+        from django.http import HttpResponseForbidden
+
+        return HttpResponseForbidden("Miembro no encontrado.")
+
+    catalog = _views._workspace_access_module_catalog(getattr(workspace, "kind", None))
+    is_owner = is_workspace_owner_user(membership.user, workspace)
+    # owner/admin ven todo por diseño; el gating por módulo solo aplica a member/viewer.
+    sees_everything = is_owner or membership.role in {
+        WorkspaceMembership.ROLE_OWNER,
+        WorkspaceMembership.ROLE_ADMIN,
+    }
+    notice = ""
+    if request.method == "POST" and not sees_everything:
+        access = {}
+        for entry in catalog:
+            key = entry.get("key")
+            if key:
+                access[key] = bool(request.POST.get(f"mod_{key}"))
+        membership.module_access = access
+        membership.save(update_fields=["module_access"])
+        notice = "Accesos guardados."
+
+    current = membership.module_access if isinstance(membership.module_access, dict) else {}
+    modules = [
+        {"key": e["key"], "label": e["label"], "allowed": current.get(e["key"], True) is not False}
+        for e in catalog
+    ]
+    return render(request, "accounts/member_access.html", {
+        "workspace": workspace,
+        "member_name": (membership.user.get_full_name() or membership.user.username),
+        "member_email": membership.user.email,
+        "membership_id": membership.id,
+        "modules": modules,
+        "sees_everything": sees_everything,
+        "notice": notice,
+    })
+
+
 # ---------------------------------------------------------------------------
 # Fase 6: espacio del jugador (portal propio)
 # ---------------------------------------------------------------------------

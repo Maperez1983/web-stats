@@ -1,0 +1,69 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Accesos del miembro · 2J</title>
+    <style>
+      :root{--bg:#07101a;--panel:rgba(14,24,40,.98);--line:rgba(145,161,185,.18);--text:#f5f7fa;
+        --muted:#95a6be;--muted-soft:#c8d3df;--accent:#f4b400;--pitch:#2f7d32;--ok:rgba(220,252,231,.95);--ok-bg:rgba(34,197,94,.12);}
+      *{box-sizing:border-box}
+      body{margin:0;min-height:100vh;color:var(--text);font-family:"Avenir Next","Inter","Segoe UI",sans-serif;
+        background:radial-gradient(circle at top left,rgba(47,125,50,.16),transparent 30%),
+          radial-gradient(circle at top right,rgba(244,180,0,.12),transparent 26%),
+          linear-gradient(180deg,#050b14 0%,#07101a 48%,#09131f 100%);}
+      .wrap{max-width:620px;margin:0 auto;padding:clamp(16px,4vw,34px)}
+      a{color:var(--muted-soft)}
+      .eyebrow{font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:#fff4cf;font-weight:800}
+      h1{margin:.25rem 0 .1rem;font-size:clamp(1.4rem,4vw,1.9rem);letter-spacing:-.03em}
+      .sub{color:var(--muted);margin:0 0 1.2rem;font-size:.92rem}
+      .back{font-size:.82rem;text-decoration:none;display:inline-block;margin-bottom:1rem}
+      .card{border:1px solid var(--line);border-radius:20px;background:var(--panel);padding:1.2rem}
+      .notice{border-radius:14px;padding:.7rem .85rem;font-size:.92rem;margin-bottom:1rem;color:var(--ok);border:1px solid rgba(34,197,94,.35);background:var(--ok-bg)}
+      .mod{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem 0;border-top:1px solid var(--line)}
+      .mod:first-child{border-top:none}
+      .mod strong{font-size:.98rem;font-weight:700}
+      .switch{position:relative;display:inline-block;width:48px;height:28px;flex:0 0 48px}
+      .switch input{opacity:0;width:0;height:0}
+      .slider{position:absolute;inset:0;cursor:pointer;background:rgba(120,130,150,.35);border-radius:999px;transition:.2s}
+      .slider::before{content:"";position:absolute;height:22px;width:22px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+      .switch input:checked + .slider{background:linear-gradient(135deg,var(--accent),var(--pitch))}
+      .switch input:checked + .slider::before{transform:translateX(20px)}
+      .btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 1.4rem;border-radius:999px;
+        border:none;font-size:.76rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;
+        background:linear-gradient(135deg,var(--accent),var(--pitch));color:#081320;margin-top:1.1rem}
+      .allnote{color:var(--muted);line-height:1.55;font-size:.95rem}
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <a class="back" href="{% url 'workspace-members' %}">← Miembros del club</a>
+      <div class="eyebrow">Accesos del miembro</div>
+      <h1>{{ member_name }}</h1>
+      <p class="sub">{{ member_email|default:"sin email" }} · {{ workspace.name }}</p>
+
+      {% if notice %}<div class="notice">{{ notice }}</div>{% endif %}
+
+      <div class="card">
+        {% if sees_everything %}
+        <p class="allnote">Este miembro es <strong>propietario o administrador</strong>, así que accede a <strong>todas las áreas</strong> del club. Para limitar lo que ve, cámbiale primero el rol (por ejemplo a Entrenador o Solo lectura) desde la pantalla de miembros.</p>
+        {% else %}
+        <form method="post">
+          {% csrf_token %}
+          {% for m in modules %}
+          <div class="mod">
+            <strong>{{ m.label }}</strong>
+            <label class="switch">
+              <input type="checkbox" name="mod_{{ m.key }}" {% if m.allowed %}checked{% endif %} />
+              <span class="slider"></span>
+            </label>
+          </div>
+          {% endfor %}
+          <button class="btn" type="submit">Guardar accesos</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </body>
+</html>
