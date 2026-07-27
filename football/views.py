@@ -48517,18 +48517,23 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
                 selected_session_microcycle_timeline_totals = {}
 
             selected_task_sheets = [_build_session_task_sheet(task_obj) for task_obj in selected_session_tasks]
+            # Columnas = los 7 bloques del modelo (SessionTask.BLOCK_CHOICES), en orden pedagógico.
+            # Antes había un set roto: "Calentamiento" mal-etiquetaba a Condicionante, ABP (set_pieces)
+            # se escondía dentro de "Principal 2" y Vídeo faltaba (esas tareas quedaban invisibles).
+            # Ahora cada bloque tiene su columna → ninguna tarea queda huérfana y el arrastre asigna
+            # el bloque correcto (data-drop-block = block_keys.0).
             selected_session_task_sections = [
-                {
-                    "key": "warmup",
-                    "label": "Calentamiento",
-                    "block_keys": [SessionTask.BLOCK_CONDITIONING],
-                    "notes_key": "warmup",
-                },
                 {
                     "key": "activation",
                     "label": "Activación",
                     "block_keys": [SessionTask.BLOCK_ACTIVATION],
                     "notes_key": "activation",
+                },
+                {
+                    "key": "conditioning",
+                    "label": "Condicionante",
+                    "block_keys": [SessionTask.BLOCK_CONDITIONING],
+                    "notes_key": "warmup",
                 },
                 {
                     "key": "main_1",
@@ -48539,7 +48544,13 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
                 {
                     "key": "main_2",
                     "label": "Principal 2",
-                    "block_keys": [SessionTask.BLOCK_MAIN_2, SessionTask.BLOCK_SET_PIECES],
+                    "block_keys": [SessionTask.BLOCK_MAIN_2],
+                    "notes_key": "main",
+                },
+                {
+                    "key": "set_pieces",
+                    "label": "ABP",
+                    "block_keys": [SessionTask.BLOCK_SET_PIECES],
                     "notes_key": "main",
                 },
                 {
@@ -48547,6 +48558,12 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
                     "label": "Vuelta a la calma",
                     "block_keys": [SessionTask.BLOCK_RECOVERY],
                     "notes_key": "cooldown",
+                },
+                {
+                    "key": "video",
+                    "label": "Vídeo",
+                    "block_keys": [SessionTask.BLOCK_VIDEO],
+                    "notes_key": "",
                 },
             ]
             for section in selected_session_task_sections:
