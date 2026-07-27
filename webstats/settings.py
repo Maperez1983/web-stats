@@ -404,6 +404,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {'min_length': 8},
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
@@ -412,6 +413,30 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+
+# ---- Email ----
+# Sin EMAIL_HOST configurado se usa el backend de CONSOLA: los correos se escriben en los logs
+# en vez de enviarse (no rompe nada). Cuando conectes un SMTP por variables de entorno
+# (Gmail con contraseña de app, SendGrid, Resend, Mailgun...), el envío se activa solo.
+EMAIL_HOST = (os.getenv('EMAIL_HOST') or '').strip()
+_email_backend_env = (os.getenv('EMAIL_BACKEND') or '').strip()
+if _email_backend_env:
+    EMAIL_BACKEND = _email_backend_env
+elif EMAIL_HOST:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_PORT = _env_int('EMAIL_PORT', 587)
+EMAIL_HOST_USER = (os.getenv('EMAIL_HOST_USER') or '').strip()
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD') or ''
+EMAIL_USE_TLS = _env_bool('EMAIL_USE_TLS', True)
+EMAIL_USE_SSL = _env_bool('EMAIL_USE_SSL', False)
+EMAIL_TIMEOUT = _env_int('EMAIL_TIMEOUT', 20)
+DEFAULT_FROM_EMAIL = (os.getenv('DEFAULT_FROM_EMAIL') or '').strip() or 'Segunda Jugada <no-reply@segundajugada.es>'
+SERVER_EMAIL = (os.getenv('SERVER_EMAIL') or '').strip() or DEFAULT_FROM_EMAIL
+# El enlace de recuperación de contraseña caduca a los 3 días.
+PASSWORD_RESET_TIMEOUT = _env_int('PASSWORD_RESET_TIMEOUT', 60 * 60 * 24 * 3)
 
 
 # Internationalization

@@ -12160,8 +12160,8 @@ def public_signup_page(request):
                 raise ValueError("El nombre del club es obligatorio.")
             if not email or "@" not in email:
                 raise ValueError("Email inválido.")
-            if not password or len(password) < 6:
-                raise ValueError("La contraseña debe tener al menos 6 caracteres.")
+            if not password or len(password) < 8:
+                raise ValueError("La contraseña debe tener al menos 8 caracteres.")
             if password != password_confirm:
                 raise ValueError("Las contraseñas no coinciden.")
             validate_password(password)
@@ -13688,8 +13688,8 @@ def platform_overview_page(request):
                     raise ValueError("El usuario es obligatorio.")
                 if User.objects.filter(username__iexact=username).exists():
                     raise ValueError("Ese usuario ya existe.")
-                if len(password) < 6:
-                    raise ValueError("La contraseña debe tener al menos 6 caracteres.")
+                if len(password) < 8:
+                    raise ValueError("La contraseña debe tener al menos 8 caracteres.")
                 first_name, last_name = _split_full_name(full_name)
                 user = User.objects.create_user(
                     username=username,
@@ -13788,8 +13788,8 @@ def platform_overview_page(request):
             try:
                 if not user_obj:
                     raise ValueError("Usuario no encontrado.")
-                if password and len(password) < 6:
-                    raise ValueError("La nueva contraseña debe tener al menos 6 caracteres.")
+                if password and len(password) < 8:
+                    raise ValueError("La nueva contraseña debe tener al menos 8 caracteres.")
                 first_name, last_name = _split_full_name(full_name)
                 user_obj.first_name = first_name
                 user_obj.last_name = last_name

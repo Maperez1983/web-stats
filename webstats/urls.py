@@ -35,6 +35,29 @@ urlpatterns = [
     path('login/', RoleAwareLoginView.as_view(), name='login'),
     path('service-login/', service_token_login_page, name='service-login'),
     path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
+    # Recuperar contraseña (envía email; con SMTP sin configurar, el correo va a los logs).
+    # Los nombres de URL son los estándar de Django para que sus vistas resuelvan solas los success_url.
+    path('password-reset/', auth_views.PasswordResetView.as_view(
+        template_name='accounts/password_reset_form.html',
+        email_template_name='accounts/password_reset_email.html',
+        subject_template_name='accounts/password_reset_subject.txt',
+    ), name='password_reset'),
+    path('password-reset/enviado/', auth_views.PasswordResetDoneView.as_view(
+        template_name='accounts/password_reset_done.html',
+    ), name='password_reset_done'),
+    path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(
+        template_name='accounts/password_reset_confirm.html',
+    ), name='password_reset_confirm'),
+    path('reset/completado/', auth_views.PasswordResetCompleteView.as_view(
+        template_name='accounts/password_reset_complete.html',
+    ), name='password_reset_complete'),
+    # Cambiar contraseña (usuario ya logueado).
+    path('password-change/', login_required(auth_views.PasswordChangeView.as_view(
+        template_name='accounts/password_change_form.html',
+    )), name='password_change'),
+    path('password-change/hecho/', login_required(auth_views.PasswordChangeDoneView.as_view(
+        template_name='accounts/password_change_done.html',
+    )), name='password_change_done'),
     path('admin/', admin.site.urls),
     path('', include('football.urls')),
 ]
