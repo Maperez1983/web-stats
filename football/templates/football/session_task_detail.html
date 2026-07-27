@@ -1541,6 +1541,19 @@
                   <label>
                     Materiales
                     <input type="text" name="task_sheet_materials" value="{{ task_sheet.materials }}" placeholder="Ej: 10 conos, 2 porterías, 8 petos" />
+                    <div class="mat-chips" data-mat-target="task_sheet_materials" style="display:flex; flex-wrap:wrap; gap:.3rem; margin-top:.4rem;">
+                      <button type="button" class="button secondary small" data-mat="conos">Conos</button>
+                      <button type="button" class="button secondary small" data-mat="petos">Petos</button>
+                      <button type="button" class="button secondary small" data-mat="mini-porterías">Mini-porterías</button>
+                      <button type="button" class="button secondary small" data-mat="porterías">Porterías</button>
+                      <button type="button" class="button secondary small" data-mat="vallas">Vallas</button>
+                      <button type="button" class="button secondary small" data-mat="picas">Picas</button>
+                      <button type="button" class="button secondary small" data-mat="escaleras">Escaleras</button>
+                      <button type="button" class="button secondary small" data-mat="balones">Balones</button>
+                      <button type="button" class="button secondary small" data-mat="maniquíes">Maniquíes</button>
+                      <button type="button" class="button secondary small" data-mat="aros">Aros</button>
+                    </div>
+                    <span class="meta" style="display:block; margin-top:.25rem;">Toca para añadir/quitar. El material también <strong>afina la portada realista</strong>.</span>
                   </label>
                   <label>
                     Edad / categoría
@@ -2000,6 +2013,39 @@
     </script>
     <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
     <script src="{% static 'vendor/fabric.min.js' %}"></script>
+    <script>
+    // Chips de material: toca para anadir/quitar del campo de texto (fuente de verdad).
+    (function(){
+      function esc(w){ return w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+      document.querySelectorAll('.mat-chips[data-mat-target]').forEach(function(box){
+        var input = document.querySelector('[name="'+box.getAttribute('data-mat-target')+'"]');
+        if(!input) return;
+        function has(w){ return new RegExp('(^|,)\\s*(\\d+\\s*)?'+esc(w)+'\\b','i').test(input.value); }
+        function refresh(){
+          box.querySelectorAll('[data-mat]').forEach(function(b){
+            var on = has(b.getAttribute('data-mat'));
+            b.classList.toggle('primary', on);
+            b.classList.toggle('secondary', !on);
+            b.setAttribute('aria-pressed', on ? 'true' : 'false');
+          });
+        }
+        box.addEventListener('click', function(e){
+          var b = e.target.closest('[data-mat]'); if(!b) return;
+          var w = b.getAttribute('data-mat');
+          var parts = input.value.split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+          if(has(w)){
+            parts = parts.filter(function(s){ return !new RegExp('(\\d+\\s*)?'+esc(w)+'\\b','i').test(s); });
+          } else {
+            parts.push(w);
+          }
+          input.value = parts.join(', ');
+          refresh();
+        });
+        input.addEventListener('input', refresh);
+        refresh();
+      });
+    })();
+    </script>
     <script>
       (() => {
         if (!window.fabric) return;
