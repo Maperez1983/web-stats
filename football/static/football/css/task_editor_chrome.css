@@ -798,3 +798,82 @@ body.ed-chrome.task-mode-sheet aside.panel{
 }
 body.ed-chrome.task-mode-sheet aside.panel .panel-body{max-width:940px !important; margin:0 auto !important; padding:22px 30px 64px !important;}
 body.ed-chrome.task-mode-sheet aside.panel .side-pane{width:auto !important;}
+/* -------- Lista de plantilla (botón rectangular dorsal+nombre) + desplegable de representación -------- */
+/* Al activarse, oculta la parrilla de chips original y deja solo la lista limpia. */
+body.ed-chrome #edc-mat-body .edc-roster-compact .player-bank,
+body.ed-chrome #edc-mat-body .edc-roster-compact .player-bank-head,
+body.ed-chrome #edc-mat-body .edc-roster-compact .token-global-style,
+body.ed-chrome #edc-mat-body .edc-roster-compact #task-opponent-bank-section { display: none !important; }
+body.ed-chrome #edc-mat-body .edc-roster-list {
+  display: flex; flex-direction: column; gap: 7px; width: 100%; padding: 2px;
+}
+body.ed-chrome #edc-mat-body .edc-roster-row { position: relative; }
+body.ed-chrome #edc-mat-body .edc-roster-btn {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 9px 12px; border-radius: 11px;
+  border: 1px solid var(--edc-line); background: var(--edc-bar-2);
+  color: var(--edc-ink); cursor: pointer; text-align: left; font: inherit;
+  transition: background .12s ease, border-color .12s ease;
+}
+body.ed-chrome #edc-mat-body .edc-roster-btn:hover { background: rgba(55,208,95,0.12); border-color: rgba(55,208,95,0.4); }
+body.ed-chrome #edc-mat-body .edc-roster-row.is-open .edc-roster-btn { border-color: var(--edc-accent); background: rgba(55,208,95,0.14); }
+body.ed-chrome #edc-mat-body .edc-roster-num {
+  flex: 0 0 auto; min-width: 30px; height: 30px; padding: 0 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 8px; background: var(--edc-accent); color: var(--edc-accent-ink);
+  font-weight: 800; font-size: 13px; letter-spacing: 0;
+}
+body.ed-chrome #edc-mat-body .edc-roster-num.is-gk { background: #1d4ed8; color: #fff; }
+body.ed-chrome #edc-mat-body .edc-roster-name {
+  flex: 1 1 auto; font-weight: 600; font-size: 13px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+body.ed-chrome #edc-mat-body .edc-roster-caret { flex: 0 0 auto; opacity: .6; font-size: 11px; transition: transform .12s ease; }
+body.ed-chrome #edc-mat-body .edc-roster-row.is-open .edc-roster-caret { transform: rotate(180deg); opacity: 1; }
+body.ed-chrome #edc-mat-body .edc-roster-btn.is-injured .edc-roster-num { background: #b91c1c; color: #fff; }
+body.ed-chrome #edc-mat-body .edc-rep-menu {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 8px; margin-top: 5px; border-radius: 11px;
+  background: var(--edc-bar); border: 1px solid var(--edc-line);
+}
+/* El atributo hidden debe ganar al display:flex de arriba (misma raíz, +especificidad). */
+body.ed-chrome #edc-mat-body .edc-rep-menu[hidden] { display: none !important; }
+body.ed-chrome #edc-mat-body .edc-rep-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Toggle de equipación (Local / Visitante) dentro del desplegable. */
+body.ed-chrome #edc-mat-body .edc-kit-toggle { display: flex; align-items: center; gap: 6px; }
+body.ed-chrome #edc-mat-body .edc-kit-label {
+  font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--edc-muted); margin-right: 2px;
+}
+body.ed-chrome #edc-mat-body .edc-kit-btn {
+  flex: 1 1 auto; padding: 6px 8px; border-radius: 8px;
+  border: 1px solid var(--edc-line); background: var(--edc-bar-2);
+  color: var(--edc-ink); cursor: pointer; font-size: 11.5px; font-weight: 700;
+}
+body.ed-chrome #edc-mat-body .edc-kit-btn:hover { border-color: rgba(55,208,95,0.5); }
+body.ed-chrome #edc-mat-body .edc-kit-btn.is-active { background: var(--edc-accent); border-color: var(--edc-accent); color: var(--edc-accent-ink); }
+body.ed-chrome #edc-mat-body .edc-rep-opt {
+  flex: 1 1 auto; min-width: 62px; padding: 8px 10px; border-radius: 8px;
+  border: 1px solid var(--edc-line); background: var(--edc-bar-2);
+  color: var(--edc-ink); cursor: pointer; font-size: 12px; font-weight: 600;
+  transition: background .12s ease, border-color .12s ease;
+}
+body.ed-chrome #edc-mat-body .edc-rep-opt:hover { background: var(--edc-accent); border-color: var(--edc-accent); color: var(--edc-accent-ink); }
+
+/* Barra global de representación (opción A: global + override por jugador) */
+body.ed-chrome #edc-mat-body .edc-roster-global {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding: 8px; margin-bottom: 4px; border-radius: 11px;
+  background: var(--edc-bar); border: 1px solid var(--edc-line);
+}
+body.ed-chrome #edc-mat-body .edc-roster-global-label {
+  font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--edc-muted); margin-right: 2px;
+}
+body.ed-chrome #edc-mat-body .edc-roster-gbtn {
+  flex: 1 1 auto; min-width: 54px; padding: 6px 8px; border-radius: 8px;
+  border: 1px solid var(--edc-line); background: var(--edc-bar-2);
+  color: var(--edc-ink); cursor: pointer; font-size: 11.5px; font-weight: 600;
+}
+body.ed-chrome #edc-mat-body .edc-roster-gbtn:hover { border-color: rgba(55,208,95,0.5); }
+body.ed-chrome #edc-mat-body .edc-roster-gbtn.is-active { background: var(--edc-accent); border-color: var(--edc-accent); color: var(--edc-accent-ink); }

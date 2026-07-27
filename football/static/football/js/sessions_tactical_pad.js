@@ -37902,6 +37902,30 @@
                 };
               } catch (e) { /* ignore */ }
 
+              // Editor 2D: coloca un jugador del banco en su SEGUNDA equipación (visitante) con el
+              // estilo dado (chapa/camiseta/figura/avatar). Reutiliza el kind 'player_away'. La carcasa
+              // 2D lo llama desde el desplegable de la lista de plantilla. Foto no usa equipación.
+              try {
+                window.__tpadInsertPlayerAway = (playerId, style) => {
+                  try {
+                    const el = playerBank ? playerBank.querySelector('button.player-token-bank[data-player-id="' + playerId + '"]') : null;
+                    const nameEl = el ? el.querySelector('.token-name') : null;
+                    const numEl = el ? el.querySelector('.token-number') : null;
+                    const isGk = !!(el && el.querySelector('.is-goalkeeper'));
+                    const minP = {
+                      id: playerId,
+                      name: nameEl ? safeText(nameEl.textContent).trim() : '',
+                      number: numEl ? safeText(numEl.textContent).replace(/[^0-9]/g, '') : '',
+                    };
+                    const kind = isGk ? 'goalkeeper_local' : 'player_away';
+                    const st = normalizeTokenStyle(style || tokenGlobalStyle);
+                    const factory = playerTokenFactory(kind, minP, { style: st });
+                    activateFactory(factory, safeText(minP.name, 'el jugador'), kind);
+                    return true;
+                  } catch (e) { return false; }
+                };
+              } catch (e) { /* ignore */ }
+
 	              // ----------------------------
 	              // TÁCTICA INTERACTIVA (opcional)
 	              // ----------------------------
