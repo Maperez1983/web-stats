@@ -3280,18 +3280,53 @@ def _find_duplicate_staff_member(workspace, team, *, name="", role_title="", cer
     return None
 
 
+# Mapeo canónico rol GLOBAL (AppUserRole) -> rol de CLUB (WorkspaceMembership) y jerarquía,
+# para que ambos sistemas de rol no se desincronicen (Fase 5).
+_MEMBERSHIP_ROLE_RANK = {
+    WorkspaceMembership.ROLE_VIEWER: 0,
+    WorkspaceMembership.ROLE_MEMBER: 1,
+    WorkspaceMembership.ROLE_ADMIN: 2,
+    WorkspaceMembership.ROLE_OWNER: 3,
+}
+
+
+def _membership_role_for_app_role(app_role_value):
+    value = str(app_role_value or "").strip()
+    if value == AppUserRole.ROLE_ADMIN:
+        return WorkspaceMembership.ROLE_ADMIN
+    if value in {
+        AppUserRole.ROLE_COACH,
+        AppUserRole.ROLE_ANALYST,
+        AppUserRole.ROLE_FITNESS,
+        AppUserRole.ROLE_GOALKEEPER,
+    }:
+        return WorkspaceMembership.ROLE_MEMBER
+    return WorkspaceMembership.ROLE_VIEWER
+
+
 def _ensure_workspace_membership(workspace, user_obj, *, role=None):
     if not workspace or not user_obj:
         return None
-    role = role or WorkspaceMembership.ROLE_VIEWER
-    if role not in {choice[0] for choice in WorkspaceMembership.ROLE_CHOICES}:
-        role = WorkspaceMembership.ROLE_VIEWER
-    membership, _ = WorkspaceMembership.objects.update_or_create(
-        workspace=workspace,
-        user=user_obj,
-        defaults={"role": role},
-    )
-    return membership
+    requested = role or WorkspaceMembership.ROLE_VIEWER
+    if requested not in {choice[0] for choice in WorkspaceMembership.ROLE_CHOICES}:
+        requested = WorkspaceMembership.ROLE_VIEWER
+    # Los auto-enlaces (staff, invitaciones legacy) pasaban "viewer" fijo, lo que degradaba a un
+    # entrenador/analista a solo-lectura. Si el rol pedido es el "viewer" por defecto, lo derivamos
+    # del rol GLOBAL del usuario para mantener ambos sistemas coherentes.
+    if requested == WorkspaceMembership.ROLE_VIEWER:
+        requested = _membership_role_for_app_role(
+            getattr(getattr(user_obj, "app_role", None), "role", "")
+        )
+    existing = WorkspaceMembership.objects.filter(workspace=workspace, user=user_obj).first()
+    if existing:
+        # Nunca degradar automáticamente: conservamos el rol más alto (los cambios explícitos de rol
+        # se hacen desde la pantalla de miembros, que escribe el rol directamente).
+        if _MEMBERSHIP_ROLE_RANK.get(requested, 0) <= _MEMBERSHIP_ROLE_RANK.get(existing.role, 0):
+            return existing
+        existing.role = requested
+        existing.save(update_fields=["role"])
+        return existing
+    return WorkspaceMembership.objects.create(workspace=workspace, user=user_obj, role=requested)
 
 
 def _maybe_link_staff_member_to_user(workspace, user_obj, *, preferred_team=None):
