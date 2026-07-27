@@ -270,7 +270,6 @@
               <div class="match-card-stats">
                 <span class="chip">Acc {{ r.actions|default:0 }}</span>
                 <span class="chip">Stats {{ r.manual_stats|default:0 }}</span>
-                <span class="chip">Vídeo {{ r.videos|default:0 }}</span>
                 {% if r.is_duplicate %}
                   <span class="chip dup">Duplicado ×{{ r.dup_count }}</span>
                 {% elif r.is_registered %}

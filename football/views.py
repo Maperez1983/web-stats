@@ -23010,12 +23010,13 @@ def match_action_page(request):
         if normalized_stored["starters"] or normalized_stored["bench"]:
             initial_lineup_payload = normalized_stored
         else:
+            # NO persistimos en un GET (era un efecto secundario no idempotente). El 11 por
+            # defecto se usa solo para pintar; se guarda cuando el usuario edita/guarda desde
+            # save_match_lineup (o al registrar acciones), no al abrir la página.
             initial_lineup_payload = _build_default_lineup_payload_with_limit(
                 convocation_players,
                 starters_limit=starters_limit,
             )
-            convocation_record.lineup_data = initial_lineup_payload
-            convocation_record.save(update_fields=["lineup_data"])
     message = None
     if request.method == "POST":
         action = request.POST.get("action_type", "").strip()
@@ -25525,9 +25526,14 @@ def team_agenda_page(request):
         date_raw = str(request.POST.get("agenda_match_date") or "").strip()
         if not date_raw:
             return HttpResponse("Indica la fecha del partido.", status=400)
-        try:
-            match_date = datetime.strptime(date_raw, "%Y-%m-%d").date()
-        except ValueError:
+        match_date = None
+        for _fmt in ("%Y-%m-%d", "%d/%m/%Y"):
+            try:
+                match_date = datetime.strptime(date_raw, _fmt).date()
+                break
+            except ValueError:
+                continue
+        if match_date is None:
             return HttpResponse("Fecha de partido no válida.", status=400)
         time_raw = str(request.POST.get("agenda_match_time") or "").strip()
         match_time = None
@@ -39407,7 +39413,6 @@ def coach_matches_page(request):
             }
     except Exception:
         manual_stat_counts = {}
-    video_counts = {}
     rows = []
     dup_counts = Counter()
     context_label_by_key = {k: v for (k, v) in (getattr(Match, "CONTEXT_CHOICES", []) or []) if k and v}
@@ -39490,7 +39495,6 @@ def coach_matches_page(request):
                 "key": key,
                 "actions": int(action_counts.get(int(m.id), 0) or 0),
                 "manual_stats": int(manual_stat_counts.get(int(m.id), 0) or 0),
-                "videos": int(video_counts.get(int(m.id), 0) or 0),
             }
         )
     for row in rows:
@@ -40005,6 +40009,7 @@ def coach_load_page(request):
     )
 
 
+@login_required
 def initial_eleven_page(request):
     try:
         return _initial_eleven_page_impl(request)
@@ -80473,9 +80478,16 @@ def _resolve_active_match_for_flow(request, primary_team):
 def match_hub_create_match(request):
     if not _can_edit_match_actions(request.user):
         return HttpResponse("Solo el cuerpo técnico puede crear partidos.", status=403)
+    # El alta se lanza tanto desde el Calendario (módulo match_actions) como desde el
+    # Hub/convocatoria (módulo convocation). Basta con tener ACTIVO cualquiera de los dos:
+    # así el botón "Nuevo partido" del Calendario no da 403 cuando convocation está off.
     forbidden = _forbid_if_workspace_module_disabled(request, "convocation", label="partido")
     if forbidden:
-        return forbidden
+        forbidden_match_actions = _forbid_if_workspace_module_disabled(
+            request, "match_actions", label="partido"
+        )
+        if forbidden_match_actions:
+            return forbidden_match_actions
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return HttpResponse("Equipo no configurado.", status=400)
