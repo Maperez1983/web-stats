@@ -47399,6 +47399,8 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
     collection_task_ids = set()
     library_season_options = []
     library_season_selected = "all"
+    library_facets = []
+    library_facets_clear_href = ""
     if planner_tables_ready and active_tab == "library":
         try:
             library_collections = list(
@@ -47508,12 +47510,10 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
                     library_season_selected = "none"
                 elif _raw_sel.isdigit() and int(_raw_sel) in _season_ids:
                     library_season_selected = int(_raw_sel)
-                elif _active_id and _season_counts.get(_active_id, 0) > 0:
-                    # Por defecto la temporada activa, PERO solo si tiene tareas; si no, "Todas"
-                    # (evita mostrar la biblioteca vacia cuando las tareas no tienen temporada).
-                    library_season_selected = _active_id
                 else:
+                    # Por defecto "Todas" (banco reutilizable: se ve todo y el entrenador filtra).
                     library_season_selected = "all"
+                _ = _active_id  # (disponible por si se quiere resaltar la activa en el futuro)
 
                 if library_season_selected == "none":
                     task_library = [t for t in task_library if _task_season_id(t) == 0]
@@ -47539,6 +47539,97 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
         except Exception:
             library_season_options = []
             library_season_selected = "all"
+
+        # --- Fase 2: CHIPS de filtro (campos de la ficha), combinables (AND) ---
+        # Cada chip lee un campo real de la tarea: columna (game_moment/content_domain/block) o
+        # meta (strategy/md_day). Las opciones y conteos se calculan sobre el conjunto ya acotado
+        # por temporada; los hrefs se precalculan en Python para combinar/limpiar sin liarnos en
+        # el template. Todo en try/except -> si falla, no hay chips pero la lista sigue.
+        library_facets = []
+        try:
+            _content_labels = {
+                "tactical": "Táctico", "technical": "Técnico",
+                "physical": "Físico", "psychological": "Psicológico",
+            }
+            _chip_defs = [
+                ("gm", "game_moment", "Momento", dict(GAME_MOMENT_CHOICES), False),
+                ("strategy", "strategy", "Tipología", dict(TASK_STRATEGY_CHOICES), True),
+                ("content", "content_domain", "Contenido", _content_labels, False),
+                ("block", "block", "Bloque", dict(SessionTask.BLOCK_CHOICES), False),
+                ("md", "md_day", "Microciclo", dict(TASK_MD_DAY_CHOICES), True),
+            ]
+
+            def _chip_value(_t, _field, _from_meta):
+                if not _from_meta:
+                    return str(getattr(_t, _field, "") or "").strip()
+                _lay = _t.tactical_layout if isinstance(_t.tactical_layout, dict) else {}
+                _mta = _lay.get("meta") if isinstance(_lay.get("meta"), dict) else {}
+                return str((_mta or {}).get(_field) or "").strip()
+
+            _chip_sel = {}
+            for _pk, _field, _lab, _labels, _fm in _chip_defs:
+                _v = str(request.GET.get("f_" + _pk) or "").strip()
+                if _v and _v in _labels:
+                    _chip_sel[_pk] = _v
+
+            _base_q = {
+                "tab": "library",
+                "library_repo": library_repository,
+                "library_source": str(request.GET.get("library_source") or "created"),
+                "library_season": str(library_season_selected),
+                "team": int(getattr(primary_team, "id", 0) or 0),
+            }
+            if active_workspace_id:
+                _base_q["workspace"] = active_workspace_id
+
+            def _facet_href(_selected_map):
+                _q = dict(_base_q)
+                for _k2, _v2 in _selected_map.items():
+                    if _v2:
+                        _q["f_" + _k2] = _v2
+                return "?" + urlencode(_q)
+
+            _season_scoped = list(task_library)
+            for _pk, _field, _lab, _labels, _fm in _chip_defs:
+                _counts = {}
+                for _t in _season_scoped:
+                    _val = _chip_value(_t, _field, _fm)
+                    if _val and _val in _labels:
+                        _counts[_val] = _counts.get(_val, 0) + 1
+                _opts = []
+                for _val, _c in _counts.items():
+                    _others = {k: v for k, v in _chip_sel.items() if k != _pk}
+                    _others[_pk] = _val
+                    _opts.append(
+                        {
+                            "value": _val,
+                            "label": _labels.get(_val, _val),
+                            "count": _c,
+                            "is_selected": _chip_sel.get(_pk) == _val,
+                            "href": _facet_href(_others),
+                        }
+                    )
+                _opts.sort(key=lambda o: (-o["count"], o["label"]))
+                if _opts:
+                    library_facets.append(
+                        {
+                            "key": _pk,
+                            "label": _lab,
+                            "selected": _chip_sel.get(_pk, ""),
+                            "selected_label": _labels.get(_chip_sel.get(_pk, ""), ""),
+                            "options": _opts,
+                            "clear_href": _facet_href({k: v for k, v in _chip_sel.items() if k != _pk}),
+                        }
+                    )
+
+            for _pk, _field, _lab, _labels, _fm in _chip_defs:
+                if _chip_sel.get(_pk):
+                    task_library = [t for t in task_library if _chip_value(t, _field, _fm) == _chip_sel[_pk]]
+
+            library_facets_clear_href = _facet_href({}) if _chip_sel else ""
+        except Exception:
+            library_facets = []
+            library_facets_clear_href = ""
 
         def _is_performed_task(task):
             layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
@@ -48438,6 +48529,8 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
             "library_source_tab": library_source_tab,
             "library_season_options": library_season_options,
             "library_season_selected": library_season_selected,
+            "library_facets": library_facets,
+            "library_facets_clear_href": library_facets_clear_href,
             "library_source_counts": library_source_counts,
             "library_filters_active": library_filters_active,
             "library_q": library_q,

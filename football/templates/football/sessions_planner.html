@@ -4015,6 +4015,22 @@
 			          {% endfor %}
 			        </div>
 			        {% endif %}
+			        {% if library_facets %}
+			        <div class="library-chips" style="display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center; margin:0 0 0.9rem;">
+			          {% for f in library_facets %}
+			          <details class="library-chip" style="position:relative;">
+			            <summary class="button {% if f.selected %}primary{% else %}secondary{% endif %} icon-btn small" style="display:inline-flex; gap:.3rem; align-items:center; width:max-content; cursor:pointer;">{{ f.label }}{% if f.selected_label %}: <strong>{{ f.selected_label }}</strong>{% endif %} <span aria-hidden="true">▾</span></summary>
+			            <div class="library-chip-menu" style="position:absolute; z-index:30; margin-top:.3rem; background:#0f1620; border:1px solid rgba(255,255,255,.16); border-radius:10px; padding:.4rem; min-width:220px; max-height:320px; overflow:auto; box-shadow:0 8px 24px rgba(0,0,0,.45);">
+			              {% if f.selected %}<a href="{{ f.clear_href }}" class="button secondary" style="display:block; margin-bottom:.35rem;">✕ Quitar {{ f.label }}</a>{% endif %}
+			              {% for o in f.options %}
+			              <a href="{{ o.href }}" class="button {% if o.is_selected %}primary{% else %}secondary{% endif %}" style="display:flex; justify-content:space-between; gap:.5rem; margin:.15rem 0;"><span>{{ o.label }}</span><span class="meta" style="opacity:.7;">{{ o.count }}</span></a>
+			              {% endfor %}
+			            </div>
+			          </details>
+			          {% endfor %}
+			          {% if library_facets_clear_href %}<a href="{{ library_facets_clear_href }}" class="button secondary small" style="margin-left:.2rem;">✕ Limpiar filtros</a>{% endif %}
+			        </div>
+			        {% endif %}
 			        <div class="library-strip">
 			          <div class="library-strip-item">
 			            <small>Total visibles</small>
