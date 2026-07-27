@@ -4464,6 +4464,18 @@
 	                </form>
                   </details>
 	                {% endif %}
+                {% if not t.is_imported %}
+                <form method="post" style="margin:0;" onsubmit="return confirm('¿Enviar esta tarea a la papelera? (Se puede restaurar)');">
+                  {% csrf_token %}
+                  <input type="hidden" name="planner_action" value="delete_library_task" />
+                  <input type="hidden" name="planner_tab" value="library" />
+                  <input type="hidden" name="library_view" value="{{ library_view }}" />
+                  <input type="hidden" name="library_key" value="{{ library_key }}" />
+                  <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+                  <input type="hidden" name="task_id" value="{{ t.id }}" />
+                  <button type="submit" class="button danger icon-btn small" title="Enviar a la papelera" aria-label="Enviar a la papelera">🗑️</button>
+                </form>
+                {% endif %}
                 <details class="task-more">
                   <summary class="button secondary icon-btn small" title="Más" aria-label="Más">
                     <span class="emoji" aria-hidden="true">⋯</span>
@@ -4532,16 +4544,6 @@
 	                    <input type="hidden" name="library_repo" value="{{ library_repository }}" />
 	                    <input type="hidden" name="task_id" value="{{ t.id }}" />
 	                    <button type="submit" class="secondary">Duplicar</button>
-	                  </form>
-	                  <form method="post" onsubmit="return confirm('¿Enviar esta tarea a la papelera? (Se puede restaurar)');">
-	                    {% csrf_token %}
-	                    <input type="hidden" name="planner_action" value="delete_library_task" />
-	                    <input type="hidden" name="planner_tab" value="library" />
-	                    <input type="hidden" name="library_view" value="{{ library_view }}" />
-	                    <input type="hidden" name="library_key" value="{{ library_key }}" />
-	                    <input type="hidden" name="library_repo" value="{{ library_repository }}" />
-	                    <input type="hidden" name="task_id" value="{{ t.id }}" />
-	                    <button type="submit" class="danger">Papelera</button>
 	                  </form>
                   </div>
                 </details>
