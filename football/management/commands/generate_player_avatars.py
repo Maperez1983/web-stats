@@ -146,7 +146,12 @@ class Command(BaseCommand):
             self.stderr.write(f"No encuentro inswapper_128.onnx (probado: {[p for p in _model_candidates if p]}). Define AVATAR_INSWAPPER."); return
 
         app = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])
-        app.prepare(ctx_id=-1, det_size=(640, 640))
+        # det_size reducido (menos memoria; ayuda en instancias de 2 GB). Configurable por env.
+        try:
+            _det = int(os.environ.get("AVATAR_DET_SIZE") or 320)
+        except Exception:
+            _det = 320
+        app.prepare(ctx_id=-1, det_size=(_det, _det))
         swapper = insightface.model_zoo.get_model(model_path, download=False, providers=["CPUExecutionProvider"])
 
         base_rgba = np.asarray(Image.open(base_path).convert("RGBA"))
