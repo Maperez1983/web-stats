@@ -302,3 +302,33 @@ def workspace_members_page(request):
         "notice": notice,
         "error": error,
     })
+
+
+# ---------------------------------------------------------------------------
+# Fase 6: espacio del jugador (portal propio)
+# ---------------------------------------------------------------------------
+@login_required
+def player_home_page(request):
+    """Landing propia del jugador: su identidad, objetivos activos y acceso a su ficha."""
+    from .models import Player, PlayerObjective
+
+    player = Player.objects.filter(user=request.user).select_related("team").first()
+    objectives = []
+    if player is not None:
+        try:
+            objectives = list(
+                PlayerObjective.objects.filter(player=player)
+                .exclude(status="done")
+                .order_by("-created_at")[:6]
+            )
+        except Exception:
+            objectives = []
+    return render(
+        request,
+        "accounts/player_home.html",
+        {
+            "player": player,
+            "objectives": objectives,
+            "display_name": request.user.get_full_name() or request.user.username,
+        },
+    )

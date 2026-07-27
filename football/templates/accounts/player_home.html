@@ -1,0 +1,100 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Mi espacio · 2J</title>
+    <style>
+      :root{
+        --bg:#07101a; --panel:rgba(14,24,40,.98); --line:rgba(145,161,185,.18);
+        --text:#f5f7fa; --muted:#95a6be; --muted-soft:#c8d3df;
+        --accent:#f4b400; --pitch:#2f7d32;
+      }
+      *{box-sizing:border-box}
+      body{margin:0;min-height:100vh;color:var(--text);font-family:"Avenir Next","Inter","Segoe UI",sans-serif;
+        background:radial-gradient(circle at top left,rgba(47,125,50,.18),transparent 30%),
+          radial-gradient(circle at top right,rgba(244,180,0,.14),transparent 26%),
+          linear-gradient(180deg,#050b14 0%,#07101a 48%,#09131f 100%);}
+      .wrap{max-width:620px;margin:0 auto;padding:clamp(16px,4vw,36px)}
+      .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.3rem}
+      .top img{width:120px;max-width:44%;height:auto}
+      .top a{color:var(--muted-soft);text-decoration:none;font-size:.8rem}
+      .eyebrow{font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:#fff4cf;font-weight:800}
+      h1{margin:.3rem 0 1rem;font-size:clamp(1.7rem,5vw,2.3rem);letter-spacing:-.03em;line-height:1.05}
+      .card{border:1px solid var(--line);border-radius:20px;background:var(--panel);padding:1.2rem;margin-bottom:1rem}
+      .identity{display:flex;gap:1rem;align-items:center}
+      .avatar{width:60px;height:60px;flex:0 0 60px;border-radius:16px;display:grid;place-items:center;
+        background:linear-gradient(135deg,rgba(244,180,0,.2),rgba(47,125,50,.2));font-size:1.5rem;font-weight:800;color:#fff4cf}
+      .identity h2{margin:0;font-size:1.2rem}
+      .identity p{margin:.15rem 0 0;color:var(--muted);font-size:.9rem}
+      .chips{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.6rem}
+      .chip{font-size:.72rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:.3rem .7rem;
+        border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--muted-soft)}
+      .btn{display:flex;align-items:center;justify-content:center;width:100%;min-height:52px;border-radius:999px;
+        text-decoration:none;font-size:.82rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+        border:none;background:linear-gradient(135deg,var(--accent),var(--pitch));color:#081320;margin-top:.4rem}
+      .card h3{margin:0 0 .8rem;font-size:1rem}
+      ul.obj{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.6rem}
+      ul.obj li{display:flex;gap:.6rem;align-items:flex-start;font-size:.92rem;line-height:1.45}
+      ul.obj li::before{content:"◎";color:var(--accent);font-weight:800}
+      .obj-status{display:block;font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:.1rem}
+      .empty{color:var(--muted);font-size:.92rem;line-height:1.55}
+      .foot{margin-top:1rem;text-align:center}
+      .foot a{color:var(--muted-soft);text-decoration:none;font-size:.82rem}
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="top">
+        <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J" />
+        <a href="{% url 'logout' %}">Cerrar sesión</a>
+      </div>
+
+      <div class="eyebrow">Mi espacio</div>
+      <h1>Hola, {{ display_name }}</h1>
+
+      {% if player %}
+      <div class="card">
+        <div class="identity">
+          <div class="avatar">{{ player.number|default:"·" }}</div>
+          <div>
+            <h2>{{ player.name }}</h2>
+            <p>{% if player.team %}{{ player.team.name }}{% endif %}</p>
+            <div class="chips">
+              {% if player.position %}<span class="chip">{{ player.position }}</span>{% endif %}
+              {% if player.number %}<span class="chip">Dorsal {{ player.number }}</span>{% endif %}
+            </div>
+          </div>
+        </div>
+        <a class="btn" href="{% url 'player-detail' player.id %}">Ver mi ficha completa</a>
+      </div>
+
+      <div class="card">
+        <h3>Mis objetivos</h3>
+        {% if objectives %}
+        <ul class="obj">
+          {% for o in objectives %}
+          <li><span>{{ o.text }}<span class="obj-status">{{ o.get_status_display|default:o.status }}</span></span></li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="empty">Aún no tienes objetivos asignados. Tu entrenador puede añadirlos desde tu ficha.</p>
+        {% endif %}
+      </div>
+
+      <div class="card">
+        <h3>Disponibilidad y asistencia</h3>
+        <p class="empty">Desde tu ficha puedes confirmar tu asistencia a los entrenamientos y consultar tu seguimiento.</p>
+        <a class="btn" href="{% url 'player-detail' player.id %}">Ir a mi ficha</a>
+      </div>
+      {% else %}
+      <div class="card">
+        <p class="empty">Tu cuenta todavía no está vinculada a una ficha de jugador. Habla con tu entrenador para que la enlace y así podrás ver tu seguimiento, objetivos y confirmar tu asistencia.</p>
+      </div>
+      {% endif %}
+
+      <div class="foot"><a href="{% url 'account-page' %}">Mi cuenta</a></div>
+    </div>
+  </body>
+</html>

@@ -157,6 +157,12 @@ def _post_login_redirect_target(request, user, requested_next: str = "") -> str:
         except Exception:
             logger.debug("No se pudo leer active_workspace_id post-login", exc_info=True)
         return reverse("platform-overview")
+    # Fase 6: un jugador aterriza en su espacio propio (no en la home del cuerpo técnico).
+    try:
+        if workspace_get_user_role(user) == AppUserRole.ROLE_PLAYER:
+            return reverse("player-home")
+    except Exception:
+        logger.debug("No se pudo resolver player-home post-login", exc_info=True)
     return reverse("dashboard-home")
 
 
