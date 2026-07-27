@@ -226,7 +226,7 @@
           <div class="topbar-subline">
             <span class="session-pill">{{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</span>
             <span class="session-pill">{{ session.get_intensity_display }}</span>
-            <span class="session-pill">{{ tasks_count }} tareas · {{ task_minutes_total }} min</span>
+            <span class="session-pill" title="Minutos en tareas / duración planificada de la sesión">{{ tasks_count }} tareas · {{ task_minutes_total }}/{{ session.duration_minutes }} min</span>
             <span class="session-pill">{{ team.name|default:"Equipo" }}</span>
           </div>
         </div>
@@ -286,7 +286,7 @@
 	            </tr>
 	            <tr>
 	              <td>Duración</td>
-	              <td><div class="v">{{ session.duration_minutes }} min</div></td>
+	              <td><div class="v">{{ session.duration_minutes }} min <span style="opacity:.68; font-weight:600; font-size:.82em;">planificada{% if task_minutes_total and task_minutes_total != session.duration_minutes %} · {{ task_minutes_total }} en tareas{% endif %}</span></div></td>
 	              <td>Intensidad</td>
 	              <td><div class="v">{{ session.get_intensity_display }}</div></td>
 	            </tr>
@@ -356,8 +356,9 @@
 	            {% endif %}
 	          </div>
 
-	          <div class="section-title">Contenido / explicación</div>
+	          <div class="section-title">Contenido / explicación <span style="opacity:.7; font-weight:700; text-transform:none; letter-spacing:0;">· resumen</span></div>
 	          <div class="box" style="margin-bottom:12px;">
+	            <p style="margin:0 0 8px; color:var(--club-muted); font-size:11px;">Resumen narrativo por fases. El <strong>detalle con pizarra</strong> está abajo, en <strong>Tareas de la sesión</strong>.</p>
 	            {% if plan_fields.warmup %}<p><strong>Calentamiento:</strong><br />{{ plan_fields.warmup|linebreaksbr }}</p>{% endif %}
 	            {% if plan_fields.activation %}<p><strong>Activación:</strong><br />{{ plan_fields.activation|linebreaksbr }}</p>{% endif %}
 	            {% if plan_fields.main %}<p><strong>Parte principal:</strong><br />{{ plan_fields.main|linebreaksbr }}</p>{% endif %}
@@ -377,7 +378,7 @@
 	          </div>
 
 		          <div class="section-title" style="display:flex; align-items:center; justify-content:space-between; gap:0.65rem; flex-wrap:wrap;">
-                <span>Tareas de la sesión</span>
+                <span>Tareas de la sesión <span style="opacity:.7; font-weight:700; text-transform:none; letter-spacing:0;">· detalle</span></span>
                 <a class="btn secondary" href="{{ planner_url }}">➕ Añadir tareas</a>
               </div>
               {% if recommended_tasks %}
