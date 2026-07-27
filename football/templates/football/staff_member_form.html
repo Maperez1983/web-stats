@@ -374,7 +374,7 @@
                   Rol de acceso
                   <select name="role_preset">
                     {% for key, label, ar, mr in role_presets %}
-                    <option value="{{ key }}">{{ label }}</option>
+                    <option value="{{ key }}" {% if key == current_role_preset %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                   </select>
                 </label>

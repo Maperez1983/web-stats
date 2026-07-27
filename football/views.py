@@ -3945,12 +3945,19 @@ def staff_member_detail_page(request, staff_id):
         reverse("staff-member-cert-file", args=[member.id]) if getattr(member, "certification_document", None) else ""
     )
     access_membership_id = None
+    current_role_preset = "entrenador"
     if member and getattr(member, "user_id", None) and workspace:
         try:
-            _am = WorkspaceMembership.objects.filter(
-                workspace=workspace, user_id=member.user_id
-            ).first()
-            access_membership_id = _am.id if _am else None
+            _am = (
+                WorkspaceMembership.objects.select_related("user", "user__app_role")
+                .filter(workspace=workspace, user_id=member.user_id)
+                .first()
+            )
+            if _am:
+                access_membership_id = _am.id
+                from .account_views import _preset_key_for_membership
+
+                current_role_preset = _preset_key_for_membership(_am)
         except Exception:
             access_membership_id = None
     return render(
@@ -3966,6 +3973,7 @@ def staff_member_detail_page(request, staff_id):
             "team_label": _staff_scope_label(active_team),
             "can_manage_workspace": can_manage,
             "access_membership_id": access_membership_id,
+            "current_role_preset": current_role_preset,
             "error": error,
             "feedback": feedback,
             "invite_link": invite_link,
