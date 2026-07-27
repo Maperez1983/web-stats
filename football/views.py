@@ -54211,9 +54211,26 @@ def sessions_fitness_task_library_page(request):
 def session_task_detail_page(request, task_id):
     if not _can_access_sessions_workspace(request.user):
         return HttpResponse("No tienes permisos para acceder a sesiones.", status=403)
-    task = SessionTask.objects.select_related("session__microcycle__team").filter(id=task_id).first()
+    # Perf: la PRESENTACION solo necesita `meta` -> cargamos la tarea DIFIRIENDO tactical_layout
+    # (el canvas pesado ~165KB) y usamos task_layout_light. Solo el modo EDICION (o POST) necesita
+    # el canvas completo -> ahi cargamos tactical_layout normal. Evita el detoast que daba 502/8s.
+    _wants_full_layout = (
+        request.method == "POST"
+        or str(request.GET.get("mode") or "").strip().lower() == "edit"
+        or str(request.GET.get("tab") or "").strip().lower() == "edit"
+        or bool(str(request.GET.get("edit_tab") or "").strip())
+    )
+    _detail_qs = SessionTask.objects.select_related("session__microcycle__team")
+    if not _wants_full_layout:
+        _detail_qs = _detail_qs.defer("tactical_layout")
+    task = _detail_qs.filter(id=task_id).first()
     if not task:
         raise Http404("Tarea no encontrada")
+    # Fuente de layout para la PRESENTACION: light (sin canvas) salvo en edicion/POST.
+    if _wants_full_layout:
+        _layout_src = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+    else:
+        _layout_src = task.task_layout_light if isinstance(task.task_layout_light, dict) else {}
 
     scope_key = _task_scope_for_item(task)
     scope_route_name = {
@@ -54287,7 +54304,7 @@ def session_task_detail_page(request, task_id):
     is_imported_task = _is_imported_task(task)
     is_performed_task = False
     try:
-        layout0 = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+        layout0 = _layout_src
         meta0 = layout0.get("meta") if isinstance(layout0.get("meta"), dict) else {}
         is_performed_task = str(meta0.get("source") or "").strip().lower() == "performed" or bool(
             str(meta0.get("performed_on") or "").strip()
@@ -54375,7 +54392,7 @@ def session_task_detail_page(request, task_id):
         except Exception:
             error = "No se pudo guardar la tarea."
 
-    layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+    layout = _layout_src
     meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
     analysis_meta = meta.get("analysis") if isinstance(meta.get("analysis"), dict) else {}
     task_sheet = analysis_meta.get("task_sheet") if isinstance(analysis_meta.get("task_sheet"), dict) else {}
@@ -54412,7 +54429,7 @@ def session_task_detail_page(request, task_id):
     session_obj_for_pdf = getattr(task, "session", None)
     microcycle_obj_for_pdf = getattr(session_obj_for_pdf, "microcycle", None) if session_obj_for_pdf else None
     team_obj_for_pdf = getattr(microcycle_obj_for_pdf, "team", None) if microcycle_obj_for_pdf else None
-    tactical_layout_for_pdf = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+    tactical_layout_for_pdf = _layout_src
     task_presentation_pdf_context_by_format = {"uefa": {}, "club": {}}
     try:
         preview_url_for_pdf = ""
@@ -54450,7 +54467,7 @@ def session_task_detail_page(request, task_id):
             }
         # Si es "performed", intentamos resolver la sesión real de origen.
         if is_performed_task:
-            layoutp = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+            layoutp = _layout_src
             metap = layoutp.get("meta") if isinstance(layoutp.get("meta"), dict) else {}
             origin_id = _parse_int(metap.get("performed_session_id"))
             team = getattr(getattr(getattr(task, "session", None), "microcycle", None), "team", None)
