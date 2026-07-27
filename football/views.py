@@ -77922,18 +77922,45 @@ def compute_player_dashboard(
         primary_team,
         reference_match=active_match,
     )
+    # Las stats base "de temporada" (snapshot externo Universo/La Preferente + ajustes manuales)
+    # se almacenan por la temporada federativa `season_obj` (p.ej. group.season = 2025/2026) como
+    # totales SIN partido, así que el filtro de fechas no puede excluirlas. Si la temporada de CLUB
+    # que se está mostrando es de otro año (p.ej. 2026/2027 recién empezada, mientras el grupo del
+    # equipo todavía apunta a la 2025/2026), esos totales se "arrastraban" a la temporada nueva.
+    # Las temporadas RFAF no tienen fechas fiables aquí, así que comparamos por AÑO de la etiqueta:
+    # el label de la WorkspaceSeason ("2026/2027") vs el nombre de la Season federativa ("2025/2026").
+    def _season_year_key(value):
+        digits = re.findall(r"\d{4}", str(value or ""))
+        return "/".join(digits[:2]) if digits else ""
+
+    base_belongs_to_selected_season = True
+    if dashboard_roster_season is not None and season_obj is not None:
+        _club_year_key = _season_year_key(getattr(dashboard_roster_season, "label", ""))
+        _rfaf_year_key = _season_year_key(getattr(season_obj, "name", ""))
+        if _club_year_key and _rfaf_year_key:
+            base_belongs_to_selected_season = _club_year_key == _rfaf_year_key
     # Las estadísticas externas base (Universo/La Preferente) solo aplican a Liga y sin filtro de fechas.
     # Los overrides manuales son fuente de verdad del usuario y deben seguir aplicando aunque la vista
     # filtre por temporada activa (`date_start/date_end`).
-    use_external_base_stats = scope_value in {Match.CONTEXT_LEAGUE, "all"} and not (date_start or date_end)
+    use_external_base_stats = (
+        scope_value in {Match.CONTEXT_LEAGUE, "all"}
+        and not (date_start or date_end)
+        and base_belongs_to_selected_season
+    )
     # Los overrides manuales de base se guardan por la temporada federativa vigente (`season_obj`),
     # así que aplican con la temporada ACTIVA (o sin filtro), pero NO en una temporada histórica
     # (aplicaría los de la actual). Antes se apagaban en cuanto había cualquier temporada de club
     # activa, con lo que el "Ajuste manual" no surtía efecto en la ficha (contradecía el comentario).
+    # `base_belongs_to_selected_season` evita además que los totales de la temporada federativa
+    # anterior se muestren en una temporada de club de distinto año.
     _dashboard_season_is_current = (not dashboard_roster_season) or bool(
         getattr(dashboard_roster_season, "is_active", False)
     )
-    use_manual_base_stats = scope_value in {Match.CONTEXT_LEAGUE, "all"} and _dashboard_season_is_current
+    use_manual_base_stats = (
+        scope_value in {Match.CONTEXT_LEAGUE, "all"}
+        and _dashboard_season_is_current
+        and base_belongs_to_selected_season
+    )
     # La caché de La Preferente es legacy y solo aplica al equipo principal.
     # En multicategoría, evitar mezclar stats base entre equipos.
     roster_cache = (
