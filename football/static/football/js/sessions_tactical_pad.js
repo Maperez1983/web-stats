@@ -35911,7 +35911,10 @@
 		      el.style.transform = 'translate(-18%, -112%)';
 		      el.addEventListener('pointerdown', (ev) => {
 		        ev.stopPropagation();
+		        // Al tocar la barra (dedo/lápiz) cancelamos el auto-ocultado: que no se escape.
+		        try { clearSmartInkUiTimer(); } catch (e) { /* ignore */ }
 		      }, true);
+		      el.addEventListener('pointerenter', () => { try { clearSmartInkUiTimer(); } catch (e) { /* ignore */ } });
 		      stage.appendChild(el);
 		      smartInkUi.bar = el;
 		      return el;
@@ -36175,8 +36178,9 @@
 		          setStatus('Convertido.');
 		        }
 		      };
-		      // Auto-oculta rápido (no debe estorbar).
-		      smartInkUi.hideTimer = window.setTimeout(() => hideSmartInkBar(), 1600);
+		      // Auto-oculta, pero con margen suficiente para tocar con lápiz/dedo en iPad (antes 1.6s,
+		      // se escapaba). Además se cancela en cuanto tocas/entras en la barra (ver ensureSmartInkBar).
+		      smartInkUi.hideTimer = window.setTimeout(() => hideSmartInkBar(), 7000);
 		    };
 		    // Oculta al tocar fuera.
 		    stage?.addEventListener('pointerdown', (ev) => {
