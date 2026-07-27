@@ -77233,6 +77233,11 @@ def get_next_match(primary_team, group, *, allow_external_fetch=None):
             standings_team_ids = set()
 
     def _opponent_in_group_standings(match):
+        # El gate solo tiene sentido para LIGA (el rival debe figurar en la clasificación del grupo).
+        # Torneo/amistoso tienen rivales fuera de la liga por naturaleza -> NUNCA se filtran aquí,
+        # así un partido de copa/amistoso creado a mano no queda oculto como "próximo partido".
+        if getattr(match, "context", None) and match.context != Match.CONTEXT_LEAGUE:
+            return True
         # En fases tempranas (o datos incompletos) puede existir clasificación parcial (solo tu equipo).
         # En ese caso NO filtramos por standings para poder mostrar el próximo partido igualmente.
         if not group or not standings_team_ids or len(standings_team_ids) < 3:
@@ -77303,11 +77308,15 @@ def get_next_match(primary_team, group, *, allow_external_fetch=None):
     snapshot = load_universo_snapshot()
     can_use_external = _universo_snapshot_supports_team(snapshot, primary_team) if primary_team else True
     cached_next = load_cached_next_match() if can_use_external else None
+    cached_next_payload = None
     if isinstance(cached_next, dict):
         normalized_cached_next = normalize_next_match_payload(cached_next)
         if _next_match_payload_is_reliable(normalized_cached_next):
-            return normalized_cached_next
+            cached_next_payload = normalized_cached_next
 
+    # Partido local futuro. El gate de standings solo aplica a LIGA; torneo/amistoso pasan siempre.
+    # Y si tras el gate no queda ninguno, caemos al más próximo SIN filtrar: un partido futuro
+    # creado a mano nunca debe quedar oculto por el gate.
     upcoming = None
     for candidate in scoped_qs.filter(date__gte=today).order_by("date", "id")[:10]:
         if _opponent_in_group_standings(candidate):
@@ -77318,6 +77327,21 @@ def get_next_match(primary_team, group, *, allow_external_fetch=None):
             if _opponent_in_group_standings(candidate):
                 upcoming = candidate
                 break
+    if not upcoming:
+        upcoming = (
+            scoped_qs.filter(date__gte=today).order_by("date", "id").first()
+            or all_team_matches_qs.filter(date__gte=today).order_by("date", "id").first()
+        )
+
+    # Entre la fuente externa (Universo, cache) y el partido local futuro, gana el MÁS PRÓXIMO por
+    # fecha. Antes Universo se devolvía siempre primero y podía "pisar" un partido manual más cercano.
+    if cached_next_payload and upcoming and getattr(upcoming, "date", None):
+        cached_date = _parse_payload_date(cached_next_payload.get("date"))
+        if cached_date and cached_date < upcoming.date:
+            return cached_next_payload
+        return build_match_payload(upcoming, primary_team, status="next")
+    if cached_next_payload:
+        return cached_next_payload
     if upcoming:
         return build_match_payload(upcoming, primary_team, status="next")
 
