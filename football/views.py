@@ -54434,7 +54434,16 @@ def session_task_detail_page(request, task_id):
     try:
         preview_url_for_pdf = ""
         if getattr(task, "task_preview_image", None):
-            preview_url_for_pdf = _file_field_as_data_url(task.task_preview_image)
+            # Perf: en PANTALLA usamos la URL del fichero (el navegador la descarga y CACHEA)
+            # en vez de incrustar la imagen en base64 dentro del HTML (~1MB inline por tarea con
+            # portada -> paginas de 1.3MB). El PDF descargable es otro endpoint (session_task_pdf)
+            # y arma su propio contexto, asi que este cambio no le afecta.
+            try:
+                preview_url_for_pdf = task.task_preview_image.url or ""
+            except Exception:
+                preview_url_for_pdf = ""
+            if not preview_url_for_pdf:
+                preview_url_for_pdf = _file_field_as_data_url(task.task_preview_image)
         # Perf: construir SOLO el formato activo. El template presenta uno (UEFA o Club) y el
         # cambio de formato recarga la pagina; antes se construian AMBOS contextos PDF en cada
         # visita -> doble coste (procesar el canvas 2x), causaba 8s / 502 en tareas pesadas.
