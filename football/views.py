@@ -23277,7 +23277,7 @@ def match_action_page(request):
             rival_team_name = "Rival"
         try:
             if getattr(rival_record, "rival_team", None):
-                rival_team_crest_url = resolve_team_crest_url(request, rival_record.rival_team, sync=True) or ""
+                rival_team_crest_url = resolve_team_crest_url(request, rival_record.rival_team, sync=False) or ""
             if not rival_team_crest_url:
                 # Fallback: crest del nombre rival desde Universo (si está disponible en snapshot).
                 rival_team_crest_url = (
@@ -24009,6 +24009,18 @@ def get_match_lineup(request):
     normalized = _normalize_lineup_payload_with_limit(stored, allowed_players, starters_limit=starters_limit)
     if meta:
         normalized["_meta"] = meta
+    # Si no hay 11 GUARDADO, devolvemos el mismo 11 por defecto que pinta el Registro de acciones,
+    # para que el refresco AJAX no lo borre y las pantallas coincidan. No lleva 'saved_at', así que
+    # el hub sigue marcando "11 no listo" (lee lo guardado, no esta sugerencia).
+    if not (normalized.get("starters") or normalized.get("bench")):
+        try:
+            default_payload = _build_default_lineup_payload_with_limit(allowed_players, starters_limit=starters_limit)
+            normalized = _normalize_lineup_payload_with_limit(
+                default_payload, allowed_players, starters_limit=starters_limit
+            )
+            normalized["_meta"] = {"source": "default-suggestion", "starters_limit": int(starters_limit or 11)}
+        except Exception:
+            logger.debug("No se pudo construir el 11 por defecto en get_match_lineup", exc_info=True)
     normalized = _ensure_lineup_orientation(normalized, target="lr")
     return JsonResponse({"ok": True, "lineup": normalized})
 
@@ -24033,6 +24045,8 @@ def get_match_rival_lineup(request):
     allowed_rows = record.convocation_data if isinstance(record.convocation_data, list) else []
     stored = record.lineup_data if isinstance(record.lineup_data, dict) else {}
     normalized = _normalize_rival_lineup_payload_with_limit(stored, allowed_rows, starters_limit=starters_limit)
+    # Coherencia con get_match_lineup (propio): el registro de acciones asume orientación LR.
+    normalized = _ensure_lineup_orientation(normalized, target="lr")
     return JsonResponse({"ok": True, "lineup": normalized})
 
 
@@ -40585,9 +40599,13 @@ def _initial_eleven_page_impl(request):
         return HttpResponse("Este club no tiene equipo/configuración. Completa el onboarding primero.", status=400)
     starters_limit = _required_starters_for_team(primary_team)
     target_match = _resolve_active_match_for_flow(request, primary_team)
+    # Selector de partidos: solo los más recientes (evita cargar/mapear todo el histórico en cada carga).
     raw_match_selector_options = list(
-        _team_match_queryset(primary_team).select_related("home_team", "away_team").order_by("-date", "-id")
+        _team_match_queryset(primary_team).select_related("home_team", "away_team").order_by("-date", "-id")[:60]
     )
+    # Si el partido abierto es antiguo (fuera del top 60), lo añadimos para que aparezca seleccionado.
+    if target_match and int(getattr(target_match, "id", 0) or 0) not in {int(m.id) for m in raw_match_selector_options}:
+        raw_match_selector_options.insert(0, target_match)
     match_selector_options = [_safe_initial_eleven_match_option(match) for match in raw_match_selector_options]
     selected_match_id = target_match.id if target_match and getattr(target_match, "id", None) else None
     convocation_record = None
@@ -40682,7 +40700,7 @@ def _initial_eleven_page_impl(request):
             rival_team_name = "Rival"
         try:
             if getattr(rival_record, "rival_team", None):
-                rival_team_crest_url = resolve_team_crest_url(request, rival_record.rival_team, sync=True) or ""
+                rival_team_crest_url = resolve_team_crest_url(request, rival_record.rival_team, sync=False) or ""
         except Exception:
             rival_team_crest_url = ""
         if not rival_team_crest_url:
@@ -40748,7 +40766,7 @@ def _initial_eleven_page_impl(request):
         str(rival_team_name or "").strip() or (convocation_record_view or {}).get("opponent_name") or "Rival"
     )
     try:
-        team_crest_url = resolve_team_crest_url(request, primary_team, sync=True) or ""
+        team_crest_url = resolve_team_crest_url(request, primary_team, sync=False) or ""
     except Exception:
         team_crest_url = ""
     try:
