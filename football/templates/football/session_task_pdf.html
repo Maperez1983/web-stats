@@ -1101,53 +1101,68 @@
                 <div class="club-panel-head">Diseño gráfico</div>
                 <div class="club-graphic-body" style="padding:10px; background:#fff;">
                   {% if graphic_view_2d_url or graphic_view_3d_url or task_preview_3d_embed_url or recreation_2d_url or recreation_3d_url or recreation_3d_embed_url %}
+                    {# Solo 2 columnas si hay ALGO ademas de la Vista 2D; si no, la 2D va a todo el ancho (protagonista). #}
+                    {% if task_preview_3d_embed_url or task_preview_3d_url or graphic_view_3d_url or recreation_2d_url or recreation_3d_url or recreation_3d_embed_url %}
                     <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
+                    {% else %}
+                    <div>
+                    {% endif %}
+                      {% if graphic_view_2d_url %}
                       <div>
                         <span class="tag">Vista 2D</span>
                         <div class="preview-frame" aria-label="Vista 2D de la tarea">
-                          {% if graphic_view_2d_url %}
                           <div class="preview-img"><img src="{{ graphic_view_2d_url }}" alt="Vista 2D de la tarea" /></div>
-                          {% else %}
-                          <div style="display:flex; align-items:center; justify-content:center; height:100%; min-height:180px; color:#6b7280; font-weight:700;">Sin vista 2D</div>
-                          {% endif %}
                         </div>
                       </div>
+                      {% endif %}
+                      {# Vista 3D: solo si existe (no pintamos caja vacia gigante) #}
+                      {% if pdf_live_preview_mode and task_preview_3d_embed_url %}
                       <div>
                         <span class="tag">Vista 3D (plasmado automático)</span>
                         <div class="preview-frame" aria-label="Vista 3D de la tarea">
-                          {% if pdf_live_preview_mode and task_preview_3d_embed_url %}
                           <div class="preview-embed"><iframe src="{{ task_preview_3d_embed_url }}" loading="lazy" referrerpolicy="same-origin" title="Vista 3D (plasmado automático)"></iframe></div>
-                          {% elif task_preview_3d_url %}
-                          <div class="preview-img"><img src="{{ task_preview_3d_url }}" alt="Vista 3D (plasmado automático)" /></div>
-                          {% elif graphic_view_3d_url and graphic_view_3d_url != task_preview_3d_embed_url %}
-                          <div class="preview-img"><img src="{{ graphic_view_3d_url }}" alt="Vista 3D (plasmado automático)" /></div>
-                          {% else %}
-                          <div style="display:flex; align-items:center; justify-content:center; height:100%; min-height:180px; color:#6b7280; font-weight:700;">Sin vista 3D</div>
-                          {% endif %}
                         </div>
                       </div>
+                      {% elif task_preview_3d_url %}
+                      <div>
+                        <span class="tag">Vista 3D (plasmado automático)</span>
+                        <div class="preview-frame" aria-label="Vista 3D de la tarea">
+                          <div class="preview-img"><img src="{{ task_preview_3d_url }}" alt="Vista 3D (plasmado automático)" /></div>
+                        </div>
+                      </div>
+                      {% elif graphic_view_3d_url and graphic_view_3d_url != task_preview_3d_embed_url %}
+                      <div>
+                        <span class="tag">Vista 3D (plasmado automático)</span>
+                        <div class="preview-frame" aria-label="Vista 3D de la tarea">
+                          <div class="preview-img"><img src="{{ graphic_view_3d_url }}" alt="Vista 3D (plasmado automático)" /></div>
+                        </div>
+                      </div>
+                      {% endif %}
+                      {# Recreación 2D: solo si existe #}
+                      {% if recreation_2d_url %}
                       <div>
                         <span class="tag">Recreación 2D</span>
                         <div class="preview-frame" aria-label="Recreación 2D">
-                          {% if recreation_2d_url %}
                           <div class="preview-img"><img src="{{ recreation_2d_url }}" alt="Recreación 2D" /></div>
-                          {% else %}
-                          <div style="display:flex; align-items:center; justify-content:center; height:100%; min-height:180px; color:#6b7280; font-weight:700;">Sin recreación configurada</div>
-                          {% endif %}
                         </div>
                       </div>
+                      {% endif %}
+                      {# Recreación 3D: solo si existe #}
+                      {% if pdf_live_preview_mode and recreation_3d_embed_url %}
                       <div>
                         <span class="tag">Recreación 3D</span>
                         <div class="preview-frame" aria-label="Recreación 3D">
-                          {% if pdf_live_preview_mode and recreation_3d_embed_url %}
                           <div class="preview-embed"><iframe src="{{ recreation_3d_embed_url }}" loading="lazy" referrerpolicy="same-origin" title="Recreación 3D"></iframe></div>
-                          {% elif recreation_3d_url %}
-                          <div class="preview-img"><img src="{{ recreation_3d_url }}" alt="Recreación 3D" /></div>
-                          {% else %}
-                          <div style="display:flex; align-items:center; justify-content:center; height:100%; min-height:180px; color:#6b7280; font-weight:700;">Sin recreación configurada</div>
-                          {% endif %}
                         </div>
                       </div>
+                      {% elif recreation_3d_url %}
+                      <div>
+                        <span class="tag">Recreación 3D</span>
+                        <div class="preview-frame" aria-label="Recreación 3D">
+                          <div class="preview-img"><img src="{{ recreation_3d_url }}" alt="Recreación 3D" /></div>
+                        </div>
+                      </div>
+                      {% endif %}
                     </div>
                   {% elif task_preview_url %}
 	                  <div class="preview-frame" style="border:none;" aria-label="Vista gráfica de la tarea">
