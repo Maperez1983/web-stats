@@ -779,8 +779,8 @@
       <section class="edit-card view-hidden" id="session-edit">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:0.6rem; flex-wrap:wrap; margin-bottom:0.65rem;">
           <div>
-            <div style="font-weight:950; letter-spacing:0.08em; text-transform:uppercase;">Editar ficha</div>
-            <div class="meta">Guarda y vuelve a vista en 1 click.</div>
+            <div style="font-weight:950; letter-spacing:0.08em; text-transform:uppercase;">Post-sesión y cierre</div>
+            <div class="meta">RPE/cargas, confirmar y papelera. Los detalles y el contenido se editan en la ficha (✏️ Editar ficha).</div>
           </div>
           <button type="button" class="btn" id="toggle-view">👁️ Vista</button>
         </div>
@@ -790,51 +790,6 @@
 	          <input type="hidden" name="action" value="save" />
 	          <input type="hidden" name="return_to" value="edit" />
 	          <input type="hidden" name="inline_edit" value="1" />
-          <input type="hidden" name="show_in_agenda_present" value="1" />
-	          <label class="full">
-	            Nombre / foco
-	            <input type="text" name="focus" maxlength="140" value="{{ session.focus }}" required />
-	          </label>
-          <label>
-            Fecha
-            <input type="date" name="session_date" value="{{ session.session_date|date:'Y-m-d' }}" required />
-          </label>
-          <label>
-            Hora (opcional)
-            <input type="time" name="start_time" value="{% if session.start_time %}{{ session.start_time|time:'H:i' }}{% endif %}" />
-          </label>
-          <label>
-            Duración (min)
-            <input type="number" name="duration_minutes" min="30" max="180" value="{{ session.duration_minutes }}" />
-          </label>
-          <label>
-            Intensidad
-            <select name="intensity">
-              {% for value, label in session_intensity_choices %}
-                <option value="{{ value }}" {% if session.intensity == value %}selected{% endif %}>{{ label }}</option>
-              {% endfor %}
-            </select>
-          </label>
-	          <label>
-	            Estado
-	            <select name="status">
-	              {% for value, label in session_status_choices %}
-	                <option value="{{ value }}" {% if session.status == value %}selected{% endif %}>{{ label }}</option>
-	              {% endfor %}
-	            </select>
-	          </label>
-	          <label>
-	            Workflow
-	            <select name="workflow_status">
-	              {% for value, label in workflow_status_choices %}
-	                <option value="{{ value }}" {% if session.workflow_status == value %}selected{% endif %}>{{ label }}</option>
-	              {% endfor %}
-	            </select>
-	          </label>
-	          <label class="full">
-	            Motivo workflow (opcional)
-	            <input type="text" name="workflow_reason" maxlength="220" value="{{ session.workflow_reason }}" placeholder="Ej: Ajuste por carga / decisión staff / lluvia..." />
-	          </label>
 	          <div class="full" style="margin-top:2px; padding:0.6rem 0.7rem; border-radius:14px; border:1px solid rgba(148,163,184,0.16); background:rgba(255,255,255,0.02);">
 	            <div style="font-weight:950; letter-spacing:0.08em; text-transform:uppercase; font-size:0.78rem; margin-bottom:0.4rem;">Post-sesión (60s)</div>
 	            <div class="form-grid" style="margin:0;">
@@ -880,62 +835,8 @@
 	              </label>
 	            </div>
 	          </div>
-          <label class="full">
-            Calentamiento
-            <textarea name="warmup" rows="3" maxlength="4000">{{ plan_fields.warmup }}</textarea>
-          </label>
-          <label class="full">
-            Objetivo de la sesión (medible)
-            <textarea name="objective" rows="2" maxlength="1200" placeholder="Ej: atraer y progresar por dentro para atacar zona 14 con 3er hombre.">{{ plan_fields.objective }}</textarea>
-          </label>
-          <div class="form-grid full" style="margin:0;">
-            <label>
-              RPE objetivo (1-10)
-              <input type="number" name="rpe_target" min="1" max="10" value="{{ plan_fields.rpe_target }}" placeholder="7" />
-            </label>
-            <label class="full">
-              Criterios de éxito (qué observar)
-              <textarea name="success_criteria" rows="2" maxlength="2000" placeholder="Ej: 8+ recepciones entre líneas / 5+ 3er hombre / 3+ finalizaciones tras pase atrás.">{{ plan_fields.success_criteria }}</textarea>
-            </label>
-          </div>
-          <label class="full">
-            Activación
-            <textarea name="activation" rows="3" maxlength="4000">{{ plan_fields.activation }}</textarea>
-          </label>
-          <label class="full">
-            Parte principal
-            <textarea name="main" rows="3" maxlength="6000">{{ plan_fields.main }}</textarea>
-          </label>
-          <label class="full">
-            Vuelta a la calma
-            <textarea name="cooldown" rows="3" maxlength="4000">{{ plan_fields.cooldown }}</textarea>
-          </label>
-          <label>
-            Nº jugadores (opcional)
-            <input type="text" name="player_count" maxlength="60" value="{{ plan_fields.player_count }}" />
-          </label>
-          <label>
-            Lugar (opcional)
-            <input type="text" name="location" maxlength="120" value="{{ plan_fields.location }}" placeholder="Campo / pista / ciudad..." />
-          </label>
-          <label>
-            Materiales (opcional)
-            <input type="text" name="materials" maxlength="220" value="{{ plan_fields.materials }}" />
-          </label>
-          <label class="full">
-            Ausencias / incidencias
-            <textarea name="absences" rows="3" maxlength="4000">{{ plan_fields.absences }}</textarea>
-          </label>
-          <label class="full" style="flex-direction:row; align-items:center; gap:0.55rem; text-transform:none;">
-            <input type="checkbox" name="show_in_agenda" value="1" {% if plan_fields.agenda_hidden != '1' %}checked{% endif %} />
-            <span style="font-weight:900; letter-spacing:0.06em; text-transform:uppercase; color: rgba(226,232,240,0.78); font-size:0.78rem;">Mostrar en agenda</span>
-          </label>
-          <label class="full">
-            Notas
-            <textarea name="notes" rows="3" maxlength="8000">{{ plan_fields.notes }}</textarea>
-          </label>
           <div class="full" style="display:flex; justify-content:flex-end; gap:0.5rem; flex-wrap:wrap;">
-            <button class="btn primary" type="submit">Guardar ficha</button>
+            <button class="btn primary" type="submit">Guardar post-sesión</button>
           </div>
         </form>
 
