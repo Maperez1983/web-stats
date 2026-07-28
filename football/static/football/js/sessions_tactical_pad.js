@@ -35318,7 +35318,18 @@
 	      const isNarrow = () => {
 	        try { return window.matchMedia('(max-width: 1160px)').matches; } catch (error) { return true; }
 	      };
+      // Al CREAR una tarea nueva aterrizamos SIEMPRE en la pizarra (spec: pizarra-primero),
+      // ignorando el último modo guardado. Solo hasta que el usuario elija otra vista a mano
+      // (para no pisar su elección ni siquiera al redimensionar).
+      let hasUserPickedMode = false;
+      const isNewTask = () => {
+        try {
+          const f = document.getElementById('task-builder-form');
+          return !!(f && !String(f.getAttribute('data-task-id') || '').trim());
+        } catch (error) { return false; }
+      };
       const readMode = () => {
+        if (isNewTask() && !hasUserPickedMode) return 'board';
         try {
           const stored = safeText(window.localStorage.getItem(storageKey));
           if (['board', 'config', 'methodology', 'load', 'export'].includes(stored)) return stored;
@@ -35385,6 +35396,7 @@
 
       buttons.forEach((btn) => {
         btn.addEventListener('click', () => {
+          hasUserPickedMode = true;
           const mode = safeText(btn.dataset.taskMode);
           apply(mode);
         });

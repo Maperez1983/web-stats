@@ -48967,6 +48967,29 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
         )
 
     prefill_microcycle_id = _parse_int(request.GET.get("microcycle_id") or request.POST.get("microcycle_id"))
+    # "Insinuar": si no viene un microciclo explícito, preseleccionar el ACTIVO (el que contiene hoy,
+    # si no el próximo que empieza, si no el más reciente) para que crear una sesión NO caiga por
+    # defecto en "Sin microciclo (suelta)" -> reduce las sesiones sueltas. El usuario aún puede
+    # elegir "Sin microciclo" a propósito (con aviso en el form).
+    if not prefill_microcycle_id and planning_microcycles:
+        _mc_today = timezone.localdate()
+        _active_mc = next(
+            (
+                m
+                for m in planning_microcycles
+                if getattr(m, "week_start", None)
+                and getattr(m, "week_end", None)
+                and m.week_start <= _mc_today <= m.week_end
+            ),
+            None,
+        )
+        if not _active_mc:
+            _upcoming_mc = [
+                m for m in planning_microcycles if getattr(m, "week_start", None) and m.week_start >= _mc_today
+            ]
+            _active_mc = min(_upcoming_mc, key=lambda m: m.week_start) if _upcoming_mc else planning_microcycles[0]
+        if _active_mc:
+            prefill_microcycle_id = int(_active_mc.id)
 
     imported_session_docs = []
     try:
