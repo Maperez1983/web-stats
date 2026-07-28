@@ -676,16 +676,17 @@
       }
       .token-photo {
         position: absolute;
-        top: -18px;
-        left: -6px;
-        width: 34px;
-        height: 34px;
+        top: -30px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 48px;
+        height: 48px;
         border-radius: 999px;
         object-fit: cover;
-        object-position: 50% 20%;
-        border: 2px solid rgba(2, 6, 23, 0.92);
+        object-position: 50% 18%;
+        border: 2.5px solid rgba(248, 250, 252, 0.96);
         background: rgba(2, 6, 23, 0.7);
-        box-shadow: 0 16px 34px rgba(0, 0, 0, 0.38);
+        box-shadow: 0 10px 22px rgba(0, 0, 0, 0.5);
         pointer-events: none;
       }
       .field-token::after {
@@ -736,6 +737,23 @@
         min-width: 132px;
         max-width: 152px;
         padding: 0.2rem 0.42rem 0.2rem 0.22rem;
+      }
+      /* Si el jugador tiene foto real, mandamos la cara (chapa arriba) y ocultamos la
+         figura del kit para no amontonar. Sin foto se mantiene el avatar/kit del jugador. */
+      .token:has(.token-photo) {
+        grid-template-columns: minmax(0, 1fr);
+        min-width: 96px;
+        max-width: 148px;
+        padding-top: 0.3rem;
+        justify-items: center;
+        text-align: center;
+      }
+      .token:has(.token-photo) .token-kit2d,
+      .token:has(.token-photo) .token-num {
+        display: none;
+      }
+      .token:has(.token-photo) .token-name-row {
+        justify-content: center;
       }
       .token-kit2d {
         width: 44px;
@@ -2291,7 +2309,7 @@
                       class="field"
                       id="lineup-field"
                       data-pitch-preset="{{ lineup_pitch_preset|default:'full_pitch'|escape }}"
-                      data-grass-style="{{ lineup_grass_style|default:'uefa_b'|escape }}"
+                      data-grass-style="{{ lineup_grass_style|default:'flat_2d'|escape }}"
                       data-orientation="portrait"
                     ></div>
                   </div>
@@ -3050,7 +3068,7 @@
           svg.setAttribute('aria-hidden', 'true');
           field.appendChild(svg);
           const preset = String(field.dataset.pitchPreset || 'full_pitch');
-          const grass = String(field.dataset.grassStyle || 'classic');
+          const grass = String(field.dataset.grassStyle || 'flat_2d');
           const orientation = String(field.dataset.orientation || 'portrait');
           if (window.WebstatsPitchPreview && typeof window.WebstatsPitchPreview.buildPitchSvg === 'function') {
             const markup = window.WebstatsPitchPreview.buildPitchSvg(preset, orientation, grass);
@@ -3058,7 +3076,9 @@
             const root = parsed.documentElement;
             svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
             svg.setAttribute('viewBox', root.getAttribute('viewBox') || '-30 -30 740 1110');
-            svg.setAttribute('preserveAspectRatio', root.getAttribute('preserveAspectRatio') || 'xMidYMid slice');
+            // Forzamos "slice" (cubrir) para que el césped foto-realista rellene el campo
+            // vertical en vez de dejar franjas (letterbox) arriba y abajo.
+            svg.setAttribute('preserveAspectRatio', 'xMidYMid slice');
             const pitchBox = root.getAttribute('data-pitch-box') || '';
             if (pitchBox) svg.setAttribute('data-pitch-box', pitchBox);
             while (svg.firstChild) svg.removeChild(svg.firstChild);

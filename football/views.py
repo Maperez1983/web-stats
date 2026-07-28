@@ -41205,6 +41205,7 @@ def _initial_eleven_page_impl(request):
     try:
         requested_grass = str(request.GET.get("grass") or "").strip().lower()
         allowed_grass = {
+            "flat_2d",
             "classic",
             "realistic",
             "pro",
@@ -41219,9 +41220,12 @@ def _initial_eleven_page_impl(request):
             "whiteboard",
             "blackboard",
         }
-        lineup_grass_style = requested_grass if requested_grass in allowed_grass else "stadium_native"
+        # Por defecto, césped foto-realista top-down (misma imagen que el home del entrenador).
+        # `flat_2d` respeta la orientación vertical del editor (viewBox portrait) y rellena el
+        # campo; `stadium_native` es un plano horizontal fijo (2:1) y se veía "en franja".
+        lineup_grass_style = requested_grass if requested_grass in allowed_grass else "flat_2d"
     except Exception:
-        lineup_grass_style = "stadium_native"
+        lineup_grass_style = "flat_2d"
 
     lineup_seed_payload = _safe_lineup_script_payload(lineup_seed)
     rival_lineup_seed_payload = _safe_lineup_script_payload(rival_lineup_seed)
