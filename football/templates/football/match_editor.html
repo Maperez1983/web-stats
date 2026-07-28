@@ -48,7 +48,7 @@
       <header>
         <div>
           <p>Editor de partido · {{ team_name }}</p>
-          <h1>#{{ match.id }} · {{ opponent_name|default:"Rival" }}</h1>
+          <h1>{{ team_name }} vs {{ opponent_name|default:"Rival" }}</h1>
           <p>
             {% if match.date %}{{ match.date|date:"d/m/Y" }}{% else %}Sin fecha{% endif %}
             {% if match.kickoff_time %} · {{ match.kickoff_time|time:"H:i" }}{% endif %}
@@ -179,7 +179,13 @@
 	          <div style="display:flex;justify-content:flex-end;margin-top:0.75rem;">
 	            <button class="btn primary" type="submit">Guardar</button>
 	          </div>
-	          <p style="margin:0.65rem 0 0;color:#94a3b8;font-weight:700;">
+	          <div style="display:flex;flex-wrap:wrap;gap:0.6rem;justify-content:space-between;align-items:center;margin:0.2rem 0 0.15rem;">
+            <div style="font-weight:800;color:#cbd5e1;font-size:0.86rem;">Totales: <strong style="color:#fde68a;">{{ manual_goals_total }}</strong> goles · <strong style="color:#fde68a;">{{ manual_assists_total }}</strong> asistencias</div>
+          </div>
+          {% if goals_mismatch %}
+          <p style="margin:0.55rem 0 0;padding:0.55rem 0.75rem;border-radius:12px;background:rgba(250,204,21,0.12);border:1px solid rgba(250,204,21,0.4);color:rgba(255,242,199,0.96);font-weight:800;font-size:0.85rem;">⚠ La suma de goles por jugador ({{ manual_goals_total }}) no coincide con el marcador a favor ({{ score_for|default:"—" }}). Revisa cuál es el correcto.</p>
+          {% endif %}
+          <p style="margin:0.65rem 0 0;color:#94a3b8;font-weight:700;">
 	            Consejo: si solo quieres forzar minutos, deja goles/asistencias en blanco.
 	          </p>
 	        </form>
@@ -192,7 +198,9 @@
 	            Para recuperar partidos: usa <strong>Volumen</strong> (ej: “MARTÍNEZ · Pérdida no forzada · Mal · ×6”).
             Si algo se guardó mal, usa <strong>Borrar todo</strong> (con confirmación).
           </div>
-          <form method="post" style="display:flex; gap:0.5rem; align-items:flex-end; flex-wrap:wrap;">
+          <details style="margin-left:auto;">
+            <summary style="cursor:pointer;color:#fca5a5;font-weight:800;font-size:0.82rem;list-style:none;">⚠ Borrar acciones…</summary>
+            <div style="margin-top:0.5rem;"><form method="post" style="display:flex; gap:0.5rem; align-items:flex-end; flex-wrap:wrap;">
             {% csrf_token %}
             <input type="hidden" name="form_action" value="events_delete_all" />
             <div>
@@ -207,7 +215,8 @@
               <input name="confirm" placeholder="Escribe BORRAR" />
             </div>
             <button class="btn danger" type="submit" onclick="return confirm('¿Seguro? Esto borra acciones del partido para este equipo.')">Borrar todo</button>
-          </form>
+          </form></div>
+          </details>
         </div>
 
         <h3 style="margin:0 0 0.55rem;font-size:1rem;">Añadir por volumen</h3>

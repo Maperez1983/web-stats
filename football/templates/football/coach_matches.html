@@ -52,7 +52,7 @@
       .match-kit { display:flex; align-items:center; gap:0.5rem; min-width:0; border:1px solid rgba(148,163,184,0.14); border-radius:14px; padding:0.45rem 0.5rem; background:rgba(2,6,23,0.35); }
       .match-kit img { width:34px; height:34px; object-fit:contain; flex:0 0 auto; }
       .match-kit span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:rgba(226,232,240,0.88); font-size:0.78rem; font-weight:850; }
-      .match-card-stats { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:0.45rem; }
+      .match-card-stats { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:0.45rem; }
       .match-protagonists { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0.55rem; }
       .match-protagonist { min-width:0; border:1px solid rgba(148,163,184,0.16); border-radius:14px; padding:0.45rem 0.55rem; background:linear-gradient(180deg, rgba(15,23,42,0.9), rgba(2,6,23,0.55)); }
       .match-protagonist span { display:block; color:#94a3b8; font-size:0.62rem; font-weight:950; letter-spacing:0.11em; text-transform:uppercase; }
@@ -271,7 +271,7 @@
                 <div class="match-card-center">
                   <h2>{{ team_name }} vs {{ r.opponent }}</h2>
                   <div class="match-card-meta">
-                    #{{ r.id }} · {% if r.date %}{{ r.date|date:"d/m/Y" }}{% else %}Sin fecha{% endif %}{% if r.kickoff_time %} · {{ r.kickoff_time|time:"H:i" }}{% endif %}
+                    {% if r.date %}{{ r.date|date:"d/m/Y" }}{% else %}Sin fecha{% endif %}{% if r.kickoff_time %} · {{ r.kickoff_time|time:"H:i" }}{% endif %}
                     <br />
                     {{ r.round|default:"Jornada sin definir" }} · {{ r.context_label|default:"Liga" }}
                     {% if r.location %}<br />{{ r.location }}{% endif %}
@@ -294,7 +294,7 @@
                 </div>
               </div>
               {% if r.tournament_name %}
-                <div class="match-card-meta">Torneo: {{ r.tournament_name }}{% if r.tournament_stage %} · {{ r.tournament_stage }}{% endif %}</div>
+                <div class="match-card-meta">🏆 {{ r.tournament_name }}{% if r.tournament_stage %} · {{ r.tournament_stage }}{% endif %}</div>
               {% endif %}
               <div class="match-protagonists">
                 <div class="match-protagonist">

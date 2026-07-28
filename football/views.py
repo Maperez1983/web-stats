@@ -77267,6 +77267,24 @@ def match_editor_page(request, match_id):
     except Exception:
         manual_player_stats_rows = [{"player": p, "minutes": None, "goals": None, "assists": None} for p in players]
 
+    # Coherencia de goles: suma de goles por jugador (manual) vs el marcador a favor. Si no cuadran
+    # y ambos tienen valor, avisamos (sin forzar: son fuentes distintas, pero deberían coincidir).
+    manual_goals_total = 0
+    manual_assists_total = 0
+    for _r in manual_player_stats_rows:
+        try:
+            if _r.get("goals"):
+                manual_goals_total += int(_r["goals"])
+            if _r.get("assists"):
+                manual_assists_total += int(_r["assists"])
+        except Exception:
+            pass
+    try:
+        _score_for_int = int(score_for) if score_for is not None else None
+    except Exception:
+        _score_for_int = None
+    goals_mismatch = bool(_score_for_int is not None and manual_goals_total and _score_for_int != manual_goals_total)
+
     # Opciones de rival para desplegable (evita duplicados y normaliza nombre).
     opponent_options = []
     try:
@@ -77380,6 +77398,9 @@ def match_editor_page(request, match_id):
             "result_options": result_options,
             "zone_options": zone_options,
             "manual_player_stats_rows": manual_player_stats_rows,
+            "manual_goals_total": manual_goals_total,
+            "manual_assists_total": manual_assists_total,
+            "goals_mismatch": goals_mismatch,
             "minute_options": list(range(0, 121, 5)),
             "message": message,
             "error": error,
