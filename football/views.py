@@ -33802,10 +33802,8 @@ def training_session_detail_page(request, session_id):
     except Exception:
         new_task_url = ""
 
-    try:
-        recommended_tasks = _ai_trainer_suggest_tasks_for_session(session_obj, limit=6)
-    except Exception:
-        recommended_tasks = []
+    # La ficha de sesión NO recomienda tareas (petición del usuario).
+    recommended_tasks = []
     return render(
         request,
         "football/training_session_detail.html",
@@ -56810,7 +56808,10 @@ def session_task_scenes_export(request):
                         _col = str(_d.get("team") or _d.get("color") or "").strip().lower()[:16]
                         _players_pos.append({"x": nx, "y": ny, "team": _col})
                     elif any(z in _kk for z in ("zone", "shape_square", "shape_rect", "shape_lane", "shape_band")):
-                        _zones.append({"x": nx, "y": ny, "w": nw, "h": nh})
+                        # Solo zonas de trabajo REALES, no marcadores diminutos (rectangulos junto a
+                        # porterias, etc.): exigimos un tamano minimo (~9% de lado del campo).
+                        if nw >= 0.09 and nh >= 0.09:
+                            _zones.append({"x": nx, "y": ny, "w": nw, "h": nh})
                     elif ("arrow" in _kk or "route" in _kk or "move" in _kk) or (
                         str(o.get("type") or "") in ("line", "path") and o.get("x1") is not None
                     ):
