@@ -29057,6 +29057,33 @@ def team_season_report_pdf(request, as_page=False):
         if ev.match_id:
             events_by_match[int(ev.match_id)].append(ev)
 
+    # Goles/asistencias MANUALES por partido (cierre "solo resultado"/"manual": no generan MatchEvent,
+    # se guardan como PlayerStatistic). Se cuentan como fuente única igual que la tabla por jugador, de
+    # modo que un amistoso cerrado sin registro en vivo también sume en los totales del equipo.
+    manual_goals_by_match = defaultdict(int)
+    manual_assists_by_match = defaultdict(int)
+    manual_match_ids = set()
+    try:
+        for row in PlayerStatistic.objects.filter(
+            player__team=primary_team,
+            match_id__in=match_ids,
+            context="manual-match",
+            name__in=["manual_goals", "manual_assists", "manual_minutes"],
+        ).values("match_id", "name", "value"):
+            mid = _parse_int(row.get("match_id"))
+            if not mid:
+                continue
+            manual_match_ids.add(int(mid))
+            val = _parse_int(row.get("value")) or 0
+            if val <= 0:
+                continue
+            if row.get("name") == "manual_goals":
+                manual_goals_by_match[int(mid)] += val
+            elif row.get("name") == "manual_assists":
+                manual_assists_by_match[int(mid)] += val
+    except Exception:
+        manual_goals_by_match, manual_assists_by_match, manual_match_ids = defaultdict(int), defaultdict(int), set()
+
     def _match_opponent_label(match_obj):
         return (
             match_obj.away_team.display_name
@@ -29090,8 +29117,14 @@ def team_season_report_pdf(request, as_page=False):
         match_events = events_by_match.get(int(match.id), [])
         actions = len(match_events)
         successes = sum(1 for ev in match_events if result_is_success(ev.result))
-        goals = sum(1 for ev in match_events if is_goal_event(ev.event_type, ev.result, ev.observation))
-        assists = sum(1 for ev in match_events if is_assist_event(ev.event_type, ev.result, ev.observation))
+        if int(match.id) in manual_match_ids:
+            # Partido cerrado en modo manual/solo resultado: los goles/asist son los manuales (fuente
+            # única), no los eventos en vivo (que no existen). Coincide con la tabla por jugador.
+            goals = manual_goals_by_match.get(int(match.id), 0)
+            assists = manual_assists_by_match.get(int(match.id), 0)
+        else:
+            goals = sum(1 for ev in match_events if is_goal_event(ev.event_type, ev.result, ev.observation))
+            assists = sum(1 for ev in match_events if is_assist_event(ev.event_type, ev.result, ev.observation))
         total_actions += actions
         total_successes += successes
         total_goals += goals
