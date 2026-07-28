@@ -1916,6 +1916,40 @@
       .broadcast-main.camera-plan .pitch-stage {
         transform: none;
       }
+      /* Vista "Plano" (por defecto): el 11 se dibuja sobre el MISMO césped hiperrealista
+         que el home del entrenador / tareas, sin escenografía de estadio (gradas, vallas,
+         foto de estadio, perspectiva). Solo césped + fichas. */
+      .broadcast-main.camera-plan::before,
+      .broadcast-main.camera-plan::after,
+      .broadcast-main.camera-plan.has-stadium-photo::before,
+      .broadcast-main.camera-plan.has-stadium-photo::after,
+      .broadcast-main.camera-plan.photo-off.has-stadium-photo::before,
+      .broadcast-main.camera-plan .stadium-shell,
+      .broadcast-main.camera-plan .broadcast-bowl-rim,
+      .broadcast-main.camera-plan .sponsor-board,
+      .broadcast-main.camera-plan .xi-stand,
+      .broadcast-main.camera-plan .field-ad-frame,
+      .broadcast-main.camera-plan .broadcast-stadium-label,
+      .broadcast-main.camera-plan .broadcast-title {
+        display: none !important;
+      }
+      .broadcast-main.camera-plan {
+        background: transparent;
+        box-shadow: none;
+      }
+      .broadcast-main.camera-plan .xi-stadium {
+        grid-template-columns: 0 minmax(0, 1fr) 0;
+        grid-template-rows: 0 auto 0;
+        background: rgba(2, 6, 23, 0.32);
+      }
+      .broadcast-main.camera-plan .xi-stadium-center {
+        max-height: none;
+        padding: clamp(6px, 1.4vmin, 14px);
+      }
+      /* El campo ocupa el ancho disponible: césped hiperrealista protagonista. */
+      .broadcast-main.camera-plan .xi-stadium .field {
+        width: min(100%, 640px, calc((100vh - 12rem) * 0.62));
+      }
       .broadcast-main.camera-broadcast .xi-stadium {
         transform: none;
         transform-origin: 50% 60%;
@@ -2417,7 +2451,7 @@
       const rivalKit2dDataUrl = '{{ rival_team_kit2d_url|default_if_none:""|escapejs }}';
 
       const STARTERS_REQUIRED = Number('{{ starters_limit|default:11 }}') || 11;
-      const broadcastStorageKey = `webstats:xi:broadcast:v1:${matchId || 'current'}`;
+      const broadcastStorageKey = `webstats:xi:broadcast:v2:${matchId || 'current'}`;
       const tacticalStorageKey = `webstats:xi:tactics:v1:${matchId || 'current'}`;
       const broadcastProsEl = document.getElementById('broadcast-pros');
       const broadcastContrasEl = document.getElementById('broadcast-contras');
@@ -2474,7 +2508,7 @@
         writeBroadcastPrefs({ camera });
       };
       const savedBroadcastPrefs = readBroadcastPrefs();
-      setBroadcastCamera(savedBroadcastPrefs.camera || 'cinematic');
+      setBroadcastCamera(savedBroadcastPrefs.camera || 'plan');
       setStadiumPhotoEnabled(savedBroadcastPrefs.stadiumPhoto === true);
       broadcastCameraSelect?.addEventListener('change', () => setBroadcastCamera(broadcastCameraSelect.value));
       stadiumPhotoToggleBtn?.addEventListener('click', () => {
