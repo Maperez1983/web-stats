@@ -1201,6 +1201,24 @@
         text-transform: uppercase;
       }
       .create-actions-panel .meta { margin: 0 0 0.55rem; }
+      /* --- Crear sesión: piel formato Club --- */
+      .create-actions-panel.club-create { padding: 0; overflow: hidden; border-color: rgba(52,211,153,0.28); }
+      .club-create-banner { display:flex; align-items:center; gap:0.85rem;
+        background: linear-gradient(135deg, #0ea5e9, #6366f1); color:#fff; padding: 1rem 1.1rem; }
+      .club-create-crest { width:44px; height:44px; border-radius:999px; background:rgba(255,255,255,0.92);
+        color:#0b1b2b; font-weight:950; font-size:1.05rem; display:flex; align-items:center; justify-content:center;
+        flex:0 0 auto; box-shadow:0 6px 16px rgba(0,0,0,0.22); }
+      .club-create-kicker { font-size:0.62rem; letter-spacing:0.18em; text-transform:uppercase; opacity:0.9; font-weight:900; }
+      .club-create-title { font-size:1.35rem; font-weight:950; line-height:1.1; }
+      .club-create-sub { font-size:0.8rem; opacity:0.92; margin-top:0.15rem; }
+      .club-create-form { padding: 1rem 1.1rem 1.15rem; background: rgba(255,255,255,0.02); }
+      .club-create-form > label, .club-create-form label { font-size:0.68rem; letter-spacing:0.06em;
+        text-transform:uppercase; color: rgba(226,232,240,0.72); font-weight:900; }
+      .club-create-form input[type="text"], .club-create-form input[type="date"], .club-create-form input[type="time"],
+      .club-create-form input[type="number"], .club-create-form select, .club-create-form textarea {
+        text-transform:none; letter-spacing:0; font-weight:600; }
+      .club-create-submit { background: linear-gradient(135deg, #34d399, #10b981) !important; border:0 !important;
+        color:#052e22 !important; font-weight:950 !important; padding:0.7rem 1.3rem !important; border-radius:12px !important; }
       .create-subpanel {
         margin-top: 0.7rem;
         border: 1px solid rgba(255,255,255,0.12);
@@ -2191,10 +2209,16 @@
                     <p class="meta" style="margin-top:0.6rem; margin-bottom:0;">¿Ya tienes borradores? Usa: <a href="?tab=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Biblioteca</a> · <a href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}#import-tareas">Importar tareas</a>.</p>
                   </div>
 	                  {% elif create_page == 'session' %}
-	                  <div class="create-actions-panel">
-	                    <h3>Sesión</h3>
-	                    <p class="meta">Crea la sesión y selecciona las tareas en <strong>Biblioteca</strong> (con segmento por tarea).</p>
-	                    <form method="post" class="grid" style="margin-top:0.65rem;" id="create-session-form">
+	                  <div class="create-actions-panel club-create">
+	                    <div class="club-create-banner">
+	                      <div class="club-create-crest">2J</div>
+	                      <div>
+	                        <div class="club-create-kicker">Nueva sesión · Formato Club</div>
+	                        <div class="club-create-title">Crear sesión</div>
+	                        <div class="club-create-sub">Rellena los datos y luego elige las tareas en Biblioteca (agrupadas por bloque). Después vas a la ficha.</div>
+	                      </div>
+	                    </div>
+	                    <form method="post" class="grid club-create-form" style="margin-top:0.85rem;" id="create-session-form">
 	                      {% csrf_token %}
 	                      <input type="hidden" name="planner_action" value="create_session_plan" />
 	                      <input type="hidden" name="planner_tab" value="create" />
@@ -2314,7 +2338,8 @@
 		                        </div>
 		                      </details>
 	                      <div style="display:flex; align-items:flex-end; gap:0.55rem; flex-wrap:wrap;">
-	                        <button type="submit" class="primary" name="plan_session_next" value="library" title="Crea la sesión y abre Biblioteca para seleccionar tareas">Crear sesión (elegir tareas)</button>
+	                        <button type="submit" class="primary club-create-submit" name="plan_session_next" value="library" title="Crea la sesión y abre Biblioteca para seleccionar tareas">Crear sesión → elegir tareas</button>
+	                        <span class="meta" style="opacity:.75;">Se crea la sesión y pasas a elegir/crear las tareas.</span>
 	                      </div>
 	                    </form>
 		      <script>
