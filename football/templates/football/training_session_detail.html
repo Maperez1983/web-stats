@@ -270,53 +270,28 @@
 	        <div class="content">
 	          <div class="section-title">Detalles de la sesión</div>
 	          <table class="table" style="margin-bottom:12px;">
-	            <tr>
-	              <td style="width:18%;">Nombre</td>
-	              <td colspan="3"><div class="v">{{ session_display_title|default:session.focus }}</div></td>
-	            </tr>
-	            <tr>
-	              <td>Microciclo</td>
-	              <td><div class="v">{{ session.microcycle.title }}</div></td>
-	              <td>Fecha</td>
-	              <td><div class="v">{{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</div></td>
-	            </tr>
-	            <tr>
-	              <td>Lugar</td>
-	              <td colspan="3"><div class="v">{% if plan_fields.location %}{{ plan_fields.location }}{% else %}—{% endif %}</div></td>
-	            </tr>
-	            <tr>
-	              <td>Duración</td>
-	              <td><div class="v">{{ session.duration_minutes }} min <span style="opacity:.68; font-weight:600; font-size:.82em;">planificada{% if task_minutes_total and task_minutes_total != session.duration_minutes %} · {{ task_minutes_total }} en tareas{% endif %}</span></div></td>
-	              <td>Intensidad</td>
-	              <td><div class="v">{{ session.get_intensity_display }}</div></td>
-	            </tr>
-	            <tr>
-	              <td>Estado</td>
-	              <td><div class="v">{{ session.get_status_display }}</div></td>
-	              <td>Tareas</td>
-	              <td><div class="v">{{ tasks_count }} · {{ task_minutes_total }} min totales</div></td>
-	            </tr>
-	            <tr>
-	              <td>Workflow</td>
-	              <td>
-	                <div class="v">
-	                  {{ session.get_workflow_status_display|default:"—" }}
-	                  {% if session.workflow_updated_at %}
-	                    <span style="color:var(--club-muted);">· {{ session.workflow_updated_at|date:"d/m H:i" }}</span>
-	                  {% endif %}
-	                </div>
-	              </td>
-	              <td>Carga (RPE)</td>
-	              <td>
-	                <div class="v">
-	                  {% if workload_points %}
-	                    {{ workload_points }} ({{ workload_rpe }}×{{ workload_minutes }}')
-	                  {% else %}
-	                    —
-	                  {% endif %}
-	                </div>
-	              </td>
-	            </tr>
+			<tr>
+			  <td style="width:18%;">Lugar</td>
+			  <td><div class="v">{% if plan_fields.location %}{{ plan_fields.location }}{% else %}—{% endif %}</div></td>
+			  <td style="width:18%;">Estado</td>
+			  <td><div class="v">{{ session.get_status_display }}</div></td>
+			</tr>
+			<tr>
+			  <td>Duración</td>
+			  <td><div class="v">{{ session.duration_minutes }} min <span style="opacity:.68; font-weight:600; font-size:.82em;">planificada{% if task_minutes_total and task_minutes_total != session.duration_minutes %} · {{ task_minutes_total }} en tareas{% endif %}</span></div></td>
+			  <td>Intensidad</td>
+			  <td><div class="v">{{ session.get_intensity_display }}</div></td>
+			</tr>
+			<tr>
+			  <td>Tareas</td>
+			  <td><div class="v">{{ tasks_count }}</div></td>
+			  <td>Carga (RPE)</td>
+			  <td><div class="v">{% if workload_points %}{{ workload_points }} ({{ workload_rpe }}×{{ workload_minutes }}'){% else %}—{% endif %}</div></td>
+			</tr>
+			<tr>
+			  <td>Workflow</td>
+			  <td colspan="3"><div class="v">{{ session.get_workflow_status_display|default:"—" }}{% if session.workflow_updated_at %} <span style="color:var(--club-muted);">· {{ session.workflow_updated_at|date:"d/m H:i" }}</span>{% endif %}</div></td>
+			</tr>
 	          </table>
 
 	          <div class="section-title">Post-sesión (60s)</div>
