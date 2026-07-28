@@ -2157,6 +2157,18 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     formData.set('zone', zoneLabel || '');
     formData.set('tercio', '');
     formData.set('observation', '');
+    // Eventos tipados (Fase 2): las acciones rápidas conocen su tipo canónico -> lo mandamos
+    // explícito. El servidor lo valida y, si no llega, lo deriva del texto (retrocompatible).
+    const DROP_KIND = {
+      amarilla: 'yellow_card',
+      roja: 'red_card',
+      goal: 'goal',
+      assist: 'assist',
+      subida: 'substitution_in',
+      bajada: 'substitution_out',
+    };
+    const quickKind = DROP_KIND[String(dropKey || '')] || '';
+    if (quickKind) formData.set('kind', quickKind);
     // UID por envío para deduplicar reintentos de red sin bloquear acciones reales consecutivas.
     formData.set('client_event_uid', makeClientEventUid());
     if (currentMatchId) formData.set('match_id', currentMatchId);

@@ -1,6 +1,35 @@
 from django.test import SimpleTestCase
 
 from football.event_taxonomy import CANONICAL_EVENT_KINDS, canonical_event_kind as k
+from football.event_taxonomy import event_kind
+
+
+class _Ev:
+    def __init__(self, event_type="", result="", zone="", observation="", raw_data=None):
+        self.event_type = event_type
+        self.result = result
+        self.zone = zone
+        self.observation = observation
+        self.raw_data = raw_data
+
+
+class EventKindReaderTests(SimpleTestCase):
+    def test_prefers_stored_kind(self):
+        # texto dice 'gol' pero el kind guardado manda (determinista)
+        ev = _Ev(event_type="Gol", result="Gol", raw_data={"kind": "pass"})
+        self.assertEqual(event_kind(ev), "pass")
+
+    def test_derives_when_absent(self):
+        ev = _Ev(event_type="Gol", result="Gol", raw_data={})
+        self.assertEqual(event_kind(ev), "goal")
+
+    def test_ignores_invalid_stored(self):
+        ev = _Ev(event_type="Gol", result="Gol", raw_data={"kind": "bogus"})
+        self.assertEqual(event_kind(ev), "goal")
+
+    def test_second_yellow_event_is_red(self):
+        ev = _Ev(event_type="Tarjeta Roja", result="Roja (2ª amarilla)", raw_data={"kind": "red_card"})
+        self.assertEqual(event_kind(ev), "red_card")
 
 
 class CanonicalEventKindTests(SimpleTestCase):

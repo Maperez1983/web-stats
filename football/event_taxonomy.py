@@ -456,6 +456,26 @@ CANONICAL_EVENT_KINDS = (
 )
 
 
+def event_kind(event):
+    """Tipo canónico de un MatchEvent: fuente ÚNICA de clasificación. Prefiere el tipo guardado en
+    raw_data['kind'] (determinista, escrito al registrar); si no existe (datos antiguos), lo deriva
+    del texto con canonical_event_kind. Siempre devuelve un tipo válido -> nunca falla."""
+    try:
+        raw = getattr(event, "raw_data", None)
+        if isinstance(raw, dict):
+            stored = str(raw.get("kind") or "").strip().lower()
+            if stored in CANONICAL_EVENT_KINDS:
+                return stored
+    except Exception:
+        pass
+    return canonical_event_kind(
+        getattr(event, "event_type", None),
+        getattr(event, "result", None),
+        getattr(event, "zone", None),
+        getattr(event, "observation", None),
+    )
+
+
 def canonical_event_kind(event_type, result=None, zone=None, observation=None):
     """Devuelve UN tipo canónico (de CANONICAL_EVENT_KINDS) para una acción, reutilizando los
     detectores de texto existentes, en orden de especificidad: roja antes que amarilla (la roja

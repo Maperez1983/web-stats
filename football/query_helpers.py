@@ -9,7 +9,7 @@ from django.db.models import Max, Q
 from django.db.utils import OperationalError, ProgrammingError
 from django.utils import timezone
 
-from football.event_taxonomy import extract_round_number, is_red_card_event
+from football.event_taxonomy import event_kind, extract_round_number, is_red_card_event
 from football.models import (
     ConvocationRecord,
     Match,
@@ -316,7 +316,9 @@ def get_sanctioned_player_ids_from_previous_round(primary_team, reference_match=
         .select_related('player')
     )
     for event in events:
-        if event.player_id and is_red_card_event(event.event_type, event.result, event.zone):
+        # Fuente única de clasificación: usa el kind guardado (o lo deriva). Equivale a
+        # is_red_card_event para datos actuales y capta la 2ª amarilla (kind='red_card').
+        if event.player_id and event_kind(event) == "red_card":
             sanctioned_ids.add(event.player_id)
     return sanctioned_ids
 
