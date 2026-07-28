@@ -592,7 +592,7 @@
           <img src="{{ team_crest_url|default_if_none:'' }}" alt="Escudo {{ team_name }}" />
           <div>
           <h1>Convocatoria</h1>
-          <p>{{ team_name }} · Lista oficial para partido <span class="product-chip role">Fase 3 · Convocatoria Matchday</span></p>
+          <p>{{ team_name }} · Lista oficial para el partido</p>
           </div>
         </div>
         <div class="count-chip" id="count-chip">0 convocados</div>
@@ -656,8 +656,8 @@
 	        </div>
         <div class="actions match-actions">
           <button id="save-convocation" class="button primary" type="button">Guardar convocatoria</button>
-          <a href="{% url 'convocation-pdf' %}?team={{ primary_team_id }}{% if active_match_id %}&match_id={{ active_match_id }}{% endif %}" class="button {% if not can_generate_convocation_pdf %}is-disabled{% endif %}" id="pdf-convocation">Generar PDF</a>
-          <a href="{% url 'convocation-referee-pdf' %}?team={{ primary_team_id }}{% if active_match_id %}&match_id={{ active_match_id }}{% endif %}" class="button {% if not can_generate_convocation_pdf %}is-disabled{% endif %}" id="pdf-referee">Ficha árbitro PDF</a>
+          <a href="{% url 'convocation-pdf' %}?team={{ primary_team_id }}{% if active_match_id %}&match_id={{ active_match_id }}{% endif %}" class="button {% if not can_generate_convocation_pdf %}is-disabled{% endif %}" id="pdf-convocation" onclick="return !this.classList.contains('is-disabled');">Generar PDF</a>
+          <a href="{% url 'convocation-referee-pdf' %}?team={{ primary_team_id }}{% if active_match_id %}&match_id={{ active_match_id }}{% endif %}" class="button {% if not can_generate_convocation_pdf %}is-disabled{% endif %}" id="pdf-referee" onclick="return !this.classList.contains('is-disabled');">Ficha árbitro PDF</a>
           <button id="share-convocation-pdf" class="button {% if not can_generate_convocation_pdf %}is-disabled{% endif %}" type="button">Compartir PDF</button>
           <button id="copy-convocation-whatsapp" class="button {% if not convocation_whatsapp_text %}is-disabled{% endif %}" type="button">Copiar WhatsApp</button>
           <span id="convocation-message" class="status"></span>
@@ -686,7 +686,7 @@
 
       <section class="layout">
         <article class="panel block">
-          <h2>Plantilla Disponible</h2>
+          <h2>Plantilla</h2>
           <div class="roster-grid" id="roster-grid">
             {% for player in players %}
             <div
@@ -747,7 +747,7 @@
       const saveButton = document.querySelector('#save-convocation');
       const messageEl = document.querySelector('#convocation-message');
       const opponentOptions = {{ opponent_options_json|safe }};
-      const parsedHomeLocation = "{{ home_location_label|default:'ESTADIO CAÑA CHAQUETA'|escapejs }}";
+      const parsedHomeLocation = "{{ home_location_label|default:''|escapejs }}";
       const parsedCurrentOpponent = "{{ match_info.opponent|default:''|escapejs }}";
       const parsedCurrentLocation = "{{ match_info.location|default:''|escapejs }}";
       const parsedCurrentHomeAway = "{{ match_info.home_away|default:'home'|escapejs }}";
@@ -879,12 +879,13 @@
           const isCaptain = captainId && String(captainId) === String(player.id);
           const isGoalkeeper = goalkeeperId && String(goalkeeperId) === String(player.id);
           const li = document.createElement('li');
+          const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
           li.innerHTML = `
             <div class="selected-main">
-              <img src="${player.photo || playerAvatarFallback}" alt="${player.name}" loading="lazy">
+              <img src="${encodeURI(player.photo || playerAvatarFallback)}" alt="${esc(player.name)}" loading="lazy">
               <div class="selected-text">
-                <strong>#${player.number} ${player.name}</strong>
-                <span>${player.position}${player.injured ? (player.injuryBlocksPlay ? ' · Lesión (no compite)' : ' · Lesión (apto)') : ''}${player.sanctioned ? ' · Sancionado' : ''}${player.warned ? ' · Apercibido' : ''}</span>
+                <strong>#${esc(player.number)} ${esc(player.name)}</strong>
+                <span>${esc(player.position)}${player.injured ? (player.injuryBlocksPlay ? ' · Lesión (no compite)' : ' · Lesión (apto)') : ''}${player.sanctioned ? ' · Sancionado' : ''}${player.warned ? ' · Apercibido' : ''}</span>
               </div>
             </div>
             <div class="selected-actions">
@@ -1090,7 +1091,7 @@
         const homeAway = String(matchHomeAway?.value || parsedCurrentHomeAway || 'home').toLowerCase() === 'away' ? 'away' : 'home';
         matchLocationSelect.innerHTML = '';
         const baseOptions = [];
-        const homeLabel = String(parsedHomeLocation || 'ESTADIO CAÑA CHAQUETA').trim();
+        const homeLabel = String(parsedHomeLocation || '').trim();
         if (homeLabel) {
           baseOptions.push(homeLabel);
         }

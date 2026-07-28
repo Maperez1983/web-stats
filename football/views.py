@@ -29314,7 +29314,9 @@ def convocation_page(request):
     match_info["rival_full_name"] = rival_full_name
     match_info["rival_crest_url"] = rival_crest_url
 
-    home_location = "ESTADIO CAÑA CHAQUETA"
+    # Sin hardcodear el club: vacío por defecto; se rellena con el estadio del equipo o el último
+    # partido en casa. Un club distinto ya no verá "ESTADIO CAÑA CHAQUETA".
+    home_location = ""
     recent_home_match = (
         Match.objects.filter(
             group=primary_team.group,
@@ -29683,6 +29685,8 @@ def save_convocation(request):
 @login_required
 @pdf_view_guard
 def convocation_pdf(request):
+    if not _can_edit_match_actions(request.user):
+        return HttpResponse("Solo el cuerpo técnico puede descargar la convocatoria.", status=403)
     forbidden = _forbid_if_workspace_module_disabled(request, "convocation", label="convocatoria")
     if forbidden:
         return forbidden
@@ -29932,9 +29936,10 @@ def convocation_pdf(request):
         "team_crest_src": team_crest_src,
         "rival_crest_src": rival_crest_src,
         "players": player_rows,
-        "coach_name": os.getenv("TEAM_COACH_NAME", "Aitor Castillo"),
+        # Sin hardcodear el club: env var opcional; si no, vacío (no "Aitor Castillo"/"#VamosVerdes").
+        "coach_name": os.getenv("TEAM_COACH_NAME", ""),
         "staff_lines": staff_lines,
-        "club_hashtag": os.getenv("TEAM_HASHTAG", "#VamosVerdes"),
+        "club_hashtag": os.getenv("TEAM_HASHTAG", ""),
         "competition_name": competition_name or "Competición",
         "season_name": season_name,
         "group_name": group_name,
@@ -29956,6 +29961,9 @@ def convocation_referee_pdf(request):
     Modo actual (producto): una hoja con una cuadrícula de licencias federativas.
     Compatibilidad: `?mode=full` mantiene el formato antiguo (portada + 1 página por jugador).
     """
+    # Licencias federativas = dato sensible (escaneos de carnets): solo cuerpo técnico.
+    if not _can_edit_match_actions(request.user):
+        return HttpResponse("Solo el cuerpo técnico puede descargar la ficha del árbitro.", status=403)
     forbidden = _forbid_if_workspace_module_disabled(request, "convocation", label="convocatoria")
     if forbidden:
         return forbidden
