@@ -32365,6 +32365,9 @@ def training_session_detail_page(request, session_id):
         requested_return_to = ""
     if requested_return_to not in {"", "view", "edit", "attendance", "participation"}:
         requested_return_to = ""
+    # Opción C (ficha de sesión): editar IN SITU sobre la misma ficha Club (?edit=ficha), sin saltar
+    # al panel de edición separado. El POST (action=save) vuelve a esta URL conservando ?edit=ficha.
+    session_inline_edit = str(request.GET.get("edit") or "").strip().lower() == "ficha"
     # Botón “➕ Tareas”: lleva a Biblioteca (tareas creadas) preseleccionando esta sesión.
     library_repository = _normalize_library_repository(
         request.GET.get("library_repo") or LIBRARY_REPOSITORY_TRADITIONAL
@@ -32590,6 +32593,10 @@ def training_session_detail_page(request, session_id):
                     detail_url = f"{detail_url}?team={int(primary_team.id)}"
                 # Mantener la UI en modo edición tras guardar (iPad/WKWebView suele "perder" el estado visual).
                 sep = "&" if "?" in detail_url else "?"
+                # Opción C: si la edición vino IN SITU (ficha Club editable), volvemos a ?edit=ficha
+                # para seguir sobre la misma ficha; si no, al panel de edición clásico (return_to=edit).
+                if str(request.POST.get("inline_edit") or "").strip() == "1":
+                    return redirect(f"{detail_url}{sep}msg={msg}&edit=ficha")
                 return redirect(f"{detail_url}{sep}msg={msg}&return_to=edit")
             except Exception as exc:
                 error = str(exc) or "No se pudo guardar."
@@ -33331,6 +33338,7 @@ def training_session_detail_page(request, session_id):
             "session_intensity_choices": TrainingSession.INTENSITY_CHOICES,
             "session_status_choices": TrainingSession.STATUS_CHOICES,
             "workflow_status_choices": workflow_status_choices,
+            "session_inline_edit": session_inline_edit,
             "review": review_obj,
             "audit_entries": audit_entries,
             "workload_minutes": workload_minutes,

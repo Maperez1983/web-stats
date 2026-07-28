@@ -236,7 +236,7 @@
 	          <a class="btn secondary" href="{{ planner_url }}" title="Ir a biblioteca para seleccionar tareas" aria-label="Añadir tareas">➕ Tareas</a>
 	          <a class="btn" href="{% url 'session-plan-pdf' session.id %}?style=uefa" data-pdf-viewer="1" data-pdf-title="Sesión · {{ session.focus }} · UEFA">📄 PDF UEFA</a>
 	          <a class="btn" href="{% url 'session-plan-pdf' session.id %}?style=club" data-pdf-viewer="1" data-pdf-title="Sesión · {{ session.focus }}">📄 PDF Club</a>
-	          <button type="button" class="btn primary" id="toggle-edit">✏️ Editar</button>
+	          <button type="button" class="btn primary" id="toggle-edit" onclick="try{var u=new URL(location.href);u.searchParams.set('edit','ficha');history.replaceState(null,'',u.toString());}catch(e){}">✏️ Editar ficha</button>
 	        </div>
 	      </div>
 
@@ -685,6 +685,7 @@
 	          {% csrf_token %}
 	          <input type="hidden" name="action" value="save" />
 	          <input type="hidden" name="return_to" value="edit" />
+	          <input type="hidden" name="inline_edit" value="1" />
 	          <label class="full">
 	            Nombre / foco
 	            <input type="text" name="focus" maxlength="140" value="{{ session.focus }}" required />
@@ -952,7 +953,8 @@
 	        toView.addEventListener('click', showView);
 
 	        const returnTo = "{{ return_to|default:''|escapejs }}";
-	        if (returnTo === 'edit' || returnTo === 'attendance') {
+	        const inlineEdit = {% if session_inline_edit %}true{% else %}false{% endif %};
+	        if (inlineEdit || returnTo === 'edit' || returnTo === 'attendance') {
 	          showEdit();
 	          if (returnTo === 'attendance') {
 	            const anchor = document.getElementById('asistencia-edit');
