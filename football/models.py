@@ -1257,6 +1257,60 @@ class Player(models.Model):
                 pass
 
 
+class PlayerAsset(models.Model):
+    """Repositorio de recursos visuales por jugador (por ID). Una fila = UN recurso (avatar por
+    equipación, chapa, foto o estado). Permite que un jugador tenga su set completo (titular,
+    visitante, entreno, portero, chándal, lesionado) además del avatar principal (Player.avatar_generated).
+
+    Los avatares con cara se generan offline (face-swap en Mac) y se suben aquí; las superficies
+    (pizarra, 11, tareas) resuelven el recurso según la presentación elegida por el entrenador."""
+
+    KIND_KIT_TITULAR = "kit_titular"
+    KIND_KIT_VISITANTE = "kit_visitante"
+    KIND_KIT_TURQUESA = "kit_turquesa"
+    KIND_KIT_BLANCA = "kit_blanca"
+    KIND_CHANDAL = "chandal"
+    KIND_LESIONADO = "lesionado"
+    KIND_GK_AZUL = "gk_azul"
+    KIND_GK_NEGRA = "gk_negra"
+    KIND_GK_MAGENTA = "gk_magenta"
+    KIND_CHAPA_LOCAL = "chapa_local"
+    KIND_CHAPA_AWAY = "chapa_away"
+    KIND_CHAPA_GK = "chapa_gk"
+    KIND_FOTO = "foto"
+
+    KIND_CHOICES = [
+        (KIND_KIT_TITULAR, "Avatar equipación titular"),
+        (KIND_KIT_VISITANTE, "Avatar equipación visitante"),
+        (KIND_KIT_TURQUESA, "Avatar entreno turquesa"),
+        (KIND_KIT_BLANCA, "Avatar entreno blanca"),
+        (KIND_CHANDAL, "Avatar chándal"),
+        (KIND_LESIONADO, "Avatar lesionado"),
+        (KIND_GK_AZUL, "Avatar portero azul"),
+        (KIND_GK_NEGRA, "Avatar portero negra"),
+        (KIND_GK_MAGENTA, "Avatar portero magenta"),
+        (KIND_CHAPA_LOCAL, "Chapa local"),
+        (KIND_CHAPA_AWAY, "Chapa visitante"),
+        (KIND_CHAPA_GK, "Chapa portero"),
+        (KIND_FOTO, "Foto"),
+    ]
+
+    player = models.ForeignKey("Player", on_delete=models.CASCADE, related_name="assets")
+    kind = models.CharField(max_length=32, choices=KIND_CHOICES)
+    image = models.ImageField(upload_to="player-assets/", null=True, blank=True)
+    source_key = models.CharField(
+        max_length=64, blank=True,
+        help_text="Hash de las entradas (foto+kit+características) para regenerar solo si cambian.")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [("player", "kind")]
+        indexes = [models.Index(fields=["player", "kind"])]
+
+    def __str__(self):
+        return f"{self.player_id}:{self.kind}"
+
+
 class StaffMember(models.Model):
     """
     Miembro del cuerpo técnico por club (workspace) y opcionalmente por categoría/equipo.

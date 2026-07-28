@@ -62,6 +62,21 @@
 
     <form class="card" method="post" enctype="multipart/form-data">
       {% csrf_token %}
+      <div style="margin-bottom:12px;">
+        <label style="font-weight:700;font-size:0.9rem;">Equipación / estado</label>
+        <select name="kind" style="width:100%;margin-top:6px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--card2);color:var(--ink);font-size:0.95rem;">
+          <option value="principal">Avatar principal (titular)</option>
+          <option value="kit_visitante">Equipación visitante (amarilla)</option>
+          <option value="kit_turquesa">Entreno turquesa</option>
+          <option value="kit_blanca">Entreno blanca</option>
+          <option value="chandal">Chándal</option>
+          <option value="lesionado">Lesionado</option>
+          <option value="gk_azul">Portero · azul</option>
+          <option value="gk_negra">Portero · negra</option>
+          <option value="gk_magenta">Portero · magenta</option>
+        </select>
+        <p class="hint" style="margin:6px 0 0;">El avatar principal es el que se usa por defecto en pizarra/ficha. Las demás equipaciones se guardan aparte por jugador.</p>
+      </div>
       <div class="drop">
         <strong>Arrastra aquí todos los avatares</strong> (o pulsa para elegir)
         <input type="file" name="avatars" accept="image/png,image/*" multiple required />

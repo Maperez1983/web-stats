@@ -36893,7 +36893,14 @@ def coach_upload_avatars(request):
 
     message = ""
     error = ""
+    # Equipaciones/estados que se guardan en PlayerAsset (por jugador+tipo). 'principal' = avatar_generated.
+    ASSET_KINDS = {
+        "kit_titular", "kit_visitante", "kit_turquesa", "kit_blanca", "chandal",
+        "lesionado", "gk_azul", "gk_negra", "gk_magenta",
+    }
     if request.method == "POST":
+        from football.models import PlayerAsset
+        kind = str(request.POST.get("kind") or "principal").strip()
         players = _roster()
         by_id = {int(p.id): p for p in players}
         by_num = {}
@@ -36918,13 +36925,25 @@ def coach_upload_avatars(request):
                 skipped.append(fname)
                 continue
             try:
-                target.avatar_generated.save(f"player-{int(target.id)}.png", f, save=False)
-                target.avatar_source_key = "manual-upload"
-                target.save(update_fields=["avatar_generated", "avatar_source_key"])
+                if kind in ASSET_KINDS:
+                    asset = PlayerAsset.objects.filter(player=target, kind=kind).first() or PlayerAsset(player=target, kind=kind)
+                    if asset.image:
+                        try:
+                            asset.image.delete(save=False)
+                        except Exception:
+                            pass
+                    asset.source_key = "manual-upload"
+                    asset.image.save(f"player-{int(target.id)}-{kind}.png", f, save=False)
+                    asset.save()
+                else:
+                    target.avatar_generated.save(f"player-{int(target.id)}.png", f, save=False)
+                    target.avatar_source_key = "manual-upload"
+                    target.save(update_fields=["avatar_generated", "avatar_source_key"])
                 ok += 1
             except Exception:
                 skipped.append(fname)
-        message = f"Subidos {ok} avatar(es)."
+        label = "principal" if kind not in ASSET_KINDS else kind
+        message = f"Subidos {ok} avatar(es) [{label}]."
         if skipped:
             extra = ", ".join(skipped[:12]) + ("…" if len(skipped) > 12 else "")
             message += f" Sin asignar ({len(skipped)}): {extra}"

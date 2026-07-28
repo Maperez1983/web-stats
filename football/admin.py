@@ -309,6 +309,19 @@ class PlayerAdmin(admin.ModelAdmin):
     autocomplete_fields = ('identity', 'transferred_to_club', 'transferred_to_category_ref')
 
 
+@admin.register(models.PlayerAsset)
+class PlayerAssetAdmin(admin.ModelAdmin):
+    list_display = ('player', 'kind', 'has_image', 'updated_at')
+    list_filter = ('kind',)
+    search_fields = ('player__name', 'player__full_name')
+    autocomplete_fields = ('player',)
+    readonly_fields = ('source_key', 'updated_at')
+
+    @admin.display(boolean=True, description='imagen')
+    def has_image(self, obj):
+        return bool(obj.image)
+
+
 @admin.register(models.PlayerEvaluation)
 class PlayerEvaluationAdmin(admin.ModelAdmin):
     list_display = ('player', 'team', 'club_season', 'evaluation_type', 'evaluated_on', 'status', 'overall_rating', 'objective_performance_rating', 'availability_rating')
