@@ -34600,7 +34600,7 @@
 		        if (_photoSurf.indexOf(exportGrassStyle) !== -1 && window.WebstatsPitch25D && typeof window.WebstatsPitch25D.buildPitchSvg === 'function') {
 		          var _orient = safeText((document.getElementById('draw-task-pitch-orientation')||{}).value) || 'landscape';
 		          var _preset = safeText((document.getElementById('draw-task-pitch-preset')||{}).value) || 'full_pitch';
-		          var _built = window.WebstatsPitch25D.buildPitchSvg(_preset, _orient, 'classic');
+		          var _built = window.WebstatsPitch25D.buildPitchSvg(_preset, _orient, 'coachboard');
 		          var _svgStr = (typeof _built === 'string') ? _built : ((_built && _built.nodeType) ? new XMLSerializer().serializeToString(_built) : '');
 		          if (_svgStr) {
 		            var _doc = new DOMParser().parseFromString(_svgStr, 'image/svg+xml');
