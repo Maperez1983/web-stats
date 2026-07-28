@@ -22910,7 +22910,25 @@ def _ensure_matchday_convocation_record(primary_team, *, match=None, request=Non
     opponent_name = str(getattr(opponent_team, "display_name", "") or getattr(opponent_team, "name", "") or "").strip()
 
     starters_limit = _required_starters_for_team(primary_team)
-    players = _operational_roster_players_for_team(request, primary_team, confirmed_only=True)
+    # B5: respetar la regla oficial/amistoso también en el auto-convocado (antes forzaba confirmados,
+    # cayéndose los "a prueba" en amistosos) y excluir sancionados (coherente con save_convocation).
+    _is_friendly = str(getattr(match, "context", "") or "").strip().lower() == Match.CONTEXT_FRIENDLY
+    players = _operational_roster_players_for_team(
+        request,
+        primary_team,
+        confirmed_only=not _is_friendly,
+        include_all_active=_is_friendly,
+    )
+    try:
+        _today = timezone.localdate()
+        _sanctioned = set(get_sanctioned_player_ids_from_previous_round(primary_team, reference_match=match))
+        players = [
+            p
+            for p in players
+            if int(getattr(p, "id", 0) or 0) not in _sanctioned and not is_manual_sanction_active(p, today=_today)
+        ]
+    except Exception:
+        logger.debug("No se pudo excluir sancionados en el auto-convocado", exc_info=True)
 
     with transaction.atomic():
         ConvocationRecord.objects.filter(team=primary_team, is_current=True).update(is_current=False)
@@ -29545,6 +29563,15 @@ def save_convocation(request):
                 continue
 
     target_match = _resolve_active_match_for_flow(request, primary_team)
+    # B2: si el formulario declara un CONTEXTO distinto al del partido activo de sesión (p.ej. preparas
+    # un amistoso pero el activo es el de Liga), NO reutilizamos ese Match: mutarlo corrompería el
+    # partido de Liga. Lo descartamos para que el anti-duplicado busque/cree el correcto.
+    if (
+        target_match
+        and context_value
+        and str(getattr(target_match, "context", "") or "").strip().lower() not in {"", context_value}
+    ):
+        target_match = None
     if not target_match:
         # Evita crear duplicados: si ya existe un Match para esa fecha (y, si se indicó, rival/jornada),
         # reutilízalo en vez de crear un placeholder.
@@ -29590,6 +29617,7 @@ def save_convocation(request):
                 group=primary_team.group,
                 round=round_value,
                 date=parsed_match_date,
+                kickoff_time=parsed_match_time,
                 location=location_value,
                 home_team=home_team,
                 away_team=away_team,
@@ -29610,6 +29638,7 @@ def save_convocation(request):
                 "location": location_value,
                 "home_away": home_away,
                 "datetime": datetime_label,
+                "time": time_value_raw,
                 "opponent": opponent_value,
                 "context": context_value,
                 "tournament_name": tournament_name_value,
@@ -78545,6 +78574,14 @@ def _apply_match_info_overrides(match, primary_team, match_info_payload):
     if parsed_date and parsed_date != match.date:
         match.date = parsed_date
         changed_fields.append("date")
+    # B4: la hora también debe llegar al Match (antes solo iba a ConvocationRecord.match_time, así que
+    # el hub / próximo partido / WhatsApp derivados del Match no la veían).
+    _time_value = str(match_info_payload.get("time") or "").strip()
+    if _time_value:
+        _parsed_time = _parse_payload_time(_time_value)
+        if _parsed_time and _parsed_time != match.kickoff_time:
+            match.kickoff_time = _parsed_time
+            changed_fields.append("kickoff_time")
 
     def _parse_optional_positive_int(value):
         if value is None:
