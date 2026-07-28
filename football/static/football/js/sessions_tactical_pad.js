@@ -5148,7 +5148,7 @@
 					      dry: 'Seco',
 					      wet: 'Mojado',
 					    };
-					    const GRASS_STYLE_ORDER = ['flat_2d', 'classic', 'broadcast', 'broadcast_premium', 'stadium_native', 'realistic', 'pro', 'uefa_b', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet'];
+					    const GRASS_STYLE_ORDER = ['flat_2d', 'classic', 'broadcast', 'broadcast_premium', 'realistic', 'pro', 'uefa_b', 'natural', 'artificial', 'albero', 'dirt', 'indoor', 'dry', 'wet'];
 					    const normalizeGrassStyleForMode = (value) => {
 					      const next = safeText(value, 'classic').toLowerCase();
 					      if (!GRASS_STYLE_ORDER.includes(next)) {

@@ -41360,7 +41360,6 @@ def _initial_eleven_page_impl(request):
             "pro",
             "broadcast",
             "broadcast_premium",
-            "stadium_native",
             "artificial",
             "dry",
             "wet",
