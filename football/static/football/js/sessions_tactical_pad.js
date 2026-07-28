@@ -30519,6 +30519,13 @@
         Object.keys(AVATAR_GK_COLORS).forEach((c) => gkPoses.forEach((p) => ensureAvatarImage(`${AVATAR_BASE_URL}act-gk-${p}-${c}.png`)));
       } catch (e) { /* ignore */ }
     };
+    // Chapa con escudo: SÍ precargamos las 4 chapas base al iniciar (son ~67KB c/u, nada que ver
+    // con los 135MB de avatares). Así el primer token estilo Chapa ya tiene la imagen lista y no
+    // cae al disco dibujado de fallback (el token se pinta una vez y no se repinta al cargar).
+    try {
+      ['chapa_local', 'chapa_away', 'chapa_gk_azul', 'chapa_gk_negra']
+        .forEach((n) => ensureAvatarImage(`${CHAPA_BASE_URL}${n}.png`));
+    } catch (e) { /* ignore */ }
     // Perf: los ~73 avatares pesan ~135 MB. NO se precargan (ni inmediato ni en idle) porque eso
     // saturaba la red en CADA apertura del editor. Se cargan 100% BAJO DEMANDA:
     //  - al abrir Figuras/Plantilla las miniaturas del panel (loading=lazy) bajan solo las visibles
