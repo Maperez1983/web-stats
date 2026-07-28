@@ -48623,6 +48623,12 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
                     "notes_key": "activation",
                 },
                 {
+                    "key": "physical_prep",
+                    "label": "Preparación física",
+                    "block_keys": [SessionTask.BLOCK_PHYSICAL_PREP],
+                    "notes_key": "warmup",
+                },
+                {
                     "key": "conditioning",
                     "label": "Condicionante",
                     "block_keys": [SessionTask.BLOCK_CONDITIONING],

@@ -2639,18 +2639,22 @@ class SessionTaskManager(models.Manager):
 
 class SessionTask(models.Model):
     BLOCK_ACTIVATION = 'activation'
+    BLOCK_PHYSICAL_PREP = 'physical_prep'
     BLOCK_MAIN_1 = 'main_1'
     BLOCK_MAIN_2 = 'main_2'
     BLOCK_SET_PIECES = 'set_pieces'
     BLOCK_CONDITIONING = 'conditioning'
     BLOCK_RECOVERY = 'recovery'
     BLOCK_VIDEO = 'video'
+    # Orden pedagógico (2026-07-28): Activación (previo: estiramientos/movilidad) · Preparación
+    # física · Condicionante · Principal 1 · Principal 2 · ABP · Vuelta a la calma · Vídeo.
     BLOCK_CHOICES = [
         (BLOCK_ACTIVATION, 'Activación'),
+        (BLOCK_PHYSICAL_PREP, 'Preparación física'),
+        (BLOCK_CONDITIONING, 'Condicionante'),
         (BLOCK_MAIN_1, 'Principal 1'),
         (BLOCK_MAIN_2, 'Principal 2'),
         (BLOCK_SET_PIECES, 'ABP'),
-        (BLOCK_CONDITIONING, 'Condicionante'),
         (BLOCK_RECOVERY, 'Vuelta calma'),
         (BLOCK_VIDEO, 'Vídeo'),
     ]
