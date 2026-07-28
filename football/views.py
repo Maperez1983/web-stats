@@ -60690,10 +60690,13 @@ def analysis_video_report_item_tactical_page(request, item_id):
         "pitch_orientation": str(meta.get("pitch_orientation") or "landscape"),
         "pitch_zoom": str(meta.get("pitch_zoom") or "1.00"),
         "pitch_grass_style": (
-            "stadium_native"
+            # Tareas = 2D plano. El estadio 3D es solo para el 11 inicial; si una tarea quedo con
+            # estadio "pegado" (o sin superficie), se abre en 2D plano. Una superficie explicita
+            # NO-estadio (classic/broadcast/realista/...) se respeta tal cual.
+            "flat_2d"
             if str(meta.get("pitch_grass_style") or "").strip().lower()
-            in {"", "stadium_top", "stadium_top_h", "stadium_top_v"}
-            else str(meta.get("pitch_grass_style") or "stadium_native")
+            in {"", "stadium_top", "stadium_top_h", "stadium_top_v", "stadium_native"}
+            else str(meta.get("pitch_grass_style"))
         ),
         "pitch_preset": str(meta.get("pitch_preset") or "full_pitch"),
     }
