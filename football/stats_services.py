@@ -25,12 +25,21 @@ PLAYER_METRICS_CACHE_SECONDS = int(os.getenv('PLAYER_METRICS_CACHE_SECONDS', '90
 TEAM_METRICS_CACHE_SECONDS = int(os.getenv('TEAM_METRICS_CACHE_SECONDS', '900'))
 
 
+# Centinelas para el modo de cuenta por partido (no son source_file reales).
+STATS_SOURCE_MANUAL_MARK = '__manual__'   # cuenta cualquier evento manual (manual-bulk/admin-manual)
+STATS_SOURCE_NONE_MARK = '__none__'       # no cuenta ningún evento (solo resultado / sin datos)
+
+
 def preferred_event_source_by_match(primary_team, scope=None):
     """
-    Choose one authoritative source per match to avoid cross-source double counting.
-    Priority:
-    1) Any `registro-acciones` events for that match.
-    2) Otherwise, most frequent non-empty source_file.
+    Elige UNA fuente autoritativa por partido para evitar el doble conteo entre caminos.
+
+    Fuente de la verdad: `Match.stats_source` declarado por cada partido:
+      - 'live'        -> 'registro-acciones' (solo eventos del registro en vivo)
+      - 'manual'      -> '__manual__'        (cualquier evento manual de la ficha)
+      - 'result_only' -> '__none__'          (ningún evento cuenta)
+    Para partidos SIN declarar ('', legacy) se usa la heurística anterior
+    (registro-acciones si hay; si no, la fuente más frecuente).
     """
     if not primary_team:
         return {}
@@ -50,40 +59,72 @@ def preferred_event_source_by_match(primary_team, scope=None):
             team_events = team_events.filter(Q(match__context=Match.CONTEXT_LEAGUE) | Q(match__context=''))
         else:
             team_events = team_events.filter(match__context=scope_value)
-    preferred = {}
-    registro_match_ids = set(
-        team_events.filter(source_file='registro-acciones')
-        .values_list('match_id', flat=True)
-        .distinct()
-    )
-    for match_id in registro_match_ids:
-        preferred[match_id] = 'registro-acciones'
 
-    fallback_rows = (
-        team_events.exclude(source_file__isnull=True)
-        .exclude(source_file__exact='')
-        .values('match_id', 'source_file')
-        .annotate(c=Count('id'))
-        .order_by('match_id', '-c', 'source_file')
-    )
-    seen = set(preferred.keys())
-    for row in fallback_rows:
-        match_id = row['match_id']
-        if match_id in seen:
-            continue
-        preferred[match_id] = row['source_file']
-        seen.add(match_id)
+    event_match_ids = set(team_events.values_list('match_id', flat=True).distinct())
+    if not event_match_ids:
+        return {}
+    modes = dict(Match.objects.filter(id__in=event_match_ids).values_list('id', 'stats_source'))
+
+    preferred = {}
+    undeclared = set()
+    for match_id in event_match_ids:
+        mode = str(modes.get(match_id, '') or '')
+        if mode == Match.STATS_SOURCE_LIVE:
+            preferred[match_id] = 'registro-acciones'
+        elif mode == Match.STATS_SOURCE_MANUAL:
+            preferred[match_id] = STATS_SOURCE_MANUAL_MARK
+        elif mode == Match.STATS_SOURCE_RESULT:
+            preferred[match_id] = STATS_SOURCE_NONE_MARK
+        else:
+            undeclared.add(match_id)
+
+    # Fallback legacy para partidos sin stats_source declarado (heurística anterior).
+    if undeclared:
+        registro_ids = set(
+            team_events.filter(source_file='registro-acciones', match_id__in=undeclared)
+            .values_list('match_id', flat=True)
+            .distinct()
+        )
+        for match_id in registro_ids:
+            preferred[match_id] = 'registro-acciones'
+        remaining = undeclared - registro_ids
+        if remaining:
+            fallback_rows = (
+                team_events.filter(match_id__in=remaining)
+                .exclude(source_file__isnull=True)
+                .exclude(source_file__exact='')
+                .values('match_id', 'source_file')
+                .annotate(c=Count('id'))
+                .order_by('match_id', '-c', 'source_file')
+            )
+            seen = set()
+            for row in fallback_rows:
+                match_id = row['match_id']
+                if match_id in seen:
+                    continue
+                preferred[match_id] = row['source_file']
+                seen.add(match_id)
     return preferred
 
 
 def event_matches_stats_source(event, preferred_sources=None):
+    """¿Este evento cuenta para las estadísticas, según la fuente única declarada del partido?
+    - '__none__'   (solo resultado / sin datos) -> NO cuenta.
+    - '__manual__' (manual)                      -> cuenta si es un evento manual.
+    - 'registro-acciones' (en vivo)              -> cuenta SOLO si es del registro en vivo (estricto).
+    - sin preferencia (legacy sin declarar)      -> cuenta.
+    Ya NO hay bypass que deje pasar siempre los manuales: eso causaba el doble conteo."""
     if not preferred_sources:
         return True
     preferred_source = preferred_sources.get(getattr(event, 'match_id', None))
     if not preferred_source:
         return True
     current_source = (getattr(event, 'source_file', '') or '').strip()
-    return current_source == preferred_source or is_manual_event_source(current_source)
+    if preferred_source == STATS_SOURCE_NONE_MARK:
+        return False
+    if preferred_source == STATS_SOURCE_MANUAL_MARK:
+        return is_manual_event_source(current_source)
+    return current_source == preferred_source
 
 
 def canonical_match_id(match_id):

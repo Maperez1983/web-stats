@@ -79644,12 +79644,9 @@ def compute_player_dashboard(
             continue
         resolved_photo_url = player_photo_url_by_id.get(player.id, "")
         match = event.match
-        preferred_source = preferred_sources.get(match.id if match else None)
-        event_source = (event.source_file or "").strip().lower()
-        # Keep admin/manual edits visible in player stats even when another source
-        # is preferred for that match.
-        is_manual_source = event_source == "admin-manual" or "manual" in event_source
-        if preferred_source and (event.source_file or "") != preferred_source and not is_manual_source:
+        # Fuente única por partido (Match.stats_source): evita el doble conteo entre el registro en
+        # vivo y la edición manual de la ficha. Antes un bypass dejaba pasar SIEMPRE los manuales.
+        if not _event_matches_stats_source(event, preferred_sources):
             continue
         signature = _event_signature(event)
         if signature in seen_signatures:
@@ -79970,13 +79967,8 @@ def compute_player_dashboard(
     for event in live_events:
         match = event.match
         if match:
-            preferred_source = preferred_sources.get(match.id)
-            event_source = (event.source_file or "").strip()
-            event_source_lower = event_source.lower()
-            is_manual_source = event_source_lower == "admin-manual" or "manual" in event_source_lower
-            if preferred_source and event_source and event_source != preferred_source and not is_manual_source:
-                # Mantener consistencia entre el cálculo de acciones/KPIs (que filtra por fuente preferida)
-                # y el timeline (minutos/PJ/PT).
+            # Misma fuente única por partido que el conteo de acciones/goles (coherencia minutos↔acciones).
+            if not _event_matches_stats_source(event, preferred_sources):
                 continue
         if match and event.minute is not None:
             match_id = _canonical_match_id(match.id)
