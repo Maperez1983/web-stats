@@ -55614,6 +55614,15 @@ def session_task_detail_page(request, task_id):
             error = str(exc)
         except Exception:
             error = "No se pudo guardar la tarea."
+        # Tras un POST correcto, releer el layout desde la BD. `_layout_src` se captura ANTES de
+        # guardar, así que sin esto la ficha re-dibujada muestra meta/task_sheet con el valor
+        # anterior (misma página, datos aparentemente "no guardados" = la sensación de "dos fichas").
+        if not error:
+            try:
+                task.refresh_from_db()
+            except Exception:
+                pass
+            _layout_src = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
 
     layout = _layout_src
     meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
