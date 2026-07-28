@@ -109,7 +109,9 @@ body.ed-chrome .pitch-layout,
 body.ed-chrome .board-workbench { display: block; }
 body.ed-chrome .pitch-viewport {
   position: fixed; top: 60px; left: 84px; right: 0; bottom: 74px; z-index: 20;
-  display: flex; align-items: center; justify-content: center; padding: 22px;
+  /* El campo se pega ABAJO (toca la barra inferior) y con poco margen, para eliminar el
+     hueco negro que dejaba al centrarse. El sobrante (por el formato ancho) queda arriba. */
+  display: flex; align-items: flex-end; justify-content: center; padding: 6px 14px 2px;
 }
 /* NO clavamos el ancho: replicamos la fórmula NATIVA a nuestra especificidad para
    que gobierne el factor de tamaño (`--stage-max-user`) y el límite de ajuste
