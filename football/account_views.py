@@ -408,6 +408,20 @@ def player_home_page(request):
             today = timezone.localdate()
             season_start = today - timedelta(days=365)
             season_end = today + timedelta(days=31)
+            # Alinear con la MISMA temporada que la ficha del jugador (player_detail) para que los
+            # contadores cuadren entre "Mi espacio" y la ficha. Fallback a ventana móvil si no hay temporada.
+            try:
+                from .season_history_services import selected_club_season_for_request
+                from .workspace_context import get_active_workspace
+
+                _ws = get_active_workspace(request)
+                _season = selected_club_season_for_request(request, workspace=_ws) if _ws else None
+                if _season and getattr(_season, "start_date", None):
+                    season_start = _season.start_date
+                    if getattr(_season, "end_date", None):
+                        season_end = _season.end_date
+            except Exception:
+                pass
             sessions_total = (
                 TrainingSession.objects.filter(
                     microcycle__team_id=player.team_id, session_date__range=(season_start, season_end)
