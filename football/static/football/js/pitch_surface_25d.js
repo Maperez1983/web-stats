@@ -963,6 +963,8 @@
         ${buildRect(pitch.x + pitch.w - (5.5 * mx), goalTop, 5.5 * mx, 18.32 * my, 0, 'none', `stroke="${stroke}" stroke-width="${strokeWidth}"`)}
         ${buildCircle(spotX, centerY, spotRadius, 'none', 0, stroke)}
         <path d="${buildArcPath(targetX, centerY - arcDy, targetX, centerY + arcDy, arcRadius, arcRadius, 0)}" fill="none" stroke="${stroke}" stroke-width="${strokeWidth}"/>
+        <path d="${buildArcPath(pitch.x, centerY - centerRadius, pitch.x, centerY + centerRadius, centerRadius, centerRadius, 1)}" fill="none" stroke="${stroke}" stroke-width="${strokeWidth}"/>
+        ${buildCircle(pitch.x, centerY, spotRadius, 'none', 0, stroke)}
       `;
     }
 
