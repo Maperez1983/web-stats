@@ -252,7 +252,7 @@
           {% else %}
           <a class="btn primary" href="?edit=ficha{% if team %}&team={{ team.id }}{% endif %}">✏️ Editar ficha</a>
           {% endif %}
-          <button type="button" class="btn" id="toggle-edit" title="Asistencia, post-sesión y cierre de la sesión">⚙️ Cierre / asistencia</button>
+          <button type="button" class="btn" id="toggle-edit" title="Post-sesión (RPE/cargas) y cierre/confirmación de la sesión">⚙️ Post-sesión y cierre</button>
 	        </div>
 	      </div>
 
@@ -341,12 +341,76 @@
 	          </form>
 	          {% endif %}
 
-	          <div class="section-title" id="asistencia" style="display:flex; align-items:center; justify-content:space-between; gap:0.6rem; flex-wrap:wrap;"><span>Asistencia</span><button type="button" class="btn secondary" style="font-size:0.72rem; padding:0.25rem 0.6rem;" onclick="try{document.getElementById('toggle-edit').click();var a=document.getElementById('asistencia-edit');if(a)setTimeout(function(){a.scrollIntoView({block:'start'});},60);}catch(e){}">✏️ Editar asistencia</button></div>
+	          <div class="section-title" id="asistencia">Asistencia</div>
 	          <div class="box" style="margin-bottom:12px;">
 	            <strong>{{ attendance_summary }}</strong>
 	            {% if plan_fields.absences %}
 	              <p style="margin:10px 0 0;"><strong>Incidencias:</strong><br />{{ plan_fields.absences|linebreaksbr }}</p>
 	            {% endif %}
+	            <div class="meta" style="margin:8px 0 4px;">Marca las excepciones (ausencia/tarde/lesión/justificado). El resto cuenta como presente.</div>
+		        <form method="post" style="margin-top:0.65rem;">
+		          {% csrf_token %}
+		          <input type="hidden" name="action" value="attendance" />
+		          <input type="hidden" name="return_to" value="attendance" />
+              <input type="hidden" name="team" value="{{ team.id }}" />
+		          <div style="max-height:56vh; overflow:auto; border-radius:14px; border:1px solid rgba(148,163,184,0.14); padding:0.35rem 0.55rem; background:rgba(255,255,255,0.02);">
+		            <table>
+		              <tbody>
+                {% for row in attendance_rows %}
+                  {% with p=row.player mark=row.mark injury_default=row.injury_default %}
+                  <tr>
+                    <td class="player-cell">
+                      {{ p.name }}
+                      {% if p.is_goalkeeper %}<span class="meta">· PT</span>{% endif %}
+                    </td>
+                    <td style="width:170px;">
+                      <select name="attendance_status_{{ p.id }}" class="js-attendance-status">
+	                        <option value="" {% if not mark and not injury_default %}selected{% endif %}>Sin marcar</option>
+	                        {% for value, label in allowed_statuses %}
+	                          <option value="{{ value }}" {% if mark and mark.status == value and value != 'present' or not mark and injury_default and value == 'injured' %}selected{% endif %}>{{ label }}</option>
+	                        {% endfor %}
+	                      </select>
+	                    </td>
+                    <td style="width:220px;">
+                      <input type="text" name="attendance_notes_{{ p.id }}" maxlength="180" placeholder="Nota…" value="{% if mark %}{{ mark.notes }}{% elif injury_default %}{{ injury_default.injury|default:'' }}{% endif %}" />
+                    </td>
+                    <td style="width:240px;">
+	                      <div class="js-injury-fields" style="display:none; gap:6px; align-items:center;">
+		                        <select name="attendance_injury_catalog_{{ p.id }}" style="flex:1;">
+		                          <option value="">Lesión (catálogo)…</option>
+		                          {% for entry in injury_catalog_entries %}
+		                            <option value="{{ entry.id }}" {% if mark and mark.injury_catalog_entry_id == entry.id or not mark and injury_default and injury_default.catalog_entry_id == entry.id %}selected{% endif %}>{{ entry.get_region_display }} · {{ entry.name }}</option>
+		                          {% endfor %}
+		                        </select>
+	                        <input type="text" name="attendance_injury_{{ p.id }}" maxlength="180" placeholder="Detalle (opcional)" value="{% if mark %}{{ mark.injury_detail }}{% elif injury_default %}{{ injury_default.injury|default:'' }}{% endif %}" style="flex:1;" />
+	                        <input type="date" name="attendance_injury_return_{{ p.id }}" value="{% if mark and mark.injury_return_date %}{{ mark.injury_return_date|date:'Y-m-d' }}{% elif injury_default and injury_default.estimated_return_date %}{{ injury_default.estimated_return_date|date:'Y-m-d' }}{% endif %}" title="Alta estimada" style="width:140px;" />
+	                      </div>
+	                    </td>
+	                  </tr>
+                  {% endwith %}
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-top:0.7rem;">
+            <button class="btn secondary" type="button" id="attendance-all-present" title="Inscribe a toda la plantilla como presente; luego marca las excepciones">✓ Inscribir toda la plantilla (todos presentes)</button>
+            <button class="btn primary" type="submit">Guardar asistencia</button>
+          </div>
+        </form>
+        <script>
+          (function(){
+            var btn = document.getElementById('attendance-all-present');
+            if (!btn) return;
+            btn.addEventListener('click', function(){
+              document.querySelectorAll('.js-attendance-status').forEach(function(sel){
+                // no pisar lesionados/justificados ya marcados a mano
+                if (sel.value === 'injured' || sel.value === 'excused') return;
+                sel.value = 'present';
+                try { sel.dispatchEvent(new Event('change', { bubbles: true })); } catch(e){}
+              });
+            });
+          })();
+        </script>
 	          </div>
 
 		          <div class="section-title" style="display:flex; align-items:center; justify-content:space-between; gap:0.65rem; flex-wrap:wrap;">
@@ -901,77 +965,6 @@
 	          <button class="btn secondary" type="submit" style="border-color:rgba(239,68,68,0.35); color:#fecaca;">🗑️ Papelera</button>
 	        </form>
 
-        <hr style="border:0; border-top:1px solid rgba(148,163,184,0.16); margin:0.95rem 0;" />
-
-	        <div style="display:flex; align-items:center; justify-content:space-between; gap:0.6rem; flex-wrap:wrap;">
-	          <div>
-	            <div id="asistencia-edit" style="font-weight:950; letter-spacing:0.08em; text-transform:uppercase;">Asistencia</div>
-	            <div class="meta">Marca excepciones (ausencias, tarde, lesión…).</div>
-	          </div>
-	        </div>
-		        <form method="post" style="margin-top:0.65rem;">
-		          {% csrf_token %}
-		          <input type="hidden" name="action" value="attendance" />
-		          <input type="hidden" name="return_to" value="attendance" />
-              <input type="hidden" name="team" value="{{ team.id }}" />
-		          <div style="max-height:56vh; overflow:auto; border-radius:14px; border:1px solid rgba(148,163,184,0.14); padding:0.35rem 0.55rem; background:rgba(255,255,255,0.02);">
-		            <table>
-		              <tbody>
-                {% for row in attendance_rows %}
-                  {% with p=row.player mark=row.mark injury_default=row.injury_default %}
-                  <tr>
-                    <td class="player-cell">
-                      {{ p.name }}
-                      {% if p.is_goalkeeper %}<span class="meta">· PT</span>{% endif %}
-                    </td>
-                    <td style="width:170px;">
-                      <select name="attendance_status_{{ p.id }}" class="js-attendance-status">
-	                        <option value="" {% if not mark and not injury_default %}selected{% endif %}>Sin marcar</option>
-	                        {% for value, label in allowed_statuses %}
-	                          <option value="{{ value }}" {% if mark and mark.status == value and value != 'present' or not mark and injury_default and value == 'injured' %}selected{% endif %}>{{ label }}</option>
-	                        {% endfor %}
-	                      </select>
-	                    </td>
-                    <td style="width:220px;">
-                      <input type="text" name="attendance_notes_{{ p.id }}" maxlength="180" placeholder="Nota…" value="{% if mark %}{{ mark.notes }}{% elif injury_default %}{{ injury_default.injury|default:'' }}{% endif %}" />
-                    </td>
-                    <td style="width:240px;">
-	                      <div class="js-injury-fields" style="display:none; gap:6px; align-items:center;">
-		                        <select name="attendance_injury_catalog_{{ p.id }}" style="flex:1;">
-		                          <option value="">Lesión (catálogo)…</option>
-		                          {% for entry in injury_catalog_entries %}
-		                            <option value="{{ entry.id }}" {% if mark and mark.injury_catalog_entry_id == entry.id or not mark and injury_default and injury_default.catalog_entry_id == entry.id %}selected{% endif %}>{{ entry.get_region_display }} · {{ entry.name }}</option>
-		                          {% endfor %}
-		                        </select>
-	                        <input type="text" name="attendance_injury_{{ p.id }}" maxlength="180" placeholder="Detalle (opcional)" value="{% if mark %}{{ mark.injury_detail }}{% elif injury_default %}{{ injury_default.injury|default:'' }}{% endif %}" style="flex:1;" />
-	                        <input type="date" name="attendance_injury_return_{{ p.id }}" value="{% if mark and mark.injury_return_date %}{{ mark.injury_return_date|date:'Y-m-d' }}{% elif injury_default and injury_default.estimated_return_date %}{{ injury_default.estimated_return_date|date:'Y-m-d' }}{% endif %}" title="Alta estimada" style="width:140px;" />
-	                      </div>
-	                    </td>
-	                  </tr>
-                  {% endwith %}
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-top:0.7rem;">
-            <button class="btn secondary" type="button" id="attendance-all-present" title="Inscribe a toda la plantilla como presente; luego marca las excepciones">✓ Inscribir toda la plantilla (todos presentes)</button>
-            <button class="btn primary" type="submit">Guardar asistencia</button>
-          </div>
-        </form>
-        <script>
-          (function(){
-            var btn = document.getElementById('attendance-all-present');
-            if (!btn) return;
-            btn.addEventListener('click', function(){
-              document.querySelectorAll('.js-attendance-status').forEach(function(sel){
-                // no pisar lesionados/justificados ya marcados a mano
-                if (sel.value === 'injured' || sel.value === 'excused') return;
-                sel.value = 'present';
-                try { sel.dispatchEvent(new Event('change', { bubbles: true })); } catch(e){}
-              });
-            });
-          })();
-        </script>
       </section>
     </main>
 
@@ -988,14 +981,13 @@
 	        toView.addEventListener('click', showView);
 
 	        const returnTo = "{{ return_to|default:''|escapejs }}";
-	        if (returnTo === 'edit' || returnTo === 'attendance') {
+	        // return_to=edit -> abre el panel (post-sesión/confirmar/papelera). return_to=attendance ya NO
+	        // abre el panel: la asistencia vive en la propia ficha (#session-view); solo scroll a su sección.
+	        if (returnTo === 'edit') {
 	          showEdit();
-	          if (returnTo === 'attendance') {
-	            const anchor = document.getElementById('asistencia-edit');
-	            if (anchor) {
-	              try { anchor.scrollIntoView({ block: 'start' }); } catch (e) {}
-	            }
-	          }
+	        } else if (returnTo === 'attendance') {
+	          const anchor = document.getElementById('asistencia');
+	          if (anchor) { try { anchor.scrollIntoView({ block: 'start' }); } catch (e) {} }
 	        }
 	      })();
 
