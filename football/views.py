@@ -77649,6 +77649,89 @@ def match_editor_page(request, match_id):
     if request.method == "POST":
         form_action = str(request.POST.get("form_action") or "").strip()
         try:
+            if form_action == "match_close_save":
+                # Cierre UNIFICADO del partido: resultado + (según nivel) minutos por jugador, en un
+                # solo guardado y con fuente explícita. Niveles:
+                #   result_only    -> solo marcador (fuente 'solo resultado')
+                #   manual_minutes -> marcador + minutos/goles/asist por jugador (participación)
+                #   full           -> estadísticas completas (acciones en vivo/manual las marcan)
+                level = str(request.POST.get("close_level") or "result_only").strip().lower()
+                if level not in {"result_only", "manual_minutes", "full"}:
+                    level = "result_only"
+                season = getattr(match, "season", None)
+
+                def _maybe_int(raw):
+                    parsed = _parse_int(raw)
+                    return None if parsed is None else max(0, int(parsed))
+
+                with transaction.atomic():
+                    # 1) Resultado (solo si vienen los campos, para no borrar sin querer).
+                    info = {}
+                    if "score_for" in request.POST:
+                        info["score_for"] = request.POST.get("score_for")
+                    if "score_against" in request.POST:
+                        info["score_against"] = request.POST.get("score_against")
+                    if info:
+                        _apply_match_info_overrides(match, primary_team, info)
+                    # 2) Minutos/goles/asistencias por jugador si el nivel los incluye.
+                    if level == "manual_minutes" and season:
+                        updates, deletes = [], []
+                        for player in players:
+                            pid = int(player.id)
+                            values = {
+                                "manual_minutes": _maybe_int(request.POST.get(f"minutes_{pid}")),
+                                "manual_goals": _maybe_int(request.POST.get(f"goals_{pid}")),
+                                "manual_assists": _maybe_int(request.POST.get(f"assists_{pid}")),
+                            }
+                            for stat_name, stat_value in values.items():
+                                existing = (
+                                    PlayerStatistic.objects.filter(
+                                        player=player, season=season, match=match,
+                                        name=stat_name, context="manual-match",
+                                    )
+                                    .order_by("-id")
+                                    .first()
+                                )
+                                if stat_value is None:
+                                    if existing:
+                                        deletes.append(existing.id)
+                                    continue
+                                if existing:
+                                    if float(existing.value or 0) != float(stat_value):
+                                        existing.value = float(stat_value)
+                                        updates.append(existing)
+                                else:
+                                    updates.append(
+                                        PlayerStatistic(
+                                            player=player, season=season, match=match,
+                                            name=stat_name, context="manual-match",
+                                            value=float(stat_value), source=None,
+                                        )
+                                    )
+                        if deletes:
+                            PlayerStatistic.objects.filter(id__in=list(dict.fromkeys(deletes))).delete()
+                        to_create = [o for o in updates if getattr(o, "id", None) is None]
+                        to_update = [o for o in updates if getattr(o, "id", None)]
+                        if to_create:
+                            PlayerStatistic.objects.bulk_create(to_create, batch_size=250)
+                        if to_update:
+                            PlayerStatistic.objects.bulk_update(to_update, fields=["value"], batch_size=250)
+                    # 3) Fuente del partido según el nivel. El helper nunca degrada un partido con
+                    #    estadísticas reales (live/manual), así que es seguro.
+                    if level in {"result_only", "manual_minutes"}:
+                        if match.home_score is not None or match.away_score is not None:
+                            _set_match_stats_source(match, Match.STATS_SOURCE_RESULT)
+                try:
+                    _sync_match_score_from_events(match, primary_team)
+                except Exception:
+                    pass
+                _invalidate_team_dashboard_caches(primary_team)
+                try:
+                    messages.success(request, "Partido cerrado.")
+                except Exception:
+                    pass
+                return redirect(reverse("match-editor", args=[int(match.id)]) + f"?team={int(primary_team.id)}")
+
             if form_action == "manual_player_stats_save":
                 # Guardado rápido por jugador (minutos/goles/asistencias) para partidos con cambios ilimitados.
                 season = getattr(match, "season", None)
@@ -77727,8 +77810,6 @@ def match_editor_page(request, match_id):
                 )
                 tournament_name_value = str(request.POST.get("tournament_name") or "").strip()
                 tournament_stage_value = str(request.POST.get("tournament_stage") or "").strip()
-                score_for = str(request.POST.get("score_for") or "").strip()
-                score_against = str(request.POST.get("score_against") or "").strip()
 
                 date_raw = str(request.POST.get("date") or "").strip()
                 time_raw = str(request.POST.get("time") or "").strip()
@@ -77747,21 +77828,22 @@ def match_editor_page(request, match_id):
                     except ValueError:
                         match_time = None
 
-                _apply_match_info_overrides(
-                    match,
-                    primary_team,
-                    {
-                        "opponent": opponent,
-                        "opponent_team_id": opponent_team_id,
-                        "round": round_value,
-                        "location": location_value,
-                        "context": context_value,
-                        "tournament_name": tournament_name_value,
-                        "tournament_stage": tournament_stage_value,
-                        "score_for": score_for,
-                        "score_against": score_against,
-                    },
-                )
+                info = {
+                    "opponent": opponent,
+                    "opponent_team_id": opponent_team_id,
+                    "round": round_value,
+                    "location": location_value,
+                    "context": context_value,
+                    "tournament_name": tournament_name_value,
+                    "tournament_stage": tournament_stage_value,
+                }
+                # El marcador ya vive en el panel "Cerrar partido". Solo lo tocamos aquí si el
+                # formulario lo envía explícitamente (compat), para no borrarlo sin querer.
+                if "score_for" in request.POST:
+                    info["score_for"] = request.POST.get("score_for")
+                if "score_against" in request.POST:
+                    info["score_against"] = request.POST.get("score_against")
+                _apply_match_info_overrides(match, primary_team, info)
                 changed = []
                 if match_date and match.date != match_date:
                     match.date = match_date
@@ -77771,9 +77853,9 @@ def match_editor_page(request, match_id):
                     changed.append("kickoff_time")
                 if changed:
                     match.save(update_fields=changed)
-                # Si el partido tiene marcador y aún no tiene fuente de stats, es "solo resultado"
-                # (guardar el marcador NO degrada un partido registrado en vivo/manual: lo evita el helper).
-                if match.home_score is not None or match.away_score is not None:
+                if ("score_for" in request.POST or "score_against" in request.POST) and (
+                    match.home_score is not None or match.away_score is not None
+                ):
                     _set_match_stats_source(match, Match.STATS_SOURCE_RESULT)
                 try:
                     _sync_match_score_from_events(match, primary_team)

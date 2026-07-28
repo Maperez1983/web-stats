@@ -76,6 +76,97 @@
       {% if message %}<p class="alert ok">{{ message }}</p>{% endif %}
       {% if error %}<p class="alert err">{{ error }}</p>{% endif %}
 
+      <section class="panel" id="close-match-panel" style="border:1px solid rgba(56,189,248,0.35);">
+        <h2 style="margin:0 0 0.2rem;">Cerrar partido</h2>
+        <p style="margin:0 0 0.85rem;color:#94a3b8;font-weight:750;max-width:920px;">
+          Elige cuánto detalle quieres registrar. Todo se guarda de una vez.
+        </p>
+        <form method="post" id="close-match-form">
+          {% csrf_token %}
+          <input type="hidden" name="form_action" value="match_close_save" />
+          {% if match.stats_source == 'live' or match.stats_source == 'manual' %}
+            <input type="hidden" name="close_level" id="close_level" value="full" />
+          {% else %}
+            <input type="hidden" name="close_level" id="close_level" value="result_only" />
+          {% endif %}
+          <div class="close-levels" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.9rem;">
+            <button type="button" class="btn close-level-btn" data-level="result_only">Solo resultado</button>
+            <button type="button" class="btn close-level-btn" data-level="manual_minutes">Resultado + minutos</button>
+            <button type="button" class="btn close-level-btn" data-level="full">Estadísticas completas</button>
+          </div>
+
+          <div class="close-result" style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-end;margin-bottom:0.6rem;">
+            <div><label>Marcador (a favor)</label><input name="score_for" value="{{ score_for }}" inputmode="numeric" placeholder="-" style="max-width:90px;" /></div>
+            <div><label>Marcador (en contra)</label><input name="score_against" value="{{ score_against }}" inputmode="numeric" placeholder="-" style="max-width:90px;" /></div>
+          </div>
+
+          <div class="close-minutes" id="close-minutes" hidden>
+            <div style="display:flex;gap:0.5rem;align-items:center;margin:0.4rem 0 0.6rem;flex-wrap:wrap;">
+              <span style="font-weight:800;color:#cbd5e1;">Minutos por jugador</span>
+              <span style="flex:1;"></span>
+              <input type="number" id="bulk-minutes" min="0" max="200" placeholder="35" style="max-width:90px;" />
+              <button type="button" class="btn" id="apply-all-min">Aplicar a todos</button>
+            </div>
+            <div style="overflow:auto;">
+              <table>
+                <thead><tr><th style="width:300px;">Jugador</th><th style="width:120px;">Minutos</th><th style="width:100px;">Goles</th><th style="width:100px;">Asist</th></tr></thead>
+                <tbody>
+                  {% for row in manual_player_stats_rows %}
+                    {% with p=row.player %}
+                    <tr>
+                      <td><strong>#{{ p.number|default:"--" }} · {{ p.name }}</strong> <small>{% if p.position %}{{ p.position|display_position }}{% endif %}</small></td>
+                      <td><input type="number" class="close-min-input" name="minutes_{{ p.id }}" min="0" max="200" value="{% if row.minutes != None %}{{ row.minutes }}{% endif %}" placeholder="Auto" /></td>
+                      <td><input type="number" min="0" max="20" name="goals_{{ p.id }}" value="{% if row.goals != None %}{{ row.goals }}{% endif %}" placeholder="—" /></td>
+                      <td><input type="number" min="0" max="20" name="assists_{{ p.id }}" value="{% if row.assists != None %}{{ row.assists }}{% endif %}" placeholder="—" /></td>
+                    </tr>
+                    {% endwith %}
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            <p style="margin:0.5rem 0 0;color:#94a3b8;font-weight:700;">Consejo: escribe los minutos (ej. 35), o usa “Aplicar a todos”. Deja goles/asist en blanco si no los cuentas.</p>
+          </div>
+
+          <div class="close-full" id="close-full" hidden>
+            <p style="margin:0.4rem 0 0;color:#cbd5e1;font-weight:700;max-width:920px;">
+              Para estadísticas completas (acción por acción), regístralas en vivo o manualmente:
+              <a href="{% url 'match-action-page' %}?match_id={{ match.id }}&stage=close&team={{ primary_team_id }}" style="color:#7dd3fc;text-decoration:underline;">Registro de acciones</a>,
+              o en la sección “Edición manual · acciones” de abajo. El marcador de arriba se guarda igual.
+            </p>
+          </div>
+
+          <div style="display:flex;justify-content:flex-end;margin-top:0.9rem;">
+            <button class="btn primary" type="submit">Guardar cierre</button>
+          </div>
+        </form>
+      </section>
+      <script>
+        (function(){
+          var form = document.getElementById('close-match-form');
+          if(!form) return;
+          var levelInput = document.getElementById('close_level');
+          var minutesBox = document.getElementById('close-minutes');
+          var fullBox = document.getElementById('close-full');
+          var btns = form.querySelectorAll('.close-level-btn');
+          function apply(level){
+            levelInput.value = level;
+            btns.forEach(function(b){ b.classList.toggle('primary', b.dataset.level === level); });
+            if(minutesBox) minutesBox.hidden = (level !== 'manual_minutes');
+            if(fullBox) fullBox.hidden = (level !== 'full');
+          }
+          btns.forEach(function(b){ b.addEventListener('click', function(){ apply(b.dataset.level); }); });
+          apply(levelInput.value || 'result_only');
+          var applyAll = document.getElementById('apply-all-min');
+          if(applyAll){
+            applyAll.addEventListener('click', function(){
+              var v = String((document.getElementById('bulk-minutes')||{}).value || '').trim();
+              if(v === '') return;
+              form.querySelectorAll('.close-min-input').forEach(function(inp){ inp.value = v; });
+            });
+          }
+        })();
+      </script>
+
       <section class="panel">
         <h2 style="margin:0 0 0.6rem;">Datos del partido</h2>
         <form method="post">
@@ -125,84 +216,15 @@
               <label>Fase</label>
               <input name="tournament_stage" value="{{ match.tournament_stage|default:'' }}" placeholder="Grupo, cuartos, final..." />
             </div>
-            <div style="grid-column: span 1;">
-              <label>Marcador (a favor)</label>
-              <input name="score_for" value="{{ score_for }}" inputmode="numeric" placeholder="-" />
-            </div>
-            <div style="grid-column: span 1;">
-              <label>Marcador (en contra)</label>
-              <input name="score_against" value="{{ score_against }}" inputmode="numeric" placeholder="-" />
-            </div>
             <div style="grid-column: span 2; display:flex; justify-content:flex-end; gap:0.6rem;">
-              <button class="btn primary" type="submit">Guardar</button>
+              <button class="btn primary" type="submit">Guardar datos</button>
             </div>
           </div>
         </form>
       </section>
 
-      <section class="panel">
-        <h2 style="margin:0 0 0.35rem;">Minutos / goles / asistencias (manual)</h2>
-        <p style="margin:0 0 0.85rem;color:#94a3b8;font-weight:750;max-width: 920px;">
-          Para categorías con <strong>cambios ilimitados</strong>, este selector fija los minutos jugados por partido (y opcionalmente goles/asistencias)
-          aunque no se registren acciones. Se usa en informes y % de participación.
-        </p>
-	        <form method="post">
-	          {% csrf_token %}
-	          <input type="hidden" name="form_action" value="manual_player_stats_save" />
-	          <div style="overflow:auto;">
-	            <table>
-	              <thead>
-	                <tr>
-	                  <th style="width: 300px;">Jugador</th>
-	                  <th style="width: 140px;">Minutos</th>
-	                  <th style="width: 110px;">Goles</th>
-	                  <th style="width: 110px;">Asist</th>
-	                </tr>
-	              </thead>
-	              <tbody>
-	                {% for row in manual_player_stats_rows %}
-	                  {% with p=row.player %}
-	                  <tr>
-	                    <td>
-	                      <strong>#{{ p.number|default:"--" }} · {{ p.name }}</strong>
-	                      <small>{% if p.position %}{{ p.position|display_position }}{% endif %}</small>
-	                    </td>
-	                    <td>
-	                      <select name="minutes_{{ p.id }}">
-	                        <option value="" {% if row.minutes == None %}selected{% endif %}>Auto</option>
-	                        {% for m in minute_options %}
-	                          <option value="{{ m }}" {% if row.minutes != None and row.minutes == m %}selected{% endif %}>{{ m }}'</option>
-	                        {% endfor %}
-	                      </select>
-	                    </td>
-	                    <td>
-	                      <input type="number" min="0" max="20" name="goals_{{ p.id }}" value="{% if row.goals != None %}{{ row.goals }}{% endif %}" placeholder="—" />
-	                    </td>
-	                    <td>
-	                      <input type="number" min="0" max="20" name="assists_{{ p.id }}" value="{% if row.assists != None %}{{ row.assists }}{% endif %}" placeholder="—" />
-	                    </td>
-	                  </tr>
-	                  {% endwith %}
-	                {% endfor %}
-	              </tbody>
-	            </table>
-	          </div>
-	          <div style="display:flex;justify-content:flex-end;margin-top:0.75rem;">
-	            <button class="btn primary" type="submit">Guardar</button>
-	          </div>
-	          <div style="display:flex;flex-wrap:wrap;gap:0.6rem;justify-content:space-between;align-items:center;margin:0.2rem 0 0.15rem;">
-            <div style="font-weight:800;color:#cbd5e1;font-size:0.86rem;">Totales: <strong style="color:#fde68a;">{{ manual_goals_total }}</strong> goles · <strong style="color:#fde68a;">{{ manual_assists_total }}</strong> asistencias</div>
-          </div>
-          {% if goals_mismatch %}
-          <p style="margin:0.55rem 0 0;padding:0.55rem 0.75rem;border-radius:12px;background:rgba(250,204,21,0.12);border:1px solid rgba(250,204,21,0.4);color:rgba(255,242,199,0.96);font-weight:800;font-size:0.85rem;">⚠ La suma de goles por jugador ({{ manual_goals_total }}) no coincide con el marcador a favor ({{ score_for|default:"—" }}). Revisa cuál es el correcto.</p>
-          {% endif %}
-          <p style="margin:0.65rem 0 0;color:#94a3b8;font-weight:700;">
-	            Consejo: si solo quieres forzar minutos, deja goles/asistencias en blanco.
-	          </p>
-	        </form>
-	      </section>
 
-	      <section class="panel">
+      <section class="panel">
 	        <h2 style="margin:0 0 0.6rem;">Edición manual · acciones</h2>
 	        {% if match.stats_source == 'live' %}
 	        <p style="margin:0 0 0.85rem;padding:0.6rem 0.8rem;border-radius:12px;background:rgba(250,204,21,0.12);border:1px solid rgba(250,204,21,0.4);color:rgba(255,242,199,0.96);font-weight:800;font-size:0.86rem;">
