@@ -2014,6 +2014,11 @@
       .broadcast-main.camera-plan .pitch-stage {
         transform: none;
         padding: 0;
+        width: 100%;
+        max-width: 100%;
+        filter: none;
+        display: flex;
+        justify-content: center;
       }
       /* Quita los adornos broadcast del escenario (óvalo/sombra superior e inferior). */
       .broadcast-main.camera-plan .pitch-stage::before,
@@ -2040,19 +2045,30 @@
       .broadcast-main.camera-plan {
         background: transparent;
         box-shadow: none;
+        min-height: 0;
+        border-radius: 0;
       }
+      /* Sin marco oscuro: el césped es el protagonista, no una caja dentro de otra. */
       .broadcast-main.camera-plan .xi-stadium {
         grid-template-columns: 0 minmax(0, 1fr) 0;
         grid-template-rows: 0 auto 0;
-        background: rgba(2, 6, 23, 0.32);
+        background: transparent;
+        box-shadow: none;
+        border-radius: 0;
+        width: 100%;
+        max-width: 100%;
+      }
+      .broadcast-main.camera-plan .xi-stadium::before,
+      .broadcast-main.camera-plan .xi-stadium-center::before {
+        display: none !important;
       }
       .broadcast-main.camera-plan .xi-stadium-center {
         max-height: none;
-        padding: clamp(6px, 1.4vmin, 14px);
+        padding: 0;
       }
-      /* El campo ocupa el ancho disponible: césped hiperrealista protagonista. */
+      /* El campo usa casi toda la altura del viewport: césped protagonista. */
       .broadcast-main.camera-plan .xi-stadium .field {
-        width: min(100%, 640px, calc((100vh - 12rem) * 0.62));
+        width: min(100%, calc((100vh - 5.5rem) * 0.6));
       }
       /* Césped IGUAL que el board del home del entrenador (_coach_pitch_board.html):
          imagen limpia con borde fino + sombra interior suave. Quitamos el overlay de
