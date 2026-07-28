@@ -30398,6 +30398,13 @@
       return [30, 138, 60];
     };
     const AVATAR_BASE_URL = '/static/football/images/players/';
+    // Chapa con escudo (base sin dorsal): local verdiblanca, visitante amarilla lisa, portero azul/negra.
+    const CHAPA_BASE_URL = '/static/football/images/chapa/';
+    const chapaBaseUrlForToken = (isGoalkeeper, isAway) => {
+      if (isGoalkeeper) return `${CHAPA_BASE_URL}chapa_${isAway ? 'gk_negra' : 'gk_azul'}.png`;
+      if (isAway) return `${CHAPA_BASE_URL}chapa_away.png`;
+      return `${CHAPA_BASE_URL}chapa_local.png`;
+    };
     const AVATAR_FIELD_COLORS = { verde: [30, 138, 60], amarilla: [240, 206, 20], blanca: [238, 238, 238], turquesa: [26, 163, 163] };
     const AVATAR_GK_COLORS = { azul: [37, 99, 235], rojo: [214, 40, 40], negro: [26, 26, 29], magenta: [190, 44, 150] };
     const nearestAvatarColorKey = (hex, table) => {
@@ -31353,6 +31360,21 @@
 			          });
 			          tokenShadow.data = { role: 'token_shadow' };
 			          tokenParts.push(tokenShadow);
+			          // Chapa con escudo: usa la imagen base (local verdiblanca / visitante amarilla /
+			          // portero azul) — o el asset real del jugador si lo tiene (Fase 3) — como disco.
+			          // Si la imagen no está cargada, cae al disco vectorial de siempre (fallback).
+			          const __chapaImgUrl = (options && options.assetUrl)
+			            ? (resolvePlayerPhotoUrl(options.assetUrl) || safeText(options.assetUrl))
+			            : chapaBaseUrlForToken(isGoalkeeper, isAway);
+			          const __chapaEl = __chapaImgUrl ? (getReadyAvatarImage(__chapaImgUrl) || ensureAvatarImage(__chapaImgUrl)) : null;
+			          const __useChapaImg = !!(__chapaEl && __chapaEl.complete && (__chapaEl.naturalWidth || __chapaEl.width));
+			          if (__useChapaImg) {
+			            const __cs = (radius * 2.34) / Math.max(1, __chapaEl.naturalHeight || __chapaEl.height || 1);
+			            const __cimg = new fabric.Image(__chapaEl, { left: 0, top: 0, originX: 'center', originY: 'center', selectable: false, evented: false, scaleX: __cs, scaleY: __cs });
+			            try { applyRenderableQuality(__cimg, { strokeUniform: false }); } catch (e) { /* ignore */ }
+			            __cimg.data = { role: 'token_base' };
+			            tokenParts.push(__cimg);
+			          } else {
 			          // Borde exterior oscuro para que la chapa destaque sobre líneas blancas/césped.
 			          const outerRing = new fabric.Circle({
 			            radius: radius + 2,
@@ -31515,6 +31537,7 @@
 			          stripeGroup.data = { role: 'token_stripes' };
 			          tokenParts.push(stripeGroup);
 			        }
+			        } // fin fallback: disco de chapa dibujado (cuando no hay imagen base)
 			        const faceRing = new fabric.Circle({
 			          radius: Math.max(2, radius - 4),
 			          fill: '',
@@ -31643,7 +31666,7 @@
 			          evented: false,
 			        });
 			        gloss.data = { role: 'token_gloss' };
-			        tokenParts.push(gloss);
+			        if (!__useChapaImg) tokenParts.push(gloss); // taparía la chapa con escudo
 			        const centerGlow = new fabric.Circle({
 			          radius: radius - 8,
 			          originX: 'center',
@@ -31664,8 +31687,8 @@
 		          top: 0,
 		          fontSize: 18.8,
 		          fontWeight: '900',
-		          fill: isAway ? '#0b1220' : '#ffffff',
-		          stroke: isAway ? 'rgba(255,255,255,0.75)' : 'rgba(2,6,23,0.65)',
+		          fill: __useChapaImg ? (isGoalkeeper ? '#ffffff' : (isAway ? '#0b1220' : '#0b5d2a')) : (isAway ? '#0b1220' : '#ffffff'),
+		          stroke: __useChapaImg ? (isGoalkeeper ? 'rgba(2,6,23,0.60)' : 'rgba(255,255,255,0.88)') : (isAway ? 'rgba(255,255,255,0.75)' : 'rgba(2,6,23,0.65)'),
 		          strokeWidth: 2.9,
 		          paintFirst: 'stroke',
 		          shadow: 'rgba(15,23,42,0.52) 0 1px 2px',
