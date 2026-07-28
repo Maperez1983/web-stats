@@ -34506,7 +34506,10 @@
 	        return;
 	      }
       // Fondo sólido para que la preview y el PDF no muestren "barras" por transparencia.
-	      context.fillStyle = '#ffffff';
+	      // Verde césped (no blanco): superficies con foto (2D plano/estadio) NO componen su campo en
+	      // el export (solo el SVG), asi que sin esto quedaban las fichas sobre blanco. Con verde parece
+	      // un campo; las superficies que SI componen césped/SVG lo tapan igual.
+	      context.fillStyle = '#2f7d32';
 	      context.fillRect(0, 0, output.width, output.height);
 
 	      // Renderiza la capa Fabric en alta resolución (sin perder nitidez).
