@@ -32586,6 +32586,52 @@ def training_session_detail_page(request, session_id):
                     except Exception:
                         pass
 
+                # Fase 7: multas automáticas al confirmar. Llega tarde -> 5€; no comparece sin
+                # justificar (ausente) -> 10€. Justificado/lesionado NO multan. Idempotente: no
+                # re-multa la misma sesión (marcamos la nota con [sesion:ID] y comprobamos antes).
+                try:
+                    _fine_marker = f"[sesion:{int(session_obj.id)}]"
+                    _already_fined = set(
+                        int(_x)
+                        for _x in PlayerFine.objects.filter(note__contains=_fine_marker).values_list(
+                            "player_id", flat=True
+                        )
+                    )
+                    _fine_rules = {
+                        TrainingSessionAttendance.STATUS_LATE: (PlayerFine.REASON_LATE, 5, "Llega tarde"),
+                        TrainingSessionAttendance.STATUS_ABSENT: (
+                            PlayerFine.REASON_ABSENCE,
+                            10,
+                            "No comparece sin justificar",
+                        ),
+                    }
+                    try:
+                        _u = request.user
+                        _by = (_u.get_full_name() or _u.username) if _u and _u.is_authenticated else ""
+                    except Exception:
+                        _by = ""
+                    _by = (_by or "Automática")[:80]
+                    _new_fines = []
+                    for _mk in TrainingSessionAttendance.objects.filter(session=session_obj).select_related("player"):
+                        _rule = _fine_rules.get(str(getattr(_mk, "status", "") or "").strip())
+                        _pl = getattr(_mk, "player", None)
+                        if not _rule or not _pl or int(_pl.id) in _already_fined:
+                            continue
+                        _reason, _amount, _txt = _rule
+                        _new_fines.append(
+                            PlayerFine(
+                                player=_pl,
+                                reason=_reason,
+                                amount=_amount,
+                                note=f"{_fine_marker} {_txt} · {session_obj.session_date:%d/%m/%Y}"[:220],
+                                created_by=_by,
+                            )
+                        )
+                    if _new_fines:
+                        PlayerFine.objects.bulk_create(_new_fines)
+                except Exception:
+                    pass
+
                 # Persistimos confirmación en `content` (sin migraciones).
                 try:
                     next_fields = plan_fields.copy()
