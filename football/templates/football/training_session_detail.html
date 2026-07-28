@@ -210,6 +210,17 @@
 	      #session-edit .player-cell { font-weight:950; letter-spacing:0.02em; }
       .toggle-row { display:flex; gap:0.4rem; flex-wrap:wrap; align-items:center; }
       .view-hidden { display:none !important; }
+      /* Edición IN SITU sobre la ficha Club (WYSIWYG por-campo) */
+      #session-view .cev { font: inherit; color:#0f172a; width:100%; box-sizing:border-box;
+        background:#fff; border:1px dashed var(--club-border); border-radius:8px; padding:0.32rem 0.45rem; }
+      #session-view select.cev { -webkit-appearance:auto; appearance:auto; }
+      #session-view .cev:focus { outline:none; border-style:solid; border-color:var(--club-primary);
+        box-shadow:0 0 0 3px rgba(14,165,233,0.18); }
+      #session-view textarea.cev { min-height:2.6rem; resize:vertical; line-height:1.4; }
+      #session-view .cev-field { display:flex; flex-direction:column; gap:0.2rem; margin:0 0 0.55rem;
+        font-size:0.7rem; letter-spacing:0.06em; text-transform:uppercase; color:var(--club-muted); font-weight:900; }
+      #session-view .cev-field .cev { text-transform:none; letter-spacing:0; font-weight:600; color:#0f172a; }
+      .content { position:relative; }
       @media (max-width: 720px) {
         .topbar { padding: 0.9rem; }
         .topbar-actions { width:100%; justify-content:flex-start; }
@@ -236,7 +247,12 @@
 	          <a class="btn secondary" href="{{ planner_url }}" title="Ir a biblioteca para seleccionar tareas" aria-label="Añadir tareas">➕ Tareas</a>
 	          <a class="btn" href="{% url 'session-plan-pdf' session.id %}?style=uefa" data-pdf-viewer="1" data-pdf-title="Sesión · {{ session.focus }} · UEFA">📄 PDF UEFA</a>
 	          <a class="btn" href="{% url 'session-plan-pdf' session.id %}?style=club" data-pdf-viewer="1" data-pdf-title="Sesión · {{ session.focus }}">📄 PDF Club</a>
-	          <button type="button" class="btn primary" id="toggle-edit" onclick="try{var u=new URL(location.href);u.searchParams.set('edit','ficha');history.replaceState(null,'',u.toString());}catch(e){}">✏️ Editar ficha</button>
+	          {% if session_inline_edit %}
+          <a class="btn secondary" href="{% url 'training-session-detail' session.id %}{% if team %}?team={{ team.id }}{% endif %}">👁️ Ver ficha</a>
+          {% else %}
+          <a class="btn primary" href="?edit=ficha{% if team %}&team={{ team.id }}{% endif %}">✏️ Editar ficha</a>
+          {% endif %}
+          <button type="button" class="btn" id="toggle-edit" title="Asistencia, post-sesión y cierre de la sesión">⚙️ Cierre / asistencia</button>
 	        </div>
 	      </div>
 
@@ -268,44 +284,62 @@
 	        </div>
 
 	        <div class="content">
-	          <div class="section-title">Detalles de la sesión</div>
+	          {% if session_inline_edit %}
+	          <form method="post" id="session-inline-form">
+	            {% csrf_token %}
+	            <input type="hidden" name="action" value="save" />
+	            <input type="hidden" name="return_to" value="edit" />
+	            <input type="hidden" name="inline_edit" value="1" />
+	            <input type="hidden" name="show_in_agenda_present" value="1" />
+	            <input type="hidden" name="team" value="{{ team.id }}" />
+	            <input type="hidden" name="show_in_agenda" value="{% if plan_fields.agenda_hidden != '1' %}1{% else %}0{% endif %}" />
+	          {% endif %}
+	          <div class="section-title">Detalles de la sesión{% if session_inline_edit %} <span style="opacity:.7;font-weight:700;text-transform:none;letter-spacing:0;">· editando</span>{% endif %}</div>
 	          <table class="table" style="margin-bottom:12px;">
-			<tr>
-			  <td style="width:18%;">Lugar</td>
-			  <td><div class="v">{% if plan_fields.location %}{{ plan_fields.location }}{% else %}—{% endif %}</div></td>
-			  <td style="width:18%;">Estado</td>
-			  <td><div class="v">{{ session.get_status_display }}</div></td>
-			</tr>
-			<tr>
-			  <td>Duración</td>
-			  <td><div class="v">{{ session.duration_minutes }} min <span style="opacity:.68; font-weight:600; font-size:.82em;">planificada{% if task_minutes_total and task_minutes_total != session.duration_minutes %} · {{ task_minutes_total }} en tareas{% endif %}</span></div></td>
-			  <td>Intensidad</td>
-			  <td><div class="v">{{ session.get_intensity_display }}</div></td>
-			</tr>
-			<tr>
-			  <td>Tareas</td>
-			  <td><div class="v">{{ tasks_count }}</div></td>
-			  <td>Carga (RPE)</td>
-			  <td><div class="v">{% if workload_points %}{{ workload_points }} ({{ workload_rpe }}×{{ workload_minutes }}'){% else %}—{% endif %}</div></td>
-			</tr>
-			<tr>
-			  <td>Workflow</td>
-			  <td colspan="3"><div class="v">{{ session.get_workflow_status_display|default:"—" }}{% if session.workflow_updated_at %} <span style="color:var(--club-muted);">· {{ session.workflow_updated_at|date:"d/m H:i" }}</span>{% endif %}</div></td>
-			</tr>
+	            {% if session_inline_edit %}
+	            <tr><td style="width:18%;">Nombre / foco</td><td colspan="3"><input class="cev" type="text" name="focus" maxlength="140" value="{{ session.focus }}" required /></td></tr>
+	            <tr><td>Fecha</td><td><input class="cev" type="date" name="session_date" value="{{ session.session_date|date:'Y-m-d' }}" required /></td><td>Hora</td><td><input class="cev" type="time" name="start_time" value="{% if session.start_time %}{{ session.start_time|time:'H:i' }}{% endif %}" /></td></tr>
+	            <tr><td>Lugar</td><td><input class="cev" type="text" name="location" maxlength="120" value="{{ plan_fields.location }}" placeholder="Campo / pista…" /></td><td>Estado</td><td><select class="cev" name="status">{% for value, label in session_status_choices %}<option value="{{ value }}" {% if session.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td></tr>
+	            <tr><td>Duración (min)</td><td><input class="cev" type="number" name="duration_minutes" min="30" max="180" value="{{ session.duration_minutes }}" /></td><td>Intensidad</td><td><select class="cev" name="intensity">{% for value, label in session_intensity_choices %}<option value="{{ value }}" {% if session.intensity == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td></tr>
+	            <tr><td>Tareas</td><td><div class="v">{{ tasks_count }}</div></td><td>Carga (RPE)</td><td><div class="v">{% if workload_points %}{{ workload_points }}{% else %}—{% endif %}</div></td></tr>
+	            <tr><td>Workflow</td><td><select class="cev" name="workflow_status">{% for value, label in workflow_status_choices %}<option value="{{ value }}" {% if session.workflow_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td><td>Motivo</td><td><input class="cev" type="text" name="workflow_reason" maxlength="220" value="{{ session.workflow_reason }}" placeholder="Ajuste por carga / lluvia…" /></td></tr>
+	            {% else %}
+	            <tr><td style="width:18%;">Lugar</td><td><div class="v">{% if plan_fields.location %}{{ plan_fields.location }}{% else %}—{% endif %}</div></td><td style="width:18%;">Estado</td><td><div class="v">{{ session.get_status_display }}</div></td></tr>
+	            <tr><td>Duración</td><td><div class="v">{{ session.duration_minutes }} min <span style="opacity:.68; font-weight:600; font-size:.82em;">planificada{% if task_minutes_total and task_minutes_total != session.duration_minutes %} · {{ task_minutes_total }} en tareas{% endif %}</span></div></td><td>Intensidad</td><td><div class="v">{{ session.get_intensity_display }}</div></td></tr>
+	            <tr><td>Tareas</td><td><div class="v">{{ tasks_count }}</div></td><td>Carga (RPE)</td><td><div class="v">{% if workload_points %}{{ workload_points }} ({{ workload_rpe }}×{{ workload_minutes }}'){% else %}—{% endif %}</div></td></tr>
+	            <tr><td>Workflow</td><td colspan="3"><div class="v">{{ session.get_workflow_status_display|default:"—" }}{% if session.workflow_updated_at %} <span style="color:var(--club-muted);">· {{ session.workflow_updated_at|date:"d/m H:i" }}</span>{% endif %}</div></td></tr>
+	            {% endif %}
 	          </table>
 
-	          <div class="section-title">Contenido / explicación <span style="opacity:.7; font-weight:700; text-transform:none; letter-spacing:0;">· resumen</span></div>
+	          <div class="section-title">Contenido / explicación{% if not session_inline_edit %} <span style="opacity:.7; font-weight:700; text-transform:none; letter-spacing:0;">· resumen</span>{% endif %}</div>
 	          <div class="box" style="margin-bottom:12px;">
+	            {% if session_inline_edit %}
+	            <label class="cev-field">Objetivo de la sesión (medible)<textarea class="cev" name="objective" rows="2" maxlength="1200" placeholder="Ej: atraer y progresar por dentro…">{{ plan_fields.objective }}</textarea></label>
+	            <div style="display:flex; gap:0.8rem; flex-wrap:wrap; align-items:flex-end;"><label class="cev-field" style="max-width:9rem;">RPE objetivo (1-10)<input class="cev" type="number" name="rpe_target" min="1" max="10" value="{{ plan_fields.rpe_target }}" /></label><label class="cev-field" style="flex:1; min-width:12rem;">Criterios de éxito<textarea class="cev" name="success_criteria" rows="2" maxlength="2000">{{ plan_fields.success_criteria }}</textarea></label></div>
+	            <label class="cev-field">Calentamiento<textarea class="cev" name="warmup" rows="2" maxlength="4000">{{ plan_fields.warmup }}</textarea></label>
+	            <label class="cev-field">Activación<textarea class="cev" name="activation" rows="2" maxlength="4000">{{ plan_fields.activation }}</textarea></label>
+	            <label class="cev-field">Parte principal<textarea class="cev" name="main" rows="3" maxlength="6000">{{ plan_fields.main }}</textarea></label>
+	            <label class="cev-field">Vuelta a la calma<textarea class="cev" name="cooldown" rows="2" maxlength="4000">{{ plan_fields.cooldown }}</textarea></label>
+	            <div style="display:flex; gap:0.8rem; flex-wrap:wrap;"><label class="cev-field" style="flex:1; min-width:10rem;">Materiales<input class="cev" type="text" name="materials" maxlength="220" value="{{ plan_fields.materials }}" /></label><label class="cev-field" style="max-width:12rem;">Nº jugadores<input class="cev" type="text" name="player_count" maxlength="60" value="{{ plan_fields.player_count }}" /></label></div>
+	            <label class="cev-field">Ausencias / incidencias<textarea class="cev" name="absences" rows="2" maxlength="4000">{{ plan_fields.absences }}</textarea></label>
+	            <label class="cev-field">Notas<textarea class="cev" name="notes" rows="2" maxlength="8000">{{ plan_fields.notes }}</textarea></label>
+	            {% else %}
 	            <p style="margin:0 0 8px; color:var(--club-muted); font-size:11px;">Resumen narrativo por fases. El <strong>detalle con pizarra</strong> está abajo, en <strong>Tareas de la sesión</strong>.</p>
 	            {% if plan_fields.warmup %}<p><strong>Calentamiento:</strong><br />{{ plan_fields.warmup|linebreaksbr }}</p>{% endif %}
 	            {% if plan_fields.activation %}<p><strong>Activación:</strong><br />{{ plan_fields.activation|linebreaksbr }}</p>{% endif %}
 	            {% if plan_fields.main %}<p><strong>Parte principal:</strong><br />{{ plan_fields.main|linebreaksbr }}</p>{% endif %}
 	            {% if plan_fields.cooldown %}<p><strong>Vuelta a la calma:</strong><br />{{ plan_fields.cooldown|linebreaksbr }}</p>{% endif %}
 	            {% if plan_fields.notes %}<p><strong>Notas:</strong><br />{{ plan_fields.notes|linebreaksbr }}</p>{% endif %}
-	            {% if not plan_fields.warmup and not plan_fields.activation and not plan_fields.main and not plan_fields.cooldown and not plan_fields.notes %}
-	              <span style="color:var(--club-muted);">(Sin textos guardados)</span>
+	            {% if not plan_fields.warmup and not plan_fields.activation and not plan_fields.main and not plan_fields.cooldown and not plan_fields.notes %}<span style="color:var(--club-muted);">(Sin textos guardados)</span>{% endif %}
 	            {% endif %}
 	          </div>
+	          {% if session_inline_edit %}
+	          <div style="position:sticky; bottom:0; z-index:5; display:flex; align-items:center; justify-content:space-between; gap:0.8rem; margin:0 0 12px; padding:0.7rem 0.9rem; background:rgba(2,6,23,0.92); border:1px solid rgba(148,163,184,0.25); border-radius:14px; backdrop-filter:blur(6px);">
+	            <span class="meta">Editas la ficha de la sesión. La asistencia, participación y confirmación tienen su propio guardado abajo.</span>
+	            <span style="display:flex; gap:0.5rem;"><a class="btn secondary" href="{% url 'training-session-detail' session.id %}{% if team %}?team={{ team.id }}{% endif %}">Salir</a><button class="btn primary" type="submit">💾 Guardar ficha</button></span>
+	          </div>
+	          </form>
+	          {% endif %}
 
 	          <div class="section-title" id="asistencia">Asistencia</div>
 	          <div class="box" style="margin-bottom:12px;">
@@ -954,8 +988,7 @@
 	        toView.addEventListener('click', showView);
 
 	        const returnTo = "{{ return_to|default:''|escapejs }}";
-	        const inlineEdit = {% if session_inline_edit %}true{% else %}false{% endif %};
-	        if (inlineEdit || returnTo === 'edit' || returnTo === 'attendance') {
+	        if (returnTo === 'edit' || returnTo === 'attendance') {
 	          showEdit();
 	          if (returnTo === 'attendance') {
 	            const anchor = document.getElementById('asistencia-edit');
