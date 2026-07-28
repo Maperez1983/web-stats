@@ -216,21 +216,22 @@ self.addEventListener('fetch', (event) => {{
     return;
   }}
 
-  // Estáticos: cache-first.
+  // Estáticos: stale-while-revalidate.
+  // Antes era cache-first puro: si un CSS/JS quedaba cacheado, el usuario seguía viendo la
+  // versión vieja tras un deploy aunque recargara (y el bypass `?nocache=1` solo cubre la
+  // navegación, no los subrecursos). Ahora servimos la copia cacheada al instante PERO SIEMPRE
+  // pedimos la fresca en segundo plano y actualizamos la caché, así el siguiente reload ya trae
+  // lo nuevo sin trucos. Si `?nocache=1` está en la URL, saltamos la caché por completo.
   if (sameOrigin && isCacheableStatic(url)) {{
     event.respondWith((async () => {{
-      const cached = await caches.match(req);
-      if (cached) return cached;
-      try {{
-        const resp = await fetch(req);
-        if (resp && resp.ok) {{
-          const cache = await caches.open(STATIC_CACHE);
-          cache.put(req, resp.clone()).catch(() => {{}});
-        }}
+      const bypass = url.searchParams && url.searchParams.get('nocache') === '1';
+      const cache = await caches.open(STATIC_CACHE);
+      const cached = bypass ? null : await cache.match(req);
+      const network = fetch(req, bypass ? {{ cache: 'reload' }} : undefined).then((resp) => {{
+        if (resp && resp.ok) cache.put(req, resp.clone()).catch(() => {{}});
         return resp;
-      }} catch (e) {{
-        return cached || new Response('', {{ status: 504 }});
-      }}
+      }}).catch(() => cached);
+      return cached || network;
     }})());
     return;
   }}
