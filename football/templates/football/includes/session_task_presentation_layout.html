@@ -215,6 +215,11 @@
           {% csrf_token %}
           <input type="hidden" name="detail_action" value="update_task_detail" />
         {% endif %}
+        {% if task.cover_present or task_obj.cover_present %}
+        <div style="margin:0 0 0.65rem; border-radius:16px; overflow:hidden; border:1px solid var(--club-border); box-shadow:0 8px 26px rgba(2,6,23,0.18); background:#0b1220; max-height:230px; display:flex; align-items:center; justify-content:center;">
+          <img src="{% url 'session-task-cover-file' task.id %}" alt="Portada realista de {{ task_obj.title|default:task.title }}" style="width:100%; height:100%; max-height:230px; object-fit:cover; display:block;" loading="lazy" />
+        </div>
+        {% endif %}
         <div class="club-sheet-hero">
           <table class="club-sheet-grid">
             <tr>
@@ -293,7 +298,7 @@
                   <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
                     <div>
                       <div class="club-label" style="margin-bottom:0.32rem;">Vista 2D</div>
-                      <div style="border:1px solid var(--club-soft-line); border-radius:12px; overflow:hidden; background:#fff; min-height:180px; display:flex; align-items:center; justify-content:center;">
+                      <div style="border:1px solid var(--club-soft-line); border-radius:12px; overflow:hidden; background:#fff; min-height:300px; display:flex; align-items:center; justify-content:center;">
                         {% if pc.graphic_view_2d_url %}
                         <img class="preview" src="{{ pc.graphic_view_2d_url }}" alt="Vista 2D de {{ task_obj.title|default:task.title }}" style="width:100%; display:block;" />
                         {% else %}
@@ -303,7 +308,7 @@
                     </div>
                     <div{% if pc.pdf_live_preview_mode and pc.task_preview_3d_embed_url or pc.graphic_view_3d_url %}{% else %} style="display:none"{% endif %}>
                       <div class="club-label" style="margin-bottom:0.32rem;">Vista 3D (plasmado automático)</div>
-                      <div style="border:1px solid var(--club-soft-line); border-radius:12px; overflow:hidden; background:#fff; min-height:180px; display:flex; align-items:center; justify-content:center;">
+                      <div style="border:1px solid var(--club-soft-line); border-radius:12px; overflow:hidden; background:#fff; min-height:300px; display:flex; align-items:center; justify-content:center;">
                         {% if pc.pdf_live_preview_mode and pc.task_preview_3d_embed_url %}
                         <iframe src="{{ pc.task_preview_3d_embed_url }}" loading="lazy" referrerpolicy="same-origin" title="Vista 3D (plasmado automático)" style="width:100%; min-height:260px; border:0; display:block;"></iframe>
                         {% elif pc.graphic_view_3d_url %}
@@ -315,7 +320,7 @@
                     </div>
                     <div{% if not pc.recreation_2d_url %} style="display:none"{% endif %}>
                       <div class="club-label" style="margin-bottom:0.32rem;">Recreación 2D</div>
-                      <div style="border:1px solid var(--club-soft-line); border-radius:12px; overflow:hidden; background:#fff; min-height:180px; display:flex; align-items:center; justify-content:center;">
+                      <div style="border:1px solid var(--club-soft-line); border-radius:12px; overflow:hidden; background:#fff; min-height:300px; display:flex; align-items:center; justify-content:center;">
                         {% if pc.recreation_2d_url %}
                         <img class="preview" src="{{ pc.recreation_2d_url }}" alt="Recreación 2D de {{ task_obj.title|default:task.title }}" style="width:100%; display:block;" />
                         {% else %}
@@ -325,7 +330,7 @@
                     </div>
                     <div{% if pc.pdf_live_preview_mode and pc.recreation_3d_embed_url or pc.recreation_3d_url %}{% else %} style="display:none"{% endif %}>
                       <div class="club-label" style="margin-bottom:0.32rem;">Recreación 3D</div>
-                      <div style="border:1px solid var(--club-soft-line); border-radius:12px; overflow:hidden; background:#fff; min-height:180px; display:flex; align-items:center; justify-content:center;">
+                      <div style="border:1px solid var(--club-soft-line); border-radius:12px; overflow:hidden; background:#fff; min-height:300px; display:flex; align-items:center; justify-content:center;">
                         {% if pc.pdf_live_preview_mode and pc.recreation_3d_embed_url %}
                         <iframe src="{{ pc.recreation_3d_embed_url }}" loading="lazy" referrerpolicy="same-origin" title="Recreación 3D" style="width:100%; min-height:260px; border:0; display:block;"></iframe>
                         {% elif pc.recreation_3d_url %}

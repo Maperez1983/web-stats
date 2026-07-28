@@ -33801,14 +33801,28 @@ def session_task_pdf(request, task_id):
             except Exception:
                 pass
         if getattr(task, "task_preview_image", None):
-            preview_url = _file_field_as_data_url(task.task_preview_image)
+            # 502-fix: incrustar la portada REDUCIDA (no cruda a tamaño completo). Un PNG HD de la
+            # pizarra puede pesar 2-3 MB; en base64 dentro del HTML dispara la RAM de WeasyPrint ->
+            # el worker muere (OOM) -> 502. 1600×1200 JPEG q82 es nítido para A4 y pesa una fracción.
+            try:
+                task.task_preview_image.open("rb")
+                _raw_prev = task.task_preview_image.read()
+                task.task_preview_image.close()
+            except Exception:
+                _raw_prev = b""
+            if _raw_prev:
+                preview_url = _image_bytes_as_small_data_uri(
+                    _raw_prev, mime_type="image/jpeg", max_width=1600, max_height=1200, quality=82
+                )
+            if not preview_url:
+                preview_url = _file_field_as_data_url(task.task_preview_image)
         if not preview_url:
             # 2) Fallback: preview embebida legacy en tactical_layout
             embedded = _embedded_preview_bytes_from_task(task)
             if embedded:
                 raw, mime = embedded
                 preview_url = _image_bytes_as_small_data_uri(
-                    raw, mime_type=mime or "image/jpeg", max_width=3200, max_height=2400, quality=88
+                    raw, mime_type=mime or "image/jpeg", max_width=1600, max_height=1200, quality=82
                 )
     except Exception:
         preview_url = ""
@@ -33822,6 +33836,10 @@ def session_task_pdf(request, task_id):
         pdf_style=pdf_style,
         preview_url=preview_url,
         one_page=one_page,
+        # 502-fix: NO re-renderizar el canvas en servidor para el PDF de pantalla/botón Exportar.
+        # Ya incrustamos la imagen de la pizarra (preview_url); reconstruir el canvas des-difiere el
+        # layout pesado y re-renderiza un PNG en cada visita -> +RAM/tiempo -> 502 en tareas ricas.
+        allow_live_canvas_render=False,
     )
     html = render_to_string("football/session_task_pdf.html", context)
     filename = slugify(f"tarea-{task.session.session_date}-{task.title}") or f"tarea-{task.id}"

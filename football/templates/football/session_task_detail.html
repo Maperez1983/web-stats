@@ -1481,7 +1481,7 @@
       <section class="panel task-detail-tab-panel{% if active_task_tab == 'edit' %} is-active{% endif %}" id="task-edit-panel" data-task-tab-panel="edit">
         <div class="task-edit-tab-bar" role="tablist" aria-label="Edición de la tarea">
           <button type="button" class="button task-edit-tab{% if active_task_edit_tab == 'graphic' %} is-active{% endif %}" data-task-edit-tab="graphic"{% if edit_graphic_url %} data-direct-url="{{ edit_graphic_url }}"{% endif %} role="tab" aria-selected="{% if active_task_edit_tab == 'graphic' %}true{% else %}false{% endif %}">Edición gráfica</button>
-          <button type="button" class="button task-edit-tab{% if active_task_edit_tab == 'settings' %} is-active{% endif %}" data-task-edit-tab="settings" role="tab" aria-selected="{% if active_task_edit_tab == 'settings' %}true{% else %}false{% endif %}">Configuración</button>
+          <button type="button" class="button task-edit-tab{% if active_task_edit_tab == 'settings' %} is-active{% endif %}" data-task-edit-tab="settings" role="tab" aria-selected="{% if active_task_edit_tab == 'settings' %}true{% else %}false{% endif %}">Ajustes avanzados</button>
         </div>
 
         <section class="panel task-edit-tab-panel{% if active_task_edit_tab == 'graphic' %} is-active{% endif %}" data-task-edit-tab-panel="graphic">
@@ -1502,8 +1502,8 @@
         </section>
 
         <section class="panel task-edit-tab-panel{% if active_task_edit_tab == 'settings' %} is-active{% endif %}" data-task-edit-tab-panel="settings">
-          <h2>Configuración</h2>
-          <p class="meta">Aquí se edita toda la parte técnica, descriptiva y metodológica que luego alimenta la ficha de presentación.</p>
+          <h2>Ajustes avanzados</h2>
+          <div class="msg" style="background:rgba(52,211,153,0.10); border:1px solid rgba(52,211,153,0.35);">✏️ Los campos principales (objetivo, desarrollo, material, criterios, progresión…) se editan directamente en la <strong>Ficha</strong> (pestaña Presentación → «Editar ficha»). Aquí solo quedan los <strong>ajustes avanzados</strong>: metodología, carga, superficie, categoría…</div>
           <form method="post" class="grid editor-core" id="task-detail-form">
             {% csrf_token %}
             <input type="hidden" name="detail_action" value="update_task_detail" />
