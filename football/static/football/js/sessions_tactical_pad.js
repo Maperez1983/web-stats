@@ -29257,13 +29257,34 @@
 	      if (pitchFormatInput && PITCH_FORMAT_BY_PRESET[preset]) pitchFormatInput.value = PITCH_FORMAT_BY_PRESET[preset];
 	      presetButtons.forEach((button) => button.classList.toggle('is-active', safeText(button.dataset.preset) === preset));
 	      if (surfaceTriggerLabel) surfaceTriggerLabel.textContent = PRESET_LABEL[preset] || 'Campo completo';
-		      applyPitchSurface(preset, pitchOrientation, pitchGrassStyle);
+		      const __fromWorldSP = (function(){ try { const __w = worldSize(); return (__w && __w.w > 0 && __w.h > 0) ? { w: __w.w, h: __w.h } : null; } catch (e) { return null; } })(); applyPitchSurface(preset, pitchOrientation, pitchGrassStyle);
       // Al cambiar de superficie cambia el aspect-ratio del stage. Si no reajustamos el canvas,
       // los punteros quedan desincronizados y “parece” que las chapas no se dibujan (se colocan fuera de vista).
       try {
         window.requestAnimationFrame(() => {
           try { fitCanvas(!useViewportMapping); } catch (error) { /* ignore */ }
           try { canvas.calcOffset(); } catch (error) { /* ignore */ }
+          try {
+            if (!options.silent && __fromWorldSP) {
+              const __toSP = (function(){ try { return worldSize(); } catch (e) { return null; } })();
+              if (__toSP && __toSP.w > 0 && __toSP.h > 0 && (Math.abs(__fromWorldSP.w - __toSP.w) > 0.5 || Math.abs(__fromWorldSP.h - __toSP.h) > 0.5)) {
+                const __fw = Math.max(1, __fromWorldSP.w), __fh = Math.max(1, __fromWorldSP.h);
+                const __tw = Math.max(1, __toSP.w), __th = Math.max(1, __toSP.h);
+                try { canvas.discardActiveObject(); } catch (e) { /* ignore */ }
+                (canvas.getObjects() || []).forEach((obj) => {
+                  if (!obj || !(obj.data && obj.data.kind)) return;
+                  const __c = obj.getCenterPoint ? obj.getCenterPoint() : { x: Number(obj.left) || 0, y: Number(obj.top) || 0 };
+                  const __nx = clamp(Number(__c.x) / __fw, 0, 1) * __tw;
+                  const __ny = clamp(Number(__c.y) / __fh, 0, 1) * __th;
+                  try {
+                    if (typeof obj.setPositionByOrigin === 'function' && window.fabric) obj.setPositionByOrigin(new fabric.Point(__nx, __ny), 'center', 'center');
+                    else obj.set({ left: __nx, top: __ny, originX: 'center', originY: 'center' });
+                    if (typeof obj.setCoords === 'function') obj.setCoords();
+                  } catch (e) { /* ignore */ }
+                });
+              }
+            }
+          } catch (e) { /* ignore */ }
           try { canvas.requestRenderAll(); } catch (error) { /* ignore */ }
         });
       } catch (error) {
