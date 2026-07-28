@@ -4411,6 +4411,11 @@
             <button type="button" class="secondary" id="bulk-add-clear" disabled>Limpiar</button>
             <span class="meta bulk-help">Marca tareas y asigna su segmento.</span>
           </form>
+          <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-top:0.7rem; padding-top:0.7rem; border-top:1px solid rgba(148,163,184,0.16);">
+            <a class="button" href="{% url task_builder_route_name %}?repo={{ library_repository|urlencode }}&session_id={{ session_hint_id }}&assign=1{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}" title="Crea una tarea nueva en la pizarra; se añade automáticamente a esta sesión">🎨 Crear tarea desde 0 (para esta sesión)</a>
+            <a class="button secondary" href="{% url 'training-session-detail' session_hint_id %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}" title="Ir a la ficha (formato Club) de la sesión">✓ Ir a la ficha de la sesión</a>
+            <span class="meta" style="opacity:.8;">Elige tareas de la biblioteca (agrupadas por bloque) o créalas desde 0; cuando termines, ve a la ficha.</span>
+          </div>
         </div>
         {% endif %}
                 <div class="task-list">
