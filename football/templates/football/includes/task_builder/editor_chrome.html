@@ -572,7 +572,13 @@
         var btns=tabs ? [].slice.call(tabs.querySelectorAll('button, [role=\"tab\"]')) : [];
         if(!slot || btns.length<2){ if(tries++<40){ setTimeout(attempt,150); } return; }
         if(slot.dataset.built==='1') return; slot.dataset.built='1';
+        var fichaLink=document.getElementById('task-builder-open-ficha');
+        var saveBtn=document.getElementById('task-builder-save-top');
         btns.forEach(function(tab,i){
+          // No resucitar las pestañas OCULTAS (Configuracion/Metodologia/Carga): sus datos se editan
+          // en la FICHA Club (Opcion C), no en la edicion antigua de campos.
+          var isHidden = tab.hidden || tab.getAttribute('hidden')!==null || (tab.style && tab.style.display==='none');
+          if(isHidden) return;
           var b=document.createElement('button'); b.type='button'; b.className='edc-mode'+(i===0?' is-active':'');
           b.textContent=LABELS[i] || ((tab.textContent||'').trim()) || ('Modo '+(i+1));
           b.addEventListener('click', function(){
@@ -581,6 +587,19 @@
             try{ tab.click(); }catch(e){}
           });
           slot.appendChild(b);
+          if(i===0){
+            // Boton "Datos" -> abre la FICHA Club editable. En tarea nueva (sin ficha aun), guarda
+            // primero; al guardar se ofrece "Abrir ficha".
+            var d=document.createElement('button'); d.type='button'; d.className='edc-mode'; d.textContent='Datos';
+            d.title='Editar los datos de la tarea en la ficha Club';
+            d.addEventListener('click', function(){
+              try{
+                if(fichaLink && fichaLink.getAttribute('href')){ window.location.href=fichaLink.getAttribute('href'); return; }
+                if(saveBtn){ saveBtn.click(); return; }
+              }catch(e){}
+            });
+            slot.appendChild(d);
+          }
         });
         document.body.classList.add('edc-modebar-on');
       }catch(e){}
