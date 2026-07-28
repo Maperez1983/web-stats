@@ -48450,6 +48450,20 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
         if library_sort and library_sort != "recent":
             task_library_filtered = filter_task_library_advanced(task_library_filtered, sort_key=library_sort)
 
+    # Fase 3: "Agrupar por bloque" para elegir tareas fácil al montar una sesión. Ordena por el
+    # orden de BLOCK_CHOICES (Activación · Preparación física · … · Vídeo); las sin bloque válido,
+    # al final. El template pinta una cabecera por bloque con {% ifchanged %}.
+    library_group_by_block = str(request.GET.get("library_group") or "").strip().lower() == "block"
+    if library_group_by_block and task_library_filtered:
+        _block_order = {k: i for i, (k, _l) in enumerate(SessionTask.BLOCK_CHOICES)}
+        task_library_filtered = sorted(
+            task_library_filtered,
+            key=lambda _t: (
+                _block_order.get(str(getattr(_t, "block", "") or ""), len(_block_order)),
+                str(getattr(_t, "title", "") or "").casefold(),
+            ),
+        )
+
     # Paginación de Biblioteca (evita renderizar cientos de cards y corrige el caso
     # en el que el template espera `task_library_page_items`).
     library_total = len(task_library_filtered or [])
@@ -49241,6 +49255,7 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
             "library_season_options": library_season_options,
             "library_season_selected": library_season_selected,
             "library_facets": library_facets,
+            "library_group_by_block": library_group_by_block,
             "library_facets_clear_href": library_facets_clear_href,
             "library_source_counts": library_source_counts,
             "library_filters_active": library_filters_active,

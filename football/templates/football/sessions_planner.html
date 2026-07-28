@@ -401,6 +401,19 @@
 	        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 	        gap: 0.85rem;
 	      }
+	      .library-block-header {
+	        grid-column: 1 / -1;
+	        margin: 0.5rem 0 0;
+	        padding: 0.42rem 0.75rem;
+	        border-radius: 10px;
+	        background: rgba(52, 211, 153, 0.12);
+	        border: 1px solid rgba(52, 211, 153, 0.32);
+	        color: #34d399;
+	        font-weight: 900;
+	        font-size: 0.78rem;
+	        text-transform: uppercase;
+	        letter-spacing: 0.08em;
+	      }
 	      .task {
 		        border-radius: 14px;
 		        border: 1px solid rgba(255, 255, 255, 0.14);
@@ -4066,6 +4079,10 @@
 			          {% if library_facets_clear_href %}<a href="{{ library_facets_clear_href }}" class="button secondary small" style="margin-left:.2rem;">✕ Limpiar filtros</a>{% endif %}
 			        </div>
 			        {% endif %}
+				        <div style="display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; margin:0 0 0.8rem;">
+				          <button type="button" class="button {% if library_group_by_block %}primary{% else %}secondary{% endif %} small" title="Ordena las tareas por bloque con una cabecera por sección" onclick="var u=new URL(location.href); {% if library_group_by_block %}u.searchParams.delete('library_group');{% else %}u.searchParams.set('library_group','block');{% endif %} location.href=u.toString();">{% if library_group_by_block %}✓ Agrupado por bloque{% else %}⊞ Agrupar por bloque{% endif %}</button>
+				          {% if library_group_by_block %}<span class="meta" style="opacity:.8;">Tareas ordenadas por bloque para elegirlas fácil.</span>{% endif %}
+				        </div>
 			        <div class="library-strip">
 			          <div class="library-strip-item">
 			            <small>Total visibles</small>
@@ -4398,6 +4415,7 @@
         {% endif %}
                 <div class="task-list">
                   {% for t in task_library_page_items %}
+                  {% if library_group_by_block %}{% ifchanged t.block %}<div class="library-block-header">{{ t.get_block_display|default:"Sin bloque" }}</div>{% endifchanged %}{% endif %}
 			          <article
 			            class="task task-clickable"
 			            {% if task_pick_mode %}style="position:relative;"{% endif %}
