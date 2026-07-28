@@ -970,3 +970,14 @@ body.ed-chrome #edc-mat-body #task-roster-bank { display: none !important; }
    Guardar y el usuario no lo usa. Lo cazamos por el atributo (las 3 variantes lo llevan),
    sin depender del contenedor. */
 [data-tactics-demo] { display: none !important; }
+
+/* Barra inferior: unificar la ALTURA de todos los botones. Campo completo/Media/Tres llevan
+   icono+texto (columna) y quedaban mas altos que Futbol 11/7/sala (solo texto) y que
+   Presentacion/Guardar/undo/redo. Todos a la misma altura. */
+body.ed-chrome .edc-bottombar .edc-fmt,
+body.ed-chrome .edc-bottombar .edc-btn,
+body.ed-chrome .edc-bottombar .edc-present,
+body.ed-chrome .edc-bottombar .edc-save { height: 44px !important; box-sizing: border-box; }
+body.ed-chrome .edc-bottombar .edc-icon-btn { width: 44px !important; height: 44px !important; }
+body.ed-chrome .edc-bottombar .edc-fmt { justify-content: center; padding-top: 3px; padding-bottom: 3px; gap: 2px; }
+body.ed-chrome .edc-bottombar .edc-fmt .edc-fmt-ico { height: 15px; width: 22px; }
