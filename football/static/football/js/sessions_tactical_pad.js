@@ -33285,9 +33285,9 @@
 	        return (left, top) => {
 	          const shape = new fabric.Circle({
 	          left, top, originX: 'center', originY: 'center',
-	          radius: 46, fill: 'rgba(34,211,238,0.12)', stroke: '#22d3ee', strokeWidth: 3, data: { kind: 'shape-circle', color: '#22d3ee', fill_style: 'solid' },
+	          radius: 46, fill: 'rgba(0,0,0,0)', stroke: '#22d3ee', strokeWidth: 3, data: { kind: 'shape-circle', color: '#22d3ee', fill_style: 'outline' },
         });
-	          try { applyBackgroundFillStyle(shape, 'solid'); } catch (e) { /* ignore */ }
+	          try { applyBackgroundFillStyle(shape, 'outline'); } catch (e) { /* ignore */ }
 	          return shape;
 	        };
       }
@@ -33295,9 +33295,9 @@
         return (left, top) => {
           const shape = new fabric.Rect({
           left, top, originX: 'center', originY: 'center',
-          width: 96, height: 96, fill: 'rgba(34,211,238,0.12)', stroke: '#22d3ee', strokeWidth: 3, data: { kind: 'shape-square', color: '#22d3ee', fill_style: 'solid' },
+          width: 96, height: 96, fill: 'rgba(0,0,0,0)', stroke: '#22d3ee', strokeWidth: 3, data: { kind: 'shape-square', color: '#22d3ee', fill_style: 'outline' },
         });
-          try { applyBackgroundFillStyle(shape, 'solid'); } catch (e) { /* ignore */ }
+          try { applyBackgroundFillStyle(shape, 'outline'); } catch (e) { /* ignore */ }
           return shape;
         };
       }
@@ -33305,9 +33305,9 @@
 	        return (left, top) => {
 	          const shape = new fabric.Rect({
 	          left, top, originX: 'center', originY: 'center',
-	          width: 126, height: 78, rx: 10, ry: 10, fill: 'rgba(34,211,238,0.12)', stroke: '#22d3ee', strokeWidth: 3, data: { kind: 'shape-rect', color: '#22d3ee', fill_style: 'solid' },
+	          width: 126, height: 78, rx: 10, ry: 10, fill: 'rgba(0,0,0,0)', stroke: '#22d3ee', strokeWidth: 3, data: { kind: 'shape-rect', color: '#22d3ee', fill_style: 'outline' },
 	        });
-	          try { applyBackgroundFillStyle(shape, 'solid'); } catch (e) { /* ignore */ }
+	          try { applyBackgroundFillStyle(shape, 'outline'); } catch (e) { /* ignore */ }
 	          return shape;
 	        };
 	      }
@@ -33322,12 +33322,12 @@
 	          height: 52,
 	          rx: 10,
 	          ry: 10,
-	          fill: 'rgba(34,211,238,0.08)',
+	          fill: 'rgba(0,0,0,0)',
 	          stroke: '#22d3ee',
 	          strokeWidth: 3,
-	          data: { kind: 'shape-rect-long', color: '#22d3ee', fill_style: 'solid' },
+	          data: { kind: 'shape-rect-long', color: '#22d3ee', fill_style: 'outline' },
 	        });
-	          try { applyBackgroundFillStyle(shape, 'solid'); } catch (e) { /* ignore */ }
+	          try { applyBackgroundFillStyle(shape, 'outline'); } catch (e) { /* ignore */ }
 	          return shape;
 	        };
 	      }
@@ -33335,9 +33335,9 @@
         return (left, top) => {
           const shape = new fabric.Triangle({
           left, top, originX: 'center', originY: 'center',
-          width: 106, height: 92, fill: 'rgba(34,211,238,0.12)', stroke: '#22d3ee', strokeWidth: 3, data: { kind: 'shape-triangle', color: '#22d3ee', fill_style: 'solid' },
+          width: 106, height: 92, fill: 'rgba(0,0,0,0)', stroke: '#22d3ee', strokeWidth: 3, data: { kind: 'shape-triangle', color: '#22d3ee', fill_style: 'outline' },
         });
-          try { applyBackgroundFillStyle(shape, 'solid'); } catch (e) { /* ignore */ }
+          try { applyBackgroundFillStyle(shape, 'outline'); } catch (e) { /* ignore */ }
           return shape;
         };
       }
@@ -33345,9 +33345,9 @@
 	        return (left, top) => {
 	          const shape = new fabric.Rect({
 	          left, top, originX: 'center', originY: 'center',
-	          width: 94, height: 94, angle: 45, fill: 'rgba(34,211,238,0.12)', stroke: '#22d3ee', strokeWidth: 3, data: { kind: 'shape-diamond', color: '#22d3ee', fill_style: 'solid' },
+	          width: 94, height: 94, angle: 45, fill: 'rgba(0,0,0,0)', stroke: '#22d3ee', strokeWidth: 3, data: { kind: 'shape-diamond', color: '#22d3ee', fill_style: 'outline' },
 	        });
-	          try { applyBackgroundFillStyle(shape, 'solid'); } catch (e) { /* ignore */ }
+	          try { applyBackgroundFillStyle(shape, 'outline'); } catch (e) { /* ignore */ }
 	          return shape;
 	        };
 	      }

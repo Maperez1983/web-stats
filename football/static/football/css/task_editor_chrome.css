@@ -903,3 +903,13 @@ body.ed-chrome #edc-mat-body .edc-roster-gbtn {
 }
 body.ed-chrome #edc-mat-body .edc-roster-gbtn:hover { border-color: rgba(55,208,95,0.5); }
 body.ed-chrome #edc-mat-body .edc-roster-gbtn.is-active { background: var(--edc-accent); border-color: var(--edc-accent); color: var(--edc-accent-ink); }
+
+/* Inspector simplificado: el tamaño se ajusta arrastrando la propia figura (tiradores),
+   así que el inspector de edición solo cambia el COLOR. Ocultamos tamaño/giro/grosor/
+   opacidad y el bloque Avanzado (gana sobre el hidden=false que el JS pone por tipo). */
+body.ed-chrome #task-scale-x-row,
+body.ed-chrome #task-scale-y-row,
+body.ed-chrome #task-rotation-row,
+body.ed-chrome #task-stroke-width-row,
+body.ed-chrome #task-lane-opacity-row,
+body.ed-chrome #task-inspector-advanced { display: none !important; }
