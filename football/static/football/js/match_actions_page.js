@@ -1390,7 +1390,12 @@ const urlWithMatchId = (baseUrl) => {
 	      let updateCloseSummary;
 	      let updatePlayerQuickPanel = () => {};
       const containsText = (value, terms) => {
-        const txt = String(value || '').toLowerCase();
+        // Normaliza acentos/mayúsculas para que "regaté", "Parada", "atajó"... clasifiquen igual
+        // que en el servidor (event_taxonomy.normalize_label). Antes solo bajaba a minúsculas.
+        const txt = String(value || '')
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '');
         if (!txt) return false;
         return terms.some((term) => txt.includes(term));
       };
