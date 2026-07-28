@@ -29175,7 +29175,15 @@ def convocation_page(request):
             player.injury_blocks_play = False
         filtered_players.append(player)
     players = filtered_players
-    convocation_record = get_current_convocation_record(primary_team, match=active_match, fallback_to_latest=True)
+    # B1/I1: preferir la convocatoria DE ESTE partido (no la "actual" del equipo). Si no, un partido
+    # cuya convocatoria dejó de ser is_current (porque se guardó otra) mostraría la lista equivocada.
+    convocation_record = None
+    if active_match:
+        convocation_record = _get_convocation_record_for_match(primary_team, active_match)
+    if not convocation_record:
+        convocation_record = get_current_convocation_record(
+            primary_team, match=active_match, fallback_to_latest=False if active_match else True
+        )
     selected_player_ids = []
     captain_id = None
     goalkeeper_id = None
@@ -29498,6 +29506,20 @@ def save_convocation(request):
             blocked_injury_ids = set(active_injury_ids)
     if blocked_injury_ids:
         players = players.exclude(id__in=list(blocked_injury_ids))
+    # B3: bloquear también SANCIONADOS en el backend (antes solo se impedía en el navegador, así que
+    # un POST directo o una sanción aplicada tras seleccionar colaba al jugador).
+    try:
+        _today = timezone.localdate()
+        _sanctioned_prev = set(get_sanctioned_player_ids_from_previous_round(primary_team, reference_match=None))
+        blocked_sanction_ids = {
+            int(getattr(p, "id", 0) or 0)
+            for p in players
+            if (int(getattr(p, "id", 0) or 0) in _sanctioned_prev) or is_manual_sanction_active(p, today=_today)
+        }
+        if blocked_sanction_ids:
+            players = players.exclude(id__in=list(blocked_sanction_ids))
+    except Exception:
+        logger.debug("No se pudo aplicar el bloqueo de sancionados en save_convocation", exc_info=True)
     allowed_player_ids = set(players.values_list("id", flat=True))
     has_match_context = any([round_value, location_value, opponent_value, date_value_raw, time_value_raw])
     if not players.exists() and not has_match_context:
