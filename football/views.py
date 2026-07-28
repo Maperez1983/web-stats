@@ -22855,6 +22855,18 @@ def matchday_quick_buttons_api(request):
     return JsonResponse({"ok": True, "role": role_key, "updated_at": obj.updated_at})
 
 
+def _forbid_matchday_write_on_read_only_season(request):
+    """Bloquea escrituras del día de partido (acciones, 11, cierre, reset, editar partido) sobre una
+    temporada de club marcada de solo lectura. Devuelve JsonResponse 409 o None. Coherente con el
+    guard que ya tienen el alta de partido y la convocatoria."""
+    try:
+        if _selected_club_season_is_read_only(request, workspace=_get_active_workspace(request)):
+            return JsonResponse({"error": _historical_club_season_write_message()}, status=409)
+    except Exception:
+        return None
+    return None
+
+
 def _ensure_matchday_convocation_record(primary_team, *, match=None, request=None):
     """
     Garantiza que exista una ConvocationRecord `is_current=True` para el flujo de partido.
@@ -22897,21 +22909,9 @@ def _ensure_matchday_convocation_record(primary_team, *, match=None, request=Non
         )
         if players:
             record.players.set(players)
-            try:
-                lineup_payload = _build_default_lineup_payload_with_limit(players, starters_limit=starters_limit)
-            except Exception:
-                lineup_payload = {"starters": [], "bench": []}
-            try:
-                lineup_payload["_meta"] = {
-                    "saved_at": timezone.now().isoformat(),
-                    "starters_limit": int(starters_limit or 11),
-                    "match_id": int(getattr(match, "id", 0) or 0),
-                    "source": "auto-convocation-seed",
-                }
-            except Exception:
-                pass
-            record.lineup_data = lineup_payload
-            record.save(update_fields=["lineup_data"])
+            # NO sembramos un 11 por defecto: dejar lineup_data vacío hasta que el técnico ordene
+            # el 11. Si no, el hub marcaría "11 inicial · LISTO" sin que nadie lo haya hecho (falso
+            # positivo). Las pantallas de 11/acciones ya pintan un 11 por defecto en memoria.
 
     return record
 
@@ -23826,6 +23826,9 @@ def save_match_lineup(request):
             {"error": "La convocatoria o el registro de acciones deben estar activos en el workspace actual."},
             status=403,
         )
+    read_only = _forbid_matchday_write_on_read_only_season(request)
+    if read_only:
+        return read_only
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({"error": "Equipo principal no configurado"}, status=400)
@@ -24296,12 +24299,17 @@ def _reset_matchday_after_finalize(request, primary_team, match):
                 pass
 
 
+@authenticated_write
+@require_POST
 def finalize_match_actions(request):
     if not _can_edit_match_actions(request.user):
         return JsonResponse({"error": "Solo el cuerpo técnico puede editar estadísticas de partido."}, status=403)
     forbidden = _forbid_if_workspace_module_disabled(request, "match_actions", label="registro de acciones")
     if forbidden:
         return JsonResponse({"error": "El registro de acciones no está activo en el workspace actual."}, status=403)
+    read_only = _forbid_matchday_write_on_read_only_season(request)
+    if read_only:
+        return read_only
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({"error": "Equipo principal no configurado"}, status=400)
@@ -24466,6 +24474,9 @@ def save_match_info(request):
     forbidden = _forbid_if_workspace_module_disabled(request, "match_actions", label="registro de acciones")
     if forbidden:
         return JsonResponse({"error": "El registro de acciones no está activo en el workspace actual."}, status=403)
+    read_only = _forbid_matchday_write_on_read_only_season(request)
+    if read_only:
+        return read_only
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({"error": "Equipo principal no configurado"}, status=400)
@@ -24559,6 +24570,9 @@ def reset_match_action_register(request):
     forbidden = _forbid_if_workspace_module_disabled(request, "match_actions", label="registro de acciones")
     if forbidden:
         return JsonResponse({"error": "El registro de acciones no está activo en el workspace actual."}, status=403)
+    read_only = _forbid_matchday_write_on_read_only_season(request)
+    if read_only:
+        return read_only
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({"error": "Equipo principal no configurado"}, status=400)
@@ -29304,6 +29318,10 @@ def convocation_page(request):
 @authenticated_write
 @require_POST
 def save_convocation(request):
+    # Coherencia con el resto del flujo matchday (acciones, 11, alta de partido): solo el cuerpo
+    # técnico puede escribir. Sin esto, un jugador autenticado podía crear Match/Team desde aquí.
+    if not _can_edit_match_actions(request.user):
+        return JsonResponse({"error": "Solo el cuerpo técnico puede guardar la convocatoria."}, status=403)
     forbidden = _forbid_if_workspace_module_disabled(request, "convocation", label="convocatoria")
     if forbidden:
         return JsonResponse({"error": "La convocatoria no está activa en el workspace actual."}, status=403)
@@ -40523,6 +40541,10 @@ def initial_eleven_page(request):
 
 
 def _initial_eleven_page_impl(request):
+    # Solo cuerpo técnico: como el resto del flujo matchday (acciones, guardar 11…). Además esta
+    # página puede crear la convocatoria al cargar, así que no debe abrirse a jugadores/no-staff.
+    if not _can_edit_match_actions(request.user):
+        return HttpResponse("Solo el cuerpo técnico puede acceder al 11 inicial.", status=403)
     forbidden = _forbid_if_workspace_module_disabled(request, "convocation", label="11 inicial")
     if forbidden:
         return forbidden
