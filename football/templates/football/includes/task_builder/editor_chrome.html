@@ -397,10 +397,11 @@
         gl.appendChild(b);
       });
       host.appendChild(gl);
-      // Toggle GLOBAL de equipación (Local / Visitante) para toda la pizarra.
+      // Selector GLOBAL de equipación = "kit activo" (jugadores de campo). Se cambia entre grupos
+      // para distinguir equipos/comodines en el mismo tablero (A turquesa vs B blanca, etc.).
       var gk=document.createElement('div'); gk.className='edc-roster-global edc-roster-kit';
       var gkLabel=document.createElement('span'); gkLabel.className='edc-roster-global-label'; gkLabel.textContent='Equipación'; gk.appendChild(gkLabel);
-      [['titular','Local'],['visitante','Visitante']].forEach(function(k){
+      [['titular','Local'],['visitante','Visitante'],['turquesa','Turquesa'],['blanca','Blanca'],['chandal','Chándal']].forEach(function(k){
         var b=document.createElement('button'); b.type='button'; b.className='edc-roster-gbtn'+(k[0]==='titular'?' is-active':''); b.textContent=k[1];
         b.addEventListener('click', function(){
           globalKit=k[0];
