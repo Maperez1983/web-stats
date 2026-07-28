@@ -657,10 +657,7 @@
     // En vertical, algunos contenedores (y navegadores) pueden acabar con una ligera
     // desincronización de ratio, generando "barras" arriba/abajo. Usamos `slice` para
     // priorizar llenar el viewport y minimizar esos márgenes.
-    // Ampliar el campo hasta llenar el visor (el usuario NO quiere margen verde alrededor).
-    // 'slice' recorta el eje que sobra; como el visor suele ser mas ancho que el campo, el
-    // recorte cae ARRIBA/ABAJO (lados sin porteria), sin comerse las porterias (izq/der).
-    root.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+    root.setAttribute('preserveAspectRatio', orientation === 'portrait' ? 'xMidYMid slice' : 'xMidYMid meet');
 
 		    const resolvePitch3dOverlayImageHref = () => {
           const forcePortrait = grassStyle === 'stadium_top_v';
@@ -33149,8 +33146,7 @@
 	          strokeLineCap: cap,
 	          originX: 'center',
 	          originY: 'center',
-	          shadow: 'rgba(2,6,23,0.18) 0 2px 6px',
-	          selectable: false,
+		          selectable: false,
 	          evented: false,
 	        });
           const shine = new fabric.Line([-(baseLen / 2) + 4, -Math.max(0.7, strokeWidth * 0.1), (baseLen / 2) - (headSize / 2) - 4, -Math.max(0.7, strokeWidth * 0.1)], {
@@ -33189,8 +33185,8 @@
 	          selectable: false,
 	          evented: false,
 	        });
-	        const group = new fabric.Group([underLine, line, shine, headUnder, head], { left, top, originX: 'center', originY: 'center', data: { kind } });
-          applyRenderableQualityToGroup(group, [underLine, line, shine, headUnder, head]);
+	        const group = new fabric.Group([line, shine, head], { left, top, originX: 'center', originY: 'center', data: { kind } });
+          applyRenderableQualityToGroup(group, [line, shine, head]);
 	        return group;
 	      };
 
