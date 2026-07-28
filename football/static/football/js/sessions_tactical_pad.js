@@ -30421,10 +30421,10 @@
     const AVATAR_BASE_URL = '/static/football/images/players/';
     // Chapa con escudo (base sin dorsal): local verdiblanca, visitante amarilla lisa, portero azul/negra.
     const CHAPA_BASE_URL = '/static/football/images/chapa/';
-    const chapaBaseUrlForToken = (isGoalkeeper, isAway) => {
-      if (isGoalkeeper) return `${CHAPA_BASE_URL}chapa_${isAway ? 'gk_negra' : 'gk_azul'}.png`;
-      if (isAway) return `${CHAPA_BASE_URL}chapa_away.png`;
-      return `${CHAPA_BASE_URL}chapa_local.png`;
+    const CHAPA_KEY = { titular:'chapa_local', visitante:'chapa_away', turquesa:'chapa_turquesa', blanca:'chapa_blanca', chandal:'chapa_chandal', gk_azul:'chapa_gk_azul', gk_negra:'chapa_gk_negra', gk_magenta:'chapa_gk_magenta' };
+    const chapaBaseUrlForToken = (kit, isGoalkeeper) => {
+      const key = CHAPA_KEY[safeText(kit)] || (isGoalkeeper ? 'chapa_gk_azul' : 'chapa_local');
+      return `${CHAPA_BASE_URL}${key}.png`;
     };
     const AVATAR_FIELD_COLORS = { verde: [30, 138, 60], amarilla: [240, 206, 20], blanca: [238, 238, 238], turquesa: [26, 163, 163] };
     const AVATAR_GK_COLORS = { azul: [37, 99, 235], rojo: [214, 40, 40], negro: [26, 26, 29], magenta: [190, 44, 150] };
@@ -30541,7 +30541,7 @@
     // con los 135MB de avatares). Así el primer token estilo Chapa ya tiene la imagen lista y no
     // cae al disco dibujado de fallback (el token se pinta una vez y no se repinta al cargar).
     try {
-      ['chapa_local', 'chapa_away', 'chapa_gk_azul', 'chapa_gk_negra']
+      ['chapa_local', 'chapa_away', 'chapa_turquesa', 'chapa_blanca', 'chapa_chandal', 'chapa_gk_azul', 'chapa_gk_negra', 'chapa_gk_magenta']
         .forEach((n) => ensureAvatarImage(`${CHAPA_BASE_URL}${n}.png`));
     } catch (e) { /* ignore */ }
     // Perf: los ~73 avatares pesan ~135 MB. NO se precargan (ni inmediato ni en idle) porque eso
@@ -31393,7 +31393,7 @@
 			          // Si la imagen no está cargada, cae al disco vectorial de siempre (fallback).
 			          const __chapaImgUrl = (options && options.assetUrl)
 			            ? (resolvePlayerPhotoUrl(options.assetUrl) || safeText(options.assetUrl))
-			            : chapaBaseUrlForToken(isGoalkeeper, isAway);
+			            : chapaBaseUrlForToken(options && options.kit, isGoalkeeper);
 			          const __chapaEl = __chapaImgUrl ? (getReadyAvatarImage(__chapaImgUrl) || ensureAvatarImage(__chapaImgUrl)) : null;
 			          const __useChapaImg = !!__chapaEl; // usamos SIEMPRE la imagen de chapa (placeholder de color mientras carga)
 			          if (__useChapaImg) {
@@ -31723,8 +31723,8 @@
 		          top: __useChapaImg ? -(radius * 0.52) : 0,
 		          fontSize: 18.8,
 		          fontWeight: '900',
-		          fill: __useChapaImg ? (isGoalkeeper ? '#ffffff' : '#111417') : (isAway ? '#0b1220' : '#ffffff'),
-		          stroke: __useChapaImg ? (isGoalkeeper ? 'rgba(2,6,23,0.60)' : 'rgba(255,255,255,0.88)') : (isAway ? 'rgba(255,255,255,0.75)' : 'rgba(2,6,23,0.65)'),
+		          fill: __useChapaImg ? (((options && options.kitDark) || isGoalkeeper) ? '#ffffff' : '#111417') : (isAway ? '#0b1220' : '#ffffff'),
+		          stroke: __useChapaImg ? (((options && options.kitDark) || isGoalkeeper) ? 'rgba(2,6,23,0.55)' : 'rgba(255,255,255,0.88)') : (isAway ? 'rgba(255,255,255,0.75)' : 'rgba(2,6,23,0.65)'),
 		          strokeWidth: 2.9,
 		          paintFirst: 'stroke',
 		          shadow: 'rgba(15,23,42,0.52) 0 1px 2px',
@@ -38006,7 +38006,7 @@
               // estilo dado (chapa/camiseta/figura/avatar). Reutiliza el kind 'player_away'. La carcasa
               // 2D lo llama desde el desplegable de la lista de plantilla. Foto no usa equipación.
               try {
-                window.__tpadInsertPlayer = (playerId, style, away) => {
+                window.__tpadInsertPlayer = (playerId, style, kitArg) => {
                   try {
                     const el = playerBank ? playerBank.querySelector('button.player-token-bank[data-player-id="' + playerId + '"]') : null;
                     const nameEl = el ? el.querySelector('.token-name') : null;
@@ -38028,25 +38028,31 @@
                       const m = bg.match(/url\(["']?(.*?)["']?\)/);
                       if (m && m[1]) realPhoto = m[1];
                     } catch (e) { /* ignore */ }
-                    const kind = isGk ? 'goalkeeper_local' : (away ? 'player_away' : 'player_local');
+                    let kit = (kitArg === true) ? 'visitante' : (kitArg === false ? 'titular' : safeText(kitArg));
+                    if (!kit) kit = isGk ? 'gk_azul' : 'titular';
+                    if (isGk && kit.indexOf('gk_') !== 0) kit = 'gk_azul';
+                    if (!isGk && kit.indexOf('gk_') === 0) kit = 'titular';
+                    const isAway = (kit === 'visitante');
+                    const isDark = isGk || kit === 'chandal' || kit.indexOf('gk_') === 0;
+                    const kind = isGk ? 'goalkeeper_local' : (isAway ? 'player_away' : 'player_local');
                     // Fase 3: repositorio de assets del jugador (PlayerAsset) expuesto por el banco.
                     // Traduce (estilo, equipación, portero) -> el 'kind' del asset real a pintar.
                     let assetsMap = {};
                     try { const rawA = el ? el.getAttribute('data-assets') : ''; if (rawA) assetsMap = JSON.parse(rawA) || {}; } catch (e) { assetsMap = {}; }
-                    const assetKindFor = (s, isAway, gk) => {
+                    const FIG_KIND = { titular:'kit_titular', visitante:'kit_visitante', turquesa:'kit_turquesa', blanca:'kit_blanca', chandal:'chandal', gk_azul:'gk_azul', gk_negra:'gk_negra', gk_magenta:'gk_magenta' };
+                    const assetKindFor = (s) => {
                       if (s === 'photo') return 'foto';
-                      if (s === 'disk') return gk ? 'chapa_gk' : (isAway ? 'chapa_away' : 'chapa_local');
-                      // 'jersey' | 'sprite' | 'figure' => figura de kit (imagen entera)
-                      return gk ? (isAway ? 'gk_magenta' : 'gk_azul') : (isAway ? 'kit_visitante' : 'kit_titular');
+                      if (s === 'disk') return ''; // chapa: imagen estatica por kit (no PlayerAsset)
+                      return FIG_KIND[kit] || (isGk ? 'gk_azul' : 'kit_titular'); // figura de kit
                     };
                     // CLAVE: pasamos {style} EXPLÍCITO -> gana sobre display.mode del servidor (que forzaba
                     // 'photo' e ignoraba la elección Chapa/Camiseta/Avatar del desplegable).
                     let st = normalizeTokenStyle(style || tokenGlobalStyle);
-                    let assetUrl = safeText(assetsMap[assetKindFor(st, !!away, isGk)] || '');
+                    let assetUrl = safeText(assetsMap[assetKindFor(st)] || '');
                     // 'Foto' sin foto real NI asset de foto -> Chapa (evita caer al avatar por defecto).
                     if (st === 'photo' && !realPhoto && !assetUrl) st = 'disk';
-                    if (!assetUrl) assetUrl = safeText(assetsMap[assetKindFor(st, !!away, isGk)] || ''); // reintento si el estilo cambió
-                    const opts = { style: st };
+                    if (!assetUrl) assetUrl = safeText(assetsMap[assetKindFor(st)] || '');
+                    const opts = { style: st, kit: kit, kitDark: isDark };
                     if (st === 'photo' && realPhoto) opts.photoUrl = realPhoto;
                     // El asset real (foto/kit/portero) solo lo pinta la rama figura (photo/sprite);
                     // si existe, gana sobre el muñeco genérico (ver __avUrl en playerTokenFactory).
@@ -38057,7 +38063,7 @@
                   } catch (e) { return false; }
                 };
                 // Compat: alias antiguo (equipación visitante).
-                window.__tpadInsertPlayerAway = (playerId, style) => window.__tpadInsertPlayer(playerId, style, true);
+                window.__tpadInsertPlayerAway = (playerId, style) => window.__tpadInsertPlayer(playerId, style, 'visitante');
               } catch (e) { /* ignore */ }
 
 	              // ----------------------------

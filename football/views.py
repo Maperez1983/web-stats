@@ -50241,6 +50241,14 @@ def _build_tactical_player_catalog(request, primary_team):
             display = {"mode": "photo", "url": photo_url}
         else:
             display = {"mode": "disk", "url": ""}
+        # Mapa de assets del jugador + fallbacks para que el editor encuentre la figura/foto
+        # aunque no estén subidas exactamente con ese kind: kit_titular <- avatar principal
+        # (subido como 'principal'/avatar_generated); foto <- foto real del jugador.
+        _assets = dict(assets_by_player.get(pid, {}))
+        if not _assets.get("kit_titular") and _avatar_url:
+            _assets["kit_titular"] = _avatar_url
+        if not _assets.get("foto") and photo_url:
+            _assets["foto"] = photo_url
         catalog.append(
             {
                 "id": pid,
@@ -50254,8 +50262,8 @@ def _build_tactical_player_catalog(request, primary_team):
                 "is_scouted": False,
                 "display": display,
                 # {kind: url} del repositorio (vacío si el jugador aún no tiene assets subidos).
-                "assets": assets_by_player.get(pid, {}),
-                "assets_json": json.dumps(assets_by_player.get(pid, {}), separators=(",", ":")),
+                "assets": _assets,
+                "assets_json": json.dumps(_assets, separators=(",", ":")),
             }
         )
     # Ojeados marcados como "disponibles para la pizarra del entrenador".

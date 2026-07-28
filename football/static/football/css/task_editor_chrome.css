@@ -950,3 +950,6 @@ body.ed-chrome #edc-mat-body .edc-roster-list {
 body.ed-chrome #edc-mat-body .edc-roster-list > .edc-roster-quick,
 body.ed-chrome #edc-mat-body .edc-roster-list > .edc-roster-global,
 body.ed-chrome #edc-mat-body .edc-roster-list > .edc-roster-row.is-open { grid-column: 1 / -1; }
+
+/* Selector de equipación ampliado (hasta 5 kits): que hagan wrap y no desborden el desplegable. */
+body.ed-chrome .edc-kit-toggle { flex-wrap: wrap; }
