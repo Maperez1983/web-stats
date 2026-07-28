@@ -925,3 +925,13 @@ body.ed-chrome #task-stroke-presets { display: none !important; }
    hace editor-lab-compact). Evita el "DEMO" encima de "Guardar". */
 body.ed-chrome .tactics-interactive-dock,
 body.ed-chrome .tactics-menu { display: none !important; }
+
+/* Margen del campo: el SVG del campo (mas ancho que el stage) deja una franja arriba/abajo
+   DENTRO del stage, que mostraba un cesped "premium" con rayas, distinto al del campo. Lo
+   sustituimos por el MISMO cesped liso del campo para que el margen se vea continuo (sin
+   recortar porterias). Scoped a ed-chrome para no tocar el editor clasico. */
+body.ed-chrome .pitch-stage {
+  background:
+    url("/static/football/images/pitch3d/grass_flat.jpg") center / cover no-repeat,
+    linear-gradient(180deg, #4e7f39, #3f6f31) !important;
+}

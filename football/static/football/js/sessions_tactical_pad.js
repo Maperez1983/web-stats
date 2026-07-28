@@ -31374,13 +31374,21 @@
 			            ? (resolvePlayerPhotoUrl(options.assetUrl) || safeText(options.assetUrl))
 			            : chapaBaseUrlForToken(isGoalkeeper, isAway);
 			          const __chapaEl = __chapaImgUrl ? (getReadyAvatarImage(__chapaImgUrl) || ensureAvatarImage(__chapaImgUrl)) : null;
-			          const __useChapaImg = !!(__chapaEl && __chapaEl.complete && (__chapaEl.naturalWidth || __chapaEl.width));
+			          const __useChapaImg = !!__chapaEl; // usamos SIEMPRE la imagen de chapa (placeholder de color mientras carga)
 			          if (__useChapaImg) {
-			            const __cs = (radius * 2.34) / Math.max(1, __chapaEl.naturalHeight || __chapaEl.height || 1);
-			            const __cimg = new fabric.Image(__chapaEl, { left: 0, top: 0, originX: 'center', originY: 'center', selectable: false, evented: false, scaleX: __cs, scaleY: __cs });
+			            // Placeholder: disco del color del kit (evita el flash BLANCO mientras carga la imagen).
+			            const __phFill = isGoalkeeper ? '#1d4ed8' : (isAway ? '#f4c400' : '#0f7a35');
+			            const __ph = new fabric.Circle({ radius, fill: __phFill, stroke: 'rgba(248,250,252,0.98)', strokeWidth: 2.7, originX: 'center', originY: 'center', left: 0, top: 0, selectable: false, evented: false });
+			            __ph.data = { role: 'token_base' };
+			            tokenParts.push(__ph);
+			            const __chH = () => (__chapaEl.naturalHeight || __chapaEl.height || 360);
+			            const __cimg = new fabric.Image(__chapaEl, { left: 0, top: 0, originX: 'center', originY: 'center', selectable: false, evented: false, scaleX: (radius * 2.34) / __chH(), scaleY: (radius * 2.34) / __chH() });
 			            try { applyRenderableQuality(__cimg, { strokeUniform: false }); } catch (e) { /* ignore */ }
 			            __cimg.data = { role: 'token_base' };
 			            tokenParts.push(__cimg);
+			            if (!(__chapaEl.complete && (__chapaEl.naturalWidth || __chapaEl.width))) {
+			              try { __chapaEl.addEventListener('load', function(){ try { const __c = (radius * 2.34) / __chH(); __cimg.set({ scaleX: __c, scaleY: __c }); canvas.requestRenderAll(); } catch(e){} }, { once: true }); } catch (e) { /* ignore */ }
+			            }
 			          } else {
 			          // Borde exterior oscuro para que la chapa destaque sobre líneas blancas/césped.
 			          const outerRing = new fabric.Circle({
