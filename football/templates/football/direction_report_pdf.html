@@ -39,6 +39,12 @@
 </style>
 </head>
 <body>
+  {% if interactive %}
+  <div style="position:sticky;top:0;z-index:20;display:flex;gap:8px;justify-content:flex-end;align-items:center;padding:10px 14px;background:#0f172a;border-bottom:1px solid #1e293b;">
+    {% if back_url %}<a href="{{ back_url }}" style="text-decoration:none;color:#e2e8f0;background:#1e293b;border:1px solid #334155;border-radius:9px;padding:7px 12px;font-weight:800;font-size:13px;">← Volver</a>{% endif %}
+    <a href="{{ report_pdf_url }}" target="_blank" rel="noopener" style="text-decoration:none;color:#04121f;background:#0ea5e9;border:1px solid #0ea5e9;border-radius:9px;padding:7px 12px;font-weight:900;font-size:13px;">⬇ Exportar PDF</a>
+  </div>
+  {% endif %}
 
   <div class="head">
     <h1>Informe de dirección · {{ team_name }}</h1>
@@ -52,6 +58,33 @@
     <div class="kpi"><div class="v">{% if kpi.squad_media is not None %}{{ kpi.squad_media|floatformat:"-1" }}{% else %}–{% endif %}</div><div class="l">Nota media</div></div>
     <div class="kpi"><div class="v">{% if kpi.avg_age is not None %}{{ kpi.avg_age|floatformat:"-1" }}{% else %}–{% endif %}</div><div class="l">Edad media</div></div>
   </div>
+
+  {% if interactive %}
+  <section>
+    <h2>Plantilla en el campo</h2>
+    {% include 'football/_coach_pitch_board.html' %}
+  </section>
+
+  <section>
+    <h2>Listado de jugadores</h2>
+    <table>
+      <thead><tr><th>#</th><th>Jugador</th><th>Posición</th><th>Estado</th><th class="num">Valoración</th></tr></thead>
+      <tbody>
+      {% for p in coach_pitch_players %}
+        <tr>
+          <td class="num">{{ p.number|default:"–" }}</td>
+          <td>{{ p.name }}{% if p.is_scout %} <span class="muted">(ojeado)</span>{% endif %}</td>
+          <td class="muted">{{ p.position|default:"–" }}</td>
+          <td>{{ p.state_label|default:"–" }}</td>
+          <td class="num">{% if p.rating %}{{ p.rating }}{% else %}<span class="muted2">–</span>{% endif %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="muted">Sin jugadores en la plantilla.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
 
   <section>
     <h2>Plantilla por líneas</h2>

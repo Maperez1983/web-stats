@@ -53,7 +53,7 @@
         <section class="card">
           <h2>Informe de equipo (temporada)</h2>
           <p>KPIs + top acciones + tablas de jugadores y partidos (por ámbito).</p>
-          <form method="get" action="{% url 'team-season-report-pdf' %}" target="_blank" rel="noreferrer">
+          <form method="get" action="{% url 'team-report-page' %}" target="_blank" rel="noreferrer">
             {% if request.GET.team %}<input type="hidden" name="team" value="{{ request.GET.team|urlencode }}" />{% endif %}
             <div class="form-grid">
               <div class="field">
@@ -84,9 +84,8 @@
                 <label class="check"><input type="checkbox" name="sec" value="matches" checked /> Partidos</label>
               </div>
               <div class="actions">
-                <button class="btn primary" type="submit">Descargar PDF</button>
-                <a class="btn" href="{% url 'team-report-page' %}{% if request.GET.team %}?team={{ request.GET.team|urlencode }}{% endif %}">🖥 Ver página (pizarra + listado)</a>
-                <span class="hint">Secciones activables/desactivables.</span>
+                <button class="btn primary" type="submit">Ver informe (pizarra + listado + KPIs)</button>
+                <span class="hint">Se abre como página; desde ahí exportas el PDF.</span>
               </div>
             </div>
           </form>
@@ -267,9 +266,8 @@
           </div>
           <div class="sections">
             <div class="actions">
-              <button class="btn primary" type="button" id="dir-open">Ver informe (PDF)</button>
-              <a class="btn" href="{% url 'direction-report-page' %}{% if request.GET.team %}?team={{ request.GET.team|urlencode }}{% endif %}">🖥 Ver página (pizarra + listado)</a>
-              <span class="hint">Si no eliges fechas, se usan los últimos 12 meses.</span>
+              <button class="btn primary" type="button" id="dir-open">Ver informe (pizarra + listado + KPIs)</button>
+              <span class="hint">Se abre como página; desde ahí exportas el PDF. Sin fechas: últimos 12 meses.</span>
             </div>
           </div>
           <script>
@@ -283,7 +281,7 @@
                 if (f) q.push('from=' + f);
                 if (t) q.push('to=' + t);
                 if (teamQ) q.push(teamQ);
-                window.open('{% url 'direction-report-pdf' %}' + (q.length ? ('?' + q.join('&')) : ''), '_blank', 'noopener');
+                window.open('{% url 'direction-report-page' %}' + (q.length ? ('?' + q.join('&')) : ''), '_blank', 'noopener');
               });
             })();
           </script>

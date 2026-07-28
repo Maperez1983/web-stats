@@ -20641,7 +20641,7 @@ def squad_lines_report_pdf(request):
 
 
 @login_required
-def direction_report_pdf(request):
+def direction_report_pdf(request, as_page=False):
     """Informe de dirección / club: resumen ejecutivo de plantilla (KPIs, líneas,
     desarrollo, pipeline de ojeo y alertas) para la junta."""
     from datetime import timedelta as _td
@@ -20798,6 +20798,19 @@ def direction_report_pdf(request):
         "scout": scout,
         "alerts": alerts,
     }
+    if as_page:
+        ctx["interactive"] = True
+        ctx["primary_team_id"] = int(primary_team.id)
+        try:
+            ctx["coach_pitch_players"] = _coach_pitch_players_for_request(
+                request, primary_team, workspace=_get_active_workspace(request)
+            )
+        except Exception:
+            ctx["coach_pitch_players"] = []
+        _qs = request.GET.urlencode()
+        ctx["report_pdf_url"] = reverse("direction-report-pdf") + (f"?{_qs}" if _qs else "")
+        ctx["back_url"] = f"{reverse('reports-hub')}?team={int(primary_team.id)}"
+        return render(request, "football/direction_report_pdf.html", ctx)
     html = render_to_string("football/direction_report_pdf.html", ctx, request=request)
     if str(request.GET.get("format") or "").strip().lower() == "html":
         return HttpResponse(html, content_type="text/html; charset=utf-8")
@@ -28918,47 +28931,19 @@ def kpi_explorer_pdf_api(request):
     return _build_pdf_response_or_html_fallback(request, html, filename)
 
 
-def _render_report_board_page(request, report_title, report_subtitle, pdf_url_name):
-    """Página HTML de informe (equipo/dirección): pizarra interactiva (tablero arrastrable del
-    home) + listado de jugadores + botón Exportar PDF (usa el PDF existente)."""
-    if not _can_edit_match_actions(request.user):
-        return HttpResponse("Solo el cuerpo técnico puede ver los informes.", status=403)
-    primary_team = _get_primary_team_for_request(request)
-    if not primary_team:
-        return redirect("reports-hub")
-    workspace = _get_active_workspace(request)
-    try:
-        coach_pitch_players = _coach_pitch_players_for_request(request, primary_team, workspace=workspace)
-    except Exception:
-        coach_pitch_players = []
-    team_q = f"?team={int(primary_team.id)}"
-    return render(
-        request,
-        "football/report_board_page.html",
-        {
-            "report_title": report_title,
-            "report_subtitle": report_subtitle,
-            "team_name": primary_team.display_name,
-            "primary_team_id": int(primary_team.id),
-            "coach_pitch_players": coach_pitch_players,
-            "report_pdf_url": f"{reverse(pdf_url_name)}{team_q}",
-            "back_url": f"{reverse('reports-hub')}{team_q}",
-        },
-    )
-
-
 @login_required
 def team_report_page(request):
-    return _render_report_board_page(request, "Informe de equipo", "Plantilla y pizarra", "team-season-report-pdf")
+    # El informe ES la página: mismo template y datos que el PDF + pizarra interactiva + listado.
+    return team_season_report_pdf(request, as_page=True)
 
 
 @login_required
 def direction_report_page(request):
-    return _render_report_board_page(request, "Informe de dirección", "Plantilla y pizarra", "direction-report-pdf")
+    return direction_report_pdf(request, as_page=True)
 
 
 @login_required
-def team_season_report_pdf(request):
+def team_season_report_pdf(request, as_page=False):
     if not _can_edit_match_actions(request.user):
         return HttpResponse("Solo el cuerpo técnico puede descargar el informe del equipo.", status=403)
     forbidden = _forbid_if_workspace_module_disabled(request, "match_actions", label="informes")
@@ -29162,6 +29147,21 @@ def team_season_report_pdf(request):
         "matches": match_rows,
         "generated_at": timezone.localtime(),
     }
+    if as_page:
+        # El informe ES la página: mismo template y datos + pizarra interactiva (tablero con
+        # avatares) + listado + botón Exportar PDF. El PDF es su exportación.
+        context["interactive"] = True
+        context["primary_team_id"] = int(primary_team.id)
+        try:
+            context["coach_pitch_players"] = _coach_pitch_players_for_request(
+                request, primary_team, workspace=_get_active_workspace(request)
+            )
+        except Exception:
+            context["coach_pitch_players"] = []
+        _qs = request.GET.urlencode()
+        context["report_pdf_url"] = reverse("team-season-report-pdf") + (f"?{_qs}" if _qs else "")
+        context["back_url"] = f"{reverse('reports-hub')}?team={int(primary_team.id)}"
+        return render(request, "football/team_season_report_pdf.html", context)
     pdf_html = render_to_string("football/team_season_report_pdf.html", context)
     filename = (
         slugify(f"informe-equipo-{primary_team.display_name}-{scope_label}-{timezone.localdate()}")
