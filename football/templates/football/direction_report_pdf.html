@@ -64,7 +64,14 @@
     <h2>Plantilla en el campo</h2>
     {% include 'football/_coach_pitch_board.html' %}
   </section>
+  {% elif coach_pitch_players %}
+  <section>
+    <h2>Plantilla en el campo</h2>
+    {% include 'football/_coach_pitch_board_pdf.html' %}
+  </section>
+  {% endif %}
 
+  {% if coach_pitch_players %}
   <section>
     <h2>Listado de jugadores</h2>
     <table>

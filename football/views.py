@@ -20798,19 +20798,26 @@ def direction_report_pdf(request, as_page=False):
         "scout": scout,
         "alerts": alerts,
     }
+    # Pizarra de plantilla (misma fuente única) para AMBAS salidas: página interactiva y PDF.
+    ctx["primary_team_id"] = int(primary_team.id)
+    try:
+        _pitch_players = _coach_pitch_players_for_request(
+            request, primary_team, workspace=_get_active_workspace(request)
+        )
+    except Exception:
+        _pitch_players = []
+    ctx["coach_pitch_players"] = _pitch_players
     if as_page:
         ctx["interactive"] = True
-        ctx["primary_team_id"] = int(primary_team.id)
-        try:
-            ctx["coach_pitch_players"] = _coach_pitch_players_for_request(
-                request, primary_team, workspace=_get_active_workspace(request)
-            )
-        except Exception:
-            ctx["coach_pitch_players"] = []
         _qs = request.GET.urlencode()
         ctx["report_pdf_url"] = reverse("direction-report-pdf") + (f"?{_qs}" if _qs else "")
         ctx["back_url"] = f"{reverse('reports-hub')}?team={int(primary_team.id)}"
         return render(request, "football/direction_report_pdf.html", ctx)
+    # PDF: pizarra ESTÁTICA "capturada" (data URIs) + listado de jugadores, ambos en el documento.
+    try:
+        ctx["pdf_pitch_bg"] = _coach_pitch_board_pdf_assets(_pitch_players)
+    except Exception:
+        ctx["pdf_pitch_bg"] = ""
     html = render_to_string("football/direction_report_pdf.html", ctx, request=request)
     if str(request.GET.get("format") or "").strip().lower() == "html":
         return HttpResponse(html, content_type="text/html; charset=utf-8")
@@ -21554,6 +21561,62 @@ def _coach_pitch_players_for_request(request, primary_team, workspace=None):
     except Exception:
         injuries = set()
     return _build_coach_pitch_board_players(primary_team, players, memberships, injuries)
+
+
+def _coach_pitch_board_pdf_assets(players):
+    """Prepara la pizarra de plantilla para el PDF (WeasyPrint no ejecuta JS ni resuelve
+    `{% static %}`). Codifica el fondo del campo y el avatar de cada chip como data URI y los
+    inyecta en cada dict de jugador (`avatar_pdf`). Devuelve el data URI del fondo.
+
+    Usa el avatar ESTÁTICO de librería (no el endpoint personalizado por jugador): así el nº de
+    imágenes distintas queda acotado y, cacheando por ruta, el documento es ligero (evita el OOM de
+    WeasyPrint con muchas imágenes pesadas). Las posiciones ya vienen resueltas (izq/arriba %)."""
+    from django.contrib.staticfiles import finders
+
+    def _resolve(rel):
+        rel = str(rel or "").lstrip("/").strip()
+        if not rel:
+            return None
+        try:
+            found = finders.find(rel)
+        except Exception:
+            found = None
+        if found:
+            return found
+        for base in (
+            Path(settings.BASE_DIR) / "football" / "static",
+            Path(settings.BASE_DIR) / "static",
+            Path(str(getattr(settings, "STATIC_ROOT", "") or ".")),
+        ):
+            try:
+                cand = base / rel
+                if cand.exists() and cand.is_file():
+                    return str(cand)
+            except Exception:
+                continue
+        return None
+
+    cache = {}
+
+    def _uri(rel, max_width, max_height, quality):
+        rel = str(rel or "").strip()
+        if not rel:
+            return ""
+        if rel in cache:
+            return cache[rel]
+        abs_path = _resolve(rel)
+        uri = (
+            _image_file_as_small_data_uri(abs_path, max_width=max_width, max_height=max_height, quality=quality)
+            if abs_path
+            else ""
+        )
+        cache[rel] = uri
+        return uri
+
+    for item in players or []:
+        # Los ojeados (chips sin Player) también llevan avatar de librería.
+        item["avatar_pdf"] = _uri(item.get("avatar"), 150, 180, 74)
+    return _uri("football/images/pitch3d/coach_home_pitch_surface.png", 900, 560, 68)
 
 
 @login_required
@@ -29155,21 +29218,29 @@ def team_season_report_pdf(request, as_page=False):
         "matches": match_rows,
         "generated_at": timezone.localtime(),
     }
+    # Pizarra de plantilla (misma fuente única) para AMBAS salidas: página interactiva y PDF.
+    context["primary_team_id"] = int(primary_team.id)
+    try:
+        _pitch_players = _coach_pitch_players_for_request(
+            request, primary_team, workspace=_get_active_workspace(request)
+        )
+    except Exception:
+        _pitch_players = []
+    context["coach_pitch_players"] = _pitch_players
     if as_page:
         # El informe ES la página: mismo template y datos + pizarra interactiva (tablero con
         # avatares) + listado + botón Exportar PDF. El PDF es su exportación.
         context["interactive"] = True
-        context["primary_team_id"] = int(primary_team.id)
-        try:
-            context["coach_pitch_players"] = _coach_pitch_players_for_request(
-                request, primary_team, workspace=_get_active_workspace(request)
-            )
-        except Exception:
-            context["coach_pitch_players"] = []
         _qs = request.GET.urlencode()
         context["report_pdf_url"] = reverse("team-season-report-pdf") + (f"?{_qs}" if _qs else "")
         context["back_url"] = f"{reverse('reports-hub')}?team={int(primary_team.id)}"
         return render(request, "football/team_season_report_pdf.html", context)
+    # PDF: pizarra ESTÁTICA "capturada" en el documento (WeasyPrint no ejecuta JS ni resuelve
+    # {% static %}: usamos data URIs). El listado de jugadores va en la tabla "Jugadores".
+    try:
+        context["pdf_pitch_bg"] = _coach_pitch_board_pdf_assets(_pitch_players)
+    except Exception:
+        context["pdf_pitch_bg"] = ""
     pdf_html = render_to_string("football/team_season_report_pdf.html", context)
     filename = (
         slugify(f"informe-equipo-{primary_team.display_name}-{scope_label}-{timezone.localdate()}")

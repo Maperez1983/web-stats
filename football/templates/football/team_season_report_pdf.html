@@ -114,6 +114,11 @@
         <h2>Plantilla en el campo</h2>
         {% include 'football/_coach_pitch_board.html' %}
       </div>
+      {% elif coach_pitch_players %}
+      <div class="section">
+        <h2>Plantilla en el campo</h2>
+        {% include 'football/_coach_pitch_board_pdf.html' %}
+      </div>
       {% endif %}
 
       {% if 'players' in sections %}
