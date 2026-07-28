@@ -817,25 +817,28 @@ body.ed-chrome #edc-mat-body .edc-roster-quickbtn {
 body.ed-chrome #edc-mat-body .edc-roster-quickbtn:hover { background: rgba(55,208,95,0.20); border-color: var(--edc-accent); }
 body.ed-chrome #edc-mat-body .edc-roster-row { position: relative; }
 body.ed-chrome #edc-mat-body .edc-roster-btn {
-  display: flex; align-items: center; gap: 10px; width: 100%;
-  padding: 9px 12px; border-radius: 11px;
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 4px 8px; border-radius: 10px;               /* fila mas compacta -> caben mas */
   border: 1px solid var(--edc-line); background: var(--edc-bar-2);
   color: var(--edc-ink); cursor: pointer; text-align: left; font: inherit;
   transition: background .12s ease, border-color .12s ease;
 }
 body.ed-chrome #edc-mat-body .edc-roster-btn:hover { background: rgba(55,208,95,0.12); border-color: rgba(55,208,95,0.4); }
 body.ed-chrome #edc-mat-body .edc-roster-row.is-open .edc-roster-btn { border-color: var(--edc-accent); background: rgba(55,208,95,0.14); }
+/* Dorsal como BADGE en la esquina de la foto (libera el hueco horizontal). */
 body.ed-chrome #edc-mat-body .edc-roster-num {
-  position: relative;
-  flex: 0 0 auto; min-width: 30px; height: 30px; padding: 0 6px;
+  position: absolute; right: -3px; bottom: -3px; z-index: 2;
+  flex: 0 0 auto; min-width: 17px; height: 17px; padding: 0 3px;
   display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 8px; background: var(--edc-accent); color: var(--edc-accent-ink);
-  font-weight: 800; font-size: 13px; letter-spacing: 0;
+  border-radius: 6px; background: var(--edc-accent); color: var(--edc-accent-ink);
+  border: 1.5px solid var(--edc-bar-2);
+  font-weight: 800; font-size: 10.5px; letter-spacing: 0; line-height: 1;
 }
 body.ed-chrome #edc-mat-body .edc-roster-num.is-gk { background: #1d4ed8; color: #fff; }
-/* Miniatura de foto del jugador en cada fila (diferencia visualmente las filas). */
+/* Miniatura de foto (algo mayor, aloja el badge del dorsal). */
 body.ed-chrome #edc-mat-body .edc-roster-photo {
-  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%;
+  position: relative;
+  flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%;
   background-size: cover; background-position: center top; background-repeat: no-repeat;
   background-color: var(--edc-bar-2); border: 1px solid var(--edc-line);
   display: inline-flex; align-items: center; justify-content: center;
@@ -850,7 +853,7 @@ body.ed-chrome #edc-mat-body .edc-roster-cross {
   font-size: 11px; font-weight: 900; line-height: 1;
 }
 body.ed-chrome #edc-mat-body .edc-roster-name {
-  flex: 1 1 auto; font-weight: 600; font-size: 13px;
+  flex: 1 1 auto; font-weight: 600; font-size: 12px; letter-spacing: -.1px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 body.ed-chrome #edc-mat-body .edc-roster-caret { flex: 0 0 auto; opacity: .6; font-size: 11px; transition: transform .12s ease; }

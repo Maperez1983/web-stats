@@ -412,7 +412,7 @@
         if(estado==='lesionado'){ var xC=document.createElement('span'); xC.className='edc-roster-cross'; xC.textContent='✚'; xC.title='Lesionado'; sNum.appendChild(xC); } // marca de lesionado (cruz), además del rojo
         var sName=document.createElement('span'); sName.className='edc-roster-name'; sName.textContent=name||'Jugador';
         var sCaret=document.createElement('span'); sCaret.className='edc-roster-caret'; sCaret.textContent='▾';
-        btn.appendChild(sPhoto); btn.appendChild(sNum); btn.appendChild(sName); btn.appendChild(sCaret);
+        sPhoto.appendChild(sNum); btn.appendChild(sPhoto); btn.appendChild(sName); btn.appendChild(sCaret); // dorsal como badge sobre la foto (gana espacio)
         var menu=document.createElement('div'); menu.className='edc-rep-menu'; menu.hidden=true;
         // Selector de equipación COMPLETO (aplica a todo salvo Foto). Campo vs portero.
         var kitState={ v: isGK ? 'gk_azul' : 'titular' };
