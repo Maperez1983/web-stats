@@ -346,9 +346,9 @@ def render_task_preview_png(
 
     orientation = "portrait" if str(pitch_orientation).strip().lower() == "portrait" else "landscape"
     preset = str(pitch_preset or "full_pitch").strip() or "full_pitch"
-    grass_style = str(pitch_grass_style or "stadium_top").strip().lower()
-    if grass_style not in {"classic", "broadcast", "broadcast_premium", "stadium_top", "realistic", "pro", "artificial", "dry", "wet", "uefa_b", "whiteboard", "blackboard"}:
-        grass_style = "stadium_top"
+    grass_style = str(pitch_grass_style or "flat_2d").strip().lower()
+    if grass_style not in {"flat_2d", "classic", "broadcast", "broadcast_premium", "stadium_top", "realistic", "pro", "artificial", "dry", "wet", "uefa_b", "whiteboard", "blackboard"}:
+        grass_style = "flat_2d"
     try:
         zoom = float(pitch_zoom or 1.0)
     except Exception:
@@ -629,7 +629,7 @@ def render_task_preview_png(
 	                const preset = String(cfg.preset || 'full_pitch');
 	                const orientation = String(cfg.orientation || 'landscape') === 'portrait' ? 'portrait' : 'landscape';
 		                const rawGrass = String(cfg.grass_style || 'classic').trim().toLowerCase();
-		                const grassStyle = ['classic', 'broadcast', 'broadcast_premium', 'stadium_top', 'realistic', 'pro', 'artificial', 'dry', 'wet', 'uefa_b', 'whiteboard', 'blackboard'].includes(rawGrass) ? rawGrass : 'stadium_top';
+		                const grassStyle = ['flat_2d', 'classic', 'broadcast', 'broadcast_premium', 'stadium_top', 'realistic', 'pro', 'artificial', 'dry', 'wet', 'uefa_b', 'whiteboard', 'blackboard'].includes(rawGrass) ? rawGrass : 'flat_2d';
 	                const zoom = Number(cfg.zoom || 1);
 	                const world = cfg.world || {};
 	                const state = cfg.state || {};
