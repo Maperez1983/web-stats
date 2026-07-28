@@ -79124,7 +79124,8 @@ def _infer_team_goals_from_events(match, primary_team):
         preferred_sources = preferred_event_source_by_match(primary_team)
         events = _filter_stats_events(
             confirmed_events_queryset()
-            .filter(match=match, player__team=primary_team)
+            .filter(match=match)
+            .filter(Q(player__team=primary_team) | Q(player__isnull=True))
             .select_related("player")
             .order_by("minute", "id"),
             preferred_sources=preferred_sources,
@@ -79187,7 +79188,8 @@ def _infer_team_goals_against_from_events(match, primary_team):
         preferred_sources = preferred_event_source_by_match(primary_team)
         events = _filter_stats_events(
             confirmed_events_queryset()
-            .filter(match=match, player__team=primary_team)
+            .filter(match=match)
+            .filter(Q(player__team=primary_team) | Q(player__isnull=True))
             .select_related("player")
             .order_by("minute", "id"),
             preferred_sources=preferred_sources,
