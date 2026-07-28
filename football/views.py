@@ -398,6 +398,7 @@ from football.models import (
     SessionTaskBookmark,
     SessionTaskCollection,
     SessionTaskCollectionItem,
+    SessionTaskParticipation,
     ShareLink,
     StaffMember,
     SystemSetting,
@@ -32303,7 +32304,7 @@ def training_session_detail_page(request, session_id):
             requested_return_to = str(request.GET.get("return_to") or "").strip().lower()
     except Exception:
         requested_return_to = ""
-    if requested_return_to not in {"", "view", "edit", "attendance"}:
+    if requested_return_to not in {"", "view", "edit", "attendance", "participation"}:
         requested_return_to = ""
     # Botón “➕ Tareas”: lleva a Biblioteca (tareas creadas) preseleccionando esta sesión.
     library_repository = _normalize_library_repository(
@@ -32852,6 +32853,63 @@ def training_session_detail_page(request, session_id):
                 # Mantener la UI en el bloque de asistencia tras guardar.
                 sep = "&" if "?" in detail_url else "?"
                 return redirect(f"{detail_url}{sep}msg={msg}&return_to=attendance#asistencia-edit")
+        elif action == "participation":
+            # Fase 5: quién participó en cada tarea. Para cada tarea un checkbox por jugador disponible
+            # (name=participa_{task_id}_{player_id}). Sincroniza SessionTaskParticipation: crea las
+            # marcadas, borra las desmarcadas. Acotado a las tareas de ESTA sesión y jugadores del equipo.
+            try:
+                _sess_task_ids = set(
+                    int(_x) for _x in session_obj.tasks.filter(deleted_at__isnull=True).values_list("id", flat=True)
+                )
+                _team_player_ids = set(
+                    int(_x) for _x in Player.objects.filter(team=primary_team).values_list("id", flat=True)
+                )
+                _checked_by_task = {int(_t): set() for _t in _sess_task_ids}
+                for _key in request.POST.keys():
+                    if not _key.startswith("participa_"):
+                        continue
+                    try:
+                        _rest = _key[len("participa_"):]
+                        _t_str, _p_str = _rest.split("_", 1)
+                        _t_id = int(_t_str)
+                        _p_id = int(_p_str)
+                    except Exception:
+                        continue
+                    if _t_id in _sess_task_ids and _p_id in _team_player_ids:
+                        _checked_by_task[_t_id].add(_p_id)
+                for _t_id, _checked_ids in _checked_by_task.items():
+                    _existing_ids = set(
+                        int(_x)
+                        for _x in SessionTaskParticipation.objects.filter(session_task_id=_t_id).values_list(
+                            "player_id", flat=True
+                        )
+                    )
+                    _to_add = _checked_ids - _existing_ids
+                    _to_del = _existing_ids - _checked_ids
+                    if _to_add:
+                        SessionTaskParticipation.objects.bulk_create(
+                            [
+                                SessionTaskParticipation(session_task_id=_t_id, player_id=_pid)
+                                for _pid in _to_add
+                            ],
+                            ignore_conflicts=True,
+                        )
+                    if _to_del:
+                        SessionTaskParticipation.objects.filter(
+                            session_task_id=_t_id, player_id__in=_to_del
+                        ).delete()
+                message = "Participación guardada."
+            except Exception:
+                error = "No se pudo guardar la participación."
+            if not error:
+                msg = quote(message or "Participación guardada.")
+                detail_url = reverse("training-session-detail", args=[int(session_obj.id)])
+                try:
+                    detail_url = f'{detail_url}?{urlencode({"team": int(primary_team.id)})}'
+                except Exception:
+                    detail_url = f"{detail_url}?team={int(primary_team.id)}"
+                sep = "&" if "?" in detail_url else "?"
+                return redirect(f"{detail_url}{sep}msg={msg}&return_to=participation#participacion")
         # Añadir tareas se gestiona desde Biblioteca (pestaña Biblioteca en Sesiones).
 
     # Refresca post-sesión / auditoría tras POST.
@@ -32962,16 +33020,9 @@ def training_session_detail_page(request, session_id):
     )
 
     tasks = list(session_obj.tasks.filter(deleted_at__isnull=True).order_by("block", "order", "id"))
-    # Orden estable por bloques (como en el PDF Club / flujo de entreno).
-    block_order = [
-        SessionTask.BLOCK_CONDITIONING,
-        SessionTask.BLOCK_ACTIVATION,
-        SessionTask.BLOCK_MAIN_1,
-        SessionTask.BLOCK_MAIN_2,
-        SessionTask.BLOCK_SET_PIECES,
-        SessionTask.BLOCK_RECOVERY,
-        SessionTask.BLOCK_VIDEO,
-    ]
+    # Orden estable por bloques = el orden del modelo (BLOCK_CHOICES), asi se mantiene en sync al
+    # anadir bloques (p.ej. 'Preparación física'). Activación · Prep.física · Condicionante · Ppal 1/2 · ABP · Vuelta · Vídeo.
+    block_order = [key for key, _label in SessionTask.BLOCK_CHOICES]
     block_rank = {key: idx for idx, key in enumerate(block_order)}
     tasks.sort(
         key=lambda t: (
@@ -32980,6 +33031,44 @@ def training_session_detail_page(request, session_id):
             int(getattr(t, "id", 0) or 0),
         )
     )
+
+    # Fase 5: participación por tarea. Jugadores DISPONIBLES = los que NO están ausente/lesionado/
+    # justificado (present/late/sin-marca participan por defecto). La matriz de la ficha marca a todos
+    # por defecto; guardar persiste SessionTaskParticipation (fila = participó). Los minutos de la
+    # tarea = duration_minutes; los minutos de entreno de un jugador se suman de las tareas participadas.
+    _absent_status = {
+        TrainingSessionAttendance.STATUS_ABSENT,
+        TrainingSessionAttendance.STATUS_INJURED,
+        TrainingSessionAttendance.STATUS_EXCUSED,
+    }
+    available_players = []
+    for _row in attendance_rows:
+        _p = _row.get("player")
+        _mk = _row.get("mark")
+        if _row.get("injury_default"):
+            continue
+        if _mk is not None and str(getattr(_mk, "status", "") or "") in _absent_status:
+            continue
+        if _p is not None:
+            available_players.append(_p)
+    _task_ids = [int(t.id) for t in tasks]
+    _existing_part = set()
+    _any_participation = False
+    if _task_ids:
+        for _st_id, _pl_id in SessionTaskParticipation.objects.filter(
+            session_task_id__in=_task_ids
+        ).values_list("session_task_id", "player_id"):
+            _existing_part.add((int(_st_id), int(_pl_id)))
+            _any_participation = True
+    participation_tasks = []
+    for _t in tasks:
+        _prows = []
+        for _p in available_players:
+            _checked = (int(_t.id), int(_p.id)) in _existing_part if _any_participation else True
+            _prows.append({"player": _p, "checked": _checked})
+        participation_tasks.append(
+            {"task": _t, "minutes": int(getattr(_t, "duration_minutes", 0) or 0), "rows": _prows}
+        )
 
     def _task_preview_url(task):
         if not task:
@@ -33122,6 +33211,8 @@ def training_session_detail_page(request, session_id):
             "injury_catalog_entries": injury_catalog_entries,
             "marks": marks,
             "attendance_rows": attendance_rows,
+            "participation_tasks": participation_tasks,
+            "available_players": available_players,
             "allowed_statuses": allowed_statuses,
             "attendance_summary": attendance_summary,
             "attendance_report": attendance_report,

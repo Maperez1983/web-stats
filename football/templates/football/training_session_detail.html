@@ -578,6 +578,57 @@
               {% endif %}
 	        </div>
 
+	          <div class="section-title" id="participacion">Participación por tarea</div>
+	          <div class="box" style="margin-bottom:12px;">
+	            {% if participation_tasks and available_players %}
+	            <p style="margin:0 0 10px; color:var(--club-muted); font-size:11px;">Marca quién participó en cada tarea (por defecto, toda la plantilla disponible). Los minutos de cada tarea suman a los minutos de entreno del jugador.</p>
+	            <form method="post">
+	              {% csrf_token %}
+	              <input type="hidden" name="action" value="participation" />
+	              <input type="hidden" name="return_to" value="participation" />
+	              <input type="hidden" name="team" value="{{ team.id }}" />
+	              {% for pt in participation_tasks %}
+	              <div style="border:1px solid rgba(148,163,184,0.14); border-radius:12px; padding:0.6rem 0.7rem; margin-bottom:0.6rem;">
+	                <div style="display:flex; align-items:center; justify-content:space-between; gap:0.6rem; flex-wrap:wrap; margin-bottom:0.5rem;">
+	                  <strong>{{ pt.task.title|default:pt.task.get_block_display }}</strong>
+	                  <span class="meta">{{ pt.task.get_block_display }} · {{ pt.minutes }}′</span>
+	                </div>
+	                <div style="display:flex; flex-wrap:wrap; gap:0.4rem;">
+	                  {% for r in pt.rows %}
+	                  <label class="participa-chip" style="display:inline-flex; align-items:center; gap:0.35rem; border:1px solid rgba(148,163,184,0.3); border-radius:999px; padding:0.22rem 0.55rem; cursor:pointer; font-size:0.82rem;">
+	                    <input type="checkbox" name="participa_{{ pt.task.id }}_{{ r.player.id }}" {% if r.checked %}checked{% endif %} />
+	                    {{ r.player.name }}
+	                  </label>
+	                  {% endfor %}
+	                </div>
+	                <div style="margin-top:0.4rem; display:flex; gap:0.35rem;">
+	                  <button type="button" class="btn secondary" style="font-size:0.72rem; padding:0.25rem 0.6rem;" data-part-all="{{ pt.task.id }}">Todos</button>
+	                  <button type="button" class="btn secondary" style="font-size:0.72rem; padding:0.25rem 0.6rem;" data-part-none="{{ pt.task.id }}">Ninguno</button>
+	                </div>
+	              </div>
+	              {% endfor %}
+	              <div style="display:flex; justify-content:flex-end; margin-top:0.5rem;">
+	                <button class="btn primary" type="submit">Guardar participación</button>
+	              </div>
+	            </form>
+	            <script>
+	              (function(){
+	                document.querySelectorAll("[data-part-all],[data-part-none]").forEach(function(btn){
+	                  btn.addEventListener("click", function(){
+	                    var tid = btn.getAttribute("data-part-all") || btn.getAttribute("data-part-none");
+	                    var on = btn.hasAttribute("data-part-all");
+	                    document.querySelectorAll('input[name^="participa_'+tid+'_"]').forEach(function(cb){ cb.checked = on; });
+	                  });
+	                });
+	              })();
+	            </script>
+	            {% elif not available_players %}
+	            <span style="color:var(--club-muted);">Marca la asistencia primero: no hay jugadores disponibles (todos ausentes/lesionados/justificados) o la plantilla está vacía.</span>
+	            {% else %}
+	            <span style="color:var(--club-muted);">Esta sesión no tiene tareas todavía.</span>
+	            {% endif %}
+	          </div>
+
 	          <div class="section-title">Post-sesión (60s)</div>
 	          <div class="box" style="margin-bottom:12px;">
 	            {% if review %}

@@ -2628,6 +2628,27 @@ class TrainingSessionTimelineSegment(models.Model):
         return f'{self.session} · {label}'
 
 
+class SessionTaskParticipation(models.Model):
+    """Qué jugador participó en qué tarea de una sesión (Fase 5). La PRESENCIA de la fila = participó.
+    Los minutos de la tarea = `SessionTask.duration_minutes`; los minutos de entreno de un jugador
+    se agregan sumando la duración de las tareas en las que participó (Fase 6). Uno por (tarea, jugador)."""
+
+    session_task = models.ForeignKey('SessionTask', on_delete=models.CASCADE, related_name='participations')
+    player = models.ForeignKey('Player', on_delete=models.CASCADE, related_name='task_participations')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('session_task', 'player')
+        indexes = [
+            models.Index(fields=['player']),
+            models.Index(fields=['session_task']),
+        ]
+
+    def __str__(self):
+        return f'{self.session_task_id} · {self.player_id}'
+
+
 class SessionTaskManager(models.Manager):
     """Perf: difiere por defecto los blobs base64 (preview 2D / portada IA) para que NINGUN
     listado/consulta los detoaste (pesan cientos de KB). Solo los 2 endpoints que sirven la
