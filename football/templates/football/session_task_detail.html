@@ -2073,7 +2073,7 @@
         } catch (e) {
           savedState = {};
         }
-        const rawPitchGrassStyle = "{{ task_meta.pitch_grass_style|default:'stadium_native'|escapejs }}".trim().toLowerCase() || 'stadium_native';
+        const rawPitchGrassStyle = "{{ task_meta.pitch_grass_style|default:'flat_2d'|escapejs }}".trim().toLowerCase() || 'flat_2d';
         const pitchGrassStyle = ['stadium_top', 'stadium_top_h', 'stadium_top_v'].includes(rawPitchGrassStyle) ? 'stadium_native' : rawPitchGrassStyle;
         const pitchOrientationMeta = "{{ task_meta.pitch_orientation|default:''|escapejs }}".trim().toLowerCase();
         const stadiumTopImages = {

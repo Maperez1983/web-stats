@@ -32198,10 +32198,11 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style="uefa", one_p
         try:
             pitch_preset = (request.POST.get("draw_task_pitch_preset") or "full_pitch").strip()
             pitch_orientation = (request.POST.get("draw_task_pitch_orientation") or "landscape").strip().lower()
-            pitch_grass_style = (request.POST.get("draw_task_pitch_grass_style") or "stadium_native").strip().lower()
+            pitch_grass_style = (request.POST.get("draw_task_pitch_grass_style") or "flat_2d").strip().lower()
             if pitch_grass_style in {"stadium_top", "stadium_top_h", "stadium_top_v"}:
                 pitch_grass_style = "stadium_native"
             if pitch_grass_style not in {
+                "flat_2d",
                 "classic",
                 "broadcast",
                 "broadcast_premium",
@@ -32220,7 +32221,7 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style="uefa", one_p
                 "whiteboard",
                 "blackboard",
             }:
-                pitch_grass_style = "stadium_native"
+                pitch_grass_style = "flat_2d"
             try:
                 pitch_zoom = float(str(request.POST.get("draw_task_pitch_zoom") or "1.0").strip())
             except Exception:
@@ -50931,7 +50932,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     pitch_grass_style = (
         (raw_pitch_grass_style or "").strip().lower()
         if raw_pitch_grass_style is not None
-        else str(existing_meta.get("pitch_grass_style") or "stadium_native")
+        else str(existing_meta.get("pitch_grass_style") or "flat_2d")
     )
     raw_pitch_zoom = request.POST.get("draw_task_pitch_zoom")
     pitch_zoom = None
@@ -53969,10 +53970,11 @@ def _build_task_studio_draft_pdf_context(request, owner, pdf_style="uefa"):
         try:
             pitch_preset = (request.POST.get("draw_task_pitch_preset") or "full_pitch").strip()
             pitch_orientation = (request.POST.get("draw_task_pitch_orientation") or "landscape").strip().lower()
-            pitch_grass_style = (request.POST.get("draw_task_pitch_grass_style") or "stadium_native").strip().lower()
+            pitch_grass_style = (request.POST.get("draw_task_pitch_grass_style") or "flat_2d").strip().lower()
             if pitch_grass_style in {"stadium_top", "stadium_top_h", "stadium_top_v"}:
                 pitch_grass_style = "stadium_native"
             if pitch_grass_style not in {
+                "flat_2d",
                 "classic",
                 "broadcast",
                 "broadcast_premium",
@@ -53991,7 +53993,7 @@ def _build_task_studio_draft_pdf_context(request, owner, pdf_style="uefa"):
                 "whiteboard",
                 "blackboard",
             }:
-                pitch_grass_style = "stadium_native"
+                pitch_grass_style = "flat_2d"
             try:
                 pitch_zoom = float(str(request.POST.get("draw_task_pitch_zoom") or "1.0").strip())
             except Exception:
