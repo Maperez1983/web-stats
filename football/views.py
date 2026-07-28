@@ -56658,6 +56658,79 @@ def session_task_scenes_export(request):
                     cones += 1
                 elif _k in ("mannequin", "barrier"):
                     mannequins += 1
+
+            # --- Geometría del dibujo para la portada (zonas/jugadores/flechas + dentro/fuera) ---
+            # Aditivo y defensivo: normalizamos cada objeto 0..1 sobre el campo. Si el esquema varía,
+            # el prompt por recuentos sigue funcionando (la fábrica usa geometry si viene, si no cuenta).
+            geometry = {}
+            try:
+                _gcw = float(_cw or 0) or 1280.0
+                _gch = float(_ch or 0) or 720.0
+
+                def _gn(v, m):
+                    try:
+                        return round(max(0.0, min(1.0, float(v) / float(m or 1))), 3)
+                    except Exception:
+                        return 0.0
+
+                def _center_wh(o):
+                    sx = float(o.get("scaleX") or 1) or 1.0
+                    sy = float(o.get("scaleY") or 1) or 1.0
+                    w = abs(float(o.get("width") or 0)) * sx
+                    h = abs(float(o.get("height") or 0)) * sy
+                    left = float(o.get("left") or 0)
+                    top = float(o.get("top") or 0)
+                    ox = str(o.get("originX") or "left").lower()
+                    oy = str(o.get("originY") or "top").lower()
+                    cx = left if ox == "center" else left + w / 2.0
+                    cy = top if oy == "center" else top + h / 2.0
+                    return cx, cy, w, h
+
+                _zones, _players_pos, _arrows, _material = [], [], [], []
+                for o in objs:
+                    if not (isinstance(o, dict)):
+                        continue
+                    _d = o.get("data") if isinstance(o.get("data"), dict) else {}
+                    _kk = str(_d.get("kind") or o.get("type") or "").lower()
+                    try:
+                        cx, cy, w, h = _center_wh(o)
+                    except Exception:
+                        continue
+                    nx, ny, nw, nh = _gn(cx, _gcw), _gn(cy, _gch), _gn(w, _gcw), _gn(h, _gch)
+                    if _kk == "token":
+                        _col = str(_d.get("team") or _d.get("color") or "").strip().lower()[:16]
+                        _players_pos.append({"x": nx, "y": ny, "team": _col})
+                    elif any(z in _kk for z in ("zone", "shape_square", "shape_rect", "shape_lane", "shape_band")):
+                        _zones.append({"x": nx, "y": ny, "w": nw, "h": nh})
+                    elif ("arrow" in _kk or "route" in _kk or "move" in _kk) or (
+                        str(o.get("type") or "") in ("line", "path") and o.get("x1") is not None
+                    ):
+                        _arrows.append({
+                            "x1": _gn(o.get("x1", cx - w / 2.0), _gcw), "y1": _gn(o.get("y1", cy), _gch),
+                            "x2": _gn(o.get("x2", cx + w / 2.0), _gcw), "y2": _gn(o.get("y2", cy), _gch),
+                        })
+                    elif any(m in _kk for m in ("cone", "goal", "mannequin", "barrier", "pole")):
+                        _material.append({"kind": _kk, "x": nx, "y": ny})
+
+                def _inside(px, py, z):
+                    return (z["x"] - z["w"] / 2.0 <= px <= z["x"] + z["w"] / 2.0) and (
+                        z["y"] - z["h"] / 2.0 <= py <= z["y"] + z["h"] / 2.0
+                    )
+
+                for z in _zones:
+                    z["players_inside"] = sum(1 for p in _players_pos if _inside(p["x"], p["y"], z))
+                _outside = sum(1 for p in _players_pos if not any(_inside(p["x"], p["y"], z) for z in _zones))
+                geometry = {
+                    "field": {"w": int(_gcw), "h": int(_gch)},
+                    "zones": _zones[:12],
+                    "players": _players_pos[:30],
+                    "players_outside_zones": _outside,
+                    "arrows": _arrows[:20],
+                    "material": _material[:30],
+                }
+            except Exception:
+                geometry = {}
+
             objective = str(getattr(t, "objective", "") or "").strip()
             title = str(t.title or "").strip()
             # Salta solo lo que no da para un prompt (borrador vacío sin nada).
@@ -56705,6 +56778,7 @@ def session_task_scenes_export(request):
                 "goals": goals,
                 "cones": cones,
                 "mannequins": mannequins,
+                "geometry": geometry,
             })
         except Exception:
             continue
