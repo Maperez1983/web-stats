@@ -35611,6 +35611,15 @@
 				    canvas.on('object:modified', (event) => {
 				      if (canvas.__loading) return;
 				      if (event?.target?.data?.base) return;
+				      // Perf: restaurar render en vivo (cache-off) al terminar el arrastre.
+				      try {
+				        const __vt = event?.target;
+				        if (__vt && __vt.__vsDragCached) {
+				          __vt.__vsDragCached = false;
+				          __vt.objectCaching = false;
+				          __vt.dirty = true;
+				        }
+				      } catch (e) { /* ignore */ }
 				      try {
 				        const target = event?.target;
 				        if (safeText(target?.data?.kind) === 'measure') updateMeasureLabelWorld(target);
@@ -36429,6 +36438,13 @@
 			      const rawEvent = event?.e;
 			      if (!target || !rawEvent) return;
 			      if (target?.data?.base) return;
+			      // Perf (anti micro-cortes): durante el arrastre cacheamos el objeto. La posicion
+			      // no altera su apariencia, asi que la cache es valida y evita re-rasterizar el
+			      // gradiente/sombra/foto en cada frame. Se restaura en object:modified.
+			      if (!target.__vsDragCached) {
+			        target.__vsDragCached = true;
+			        try { target.objectCaching = true; target.dirty = true; } catch (e) { /* ignore */ }
+			      }
 			      const targetCenter = target.getCenterPoint();
 			      const isMod = !!(rawEvent.ctrlKey || rawEvent.metaKey);
 			      const useMagnets = isMod || (isSimulating && simulationMagnets);
