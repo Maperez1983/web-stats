@@ -50086,6 +50086,12 @@ def _build_tactical_player_catalog(request, primary_team):
     except Exception:
         active_injury_ids = set()
     ratings = _tactical_latest_closed_ratings(squad_ids)
+    # Fase 3: precargamos el repositorio de assets por jugador (UNA consulta) para que el editor
+    # pueda pintar la foto/chapa/kit REAL (PlayerAsset) al elegir presentación + equipación.
+    try:
+        assets_by_player = player_assets_map(players)
+    except Exception:
+        assets_by_player = {}
     for player in players:
         pid = int(player.id)
         photo_url = ""
@@ -50118,6 +50124,9 @@ def _build_tactical_player_catalog(request, primary_team):
                 "estado": estado,
                 "is_scouted": False,
                 "display": display,
+                # {kind: url} del repositorio (vacío si el jugador aún no tiene assets subidos).
+                "assets": assets_by_player.get(pid, {}),
+                "assets_json": json.dumps(assets_by_player.get(pid, {}), separators=(",", ":")),
             }
         )
     # Ojeados marcados como "disponibles para la pizarra del entrenador".

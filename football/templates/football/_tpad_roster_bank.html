@@ -64,7 +64,7 @@
   <div class="player-bank" id="task-player-bank">
     {% if tactics_mode and tactical_player_catalog %}
       {% for p in tactical_player_catalog %}
-        <button type="button" class="player-token-bank{% if p.is_scouted %} is-scouted{% endif %}" data-player-id="{{ p.id }}" data-estado="{{ p.estado|default:'' }}" data-scouted="{% if p.is_scouted %}1{% else %}0{% endif %}"{% if p.rating %} data-rating="{{ p.rating }}"{% endif %} title="{{ p.name|default:'' }}{% if p.is_scouted %} · Ojeado{% endif %}">
+        <button type="button" class="player-token-bank{% if p.is_scouted %} is-scouted{% endif %}" data-player-id="{{ p.id }}" data-estado="{{ p.estado|default:'' }}" data-scouted="{% if p.is_scouted %}1{% else %}0{% endif %}"{% if p.rating %} data-rating="{{ p.rating }}"{% endif %}{% if p.assets_json %} data-assets="{{ p.assets_json }}"{% endif %} title="{{ p.name|default:'' }}{% if p.is_scouted %} · Ojeado{% endif %}">
           <span class="player-token-bank-visuals">
             <span class="token-rating-badge{% if not p.rating %} is-unrated{% elif p.rating >= 7 %} is-good{% elif p.rating >= 5 %} is-mid{% else %} is-low{% endif %}" aria-hidden="true">{% if p.rating %}{{ p.rating|floatformat:'-1' }}{% else %}–{% endif %}</span>
             {% if p.is_scouted %}<span class="token-scout-flag" title="Ojeado" aria-hidden="true">👁</span>{% endif %}

@@ -30941,7 +30941,10 @@
 			          // Avatar HD: si la imagen ya esta precargada, superponemos la figura ENTERA
 			          // (sincrona; el muñeco vectorial de arriba queda de fallback si no esta lista).
 			          try {
-			            const __avUrl = (style === 'photo') ? (photoUrl || resolveAvatarUrlForToken(kind, stripeColor)) : resolveAvatarUrlForToken(kind, stripeColor);
+			            // Fase 3: si el jugador tiene un asset REAL (foto/kit/portero) para esta
+			            // presentación, esa imagen gana sobre el muñeco/act genérico.
+			            const __assetUrl = options?.assetUrl ? (resolvePlayerPhotoUrl(options.assetUrl) || safeText(options.assetUrl)) : '';
+			            const __avUrl = __assetUrl || ((style === 'photo') ? (photoUrl || resolveAvatarUrlForToken(kind, stripeColor)) : resolveAvatarUrlForToken(kind, stripeColor));
 			            ensureAvatarImage(__avUrl);
 			            const __avEl = getReadyAvatarImage(__avUrl);
 			            if (__avEl) {
@@ -37952,13 +37955,28 @@
                       if (m && m[1]) realPhoto = m[1];
                     } catch (e) { /* ignore */ }
                     const kind = isGk ? 'goalkeeper_local' : (away ? 'player_away' : 'player_local');
+                    // Fase 3: repositorio de assets del jugador (PlayerAsset) expuesto por el banco.
+                    // Traduce (estilo, equipación, portero) -> el 'kind' del asset real a pintar.
+                    let assetsMap = {};
+                    try { const rawA = el ? el.getAttribute('data-assets') : ''; if (rawA) assetsMap = JSON.parse(rawA) || {}; } catch (e) { assetsMap = {}; }
+                    const assetKindFor = (s, isAway, gk) => {
+                      if (s === 'photo') return 'foto';
+                      if (s === 'disk') return gk ? 'chapa_gk' : (isAway ? 'chapa_away' : 'chapa_local');
+                      // 'jersey' | 'sprite' | 'figure' => figura de kit (imagen entera)
+                      return gk ? (isAway ? 'gk_magenta' : 'gk_azul') : (isAway ? 'kit_visitante' : 'kit_titular');
+                    };
                     // CLAVE: pasamos {style} EXPLÍCITO -> gana sobre display.mode del servidor (que forzaba
                     // 'photo' e ignoraba la elección Chapa/Camiseta/Avatar del desplegable).
                     let st = normalizeTokenStyle(style || tokenGlobalStyle);
-                    // 'Foto' sin foto real -> Chapa (evita caer al avatar por defecto).
-                    if (st === 'photo' && !realPhoto) st = 'disk';
+                    let assetUrl = safeText(assetsMap[assetKindFor(st, !!away, isGk)] || '');
+                    // 'Foto' sin foto real NI asset de foto -> Chapa (evita caer al avatar por defecto).
+                    if (st === 'photo' && !realPhoto && !assetUrl) st = 'disk';
+                    if (!assetUrl) assetUrl = safeText(assetsMap[assetKindFor(st, !!away, isGk)] || ''); // reintento si el estilo cambió
                     const opts = { style: st };
                     if (st === 'photo' && realPhoto) opts.photoUrl = realPhoto;
+                    // El asset real (foto/kit/portero) solo lo pinta la rama figura (photo/sprite);
+                    // si existe, gana sobre el muñeco genérico (ver __avUrl en playerTokenFactory).
+                    if (assetUrl) opts.assetUrl = assetUrl;
                     const factory = playerTokenFactory(kind, minP, opts);
                     activateFactory(factory, safeText(minP.name, 'el jugador'), kind);
                     return true;
