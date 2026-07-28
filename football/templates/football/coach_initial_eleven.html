@@ -2413,7 +2413,6 @@
       const saveUrl = matchId ? `${saveUrlBase}?match_id=${encodeURIComponent(matchId)}` : saveUrlBase;
       const publishUrlBase = '{% url "initial-eleven-publish" %}';
       const publishUrl = matchId ? `${publishUrlBase}?match_id=${encodeURIComponent(matchId)}` : publishUrlBase;
-      const GRASS_FLAT_URL = "{% static 'football/images/pitch3d/grass_flat.jpg' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}";
       const matchMeta = {
         team: '{{ team_name|escapejs }}',
         opponent: '{{ convocation_record.opponent_name|default:rival_display_name|default:""|escapejs }}',
@@ -3108,61 +3107,35 @@
 
       const renderField = () => {
         field.innerHTML = '';
-        // Superficie: MISMO césped hiperrealista (grass_flat.jpg) que la pizarra / editor 2D,
-        // con franjas horizontales + líneas de campo dibujadas. Autónomo: no depende del renderer
-        // compartido (pitch_surface_25d.js), que forzaba en campo completo una imagen ilustrada
-        // distinta y además lo edita otra sesión en paralelo. viewBox 0.6 = mismo aspecto que el
-        // campo -> el césped rellena sin recortar las áreas.
+        // Superficie EXACTA del editor de tareas: mismo renderer (WebstatsPitch25D) con la misma
+        // llamada buildPitchSvg(preset, 'portrait', 'flat_2d') -> imagen coach_home_pitch_surface.png
+        // (césped hiperrealista con franjas + líneas + porterías). Se inyecta por DOMParser+importNode
+        // igual que en la pizarra/tareas. El contenedor NO la oscurece (overlay off en modo plano).
         try {
           const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
           svg.id = 'lineup-pitch-surface';
           svg.classList.add('lineup-pitch-surface');
           svg.setAttribute('aria-hidden', 'true');
-          svg.setAttribute('viewBox', '0 0 630 1050');
-          svg.setAttribute('preserveAspectRatio', 'xMidYMid slice');
-          const L = 'rgba(255,255,255,0.92)';
-          const grassHref = String(GRASS_FLAT_URL || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-          const markup = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 630 1050">
-            <defs>
-              <radialGradient id="xi-pitch-light" cx="50%" cy="42%" r="66%">
-                <stop offset="0%" stop-color="rgba(255,255,255,0.10)"/>
-                <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
-              </radialGradient>
-            </defs>
-            <g transform="rotate(90 315 525)">
-              <image href="${grassHref}" xlink:href="${grassHref}" x="-210" y="210" width="1050" height="630" preserveAspectRatio="xMidYMid slice"/>
-            </g>
-            <rect x="0" y="0" width="630" height="1050" fill="rgba(6,20,10,0.10)"/>
-            <rect x="0" y="0" width="630" height="1050" fill="url(#xi-pitch-light)"/>
-            <g fill="none" stroke="${L}" stroke-width="3.2" stroke-linejoin="round">
-              <rect x="14" y="14" width="602" height="1022" rx="2"/>
-              <line x1="14" y1="525" x2="616" y2="525"/>
-              <circle cx="315" cy="525" r="85"/>
-              <rect x="136.5" y="14" width="357" height="161"/>
-              <rect x="234" y="14" width="162" height="54"/>
-              <path d="M 249.4 175 A 85 85 0 0 1 380.6 175"/>
-              <rect x="136.5" y="875" width="357" height="161"/>
-              <rect x="234" y="982" width="162" height="54"/>
-              <path d="M 249.4 875 A 85 85 0 0 0 380.6 875"/>
-              <path d="M 22 14 A 8 8 0 0 1 14 22"/>
-              <path d="M 608 14 A 8 8 0 0 0 616 22"/>
-              <path d="M 14 1028 A 8 8 0 0 0 22 1036"/>
-              <path d="M 616 1028 A 8 8 0 0 1 608 1036"/>
-            </g>
-            <g fill="${L}">
-              <circle cx="315" cy="525" r="3.4"/>
-              <circle cx="315" cy="121" r="3"/>
-              <circle cx="315" cy="929" r="3"/>
-            </g>
-          </svg>`;
-          const parsed = new DOMParser().parseFromString(markup, 'image/svg+xml');
-          const root = parsed.documentElement;
-          if (root && root.nodeName.toLowerCase() === 'svg') {
-            Array.from(root.childNodes || []).forEach((child) => {
-              svg.appendChild(svg.ownerDocument.importNode(child, true));
-            });
-          }
           field.appendChild(svg);
+          const preset = String(field.dataset.pitchPreset || 'full_pitch');
+          const orientation = String(field.dataset.orientation || 'portrait');
+          const grass = 'flat_2d';
+          const P = window.WebstatsPitch25D || window.WebstatsPitchPreview || window.WebstatsPitchSurface;
+          if (P && typeof P.buildPitchSvg === 'function') {
+            const markup = P.buildPitchSvg(preset, orientation, grass);
+            const root = new DOMParser().parseFromString(markup, 'image/svg+xml').documentElement;
+            if (root && root.nodeName.toLowerCase() === 'svg') {
+              svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+              svg.setAttribute('viewBox', root.getAttribute('viewBox') || '0 0 945 1664');
+              // slice = cubrir el campo (mismo aspecto ~0.57 vs 0.6, recorte mínimo).
+              svg.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+              const pb = root.getAttribute('data-pitch-box');
+              if (pb) svg.setAttribute('data-pitch-box', pb);
+              Array.from(root.childNodes || []).forEach((child) => {
+                svg.appendChild(svg.ownerDocument.importNode(child, true));
+              });
+            }
+          }
         } catch (e) { /* ignore */ }
         ['top', 'bottom'].forEach((side) => {
           const goal = document.createElement('div');
