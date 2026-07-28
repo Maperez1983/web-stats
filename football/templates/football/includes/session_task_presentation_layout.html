@@ -295,7 +295,12 @@
                 <div class="club-panel-head">Diseño gráfico</div>
                 <div class="club-panel-body" style="padding:0.7rem; background:var(--club-sheet);">
                   {% if pc.graphic_view_2d_url or pc.graphic_view_3d_url or pc.recreation_2d_url or pc.recreation_3d_url or pc.recreation_3d_embed_url %}
+                  {% comment %}2 columnas solo si hay algo mas que la Vista 2D; si no, la 2D a todo el ancho (el 3D ya no se usa).{% endcomment %}
+                  {% if pc.graphic_view_3d_url or pc.task_preview_3d_embed_url or pc.recreation_2d_url or pc.recreation_3d_url or pc.recreation_3d_embed_url %}
                   <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
+                  {% else %}
+                  <div>
+                  {% endif %}
                     <div>
                       <div class="club-label" style="margin-bottom:0.32rem;">Vista 2D</div>
                       <div style="border:1px solid var(--club-soft-line); border-radius:12px; overflow:hidden; background:#fff; min-height:300px; display:flex; align-items:center; justify-content:center;">
