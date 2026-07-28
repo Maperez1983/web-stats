@@ -23540,6 +23540,40 @@ def match_video_marker_api(request):
     return JsonResponse({"ok": True})
 
 
+def _maybe_promote_second_yellow(match, player, action_type, result, zone, tercio):
+    """Segunda amarilla autoritativa (servidor).
+
+    Antes el cliente decidía la 2ª amarilla leyendo el DOM del historial, que puede no tener
+    todas las tarjetas (cap/filtro/recarga): si se perdía, quedaban 2 amarillas sueltas SIN roja,
+    y como la sanción sólo mira `is_red_card_event`, la expulsión (y la sanción de la jornada
+    siguiente) desaparecía. Aquí el servidor ve TODOS los eventos del partido: si entra una amarilla
+    y el jugador ya tiene una amarilla activa (y ninguna roja) en este partido, se convierte en ROJA
+    (2ª amarilla). Devuelve (action_type, result, zone, tercio, promoted)."""
+    if not (match and player and is_yellow_card_event(action_type, result, zone)):
+        return action_type, result, zone, tercio, False
+    try:
+        prev_yellows = 0
+        prev_reds = 0
+        for ev in MatchEvent.objects.filter(
+            match=match,
+            player=player,
+            source_file="registro-acciones",
+            system__in=["touch-field", "touch-field-final"],
+        ):
+            if is_red_card_event(ev.event_type, ev.result, ev.zone):
+                prev_reds += 1
+            elif is_yellow_card_event(ev.event_type, ev.result, ev.zone):
+                prev_yellows += 1
+        if prev_reds == 0 and prev_yellows >= 1:
+            reason = result.split("·", 1)[1].strip() if "·" in (result or "") else ""
+            new_result = "Roja (2ª amarilla)" + (f" · {reason}" if reason else "")
+            new_zone = "Tarjeta Roja (2ª amarilla)"
+            return "Tarjeta Roja", new_result, new_zone, zone_to_tercio(new_zone), True
+    except Exception:
+        logger.debug("No se pudo evaluar la 2ª amarilla en el servidor", exc_info=True)
+    return action_type, result, zone, tercio, False
+
+
 @authenticated_write
 @require_POST
 def register_match_action(request):
@@ -23707,11 +23741,18 @@ def register_match_action(request):
                 return info_resp
             return JsonResponse(_serialize_match_event(existing, duplicate=True))
 
+    # 2ª amarilla autoritativa (servidor): ver _maybe_promote_second_yellow.
+    action_type, result, zone, tercio, promoted_second_yellow = _maybe_promote_second_yellow(
+        match, player, action_type, result, zone, tercio
+    )
+
     raw_data = {"client_event_uid": client_event_uid} if client_event_uid else {}
     if team_side:
         raw_data["team_side"] = team_side
     if minute_label:
         raw_data["minute_label"] = minute_label
+    if promoted_second_yellow:
+        raw_data["second_yellow"] = True
     event = MatchEvent.objects.create(
         match=match,
         player=player if player else None,
@@ -23730,6 +23771,8 @@ def register_match_action(request):
     _set_match_stats_source(match, Match.STATS_SOURCE_LIVE)
     _invalidate_team_dashboard_caches(primary_team)
     payload = _serialize_match_event(event, duplicate=False)
+    if promoted_second_yellow and isinstance(payload, dict):
+        payload["second_yellow"] = True
     if wants_html:
         try:
             messages.success(request, "Acción guardada.")
