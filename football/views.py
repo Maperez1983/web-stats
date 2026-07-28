@@ -21585,8 +21585,16 @@ def coach_pitch_board_save(request):
         return JsonResponse({"ok": False, "error": "bad_params"}, status=400)
     if not team_id or not player_id:
         return JsonResponse({"ok": False, "error": "missing"}, status=400)
-    # Guardrail: el jugador debe pertenecer a ese equipo (evita escrituras arbitrarias).
-    if not Player.objects.filter(id=player_id, team_id=team_id).exists():
+    # Guardrail: el jugador debe pertenecer a ese equipo (evita escrituras arbitrarias). La pizarra
+    # se construye desde el ROSTER OPERATIVO (membresía de temporada, WorkspaceSeasonPlayer), donde un
+    # jugador puede estar en el equipo por temporada AUNQUE su Player.team apunte a otro (identidad de
+    # jugador compartida). Aceptamos ambas vías; si solo miráramos Player.team, el POST fallaba con
+    # not_in_team y las posiciones NO persistían.
+    _belongs = (
+        Player.objects.filter(id=player_id, team_id=team_id).exists()
+        or WorkspaceSeasonPlayer.objects.filter(team_id=team_id, player_id=player_id).exists()
+    )
+    if not _belongs:
         return JsonResponse({"ok": False, "error": "not_in_team"}, status=400)
     team = Team.objects.filter(id=team_id).first()
     if not team:
