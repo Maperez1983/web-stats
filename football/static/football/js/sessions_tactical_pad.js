@@ -34592,9 +34592,26 @@
 		      // Importante: en el editor, el SVG en vertical usa `slice` para evitar “barras”, pero en exportación
 		      // necesitamos `meet` para NO recortar el campo. Luego recortamos de forma controlada con data-pitch-box.
 		      let svgMarkup = '';
-		      let exportPreserveAspectRatio = safeText(svgSurface.getAttribute('preserveAspectRatio'));
+		      let svgSourceEl = svgSurface;
 		      try {
-		        const clone = svgSurface.cloneNode(true);
+		        // Miniatura: flat_2d/estadio usan FOTO (no compone -> sin lineas). Regeneramos el campo en
+		        // VECTORIAL (classic) para que la miniatura tenga cesped verde + LINEAS del campo.
+		        var _photoSurf = ['flat_2d','stadium_native','stadium_top','stadium_top_h','stadium_top_v'];
+		        if (_photoSurf.indexOf(exportGrassStyle) !== -1 && window.WebstatsPitch25D && typeof window.WebstatsPitch25D.buildPitchSvg === 'function') {
+		          var _orient = safeText((document.getElementById('draw-task-pitch-orientation')||{}).value) || 'landscape';
+		          var _preset = safeText((document.getElementById('draw-task-pitch-preset')||{}).value) || 'full_pitch';
+		          var _built = window.WebstatsPitch25D.buildPitchSvg(_preset, _orient, 'classic');
+		          var _svgStr = (typeof _built === 'string') ? _built : ((_built && _built.nodeType) ? new XMLSerializer().serializeToString(_built) : '');
+		          if (_svgStr) {
+		            var _doc = new DOMParser().parseFromString(_svgStr, 'image/svg+xml');
+		            var _el = _doc && _doc.documentElement;
+		            if (_el && String(_el.tagName||'').toLowerCase()==='svg' && !(_doc.querySelector && _doc.querySelector('parsererror'))) { svgSourceEl = _el; }
+		          }
+		        }
+		      } catch (e) { /* usa svgSurface */ }
+		      let exportPreserveAspectRatio = safeText(svgSourceEl.getAttribute('preserveAspectRatio'));
+		      try {
+		        const clone = svgSourceEl.cloneNode(true);
 		        // En exportación, evita recortes por `slice` (vertical) y deja que el recorte lo haga data-pitch-box.
 		        clone.setAttribute('preserveAspectRatio', 'xMidYMid meet');
 		        exportPreserveAspectRatio = safeText(clone.getAttribute('preserveAspectRatio')) || exportPreserveAspectRatio;
@@ -34614,7 +34631,7 @@
 		        }
 		        svgMarkup = new XMLSerializer().serializeToString(clone);
 		      } catch (error) {
-		        svgMarkup = new XMLSerializer().serializeToString(svgSurface);
+		        svgMarkup = new XMLSerializer().serializeToString(svgSourceEl);
 		      }
           let blobUrl = '';
           if (!live3dCanvas) {
