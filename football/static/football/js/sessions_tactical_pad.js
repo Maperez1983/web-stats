@@ -657,7 +657,10 @@
     // En vertical, algunos contenedores (y navegadores) pueden acabar con una ligera
     // desincronización de ratio, generando "barras" arriba/abajo. Usamos `slice` para
     // priorizar llenar el viewport y minimizar esos márgenes.
-    root.setAttribute('preserveAspectRatio', orientation === 'portrait' ? 'xMidYMid slice' : 'xMidYMid meet');
+    // Ampliar el campo hasta llenar el visor (el usuario NO quiere margen verde alrededor).
+    // 'slice' recorta el eje que sobra; como el visor suele ser mas ancho que el campo, el
+    // recorte cae ARRIBA/ABAJO (lados sin porteria), sin comerse las porterias (izq/der).
+    root.setAttribute('preserveAspectRatio', 'xMidYMid slice');
 
 		    const resolvePitch3dOverlayImageHref = () => {
           const forcePortrait = grassStyle === 'stadium_top_v';
