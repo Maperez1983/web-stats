@@ -383,7 +383,8 @@
       // Elección GLOBAL por tarea (NO por jugador): (1) representación de TODOS y (2) equipación
       // Local/Visitante de TODOS. Al pulsar un jugador se coloca con esa elección global.
       var globalRep='jersey';   // Chapa/Camiseta/Foto/Avatar
-      var globalKit='titular';  // titular(=Local) / visitante
+      var globalKit='titular';  // jugadores de campo: titular(=Local) / visitante
+      var globalGkKit='gk_azul';// porteros (selector propio): gk_azul / gk_negra / gk_magenta
       var gl=document.createElement('div'); gl.className='edc-roster-global';
       var glLabel=document.createElement('span'); glLabel.className='edc-roster-global-label'; glLabel.textContent='Todos'; gl.appendChild(glLabel);
       EDC_REPS.forEach(function(o){
@@ -408,6 +409,18 @@
         gk.appendChild(b);
       });
       host.appendChild(gk);
+      // Toggle GLOBAL de PORTERO (Azul/Negra/Magenta) — separado del de campo para no saturar.
+      var pk=document.createElement('div'); pk.className='edc-roster-global edc-roster-kit';
+      var pkLabel=document.createElement('span'); pkLabel.className='edc-roster-global-label'; pkLabel.textContent='Portero'; pk.appendChild(pkLabel);
+      [['gk_azul','Azul'],['gk_negra','Negra'],['gk_magenta','Magenta']].forEach(function(k){
+        var b=document.createElement('button'); b.type='button'; b.className='edc-roster-gbtn'+(k[0]==='gk_azul'?' is-active':''); b.textContent=k[1];
+        b.addEventListener('click', function(){
+          globalGkKit=k[0];
+          Array.prototype.forEach.call(pk.querySelectorAll('.edc-roster-gbtn'), function(x){ x.classList.remove('is-active'); }); b.classList.add('is-active');
+        });
+        pk.appendChild(b);
+      });
+      host.appendChild(pk);
       items.forEach(function(src){
         var pid=src.getAttribute('data-player-id')||'';
         var nameEl=src.querySelector('.token-name'); var name=nameEl?nameEl.textContent.trim().replace(/^\d+\s*/,''):''; // quita el dorsal duplicado al inicio del nombre (el número ya va en el recuadro)
@@ -430,8 +443,7 @@
         // global (Todos) y la equipación global (Local/Visitante).
         sPhoto.appendChild(sNum); btn.appendChild(sPhoto); btn.appendChild(sName); // dorsal como badge sobre la foto
         btn.addEventListener('click', function(){
-          var kit=globalKit;
-          if(isGK){ kit=(globalKit==='visitante')?'gk_negra':'gk_azul'; } // portero: Local=azul / Visitante=negra
+          var kit = isGK ? globalGkKit : globalKit; // portero usa su selector propio; campo usa Local/Visitante
           edcApplyRepresentation(pid, globalRep, (globalRep!=='photo') ? kit : '');
         });
         row.appendChild(btn); host.appendChild(row);
