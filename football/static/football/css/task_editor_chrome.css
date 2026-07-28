@@ -935,3 +935,18 @@ body.ed-chrome .pitch-stage {
     url("/static/football/images/pitch3d/grass_flat.jpg") center / cover no-repeat,
     linear-gradient(180deg, #4e7f39, #3f6f31) !important;
 }
+
+/* "Dos formas de elegir plantilla": el panel CLASICO (roster-bank-slot-main = Estilo de ficha
+   + filtros + rejilla) duplicaba la seleccion. Lo OCULTAMOS (no se borra): el panel nuevo de
+   Plantilla lee los botones de #task-player-bank de ahi dentro, que siguen en el DOM (y las
+   lecturas/clicks funcionan aunque este display:none). */
+body.ed-chrome .roster-bank-slot-main { display: none !important; }
+
+/* Plantilla nueva a DOS columnas (menos scroll vertical). Los controles de arriba y la fila
+   ABIERTA ocupan las 2 columnas para que el desplegable tenga sitio. */
+body.ed-chrome #edc-mat-body .edc-roster-list {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px; align-content: start;
+}
+body.ed-chrome #edc-mat-body .edc-roster-list > .edc-roster-quick,
+body.ed-chrome #edc-mat-body .edc-roster-list > .edc-roster-global,
+body.ed-chrome #edc-mat-body .edc-roster-list > .edc-roster-row.is-open { grid-column: 1 / -1; }
