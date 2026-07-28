@@ -956,3 +956,10 @@ body.ed-chrome #edc-mat-body .edc-roster-list > .edc-roster-row.is-open { grid-c
 
 /* Selector de equipación ampliado (hasta 5 kits): que hagan wrap y no desborden el desplegable. */
 body.ed-chrome .edc-kit-toggle { flex-wrap: wrap; }
+
+/* Solo debe verse el panel NUEVO de Plantilla (buildRosterList / .edc-roster-list). El banco
+   clasico #task-roster-bank (filtros Campo/Porteros/Disponibles + Ocultar usados + rejilla)
+   se reubicaba en el cajon y se mostraba, duplicando la seleccion. Lo ocultamos TAMBIEN dentro
+   del cajon: la lista nueva lee sus botones (#task-player-bank, server-rendered) aunque este
+   display:none. Gana por ir despues de la regla que lo mostraba. */
+body.ed-chrome #edc-mat-body #task-roster-bank { display: none !important; }
