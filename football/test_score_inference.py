@@ -40,3 +40,12 @@ class TeamOnlyGoalInferenceTests(TestCase):
         self._goal(None, "for", 15)
         self.assertEqual(views._infer_team_goals_from_events(self.match, self.team), 1)
         self.assertEqual(views._infer_team_goals_against_from_events(self.match, self.team), 0)
+
+    def test_event_kind_reads_db_column(self):
+        # La columna kind (Fase 4) manda sobre el texto en un MatchEvent real.
+        from football.event_taxonomy import event_kind
+        ev = MatchEvent.objects.create(
+            match=self.match, player=self.player, event_type="Tarjeta Amarilla", result="Amarilla",
+            kind="red_card", source_file="registro-acciones", system="touch-field",
+        )
+        self.assertEqual(event_kind(ev), "red_card")

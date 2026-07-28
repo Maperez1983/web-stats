@@ -5,18 +5,24 @@ from football.event_taxonomy import event_kind
 
 
 class _Ev:
-    def __init__(self, event_type="", result="", zone="", observation="", raw_data=None):
+    def __init__(self, event_type="", result="", zone="", observation="", raw_data=None, kind=""):
         self.event_type = event_type
         self.result = result
         self.zone = zone
         self.observation = observation
         self.raw_data = raw_data
+        self.kind = kind
 
 
 class EventKindReaderTests(SimpleTestCase):
+    def test_column_wins_over_raw_and_text(self):
+        # La columna kind (Fase 4) manda sobre raw_data y sobre el texto.
+        ev = _Ev(event_type="Gol", result="Gol", raw_data={"kind": "pass"}, kind="shot")
+        self.assertEqual(event_kind(ev), "shot")
+
     def test_prefers_stored_kind(self):
-        # texto dice 'gol' pero el kind guardado manda (determinista)
-        ev = _Ev(event_type="Gol", result="Gol", raw_data={"kind": "pass"})
+        # sin columna, texto dice 'gol' pero el kind de raw_data manda (determinista)
+        ev = _Ev(event_type="Gol", result="Gol", raw_data={"kind": "pass"}, kind="")
         self.assertEqual(event_kind(ev), "pass")
 
     def test_derives_when_absent(self):

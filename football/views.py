@@ -23772,6 +23772,7 @@ def register_match_action(request):
         minute=minute if minute is not None else None,
         period=period,
         event_type=action_type,
+        kind=event_kind or "",
         result=result,
         zone=zone,
         tercio=tercio,

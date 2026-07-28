@@ -457,9 +457,15 @@ CANONICAL_EVENT_KINDS = (
 
 
 def event_kind(event):
-    """Tipo canónico de un MatchEvent: fuente ÚNICA de clasificación. Prefiere el tipo guardado en
-    raw_data['kind'] (determinista, escrito al registrar); si no existe (datos antiguos), lo deriva
-    del texto con canonical_event_kind. Siempre devuelve un tipo válido -> nunca falla."""
+    """Tipo canónico de un MatchEvent: fuente ÚNICA de clasificación. Preferencia: (1) columna
+    `kind` (Fase 4), (2) raw_data['kind'] (Fase 1), (3) derivar del texto (datos antiguos).
+    Siempre devuelve un tipo válido -> nunca falla."""
+    try:
+        col = str(getattr(event, "kind", "") or "").strip().lower()
+        if col in CANONICAL_EVENT_KINDS:
+            return col
+    except Exception:
+        pass
     try:
         raw = getattr(event, "raw_data", None)
         if isinstance(raw, dict):

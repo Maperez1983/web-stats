@@ -2258,6 +2258,9 @@ class MatchEvent(models.Model):
     player = models.ForeignKey(Player, on_delete=models.SET_NULL, null=True, blank=True, related_name='events')
     minute = models.PositiveSmallIntegerField(null=True, blank=True)
     event_type = models.CharField(max_length=120)
+    # Tipo canónico de la acción (taxonomía tipada). Se rellena al registrar y para el histórico
+    # por backfill. Fuente estable de clasificación (event_taxonomy.event_kind lo prefiere).
+    kind = models.CharField(max_length=24, blank=True, default='', db_index=True)
     result = models.CharField(max_length=120, blank=True)
     zone = models.CharField(max_length=120, blank=True)
     tercio = models.CharField(max_length=120, blank=True)
