@@ -77620,6 +77620,54 @@ def match_stats_page(request, match_id):
     )
 
 
+def _ensure_match_attendance_session(match, primary_team, players, actor=None):
+    """Opción A: hace que un partido (p.ej. un amistoso) cuente para la ASISTENCIA. Crea o
+    reutiliza una TrainingSession que representa el partido (idempotente por microciclo+fecha+focus)
+    y marca asistencia = Presente a los convocados. Así reutiliza el sistema de asistencia entero
+    (contadores de sesiones/minutos + multas). Nunca rompe el cierre del partido.
+    Devuelve el nº de asistencias marcadas."""
+    try:
+        match_date = getattr(match, "date", None)
+        if not (match and primary_team and match_date):
+            return 0
+        microcycle = _get_or_create_week_microcycle(primary_team, match_date, title_hint="Partidos")
+        if not microcycle:
+            return 0
+        label = "Amistoso" if str(getattr(match, "context", "") or "").strip().lower() == "friendly" else "Partido"
+        focus = f"{label} #{int(match.id)}"[:140]
+        session, _created = TrainingSession.objects.get_or_create(
+            microcycle=microcycle,
+            session_date=match_date,
+            focus=focus,
+            defaults={
+                "intensity": TrainingSession.INTENSITY_MATCHDAY,
+                "md_day": TrainingSession.DAY_MD,
+                "status": TrainingSession.STATUS_DONE,
+                "duration_minutes": 70,
+                "content": "(Sistema) Sesión de asistencia generada al cerrar el partido.",
+            },
+        )
+        if session.status != TrainingSession.STATUS_DONE:
+            session.status = TrainingSession.STATUS_DONE
+            session.save(update_fields=["status"])
+        marked = 0
+        actor_user = actor if getattr(actor, "is_authenticated", False) else None
+        for player in players or []:
+            TrainingSessionAttendance.objects.update_or_create(
+                session=session,
+                player=player,
+                defaults={
+                    "status": TrainingSessionAttendance.STATUS_PRESENT,
+                    "marked_by": actor_user,
+                },
+            )
+            marked += 1
+        return marked
+    except Exception:
+        logger.exception("No se pudo crear la sesión de asistencia del partido")
+        return 0
+
+
 @login_required
 def match_editor_page(request, match_id):
     """
@@ -77725,9 +77773,18 @@ def match_editor_page(request, match_id):
                     _sync_match_score_from_events(match, primary_team)
                 except Exception:
                     pass
+                # Opción A: contar el partido como sesión de asistencia (p.ej. amistoso interno).
+                attendance_marked = 0
+                if str(request.POST.get("count_as_training") or "").strip().lower() in {"1", "on", "true", "yes"}:
+                    attendance_marked = _ensure_match_attendance_session(
+                        match, primary_team, players, actor=request.user
+                    )
                 _invalidate_team_dashboard_caches(primary_team)
                 try:
-                    messages.success(request, "Partido cerrado.")
+                    _msg = "Partido cerrado."
+                    if attendance_marked:
+                        _msg += f" Cuenta como entrenamiento: {attendance_marked} asistencias marcadas."
+                    messages.success(request, _msg)
                 except Exception:
                     pass
                 return redirect(reverse("match-editor", args=[int(match.id)]) + f"?team={int(primary_team.id)}")
