@@ -22867,6 +22867,23 @@ def _forbid_matchday_write_on_read_only_season(request):
     return None
 
 
+def _set_match_stats_source(match, source):
+    """Declara la fuente única de datos del partido (Match.stats_source). Idempotente.
+    'live' (registro en vivo) y 'manual' (ficha) mandan sobre 'result_only'/''; nunca degradamos
+    un partido con estadísticas a 'solo resultado'."""
+    try:
+        if match is None:
+            return
+        current = str(getattr(match, "stats_source", "") or "")
+        if source == Match.STATS_SOURCE_RESULT and current in {Match.STATS_SOURCE_LIVE, Match.STATS_SOURCE_MANUAL}:
+            return  # no degradar un partido con stats a "solo resultado"
+        if current != source:
+            match.stats_source = source
+            match.save(update_fields=["stats_source"])
+    except Exception:
+        logger.debug("No se pudo fijar stats_source=%s en match=%s", source, getattr(match, "id", None), exc_info=True)
+
+
 def _ensure_matchday_convocation_record(primary_team, *, match=None, request=None):
     """
     Garantiza que exista una ConvocationRecord `is_current=True` para el flujo de partido.
@@ -23676,6 +23693,8 @@ def register_match_action(request):
         system="touch-field",
         raw_data=raw_data,
     )
+    # Registrar una acción en vivo declara la fuente del partido como "en vivo".
+    _set_match_stats_source(match, Match.STATS_SOURCE_LIVE)
     _invalidate_team_dashboard_caches(primary_team)
     payload = _serialize_match_event(event, duplicate=False)
     if wants_html:
@@ -24336,6 +24355,8 @@ def finalize_match_actions(request):
     match = requested_match or _resolve_active_match_for_flow(request, primary_team) or get_active_match(primary_team)
     if not match:
         return JsonResponse({"error": "No hay partido activo para guardar"}, status=400)
+    # Cerrar el registro en vivo declara la fuente del partido como "en vivo".
+    _set_match_stats_source(match, Match.STATS_SOURCE_LIVE)
     _apply_match_info_overrides(match, primary_team, payload.get("match_info"))
 
     def _save_staff_match_selection():
@@ -77036,6 +77057,10 @@ def match_editor_page(request, match_id):
                     changed.append("kickoff_time")
                 if changed:
                     match.save(update_fields=changed)
+                # Si el partido tiene marcador y aún no tiene fuente de stats, es "solo resultado"
+                # (guardar el marcador NO degrada un partido registrado en vivo/manual: lo evita el helper).
+                if match.home_score is not None or match.away_score is not None:
+                    _set_match_stats_source(match, Match.STATS_SOURCE_RESULT)
                 try:
                     _sync_match_score_from_events(match, primary_team)
                 except Exception:
@@ -77098,6 +77123,8 @@ def match_editor_page(request, match_id):
                         )
                     )
                 MatchEvent.objects.bulk_create(events, batch_size=250)
+                # Añadir acciones desde la ficha declara la fuente del partido como "manual".
+                _set_match_stats_source(match, Match.STATS_SOURCE_MANUAL)
                 _invalidate_team_dashboard_caches(primary_team)
                 return redirect(reverse("match-editor", args=[int(match.id)]) + f"?team={int(primary_team.id)}")
 
@@ -77140,6 +77167,7 @@ def match_editor_page(request, match_id):
                     source_file="admin-manual",
                     raw_data={"editor": "match-editor"},
                 )
+                _set_match_stats_source(match, Match.STATS_SOURCE_MANUAL)
                 _invalidate_team_dashboard_caches(primary_team)
                 return redirect(reverse("match-editor", args=[int(match.id)]) + f"?team={int(primary_team.id)}")
 
@@ -78311,6 +78339,8 @@ def _apply_match_info_overrides(match, primary_team, match_info_payload):
     elif opponent_name and normalize_label(opponent_name) != normalize_label(primary_team.name):
         # Dedup: usa resolve_or_create_team (name_key por grupo) en vez de filter/create manual,
         # que duplicaba rivales con el mismo nombre. Ver [[team-identity-dedup]].
+        from football.models import resolve_or_create_team
+
         rival_team, _ = resolve_or_create_team(
             name=opponent_name,
             group=match.group or primary_team.group,
@@ -81321,6 +81351,8 @@ def match_hub_finalize_match(request):
     if not match:
         return HttpResponse("No hay partido activo para guardar.", status=400)
 
+    # Cerrar desde el Hub es parte del flujo en vivo: declara la fuente como "en vivo".
+    _set_match_stats_source(match, Match.STATS_SOURCE_LIVE)
     # Permite fijar marcador desde el Hub sin tener que entrar a Registro de acciones.
     # UI: trabaja como "a favor / en contra" relativo al equipo principal.
     try:
