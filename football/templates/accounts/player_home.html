@@ -70,6 +70,27 @@
         <a class="btn" href="{% url 'player-detail' player.id %}">Ver mi ficha completa</a>
       </div>
 
+      {% if player %}
+      <div class="card">
+        <h3>Mi entreno (temporada)</h3>
+        <div style="display:flex; flex-wrap:wrap; gap:0.9rem;">
+          <div style="min-width:6.5rem;">
+            <div style="font-size:1.9rem; font-weight:900; line-height:1;">{{ training_marker.sessions_attended }}<span style="font-size:0.9rem; opacity:0.6;">/{{ training_marker.sessions_total }}</span></div>
+            <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em; opacity:0.7; margin-top:0.2rem;">Sesiones asistidas</div>
+          </div>
+          <div style="min-width:6.5rem;">
+            <div style="font-size:1.9rem; font-weight:900; line-height:1; color:#34d399;">{{ training_marker.minutes }}′</div>
+            <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em; opacity:0.7; margin-top:0.2rem;">Minutos de entreno</div>
+          </div>
+          <div style="min-width:6.5rem;">
+            <div style="font-size:1.9rem; font-weight:900; line-height:1;">{{ training_marker.sessions_trained }}</div>
+            <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em; opacity:0.7; margin-top:0.2rem;">Sesiones con carga</div>
+          </div>
+        </div>
+        <p style="margin:0.6rem 0 0; font-size:0.74rem; opacity:0.6;">Se actualiza con la asistencia y la participación por tarea que registra tu entrenador.</p>
+      </div>
+      {% endif %}
+
       <div class="card">
         <h3>Mis objetivos</h3>
         {% if objectives %}

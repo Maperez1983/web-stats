@@ -389,12 +389,60 @@ def player_home_page(request):
             )
         except Exception:
             objectives = []
+
+    # Marcador de ENTRENO del jugador (temporada): asistencia + minutos de entreno. Alimentado por
+    # la asistencia (presente implícito → asistidas = total − ausente/lesionado/justificado) y por la
+    # participación por tarea (minutos = suma de duración de las tareas en las que participó).
+    training_marker = {
+        "sessions_total": 0,
+        "sessions_attended": 0,
+        "sessions_trained": 0,
+        "minutes": 0,
+    }
+    if player is not None and getattr(player, "team_id", None):
+        try:
+            from datetime import timedelta
+            from django.db.models import Sum
+            from .models import TrainingSession, TrainingSessionAttendance, SessionTaskParticipation
+
+            today = timezone.localdate()
+            season_start = today - timedelta(days=365)
+            season_end = today + timedelta(days=31)
+            sessions_total = (
+                TrainingSession.objects.filter(
+                    microcycle__team_id=player.team_id, session_date__range=(season_start, season_end)
+                )
+                .exclude(status=TrainingSession.STATUS_CANCELED)
+                .count()
+            )
+            missed = TrainingSessionAttendance.objects.filter(
+                player=player,
+                session__session_date__range=(season_start, season_end),
+                status__in=[
+                    TrainingSessionAttendance.STATUS_ABSENT,
+                    TrainingSessionAttendance.STATUS_INJURED,
+                    TrainingSessionAttendance.STATUS_EXCUSED,
+                ],
+            ).count()
+            part_qs = SessionTaskParticipation.objects.filter(
+                player=player, session_task__session__session_date__range=(season_start, season_end)
+            )
+            training_marker = {
+                "sessions_total": int(sessions_total or 0),
+                "sessions_attended": max(0, int(sessions_total or 0) - int(missed or 0)),
+                "sessions_trained": part_qs.values("session_task__session_id").distinct().count(),
+                "minutes": int(part_qs.aggregate(m=Sum("session_task__duration_minutes")).get("m") or 0),
+            }
+        except Exception:
+            pass
+
     return render(
         request,
         "accounts/player_home.html",
         {
             "player": player,
             "objectives": objectives,
+            "training_marker": training_marker,
             "display_name": request.user.get_full_name() or request.user.username,
         },
     )

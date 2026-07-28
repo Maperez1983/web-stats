@@ -74425,9 +74425,15 @@ def player_detail_page(request, player_id):
             key = str(row.get("status") or "").strip()
             if key in attendance_counts:
                 attendance_counts[key] = int(row.get("total") or 0)
-        attendance_completed_total = int(attendance_counts.get(TrainingSessionAttendance.STATUS_PRESENT, 0) or 0) + int(
-            attendance_counts.get(TrainingSessionAttendance.STATUS_LATE, 0) or 0
+        # "Presente" es IMPLÍCITO (no se guarda fila; solo se persisten excepciones). Por eso
+        # NO se puede contar por marcas 'present'. Asistidas = total de sesiones − las que faltó
+        # (ausente + lesionado + justificado). Los 'tarde' cuentan como asistidas (vino, tarde).
+        _missed = (
+            int(attendance_counts.get(TrainingSessionAttendance.STATUS_ABSENT, 0) or 0)
+            + int(attendance_counts.get(TrainingSessionAttendance.STATUS_INJURED, 0) or 0)
+            + int(attendance_counts.get(TrainingSessionAttendance.STATUS_EXCUSED, 0) or 0)
         )
+        attendance_completed_total = max(0, int(session_total_in_season or 0) - _missed)
         attendance_completed_pct = (
             round((attendance_completed_total / session_total_in_season) * 100, 1) if session_total_in_season else 0.0
         )
