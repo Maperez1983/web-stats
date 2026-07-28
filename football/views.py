@@ -74099,6 +74099,24 @@ def player_detail_page(request, player_id):
         marked_total = sum(attendance_counts.values())
         attendance_pending = max(0, session_total_in_season - marked_total)
 
+        # Fase 6: contadores de ENTRENO por jugador (distinto de los minutos de PARTIDO). Minutos de
+        # entreno = suma de la duración de las tareas en las que participó (SessionTaskParticipation);
+        # sesiones de entreno = nº de sesiones distintas en las que participó en alguna tarea.
+        training_minutes_total = 0
+        training_sessions_participated = 0
+        try:
+            _part_qs = SessionTaskParticipation.objects.filter(
+                player=player,
+                session_task__session__session_date__range=(season_start, season_end),
+            )
+            training_minutes_total = int(
+                _part_qs.aggregate(m=Sum("session_task__duration_minutes")).get("m") or 0
+            )
+            training_sessions_participated = _part_qs.values("session_task__session_id").distinct().count()
+        except Exception:
+            training_minutes_total = 0
+            training_sessions_participated = 0
+
         # Días de baja (temporada): suma de días en registros de lesión que solapan con la temporada.
         injury_days = 0
         try:
@@ -74642,6 +74660,8 @@ def player_detail_page(request, player_id):
                 "attendance_completed_pct": attendance_completed_pct,
                 "attendance_marked_total": marked_total,
                 "attendance_pending": attendance_pending,
+                "training_minutes_total": training_minutes_total,
+                "training_sessions_participated": training_sessions_participated,
                 "injury_days_in_season": injury_days,
                 "upcoming_sessions": upcoming_session_rows,
                 "attendance_status_choices": TrainingSessionAttendance.STATUS_CHOICES,

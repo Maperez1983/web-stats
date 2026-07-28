@@ -1483,9 +1483,11 @@
                 · Marcadas: <strong>{{ attendance_marked_total }}</strong>
                 · Pendientes: <strong>{{ attendance_pending }}</strong>
                 · Días baja: <strong>{{ injury_days_in_season }}</strong>
+                · Entreno: <strong>{{ training_sessions_participated }}</strong> ses · <strong>{{ training_minutes_total }}′</strong>
               </div>
             </div>
             <div class="attendance-chip-row">
+              <span class="product-chip" style="background:rgba(52,211,153,0.16); border-color:rgba(52,211,153,0.4);" title="Minutos de entreno acumulados (suma de las tareas en las que participó)">⏱ {{ training_minutes_total }}′ entreno</span>
               <span class="product-chip">Pres {{ attendance_counts.present|default:0 }}</span>
               <span class="product-chip">Aus {{ attendance_counts.absent|default:0 }}</span>
               <span class="product-chip">Tarde {{ attendance_counts.late|default:0 }}</span>
