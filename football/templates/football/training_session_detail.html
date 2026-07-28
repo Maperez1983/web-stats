@@ -294,43 +294,6 @@
 			</tr>
 	          </table>
 
-	          <div class="section-title">Post-sesión (60s)</div>
-	          <div class="box" style="margin-bottom:12px;">
-	            {% if review %}
-		              <div style="display:flex; gap:14px; flex-wrap:wrap;">
-		                <div><span class="k">Duración real</span><div class="v">{% if review.actual_duration_minutes %}{{ review.actual_duration_minutes }} min{% else %}—{% endif %}</div></div>
-		                <div><span class="k">RPE</span><div class="v">{% if review.rpe %}{{ review.rpe }}/10{% else %}—{% endif %}</div></div>
-		                <div><span class="k">Ejecución</span><div class="v">{% if review.execution_score %}{{ review.execution_score }}/10{% else %}—{% endif %}</div></div>
-		                <div><span class="k">Física</span><div class="v">{% if review.physical_load %}{{ review.physical_load }}/10{% else %}—{% endif %}</div></div>
-		                <div><span class="k">Cognitiva</span><div class="v">{% if review.cognitive_load %}{{ review.cognitive_load }}/10{% else %}—{% endif %}</div></div>
-		                <div><span class="k">Emocional</span><div class="v">{% if review.emotional_load %}{{ review.emotional_load }}/10{% else %}—{% endif %}</div></div>
-		              </div>
-	              {% if review.what_worked %}<p style="margin-top:10px;"><strong>Qué funcionó:</strong><br />{{ review.what_worked|linebreaksbr }}</p>{% endif %}
-	              {% if review.what_failed %}<p style="margin-top:10px;"><strong>Qué falló:</strong><br />{{ review.what_failed|linebreaksbr }}</p>{% endif %}
-	              {% if review.next_adjustment %}<p style="margin-top:10px;"><strong>Ajuste siguiente:</strong><br />{{ review.next_adjustment|linebreaksbr }}</p>{% endif %}
-	              {% if review.evidence_url %}<p style="margin-top:10px;"><strong>Evidencia:</strong><br /><a href="{{ review.evidence_url }}" target="_blank" rel="noopener noreferrer">{{ review.evidence_url }}</a></p>{% endif %}
-	            {% else %}
-	              <span style="color:var(--club-muted);">(Sin post-sesión guardada)</span>
-	            {% endif %}
-	          </div>
-
-	          <div class="section-title">Historial</div>
-	          <div class="box" style="margin-bottom:12px;">
-	            {% if audit_entries %}
-	              <ul style="margin:0; padding-left:18px;">
-	                {% for row in audit_entries %}
-	                  <li style="margin:6px 0;">
-	                    <strong>{{ row.created_at|date:"d/m H:i" }}</strong>
-	                    {% if row.actor %}· {{ row.actor.get_full_name|default:row.actor.username }}{% endif %}
-	                    · {{ row.action }}{% if row.message %}: {{ row.message }}{% endif %}
-	                  </li>
-	                {% endfor %}
-	              </ul>
-	            {% else %}
-	              <span style="color:var(--club-muted);">(Sin entradas de auditoría)</span>
-	            {% endif %}
-	          </div>
-
 	          <div class="section-title">Contenido / explicación <span style="opacity:.7; font-weight:700; text-transform:none; letter-spacing:0;">· resumen</span></div>
 	          <div class="box" style="margin-bottom:12px;">
 	            <p style="margin:0 0 8px; color:var(--club-muted); font-size:11px;">Resumen narrativo por fases. El <strong>detalle con pizarra</strong> está abajo, en <strong>Tareas de la sesión</strong>.</p>
@@ -614,6 +577,43 @@
               </div>
               {% endif %}
 	        </div>
+
+	          <div class="section-title">Post-sesión (60s)</div>
+	          <div class="box" style="margin-bottom:12px;">
+	            {% if review %}
+		              <div style="display:flex; gap:14px; flex-wrap:wrap;">
+		                <div><span class="k">Duración real</span><div class="v">{% if review.actual_duration_minutes %}{{ review.actual_duration_minutes }} min{% else %}—{% endif %}</div></div>
+		                <div><span class="k">RPE</span><div class="v">{% if review.rpe %}{{ review.rpe }}/10{% else %}—{% endif %}</div></div>
+		                <div><span class="k">Ejecución</span><div class="v">{% if review.execution_score %}{{ review.execution_score }}/10{% else %}—{% endif %}</div></div>
+		                <div><span class="k">Física</span><div class="v">{% if review.physical_load %}{{ review.physical_load }}/10{% else %}—{% endif %}</div></div>
+		                <div><span class="k">Cognitiva</span><div class="v">{% if review.cognitive_load %}{{ review.cognitive_load }}/10{% else %}—{% endif %}</div></div>
+		                <div><span class="k">Emocional</span><div class="v">{% if review.emotional_load %}{{ review.emotional_load }}/10{% else %}—{% endif %}</div></div>
+		              </div>
+	              {% if review.what_worked %}<p style="margin-top:10px;"><strong>Qué funcionó:</strong><br />{{ review.what_worked|linebreaksbr }}</p>{% endif %}
+	              {% if review.what_failed %}<p style="margin-top:10px;"><strong>Qué falló:</strong><br />{{ review.what_failed|linebreaksbr }}</p>{% endif %}
+	              {% if review.next_adjustment %}<p style="margin-top:10px;"><strong>Ajuste siguiente:</strong><br />{{ review.next_adjustment|linebreaksbr }}</p>{% endif %}
+	              {% if review.evidence_url %}<p style="margin-top:10px;"><strong>Evidencia:</strong><br /><a href="{{ review.evidence_url }}" target="_blank" rel="noopener noreferrer">{{ review.evidence_url }}</a></p>{% endif %}
+	            {% else %}
+	              <span style="color:var(--club-muted);">(Sin post-sesión guardada)</span>
+	            {% endif %}
+	          </div>
+
+	          <div class="section-title">Historial</div>
+	          <div class="box" style="margin-bottom:12px;">
+	            {% if audit_entries %}
+	              <ul style="margin:0; padding-left:18px;">
+	                {% for row in audit_entries %}
+	                  <li style="margin:6px 0;">
+	                    <strong>{{ row.created_at|date:"d/m H:i" }}</strong>
+	                    {% if row.actor %}· {{ row.actor.get_full_name|default:row.actor.username }}{% endif %}
+	                    · {{ row.action }}{% if row.message %}: {{ row.message }}{% endif %}
+	                  </li>
+	                {% endfor %}
+	              </ul>
+	            {% else %}
+	              <span style="color:var(--club-muted);">(Sin entradas de auditoría)</span>
+	            {% endif %}
+	          </div>
 
 	        <div class="footer">
 	          <div>2J · Sesión</div>
