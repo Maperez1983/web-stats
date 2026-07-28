@@ -32518,15 +32518,19 @@ def training_session_detail_page(request, session_id):
                         session_obj.session_date = datetime.strptime(date_raw, "%Y-%m-%d").date()
                     except ValueError:
                         raise ValueError("Fecha no válida.")
-                time_raw = str(request.POST.get("start_time") or "").strip()
-                if time_raw:
-                    try:
-                        session_obj.start_time = datetime.strptime(time_raw, "%H:%M").time()
-                    except ValueError:
-                        raise ValueError("Hora no válida.")
-                else:
-                    session_obj.start_time = None
-                session_obj.duration_minutes = max(30, min(_parse_int(request.POST.get("duration_minutes")) or 90, 180))
+                # Tolerante por campo (Opción C ficha sesión): solo tocar lo que llega en el POST,
+                # para que un formulario PARCIAL (WYSIWYG por-campo) no borre lo que no envía.
+                if "start_time" in request.POST:
+                    time_raw = str(request.POST.get("start_time") or "").strip()
+                    if time_raw:
+                        try:
+                            session_obj.start_time = datetime.strptime(time_raw, "%H:%M").time()
+                        except ValueError:
+                            raise ValueError("Hora no válida.")
+                    else:
+                        session_obj.start_time = None
+                if "duration_minutes" in request.POST:
+                    session_obj.duration_minutes = max(30, min(_parse_int(request.POST.get("duration_minutes")) or 90, 180))
                 intensity = str(request.POST.get("intensity") or session_obj.intensity or "").strip()
                 if intensity in {v for v, _ in TrainingSession.INTENSITY_CHOICES}:
                     session_obj.intensity = intensity
@@ -32559,10 +32563,15 @@ def training_session_detail_page(request, session_id):
                     "absences",
                     "notes",
                 ]:
-                    next_fields[key] = str(request.POST.get(key) or "").strip()
-                show_in_agenda_raw = str(request.POST.get("show_in_agenda") or "").strip().lower()
-                show_in_agenda = show_in_agenda_raw in {"1", "true", "yes", "on", "si"}
-                next_fields["agenda_hidden"] = "" if show_in_agenda else "1"
+                    # Solo sobrescribe la key si viene en el POST (parcial-safe).
+                    if key in request.POST:
+                        next_fields[key] = str(request.POST.get(key) or "").strip()
+                # show_in_agenda es un checkbox (ausente = desmarcado), asi que no sirve "in POST":
+                # el form que gestiona la agenda incluye un marcador `show_in_agenda_present=1`.
+                if "show_in_agenda_present" in request.POST:
+                    show_in_agenda_raw = str(request.POST.get("show_in_agenda") or "").strip().lower()
+                    show_in_agenda = show_in_agenda_raw in {"1", "true", "yes", "on", "si"}
+                    next_fields["agenda_hidden"] = "" if show_in_agenda else "1"
                 session_obj.content = _serialize_session_plan_fields(next_fields)
 
                 # Workflow (staff)
@@ -32570,7 +32579,8 @@ def training_session_detail_page(request, session_id):
                 wf_reason = str(request.POST.get("workflow_reason") or "").strip()[:220]
                 if wf_status in {v for v, _ in getattr(TrainingSession, "WORKFLOW_STATUS_CHOICES", [])}:
                     session_obj.workflow_status = wf_status
-                session_obj.workflow_reason = wf_reason
+                if "workflow_reason" in request.POST:
+                    session_obj.workflow_reason = wf_reason
                 if (
                     str(getattr(session_obj, "workflow_status", "") or "").strip() != old_workflow_status
                     or wf_reason != old_workflow_reason
