@@ -3970,9 +3970,11 @@ class PlayerNotification(models.Model):
     """
 
     KIND_CONVOCATION = 'convocatoria'
+    KIND_LINEUP = 'alineacion'
     KIND_GENERAL = 'general'
     KIND_CHOICES = [
         (KIND_CONVOCATION, 'Convocatoria'),
+        (KIND_LINEUP, 'Alineación'),
         (KIND_GENERAL, 'Aviso'),
     ]
 

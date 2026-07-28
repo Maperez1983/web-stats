@@ -1984,9 +1984,6 @@
             {% if convocation_record %}
               <div class="meta-line">{{ convocation_record.round|default:"Sin jornada" }}{% if convocation_record.match_date %} · {{ convocation_record.match_date|date:"d/m/Y" }}{% endif %}</div>
             {% endif %}
-            {% if match_id %}
-              <div class="meta-line">Partido BBDD · ID {{ match_id }}</div>
-            {% endif %}
           </div>
         </div>
         <div class="top-mid">
@@ -2070,6 +2067,7 @@
 	            <button type="button" id="clear-btn">Limpiar</button>
               <button type="button" class="toggle {% if has_pending_convocation %}is-disabled{% endif %}" id="snap-toggle">Imán: ON</button>
 	            <button type="button" class="primary {% if has_pending_convocation %}is-disabled{% endif %}" id="save-btn">Guardar</button>
+              <button type="button" class="{% if has_pending_convocation %}is-disabled{% endif %}" id="publish-btn" title="Avisar a los jugadores convocados de si son titulares o suplentes">Publicar 11 y avisar</button>
 	          </div>
           <div class="field-row">
             <label for="formation-select">Estructura</label>
@@ -2299,6 +2297,8 @@
       const saveUrlBase = '{% url "match-lineup-save" %}';
       const matchId = String('{{ match_id|default_if_none:"" }}').trim();
       const saveUrl = matchId ? `${saveUrlBase}?match_id=${encodeURIComponent(matchId)}` : saveUrlBase;
+      const publishUrlBase = '{% url "initial-eleven-publish" %}';
+      const publishUrl = matchId ? `${publishUrlBase}?match_id=${encodeURIComponent(matchId)}` : publishUrlBase;
       const rivalToggleBtn = document.getElementById('rival-toggle-btn');
       const playerCards = Array.from(document.querySelectorAll('.player-card'));
       const field = document.getElementById('lineup-field');
@@ -3613,6 +3613,46 @@
           statusMsg.textContent = 'Error guardando la alineación inicial.';
           statusMsg.classList.add('warn');
           statusMsg.classList.remove('ok');
+        }
+      });
+
+      const publishBtn = document.getElementById('publish-btn');
+      publishBtn?.addEventListener('click', async () => {
+        if (hasPendingConvocation || publishBtn.classList.contains('is-disabled')) return;
+        const starters = (lineupState.starters || []).filter((r) => String(r?.id || '').trim()).length;
+        if (starters < STARTERS_REQUIRED) {
+          const go = window.confirm(`Solo hay ${starters}/${STARTERS_REQUIRED} titulares colocados. ¿Publicar igualmente y avisar a los jugadores?`);
+          if (!go) return;
+        } else if (!window.confirm('Se avisará a cada jugador convocado de si es titular o suplente para este partido. ¿Publicar el 11?')) {
+          return;
+        }
+        publishBtn.disabled = true;
+        try {
+          const response = await fetch(publishUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'X-CSRFToken': csrfToken, Accept: 'application/json' },
+          });
+          const data = await response.json();
+          if (!response.ok) {
+            statusMsg.textContent = data.error || 'No se pudo publicar la alineación.';
+            statusMsg.classList.add('warn');
+            statusMsg.classList.remove('ok');
+          } else if (!data.linked_players) {
+            statusMsg.textContent = '11 publicado, pero ningún jugador tiene cuenta enlazada todavía, así que no se envió ningún aviso.';
+            statusMsg.classList.remove('ok');
+            statusMsg.classList.add('warn');
+          } else {
+            statusMsg.textContent = `11 publicado. Avisados ${data.notified} jugador(es) de su estado (titular/suplente).`;
+            statusMsg.classList.remove('warn');
+            statusMsg.classList.add('ok');
+          }
+        } catch (err) {
+          statusMsg.textContent = 'Error publicando la alineación.';
+          statusMsg.classList.add('warn');
+          statusMsg.classList.remove('ok');
+        } finally {
+          publishBtn.disabled = false;
         }
       });
 

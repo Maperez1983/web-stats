@@ -82,3 +82,50 @@ class ConvocationNotificationTests(TestCase):
     def test_mark_read_requires_login(self):
         resp = self.client.post(reverse("player-notifications-read"))
         self.assertIn(resp.status_code, (301, 302))
+
+
+class LineupPublishNotificationTests(TestCase):
+    def setUp(self):
+        self.comp = Competition.objects.create(name="Liga LP", slug="liga-lp", region="Málaga")
+        self.season = Season.objects.create(competition=self.comp, name="2025/26")
+        self.team = Team.objects.create(name="LP Test FC", slug="lp-test-fc")
+        self.u_starter = User.objects.create_user(username="lp_starter", password="x")
+        self.u_bench = User.objects.create_user(username="lp_bench", password="x")
+        self.starter = Player.objects.create(team=self.team, name="Titular", user=self.u_starter, number=4)
+        self.bench = Player.objects.create(team=self.team, name="Suplente", user=self.u_bench, number=12)
+        self.match = Match.objects.create(home_team=self.team, season=self.season, round="J1")
+        self.record = ConvocationRecord.objects.create(
+            team=self.team, match=self.match, opponent_name="Rival CF",
+            match_date=datetime.date(2026, 2, 1),
+        )
+        self.record.players.set([self.starter, self.bench])
+
+    def test_publish_notifies_status_per_player(self):
+        n = views._notify_lineup_players(
+            self.record, self.match, {str(self.starter.id)}, _Actor()
+        )
+        self.assertEqual(n, 2)
+        starter_notif = PlayerNotification.objects.get(target_user=self.u_starter, kind=PlayerNotification.KIND_LINEUP)
+        bench_notif = PlayerNotification.objects.get(target_user=self.u_bench, kind=PlayerNotification.KIND_LINEUP)
+        self.assertEqual(starter_notif.title, "Eres titular")
+        self.assertTrue(starter_notif.payload.get("starter"))
+        self.assertEqual(bench_notif.title, "Estás en el banquillo")
+        self.assertFalse(bench_notif.payload.get("starter"))
+
+    def test_republish_reflects_new_status(self):
+        views._notify_lineup_players(self.record, self.match, {str(self.starter.id)}, _Actor())
+        # se invierte el 11: ahora el banquillo es titular
+        views._notify_lineup_players(self.record, self.match, {str(self.bench.id)}, _Actor())
+        self.assertEqual(
+            PlayerNotification.objects.filter(match=self.match, kind=PlayerNotification.KIND_LINEUP).count(), 2
+        )
+        self.assertEqual(
+            PlayerNotification.objects.get(target_user=self.u_bench, kind=PlayerNotification.KIND_LINEUP).title,
+            "Eres titular",
+        )
+
+    def test_publish_endpoint_requires_staff(self):
+        # un jugador autenticado no puede publicar
+        self.client.force_login(self.u_starter)
+        resp = self.client.post(reverse("initial-eleven-publish"))
+        self.assertEqual(resp.status_code, 403)

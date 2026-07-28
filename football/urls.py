@@ -535,6 +535,7 @@ urlpatterns = [
     path("registro-acciones/guardar/", views.register_match_action, name="match-action-record"),
     path("registro-acciones/bulk-add/", views.bulk_add_match_actions, name="match-action-bulk-add"),
     path("registro-acciones/lineup/save/", views.save_match_lineup, name="match-lineup-save"),
+    path("registro-acciones/lineup/publish/", views.publish_initial_eleven, name="initial-eleven-publish"),
     path("registro-acciones/lineup/get/", views.get_match_lineup, name="match-lineup-get"),
     path("registro-acciones/rival-lineup/save/", views.save_match_rival_lineup, name="match-rival-lineup-save"),
     path("registro-acciones/rival-lineup/get/", views.get_match_rival_lineup, name="match-rival-lineup-get"),

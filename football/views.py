@@ -24014,6 +24014,110 @@ def save_match_lineup(request):
     )
 
 
+def _notify_lineup_players(record, match, starter_ids, actor_user, workspace=None):
+    """Publica el estado de alineación (titular/suplente) en el espacio personal de cada
+    jugador convocado con cuenta enlazada. A diferencia de la convocatoria, es una acción
+    DELIBERADA (botón "Publicar 11"), no el autosave: por eso reemplaza los avisos de
+    alineación de este partido para reflejar el estado actual de cada jugador. Cada jugador
+    ve SOLO su propio estado, nunca el once completo. Devuelve el nº de avisos creados."""
+    if match is None:
+        return 0
+    try:
+        team = record.team
+        players = list(record.players.select_related("user").all())
+        opponent = (getattr(record, "opponent_name", "") or "").strip()
+        match_date = getattr(record, "match_date", None) or getattr(match, "date", None)
+        base_parts = []
+        if opponent:
+            base_parts.append(f"vs {opponent}")
+        if match_date:
+            try:
+                base_parts.append(match_date.strftime("%d/%m/%Y"))
+            except Exception:
+                pass
+        base = " · ".join(base_parts)
+        try:
+            link = reverse("player-dashboard")
+        except Exception:
+            link = ""
+        actor = actor_user if getattr(actor_user, "is_authenticated", False) else None
+        starter_ids = {str(x) for x in (starter_ids or set())}
+        # Republicar refleja el estado actual: se reemplazan los avisos previos de este partido.
+        PlayerNotification.objects.filter(kind=PlayerNotification.KIND_LINEUP, match=match).delete()
+        objs = []
+        for player in players:
+            uid = getattr(player, "user_id", None)
+            if not uid:
+                continue
+            is_starter = str(player.id) in starter_ids
+            title = "Eres titular" if is_starter else "Estás en el banquillo"
+            estado = "De inicio" if is_starter else "Suplente"
+            message = f"{base} · {estado}" if base else estado
+            objs.append(
+                PlayerNotification(
+                    target_user_id=uid,
+                    kind=PlayerNotification.KIND_LINEUP,
+                    match=match,
+                    workspace=workspace,
+                    team=team,
+                    created_by_user=actor,
+                    title=title,
+                    message=message,
+                    link_url=link,
+                    payload={"match_id": match.id, "starter": is_starter},
+                )
+            )
+        if objs:
+            PlayerNotification.objects.bulk_create(objs)
+        return len(objs)
+    except Exception:
+        logger.exception("No se pudieron publicar los avisos de alineación")
+        return 0
+
+
+@login_required
+@require_POST
+def publish_initial_eleven(request):
+    """Publica el 11 y avisa a los jugadores convocados de su estado (titular/suplente)."""
+    if not _can_edit_match_actions(request.user):
+        return JsonResponse({"error": "Solo el cuerpo técnico puede publicar la alineación."}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, "convocation", label="11 inicial")
+    if forbidden:
+        return JsonResponse({"error": "El 11 inicial no está activo en el workspace actual."}, status=403)
+    read_only = _forbid_matchday_write_on_read_only_season(request)
+    if read_only:
+        return read_only
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({"error": "Equipo principal no configurado"}, status=400)
+    target_match = _resolve_active_match_for_flow(request, primary_team)
+    if not target_match:
+        return JsonResponse({"error": "No hay partido activo para publicar la alineación."}, status=400)
+    convocation_record = _get_convocation_record_for_match(primary_team, target_match)
+    if not convocation_record:
+        convocation_record = get_current_convocation_record(
+            primary_team, match=target_match, fallback_to_latest=False
+        )
+    if not convocation_record:
+        return JsonResponse({"error": "No hay convocatoria para este partido."}, status=400)
+    starters_limit = _required_starters_for_team(primary_team)
+    stored = _stored_lineup_for_match(primary_team, target_match, convocation_record)
+    allowed_players = list(convocation_record.players.select_related("user").all())
+    normalized = _normalize_lineup_payload_with_limit(stored, allowed_players, starters_limit=starters_limit)
+    starter_ids = {
+        str(row.get("id")) for row in (normalized.get("starters") or []) if str(row.get("id") or "").strip()
+    }
+    if not starter_ids:
+        return JsonResponse(
+            {"error": "Aún no hay titulares. Coloca el 11 y guárdalo antes de publicar."}, status=400
+        )
+    notified = _notify_lineup_players(
+        convocation_record, target_match, starter_ids, request.user, workspace=_get_active_workspace(request)
+    )
+    linked_total = sum(1 for p in allowed_players if getattr(p, "user_id", None))
+    return JsonResponse({"published": True, "notified": int(notified), "linked_players": int(linked_total)})
+
+
 def _stored_lineup_for_match(primary_team, match, convocation_record=None):
     """Fuente de verdad de la alineación de nuestro equipo: prefiere MatchLineup (modelo propio,
     por partido) y cae a ConvocationRecord.lineup_data si aún no hay MatchLineup (datos antiguos).
