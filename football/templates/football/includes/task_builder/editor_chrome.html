@@ -380,19 +380,34 @@
         quick.appendChild(qb);
       });
       host.appendChild(quick);
-      // Barra global (opción A): fija la representación por defecto de TODOS; el desplegable de cada
-      // jugador la sobreescribe individualmente.
+      // Elección GLOBAL por tarea (NO por jugador): (1) representación de TODOS y (2) equipación
+      // Local/Visitante de TODOS. Al pulsar un jugador se coloca con esa elección global.
+      var globalRep='jersey';   // Chapa/Camiseta/Foto/Avatar
+      var globalKit='titular';  // titular(=Local) / visitante
       var gl=document.createElement('div'); gl.className='edc-roster-global';
       var glLabel=document.createElement('span'); glLabel.className='edc-roster-global-label'; glLabel.textContent='Todos'; gl.appendChild(glLabel);
       EDC_REPS.forEach(function(o){
         var b=document.createElement('button'); b.type='button'; b.className='edc-roster-gbtn'+(o[0]==='jersey'?' is-active':''); b.textContent=o[1];
         b.addEventListener('click', function(){
+          globalRep=o[0];
           var g=document.querySelector('#task-token-style-global button[data-global-token-style="'+o[0]+'"]'); if(g) g.click();
           Array.prototype.forEach.call(gl.querySelectorAll('.edc-roster-gbtn'), function(x){ x.classList.remove('is-active'); }); b.classList.add('is-active');
         });
         gl.appendChild(b);
       });
       host.appendChild(gl);
+      // Toggle GLOBAL de equipación (Local / Visitante) para toda la pizarra.
+      var gk=document.createElement('div'); gk.className='edc-roster-global edc-roster-kit';
+      var gkLabel=document.createElement('span'); gkLabel.className='edc-roster-global-label'; gkLabel.textContent='Equipación'; gk.appendChild(gkLabel);
+      [['titular','Local'],['visitante','Visitante']].forEach(function(k){
+        var b=document.createElement('button'); b.type='button'; b.className='edc-roster-gbtn'+(k[0]==='titular'?' is-active':''); b.textContent=k[1];
+        b.addEventListener('click', function(){
+          globalKit=k[0];
+          Array.prototype.forEach.call(gk.querySelectorAll('.edc-roster-gbtn'), function(x){ x.classList.remove('is-active'); }); b.classList.add('is-active');
+        });
+        gk.appendChild(b);
+      });
+      host.appendChild(gk);
       items.forEach(function(src){
         var pid=src.getAttribute('data-player-id')||'';
         var nameEl=src.querySelector('.token-name'); var name=nameEl?nameEl.textContent.trim().replace(/^\d+\s*/,''):''; // quita el dorsal duplicado al inicio del nombre (el número ya va en el recuadro)
@@ -411,34 +426,15 @@
         var sNum=document.createElement('span'); sNum.className='edc-roster-num'+(isGK?' is-gk':''); sNum.textContent=(isGK?'GK':(num||'–'));
         if(estado==='lesionado'){ var xC=document.createElement('span'); xC.className='edc-roster-cross'; xC.textContent='✚'; xC.title='Lesionado'; sNum.appendChild(xC); } // marca de lesionado (cruz), además del rojo
         var sName=document.createElement('span'); sName.className='edc-roster-name'; sName.textContent=name||'Jugador';
-        var sCaret=document.createElement('span'); sCaret.className='edc-roster-caret'; sCaret.textContent='▾';
-        sPhoto.appendChild(sNum); btn.appendChild(sPhoto); btn.appendChild(sName); btn.appendChild(sCaret); // dorsal como badge sobre la foto (gana espacio)
-        var menu=document.createElement('div'); menu.className='edc-rep-menu'; menu.hidden=true;
-        // Selector de equipación COMPLETO (aplica a todo salvo Foto). Campo vs portero.
-        var kitState={ v: isGK ? 'gk_azul' : 'titular' };
-        var KITS = isGK
-          ? [['gk_azul','Azul'],['gk_negra','Negra'],['gk_magenta','Magenta']]
-          : [['titular','Titular'],['visitante','Visitante'],['turquesa','Turquesa'],['blanca','Blanca'],['chandal','Chándal']];
-        var kitRow=document.createElement('div'); kitRow.className='edc-kit-toggle';
-        var kitLabel=document.createElement('span'); kitLabel.className='edc-kit-label'; kitLabel.textContent='Equipación'; kitRow.appendChild(kitLabel);
-        KITS.forEach(function(k){
-          var kb=document.createElement('button'); kb.type='button'; kb.className='edc-kit-btn'+(k[0]===kitState.v?' is-active':''); kb.textContent=k[1];
-          kb.addEventListener('click', function(ev){ ev.stopPropagation(); kitState.v=k[0]; Array.prototype.forEach.call(kitRow.querySelectorAll('.edc-kit-btn'), function(x){ x.classList.remove('is-active'); }); kb.classList.add('is-active'); });
-          kitRow.appendChild(kb);
-        });
-        menu.appendChild(kitRow);
-        var optsWrap=document.createElement('div'); optsWrap.className='edc-rep-opts';
-        EDC_REPS.forEach(function(o){
-          var mi=document.createElement('button'); mi.type='button'; mi.className='edc-rep-opt'+(o[0]==='photo'?' is-photo':''); mi.textContent=o[1];
-          mi.addEventListener('click', function(ev){ ev.stopPropagation(); menu.hidden=true; row.classList.remove('is-open'); edcApplyRepresentation(pid, o[0], (o[0]!=='photo') ? kitState.v : ''); });
-          optsWrap.appendChild(mi);
-        });
-        menu.appendChild(optsWrap);
+        // Elección GLOBAL: sin desplegable. Al pulsar, coloca al jugador con la representación
+        // global (Todos) y la equipación global (Local/Visitante).
+        sPhoto.appendChild(sNum); btn.appendChild(sPhoto); btn.appendChild(sName); // dorsal como badge sobre la foto
         btn.addEventListener('click', function(){
-          Array.prototype.forEach.call(host.querySelectorAll('.edc-roster-row.is-open'), function(r){ if(r!==row){ r.classList.remove('is-open'); var m=r.querySelector('.edc-rep-menu'); if(m) m.hidden=true; } });
-          var open=row.classList.toggle('is-open'); menu.hidden=!open;
+          var kit=globalKit;
+          if(isGK){ kit=(globalKit==='visitante')?'gk_negra':'gk_azul'; } // portero: Local=azul / Visitante=negra
+          edcApplyRepresentation(pid, globalRep, (globalRep!=='photo') ? kit : '');
         });
-        row.appendChild(btn); row.appendChild(menu); host.appendChild(row);
+        row.appendChild(btn); host.appendChild(row);
       });
       grid.insertBefore(host, grid.firstChild);
       var rb=document.getElementById('task-roster-bank'); if(rb) rb.classList.add('edc-roster-compact');
