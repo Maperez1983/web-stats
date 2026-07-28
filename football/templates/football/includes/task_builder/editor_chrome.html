@@ -56,7 +56,31 @@
     <button type="button" class="edc-fmt" data-edc-preset="half_pitch"><span class="edc-fmt-ico"></span>Media cancha</button>
     <button type="button" class="edc-fmt" data-edc-preset="attacking_third"><span class="edc-fmt-ico"></span>Tres cuartos</button>
   </div>
-  <div class="edc-spacer"></div>
+  <!-- Selectores GLOBALES por tarea (movidos aquí desde el cajón de Plantilla): Presentación,
+       Equipación de campo y Portero. Al colocar un jugador se usa esta elección global. -->
+  <div class="edc-selbar" id="edc-selbar" role="group" aria-label="Presentación global de las fichas">
+    <div class="edc-selgrp" data-edc-sel="rep">
+      <span class="edc-sellabel">Ficha</span>
+      <button type="button" class="edc-selbtn" data-rep="disk">Chapa</button>
+      <button type="button" class="edc-selbtn is-active" data-rep="jersey">Camiseta</button>
+      <button type="button" class="edc-selbtn" data-rep="photo">Foto</button>
+      <button type="button" class="edc-selbtn" data-rep="sprite">Avatar</button>
+    </div>
+    <div class="edc-selgrp" data-edc-sel="kit">
+      <span class="edc-sellabel">Equipación</span>
+      <button type="button" class="edc-selbtn is-active" data-kit="titular">Local</button>
+      <button type="button" class="edc-selbtn" data-kit="visitante">Visit.</button>
+      <button type="button" class="edc-selbtn" data-kit="turquesa">Turq.</button>
+      <button type="button" class="edc-selbtn" data-kit="blanca">Blanca</button>
+      <button type="button" class="edc-selbtn" data-kit="chandal">Chánd.</button>
+    </div>
+    <div class="edc-selgrp" data-edc-sel="gk">
+      <span class="edc-sellabel">Portero</span>
+      <button type="button" class="edc-selbtn is-active" data-gk="gk_azul">Azul</button>
+      <button type="button" class="edc-selbtn" data-gk="gk_negra">Negra</button>
+      <button type="button" class="edc-selbtn" data-gk="gk_magenta">Magenta</button>
+    </div>
+  </div>
   <div class="edc-group-box">
     <button type="button" class="edc-btn edc-icon-btn" data-edc="undo" aria-label="Deshacer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 7L4 12l5 5"/><path d="M4 12h11a5 5 0 0 1 0 10h-1"/></svg></button>
     <button type="button" class="edc-btn edc-icon-btn" data-edc="redo" aria-label="Rehacer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 7l5 5-5 5"/><path d="M20 12H9a5 5 0 0 0 0 10h1"/></svg></button>
@@ -347,6 +371,10 @@
   // -------- Lista de plantilla: botón rectangular (dorsal + nombre) + desplegable de representación --------
   // Reutiliza el motor existente: fija el estilo global de ficha y activa la inserción del jugador.
   var EDC_REPS = [['disk','Chapa'],['jersey','Camiseta'],['photo','Foto'],['sprite','Avatar']]; // 'figure' quitado: era idéntico a Avatar
+  // Elección GLOBAL por tarea (compartida entre la barra inferior y la lista de plantilla).
+  // rep = representación de TODOS (chapa/camiseta/foto/avatar); kit = equipación de campo;
+  // gkKit = equipación de portero (selector propio). Los botones de la barra inferior la mutan.
+  var edcSel = { rep:'jersey', kit:'titular', gkKit:'gk_azul' };
   function edcSetGlobalStyle(style){ try{ var g=document.querySelector('#task-token-style-global button[data-global-token-style="'+style+'"]'); if(g) g.click(); }catch(e){} }
   // Coloca al jugador con estilo (chapa/camiseta/figura/foto/avatar) y equipación (local/visitante).
   // Foto NO usa equipación. Visitante = 2ª equipación (kind player_away) vía global expuesto por el motor.
@@ -364,6 +392,30 @@
       else { var pl=document.querySelector('#task-player-bank button.player-token-bank[data-player-id="'+pid+'"]'); if(pl) pl.click(); }
     }catch(e){}
   }
+  // Cablea los selectores GLOBALES de la barra inferior (#edc-selbar). Mutan `edcSel` y reflejan
+  // el estado activo. La representación (Ficha) además sincroniza el estilo global del motor.
+  function wireBottomSelectors(){
+    var bar=document.getElementById('edc-selbar'); if(!bar || bar.dataset.wired==='1') return;
+    bar.dataset.wired='1';
+    function activate(grp, btn){
+      Array.prototype.forEach.call(grp.querySelectorAll('.edc-selbtn'), function(x){ x.classList.remove('is-active'); });
+      btn.classList.add('is-active');
+    }
+    Array.prototype.forEach.call(bar.querySelectorAll('.edc-selgrp'), function(grp){
+      Array.prototype.forEach.call(grp.querySelectorAll('.edc-selbtn'), function(btn){
+        btn.addEventListener('click', function(){
+          if(btn.dataset.rep!==undefined && btn.dataset.rep!==''){
+            edcSel.rep=btn.dataset.rep; edcSetGlobalStyle(edcSel.rep);
+          } else if(btn.dataset.kit!==undefined && btn.dataset.kit!==''){
+            edcSel.kit=btn.dataset.kit;
+          } else if(btn.dataset.gk!==undefined && btn.dataset.gk!==''){
+            edcSel.gkKit=btn.dataset.gk;
+          }
+          activate(grp, btn);
+        });
+      });
+    });
+  }
   function buildRosterList(grid){
     try{
       var bank=document.getElementById('task-player-bank'); if(!bank) return;
@@ -380,48 +432,9 @@
         quick.appendChild(qb);
       });
       host.appendChild(quick);
-      // Elección GLOBAL por tarea (NO por jugador): (1) representación de TODOS y (2) equipación
-      // Local/Visitante de TODOS. Al pulsar un jugador se coloca con esa elección global.
-      var globalRep='jersey';   // Chapa/Camiseta/Foto/Avatar
-      var globalKit='titular';  // jugadores de campo: titular(=Local) / visitante
-      var globalGkKit='gk_azul';// porteros (selector propio): gk_azul / gk_negra / gk_magenta
-      var gl=document.createElement('div'); gl.className='edc-roster-global';
-      var glLabel=document.createElement('span'); glLabel.className='edc-roster-global-label'; glLabel.textContent='Todos'; gl.appendChild(glLabel);
-      EDC_REPS.forEach(function(o){
-        var b=document.createElement('button'); b.type='button'; b.className='edc-roster-gbtn'+(o[0]==='jersey'?' is-active':''); b.textContent=o[1];
-        b.addEventListener('click', function(){
-          globalRep=o[0];
-          var g=document.querySelector('#task-token-style-global button[data-global-token-style="'+o[0]+'"]'); if(g) g.click();
-          Array.prototype.forEach.call(gl.querySelectorAll('.edc-roster-gbtn'), function(x){ x.classList.remove('is-active'); }); b.classList.add('is-active');
-        });
-        gl.appendChild(b);
-      });
-      host.appendChild(gl);
-      // Selector GLOBAL de equipación = "kit activo" (jugadores de campo). Se cambia entre grupos
-      // para distinguir equipos/comodines en el mismo tablero (A turquesa vs B blanca, etc.).
-      var gk=document.createElement('div'); gk.className='edc-roster-global edc-roster-kit';
-      var gkLabel=document.createElement('span'); gkLabel.className='edc-roster-global-label'; gkLabel.textContent='Equipación'; gk.appendChild(gkLabel);
-      [['titular','Local'],['visitante','Visitante'],['turquesa','Turquesa'],['blanca','Blanca'],['chandal','Chándal']].forEach(function(k){
-        var b=document.createElement('button'); b.type='button'; b.className='edc-roster-gbtn'+(k[0]==='titular'?' is-active':''); b.textContent=k[1];
-        b.addEventListener('click', function(){
-          globalKit=k[0];
-          Array.prototype.forEach.call(gk.querySelectorAll('.edc-roster-gbtn'), function(x){ x.classList.remove('is-active'); }); b.classList.add('is-active');
-        });
-        gk.appendChild(b);
-      });
-      host.appendChild(gk);
-      // Toggle GLOBAL de PORTERO (Azul/Negra/Magenta) — separado del de campo para no saturar.
-      var pk=document.createElement('div'); pk.className='edc-roster-global edc-roster-kit';
-      var pkLabel=document.createElement('span'); pkLabel.className='edc-roster-global-label'; pkLabel.textContent='Portero'; pk.appendChild(pkLabel);
-      [['gk_azul','Azul'],['gk_negra','Negra'],['gk_magenta','Magenta']].forEach(function(k){
-        var b=document.createElement('button'); b.type='button'; b.className='edc-roster-gbtn'+(k[0]==='gk_azul'?' is-active':''); b.textContent=k[1];
-        b.addEventListener('click', function(){
-          globalGkKit=k[0];
-          Array.prototype.forEach.call(pk.querySelectorAll('.edc-roster-gbtn'), function(x){ x.classList.remove('is-active'); }); b.classList.add('is-active');
-        });
-        pk.appendChild(b);
-      });
-      host.appendChild(pk);
+      // Los selectores GLOBALES (Presentación/Equipación/Portero) ya NO se dibujan aquí: viven en la
+      // barra inferior (#edc-selbar) y mutan `edcSel`. La lista solo muestra jugadores; al pulsar uno
+      // se coloca con la elección global vigente (edcSel).
       items.forEach(function(src){
         var pid=src.getAttribute('data-player-id')||'';
         var nameEl=src.querySelector('.token-name'); var name=nameEl?nameEl.textContent.trim().replace(/^\d+\s*/,''):''; // quita el dorsal duplicado al inicio del nombre (el número ya va en el recuadro)
@@ -444,8 +457,8 @@
         // global (Todos) y la equipación global (Local/Visitante).
         sPhoto.appendChild(sNum); btn.appendChild(sPhoto); btn.appendChild(sName); // dorsal como badge sobre la foto
         btn.addEventListener('click', function(){
-          var kit = isGK ? globalGkKit : globalKit; // portero usa su selector propio; campo usa Local/Visitante
-          edcApplyRepresentation(pid, globalRep, (globalRep!=='photo') ? kit : '');
+          var kit = isGK ? edcSel.gkKit : edcSel.kit; // portero usa su selector propio; campo usa Local/Visitante
+          edcApplyRepresentation(pid, edcSel.rep, (edcSel.rep!=='photo') ? kit : '');
         });
         row.appendChild(btn); host.appendChild(row);
       });
@@ -634,6 +647,7 @@
   document.querySelectorAll('[data-edc]').forEach(function(btn){
     btn.addEventListener('click', function(){ var fn = actions[btn.getAttribute('data-edc')]; if(fn) fn(btn); });
   });
+  try{ wireBottomSelectors(); }catch(e){}
   // Inspector flotante: saca la barra de selección del panel oculto para que pueda mostrarse.
   // Se ejecuta con retardo (tras board_controls) y re-afirma si algún script la devuelve.
   (function(){

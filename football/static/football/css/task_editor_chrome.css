@@ -991,3 +991,16 @@ body.ed-chrome .pitch-viewport {
   overflow: hidden !important; padding: 4px 12px 0 !important;
 }
 body.ed-chrome #task-pitch-stage { margin: 0 auto !important; }
+
+/* ===== Selectores GLOBALES en la barra inferior (movidos desde el cajón de Plantilla) ===== */
+body.ed-chrome .edc-selbar { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 8px; overflow: hidden; }
+body.ed-chrome .edc-selgrp { display: flex; align-items: center; gap: 2px; background: var(--edc-bar-2); border: 1px solid var(--edc-line); border-radius: 12px; padding: 3px 5px 3px 4px; flex: 0 0 auto; }
+body.ed-chrome .edc-sellabel { font-size: 9px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; color: var(--edc-muted); padding: 0 3px; white-space: nowrap; }
+body.ed-chrome .edc-selbtn { height: 30px; padding: 0 8px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--edc-ink); font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+body.ed-chrome .edc-selbtn:hover { border-color: rgba(55,208,95,0.5); }
+body.ed-chrome .edc-selbtn.is-active { background: var(--edc-accent); border-color: var(--edc-accent); color: var(--edc-accent-ink); }
+
+/* Banco de plantilla NATIVO oculto en TODA la piel del editor (antes solo dentro del cajón, por eso
+   asomaba como recuadro en el margen izquierdo). Fuera de pantalla pero RENDERIZADO: sigue siendo la
+   fuente de datos (dorsales/fotos) de la lista nueva (.edc-roster-list). */
+body.ed-chrome #task-roster-bank { position: fixed !important; left: -12000px !important; top: 0 !important; width: 360px !important; height: 1px !important; overflow: hidden !important; opacity: 0 !important; pointer-events: none !important; z-index: -1 !important; }
