@@ -866,10 +866,25 @@
               </tbody>
             </table>
           </div>
-          <div style="display:flex; justify-content:flex-end; gap:0.5rem; flex-wrap:wrap; margin-top:0.7rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-top:0.7rem;">
+            <button class="btn secondary" type="button" id="attendance-all-present" title="Inscribe a toda la plantilla como presente; luego marca las excepciones">✓ Inscribir toda la plantilla (todos presentes)</button>
             <button class="btn primary" type="submit">Guardar asistencia</button>
           </div>
         </form>
+        <script>
+          (function(){
+            var btn = document.getElementById('attendance-all-present');
+            if (!btn) return;
+            btn.addEventListener('click', function(){
+              document.querySelectorAll('.js-attendance-status').forEach(function(sel){
+                // no pisar lesionados/justificados ya marcados a mano
+                if (sel.value === 'injured' || sel.value === 'excused') return;
+                sel.value = 'present';
+                try { sel.dispatchEvent(new Event('change', { bubbles: true })); } catch(e){}
+              });
+            });
+          })();
+        </script>
       </section>
     </main>
 
