@@ -244,7 +244,7 @@
 	        <div class="toggle-row topbar-actions">
 	          <a class="btn secondary" href="{% url 'team-agenda' %}{% if team %}?team={{ team.id }}{% endif %}">← Agenda</a>
 	          <a class="btn secondary" href="{{ planner_url }}">Biblioteca</a>
-	          <a class="btn secondary" href="{{ planner_url }}" title="Ir a biblioteca para seleccionar tareas" aria-label="Añadir tareas">➕ Tareas</a>
+	          <a class="btn secondary" href="{{ new_task_url }}" title="Crear una tarea nueva en la pizarra; se añade automáticamente a esta sesión" aria-label="Nueva tarea">🎨 Nueva tarea</a>
 	          <a class="btn" href="{% url 'session-plan-pdf' session.id %}?style=uefa" data-pdf-viewer="1" data-pdf-title="Sesión · {{ session.focus }} · UEFA">📄 PDF UEFA</a>
 	          <a class="btn" href="{% url 'session-plan-pdf' session.id %}?style=club" data-pdf-viewer="1" data-pdf-title="Sesión · {{ session.focus }}">📄 PDF Club</a>
 	          {% if session_inline_edit %}
@@ -301,12 +301,12 @@
 	            <tr><td>Fecha</td><td><input class="cev" type="date" name="session_date" value="{{ session.session_date|date:'Y-m-d' }}" required /></td><td>Hora</td><td><input class="cev" type="time" name="start_time" value="{% if session.start_time %}{{ session.start_time|time:'H:i' }}{% endif %}" /></td></tr>
 	            <tr><td>Lugar</td><td><input class="cev" type="text" name="location" maxlength="120" value="{{ plan_fields.location }}" placeholder="Campo / pista…" /></td><td>Estado</td><td><select class="cev" name="status">{% for value, label in session_status_choices %}<option value="{{ value }}" {% if session.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td></tr>
 	            <tr><td>Duración (min)</td><td><input class="cev" type="number" name="duration_minutes" min="30" max="180" value="{{ session.duration_minutes }}" /></td><td>Intensidad</td><td><select class="cev" name="intensity">{% for value, label in session_intensity_choices %}<option value="{{ value }}" {% if session.intensity == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td></tr>
-	            <tr><td>Tareas</td><td><div class="v">{{ tasks_count }}</div></td><td>Carga (RPE)</td><td><div class="v">{% if workload_points %}{{ workload_points }}{% else %}—{% endif %}</div></td></tr>
+	            <tr><td>Tareas</td><td><div class="v">{{ tasks_count }}</div></td><td>Carga (RPE)</td><td><div class="v">{% if workload_points %}{{ workload_points }}{% elif planned_load %}{{ planned_load }} <span style="opacity:.6;font-weight:600;">prev.</span>{% else %}—{% endif %}</div></td></tr>
 	            <tr><td>Workflow</td><td><select class="cev" name="workflow_status">{% for value, label in workflow_status_choices %}<option value="{{ value }}" {% if session.workflow_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td><td>Motivo</td><td><input class="cev" type="text" name="workflow_reason" maxlength="220" value="{{ session.workflow_reason }}" placeholder="Ajuste por carga / lluvia…" /></td></tr>
 	            {% else %}
 	            <tr><td style="width:18%;">Lugar</td><td><div class="v">{% if plan_fields.location %}{{ plan_fields.location }}{% else %}—{% endif %}</div></td><td style="width:18%;">Estado</td><td><div class="v">{{ session.get_status_display }}</div></td></tr>
 	            <tr><td>Duración</td><td><div class="v">{{ session.duration_minutes }} min <span style="opacity:.68; font-weight:600; font-size:.82em;">planificada{% if task_minutes_total and task_minutes_total != session.duration_minutes %} · {{ task_minutes_total }} en tareas{% endif %}</span></div></td><td>Intensidad</td><td><div class="v">{{ session.get_intensity_display }}</div></td></tr>
-	            <tr><td>Tareas</td><td><div class="v">{{ tasks_count }}</div></td><td>Carga (RPE)</td><td><div class="v">{% if workload_points %}{{ workload_points }} ({{ workload_rpe }}×{{ workload_minutes }}'){% else %}—{% endif %}</div></td></tr>
+	            <tr><td>Tareas</td><td><div class="v">{{ tasks_count }}</div></td><td>Carga (RPE)</td><td><div class="v">{% if workload_points %}{{ workload_points }} ({{ workload_rpe }}×{{ workload_minutes }}'){% elif planned_load %}{{ planned_load }} <span style="opacity:.6;font-weight:600;">prev. ({{ planned_rpe }}×{{ session.duration_minutes }}')</span>{% else %}—{% endif %}</div></td></tr>
 	            <tr><td>Workflow</td><td colspan="3"><div class="v">{{ session.get_workflow_status_display|default:"—" }}{% if session.workflow_updated_at %} <span style="color:var(--club-muted);">· {{ session.workflow_updated_at|date:"d/m H:i" }}</span>{% endif %}</div></td></tr>
 	            {% endif %}
 	          </table>
@@ -314,13 +314,13 @@
 	          <div class="section-title">Contenido / explicación{% if not session_inline_edit %} <span style="opacity:.7; font-weight:700; text-transform:none; letter-spacing:0;">· resumen</span>{% endif %}</div>
 	          <div class="box" style="margin-bottom:12px;">
 	            {% if session_inline_edit %}
-	            <label class="cev-field">Objetivo de la sesión (medible)<textarea class="cev" name="objective" rows="2" maxlength="1200" placeholder="Ej: atraer y progresar por dentro…">{{ plan_fields.objective }}</textarea></label>
-	            <div style="display:flex; gap:0.8rem; flex-wrap:wrap; align-items:flex-end;"><label class="cev-field" style="max-width:9rem;">RPE objetivo (1-10)<input class="cev" type="number" name="rpe_target" min="1" max="10" value="{{ plan_fields.rpe_target }}" /></label><label class="cev-field" style="flex:1; min-width:12rem;">Criterios de éxito<textarea class="cev" name="success_criteria" rows="2" maxlength="2000">{{ plan_fields.success_criteria }}</textarea></label></div>
+	            <label class="cev-field">Objetivo de la sesión <span style="opacity:.6;font-weight:600;text-transform:none;letter-spacing:0;">· qué quieres entrenar (se hereda de la tarea principal)</span><textarea class="cev" name="objective" rows="2" maxlength="1200" placeholder="{% if objective_suggestion %}{{ objective_suggestion }}{% else %}Ej: mejorar la presión tras pérdida{% endif %}">{{ plan_fields.objective|default:objective_suggestion }}</textarea></label>
+	            <details style="margin:2px 0 4px;"><summary style="cursor:pointer; font-size:11px; color:var(--club-muted); text-transform:uppercase; letter-spacing:.04em;">Avanzado (opcional): RPE y criterios de éxito</summary><div style="display:flex; gap:0.8rem; flex-wrap:wrap; align-items:flex-end; margin-top:8px;"><label class="cev-field" style="max-width:11rem;">RPE objetivo (1-10) <span style="opacity:.6;font-weight:600;text-transform:none;letter-spacing:0;">auto: {{ planned_rpe }}</span><input class="cev" type="number" name="rpe_target" min="1" max="10" value="{{ plan_fields.rpe_target }}" placeholder="{{ planned_rpe }}" /></label><label class="cev-field" style="flex:1; min-width:12rem;">Criterios de éxito <span style="opacity:.6;font-weight:600;text-transform:none;letter-spacing:0;">cómo sabrás si salió bien</span><textarea class="cev" name="success_criteria" rows="2" maxlength="2000">{{ plan_fields.success_criteria }}</textarea></label></div></details>
 	            <label class="cev-field">Calentamiento<textarea class="cev" name="warmup" rows="2" maxlength="4000">{{ plan_fields.warmup }}</textarea></label>
 	            <label class="cev-field">Activación<textarea class="cev" name="activation" rows="2" maxlength="4000">{{ plan_fields.activation }}</textarea></label>
 	            <label class="cev-field">Parte principal<textarea class="cev" name="main" rows="3" maxlength="6000">{{ plan_fields.main }}</textarea></label>
 	            <label class="cev-field">Vuelta a la calma<textarea class="cev" name="cooldown" rows="2" maxlength="4000">{{ plan_fields.cooldown }}</textarea></label>
-	            <div style="display:flex; gap:0.8rem; flex-wrap:wrap;"><label class="cev-field" style="flex:1; min-width:10rem;">Materiales<input class="cev" type="text" name="materials" maxlength="220" value="{{ plan_fields.materials }}" /></label><label class="cev-field" style="max-width:12rem;">Nº jugadores<input class="cev" type="text" name="player_count" maxlength="60" value="{{ plan_fields.player_count }}" /></label></div>
+	            <div style="display:flex; gap:0.8rem; flex-wrap:wrap;"><label class="cev-field" style="flex:1; min-width:10rem;">Materiales<input class="cev" type="text" name="materials" maxlength="220" value="{{ plan_fields.materials }}" /></label><div class="cev-field" style="max-width:14rem;">Nº jugadores <span style="opacity:.6;font-weight:600;text-transform:none;letter-spacing:0;">(automático)</span><div class="v" style="padding-top:4px;"><strong>{{ auto_player_count }}</strong> <span style="opacity:.7;font-weight:600;font-size:.82em;">{% if session_is_closed %}asistieron{% else %}convocados{% endif %}</span></div></div></div>
 	            <label class="cev-field">Ausencias / incidencias<textarea class="cev" name="absences" rows="2" maxlength="4000">{{ plan_fields.absences }}</textarea></label>
 	            <label class="cev-field">Notas<textarea class="cev" name="notes" rows="2" maxlength="8000">{{ plan_fields.notes }}</textarea></label>
 	            {% else %}
@@ -415,7 +415,8 @@
 
 		          <div class="section-title" style="display:flex; align-items:center; justify-content:space-between; gap:0.65rem; flex-wrap:wrap;">
                 <span>Tareas de la sesión <span style="opacity:.7; font-weight:700; text-transform:none; letter-spacing:0;">· detalle</span></span>
-                <a class="btn secondary" href="{{ planner_url }}">➕ Añadir tareas</a>
+                <a class="btn secondary" href="{{ new_task_url }}" title="Crea una tarea nueva en la pizarra; se añade a esta sesión">🎨 Nueva tarea (pizarra)</a>
+                <a class="btn secondary" href="{{ planner_url }}" title="Elegir tareas ya creadas de la biblioteca">📚 Desde biblioteca</a>
               </div>
               {% if recommended_tasks %}
               <div class="box" style="border-top:none; padding:10px 12px; margin-bottom:10px; background:rgba(120,160,240,0.08); border:1px solid rgba(120,160,240,0.35); border-radius:10px;">
@@ -521,7 +522,8 @@
 		            {% else %}
 		              <span style="color:var(--club-muted);">No hay tareas guardadas para esta sesión.</span>
                   <div style="margin-top:10px;">
-                    <a class="btn secondary" href="{{ planner_url }}">➕ Añadir tareas desde Biblioteca</a>
+                    <a class="btn secondary" href="{{ new_task_url }}" title="Crea una tarea nueva en la pizarra; se añade a esta sesión">🎨 Nueva tarea (pizarra)</a>
+                    <a class="btn secondary" href="{{ planner_url }}">📚 Añadir desde Biblioteca</a>
                   </div>
 		            {% endif %}
 		          </div>

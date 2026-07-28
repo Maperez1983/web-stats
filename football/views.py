@@ -32699,6 +32699,12 @@ def training_session_detail_page(request, session_id):
                     show_in_agenda_raw = str(request.POST.get("show_in_agenda") or "").strip().lower()
                     show_in_agenda = show_in_agenda_raw in {"1", "true", "yes", "on", "si"}
                     next_fields["agenda_hidden"] = "" if show_in_agenda else "1"
+                # Nº jugadores autocompletado: convocados = plantilla activa (incl. "a prueba").
+                # Al cerrar la sesión se sobrescribe con los que aparecieron (ver action == "confirm").
+                try:
+                    next_fields["player_count"] = str(len(players))
+                except Exception:
+                    pass
                 session_obj.content = _serialize_session_plan_fields(next_fields)
 
                 # Workflow (staff)
@@ -32906,6 +32912,19 @@ def training_session_detail_page(request, session_id):
                     next_fields = plan_fields.copy()
                     next_fields["confirmed_at"] = timezone.localtime().isoformat()
                     next_fields["confirmed_by"] = str(request.user.get_username() or "").strip()
+                    # Nº jugadores al cerrar = los que aparecieron (presentes + tarde).
+                    try:
+                        _missed_now = TrainingSessionAttendance.objects.filter(
+                            session=session_obj,
+                            status__in=[
+                                TrainingSessionAttendance.STATUS_ABSENT,
+                                TrainingSessionAttendance.STATUS_INJURED,
+                                TrainingSessionAttendance.STATUS_EXCUSED,
+                            ],
+                        ).count()
+                        next_fields["player_count"] = str(max(0, len(players) - int(_missed_now or 0)))
+                    except Exception:
+                        pass
                     session_obj.content = _serialize_session_plan_fields(next_fields)
                     session_obj.save(update_fields=["content"])
                     plan_fields = next_fields
@@ -33523,6 +33542,57 @@ def training_session_detail_page(request, session_id):
     except Exception:
         workload_points = None
 
+    # --- Auto: carga planificada (RPE derivado de la intensidad × minutos) ---
+    _intensity_rpe = {
+        TrainingSession.INTENSITY_LOW: 3,
+        TrainingSession.INTENSITY_MEDIUM: 5,
+        TrainingSession.INTENSITY_HIGH: 7,
+        TrainingSession.INTENSITY_RECOVERY: 2,
+        TrainingSession.INTENSITY_MATCHDAY: 6,
+    }
+    try:
+        _rpe_manual = _parse_int(plan_fields.get("rpe_target"))
+    except Exception:
+        _rpe_manual = None
+    planned_rpe = _rpe_manual or _intensity_rpe.get(str(getattr(session_obj, "intensity", "") or ""), 5)
+    try:
+        _plan_minutes = int(getattr(session_obj, "duration_minutes", 0) or 0)
+    except Exception:
+        _plan_minutes = 0
+    planned_load = (int(planned_rpe) * _plan_minutes) if (planned_rpe and _plan_minutes) else None
+
+    # --- Auto: Nº jugadores. Convocados = plantilla activa (incl. "a prueba") mientras se planifica;
+    #     al cerrar la sesión = los que aparecieron (presentes + tarde = roster − ausentes/lesionados/justificados). ---
+    _missed_count = (
+        counts.get(TrainingSessionAttendance.STATUS_ABSENT, 0)
+        + counts.get(TrainingSessionAttendance.STATUS_INJURED, 0)
+        + counts.get(TrainingSessionAttendance.STATUS_EXCUSED, 0)
+    )
+    convocados_count = total_roster
+    asistieron_count = max(0, total_roster - _missed_count)
+    session_is_closed = str(getattr(session_obj, "status", "") or "") == TrainingSession.STATUS_DONE
+    auto_player_count = asistieron_count if session_is_closed else convocados_count
+
+    # --- Objetivo heredado de la tarea principal si aún no se ha escrito uno ---
+    objective_suggestion = ""
+    try:
+        for _t in tasks:
+            _o = str(getattr(_t, "objective", "") or "").strip()
+            if _o:
+                objective_suggestion = _o
+                break
+    except Exception:
+        objective_suggestion = ""
+
+    # --- URL directa a la pizarra: crea una tarea nueva ya vinculada a esta sesión ---
+    try:
+        new_task_url = (
+            reverse(_task_builder_route_name("coach"))
+            + f"?repo={library_repository}&session_id={int(session_obj.id)}&assign=1&team={int(primary_team.id)}"
+        )
+    except Exception:
+        new_task_url = ""
+
     try:
         recommended_tasks = _ai_trainer_suggest_tasks_for_session(session_obj, limit=6)
     except Exception:
@@ -33564,6 +33634,14 @@ def training_session_detail_page(request, session_id):
             "workload_minutes": workload_minutes,
             "workload_rpe": workload_rpe,
             "workload_points": workload_points,
+            "planned_rpe": planned_rpe,
+            "planned_load": planned_load,
+            "convocados_count": convocados_count,
+            "asistieron_count": asistieron_count,
+            "auto_player_count": auto_player_count,
+            "session_is_closed": session_is_closed,
+            "objective_suggestion": objective_suggestion,
+            "new_task_url": new_task_url,
             "message": message,
             "error": error,
             "planner_url": reverse("sessions")
