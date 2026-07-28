@@ -38050,8 +38050,10 @@
                     } catch (e) { /* ignore */ }
                     let kit = (kitArg === true) ? 'visitante' : (kitArg === false ? 'titular' : safeText(kitArg));
                     if (!kit) kit = isGk ? 'gk_azul' : 'titular';
-                    if (isGk && kit.indexOf('gk_') !== 0) kit = 'gk_azul';
-                    if (!isGk && kit.indexOf('gk_') === 0) kit = 'titular';
+                    // Color LIBRE: se respeta el color elegido en CUALQUIER ficha (jugador o portero).
+                    // Antes se forzaba gk_* a los porteros y se degradaba gk_* de un jugador de campo a
+                    // 'titular', lo que impedia p.ej. una chapa azul en un jugador de campo. Ahora el color
+                    // (kit) manda; el rol (isGk) solo decide el 'kind' y la etiqueta GK, no el color.
                     const isAway = (kit === 'visitante');
                     const isDark = isGk || kit === 'chandal' || kit.indexOf('gk_') === 0;
                     const kind = isGk ? 'goalkeeper_local' : (isAway ? 'player_away' : 'player_local');

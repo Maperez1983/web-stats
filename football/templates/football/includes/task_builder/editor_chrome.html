@@ -56,36 +56,26 @@
     <button type="button" class="edc-fmt" data-edc-preset="half_pitch"><span class="edc-fmt-ico"></span>Media cancha</button>
     <button type="button" class="edc-fmt" data-edc-preset="attacking_third"><span class="edc-fmt-ico"></span>Tres cuartos</button>
   </div>
-  <!-- Selección GLOBAL por tarea (simple): Presentación + Local/Visitante. El resto de equipaciones
-       (Turquesa/Blanca/Chándal) y el portero (Azul/Negra/Magenta) quedan en el desplegable "▾". -->
-  <div class="edc-selbar" id="edc-selbar" role="group" aria-label="Presentación global de las fichas">
+  <!-- Selección GLOBAL por tarea: Presentación (Ficha) + COLOR directo. El color se aplica a
+       CUALQUIER ficha (jugador o portero), no depende del rol. -->
+  <div class="edc-selbar" id="edc-selbar" role="group" aria-label="Presentación y color global de las fichas">
     <div class="edc-selgrp" data-edc-sel="rep">
       <span class="edc-sellabel">Ficha</span>
       <button type="button" class="edc-selbtn" data-rep="disk">Chapa</button>
       <button type="button" class="edc-selbtn is-active" data-rep="jersey">Camiseta</button>
       <button type="button" class="edc-selbtn" data-rep="photo">Foto</button>
+      <button type="button" class="edc-selbtn" data-rep="sprite">Avatar</button>
     </div>
-    <div class="edc-selgrp" data-edc-sel="kit">
-      <span class="edc-sellabel">Equipación</span>
-      <button type="button" class="edc-selbtn is-active" data-kit="titular">Local</button>
-      <button type="button" class="edc-selbtn" data-kit="visitante">Visitante</button>
-      <div class="edc-selmore">
-        <button type="button" class="edc-selbtn edc-selmore-btn" id="edc-selmore-btn" aria-haspopup="true" aria-expanded="false" title="Más equipaciones y portero">▾</button>
-        <div class="edc-selmore-pop" id="edc-selmore-pop" hidden>
-          <div class="edc-selmore-h">Otras equipaciones</div>
-          <div class="edc-selmore-row">
-            <button type="button" class="edc-selbtn" data-kit="turquesa">Turquesa</button>
-            <button type="button" class="edc-selbtn" data-kit="blanca">Blanca</button>
-            <button type="button" class="edc-selbtn" data-kit="chandal">Chándal</button>
-          </div>
-          <div class="edc-selmore-h">Portero</div>
-          <div class="edc-selmore-row">
-            <button type="button" class="edc-selbtn is-active" data-gk="gk_azul">Azul</button>
-            <button type="button" class="edc-selbtn" data-gk="gk_negra">Negra</button>
-            <button type="button" class="edc-selbtn" data-gk="gk_magenta">Magenta</button>
-          </div>
-        </div>
-      </div>
+    <div class="edc-selgrp edc-selgrp-color" data-edc-sel="color" id="edc-colorgrp">
+      <span class="edc-sellabel">Color</span>
+      <button type="button" class="edc-swatch is-active" data-kit="titular"   style="--sw:linear-gradient(90deg,#0f7a35 0 50%,#f2f4f3 50% 100%)" title="Verdiblanca (local)" aria-label="Verdiblanca"></button>
+      <button type="button" class="edc-swatch" data-kit="visitante" style="--sw:#f5c514" title="Amarilla (visitante)" aria-label="Amarilla"></button>
+      <button type="button" class="edc-swatch" data-kit="turquesa"  style="--sw:#1aa3a3" title="Turquesa" aria-label="Turquesa"></button>
+      <button type="button" class="edc-swatch" data-kit="blanca"    style="--sw:#ecedeb" title="Blanca" aria-label="Blanca"></button>
+      <button type="button" class="edc-swatch" data-kit="chandal"   style="--sw:#20462d" title="Chándal (verde oscuro)" aria-label="Chándal"></button>
+      <button type="button" class="edc-swatch" data-kit="gk_azul"   style="--sw:#1d4ed8" title="Azul" aria-label="Azul"></button>
+      <button type="button" class="edc-swatch" data-kit="gk_negra"  style="--sw:#16191d" title="Negra" aria-label="Negra"></button>
+      <button type="button" class="edc-swatch" data-kit="gk_magenta" style="--sw:#be2c96" title="Magenta" aria-label="Magenta"></button>
     </div>
   </div>
   <div class="edc-group-box">
@@ -379,9 +369,9 @@
   // Reutiliza el motor existente: fija el estilo global de ficha y activa la inserción del jugador.
   var EDC_REPS = [['disk','Chapa'],['jersey','Camiseta'],['photo','Foto'],['sprite','Avatar']]; // 'figure' quitado: era idéntico a Avatar
   // Elección GLOBAL por tarea (compartida entre la barra inferior y la lista de plantilla).
-  // rep = representación de TODOS (chapa/camiseta/foto/avatar); kit = equipación de campo;
-  // gkKit = equipación de portero (selector propio). Los botones de la barra inferior la mutan.
-  var edcSel = { rep:'jersey', kit:'titular', gkKit:'gk_azul' };
+  // rep = representación de TODOS (chapa/camiseta/foto/avatar); kit = COLOR de TODOS (se aplica a
+  // cualquier ficha, jugador o portero). Los botones de la barra inferior la mutan.
+  var edcSel = { rep:'jersey', kit:'titular' };
   function edcSetGlobalStyle(style){ try{ var g=document.querySelector('#task-token-style-global button[data-global-token-style="'+style+'"]'); if(g) g.click(); }catch(e){} }
   // Coloca al jugador con estilo (chapa/camiseta/figura/foto/avatar) y equipación (local/visitante).
   // Foto NO usa equipación. Visitante = 2ª equipación (kind player_away) vía global expuesto por el motor.
@@ -390,9 +380,12 @@
     try{
       edcSetGlobalStyle(style); // coherencia del estado global
       if(style==='sprite'){ try{ window.__edcAvatar=window.__edcAvatar||{};
-        var AVC={titular:'verde',visitante:'amarilla',turquesa:'turquesa',blanca:'blanca',chandal:'verde'};
-        var GKC={gk_azul:'azul',gk_negra:'negra',gk_magenta:'magenta'};
-        window.__edcAvatar.color=AVC[kit]||'verde'; window.__edcAvatar.gkColor=GKC[kit]||'azul';
+        // Color LIBRE en avatar: cada color mapea al tono de campo Y al de portero disponibles
+        // (campo: verde/amarilla/blanca/turquesa; portero: azul/negro/magenta/rojo). El motor usa el
+        // que toque según sea jugador o portero. (Nota: el fichero de portero negro es '...-negro').
+        var AVF={titular:'verde',visitante:'amarilla',turquesa:'turquesa',blanca:'blanca',chandal:'verde',gk_azul:'turquesa',gk_negra:'verde',gk_magenta:'amarilla'};
+        var AVG={titular:'azul',visitante:'rojo',turquesa:'azul',blanca:'azul',chandal:'negro',gk_azul:'azul',gk_negra:'negro',gk_magenta:'magenta'};
+        window.__edcAvatar.color=AVF[kit]||'verde'; window.__edcAvatar.gkColor=AVG[kit]||'azul';
       }catch(e){} }
       // Colocar SIEMPRE con estilo explícito. Foto no lleva equipación.
       if(window.__tpadInsertPlayer){ window.__tpadInsertPlayer(pid, style, (style!=='photo') ? kit : ''); }
@@ -404,35 +397,23 @@
   function wireBottomSelectors(){
     var bar=document.getElementById('edc-selbar'); if(!bar || bar.dataset.wired==='1') return;
     bar.dataset.wired='1';
-    var moreBtn=document.getElementById('edc-selmore-btn');
-    var pop=document.getElementById('edc-selmore-pop');
+    var colorGrp=document.getElementById('edc-colorgrp');
     function setActive(sel, activeBtn){
       Array.prototype.forEach.call(bar.querySelectorAll(sel), function(x){ x.classList.remove('is-active'); });
       if(activeBtn) activeBtn.classList.add('is-active');
     }
-    function closePop(){ if(pop) pop.hidden=true; if(moreBtn) moreBtn.setAttribute('aria-expanded','false'); }
-    function togglePop(){ if(!pop) return; var willOpen=pop.hidden; pop.hidden=!willOpen; if(moreBtn) moreBtn.setAttribute('aria-expanded', willOpen?'true':'false'); }
-    // Presentación (Chapa/Camiseta/Foto): además sincroniza el estilo global del motor.
+    // Presentación (Chapa/Camiseta/Foto/Avatar): sincroniza el estilo global del motor; el color no
+    // aplica a 'Foto' (foto real), así que atenuamos la fila de color en ese caso.
     Array.prototype.forEach.call(bar.querySelectorAll('[data-rep]'), function(btn){
-      btn.addEventListener('click', function(){ edcSel.rep=btn.dataset.rep; edcSetGlobalStyle(edcSel.rep); setActive('[data-rep]', btn); });
-    });
-    // Equipación de campo (Local/Visitante en la barra + Turquesa/Blanca/Chándal en el desplegable).
-    Array.prototype.forEach.call(bar.querySelectorAll('[data-kit]'), function(btn){
       btn.addEventListener('click', function(){
-        edcSel.kit=btn.dataset.kit; setActive('[data-kit]', btn);
-        // Si la equipación activa NO es Local/Visitante, marca el "▾" para avisar de que hay una elegida.
-        var extra=(btn.dataset.kit!=='titular' && btn.dataset.kit!=='visitante');
-        if(moreBtn) moreBtn.classList.toggle('is-active', extra);
-        closePop();
+        edcSel.rep=btn.dataset.rep; edcSetGlobalStyle(edcSel.rep); setActive('[data-rep]', btn);
+        if(colorGrp) colorGrp.classList.toggle('is-disabled', edcSel.rep==='photo');
       });
     });
-    // Portero (Azul/Negra/Magenta) — en el desplegable.
-    Array.prototype.forEach.call(bar.querySelectorAll('[data-gk]'), function(btn){
-      btn.addEventListener('click', function(){ edcSel.gkKit=btn.dataset.gk; setActive('[data-gk]', btn); });
+    // COLOR global (se aplica a cualquier ficha, jugador o portero).
+    Array.prototype.forEach.call(bar.querySelectorAll('[data-kit]'), function(btn){
+      btn.addEventListener('click', function(){ edcSel.kit=btn.dataset.kit; setActive('[data-kit]', btn); });
     });
-    // Desplegable "▾": abrir/cerrar + cerrar al clicar fuera.
-    if(moreBtn){ moreBtn.addEventListener('click', function(e){ e.stopPropagation(); togglePop(); }); }
-    document.addEventListener('click', function(e){ if(pop && !pop.hidden && !e.target.closest('.edc-selmore')) closePop(); });
   }
   function buildRosterList(grid){
     try{
@@ -475,8 +456,8 @@
         // global (Todos) y la equipación global (Local/Visitante).
         sPhoto.appendChild(sNum); btn.appendChild(sPhoto); btn.appendChild(sName); // dorsal como badge sobre la foto
         btn.addEventListener('click', function(){
-          var kit = isGK ? edcSel.gkKit : edcSel.kit; // portero usa su selector propio; campo usa Local/Visitante
-          edcApplyRepresentation(pid, edcSel.rep, (edcSel.rep!=='photo') ? kit : '');
+          // Color LIBRE: el mismo color (edcSel.kit) se aplica a jugadores y porteros.
+          edcApplyRepresentation(pid, edcSel.rep, (edcSel.rep!=='photo') ? edcSel.kit : '');
         });
         row.appendChild(btn); host.appendChild(row);
       });

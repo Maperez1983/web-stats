@@ -1013,3 +1013,15 @@ body.ed-chrome .edc-selmore-pop { position: absolute; bottom: calc(100% + 8px); 
 body.ed-chrome .edc-selmore-pop[hidden] { display: none !important; }
 body.ed-chrome .edc-selmore-h { font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--edc-muted); padding: 2px 3px 0; }
 body.ed-chrome .edc-selmore-row { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* ===== Fila de COLOR directo en la barra inferior (se aplica a cualquier ficha) ===== */
+body.ed-chrome .edc-selgrp-color { gap: 4px; }
+body.ed-chrome .edc-swatch {
+  width: 24px; height: 24px; padding: 0; border-radius: 50%; cursor: pointer;
+  background: var(--sw, #888); background-size: cover;
+  border: 2px solid rgba(255,255,255,0.28); box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  flex: 0 0 auto; transition: transform .08s ease;
+}
+body.ed-chrome .edc-swatch:hover { transform: scale(1.12); border-color: rgba(255,255,255,0.6); }
+body.ed-chrome .edc-swatch.is-active { border-color: var(--edc-accent); box-shadow: 0 0 0 2px var(--edc-accent), 0 1px 4px rgba(0,0,0,0.5); }
+body.ed-chrome .edc-selgrp-color.is-disabled { opacity: .38; pointer-events: none; }
