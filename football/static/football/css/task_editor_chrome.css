@@ -1004,3 +1004,12 @@ body.ed-chrome .edc-selbtn.is-active { background: var(--edc-accent); border-col
    asomaba como recuadro en el margen izquierdo). Fuera de pantalla pero RENDERIZADO: sigue siendo la
    fuente de datos (dorsales/fotos) de la lista nueva (.edc-roster-list). */
 body.ed-chrome #task-roster-bank { position: fixed !important; left: -12000px !important; top: 0 !important; width: 360px !important; height: 1px !important; overflow: hidden !important; opacity: 0 !important; pointer-events: none !important; z-index: -1 !important; }
+
+/* Desplegable "▾" de la barra: otras equipaciones (Turquesa/Blanca/Chándal) + portero. Se abre
+   HACIA ARRIBA porque la barra está pegada al borde inferior. */
+body.ed-chrome .edc-selmore { position: relative; display: inline-flex; }
+body.ed-chrome .edc-selmore-btn { min-width: 24px; padding: 0 7px; font-size: 13px; font-weight: 800; }
+body.ed-chrome .edc-selmore-pop { position: absolute; bottom: calc(100% + 8px); right: 0; z-index: 10000; min-width: 214px; background: var(--edc-bar); border: 1px solid var(--edc-line); border-radius: 12px; padding: 8px; box-shadow: 0 -12px 40px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 4px; }
+body.ed-chrome .edc-selmore-pop[hidden] { display: none !important; }
+body.ed-chrome .edc-selmore-h { font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--edc-muted); padding: 2px 3px 0; }
+body.ed-chrome .edc-selmore-row { display: flex; flex-wrap: wrap; gap: 4px; }

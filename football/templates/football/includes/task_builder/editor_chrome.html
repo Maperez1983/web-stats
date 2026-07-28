@@ -56,29 +56,36 @@
     <button type="button" class="edc-fmt" data-edc-preset="half_pitch"><span class="edc-fmt-ico"></span>Media cancha</button>
     <button type="button" class="edc-fmt" data-edc-preset="attacking_third"><span class="edc-fmt-ico"></span>Tres cuartos</button>
   </div>
-  <!-- Selectores GLOBALES por tarea (movidos aquí desde el cajón de Plantilla): Presentación,
-       Equipación de campo y Portero. Al colocar un jugador se usa esta elección global. -->
+  <!-- Selección GLOBAL por tarea (simple): Presentación + Local/Visitante. El resto de equipaciones
+       (Turquesa/Blanca/Chándal) y el portero (Azul/Negra/Magenta) quedan en el desplegable "▾". -->
   <div class="edc-selbar" id="edc-selbar" role="group" aria-label="Presentación global de las fichas">
     <div class="edc-selgrp" data-edc-sel="rep">
       <span class="edc-sellabel">Ficha</span>
       <button type="button" class="edc-selbtn" data-rep="disk">Chapa</button>
       <button type="button" class="edc-selbtn is-active" data-rep="jersey">Camiseta</button>
       <button type="button" class="edc-selbtn" data-rep="photo">Foto</button>
-      <button type="button" class="edc-selbtn" data-rep="sprite">Avatar</button>
     </div>
     <div class="edc-selgrp" data-edc-sel="kit">
       <span class="edc-sellabel">Equipación</span>
       <button type="button" class="edc-selbtn is-active" data-kit="titular">Local</button>
-      <button type="button" class="edc-selbtn" data-kit="visitante">Visit.</button>
-      <button type="button" class="edc-selbtn" data-kit="turquesa">Turq.</button>
-      <button type="button" class="edc-selbtn" data-kit="blanca">Blanca</button>
-      <button type="button" class="edc-selbtn" data-kit="chandal">Chánd.</button>
-    </div>
-    <div class="edc-selgrp" data-edc-sel="gk">
-      <span class="edc-sellabel">Portero</span>
-      <button type="button" class="edc-selbtn is-active" data-gk="gk_azul">Azul</button>
-      <button type="button" class="edc-selbtn" data-gk="gk_negra">Negra</button>
-      <button type="button" class="edc-selbtn" data-gk="gk_magenta">Magenta</button>
+      <button type="button" class="edc-selbtn" data-kit="visitante">Visitante</button>
+      <div class="edc-selmore">
+        <button type="button" class="edc-selbtn edc-selmore-btn" id="edc-selmore-btn" aria-haspopup="true" aria-expanded="false" title="Más equipaciones y portero">▾</button>
+        <div class="edc-selmore-pop" id="edc-selmore-pop" hidden>
+          <div class="edc-selmore-h">Otras equipaciones</div>
+          <div class="edc-selmore-row">
+            <button type="button" class="edc-selbtn" data-kit="turquesa">Turquesa</button>
+            <button type="button" class="edc-selbtn" data-kit="blanca">Blanca</button>
+            <button type="button" class="edc-selbtn" data-kit="chandal">Chándal</button>
+          </div>
+          <div class="edc-selmore-h">Portero</div>
+          <div class="edc-selmore-row">
+            <button type="button" class="edc-selbtn is-active" data-gk="gk_azul">Azul</button>
+            <button type="button" class="edc-selbtn" data-gk="gk_negra">Negra</button>
+            <button type="button" class="edc-selbtn" data-gk="gk_magenta">Magenta</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
   <div class="edc-group-box">
@@ -397,24 +404,35 @@
   function wireBottomSelectors(){
     var bar=document.getElementById('edc-selbar'); if(!bar || bar.dataset.wired==='1') return;
     bar.dataset.wired='1';
-    function activate(grp, btn){
-      Array.prototype.forEach.call(grp.querySelectorAll('.edc-selbtn'), function(x){ x.classList.remove('is-active'); });
-      btn.classList.add('is-active');
+    var moreBtn=document.getElementById('edc-selmore-btn');
+    var pop=document.getElementById('edc-selmore-pop');
+    function setActive(sel, activeBtn){
+      Array.prototype.forEach.call(bar.querySelectorAll(sel), function(x){ x.classList.remove('is-active'); });
+      if(activeBtn) activeBtn.classList.add('is-active');
     }
-    Array.prototype.forEach.call(bar.querySelectorAll('.edc-selgrp'), function(grp){
-      Array.prototype.forEach.call(grp.querySelectorAll('.edc-selbtn'), function(btn){
-        btn.addEventListener('click', function(){
-          if(btn.dataset.rep!==undefined && btn.dataset.rep!==''){
-            edcSel.rep=btn.dataset.rep; edcSetGlobalStyle(edcSel.rep);
-          } else if(btn.dataset.kit!==undefined && btn.dataset.kit!==''){
-            edcSel.kit=btn.dataset.kit;
-          } else if(btn.dataset.gk!==undefined && btn.dataset.gk!==''){
-            edcSel.gkKit=btn.dataset.gk;
-          }
-          activate(grp, btn);
-        });
+    function closePop(){ if(pop) pop.hidden=true; if(moreBtn) moreBtn.setAttribute('aria-expanded','false'); }
+    function togglePop(){ if(!pop) return; var willOpen=pop.hidden; pop.hidden=!willOpen; if(moreBtn) moreBtn.setAttribute('aria-expanded', willOpen?'true':'false'); }
+    // Presentación (Chapa/Camiseta/Foto): además sincroniza el estilo global del motor.
+    Array.prototype.forEach.call(bar.querySelectorAll('[data-rep]'), function(btn){
+      btn.addEventListener('click', function(){ edcSel.rep=btn.dataset.rep; edcSetGlobalStyle(edcSel.rep); setActive('[data-rep]', btn); });
+    });
+    // Equipación de campo (Local/Visitante en la barra + Turquesa/Blanca/Chándal en el desplegable).
+    Array.prototype.forEach.call(bar.querySelectorAll('[data-kit]'), function(btn){
+      btn.addEventListener('click', function(){
+        edcSel.kit=btn.dataset.kit; setActive('[data-kit]', btn);
+        // Si la equipación activa NO es Local/Visitante, marca el "▾" para avisar de que hay una elegida.
+        var extra=(btn.dataset.kit!=='titular' && btn.dataset.kit!=='visitante');
+        if(moreBtn) moreBtn.classList.toggle('is-active', extra);
+        closePop();
       });
     });
+    // Portero (Azul/Negra/Magenta) — en el desplegable.
+    Array.prototype.forEach.call(bar.querySelectorAll('[data-gk]'), function(btn){
+      btn.addEventListener('click', function(){ edcSel.gkKit=btn.dataset.gk; setActive('[data-gk]', btn); });
+    });
+    // Desplegable "▾": abrir/cerrar + cerrar al clicar fuera.
+    if(moreBtn){ moreBtn.addEventListener('click', function(e){ e.stopPropagation(); togglePop(); }); }
+    document.addEventListener('click', function(e){ if(pop && !pop.hidden && !e.target.closest('.edc-selmore')) closePop(); });
   }
   function buildRosterList(grid){
     try{
