@@ -75,12 +75,14 @@
 
         {% if not tactics_mode %}
         <div class="task-mode-tabs" id="task-mode-tabs" role="tablist" aria-label="Vista de edición">
-          <button type="button" class="is-active" data-task-mode="board" role="tab" aria-selected="true">Edición gráfica</button>
-          <button type="button" data-task-mode="config" role="tab" aria-selected="false">Configuración</button>
-          <button type="button" data-task-mode="methodology" role="tab" aria-selected="false">Metodología</button>
-          <button type="button" data-task-mode="load" role="tab" aria-selected="false">Carga</button>
+          <button type="button" class="is-active" data-task-mode="board" role="tab" aria-selected="true">Pizarra</button>
+          {# Los datos (nombre, objetivo, clasificación, material, carga…) se editan en la FICHA Club,
+             no aquí. La pizarra es solo para dibujar. Se conservan ocultos para no romper el guardado. #}
+          <button type="button" data-task-mode="config" role="tab" aria-selected="false" hidden style="display:none;">Configuración</button>
+          <button type="button" data-task-mode="methodology" role="tab" aria-selected="false" hidden style="display:none;">Metodología</button>
+          <button type="button" data-task-mode="load" role="tab" aria-selected="false" hidden style="display:none;">Carga</button>
           <button type="button" data-task-mode="export" role="tab" aria-selected="false">Exportar</button>
-          <span class="hint">Diseña, configura, afina metodología, controla carga y exporta sin mezclarlo todo.</span>
+          <span class="hint">Dibuja el ejercicio. Al <strong>guardar</strong>, se abre la <strong>ficha</strong> para nombrarla y completar los datos.</span>
         </div>
 	        {% endif %}
 

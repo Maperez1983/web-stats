@@ -49852,6 +49852,11 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         if raw_title is not None
         else str(getattr(existing_task, "title", "") or "")
     )
+    # Flujo pizarra-primero: al CREAR una tarea el nombre se pone luego en la ficha Club. Si se
+    # guarda sin título (la pizarra ya no tiene formulario), usamos uno provisional para no dejar
+    # la tarea en blanco en los listados; el usuario lo renombra en la ficha.
+    if not title and existing_task is None:
+        title = "Tarea sin título"
     raw_block = request.POST.get("draw_task_block")
     block = (
         str(raw_block or "").strip()
@@ -52064,11 +52069,13 @@ def session_task_builder_page(request, scope_key="coach", scope_title="Sesiones 
                     pass
                 if is_new_task and task and getattr(task, "id", None):
                     detail_url = reverse("session-task-detail", args=[int(task.id)])
+                    # Flujo pizarra-primero: al guardar una tarea nueva llevamos DIRECTO a la ficha
+                    # Club editable (WYSIWYG), que ya muestra la representación gráfica recién creada.
+                    # Ahí se pone el nombre y el resto de datos (Opción C). Antes iba al editor gráfico
+                    # UEFA (formulario), que es justo la vista de edición que queremos evitar.
                     detail_params = {
-                        "mode": "edit",
-                        "tab": "edit",
-                        "edit_tab": "graphic",
-                        "format": "uefa",
+                        "edit": "ficha",
+                        "format": "club",
                     }
                     if primary_team and getattr(primary_team, "id", None):
                         detail_params["team"] = int(primary_team.id)
