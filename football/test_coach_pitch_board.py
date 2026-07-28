@@ -83,3 +83,22 @@ class CoachPitchBoardPersistenceTests(TestCase):
         pos = CoachPitchBoardLayout.objects.get(team=self.team).positions[str(self.player.id)]
         self.assertLessEqual(pos[0], 98.0)
         self.assertGreaterEqual(pos[1], 4.0)
+
+    def test_shared_identity_player_persists(self):
+        """Regresión: un jugador presente en el equipo SOLO por membresía de temporada
+        (WorkspaceSeasonPlayer) aunque su Player.team apunte a OTRO equipo (identidad compartida)
+        debe poder guardar posición. Antes el guardrail exigía Player.team == team y devolvía 400
+        (not_in_team) -> la posición no persistía y al recargar volvía al sitio."""
+        other_team = Team.objects.create(name='Club Origen', slug='club-origen')
+        shared = Player.objects.create(team=other_team, name='Cedido', position='Extremo', number=11, is_active=True)
+        # Está en MI equipo por membresía de temporada, no por Player.team.
+        WorkspaceSeasonPlayer.objects.create(
+            season=self.workspace.active_season, player=shared, team=self.team,
+            status=WorkspaceSeasonPlayer.STATUS_CONFIRMED,
+        )
+        self.assertNotEqual(shared.team_id, self.team.id)
+        resp = self._save(team_id=self.team.id, player_id=shared.id, left='60', top='25')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json().get('ok'))
+        layout = CoachPitchBoardLayout.objects.get(team=self.team)
+        self.assertEqual(layout.positions.get(str(shared.id)), [60.0, 25.0])
