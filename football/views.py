@@ -77644,7 +77644,7 @@ def match_editor_page(request, match_id):
     players = list(Player.objects.filter(team=primary_team).order_by("number", "name"))
     player_by_id = {int(p.id): p for p in players if getattr(p, "id", None)}
 
-    message = ""
+    message = str(request.GET.get("msg") or "").strip()[:160]
     error = ""
     if request.method == "POST":
         form_action = str(request.POST.get("form_action") or "").strip()
@@ -82190,8 +82190,10 @@ def match_hub_finalize_match(request):
         pass
     _invalidate_team_dashboard_caches(primary_team)
 
+    # Cierre único: tras consolidar las acciones en vivo, llevamos a la ficha del partido
+    # (panel "Cerrar partido") para revisar/completar resultado y minutos en un solo sitio.
     return redirect(
-        f"{reverse('match-hub')}?match_id={int(match.id)}&team={int(primary_team.id)}&msg=Partido+guardado+({updated}+acciones)"
+        f"{reverse('match-editor', args=[int(match.id)])}?team={int(primary_team.id)}&msg=Partido+cerrado+({updated}+acciones+consolidadas)"
     )
 
 

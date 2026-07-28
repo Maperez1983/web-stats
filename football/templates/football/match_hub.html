@@ -422,7 +422,8 @@
       <div class="modal" role="dialog" aria-modal="true" aria-label="Cerrar partido">
         <h3>Cerrar partido</h3>
         <p>
-          Indica el resultado final. Al confirmar, se consolidan las acciones pendientes y se refrescan los KPIs de los jugadores.
+          Indica el resultado final. Al confirmar, se consolidan las acciones pendientes, se refrescan los KPIs
+          y te llevamos a la <strong>ficha del partido</strong> para revisar o completar el cierre (minutos, detalle) en un solo sitio.
           {% if actions_pending_count %}<br/>Pendientes a guardar: <strong>{{ actions_pending_count }}</strong>.{% endif %}
         </p>
         <form method="post" action="{% url 'match-hub-finalize' %}">
