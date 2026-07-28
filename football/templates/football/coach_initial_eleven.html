@@ -888,6 +888,44 @@
         opacity: 0.45;
         pointer-events: none;
       }
+      .lineup-publish-state {
+        margin: 0.5rem 0 0.25rem;
+      }
+      .pill {
+        display: inline-block;
+        padding: 0.28rem 0.6rem;
+        border-radius: 999px;
+        font-size: 0.74rem;
+        font-weight: 600;
+        line-height: 1.2;
+        border: 1px solid transparent;
+      }
+      .pill-ok {
+        color: #bbf7d0;
+        background: rgba(34, 197, 94, 0.14);
+        border-color: rgba(34, 197, 94, 0.4);
+      }
+      .pill-draft {
+        color: rgba(226, 232, 240, 0.85);
+        background: rgba(148, 163, 184, 0.16);
+        border-color: rgba(148, 163, 184, 0.35);
+      }
+      .pill-warn {
+        color: #fde68a;
+        background: rgba(245, 158, 11, 0.14);
+        border-color: rgba(245, 158, 11, 0.45);
+      }
+      .broadcast-advanced {
+        margin-top: 0.35rem;
+      }
+      .broadcast-advanced > summary {
+        cursor: pointer;
+        padding: 0.2rem 0;
+        user-select: none;
+      }
+      .broadcast-advanced[open] > summary {
+        margin-bottom: 0.4rem;
+      }
       .toolbar .toggle {
         border-color: rgba(34, 211, 238, 0.45);
         color: rgba(224, 242, 254, 0.95);
@@ -2069,6 +2107,13 @@
 	            <button type="button" class="primary {% if has_pending_convocation %}is-disabled{% endif %}" id="save-btn">Guardar</button>
               <button type="button" class="{% if has_pending_convocation %}is-disabled{% endif %}" id="publish-btn" title="Avisar a los jugadores convocados de si son titulares o suplentes">Publicar 11 y avisar</button>
 	          </div>
+          <div class="lineup-publish-state" id="publish-state" data-published-at="{{ lineup_published_at_iso }}">
+            {% if lineup_published_at %}
+              <span class="pill pill-ok" id="publish-pill">✓ 11 confirmado · publicado {{ lineup_published_at|date:"d/m/Y H:i" }}</span>
+            {% else %}
+              <span class="pill pill-draft" id="publish-pill">Borrador · sin publicar</span>
+            {% endif %}
+          </div>
           <div class="field-row">
             <label for="formation-select">Estructura</label>
             <select id="formation-select" {% if has_pending_convocation %}disabled{% endif %}></select>
@@ -2110,22 +2155,26 @@
         <article class="panel lineup-field-panel">
           <h3>Infografía XI</h3>
           <div class="broadcast-tools">
-            <div class="broadcast-tool-group">
-              <select id="broadcast-camera-select" aria-label="Vista">
-                <option value="broadcast">Broadcast</option>
-                <option value="plan">Plano</option>
-              </select>
-              {% if stadium_background_url %}
-                <button type="button" id="stadium-photo-toggle-btn">Foto off</button>
-              {% endif %}
-              <button type="button" id="tactical-arrow-btn">Flecha</button>
-              <button type="button" id="tactical-zone-btn">Zona</button>
-              <button type="button" id="tactical-clear-btn">Limpiar dibujo</button>
+            <div class="broadcast-tool-group" role="group" aria-label="Compartir el 11">
+              <button type="button" id="share-whatsapp-btn" title="Enviar la lista del 11 por WhatsApp">Compartir por WhatsApp</button>
+              <button type="button" id="export-png-btn" title="Descargar la infografía como imagen">Descargar imagen (PNG)</button>
             </div>
-            <div class="broadcast-tool-group">
-              <button type="button" id="open-xi-3d-btn">Opción 3D</button>
-              <button type="button" id="export-png-btn">Exportar PNG</button>
-            </div>
+            <details class="broadcast-advanced">
+              <summary class="field-help">Herramientas avanzadas (broadcast · 3D · dibujo)</summary>
+              <div class="broadcast-tool-group">
+                <select id="broadcast-camera-select" aria-label="Vista">
+                  <option value="broadcast">Broadcast</option>
+                  <option value="plan">Plano</option>
+                </select>
+                {% if stadium_background_url %}
+                  <button type="button" id="stadium-photo-toggle-btn">Foto off</button>
+                {% endif %}
+                <button type="button" id="tactical-arrow-btn">Flecha</button>
+                <button type="button" id="tactical-zone-btn">Zona</button>
+                <button type="button" id="tactical-clear-btn">Limpiar dibujo</button>
+                <button type="button" id="open-xi-3d-btn">Opción 3D</button>
+              </div>
+            </details>
           </div>
           <div class="broadcast-infographic">
             <section class="broadcast-side" aria-label="Resumen del partido">
@@ -2299,6 +2348,13 @@
       const saveUrl = matchId ? `${saveUrlBase}?match_id=${encodeURIComponent(matchId)}` : saveUrlBase;
       const publishUrlBase = '{% url "initial-eleven-publish" %}';
       const publishUrl = matchId ? `${publishUrlBase}?match_id=${encodeURIComponent(matchId)}` : publishUrlBase;
+      const matchMeta = {
+        team: '{{ team_name|escapejs }}',
+        opponent: '{{ convocation_record.opponent_name|default:rival_display_name|default:""|escapejs }}',
+        date: '{% if convocation_record.match_date %}{{ convocation_record.match_date|date:"d/m/Y" }}{% endif %}',
+        round: '{{ convocation_record.round|default:""|escapejs }}',
+        location: '{{ convocation_record.location|default:""|escapejs }}',
+      };
       const rivalToggleBtn = document.getElementById('rival-toggle-btn');
       const playerCards = Array.from(document.querySelectorAll('.player-card'));
       const field = document.getElementById('lineup-field');
@@ -2801,9 +2857,10 @@
         lineupState.starters = (lineupState.starters || []).filter((row) => String(row?.id || '') !== pid);
         recomputeBenchFromChecks();
         if (String(activePlayerId || '') === pid) setActivePlayer('', { rerender: false });
-        statusMsg.textContent = 'Titular quitado (queda como suplente si está marcado).';
+        statusMsg.textContent = 'Jugador retirado del campo. Sigue convocado como suplente.';
         statusMsg.classList.add('warn');
         statusMsg.classList.remove('ok');
+        markLineupDirty();
       };
 
       let tacticalMode = '';
@@ -3540,72 +3597,90 @@
         renderField();
       });
 
+      // --- Estado de publicación (confirmado / borrador / cambios sin publicar) ---
+      const publishStateEl = document.getElementById('publish-state');
+      const publishPill = document.getElementById('publish-pill');
+      let lineupPublishedAt = (publishStateEl?.getAttribute('data-published-at') || '').trim();
+      const setPublishPill = (kind, text) => {
+        if (!publishPill) return;
+        publishPill.classList.remove('pill-ok', 'pill-draft', 'pill-warn');
+        publishPill.classList.add(kind);
+        publishPill.textContent = text;
+      };
+      const markLineupDirty = () => {
+        // Solo relevante si ya estaba publicado: avisa de que hay cambios por publicar.
+        if (lineupPublishedAt) {
+          lineupPublishedAt = '';
+          setPublishPill('pill-warn', '● Cambios sin publicar — vuelve a publicar para avisar');
+        }
+      };
+
+      // Extrae el guardado a una función reutilizable (Publicar guarda primero).
+      async function doSaveLineup() {
+        lineupState.formation = String(lineupState.formation || defaultFormationKey || '').trim();
+        const seenPlayers = new Set();
+        ensureStarterPositionsFromTemplate({ force: false });
+        lineupState.starters = (lineupState.starters || [])
+          .filter((row) => {
+            const pid = String(row?.id || '').trim();
+            if (!pid || seenPlayers.has(pid)) return false;
+            seenPlayers.add(pid);
+            return true;
+          })
+          .slice(0, STARTERS_REQUIRED)
+          .map((row) => ({
+            ...row,
+            x_pct: clamp(Number(row?.x_pct ?? 50), 2, 98),
+            y_pct: clamp(Number(row?.y_pct ?? 50), 2, 98),
+          }));
+        recomputeBenchFromChecks();
+        // Importante: el registro de acciones usa un campo horizontal izquierda→derecha (x=profundidad).
+        // El editor de 11 inicial es vertical (y=profundidad). Guardamos en servidor SIEMPRE en orientación LR.
+        const rotateTbToLr = (row) => {
+          const x = Number(row?.x_pct);
+          const y = Number(row?.y_pct);
+          if (!Number.isFinite(x) || !Number.isFinite(y)) return row;
+          return { ...row, x_pct: clamp(100 - y, 2, 98), y_pct: clamp(x, 2, 98) };
+        };
+        const lineupToSave = {
+          formation: lineupState.formation,
+          starters: (lineupState.starters || []).map(rotateTbToLr),
+          bench: (lineupState.bench || []).map((row) => ({ ...row })),
+          _meta: { ...(lineupState._meta && typeof lineupState._meta === 'object' ? lineupState._meta : {}), orientation: 'lr' },
+        };
+        const response = await fetch(saveUrl, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, Accept: 'application/json' },
+          body: JSON.stringify({
+            lineup: lineupToSave,
+            gk_id: (document.getElementById('lineup-gk-select') || {}).value || '',
+            captain_id: (document.getElementById('lineup-captain-select') || {}).value || '',
+          }),
+        });
+        const data = await response.json().catch(() => ({}));
+        return { ok: response.ok, data };
+      }
+
       saveBtn?.addEventListener('click', async () => {
         if (hasPendingConvocation) return;
         try {
-          lineupState.formation = String(lineupState.formation || defaultFormationKey || '').trim();
-          const seenPlayers = new Set();
-          ensureStarterPositionsFromTemplate({ force: false });
-          lineupState.starters = (lineupState.starters || [])
-            .filter((row) => {
-              const pid = String(row?.id || '').trim();
-              if (!pid || seenPlayers.has(pid)) return false;
-              seenPlayers.add(pid);
-              return true;
-            })
-            .slice(0, STARTERS_REQUIRED)
-            .map((row) => ({
-              ...row,
-              x_pct: clamp(Number(row?.x_pct ?? 50), 2, 98),
-              y_pct: clamp(Number(row?.y_pct ?? 50), 2, 98),
-            }));
-          recomputeBenchFromChecks();
-          // Importante: el registro de acciones usa un campo horizontal izquierda→derecha (x=profundidad).
-          // El editor de 11 inicial es vertical (y=profundidad). Guardamos en servidor SIEMPRE en orientación LR.
-          const rotateTbToLr = (row) => {
-            const x = Number(row?.x_pct);
-            const y = Number(row?.y_pct);
-            if (!Number.isFinite(x) || !Number.isFinite(y)) return row;
-            return {
-              ...row,
-              // TB -> LR: x_lr = 100 - y_tb ; y_lr = x_tb
-              x_pct: clamp(100 - y, 2, 98),
-              y_pct: clamp(x, 2, 98),
-            };
-          };
-          const lineupToSave = {
-            formation: lineupState.formation,
-            starters: (lineupState.starters || []).map(rotateTbToLr),
-            bench: (lineupState.bench || []).map((row) => ({ ...row })),
-            _meta: { ...(lineupState._meta && typeof lineupState._meta === 'object' ? lineupState._meta : {}), orientation: 'lr' },
-          };
-          const response = await fetch(saveUrl, {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRFToken': csrfToken,
-              Accept: 'application/json',
-            },
-            body: JSON.stringify({
-              lineup: lineupToSave,
-              gk_id: (document.getElementById('lineup-gk-select') || {}).value || '',
-              captain_id: (document.getElementById('lineup-captain-select') || {}).value || '',
-            }),
-          });
-          const data = await response.json();
-          if (!response.ok) {
+          const { ok, data } = await doSaveLineup();
+          if (!ok) {
             statusMsg.textContent = data.error || 'No se pudo guardar la alineación.';
             statusMsg.classList.add('warn');
             statusMsg.classList.remove('ok');
             return;
           }
+          // Guardar deja el 11 como borrador (aún sin avisar a los jugadores).
+          lineupPublishedAt = '';
+          setPublishPill('pill-draft', 'Guardado (borrador) · pendiente de publicar');
           if (data.pending_lineup) {
-            statusMsg.textContent = `Alineación pendiente (${data.starters}/${STARTERS_REQUIRED}) · Suplentes: ${data.bench}.`;
+            statusMsg.textContent = `Guardado. Faltan ${Math.max(0, STARTERS_REQUIRED - (data.starters || 0))} titulares (${data.starters}/${STARTERS_REQUIRED}). Suplentes: ${data.bench}.`;
             statusMsg.classList.add('warn');
             statusMsg.classList.remove('ok');
           } else {
-            statusMsg.textContent = `Alineación guardada (${data.starters}/${STARTERS_REQUIRED}) · Suplentes: ${data.bench}.`;
+            statusMsg.textContent = `Guardado (${data.starters}/${STARTERS_REQUIRED}). Pulsa "Publicar 11 y avisar" para notificar a los jugadores.`;
             statusMsg.classList.remove('warn');
             statusMsg.classList.add('ok');
           }
@@ -3623,26 +3698,38 @@
         if (starters < STARTERS_REQUIRED) {
           const go = window.confirm(`Solo hay ${starters}/${STARTERS_REQUIRED} titulares colocados. ¿Publicar igualmente y avisar a los jugadores?`);
           if (!go) return;
-        } else if (!window.confirm('Se avisará a cada jugador convocado de si es titular o suplente para este partido. ¿Publicar el 11?')) {
+        } else if (!window.confirm('Se guardará y se avisará a cada jugador convocado de si es titular o suplente para este partido. ¿Publicar el 11?')) {
           return;
         }
         publishBtn.disabled = true;
         try {
+          // Guardar primero: garantiza que se publica exactamente lo que hay en pantalla.
+          const saveRes = await doSaveLineup();
+          if (!saveRes.ok) {
+            statusMsg.textContent = saveRes.data.error || 'No se pudo guardar antes de publicar.';
+            statusMsg.classList.add('warn');
+            statusMsg.classList.remove('ok');
+            return;
+          }
           const response = await fetch(publishUrl, {
             method: 'POST',
             credentials: 'same-origin',
             headers: { 'X-CSRFToken': csrfToken, Accept: 'application/json' },
           });
-          const data = await response.json();
+          const data = await response.json().catch(() => ({}));
           if (!response.ok) {
             statusMsg.textContent = data.error || 'No se pudo publicar la alineación.';
             statusMsg.classList.add('warn');
             statusMsg.classList.remove('ok');
           } else if (!data.linked_players) {
-            statusMsg.textContent = '11 publicado, pero ningún jugador tiene cuenta enlazada todavía, así que no se envió ningún aviso.';
+            lineupPublishedAt = data.published_at || 'x';
+            setPublishPill('pill-warn', '11 publicado · ningún jugador tiene cuenta enlazada aún');
+            statusMsg.textContent = '11 publicado, pero ningún jugador convocado tiene cuenta enlazada todavía, así que no se envió ningún aviso.';
             statusMsg.classList.remove('ok');
             statusMsg.classList.add('warn');
           } else {
+            lineupPublishedAt = data.published_at || 'x';
+            setPublishPill('pill-ok', '✓ 11 confirmado · publicado ahora');
             statusMsg.textContent = `11 publicado. Avisados ${data.notified} jugador(es) de su estado (titular/suplente).`;
             statusMsg.classList.remove('warn');
             statusMsg.classList.add('ok');
@@ -3655,6 +3742,66 @@
           publishBtn.disabled = false;
         }
       });
+
+      // --- Compartir 11 por WhatsApp (texto construido desde el estado actual) ---
+      function buildLineupWhatsappText() {
+        const cardById = new Map();
+        playerCards.forEach((card) => {
+          const id = String(card.getAttribute('data-player-id') || '').trim();
+          if (id) {
+            cardById.set(id, {
+              name: (card.getAttribute('data-player-name') || '').trim(),
+              number: (card.getAttribute('data-player-number') || '').trim(),
+            });
+          }
+        });
+        const fmtRow = (row, idx) => {
+          const c = cardById.get(String(row?.id || '').trim()) || {};
+          const num = c.number && c.number !== '--' ? `#${c.number} ` : '';
+          return `${idx}. ${num}${c.name || 'Jugador'}`;
+        };
+        const starters = (lineupState.starters || [])
+          .filter((r) => String(r?.id || '').trim())
+          .slice()
+          .sort((a, b) => Number(a?.slot_index ?? 99) - Number(b?.slot_index ?? 99));
+        const bench = (lineupState.bench || []).filter((r) => String(r?.id || '').trim());
+        const lines = [];
+        const header = [matchMeta.team, matchMeta.opponent].filter(Boolean).join(' - ');
+        lines.push(`⚽️ 11 inicial${header ? ' · ' + header : ''}`);
+        const dateBits = [matchMeta.round, matchMeta.date].filter(Boolean).join(' · ');
+        if (dateBits) lines.push(`📅 ${dateBits}`);
+        if (matchMeta.location) lines.push(`🏟️ ${matchMeta.location}`);
+        if (lineupState.formation) lines.push(`🔷 ${lineupState.formation}`);
+        lines.push('');
+        lines.push('👕 Titulares:');
+        starters.forEach((r, i) => lines.push(fmtRow(r, i + 1)));
+        if (bench.length) {
+          lines.push('');
+          lines.push('🔄 Suplentes:');
+          bench.forEach((r, i) => lines.push(fmtRow(r, i + 1)));
+        }
+        return lines.join('\n');
+      }
+      const shareWhatsappBtn = document.getElementById('share-whatsapp-btn');
+      shareWhatsappBtn?.addEventListener('click', () => {
+        const starters = (lineupState.starters || []).filter((r) => String(r?.id || '').trim()).length;
+        if (!starters) {
+          statusMsg.textContent = 'Coloca al menos un titular antes de compartir el 11.';
+          statusMsg.classList.add('warn');
+          statusMsg.classList.remove('ok');
+          return;
+        }
+        const text = buildLineupWhatsappText();
+        window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
+      });
+
+      // Marca "cambios sin publicar" en las interacciones más habituales.
+      ['auto-fill-btn', 'clear-btn'].forEach((id) => document.getElementById(id)?.addEventListener('click', markLineupDirty));
+      ['formation-select', 'lineup-gk-select', 'lineup-captain-select'].forEach((id) =>
+        document.getElementById(id)?.addEventListener('change', markLineupDirty),
+      );
+      document.getElementById('player-list')?.addEventListener('change', markLineupDirty);
+      field?.addEventListener('pointerdown', markLineupDirty, true);
 
       const xi3d = {
         THREE: null,

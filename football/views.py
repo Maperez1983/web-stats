@@ -24114,8 +24114,31 @@ def publish_initial_eleven(request):
     notified = _notify_lineup_players(
         convocation_record, target_match, starter_ids, request.user, workspace=_get_active_workspace(request)
     )
+    # Sella el 11 como "publicado/confirmado" en _meta. El autosave reescribe _meta sin este
+    # campo, así que editar tras publicar vuelve a marcarlo como borrador (sin publicar).
+    published_at = timezone.now().isoformat()
+    try:
+        meta = normalized.get("_meta") if isinstance(normalized.get("_meta"), dict) else {}
+        meta = dict(meta)
+        meta["published_at"] = published_at
+        normalized["_meta"] = meta
+        convocation_record.lineup_data = normalized
+        convocation_record.save(update_fields=["lineup_data"])
+        if getattr(target_match, "id", None):
+            MatchLineup.objects.update_or_create(
+                team=primary_team, match=target_match, defaults={"lineup_data": normalized}
+            )
+    except Exception:
+        logger.warning("No se pudo sellar el 11 como publicado.", exc_info=True)
     linked_total = sum(1 for p in allowed_players if getattr(p, "user_id", None))
-    return JsonResponse({"published": True, "notified": int(notified), "linked_players": int(linked_total)})
+    return JsonResponse(
+        {
+            "published": True,
+            "notified": int(notified),
+            "linked_players": int(linked_total),
+            "published_at": published_at,
+        }
+    )
 
 
 def _stored_lineup_for_match(primary_team, match, convocation_record=None):
@@ -41069,10 +41092,19 @@ def _initial_eleven_page_impl(request):
 
     lineup_seed = {"starters": [], "bench": []}
     has_pending_lineup = False
+    lineup_published_at = None
     has_pending_convocation = bool(convocation_record and not convocation_players)
     if convocation_record:
         stored = _stored_lineup_for_match(primary_team, target_match, convocation_record)
         stored_meta = stored.get("_meta") if isinstance(stored.get("_meta"), dict) else {}
+        try:
+            _pub_raw = stored_meta.get("published_at") if isinstance(stored_meta, dict) else None
+            if _pub_raw:
+                from django.utils.dateparse import parse_datetime
+
+                lineup_published_at = parse_datetime(str(_pub_raw))
+        except Exception:
+            lineup_published_at = None
         try:
             normalized = _normalize_lineup_payload_with_limit(
                 stored, convocation_players, starters_limit=starters_limit
@@ -41343,6 +41375,8 @@ def _initial_eleven_page_impl(request):
             "rival_lineup_seed_json": json.dumps(rival_lineup_seed_payload, ensure_ascii=False),
             "has_pending_convocation": has_pending_convocation,
             "has_pending_lineup": has_pending_lineup,
+            "lineup_published_at": lineup_published_at,
+            "lineup_published_at_iso": lineup_published_at.isoformat() if lineup_published_at else "",
             "lineup_pitch_preset": lineup_pitch_preset,
             "lineup_grass_style": lineup_grass_style,
             "recent_match_form": recent_match_form,
