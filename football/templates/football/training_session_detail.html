@@ -320,7 +320,7 @@
 	            <label class="cev-field">Activación<textarea class="cev" name="activation" rows="2" maxlength="4000">{{ plan_fields.activation }}</textarea></label>
 	            <label class="cev-field">Parte principal<textarea class="cev" name="main" rows="3" maxlength="6000">{{ plan_fields.main }}</textarea></label>
 	            <label class="cev-field">Vuelta a la calma<textarea class="cev" name="cooldown" rows="2" maxlength="4000">{{ plan_fields.cooldown }}</textarea></label>
-	            <div style="display:flex; gap:0.8rem; flex-wrap:wrap;"><label class="cev-field" style="flex:1; min-width:10rem;">Materiales<input class="cev" type="text" name="materials" maxlength="220" value="{{ plan_fields.materials }}" /></label><div class="cev-field" style="max-width:14rem;">Nº jugadores <span style="opacity:.6;font-weight:600;text-transform:none;letter-spacing:0;">(automático)</span><div class="v" style="padding-top:4px;"><strong>{{ auto_player_count }}</strong> <span style="opacity:.7;font-weight:600;font-size:.82em;">{% if session_is_closed %}asistieron{% else %}convocados{% endif %}</span></div></div></div>
+	            <div style="display:flex; gap:0.8rem; flex-wrap:wrap;"><label class="cev-field" style="flex:1; min-width:10rem;">Materiales<input class="cev" type="text" name="materials" maxlength="220" value="{{ plan_fields.materials }}" /></label><div class="cev-field" style="max-width:20rem;">Convocatoria <span style="opacity:.6;font-weight:600;text-transform:none;letter-spacing:0;">(automático · todos convocados por defecto)</span><div class="v" style="padding-top:4px; display:flex; gap:1.2rem;"><span><strong>{{ convocados_count }}</strong> <span style="opacity:.7;font-weight:600;font-size:.82em;">convocados</span></span><span><strong>{{ asistieron_count }}</strong> <span style="opacity:.7;font-weight:600;font-size:.82em;">comparecieron</span></span></div></div></div>
 	            <label class="cev-field">Ausencias / incidencias<textarea class="cev" name="absences" rows="2" maxlength="4000">{{ plan_fields.absences }}</textarea></label>
 	            <label class="cev-field">Notas<textarea class="cev" name="notes" rows="2" maxlength="8000">{{ plan_fields.notes }}</textarea></label>
 	            {% else %}
@@ -343,6 +343,10 @@
 
 	          <div class="section-title" id="asistencia">Asistencia</div>
 	          <div class="box" style="margin-bottom:12px;">
+	            <div style="display:flex; gap:0.9rem; flex-wrap:wrap; margin-bottom:10px;">
+	              <div style="background:var(--club-soft-fill,rgba(148,163,184,.12)); border:1px solid var(--club-border); border-radius:10px; padding:7px 14px; min-width:6rem;"><div style="font-size:1.5rem; font-weight:900; line-height:1;">{{ convocados_count }}</div><div style="font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; opacity:.7; margin-top:2px;">Convocados</div></div>
+	              <div style="background:rgba(52,211,153,.10); border:1px solid rgba(52,211,153,.35); border-radius:10px; padding:7px 14px; min-width:6rem;"><div style="font-size:1.5rem; font-weight:900; line-height:1; color:#16a34a;">{{ asistieron_count }}</div><div style="font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; opacity:.7; margin-top:2px;">Comparecieron</div></div>
+	            </div>
 	            <strong>{{ attendance_summary }}</strong>
 	            {% if plan_fields.absences %}
 	              <p style="margin:10px 0 0;"><strong>Incidencias:</strong><br />{{ plan_fields.absences|linebreaksbr }}</p>
