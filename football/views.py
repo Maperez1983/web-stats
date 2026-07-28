@@ -39968,9 +39968,14 @@ def coach_injuries_page(request):
                 record = PlayerInjuryRecord.objects.filter(id=record_id, player__team=primary_team).first()
                 if not record:
                     raise ValueError("Registro no encontrado.")
+                # ALTA = recuperado YA, aunque la fecha de alta sea futura. Marcamos is_recovered
+                # (el save() del modelo fuerza is_active=False si is_recovered). Si solo pusiéramos
+                # is_active=False, el save() lo recalculaba a partir de return_date y, con fecha
+                # futura (return_date > hoy), lo devolvía a True -> el jugador seguía "lesionado".
                 record.return_date = return_date or today
+                record.is_recovered = True
                 record.is_active = False
-                record.save(update_fields=["return_date", "is_active", "updated_at"])
+                record.save(update_fields=["return_date", "is_recovered", "is_active", "updated_at"])
                 message = "Lesión marcada como alta."
             else:
                 PlayerInjuryRecord.objects.create(
