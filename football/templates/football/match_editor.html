@@ -54,6 +54,17 @@
             {% if match.kickoff_time %} · {{ match.kickoff_time|time:"H:i" }}{% endif %}
             {% if match.round %} · {{ match.round }}{% endif %}
           </p>
+          <p style="margin:0.35rem 0 0;">
+            {% if match.stats_source == 'live' %}
+              <span style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.72rem;font-weight:900;letter-spacing:0.04em;padding:0.22rem 0.6rem;border-radius:999px;background:rgba(34,197,94,0.16);border:1px solid rgba(34,197,94,0.5);color:#bbf7d0;">🟢 Registrado en vivo</span>
+            {% elif match.stats_source == 'manual' %}
+              <span style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.72rem;font-weight:900;letter-spacing:0.04em;padding:0.22rem 0.6rem;border-radius:999px;background:rgba(56,189,248,0.16);border:1px solid rgba(56,189,248,0.5);color:#bae6fd;">✍ Estadísticas manuales</span>
+            {% elif match.stats_source == 'result_only' %}
+              <span style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.72rem;font-weight:900;letter-spacing:0.04em;padding:0.22rem 0.6rem;border-radius:999px;background:rgba(148,163,184,0.16);border:1px solid rgba(148,163,184,0.4);color:#cbd5e1;">Solo resultado (sin estadísticas)</span>
+            {% else %}
+              <span style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.72rem;font-weight:900;letter-spacing:0.04em;padding:0.22rem 0.6rem;border-radius:999px;background:rgba(148,163,184,0.1);border:1px dashed rgba(148,163,184,0.4);color:#94a3b8;">Sin datos aún</span>
+            {% endif %}
+          </p>
         </div>
         <div style="display:flex;gap:0.6rem;flex-wrap:wrap;justify-content:flex-end;">
           <a class="btn" href="{% url 'coach-matches' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}">← Volver a partidos</a>
@@ -193,6 +204,11 @@
 
 	      <section class="panel">
 	        <h2 style="margin:0 0 0.6rem;">Edición manual · acciones</h2>
+	        {% if match.stats_source == 'live' %}
+	        <p style="margin:0 0 0.85rem;padding:0.6rem 0.8rem;border-radius:12px;background:rgba(250,204,21,0.12);border:1px solid rgba(250,204,21,0.4);color:rgba(255,242,199,0.96);font-weight:800;font-size:0.86rem;">
+	          ⚠ Este partido se <strong>registró en vivo</strong>. Para no duplicar, las acciones que añadas aquí <strong>NO contarán</strong> en las estadísticas: la fuente de este partido es el registro en vivo. Si necesitas corregir, hazlo desde <a href="{% url 'match-action-page' %}?match_id={{ match.id }}&stage=close&team={{ primary_team_id }}" style="color:#fde68a;text-decoration:underline;">Registro de acciones</a>.
+	        </p>
+	        {% endif %}
 	        <div style="display:flex; gap:0.6rem; flex-wrap:wrap; justify-content:space-between; align-items:flex-end; margin-bottom:0.85rem;">
 	          <div style="color:#94a3b8; font-weight:750; max-width: 780px;">
 	            Para recuperar partidos: usa <strong>Volumen</strong> (ej: “MARTÍNEZ · Pérdida no forzada · Mal · ×6”).
