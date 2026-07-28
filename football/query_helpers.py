@@ -63,7 +63,11 @@ def get_active_injury_player_ids(player_ids):
     try:
         return set(
             PlayerInjuryRecord.objects
-            .filter(player_id__in=normalized_ids, is_active=True)
+            # is_recovered=False: un registro recuperado NUNCA es lesión activa, aunque su is_active
+            # haya quedado obsoleto en True (bug del alta / updates que saltan el save()). Antes esta
+            # query no lo excluía y el jugador seguía "Lesionado" pese a tener la lesión "Recuperada"
+            # (incoherente con is_injury_record_active, que sí lo descarta).
+            .filter(player_id__in=normalized_ids, is_active=True, is_recovered=False)
             .filter(Q(return_date__isnull=True) | Q(return_date__gt=timezone.localdate()))
             .values_list('player_id', flat=True)
         )
