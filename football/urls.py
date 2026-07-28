@@ -88,6 +88,7 @@ urlpatterns = [
     path("media/home-carousel/<int:image_id>/", views.home_carousel_image_file, name="home-carousel-image-file"),
     path("media/pdf-assets/<int:asset_id>/", views.pdf_graphic_asset_file, name="pdf-graphic-asset-file"),
     path("players/", views.player_dashboard_page, name="player-dashboard"),
+    path("players/notifications/read/", views.player_notifications_mark_read, name="player-notifications-read"),
     path("player/<int:player_id>/lesiones/<int:record_id>/", views.player_injury_detail_page, name="player-injury-detail"),
     path("player/<int:player_id>/avatar.png", views.player_avatar_recolored, name="player-avatar-recolored"),
     path("players/attendance/mark/", views.player_attendance_mark, name="player-attendance-mark"),

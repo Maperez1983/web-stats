@@ -626,6 +626,43 @@
         </div>
       </div>
 
+      {% if player_notifications %}
+      <section class="card player-alerts" id="playerAlerts" aria-label="Avisos" style="margin:0 0 1rem;padding:1rem 1.1rem;">
+        {% csrf_token %}
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:.8rem;margin-bottom:.6rem;">
+          <h2 style="margin:0;font-size:1.05rem;display:flex;align-items:center;gap:.5rem;">🔔 Avisos <span class="nav-chip-badge">{{ player_notifications_unread }}</span></h2>
+          <button type="button" id="markAlertsRead" class="nav-chip" style="cursor:pointer;border:0;">Marcar como leídos</button>
+        </div>
+        <ul style="list-style:none;margin:0;padding:0;display:grid;gap:.5rem;">
+          {% for n in player_notifications %}
+          <li style="display:flex;align-items:center;justify-content:space-between;gap:.9rem;padding:.6rem .8rem;border:1px solid rgba(120,140,170,.25);border-radius:.6rem;" data-notif-id="{{ n.id }}">
+            <div>
+              <strong>{% if n.kind == 'convocatoria' %}📋 {% endif %}{{ n.title }}</strong>
+              {% if n.message %}<div class="mode-note" style="margin:.15rem 0 0;">{{ n.message }}</div>{% endif %}
+            </div>
+            {% if n.link_url %}<a class="nav-chip" href="{{ n.link_url }}">Ver</a>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </section>
+      <script>
+      (function(){
+        var btn = document.getElementById('markAlertsRead');
+        if(!btn) return;
+        btn.addEventListener('click', function(){
+          var tokenEl = document.querySelector('#playerAlerts [name=csrfmiddlewaretoken]');
+          fetch('{{ player_notifications_read_url }}', {
+            method:'POST',
+            headers:{'X-CSRFToken': tokenEl ? tokenEl.value : '', 'X-Requested-With':'XMLHttpRequest'},
+          }).then(function(){
+            var s = document.getElementById('playerAlerts');
+            if(s){ s.style.display='none'; }
+          }).catch(function(){});
+        });
+      })();
+      </script>
+      {% endif %}
+
       <div class="grid" id="playersGrid">
 	        {% for player in player_stats %}
 	          <article

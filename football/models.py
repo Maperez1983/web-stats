@@ -3961,6 +3961,54 @@ class VideoInboxItem(models.Model):
         return f'{self.target_user.username} · {self.kind} · {self.created_at:%Y-%m-%d}'
 
 
+class PlayerNotification(models.Model):
+    """
+    Aviso personal para un usuario en su espacio (jugador o staff).
+
+    Genérico y reutilizable: convocatoria, multas, sesiones... Sigue el mismo
+    patrón que VideoInboxItem (target_user + is_read) para surtir badges/inbox.
+    """
+
+    KIND_CONVOCATION = 'convocatoria'
+    KIND_GENERAL = 'general'
+    KIND_CHOICES = [
+        (KIND_CONVOCATION, 'Convocatoria'),
+        (KIND_GENERAL, 'Aviso'),
+    ]
+
+    workspace = models.ForeignKey(
+        Workspace, on_delete=models.CASCADE, null=True, blank=True, related_name='player_notifications'
+    )
+    team = models.ForeignKey(
+        Team, on_delete=models.CASCADE, null=True, blank=True, related_name='player_notifications'
+    )
+    target_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='player_notifications')
+    created_by_user = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='player_notifications_sent'
+    )
+    match = models.ForeignKey(
+        'Match', on_delete=models.CASCADE, null=True, blank=True, related_name='player_notifications'
+    )
+    kind = models.CharField(max_length=24, choices=KIND_CHOICES, default=KIND_GENERAL)
+    title = models.CharField(max_length=180, blank=True)
+    message = models.TextField(blank=True)
+    link_url = models.CharField(max_length=300, blank=True)
+    payload = models.JSONField(default=dict, blank=True)
+    is_read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['target_user', 'is_read', '-created_at']),
+            models.Index(fields=['target_user', 'kind', 'match']),
+        ]
+
+    def __str__(self):
+        return f'{self.target_user_id} · {self.kind} · {self.created_at:%Y-%m-%d}'
+
+
 class VideoInboxComment(models.Model):
     """
     Comentarios internos para un elemento compartido (thread) en Bandeja de vídeo.

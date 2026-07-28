@@ -425,6 +425,7 @@ from football.models import (
     VideoAiKnowledgeEntry,
     VideoAiTrackJob,
     VideoClip,
+    PlayerNotification,
     VideoExportAsset,
     VideoInboxComment,
     VideoInboxItem,
@@ -20082,6 +20083,16 @@ def player_dashboard_page(request):
             )
         except Exception:
             video_inbox_unread_count = 0
+    player_notifications = []
+    if request.user and request.user.is_authenticated:
+        try:
+            player_notifications = list(
+                PlayerNotification.objects.filter(target_user=request.user, is_read=False).order_by(
+                    "-created_at", "-id"
+                )[:12]
+            )
+        except Exception:
+            player_notifications = []
     return render(
         request,
         "football/player_dashboard.html",
@@ -20104,6 +20115,9 @@ def player_dashboard_page(request):
             "home_url": home_url,
             "video_inbox_url": reverse("player-video-inbox"),
             "video_inbox_unread_count": int(video_inbox_unread_count or 0),
+            "player_notifications": player_notifications,
+            "player_notifications_unread": len(player_notifications),
+            "player_notifications_read_url": reverse("player-notifications-read"),
             "active_workspace": active_workspace,
             "active_team": primary_team,
         },
@@ -29406,6 +29420,79 @@ def convocation_page(request):
     )
 
 
+def _notify_convoked_players(record, match, actor_user, workspace=None):
+    """Crea un aviso de convocatoria en el espacio personal de cada jugador convocado.
+
+    Idempotente por (jugador, partido): re-guardar la convocatoria no duplica ni
+    reenvía avisos a quien ya lo tenía; y limpia los avisos aún no leídos de los
+    jugadores que hayan sido desconvocados. Sólo notifica a jugadores con cuenta
+    de usuario enlazada (Player.user). Nunca rompe el guardado si algo falla.
+    """
+    if match is None:
+        return
+    try:
+        team = record.team
+        players = list(record.players.select_related("user").all())
+        opponent = (getattr(record, "opponent_name", "") or "").strip()
+        match_date = getattr(record, "match_date", None) or getattr(match, "date", None)
+        parts = []
+        if opponent:
+            parts.append(f"vs {opponent}")
+        if match_date:
+            try:
+                parts.append(match_date.strftime("%d/%m/%Y"))
+            except Exception:
+                pass
+        location = (getattr(record, "location", "") or "").strip()
+        if location:
+            parts.append(location)
+        message = " · ".join(parts) if parts else "Estás en la convocatoria del próximo partido."
+        try:
+            link = reverse("player-dashboard")
+        except Exception:
+            link = ""
+        actor = actor_user if getattr(actor_user, "is_authenticated", False) else None
+        target_user_ids = set()
+        for player in players:
+            uid = getattr(player, "user_id", None)
+            if not uid:
+                continue
+            target_user_ids.add(uid)
+            PlayerNotification.objects.get_or_create(
+                target_user_id=uid,
+                kind=PlayerNotification.KIND_CONVOCATION,
+                match=match,
+                defaults={
+                    "workspace": workspace,
+                    "team": team,
+                    "created_by_user": actor,
+                    "title": "Has sido convocado",
+                    "message": message,
+                    "link_url": link,
+                    "payload": {"match_id": match.id, "convocation_id": record.id},
+                },
+            )
+        # Desconvocados: retirar sus avisos aún no leídos para este partido.
+        PlayerNotification.objects.filter(
+            kind=PlayerNotification.KIND_CONVOCATION, match=match, is_read=False
+        ).exclude(target_user_id__in=target_user_ids).delete()
+    except Exception:
+        logger.exception("No se pudieron crear los avisos de convocatoria")
+
+
+@login_required
+@require_POST
+def player_notifications_mark_read(request):
+    """Marca como leídos los avisos personales del usuario (todos o los ids dados)."""
+    qs = PlayerNotification.objects.filter(target_user=request.user, is_read=False)
+    ids_raw = (request.POST.get("ids") or "").strip()
+    if ids_raw:
+        ids = [int(x) for x in ids_raw.split(",") if x.strip().isdigit()]
+        qs = qs.filter(id__in=ids)
+    updated = qs.update(is_read=True, read_at=timezone.now())
+    return JsonResponse({"ok": True, "updated": int(updated)})
+
+
 @authenticated_write
 @require_POST
 def save_convocation(request):
@@ -29667,6 +29754,7 @@ def save_convocation(request):
         record.goalkeeper_id = goalkeeper_id if goalkeeper_id in allowed_player_ids else None
         record.save(update_fields=["captain", "goalkeeper"])
     _invalidate_team_dashboard_caches(primary_team)
+    _notify_convoked_players(record, target_match, request.user, workspace=_conv_workspace)
     pending = players.count() == 0
     whatsapp_text = _build_convocation_whatsapp_text(record, primary_team)
     return JsonResponse(
