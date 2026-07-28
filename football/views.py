@@ -33033,13 +33033,15 @@ def training_session_detail_page(request, session_id):
 
                     # UX: "Sin marcar" o "Presente" significa no guardar incidencia.
                     if not status_key or status_key == TrainingSessionAttendance.STATUS_PRESENT:
-                        if existing:
-                            existing.delete()
-                            try:
-                                del marks[int(p.id)]
-                            except Exception:
-                                pass
+                        # present/sin-marcar = implícito: borra CUALQUIER marca existente de (sesión,
+                        # jugador) — incluida una 'present' que el flujo de creación guarda para todos —
+                        # para no dejar filas huérfanas ni chocar con la unique al re-marcar.
+                        _deleted, _ = TrainingSessionAttendance.objects.filter(
+                            session=session_obj, player=p
+                        ).delete()
+                        if _deleted:
                             updated += 1
+                        marks.pop(int(p.id), None)
                         continue
 
                     if status_key not in allowed_values:
@@ -33054,25 +33056,18 @@ def training_session_detail_page(request, session_id):
                             note=notes,
                         )
 
-                    obj = existing
-                    if existing:
-                        if existing.status != status_key or (existing.notes or "") != next_notes:
-                            existing.status = status_key
-                            existing.notes = next_notes
-                            existing.marked_by = request.user
-                            existing.updated_at = now
-                            existing.save(update_fields=["status", "notes", "marked_by", "updated_at"])
-                            updated += 1
-                    else:
-                        obj = TrainingSessionAttendance.objects.create(
-                            session=session_obj,
-                            player=p,
-                            status=status_key,
-                            notes=next_notes,
-                            marked_by=request.user,
-                        )
-                        updated += 1
-
+                    # update_or_create sobre (sesión, jugador): actualiza la marca existente (sea cual
+                    # sea su estado, incluida 'present') o crea una nueva, sin chocar con la unique.
+                    obj, _created = TrainingSessionAttendance.objects.update_or_create(
+                        session=session_obj,
+                        player=p,
+                        defaults={
+                            "status": status_key,
+                            "notes": next_notes,
+                            "marked_by": request.user if request.user and request.user.is_authenticated else None,
+                        },
+                    )
+                    updated += 1
                     marks[int(p.id)] = obj
 
                     # Si se marca "Lesionado", sincroniza con ficha del jugador y crea registro.
