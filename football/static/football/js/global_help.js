@@ -467,6 +467,11 @@
   };
 
   const ensureFallbackDemoButton = () => {
+    // Desactivado a peticion del usuario: el toggle flotante "Demo" (abajo-derecha) molestaba
+    // en TODAS las pantallas -- se solapaba con GUARDAR en el editor 2D y con el nombre del
+    // workspace ("ollana") en el home. El "Modo muestra" sigue disponible desde el menu de
+    // navegacion (dragon_nav), que es donde tiene sentido para el onboarding.
+    return;
     if (document.querySelector('[data-webstats-demo-mode-toggle],#webstats-demo-mode-toggle')) return;
     ensureHelpModeStyles();
     const btn = document.createElement('button');
