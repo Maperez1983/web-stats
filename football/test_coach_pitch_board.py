@@ -84,6 +84,37 @@ class CoachPitchBoardPersistenceTests(TestCase):
         self.assertLessEqual(pos[0], 98.0)
         self.assertGreaterEqual(pos[1], 4.0)
 
+    def test_scouted_player_persists(self):
+        """El bug que veía el usuario: los ojeados ("A prueba", chips scout-N) se podían arrastrar en
+        la pizarra de la home pero su posición NO se guardaba (el JS no hacía POST y el endpoint no
+        aceptaba ids no numéricos) -> al recargar volvían a su sitio. Ahora persisten bajo clave scout-N."""
+        from football.models import ScoutingTarget
+
+        target = ScoutingTarget.objects.create(
+            workspace=self.workspace, subject_name='Enrique', position='LI',
+            available_for_coach_tools=True, status=ScoutingTarget.STATUS_WATCH if hasattr(ScoutingTarget, 'STATUS_WATCH') else 'watch',
+        )
+        resp = self._save(team_id=self.team.id, player_id=f'scout-{target.id}', left='18.0', top='74.0')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json().get('ok'))
+        layout = CoachPitchBoardLayout.objects.get(team=self.team)
+        self.assertEqual(layout.positions.get(f'scout-{target.id}'), [18.0, 74.0])
+        # Y el loader devuelve la posición bajo la clave string (no la descarta como antes).
+        from football.views import _coach_pitch_board_positions
+        loaded = _coach_pitch_board_positions(self.team)
+        self.assertEqual(loaded.get(f'scout-{target.id}'), [18.0, 74.0])
+
+    def test_scouted_player_of_other_workspace_rejected(self):
+        """Guardrail: no se puede guardar la posición de un ojeado que no es de este workspace."""
+        from football.models import ScoutingTarget, Workspace, Team
+
+        other_team = Team.objects.create(name='Otro Club', slug='otro-club')
+        other_ws = Workspace.objects.create(name='Otro', slug='otro-ws', kind=Workspace.KIND_CLUB, primary_team=other_team)
+        stranger = ScoutingTarget.objects.create(workspace=other_ws, subject_name='Ajeno', position='DC', available_for_coach_tools=True)
+        resp = self._save(team_id=self.team.id, player_id=f'scout-{stranger.id}', left='40', top='40')
+        self.assertEqual(resp.status_code, 400)
+        self.assertFalse(CoachPitchBoardLayout.objects.filter(team=self.team).exists())
+
     def test_shared_identity_player_persists(self):
         """Regresión: un jugador presente en el equipo SOLO por membresía de temporada
         (WorkspaceSeasonPlayer) aunque su Player.team apunte a OTRO equipo (identidad compartida)

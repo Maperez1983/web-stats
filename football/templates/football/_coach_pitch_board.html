@@ -211,12 +211,10 @@
       var chip = active.chip, moved = active.moved;
       chip.classList.remove('pb-dragging');
       if (moved) {
-        // Guarda posición en el servidor (compartida) y evita que el clic navegue a la ficha.
-        // Los ojeados (chips sin Player) no persisten posición: su id no es numérico.
-        if (chip.getAttribute('data-pb-scout') !== '1') {
-          var l = parseFloat(chip.style.left), t = parseFloat(chip.style.top);
-          postForm({ team_id: team, player_id: chip.getAttribute('data-pb-pid'), left: l.toFixed(1), top: t.toFixed(1) });
-        }
+        // Guarda posición en el servidor (compartida por equipo) y evita que el clic navegue a la
+        // ficha. Los ojeados también persisten: su id es "scout-N" y el servidor lo acepta bajo esa clave.
+        var l = parseFloat(chip.style.left), t = parseFloat(chip.style.top);
+        postForm({ team_id: team, player_id: chip.getAttribute('data-pb-pid'), left: l.toFixed(1), top: t.toFixed(1) });
         var block = function (ev) { ev.preventDefault(); ev.stopPropagation(); chip.removeEventListener('click', block, true); };
         chip.addEventListener('click', block, true);
       }

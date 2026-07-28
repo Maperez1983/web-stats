@@ -20915,11 +20915,12 @@ def _coach_pitch_board_positions(team):
     positions = {}
     for raw_pid, coords in (getattr(layout, "positions", None) or {}).items():
         try:
-            pid = int(raw_pid)
             left, top = float(coords[0]), float(coords[1])
         except (TypeError, ValueError, IndexError):
             continue
-        positions[pid] = [left, top]
+        key = str(raw_pid)
+        # Jugadores del roster -> clave int; ojeados "A prueba" -> clave string "scout-N".
+        positions[int(key) if key.lstrip("-").isdigit() else key] = [left, top]
     return positions
 
 
@@ -21639,24 +21640,45 @@ def coach_pitch_board_save(request):
             CoachPitchBoardLayout.objects.filter(team_id=team_id).update(positions={}, updated_by=request.user)
         return JsonResponse({"ok": True, "reset": True})
 
+    raw_pid = str(request.POST.get("player_id") or "").strip()
     try:
         team_id = int(request.POST.get("team_id") or 0)
-        player_id = int(request.POST.get("player_id") or 0)
         left = float(request.POST.get("left"))
         top = float(request.POST.get("top"))
     except (TypeError, ValueError):
         return JsonResponse({"ok": False, "error": "bad_params"}, status=400)
-    if not team_id or not player_id:
+    if not team_id or not raw_pid:
         return JsonResponse({"ok": False, "error": "missing"}, status=400)
-    # Guardrail: el jugador debe pertenecer a ese equipo (evita escrituras arbitrarias). La pizarra
-    # se construye desde el ROSTER OPERATIVO (membresía de temporada, WorkspaceSeasonPlayer), donde un
-    # jugador puede estar en el equipo por temporada AUNQUE su Player.team apunte a otro (identidad de
-    # jugador compartida). Aceptamos ambas vías; si solo miráramos Player.team, el POST fallaba con
-    # not_in_team y las posiciones NO persistían.
-    _belongs = (
-        Player.objects.filter(id=player_id, team_id=team_id).exists()
-        or WorkspaceSeasonPlayer.objects.filter(team_id=team_id, player_id=player_id).exists()
-    )
+    # La pizarra tiene dos tipos de ficha: jugadores del roster (id numérico) y ojeados "A prueba"
+    # (id "scout-N", un ScoutingTarget marcado available_for_coach_tools). Ambos persisten posición,
+    # bajo su propia clave, con un guardrail que evita escrituras arbitrarias.
+    is_scout = raw_pid.startswith("scout-")
+    if is_scout:
+        try:
+            target_id = int(raw_pid.split("-", 1)[1])
+        except (ValueError, IndexError):
+            return JsonResponse({"ok": False, "error": "bad_params"}, status=400)
+        from .models import ScoutingTarget, Workspace as _Workspace
+
+        _ws = _Workspace.objects.filter(primary_team_id=team_id).first()
+        _belongs = bool(_ws) and ScoutingTarget.objects.filter(id=target_id, workspace=_ws).exists()
+        store_key = raw_pid
+    else:
+        try:
+            player_id = int(raw_pid)
+        except (TypeError, ValueError):
+            return JsonResponse({"ok": False, "error": "bad_params"}, status=400)
+        if not player_id:
+            return JsonResponse({"ok": False, "error": "missing"}, status=400)
+        # Guardrail: el jugador debe pertenecer a ese equipo. La pizarra se construye desde el ROSTER
+        # OPERATIVO (membresía de temporada, WorkspaceSeasonPlayer), donde un jugador puede estar en el
+        # equipo por temporada AUNQUE su Player.team apunte a otro (identidad de jugador compartida).
+        # Aceptamos ambas vías; si solo miráramos Player.team, el POST fallaba con not_in_team.
+        _belongs = (
+            Player.objects.filter(id=player_id, team_id=team_id).exists()
+            or WorkspaceSeasonPlayer.objects.filter(team_id=team_id, player_id=player_id).exists()
+        )
+        store_key = str(player_id)
     if not _belongs:
         return JsonResponse({"ok": False, "error": "not_in_team"}, status=400)
     team = Team.objects.filter(id=team_id).first()
@@ -21666,7 +21688,7 @@ def coach_pitch_board_save(request):
     top = max(4.0, min(96.0, top))
     layout, _created = CoachPitchBoardLayout.objects.get_or_create(team=team)
     positions = dict(layout.positions or {})
-    positions[str(player_id)] = [round(left, 1), round(top, 1)]
+    positions[store_key] = [round(left, 1), round(top, 1)]
     layout.positions = positions
     layout.updated_by = request.user
     layout.save(update_fields=["positions", "updated_by", "updated_at"])
