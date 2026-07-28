@@ -905,14 +905,19 @@ body.ed-chrome #edc-mat-body .edc-roster-gbtn:hover { border-color: rgba(55,208,
 body.ed-chrome #edc-mat-body .edc-roster-gbtn.is-active { background: var(--edc-accent); border-color: var(--edc-accent); color: var(--edc-accent-ink); }
 
 /* Inspector simplificado: el tamaño se ajusta arrastrando la propia figura (tiradores),
-   así que el inspector de edición solo cambia el COLOR. Ocultamos tamaño/giro/grosor/
-   opacidad y el bloque Avanzado (gana sobre el hidden=false que el JS pone por tipo). */
+   así que el inspector de edición solo deja el COLOR (+ nombre/dorsal y representación).
+   Ocultamos las secciones de TAMAÑO/GIRO/FLECHAS, CHAPA (tamaño) y GROSOR, tanto los
+   sliders (por tipo) como los presets de botones que se muestran para las fichas.
+   Gana sobre el hidden=false que el JS pone por tipo. */
 body.ed-chrome #task-scale-x-row,
 body.ed-chrome #task-scale-y-row,
 body.ed-chrome #task-rotation-row,
 body.ed-chrome #task-stroke-width-row,
 body.ed-chrome #task-lane-opacity-row,
-body.ed-chrome #task-inspector-advanced { display: none !important; }
+body.ed-chrome #task-inspector-advanced,
+body.ed-chrome #task-scale-presets,
+body.ed-chrome #task-token-size-presets,
+body.ed-chrome #task-stroke-presets { display: none !important; }
 
 /* El dock flotante de tactica interactiva (.tactics-interactive-dock) y el menu suelto
    (.tactics-menu) se solapaban con el boton Guardar del top-bar. En el editor 2D las
