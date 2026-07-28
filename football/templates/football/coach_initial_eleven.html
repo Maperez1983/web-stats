@@ -2077,13 +2077,19 @@
           </div>
           <div class="field-row">
             <label for="lineup-gk-select">Portero (este partido)</label>
-            <select id="lineup-gk-select" {% if has_pending_convocation %}disabled{% endif %}>
+            <select id="lineup-gk-select" data-selected="{{ selected_goalkeeper_id }}" {% if has_pending_convocation %}disabled{% endif %}>
               <option value="">Auto</option>
             </select>
           </div>
           <p class="field-help">
-            En categorías de niños es normal que un jugador marcado como “POR” juegue en cualquier posición. Selecciona aquí quién ocupa la casilla de portero en el 11 inicial.
+            En categorías de niños es normal que un jugador marcado como “POR” juegue en cualquier posición. Selecciona aquí quién ocupa la casilla de portero en el 11 inicial. Se guarda con la alineación.
           </p>
+          <div class="field-row">
+            <label for="lineup-captain-select">Capitán</label>
+            <select id="lineup-captain-select" data-selected="{{ selected_captain_id }}" {% if has_pending_convocation %}disabled{% endif %}>
+              <option value="">Sin capitán</option>
+            </select>
+          </div>
           <details class="lineup-help">
             <summary class="field-help">Guía rápida</summary>
             <p class="field-help">
@@ -3218,27 +3224,42 @@
         const byPos = (players || []).find((p) => isGoalkeeperPosition(p.position));
         return byPos || null;
       };
-      const syncGkSelectOptions = (selectedPlayers) => {
-        if (!gkSelect) return;
-        const current = String(gkSelect.value || '');
-        gkSelect.innerHTML = '';
-        const optAuto = document.createElement('option');
-        optAuto.value = '';
-        optAuto.textContent = 'Auto';
-        gkSelect.appendChild(optAuto);
-        (selectedPlayers || []).forEach((p) => {
+      const captainSelect = document.getElementById('lineup-captain-select');
+      const fillPlayerOptions = (select, players, firstOptLabel) => {
+        // Honra el valor del servidor (data-selected) en la primera carga; luego conserva la elección.
+        const current = String(select.value || '') || String(select.dataset.selected || '');
+        select.innerHTML = '';
+        const first = document.createElement('option');
+        first.value = '';
+        first.textContent = firstOptLabel;
+        select.appendChild(first);
+        (players || []).forEach((p) => {
           const opt = document.createElement('option');
           opt.value = String(p.id || '');
           const num = p.number ? `#${p.number}` : '#--';
           opt.textContent = `${num} ${String(p.name || '').toUpperCase()}`;
-          gkSelect.appendChild(opt);
+          select.appendChild(opt);
         });
-        if (current && Array.from(gkSelect.options).some((o) => o.value === current)) {
-          gkSelect.value = current;
-          return;
+        select.dataset.selected = '';
+        return current;
+      };
+      const syncGkSelectOptions = (selectedPlayers) => {
+        const players = selectedPlayers || [];
+        if (gkSelect) {
+          const current = fillPlayerOptions(gkSelect, players, 'Auto');
+          if (current && Array.from(gkSelect.options).some((o) => o.value === current)) {
+            gkSelect.value = current;
+          } else {
+            const suggested = buildGkChoice(players, '');
+            if (suggested) gkSelect.value = String(suggested.id || '');
+          }
         }
-        const suggested = buildGkChoice(selectedPlayers || [], '');
-        if (suggested) gkSelect.value = String(suggested.id || '');
+        if (captainSelect) {
+          const current = fillPlayerOptions(captainSelect, players, 'Sin capitán');
+          if (current && Array.from(captainSelect.options).some((o) => o.value === current)) {
+            captainSelect.value = current;
+          }
+        }
       };
       const orderPlayersByFormation = (players, formationKey, forcedGkId = '') => {
         const safeFormation = String(formationKey || '').trim();
@@ -3566,7 +3587,11 @@
               'X-CSRFToken': csrfToken,
               Accept: 'application/json',
             },
-            body: JSON.stringify({ lineup: lineupToSave }),
+            body: JSON.stringify({
+              lineup: lineupToSave,
+              gk_id: (document.getElementById('lineup-gk-select') || {}).value || '',
+              captain_id: (document.getElementById('lineup-captain-select') || {}).value || '',
+            }),
           });
           const data = await response.json();
           if (!response.ok) {

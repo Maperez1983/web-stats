@@ -23872,6 +23872,10 @@ def save_match_lineup(request):
     except Exception:
         return JsonResponse({"error": "Payload inválido"}, status=400)
     lineup = payload.get("lineup")
+    # Portero y capitán del partido (opcionales): se persisten en la convocatoria para que no se
+    # pierdan al recargar (antes el select de portero volvía a "Auto" y no había UI de capitán).
+    _gk_id_raw = payload.get("gk_id", payload.get("goalkeeper_id"))
+    _captain_id_raw = payload.get("captain_id")
     allowed_players = list(convocation_record.players.all())
     # Normaliza payload (limita titulares, dedup) y auto-rellena banquillo con el resto de convocados.
     normalized = _normalize_lineup_payload_with_limit(lineup, allowed_players, starters_limit=starters_limit)
@@ -23928,6 +23932,22 @@ def save_match_lineup(request):
         normalized["_meta"]["orientation"] = orientation
     convocation_record.lineup_data = normalized
     convocation_record.save(update_fields=["lineup_data"])
+    # Persistir portero/capitán del partido (solo si son jugadores convocados). '' / 0 -> limpiar.
+    _allowed_ids = {int(getattr(p, "id", 0) or 0) for p in allowed_players}
+    _conv_updates = []
+    for _field, _raw in (("goalkeeper", _gk_id_raw), ("captain", _captain_id_raw)):
+        if _raw is None:
+            continue  # no enviado -> no tocar
+        _pid = _parse_int(_raw)
+        _new = int(_pid) if (_pid and int(_pid) in _allowed_ids) else None
+        if getattr(convocation_record, f"{_field}_id", None) != _new:
+            setattr(convocation_record, f"{_field}_id", _new)
+            _conv_updates.append(_field)
+    if _conv_updates:
+        try:
+            convocation_record.save(update_fields=_conv_updates)
+        except Exception:
+            logger.debug("No se pudo guardar portero/capitán de la convocatoria", exc_info=True)
     # Doble escritura al modelo propio (fuente de verdad; no se orfana con el ciclo de convocatoria).
     if target_match is not None and getattr(target_match, "id", None):
         try:
@@ -24022,7 +24042,14 @@ def get_match_lineup(request):
         except Exception:
             logger.debug("No se pudo construir el 11 por defecto en get_match_lineup", exc_info=True)
     normalized = _ensure_lineup_orientation(normalized, target="lr")
-    return JsonResponse({"ok": True, "lineup": normalized})
+    return JsonResponse(
+        {
+            "ok": True,
+            "lineup": normalized,
+            "goalkeeper_id": getattr(convocation_record, "goalkeeper_id", None) or "",
+            "captain_id": getattr(convocation_record, "captain_id", None) or "",
+        }
+    )
 
 
 @login_required
@@ -40902,6 +40929,8 @@ def _initial_eleven_page_impl(request):
             "rival_team_kit2d_url": rival_team_kit2d_url,
             "convocation_record": convocation_record_view,
             "convocation_players": convocation_player_cards,
+            "selected_goalkeeper_id": getattr(convocation_record, "goalkeeper_id", None) or "",
+            "selected_captain_id": getattr(convocation_record, "captain_id", None) or "",
             "lineup_seed": lineup_seed_payload,
             "rival_lineup_seed": rival_lineup_seed_payload,
             "lineup_seed_json": json.dumps(lineup_seed_payload, ensure_ascii=False),
