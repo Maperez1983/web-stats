@@ -2032,6 +2032,19 @@ class Match(models.Model):
         (CONTEXT_FRIENDLY, 'Amistoso'),
     ]
 
+    # Fuente ÚNICA de datos del partido: evita el doble conteo entre el registro en vivo y la
+    # edición manual de la ficha. El agregador de estadísticas cuenta solo la fuente declarada.
+    STATS_SOURCE_NONE = ''
+    STATS_SOURCE_LIVE = 'live'          # Modo Partido (registro de acciones en vivo)
+    STATS_SOURCE_MANUAL = 'manual'      # Edición manual desde la ficha del partido
+    STATS_SOURCE_RESULT = 'result_only'  # Solo marcador (sin estadísticas de jugador)
+    STATS_SOURCE_CHOICES = [
+        (STATS_SOURCE_NONE, 'Sin datos'),
+        (STATS_SOURCE_LIVE, 'En vivo'),
+        (STATS_SOURCE_MANUAL, 'Manual'),
+        (STATS_SOURCE_RESULT, 'Solo resultado'),
+    ]
+
     season = models.ForeignKey(Season, on_delete=models.CASCADE, related_name='matches')
     club_season = models.ForeignKey(
         WorkspaceSeason,
@@ -2063,6 +2076,13 @@ class Match(models.Model):
     home_score = models.PositiveSmallIntegerField(null=True, blank=True)
     away_score = models.PositiveSmallIntegerField(null=True, blank=True)
     result = models.CharField(max_length=30, blank=True)
+    stats_source = models.CharField(
+        max_length=16,
+        blank=True,
+        default=STATS_SOURCE_NONE,
+        choices=STATS_SOURCE_CHOICES,
+        help_text='Fuente única de datos del partido (evita doble conteo): en vivo, manual, solo resultado o sin datos.',
+    )
     staff_captain = models.ForeignKey(
         'Player',
         on_delete=models.SET_NULL,
