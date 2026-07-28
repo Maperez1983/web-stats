@@ -1915,6 +1915,12 @@
       }
       .broadcast-main.camera-plan .pitch-stage {
         transform: none;
+        padding: 0;
+      }
+      /* Quita los adornos broadcast del escenario (óvalo/sombra superior e inferior). */
+      .broadcast-main.camera-plan .pitch-stage::before,
+      .broadcast-main.camera-plan .pitch-stage::after {
+        display: none !important;
       }
       /* Vista "Plano" (por defecto): el 11 se dibuja sobre el MISMO césped hiperrealista
          que el home del entrenador / tareas, sin escenografía de estadio (gradas, vallas,
@@ -1961,7 +1967,11 @@
         background: none !important;
         outline: none !important;
         border: 1px solid rgba(255, 255, 255, 0.14) !important;
-        box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.35) !important;
+        box-shadow: inset 0 0 26px rgba(0, 0, 0, 0.28) !important;
+        /* Quita el recorte en trapecio (fingía perspectiva broadcast) -> campo rectangular. */
+        clip-path: none !important;
+        -webkit-clip-path: none !important;
+        transform: none !important;
       }
       .broadcast-main.camera-broadcast .xi-stadium {
         transform: none;
