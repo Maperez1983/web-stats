@@ -32663,6 +32663,27 @@ def training_session_detail_page(request, session_id):
         return False
 
     players = list(Player.objects.filter(team=primary_team, is_active=True).order_by("name", "id"))
+    # Jugadores "a prueba (ojeado)": los ScoutingTarget con available_for_coach_tools VIENEN A ENTRENAR
+    # aunque no sean plantilla plena. Se añaden al roster de la sesión (asistencia/participación) por su
+    # Player enlazado, evitando duplicar a los que ya están en la plantilla.
+    try:
+        from .models import ScoutingTarget, Workspace as _WsSess
+
+        _ws_sess = _WsSess.objects.filter(primary_team=primary_team).first()
+        if _ws_sess is not None:
+            _have_ids = {int(getattr(p, "id", 0) or 0) for p in players}
+            _scout_pids = list(
+                ScoutingTarget.objects.filter(workspace=_ws_sess, available_for_coach_tools=True)
+                .exclude(status=ScoutingTarget.STATUS_DISCARDED)
+                .exclude(player_id__isnull=True)
+                .values_list("player_id", flat=True)
+            )
+            _extra_ids = [int(_p) for _p in _scout_pids if int(_p or 0) and int(_p) not in _have_ids]
+            if _extra_ids:
+                players.extend(list(Player.objects.filter(id__in=_extra_ids)))
+                players.sort(key=lambda p: (str(getattr(p, "name", "") or "").lower(), int(getattr(p, "id", 0) or 0)))
+    except Exception:
+        pass
     injury_catalog_entries = []
     try:
         injury_catalog_entries = list(
