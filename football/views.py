@@ -303,6 +303,7 @@ except Exception:  # pragma: no cover
 
 from football.cycle_templates import cycle_templates_catalog
 from football.event_taxonomy import (
+    CANONICAL_EVENT_KINDS,
     DRIBBLE_KEYWORDS,
     FIELD_ZONE_KEYS,
     FIELD_ZONES,
@@ -312,6 +313,7 @@ from football.event_taxonomy import (
     build_smart_kpis,
     calculate_importance_score,
     calculate_influence_score,
+    canonical_event_kind,
     categorize_position,
     classify_duel_event,
     contains_keyword,
@@ -23746,6 +23748,15 @@ def register_match_action(request):
         match, player, action_type, result, zone, tercio
     )
 
+    # Tipo canónico (taxonomía tipada, Fase 1): el cliente puede mandarlo explícito (`kind`);
+    # si no, se deriva de forma centralizada. Se persiste en raw_data para no depender del texto.
+    _client_kind = str(request.POST.get("kind") or "").strip().lower()
+    event_kind = (
+        _client_kind
+        if _client_kind in CANONICAL_EVENT_KINDS
+        else canonical_event_kind(action_type, result, zone, observation)
+    )
+
     raw_data = {"client_event_uid": client_event_uid} if client_event_uid else {}
     if team_side:
         raw_data["team_side"] = team_side
@@ -23753,6 +23764,8 @@ def register_match_action(request):
         raw_data["minute_label"] = minute_label
     if promoted_second_yellow:
         raw_data["second_yellow"] = True
+    if event_kind:
+        raw_data["kind"] = event_kind
     event = MatchEvent.objects.create(
         match=match,
         player=player if player else None,

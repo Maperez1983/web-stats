@@ -433,6 +433,66 @@ def classify_duel_event(event_type, result=None, observation=None, zone=None):
     }
 
 
+# --- Taxonomía tipada (Fase 1) ---
+# Cada acción del registro se mapea a UNO de estos tipos canónicos y se guarda en raw_data["kind"]
+# al crear el MatchEvent. Así los lectores pueden preferir un tipo estable en vez de re-clasificar
+# por texto libre (frágil ante etiquetas nuevas). Los eventos antiguos siguen funcionando por texto.
+CANONICAL_EVENT_KINDS = (
+    "goal",
+    "assist",
+    "key_pass",
+    "shot_on_target",
+    "shot",
+    "dribble",
+    "duel",
+    "pass",
+    "save",
+    "yellow_card",
+    "red_card",
+    "substitution_in",
+    "substitution_out",
+    "substitution",
+    "other",
+)
+
+
+def canonical_event_kind(event_type, result=None, zone=None, observation=None):
+    """Devuelve UN tipo canónico (de CANONICAL_EVENT_KINDS) para una acción, reutilizando los
+    detectores de texto existentes, en orden de especificidad: roja antes que amarilla (la roja
+    '(2ª amarilla)' contiene ambas), gol antes que tiro/parada, asistencia/pase clave antes que
+    pase genérico. Clasificación CENTRALIZADA: el registro la persiste en raw_data['kind']."""
+    et, res, zn, obs = event_type, result, zone, observation
+    if is_red_card_event(et, res, zn):
+        return "red_card"
+    if is_yellow_card_event(et, res, zn):
+        return "yellow_card"
+    if is_substitution_entry(et, res, zn):
+        return "substitution_in"
+    if is_substitution_exit(et, res, zn):
+        return "substitution_out"
+    if is_substitution_event(et, zn):
+        return "substitution"
+    if is_goal_event(et, res, obs):
+        return "goal"
+    if is_goalkeeper_save_event(et, res, obs):
+        return "save"
+    if is_assist_event(et, res, obs):
+        return "assist"
+    if is_key_pass_event(et, res, obs):
+        return "key_pass"
+    if is_shot_on_target_event(et, res, obs):
+        return "shot_on_target"
+    if is_shot_attempt_event(et, res, obs):
+        return "shot"
+    if contains_keyword(et, DRIBBLE_KEYWORDS) or contains_keyword(res, DRIBBLE_KEYWORDS):
+        return "dribble"
+    if is_duel_event(et, obs):
+        return "duel"
+    if contains_keyword(et, PASS_KEYWORDS) or contains_keyword(res, PASS_KEYWORDS):
+        return "pass"
+    return "other"
+
+
 def categorize_position(player_position, zone):
     normalized_position = normalize_label(player_position)
     normalized_zone = normalize_label(zone)
