@@ -801,6 +801,104 @@
         z-index: 2;
       }
 
+      /* Selector segmentado Chapa / Foto / Avatar */
+      .xi-token-style-row .xi-seg {
+        display: inline-flex;
+        border: 1px solid rgba(226, 232, 240, 0.22);
+        border-radius: 999px;
+        overflow: hidden;
+        background: rgba(2, 6, 23, 0.35);
+      }
+      .xi-token-style-row .xi-seg button {
+        border: 0;
+        background: transparent;
+        color: rgba(226, 232, 240, 0.78);
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 0.28rem 0.66rem;
+        cursor: pointer;
+        letter-spacing: 0.02em;
+      }
+      .xi-token-style-row .xi-seg button.is-active {
+        background: rgba(56, 189, 248, 0.9);
+        color: #04121f;
+      }
+
+      /* Ficha circular (chapa) — estilo pizarra */
+      .xi-chip {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 3px;
+        width: 78px;
+      }
+      .xi-chip-disc {
+        position: relative;
+        width: 54px;
+        height: 54px;
+        border-radius: 50%;
+        overflow: hidden;
+        border: 2.5px solid rgba(248, 250, 252, 0.95);
+        background: linear-gradient(180deg, #12331f, #0b2415);
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.5);
+      }
+      .xi-chip-disc img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: 50% 22%;
+        display: block;
+      }
+      .xi-chip-disc img.is-kit {
+        object-fit: contain;
+        object-position: 50% 50%;
+        padding: 5px;
+        background: radial-gradient(circle at 50% 38%, rgba(255,255,255,0.16), transparent 62%);
+      }
+      .xi-chip-num {
+        position: absolute;
+        left: -5px;
+        bottom: -5px;
+        min-width: 21px;
+        height: 21px;
+        padding: 0 5px;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        font-size: 0.72rem;
+        font-weight: 900;
+        color: #04121f;
+        background: linear-gradient(180deg, #f4b400, #d99a08);
+        border: 1.5px solid rgba(2, 6, 23, 0.65);
+      }
+      .xi-chip--gk .xi-chip-disc { border-color: rgba(56, 189, 248, 0.95); }
+      .xi-chip--gk .xi-chip-num { background: linear-gradient(180deg, #38bdf8, #0ea5e9); color: #04121f; }
+      .xi-chip-name {
+        max-width: 92px;
+        font-size: 0.7rem;
+        font-weight: 800;
+        line-height: 1.05;
+        color: #fff;
+        text-align: center;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 2px rgba(0,0,0,0.9);
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        word-break: break-word;
+      }
+      .xi-chip-pos {
+        font-size: 0.56rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        color: rgba(226, 232, 240, 0.92);
+        text-shadow: 0 1px 2px rgba(0,0,0,0.85);
+      }
+      .field-token.is-active .xi-chip-disc {
+        border-color: #38bdf8;
+        box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.45), 0 8px 18px rgba(0,0,0,0.5);
+      }
+
       .broadcast-l3 {
         position: absolute;
         left: 14px;
@@ -2193,6 +2291,14 @@
             <label for="formation-select">Estructura</label>
             <select id="formation-select" {% if has_pending_convocation %}disabled{% endif %}></select>
           </div>
+          <div class="field-row xi-token-style-row">
+            <label>Ficha</label>
+            <div class="xi-seg" role="group" aria-label="Estilo de ficha">
+              <button type="button" data-token-style="chapa" id="ts-chapa">Chapa</button>
+              <button type="button" data-token-style="foto" id="ts-foto">Foto</button>
+              <button type="button" data-token-style="avatar" id="ts-avatar">Avatar</button>
+            </div>
+          </div>
           <div class="field-row">
             <label for="lineup-gk-select">Portero (este partido)</label>
             <select id="lineup-gk-select" data-selected="{{ selected_goalkeeper_id }}" {% if has_pending_convocation %}disabled{% endif %}>
@@ -2423,6 +2529,14 @@
       const saveUrl = matchId ? `${saveUrlBase}?match_id=${encodeURIComponent(matchId)}` : saveUrlBase;
       const publishUrlBase = '{% url "initial-eleven-publish" %}';
       const publishUrl = matchId ? `${publishUrlBase}?match_id=${encodeURIComponent(matchId)}` : publishUrlBase;
+      // Estilo de ficha en el campo: chapa (camiseta) / foto (real) / avatar. Se recuerda.
+      const TOKEN_STYLE_KEY = 'webstats:xi:token-style:v1';
+      const readTokenStyle = () => {
+        try { const v = window.localStorage?.getItem(TOKEN_STYLE_KEY); if (v === 'chapa' || v === 'foto' || v === 'avatar') return v; } catch (_) {}
+        return 'foto';
+      };
+      let tokenStyle = readTokenStyle();
+      const escHtml = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
       const matchMeta = {
         team: '{{ team_name|escapejs }}',
         opponent: '{{ convocation_record.opponent_name|default:rival_display_name|default:""|escapejs }}',
@@ -3238,38 +3352,37 @@
           if (activePlayerId && String(activePlayerId) === String(player.id)) {
             wrap.classList.add('is-active');
           }
-          const role = String(player.role || roleFromPosition(player.position) || 'mid');
-          const photoRaw = String(player.photo || '').trim();
-          const photoSafe = photoRaw ? photoRaw.replace(/'/g, '%27') : '';
-          // La figura del campo usa el avatar personalizado del jugador (recoloreado) si lo
-          // tiene; si no, el kit genérico por rol. El inset (token-photo) sigue siendo su foto real.
-          const avatarRaw = String(player.avatar || '').trim();
-          const kitRaw = avatarRaw || kit2dUrlForLineupRole(role);
-          const kitSafe = kitRaw ? kitRaw.replace(/'/g, '%27') : '';
-          const kitHtml = kitSafe ? `
-            <span class="token-kit2d" aria-hidden="true">
-              <img class="token-kit2d-img" src='${kitSafe}' alt="" loading="lazy" />
-            </span>
-          ` : '';
-          const photoHtml = photoSafe ? `<img class="token-photo" src='${photoSafe}' alt="" loading="lazy" />` : '';
+          // Portero: por posición registrada (POR) o por ser el portero elegido del partido.
+          const position = String(player.position || '').trim();
+          const selectedGkId = (document.getElementById('lineup-gk-select') || {}).value || '';
+          const isGk = isGoalkeeperPosition(position) || (selectedGkId && String(selectedGkId) === String(player.id));
+          const role = isGk ? 'gk' : String(player.role || roleFromPosition(position) || 'mid');
+          const posLabel = isGk ? 'POR' : (position ? position.toUpperCase() : role.toUpperCase());
+          const photoSafe = String(player.photo || '').trim().replace(/'/g, '%27');
+          const avatarSafe = String(player.avatar || '').trim().replace(/'/g, '%27');
+          const kitSafe = String(kit2dUrlForLineupRole(role) || '').trim().replace(/'/g, '%27');
+          // Imagen del disco según el estilo elegido, con cascada de respaldo.
+          let discImg = '';
+          const imgFoto = photoSafe ? `<img src='${photoSafe}' alt="" loading="lazy" />` : '';
+          const imgAvatar = avatarSafe ? `<img src='${avatarSafe}' alt="" loading="lazy" />` : '';
+          const imgKit = kitSafe ? `<img class="is-kit" src='${kitSafe}' alt="" loading="lazy" />` : '';
+          if (tokenStyle === 'foto') discImg = imgFoto || imgAvatar || imgKit;
+          else if (tokenStyle === 'avatar') discImg = imgAvatar || imgKit || imgFoto;
+          else discImg = imgKit || imgAvatar || imgFoto; // chapa
+          const numTxt = (num && num !== '--') ? num : '';
           wrap.innerHTML = `
-            <div class="token token--${role}${kitSafe ? ' has-kit2d' : ''}">
-              ${photoHtml}
-              ${kitHtml || `<span class="token-num">${num === '--' ? '--' : num}</span>`}
-              <span>
-                <span class="token-name-row">
-                  ${kitSafe ? `<span class="token-name-num">${num === '--' ? '--' : num}</span>` : ''}
-                  <span class="token-name">${String(player.name || '').toUpperCase()}</span>
-                </span>
-                <span class="token-role">${role.toUpperCase()}</span>
-              </span>
+            <div class="xi-chip xi-chip--${role}">
+              <div class="xi-chip-disc">
+                ${discImg}
+                ${numTxt ? `<span class="xi-chip-num">${escHtml(numTxt)}</span>` : ''}
+              </div>
+              <div class="xi-chip-name">${escHtml(String(player.name || '').toUpperCase())}</div>
+              <div class="xi-chip-pos">${escHtml(posLabel)}</div>
             </div>
           `;
-          const photoEl = wrap.querySelector('.token-photo');
-          if (photoEl) {
-            photoEl.onerror = () => {
-              try { photoEl.remove(); } catch (_) {}
-            };
+          const discImgEl = wrap.querySelector('.xi-chip-disc img');
+          if (discImgEl) {
+            discImgEl.onerror = () => { try { discImgEl.remove(); } catch (_) {} };
           }
           wrap.addEventListener('pointerdown', (event) => {
             if (hasPendingConvocation) return;
@@ -3880,6 +3993,25 @@
       );
       document.getElementById('player-list')?.addEventListener('change', markLineupDirty);
       field?.addEventListener('pointerdown', markLineupDirty, true);
+
+      // Selector de estilo de ficha (Chapa / Foto / Avatar)
+      const applyTokenStyleButtons = () => {
+        ['chapa', 'foto', 'avatar'].forEach((s) => {
+          const b = document.getElementById('ts-' + s);
+          if (b) b.classList.toggle('is-active', s === tokenStyle);
+        });
+      };
+      const setTokenStyle = (v) => {
+        if (!['chapa', 'foto', 'avatar'].includes(v)) return;
+        tokenStyle = v;
+        try { window.localStorage?.setItem(TOKEN_STYLE_KEY, v); } catch (_) {}
+        applyTokenStyleButtons();
+        renderField();
+      };
+      ['chapa', 'foto', 'avatar'].forEach((s) => {
+        document.getElementById('ts-' + s)?.addEventListener('click', () => setTokenStyle(s));
+      });
+      applyTokenStyleButtons();
 
       const xi3d = {
         THREE: null,
