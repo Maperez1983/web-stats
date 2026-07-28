@@ -38050,10 +38050,11 @@
                     } catch (e) { /* ignore */ }
                     let kit = (kitArg === true) ? 'visitante' : (kitArg === false ? 'titular' : safeText(kitArg));
                     if (!kit) kit = isGk ? 'gk_azul' : 'titular';
-                    // Color LIBRE: se respeta el color elegido en CUALQUIER ficha (jugador o portero).
-                    // Antes se forzaba gk_* a los porteros y se degradaba gk_* de un jugador de campo a
-                    // 'titular', lo que impedia p.ej. una chapa azul en un jugador de campo. Ahora el color
-                    // (kit) manda; el rol (isGk) solo decide el 'kind' y la etiqueta GK, no el color.
+                    // Cada rol usa SU color: el portero va con colores propios (gk_*: Azul/Negra/Magenta)
+                    // y el jugador de campo con la equipacion del equipo. Si llega un color que no
+                    // corresponde al rol se normaliza. El editor 2D ya envia el color correcto por rol.
+                    if (isGk && kit.indexOf('gk_') !== 0) kit = 'gk_azul';
+                    if (!isGk && kit.indexOf('gk_') === 0) kit = 'titular';
                     const isAway = (kit === 'visitante');
                     const isDark = isGk || kit === 'chandal' || kit.indexOf('gk_') === 0;
                     const kind = isGk ? 'goalkeeper_local' : (isAway ? 'player_away' : 'player_local');

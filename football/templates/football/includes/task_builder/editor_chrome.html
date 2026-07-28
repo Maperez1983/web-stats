@@ -67,15 +67,18 @@
       <button type="button" class="edc-selbtn" data-rep="sprite">Avatar</button>
     </div>
     <div class="edc-selgrp edc-selgrp-color" data-edc-sel="color" id="edc-colorgrp">
-      <span class="edc-sellabel">Color</span>
+      <span class="edc-sellabel">Campo</span>
       <button type="button" class="edc-swatch is-active" data-kit="titular"   style="--sw:linear-gradient(90deg,#0f7a35 0 50%,#f2f4f3 50% 100%)" title="Verdiblanca (local)" aria-label="Verdiblanca"></button>
       <button type="button" class="edc-swatch" data-kit="visitante" style="--sw:#f5c514" title="Amarilla (visitante)" aria-label="Amarilla"></button>
       <button type="button" class="edc-swatch" data-kit="turquesa"  style="--sw:#1aa3a3" title="Turquesa" aria-label="Turquesa"></button>
       <button type="button" class="edc-swatch" data-kit="blanca"    style="--sw:#ecedeb" title="Blanca" aria-label="Blanca"></button>
       <button type="button" class="edc-swatch" data-kit="chandal"   style="--sw:#20462d" title="Chándal (verde oscuro)" aria-label="Chándal"></button>
-      <button type="button" class="edc-swatch" data-kit="gk_azul"   style="--sw:#1d4ed8" title="Azul" aria-label="Azul"></button>
-      <button type="button" class="edc-swatch" data-kit="gk_negra"  style="--sw:#16191d" title="Negra" aria-label="Negra"></button>
-      <button type="button" class="edc-swatch" data-kit="gk_magenta" style="--sw:#be2c96" title="Magenta" aria-label="Magenta"></button>
+    </div>
+    <div class="edc-selgrp edc-selgrp-color" data-edc-sel="gk" id="edc-gkgrp">
+      <span class="edc-sellabel">Portero</span>
+      <button type="button" class="edc-swatch is-active" data-gk="gk_azul"   style="--sw:#1d4ed8" title="Portero azul" aria-label="Portero azul"></button>
+      <button type="button" class="edc-swatch" data-gk="gk_negra"  style="--sw:#16191d" title="Portero negra" aria-label="Portero negra"></button>
+      <button type="button" class="edc-swatch" data-gk="gk_magenta" style="--sw:#be2c96" title="Portero magenta" aria-label="Portero magenta"></button>
     </div>
   </div>
   <div class="edc-group-box">
@@ -369,9 +372,9 @@
   // Reutiliza el motor existente: fija el estilo global de ficha y activa la inserción del jugador.
   var EDC_REPS = [['disk','Chapa'],['jersey','Camiseta'],['photo','Foto'],['sprite','Avatar']]; // 'figure' quitado: era idéntico a Avatar
   // Elección GLOBAL por tarea (compartida entre la barra inferior y la lista de plantilla).
-  // rep = representación de TODOS (chapa/camiseta/foto/avatar); kit = COLOR de TODOS (se aplica a
-  // cualquier ficha, jugador o portero). Los botones de la barra inferior la mutan.
-  var edcSel = { rep:'jersey', kit:'titular' };
+  // rep = representación de TODOS (chapa/camiseta/foto/avatar); kit = color de CAMPO (jugadores);
+  // gkKit = color propio del PORTERO. Al colocar, cada rol usa su color. La barra inferior lo muta.
+  var edcSel = { rep:'jersey', kit:'titular', gkKit:'gk_azul' };
   function edcSetGlobalStyle(style){ try{ var g=document.querySelector('#task-token-style-global button[data-global-token-style="'+style+'"]'); if(g) g.click(); }catch(e){} }
   // Coloca al jugador con estilo (chapa/camiseta/figura/foto/avatar) y equipación (local/visitante).
   // Foto NO usa equipación. Visitante = 2ª equipación (kind player_away) vía global expuesto por el motor.
@@ -398,21 +401,28 @@
     var bar=document.getElementById('edc-selbar'); if(!bar || bar.dataset.wired==='1') return;
     bar.dataset.wired='1';
     var colorGrp=document.getElementById('edc-colorgrp');
+    var gkGrp=document.getElementById('edc-gkgrp');
     function setActive(sel, activeBtn){
       Array.prototype.forEach.call(bar.querySelectorAll(sel), function(x){ x.classList.remove('is-active'); });
       if(activeBtn) activeBtn.classList.add('is-active');
     }
     // Presentación (Chapa/Camiseta/Foto/Avatar): sincroniza el estilo global del motor; el color no
-    // aplica a 'Foto' (foto real), así que atenuamos la fila de color en ese caso.
+    // aplica a 'Foto' (foto real), así que atenuamos las filas de color en ese caso.
     Array.prototype.forEach.call(bar.querySelectorAll('[data-rep]'), function(btn){
       btn.addEventListener('click', function(){
         edcSel.rep=btn.dataset.rep; edcSetGlobalStyle(edcSel.rep); setActive('[data-rep]', btn);
-        if(colorGrp) colorGrp.classList.toggle('is-disabled', edcSel.rep==='photo');
+        var isPhoto=(edcSel.rep==='photo');
+        if(colorGrp) colorGrp.classList.toggle('is-disabled', isPhoto);
+        if(gkGrp) gkGrp.classList.toggle('is-disabled', isPhoto);
       });
     });
-    // COLOR global (se aplica a cualquier ficha, jugador o portero).
+    // Color de CAMPO (jugadores).
     Array.prototype.forEach.call(bar.querySelectorAll('[data-kit]'), function(btn){
       btn.addEventListener('click', function(){ edcSel.kit=btn.dataset.kit; setActive('[data-kit]', btn); });
+    });
+    // Color propio del PORTERO (Azul/Negra/Magenta).
+    Array.prototype.forEach.call(bar.querySelectorAll('[data-gk]'), function(btn){
+      btn.addEventListener('click', function(){ edcSel.gkKit=btn.dataset.gk; setActive('[data-gk]', btn); });
     });
   }
   function buildRosterList(grid){
@@ -456,8 +466,9 @@
         // global (Todos) y la equipación global (Local/Visitante).
         sPhoto.appendChild(sNum); btn.appendChild(sPhoto); btn.appendChild(sName); // dorsal como badge sobre la foto
         btn.addEventListener('click', function(){
-          // Color LIBRE: el mismo color (edcSel.kit) se aplica a jugadores y porteros.
-          edcApplyRepresentation(pid, edcSel.rep, (edcSel.rep!=='photo') ? edcSel.kit : '');
+          // Cada rol su color: portero -> edcSel.gkKit; jugador de campo -> edcSel.kit.
+          var kit = isGK ? edcSel.gkKit : edcSel.kit;
+          edcApplyRepresentation(pid, edcSel.rep, (edcSel.rep!=='photo') ? kit : '');
         });
         row.appendChild(btn); host.appendChild(row);
       });
