@@ -913,3 +913,10 @@ body.ed-chrome #task-rotation-row,
 body.ed-chrome #task-stroke-width-row,
 body.ed-chrome #task-lane-opacity-row,
 body.ed-chrome #task-inspector-advanced { display: none !important; }
+
+/* El dock flotante de tactica interactiva (.tactics-interactive-dock) y el menu suelto
+   (.tactics-menu) se solapaban con el boton Guardar del top-bar. En el editor 2D las
+   herramientas ya estan en los chips de arriba, asi que ocultamos ese dock (igual que
+   hace editor-lab-compact). Evita el "DEMO" encima de "Guardar". */
+body.ed-chrome .tactics-interactive-dock,
+body.ed-chrome .tactics-menu { display: none !important; }
