@@ -21674,6 +21674,48 @@ def coach_pitch_board_save(request):
 
 
 @login_required
+def coach_debug_injuries(request):
+    """DIAGNOSTICO temporal: vuelca por que un jugador figura (o no) como lesionado.
+    Solo lectura, solo entrenador. `?clearcache=1` limpia la cache del catalogo del editor."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    from .models import PlayerInjuryRecord
+
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({"error": "no_primary_team"})
+    players = list(
+        Player.objects.filter(team=primary_team, is_active=True).order_by("name", "id")
+    )
+    pids = [int(p.id) for p in players]
+    active_ids = set(get_active_injury_player_ids(pids))
+    records = list(
+        PlayerInjuryRecord.objects.filter(player_id__in=pids)
+        .order_by("player__name", "-injury_date")
+        .values(
+            "id", "player_id", "player__name", "injury", "injury_date",
+            "return_date", "estimated_return_date", "is_active", "is_recovered",
+        )
+    )
+    out = {
+        "today": str(timezone.localdate()),
+        "team": getattr(primary_team, "name", ""),
+        "flagged_injured": sorted(
+            [{"id": int(p.id), "name": p.name} for p in players if int(p.id) in active_ids],
+            key=lambda x: x["name"],
+        ),
+        "records": records,
+    }
+    if str(request.GET.get("clearcache") or "") == "1":
+        from django.core.cache import cache
+
+        cache.delete(f"task_builder:player_catalog:{int(primary_team.id)}")
+        out["catalog_cache_cleared"] = True
+    return JsonResponse(out, json_dumps_params={"indent": 2, "default": str})
+
+
+@login_required
 def coach_overview_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
     if forbidden:
