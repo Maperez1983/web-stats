@@ -341,7 +341,7 @@
 	          </form>
 	          {% endif %}
 
-	          <div class="section-title" id="asistencia">Asistencia</div>
+	          <div class="section-title" id="asistencia" style="display:flex; align-items:center; justify-content:space-between; gap:0.6rem; flex-wrap:wrap;"><span>Asistencia</span><button type="button" class="btn secondary" style="font-size:0.72rem; padding:0.25rem 0.6rem;" onclick="try{document.getElementById('toggle-edit').click();var a=document.getElementById('asistencia-edit');if(a)setTimeout(function(){a.scrollIntoView({block:'start'});},60);}catch(e){}">✏️ Editar asistencia</button></div>
 	          <div class="box" style="margin-bottom:12px;">
 	            <strong>{{ attendance_summary }}</strong>
 	            {% if plan_fields.absences %}

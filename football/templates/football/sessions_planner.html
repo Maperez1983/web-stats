@@ -4387,6 +4387,16 @@
           </form>
         </div>
         {% elif session_hint_id and planning_session_items %}
+        <div style="margin:0 0 0.9rem; border-radius:16px; overflow:hidden; border:1px solid rgba(52,211,153,0.3);">
+          <div style="background:linear-gradient(135deg,#0ea5e9,#6366f1); color:#fff; padding:0.7rem 0.95rem; display:flex; align-items:center; justify-content:space-between; gap:0.6rem; flex-wrap:wrap;">
+            <div>
+              <div style="font-size:0.62rem; letter-spacing:0.16em; text-transform:uppercase; opacity:0.85; font-weight:900;">Montar sesión · Formato Club</div>
+              <div style="font-size:1.05rem; font-weight:900;">{% for si in planning_session_items %}{% if si.id == session_hint_id %}{{ si.label }}{% endif %}{% endfor %}</div>
+            </div>
+            <a class="button" href="{% url 'training-session-detail' session_hint_id %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}" style="background:rgba(255,255,255,0.16); border-color:rgba(255,255,255,0.4); color:#fff;">✓ Ir a la ficha</a>
+          </div>
+          <div style="padding:0.55rem 0.8rem; background:rgba(52,211,153,0.06); font-size:0.8rem; color:var(--muted,#94a3b8);">Elige tareas de la biblioteca (agrupadas por bloque) o crea una desde 0; se añaden a esta sesión. Cuando termines, ve a la ficha.</div>
+        </div>
         <div class="box" style="margin:0 0 0.9rem;">
           <form method="post" id="bulk-add-library-tasks" class="bulk-action-row">
             {% csrf_token %}
