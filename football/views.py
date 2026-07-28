@@ -21711,6 +21711,31 @@ def coach_debug_injuries(request):
         Player.objects.filter(team=primary_team, is_active=True).order_by("name", "id")
     )
     pids = [int(p.id) for p in players]
+
+    # Accion opcional de LIMPIEZA (coach-gated): cierra las lesiones ABIERTAS (is_active=True) de los
+    # jugadores indicados en ?close_open_for=ID,ID,... -> las marca recuperadas. Solo afecta a
+    # jugadores del equipo del entrenador. Uso puntual para saldar registros antiguos sin fecha de alta.
+    closed_info = None
+    _close_raw = str(request.GET.get("close_open_for") or "").strip()
+    if _close_raw:
+        try:
+            _close_ids = [int(x) for x in _close_raw.split(",") if x.strip()]
+        except ValueError:
+            _close_ids = []
+        _close_ids = [pid for pid in _close_ids if pid in pids]
+        if _close_ids:
+            _to_close = list(
+                PlayerInjuryRecord.objects.filter(player_id__in=_close_ids, is_active=True)
+                .values_list("id", flat=True)
+            )
+            PlayerInjuryRecord.objects.filter(id__in=_to_close).update(
+                is_active=False, is_recovered=True
+            )
+            from django.core.cache import cache
+
+            cache.delete(f"task_builder:player_catalog:{int(primary_team.id)}")
+            closed_info = {"player_ids": _close_ids, "closed_record_ids": _to_close}
+
     active_ids = set(get_active_injury_player_ids(pids))
     records = list(
         PlayerInjuryRecord.objects.filter(player_id__in=pids)
@@ -21728,6 +21753,7 @@ def coach_debug_injuries(request):
             key=lambda x: x["name"],
         ),
         "records": records,
+        "closed_now": closed_info,
     }
     if str(request.GET.get("clearcache") or "") == "1":
         from django.core.cache import cache
@@ -40092,7 +40118,18 @@ def coach_injuries_page(request):
                 record.is_recovered = True
                 record.is_active = False
                 record.save(update_fields=["return_date", "is_recovered", "is_active", "updated_at"])
-                message = "Lesión marcada como alta."
+                # Dar de alta = el jugador vuelve. Cerramos TAMBIEN sus otras lesiones abiertas para
+                # que no queden registros antiguos sin fecha de alta manteniendolo "lesionado".
+                _others_closed = (
+                    PlayerInjuryRecord.objects.filter(player_id=record.player_id, is_active=True)
+                    .exclude(id=record.id)
+                    .update(is_active=False, is_recovered=True)
+                )
+                message = (
+                    "Lesión marcada como alta."
+                    if not _others_closed
+                    else f"Lesión marcada como alta (y {_others_closed} lesión/es abierta/s cerradas)."
+                )
             else:
                 PlayerInjuryRecord.objects.create(
                     player=player,
