@@ -28918,6 +28918,45 @@ def kpi_explorer_pdf_api(request):
     return _build_pdf_response_or_html_fallback(request, html, filename)
 
 
+def _render_report_board_page(request, report_title, report_subtitle, pdf_url_name):
+    """Página HTML de informe (equipo/dirección): pizarra interactiva (tablero arrastrable del
+    home) + listado de jugadores + botón Exportar PDF (usa el PDF existente)."""
+    if not _can_edit_match_actions(request.user):
+        return HttpResponse("Solo el cuerpo técnico puede ver los informes.", status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return redirect("reports-hub")
+    workspace = _get_active_workspace(request)
+    try:
+        coach_pitch_players = _coach_pitch_players_for_request(request, primary_team, workspace=workspace)
+    except Exception:
+        coach_pitch_players = []
+    team_q = f"?team={int(primary_team.id)}"
+    return render(
+        request,
+        "football/report_board_page.html",
+        {
+            "report_title": report_title,
+            "report_subtitle": report_subtitle,
+            "team_name": primary_team.display_name,
+            "primary_team_id": int(primary_team.id),
+            "coach_pitch_players": coach_pitch_players,
+            "report_pdf_url": f"{reverse(pdf_url_name)}{team_q}",
+            "back_url": f"{reverse('reports-hub')}{team_q}",
+        },
+    )
+
+
+@login_required
+def team_report_page(request):
+    return _render_report_board_page(request, "Informe de equipo", "Plantilla y pizarra", "team-season-report-pdf")
+
+
+@login_required
+def direction_report_page(request):
+    return _render_report_board_page(request, "Informe de dirección", "Plantilla y pizarra", "direction-report-pdf")
+
+
 @login_required
 def team_season_report_pdf(request):
     if not _can_edit_match_actions(request.user):

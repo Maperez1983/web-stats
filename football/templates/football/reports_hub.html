@@ -85,6 +85,7 @@
               </div>
               <div class="actions">
                 <button class="btn primary" type="submit">Descargar PDF</button>
+                <a class="btn" href="{% url 'team-report-page' %}{% if request.GET.team %}?team={{ request.GET.team|urlencode }}{% endif %}">🖥 Ver página (pizarra + listado)</a>
                 <span class="hint">Secciones activables/desactivables.</span>
               </div>
             </div>
@@ -267,6 +268,7 @@
           <div class="sections">
             <div class="actions">
               <button class="btn primary" type="button" id="dir-open">Ver informe (PDF)</button>
+              <a class="btn" href="{% url 'direction-report-page' %}{% if request.GET.team %}?team={{ request.GET.team|urlencode }}{% endif %}">🖥 Ver página (pizarra + listado)</a>
               <span class="hint">Si no eliges fechas, se usan los últimos 12 meses.</span>
             </div>
           </div>
