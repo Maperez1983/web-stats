@@ -2455,7 +2455,7 @@
       </section>
 
       <section class="card tab-pane" data-pane="stats">
-        <h2 style="margin-top:0;">Estadísticas y KPI mapa</h2>
+        <h2 style="margin-top:0;">Rendimiento</h2>
 
       {% if minutes_load %}
       <section class="card" aria-label="Minutos de temporada" style="margin-top:1rem;">
@@ -2958,7 +2958,9 @@
           </article>
         </div>
         {% if not is_player_readonly %}
-        <h3 style="margin-top:1rem;">Registrar o actualizar lesión</h3>
+        <details class="fm-manage" style="margin:1rem 0;">
+          <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.65rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:#cdd8ea;background:rgba(2,6,23,0.35);list-style:none;">✎ Registrar o actualizar lesión</summary>
+          <div style="padding:.95rem .15rem .15rem;">
         <form method="post" enctype="multipart/form-data">
           {% csrf_token %}
           <input type="hidden" name="form_action" value="injuries" />
@@ -3033,6 +3035,8 @@
             <button type="submit" name="injury_record_mode" value="new">Añadir lesión al historial</button>
           </div>
         </form>
+          </div>
+        </details>
         {% endif %}
         {% if not is_player_readonly and injury_records %}
         <form method="post" onsubmit="return confirm('¿Eliminar las lesiones seleccionadas? No se puede deshacer.');">
@@ -3167,6 +3171,9 @@
           {% endif %}
         </div>
         {% endif %}
+        <details class="fm-manage" style="margin:1rem 0;">
+          <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.65rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:#cdd8ea;background:rgba(2,6,23,0.35);list-style:none;">✎ Añadir registro físico · RPE · wellness · tests · madurez</summary>
+          <div style="padding:.95rem .15rem .15rem;">
         <form method="post">
           {% csrf_token %}
           <input type="hidden" name="form_action" value="physical" />
@@ -3224,6 +3231,8 @@
           </div>
           <div style="margin-top:0.85rem;"><button type="submit">Añadir registro físico</button></div>
         </form>
+          </div>
+        </details>
 
         <div style="overflow-x:auto;">
         <table>
@@ -3311,6 +3320,9 @@
               {% endif %}
             </p>
             {% if not is_player_readonly %}
+            <details class="fm-manage" style="margin:.4rem 0 1rem;">
+              <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.65rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:#cdd8ea;background:rgba(2,6,23,0.35);list-style:none;">✎ Nueva comunicación · convocatoria · interna · parte médico</summary>
+              <div style="padding:.95rem .15rem .15rem;">
             <form method="post">
               {% csrf_token %}
               <input type="hidden" name="form_action" value="communication" />
@@ -3331,6 +3343,8 @@
               </div>
               <div style="margin-top:0.85rem;"><button type="submit">Guardar comunicación</button></div>
             </form>
+              </div>
+            </details>
             {% endif %}
 
             <table>
