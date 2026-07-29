@@ -258,6 +258,7 @@
             <input type="hidden" name="team" value="{{ team.id }}" />
             <button type="submit" class="btn secondary" title="Guarda la sesión (tareas incluidas) como plantilla reutilizable en la Biblioteca de sesiones">⭐ Guardar como plantilla</button>
           </form>
+          <a class="btn secondary" href="{% url 'session-library' %}?team={{ team.id }}" title="Ver tus plantillas de sesión guardadas">📚 Biblioteca de sesiones</a>
 	          {% if session_inline_edit %}
           <a class="btn secondary" href="{% url 'training-session-detail' session.id %}{% if team %}?team={{ team.id }}{% endif %}">👁️ Ver ficha</a>
           {% else %}

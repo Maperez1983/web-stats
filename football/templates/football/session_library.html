@@ -1,0 +1,97 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Biblioteca de sesiones · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      body{margin:0;background:radial-gradient(circle at top,rgba(14,165,233,0.18),transparent 34%),radial-gradient(circle at 80% 12%,rgba(99,102,241,0.18),transparent 30%),linear-gradient(180deg,#020417 0%,#050b1c 100%);color:#e5e7eb;font-family:var(--prod-font-ui,"Avenir Next","Inter","Segoe UI",system-ui,sans-serif);}
+      .page{max-width:1120px;margin:0 auto;padding:22px 18px 60px;}
+      .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px;}
+      .topbar h1{font-size:1.5rem;margin:0;}
+      .kicker{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:#93a4c3;font-weight:800;}
+      .btn{display:inline-flex;align-items:center;gap:.4rem;border:1px solid rgba(148,163,184,.35);background:rgba(148,163,184,.08);color:#e5e7eb;border-radius:10px;padding:.5rem .8rem;text-decoration:none;font-size:.85rem;cursor:pointer;}
+      .btn:hover{background:rgba(148,163,184,.16);}
+      .btn.danger{border-color:rgba(248,113,113,.4);color:#fecaca;background:rgba(248,113,113,.08);}
+      .btn.danger:hover{background:rgba(248,113,113,.16);}
+      .msg{background:rgba(52,211,153,.10);border:1px solid rgba(52,211,153,.35);border-radius:12px;padding:10px 14px;margin:10px 0;color:#bbf7d0;}
+      .hint{color:#93a4c3;font-size:.85rem;margin:2px 0 18px;}
+      .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;}
+      .card{border:1px solid rgba(148,163,184,.2);border-radius:16px;background:rgba(255,255,255,.02);overflow:hidden;display:flex;flex-direction:column;}
+      .card-thumbs{display:grid;grid-template-columns:repeat(2,1fr);gap:2px;background:#0b1220;}
+      .card-thumbs .th{aspect-ratio:16/9;background-size:cover;background-position:center;background-color:#123021;}
+      .card-thumbs.one{grid-template-columns:1fr;}
+      .card-body{padding:12px 14px;display:flex;flex-direction:column;gap:8px;flex:1;}
+      .card-title{font-weight:800;font-size:1.02rem;line-height:1.2;}
+      .badges{display:flex;gap:6px;flex-wrap:wrap;}
+      .badge{font-size:.72rem;font-weight:700;border-radius:999px;padding:3px 9px;background:rgba(148,163,184,.14);color:#cbd5e1;}
+      .badge.int{background:rgba(234,179,8,.14);color:#fde68a;}
+      .card-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:6px;}
+      .empty{border:1px dashed rgba(148,163,184,.3);border-radius:16px;padding:40px 24px;text-align:center;color:#93a4c3;}
+      form.inline{display:inline;margin:0;}
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <main class="page">
+      <div class="topbar">
+        <div>
+          <div class="kicker">Entrenamiento</div>
+          <h1>📚 Biblioteca de sesiones</h1>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <a class="btn" href="{{ back_url }}">← Sesiones</a>
+        </div>
+      </div>
+      <p class="hint">Plantillas de sesión reutilizables. Guarda cualquier sesión como plantilla desde su ficha (botón «⭐ Guardar como plantilla») y reutilízala en cualquier semana.</p>
+
+      {% if message %}<div class="msg">{{ message }}</div>{% endif %}
+
+      {% if templates %}
+      <div class="grid">
+        {% for t in templates %}
+        <div class="card">
+          {% if t.thumbs %}
+          <div class="card-thumbs {% if t.thumbs|length == 1 %}one{% endif %}">
+            {% for th in t.thumbs %}<span class="th" style="background-image:url('{{ th }}');"></span>{% endfor %}
+          </div>
+          {% endif %}
+          <div class="card-body">
+            <div class="card-title">{{ t.name }}</div>
+            <div class="badges">
+              <span class="badge">{{ t.task_count }} tarea{{ t.task_count|pluralize }}</span>
+              <span class="badge">{{ t.duration }}′</span>
+              <span class="badge int">{{ t.intensity }}</span>
+            </div>
+            <div class="card-actions">
+              <a class="btn" href="{{ t.view_url }}" title="Ver la plantilla">👁️ Ver</a>
+              <form class="inline" method="post" onsubmit="return confirm('¿Crear una copia de esta plantilla?');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="duplicate-template" />
+                <input type="hidden" name="template_id" value="{{ t.id }}" />
+                <button class="btn" type="submit" title="Duplicar la plantilla">⧉ Duplicar</button>
+              </form>
+              <form class="inline" method="post" onsubmit="return confirm('¿Eliminar esta plantilla de la biblioteca? No afecta a las sesiones ya creadas.');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete-template" />
+                <input type="hidden" name="template_id" value="{{ t.id }}" />
+                <button class="btn danger" type="submit" title="Eliminar la plantilla">🗑️ Borrar</button>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty">
+        <div style="font-size:2rem;margin-bottom:8px;">📚</div>
+        <div style="font-weight:800;margin-bottom:4px;">Aún no hay plantillas de sesión</div>
+        <div>Abre una sesión y pulsa <strong>«⭐ Guardar como plantilla»</strong> en su ficha para empezar tu biblioteca.</div>
+      </div>
+      {% endif %}
+    </main>
+  </body>
+</html>

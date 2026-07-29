@@ -56367,6 +56367,86 @@ def sessions_task_edit_page(request, task_id):
 
 
 @login_required
+@ensure_csrf_cookie
+def session_library_page(request):
+    """Biblioteca de sesiones: lista las PLANTILLAS de sesión reutilizables del equipo,
+    con acciones ver / duplicar / borrar. Las plantillas se crean con «Guardar como
+    plantilla» desde la ficha de una sesión."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, "sessions", label="sesiones")
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request) or _team_from_request_param(request)
+    if not primary_team:
+        raise Http404("Equipo no configurado")
+
+    _team_q = f"?team={int(primary_team.id)}"
+
+    if request.method == "POST":
+        action = str(request.POST.get("action") or "").strip()
+        tid = _parse_int(request.POST.get("template_id"))
+        tpl = (
+            TrainingSession.objects.filter(
+                id=tid, is_session_template=True, microcycle__team=primary_team
+            ).first()
+            if tid
+            else None
+        )
+        _msg = ""
+        if action == "delete-template" and tpl is not None:
+            try:
+                tpl.delete()
+                _msg = "Plantilla eliminada de la biblioteca."
+            except Exception:
+                _msg = "No se pudo eliminar la plantilla."
+        elif action == "duplicate-template" and tpl is not None:
+            try:
+                _save_session_as_template(tpl, custom_name=f"{tpl.focus} (copia)")
+                _msg = "Copia de la plantilla creada."
+            except Exception:
+                _msg = "No se pudo duplicar la plantilla."
+        _url = reverse("session-library") + _team_q
+        if _msg:
+            _url += "&msg=" + quote(_msg)
+        return redirect(_url)
+
+    templates = list(
+        TrainingSession.objects.filter(microcycle__team=primary_team, is_session_template=True)
+        .prefetch_related("tasks")
+        .order_by("focus", "-id")
+    )
+    rows = []
+    for _s in templates:
+        _tasks = [t for t in _s.tasks.all() if getattr(t, "deleted_at", None) is None]
+        _thumbs = []
+        for _t in _tasks[:4]:
+            try:
+                _thumbs.append(reverse("session-task-preview-file", args=[int(_t.id)]) + f"?v={int(_t.id)}")
+            except Exception:
+                pass
+        rows.append(
+            {
+                "id": int(_s.id),
+                "name": str(_s.focus or "Sesión"),
+                "task_count": len(_tasks),
+                "duration": int(_s.duration_minutes or 0),
+                "intensity": _s.get_intensity_display(),
+                "thumbs": _thumbs,
+                "view_url": reverse("training-session-detail", args=[int(_s.id)]) + _team_q,
+            }
+        )
+    context = {
+        "team": primary_team,
+        "templates": rows,
+        "message": str(request.GET.get("msg") or "").strip()[:200],
+        "back_url": reverse("sessions") + _team_q,
+    }
+    return render(request, "football/session_library.html", context)
+
+
+@login_required
 def sessions_task_library_page(request):
     return session_task_resource_library_page(request, scope_key="coach", scope_title="Sesiones · Entrenador")
 
