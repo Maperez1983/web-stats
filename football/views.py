@@ -75534,42 +75534,256 @@ def _auto_match_rating_from_stats(stats, position=None):
     return round(max(4.0, min(10.0, rating)), 1)
 
 
+def _match_result_for_team(match, primary_team):
+    """(goles_favor, goles_contra) del partido desde la óptica del equipo principal; (None,None) si no hay marcador."""
+    hs, aw = getattr(match, "home_score", None), getattr(match, "away_score", None)
+    if hs is None or aw is None:
+        return (None, None)
+    if getattr(match, "home_team_id", None) == getattr(primary_team, "id", None):
+        return (hs, aw)
+    return (aw, hs)
+
+
+def _manual_stats_for_player_match(player, match):
+    """{'goals','assists','minutes'} manuales de un jugador en un partido (None si no hay dato)."""
+    out = {"goals": None, "assists": None, "minutes": None}
+    try:
+        rows = PlayerStatistic.objects.filter(
+            player=player, match=match,
+            name__in=["manual_goals", "manual_assists", "manual_minutes"],
+        ).values("name", "value")
+        for r in rows:
+            v = int(r["value"] or 0)
+            if r["name"] == "manual_goals":
+                out["goals"] = v
+            elif r["name"] == "manual_assists":
+                out["assists"] = v
+            elif r["name"] == "manual_minutes":
+                out["minutes"] = v
+    except Exception:
+        pass
+    return out
+
+
+def _result_based_match_rating(primary_team, player, match, source):
+    """Rating de respaldo cuando NO hay acciones en vivo: se apoya en el resultado del equipo
+    (ganar/empatar/perder) + los datos individuales manuales que haya (goles/asist/minutos) +
+    portería a cero / goles encajados. Confianza baja/media. None si consta que no jugó."""
+    gf, ga = _match_result_for_team(match, primary_team)
+    if gf is None:
+        base = 6.0
+    elif gf > ga:
+        base = 6.7
+    elif gf == ga:
+        base = 6.1
+    else:
+        base = 5.5
+    man = _manual_stats_for_player_match(player, match)
+    if man["minutes"] is not None and man["minutes"] <= 0:
+        return None  # consta que no jugó
+    s = base
+    if man["goals"]:
+        s += 0.8 * man["goals"]
+    if man["assists"]:
+        s += 0.5 * man["assists"]
+    line = _fm_position_group(getattr(player, "position", ""))
+    if ga is not None:
+        if ga == 0 and line in ("gk", "central", "lateral"):
+            s += 0.4
+        if line == "gk":
+            s -= 0.12 * ga
+    rating = round(max(4.0, min(10.0, s)), 1)
+    has_individual = any(man[k] is not None for k in ("goals", "assists", "minutes"))
+    if source == Match.STATS_SOURCE_MANUAL or has_individual:
+        method, method_label, confidence = "manual", "manual", "media"
+    else:
+        method, method_label, confidence = "result", "solo resultado", "baja"
+    return {
+        "rating": rating, "method": method, "method_label": method_label, "confidence": confidence,
+        "goals": int(man["goals"] or 0), "assists": int(man["assists"] or 0),
+        "tone": "good" if rating >= 7 else ("mid" if rating >= 6 else "low"),
+    }
+
+
+def _compute_match_rating(primary_team, player, match):
+    """Rating de una actuación según la fuente del partido: acciones en vivo, edición manual, o
+    solo resultado. Devuelve dict (rating/method/confidence/...) o None si el jugador no participó."""
+    if not primary_team or not player or not match:
+        return None
+    source = str(getattr(match, "stats_source", "") or "")
+    if source == Match.STATS_SOURCE_LIVE:
+        try:
+            payload = _build_player_match_stats_payload(primary_team, player, match)
+        except Exception:
+            payload = None
+        rating = _auto_match_rating_from_stats(payload, getattr(player, "position", ""))
+        if rating is None:
+            return None
+        return {
+            "rating": rating, "method": "live", "method_label": "en vivo", "confidence": "alta",
+            "goals": int((payload or {}).get("goals", 0) or 0),
+            "assists": int((payload or {}).get("assists", 0) or 0),
+            "tone": "good" if rating >= 7 else ("mid" if rating >= 6 else "low"),
+        }
+    return _result_based_match_rating(primary_team, player, match, source)
+
+
+def _match_participants(primary_team, match):
+    """Jugadores que participaron: con eventos (live) o con minutos manuales; si no hay ninguno, los convocados."""
+    convocados = []
+    try:
+        rec = _get_convocation_record_for_match(primary_team, match)
+        if rec is not None:
+            convocados = list(rec.players.filter(is_active=True))
+    except Exception:
+        convocados = []
+    source = str(getattr(match, "stats_source", "") or "")
+    if source == Match.STATS_SOURCE_LIVE:
+        try:
+            pids = set(
+                confirmed_events_queryset().filter(match=match, player__isnull=False)
+                .values_list("player_id", flat=True)
+            )
+        except Exception:
+            pids = set()
+        extra = list(Player.objects.filter(id__in=pids)) if pids else []
+        seen, out = set(), []
+        for p in list(convocados) + extra:
+            if int(p.id) not in seen:
+                seen.add(int(p.id))
+                out.append(p)
+        return out or convocados
+    try:
+        mm = {
+            int(r["player_id"]): int(r["value"] or 0)
+            for r in PlayerStatistic.objects.filter(match=match, name="manual_minutes").values("player_id", "value")
+        }
+    except Exception:
+        mm = {}
+    played = {pid for pid, v in mm.items() if v > 0}
+    if played:
+        pool = {int(p.id): p for p in convocados}
+        for p in Player.objects.filter(id__in=played):
+            pool.setdefault(int(p.id), p)
+        return [pool[pid] for pid in played if pid in pool]
+    return convocados
+
+
+def _build_match_ratings(primary_team, match):
+    """Notas de todos los participantes del partido, ordenadas desc, con el MVP marcado."""
+    if not primary_team or not match:
+        return []
+    rows = []
+    for p in _match_participants(primary_team, match):
+        info = _compute_match_rating(primary_team, p, match)
+        if not info:
+            continue
+        rows.append({
+            "player": p, "player_id": int(p.id),
+            "name": (getattr(p, "full_name", "") or getattr(p, "name", "") or "Jugador"),
+            "number": getattr(p, "number", None), "position": getattr(p, "position", ""),
+            "mvp": False, **info,
+        })
+    rows.sort(key=lambda r: -r["rating"])
+    if rows:
+        rows[0]["mvp"] = True
+    return rows
+
+
+def _persist_match_ratings(primary_team, match, request=None, notify=True):
+    """Congela las notas del partido como PlayerStatistic name='rating' (histórico/informes/MVP) y,
+    opcionalmente, avisa a cada jugador con cuenta. Idempotente y best-effort."""
+    try:
+        season = getattr(match, "season", None)
+        if not season or not primary_team or not match:
+            return 0
+        ratings = _build_match_ratings(primary_team, match)
+        if not ratings:
+            return 0
+        for r in ratings:
+            try:
+                PlayerStatistic.objects.update_or_create(
+                    player=r["player"], season=season, match=match,
+                    name="rating", context="auto-rating",
+                    defaults={"value": float(r["rating"]), "source": None},
+                )
+            except Exception:
+                continue
+        if notify:
+            try:
+                workspace = _get_active_workspace(request) if request is not None else getattr(match, "workspace", None)
+                actor = getattr(request, "user", None) if request is not None else None
+                actor = actor if getattr(actor, "is_authenticated", False) else None
+                opp = match.away_team if match.home_team_id == getattr(primary_team, "id", None) else match.home_team
+                opp_name = (getattr(opp, "display_name", None) or getattr(opp, "name", "") or "rival") if opp else "rival"
+                link = ""
+                try:
+                    link = reverse("player-match-stats", args=[0, int(match.id)])  # placeholder, se ajusta por jugador
+                except Exception:
+                    link = ""
+                for r in ratings:
+                    uid = getattr(r["player"], "user_id", None)
+                    if not uid:
+                        continue
+                    try:
+                        plink = reverse("player-match-stats", args=[int(r["player_id"]), int(match.id)])
+                    except Exception:
+                        plink = link
+                    try:
+                        PlayerNotification.objects.update_or_create(
+                            target_user_id=uid, match=match, kind=PlayerNotification.KIND_GENERAL,
+                            defaults={
+                                "workspace": workspace, "team": primary_team, "created_by_user": actor,
+                                "title": ("⭐ MVP · " if r["mvp"] else "") + "Tu nota del partido",
+                                "message": f"Nota vs {opp_name}: {r['rating']:.1f}" + (" · MVP del partido" if r["mvp"] else ""),
+                                "link_url": plink,
+                                "payload": {"match_id": int(match.id), "rating": r["rating"], "mvp": bool(r["mvp"]), "tag": "match_rating"},
+                            },
+                        )
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+        return len(ratings)
+    except Exception:
+        return 0
+
+
 def _build_player_match_ratings(primary_team, player, limit=6):
-    """Ratings FM automáticos de los últimos partidos con registro en vivo + Forma (media últimos 5).
-    Devuelve {'matches': [...], 'form': float|None, 'best': int|None}. Vacío si no hay acciones."""
+    """Ratings FM de los últimos partidos del jugador (live/manual/solo-resultado) + Forma (media últimos 5)."""
     empty = {"matches": [], "form": None, "best": None}
     if not primary_team or not player:
         return empty
+    match_ids = set()
     try:
-        match_ids = list(
-            confirmed_events_queryset()
-            .filter(player=player, match__isnull=False)
+        match_ids |= set(
+            confirmed_events_queryset().filter(player=player, match__isnull=False)
             .values_list("match_id", flat=True)
-            .distinct()
         )
     except Exception:
-        match_ids = []
+        pass
+    try:
+        match_ids |= set(
+            PlayerStatistic.objects.filter(player=player, match__isnull=False, name="manual_minutes")
+            .values_list("match_id", flat=True)
+        )
+    except Exception:
+        pass
     if not match_ids:
         return empty
     matches = list(Match.objects.filter(id__in=match_ids).order_by("-date", "-id")[: max(1, int(limit))])
     rows = []
     for m in matches:
-        try:
-            payload = _build_player_match_stats_payload(primary_team, player, m)
-        except Exception:
+        info = _compute_match_rating(primary_team, player, m)
+        if not info:
             continue
-        rating = _auto_match_rating_from_stats(payload, getattr(player, "position", ""))
-        if rating is None:
-            continue
-        opp = m.away_team if m.home_team == primary_team else m.home_team
+        opp = m.away_team if m.home_team_id == getattr(primary_team, "id", None) else m.home_team
         rows.append({
-            "match_id": m.id,
-            "date": getattr(m, "date", None),
+            "match_id": m.id, "date": getattr(m, "date", None),
             "opponent": ((getattr(opp, "display_name", None) or getattr(opp, "name", "")) if opp else "") or "Rival",
-            "rating": rating,
-            "goals": int(payload.get("goals", 0) or 0),
-            "assists": int(payload.get("assists", 0) or 0),
-            "tone": "good" if rating >= 7 else ("mid" if rating >= 6 else "low"),
+            "rating": info["rating"], "goals": info.get("goals", 0), "assists": info.get("assists", 0),
+            "method_label": info.get("method_label", ""), "confidence": info.get("confidence", ""),
+            "tone": info.get("tone", "mid"),
         })
     rows.reverse()
     last5 = [r["rating"] for r in rows[-5:]]
@@ -80137,6 +80351,11 @@ def match_editor_page(request, match_id):
                         match, primary_team, roster_players, actor=request.user
                     )
                 _invalidate_team_dashboard_caches(primary_team)
+                # Congelar las notas automáticas del partido (histórico/MVP) + avisar a los jugadores.
+                try:
+                    _persist_match_ratings(primary_team, match, request=request)
+                except Exception:
+                    pass
                 try:
                     _msg = "Partido cerrado."
                     if attendance_marked:
@@ -80618,6 +80837,10 @@ def match_editor_page(request, match_id):
                 pass
     except Exception:
         opponent_options = []
+    try:
+        match_ratings = _build_match_ratings(primary_team, match)
+    except Exception:
+        match_ratings = []
     return render(
         request,
         "football/match_editor.html",
@@ -80625,6 +80848,7 @@ def match_editor_page(request, match_id):
             "team_name": primary_team.display_name,
             "primary_team_id": int(primary_team.id),
             "match": match,
+            "match_ratings": match_ratings,
             "opponent_name": opponent_name,
             "opponent_team_id": opponent_team_id_selected,
             "opponent_options": opponent_options,

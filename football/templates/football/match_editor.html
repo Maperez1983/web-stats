@@ -144,6 +144,33 @@
           </div>
         </form>
       </section>
+
+      {% if match_ratings %}
+      <section class="card" style="margin-top:1rem;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.5rem;margin-bottom:.7rem;">
+          <h2 style="margin:0;font-size:1.1rem;">Notas del partido <span style="font-size:.62rem;color:#94a3b8;font-weight:800;text-transform:uppercase;letter-spacing:.08em;">auto · estilo FM</span></h2>
+          <span style="font-size:.72rem;color:#94a3b8;">Se congelan al cerrar el partido</span>
+        </div>
+        <div style="overflow:auto;">
+          <table>
+            <thead><tr><th style="min-width:200px;">Jugador</th><th>Pos</th><th>G</th><th>A</th><th>Nota</th></tr></thead>
+            <tbody>
+              {% for r in match_ratings %}
+              <tr {% if r.mvp %}style="background:rgba(244,180,0,0.08);"{% endif %}>
+                <td><a href="{% url 'player-match-stats' r.player_id match.id %}" style="color:inherit;text-decoration:none;font-weight:800;">{% if r.mvp %}⭐ {% endif %}#{{ r.number|default:'--' }} · {{ r.name }}</a>{% if r.mvp %} <span style="font-size:.6rem;font-weight:900;color:#0b0f17;background:#f4b400;border-radius:5px;padding:1px 6px;text-transform:uppercase;">MVP</span>{% endif %}</td>
+                <td><small>{% if r.position %}{{ r.position|display_position }}{% endif %}</small></td>
+                <td>{% if r.goals %}{{ r.goals }}{% else %}—{% endif %}</td>
+                <td>{% if r.assists %}{{ r.assists }}{% else %}—{% endif %}</td>
+                <td><strong style="font-size:1.05rem;color:{% if r.tone == 'good' %}#22c55e{% elif r.tone == 'mid' %}#e2a53a{% else %}#ef4444{% endif %};">{{ r.rating|floatformat:1 }}</strong> <small style="color:#94a3b8;">{{ r.method_label }}</small></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <p style="margin:.6rem 0 0;color:#94a3b8;font-size:.75rem;">Automáticas desde el registro del partido (acciones en vivo, o resultado + participación si no hubo registro en vivo). El MVP es la nota más alta. Se guardan al pulsar «Guardar cierre».</p>
+      </section>
+      {% endif %}
+
       <script>
         (function(){
           var form = document.getElementById('close-match-form');
