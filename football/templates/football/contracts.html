@@ -1,0 +1,80 @@
+{% load static football_extras %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Contratos y renovaciones · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      .ct-wrap{max-width:1040px;margin:0 auto;padding:1rem;color:#eef2f8;}
+      .ct-h1{margin:0;color:#f8fafc;font-size:1.5rem;font-weight:900;}
+      .ct-sub{color:#6d8098;font-weight:700;font-size:.78rem;margin:.15rem 0 1rem;}
+      .ct-chips{display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1.2rem;}
+      .ct-chip{border:1px solid #1f2b39;background:#111725;border-radius:11px;padding:.5rem .85rem;font-weight:800;font-size:.82rem;}
+      .ct-chip .n{font-size:1.15rem;font-weight:900;}
+      .ct-chip.red .n{color:#e2564a;} .ct-chip.amber .n{color:#e2a53a;} .ct-chip.grey .n{color:#9fb0c6;}
+      .ct-tablewrap{overflow-x:auto;border:1px solid #1e2838;border-radius:14px;background:#111725;}
+      table.ct{width:100%;border-collapse:collapse;font-size:.82rem;color:#eef2f8;}
+      table.ct th,table.ct td{padding:.55rem .7rem;border-top:1px solid #1e2838;white-space:nowrap;text-align:left;}
+      table.ct thead th{border-top:none;font-size:.62rem;text-transform:uppercase;letter-spacing:.06em;color:#6d8098;}
+      table.ct .num{text-align:right;font-variant-numeric:tabular-nums;}
+      table.ct tbody tr.urgent{background:rgba(226,86,74,.08);}
+      table.ct tbody tr:hover{background:rgba(148,163,184,.05);}
+      .ct-name{color:#eef2f8;text-decoration:none;font-weight:700;}
+      .ct-name:hover{text-decoration:underline;}
+      .ct-dot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:middle;}
+      .ct-tag{font-size:.6rem;font-weight:900;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:6px;}
+      .ct-tag.red{color:#e2564a;background:#26141a;} .ct-tag.amber{color:#e2a53a;background:#241d10;} .ct-tag.green{color:#3fbf6a;background:#12241a;} .ct-tag.grey{color:#9fb0c6;background:#141c28;}
+      .ct-renew{font-size:.58rem;font-weight:900;color:#0b0f17;background:#e2564a;border-radius:5px;padding:1px 6px;margin-left:5px;text-transform:uppercase;}
+      .ct-links{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1.2rem;}
+      .ct-links a{font-size:.75rem;font-weight:800;color:#8fb4ff;text-decoration:none;border:1px solid #25406e;border-radius:8px;padding:.35rem .6rem;background:#141f33;}
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <div class="app-shell">
+      {% include 'football/includes/dragon_nav.html' %}
+      <main class="ct-wrap">
+        <h1 class="ct-h1">Contratos y renovaciones</h1>
+        <p class="ct-sub">{{ primary_team.display_name|default:primary_team.name }} · plantilla por vencimiento de contrato</p>
+
+        <div class="ct-chips">
+          <div class="ct-chip red"><span class="n">{{ counts.urgent }}</span> renovar ya (clave/titular)</div>
+          <div class="ct-chip amber"><span class="n">{{ counts.soon }}</span> vencen pronto</div>
+          <div class="ct-chip red"><span class="n">{{ counts.expired }}</span> vencidos</div>
+          <div class="ct-chip grey"><span class="n">{{ counts.none }}</span> sin contrato</div>
+        </div>
+
+        <div class="ct-tablewrap">
+          <table class="ct">
+            <thead>
+              <tr><th>Jugador</th><th>Rol</th><th>Ficha</th><th>Inicio</th><th>Fin</th><th class="num">Días</th><th>Cláusula</th><th>Estado</th></tr>
+            </thead>
+            <tbody>
+              {% for r in rows %}
+              <tr class="{% if r.urgent %}urgent{% endif %}">
+                <td><a class="ct-name" href="{% url 'player-detail' r.id %}?tab=personal">{% if r.number %}#{{ r.number }} {% endif %}{{ r.name }}</a>{% if r.urgent %}<span class="ct-renew">Renovar ya</span>{% endif %}</td>
+                <td><span class="ct-dot" style="background:{{ r.role_color }};"></span>{{ r.role_label }}</td>
+                <td>{% if r.ficha %}<span style="color:#3fbf6a;">✓</span>{% else %}<span style="color:#6d8098;">◌</span>{% endif %}</td>
+                <td>{% if r.contract_start %}{{ r.contract_start|date:'d/m/Y' }}{% else %}—{% endif %}</td>
+                <td>{% if r.contract_end %}{{ r.contract_end|date:'d/m/Y' }}{% else %}—{% endif %}</td>
+                <td class="num">{% if r.days != None %}{{ r.days }}{% else %}—{% endif %}</td>
+                <td>{{ r.clause|default:'—' }}</td>
+                <td><span class="ct-tag {{ r.tone }}">{{ r.status_label }}</span></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <p style="font-size:.72rem;color:#6d8098;margin-top:.8rem;">Ordenado por vencimiento (lo que antes vence, arriba). "Renovar ya" = jugador clave o titular con contrato vencido o a punto de vencer. Edita cada contrato en la ficha del jugador → Datos personales.</p>
+
+        <div class="ct-links">
+          <a href="{% url 'squad-planner' %}">← Planificador</a>
+          <a href="{% url 'coach-inbox' %}">Bandeja</a>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

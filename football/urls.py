@@ -591,6 +591,7 @@ urlpatterns = [
     path("coach/comparar/", views.player_compare_page, name="player-compare"),
     path("coach/bandeja/", views.coach_inbox_page, name="coach-inbox"),
     path("coach/desarrollo/", views.development_page, name="development"),
+    path("coach/contratos/", views.contracts_page, name="contracts"),
     path("coach/partido/informe/", views.next_match_report_page, name="coach-next-match-report"),
     path("coach/plantilla/pizarra/guardar/", views.coach_pitch_board_save, name="coach-pitch-board-save"),
     path("coach/traspaso/buscar-destino/", views.coach_transfer_team_search, name="coach-transfer-team-search"),

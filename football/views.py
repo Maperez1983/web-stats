@@ -42534,6 +42534,60 @@ def player_compare_page(request):
 
 
 @login_required
+def contracts_page(request):
+    """Panel de contratos y renovaciones (estilo FM): toda la plantilla por vencimiento de contrato,
+    con rol, cláusula y prioridad de renovación (clave/titular que vencen = urgente). Reutiliza el
+    planificador (rol/ficha/vencimiento) + cláusula."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404("Equipo principal no configurado")
+    planner = _build_squad_planner(request, primary_team) or {}
+    all_players = planner.get("all_players") or []
+    pids = [p["id"] for p in all_players]
+    extra = {}
+    try:
+        for r in Player.objects.filter(id__in=pids).values("id", "release_clause", "contract_start", "contract_notes"):
+            extra[int(r["id"])] = r
+    except Exception:
+        extra = {}
+    rows = []
+    for p in all_players:
+        ex = extra.get(int(p["id"]), {})
+        ce = p.get("contract_end")
+        days = p.get("days")
+        if ce is None:
+            status, status_label, tone, sortk = "none", "Sin contrato", "grey", 10 ** 9
+        elif days is not None and days < 0:
+            status, status_label, tone, sortk = "expired", "Vencido", "red", days
+        elif days is not None and days <= 150:
+            status, status_label, tone, sortk = "soon", "Vence pronto", "amber", days
+        else:
+            status, status_label, tone, sortk = "ok", "Vigente", "green", (days if days is not None else 10 ** 8)
+        urgent = status in ("expired", "soon") and p.get("role") in ("clave", "titular")
+        rows.append({
+            **p,
+            "clause": (ex.get("release_clause") or ""),
+            "contract_start": ex.get("contract_start"),
+            "notes": (ex.get("contract_notes") or ""),
+            "status": status, "status_label": status_label, "tone": tone,
+            "urgent": urgent, "sortk": sortk,
+        })
+    rows.sort(key=lambda r: r["sortk"])
+    counts = {
+        "soon": sum(1 for r in rows if r["status"] == "soon"),
+        "expired": sum(1 for r in rows if r["status"] == "expired"),
+        "none": sum(1 for r in rows if r["status"] == "none"),
+        "urgent": sum(1 for r in rows if r["urgent"]),
+    }
+    return render(request, "football/contracts.html", {
+        "primary_team": primary_team, "rows": rows, "counts": counts, "n_total": len(rows),
+    })
+
+
+@login_required
 def coach_load_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
     if forbidden:
