@@ -79,8 +79,9 @@
     background:radial-gradient(closest-side,var(--surface) 71%,transparent 72% 100%),
       conic-gradient(var(--accent) calc(var(--p,0)*1%),var(--line-soft) 0);
     display:grid;place-items:center}
-  .sqr .ring b{font-size:23px;font-weight:800;line-height:1}
-  .sqr .ring span{font-size:10px;color:var(--ink-faint)}
+  .sqr .ring>div{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;text-align:center}
+  .sqr .ring b{font-size:22px;font-weight:800;line-height:1}
+  .sqr .ring span{font-size:9.5px;color:var(--ink-faint);margin-top:2px}
   .sqr .gauge-cap{font-size:11px;color:var(--ink-faint);margin-top:7px;text-transform:uppercase;letter-spacing:.06em}
   .sqr .verdict-txt h2{margin:0 0 6px;font-size:19px;font-weight:800;letter-spacing:-.01em;text-wrap:balance}
   .sqr .verdict-txt p{margin:0;color:var(--ink-soft);font-size:14.5px;max-width:62ch}
