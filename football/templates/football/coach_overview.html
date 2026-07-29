@@ -743,9 +743,9 @@
         {% include 'football/_coach_pitch_board.html' %}
 
         {% if coach_alerts %}
-        <section class="card home-compact" aria-label="Alertas del cuerpo técnico" style="margin-top:1rem;padding:0.7rem 0.85rem;">
+        <section class="card home-compact" aria-label="Requiere tu atención" style="margin-top:1rem;padding:0.7rem 0.85rem;border-left:4px solid #e8b84b;">
           <div class="hc-head">
-            <h2>🔔 Alertas del cuerpo técnico</h2>
+            <h2>🔔 Requiere tu atención</h2>
             <span class="hc-count">{{ coach_alerts|length }}</span>
           </div>
           <div class="hc-alerts">
