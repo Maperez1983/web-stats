@@ -19756,26 +19756,56 @@ def _share_link_lookup(token: str, kind: str):
     )
 
 
+def _share_link_session_key(link):
+    return f"sharegate_ok:{int(getattr(link, 'id', 0) or 0)}"
+
+
+def _share_link_content_forbidden(request, link):
+    """Para endpoints de CONTENIDO (stream/pdf/export): si el enlace tiene contraseña y esta sesión
+    no la ha validado en la página, deniega. Antes estos endpoints solo miraban can_be_used, así que
+    con el token se saltaba la contraseña pidiendo el vídeo/PDF directo. Devuelve una respuesta 403 o
+    None si está permitido."""
+    if (getattr(link, "password_hash", "") or "").strip():
+        try:
+            ok = bool(request.session.get(_share_link_session_key(link)))
+        except Exception:
+            ok = False
+        if not ok:
+            return HttpResponse("Este contenido está protegido con contraseña.", status=403)
+    return None
+
+
 def _share_link_gate(request, link):
     now = timezone.now()
     if not link or not link.can_be_used(now=now):
         raise Http404("Enlace no disponible")
     if (link.password_hash or "").strip():
-        if request.method != "POST":
-            return render(
-                request,
-                "football/share_link_gate.html",
-                {"error": "", "expires_at": link.expires_at},
-                status=200,
-            )
-        supplied = (request.POST.get("password") or "").strip()
-        if not supplied or not check_password(supplied, link.password_hash):
-            return render(
-                request,
-                "football/share_link_gate.html",
-                {"error": "Contraseña incorrecta.", "expires_at": link.expires_at},
-                status=403,
-            )
+        # ¿Ya validada en esta sesión? Entonces no volvemos a pedirla (y el contenido queda abierto).
+        try:
+            already_ok = bool(request.session.get(_share_link_session_key(link)))
+        except Exception:
+            already_ok = False
+        if not already_ok:
+            if request.method != "POST":
+                return render(
+                    request,
+                    "football/share_link_gate.html",
+                    {"error": "", "expires_at": link.expires_at},
+                    status=200,
+                )
+            supplied = (request.POST.get("password") or "").strip()
+            if not supplied or not check_password(supplied, link.password_hash):
+                return render(
+                    request,
+                    "football/share_link_gate.html",
+                    {"error": "Contraseña incorrecta.", "expires_at": link.expires_at},
+                    status=403,
+                )
+            # Correcta: recordar en sesión para desbloquear también stream/pdf/export en esta sesión.
+            try:
+                request.session[_share_link_session_key(link)] = True
+            except Exception:
+                pass
     return None
 
 
@@ -19866,6 +19896,9 @@ def share_video_clip_stream(request, token):
     now = timezone.now()
     if not link or not link.can_be_used(now=now):
         raise Http404("Enlace no disponible")
+    forbidden = _share_link_content_forbidden(request, link)
+    if forbidden:
+        return forbidden
     payload = link.payload if isinstance(link.payload, dict) else {}
     clip_id = _parse_int(payload.get("clip_id"))
     if not clip_id:
@@ -20109,6 +20142,9 @@ def share_video_playlist_stream(request, token):
     now = timezone.now()
     if not link or not link.can_be_used(now=now):
         raise Http404("Enlace no disponible")
+    forbidden = _share_link_content_forbidden(request, link)
+    if forbidden:
+        return forbidden
     payload = link.payload if isinstance(link.payload, dict) else {}
     video_id = _parse_int(payload.get("video_id"))
     if not video_id:
@@ -20226,6 +20262,9 @@ def share_video_report_pdf(request, token):
     now = timezone.now()
     if not link or not link.can_be_used(now=now):
         raise Http404("Enlace no disponible")
+    forbidden = _share_link_content_forbidden(request, link)
+    if forbidden:
+        return forbidden
     payload = link.payload if isinstance(link.payload, dict) else {}
     video_id = _parse_int(payload.get("video_id"))
     if not video_id:
@@ -20335,6 +20374,9 @@ def share_video_export_stream(request, token):
     now = timezone.now()
     if not link or not link.can_be_used(now=now):
         raise Http404("Enlace no disponible")
+    forbidden = _share_link_content_forbidden(request, link)
+    if forbidden:
+        return forbidden
     payload = link.payload if isinstance(link.payload, dict) else {}
     export_id = _parse_int(payload.get("export_id"))
     if not export_id:
