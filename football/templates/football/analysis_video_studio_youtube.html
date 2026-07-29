@@ -114,7 +114,7 @@
       .template-presets { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0.4rem; margin-top:0.45rem; }
       .bulk-bar { display:none; gap:0.4rem; align-items:center; flex-wrap:wrap; margin:0.55rem 0; padding:0.55rem; border-radius:14px; border:1px solid rgba(250,204,21,0.24); background:rgba(250,204,21,0.08); }
       .bulk-bar.is-visible { display:flex; }
-      .toast { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); max-width:min(560px, calc(100vw - 28px)); border-radius:14px; border:1px solid rgba(148,163,184,0.24); background:rgba(2,6,23,0.94); color:#f8fafc; padding:0.75rem 0.9rem; font-weight:900; box-shadow:0 24px 60px rgba(0,0,0,0.36); opacity:0; pointer-events:none; transition:opacity 160ms ease; z-index:20; }
+      .toast { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); max-width:min(560px, calc(100vw - 28px)); border-radius:14px; border:1px solid rgba(148,163,184,0.24); background:rgba(2,6,23,0.94); color:var(--prod-text); padding:0.75rem 0.9rem; font-weight:900; box-shadow:0 24px 60px rgba(0,0,0,0.36); opacity:0; pointer-events:none; transition:opacity 160ms ease; z-index:20; }
       .toast.is-visible { opacity:1; pointer-events:auto; }
       @media (max-width: 520px) { .template-presets { grid-template-columns:1fr; } }
     </style>

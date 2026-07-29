@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
     <style>
-      body { margin: 0; background: linear-gradient(180deg, #020417 0%, #050b1c 100%); color: #f8fafc; font-family: 'Inter', system-ui, sans-serif; }
+      body { margin: 0; background: linear-gradient(180deg, #020417 0%, #050b1c 100%); color: var(--prod-text); font-family: 'Inter', system-ui, sans-serif; }
       .page { width: min(100%, 1280px); margin: 0 auto; padding: clamp(0.8rem, 1.2vw, 1.1rem) clamp(0.75rem, 1.2vw, 1rem) 2.5rem; }
       .head { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:0.8rem; align-items:end; }
       .head-main { min-width:0; display:grid; gap:0.18rem; }
