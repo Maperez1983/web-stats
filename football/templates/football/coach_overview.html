@@ -650,67 +650,59 @@
             </div>
           </section>
 
-	        <section class="primary-grid">
-	          <a class="card-link" href="{% url 'coach-roster' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}" aria-label="Abrir plantilla">
-	          <div class="card team-hero-card">
-	            <div class="team-hero-media">
-	              <div class="team-hero-copy">
-                <div class="hero-kicker">
-                  <span>{{ competition_label|default:"Competición por definir" }}</span>
-                  {# "Puesto" solo si hay clasificación real (en pretemporada no mostramos "Puesto -"). #}
-                  {% if highlighted_standing %}<span>Puesto {{ highlighted_standing.rank|default:"-" }}</span>{% endif %}
-                </div>
-                <strong>{{ team_display_name }}</strong>
-                {# El subtítulo con competition_label era redundante (ya está en el chip del kicker). #}
+        {# INICIO estilo mockup: estado del equipo + proximo rival + clasificacion #}
+        {% if federative_report or highlighted_standing %}
+        <section class="hm-status" aria-label="Estado del equipo">
+          {% if federative_report %}
+          <div class="hm-stat ok"><div class="n">{{ federative_report.fichados }}<span class="d">/{{ federative_report.cap }}</span></div><div class="k">Fichados</div></div>
+          <div class="hm-stat"><div class="n">{{ federative_report.fichas_disponibles }}</div><div class="k">Fichas libres</div></div>
+          <div class="hm-stat red"><div class="n">{{ federative_report.lesionados }}</div><div class="k">Lesionados</div></div>
+          {% endif %}
+          {% if highlighted_standing %}
+          <div class="hm-stat gold"><div class="n">{{ highlighted_standing.rank|default:"-" }}<span class="d">º</span></div><div class="k">Clasificación</div></div>
+          <div class="hm-stat"><div class="n">{{ highlighted_standing.points|default:"-" }}</div><div class="k">Puntos</div></div>
+          {% endif %}
+        </section>
+        {% endif %}
+
+        <section class="hm-duo">
+          <div class="card compact hm-card">
+            <h3>Próximo rival</h3>
+            <div class="hm-rival">
+              {% if next_match.opponent.crest_url %}<img class="hm-rcrest" src="{{ next_match.opponent.crest_url }}" alt="" />{% else %}<span class="hm-rcrest ph"></span>{% endif %}
+              <div style="flex:1;min-width:0;">
+                <div class="hm-rname">vs {{ next_match_opponent|default:"Rival por confirmar" }}</div>
+                <div class="hm-rmeta">{{ next_match.round|default:"Jornada por confirmar" }}{% if next_match_date %} · {{ next_match_date }}{% endif %}{% if next_match.time %} · {{ next_match.time }}{% endif %}</div>
+                <div class="hm-rmeta2">{% if next_match.location %}{{ next_match.location }}{% endif %}{% if opponent_standing %} · Rival {{ opponent_standing.rank|default:"-" }}º · {{ opponent_standing.points|default:"-" }} pts{% endif %}</div>
               </div>
+            </div>
+            <div class="hm-links">
+              <a href="{% url 'coach-rival' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}">📋 Briefing del rival →</a>
+              <a href="{% url 'convocation' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}">Convocatoria →</a>
             </div>
           </div>
-	          </a>
 
-          <div class="stack">
-            <a class="card-link" href="{% url 'coach-rivals' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}" aria-label="Abrir rivales y clasificación">
-            <div class="card compact">
-              <h3>Estado competitivo</h3>
-              <div class="standing-highlight">
-                <div class="mini">
-                  <span>Posición</span>
-                  <strong>{{ highlighted_standing.rank|default:"-" }}</strong>
-                </div>
-                <div class="mini">
-                  <span>Puntos</span>
-                  <strong>{{ highlighted_standing.points|default:"-" }}</strong>
-                </div>
-                <div class="mini">
-                  <span>Partidos</span>
-                  <strong>{{ highlighted_standing.played|default:"-" }}</strong>
-                </div>
-              </div>
-            </div>
-            </a>
-
-            <a class="card-link" href="{% url 'coach-rival' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}" aria-label="Abrir próximo rival">
-            <div class="card compact">
-              <h3>Próximo rival</h3>
-              <ul class="detail-list">
-                <li>
-                  <span>Equipo</span>
-                  <strong>{{ next_match_opponent|default:"Rival por confirmar" }}</strong>
-                </li>
-                <li>
-                  <span>Fecha del partido</span>
-                  <strong>{{ next_match.round|default:"Jornada por confirmar" }} · {{ next_match_date|default:"--" }}{% if next_match.time %} · {{ next_match.time }}{% endif %}</strong>
-                </li>
-                <li>
-                  <span>Campo de juego</span>
-                  <strong>{{ next_match.location|default:"Campo por confirmar" }}</strong>
-                </li>
-                <li>
-                  <span>Posición</span>
-                  <strong>{% if opponent_standing %}{{ opponent_standing.rank|default:"-" }}{% else %}-{% endif %}</strong>
-                </li>
-              </ul>
-            </div>
-            </a>
+          <div class="card compact hm-card">
+            <h3>Clasificación</h3>
+            {% if standings_window %}
+            <table class="hm-mini">
+              <thead><tr><th>#</th><th>Equipo</th><th class="r">PJ</th><th class="r">Pts</th></tr></thead>
+              <tbody>
+                {% for row in standings_window %}
+                <tr class="{% if row.is_team %}me{% endif %}">
+                  <td>{{ row.rank|default:"-" }}</td>
+                  <td class="nm">{{ row.team|default:"-" }}</td>
+                  <td class="r">{{ row.played|default:"-" }}</td>
+                  <td class="r">{{ row.points|default:"-" }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            <div class="hm-links"><a href="{% url 'coach-rivals' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}">Ver clasificación completa →</a></div>
+            {% else %}
+            <p class="muted" style="margin:0;">Aún no hay clasificación. Se muestra al vincular tu competición.</p>
+            <a class="empty-cta" href="{% url 'club-onboarding' %}">Configurar competición →</a>
+            {% endif %}
           </div>
         </section>
 
@@ -807,7 +799,35 @@
           .ask-compact .ask-body{padding:0 .85rem .85rem;}
           .ask-chip{border:1px solid rgba(148,163,184,0.35);background:rgba(148,163,184,0.10);color:inherit;border-radius:999px;padding:0.3rem 0.7rem;font-size:0.78rem;cursor:pointer;}.ask-chip:hover{background:rgba(148,163,184,0.2);}
           @media (max-width:640px){.ask-compact .ask-hint{display:none;}}
-          </style>
+          
+      /* --- Inicio estilo mockup: estado + duo (rival | clasificacion) --- */
+      .hm-status{display:flex;gap:.6rem;flex-wrap:wrap;margin:0 0 1rem;}
+      .hm-stat{border:1px solid var(--line);background:var(--panel-soft);border-radius:14px;padding:.6rem .95rem;min-width:104px;}
+      .hm-stat .n{font-size:1.45rem;font-weight:900;line-height:1;}
+      .hm-stat .n .d{font-size:.8rem;font-weight:700;opacity:.6;}
+      .hm-stat .k{font-size:.6rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:800;margin-top:.22rem;}
+      .hm-stat.ok .n{color:var(--prod-success);}
+      .hm-stat.red .n{color:var(--prod-danger);}
+      .hm-stat.gold .n{color:var(--prod-amber);}
+      .hm-duo{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;}
+      @media (max-width:860px){.hm-duo{grid-template-columns:1fr;}}
+      .hm-card{min-height:0;}
+      .hm-rival{display:flex;gap:.9rem;align-items:center;}
+      .hm-rcrest{width:52px;height:52px;object-fit:contain;border-radius:11px;background:rgba(255,255,255,.06);flex:0 0 auto;padding:4px;}
+      .hm-rcrest.ph{background:rgba(148,163,184,.14);display:block;}
+      .hm-rname{font-size:1.06rem;font-weight:900;line-height:1.1;color:var(--ink);}
+      .hm-rmeta{font-size:.8rem;color:var(--muted);font-weight:700;margin-top:.18rem;}
+      .hm-rmeta2{font-size:.74rem;color:var(--muted);opacity:.85;margin-top:.14rem;}
+      .hm-links{display:flex;gap:.9rem;flex-wrap:wrap;margin-top:.8rem;}
+      .hm-links a{font-size:.76rem;font-weight:800;color:var(--prod-amber);text-decoration:none;}
+      .hm-links a:hover{text-decoration:underline;}
+      .hm-mini{width:100%;border-collapse:collapse;font-size:.82rem;color:var(--ink);}
+      .hm-mini th{font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800;text-align:left;padding:.22rem .3rem;}
+      .hm-mini td{padding:.3rem .3rem;border-top:1px solid rgba(255,255,255,.08);}
+      .hm-mini td.nm{max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+      .hm-mini th.r,.hm-mini td.r{text-align:right;font-variant-numeric:tabular-nums;}
+      .hm-mini tr.me td{background:rgba(244,180,0,.14);font-weight:900;}
+    </style>
           <script>
           (function(){
             var url="{% url 'coach-assistant' %}";
