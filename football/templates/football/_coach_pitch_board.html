@@ -93,11 +93,14 @@
     background-size: cover; background-position: center; border-radius: 18px;
     border: 1px solid rgba(255, 255, 255, 0.14); overflow: hidden; touch-action: none;
     box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.35);
+    /* Contenedor de consultas: los jugadores se dimensionan en cqw (% del ANCHO del campo),
+       así escalan con el campo y no se solapan cuando el campo es estrecho (p.ej. informe A4). */
+    container-type: inline-size;
   }
   .pb-chip {
     position: absolute; transform: translate(-50%, -50%); z-index: 1;
     display: flex; flex-direction: column; align-items: center; gap: 2px;
-    width: 104px; text-decoration: none; color: #fff; cursor: grab; user-select: none;
+    width: clamp(56px, 8.6cqw, 104px); text-decoration: none; color: #fff; cursor: grab; user-select: none;
     -webkit-user-select: none; touch-action: none;
     -webkit-user-drag: none; -khtml-user-drag: none; -moz-user-drag: none; user-drag: none;
   }
@@ -105,7 +108,7 @@
   .pb-chip.pb-dragging { cursor: grabbing; z-index: 5; }
   .pb-chip:focus-visible { outline: 2px solid var(--accent, #f4b400); outline-offset: 3px; border-radius: 12px; }
   .pb-avatar {
-    width: 82px; height: 96px; display: flex; align-items: flex-end; justify-content: center;
+    width: clamp(44px, 6.8cqw, 82px); height: clamp(52px, 8cqw, 96px); display: flex; align-items: flex-end; justify-content: center;
     filter: drop-shadow(0 7px 9px rgba(0, 0, 0, 0.55));
   }
   .pb-avatar img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
@@ -126,8 +129,8 @@
   .pb-rating.is-low { background: #dc2626; }
   .pb-rating.is-unrated { background: #64748b; color: #e2e8f0; }
   .pb-name {
-    margin-top: 2px; max-width: 116px; padding: 2px 9px; border-radius: 8px;
-    background: rgba(7, 12, 22, 0.86); font-size: 0.8rem; font-weight: 700; text-align: center;
+    margin-top: 2px; max-width: clamp(64px, 9cqw, 116px); padding: 2px clamp(5px, 0.8cqw, 9px); border-radius: 8px;
+    background: rgba(7, 12, 22, 0.86); font-size: clamp(0.6rem, 1cqw, 0.8rem); font-weight: 700; text-align: center;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border: 1px solid rgba(255, 255, 255, 0.12);
   }
   .pb-badge {
@@ -145,11 +148,8 @@
   .pb-dot.pb-available { background: #86efac; }
   .pb-dot.pb-trial { background: #fde68a; }
   .pb-dot.pb-injured { background: #fca5a5; }
-  @media (max-width: 640px) {
-    .pb-chip { width: 78px; }
-    .pb-avatar { width: 60px; height: 72px; }
-    .pb-name { font-size: 0.72rem; max-width: 88px; }
-  }
+  /* En móvil el campo es estrecho -> el clamp+cqw ya encoge a los jugadores; no fijamos px aquí
+     para no pisar ese escalado (antes forzaba 78px y se solapaban). */
 </style>
 
 <script>
