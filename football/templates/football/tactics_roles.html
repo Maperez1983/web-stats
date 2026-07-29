@@ -1,0 +1,159 @@
+{% load static football_extras %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Táctica · roles y funciones · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      .tk-wrap{max-width:1080px;margin:0 auto;padding:1rem;color:#eef2f8;}
+      .tk-h1{margin:0;color:#f8fafc;font-size:1.5rem;font-weight:900;}
+      .tk-sub{color:#6d8098;font-weight:700;font-size:.78rem;margin:.15rem 0 1rem;}
+      .tk-bar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem;}
+      .tk-btn{font-size:.8rem;font-weight:800;color:#9fb0c6;background:#0e1420;border:1px solid #2a3750;border-radius:9px;padding:.45rem .85rem;cursor:pointer;}
+      .tk-btn.on{color:#0b0f17;background:#8fb4ff;border-color:#8fb4ff;}
+      .tk-btn.auto{color:#0b0f17;background:#f4b400;border-color:#f4b400;margin-left:auto;}
+      .tk-avg{font-size:.85rem;font-weight:800;color:#9fb0c6;}
+      .tk-avg b{font-size:1.15rem;}
+      .tk-grid{display:grid;grid-template-columns:minmax(280px,420px) 1fr;gap:16px;align-items:start;}
+      @media(max-width:820px){.tk-grid{grid-template-columns:1fr;}}
+      .tk-pitch{position:relative;width:100%;aspect-ratio:3/4;background:linear-gradient(#123a1e,#0e2f18);border:1px solid #1f4a30;border-radius:16px;overflow:hidden;}
+      .tk-pitch .ln{position:absolute;border:1px solid rgba(255,255,255,.14);}
+      .tk-slot{position:absolute;transform:translate(-50%,-50%);text-align:center;width:66px;}
+      .tk-mark{width:40px;height:40px;border-radius:50%;margin:0 auto;display:grid;place-items:center;font-weight:900;font-size:.9rem;background:#0b0f17;border:3px solid #6d8098;color:#eef2f8;}
+      .tk-nm{font-size:.62rem;color:#eef2f8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px #000;}
+      .tk-fit{font-size:.6rem;font-weight:900;}
+      table.tk{width:100%;border-collapse:collapse;font-size:.8rem;color:#eef2f8;}
+      table.tk th,table.tk td{padding:.4rem .5rem;border-top:1px solid #1e2838;text-align:left;}
+      table.tk thead th{border-top:none;font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:#6d8098;}
+      table.tk select{background:#0b0f17;color:#eef2f8;border:1px solid #2a3750;border-radius:7px;padding:.3rem .4rem;font-size:.76rem;max-width:100%;}
+      table.tk .code{font-weight:900;color:#9fb0c6;}
+      .tk-fp{font-size:.95rem;font-weight:900;font-variant-numeric:tabular-nums;text-align:right;}
+      .tk-links{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1.1rem;}
+      .tk-links a{font-size:.75rem;font-weight:800;color:#8fb4ff;text-decoration:none;border:1px solid #25406e;border-radius:8px;padding:.35rem .6rem;background:#141f33;}
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <div class="app-shell">
+      {% include 'football/includes/dragon_nav.html' %}
+      <main class="tk-wrap">
+        <h1 class="tk-h1">Táctica · roles y funciones</h1>
+        <p class="tk-sub">{{ primary_team.display_name|default:primary_team.name }} · elige formación y rol por puesto · el % es el encaje del jugador al rol</p>
+
+        <div class="tk-bar">
+          {% for f in formation_names %}<button type="button" class="tk-btn form-btn" data-f="{{ f }}">{{ f }}</button>{% endfor %}
+          <span class="tk-avg">Encaje medio: <b id="tk-avg">—</b></span>
+          <button type="button" class="tk-btn auto" id="tk-auto">⚡ 11 óptimo</button>
+        </div>
+
+        <div class="tk-grid">
+          <div class="tk-pitch" id="tk-pitch">
+            <div class="ln" style="left:8%;right:8%;top:2%;bottom:2%;border-radius:8px;"></div>
+            <div class="ln" style="left:8%;right:8%;top:50%;height:0;"></div>
+            <div class="ln" style="left:30%;right:30%;bottom:2%;height:14%;"></div>
+            <div class="ln" style="left:30%;right:30%;top:2%;height:14%;"></div>
+          </div>
+          <div>
+            <div style="overflow-x:auto;border:1px solid #1e2838;border-radius:12px;background:#111725;padding:.3rem .5rem;">
+              <table class="tk">
+                <thead><tr><th>Puesto</th><th>Rol</th><th>Jugador</th><th style="text-align:right;">Encaje</th></tr></thead>
+                <tbody id="tk-rows"></tbody>
+              </table>
+            </div>
+            <p style="font-size:.7rem;color:#6d8098;margin:.6rem 0 0;">El encaje se calcula con los atributos evaluados del jugador ponderados por el rol. Un jugador sin evaluación aparece como “—”.</p>
+          </div>
+        </div>
+
+        <div class="tk-links">
+          <a href="{% url 'coach-tactics' %}">← Editor de pizarra</a>
+          <a href="{% url 'squad-planner' %}">Planificador</a>
+          <a href="{% url 'coach-roster' %}">Plantilla</a>
+        </div>
+      </main>
+    </div>
+
+    <script id="tk-roster" type="application/json">{{ roster_json|safe }}</script>
+    <script id="tk-roles" type="application/json">{{ roles_json|safe }}</script>
+    <script id="tk-formations" type="application/json">{{ formations_json|safe }}</script>
+    <script>
+      (function(){
+        var ROSTER = JSON.parse(document.getElementById('tk-roster').textContent||'[]');
+        var ROLES = JSON.parse(document.getElementById('tk-roles').textContent||'{}');
+        var FORMATIONS = JSON.parse(document.getElementById('tk-formations').textContent||'{}');
+        var current = Object.keys(FORMATIONS)[0];
+        var assign = {};
+        function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+        function fitPct(scores, params){
+          var vals = params.map(function(k){return scores[k];}).filter(function(v){return typeof v==='number';});
+          if(vals.length<3) return null;
+          var m = vals.reduce(function(a,b){return a+b;},0)/vals.length*10;
+          return Math.max(0,Math.min(100,Math.round(m)));
+        }
+        function tone(f){ return f==null?'#6d8098':(f>=70?'#3fbf6a':(f>=55?'#e2a53a':'#e2564a')); }
+        function rolesFor(g){ return ROLES[g]||[]; }
+        function roleObj(g,key){ var rs=rolesFor(g); for(var i=0;i<rs.length;i++){ if(rs[i].key===key) return rs[i]; } return rs[0]; }
+        function playerById(id){ for(var i=0;i<ROSTER.length;i++){ if(String(ROSTER[i].id)===String(id)) return ROSTER[i]; } return null; }
+        function slotFit(i){
+          var s=FORMATIONS[current][i], a=assign[i]; if(!a||!a.playerId) return null;
+          var pl=playerById(a.playerId); if(!pl) return null;
+          var r=roleObj(s.group,a.roleKey); if(!r) return null;
+          return fitPct(pl.scores,r.params);
+        }
+        function initAssign(){ assign={}; FORMATIONS[current].forEach(function(s,i){ var rs=rolesFor(s.group); assign[i]={playerId:'',roleKey:rs.length?rs[0].key:''}; }); }
+        function auto(){
+          var used={}; FORMATIONS[current].forEach(function(s,i){
+            var rk=(assign[i]&&assign[i].roleKey)||(rolesFor(s.group)[0]||{}).key;
+            var r=roleObj(s.group,rk); var best=null,bf=-1;
+            ROSTER.forEach(function(pl){ if(used[pl.id]) return; var f=fitPct(pl.scores,r.params); if(f!=null&&f>bf){bf=f;best=pl;} });
+            assign[i]={playerId:best?best.id:'',roleKey:r.key}; if(best) used[best.id]=1;
+          }); render();
+        }
+        function render(){
+          var slots=FORMATIONS[current];
+          // pitch
+          var pitch=document.getElementById('tk-pitch');
+          pitch.querySelectorAll('.tk-slot').forEach(function(n){n.remove();});
+          slots.forEach(function(s,i){
+            var a=assign[i], pl=a&&a.playerId?playerById(a.playerId):null, f=slotFit(i);
+            var el=document.createElement('div'); el.className='tk-slot'; el.style.left=s.x+'%'; el.style.top=s.y+'%';
+            var col=tone(f);
+            el.innerHTML='<div class="tk-mark" style="border-color:'+col+';">'+(pl&&pl.number!==''?esc(pl.number):s.code)+'</div>'+
+              '<div class="tk-nm">'+(pl?esc(pl.name):'—')+'</div>'+
+              '<div class="tk-fit" style="color:'+col+';">'+(f==null?(pl?'sin eval':''):f+'%')+'</div>';
+            pitch.appendChild(el);
+          });
+          // table
+          var tb=document.getElementById('tk-rows'); tb.innerHTML='';
+          slots.forEach(function(s,i){
+            var a=assign[i], f=slotFit(i);
+            var roleOpts=rolesFor(s.group).map(function(r){ return '<option value="'+r.key+'"'+(a.roleKey===r.key?' selected':'')+'>'+esc(r.label)+'</option>'; }).join('');
+            var plOpts='<option value="">—</option>'+ROSTER.map(function(pl){ return '<option value="'+pl.id+'"'+(String(a.playerId)===String(pl.id)?' selected':'')+'>'+(pl.number!==''?'#'+esc(pl.number)+' ':'')+esc(pl.name)+'</option>'; }).join('');
+            var tr=document.createElement('tr');
+            tr.innerHTML='<td class="code">'+esc(s.code)+'</td>'+
+              '<td><select data-i="'+i+'" data-t="role">'+roleOpts+'</select></td>'+
+              '<td><select data-i="'+i+'" data-t="player">'+plOpts+'</select></td>'+
+              '<td class="tk-fp" style="color:'+tone(f)+';">'+(f==null?'—':f+'%')+'</td>';
+            tb.appendChild(tr);
+          });
+          // avg
+          var fits=slots.map(function(s,i){return slotFit(i);}).filter(function(v){return v!=null;});
+          document.getElementById('tk-avg').textContent = fits.length?(Math.round(fits.reduce(function(a,b){return a+b;},0)/fits.length)+'%'):'—';
+          // formation buttons
+          document.querySelectorAll('.form-btn').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-f')===current); });
+        }
+        document.addEventListener('change', function(e){
+          var sel=e.target; if(sel.tagName!=='SELECT'||sel.getAttribute('data-i')==null) return;
+          var i=parseInt(sel.getAttribute('data-i'),10), t=sel.getAttribute('data-t');
+          if(t==='role') assign[i].roleKey=sel.value; else assign[i].playerId=sel.value;
+          render();
+        });
+        document.querySelectorAll('.form-btn').forEach(function(b){ b.addEventListener('click', function(){ current=b.getAttribute('data-f'); initAssign(); auto(); }); });
+        document.getElementById('tk-auto').addEventListener('click', auto);
+        initAssign(); auto();
+      })();
+    </script>
+  </body>
+</html>

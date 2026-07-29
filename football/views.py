@@ -42533,6 +42533,76 @@ def player_compare_page(request):
     })
 
 
+_TACTIC_FORMATIONS = {
+    "1-4-3-3": [
+        ("POR", "gk", 50, 90), ("LD", "lateral", 84, 68), ("DFC", "central", 63, 74),
+        ("DFC", "central", 37, 74), ("LI", "lateral", 16, 68), ("MCD", "pivote", 50, 57),
+        ("MC", "medio", 68, 45), ("MC", "medio", 32, 45), ("ED", "banda", 82, 23),
+        ("DC", "delantero", 50, 14), ("EI", "banda", 18, 23),
+    ],
+    "1-4-4-2": [
+        ("POR", "gk", 50, 90), ("LD", "lateral", 84, 68), ("DFC", "central", 63, 74),
+        ("DFC", "central", 37, 74), ("LI", "lateral", 16, 68), ("MD", "banda", 84, 47),
+        ("MC", "medio", 60, 49), ("MC", "medio", 40, 49), ("MI", "banda", 16, 47),
+        ("DC", "delantero", 58, 16), ("DC", "delantero", 42, 16),
+    ],
+    "1-4-2-3-1": [
+        ("POR", "gk", 50, 90), ("LD", "lateral", 84, 68), ("DFC", "central", 63, 74),
+        ("DFC", "central", 37, 74), ("LI", "lateral", 16, 68), ("MCD", "pivote", 60, 57),
+        ("MCD", "pivote", 40, 57), ("ED", "banda", 82, 33), ("MP", "banda", 50, 35),
+        ("EI", "banda", 18, 33), ("DC", "delantero", 50, 14),
+    ],
+}
+
+
+@login_required
+def tactics_roles_page(request):
+    """Táctica: roles y funciones (estilo FM). Eliges formación; cada puesto tiene un rol y ves el
+    % de ENCAJE del jugador asignado (motor de encaje por rol). Botón '11 óptimo' asigna por encaje.
+    Vista propia (no toca el editor de pizarra)."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404("Equipo principal no configurado")
+    players = list(Player.objects.filter(team=primary_team, is_active=True).order_by("number", "name"))
+    pids = [int(p.id) for p in players]
+    latest_eval = {}
+    if pids:
+        try:
+            for ev in (
+                PlayerEvaluation.objects.filter(player_id__in=pids, status=PlayerEvaluation.STATUS_CLOSED)
+                .order_by("player_id", "-evaluated_on", "-updated_at", "-id")
+            ):
+                latest_eval.setdefault(int(ev.player_id), ev)
+        except Exception:
+            latest_eval = {}
+    roster = []
+    for p in players:
+        ev = latest_eval.get(int(p.id))
+        scores = _fm_flat_scores(getattr(ev, "parameter_scores", None)) if ev else {}
+        roster.append({
+            "id": int(p.id), "name": p.name or "Jugador",
+            "number": (p.number if p.number is not None else ""), "pos": (p.position or ""),
+            "scores": scores,
+        })
+    roles_by_group = {}
+    for group, roles in FM_ROLE_CATALOG.items():
+        roles_by_group[group] = [{"key": k, "label": lb, "params": pp} for (k, lb, pp) in roles]
+    formations = {
+        name: [{"code": c, "group": g, "x": x, "y": y} for (c, g, x, y) in slots]
+        for name, slots in _TACTIC_FORMATIONS.items()
+    }
+    return render(request, "football/tactics_roles.html", {
+        "primary_team": primary_team,
+        "roster_json": json.dumps(roster),
+        "roles_json": json.dumps(roles_by_group),
+        "formations_json": json.dumps(formations),
+        "formation_names": list(formations.keys()),
+    })
+
+
 @login_required
 def contracts_page(request):
     """Panel de contratos y renovaciones (estilo FM): toda la plantilla por vencimiento de contrato,
