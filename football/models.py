@@ -1998,6 +1998,62 @@ class RivalConvocationRecord(models.Model):
         return f'{base} · {self.match_id or "sin partido"}'
 
 
+class RivalPlayer(models.Model):
+    """Jugador de un equipo RIVAL, importado de una fuente externa (laPreferente) para análisis.
+
+    AISLADO a propósito: NO es un Player. Nunca entra en tu plantilla, home, convocatoria, asistencia
+    ni dashboards; solo alimenta el 11 rival, el briefing y el scouting. La clave de identidad estable
+    es `source_player_id` (el J-id de laPreferente, el MISMO entre equipos): permite refrescar sin
+    duplicar y detectar que un rival es una persona ya conocida (ex-jugador propio u ojeado que ha
+    fichado por un rival) sin fusionarla — se enlaza en `matched_player` a modo de "reconocido como".
+    """
+
+    SOURCE_LAPREFERENTE = 'lapreferente'
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='rival_players')
+    source = models.CharField(max_length=20, default=SOURCE_LAPREFERENTE)
+    source_player_id = models.CharField(max_length=24, blank=True, default='', db_index=True)
+    preferente_profile_url = models.CharField(max_length=300, blank=True, default='')
+
+    full_name = models.CharField(max_length=140)
+    alias = models.CharField(max_length=80, blank=True, default='')
+    number = models.PositiveIntegerField(null=True, blank=True)
+    age = models.PositiveIntegerField(null=True, blank=True)
+    photo_url = models.CharField(max_length=300, blank=True, default='')
+    position = models.CharField(max_length=60, blank=True, default='')  # texto crudo de la fuente
+    line = models.CharField(max_length=8, blank=True, default='')       # gk/def/mid/att (mapeado)
+
+    matches_played = models.PositiveIntegerField(default=0)
+    minutes = models.PositiveIntegerField(default=0)
+    goals = models.PositiveIntegerField(default=0)
+    yellow_cards = models.PositiveIntegerField(default=0)
+    red_cards = models.PositiveIntegerField(default=0)
+    season_label = models.CharField(max_length=20, blank=True, default='')
+
+    # "Reconocido como" (Nivel 1): si al importar coincide (por J-id o nombre) con alguien ya en el
+    # sistema (ex-jugador propio, u ojeado enlazado a un Player que ha fichado por un rival), se enlaza
+    # SIN duplicar ni fusionar. Base para las herramientas de ficha (marcar objetivo / Dirección).
+    matched_player = models.ForeignKey(
+        'Player', on_delete=models.SET_NULL, null=True, blank=True, related_name='rival_appearances'
+    )
+
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['line', 'number', 'full_name']
+        indexes = [
+            models.Index(fields=['team', 'is_active'], name='rivalplayer_team_active_idx'),
+            models.Index(fields=['source', 'source_player_id'], name='rivalplayer_source_idx'),
+        ]
+        verbose_name = 'Jugador rival'
+        verbose_name_plural = 'Jugadores rival'
+
+    def __str__(self):
+        return f'{self.full_name} ({self.team_id})'
+
+
 class MatchLineup(models.Model):
     """Alineación (11 inicial + banquillo) de NUESTRO equipo para un partido concreto.
 
