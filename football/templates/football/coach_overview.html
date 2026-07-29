@@ -661,7 +661,7 @@
               {% for row in standings_window %}
               <tr class="{% if row.is_team %}me{% endif %}">
                 <td>{{ row.rank|default:"-" }}</td>
-                <td class="nm">{{ row.team|default:"-" }}</td>
+                <td class="nm"><span class="hm-tm">{% if row.crest_url %}<img class="hm-tcrest" src="{{ row.crest_url }}" alt="" loading="lazy" />{% else %}<span class="hm-tcrest ph"></span>{% endif %}<span class="hm-tnm">{{ row.team|default:"-" }}</span></span></td>
                 <td class="r">{{ row.played|default:"-" }}</td>
                 <td class="r">{{ row.points|default:"-" }}</td>
               </tr>
@@ -838,6 +838,12 @@
         max-height:min(66vh,520px);overflow:auto;backdrop-filter:blur(8px);}
       @media (max-width:560px){.ask-fab{left:10px;bottom:10px;}}
       @media print{.ask-fab{display:none;}}
+    
+      /* Escudos en la mini-clasificacion de Inicio */
+      .hm-tm{display:flex;align-items:center;gap:.4rem;min-width:0;}
+      .hm-tcrest{width:16px;height:16px;object-fit:contain;border-radius:3px;flex:0 0 auto;background:rgba(255,255,255,.06);}
+      .hm-tcrest.ph{background:rgba(148,163,184,.18);}
+      .hm-tnm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
     </style>
           <script>
           (function(){

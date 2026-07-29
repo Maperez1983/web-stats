@@ -22693,6 +22693,14 @@ def coach_overview_page(request):
         if row_name == team_name_folded or team_name_folded in row_name or row_name in team_name_folded:
             highlighted_standing = row
             break
+    # Escudos de la clasificación: ya los tenemos (import de la liga / snapshots), así que enriquecemos
+    # las filas para poder pintarlos en la mini-tabla de Inicio.
+    try:
+        standings = _enrich_standings_rows_with_crests(
+            standings, workspace=workspace, primary_team=primary_team
+        ) or standings
+    except Exception:
+        pass
     standings_rows = []
     for row in standings:
         row_copy = dict(row)
