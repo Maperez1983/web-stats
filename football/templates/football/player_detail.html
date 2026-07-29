@@ -1959,6 +1959,59 @@
 
       <section class="card tab-pane" data-pane="evaluations">
         <h2 style="margin-top:0;">Evaluaciones</h2>
+        {% if fm_eval %}
+        <section aria-label="Perfil del jugador (estilo FM)" style="border:1px solid rgba(148,163,184,0.18);border-radius:14px;padding:1rem;margin:0 0 1.1rem;background:rgba(2,6,23,0.28);">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;margin-bottom:.9rem;">
+            <h3 style="margin:0;">Perfil del jugador</h3>
+            <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;">
+              {% if fm_eval.role %}<span class="pill">{{ fm_eval.role }}</span>{% endif %}
+              {% if fm_eval.evaluated_position %}<span class="pill">{{ fm_eval.evaluated_position }}</span>{% endif %}
+              {% if fm_eval.overall %}<span class="pill" style="font-weight:900;color:#eef2f8;">Media {{ fm_eval.overall|floatformat:'-1' }}</span>{% endif %}
+              {% if fm_eval.evaluated_on %}<span class="subtle" style="font-size:.72rem;">{{ fm_eval.evaluated_on|date:'d/m/Y' }}</span>{% endif %}
+            </div>
+          </div>
+          <div class="fm-eval-grid" style="display:grid;grid-template-columns:270px 1fr;gap:1.1rem;align-items:start;">
+            <div>
+              <svg width="260" height="220" viewBox="0 0 260 220" role="img" aria-label="Radar de áreas" style="max-width:100%;display:block;margin:0 auto;">
+                <g fill="none" stroke="rgba(148,163,184,.22)" stroke-width="1">
+                  <polygon points="130,30 210,110 130,190 50,110"/>
+                  <polygon points="130,70 170,110 130,150 90,110"/>
+                </g>
+                <line x1="130" y1="110" x2="130" y2="30" stroke="rgba(148,163,184,.22)"/>
+                <line x1="130" y1="110" x2="210" y2="110" stroke="rgba(148,163,184,.22)"/>
+                <line x1="130" y1="110" x2="130" y2="190" stroke="rgba(148,163,184,.22)"/>
+                <line x1="130" y1="110" x2="50" y2="110" stroke="rgba(148,163,184,.22)"/>
+                <polygon points="{{ fm_eval.radar_points }}" fill="rgba(74,134,232,.22)" stroke="#4a86e8" stroke-width="2"/>
+                {% for ax in fm_eval.radar_axes %}<text x="{{ ax.x }}" y="{{ ax.y }}" fill="#9fb0c6" font-size="11" font-weight="700" text-anchor="{{ ax.anchor }}">{{ ax.label }}{% if ax.avg %} {{ ax.avg|floatformat:'-1' }}{% endif %}</text>{% endfor %}
+              </svg>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:.5rem;">
+                <div>
+                  <h4 style="margin:0 0 .3rem;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:#3fbf6a;">Fortalezas</h4>
+                  {% for s in fm_eval.top %}<div style="font-size:.82rem;padding:.14rem 0;border-bottom:1px dashed rgba(148,163,184,.14);">{{ s }}</div>{% empty %}<div class="subtle" style="font-size:.78rem;">—</div>{% endfor %}
+                </div>
+                <div>
+                  <h4 style="margin:0 0 .3rem;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:#e2564a;">A mejorar</h4>
+                  {% for s in fm_eval.bottom %}<div style="font-size:.82rem;padding:.14rem 0;border-bottom:1px dashed rgba(148,163,184,.14);">{{ s }}</div>{% empty %}<div class="subtle" style="font-size:.78rem;">—</div>{% endfor %}
+                </div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem 1.4rem;">
+              {% for g in fm_eval.groups %}
+              <div>
+                <h4 style="margin:0 0 .4rem;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:#9fb0c6;display:flex;justify-content:space-between;">{{ g.label }} <span style="color:#eef2f8;font-weight:900;">{{ g.avg|floatformat:'-1' }}</span></h4>
+                {% for p in g.params %}
+                <div style="display:flex;align-items:center;gap:.5rem;margin:.2rem 0;">
+                  <span style="flex:1;font-size:.8rem;color:#9fb0c6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ p.label }}</span>
+                  <span style="width:70px;height:6px;border-radius:3px;background:rgba(148,163,184,.18);overflow:hidden;flex:0 0 auto;"><i style="display:block;height:100%;border-radius:3px;width:{{ p.pct }}%;background:{% if p.tone == 'good' %}#3fbf6a{% elif p.tone == 'mid' %}#e2a53a{% else %}#e2564a{% endif %};"></i></span>
+                  <span style="width:22px;text-align:right;font-size:.8rem;font-weight:800;color:{% if p.tone == 'good' %}#3fbf6a{% elif p.tone == 'mid' %}#e2a53a{% else %}#e2564a{% endif %};">{{ p.value|floatformat:'-1' }}</span>
+                </div>
+                {% endfor %}
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </section>
+        {% endif %}
         <section aria-label="Objetivos de trabajo" style="border:1px solid rgba(56,189,248,0.3);border-radius:12px;padding:0.7rem 0.85rem;margin:0 0 1rem;">
           <h3 style="margin:0 0 0.5rem;">Objetivos de trabajo</h3>
           {% if not is_player_readonly %}

@@ -74510,6 +74510,81 @@ def _build_player_minutes_load(player, club_season, match_minutes, matches_playe
     }
 
 
+def _fm_evaluation_presentation(evaluation, catalog):
+    """Presentación estilo Football Manager de una evaluación: grupos de atributos (valor/tono/%),
+    radar de las 4 áreas, media global y fortalezas/debilidades. Alimenta la pestaña Evaluación con
+    los datos que el staff ya introduce (parameter_scores). Devuelve None si no hay parámetros."""
+    if not evaluation:
+        return None
+    scores = getattr(evaluation, "parameter_scores", None)
+    if not isinstance(scores, dict) or not scores:
+        return None
+
+    def _tone(v):
+        return "good" if v >= 7 else ("mid" if v >= 5 else "low")
+
+    groups = []
+    all_params = []
+    area_avg = {}
+    for area in (catalog or EVALUATION_PARAMETER_CATALOG):
+        akey = area["key"]
+        area_scores = scores.get(akey) or {}
+        if not isinstance(area_scores, dict):
+            continue
+        params, vals = [], []
+        for pkey, label in area["params"]:
+            if pkey not in area_scores:
+                continue
+            try:
+                v = round(float(area_scores[pkey]), 1)
+            except (TypeError, ValueError):
+                continue
+            params.append({"label": label, "value": v, "pct": int(round(min(10.0, v) * 10)), "tone": _tone(v)})
+            vals.append(v)
+            all_params.append((label, v))
+        if params:
+            avg = round(sum(vals) / len(vals), 1)
+            area_avg[akey] = avg
+            groups.append({"key": akey, "label": area["label"], "avg": avg, "tone": _tone(avg), "params": params})
+    if not groups:
+        return None
+
+    # Radar: Técnico(arriba) · Físico(dcha) · Mental(abajo) · Táctico(izda).
+    cx, cy, R = 130, 110, 80
+    order = ["technical", "physical", "mental", "tactical"]
+    dirs = [(0, -1), (1, 0), (0, 1), (-1, 0)]
+    label_of = {g["key"]: g["label"] for g in groups}
+    pts, axes = [], []
+    for (dx, dy), key in zip(dirs, order):
+        avg = area_avg.get(key)
+        r = (float(avg) / 10.0) * R if avg is not None else 0.0
+        pts.append(f"{int(round(cx + dx * r))},{int(round(cy + dy * r))}")
+        axes.append({
+            "x": int(round(cx + dx * (R + 16))), "y": int(round(cy + dy * (R + 16))),
+            "label": label_of.get(key, key.title()), "avg": avg,
+            "anchor": "middle" if dx == 0 else ("start" if dx > 0 else "end"),
+        })
+
+    ranked = sorted(all_params, key=lambda x: -x[1])
+    top = [p[0] for p in ranked[:4] if p[1] >= 6.5]
+    bottom = [p[0] for p in sorted(all_params, key=lambda x: x[1])[:4] if p[1] < 6]
+    overall = round(sum(v for _, v in all_params) / len(all_params), 1) if all_params else None
+    return {
+        "groups": groups,
+        "radar_points": " ".join(pts),
+        "radar_axes": axes,
+        "overall": overall,
+        "top": top,
+        "bottom": bottom,
+        "strengths_text": str(getattr(evaluation, "strengths", "") or "").strip(),
+        "improvements_text": str(getattr(evaluation, "improvements", "") or "").strip(),
+        "role": str(getattr(evaluation, "role", "") or "").strip(),
+        "evaluated_position": str(getattr(evaluation, "evaluated_position", "") or "").strip(),
+        "recommended_position": str(getattr(evaluation, "recommended_position", "") or "").strip(),
+        "evaluated_on": getattr(evaluation, "evaluated_on", None),
+    }
+
+
 @login_required
 def player_detail_page(request, player_id):
     try:
@@ -75523,6 +75598,8 @@ def player_detail_page(request, player_id):
             "pending": evaluation_pending,
             "count": len(player_evaluations),
         }
+        # Presentación estilo Football Manager de la pestaña Evaluación (atributos + radar + informe).
+        fm_eval = _fm_evaluation_presentation(latest_closed_evaluation, _evaluation_catalog_for_player(player))
         evaluation_chart_context = _player_evaluation_chart_context(player_evaluations)
         latest_evaluation_improvement_rows = (
             _evaluation_improvement_rows(latest_closed_evaluation) if latest_closed_evaluation else []
@@ -76306,6 +76383,7 @@ def player_detail_page(request, player_id):
                 "active_tab": active_tab,
                 "player_evaluations": player_evaluations,
                 "evaluation_summary": evaluation_summary,
+                "fm_eval": fm_eval,
                 "work_focus": work_focus,
                 "minutes_load": minutes_load,
                 "season_minutes_load": season_minutes_load,
