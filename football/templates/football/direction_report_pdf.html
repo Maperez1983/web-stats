@@ -83,7 +83,18 @@
     <div class="kpi"><div class="v">{% if kpi.avg_age is not None %}{{ kpi.avg_age|floatformat:"-1" }}{% else %}–{% endif %}</div><div class="l">Edad media</div></div>
   </div>
 
-  {% if interactive %}
+  {% if pitch_snapshot_url %}
+  {# Snapshot REAL de la pizarra (Playwright): una imagen que escala entera, igual que en la home. #}
+  <section>
+    <h2>Plantilla en el campo</h2>
+    <img src="{{ pitch_snapshot_url }}" alt="Plantilla en el campo" style="display:block;width:100%;height:auto;border-radius:18px;" />
+    <div class="pb-legend" style="display:flex;gap:1rem;align-items:center;margin-top:.6rem;font-size:.76rem;color:#5a6b62;flex-wrap:wrap;">
+      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#22c55e;margin-right:.25rem;"></span> Disponible
+      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f5b301;margin:0 .25rem 0 .6rem;"></span> A prueba
+      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ef4444;margin:0 .25rem 0 .6rem;"></span> Lesionado
+    </div>
+  </section>
+  {% elif interactive %}
   <section>
     <h2>Plantilla en el campo</h2>
     {% include 'football/_coach_pitch_board.html' %}

@@ -21320,6 +21320,12 @@ def direction_report_pdf(request, as_page=False):
     except Exception:
         _pitch_players = []
     ctx["coach_pitch_players"] = _pitch_players
+    # Snapshot REAL de la pizarra (Playwright) -> imagen que escala entera (el "screenshot de la
+    # superficie" pedido). Sirve para AMBAS salidas; si Playwright no está, cae al tablero normal.
+    try:
+        ctx["pitch_snapshot_url"] = _coach_pitch_board_snapshot_data_url(_pitch_players)
+    except Exception:
+        ctx["pitch_snapshot_url"] = ""
     if as_page:
         ctx["interactive"] = True
         _qs = request.GET.urlencode()
@@ -22137,7 +22143,132 @@ def _coach_pitch_board_pdf_assets(players):
     for item in players or []:
         # Los ojeados (chips sin Player) también llevan avatar de librería.
         item["avatar_pdf"] = _uri(item.get("avatar"), 150, 180, 74)
-    return _uri("football/images/pitch3d/coach_home_pitch_surface.png", 900, 560, 68)
+    return _uri("football/images/pitch3d/coach_home_pitch_surface.png", 1400, 800, 78)
+
+
+# CSS de la pizarra (copiado de _coach_pitch_board.html) para el SNAPSHOT server-side. Debe ir
+# alineado con esa plantilla: si cambia el aspecto del tablero en la home, actualizar aquí también.
+_PB_SNAPSHOT_CSS = """
+  *{box-sizing:border-box;margin:0;padding:0}
+  .pb-field{position:relative;width:1180px;aspect-ratio:1664/945;background-size:cover;background-position:center;
+    border-radius:18px;border:1px solid rgba(255,255,255,.14);overflow:hidden;box-shadow:inset 0 0 60px rgba(0,0,0,.35);
+    container-type:inline-size;font-family:"Helvetica Neue",Arial,sans-serif}
+  .pb-chip{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:2px;
+    width:clamp(56px,8.6cqw,104px);text-decoration:none;color:#fff}
+  .pb-avatar{width:clamp(44px,6.8cqw,82px);height:clamp(52px,8cqw,96px);display:flex;align-items:flex-end;justify-content:center;
+    filter:drop-shadow(0 7px 9px rgba(0,0,0,.55))}
+  .pb-avatar img{width:100%;height:100%;object-fit:contain}
+  .pb-num{position:absolute;top:-6px;left:50%;transform:translateX(-140%);min-width:20px;height:20px;padding:0 4px;border-radius:999px;
+    background:#0b1220;border:2px solid #fff;color:#fff;font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;line-height:1}
+  .pb-rating{position:absolute;top:-6px;left:50%;transform:translateX(40%);min-width:20px;height:20px;padding:0 4px;border-radius:999px;
+    background:#64748b;border:2px solid #fff;color:#fff;font-size:.7rem;font-weight:800;display:flex;align-items:center;justify-content:center;line-height:1}
+  .pb-rating.is-good{background:#16a34a}.pb-rating.is-mid{background:#d97706}.pb-rating.is-low{background:#dc2626}
+  .pb-name{margin-top:2px;max-width:clamp(64px,9cqw,116px);padding:2px clamp(5px,.8cqw,9px);border-radius:8px;background:rgba(7,12,22,.86);
+    font-size:clamp(.6rem,1cqw,.8rem);font-weight:700;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:1px solid rgba(255,255,255,.12)}
+  .pb-badge{padding:1px 7px;border-radius:999px;font-size:.6rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase}
+  .pb-available .pb-badge{background:rgba(134,239,172,.18);color:#86efac;border:1px solid rgba(134,239,172,.4)}
+  .pb-trial .pb-badge{background:rgba(244,180,0,.18);color:#fde68a;border:1px solid rgba(244,180,0,.45)}
+  .pb-injured .pb-badge{background:rgba(248,113,113,.18);color:#fca5a5;border:1px solid rgba(248,113,113,.45)}
+  .pb-available .pb-num{border-color:#86efac}.pb-trial .pb-num{border-color:#fde68a}.pb-injured .pb-num{border-color:#fca5a5}
+"""
+
+
+def _coach_pitch_board_snapshot_data_url(players):
+    """Snapshot REAL de la pizarra de plantilla (Playwright): renderiza el tablero a ANCHO DE HOME
+    (fidelidad total, con badges/nombres, sin apelmazarse) y lo captura a PNG. Devuelve un data URI
+    (o "" si no hay Playwright). Al incrustarse como <img> en el informe, escala como UNA imagen —
+    exactamente el "screenshot de la superficie" pedido, sin re-maquetar ni deformar.
+
+    Cacheado por firma de posiciones/estados/notas para no re-renderizar en cada apertura."""
+    from django.utils.html import escape as _esc
+
+    items = list(players or [])
+    if not items:
+        return ""
+
+    def _fmt_rating(r):
+        try:
+            if r is None or r == "":
+                return "–"
+            return f"{float(r):.1f}".rstrip("0").rstrip(".").replace(".", ",")
+        except Exception:
+            return "–"
+
+    # Firma para caché: si no cambian posiciones/estado/nota/avatar, se reutiliza el PNG.
+    sig_src = "|".join(
+        f"{it.get('id')}:{it.get('left')}:{it.get('top')}:{it.get('state')}:{it.get('number')}:{it.get('rating')}:{it.get('name')}:{it.get('avatar')}:{int(bool(it.get('signed')))}"
+        for it in items
+    )
+    cache_key = "pb_snapshot_v1_" + hashlib.sha1(sig_src.encode("utf-8")).hexdigest()
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        bg_uri = _coach_pitch_board_pdf_assets(items)  # inyecta avatar_pdf y devuelve el fondo (data URI)
+    except Exception:
+        bg_uri = ""
+
+    chips = []
+    for p in items:
+        state = str(p.get("state") or "available")
+        left = p.get("left")
+        top = p.get("top")
+        if left is None or top is None:
+            continue
+        avatar = p.get("avatar_pdf") or ""
+        num = p.get("number")
+        rating = p.get("rating")
+        is_scout = bool(p.get("is_scout"))
+        name = _esc(str(p.get("name") or ""))
+        signed = bool(p.get("signed"))
+        if not rating:
+            rcls = "is-unrated"
+        elif float(rating) >= 7:
+            rcls = "is-good"
+        elif float(rating) >= 5:
+            rcls = "is-mid"
+        else:
+            rcls = "is-low"
+        parts = [
+            f'<a class="pb-chip pb-{state}" style="left:{left}%;top:{top}%;">',
+            f'<span class="pb-avatar"><img src="{avatar}" alt=""/></span>' if avatar else '<span class="pb-avatar"></span>',
+        ]
+        if num not in (None, "", 0):
+            parts.append(f'<span class="pb-num">{_esc(str(num))}</span>')
+        if not is_scout:
+            parts.append(f'<span class="pb-rating {rcls}">{_fmt_rating(rating)}</span>')
+        signed_mark = ' <span class="pb-signed">✅</span>' if signed else ""
+        parts.append(f'<span class="pb-name">{name}{signed_mark}</span>')
+        parts.append(f'<span class="pb-badge">{_esc(str(p.get("state_label") or ""))}</span>')
+        parts.append("</a>")
+        chips.append("".join(parts))
+
+    html = (
+        "<!doctype html><html><head><meta charset='utf-8'><style>" + _PB_SNAPSHOT_CSS + "</style></head>"
+        "<body style='margin:0;background:transparent'>"
+        f"<div class='pb-field' style=\"background-image:url('{bg_uri}')\">" + "".join(chips) + "</div>"
+        "</body></html>"
+    )
+
+    try:
+        png = render_html_selector_png(
+            html=html,
+            selector=".pb-field",
+            viewport_width=1240,
+            viewport_height=760,
+            device_scale_factor=2.0,
+            timeout_ms=20000,
+        )
+    except Exception:
+        png = None
+
+    if not png:
+        cache.set(cache_key, "", 60 * 5)  # cachea el fallo un ratito para no reintentar en bucle
+        return ""
+    data_uri = "data:image/png;base64," + base64.b64encode(png).decode("ascii")
+    cache.set(cache_key, data_uri, 60 * 60 * 24)  # 24 h; la firma cambia si se mueven fichas
+    return data_uri
 
 
 @login_required
