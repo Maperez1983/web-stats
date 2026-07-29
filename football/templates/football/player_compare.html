@@ -10,19 +10,19 @@
     {% include 'football/pwa_head.html' %}
     <style>
       .cp-wrap{max-width:940px;margin:0 auto;padding:1rem;color:var(--fm-ink);}
-      .cp-h1{margin:0;color:#f8fafc;font-size:1.5rem;font-weight:900;}
+      .cp-h1{margin:0;color:var(--fm-ink);font-size:1.5rem;font-weight:900;}
       .cp-sub{color:var(--fm-ink-3);font-weight:700;font-size:.78rem;margin:.15rem 0 1rem;}
       .cp-sels{display:grid;grid-template-columns:1fr auto 1fr;gap:.8rem;align-items:end;margin-bottom:1.3rem;}
       @media(max-width:560px){.cp-sels{grid-template-columns:1fr;}.cp-vs{display:none;}}
       .cp-sel label{font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;font-weight:800;display:block;margin-bottom:.25rem;}
-      .cp-sel.a label{color:#8fb4ff;} .cp-sel.b label{color:var(--fm-gold);}
+      .cp-sel.a label{color:var(--fm-accent);} .cp-sel.b label{color:var(--fm-gold);}
       .cp-sel select{width:100%;background:var(--fm-bg);color:var(--fm-ink);border:1px solid var(--fm-line-2);border-radius:9px;padding:.55rem .7rem;font-weight:700;}
       .cp-vs{font-weight:900;color:var(--fm-ink-3);padding-bottom:.5rem;}
       .cp-card{background:var(--fm-panel);border:1px solid var(--fm-line);border-radius:16px;padding:1.1rem;margin-bottom:1.1rem;}
       .cp-top{display:grid;grid-template-columns:1fr auto 1fr;gap:1rem;align-items:center;margin-bottom:.6rem;}
       .cp-pl{text-align:center;}
       .cp-pl .nm{font-size:1.05rem;font-weight:900;}
-      .cp-pl.a .nm{color:#8fb4ff;} .cp-pl.b .nm{color:var(--fm-gold);}
+      .cp-pl.a .nm{color:var(--fm-accent);} .cp-pl.b .nm{color:var(--fm-gold);}
       .cp-ov{font-size:2rem;font-weight:900;line-height:1;}
       .cp-ovk{font-size:.58rem;text-transform:uppercase;letter-spacing:.08em;color:var(--fm-ink-3);font-weight:800;}
       .cp-radar{display:flex;justify-content:center;margin:.4rem 0;}
@@ -35,7 +35,7 @@
       .cp-bar-a{height:100%;background:var(--fm-accent);margin-left:auto;} .cp-bar-b{height:100%;background:var(--fm-gold);}
       .win{color:var(--fm-good) !important;}
       .cp-links{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem;}
-      .cp-links a{font-size:.75rem;font-weight:800;color:#8fb4ff;text-decoration:none;border:1px solid #25406e;border-radius:8px;padding:.35rem .6rem;background:#141f33;}
+      .cp-links a{font-size:.75rem;font-weight:800;color:var(--fm-accent);text-decoration:none;border:1px solid var(--fm-line-2);border-radius:8px;padding:.35rem .6rem;background:var(--fm-panel-2);}
       .cp-empty{color:var(--fm-ink-3);font-size:.85rem;text-align:center;padding:1.2rem 0;}
     </style>
   </head>
@@ -68,7 +68,7 @@
         {% if compare %}
         <div class="cp-card">
           <div class="cp-top">
-            <div class="cp-pl a"><div class="nm">{{ pa.name }}</div><div class="cp-ov" style="color:#8fb4ff;">{{ prof_a.overall|floatformat:1 }}</div><div class="cp-ovk">Media</div></div>
+            <div class="cp-pl a"><div class="nm">{{ pa.name }}</div><div class="cp-ov" style="color:var(--fm-accent);">{{ prof_a.overall|floatformat:1 }}</div><div class="cp-ovk">Media</div></div>
             <div class="cp-radar">
               <svg viewBox="0 0 260 220" width="240" height="204" role="img" aria-label="Radar comparativo">
                 <circle cx="130" cy="110" r="80" fill="none" stroke="rgba(226,232,240,0.18)" stroke-width="1"></circle>
@@ -89,7 +89,7 @@
           <div class="cp-rows">
             {% for c in compare %}
             <div class="cp-row">
-              <div class="cp-val {% if c.a_win %}win{% endif %}" style="color:#8fb4ff;">{{ c.a|floatformat:1 }}</div>
+              <div class="cp-val {% if c.a_win %}win{% endif %}" style="color:var(--fm-accent);">{{ c.a|floatformat:1 }}</div>
               <div class="cp-barwrap"><span class="cp-bar-a" style="width:{% widthratio c.a 10 100 %}%;"></span></div>
               <div class="cp-lab">{{ c.label }}</div>
               <div class="cp-barwrap"><span class="cp-bar-b" style="width:{% widthratio c.b 10 100 %}%;"></span></div>

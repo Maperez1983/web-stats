@@ -3,7 +3,7 @@ Espera en contexto: fm_role_fit, fm_profile_season_rating, profile_link (opciona
 <section aria-label="Perfil FM" style="border:1px solid rgba(148,163,184,0.18);border-radius:16px;padding:1.1rem 1.15rem;margin:0 0 1.1rem;background:rgba(2,6,23,0.32);color:var(--fm-ink);">
   <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.4rem;margin-bottom:1rem;">
     <h3 style="margin:0;font-size:1rem;">Perfil y encaje <span style="font-size:.6rem;color:var(--fm-ink-3);font-weight:800;text-transform:uppercase;letter-spacing:.08em;">estilo FM</span></h3>
-    {% if profile_link %}<a href="{{ profile_link }}" style="font-size:.75rem;font-weight:800;color:#8fb4ff;text-decoration:none;border:1px solid #25406e;border-radius:8px;padding:.35rem .6rem;background:#141f33;">Abrir ficha completa →</a>{% endif %}
+    {% if profile_link %}<a href="{{ profile_link }}" style="font-size:.75rem;font-weight:800;color:var(--fm-accent);text-decoration:none;border:1px solid var(--fm-line-2);border-radius:8px;padding:.35rem .6rem;background:var(--fm-panel-2);">Abrir ficha completa →</a>{% endif %}
   </div>
 
   {% if fm_role_fit %}

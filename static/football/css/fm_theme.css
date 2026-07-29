@@ -1,0 +1,75 @@
+/* ==========================================================================
+   Segunda Jugada · Capa FM — ALIAS del 2J Brand System (product_system.css)
+   --------------------------------------------------------------------------
+   IMPORTANTE: esto NO es una paleta nueva. Los tokens --fm-* son ALIAS de las
+   variables --prod-* del sistema de marca, para que las vistas estilo FM usen
+   EXACTAMENTE la misma identidad que el resto de la app (colores, tipografía,
+   radios) y hereden el tema claro/oscuro sin duplicar nada.
+
+   Cambiar la identidad = cambiar product_system.css (fuente única).
+   Aquí solo se define el mapeo + componentes .fm-* reutilizables.
+   ========================================================================== */
+:root {
+  /* Superficies (marca) */
+  --fm-bg:        var(--prod-bg, #0b1626);
+  --fm-panel:     var(--prod-panel-flat, rgba(18,30,50,.94));
+  --fm-panel-2:   var(--prod-bg-soft, #101f33);
+  --fm-line:      var(--prod-line, rgba(144,161,185,.28));
+  --fm-line-2:    rgba(144, 161, 185, 0.45);
+  /* Tinta (marca) */
+  --fm-ink:       var(--prod-text, #f5f7fa);
+  --fm-ink-2:     var(--prod-muted-soft, #c3cee0);
+  --fm-ink-3:     var(--prod-muted, #a7b6cf);
+  /* Acento e identidad (marca) */
+  --fm-gold:      var(--prod-amber, #f4b400);
+  --fm-accent:    #4a86e8;
+  /* Semánticos de estado: verde/rojo de marca; ámbar propio para no
+     confundirse con el dorado de acento. */
+  --fm-good:      var(--prod-success, #22c55e);
+  --fm-mid:       #e2a53a;
+  --fm-low:       var(--prod-danger, #d64545);
+  --fm-teal:      var(--prod-info, #22d3ee);
+  /* Radios, sombras y tipografía (marca) */
+  --fm-radius:    var(--prod-radius-md, 16px);
+  --fm-radius-sm: 10px;
+  --fm-shadow:    var(--prod-shadow-md, 0 16px 36px rgba(0,0,0,.24));
+  --fm-sans:      var(--prod-font-ui, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+}
+
+/* Nota: los alias usan valores de respaldo en var(--prod-x, fallback) donde
+   importa, así que no hace falta un bloque de fallback aparte. */
+
+/* ---------- Componentes reutilizables (.fm-*) ---------- */
+.fm-card { background: var(--fm-panel); border: 1px solid var(--fm-line); border-radius: var(--fm-radius); padding: 1rem 1.1rem; color: var(--fm-ink); }
+.fm-card--accent { border-left: 4px solid var(--fm-gold); }
+.fm-panel-2 { background: var(--fm-panel-2); border: 1px solid var(--fm-line); border-radius: 13px; }
+
+.fm-label { font-size: var(--prod-fs-xs, .7rem); text-transform: uppercase; letter-spacing: .08em; color: var(--fm-ink-3); font-weight: 800; }
+.fm-title { font-size: var(--prod-fs-lg, 1.05rem); font-weight: 800; color: var(--fm-ink); margin: 0; }
+
+.fm-chip { font-size: var(--prod-fs-sm, .78rem); font-weight: 800; padding: .5rem .85rem; border-radius: var(--fm-radius-sm); border: 1px solid var(--fm-line-2); background: var(--fm-panel); color: var(--fm-ink-2); display: inline-flex; gap: .4rem; align-items: center; }
+.fm-chip b { color: var(--fm-ink); }
+.fm-chip--good { color: var(--fm-good); border-color: rgba(34,197,94,.4);  background: rgba(34,197,94,.12); }
+.fm-chip--warn { color: var(--fm-mid);  border-color: rgba(226,165,58,.4); background: rgba(226,165,58,.12); }
+.fm-chip--low  { color: var(--fm-low);  border-color: rgba(214,69,69,.4);  background: rgba(214,69,69,.12); }
+
+.fm-tag { font-size: .62rem; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; padding: 2px 7px; border-radius: 6px; white-space: nowrap; }
+.fm-tag--good { color: var(--fm-good); background: rgba(34,197,94,.14); }
+.fm-tag--warn { color: var(--fm-mid);  background: rgba(226,165,58,.14); }
+.fm-tag--low  { color: var(--fm-low);  background: rgba(214,69,69,.14); }
+.fm-tag--gold { color: var(--prod-midnight, #0b1626); background: var(--fm-gold); }
+
+.fm-pill { font-size: var(--prod-fs-sm, .8rem); font-weight: 700; color: var(--fm-ink-2); background: var(--fm-panel-2); border: 1px solid var(--fm-line-2); border-radius: 999px; padding: .3rem .7rem; text-decoration: none; }
+
+.fm-table { width: 100%; border-collapse: collapse; font-size: var(--prod-fs-sm, .82rem); color: var(--fm-ink); }
+.fm-table th, .fm-table td { padding: .5rem .7rem; border-top: 1px solid var(--fm-line); text-align: left; white-space: nowrap; }
+.fm-table thead th { border-top: none; font-size: .62rem; text-transform: uppercase; letter-spacing: .06em; color: var(--fm-ink-3); }
+.fm-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.fm-table tbody tr:hover { background: rgba(144,161,185,.07); }
+
+/* Color helpers por estado (texto) */
+.fm-t-good { color: var(--fm-good) !important; }
+.fm-t-mid  { color: var(--fm-mid)  !important; }
+.fm-t-low  { color: var(--fm-low)  !important; }
+.fm-t-gold { color: var(--fm-gold) !important; }
+.fm-t-muted{ color: var(--fm-ink-3)!important; }

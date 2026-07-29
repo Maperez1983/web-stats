@@ -10,19 +10,19 @@
     {% include 'football/pwa_head.html' %}
     <style>
       .sl-wrap{max-width:1000px;margin:0 auto;padding:1rem;color:var(--fm-ink);}
-      .sl-h1{margin:0;color:#f8fafc;font-size:1.5rem;font-weight:900;}
+      .sl-h1{margin:0;color:var(--fm-ink);font-size:1.5rem;font-weight:900;}
       .sl-sub{color:var(--fm-ink-3);font-weight:700;font-size:.78rem;margin:.15rem 0 1rem;}
       .sl-links{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;}
-      .sl-links a{font-size:.75rem;font-weight:800;color:#8fb4ff;text-decoration:none;border:1px solid #25406e;border-radius:8px;padding:.35rem .6rem;background:#141f33;}
+      .sl-links a{font-size:.75rem;font-weight:800;color:var(--fm-accent);text-decoration:none;border:1px solid var(--fm-line-2);border-radius:8px;padding:.35rem .6rem;background:var(--fm-panel-2);}
       .sl-bar{display:flex;gap:1rem;align-items:center;flex-wrap:wrap;background:var(--fm-panel);border:1px solid var(--fm-line);border-radius:14px;padding:.9rem 1rem;margin-bottom:1.1rem;}
       .sl-bar label{font-size:.66rem;text-transform:uppercase;letter-spacing:.08em;color:var(--fm-ink-3);font-weight:800;display:block;margin-bottom:.25rem;}
       .sl-bar select{background:var(--fm-bg);color:var(--fm-ink);border:1px solid var(--fm-line-2);border-radius:9px;padding:.5rem .7rem;font-weight:700;min-width:15rem;}
       .sl-count{margin-left:auto;font-size:.8rem;color:var(--fm-ink-2);font-weight:700;}
       .sl-row{display:flex;align-items:center;gap:.8rem;background:var(--fm-panel);border:1px solid var(--fm-line);border-radius:12px;padding:.7rem .9rem;margin-bottom:.5rem;text-decoration:none;}
-      .sl-row:hover{border-color:var(--fm-line-2);background:#141c28;}
+      .sl-row:hover{border-color:var(--fm-line-2);background:var(--fm-panel-2);}
       .sl-rank{font-size:1.05rem;font-weight:900;color:var(--fm-ink-3);width:1.8rem;text-align:center;flex:0 0 auto;font-variant-numeric:tabular-nums;}
       .sl-main{flex:1;min-width:0;}
-      .sl-name{font-size:.95rem;font-weight:800;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .sl-name{font-size:.95rem;font-weight:800;color:var(--fm-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
       .sl-meta{font-size:.72rem;color:var(--fm-ink-3);margin-top:1px;}
       .sl-fitwrap{flex:0 0 230px;max-width:40%;}
       @media(max-width:640px){.sl-fitwrap{flex-basis:130px;}}
@@ -32,7 +32,7 @@
       .sl-track{height:9px;border-radius:5px;background:rgba(148,163,184,.14);overflow:hidden;}
       .sl-fill{height:100%;border-radius:5px;}
       .sl-status{font-size:.62rem;font-weight:900;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:6px;color:var(--fm-ink-2);border:1px solid var(--fm-line-2);flex:0 0 auto;}
-      .sl-empty{color:#94a3b8;}
+      .sl-empty{color:var(--fm-ink-3);}
     </style>
   </head>
   <body class="prod-commercial">

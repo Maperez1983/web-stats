@@ -11,13 +11,13 @@
     <style>
       .sp-wrap{max-width:1180px;margin:0 auto;padding:1rem;color:var(--fm-ink);}
       .sp-head{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:14px;}
-      .sp-head h1{font-size:1.5rem;font-weight:900;margin:0;color:#f8fafc;}
+      .sp-head h1{font-size:1.5rem;font-weight:900;margin:0;color:var(--fm-ink);}
       .sp-sub{font-size:.78rem;color:var(--fm-ink-3);font-weight:700;margin:.15rem 0 0;}
       .sp-chips{display:flex;gap:8px;flex-wrap:wrap;}
       .sp-chip{font-size:.75rem;font-weight:800;padding:6px 11px;border-radius:10px;border:1px solid var(--fm-line-2);background:var(--fm-panel);display:flex;gap:6px;align-items:center;}
       .sp-chip b{font-size:.9rem;}
-      .sp-chip.warn{border-color:#5a4620;background:#241d10;color:var(--fm-mid);}
-      .sp-chip.ok{border-color:#1f4a30;background:#12241a;color:var(--fm-good);}
+      .sp-chip.warn{border-color:rgba(226,165,58,.4);background:rgba(226,165,58,.14);color:var(--fm-mid);}
+      .sp-chip.ok{border-color:rgba(34,197,94,.4);background:rgba(34,197,94,.14);color:var(--fm-good);}
       .sp-layout{display:grid;grid-template-columns:1fr 300px;gap:16px;}
       @media(max-width:860px){.sp-layout{grid-template-columns:1fr;}}
       .sp-board{border:1px solid var(--fm-line);border-radius:16px;background:var(--fm-panel);padding:14px;}
@@ -29,8 +29,8 @@
       .sp-pos-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:6px;}
       .sp-code{font-size:.75rem;font-weight:900;}
       .sp-cov{font-size:.58rem;font-weight:900;text-transform:uppercase;letter-spacing:.04em;padding:2px 6px;border-radius:6px;}
-      .sp-cov.ok{color:var(--fm-good);background:#12241a;border:1px solid #1f4a30;}
-      .sp-cov.warn{color:var(--fm-low);background:#26141a;border:1px solid #4a2029;}
+      .sp-cov.ok{color:var(--fm-good);background:rgba(34,197,94,.14);border:1px solid rgba(34,197,94,.4);}
+      .sp-cov.warn{color:var(--fm-low);background:rgba(214,69,69,.14);border:1px solid rgba(214,69,69,.4);}
       .sp-card{display:flex;align-items:center;gap:7px;padding:5px 7px;border-radius:8px;background:rgba(148,163,184,.05);margin-bottom:5px;border-left:3px solid var(--fm-ink-3);}
       .sp-card:last-child{margin-bottom:0;}
       .sp-nm{font-size:.8rem;font-weight:700;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--fm-ink);text-decoration:none;}
@@ -49,14 +49,14 @@
       .sp-rrow:first-of-type{border-top:none;}
       .sp-meta{font-size:.68rem;color:var(--fm-ink-3);}
       .sp-tag{font-size:.62rem;font-weight:900;padding:2px 6px;border-radius:6px;white-space:nowrap;}
-      .sp-tag.warn{color:var(--fm-mid);background:#241d10;} .sp-tag.low{color:var(--fm-low);background:#26141a;}
+      .sp-tag.warn{color:var(--fm-mid);background:rgba(226,165,58,.14);} .sp-tag.low{color:var(--fm-low);background:rgba(214,69,69,.14);}
       .sp-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:.68rem;color:var(--fm-ink-2);margin-top:12px;}
       .sp-legend span{display:flex;align-items:center;gap:5px;}
       .sp-dot{width:9px;height:9px;border-radius:2px;display:inline-block;}
       .sp-links{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.4rem;}
-      .sp-links a{font-size:.75rem;font-weight:800;color:#8fb4ff;text-decoration:none;border:1px solid #25406e;border-radius:8px;padding:.35rem .6rem;background:#141f33;}
+      .sp-links a{font-size:.75rem;font-weight:800;color:var(--fm-accent);text-decoration:none;border:1px solid var(--fm-line-2);border-radius:8px;padding:.35rem .6rem;background:var(--fm-panel-2);}
       .sp-tab{font-size:.78rem;font-weight:800;color:var(--fm-ink-2);background:var(--fm-panel-2);border:1px solid var(--fm-line-2);border-radius:9px;padding:.4rem .85rem;cursor:pointer;}
-      .sp-tab.is-active{color:var(--fm-bg);background:#8fb4ff;border-color:#8fb4ff;}
+      .sp-tab.is-active{color:var(--fm-bg);background:var(--fm-accent);border-color:var(--fm-accent);}
       #squad-table{width:100%;border-collapse:collapse;font-size:.82rem;color:var(--fm-ink);}
       #squad-table th,#squad-table td{padding:.5rem .7rem;border-top:1px solid var(--fm-line);white-space:nowrap;text-align:left;}
       #squad-table thead th{border-top:none;font-size:.64rem;text-transform:uppercase;letter-spacing:.06em;color:var(--fm-ink-3);cursor:pointer;user-select:none;}
@@ -192,7 +192,7 @@
               {% empty %}
               <div class="sp-meta">Plantilla cubierta en todos los puestos.</div>
               {% endfor %}
-              <div style="font-size:.68rem;color:var(--fm-ink-3);margin-top:8px;">Enlaza con <a href="{% url 'rival-players-index' %}" style="color:#8fb4ff;">Ojeo/Rivales</a> para cubrir estos huecos.</div>
+              <div style="font-size:.68rem;color:var(--fm-ink-3);margin-top:8px;">Enlaza con <a href="{% url 'rival-players-index' %}" style="color:var(--fm-accent);">Ojeo/Rivales</a> para cubrir estos huecos.</div>
             </div>
           </div>
         </div>
@@ -263,7 +263,7 @@
           })();
         </script>
         {% else %}
-        <p style="color:#94a3b8;">No hay jugadores activos en la plantilla todavía.</p>
+        <p style="color:var(--fm-ink-3);">No hay jugadores activos en la plantilla todavía.</p>
         {% endif %}
       </main>
     </div>
