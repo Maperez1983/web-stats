@@ -56453,6 +56453,150 @@ def _session_cover_static_path(session):
 
 @login_required
 @ensure_csrf_cookie
+def regenerate_task_previews_action(request):
+    """Regenera EN LOTES las miniaturas (task_preview_image) de las tareas del equipo con el
+    render server-side (Playwright) — mismo JS que el editor => césped 'flat_export' brillante.
+    Sirve para actualizar las miniaturas ANTIGUAS (horneadas en verde oscuro 'coachboard') sin
+    re-guardar tarea a tarea.
+
+    GET  -> página con botón + barra de progreso (el JS llama al POST por lotes).
+    POST -> procesa hasta BATCH tareas pendientes; JSON {ok, failed, skipped, remaining, total}.
+    """
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request) or _team_from_request_param(request)
+    if not primary_team:
+        raise Http404("Equipo no configurado")
+
+    RENDER_TAG = "flat_export_v1"
+    BATCH = 4
+
+    def _layout_dict(task_obj):
+        lay = getattr(task_obj, "tactical_layout", None)
+        if isinstance(lay, str):
+            try:
+                lay = json.loads(lay)
+            except Exception:
+                lay = {}
+        return lay if isinstance(lay, dict) else {}
+
+    def _current_tag(task_obj):
+        lay = _layout_dict(task_obj)
+        meta = lay.get("meta") if isinstance(lay.get("meta"), dict) else {}
+        return str(meta.get("preview_render_tag") or "")
+
+    def _stamp_tag(task_obj):
+        lay = _layout_dict(task_obj)
+        meta = lay.get("meta") if isinstance(lay.get("meta"), dict) else {}
+        meta["preview_render_tag"] = RENDER_TAG
+        lay["meta"] = meta
+        task_obj.tactical_layout = lay
+        try:
+            task_obj.save(update_fields=["tactical_layout"])
+        except Exception:
+            task_obj.save()
+
+    base_qs = (
+        SessionTask.objects.filter(
+            session__microcycle__team=primary_team,
+            deleted_at__isnull=True,
+        )
+        .exclude(task_preview_image="")
+        .order_by("id")
+    )
+
+    if request.method == "POST":
+        candidates = list(base_qs)
+        pending = [t for t in candidates if _current_tag(t) != RENDER_TAG]
+        batch = pending[:BATCH]
+        ok = 0
+        failed = 0
+        skipped = 0
+        for task_obj in batch:
+            try:
+                rendered = bool(_maybe_render_task_preview_server_side(task_obj, force=True))
+                if rendered:
+                    ok += 1
+                else:
+                    skipped += 1
+                _stamp_tag(task_obj)
+            except Exception:
+                failed += 1
+        remaining = max(0, len(pending) - len(batch))
+        return JsonResponse(
+            {
+                "ok": ok,
+                "failed": failed,
+                "skipped": skipped,
+                "processed": len(batch),
+                "remaining": remaining,
+                "total": len(candidates),
+            }
+        )
+
+    total_pending = sum(1 for t in base_qs if _current_tag(t) != RENDER_TAG)
+    total_all = base_qs.count()
+    back = reverse("session-library") + f"?team={int(primary_team.id)}"
+    html = (
+        """<!doctype html><html lang="es"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Regenerar miniaturas · 2J</title>
+<style>
+ body{margin:0;background:#050b1c;color:#e5e7eb;font-family:"Avenir Next","Inter","Segoe UI",system-ui,sans-serif;}
+ .wrap{max-width:640px;margin:0 auto;padding:32px 20px;}
+ h1{font-size:1.4rem;margin:0 0 6px;} .kick{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:#93a4c3;font-weight:800;}
+ p{color:#cbd5e1;line-height:1.5;} .muted{color:#93a4c3;font-size:.9rem;}
+ .btn{display:inline-flex;align-items:center;gap:.4rem;border:1px solid rgba(52,211,153,.45);background:rgba(52,211,153,.16);color:#bbf7d0;border-radius:11px;padding:.7rem 1.1rem;font-size:1rem;font-weight:800;cursor:pointer;}
+ .btn[disabled]{opacity:.5;cursor:default;}
+ .btn.secondary{border-color:rgba(148,163,184,.35);background:rgba(148,163,184,.08);color:#e5e7eb;font-weight:600;text-decoration:none;}
+ .bar{height:14px;border-radius:999px;background:rgba(148,163,184,.16);overflow:hidden;margin:14px 0 6px;}
+ .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#34d399,#10b981);transition:width .3s;}
+ .log{margin-top:14px;font-size:.86rem;color:#93a4c3;white-space:pre-line;}
+ .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:18px;}
+</style></head><body><div class="wrap">
+ <div class="kick">Mantenimiento · Entrenamiento</div>
+ <h1>🖼️ Regenerar miniaturas de tareas</h1>
+ <p>Vuelve a pintar las miniaturas 2D con el <strong>césped brillante</strong> del editor (las antiguas quedaron en verde oscuro). Se procesan por lotes; puedes cerrar y volver, retoma donde iba.</p>
+ <p class="muted">Equipo: <strong>__TEAM__</strong> · Tareas con miniatura: <strong>__TOTAL__</strong> · Pendientes: <strong id="pend">__PENDING__</strong></p>
+ <div class="bar"><i id="barfill"></i></div>
+ <div class="row">
+   <button class="btn" id="go">▶ Empezar</button>
+   <a class="btn secondary" id="back" href="__BACK__">Volver</a>
+ </div>
+ <div class="log" id="log"></div>
+</div>
+<script>
+ var TEAM=__TEAMID__, initialPending=__PENDING__;
+ function cookie(n){var m=document.cookie.match('(?:^|; )'+n+'=([^;]*)');return m?decodeURIComponent(m[1]):'';}
+ var totOk=0,totFail=0,totSkip=0,total=Math.max(1,__TOTAL__),done=0,lastRemaining=initialPending;
+ var goBtn=document.getElementById('go'),logEl=document.getElementById('log'),pendEl=document.getElementById('pend'),fill=document.getElementById('barfill');
+ function setBar(rem){var processed=total-rem;var pct=Math.round(processed/total*100);fill.style.width=Math.max(0,Math.min(100,pct))+'%';pendEl.textContent=rem;}
+ async function step(){
+   var r=await fetch(window.location.pathname+'?team='+TEAM,{method:'POST',headers:{'X-CSRFToken':cookie('csrftoken'),'X-Requested-With':'fetch'},credentials:'same-origin'});
+   if(!r.ok){throw new Error('HTTP '+r.status);}
+   var d=await r.json();
+   totOk+=d.ok||0;totFail+=d.failed||0;totSkip+=d.skipped||0;
+   setBar(d.remaining);
+   logEl.textContent='Regeneradas: '+totOk+'  ·  Sin cambios: '+totSkip+'  ·  Fallidas: '+totFail+'  ·  Pendientes: '+d.remaining;
+   if(d.remaining<=0){logEl.textContent+='\\n\\n✅ Terminado. Recarga una ficha con Cmd+Shift+R para verlo.';goBtn.textContent='✔ Hecho';return;}
+   if(d.remaining>=lastRemaining && (d.ok||0)===0 && (d.skipped||0)===0){logEl.textContent+='\\n\\n⚠ No hubo progreso (posible fallo de render). Parado. Reintenta o avísame.';goBtn.disabled=false;goBtn.textContent='▶ Reintentar';return;}
+   lastRemaining=d.remaining;
+   setTimeout(step,300);
+ }
+ goBtn.addEventListener('click',async function(){goBtn.disabled=true;goBtn.textContent='⏳ Procesando…';logEl.textContent='Procesando…';try{await step();}catch(e){logEl.textContent='Error: '+e.message;goBtn.disabled=false;goBtn.textContent='▶ Reintentar';}});
+</script></body></html>"""
+        .replace("__TEAM__", str(getattr(primary_team, "display_name", "") or getattr(primary_team, "name", "") or "Equipo"))
+        .replace("__TEAMID__", str(int(primary_team.id)))
+        .replace("__TOTAL__", str(int(total_all)))
+        .replace("__PENDING__", str(int(total_pending)))
+        .replace("__BACK__", back)
+    )
+    return HttpResponse(html)
+
+
+@login_required
+@ensure_csrf_cookie
 def session_library_page(request):
     """Biblioteca de sesiones: lista las PLANTILLAS de sesión reutilizables del equipo,
     con acciones ver / duplicar / borrar. Las plantillas se crean con «Guardar como

@@ -604,6 +604,7 @@ urlpatterns = [
     path("coach/11-inicial/", views.initial_eleven_page, name="initial-eleven"),
     path("coach/sesiones/", views.sessions_page, name="sessions"),
     path("coach/sesiones/biblioteca/", views.session_library_page, name="session-library"),
+    path("coach/sesiones/miniaturas/regenerar/", views.regenerate_task_previews_action, name="regenerate-task-previews"),
     path(
         "coach/sesiones/api/confirmed-players/",
         views.sessions_confirmed_players_api,
