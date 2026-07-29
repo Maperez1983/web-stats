@@ -9,29 +9,29 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
     {% include 'football/pwa_head.html' %}
     <style>
-      .sl-wrap{max-width:1000px;margin:0 auto;padding:1rem;color:#eef2f8;}
+      .sl-wrap{max-width:1000px;margin:0 auto;padding:1rem;color:var(--fm-ink);}
       .sl-h1{margin:0;color:#f8fafc;font-size:1.5rem;font-weight:900;}
-      .sl-sub{color:#6d8098;font-weight:700;font-size:.78rem;margin:.15rem 0 1rem;}
+      .sl-sub{color:var(--fm-ink-3);font-weight:700;font-size:.78rem;margin:.15rem 0 1rem;}
       .sl-links{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;}
       .sl-links a{font-size:.75rem;font-weight:800;color:#8fb4ff;text-decoration:none;border:1px solid #25406e;border-radius:8px;padding:.35rem .6rem;background:#141f33;}
-      .sl-bar{display:flex;gap:1rem;align-items:center;flex-wrap:wrap;background:#111725;border:1px solid #1f2b39;border-radius:14px;padding:.9rem 1rem;margin-bottom:1.1rem;}
-      .sl-bar label{font-size:.66rem;text-transform:uppercase;letter-spacing:.08em;color:#6d8098;font-weight:800;display:block;margin-bottom:.25rem;}
-      .sl-bar select{background:#0b0f17;color:#eef2f8;border:1px solid #2a3750;border-radius:9px;padding:.5rem .7rem;font-weight:700;min-width:15rem;}
-      .sl-count{margin-left:auto;font-size:.8rem;color:#9fb0c6;font-weight:700;}
-      .sl-row{display:flex;align-items:center;gap:.8rem;background:#111725;border:1px solid #1f2b39;border-radius:12px;padding:.7rem .9rem;margin-bottom:.5rem;text-decoration:none;}
-      .sl-row:hover{border-color:#2b3b4e;background:#141c28;}
-      .sl-rank{font-size:1.05rem;font-weight:900;color:#6d8098;width:1.8rem;text-align:center;flex:0 0 auto;font-variant-numeric:tabular-nums;}
+      .sl-bar{display:flex;gap:1rem;align-items:center;flex-wrap:wrap;background:var(--fm-panel);border:1px solid var(--fm-line);border-radius:14px;padding:.9rem 1rem;margin-bottom:1.1rem;}
+      .sl-bar label{font-size:.66rem;text-transform:uppercase;letter-spacing:.08em;color:var(--fm-ink-3);font-weight:800;display:block;margin-bottom:.25rem;}
+      .sl-bar select{background:var(--fm-bg);color:var(--fm-ink);border:1px solid var(--fm-line-2);border-radius:9px;padding:.5rem .7rem;font-weight:700;min-width:15rem;}
+      .sl-count{margin-left:auto;font-size:.8rem;color:var(--fm-ink-2);font-weight:700;}
+      .sl-row{display:flex;align-items:center;gap:.8rem;background:var(--fm-panel);border:1px solid var(--fm-line);border-radius:12px;padding:.7rem .9rem;margin-bottom:.5rem;text-decoration:none;}
+      .sl-row:hover{border-color:var(--fm-line-2);background:#141c28;}
+      .sl-rank{font-size:1.05rem;font-weight:900;color:var(--fm-ink-3);width:1.8rem;text-align:center;flex:0 0 auto;font-variant-numeric:tabular-nums;}
       .sl-main{flex:1;min-width:0;}
       .sl-name{font-size:.95rem;font-weight:800;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-      .sl-meta{font-size:.72rem;color:#6d8098;margin-top:1px;}
+      .sl-meta{font-size:.72rem;color:var(--fm-ink-3);margin-top:1px;}
       .sl-fitwrap{flex:0 0 230px;max-width:40%;}
       @media(max-width:640px){.sl-fitwrap{flex-basis:130px;}}
       .sl-fittop{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;}
       .sl-fitpct{font-size:.95rem;font-weight:900;font-variant-numeric:tabular-nums;}
-      .sl-fitnone{font-size:.72rem;color:#6d8098;font-weight:700;}
+      .sl-fitnone{font-size:.72rem;color:var(--fm-ink-3);font-weight:700;}
       .sl-track{height:9px;border-radius:5px;background:rgba(148,163,184,.14);overflow:hidden;}
       .sl-fill{height:100%;border-radius:5px;}
-      .sl-status{font-size:.62rem;font-weight:900;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:6px;color:#9fb0c6;border:1px solid #2a3750;flex:0 0 auto;}
+      .sl-status{font-size:.62rem;font-weight:900;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:6px;color:var(--fm-ink-2);border:1px solid var(--fm-line-2);flex:0 0 auto;}
       .sl-empty{color:#94a3b8;}
     </style>
   </head>
@@ -72,9 +72,9 @@
               {% if r.fit != None %}
               <span class="sl-fittop">
                 <span class="sl-meta">encaje {{ role.label|default:'' }}</span>
-                <span class="sl-fitpct" style="color:{% if r.tone == 'good' %}#3fbf6a{% elif r.tone == 'mid' %}#e2a53a{% else %}#e2564a{% endif %};">{{ r.fit }}%</span>
+                <span class="sl-fitpct" style="color:{% if r.tone == 'good' %}var(--fm-good){% elif r.tone == 'mid' %}var(--fm-mid){% else %}var(--fm-low){% endif %};">{{ r.fit }}%</span>
               </span>
-              <span class="sl-track" style="display:block;"><span class="sl-fill" style="width:{{ r.fit }}%;background:{% if r.tone == 'good' %}linear-gradient(90deg,#2f9e57,#3fbf6a){% elif r.tone == 'mid' %}linear-gradient(90deg,#c98a26,#e2a53a){% else %}linear-gradient(90deg,#b8404a,#e2564a){% endif %};"></span></span>
+              <span class="sl-track" style="display:block;"><span class="sl-fill" style="width:{{ r.fit }}%;background:{% if r.tone == 'good' %}linear-gradient(90deg,#2f9e57,var(--fm-good)){% elif r.tone == 'mid' %}linear-gradient(90deg,#c98a26,var(--fm-mid)){% else %}linear-gradient(90deg,#b8404a,var(--fm-low)){% endif %};"></span></span>
               {% else %}
               <span class="sl-fitnone">Sin evaluar — evalúalo para calcular el encaje</span>
               {% endif %}

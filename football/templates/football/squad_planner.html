@@ -9,58 +9,58 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
     {% include 'football/pwa_head.html' %}
     <style>
-      .sp-wrap{max-width:1180px;margin:0 auto;padding:1rem;color:#eef2f8;}
+      .sp-wrap{max-width:1180px;margin:0 auto;padding:1rem;color:var(--fm-ink);}
       .sp-head{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:14px;}
       .sp-head h1{font-size:1.5rem;font-weight:900;margin:0;color:#f8fafc;}
-      .sp-sub{font-size:.78rem;color:#6b7c94;font-weight:700;margin:.15rem 0 0;}
+      .sp-sub{font-size:.78rem;color:var(--fm-ink-3);font-weight:700;margin:.15rem 0 0;}
       .sp-chips{display:flex;gap:8px;flex-wrap:wrap;}
-      .sp-chip{font-size:.75rem;font-weight:800;padding:6px 11px;border-radius:10px;border:1px solid #2a3750;background:#111725;display:flex;gap:6px;align-items:center;}
+      .sp-chip{font-size:.75rem;font-weight:800;padding:6px 11px;border-radius:10px;border:1px solid var(--fm-line-2);background:var(--fm-panel);display:flex;gap:6px;align-items:center;}
       .sp-chip b{font-size:.9rem;}
-      .sp-chip.warn{border-color:#5a4620;background:#241d10;color:#e2a53a;}
-      .sp-chip.ok{border-color:#1f4a30;background:#12241a;color:#3fbf6a;}
+      .sp-chip.warn{border-color:#5a4620;background:#241d10;color:var(--fm-mid);}
+      .sp-chip.ok{border-color:#1f4a30;background:#12241a;color:var(--fm-good);}
       .sp-layout{display:grid;grid-template-columns:1fr 300px;gap:16px;}
       @media(max-width:860px){.sp-layout{grid-template-columns:1fr;}}
-      .sp-board{border:1px solid #1e2838;border-radius:16px;background:#111725;padding:14px;}
+      .sp-board{border:1px solid var(--fm-line);border-radius:16px;background:var(--fm-panel);padding:14px;}
       .sp-line{margin-bottom:14px;}
       .sp-line:last-child{margin-bottom:0;}
-      .sp-line-t{font-size:.66rem;text-transform:uppercase;letter-spacing:.12em;color:#6b7c94;font-weight:800;margin:0 0 8px;}
+      .sp-line-t{font-size:.66rem;text-transform:uppercase;letter-spacing:.12em;color:var(--fm-ink-3);font-weight:800;margin:0 0 8px;}
       .sp-cols{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));}
-      .sp-pos{border:1px solid #1e2838;border-radius:12px;background:#0e1420;padding:9px;}
+      .sp-pos{border:1px solid var(--fm-line);border-radius:12px;background:var(--fm-panel-2);padding:9px;}
       .sp-pos-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:6px;}
       .sp-code{font-size:.75rem;font-weight:900;}
       .sp-cov{font-size:.58rem;font-weight:900;text-transform:uppercase;letter-spacing:.04em;padding:2px 6px;border-radius:6px;}
-      .sp-cov.ok{color:#3fbf6a;background:#12241a;border:1px solid #1f4a30;}
-      .sp-cov.warn{color:#e2564a;background:#26141a;border:1px solid #4a2029;}
-      .sp-card{display:flex;align-items:center;gap:7px;padding:5px 7px;border-radius:8px;background:rgba(148,163,184,.05);margin-bottom:5px;border-left:3px solid #6b7c94;}
+      .sp-cov.ok{color:var(--fm-good);background:#12241a;border:1px solid #1f4a30;}
+      .sp-cov.warn{color:var(--fm-low);background:#26141a;border:1px solid #4a2029;}
+      .sp-card{display:flex;align-items:center;gap:7px;padding:5px 7px;border-radius:8px;background:rgba(148,163,184,.05);margin-bottom:5px;border-left:3px solid var(--fm-ink-3);}
       .sp-card:last-child{margin-bottom:0;}
-      .sp-nm{font-size:.8rem;font-weight:700;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#eef2f8;text-decoration:none;}
+      .sp-nm{font-size:.8rem;font-weight:700;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--fm-ink);text-decoration:none;}
       .sp-nm:hover{text-decoration:underline;}
-      .sp-lv{font-size:.72rem;font-weight:900;font-variant-numeric:tabular-nums;color:#9fb0c6;}
-      .sp-role-sel{font-size:.62rem;background:#0b0f17;color:#9fb0c6;border:1px solid #2a3750;border-radius:6px;padding:1px 3px;max-width:82px;}
+      .sp-lv{font-size:.72rem;font-weight:900;font-variant-numeric:tabular-nums;color:var(--fm-ink-2);}
+      .sp-role-sel{font-size:.62rem;background:var(--fm-bg);color:var(--fm-ink-2);border:1px solid var(--fm-line-2);border-radius:6px;padding:1px 3px;max-width:82px;}
       .sp-ico{font-size:.7rem;}
-      .sp-empty{font-size:.68rem;color:#e2564a;font-weight:700;text-align:center;padding:7px 2px;}
+      .sp-empty{font-size:.68rem;color:var(--fm-low);font-weight:700;text-align:center;padding:7px 2px;}
       .sp-rail{display:flex;flex-direction:column;gap:14px;}
-      .sp-rcard{border:1px solid #1e2838;border-radius:14px;background:#111725;padding:14px;}
-      .sp-rt{font-size:.66rem;text-transform:uppercase;letter-spacing:.1em;color:#6b7c94;font-weight:800;margin:0 0 10px;}
+      .sp-rcard{border:1px solid var(--fm-line);border-radius:14px;background:var(--fm-panel);padding:14px;}
+      .sp-rt{font-size:.66rem;text-transform:uppercase;letter-spacing:.1em;color:var(--fm-ink-3);font-weight:800;margin:0 0 10px;}
       .sp-big{font-size:1.5rem;font-weight:900;}
       .sp-gauge{height:10px;border-radius:6px;background:rgba(148,163,184,.16);overflow:hidden;margin:6px 0;}
-      .sp-gauge>div{height:100%;background:linear-gradient(90deg,#2f6ed0,#4a86e8);}
-      .sp-rrow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #1e2838;font-size:.8rem;}
+      .sp-gauge>div{height:100%;background:linear-gradient(90deg,#2f6ed0,var(--fm-accent));}
+      .sp-rrow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--fm-line);font-size:.8rem;}
       .sp-rrow:first-of-type{border-top:none;}
-      .sp-meta{font-size:.68rem;color:#6b7c94;}
+      .sp-meta{font-size:.68rem;color:var(--fm-ink-3);}
       .sp-tag{font-size:.62rem;font-weight:900;padding:2px 6px;border-radius:6px;white-space:nowrap;}
-      .sp-tag.warn{color:#e2a53a;background:#241d10;} .sp-tag.low{color:#e2564a;background:#26141a;}
-      .sp-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:.68rem;color:#9fb0c6;margin-top:12px;}
+      .sp-tag.warn{color:var(--fm-mid);background:#241d10;} .sp-tag.low{color:var(--fm-low);background:#26141a;}
+      .sp-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:.68rem;color:var(--fm-ink-2);margin-top:12px;}
       .sp-legend span{display:flex;align-items:center;gap:5px;}
       .sp-dot{width:9px;height:9px;border-radius:2px;display:inline-block;}
       .sp-links{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.4rem;}
       .sp-links a{font-size:.75rem;font-weight:800;color:#8fb4ff;text-decoration:none;border:1px solid #25406e;border-radius:8px;padding:.35rem .6rem;background:#141f33;}
-      .sp-tab{font-size:.78rem;font-weight:800;color:#9fb0c6;background:#0e1420;border:1px solid #2a3750;border-radius:9px;padding:.4rem .85rem;cursor:pointer;}
-      .sp-tab.is-active{color:#0b0f17;background:#8fb4ff;border-color:#8fb4ff;}
-      #squad-table{width:100%;border-collapse:collapse;font-size:.82rem;color:#eef2f8;}
-      #squad-table th,#squad-table td{padding:.5rem .7rem;border-top:1px solid #1e2838;white-space:nowrap;text-align:left;}
-      #squad-table thead th{border-top:none;font-size:.64rem;text-transform:uppercase;letter-spacing:.06em;color:#6b7c94;cursor:pointer;user-select:none;}
-      #squad-table thead th:hover{color:#eef2f8;}
+      .sp-tab{font-size:.78rem;font-weight:800;color:var(--fm-ink-2);background:var(--fm-panel-2);border:1px solid var(--fm-line-2);border-radius:9px;padding:.4rem .85rem;cursor:pointer;}
+      .sp-tab.is-active{color:var(--fm-bg);background:#8fb4ff;border-color:#8fb4ff;}
+      #squad-table{width:100%;border-collapse:collapse;font-size:.82rem;color:var(--fm-ink);}
+      #squad-table th,#squad-table td{padding:.5rem .7rem;border-top:1px solid var(--fm-line);white-space:nowrap;text-align:left;}
+      #squad-table thead th{border-top:none;font-size:.64rem;text-transform:uppercase;letter-spacing:.06em;color:var(--fm-ink-3);cursor:pointer;user-select:none;}
+      #squad-table thead th:hover{color:var(--fm-ink);}
       #squad-table .num{text-align:right;font-variant-numeric:tabular-nums;}
       #squad-table tbody tr:hover{background:rgba(148,163,184,.05);}
     </style>
@@ -152,13 +152,13 @@
             {% endif %}
 
             <div class="sp-legend">
-              <span><i class="sp-dot" style="background:#f4b400"></i>Clave</span>
-              <span><i class="sp-dot" style="background:#3fbf6a"></i>Titular</span>
-              <span><i class="sp-dot" style="background:#4a86e8"></i>Rotación</span>
+              <span><i class="sp-dot" style="background:var(--fm-gold)"></i>Clave</span>
+              <span><i class="sp-dot" style="background:var(--fm-good)"></i>Titular</span>
+              <span><i class="sp-dot" style="background:var(--fm-accent)"></i>Rotación</span>
               <span><i class="sp-dot" style="background:#2dd4bf"></i>Promesa</span>
-              <span><i class="sp-dot" style="background:#6b7c94"></i>Suplente</span>
-              <span><i class="sp-dot" style="background:#e2564a"></i>Prescindible</span>
-              <span style="color:#6b7c94;">· El rol se propone solo; cámbialo en el desplegable para fijarlo.</span>
+              <span><i class="sp-dot" style="background:var(--fm-ink-3)"></i>Suplente</span>
+              <span><i class="sp-dot" style="background:var(--fm-low)"></i>Prescindible</span>
+              <span style="color:var(--fm-ink-3);">· El rol se propone solo; cámbialo en el desplegable para fijarlo.</span>
             </div>
           </div>
 
@@ -166,9 +166,9 @@
             {% if planner.fed %}
             <div class="sp-rcard">
               <p class="sp-rt">Fichas federativas</p>
-              <div class="sp-big">{{ planner.fed.fichados }} <span style="font-size:.85rem;color:#6b7c94">/ {{ planner.fed.cap }}</span></div>
+              <div class="sp-big">{{ planner.fed.fichados }} <span style="font-size:.85rem;color:var(--fm-ink-3)">/ {{ planner.fed.cap }}</span></div>
               <div class="sp-gauge"><div style="width:{% widthratio planner.fed.fichados planner.fed.cap 100 %}%"></div></div>
-              <div style="font-size:.75rem;color:#9fb0c6;font-weight:700;">{{ planner.fed.fichas_disponibles }} fichas libres · {{ planner.fed.a_prueba }} a prueba · {{ planner.fed.lesionados }} lesionados</div>
+              <div style="font-size:.75rem;color:var(--fm-ink-2);font-weight:700;">{{ planner.fed.fichas_disponibles }} fichas libres · {{ planner.fed.a_prueba }} a prueba · {{ planner.fed.lesionados }} lesionados</div>
             </div>
             {% endif %}
             <div class="sp-rcard">
@@ -192,14 +192,14 @@
               {% empty %}
               <div class="sp-meta">Plantilla cubierta en todos los puestos.</div>
               {% endfor %}
-              <div style="font-size:.68rem;color:#6b7c94;margin-top:8px;">Enlaza con <a href="{% url 'rival-players-index' %}" style="color:#8fb4ff;">Ojeo/Rivales</a> para cubrir estos huecos.</div>
+              <div style="font-size:.68rem;color:var(--fm-ink-3);margin-top:8px;">Enlaza con <a href="{% url 'rival-players-index' %}" style="color:#8fb4ff;">Ojeo/Rivales</a> para cubrir estos huecos.</div>
             </div>
           </div>
         </div>
         </div>
 
         <div id="view-table" hidden>
-          <div style="overflow-x:auto;border:1px solid #1e2838;border-radius:14px;background:#111725;">
+          <div style="overflow-x:auto;border:1px solid var(--fm-line);border-radius:14px;background:var(--fm-panel);">
             <table id="squad-table">
               <thead>
                 <tr>
@@ -218,20 +218,20 @@
                 {% for p in planner.all_players %}
                 <tr>
                   <td class="num" data-v="{{ p.number|default:0 }}">{{ p.number|default:'—' }}</td>
-                  <td data-v="{{ p.name|lower }}"><a href="{% url 'player-detail' p.id %}" style="color:#eef2f8;text-decoration:none;font-weight:700;">{{ p.name }}</a></td>
+                  <td data-v="{{ p.name|lower }}"><a href="{% url 'player-detail' p.id %}" style="color:var(--fm-ink);text-decoration:none;font-weight:700;">{{ p.name }}</a></td>
                   <td data-v="{{ p.position }}">{{ p.position|default:'—' }}</td>
                   <td data-v="{{ p.role }}"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:{{ p.role_color }};margin-right:6px;vertical-align:middle;"></span>{{ p.role_label }}</td>
                   <td class="num" data-v="{{ p.level|default:0 }}"><b>{% if p.level %}{{ p.level|floatformat:1 }}{% else %}—{% endif %}</b></td>
-                  <td class="num" data-v="{{ p.rating_avg|default:0 }}">{% if p.rating_avg %}{{ p.rating_avg|floatformat:1 }} <span style="color:#6b7c94;font-size:.7rem;">({{ p.rating_n }})</span>{% else %}—{% endif %}</td>
-                  <td data-v="{% if p.available %}2{% elif p.sanction %}1{% else %}0{% endif %}">{% if p.injured %}<span style="color:#e2564a;">🩹 Lesión</span>{% elif p.sanction %}<span style="color:#e2a53a;">Sanción</span>{% else %}<span style="color:#3fbf6a;">Disponible</span>{% endif %}</td>
-                  <td data-v="{% if p.ficha %}1{% else %}0{% endif %}">{% if p.ficha %}<span style="color:#3fbf6a;">✓</span>{% else %}<span style="color:#6b7c94;">◌</span>{% endif %}</td>
-                  <td data-v="{{ p.days|default:99999 }}">{% if p.contract_end %}{{ p.contract_end|date:'d/m/Y' }}{% if p.contract_soon %} <span style="color:#e2a53a;">⚠</span>{% endif %}{% else %}—{% endif %}</td>
+                  <td class="num" data-v="{{ p.rating_avg|default:0 }}">{% if p.rating_avg %}{{ p.rating_avg|floatformat:1 }} <span style="color:var(--fm-ink-3);font-size:.7rem;">({{ p.rating_n }})</span>{% else %}—{% endif %}</td>
+                  <td data-v="{% if p.available %}2{% elif p.sanction %}1{% else %}0{% endif %}">{% if p.injured %}<span style="color:var(--fm-low);">🩹 Lesión</span>{% elif p.sanction %}<span style="color:var(--fm-mid);">Sanción</span>{% else %}<span style="color:var(--fm-good);">Disponible</span>{% endif %}</td>
+                  <td data-v="{% if p.ficha %}1{% else %}0{% endif %}">{% if p.ficha %}<span style="color:var(--fm-good);">✓</span>{% else %}<span style="color:var(--fm-ink-3);">◌</span>{% endif %}</td>
+                  <td data-v="{{ p.days|default:99999 }}">{% if p.contract_end %}{{ p.contract_end|date:'d/m/Y' }}{% if p.contract_soon %} <span style="color:var(--fm-mid);">⚠</span>{% endif %}{% else %}—{% endif %}</td>
                 </tr>
                 {% endfor %}
               </tbody>
             </table>
           </div>
-          <p style="font-size:.72rem;color:#6b7c94;margin:.6rem 0 0;">Pulsa una cabecera para ordenar. Media = nota media de partidos (partidos cerrados). Nivel = evaluación.</p>
+          <p style="font-size:.72rem;color:var(--fm-ink-3);margin:.6rem 0 0;">Pulsa una cabecera para ordenar. Media = nota media de partidos (partidos cerrados). Nivel = evaluación.</p>
         </div>
 
         <script>

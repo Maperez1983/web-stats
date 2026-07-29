@@ -9,26 +9,26 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
     {% include 'football/pwa_head.html' %}
     <style>
-      .dv-wrap{max-width:1000px;margin:0 auto;padding:1rem;color:#eef2f8;}
+      .dv-wrap{max-width:1000px;margin:0 auto;padding:1rem;color:var(--fm-ink);}
       .dv-h1{margin:0;color:#f8fafc;font-size:1.5rem;font-weight:900;}
-      .dv-sub{color:#6d8098;font-weight:700;font-size:.78rem;margin:.15rem 0 1rem;}
+      .dv-sub{color:var(--fm-ink-3);font-weight:700;font-size:.78rem;margin:.15rem 0 1rem;}
       .dv-chips{display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1.2rem;}
-      .dv-chip{border:1px solid #1f2b39;background:#111725;border-radius:11px;padding:.5rem .85rem;font-weight:800;font-size:.82rem;}
-      .dv-chip .n{font-size:1.15rem;font-weight:900;color:#3fbf6a;}
+      .dv-chip{border:1px solid var(--fm-line);background:var(--fm-panel);border-radius:11px;padding:.5rem .85rem;font-weight:800;font-size:.82rem;}
+      .dv-chip .n{font-size:1.15rem;font-weight:900;color:var(--fm-good);}
       .dv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;}
-      .dv-card{background:#111725;border:1px solid #1f2b39;border-radius:14px;padding:.9rem 1rem;}
+      .dv-card{background:var(--fm-panel);border:1px solid var(--fm-line);border-radius:14px;padding:.9rem 1rem;}
       .dv-card.novo{opacity:.6;}
       .dv-top{display:flex;justify-content:space-between;align-items:baseline;gap:.5rem;margin-bottom:.5rem;}
       .dv-nm{font-size:1rem;font-weight:800;color:#f1f5f9;text-decoration:none;}
       .dv-nm:hover{text-decoration:underline;}
       .dv-ov{font-size:1.1rem;font-weight:900;font-variant-numeric:tabular-nums;}
       .dv-trend{font-size:.8rem;font-weight:800;}
-      .dv-k{font-size:.6rem;text-transform:uppercase;letter-spacing:.07em;color:#6d8098;font-weight:800;margin:.6rem 0 .25rem;}
-      .dv-obj{font-size:.82rem;color:#cbd5e1;line-height:1.45;}
+      .dv-k{font-size:.6rem;text-transform:uppercase;letter-spacing:.07em;color:var(--fm-ink-3);font-weight:800;margin:.6rem 0 .25rem;}
+      .dv-obj{font-size:.82rem;color:var(--fm-ink-2);line-height:1.45;}
       .dv-attrs{display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.2rem;}
       .dv-attr{font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:6px;}
-      .dv-attr.up{color:#3fbf6a;background:#12241a;} .dv-attr.down{color:#e2564a;background:#26141a;}
-      .dv-none{font-size:.8rem;color:#6d8098;}
+      .dv-attr.up{color:var(--fm-good);background:#12241a;} .dv-attr.down{color:var(--fm-low);background:#26141a;}
+      .dv-none{font-size:.8rem;color:var(--fm-ink-3);}
       .dv-links{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1.2rem;}
       .dv-links a{font-size:.75rem;font-weight:800;color:#8fb4ff;text-decoration:none;border:1px solid #25406e;border-radius:8px;padding:.35rem .6rem;background:#141f33;}
     </style>
@@ -54,7 +54,7 @@
               {% if r.has_eval %}
               <span>
                 {% if r.overall %}<span class="dv-ov">{{ r.overall|floatformat:1 }}</span>{% endif %}
-                {% if r.trend > 0 %}<span class="dv-trend" style="color:#3fbf6a;">↑ +{{ r.trend|floatformat:1 }}</span>{% elif r.trend < 0 %}<span class="dv-trend" style="color:#e2564a;">↓ {{ r.trend|floatformat:1 }}</span>{% endif %}
+                {% if r.trend > 0 %}<span class="dv-trend" style="color:var(--fm-good);">↑ +{{ r.trend|floatformat:1 }}</span>{% elif r.trend < 0 %}<span class="dv-trend" style="color:var(--fm-low);">↓ {{ r.trend|floatformat:1 }}</span>{% endif %}
               </span>
               {% endif %}
             </div>
@@ -79,7 +79,7 @@
           {% endfor %}
         </div>
 
-        <p style="font-size:.72rem;color:#6d8098;margin-top:1rem;">Objetivos tomados de la última evaluación de cada jugador. La progresión compara sus dos últimas evaluaciones (atributo a atributo).</p>
+        <p style="font-size:.72rem;color:var(--fm-ink-3);margin-top:1rem;">Objetivos tomados de la última evaluación de cada jugador. La progresión compara sus dos últimas evaluaciones (atributo a atributo).</p>
 
         <div class="dv-links">
           <a href="{% url 'coach-roster' %}">← Plantilla</a>

@@ -1,33 +1,33 @@
 {% comment %}Bloque de perfil FM compartido (propios · rivales · ojeados): encaje por rol + nivel/potencial + rating de temporada.
 Espera en contexto: fm_role_fit, fm_profile_season_rating, profile_link (opcional), profile_pending_reason (opcional).{% endcomment %}
-<section aria-label="Perfil FM" style="border:1px solid rgba(148,163,184,0.18);border-radius:16px;padding:1.1rem 1.15rem;margin:0 0 1.1rem;background:rgba(2,6,23,0.32);color:#eef2f8;">
+<section aria-label="Perfil FM" style="border:1px solid rgba(148,163,184,0.18);border-radius:16px;padding:1.1rem 1.15rem;margin:0 0 1.1rem;background:rgba(2,6,23,0.32);color:var(--fm-ink);">
   <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.4rem;margin-bottom:1rem;">
-    <h3 style="margin:0;font-size:1rem;">Perfil y encaje <span style="font-size:.6rem;color:#6b7c94;font-weight:800;text-transform:uppercase;letter-spacing:.08em;">estilo FM</span></h3>
+    <h3 style="margin:0;font-size:1rem;">Perfil y encaje <span style="font-size:.6rem;color:var(--fm-ink-3);font-weight:800;text-transform:uppercase;letter-spacing:.08em;">estilo FM</span></h3>
     {% if profile_link %}<a href="{{ profile_link }}" style="font-size:.75rem;font-weight:800;color:#8fb4ff;text-decoration:none;border:1px solid #25406e;border-radius:8px;padding:.35rem .6rem;background:#141f33;">Abrir ficha completa →</a>{% endif %}
   </div>
 
   {% if fm_role_fit %}
   <div style="display:grid;grid-template-columns:minmax(220px,290px) 1fr;gap:1rem;align-items:start;">
-    {% with dg='border:1px solid rgba(148,163,184,0.16);border-radius:13px;background:rgba(2,6,23,0.4);padding:1rem;' k3='font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:#6b7c94;font-weight:800;' %}
+    {% with dg='border:1px solid rgba(148,163,184,0.16);border-radius:13px;background:rgba(2,6,23,0.4);padding:1rem;' k3='font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:var(--fm-ink-3);font-weight:800;' %}
     <div style="{{ dg }}">
       <p style="{{ k3 }}margin:0 0 .8rem;">Nivel del jugador</p>
       <div style="display:flex;align-items:center;gap:1rem;">
-        <div style="width:90px;height:90px;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;position:relative;background:conic-gradient(#3fbf6a 0 {{ fm_role_fit.level_pct }}%, rgba(148,163,184,.16) {{ fm_role_fit.level_pct }}% 100%);">
+        <div style="width:90px;height:90px;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;position:relative;background:conic-gradient(var(--fm-good) 0 {{ fm_role_fit.level_pct }}%, rgba(148,163,184,.16) {{ fm_role_fit.level_pct }}% 100%);">
           <div style="position:absolute;inset:8px;border-radius:50%;background:rgba(2,6,23,0.85);"></div>
-          <span style="position:relative;font-size:1.55rem;font-weight:900;line-height:1;">{{ fm_role_fit.level|floatformat:1 }}<span style="font-size:.6rem;font-weight:700;color:#6b7c94;">/10</span></span>
+          <span style="position:relative;font-size:1.55rem;font-weight:900;line-height:1;">{{ fm_role_fit.level|floatformat:1 }}<span style="font-size:.6rem;font-weight:700;color:var(--fm-ink-3);">/10</span></span>
         </div>
         <div style="flex:1;min-width:0;">
           <div style="{{ k3 }}">Potencial</div>
           <div style="font-size:1.05rem;font-weight:800;margin:1px 0 .35rem;">{{ fm_role_fit.potential|floatformat:1 }}</div>
           <div style="position:relative;height:8px;border-radius:5px;background:rgba(148,163,184,.16);overflow:hidden;">
             <div style="position:absolute;left:0;top:0;height:100%;width:{{ fm_role_fit.potential_pct }}%;background:repeating-linear-gradient(90deg,rgba(244,180,0,.5) 0 4px,transparent 4px 8px);"></div>
-            <div style="position:absolute;left:0;top:0;height:100%;width:{{ fm_role_fit.level_pct }}%;background:#4a86e8;"></div>
+            <div style="position:absolute;left:0;top:0;height:100%;width:{{ fm_role_fit.level_pct }}%;background:var(--fm-accent);"></div>
           </div>
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:.5rem;margin-top:.9rem;padding-top:.9rem;border-top:1px solid rgba(148,163,184,0.16);">
-        <div style="display:flex;gap:4px;">{% for d in "xxx"|make_list %}<span style="width:9px;height:9px;border-radius:50%;background:{% if forloop.counter <= fm_role_fit.confidence.dots %}#f4b400{% else %}rgba(148,163,184,.28){% endif %};"></span>{% endfor %}</div>
-        <div style="font-size:.75rem;color:#9fb0c6;font-weight:700;">Confianza <b style="color:#eef2f8;">{{ fm_role_fit.confidence.label }}</b> · {{ fm_role_fit.confidence.n_evals }} eval.</div>
+        <div style="display:flex;gap:4px;">{% for d in "xxx"|make_list %}<span style="width:9px;height:9px;border-radius:50%;background:{% if forloop.counter <= fm_role_fit.confidence.dots %}var(--fm-gold){% else %}rgba(148,163,184,.28){% endif %};"></span>{% endfor %}</div>
+        <div style="font-size:.75rem;color:var(--fm-ink-2);font-weight:700;">Confianza <b style="color:var(--fm-ink);">{{ fm_role_fit.confidence.label }}</b> · {{ fm_role_fit.confidence.n_evals }} eval.</div>
       </div>
     </div>
     <div style="{{ dg }}">
@@ -35,28 +35,28 @@ Espera en contexto: fm_role_fit, fm_profile_season_rating, profile_link (opciona
       {% for role in fm_role_fit.roles %}
       <div style="margin-bottom:.7rem;">
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
-          <span style="font-size:.86rem;font-weight:700;">{{ role.label }}{% if forloop.first %} <span style="font-size:.58rem;font-weight:900;text-transform:uppercase;letter-spacing:.05em;color:#0b0f17;background:#f4b400;border-radius:5px;padding:1px 6px;">Rol óptimo</span>{% endif %}</span>
-          <span style="font-size:.85rem;font-weight:900;color:{% if role.tone == 'good' %}#3fbf6a{% elif role.tone == 'mid' %}#e2a53a{% else %}#e2564a{% endif %};">{{ role.pct }}%</span>
+          <span style="font-size:.86rem;font-weight:700;">{{ role.label }}{% if forloop.first %} <span style="font-size:.58rem;font-weight:900;text-transform:uppercase;letter-spacing:.05em;color:var(--fm-bg);background:var(--fm-gold);border-radius:5px;padding:1px 6px;">Rol óptimo</span>{% endif %}</span>
+          <span style="font-size:.85rem;font-weight:900;color:{% if role.tone == 'good' %}var(--fm-good){% elif role.tone == 'mid' %}var(--fm-mid){% else %}var(--fm-low){% endif %};">{{ role.pct }}%</span>
         </div>
-        <div style="height:9px;border-radius:5px;background:rgba(148,163,184,.14);overflow:hidden;"><div style="height:100%;border-radius:5px;width:{{ role.pct }}%;background:{% if role.tone == 'good' %}linear-gradient(90deg,#2f9e57,#3fbf6a){% elif role.tone == 'mid' %}linear-gradient(90deg,#c98a26,#e2a53a){% else %}linear-gradient(90deg,#b8404a,#e2564a){% endif %};"></div></div>
+        <div style="height:9px;border-radius:5px;background:rgba(148,163,184,.14);overflow:hidden;"><div style="height:100%;border-radius:5px;width:{{ role.pct }}%;background:{% if role.tone == 'good' %}linear-gradient(90deg,#2f9e57,var(--fm-good)){% elif role.tone == 'mid' %}linear-gradient(90deg,#c98a26,var(--fm-mid)){% else %}linear-gradient(90deg,#b8404a,var(--fm-low)){% endif %};"></div></div>
       </div>
       {% endfor %}
     </div>
     {% endwith %}
   </div>
   {% else %}
-  <div style="border:1px dashed rgba(148,163,184,0.28);border-radius:13px;padding:1rem;color:#9fb0c6;font-size:.85rem;">
+  <div style="border:1px dashed rgba(148,163,184,0.28);border-radius:13px;padding:1rem;color:var(--fm-ink-2);font-size:.85rem;">
     Sin evaluación todavía. {% if profile_link %}Evalúa al jugador desde su ficha para ver su perfil FM (atributos, radar y encaje por rol).{% else %}Reconócelo como jugador y evalúalo para generar su perfil FM.{% endif %}
   </div>
   {% endif %}
 
   <div style="margin-top:.9rem;padding-top:.9rem;border-top:1px solid rgba(148,163,184,0.16);display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">
-    <span style="font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:#6b7c94;font-weight:800;">Rating de partidos</span>
+    <span style="font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--fm-ink-3);font-weight:800;">Rating de partidos</span>
     {% if fm_profile_season_rating.avg %}
-    <span style="font-size:1.1rem;font-weight:900;color:{% if fm_profile_season_rating.avg >= 7 %}#3fbf6a{% elif fm_profile_season_rating.avg >= 6 %}#e2a53a{% else %}#e2564a{% endif %};">{{ fm_profile_season_rating.avg|floatformat:1 }}</span>
-    <span style="font-size:.72rem;color:#9fb0c6;">media · {{ fm_profile_season_rating.count }} partido{{ fm_profile_season_rating.count|pluralize }}</span>
+    <span style="font-size:1.1rem;font-weight:900;color:{% if fm_profile_season_rating.avg >= 7 %}var(--fm-good){% elif fm_profile_season_rating.avg >= 6 %}var(--fm-mid){% else %}var(--fm-low){% endif %};">{{ fm_profile_season_rating.avg|floatformat:1 }}</span>
+    <span style="font-size:.72rem;color:var(--fm-ink-2);">media · {{ fm_profile_season_rating.count }} partido{{ fm_profile_season_rating.count|pluralize }}</span>
     {% else %}
-    <span style="font-size:.8rem;color:#9fb0c6;">{{ profile_pending_reason|default:"Pendiente de importar de La Preferente." }}</span>
+    <span style="font-size:.8rem;color:var(--fm-ink-2);">{{ profile_pending_reason|default:"Pendiente de importar de La Preferente." }}</span>
     {% endif %}
   </div>
 </section>

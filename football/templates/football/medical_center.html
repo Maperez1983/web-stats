@@ -9,29 +9,29 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
     {% include 'football/pwa_head.html' %}
     <style>
-      .mc-wrap{max-width:1040px;margin:0 auto;padding:1rem;color:#eef2f8;}
+      .mc-wrap{max-width:1040px;margin:0 auto;padding:1rem;color:var(--fm-ink);}
       .mc-h1{margin:0;color:#f8fafc;font-size:1.5rem;font-weight:900;}
-      .mc-sub{color:#6d8098;font-weight:700;font-size:.78rem;margin:.15rem 0 1rem;}
+      .mc-sub{color:var(--fm-ink-3);font-weight:700;font-size:.78rem;margin:.15rem 0 1rem;}
       .mc-chips{display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1.3rem;}
-      .mc-chip{border:1px solid #1f2b39;background:#111725;border-radius:12px;padding:.7rem 1rem;min-width:120px;}
+      .mc-chip{border:1px solid var(--fm-line);background:var(--fm-panel);border-radius:12px;padding:.7rem 1rem;min-width:120px;}
       .mc-chip .n{font-size:1.5rem;font-weight:900;line-height:1;}
-      .mc-chip .k{font-size:.62rem;text-transform:uppercase;letter-spacing:.07em;color:#6d8098;font-weight:800;margin-top:.2rem;}
-      .mc-chip.red .n{color:#e2564a;} .mc-chip.amber .n{color:#e2a53a;} .mc-chip.green .n{color:#3fbf6a;}
-      .mc-sect{font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:#6d8098;font-weight:800;margin:1.4rem 0 .7rem;}
-      .mc-row{display:flex;align-items:center;gap:.9rem;background:#111725;border:1px solid #1f2b39;border-radius:12px;padding:.7rem .9rem;margin-bottom:.5rem;border-left:3px solid #6b7c94;}
-      .mc-row.inj{border-left-color:#e2564a;} .mc-row.risk-alto{border-left-color:#e2564a;} .mc-row.risk-medio{border-left-color:#e2a53a;}
+      .mc-chip .k{font-size:.62rem;text-transform:uppercase;letter-spacing:.07em;color:var(--fm-ink-3);font-weight:800;margin-top:.2rem;}
+      .mc-chip.red .n{color:var(--fm-low);} .mc-chip.amber .n{color:var(--fm-mid);} .mc-chip.green .n{color:var(--fm-good);}
+      .mc-sect{font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:var(--fm-ink-3);font-weight:800;margin:1.4rem 0 .7rem;}
+      .mc-row{display:flex;align-items:center;gap:.9rem;background:var(--fm-panel);border:1px solid var(--fm-line);border-radius:12px;padding:.7rem .9rem;margin-bottom:.5rem;border-left:3px solid var(--fm-ink-3);}
+      .mc-row.inj{border-left-color:var(--fm-low);} .mc-row.risk-alto{border-left-color:var(--fm-low);} .mc-row.risk-medio{border-left-color:var(--fm-mid);}
       .mc-name{font-size:.95rem;font-weight:800;color:#f1f5f9;text-decoration:none;}
       .mc-name:hover{text-decoration:underline;}
       .mc-main{flex:1;min-width:0;}
-      .mc-meta{font-size:.74rem;color:#9fb0c6;margin-top:1px;}
+      .mc-meta{font-size:.74rem;color:var(--fm-ink-2);margin-top:1px;}
       .mc-tag{font-size:.68rem;font-weight:900;padding:3px 9px;border-radius:7px;white-space:nowrap;flex:0 0 auto;}
-      .mc-tag.red{color:#e2564a;background:#26141a;} .mc-tag.amber{color:#e2a53a;background:#241d10;} .mc-tag.grey{color:#9fb0c6;background:#141c28;}
+      .mc-tag.red{color:var(--fm-low);background:#26141a;} .mc-tag.amber{color:var(--fm-mid);background:#241d10;} .mc-tag.grey{color:var(--fm-ink-2);background:#141c28;}
       .mc-acwr{font-size:1.05rem;font-weight:900;font-variant-numeric:tabular-nums;flex:0 0 auto;}
       .mc-avail{display:flex;gap:.4rem;flex-wrap:wrap;}
       .mc-pill{font-size:.8rem;font-weight:700;color:#d7f5e3;background:#12241a;border:1px solid #1f4a30;border-radius:999px;padding:.3rem .7rem;text-decoration:none;}
       .mc-links{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1.3rem;}
       .mc-links a{font-size:.75rem;font-weight:800;color:#8fb4ff;text-decoration:none;border:1px solid #25406e;border-radius:8px;padding:.35rem .6rem;background:#141f33;}
-      .mc-empty{color:#6d8098;font-size:.85rem;}
+      .mc-empty{color:var(--fm-ink-3);font-size:.85rem;}
     </style>
   </head>
   <body class="prod-commercial">
@@ -76,7 +76,7 @@
               <a class="mc-name" href="{% url 'player-detail' r.player.id %}?tab=physical">{% if r.player.number %}#{{ r.player.number }} {% endif %}{{ r.player.name }}</a>
               <span class="mc-meta">{{ r.alert_label }}{% if r.wellness %} · wellness {{ r.wellness }}/10{% endif %}</span>
             </span>
-            {% if r.acwr %}<span class="mc-acwr" style="color:{% if r.severity == 'alto' %}#e2564a{% else %}#e2a53a{% endif %};">ACWR {{ r.acwr }}</span>{% endif %}
+            {% if r.acwr %}<span class="mc-acwr" style="color:{% if r.severity == 'alto' %}var(--fm-low){% else %}var(--fm-mid){% endif %};">ACWR {{ r.acwr }}</span>{% endif %}
             <span class="mc-tag {% if r.severity == 'alto' %}red{% else %}amber{% endif %}">Riesgo {{ r.severity }}</span>
           </div>
           {% endfor %}
@@ -93,7 +93,7 @@
           <p class="mc-empty">Nadie disponible ahora mismo.</p>
         {% endif %}
 
-        <p style="font-size:.72rem;color:#6d8098;margin-top:1.2rem;">Riesgo estimado desde ACWR (pico de carga), wellness y RPE de los registros físicos. El detalle por jugador está en su ficha → Físico.</p>
+        <p style="font-size:.72rem;color:var(--fm-ink-3);margin-top:1.2rem;">Riesgo estimado desde ACWR (pico de carga), wellness y RPE de los registros físicos. El detalle por jugador está en su ficha → Físico.</p>
 
         <div class="mc-links">
           <a href="{% url 'coach-roster' %}">← Plantilla</a>
