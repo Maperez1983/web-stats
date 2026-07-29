@@ -659,6 +659,11 @@ def build_session_pdf_context(request, team, session, pdf_style='uefa'):
     uefa_badge_url = _static_data_url('football/images/uefa-badge.svg', 'image/svg+xml') or request.build_absolute_uri(static('football/images/uefa-badge.svg'))
     brand_mark_data_url = _static_data_url('football/images/2j-mark.svg', 'image/svg+xml')
     club_dragon_data_url = _static_data_url('football/images/cdb-dragon-watermark.png', 'image/png') if (pdf_style in {'club', 'hybrid'} and _is_benagalbon_team(team)) else ''
+    try:
+        _cover_idx = (int(getattr(session, 'id', 0) or 0) % 6) + 1
+        session_cover_data_uri = _static_data_url(f'football/images/session_covers/session_cover_{_cover_idx}.jpg', 'image/jpeg')
+    except Exception:
+        session_cover_data_uri = ''
     task_sheets = [_build_session_task_sheet(task) for task in tasks]
 
     valid_blocks = {choice[0] for choice in SessionTask.BLOCK_CHOICES}
@@ -1022,6 +1027,7 @@ def build_session_pdf_context(request, team, session, pdf_style='uefa'):
         'logo_url': team_logo_url if pdf_style in {'club', 'hybrid'} else uefa_badge_url,
         'brand_mark_url': brand_mark_data_url or request.build_absolute_uri(static('football/images/2j-mark.svg')),
         'club_dragon_url': club_dragon_data_url,
+        'session_cover_url': session_cover_data_uri,
         'club_logo_url': club_logo_url,
         'generated_at': timezone.localtime(),
         'intensity_label': dict(TrainingSession.INTENSITY_CHOICES).get(session.intensity, session.intensity or '-'),
