@@ -66,6 +66,13 @@
               <span class="badge">{{ t.duration }}′</span>
               <span class="badge int">{{ t.intensity }}</span>
             </div>
+            <form class="inline" method="post" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:2px;">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="create-session-from-template" />
+              <input type="hidden" name="template_id" value="{{ t.id }}" />
+              <input type="date" name="session_date" value="{{ today_iso }}" title="Fecha de la nueva sesión" style="border:1px solid rgba(148,163,184,.35);background:rgba(148,163,184,.08);color:#e5e7eb;border-radius:9px;padding:.42rem .5rem;font-size:.82rem;" />
+              <button class="btn" type="submit" style="background:rgba(52,211,153,.16);border-color:rgba(52,211,153,.45);color:#bbf7d0;font-weight:700;" title="Crea una sesión real a partir de esta plantilla en la fecha elegida">➕ Crear sesión</button>
+            </form>
             <div class="card-actions">
               <a class="btn" href="{{ t.view_url }}" title="Ver la plantilla">👁️ Ver</a>
               <form class="inline" method="post" onsubmit="return confirm('¿Crear una copia de esta plantilla?');">

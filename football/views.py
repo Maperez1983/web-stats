@@ -45906,6 +45906,44 @@ def _save_session_as_template(source_session, custom_name=""):
     return tpl
 
 
+def _create_session_from_template(template, target_date, custom_name=""):
+    """Crea una sesión REAL a partir de una plantilla de la Biblioteca de sesiones: clona el
+    plan + las tareas en la bandeja de entrada del equipo, con la fecha elegida. Devuelve la
+    sesión creada (is_session_template=False)."""
+    team = getattr(getattr(template, "microcycle", None), "team", None)
+    if team is None:
+        raise ValueError("No se pudo determinar el equipo de la plantilla.")
+    mc = _get_or_create_inbox_microcycle(team)
+    if mc is None:
+        raise ValueError("No se pudo preparar el microciclo destino.")
+    name = (str(custom_name or "").strip() or str(getattr(template, "focus", "") or "").strip() or "Sesión")[:140]
+    session = TrainingSession.objects.create(
+        microcycle=mc,
+        session_date=target_date,
+        start_time=template.start_time,
+        duration_minutes=template.duration_minutes,
+        intensity=template.intensity,
+        md_day=getattr(template, "md_day", "") or "",
+        dominant_load=getattr(template, "dominant_load", "") or "",
+        game_moment=getattr(template, "game_moment", "") or "",
+        principle=getattr(template, "principle", "") or "",
+        subprinciple=getattr(template, "subprinciple", "") or "",
+        focus=name,
+        content=template.content,
+        status=TrainingSession.STATUS_PLANNED,
+        is_session_template=False,
+        order=(TrainingSession.objects.filter(microcycle=mc).aggregate(Max("order")).get("order__max") or 0) + 1,
+    )
+    for _st in template.tasks.filter(deleted_at__isnull=True).order_by("order", "id"):
+        try:
+            _clone_session_task_to_session(
+                _st, session, note=f"Desde plantilla #{int(template.id)} · tarea #{int(_st.id)}"
+            )
+        except Exception:
+            pass
+    return session
+
+
 def _clone_microcycle_plan(source_microcycle, week_start, week_end=None):
     if TrainingMicrocycle.objects.filter(team=source_microcycle.team, week_start=week_start).exists():
         raise ValueError("Ya existe un microciclo con esa fecha de inicio.")
@@ -56418,6 +56456,25 @@ def session_library_page(request):
                 _msg = "Copia de la plantilla creada."
             except Exception:
                 _msg = "No se pudo duplicar la plantilla."
+        elif action == "create-session-from-template" and tpl is not None:
+            from datetime import datetime as _dt
+
+            _date_raw = str(request.POST.get("session_date") or "").strip()
+            try:
+                _target = _dt.strptime(_date_raw, "%Y-%m-%d").date() if _date_raw else timezone.localdate()
+            except Exception:
+                _target = timezone.localdate()
+            try:
+                _new = _create_session_from_template(
+                    tpl, _target, custom_name=request.POST.get("session_name") or ""
+                )
+                return redirect(
+                    reverse("training-session-detail", args=[int(_new.id)])
+                    + f"?team={int(primary_team.id)}&msg="
+                    + quote("Sesión creada desde la plantilla. Ajusta la fecha/detalles si hace falta.")
+                )
+            except Exception as exc:
+                _msg = str(exc) or "No se pudo crear la sesión desde la plantilla."
         _url = reverse("session-library") + _team_q
         if _msg:
             _url += "&msg=" + quote(_msg)
@@ -56453,6 +56510,7 @@ def session_library_page(request):
         "templates": rows,
         "message": str(request.GET.get("msg") or "").strip()[:200],
         "back_url": reverse("sessions") + _team_q,
+        "today_iso": timezone.localdate().isoformat(),
     }
     return render(request, "football/session_library.html", context)
 
