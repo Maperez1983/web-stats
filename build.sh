@@ -62,8 +62,20 @@ if [ "${_pw_flag}" = "true" ] || [ "${_pw_flag}" = "1" ] || [ "${_pw_flag}" = "y
   # build/runtime or across instances. Default to an "hermetic" install path bundled with the app.
   #
   # Users can override by explicitly setting PLAYWRIGHT_BROWSERS_PATH in the service env.
-  echo "Instalando navegadores Playwright (chromium, firefox, webkit) con PLAYWRIGHT_BROWSERS_PATH=${PLAYWRIGHT_BROWSERS_PATH:-0} ..."
-  PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-0}" python -m playwright install chromium firefox webkit
+  _pw_path="${PLAYWRIGHT_BROWSERS_PATH:-0}"
+  echo "Instalando navegadores Playwright (chromium, firefox, webkit) con PLAYWRIGHT_BROWSERS_PATH=${_pw_path} ..."
+  if [ "${_pw_path}" != "0" ]; then
+    mkdir -p "${_pw_path}" || true
+    chmod -R a+rX "${_pw_path}" 2>/dev/null || true
+  fi
+  PLAYWRIGHT_BROWSERS_PATH="${_pw_path}" python -m playwright install chromium firefox webkit || \
+    PLAYWRIGHT_BROWSERS_PATH="${_pw_path}" python -m playwright install chromium || \
+    echo "Aviso: la instalación de navegadores Playwright falló; el render HD/miniaturas server-side no estará disponible." >&2
+  # Deja los navegadores legibles por el usuario de runtime (build puede correr como root).
+  if [ "${_pw_path}" != "0" ]; then
+    chmod -R a+rX "${_pw_path}" 2>/dev/null || true
+    echo "Contenido de ${_pw_path}:"; ls -la "${_pw_path}" 2>/dev/null || true
+  fi
 fi
 
 _build_migrate_flag="$(echo "${RUN_MIGRATIONS_AT_BUILD:-false}" | tr '[:upper:]' '[:lower:]' | xargs)"

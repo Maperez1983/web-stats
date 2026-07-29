@@ -61,9 +61,12 @@ services:
         value: "true"
       - key: MIGRATE_FAIL_OPEN
         value: "false"
-      # Recomendación: mantener instalados los navegadores Playwright durante el build si usas previews HD.
+      # Ruta EXPLÍCITA y persistente para los navegadores Playwright. Con "0" el build (root) los
+      # instalaba en una ubicación que el runtime (no-root) no podía leer -> PermissionError en
+      # /root/.cache/ms-playwright y el render HD/miniaturas server-side fallaba. Con una ruta bajo
+      # el checkout del proyecto (persiste build->runtime y es legible), Chromium se encuentra.
       - key: PLAYWRIGHT_BROWSERS_PATH
-        value: "0"
+        value: "/opt/render/project/src/.pw-browsers"
       # Opcional: instala chromium/firefox/webkit en build (coste CPU/tiempo). Desactivado por defecto.
       - key: INSTALL_PLAYWRIGHT_BROWSERS
         value: "true"
