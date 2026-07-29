@@ -30583,11 +30583,28 @@ def convocation_page(request):
             }
         )
 
+    # Chips de estado + colores de kit del club (identidad) para la cabecera del apartado.
+    try:
+        _inj = sum(1 for p in players if getattr(p, "has_active_injury", False))
+        _trial = sum(1 for p in players if not getattr(p, "has_federative_license", False))
+        _avail = sum(1 for p in players if not getattr(p, "has_active_injury", False))
+        convocation_chips = [
+            {"n": _avail, "k": "Disponibles", "tone": "ok"},
+            {"n": _inj, "k": "Lesionados", "tone": "red"},
+            {"n": _trial, "k": "A prueba", "tone": "mid"},
+            {"n": len(players), "k": "Plantilla"},
+        ]
+    except Exception:
+        convocation_chips = []
+
     return render(
         request,
         "football/convocation.html",
         {
             "players": players,
+            "convocation_chips": convocation_chips,
+            "kit_primary_color": getattr(primary_team, "kit_primary_color", "") or "",
+            "kit_secondary_color": getattr(primary_team, "kit_secondary_color", "") or "",
             "team_name": primary_team.display_name,
             "primary_team_id": int(primary_team.id),
             "active_match_id": int(active_match.id) if active_match else None,

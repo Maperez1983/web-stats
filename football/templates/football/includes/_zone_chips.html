@@ -1,0 +1,19 @@
+{% comment %}Chips de estado reutilizables (mismo lenguaje que la home).
+Uso: {% include 'football/includes/_zone_chips.html' with chips=mis_chips %}
+Cada chip es un dict: {"n": 16, "d": "/18", "k": "Convocados", "tone": "gold|ok|red|mid|blue"}
+  n    = número grande (obligatorio)
+  d    = sufijo pequeño (opcional, p. ej. "/25" o "%")
+  k    = etiqueta (obligatorio)
+  tone = color del número (opcional)
+Los estilos viven en fm_theme.css.
+{% endcomment %}
+{% if chips %}
+<div class="zc-row">
+  {% for c in chips %}
+  <div class="zc-chip{% if c.tone %} zc-{{ c.tone }}{% endif %}">
+    <div class="zc-n">{{ c.n }}{% if c.d %}<span class="zc-d">{{ c.d }}</span>{% endif %}</div>
+    <div class="zc-k">{{ c.k }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}

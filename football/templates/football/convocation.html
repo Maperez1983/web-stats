@@ -587,16 +587,19 @@
   <body class="prod-commercial">
     <main class="page product-shell">
       {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='partido' %}
       <section class="panel header">
         <div class="header-brand">
           <img src="{{ team_crest_url|default_if_none:'' }}" alt="Escudo {{ team_name }}" />
+          {% if kit_primary_color %}<span class="zh-kit" style="--zh-k1:{{ kit_primary_color }};--zh-k2:{{ kit_secondary_color|default:kit_primary_color }};" title="Colores del club" aria-hidden="true"></span>{% endif %}
           <div>
           <h1>Convocatoria</h1>
-          <p>{{ team_name }} · Lista oficial para el partido</p>
+          <p>{{ team_name }}{% if match_info.rival_full_name or match_info.opponent %} · vs {{ match_info.rival_full_name|default:match_info.opponent }}{% endif %}{% if match_info.date %} · {{ match_info.date }}{% endif %}</p>
           </div>
         </div>
         <div class="count-chip" id="count-chip">0 convocados</div>
       </section>
+      {% include 'football/includes/_zone_chips.html' with chips=convocation_chips %}
 
       <section class="panel match-box">
         <div class="match-identity">

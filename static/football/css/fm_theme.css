@@ -73,3 +73,27 @@
 .fm-t-low  { color: var(--fm-low)  !important; }
 .fm-t-gold { color: var(--fm-gold) !important; }
 .fm-t-muted{ color: var(--fm-ink-3)!important; }
+
+/* ==========================================================================
+   Componentes de apartado (usados por _zone_header.html y _zone_chips.html)
+   Cambiar aqui = cambia en todos los apartados que los usen.
+   ========================================================================== */
+.zh { display:flex; align-items:center; gap:.9rem; flex-wrap:wrap; margin:0 0 .2rem; }
+.zh-sp { flex:1 1 auto; }
+.zh-kit { width:8px; height:42px; border-radius:4px; flex:0 0 auto;
+  background:linear-gradient(180deg, var(--zh-k1) 0 50%, var(--zh-k2) 50% 100%);
+  box-shadow:0 0 0 1px rgba(255,255,255,.18); }
+.zh-id { min-width:0; }
+.zh-title { margin:0; font-size:1.4rem; font-weight:900; letter-spacing:-.01em; color:var(--fm-ink); line-height:1.1; }
+.zh-context { margin:.16rem 0 0; font-size:.8rem; font-weight:700; color:var(--fm-ink-3); }
+
+.zc-row { display:flex; gap:.6rem; flex-wrap:wrap; margin:.9rem 0 1rem; }
+.zc-chip { border:1px solid var(--fm-line); background:var(--fm-panel); border-radius:12px; padding:.55rem .9rem; min-width:96px; }
+.zc-n { font-size:1.35rem; font-weight:900; line-height:1; color:var(--fm-ink); font-variant-numeric:tabular-nums; }
+.zc-d { font-size:.78rem; font-weight:700; opacity:.55; }
+.zc-k { font-size:.58rem; text-transform:uppercase; letter-spacing:.07em; color:var(--fm-ink-3); font-weight:800; margin-top:.2rem; }
+.zc-gold .zc-n { color:var(--fm-gold); }
+.zc-ok   .zc-n { color:var(--fm-good); }
+.zc-red  .zc-n { color:var(--fm-low); }
+.zc-mid  .zc-n { color:var(--fm-mid); }
+.zc-blue .zc-n { color:var(--fm-accent); }

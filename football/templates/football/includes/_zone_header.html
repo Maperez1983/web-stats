@@ -1,0 +1,14 @@
+{% comment %}Cabecera de apartado reutilizable (identidad de club + título + contexto).
+Uso:
+  <div class="zh">
+    {% include 'football/includes/_zone_header.html' with zh_title="Convocatoria" zh_context="vs Rival · Sáb 2 ago" zh_kit1=team.kit_primary_color zh_kit2=team.kit_secondary_color %}
+    <span class="zh-sp"></span>
+    ...botones propios del apartado...
+  </div>
+Los estilos (.zh, .zh-sp, .zh-kit…) viven en fm_theme.css → cambiar la identidad = 1 fichero.
+{% endcomment %}
+{% if zh_kit1 %}<span class="zh-kit" style="--zh-k1:{{ zh_kit1 }};--zh-k2:{{ zh_kit2|default:zh_kit1 }};" title="Colores del club" aria-hidden="true"></span>{% endif %}
+<div class="zh-id">
+  <h1 class="zh-title">{{ zh_title }}</h1>
+  {% if zh_context %}<p class="zh-context">{{ zh_context }}</p>{% endif %}
+</div>
