@@ -1,0 +1,102 @@
+{% load static football_extras %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ficha del club · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      .cl-wrap{max-width:1040px;margin:0 auto;padding:1rem;color:var(--fm-ink);}
+      .cl-head{display:flex;gap:1.2rem;align-items:center;background:var(--fm-panel);border:1px solid var(--fm-line);border-radius:var(--fm-radius);padding:1.2rem;margin-bottom:1.1rem;}
+      .cl-crest{width:84px;height:84px;object-fit:contain;border-radius:14px;background:radial-gradient(circle at 30% 25%,#fff,#e7edf5);padding:7px;flex:0 0 auto;}
+      .cl-crest.ph{background:var(--fm-panel-2);display:grid;place-items:center;font-size:1.9rem;font-weight:900;color:var(--fm-ink-3);padding:0;}
+      .cl-name{font-size:1.6rem;font-weight:900;line-height:1.05;}
+      .cl-meta{font-size:.8rem;color:var(--fm-ink-2);font-weight:700;margin-top:.3rem;display:flex;gap:.9rem;flex-wrap:wrap;}
+      .cl-sect{font-size:.68rem;text-transform:uppercase;letter-spacing:.12em;color:var(--fm-ink-3);font-weight:800;margin:1.4rem 0 .7rem;}
+      .cl-chips{display:flex;gap:.6rem;flex-wrap:wrap;}
+      .cl-chip{border:1px solid var(--fm-line);background:var(--fm-panel);border-radius:12px;padding:.6rem .95rem;min-width:100px;}
+      .cl-chip .n{font-size:1.45rem;font-weight:900;line-height:1;}
+      .cl-chip .k{font-size:.6rem;text-transform:uppercase;letter-spacing:.06em;color:var(--fm-ink-3);font-weight:800;margin-top:.2rem;}
+      .cl-chip.ok .n{color:var(--fm-good);} .cl-chip.red .n{color:var(--fm-low);} .cl-chip.gold .n{color:var(--fm-gold);}
+      .cl-teams{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.7rem;}
+      .cl-team{display:flex;gap:.75rem;align-items:center;background:var(--fm-panel);border:1px solid var(--fm-line);border-radius:13px;padding:.8rem .9rem;text-decoration:none;color:inherit;}
+      .cl-team:hover{border-color:var(--fm-line-2);}
+      .cl-team.primary{border-left:4px solid var(--fm-gold);}
+      .cl-tcrest{width:38px;height:38px;object-fit:contain;border-radius:8px;background:var(--fm-panel-2);flex:0 0 auto;}
+      .cl-tname{font-size:.95rem;font-weight:800;color:var(--fm-ink);}
+      .cl-tmeta{font-size:.7rem;color:var(--fm-ink-3);margin-top:1px;}
+      .cl-kit{display:inline-flex;gap:3px;margin-left:auto;flex:0 0 auto;}
+      .cl-sw{width:13px;height:13px;border-radius:4px;border:1px solid rgba(255,255,255,.2);}
+      .cl-staff{display:flex;gap:.4rem;flex-wrap:wrap;}
+      .cl-staff span{font-size:.8rem;color:var(--fm-ink-2);background:var(--fm-panel);border:1px solid var(--fm-line);border-radius:999px;padding:.32rem .78rem;}
+      .cl-staff b{color:var(--fm-ink);}
+      .cl-note{font-size:.72rem;color:var(--fm-ink-3);margin-top:.7rem;}
+      .cl-links{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1.3rem;}
+      .cl-links a{font-size:.75rem;font-weight:800;color:var(--fm-accent);text-decoration:none;border:1px solid var(--fm-line-2);border-radius:8px;padding:.35rem .6rem;background:var(--fm-panel-2);}
+      .cl-empty{color:var(--fm-ink-3);font-size:.85rem;}
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <div class="app-shell">
+      {% include 'football/includes/dragon_nav.html' %}
+      <main class="cl-wrap">
+        <div class="cl-head">
+          {% if club_crest %}<img class="cl-crest" src="{{ club_crest }}" alt="" />{% else %}<div class="cl-crest ph">{{ club_name|slice:':1'|upper }}</div>{% endif %}
+          <div style="flex:1;min-width:0;">
+            <div class="cl-name">{{ club_name }}</div>
+            <div class="cl-meta">
+              <span>🏛️ Club</span>
+              {% if season_label %}<span>🗓️ {{ season_label }}</span>{% endif %}
+              <span>👥 {{ n_teams }} equipo{{ n_teams|pluralize }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="cl-sect">Resumen del club</div>
+        <div class="cl-chips">
+          <div class="cl-chip gold"><div class="n">{{ n_teams }}</div><div class="k">Equipos</div></div>
+          <div class="cl-chip"><div class="n">{{ total_players }}</div><div class="k">Jugadores</div></div>
+          <div class="cl-chip ok"><div class="n">{{ total_fichados }}</div><div class="k">Fichados</div></div>
+          <div class="cl-chip red"><div class="n">{{ total_injured }}</div><div class="k">Lesionados</div></div>
+        </div>
+        {% if scoped %}<p class="cl-note">Estás viendo solo los equipos a los que tienes acceso.</p>{% endif %}
+
+        <div class="cl-sect">Equipos</div>
+        {% if teams %}
+        <div class="cl-teams">
+          {% for t in teams %}
+          <a class="cl-team{% if t.is_primary %} primary{% endif %}" href="{% url 'team-page' %}?team={{ t.id }}">
+            {% if t.crest %}<img class="cl-tcrest" src="{{ t.crest }}" alt="" />{% else %}<span class="cl-tcrest"></span>{% endif %}
+            <span style="min-width:0;">
+              <span class="cl-tname">{{ t.name }}</span>
+              <span class="cl-tmeta">{% if t.category %}{{ t.category }} · {% endif %}{{ t.count }} jug.{% if t.fichados %} · {{ t.fichados }} fich.{% endif %}{% if t.injured %} · {{ t.injured }} les.{% endif %}</span>
+            </span>
+            {% if t.kit1 %}<span class="cl-kit"><i class="cl-sw" style="background:{{ t.kit1 }};"></i>{% if t.kit2 %}<i class="cl-sw" style="background:{{ t.kit2 }};"></i>{% endif %}</span>{% endif %}
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="cl-empty">No hay equipos accesibles en este club.</p>
+        {% endif %}
+
+        <div class="cl-sect">Cuerpo técnico del club</div>
+        {% if staff %}
+        <div class="cl-staff">
+          {% for s in staff %}<span><b>{{ s.name }}</b> · {{ s.role }}{% if not s.global %} <span style="color:var(--fm-ink-3);">({{ s.team }})</span>{% endif %}</span>{% endfor %}
+        </div>
+        {% else %}
+        <p class="cl-empty">Sin staff registrado. Añádelo en Dirección → Staff.</p>
+        {% endif %}
+
+        <div class="cl-links">
+          <a href="{% url 'team-page' %}">🏳️ Ficha del equipo</a>
+          <a href="{% url 'staff-directory' %}">Staff</a>
+          <a href="{% url 'club-onboarding' %}">Configuración del club</a>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

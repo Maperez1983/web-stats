@@ -52,7 +52,7 @@
               {% if team.home_stadium %}<span>🏟️ {{ team.home_stadium }}</span>{% endif %}
               {% if season_label %}<span>🗓️ {{ season_label }}</span>{% endif %}
               {% if team.kit_primary_color %}<span class="tm-kit">Kit <i class="tm-sw" style="background:{{ team.kit_primary_color }};"></i>{% if team.kit_secondary_color %}<i class="tm-sw" style="background:{{ team.kit_secondary_color }};"></i>{% endif %}</span>{% endif %}
-              {% if club_obj %}<span>🏛️ {{ club_obj.name }}</span>{% endif %}
+              {% if club_obj %}<a href="{% url 'club-page' %}" style="color:var(--fm-accent);text-decoration:none;">🏛️ {{ club_obj.name }}</a>{% else %}<a href="{% url 'club-page' %}" style="color:var(--fm-accent);text-decoration:none;">🏛️ Ficha del club</a>{% endif %}
             </div>
           </div>
         </div>

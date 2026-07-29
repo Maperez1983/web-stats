@@ -42646,6 +42646,111 @@ def tactics_roles_page(request):
 
 
 @login_required
+def club_page(request):
+    """Ficha de CLUB (entidad general, estilo FM): identidad del club, todos sus equipos con su
+    plantilla y cobertura, staff del club y totales agregados. Respeta el aislamiento por equipo:
+    un staff de un equipo solo ve su equipo; owner/admin ven todos."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    workspace = _get_active_workspace(request)
+    if not workspace or getattr(workspace, "kind", None) != Workspace.KIND_CLUB:
+        return HttpResponse("Selecciona un club para ver su ficha.", status=400)
+    primary_team = _get_primary_team_for_request(request)
+    try:
+        allowed = _allowed_team_ids_for_request(request)
+    except Exception:
+        allowed = set()
+    try:
+        can_see_all = bool(_can_manage_workspace(request.user, workspace)) or _is_admin_user(request.user)
+    except Exception:
+        can_see_all = False
+
+    teams, total_players, total_fichados, total_injured = [], 0, 0, 0
+    try:
+        links = list(WorkspaceTeam.objects.filter(workspace=workspace).select_related("team"))
+    except Exception:
+        links = []
+    for lk in links:
+        t = getattr(lk, "team", None)
+        if not t:
+            continue
+        if allowed and int(t.id) not in allowed:
+            continue
+        plist = list(Player.objects.filter(team=t, is_active=True).only("id", "has_federative_license"))
+        cnt = len(plist)
+        fich = sum(1 for p in plist if getattr(p, "has_federative_license", False))
+        try:
+            inj = len(set(get_active_injury_player_ids([int(p.id) for p in plist])))
+        except Exception:
+            inj = 0
+        total_players += cnt
+        total_fichados += fich
+        total_injured += inj
+        crest = ""
+        try:
+            crest = (t.crest_image.url if getattr(t, "crest_image", None) else "") or (t.crest_url or "")
+        except Exception:
+            crest = getattr(t, "crest_url", "") or ""
+        teams.append({
+            "id": int(t.id), "name": t.display_name or t.name,
+            "category": (getattr(t, "category", "") or ""),
+            "city": (getattr(t, "city", "") or ""),
+            "stadium": (getattr(t, "home_stadium", "") or ""),
+            "crest": crest,
+            "kit1": (getattr(t, "kit_primary_color", "") or ""),
+            "kit2": (getattr(t, "kit_secondary_color", "") or ""),
+            "count": cnt, "fichados": fich, "injured": inj,
+            "is_primary": bool(primary_team and int(t.id) == int(primary_team.id)),
+        })
+    teams.sort(key=lambda x: (not x["is_primary"], x["name"].lower()))
+
+    # Identidad del club: Club enlazado del equipo de referencia (o el primero accesible).
+    ident_team = primary_team if (primary_team and (not allowed or int(primary_team.id) in allowed)) else None
+    if ident_team is None and teams:
+        ident_team = Team.objects.filter(id=teams[0]["id"]).first()
+    club_obj = getattr(ident_team, "club", None) if ident_team is not None else None
+    club_crest = ""
+    if club_obj is not None:
+        club_crest = getattr(club_obj, "crest_url", "") or ""
+    if not club_crest and ident_team is not None:
+        try:
+            club_crest = (ident_team.crest_image.url if getattr(ident_team, "crest_image", None) else "") or (ident_team.crest_url or "")
+        except Exception:
+            club_crest = getattr(ident_team, "crest_url", "") or ""
+
+    staff = []
+    try:
+        for sm in StaffMember.objects.filter(workspace=workspace, is_active=True).select_related("team"):
+            tid = getattr(sm, "team_id", None)
+            if tid and allowed and int(tid) not in allowed:
+                continue
+            staff.append({
+                "name": sm.name, "role": (getattr(sm, "role_title", "") or "Staff"),
+                "team": (sm.team.display_name if getattr(sm, "team", None) else "Club completo"),
+                "global": not bool(tid),
+            })
+        staff.sort(key=lambda s: (not s["global"], s["team"], s["name"]))
+    except Exception:
+        staff = []
+
+    season_label = ""
+    try:
+        season_label = str(getattr(workspace, "active_season", "") or "")
+    except Exception:
+        season_label = ""
+
+    return render(request, "football/club_page.html", {
+        "workspace": workspace, "club_obj": club_obj, "club_crest": club_crest,
+        "club_name": (getattr(club_obj, "name", "") or workspace.name),
+        "teams": teams, "staff": staff, "season_label": season_label,
+        "n_teams": len(teams), "total_players": total_players,
+        "total_fichados": total_fichados, "total_injured": total_injured,
+        "can_see_all": can_see_all, "scoped": bool(allowed and not can_see_all),
+    })
+
+
+@login_required
 def team_page(request):
     """Ficha del equipo (estilo FM): identidad (escudo, categoría, ciudad, estadio, colores de kit)
     + resumen de plantilla (fichados, a prueba, lesionados, fichas libres, cobertura) + cuerpo
