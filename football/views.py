@@ -2383,10 +2383,23 @@ def rival_player_detail(request, rival_player_id):
     own_players = list(
         Player.objects.filter(team=_get_primary_team_for_request(request)).order_by("name")[:400]
     ) if _get_primary_team_for_request(request) else []
+    matched = getattr(rp, "matched_player", None)
+    profile_ctx = _fm_profile_context(matched)
+    profile_link = None
+    if matched is not None:
+        try:
+            profile_link = reverse("player-detail", args=[int(matched.id)])
+        except Exception:
+            profile_link = None
     return render(
         request,
         "football/rival_player_detail.html",
-        {"rp": rp, "existing_target": existing_target, "own_players": own_players},
+        {
+            "rp": rp, "existing_target": existing_target, "own_players": own_players,
+            "profile_player": matched, "profile_link": profile_link,
+            "profile_pending_reason": "Pendiente de importar resultados de La Preferente.",
+            **profile_ctx,
+        },
     )
 
 
@@ -38123,6 +38136,9 @@ def scouting_target_detail_page(request, target_id):
             "attribute_radar_data": attribute_radar_data,
             "fm_attribute_groups": fm_attribute_groups,
             "fm_attribute_radar_data": fm_attribute_radar_data,
+            "profile_link": player_detail_url,
+            "profile_pending_reason": "Aún sin partidos registrados.",
+            **_fm_profile_context(getattr(target, "player", None)),
             "pdf_url": reverse("scouting-target-pdf", args=[target.id]),
         },
     )
@@ -75478,6 +75494,40 @@ def _auto_match_rating_from_stats(stats, position=None):
     if total < 5:  # poca implicación: regresa hacia la base
         rating = base + (rating - base) * 0.6
     return round(max(4.0, min(10.0, rating)), 1)
+
+
+def _fm_profile_context(player):
+    """Contexto del bloque de perfil FM (encaje por rol + rating de temporada) para CUALQUIER
+    Player enlazado: propio, rival reconocido u ojeado. Así la ficha es la misma para todos.
+    Devuelve dict con fm_role_fit / player_season_rating (vacíos si no hay Player o evaluación)."""
+    ctx = {"fm_role_fit": None, "fm_profile_season_rating": {"avg": None, "count": 0}}
+    if player is None:
+        return ctx
+    try:
+        ev = (
+            PlayerEvaluation.objects.filter(player=player, status=PlayerEvaluation.STATUS_CLOSED)
+            .order_by("-evaluated_on", "-updated_at", "-id").first()
+        )
+        evals = list(
+            PlayerEvaluation.objects.filter(player=player).order_by("-evaluated_on", "-updated_at", "-id")[:12]
+        )
+        fm_eval = _fm_evaluation_presentation(ev, _evaluation_catalog_for_player(player)) if ev else None
+        if fm_eval:
+            ctx["fm_role_fit"] = _fm_role_fit(player, fm_eval, ev, evals)
+    except Exception:
+        pass
+    try:
+        from django.db.models import Avg, Count
+        agg = PlayerStatistic.objects.filter(
+            player=player, name="rating", context="auto-rating"
+        ).aggregate(a=Avg("value"), n=Count("id"))
+        ctx["fm_profile_season_rating"] = {
+            "avg": round(float(agg["a"]), 1) if agg.get("a") is not None else None,
+            "count": int(agg.get("n") or 0),
+        }
+    except Exception:
+        pass
+    return ctx
 
 
 def _match_result_for_team(match, primary_team):
