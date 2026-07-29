@@ -5943,7 +5943,7 @@ def _build_squad_planner(request, primary_team):
     fed = _build_federative_squad_report(request, primary_team)
     players = list(Player.objects.filter(team=primary_team, is_active=True))
     if not players:
-        return {"fed": fed, "lines": [], "contracts": [], "priorities": [], "sin_posicion": []}
+        return {"fed": fed, "lines": [], "contracts": [], "priorities": [], "sin_posicion": [], "all_players": []}
     pids = [int(p.id) for p in players]
     latest_by_player = {}
     try:
@@ -5959,9 +5959,22 @@ def _build_squad_planner(request, primary_team):
     except Exception:
         injured = set()
     today = timezone.localdate()
+    rating_by_player = {}
+    try:
+        from django.db.models import Avg, Count
+        for row in (
+            PlayerStatistic.objects.filter(player_id__in=pids, name="rating", context="auto-rating")
+            .values("player_id").annotate(a=Avg("value"), n=Count("id"))
+        ):
+            rating_by_player[int(row["player_id"])] = (
+                round(float(row["a"]), 1) if row["a"] is not None else None, int(row["n"] or 0)
+            )
+    except Exception:
+        rating_by_player = {}
     by_req = {}
     sin_pos = []
     contracts = []
+    all_players = []
     for p in players:
         ev = latest_by_player.get(int(p.id))
         level = _player_level_value(ev)
@@ -5971,16 +5984,26 @@ def _build_squad_planner(request, primary_team):
         req = _squad_requirement_key(getattr(p, "position", "") or getattr(p, "preferred_position", ""))
         ce = getattr(p, "contract_end", None)
         contract_soon = bool(ce and (ce - today).days <= 150)
+        _rt = rating_by_player.get(int(p.id), (None, 0))
+        _injured = int(p.id) in injured
+        _sanction = bool(getattr(p, "manual_sanction_active", False))
         pdict = {
             "id": p.id,
             "name": (getattr(p, "full_name", "") or getattr(p, "name", "") or "").strip() or "Jugador",
+            "number": getattr(p, "number", None),
+            "position": getattr(p, "position", "") or "",
+            "code": req or "",
             "level": level,
             "role": role,
             "role_label": SQUAD_ROLE_LABELS.get(role, "—"),
             "role_color": SQUAD_ROLE_COLORS.get(role, "#6b7c94"),
             "manual": bool(manual in SQUAD_ROLE_LABELS),
             "ficha": bool(getattr(p, "has_federative_license", False)),
-            "injured": int(p.id) in injured,
+            "injured": _injured,
+            "sanction": _sanction,
+            "available": (not _injured) and (not _sanction),
+            "rating_avg": _rt[0],
+            "rating_n": _rt[1],
             "contract_end": ce,
             "contract_soon": contract_soon,
             "days": ((ce - today).days if ce else None),
@@ -5991,6 +6014,8 @@ def _build_squad_planner(request, primary_team):
             sin_pos.append(pdict)
         if contract_soon:
             contracts.append(pdict)
+        all_players.append(pdict)
+    all_players.sort(key=lambda x: -(x["level"] or 0))
     for k in by_req:
         by_req[k].sort(key=lambda x: -(x["level"] or 0))
     cov_map = {c["code"]: c for c in ((fed or {}).get("coverage") or [])}
@@ -6018,7 +6043,7 @@ def _build_squad_planner(request, primary_team):
         elif int(c.get("have", 0)) <= 1:
             priorities.append({"label": c["label"], "tone": "warn", "note": "sin recambio"})
     contracts.sort(key=lambda x: (x["contract_end"] or today))
-    return {"fed": fed, "lines": lines, "contracts": contracts, "priorities": priorities, "sin_posicion": sin_pos}
+    return {"fed": fed, "lines": lines, "contracts": contracts, "priorities": priorities, "sin_posicion": sin_pos, "all_players": all_players}
 
 
 def _build_coach_decision_dashboard(*, primary_team, active_club_season, players, memberships, active_injury_ids=None, request=None, stats_by_player=None):

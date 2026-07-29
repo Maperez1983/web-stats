@@ -55,6 +55,14 @@
       .sp-dot{width:9px;height:9px;border-radius:2px;display:inline-block;}
       .sp-links{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.4rem;}
       .sp-links a{font-size:.75rem;font-weight:800;color:#8fb4ff;text-decoration:none;border:1px solid #25406e;border-radius:8px;padding:.35rem .6rem;background:#141f33;}
+      .sp-tab{font-size:.78rem;font-weight:800;color:#9fb0c6;background:#0e1420;border:1px solid #2a3750;border-radius:9px;padding:.4rem .85rem;cursor:pointer;}
+      .sp-tab.is-active{color:#0b0f17;background:#8fb4ff;border-color:#8fb4ff;}
+      #squad-table{width:100%;border-collapse:collapse;font-size:.82rem;color:#eef2f8;}
+      #squad-table th,#squad-table td{padding:.5rem .7rem;border-top:1px solid #1e2838;white-space:nowrap;text-align:left;}
+      #squad-table thead th{border-top:none;font-size:.64rem;text-transform:uppercase;letter-spacing:.06em;color:#6b7c94;cursor:pointer;user-select:none;}
+      #squad-table thead th:hover{color:#eef2f8;}
+      #squad-table .num{text-align:right;font-variant-numeric:tabular-nums;}
+      #squad-table tbody tr:hover{background:rgba(148,163,184,.05);}
     </style>
   </head>
   <body class="prod-commercial">
@@ -82,6 +90,11 @@
         </div>
 
         {% if planner and planner.lines %}
+        <div style="display:flex;gap:.4rem;margin:0 0 .9rem;">
+          <button type="button" class="sp-tab is-active" data-view="board">Depth chart</button>
+          <button type="button" class="sp-tab" data-view="table">Tabla</button>
+        </div>
+        <div id="view-board">
         <div class="sp-layout">
           <div class="sp-board">
             {% for line in planner.lines %}
@@ -182,6 +195,72 @@
             </div>
           </div>
         </div>
+        </div>
+
+        <div id="view-table" hidden>
+          <div style="overflow-x:auto;border:1px solid #1e2838;border-radius:14px;background:#111725;">
+            <table id="squad-table">
+              <thead>
+                <tr>
+                  <th data-sort="num" class="num">#</th>
+                  <th data-sort="name">Jugador</th>
+                  <th data-sort="pos">Pos</th>
+                  <th data-sort="role">Rol</th>
+                  <th data-sort="level" class="num">Nivel</th>
+                  <th data-sort="rating" class="num">Media</th>
+                  <th data-sort="avail">Estado</th>
+                  <th data-sort="ficha">Ficha</th>
+                  <th data-sort="contract">Contrato</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in planner.all_players %}
+                <tr>
+                  <td class="num" data-v="{{ p.number|default:0 }}">{{ p.number|default:'—' }}</td>
+                  <td data-v="{{ p.name|lower }}"><a href="{% url 'player-detail' p.id %}" style="color:#eef2f8;text-decoration:none;font-weight:700;">{{ p.name }}</a></td>
+                  <td data-v="{{ p.position }}">{{ p.position|default:'—' }}</td>
+                  <td data-v="{{ p.role }}"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:{{ p.role_color }};margin-right:6px;vertical-align:middle;"></span>{{ p.role_label }}</td>
+                  <td class="num" data-v="{{ p.level|default:0 }}"><b>{% if p.level %}{{ p.level|floatformat:1 }}{% else %}—{% endif %}</b></td>
+                  <td class="num" data-v="{{ p.rating_avg|default:0 }}">{% if p.rating_avg %}{{ p.rating_avg|floatformat:1 }} <span style="color:#6b7c94;font-size:.7rem;">({{ p.rating_n }})</span>{% else %}—{% endif %}</td>
+                  <td data-v="{% if p.available %}2{% elif p.sanction %}1{% else %}0{% endif %}">{% if p.injured %}<span style="color:#e2564a;">🩹 Lesión</span>{% elif p.sanction %}<span style="color:#e2a53a;">Sanción</span>{% else %}<span style="color:#3fbf6a;">Disponible</span>{% endif %}</td>
+                  <td data-v="{% if p.ficha %}1{% else %}0{% endif %}">{% if p.ficha %}<span style="color:#3fbf6a;">✓</span>{% else %}<span style="color:#6b7c94;">◌</span>{% endif %}</td>
+                  <td data-v="{{ p.days|default:99999 }}">{% if p.contract_end %}{{ p.contract_end|date:'d/m/Y' }}{% if p.contract_soon %} <span style="color:#e2a53a;">⚠</span>{% endif %}{% else %}—{% endif %}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <p style="font-size:.72rem;color:#6b7c94;margin:.6rem 0 0;">Pulsa una cabecera para ordenar. Media = nota media de partidos (partidos cerrados). Nivel = evaluación.</p>
+        </div>
+
+        <script>
+          (function(){
+            var tabs=document.querySelectorAll('.sp-tab');
+            var vb=document.getElementById('view-board'), vt=document.getElementById('view-table');
+            tabs.forEach(function(t){t.addEventListener('click',function(){
+              tabs.forEach(function(x){x.classList.toggle('is-active',x===t);});
+              var v=t.getAttribute('data-view');
+              if(vb) vb.hidden = (v!=='board');
+              if(vt) vt.hidden = (v!=='table');
+            });});
+            var table=document.getElementById('squad-table');
+            if(table){
+              var ths=table.querySelectorAll('th[data-sort]');
+              ths.forEach(function(th,idx){th.addEventListener('click',function(){
+                var tbody=table.querySelector('tbody');
+                var rows=Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+                var asc=th.getAttribute('data-dir')!=='asc'; th.setAttribute('data-dir',asc?'asc':'desc');
+                var numeric=th.classList.contains('num')||['avail','ficha','contract'].indexOf(th.getAttribute('data-sort'))>=0;
+                rows.sort(function(a,b){
+                  var av=a.children[idx].getAttribute('data-v')||'', bv=b.children[idx].getAttribute('data-v')||'';
+                  if(numeric){av=parseFloat(av)||0;bv=parseFloat(bv)||0;return asc?av-bv:bv-av;}
+                  return asc?String(av).localeCompare(bv):String(bv).localeCompare(av);
+                });
+                rows.forEach(function(r){tbody.appendChild(r);});
+              });});
+            }
+          })();
+        </script>
         {% else %}
         <p style="color:#94a3b8;">No hay jugadores activos en la plantilla todavía.</p>
         {% endif %}
