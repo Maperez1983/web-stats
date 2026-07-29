@@ -2471,6 +2471,9 @@ class TrainingSession(models.Model):
     content = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PLANNED)
     order = models.PositiveSmallIntegerField(default=0)
+    # Plantilla de sesión reutilizable (Biblioteca de sesiones). Vive en un microciclo-biblioteca
+    # y se instancia en microciclos reales. No es una sesión "real" de una semana concreta.
+    is_session_template = models.BooleanField(default=False, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

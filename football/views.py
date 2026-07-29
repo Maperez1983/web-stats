@@ -33709,6 +33709,22 @@ def training_session_detail_page(request, session_id):
             except Exception as exc:
                 error = str(exc) or "No se pudo confirmar la sesión."
 
+        elif action == "save-as-template":
+            try:
+                _tpl = _save_session_as_template(
+                    session_obj, custom_name=request.POST.get("template_name") or ""
+                )
+                _durl = reverse("training-session-detail", args=[int(session_obj.id)]) + (
+                    f"?team={int(primary_team.id)}" if primary_team else ""
+                )
+                _msg = quote(
+                    f"Sesión guardada como plantilla en la Biblioteca de sesiones: «{_tpl.focus}»."
+                )
+                _sep = "&" if "?" in _durl else "?"
+                return redirect(f"{_durl}{_sep}msg={_msg}")
+            except Exception as exc:
+                error = str(exc) or "No se pudo guardar la plantilla de sesión."
+
         elif action == "delete_session":
             try:
                 # Nunca borramos físicamente: enviamos a Papelera (evita perder tareas).
@@ -45752,6 +45768,66 @@ def _clone_training_session(source_session, target_microcycle, target_date=None,
             note=f"Clonada desde sesión #{source_session.id} · tarea #{source_task.id}",
         )
     return cloned_session
+
+
+def _get_or_create_session_library_microcycle(team):
+    """Microciclo-biblioteca del equipo donde viven las PLANTILLAS de sesión (y tareas)."""
+    from .library_repositories import LIBRARY_MICROCYCLE_MARKER as _LMM
+
+    today = timezone.localdate()
+    week_start = today - timedelta(days=today.weekday())
+    week_end = week_start + timedelta(days=6)
+    mc, _created = TrainingMicrocycle.objects.get_or_create(
+        team=team,
+        week_start=week_start,
+        defaults={
+            "week_end": week_end,
+            "title": "Biblioteca",
+            "objective": "Repositorio de sesiones y tareas",
+            "status": TrainingMicrocycle.STATUS_DRAFT,
+            "notes": _LMM,
+        },
+    )
+    try:
+        if _LMM not in (mc.notes or ""):
+            mc.notes = ((mc.notes + "\n") if mc.notes else "") + _LMM
+            mc.save(update_fields=["notes"])
+    except Exception:
+        pass
+    return mc
+
+
+def _save_session_as_template(source_session, custom_name=""):
+    """Guarda la sesión (tal cual: tareas, bloques, duración, intensidad, plan) como plantilla
+    reutilizable en la Biblioteca de sesiones. Devuelve la TrainingSession-plantilla."""
+    team = getattr(getattr(source_session, "microcycle", None), "team", None)
+    if team is None:
+        raise ValueError("No se pudo determinar el equipo de la sesión.")
+    mc = _get_or_create_session_library_microcycle(team)
+    name = (str(custom_name or "").strip() or str(getattr(source_session, "focus", "") or "").strip() or "Sesión")[:140]
+    tpl = TrainingSession.objects.create(
+        microcycle=mc,
+        session_date=mc.week_start,
+        start_time=source_session.start_time,
+        duration_minutes=source_session.duration_minutes,
+        intensity=source_session.intensity,
+        md_day=getattr(source_session, "md_day", "") or "",
+        dominant_load=getattr(source_session, "dominant_load", "") or "",
+        game_moment=getattr(source_session, "game_moment", "") or "",
+        principle=getattr(source_session, "principle", "") or "",
+        subprinciple=getattr(source_session, "subprinciple", "") or "",
+        focus=name,
+        content=source_session.content,
+        status=TrainingSession.STATUS_PLANNED,
+        is_session_template=True,
+        order=(TrainingSession.objects.filter(microcycle=mc).aggregate(Max("order")).get("order__max") or 0) + 1,
+    )
+    for _st in source_session.tasks.filter(deleted_at__isnull=True).order_by("order", "id"):
+        try:
+            _clone_session_task_to_session(_st, tpl, note=f"Plantilla de sesión · tarea #{int(_st.id)}")
+        except Exception:
+            pass
+    return tpl
 
 
 def _clone_microcycle_plan(source_microcycle, week_start, week_end=None):

@@ -252,6 +252,12 @@
 	          
 	          <a class="btn" href="{% url 'session-plan-pdf' session.id %}?style=uefa" data-pdf-viewer="1" data-pdf-title="Sesión · {{ session.focus }} · UEFA">📄 PDF UEFA</a>
 	          <a class="btn" href="{% url 'session-plan-pdf' session.id %}?style=club" data-pdf-viewer="1" data-pdf-title="Sesión · {{ session.focus }}">📄 PDF Club</a>
+          <form method="post" style="display:inline;" onsubmit="return confirm('¿Guardar esta sesión como plantilla reutilizable en la Biblioteca de sesiones?');">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save-as-template" />
+            <input type="hidden" name="team" value="{{ team.id }}" />
+            <button type="submit" class="btn secondary" title="Guarda la sesión (tareas incluidas) como plantilla reutilizable en la Biblioteca de sesiones">⭐ Guardar como plantilla</button>
+          </form>
 	          {% if session_inline_edit %}
           <a class="btn secondary" href="{% url 'training-session-detail' session.id %}{% if team %}?team={{ team.id }}{% endif %}">👁️ Ver ficha</a>
           {% else %}
