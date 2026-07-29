@@ -36,6 +36,11 @@
   .alert.danger { border-left-color: #dc2626; background: #fef2f2; }
   .empty { color: #94a3b8; }
   .foot { margin-top: 18px; color: #94a3b8; font-size: 9px; border-top: 1px solid #e2e8f0; padding-top: 6px; }
+  /* Pizarra del informe: mostrar el CAMPO y, debajo, la LISTA a la vez (sin toggle ni reordenar). */
+  .pb-view-toggle, .pb-reset { display: none !important; }
+  .pb-field { display: block !important; }
+  .pb-list { display: block !important; margin-top: 14px; }
+  .pb-legend { display: flex !important; }
 </style>
 {% if interactive %}{% include 'football/includes/report_a4.html' %}{% endif %}
 </head>
