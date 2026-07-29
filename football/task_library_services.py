@@ -467,6 +467,18 @@ def maybe_render_task_preview_server_side(task, *, force=False):
     )
     if not png_bytes:
         return False
+    # BLINDAJE: si el render sale "vacío" (solo césped, sin fichas -> típico del render headless que
+    # no reconstruye los tokens), NO lo guardamos: preferimos conservar la miniatura anterior antes
+    # que sustituirla por un campo vacío. Esto evita el incidente de 2026-07-29 (miniaturas vaciadas).
+    try:
+        _m = analyze_preview_image_bytes(png_bytes) or {}
+        _gr = float(_m.get("green_ratio") or 0.0)
+        _wr = float(_m.get("white_ratio") or 0.0)
+        _dr = float(_m.get("dark_ratio") or 0.0)
+        if _gr >= 0.88 and _wr <= 0.18 and _dr <= 0.35:
+            return False
+    except Exception:
+        pass
     try:
         update_fields = []
         if getattr(task, "task_preview_image", None):
