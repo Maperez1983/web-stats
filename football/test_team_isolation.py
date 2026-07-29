@@ -1,4 +1,4 @@
-from django.test import TestCase
+from django.test import TestCase, RequestFactory
 from django.contrib.auth.models import User
 
 from football.models import (
@@ -48,3 +48,29 @@ class TeamIsolationTest(TestCase):
         self.assertFalse(wc.can_manage_workspace(self.coach_preben, self.ws))
         # staff_team_ids_for_user: fuente de verdad (StaffMember.team)
         self.assertEqual(wc.staff_team_ids_for_user(self.ws, self.coach_preben), {self.preben.id})
+
+    def _req(self, user):
+        rf = RequestFactory()
+        r = rf.get("/")
+        r.user = user
+        r.session = {"active_workspace_id": self.ws.id}
+        return r
+
+    def test_gate_activar_equipo(self):
+        # El coach del prebenjamin NO puede activar/acceder al senior; sí al suyo.
+        self.assertTrue(wc.user_can_access_team(self._req(self.coach_preben), self.preben))
+        self.assertFalse(wc.user_can_access_team(self._req(self.coach_preben), self.senior))
+        # El owner puede a ambos.
+        self.assertTrue(wc.user_can_access_team(self._req(self.owner), self.senior))
+
+    def test_gate_ficha_por_url(self):
+        from football.views import _resolve_player_for_request_scope
+        # Coach: abrir por URL un jugador del SENIOR -> no resuelve (anti-IDOR).
+        _, pl = _resolve_player_for_request_scope(self._req(self.coach_preben), self.p_senior.id)
+        self.assertIsNone(pl, "El coach NO debe resolver un jugador del senior por URL")
+        # Coach: su propio jugador sí.
+        _, pl_own = _resolve_player_for_request_scope(self._req(self.coach_preben), self.p_preben.id)
+        self.assertIsNotNone(pl_own, "El coach SÍ debe ver un jugador de su equipo")
+        # Owner: cualquiera.
+        _, pl_owner = _resolve_player_for_request_scope(self._req(self.owner), self.p_senior.id)
+        self.assertIsNotNone(pl_owner, "El owner SÍ resuelve cualquier jugador")
