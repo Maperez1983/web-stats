@@ -639,6 +639,12 @@ body.ed-chrome .edc-inspector #task-selection-dock:not([hidden]) {
 }
 body.ed-chrome .edc-inspector #task-selection-toolbar[hidden],
 body.ed-chrome .edc-inspector #task-selection-dock[hidden] { display: none !important; }
+/* Anti-duplicado: el tipo de ficha (Chapa/Camiseta/Foto/Avatar) + colores/franjas/KIT ya viven en
+   la barra GLOBAL inferior (#edc-selbar). En el inspector per-elemento ocultamos esa seccion "Ficha"
+   y todo lo que va debajo (hermanos siguientes), dejando solo lo propio del elemento (nombre, dorsal,
+   color, borrar/duplicar, orden, bloquear). Solo aplica dentro del inspector flotante. */
+body.ed-chrome .edc-inspector .edc-dup-ficha,
+body.ed-chrome .edc-inspector .edc-dup-ficha ~ * { display: none !important; }
 body.ed-chrome .edc-inspector .selection-toolbar::before { content: "Elemento seleccionado"; display: block; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--edc-accent); margin-bottom: 8px; }
 
 /* Menú ☰: secciones legibles */
