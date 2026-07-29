@@ -107,6 +107,9 @@
         </aside>
       </div>
 
+      {# Los datos DEBEN ir antes del <script> que los lee (se ejecuta síncrono al cerrar la etiqueta);
+         si no, getElementById daba null y la lista de clips salía SIEMPRE vacía. #}
+      {{ clips|json_script:"pl-clips" }}
       <script>
         (function () {
           const dataEl = document.getElementById('pl-clips');
@@ -210,7 +213,6 @@
           render();
         })();
       </script>
-      {{ clips|json_script:"pl-clips" }}
     </main>
   </body>
 </html>
