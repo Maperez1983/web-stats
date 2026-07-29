@@ -1333,6 +1333,34 @@
 
       <section class="card tab-pane" data-pane="personal">
         <h2 style="margin-top:0;">Datos personales</h2>
+        <section aria-label="Ficha (resumen)" style="border:1px solid rgba(148,163,184,0.22);border-radius:14px;padding:1rem;margin:0 0 1.1rem;background:rgba(2,6,23,0.28);">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;margin-bottom:.8rem;">
+            <h3 style="margin:0;">Ficha</h3>
+            <span class="subtle" style="font-size:.72rem;">Resumen del jugador</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:.7rem 1rem;">
+            {% with kst='font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:#6b7c94;font-weight:800;' vst='font-size:.95rem;font-weight:700;color:#eef2f8;margin-top:1px;' %}
+            <div><div style="{{ kst }}">Posición</div><div style="{{ vst }}">{{ player.position|default:'—' }}</div></div>
+            <div><div style="{{ kst }}">Pie</div><div style="{{ vst }}">{{ player.dominant_foot|title|default:'—' }}</div></div>
+            <div><div style="{{ kst }}">Edad</div><div style="{{ vst }}">{% if player.age %}{{ player.age }}{% else %}—{% endif %}</div></div>
+            <div><div style="{{ kst }}">Altura</div><div style="{{ vst }}">{% if player.height_cm %}{{ player.height_cm }} cm{% else %}—{% endif %}</div></div>
+            <div><div style="{{ kst }}">Peso</div><div style="{{ vst }}">{% if player.weight_kg %}{{ player.weight_kg|floatformat:'-1' }} kg{% else %}—{% endif %}</div></div>
+            <div><div style="{{ kst }}">Dorsal</div><div style="{{ vst }}">{% if player.number %}{{ player.number }}{% else %}—{% endif %}</div></div>
+            <div><div style="{{ kst }}">Contrato</div><div style="{{ vst }}">{% if player.contract_end %}{{ player.contract_end|date:'d/m/Y' }}{% else %}—{% endif %}</div></div>
+            <div><div style="{{ kst }}">Ficha fed.</div><div style="{{ vst }}">{% if player.has_federative_license %}Sí{% else %}No{% endif %}</div></div>
+            <div><div style="{{ kst }}">Club origen</div><div style="{{ vst }}">{{ player.origin_team|default:'—' }}</div></div>
+            <div><div style="{{ kst }}">Agente</div><div style="{{ vst }}">{% if player.has_agent %}{{ player.agent_name|default:'Sí' }}{% else %}—{% endif %}</div></div>
+            {% endwith %}
+          </div>
+          {% if player_traits_chips %}
+          <div style="margin-top:.9rem;">
+            <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:#6b7c94;font-weight:800;margin-bottom:.35rem;">Rasgos</div>
+            <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+              {% for t in player_traits_chips %}<span class="pill" style="background:rgba(74,134,232,.14);border-color:rgba(74,134,232,.4);color:#8fb4ff;">{{ t }}</span>{% endfor %}
+            </div>
+          </div>
+          {% endif %}
+        </section>
         {% if not is_player_readonly %}
         {% if player_in_scouting %}
         <form method="post" style="margin:0 0 1rem;" onsubmit="return confirm('¿Devolver este jugador a la plantilla activa? Su ficha de ojeo se marcará como fichado.');">
@@ -1603,6 +1631,17 @@
                   {% endfor %}
                 </select>
               </label>
+              <div style="grid-column:1/-1;border-top:1px solid rgba(148,163,184,.18);padding-top:.7rem;margin-top:.2rem;">
+                <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:#9fb0c6;font-weight:800;margin-bottom:.5rem;">Rasgos / preferencias</div>
+                <div style="display:flex;gap:.45rem .95rem;flex-wrap:wrap;">
+                  {% for t in player_traits_catalog %}
+                  <label style="display:flex;align-items:center;gap:.35rem;font-size:.82rem;font-weight:600;cursor:pointer;flex-direction:row;">
+                    <input type="checkbox" name="traits" value="{{ t.key }}" {% if t.selected %}checked{% endif %} style="width:auto;margin:0;" /> {{ t.label }}
+                  </label>
+                  {% endfor %}
+                </div>
+              </div>
+              <div style="grid-column:1/-1;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:#9fb0c6;font-weight:800;border-top:1px solid rgba(148,163,184,.18);padding-top:.7rem;margin-top:.3rem;">Enlaces externos</div>
               <label>Perfil La Preferente (URL)
                 <input type="url" name="preferente_profile_url" value="{{ player.preferente_profile_url|default:'' }}" placeholder="https://www.lapreferente.com/J..." />
               </label>
@@ -1612,6 +1651,7 @@
               <label>Perfil BeSoccer (URL)
                 <input type="url" name="besoccer_url" value="{{ player.besoccer_url|default:'' }}" placeholder="https://es.besoccer.com/jugador/..." />
               </label>
+              <div style="grid-column:1/-1;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:#9fb0c6;font-weight:800;border-top:1px solid rgba(148,163,184,.18);padding-top:.7rem;margin-top:.3rem;">Avatar</div>
               <label>Tono de piel (avatar)
                 <select name="skin_tone">
                   <option value="" {% if not player.skin_tone %}selected{% endif %}>Automático</option>
@@ -1678,6 +1718,7 @@
                   hair.addEventListener('change', refresh);
                 })();
               </script>
+              <div style="grid-column:1/-1;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:#9fb0c6;font-weight:800;border-top:1px solid rgba(148,163,184,.18);padding-top:.7rem;margin-top:.3rem;">Físico y contacto</div>
               <label>Altura (cm)
                 <input type="number" name="height_cm" min="100" max="240" value="{{ player.height_cm|default:'' }}" />
               </label>
@@ -1722,6 +1763,7 @@
                 })();
               </script>
 
+              <div style="grid-column:1/-1;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:#9fb0c6;font-weight:800;border-top:1px solid rgba(148,163,184,.18);padding-top:.7rem;margin-top:.3rem;">Documentación</div>
               <label>Foto del jugador
                 <input type="file" name="player_photo" accept="image/*" />
               </label>

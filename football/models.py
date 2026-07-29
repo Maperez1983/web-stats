@@ -1162,6 +1162,7 @@ class Player(models.Model):
     avatar_source_key = models.CharField(max_length=64, blank=True, help_text='Hash de las entradas del avatar generado (foto+peinado+color+piel+altura).')
     preferred_position = models.CharField(max_length=60, blank=True)
     previous_season_position = models.CharField(max_length=60, blank=True)
+    traits = models.JSONField(default=list, blank=True, help_text='Rasgos/preferencias del jugador (estilo FM): claves de PLAYER_TRAITS.')
     number = models.PositiveSmallIntegerField(null=True, blank=True)
     position = models.CharField(max_length=60, blank=True)
     injury = models.CharField(max_length=180, blank=True)

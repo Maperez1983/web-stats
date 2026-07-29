@@ -74525,6 +74525,33 @@ def _build_player_minutes_load(player, club_season, match_minutes, matches_playe
     }
 
 
+PLAYER_TRAITS = [
+    ("se_va_dentro", "Se va dentro"),
+    ("desborda_fuera", "Desborda por fuera"),
+    ("llega_segunda_linea", "Llega desde 2ª línea"),
+    ("chuta_lejos", "Chuta de lejos"),
+    ("uno_contra_uno", "Busca el 1 contra 1"),
+    ("primer_toque", "Juega al primer toque"),
+    ("pase_seguro", "No arriesga en el pase"),
+    ("espacio_espalda", "Ataca la espalda de la defensa"),
+    ("cae_banda", "Cae a banda"),
+    ("presiona_alto", "Presiona alto"),
+    ("juego_aereo", "Fuerte por alto"),
+    ("conduce", "Conduce en carrera"),
+    ("abp", "Especialista a balón parado"),
+    ("penaltis", "Lanza penaltis"),
+]
+PLAYER_TRAITS_LABELS = dict(PLAYER_TRAITS)
+
+
+def _player_traits_context(player):
+    """Rasgos del jugador con etiqueta, para checkboxes (selected) y chips de lectura."""
+    selected = set(getattr(player, "traits", None) or [])
+    catalog = [{"key": k, "label": v, "selected": k in selected} for k, v in PLAYER_TRAITS]
+    chips = [PLAYER_TRAITS_LABELS[k] for k in (getattr(player, "traits", None) or []) if k in PLAYER_TRAITS_LABELS]
+    return catalog, chips
+
+
 def _fm_evaluation_presentation(evaluation, catalog):
     """Presentación estilo Football Manager de una evaluación: grupos de atributos (valor/tono/%),
     radar de las 4 áreas, media global y fortalezas/debilidades. Alimenta la pestaña Evaluación con
@@ -74827,6 +74854,8 @@ def player_detail_page(request, player_id):
                 player.position = normalize_position_value(request.POST.get("position", ""))
                 player.preferred_position = normalize_position_value(request.POST.get("preferred_position", ""))
                 player.previous_season_position = normalize_position_value(request.POST.get("previous_season_position", ""))
+                _valid_traits = {k for k, _ in PLAYER_TRAITS}
+                player.traits = [t for t in request.POST.getlist("traits") if t in _valid_traits][:14]
                 player.dominant_foot = normalize_foot_value(request.POST.get("dominant_foot", ""))
                 _skin = str(request.POST.get("skin_tone", "") or "").strip().lower()
                 player.skin_tone = _skin if _skin in {"light", "medium", "dark"} else ""
@@ -75615,6 +75644,7 @@ def player_detail_page(request, player_id):
         }
         # Presentación estilo Football Manager de la pestaña Evaluación (atributos + radar + informe).
         fm_eval = _fm_evaluation_presentation(latest_closed_evaluation, _evaluation_catalog_for_player(player))
+        player_traits_catalog, player_traits_chips = _player_traits_context(player)
         evaluation_chart_context = _player_evaluation_chart_context(player_evaluations)
         latest_evaluation_improvement_rows = (
             _evaluation_improvement_rows(latest_closed_evaluation) if latest_closed_evaluation else []
@@ -76399,6 +76429,8 @@ def player_detail_page(request, player_id):
                 "player_evaluations": player_evaluations,
                 "evaluation_summary": evaluation_summary,
                 "fm_eval": fm_eval,
+                "player_traits_catalog": player_traits_catalog,
+                "player_traits_chips": player_traits_chips,
                 "work_focus": work_focus,
                 "minutes_load": minutes_load,
                 "season_minutes_load": season_minutes_load,
