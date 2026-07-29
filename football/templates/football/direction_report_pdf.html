@@ -16,10 +16,12 @@
   .head .meta { color: #475569; font-size: 11px; margin-top: 2px; }
   section { margin-top: 15px; page-break-inside: avoid; }
   .kpis { display: flex; gap: 8px; margin-top: 12px; }
-  .kpi { flex: 1; border: 1px solid #e2e8f0; border-radius: 10px; padding: 8px 9px; text-align: center; }
-  .kpi .v { font-size: 22px; font-weight: 800; line-height: 1; }
-  .kpi .l { font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-top: 3px; }
-  .kpi.ok .v { color: #16a34a; } .kpi.warn .v { color: #dc2626; }
+  .kpi { flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 10px; text-align: center; }
+  .kpi .v { font-size: 32px; font-weight: 800; line-height: 1; }
+  .kpi .l { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-top: 6px; }
+  .kpi.ok { background:#f0fdf4; border-color:#bbf7d0; } .kpi.ok .v { color: #16a34a; } .kpi.ok .l { color:#166534; }
+  .kpi.info { background:#eff6ff; border-color:#bfdbfe; } .kpi.info .v { color:#2563eb; } .kpi.info .l { color:#1e40af; }
+  .kpi.warn { background:#fef2f2; border-color:#fecaca; } .kpi.warn .v { color: #dc2626; } .kpi.warn .l { color:#991b1b; }
   table { width: 100%; border-collapse: collapse; }
   th, td { text-align: left; padding: 4px 7px; border-bottom: 1px solid #e2e8f0; }
   th { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; }
@@ -42,8 +44,13 @@
   .pb-card .pb-head { display: none !important; }
   .pb-view-toggle, .pb-reset { display: none !important; }
   .pb-field { display: block !important; }
-  .pb-list { display: block !important; margin-top: 14px; }
+  .pb-list { display: none !important; }
   .pb-legend { display: flex !important; }
+  /* Listado en pagina nueva (pag. 2) con mini-cabecera de continuacion. */
+  .listado { page-break-before: always; break-before: page; }
+  .cont-head { font-size: 11px; color: #64748b; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin: 0 0 2px; font-weight: 700; }
+  .fich-ok { color: #16a34a; font-weight: 700; }
+  .fich-no { color: #b45309; font-weight: 700; }
 </style>
 {% if interactive %}{% include 'football/includes/report_a4.html' %}{% endif %}
 </head>
@@ -63,7 +70,8 @@
 
   <div class="kpis">
     <div class="kpi"><div class="v">{{ kpi.total }}</div><div class="l">Jugadores</div></div>
-    <div class="kpi ok"><div class="v">{{ kpi.available }}</div><div class="l">Disponibles</div></div>
+    <div class="kpi ok"><div class="v">{{ kpi.fichados }}</div><div class="l">Fichados</div></div>
+    <div class="kpi info"><div class="v">{{ kpi.fichas_libres }}</div><div class="l">Fichas libres</div></div>
     <div class="kpi {% if kpi.injured %}warn{% endif %}"><div class="v">{{ kpi.injured }}</div><div class="l">Lesionados</div></div>
     <div class="kpi"><div class="v">{% if kpi.squad_media is not None %}{{ kpi.squad_media|floatformat:"-1" }}{% else %}–{% endif %}</div><div class="l">Nota media</div></div>
     <div class="kpi"><div class="v">{% if kpi.avg_age is not None %}{{ kpi.avg_age|floatformat:"-1" }}{% else %}–{% endif %}</div><div class="l">Edad media</div></div>
@@ -81,23 +89,25 @@
   </section>
   {% endif %}
 
-  {% comment %}Tabla plana solo en el PDF: en la pagina ya esta la lista "bonita" de la pizarra (toggle LISTA).{% endcomment %}
-  {% if coach_pitch_players and not interactive %}
-  <section>
+  {% if coach_pitch_players %}
+  <section class="listado">
+    <div class="cont-head">Informe de dirección · {{ team_name }} — Plantilla <span class="muted">(cont.)</span></div>
     <h2>Listado de jugadores</h2>
     <table>
-      <thead><tr><th>#</th><th>Jugador</th><th>Posición</th><th>Estado</th><th class="num">Valoración</th></tr></thead>
+      <thead><tr><th>#</th><th>Nombre</th><th>Ficha</th><th class="num">Edad</th><th>Posición</th><th>Estado</th><th class="num">Valoración</th></tr></thead>
       <tbody>
       {% for p in coach_pitch_players %}
         <tr>
           <td class="num">{{ p.number|default:"–" }}</td>
           <td>{{ p.name }}{% if p.is_scout %} <span class="muted">(ojeado)</span>{% endif %}</td>
+          <td>{% if p.signed %}<span class="fich-ok">✔ Fichado</span>{% else %}<span class="fich-no">A prueba</span>{% endif %}</td>
+          <td class="num">{% if p.age %}{{ p.age }}{% else %}<span class="muted2">–</span>{% endif %}</td>
           <td class="muted">{{ p.position|default:"–" }}</td>
           <td>{{ p.state_label|default:"–" }}</td>
           <td class="num">{% if p.rating %}{{ p.rating }}{% else %}<span class="muted2">–</span>{% endif %}</td>
         </tr>
       {% empty %}
-        <tr><td colspan="5" class="muted">Sin jugadores en la plantilla.</td></tr>
+        <tr><td colspan="7" class="muted">Sin jugadores en la plantilla.</td></tr>
       {% endfor %}
       </tbody>
     </table>

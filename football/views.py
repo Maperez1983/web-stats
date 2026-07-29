@@ -21144,6 +21144,8 @@ def direction_report_pdf(request, as_page=False):
         "unrated_more": len(unrated) > 8,
     }
 
+    # Conteo federativo (mismo criterio que la home): fichados y fichas libres (tope 25).
+    _fed = _build_federative_squad_report(request, primary_team) or {}
     ctx = {
         "team_name": getattr(primary_team, "display_name", "") or "",
         "date_from": date_from,
@@ -21152,6 +21154,9 @@ def direction_report_pdf(request, as_page=False):
             "total": total,
             "available": total - lesionados,
             "injured": lesionados,
+            "fichados": int(_fed.get("fichados", 0) or 0),
+            "fichas_libres": int(_fed.get("fichas_disponibles", 0) or 0),
+            "cap": int(_fed.get("cap", 25) or 25),
             "squad_media": _avg(medias),
             "avg_age": round(sum(ages) / len(ages), 1) if ages else None,
         },
@@ -21824,6 +21829,7 @@ def _build_coach_pitch_board_players(primary_team, roster_players, roster_member
                 "left": pitch_left.get(bucket, 50),
                 "rating": _pb_ratings.get(pid),
                 "signed": bool(getattr(player, "has_federative_license", False)),
+                "age": getattr(player, "age", None),
             }
         )
     # Ojeados "A prueba": los ScoutingTarget marcados `available_for_coach_tools` aparecen en la
