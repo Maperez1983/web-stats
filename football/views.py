@@ -56967,6 +56967,88 @@ def regenerate_task_previews_action(request):
         except Exception:
             task_obj.save()
 
+    def _preview_is_pitch_only(raw_bytes):
+        m = _analyze_preview_image_bytes(raw_bytes) if raw_bytes else {}
+        if not m:
+            return False
+        gr = float((m or {}).get("green_ratio") or 0.0)
+        wr = float((m or {}).get("white_ratio") or 0.0)
+        dr = float((m or {}).get("dark_ratio") or 0.0)
+        return bool(gr >= 0.88 and wr <= 0.18 and dr <= 0.35)
+
+    def _current_preview_bytes(task_obj):
+        try:
+            if not getattr(task_obj, "task_preview_image", None):
+                return b""
+            task_obj.task_preview_image.open("rb")
+            raw = task_obj.task_preview_image.read() or b""
+            task_obj.task_preview_image.close()
+            return raw
+        except Exception:
+            return b""
+
+    def _restore_from_backup(task_obj):
+        """Restaura la miniatura desde el backup más reciente NO vacío (base64 incrustado).
+        Devuelve 'restored' / 'no_backup' / 'failed'."""
+        try:
+            from django.core.files.base import ContentFile
+
+            from football.models import SessionTaskBackup
+        except Exception:
+            return "failed"
+        try:
+            backups = list(
+                SessionTaskBackup.objects.filter(team=primary_team, task_id=int(task_obj.id))
+                .order_by("-created_at", "-id")[:25]
+            )
+        except Exception:
+            backups = []
+        for _b in backups:
+            payload = _b.payload if isinstance(_b.payload, dict) else {}
+            _t = payload.get("task") if isinstance(payload.get("task"), dict) else {}
+            _lay = _t.get("tactical_layout")
+            if isinstance(_lay, str):
+                try:
+                    _lay = json.loads(_lay)
+                except Exception:
+                    _lay = {}
+            if not isinstance(_lay, dict):
+                continue
+            _meta = _lay.get("meta") if isinstance(_lay.get("meta"), dict) else {}
+            _data_url = str(_meta.get("preview_data_embedded_v1") or "").strip()
+            if not (_data_url.startswith("data:image/") and ";base64," in _data_url):
+                continue
+            try:
+                _hdr, _b64 = _data_url.split(";base64,", 1)
+                _mime = _hdr.split(":", 1)[1].strip().lower()
+                _raw = base64.b64decode(_b64.encode("ascii"))
+            except Exception:
+                continue
+            if not _raw or _preview_is_pitch_only(_raw):
+                continue  # backup también vacío -> probar uno más antiguo
+            _ext = "png" if "png" in _mime else "jpg"
+            _fname = f"task-{int(task_obj.id)}-restored-{uuid.uuid4().hex[:8]}.{_ext}"
+            try:
+                if getattr(task_obj, "task_preview_image", None):
+                    try:
+                        task_obj.task_preview_image.delete(save=False)
+                    except Exception:
+                        pass
+                task_obj.task_preview_image.save(_fname, ContentFile(_raw), save=False)
+                _cur = task_obj.tactical_layout if isinstance(task_obj.tactical_layout, dict) else {}
+                if not isinstance(_cur, dict):
+                    _cur = {}
+                _cmeta = _cur.get("meta") if isinstance(_cur.get("meta"), dict) else {}
+                _cmeta["preview_data_embedded_v1"] = _data_url
+                _cmeta.pop("preview_render_tag", None)
+                _cur["meta"] = _cmeta
+                task_obj.tactical_layout = _cur
+                task_obj.save(update_fields=["task_preview_image", "tactical_layout"])
+                return "restored"
+            except Exception:
+                return "failed"
+        return "no_backup"
+
     base_qs = (
         SessionTask.objects.filter(
             session__microcycle__team=primary_team,
@@ -56975,6 +57057,65 @@ def regenerate_task_previews_action(request):
         .exclude(task_preview_image="")
         .order_by("id")
     )
+
+    # Diagnóstico: intenta restaurar UNA tarea desde backup y reporta el resultado.
+    if request.method == "GET":
+        _rone = _parse_int(request.GET.get("restore_one"))
+        if _rone:
+            _t = base_qs.filter(id=int(_rone)).first()
+            if not _t:
+                return JsonResponse({"task_id": int(_rone), "error": "no encontrada"})
+            _before_empty = _preview_is_pitch_only(_current_preview_bytes(_t))
+            _r = _restore_from_backup(_t)
+            _after_empty = _preview_is_pitch_only(_current_preview_bytes(_t))
+            return JsonResponse(
+                {"task_id": int(_rone), "result": _r, "was_empty": _before_empty, "now_empty": _after_empty}
+            )
+
+    if request.method == "POST" and str(request.POST.get("mode") or "").strip() == "restore":
+        # Restauración por CURSOR: solo toca tareas cuya miniatura ACTUAL está vacía (mi estropicio).
+        try:
+            after_id = int(request.POST.get("after") or 0)
+        except Exception:
+            after_id = 0
+        batch = list(base_qs.filter(id__gt=after_id)[:BATCH])
+        restored = 0
+        no_backup = 0
+        failed = 0
+        skipped = 0
+        errors = []
+        for task_obj in batch:
+            try:
+                if not _preview_is_pitch_only(_current_preview_bytes(task_obj)):
+                    skipped += 1  # no estaba vacía, no la tocamos
+                    continue
+                _r = _restore_from_backup(task_obj)
+                if _r == "restored":
+                    restored += 1
+                elif _r == "no_backup":
+                    no_backup += 1
+                    if len(errors) < 4:
+                        errors.append(f"#{int(task_obj.id)}: sin backup con miniatura")
+                else:
+                    failed += 1
+            except Exception as _exc:
+                failed += 1
+                if len(errors) < 4:
+                    errors.append(f"#{int(task_obj.id)}: {type(_exc).__name__}")
+        next_after = int(batch[-1].id) if batch else after_id
+        remaining = base_qs.filter(id__gt=next_after).count()
+        return JsonResponse(
+            {
+                "restored": restored,
+                "no_backup": no_backup,
+                "failed": failed,
+                "skipped": skipped,
+                "processed": len(batch),
+                "remaining": remaining,
+                "next_after": next_after,
+                "errors": errors,
+            }
+        )
 
     if request.method == "POST":
         # Avance por CURSOR de id (siempre progresa, aunque una tarea no tenga lienzo o falle).
