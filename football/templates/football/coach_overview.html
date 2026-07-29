@@ -697,7 +697,10 @@
             <a class="hm-zone" href="{% url 'match-hub' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}"><b>⚽ Partido</b><span>Convocatoria · 11 · registro · notas</span></a>
             <a class="hm-zone" href="{% url 'coach-tactics' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}"><b>♟️ Táctica</b><span>Pizarra · roles y encaje · ABP</span></a>
             <a class="hm-zone" href="{% url 'scouting-board' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}"><b>🔎 Dirección</b><span>Ojeo · shortlist · rivales</span></a>
-            <a class="hm-zone" href="{% url 'club-page' %}"><b>🏛️ Club</b><span>Equipos · staff · temporada</span></a>
+            <a class="hm-zone" href="{% url 'analysis' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}"><b>📊 Análisis</b><span>Vídeo · briefing del rival · insights</span></a>
+            <a class="hm-zone" href="{% url 'coach-matches' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}"><b>📅 Calendario</b><span>Alta y listado de partidos</span></a>
+            <a class="hm-zone" href="{% url 'reports-hub' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}"><b>📄 Informes</b><span>PDF de jugador y de equipo</span></a>
+            <a class="hm-zone" href="{% url 'club-page' %}"><b>🏛️ Club</b><span>Equipos · staff · temporada · ajustes</span></a>
           </div>
         </div>
       </section>
