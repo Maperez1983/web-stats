@@ -37,6 +37,9 @@
   .empty { color: #94a3b8; }
   .foot { margin-top: 18px; color: #94a3b8; font-size: 9px; border-top: 1px solid #e2e8f0; padding-top: 6px; }
   /* Pizarra del informe: mostrar el CAMPO y, debajo, la LISTA a la vez (sin toggle ni reordenar). */
+  /* Fuera la cabecera interactiva de la pizarra (titulo duplicado + "Toca/arrastra..." + toggle):
+     no tiene sentido en un informe/PDF. El titulo ya lo pone la seccion "Plantilla en el campo". */
+  .pb-card .pb-head { display: none !important; }
   .pb-view-toggle, .pb-reset { display: none !important; }
   .pb-field { display: block !important; }
   .pb-list { display: block !important; margin-top: 14px; }
