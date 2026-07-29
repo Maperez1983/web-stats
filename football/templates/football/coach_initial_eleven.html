@@ -2720,10 +2720,35 @@
         }
       }
       loadLineupKit2dPreference();
+      // Colores de kit del club (desde la ficha del equipo). Sirven de RESPALDO cuando el club
+      // todavia no ha disenado su equipacion en /tools/kit2d/: asi las chapas salen con los
+      // colores reales del club desde el primer dia, en vez de genericas.
+      const CLUB_KIT1 = '{{ kit_primary_color|default_if_none:""|escapejs }}';
+      const CLUB_KIT2 = '{{ kit_secondary_color|default_if_none:""|escapejs }}';
+      const fallbackKitCache = {};
+      function fallbackKitDataUrl(role) {
+        if (!CLUB_KIT1) return '';
+        const isGk = String(role || '').toLowerCase() === 'gk';
+        const key = isGk ? 'gk' : 'field';
+        if (fallbackKitCache[key]) return fallbackKitCache[key];
+        // Portero: color propio para distinguirlo (como en cualquier equipo real).
+        const c1 = isGk ? '#f59e0b' : CLUB_KIT1;
+        const c2 = isGk ? '#b45309' : (CLUB_KIT2 || CLUB_KIT1);
+        const shirt = 'M20 12 L14 16 L10 26 L17 29 L17 54 Q32 58 47 54 L47 29 L54 26 L50 16 L44 12 Q38 17 32 17 Q26 17 20 12 Z';
+        const stripes = (c2 && c2.toLowerCase() !== c1.toLowerCase())
+          ? `<rect x="23" y="0" width="6" height="64" fill="${c2}"/><rect x="35" y="0" width="6" height="64" fill="${c2}"/>`
+          : '';
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">`
+          + `<defs><clipPath id="s"><path d="${shirt}"/></clipPath></defs>`
+          + `<g clip-path="url(#s)"><rect width="64" height="64" fill="${c1}"/>${stripes}</g>`
+          + `<path d="${shirt}" fill="none" stroke="rgba(0,0,0,.38)" stroke-width="1.6"/></svg>`;
+        fallbackKitCache[key] = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+        return fallbackKitCache[key];
+      }
       function kit2dUrlForLineupRole(role) {
         const normalized = String(role || '').toLowerCase();
-        if (normalized === 'gk') return lineupKit2dDataUrls.gk || lineupKit2dDataUrls.gk2 || lineupKit2dDataUrls.gk3 || lineupKit2dDataUrls.home || lineupKit2dDataUrl || '';
-        return lineupKit2dDataUrls.home || lineupKit2dDataUrl || '';
+        if (normalized === 'gk') return lineupKit2dDataUrls.gk || lineupKit2dDataUrls.gk2 || lineupKit2dDataUrls.gk3 || lineupKit2dDataUrls.home || lineupKit2dDataUrl || fallbackKitDataUrl('gk');
+        return lineupKit2dDataUrls.home || lineupKit2dDataUrl || fallbackKitDataUrl(normalized);
       }
       const formationsF11 = {
         '4-3-3': [
