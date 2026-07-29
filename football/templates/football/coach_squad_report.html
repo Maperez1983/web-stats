@@ -192,10 +192,11 @@
     .sqr .board,.sqr .pitch-wrap{break-inside:avoid}
   }
 </style>
+{% include 'football/includes/report_a4.html' %}
 </head>
-<body>
+<body class="report-a4">
 
-<div class="sqr">
+<div class="sqr a4-sheet">
 
   <nav class="phases" aria-label="Momento de la temporada">
     {% for ph in phases %}

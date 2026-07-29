@@ -1,0 +1,30 @@
+{% comment %}
+Presentación A4 (folio vertical) para informes HTML de pantalla.
+Uso: en <body> añade class="report-a4"; al contenedor principal del informe añade class="a4-sheet";
+incluye este parcial una vez, justo antes de </head> (así sus reglas ganan a las del informe).
+En impresión el folio ocupa la página completa sin sombra ni márgenes de pantalla.
+{% endcomment %}
+<style>
+  body.report-a4{
+    background:#dfe3e8; margin:0; padding:24px 12px;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  @media (prefers-color-scheme:dark){ body.report-a4{ background:#070d0b; } }
+  /* El folio: ancho A4 (210mm), centrado, blanco con sombra. Respeta el color del informe
+     via var(--surface) si lo define (así el modo oscuro sale con folio oscuro). */
+  body.report-a4 .a4-sheet{
+    width:210mm; max-width:100%; min-height:297mm; margin:0 auto;
+    background:var(--surface,#ffffff);
+    box-shadow:0 10px 44px rgba(0,0,0,.22);
+    border-radius:6px;
+    padding:15mm 14mm 18mm; box-sizing:border-box;
+  }
+  @media (max-width:820px){
+    body.report-a4{ padding:12px 0; }
+    body.report-a4 .a4-sheet{ width:100%; min-height:0; border-radius:0; padding:9mm 6mm; box-shadow:0 4px 18px rgba(0,0,0,.18); }
+  }
+  @media print{
+    body.report-a4{ background:#fff; padding:0; }
+    body.report-a4 .a4-sheet{ box-shadow:none; width:auto; max-width:none; min-height:0; padding:0; border-radius:0; margin:0; }
+  }
+</style>
