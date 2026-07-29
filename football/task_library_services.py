@@ -442,7 +442,13 @@ def maybe_render_task_preview_server_side(task, *, force=False):
     pitch_preset = str(meta.get("pitch_preset") or "full_pitch").strip() or "full_pitch"
     pitch_orientation = str(meta.get("pitch_orientation") or "landscape").strip().lower()
     pitch_grass_style = str(meta.get("pitch_grass_style") or "classic").strip().lower()
-    if pitch_grass_style not in {"classic", "broadcast", "realistic", "pro", "artificial", "dry", "wet", "uefa_b", "whiteboard", "blackboard"}:
+    # Dejamos pasar flat_2d / estadio (render_task_preview_png los mapea a cesped vectorial:
+    # flat_2d -> flat_export brillante, estadio -> coachboard). Antes se forzaba 'classic' aqui.
+    if pitch_grass_style not in {
+        "classic", "flat_2d", "flat_export", "coachboard", "broadcast", "broadcast_premium",
+        "realistic", "pro", "artificial", "dry", "wet", "uefa_b", "whiteboard", "blackboard",
+        "stadium_native", "stadium_top", "stadium_top_h", "stadium_top_v",
+    }:
         pitch_grass_style = "classic"
     pitch_zoom = meta.get("pitch_zoom") or 1.0
     try:

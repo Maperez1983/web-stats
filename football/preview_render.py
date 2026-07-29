@@ -347,12 +347,17 @@ def render_task_preview_png(
     orientation = "portrait" if str(pitch_orientation).strip().lower() == "portrait" else "landscape"
     preset = str(pitch_preset or "full_pitch").strip() or "full_pitch"
     grass_style = str(pitch_grass_style or "classic").strip().lower()
-    # El generador de miniaturas es headless: las superficies con foto real (2D plano / estadio) no
-    # cargan su imagen y salen en blanco. Para la MINIATURA las pintamos con cesped clasico verde
-    # (dibujado por canvas, siempre renderiza). El editor sigue mostrando 2D plano.
-    if grass_style in {"flat_2d", "stadium_native", "stadium_top", "stadium_top_h", "stadium_top_v"}:
-        grass_style = "classic"
-    if grass_style not in {"classic", "broadcast", "broadcast_premium", "realistic", "pro", "artificial", "dry", "wet", "uefa_b", "whiteboard", "blackboard"}:
+    # El generador de miniaturas es headless: las superficies con FOTO real (2D plano / estadio) no
+    # cargan su imagen y salen en blanco. Para la MINIATURA las pintamos con cesped VECTORIAL (SVG puro,
+    # siempre renderiza). El editor sigue mostrando la foto real.
+    # - flat_2d -> 'flat_export': MISMO verde brillante a franjas que el editor (coincide con la
+    #   miniatura del cliente, ver buildPreviewData). Antes caia a 'classic' (verde mas claro).
+    # - estadio -> 'coachboard'.
+    if grass_style == "flat_2d":
+        grass_style = "flat_export"
+    elif grass_style in {"stadium_native", "stadium_top", "stadium_top_h", "stadium_top_v"}:
+        grass_style = "coachboard"
+    if grass_style not in {"classic", "flat_export", "coachboard", "broadcast", "broadcast_premium", "realistic", "pro", "artificial", "dry", "wet", "uefa_b", "whiteboard", "blackboard"}:
         grass_style = "classic"
     try:
         zoom = float(pitch_zoom or 1.0)
