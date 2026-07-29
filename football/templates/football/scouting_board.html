@@ -719,6 +719,7 @@
           <div class="actions">
           <a class="btn" href="{% url 'coach-cards' %}">Áreas</a>
           <a class="btn" href="{% url 'squad-planner' %}">🧩 Planificador de plantilla</a>
+          <a class="btn" href="{% url 'scouting-shortlist' %}">🎯 Shortlist por encaje</a>
           <a class="btn" href="{% url 'rival-players-index' %}">Rivales de la liga</a>
           <a class="btn" href="{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Staff</a>
           {% if can_manage_workspace %}

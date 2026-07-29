@@ -37882,6 +37882,85 @@ def _ensure_trial_squad_player(target):
         return None
 
 
+def _shortlist_role_options():
+    """Roles disponibles para la shortlist (deduplicados) con su línea, para el selector."""
+    line_labels = {"gk": "Portería", "central": "Defensa", "lateral": "Lateral", "pivote": "Pivote",
+                   "medio": "Medio", "banda": "Banda", "delantero": "Delantero"}
+    out, seen = [], set()
+    for group, roles in FM_ROLE_CATALOG.items():
+        for key, label, params in roles:
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append({"key": key, "label": label, "params": params, "line": line_labels.get(group, group)})
+    return out
+
+
+def _role_fit_pct(flat, params):
+    """% de encaje de un jugador (flat parameter_scores) a un rol (lista de atributos clave)."""
+    vals = [flat[p] for p in params if p in flat]
+    if len(vals) < 3:
+        return None
+    return max(0, min(100, int(round((sum(vals) / len(vals)) * 10))))
+
+
+@login_required
+def scouting_shortlist_page(request):
+    """Shortlist de ojeo ordenada por ENCAJE a un rol elegido (estilo FM), con el mismo motor de
+    encaje por rol. Candidatos = objetivos de ojeo del club; el encaje se calcula desde la
+    evaluación de su Player enlazado (los que aún no tienen evaluación salen al final)."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    workspace = _get_active_workspace(request)
+    roles = _shortlist_role_options()
+    role_key = str(request.GET.get("role") or "").strip()
+    role = next((r for r in roles if r["key"] == role_key), None) or (roles[0] if roles else None)
+
+    targets = []
+    if workspace is not None:
+        targets = list(
+            ScoutingTarget.objects.filter(workspace=workspace)
+            .exclude(status=ScoutingTarget.STATUS_DISCARDED)
+            .select_related("player")
+        )
+    pids = [int(t.player_id) for t in targets if getattr(t, "player_id", None)]
+    latest_eval = {}
+    if pids:
+        try:
+            for ev in (
+                PlayerEvaluation.objects.filter(player_id__in=pids, status=PlayerEvaluation.STATUS_CLOSED)
+                .order_by("player_id", "-evaluated_on", "-updated_at", "-id")
+            ):
+                latest_eval.setdefault(int(ev.player_id), ev)
+        except Exception:
+            latest_eval = {}
+
+    rows = []
+    for t in targets:
+        fit = None
+        if role and getattr(t, "player_id", None) and int(t.player_id) in latest_eval:
+            flat = _fm_flat_scores(getattr(latest_eval[int(t.player_id)], "parameter_scores", None))
+            fit = _role_fit_pct(flat, role["params"])
+        rows.append({
+            "id": t.id,
+            "name": t.display_name,
+            "team": (getattr(t, "subject_team_name", "") or "").strip(),
+            "position": (getattr(t, "position", "") or "").strip(),
+            "status": t.get_status_display() if hasattr(t, "get_status_display") else "",
+            "fit": fit,
+            "tone": (("good" if fit >= 70 else ("mid" if fit >= 55 else "low")) if fit is not None else "none"),
+            "url": reverse("scouting-target-detail", args=[t.id]),
+        })
+    rows.sort(key=lambda r: (-(r["fit"] if r["fit"] is not None else -1), r["name"].lower()))
+    evaluated = sum(1 for r in rows if r["fit"] is not None)
+
+    return render(request, "football/scouting_shortlist.html", {
+        "roles": roles, "role": role, "rows": rows,
+        "total": len(rows), "evaluated": evaluated,
+    })
+
+
 @login_required
 @require_http_methods(["GET", "POST"])
 def scouting_target_detail_page(request, target_id):

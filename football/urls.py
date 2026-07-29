@@ -132,6 +132,7 @@ urlpatterns = [
     path("coach/informes/direccion/pdf/", views.direction_report_pdf, name="direction-report-pdf"),
     path("coach/dashboard/", views.kpi_dashboard_page, name="kpi-dashboard"),
     path("direccion/", views.scouting_board_page, name="scouting-board"),
+    path("direccion/shortlist/", views.scouting_shortlist_page, name="scouting-shortlist"),
     path("direccion/campo.png", views.scouting_pitch_png, name="scouting-pitch-png"),
     path("direccion/pizarra/guardar/", views.scouting_pitch_board_save, name="scouting-pitch-board-save"),
     path("coach/rivales/importar-liga/", views.rival_league_import, name="rival-league-import"),
