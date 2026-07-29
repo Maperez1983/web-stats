@@ -619,7 +619,10 @@
         {% endif %}
         {% if highlighted_standing %}
         <div class="hm-stat gold"><div class="n">{{ highlighted_standing.rank|default:"-" }}<span class="d">º</span></div><div class="k">Clasificación</div></div>
-        <div class="hm-stat"><div class="n">{{ highlighted_standing.points|default:"-" }}</div><div class="k">Puntos</div></div>
+        {% if highlighted_standing.points %}<div class="hm-stat"><div class="n">{{ highlighted_standing.points }}</div><div class="k">Puntos</div></div>{% endif %}
+        {% endif %}
+        {% if next_match_countdown %}
+        <div class="hm-stat blue"><div class="n">{{ next_match_countdown }}</div><div class="k">Próximo partido</div></div>
         {% endif %}
       </section>
       {% endif %}
@@ -632,7 +635,8 @@
             <div style="flex:1;min-width:0;">
               <div class="hm-rname">vs {{ next_match_opponent|default:"Rival por confirmar" }}</div>
               <div class="hm-rmeta">{{ next_match.round|default:"Jornada por confirmar" }}{% if next_match_date %} · {{ next_match_date }}{% endif %}{% if next_match.time %} · {{ next_match.time }}{% endif %}</div>
-              <div class="hm-rmeta2">{% if next_match.location %}{{ next_match.location }}{% endif %}{% if opponent_standing %} · Rival {{ opponent_standing.rank|default:"-" }}º · {{ opponent_standing.points|default:"-" }} pts{% endif %}</div>
+              <div class="hm-rmeta2">{% if next_match.location %}{{ next_match.location }}{% endif %}{% if opponent_standing %} · Rival {{ opponent_standing.rank|default:"-" }}º{% if opponent_standing.points %} · {{ opponent_standing.points }} pts{% endif %}{% endif %}</div>
+              <div class="hm-rform" id="hm-rival-form" hidden><span class="hm-rformk">Últimos 5</span> <span id="hm-rival-form-badges"></span> <span class="hm-rforms" id="hm-rival-form-sum"></span></div>
             </div>
           </div>
           <div class="hm-links">
@@ -804,6 +808,13 @@
       .hm-zone:hover{border-color:rgba(244,180,0,.35);}
       .hm-zone b{font-size:.9rem;font-weight:800;color:var(--ink);}
       .hm-zone span{font-size:.72rem;color:var(--muted);line-height:1.35;}
+    
+      .hm-rform{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;margin-top:.35rem;}
+      .hm-rformk{font-size:.6rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:800;}
+      .hm-rbadge{display:inline-grid;place-items:center;width:17px;height:17px;border-radius:4px;font-size:.6rem;font-weight:900;color:#0b1626;}
+      .hm-rbadge.v{background:var(--prod-success);} .hm-rbadge.e{background:var(--prod-amber);} .hm-rbadge.d{background:var(--prod-danger);color:#fff;}
+      .hm-rforms{font-size:.68rem;color:var(--muted);}
+      .hm-stat.blue .n{color:#4a86e8;}
     </style>
           <script>
           (function(){
@@ -866,8 +877,52 @@
         </section>
         {% endif %}
 
-        {% include 'football/_coach_decision_dashboard.html' %}
+        {# Tabla de decisión de plantilla: se conserva pero plegada (su sitio natural es Equipo → Planificador). #}
+        <details class="card home-compact" style="margin-top:1rem;padding:0;">
+          <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;gap:.5rem;padding:.65rem .85rem;font-size:.88rem;font-weight:800;color:var(--ink);">
+            <span>📋</span><span>Decisión de plantilla (sigue / no sigue)</span>
+            <span style="margin-left:auto;opacity:.55;font-size:.72rem;font-weight:700;">ver</span>
+          </summary>
+          <div style="padding:0 .5rem .5rem;">
+            {% include 'football/_coach_decision_dashboard.html' %}
+          </div>
+        </details>
 
     </div>
+  
+    {# Forma del rival: se carga en cliente para no ralentizar el render de Inicio. #}
+    {% if next_match_opponent and next_match_opponent != "Rival por confirmar" %}
+    <script>
+      (function () {
+        var box = document.getElementById('hm-rival-form');
+        var badges = document.getElementById('hm-rival-form-badges');
+        var sum = document.getElementById('hm-rival-form-sum');
+        if (!box || !badges || !sum) return;
+        var url = new URL("{% url 'analysis-rival-form-api' %}", window.location.origin);
+        url.searchParams.set('rival', "{{ next_match_opponent|escapejs }}");
+        {% if next_match.opponent.team_code %}url.searchParams.set('team_code', "{{ next_match.opponent.team_code|escapejs }}");{% endif %}
+        url.searchParams.set('limit', '5');
+        fetch(url.toString(), { credentials: 'same-origin' })
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            var ms = (d && Array.isArray(d.matches)) ? d.matches : [];
+            if (!ms.length) return;
+            badges.textContent = '';
+            ms.forEach(function (m) {
+              var res = String(m.result || '').toUpperCase();
+              var cls = res === 'V' ? 'v' : (res === 'E' ? 'e' : 'd');
+              var s = document.createElement('span');
+              s.className = 'hm-rbadge ' + cls;
+              s.textContent = res || '?';
+              badges.appendChild(s);
+            });
+            var s2 = d.summary || {};
+            if (s2.w != null) { sum.textContent = '· ' + (s2.w||0) + 'V ' + (s2.d||0) + 'E ' + (s2.l||0) + 'D'; }
+            box.hidden = false;
+          })
+          .catch(function () { /* silencioso: la home no depende de esto */ });
+      })();
+    </script>
+    {% endif %}
   </body>
 </html>

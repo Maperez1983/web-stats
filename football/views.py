@@ -22655,6 +22655,18 @@ def coach_overview_page(request):
         next_match_date = parsed_next_match_date.strftime("%d/%m/%Y")
     elif isinstance(next_match, dict):
         next_match_date = str(next_match.get("date") or "").strip()
+    # Cuenta atrás del próximo partido para el chip de Inicio (hoy / mañana / N d).
+    next_match_days = None
+    next_match_countdown = ""
+    if parsed_next_match_date:
+        try:
+            _delta = (parsed_next_match_date - timezone.localdate()).days
+            if _delta >= 0:
+                next_match_days = int(_delta)
+                next_match_countdown = "hoy" if _delta == 0 else ("mañana" if _delta == 1 else f"{_delta}d")
+        except Exception:
+            next_match_days = None
+            next_match_countdown = ""
     # Deep-link de la tarjeta "Análisis": si hay un próximo rival fiable y lo resolvemos a un equipo del
     # sistema, entramos directos a su ficha (?tab=insights&team_id=...) para que las Claves salgan llenas.
     # Si no, la tarjeta va al análisis genérico (estado vacío que guía a cargar el rival).
@@ -22915,6 +22927,8 @@ def coach_overview_page(request):
             "next_match": next_match,
             "next_match_opponent": next_match_opponent,
             "next_match_date": next_match_date,
+            "next_match_days": next_match_days,
+            "next_match_countdown": next_match_countdown,
             "standings": standings_rows,
             "standings_window": standings_window,
             "standings_window_truncated": standings_window_truncated,
