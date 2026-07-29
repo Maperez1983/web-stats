@@ -21745,9 +21745,70 @@ def coach_debug_injuries(request):
             "return_date", "estimated_return_date", "is_active", "is_recovered",
         )
     )
+
+    # RECONCILIACION de plantilla: por que la HOME y el INFORME dan numeros distintos.
+    squad = None
+    try:
+        from collections import Counter
+        from .models import ScoutingTarget, Workspace as _Workspace
+
+        _ws = _get_active_workspace(request)
+        _season = selected_club_season_for_request(request, workspace=_ws) if _ws else None
+        _op = _operational_roster_players_for_team(request, primary_team, confirmed_only=False)
+        _op_names = sorted([str(getattr(p, "name", "") or "") for p in _op])
+        _all_team = list(Player.objects.filter(team=primary_team))
+        _all_active = [p for p in _all_team if getattr(p, "is_active", True)]
+        _ms = {}
+        if _season:
+            _ms = {
+                int(r.player_id): r
+                for r in WorkspaceSeasonPlayer.objects.filter(
+                    season=_season,
+                    player_id__in=[int(getattr(p, "id", 0) or 0) for p in _all_team],
+                )
+            }
+        _bucket = Counter()
+        for _p in _all_team:
+            _r = _ms.get(int(getattr(_p, "id", 0) or 0))
+            _st = str(getattr(_r, "status", "") or "") if _r else ""
+            if _st == WorkspaceSeasonPlayer.STATUS_CONFIRMED:
+                _bucket["confirmados"] += 1
+            elif _st in (WorkspaceSeasonPlayer.STATUS_LEFT, WorkspaceSeasonPlayer.STATUS_INACTIVE):
+                _bucket["no_siguen"] += 1
+            else:
+                _bucket["por_decidir"] += 1
+        _oj = 0
+        _ws2 = _Workspace.objects.filter(primary_team=primary_team).first()
+        if _ws2 is not None:
+            _op_ids = {int(getattr(p, "id", 0) or 0) for p in _op}
+            _oj = (
+                ScoutingTarget.objects.filter(workspace=_ws2, available_for_coach_tools=True)
+                .exclude(status=ScoutingTarget.STATUS_DISCARDED)
+                .exclude(player_id__in=_op_ids)
+                .count()
+            )
+        squad = {
+            "temporada": str(getattr(_season, "label", "") or getattr(_season, "name", "") or ""),
+            "HOME_roster_operativo": {
+                "count": len(_op),
+                "nota": "lo que muestra la home (roster de temporada, SIN bajas). = confirmados + por decidir.",
+                "jugadores": _op_names,
+            },
+            "INFORME_todos_los_Player_del_equipo": {
+                "total_incluye_inactivos": len(_all_team),
+                "solo_activos": len(_all_active),
+            },
+            "por_estado_de_temporada": dict(_bucket),
+            "ojeados_a_prueba_no_en_roster": _oj,
+            "en_dinamica_informe_ahora": int(_bucket.get("confirmados", 0)) + int(_bucket.get("por_decidir", 0)),
+        }
+    except Exception as _e:
+        squad = {"error": str(_e)}
+
     out = {
         "today": str(timezone.localdate()),
         "team": getattr(primary_team, "name", ""),
+        "squad_reconciliacion": squad,
         "flagged_injured": sorted(
             [{"id": int(p.id), "name": p.name} for p in players if int(p.id) in active_ids],
             key=lambda x: x["name"],
