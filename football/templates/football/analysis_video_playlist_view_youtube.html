@@ -63,6 +63,7 @@
   </head>
   <body class="prod-commercial">
     <main class="page">
+      {% csrf_token %}{# fija la cookie CSRF y el input oculto para el POST de comentarios (evita 403) #}
       <div class="head">
         <div class="head-copy">
             <div class="head-kicker">Playlist YouTube</div>
@@ -283,7 +284,7 @@
             return fetch(apiUrl, {
               method: 'POST',
               credentials: 'same-origin',
-              headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+              headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRFToken': (document.querySelector('input[name=csrfmiddlewaretoken]')?.value || '') },
               body: JSON.stringify(body),
             }).then(function (resp) {
               return resp.json().catch(function () { return {}; }).then(function (data) {
