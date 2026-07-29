@@ -13,7 +13,7 @@
 	        --bg: var(--prod-bg, #08111d);
 	        --panel: var(--prod-panel-flat, rgba(14, 23, 39, 0.96));
 	        --line: var(--prod-line, rgba(144, 161, 185, 0.22));
-	        --text: var(--prod-text, #f5f7fa);
+	        --text: var(--prod-text, var(--prod-text));
 	        --muted: var(--prod-muted, #91a1b9);
 	        --brand: var(--prod-secondary, #c9a23a);
 	        --pitch: var(--prod-primary, #275a2e);
@@ -176,7 +176,7 @@
         padding: 0.5rem 0.85rem;
         border: 1px solid rgba(201, 162, 58, 0.18);
         background: rgba(2, 6, 23, 0.72);
-        color: #f8fafc;
+        color: var(--prod-text);
         font-weight: 800;
         letter-spacing: 0.02em;
       }
@@ -212,7 +212,7 @@
         font-weight: 900;
       }
       .premium-rail-card strong {
-        color: #f8fafc;
+        color: var(--prod-text);
         font-size: 1.12rem;
         letter-spacing: -0.02em;
       }
@@ -331,7 +331,7 @@
       }
       .trainer-photo-copy h2 {
         margin: 0;
-        color: #f8fafc;
+        color: var(--prod-text);
         text-transform: uppercase;
         letter-spacing: 0.08em;
         font-size: 0.98rem;
@@ -375,7 +375,7 @@
       .trainer-photo-stat strong {
         display: block;
         margin-top: 0.18rem;
-        color: #f8fafc;
+        color: var(--prod-text);
         font-size: 1rem;
       }
       .trainer-info-stack {
@@ -426,7 +426,7 @@
         font-size: 1.55rem;
         font-weight: 950;
         letter-spacing: -0.04em;
-        color: #f8fafc;
+        color: var(--prod-text);
       }
       .trainer-info-meta {
         display: grid;
@@ -449,7 +449,7 @@
       .trainer-info-stat strong {
         display: block;
         margin-top: 0.2rem;
-        color: #f8fafc;
+        color: var(--prod-text);
         font-size: 1rem;
       }
       .trainer-next-rival {
@@ -521,7 +521,7 @@
         font-weight: 900;
       }
       .trainer-mini-card .value {
-        color: #f8fafc;
+        color: var(--prod-text);
         font-size: 1.4rem;
         line-height: 1.05;
         font-weight: 950;
@@ -546,7 +546,7 @@
         background: rgba(2, 6, 23, 0.34);
         border: 1px solid rgba(148, 163, 184, 0.18);
         flex: 0 0 auto;
-        color: #f8fafc;
+        color: var(--prod-text);
       }
       .trainer-mini-card .mini-icon {
         width: 1.05rem;
@@ -711,7 +711,7 @@
       }
       .trainer-squad-pitch-head .pitch-title strong {
         font-size: 1.08rem;
-        color: #f8fafc;
+        color: var(--prod-text);
         letter-spacing: -0.02em;
       }
       .trainer-squad-pitch-head .pitch-title span {
@@ -801,7 +801,7 @@
         align-items: center;
         justify-items: center;
         text-decoration: none;
-        color: #f8fafc;
+        color: var(--prod-text);
         padding: 0.38rem 0.34rem 0.42rem;
         border-radius: 16px;
         border: 1px solid rgba(255, 255, 255, 0.12);
@@ -982,7 +982,7 @@
         font-weight: 900;
       }
       .trainer-squad-reinforcement-row .value {
-        color: #f8fafc;
+        color: var(--prod-text);
         font-weight: 900;
       }
       .trainer-squad-reinforcement-row .meta {
@@ -1107,7 +1107,7 @@
       .trainer-squad-group-player .state.is-muted {
         border: 1px solid rgba(148, 163, 184, 0.22);
         background: rgba(148, 163, 184, 0.08);
-        color: #e2e8f0;
+        color: var(--prod-muted-soft);
       }
       @media (max-width: 900px) {
         .role-header {
@@ -1352,7 +1352,7 @@
         border: 1px solid rgba(148, 163, 184, 0.18);
         border-top: 2px solid rgba(201, 162, 58, 0.28);
         background: rgba(10, 17, 29, 0.94);
-        color: #f8fafc;
+        color: var(--prod-text);
         box-shadow: 0 18px 36px rgba(0, 0, 0, 0.18);
         display: flex;
         flex-direction: column;
@@ -1793,7 +1793,7 @@
         appearance: none;
         border: 1px solid rgba(148, 163, 184, 0.22);
         background: rgba(255, 255, 255, 0.05);
-        color: #e2e8f0;
+        color: var(--prod-muted-soft);
         border-radius: 999px;
         padding: 0.36rem 0.72rem;
         font-size: 0.68rem;
@@ -1805,7 +1805,7 @@
       .map-mode-button.is-active {
         border-color: rgba(34, 211, 238, 0.5);
         background: rgba(34, 211, 238, 0.14);
-        color: #f8fafc;
+        color: var(--prod-text);
       }
       .coach-map-wrap.is-light {
         background: var(--hub-card-bg);
@@ -1858,7 +1858,7 @@
         align-items: center;
         justify-content: center;
         text-align: center;
-        color: #f8fafc;
+        color: var(--prod-text);
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.04em;
@@ -1893,7 +1893,7 @@
       }
       .field-diagram.is-heatmap .field-zone {
         border-color: transparent;
-        color: #f8fafc;
+        color: var(--prod-text);
         text-shadow: 0 2px 8px rgba(2, 6, 23, 0.95), 0 0 2px rgba(15, 23, 42, 0.9);
       }
       .field-diagram.is-heatmap .field-zone .zone-label,
@@ -2039,7 +2039,7 @@
         border-radius: 12px;
         border: 1px solid rgba(148, 163, 184, 0.22);
         background: rgba(15, 23, 42, 0.9);
-        color: #f8fafc;
+        color: var(--prod-text);
         padding: 0.8rem 0.9rem;
       }
       .coach-match-layout {
@@ -2415,7 +2415,7 @@
         border-radius: 16px;
         border: 1px solid rgba(148, 163, 184, 0.18);
         background: rgba(15, 23, 42, 0.9);
-        color: #f8fafc;
+        color: var(--prod-text);
         box-shadow: 0 18px 36px rgba(0, 0, 0, 0.18);
       }
       body.prod-commercial .workspace-panel .summary-card h3,
@@ -2980,7 +2980,7 @@
               </div>
             </section>
             <section class="coach-map-wrap" style="margin-top:0;background:var(--prod-primary-soft,#183f26);">
-              <h3 style="color:#f8fafc;">Mapa de calor del partido</h3>
+              <h3 style="color:var(--prod-text);">Mapa de calor del partido</h3>
               <div class="field-diagram">
                 <img src="{% static 'football/campo-futbol.jpg' %}" alt="Campo de fútbol" />
                 {% for zone in coach_match_view.field_zones %}

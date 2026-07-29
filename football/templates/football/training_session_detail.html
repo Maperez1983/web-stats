@@ -36,7 +36,7 @@
       }
       .topbar-copy { display:flex; flex-direction:column; gap:0.32rem; max-width: 700px; }
       .topbar-kicker { color: rgba(125,211,252,0.9); font-size:0.72rem; font-weight:950; letter-spacing:0.16em; text-transform:uppercase; }
-      .topbar h1 { margin:0; font-size:clamp(1.35rem, 2vw, 2rem); line-height:1.02; letter-spacing:-0.03em; color:#f8fafc; }
+      .topbar h1 { margin:0; font-size:clamp(1.35rem, 2vw, 2rem); line-height:1.02; letter-spacing:-0.03em; color:var(--prod-text); }
       .topbar-subline { display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; color: rgba(226,232,240,0.74); font-weight:850; font-size:0.85rem; }
       .session-pill {
         display:inline-flex;
@@ -46,7 +46,7 @@
         border-radius:999px;
         border:1px solid rgba(148,163,184,0.16);
         background: rgba(255,255,255,0.05);
-        color:#f8fafc;
+        color:var(--prod-text);
         font-size:0.72rem;
         font-weight:900;
         letter-spacing:0.04em;
@@ -69,7 +69,7 @@
 	        --club-accent: {{ pdf_palette.accent|default:"#6366f1" }};
 	        --club-muted: {{ pdf_palette.muted|default:"#64748b" }};
 	        --club-border: #d5dde7;
-	        --club-border-soft: #e2e8f0;
+	        --club-border-soft: var(--prod-muted-soft);
 	      }
 	      .sheet {
 	        border: 1px solid rgba(148,163,184,0.25);
@@ -113,7 +113,7 @@
 	      .table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 	      .table td, .table th { border: 1px solid var(--club-border); padding: 7px 9px; vertical-align: top; background:#fff; }
 	      .box { border: 1px solid var(--club-border); padding: 12px; background: #ffffff; line-height: 1.55; }
-	      .content { padding: 12px 14px 0; background: #f1f5f9; }
+	      .content { padding: 12px 14px 0; background: var(--prod-text); }
 	      .tasks { display:grid; grid-template-columns: 1fr; gap: 12px; }
 	      .task { border: 1px solid var(--club-border); border-radius: 14px; overflow:hidden; background:#ffffff; color:#0f172a; }
 	      .task-head { background: #0f172a; color:#ffffff; padding: 7px 10px; display:flex; justify-content:space-between; gap: 10px; align-items:baseline; }
@@ -188,7 +188,7 @@
 	      .task-grid strong { display:block; margin-bottom: 3px; font-size: 8px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--club-primary); font-weight: 900; }
 	      .footer { display:flex; justify-content:space-between; gap: 12px; padding: 8px 12px; border-top: 1px solid var(--club-border); color: var(--club-muted); font-size: 10px; background:#ffffff; }
         .player-chips { display:flex; flex-wrap:wrap; gap:6px; }
-        .player-chip { display:inline-flex; align-items:center; gap:7px; padding:4px 8px 4px 6px; border:1px solid var(--club-border-soft); border-radius:999px; background:#f8fafc; font-weight:900; font-size:11px; }
+        .player-chip { display:inline-flex; align-items:center; gap:7px; padding:4px 8px 4px 6px; border:1px solid var(--club-border-soft); border-radius:999px; background:var(--prod-text); font-weight:900; font-size:11px; }
         .player-token { width:22px; height:22px; border-radius:999px; background:#0f172a; color:#fff; display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative; flex:0 0 auto; }
         .player-token img { width:100%; height:100%; object-fit:cover; display:block; filter:saturate(1.05) contrast(1.02); }
         .player-token .num { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-weight:950; text-shadow:0 2px 8px rgba(0,0,0,0.45); }
@@ -578,14 +578,14 @@
                   <div style="margin-top:6px; display:grid; gap:6px;">
                     <div style="display:flex; align-items:center; gap:10px;">
                       <div style="width:90px; font-size:11px; font-weight:900; color:#0f172a;">Previsto</div>
-                      <div style="flex:1; height:10px; border-radius:999px; background:#e2e8f0; overflow:hidden;">
+                      <div style="flex:1; height:10px; border-radius:999px; background:var(--prod-muted-soft); overflow:hidden;">
                         <div style="height:100%; width:100%; background:linear-gradient(135deg, var(--club-primary), var(--club-accent));"></div>
                       </div>
                       <div style="width:70px; text-align:right; font-weight:900;">{{ task_minutes_total }}'</div>
                     </div>
                     <div style="display:flex; align-items:center; gap:10px;">
                       <div style="width:90px; font-size:11px; font-weight:900; color:#0f172a;">Real</div>
-                      <div style="flex:1; height:10px; border-radius:999px; background:#e2e8f0; overflow:hidden;">
+                      <div style="flex:1; height:10px; border-radius:999px; background:var(--prod-muted-soft); overflow:hidden;">
                         <div style="height:100%; width:{% if task_minutes_total %}{% widthratio task_real_minutes_total task_minutes_total 100 %}{% else %}0{% endif %}%; background:rgba(15, 23, 42, 0.85);"></div>
                       </div>
                       <div style="width:70px; text-align:right; font-weight:900;">{{ task_real_minutes_total }}'</div>
