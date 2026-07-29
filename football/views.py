@@ -43194,6 +43194,68 @@ def _initial_eleven_page_impl(request):
     for player in convocation_players:
         player.photo_url = _safe_resolve_player_photo_url(request, player)
 
+    # --- Encaje por puesto (estilo FM) para el 11 inicial ---------------------------------
+    # Cada puesto de la formación (POR/LD/DFC/MC/DC…) se traduce a su ROL FINO por defecto
+    # (el primero de su grupo en FM_ROLE_CATALOG) y se envían los atributos evaluados de cada
+    # jugador. El % se calcula en cliente al colocar a cada uno, con el mismo criterio que
+    # "Táctica · roles y encaje" (media de los atributos clave del rol × 10).
+    # Rol por defecto de cada puesto. Por norma se usa el primero de su grupo, salvo estos
+    # casos donde el primero no es el natural del puesto (p. ej. MP es mediapunta, no extremo).
+    # Incluye etiquetas propias de la pizarra que no están en POSITION_CHOICES (DF, MD, MI).
+    _XI_ROLE_OVERRIDES = {
+        "MP": ("banda", "mediapunta"),
+        "MD": ("banda", "extremo"),
+        "MI": ("banda", "extremo"),
+        "DF": ("central", "central_marca"),
+        "SD": ("delantero", "segundo_punta"),
+        "CARRILERO D": ("lateral", "carrilero"),
+        "CARRILERO I": ("lateral", "carrilero"),
+        "INTERIOR D": ("banda", "interior_llegador"),
+        "INTERIOR I": ("banda", "interior_llegador"),
+    }
+    xi_slot_roles = {}
+    try:
+        def _slot_role(group, prefer_key=None):
+            roles = FM_ROLE_CATALOG.get(group) or []
+            if not roles:
+                return None
+            if prefer_key:
+                for k, lb, pp in roles:
+                    if k == prefer_key:
+                        return (k, lb, pp)
+            return roles[0]
+
+        for _code, _group in FM_POSITION_GROUP.items():
+            _ov = _XI_ROLE_OVERRIDES.get(_code)
+            _r = _slot_role(_ov[0] if _ov else _group, _ov[1] if _ov else None)
+            if _r:
+                xi_slot_roles[_code] = {"role": _r[0], "label": _r[1], "params": list(_r[2])}
+        # Etiquetas de la pizarra que no existen como posición canónica.
+        for _code, (_g, _k) in _XI_ROLE_OVERRIDES.items():
+            if _code in xi_slot_roles:
+                continue
+            _r = _slot_role(_g, _k)
+            if _r:
+                xi_slot_roles[_code] = {"role": _r[0], "label": _r[1], "params": list(_r[2])}
+    except Exception:
+        xi_slot_roles = {}
+    xi_player_scores = {}
+    try:
+        _pids = [int(p.id) for p in convocation_players if getattr(p, "id", None)]
+        if _pids:
+            _latest = {}
+            for _ev in (
+                PlayerEvaluation.objects.filter(player_id__in=_pids, status=PlayerEvaluation.STATUS_CLOSED)
+                .order_by("player_id", "-evaluated_on", "-updated_at", "-id")
+            ):
+                _latest.setdefault(int(_ev.player_id), _ev)
+            for _pid, _ev in _latest.items():
+                _flat = _fm_flat_scores(getattr(_ev, "parameter_scores", None))
+                if _flat:
+                    xi_player_scores[str(_pid)] = _flat
+    except Exception:
+        xi_player_scores = {}
+
     lineup_seed = {"starters": [], "bench": []}
     has_pending_lineup = False
     lineup_published_at = None
@@ -43468,6 +43530,9 @@ def _initial_eleven_page_impl(request):
             # Identidad del club en la cabecera (barra de colores del kit).
             "kit_primary_color": getattr(primary_team, "kit_primary_color", "") or "",
             "kit_secondary_color": getattr(primary_team, "kit_secondary_color", "") or "",
+            # Encaje por puesto (rol fino por posición + atributos evaluados de cada jugador).
+            "xi_slot_roles_json": json.dumps(xi_slot_roles),
+            "xi_player_scores_json": json.dumps(xi_player_scores),
             "match_id": int(target_match.id) if target_match and getattr(target_match, "id", None) else None,
             "match_selector_options": match_selector_options,
             "selected_match_id": selected_match_id,

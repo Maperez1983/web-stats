@@ -2220,6 +2220,7 @@
           color: rgba(248, 250, 252, 0.96);
         }
       }
+          .xi-chip-fit { font-weight: 900; font-size: .92em; }
     </style>
   </head>
   <body class="prod-commercial">
@@ -2745,6 +2746,23 @@
         fallbackKitCache[key] = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
         return fallbackKitCache[key];
       }
+      // --- Encaje por puesto (mismo criterio que Tactica - roles y encaje) ---------------
+      const XI_SLOT_ROLES = JSON.parse('{{ xi_slot_roles_json|default:"{}"|escapejs }}');
+      const XI_PLAYER_SCORES = JSON.parse('{{ xi_player_scores_json|default:"{}"|escapejs }}');
+      function xiFitFor(playerId, posLabel) {
+        try {
+          const scores = XI_PLAYER_SCORES[String(playerId)];
+          if (!scores) return null;
+          const slot = XI_SLOT_ROLES[String(posLabel || '').toUpperCase()];
+          if (!slot || !Array.isArray(slot.params)) return null;
+          const vals = slot.params.map((k) => scores[k]).filter((v) => typeof v === 'number');
+          if (vals.length < 3) return null;
+          const pct = Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10);
+          return { pct: Math.max(0, Math.min(100, pct)), label: slot.label || '' };
+        } catch (_) { return null; }
+      }
+      function xiFitColor(pct) { return pct >= 70 ? 'var(--prod-success)' : (pct >= 55 ? '#e2a53a' : 'var(--prod-danger)'); }
+
       function kit2dUrlForLineupRole(role) {
         const normalized = String(role || '').toLowerCase();
         if (normalized === 'gk') return lineupKit2dDataUrls.gk || lineupKit2dDataUrls.gk2 || lineupKit2dDataUrls.gk3 || lineupKit2dDataUrls.home || lineupKit2dDataUrl || fallbackKitDataUrl('gk');
@@ -3445,7 +3463,7 @@
                 ${isCaptain ? '<span class="xi-chip-cap" title="Capitán">C</span>' : ''}
               </div>
               <div class="xi-chip-name">${escHtml(String(player.name || '').toUpperCase())}</div>
-              <div class="xi-chip-pos">${escHtml(posLabel)}</div>
+              <div class="xi-chip-pos">${escHtml(posLabel)}${(() => { const f = xiFitFor(player.id, posLabel); return f ? ` <span class="xi-chip-fit" style="color:${xiFitColor(f.pct)}" title="Encaje como ${escHtml(f.label)}">${f.pct}%</span>` : ''; })()}</div>
             </div>
           `;
           const discImgEl = wrap.querySelector('.xi-chip-disc img');
