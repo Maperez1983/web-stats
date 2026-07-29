@@ -141,6 +141,34 @@ def _file_field_as_data_url(file_field):
     return f"data:{mime};base64,{base64.b64encode(raw).decode('utf-8')}"
 
 
+def _downscale_preview_data_url(data_url: str, *, max_side: int = 1800, quality: int = 86) -> str:
+    """Limita el tamaño de una preview antes de incrustarla en el PDF.
+
+    La foto HD de la pizarra (Playwright, ~3200 px) es perfecta para la ficha en pantalla, pero
+    WeasyPrint la descomprime entera en memoria: con varias tareas por sesión eso es justo lo que
+    provocaba los 502 por OOM al exportar. 1800 px siguen dando ~230 dpi en A4.
+    """
+    raw = str(data_url or '')
+    if not raw.startswith('data:image/') or ';base64,' not in raw:
+        return data_url
+    try:
+        from io import BytesIO  # noqa: WPS433
+        from PIL import Image  # noqa: WPS433
+
+        _, payload = raw.split(';base64,', 1)
+        blob = base64.b64decode(payload.encode('ascii'))
+        with Image.open(BytesIO(blob)) as img:
+            if max(img.size) <= int(max_side):
+                return data_url
+            shrunk = img.convert('RGB')
+            shrunk.thumbnail((int(max_side), int(max_side)))
+            out = BytesIO()
+            shrunk.save(out, format='JPEG', quality=int(quality), optimize=True, progressive=True)
+        return 'data:image/jpeg;base64,' + base64.b64encode(out.getvalue()).decode('ascii')
+    except Exception:
+        return data_url
+
+
 def _get_primary_team_for_request(request):
     team = workspace_context.get_active_team_for_request(request)
     if team:
@@ -802,7 +830,7 @@ def build_session_pdf_context(request, team, session, pdf_style='uefa'):
         # 1) Imagen ya guardada.
         preview = _file_field_as_data_url(getattr(task, 'task_preview_image', None))
         if preview:
-            return _autocrop_preview_data_url(preview)
+            return _autocrop_preview_data_url(_downscale_preview_data_url(preview))
         layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
         if isinstance(layout, str):
             layout = coerce_json_dict(layout) or {}

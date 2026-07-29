@@ -6,6 +6,7 @@ from . import (
     season_wizard_views,
     session_pdf,
     tactical_views,
+    task_board_snapshot,
     task_editor_pro_views,
     video_studio_views,
     views,
@@ -679,6 +680,12 @@ urlpatterns = [
     path("coach/sesiones/tarea/<int:task_id>/archivo/", views.session_task_file, name="session-task-file"),
     path(
         "coach/sesiones/tarea/<int:task_id>/preview/", views.session_task_preview_file, name="session-task-preview-file"
+    ),
+    # Estado (y disparo manual) de la FOTO HD de la pizarra: ?force=1 la vuelve a pedir.
+    path(
+        "coach/sesiones/tarea/<int:task_id>/foto-hd/",
+        task_board_snapshot.board_snapshot_status_view,
+        name="session-task-board-hd",
     ),
     path(
         "coach/sesiones/tarea/<int:task_id>/cover/", views.session_task_cover_file, name="session-task-cover-file"

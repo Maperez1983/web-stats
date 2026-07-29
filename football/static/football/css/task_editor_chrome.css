@@ -1046,3 +1046,44 @@ body.ed-chrome .edc-swatch {
 body.ed-chrome .edc-swatch:hover { transform: scale(1.12); border-color: rgba(255,255,255,0.6); }
 body.ed-chrome .edc-swatch.is-active { border-color: var(--edc-accent); box-shadow: 0 0 0 2px var(--edc-accent), 0 1px 4px rgba(0,0,0,0.5); }
 body.ed-chrome .edc-selgrp-color.is-disabled { opacity: .38; pointer-events: none; }
+
+/* ============================================================
+   MODO FOTO (body.edc-snapshot, se activa con ?snapshot=1)
+   ------------------------------------------------------------
+   Playwright abre el editor real y fotografia #task-pitch-stage para llevar la pizarra en ALTA
+   RESOLUCION a la ficha y al PDF (misma receta que el snapshot de la pizarra de plantilla en los
+   informes de direccion). Aqui apagamos TODO el mueble del editor para que en la foto solo salga
+   la superficie de la tarea: barras, rail, cajones, inspector, toasts y el tirador de redimensionar.
+   ============================================================ */
+body.ed-chrome.edc-snapshot .edc-topbar,
+body.ed-chrome.edc-snapshot .edc-bottombar,
+body.ed-chrome.edc-snapshot .edc-rail,
+body.ed-chrome.edc-snapshot .edc-selbar,
+body.ed-chrome.edc-snapshot .edc-align-bar,
+body.ed-chrome.edc-snapshot .edc-mat-drawer,
+body.ed-chrome.edc-snapshot .edc-menu-drawer,
+body.ed-chrome.edc-snapshot .edc-inspector,
+body.ed-chrome.edc-snapshot .edc-toast,
+body.ed-chrome.edc-snapshot .resource-section.pitch-side,
+body.ed-chrome.edc-snapshot .pitch-resize-handle,
+body.ed-chrome.edc-snapshot .pitch-drills-strip,
+body.ed-chrome.edc-snapshot .board-status-row,
+body.ed-chrome.edc-snapshot .board-flow-note,
+body.ed-chrome.edc-snapshot .task-timeline-dock,
+body.ed-chrome.edc-snapshot #task-selection-dock { display: none !important; }
+
+/* El campo manda: ocupa toda la ventana headless, sin barras que le roben alto. Asi el stage
+   conserva el aspect-ratio exacto del SVG (lo fija syncStageAspectFromSvg) y NO aparecen las
+   bandas de cesped del fondo CSS por encima y por debajo. */
+body.ed-chrome.edc-snapshot .pitch-viewport {
+  position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+  padding: 0 !important; overflow: hidden !important;
+  display: flex !important; align-items: center !important; justify-content: center !important;
+  background: transparent !important;
+}
+body.ed-chrome.edc-snapshot #task-pitch-stage {
+  margin: 0 !important; box-shadow: none !important; border-radius: 0 !important;
+  max-width: 100% !important; max-height: 100% !important;
+}
+body.ed-chrome.edc-snapshot #task-pitch-surface,
+body.ed-chrome.edc-snapshot #create-task-canvas { border-radius: 0 !important; }

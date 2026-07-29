@@ -58684,6 +58684,15 @@ def session_task_detail_page(request, task_id):
     except Exception:
         pitch3d_player_model_src = ""
     pitch3d_assets = _task_pitch3d_asset_context(static_build_id, player_model_src=pitch3d_player_model_src)
+    # FOTO HD de la pizarra (misma receta que el snapshot de la plantilla en los informes de
+    # dirección): si la imagen guardada no corresponde al dibujo actual, encolamos una foto real
+    # del editor en segundo plano. La ficha sigue mostrando la anterior mientras tanto.
+    try:
+        from . import task_board_snapshot as _board_hd
+
+        _board_hd.queue_snapshot(request, task)
+    except Exception:
+        pass
     return render(
         request,
         "football/session_task_detail.html",

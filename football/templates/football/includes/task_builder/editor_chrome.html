@@ -123,6 +123,10 @@
 <script>
 (function(){
   document.body.classList.add('ed-chrome');
+  // Modo FOTO (?snapshot=1): Playwright abre esta misma pagina para fotografiar la pizarra en HD
+  // y llevarla a la ficha/PDF. Dejamos SOLO el campo: sin barras, sin rail, sin inspector y sin
+  // el tirador de redimensionar (mueble del editor que no forma parte de la tarea).
+  try{ if(/[?&]snapshot=1(?:&|$)/.test(location.search)) document.body.classList.add('edc-snapshot'); }catch(e){}
   var proxyClick = function(id){ try{ var el=document.getElementById(id); if(el) el.click(); }catch(e){} };
   // Aviso visible (toast): el editor escribe pistas tipo "Haz clic en el campo para
   // colocar X" en #task-builder-status, pero la carcasa lo deja a 0x0 (invisible), asi

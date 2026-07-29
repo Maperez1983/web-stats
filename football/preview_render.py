@@ -822,3 +822,111 @@ def render_html_selector_png(
             except Exception:
                 pass
             return None
+
+
+def render_url_selector_png(
+    *,
+    url: str,
+    selector: str,
+    cookies: list | None = None,
+    viewport_width: int = 1400,
+    viewport_height: int = 900,
+    device_scale_factor: float = 2.0,
+    wait_for_js: str | None = None,
+    timeout_ms: int = 30000,
+    settle_ms: int = 900,
+) -> bytes | None:
+    """
+    Abre una URL REAL de la app y fotografía un selector. Hermano de `render_html_selector_png`,
+    pero cargando la página de verdad (con su JS) en vez de HTML suelto.
+
+    Por qué: la pizarra de una tarea la dibuja Fabric con clases de token propias. Reconstruirla
+    server-side desde el JSON produce lienzos vacíos (ya nos pasó en la regeneración masiva). Si en
+    cambio abrimos el editor real, el JS de la app hace el trabajo y la foto es 1:1 con lo que ve
+    el usuario: fondo CSS, césped fotográfico y fichas incluidos.
+
+    A diferencia del hermano, aquí SÍ dejamos pasar las peticiones al PROPIO dominio (estáticos,
+    avatares, césped); solo se bloquean hosts externos.
+    """
+    if not url or not selector:
+        return None
+    viewport_width = max(640, min(int(viewport_width or 1400), 2400))
+    viewport_height = max(480, min(int(viewport_height or 900), 2000))
+    try:
+        device_scale_factor = float(device_scale_factor or 2.0)
+    except Exception:
+        device_scale_factor = 2.0
+    device_scale_factor = max(1.0, min(device_scale_factor, 3.0))
+    timeout_ms = max(5000, min(int(timeout_ms or 30000), 90000))
+    settle_ms = max(0, min(int(settle_ms or 0), 5000))
+
+    try:
+        own_host = (urlparse(str(url)).hostname or "").lower()
+    except Exception:
+        own_host = ""
+
+    with _acquire_playwright_browser() as (pw, browser):
+        if not pw or not browser:
+            return None
+        context = None
+        try:
+            context = browser.new_context(
+                viewport={"width": int(viewport_width), "height": int(viewport_height)},
+                device_scale_factor=float(device_scale_factor),
+            )
+            if cookies:
+                try:
+                    context.add_cookies(list(cookies))
+                except Exception:
+                    pass
+
+            def _route_same_origin_only(route):
+                try:
+                    req_url = str(route.request.url or "")
+                    host = (urlparse(req_url).hostname or "").lower()
+                    if host and own_host and host != own_host:
+                        # Host externo: devolvemos un pixel en blanco para no colgar el render.
+                        route.fulfill(status=200, content_type="image/png", body=_BLANK_PNG_BYTES)
+                    else:
+                        route.continue_()
+                except Exception:
+                    try:
+                        route.continue_()
+                    except Exception:
+                        pass
+
+            page = context.new_page()
+            try:
+                page.route("**/*", _route_same_origin_only)
+            except Exception:
+                pass
+            page.goto(str(url), wait_until="load", timeout=timeout_ms)
+            if wait_for_js:
+                try:
+                    page.wait_for_function(str(wait_for_js), timeout=timeout_ms)
+                except Exception:
+                    pass
+            loc = page.locator(str(selector))
+            try:
+                loc.wait_for(state="visible", timeout=timeout_ms)
+            except Exception:
+                pass
+            if settle_ms:
+                # Margen para que terminen fuentes/imágenes/animaciones de entrada del editor.
+                try:
+                    page.wait_for_timeout(settle_ms)
+                except Exception:
+                    pass
+            png_bytes = loc.screenshot(type="png")
+            try:
+                context.close()
+            except Exception:
+                pass
+            return png_bytes
+        except Exception:
+            try:
+                if context:
+                    context.close()
+            except Exception:
+                pass
+            return None
