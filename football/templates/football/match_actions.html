@@ -1660,9 +1660,11 @@
         background: transparent;
       }
       .field-overlay-lines {
+        /* La superficie ahora es coach_home_pitch_surface.png (misma que la pizarra de plantilla),
+           que YA trae las líneas del campo pintadas. Ocultamos las líneas CSS para no duplicarlas. */
+        display: none !important;
         position: absolute;
         inset: 0;
-        display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
@@ -3943,7 +3945,7 @@
                   <div class="field-surface" id="field-surface">
                     <img
                       id="field-image"
-                      src="{% static 'football/campo-futbol.jpg' %}"
+                      src="{% static 'football/images/pitch3d/coach_home_pitch_surface.png' %}"
                       alt="Campo de fútbol"
                       loading="lazy"
                     />
