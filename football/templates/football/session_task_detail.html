@@ -3802,50 +3802,6 @@
     </script>
     <script type="module" src="{% static 'football/js/session_task_detail_3d.js' %}?v=task-detail-3d-stadium-v7-debug-portal{% if static_build_id %}-{{ static_build_id|urlencode }}{% endif %}"></script>
     <script>
-      /* BLINDAJE (live fallback): si la VISTA 2D (miniatura) sale VACÍA —solo césped, sin fichas—
-         pintamos la pizarra EN VIVO cargando el editor de esa tarea en un iframe (que SÍ dibuja las
-         fichas desde el dato, intacto). Detección conservadora para no tocar miniaturas buenas
-         (que tienen jugadores=oscuro y líneas=blanco). Solo la VISTA 2D, no la 3D. */
-      (function(){
-        try{
-          var TASK = parseInt("{{ task.id|default:0 }}", 10) || 0;
-          if(!TASK) return;
-          var team = (new URLSearchParams(location.search)).get('team') || '';
-          function looksEmpty(img){
-            try{
-              var w=64, h=Math.max(16, Math.round(64*((img.naturalHeight||1)/(img.naturalWidth||1))));
-              var c=document.createElement('canvas'); c.width=w; c.height=h;
-              var cx=c.getContext('2d'); cx.drawImage(img,0,0,w,h);
-              var d=cx.getImageData(0,0,w,h).data, n=Math.max(1,d.length/4), g=0,dk=0,wt=0;
-              for(var i=0;i<d.length;i+=4){
-                var r=d[i],gg=d[i+1],b=d[i+2];
-                if(gg>70 && gg>r+14 && gg>b+10) g++;
-                else if(r>232&&gg>232&&b>232) wt++;
-                else if(r<30&&gg<30&&b<30) dk++;
-              }
-              return (g/n)>=0.90 && (wt/n)<=0.10 && (dk/n)<=0.03;
-            }catch(e){ return false; } /* cross-origin/taint -> no tocar */
-          }
-          function fix(img){
-            if(!img || img.dataset.blindajeChecked) return; img.dataset.blindajeChecked='1';
-            if(!looksEmpty(img)) return;
-            var box=img.parentElement; if(!box) return;
-            var fr=document.createElement('iframe');
-            fr.src='/coach/sesiones/tareas/'+TASK+'/editar/?embedded=1'+(team?('&team='+encodeURIComponent(team)):'');
-            fr.title='Pizarra en vivo'; fr.loading='lazy';
-            fr.style.cssText='width:100%;aspect-ratio:105/68;border:0;border-radius:12px;display:block;background:#123021;';
-            img.style.display='none';
-            box.appendChild(fr);
-          }
-          var imgs=Array.prototype.slice.call(document.querySelectorAll('img.preview[alt^="Vista 2D"], #task-preview-image'));
-          imgs.forEach(function(img){
-            if(img.complete && img.naturalWidth) fix(img);
-            else img.addEventListener('load', function(){ fix(img); });
-          });
-        }catch(e){}
-      })();
-    </script>
-    <script>
       /* Re-render por LOTES de miniaturas: si la URL trae ?regen_batch=<ids>, esta ficha (en modo
          edición gráfica) espera a que cargue el editor, pulsa "Guardar" del gráfico (regenera la
          miniatura con el motor del navegador, que SÍ dibuja las fichas) y salta a la siguiente. */
