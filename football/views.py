@@ -2371,8 +2371,17 @@ def rival_player_link_own(request, rival_player_id):
         player = Player.objects.filter(id=pid).first()
         rp.matched_player = player
         rp.save(update_fields=["matched_player", "updated_at"])
+        # Reconocimiento POR ID: si ese Player no tiene su URL/J-id de laPreferente, se lo rellenamos
+        # con el del rival (mismo J-id entre equipos). Así queda vinculado por id de forma permanente y
+        # cualquier import futuro lo reconoce solo, sin depender del enlace manual.
+        if player and rp.preferente_profile_url and not (getattr(player, "preferente_profile_url", "") or "").strip():
+            try:
+                player.preferente_profile_url = rp.preferente_profile_url[:600]
+                player.save(update_fields=["preferente_profile_url"])
+            except Exception:
+                pass
         if player:
-            messages.success(request, f"“{rp.full_name}” reconocido como {player.name}.")
+            messages.success(request, f"Reconocido: “{rp.full_name}” es el mismo jugador que {player.name} (enlazado por su id).")
     else:
         rp.matched_player = None
         rp.save(update_fields=["matched_player", "updated_at"])

@@ -57,7 +57,7 @@
           </div>
 
           {% if rp.matched_player %}
-          <div class="rpf-known">✓ Reconocido como jugador nuestro: <strong>{{ rp.matched_player.name }}</strong> (ficha propia). No se ha duplicado.</div>
+          <div class="rpf-known">✓ Mismo jugador que <strong>{{ rp.matched_player.name }}</strong> (ya existe en el sistema, enlazado por su id). No se ha duplicado.</div>
           {% endif %}
 
           <div class="rpf-tools">
@@ -78,7 +78,7 @@
             </div>
 
             <div class="rpf-tool">
-              <h3>Identidad — ¿es un jugador nuestro?</h3>
+              <h3>Identidad — ¿ya existe este jugador?</h3>
               <form method="post" action="{% url 'rival-player-link-own' rival_player_id=rp.id %}" class="rpf-row">
                 {% csrf_token %}
                 <select name="player_id">
@@ -89,7 +89,7 @@
                 </select>
                 <button class="rpf-btn ghost" type="submit">Guardar</button>
               </form>
-              <p class="rpf-note">Para ex-jugadores tuyos u ojeados que han fichado por un rival: se reconoce sin fusionar.</p>
+              <p class="rpf-note">Si esta persona ya existe en tu sistema (ex-jugador tuyo u ojeado que fichó por un rival), enlázalo: se reconoce por su id, sin duplicar ni fusionar.</p>
             </div>
           </div>
         </div>
