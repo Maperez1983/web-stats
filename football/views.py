@@ -77975,7 +77975,8 @@ def match_stats_page(request, match_id):
 def _ensure_match_attendance_session(match, primary_team, players, actor=None):
     """Opción A: hace que un partido (p.ej. un amistoso) cuente para la ASISTENCIA. Crea o
     reutiliza una TrainingSession que representa el partido (idempotente por microciclo+fecha+focus)
-    y marca asistencia = Presente a los convocados. Así reutiliza el sistema de asistencia entero
+    y marca asistencia = Presente a los convocados y a los jugadores con minutos en el partido (no a
+    toda la plantilla). Así reutiliza el sistema de asistencia entero
     (contadores de sesiones/minutos + multas). Nunca rompe el cierre del partido.
     Devuelve el nº de asistencias marcadas."""
     try:
@@ -78002,9 +78003,34 @@ def _ensure_match_attendance_session(match, primary_team, players, actor=None):
         if session.status != TrainingSession.STATUS_DONE:
             session.status = TrainingSession.STATUS_DONE
             session.save(update_fields=["status"])
+        # A QUIÉN se marca asistencia: los CONVOCADOS del partido + los jugadores con minutos en este
+        # partido. Antes se marcaba a TODA la plantilla (`players`), lo que contradecía la etiqueta
+        # ("convocados") y colaba como presentes a jugadores que no fueron citados.
+        attendee_ids = set()
+        try:
+            record = _get_convocation_record_for_match(primary_team, match)
+            if record:
+                attendee_ids.update(int(pid) for pid in record.players.values_list("id", flat=True))
+        except Exception:
+            pass
+        try:
+            for pid, val in PlayerStatistic.objects.filter(
+                match=match, player__team=primary_team, context="manual-match", name="manual_minutes",
+            ).values_list("player_id", "value"):
+                try:
+                    if pid and float(val or 0) > 0:
+                        attendee_ids.add(int(pid))
+                except (TypeError, ValueError):
+                    continue
+        except Exception:
+            pass
         marked = 0
         actor_user = actor if getattr(actor, "is_authenticated", False) else None
+        # Intersecamos con la plantilla recibida (no marca a nadie ajeno al equipo). Si no hubo
+        # convocatoria ni minutos, no marcamos a nadie arbitrariamente (mejor 0 que toda la plantilla).
         for player in players or []:
+            if int(getattr(player, "id", 0) or 0) not in attendee_ids:
+                continue
             TrainingSessionAttendance.objects.update_or_create(
                 session=session,
                 player=player,
