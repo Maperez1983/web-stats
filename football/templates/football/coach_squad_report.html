@@ -243,7 +243,16 @@
   </section>
 
   <section class="pitch-wrap">
+    {% if pitch_snapshot_url %}
+    <img src="{{ pitch_snapshot_url }}" alt="Plantilla en el campo" style="display:block;width:100%;height:auto;border-radius:18px;" />
+    <div style="display:flex;gap:1rem;align-items:center;margin-top:.6rem;font-size:.76rem;color:#5a6b62;flex-wrap:wrap;">
+      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#22c55e;margin-right:.25rem;"></span> Disponible
+      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f5b301;margin:0 .25rem 0 .6rem;"></span> A prueba
+      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ef4444;margin:0 .25rem 0 .6rem;"></span> Lesionado
+    </div>
+    {% else %}
     {% include 'football/_coach_pitch_board.html' %}
+    {% endif %}
   </section>
 
   <section class="grid">

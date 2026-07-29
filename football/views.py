@@ -22424,65 +22424,6 @@ def coach_pitch_board_save(request):
 
 
 @login_required
-def coach_debug_pitch_snapshot(request):
-    """DIAGNOSTICO temporal: por que el snapshot de la pizarra sale vacio.
-    Prueba (a) Playwright con HTML trivial y (b) el snapshot real. `?clearcache=1` purga la cache."""
-    import time as _time
-    import traceback as _tb
-
-    forbidden = _forbid_if_no_coach_access(request.user)
-    if forbidden:
-        return forbidden
-    out = {}
-    # (a) ¿Arranca Playwright con algo trivial?
-    try:
-        t0 = _time.monotonic()
-        _trivial = render_html_selector_png(
-            html="<!doctype html><html><body style='margin:0'><div id='x' style='width:200px;height:120px;background:#0a0'></div></body></html>",
-            selector="#x", viewport_width=640, viewport_height=480, device_scale_factor=1.0, timeout_ms=15000,
-        )
-        out["playwright_trivial_ok"] = bool(_trivial)
-        out["playwright_trivial_bytes"] = len(_trivial or b"")
-        out["playwright_trivial_secs"] = round(_time.monotonic() - t0, 1)
-    except Exception as e:
-        out["playwright_trivial_error"] = f"{type(e).__name__}: {e}"
-        out["playwright_trivial_trace"] = _tb.format_exc()[-1500:]
-
-    # (b) Snapshot real de la pizarra
-    primary_team = _get_primary_team_for_request(request)
-    if not primary_team:
-        out["error"] = "no_primary_team"
-        return JsonResponse(out)
-    try:
-        _players = _coach_pitch_players_for_request(request, primary_team, workspace=_get_active_workspace(request))
-        out["players"] = len(_players or [])
-    except Exception as e:
-        out["players_error"] = f"{type(e).__name__}: {e}"
-        _players = []
-    if str(request.GET.get("clearcache") or "") in ("1", "true", "yes"):
-        try:
-            sig_src = "|".join(
-                f"{it.get('id')}:{it.get('left')}:{it.get('top')}:{it.get('state')}:{it.get('number')}:{it.get('rating')}:{it.get('name')}:{it.get('avatar')}:{int(bool(it.get('signed')))}"
-                for it in (_players or [])
-            )
-            cache.delete("pb_snapshot_v2hd_" + hashlib.sha1(sig_src.encode("utf-8")).hexdigest())
-            out["cache_cleared"] = True
-        except Exception as e:
-            out["cache_clear_error"] = f"{type(e).__name__}: {e}"
-    try:
-        t1 = _time.monotonic()
-        uri = _coach_pitch_board_snapshot_data_url(_players)
-        out["snapshot_ok"] = bool(uri)
-        out["snapshot_len"] = len(uri or "")
-        out["snapshot_prefix"] = (uri or "")[:40]
-        out["snapshot_secs"] = round(_time.monotonic() - t1, 1)
-    except Exception as e:
-        out["snapshot_error"] = f"{type(e).__name__}: {e}"
-        out["snapshot_trace"] = _tb.format_exc()[-2000:]
-    return JsonResponse(out)
-
-
-@login_required
 def coach_debug_injuries(request):
     """DIAGNOSTICO temporal: vuelca por que un jugador figura (o no) como lesionado.
     Solo lectura, solo entrenador. `?clearcache=1` limpia la cache del catalogo del editor."""
@@ -40184,8 +40125,13 @@ def squad_status_report_page(request):
     _cap = int(fed.get("cap", _FEDERATIVE_LICENSE_CAP) or _FEDERATIVE_LICENSE_CAP)
     pct_closed = int(round((int(fed.get("fichados", 0) or 0) / _cap) * 100)) if _cap else 0
 
+    try:
+        _pitch_snapshot = _coach_pitch_board_snapshot_data_url(pitch_players)
+    except Exception:
+        _pitch_snapshot = ""
     context = {
         "coach_pitch_players": pitch_players,
+        "pitch_snapshot_url": _pitch_snapshot,
         "primary_team_id": int(getattr(primary_team, "id", 0) or 0),
         "fed": fed,
         "phase": phase,
