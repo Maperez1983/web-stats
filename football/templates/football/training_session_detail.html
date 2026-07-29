@@ -444,7 +444,20 @@
               {% endif %}
 		          <div class="box" style="border-top:none; padding-top:10px;">
 		            {% if tasks_by_block %}
-	              <div class="tasks">
+	              <style>
+              .tsk-detail{border:1px solid rgba(148,163,184,0.22);border-radius:12px;margin:10px 0 0;overflow:hidden;}
+              .tsk-detail>summary.tsk-sum{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:9px 12px;background:rgba(148,163,184,0.06);}
+              .tsk-detail>summary.tsk-sum::-webkit-details-marker{display:none;}
+              .tsk-detail>summary.tsk-sum:hover{background:rgba(148,163,184,0.12);}
+              .tsk-thumb{flex:0 0 auto;width:84px;height:54px;border-radius:8px;background-size:cover;background-position:center;background-color:#123021;border:1px solid rgba(148,163,184,0.25);}
+              .tsk-sum-label{flex:1 1 auto;font-size:12px;font-weight:600;color:var(--club-muted,#64748b);text-transform:none;letter-spacing:0;}
+              .tsk-sum-label::before{content:"Ver pizarra y detalle";}
+              .tsk-detail[open]>summary .tsk-sum-label::before{content:"Ocultar detalle";}
+              .tsk-chev{flex:0 0 auto;font-size:13px;color:var(--club-muted,#64748b);transition:transform .12s;}
+              .tsk-detail[open]>summary .tsk-chev{transform:rotate(180deg);}
+              .tsk-inner{padding:2px 12px 12px;}
+            </style>
+              <div class="tasks">
 	                {% for block in tasks_by_block %}
 	                  {% for t in block.tasks %}
 	                    <div class="task">
@@ -454,6 +467,13 @@
 	                      </div>
 	                      <div class="task-body">
 	                        <div class="task-title">{{ t.title }}</div>
+                        <details class="tsk-detail">
+                          <summary class="tsk-sum">
+                            <span class="tsk-thumb" style="background-image:{% if t.preview_url %}url('{{ t.preview_url }}&amp;hd=1'){% else %}none{% endif %};"></span>
+                            <span class="tsk-sum-label"></span>
+                            <span class="tsk-chev">▾</span>
+                          </summary>
+                          <div class="tsk-inner">
 
                           <div class="section-title" style="margin:10px 0 0; border-radius:10px 10px 0 0;">Descripción gráfica</div>
                           <a class="preview-frame" href="{{ t.detail_url }}" title="Abrir tarea" style="border-radius:0 0 12px 12px;">
@@ -515,7 +535,9 @@
                             </tr>
                           </table>
 
-	                        <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+	                        </div>
+                        </details>
+                        <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
 		                          <a class="btn secondary" style="padding:0.45rem 0.7rem;" href="{{ t.detail_url }}?from_session={{ session.id }}">✏️ Editar tarea</a>
 		                        </div>
 		                      </div>
