@@ -156,7 +156,7 @@
         padding: 0.68rem 0.75rem;
         border: 1px solid rgba(244, 180, 0, 0.18);
         background: rgba(15, 23, 42, 0.55);
-        color: #f8fafc;
+        color: var(--prod-text);
         font-weight: 700;
         font-size: 0.92rem;
       }
@@ -170,7 +170,7 @@
         min-width: 0;
         flex: 0 0 auto;
         padding: 0;
-        accent-color: #f4b400;
+        accent-color: var(--prod-amber);
         cursor: pointer;
       }
       .create-panel {
@@ -561,7 +561,7 @@
         justify-content: center;
         font-weight: 900;
         font-size: 1rem;
-        color: #f8fafc;
+        color: var(--prod-text);
         letter-spacing: 0.02em;
         background: linear-gradient(135deg, #475569, #334155);
       }
@@ -570,7 +570,7 @@
       .scout-avatar[data-pos="mid"] { background: linear-gradient(135deg, #34d399, #047857); }
       .scout-avatar[data-pos="att"] { background: linear-gradient(135deg, #f87171, #b91c1c); }
       .scout-card-id { flex: 1 1 auto; min-width: 0; }
-      .scout-card-name { display: block; color: #f8fafc; font-weight: 800; font-size: 0.98rem; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .scout-card-name { display: block; color: var(--prod-text); font-weight: 800; font-size: 0.98rem; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .scout-card-name:hover { color: #fde68a; }
       .scout-card-meta { font-size: 0.74rem; color: rgba(226,232,240,0.7); margin-top: 0.1rem; }
       .scout-card-club { font-size: 0.72rem; color: rgba(226,232,240,0.5); margin-top: 0.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -630,12 +630,12 @@
 
       .pitch-chip { display: flex; align-items: center; gap: 0.45rem; padding: 0.32rem 0.6rem 0.32rem 0.32rem; border-radius: 999px; background: rgba(7,16,30,0.85); border: 1px solid rgba(255,255,255,0.18); text-decoration: none; max-width: 210px; transition: transform 0.12s ease, border-color 0.12s ease; }
       .pitch-chip:hover { transform: translateY(-2px); border-color: rgba(244,180,0,0.6); }
-      .pitch-avatar { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.7rem; color: #f8fafc; flex: 0 0 auto; background: linear-gradient(135deg, #475569, #334155); }
+      .pitch-avatar { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.7rem; color: var(--prod-text); flex: 0 0 auto; background: linear-gradient(135deg, #475569, #334155); }
       .pitch-avatar[data-pos="gk"] { background: linear-gradient(135deg, #f59e0b, #b45309); }
       .pitch-avatar[data-pos="def"] { background: linear-gradient(135deg, #38bdf8, #0369a1); }
       .pitch-avatar[data-pos="mid"] { background: linear-gradient(135deg, #34d399, #047857); }
       .pitch-avatar[data-pos="att"] { background: linear-gradient(135deg, #f87171, #b91c1c); }
-      .pitch-chip-name { color: #f8fafc; font-weight: 700; font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .pitch-chip-name { color: var(--prod-text); font-weight: 700; font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .pitch-nota { flex: 0 0 auto; min-width: 24px; text-align: center; font-weight: 900; font-size: 0.85rem; border-radius: 7px; padding: 0.05rem 0.28rem; }
       .pitch-nota.high { background: rgba(47,125,50,0.32); color: #bbf7d0; }
       .pitch-nota.mid { background: rgba(244,180,0,0.3); color: #fde68a; }
@@ -646,14 +646,14 @@
       .semaphore { margin-top: 1rem; display: flex; align-items: center; gap: 1.1rem; flex-wrap: wrap; padding: 0.85rem 1.1rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); background: rgba(7,16,30,0.6); }
       .semaphore-title { font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(226,232,240,0.6); font-weight: 900; }
       .sem-item { display: flex; align-items: center; gap: 0.4rem; }
-      .sem-item .sem-num { font-size: 1.3rem; font-weight: 900; color: #f8fafc; }
+      .sem-item .sem-num { font-size: 1.3rem; font-weight: 900; color: var(--prod-text); }
       .sem-item .sem-label { font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(226,232,240,0.6); font-weight: 800; }
       .sem-dot { width: 12px; height: 12px; border-radius: 50%; flex: 0 0 auto; box-shadow: 0 0 8px currentColor; }
       [data-sem="green"] .sem-dot, .sem-dot[data-sem="green"] { background: #34d399; color: #34d399; }
-      [data-sem="yellow"] .sem-dot { background: #f4b400; color: #f4b400; }
+      [data-sem="yellow"] .sem-dot { background: var(--prod-amber); color: var(--prod-amber); }
       [data-sem="red"] .sem-dot { background: #f87171; color: #f87171; }
       [data-sem="blue"] .sem-dot { background: #60a5fa; color: #60a5fa; }
-      [data-sem="grey"] .sem-dot { background: #94a3b8; color: #94a3b8; }
+      [data-sem="grey"] .sem-dot { background: var(--prod-muted); color: var(--prod-muted); }
 
       /* Chip de semáforo en la tarjeta */
       .sem-chip { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.55rem; border-radius: 999px; font-size: 0.64rem; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; border: 1px solid rgba(255,255,255,0.16); }
@@ -673,12 +673,12 @@
       .chart-label { font-size: 0.72rem; font-weight: 700; color: rgba(226,232,240,0.85); }
       .chart-bar { height: 12px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; }
       .chart-fill { display: block; height: 100%; border-radius: 999px; background: #64748b; min-width: 3px; transition: width 0.4s ease; }
-      .chart-val { font-size: 0.82rem; font-weight: 900; color: #f8fafc; text-align: right; }
+      .chart-val { font-size: 0.82rem; font-weight: 900; color: var(--prod-text); text-align: right; }
       .chart-fill[data-sem="green"] { background: #34d399; }
-      .chart-fill[data-sem="yellow"] { background: #f4b400; }
+      .chart-fill[data-sem="yellow"] { background: var(--prod-amber); }
       .chart-fill[data-sem="red"] { background: #f87171; }
       .chart-fill[data-sem="blue"] { background: #60a5fa; }
-      .chart-fill[data-sem="grey"] { background: #94a3b8; }
+      .chart-fill[data-sem="grey"] { background: var(--prod-muted); }
       .chart-fill[data-zone="ata"] { background: #f87171; }
       .chart-fill[data-zone="med"] { background: #34d399; }
       .chart-fill[data-zone="def"] { background: #38bdf8; }

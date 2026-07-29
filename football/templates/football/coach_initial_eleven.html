@@ -16,7 +16,7 @@
           radial-gradient(1200px 720px at 18% 18%, rgba(34, 211, 238, 0.12), transparent 55%),
           radial-gradient(900px 540px at 82% 10%, rgba(244, 180, 0, 0.08), transparent 52%),
           linear-gradient(180deg, #020617 0%, #050f1f 100%);
-        color: #f8fafc;
+        color: var(--prod-text);
       }
       .page {
         max-width: 1520px;
@@ -169,7 +169,7 @@
         border: 1px solid rgba(148, 163, 184, 0.3);
         padding: 0.55rem 0.65rem;
         background: rgba(2, 6, 23, 0.6);
-        color: #f8fafc;
+        color: var(--prod-text);
         font-weight: 700;
         letter-spacing: 0.03em;
         outline: none;
@@ -288,7 +288,7 @@
       /* Estilo “gradas broadcast” (como en Táctica), aplicado al XI inicial. */
       .xi-stadium {
         --tpad-team-primary: var(--prod-primary, #2f7d32);
-        --tpad-team-secondary: var(--prod-secondary, #f8fafc);
+        --tpad-team-secondary: var(--prod-secondary, var(--prod-text));
         --tpad-team-primary-soft: rgba(47, 125, 50, 0.18);
         --tpad-team-secondary-soft: rgba(248, 250, 252, 0.12);
         --tpad-stand: clamp(30px, 4.4vmin, 52px);
@@ -982,7 +982,7 @@
       .toolbar button {
         border: 1px solid rgba(148, 163, 184, 0.35);
         background: rgba(8, 19, 44, 0.7);
-        color: #f8fafc;
+        color: var(--prod-text);
         border-radius: 999px;
         padding: 0.36rem 0.7rem;
         font-size: 0.72rem;
@@ -1260,7 +1260,7 @@
       .recent-form-item[data-kind="loss"]::after { background: #dc2626; }
       .broadcast-main {
         --xi-team-primary: var(--tpad-team-primary, var(--prod-primary, #0f7a35));
-        --xi-team-secondary: var(--tpad-team-secondary, var(--prod-secondary, #f8fafc));
+        --xi-team-secondary: var(--tpad-team-secondary, var(--prod-secondary, var(--prod-text)));
         --xi-team-primary-soft: color-mix(in srgb, var(--xi-team-primary) 34%, transparent);
         --xi-team-primary-mid: color-mix(in srgb, var(--xi-team-primary) 58%, #020617);
         --xi-team-primary-deep: color-mix(in srgb, var(--xi-team-primary) 72%, #020617);
@@ -1705,7 +1705,7 @@
         border: 1px solid rgba(255,255,255,0.55);
         background:
           repeating-linear-gradient(90deg, rgba(2,6,23,0.08) 0 1px, transparent 1px 18px),
-          linear-gradient(90deg, rgba(248,250,252,0.96), color-mix(in srgb, var(--xi-team-primary) 18%, #f8fafc), rgba(248,250,252,0.96));
+          linear-gradient(90deg, rgba(248,250,252,0.96), color-mix(in srgb, var(--xi-team-primary) 18%, var(--prod-text)), rgba(248,250,252,0.96));
         color: #0f172a;
         font-size: 0.54rem;
         font-weight: 950;
@@ -4201,7 +4201,7 @@
         ctx.strokeStyle = 'rgba(255,255,255,0.24)';
         ctx.lineWidth = 3;
         ctx.stroke();
-        ctx.fillStyle = '#f4b400';
+        ctx.fillStyle = 'var(--prod-amber)';
         ctx.beginPath();
         ctx.arc(116, 266, 34, 0, Math.PI * 2);
         ctx.fill();
@@ -4211,7 +4211,7 @@
         ctx.textBaseline = 'middle';
         ctx.fillText(number.slice(0, 3), 116, 266);
         ctx.textAlign = 'left';
-        ctx.fillStyle = '#f8fafc';
+        ctx.fillStyle = 'var(--prod-text)';
         ctx.font = '900 26px system-ui, sans-serif';
         ctx.fillText(name.slice(0, 22), 164, 254);
         ctx.fillStyle = 'rgba(226,232,240,0.76)';
@@ -4281,7 +4281,7 @@
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = 'rgba(255,255,255,0.0)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = colors.text || '#f8fafc';
+        ctx.fillStyle = colors.text || 'var(--prod-text)';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.font = '950 116px system-ui, sans-serif';
@@ -4299,7 +4299,7 @@
         if (key === 'gk') {
           return { shirt: 0x38bdf8, accent: 0x0f172a, shorts: 0x0f172a, socks: 0x38bdf8, skin: 0xf0b48a, text: '#020617' };
         }
-        return { shirt: 0x10b981, accent: 0xf8fafc, shorts: 0x064e3b, socks: 0x10b981, skin: 0xf0b48a, text: '#f8fafc' };
+        return { shirt: 0x10b981, accent: 0xf8fafc, shorts: 0x064e3b, socks: 0x10b981, skin: 0xf0b48a, text: 'var(--prod-text)' };
       };
 
       const makeLimb = (THREE, radius, length, material) => {
