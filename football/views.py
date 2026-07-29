@@ -42254,6 +42254,75 @@ def _build_team_load_advanced_rows(players, selected_date):
 
 
 @login_required
+def medical_center_page(request):
+    """Centro médico (estilo FM): disponibilidad de toda la plantilla en un vistazo — lesionados
+    (con días de baja y alta estimada), en riesgo (ACWR/wellness) y disponibles. Reutiliza el motor
+    de carga (_build_team_load_advanced_rows) + lesiones activas."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, "players", label="plantilla")
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404("Equipo principal no configurado")
+    today = timezone.localdate()
+    players = list(Player.objects.filter(team=primary_team, is_active=True))
+
+    injuries = list(
+        PlayerInjuryRecord.objects.filter(player__team=primary_team, is_active=True)
+        .select_related("player").order_by("injury_date")
+    )
+    injured_ids = {int(inj.player_id) for inj in injuries}
+    injured_rows = []
+    for inj in injuries:
+        idate = getattr(inj, "injury_date", None)
+        eret = getattr(inj, "estimated_return_date", None)
+        injured_rows.append({
+            "player": inj.player,
+            "injury": inj.injury,
+            "zone": " · ".join([x for x in [getattr(inj, "injury_type", ""), getattr(inj, "injury_zone", ""), getattr(inj, "injury_side", "")] if x]),
+            "injury_date": idate,
+            "estimated_return": eret,
+            "days_out": ((today - idate).days if idate else None),
+            "days_left": ((eret - today).days if eret else None),
+        })
+
+    try:
+        load_rows = _build_team_load_advanced_rows(players, today)
+    except Exception:
+        load_rows = []
+    _risk_meta = {
+        "acwr_high": ("alto", "Pico de carga (ACWR alto)"),
+        "wellness_low": ("alto", "Wellness bajo"),
+        "rpe_high": ("medio", "RPE elevado"),
+    }
+    risk_rows = []
+    for r in load_rows:
+        p = r.get("player")
+        pid = int(getattr(p, "id", 0) or 0)
+        if not pid or pid in injured_ids:
+            continue
+        alert = r.get("alert") or ""
+        if alert in _risk_meta:
+            sev, label = _risk_meta[alert]
+            risk_rows.append({
+                "player": p, "acwr": r.get("acwr"), "alert_label": label, "severity": sev,
+                "wellness": r.get("wellness_7_avg"),
+            })
+    risk_ids = {int(getattr(r["player"], "id", 0) or 0) for r in risk_rows}
+    available = [p for p in players if int(p.id) not in injured_ids and int(p.id) not in risk_ids]
+
+    return render(request, "football/medical_center.html", {
+        "primary_team": primary_team,
+        "injured_rows": injured_rows, "risk_rows": risk_rows, "available": available,
+        "n_injured": len(injured_rows), "n_risk": len(risk_rows),
+        "n_avail": len(available), "n_total": len(players),
+    })
+
+
+@login_required
 def coach_load_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
     if forbidden:

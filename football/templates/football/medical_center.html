@@ -1,0 +1,104 @@
+{% load static football_extras %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Centro médico · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      .mc-wrap{max-width:1040px;margin:0 auto;padding:1rem;color:#eef2f8;}
+      .mc-h1{margin:0;color:#f8fafc;font-size:1.5rem;font-weight:900;}
+      .mc-sub{color:#6d8098;font-weight:700;font-size:.78rem;margin:.15rem 0 1rem;}
+      .mc-chips{display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1.3rem;}
+      .mc-chip{border:1px solid #1f2b39;background:#111725;border-radius:12px;padding:.7rem 1rem;min-width:120px;}
+      .mc-chip .n{font-size:1.5rem;font-weight:900;line-height:1;}
+      .mc-chip .k{font-size:.62rem;text-transform:uppercase;letter-spacing:.07em;color:#6d8098;font-weight:800;margin-top:.2rem;}
+      .mc-chip.red .n{color:#e2564a;} .mc-chip.amber .n{color:#e2a53a;} .mc-chip.green .n{color:#3fbf6a;}
+      .mc-sect{font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:#6d8098;font-weight:800;margin:1.4rem 0 .7rem;}
+      .mc-row{display:flex;align-items:center;gap:.9rem;background:#111725;border:1px solid #1f2b39;border-radius:12px;padding:.7rem .9rem;margin-bottom:.5rem;border-left:3px solid #6b7c94;}
+      .mc-row.inj{border-left-color:#e2564a;} .mc-row.risk-alto{border-left-color:#e2564a;} .mc-row.risk-medio{border-left-color:#e2a53a;}
+      .mc-name{font-size:.95rem;font-weight:800;color:#f1f5f9;text-decoration:none;}
+      .mc-name:hover{text-decoration:underline;}
+      .mc-main{flex:1;min-width:0;}
+      .mc-meta{font-size:.74rem;color:#9fb0c6;margin-top:1px;}
+      .mc-tag{font-size:.68rem;font-weight:900;padding:3px 9px;border-radius:7px;white-space:nowrap;flex:0 0 auto;}
+      .mc-tag.red{color:#e2564a;background:#26141a;} .mc-tag.amber{color:#e2a53a;background:#241d10;} .mc-tag.grey{color:#9fb0c6;background:#141c28;}
+      .mc-acwr{font-size:1.05rem;font-weight:900;font-variant-numeric:tabular-nums;flex:0 0 auto;}
+      .mc-avail{display:flex;gap:.4rem;flex-wrap:wrap;}
+      .mc-pill{font-size:.8rem;font-weight:700;color:#d7f5e3;background:#12241a;border:1px solid #1f4a30;border-radius:999px;padding:.3rem .7rem;text-decoration:none;}
+      .mc-links{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1.3rem;}
+      .mc-links a{font-size:.75rem;font-weight:800;color:#8fb4ff;text-decoration:none;border:1px solid #25406e;border-radius:8px;padding:.35rem .6rem;background:#141f33;}
+      .mc-empty{color:#6d8098;font-size:.85rem;}
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <div class="app-shell">
+      {% include 'football/includes/dragon_nav.html' %}
+      <main class="mc-wrap">
+        <h1 class="mc-h1">Centro médico</h1>
+        <p class="mc-sub">{{ primary_team.display_name|default:primary_team.name }} · disponibilidad de la plantilla de un vistazo</p>
+
+        <div class="mc-chips">
+          <div class="mc-chip red"><div class="n">{{ n_injured }}</div><div class="k">Lesionados</div></div>
+          <div class="mc-chip amber"><div class="n">{{ n_risk }}</div><div class="k">En riesgo</div></div>
+          <div class="mc-chip green"><div class="n">{{ n_avail }}</div><div class="k">Disponibles</div></div>
+          <div class="mc-chip"><div class="n">{{ n_total }}</div><div class="k">Plantilla</div></div>
+        </div>
+
+        <div class="mc-sect">🩹 Lesionados</div>
+        {% if injured_rows %}
+          {% for r in injured_rows %}
+          <div class="mc-row inj">
+            <span class="mc-main">
+              <a class="mc-name" href="{% url 'player-detail' r.player.id %}?tab=injuries">{% if r.player.number %}#{{ r.player.number }} {% endif %}{{ r.player.name }}</a>
+              <span class="mc-meta">{{ r.injury }}{% if r.zone %} · {{ r.zone }}{% endif %}{% if r.injury_date %} · desde {{ r.injury_date|date:'d/m/Y' }}{% endif %}</span>
+            </span>
+            {% if r.days_out != None %}<span class="mc-tag grey">{{ r.days_out }} días de baja</span>{% endif %}
+            {% if r.estimated_return %}
+              {% if r.days_left != None and r.days_left < 0 %}<span class="mc-tag amber">Alta vencida ({{ r.estimated_return|date:'d/m' }})</span>
+              {% else %}<span class="mc-tag red">Alta est. {{ r.estimated_return|date:'d/m' }}{% if r.days_left != None %} · {{ r.days_left }}d{% endif %}</span>{% endif %}
+            {% else %}<span class="mc-tag red">Sin alta estimada</span>{% endif %}
+          </div>
+          {% endfor %}
+        {% else %}
+          <p class="mc-empty">Ningún lesionado. 💪</p>
+        {% endif %}
+
+        <div class="mc-sect">⚠️ En riesgo (carga / wellness)</div>
+        {% if risk_rows %}
+          {% for r in risk_rows %}
+          <div class="mc-row risk-{{ r.severity }}">
+            <span class="mc-main">
+              <a class="mc-name" href="{% url 'player-detail' r.player.id %}?tab=physical">{% if r.player.number %}#{{ r.player.number }} {% endif %}{{ r.player.name }}</a>
+              <span class="mc-meta">{{ r.alert_label }}{% if r.wellness %} · wellness {{ r.wellness }}/10{% endif %}</span>
+            </span>
+            {% if r.acwr %}<span class="mc-acwr" style="color:{% if r.severity == 'alto' %}#e2564a{% else %}#e2a53a{% endif %};">ACWR {{ r.acwr }}</span>{% endif %}
+            <span class="mc-tag {% if r.severity == 'alto' %}red{% else %}amber{% endif %}">Riesgo {{ r.severity }}</span>
+          </div>
+          {% endfor %}
+        {% else %}
+          <p class="mc-empty">Sin alertas de carga. Recuerda registrar RPE/wellness para afinar el riesgo.</p>
+        {% endif %}
+
+        <div class="mc-sect">✅ Disponibles</div>
+        {% if available %}
+          <div class="mc-avail">
+            {% for p in available %}<a class="mc-pill" href="{% url 'player-detail' p.id %}">{% if p.number %}#{{ p.number }} {% endif %}{{ p.name }}</a>{% endfor %}
+          </div>
+        {% else %}
+          <p class="mc-empty">Nadie disponible ahora mismo.</p>
+        {% endif %}
+
+        <p style="font-size:.72rem;color:#6d8098;margin-top:1.2rem;">Riesgo estimado desde ACWR (pico de carga), wellness y RPE de los registros físicos. El detalle por jugador está en su ficha → Físico.</p>
+
+        <div class="mc-links">
+          <a href="{% url 'coach-roster' %}">← Plantilla</a>
+          <a href="{% url 'training-load' %}">Carga semanal</a>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>
