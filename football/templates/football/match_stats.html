@@ -390,7 +390,9 @@
   <body class="prod-commercial">
     {% include 'football/includes/dragon_nav.html' %}
     <div class="match-stats-shell" id="match-stats-shell">
+      {% include 'football/includes/_zone_subnav.html' with zone='partido' %}
       <section class="match-stats-topbar" aria-label="Cabecera del partido">
+        {% if kit_primary_color %}<span class="zh-kit" style="--zh-k1:{{ kit_primary_color }};--zh-k2:{{ kit_secondary_color|default:kit_primary_color }};" title="Colores del club" aria-hidden="true"></span>{% endif %}
         <div style="min-width:0;">
           <p class="match-stats-kicker">Estadísticas en directo</p>
           <h1 class="match-stats-title">

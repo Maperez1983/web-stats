@@ -12,7 +12,7 @@
       .page { max-width: 1180px; margin: 0 auto; }
       header { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap; margin: 1rem 0 1.2rem; }
       header h1 { margin:0; font-size:1.55rem; }
-      header p { margin:0.15rem 0 0; color:#94a3b8; }
+      header p { margin:0.15rem 0 0; color:var(--prod-muted); }
       .btn { display:inline-flex; align-items:center; justify-content:center; gap:0.45rem; border-radius:999px; padding:0.55rem 0.85rem; border:1px solid rgba(148,163,184,0.22); background: rgba(2,6,23,0.55); color:#e2e8f0; text-decoration:none; font-weight:800; letter-spacing:0.02em; }
       .btn:hover { border-color: rgba(250,204,21,0.5); }
       .btn.primary { background: linear-gradient(90deg, rgba(250,204,21,0.95), rgba(132,204,22,0.85)); border-color: rgba(250,204,21,0.2); color:#0b1220; }
@@ -39,16 +39,27 @@
         .row-form { grid-template-columns: 1fr 1fr; }
         .row-actions { justify-content:flex-start; flex-wrap:wrap; }
       }
+    
+      .me-score { display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; }
+      .me-sc { font-size:1.9rem; font-weight:900; letter-spacing:-.02em; font-variant-numeric:tabular-nums; color:var(--prod-text); }
+      .me-tm { font-size:.98rem; font-weight:800; color:var(--prod-text); }
+      .me-tm.me-away { color:var(--prod-muted); }
     </style>
   </head>
   <body class="prod-commercial">
     <main class="page">
       {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='partido' %}
 
       <header>
+        <div style="display:flex;gap:.85rem;align-items:flex-start;">
+          {% if kit_primary_color %}<span class="zh-kit" style="--zh-k1:{{ kit_primary_color }};--zh-k2:{{ kit_secondary_color|default:kit_primary_color }};" title="Colores del club" aria-hidden="true"></span>{% endif %}
         <div>
-          <p>Editor de partido · {{ team_name }}</p>
+          {% if score_for != '' and score_against != '' %}
+          <div class="me-score"><span class="me-tm">{{ team_name }}</span><span class="me-sc">{{ score_for }} – {{ score_against }}</span><span class="me-tm me-away">{{ opponent_name|default:"Rival" }}</span></div>
+          {% else %}
           <h1>{{ team_name }} vs {{ opponent_name|default:"Rival" }}</h1>
+          {% endif %}
           <p>
             {% if match.date %}{{ match.date|date:"d/m/Y" }}{% else %}Sin fecha{% endif %}
             {% if match.kickoff_time %} · {{ match.kickoff_time|time:"H:i" }}{% endif %}
@@ -62,9 +73,10 @@
             {% elif match.stats_source == 'result_only' %}
               <span style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.72rem;font-weight:900;letter-spacing:0.04em;padding:0.22rem 0.6rem;border-radius:999px;background:rgba(148,163,184,0.16);border:1px solid rgba(148,163,184,0.4);color:#cbd5e1;">Solo resultado (sin estadísticas)</span>
             {% else %}
-              <span style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.72rem;font-weight:900;letter-spacing:0.04em;padding:0.22rem 0.6rem;border-radius:999px;background:rgba(148,163,184,0.1);border:1px dashed rgba(148,163,184,0.4);color:#94a3b8;">Sin datos aún</span>
+              <span style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.72rem;font-weight:900;letter-spacing:0.04em;padding:0.22rem 0.6rem;border-radius:999px;background:rgba(148,163,184,0.1);border:1px dashed rgba(148,163,184,0.4);color:var(--prod-muted);">Sin datos aún</span>
             {% endif %}
           </p>
+        </div>
         </div>
         <div style="display:flex;gap:0.6rem;flex-wrap:wrap;justify-content:flex-end;">
           <a class="btn" href="{% url 'coach-matches' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}">← Volver a partidos</a>
@@ -75,10 +87,12 @@
 
       {% if message %}<p class="alert ok">{{ message }}</p>{% endif %}
       {% if error %}<p class="alert err">{{ error }}</p>{% endif %}
+      {% include 'football/includes/_zone_chips.html' with chips=editor_chips %}
+
 
       <section class="panel" id="close-match-panel" style="border:1px solid rgba(56,189,248,0.35);">
         <h2 style="margin:0 0 0.2rem;">Cerrar partido</h2>
-        <p style="margin:0 0 0.85rem;color:#94a3b8;font-weight:750;max-width:920px;">
+        <p style="margin:0 0 0.85rem;color:var(--prod-muted);font-weight:750;max-width:920px;">
           Elige cuánto detalle quieres registrar. Todo se guarda de una vez.
         </p>
         <form method="post" id="close-match-form">
@@ -124,7 +138,7 @@
                 </tbody>
               </table>
             </div>
-            <p style="margin:0.5rem 0 0;color:#94a3b8;font-weight:700;">Consejo: escribe los minutos (ej. 35), o usa “Aplicar a todos”. Deja goles/asist en blanco si no los cuentas.</p>
+            <p style="margin:0.5rem 0 0;color:var(--prod-muted);font-weight:700;">Consejo: escribe los minutos (ej. 35), o usa “Aplicar a todos”. Deja goles/asist en blanco si no los cuentas.</p>
           </div>
 
           <div class="close-full" id="close-full" hidden>
@@ -148,8 +162,8 @@
       {% if match_ratings %}
       <section class="card" style="margin-top:1rem;">
         <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.5rem;margin-bottom:.7rem;">
-          <h2 style="margin:0;font-size:1.1rem;">Notas del partido <span style="font-size:.62rem;color:#94a3b8;font-weight:800;text-transform:uppercase;letter-spacing:.08em;">auto · estilo FM</span></h2>
-          <span style="font-size:.72rem;color:#94a3b8;">Se congelan al cerrar el partido</span>
+          <h2 style="margin:0;font-size:1.1rem;">Notas del partido <span style="font-size:.62rem;color:var(--prod-muted);font-weight:800;text-transform:uppercase;letter-spacing:.08em;">auto · estilo FM</span></h2>
+          <span style="font-size:.72rem;color:var(--prod-muted);">Se congelan al cerrar el partido</span>
         </div>
         <div style="overflow:auto;">
           <table>
@@ -157,17 +171,17 @@
             <tbody>
               {% for r in match_ratings %}
               <tr {% if r.mvp %}style="background:rgba(244,180,0,0.08);"{% endif %}>
-                <td><a href="{% url 'player-match-stats' r.player_id match.id %}" style="color:inherit;text-decoration:none;font-weight:800;">{% if r.mvp %}⭐ {% endif %}#{{ r.number|default:'--' }} · {{ r.name }}</a>{% if r.mvp %} <span style="font-size:.6rem;font-weight:900;color:#0b0f17;background:#f4b400;border-radius:5px;padding:1px 6px;text-transform:uppercase;">MVP</span>{% endif %}</td>
+                <td><a href="{% url 'player-match-stats' r.player_id match.id %}" style="color:inherit;text-decoration:none;font-weight:800;">{% if r.mvp %}⭐ {% endif %}#{{ r.number|default:'--' }} · {{ r.name }}</a>{% if r.mvp %} <span style="font-size:.6rem;font-weight:900;color:#0b0f17;background:var(--prod-amber);border-radius:5px;padding:1px 6px;text-transform:uppercase;">MVP</span>{% endif %}</td>
                 <td><small>{% if r.position %}{{ r.position|display_position }}{% endif %}</small></td>
                 <td>{% if r.goals %}{{ r.goals }}{% else %}—{% endif %}</td>
                 <td>{% if r.assists %}{{ r.assists }}{% else %}—{% endif %}</td>
-                <td><strong style="font-size:1.05rem;color:{% if r.tone == 'good' %}#22c55e{% elif r.tone == 'mid' %}#e2a53a{% else %}#ef4444{% endif %};">{{ r.rating|floatformat:1 }}</strong> <small style="color:#94a3b8;">{{ r.method_label }}</small></td>
+                <td><strong style="font-size:1.05rem;color:{% if r.tone == 'good' %}var(--prod-success){% elif r.tone == 'mid' %}#e2a53a{% else %}var(--prod-danger){% endif %};">{{ r.rating|floatformat:1 }}</strong> <small style="color:var(--prod-muted);">{{ r.method_label }}</small></td>
               </tr>
               {% endfor %}
             </tbody>
           </table>
         </div>
-        <p style="margin:.6rem 0 0;color:#94a3b8;font-size:.75rem;">Automáticas desde el registro del partido (acciones en vivo, o resultado + participación si no hubo registro en vivo). El MVP es la nota más alta. Se guardan al pulsar «Guardar cierre».</p>
+        <p style="margin:.6rem 0 0;color:var(--prod-muted);font-size:.75rem;">Automáticas desde el registro del partido (acciones en vivo, o resultado + participación si no hubo registro en vivo). El MVP es la nota más alta. Se guardan al pulsar «Guardar cierre».</p>
       </section>
       {% endif %}
 
@@ -263,7 +277,7 @@
 	        </p>
 	        {% endif %}
 	        <div style="display:flex; gap:0.6rem; flex-wrap:wrap; justify-content:space-between; align-items:flex-end; margin-bottom:0.85rem;">
-	          <div style="color:#94a3b8; font-weight:750; max-width: 780px;">
+	          <div style="color:var(--prod-muted); font-weight:750; max-width: 780px;">
 	            Para recuperar partidos: usa <strong>Volumen</strong> (ej: “MARTÍNEZ · Pérdida no forzada · Mal · ×6”).
             Si algo se guardó mal, usa <strong>Borrar todo</strong> (con confirmación).
           </div>
@@ -484,7 +498,7 @@
                 </td>
               </tr>
             {% empty %}
-              <tr><td colspan="2" style="color:#94a3b8;">Sin acciones registradas.</td></tr>
+              <tr><td colspan="2" style="color:var(--prod-muted);">Sin acciones registradas.</td></tr>
             {% endfor %}
           </tbody>
         </table>

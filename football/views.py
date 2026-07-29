@@ -41706,6 +41706,30 @@ def coach_calendar_month_page(request):
     )
 
 
+
+def _matches_summary_chips(rows):
+    """Chips de resumen del Calendario: jugados, G/E/P, puntos y próximo pendiente.
+    Se calcula sobre las filas ya construidas (outcome: win/draw/loss/pending)."""
+    try:
+        rows = rows or []
+        w = sum(1 for r in rows if str(r.get("outcome") or "") == "win")
+        d = sum(1 for r in rows if str(r.get("outcome") or "") == "draw")
+        l = sum(1 for r in rows if str(r.get("outcome") or "") == "loss")
+        pend = sum(1 for r in rows if str(r.get("outcome") or "") == "pending")
+        played = w + d + l
+        chips = [{"n": played, "k": "Jugados"}]
+        if played:
+            chips += [
+                {"n": w, "k": "Ganados", "tone": "ok"},
+                {"n": d, "k": "Empatados", "tone": "mid"},
+                {"n": l, "k": "Perdidos", "tone": "red"},
+                {"n": w * 3 + d, "k": "Puntos", "tone": "gold"},
+            ]
+        if pend:
+            chips.append({"n": pend, "k": "Pendientes", "tone": "blue"})
+        return chips
+    except Exception:
+        return []
 @login_required
 def coach_matches_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
@@ -42148,6 +42172,9 @@ def coach_matches_page(request):
         request,
         "football/coach_matches.html",
         {
+            "matches_chips": _matches_summary_chips(rows),
+            "kit_primary_color": getattr(primary_team, "kit_primary_color", "") or "",
+            "kit_secondary_color": getattr(primary_team, "kit_secondary_color", "") or "",
             "team_name": primary_team.display_name,
             "season_label": season_display_name(season),
             "calendar_ics_url": request.build_absolute_uri(
@@ -81263,6 +81290,8 @@ def match_stats_page(request, match_id):
         request,
         "football/match_stats.html",
         {
+            "kit_primary_color": getattr(primary_team, "kit_primary_color", "") or "",
+            "kit_secondary_color": getattr(primary_team, "kit_secondary_color", "") or "",
             "match": payload,
             "team_metrics": team_metrics,
             "team_windows": windows,
@@ -81973,10 +82002,30 @@ def match_editor_page(request, match_id):
         match_ratings = _build_match_ratings(primary_team, match)
     except Exception:
         match_ratings = []
+    # Chips de cabecera de la ficha: marcador, notas y MVP.
+    editor_chips = []
+    try:
+        _gf, _ga = _match_result_for_team(match, primary_team)
+        if _gf is not None:
+            editor_chips.append({"n": f"{_gf}-{_ga}", "k": "Resultado",
+                                 "tone": ("ok" if _gf > _ga else ("mid" if _gf == _ga else "red"))})
+        if match_ratings:
+            _rs = [r["rating"] for r in match_ratings if r.get("rating") is not None]
+            if _rs:
+                editor_chips.append({"n": f"{round(sum(_rs) / len(_rs), 1)}".replace(".", ","), "k": "Nota media"})
+                _mvp = next((r for r in match_ratings if r.get("mvp")), None)
+                if _mvp:
+                    editor_chips.append({"n": f"{_mvp['rating']}".replace(".", ","), "k": "MVP", "tone": "gold"})
+            editor_chips.append({"n": len(match_ratings), "k": "Participaron"})
+    except Exception:
+        editor_chips = []
     return render(
         request,
         "football/match_editor.html",
         {
+            "editor_chips": editor_chips,
+            "kit_primary_color": getattr(primary_team, "kit_primary_color", "") or "",
+            "kit_secondary_color": getattr(primary_team, "kit_secondary_color", "") or "",
             "team_name": primary_team.display_name,
             "primary_team_id": int(primary_team.id),
             "match": match,
@@ -85652,10 +85701,38 @@ def match_hub_page(request):
                 pass
     except Exception:
         opponent_options = []
+    # Paso actual del flujo matchday (para marcar Hecho / Ahora / Después en las tarjetas)
+    # y chips de estado en la cabecera.
+    try:
+        if not has_convocation:
+            hub_current_step = 1
+        elif not has_lineup:
+            hub_current_step = 2
+        elif not actions_count:
+            hub_current_step = 3
+        else:
+            hub_current_step = 4
+    except Exception:
+        hub_current_step = 1
+    try:
+        hub_chips = [
+            {"n": convocation_players_count or 0, "k": "Convocados", "tone": "ok" if has_convocation else "mid"},
+            {"n": "11" if has_lineup else "—", "k": "11 inicial", "tone": "ok" if has_lineup else "mid"},
+            {"n": actions_count or 0, "k": "Acciones", "tone": "ok" if actions_count else "mid"},
+        ]
+        if actions_pending_count:
+            hub_chips.append({"n": actions_pending_count, "k": "Sin guardar", "tone": "red"})
+    except Exception:
+        hub_chips = []
+    _hub_team = _get_primary_team_for_request(request)
     return render(
         request,
         "football/match_hub.html",
         {
+            "hub_current_step": hub_current_step,
+            "hub_chips": hub_chips,
+            "kit_primary_color": getattr(_hub_team, "kit_primary_color", "") or "",
+            "kit_secondary_color": getattr(_hub_team, "kit_secondary_color", "") or "",
             "team_label": team_label,
             "match_label": match_label,
             "match_round": match_round,

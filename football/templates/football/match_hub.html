@@ -293,13 +293,26 @@
           width: 100%;
         }
       }
+    
+      .step-card { position: relative; border-top: 3px solid rgba(144,161,185,.45); }
+      .step-card.is-done { border-top-color: var(--prod-success); }
+      .step-card.is-now  { border-top-color: var(--prod-amber); }
+      .step-card.is-todo { opacity: .78; }
+      .step-badge { position:absolute; top:.55rem; right:.6rem; font-size:.55rem; font-weight:900;
+        text-transform:uppercase; letter-spacing:.05em; padding:2px 6px; border-radius:5px;
+        color:var(--prod-muted); background:rgba(148,163,184,.14); }
+      .step-card.is-done .step-badge { color:var(--prod-success); background:rgba(34,197,94,.14); }
+      .step-card.is-now  .step-badge { color:#0b1626; background:var(--prod-amber); }
     </style>
   </head>
   <body class="prod-commercial">
     <div class="shell">
       {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='partido' %}
 
       <header class="header" style="margin-top: 0.9rem;">
+        <div style="display:flex;gap:.85rem;align-items:flex-start;">
+          {% if kit_primary_color %}<span class="zh-kit" style="--zh-k1:{{ kit_primary_color }};--zh-k2:{{ kit_secondary_color|default:kit_primary_color }};" title="Colores del club" aria-hidden="true"></span>{% endif %}
         <div>
           <h1>Partido</h1>
           <p>{{ team_label }}{% if match_label %} · {{ match_label }}{% endif %}</p>
@@ -309,6 +322,7 @@
             {% if match_round %}<span class="pill">{{ match_round }}</span>{% endif %}
             {% if active_match_id %}<span class="pill">ID {{ active_match_id }}</span>{% endif %}
           </div>
+        </div>
         </div>
         <div class="actions">
           {% if hub_message %}<span class="pill">{{ hub_message }}</span>{% endif %}
@@ -323,8 +337,11 @@
         </div>
       </header>
 
+      {% include 'football/includes/_zone_chips.html' with chips=hub_chips %}
+
       <section class="grid" aria-label="Flujo matchday">
-        <article class="card">
+        <article class="card step-card{% if hub_current_step > 1 %} is-done{% elif hub_current_step == 1 %} is-now{% else %} is-todo{% endif %}">
+          <span class="step-badge">{% if hub_current_step > 1 %}Hecho{% elif hub_current_step == 1 %}Ahora{% else %}Después{% endif %}</span>
           <h2>1 · Convocar</h2>
           <p>Elige jugadores, sanciones, portero/capitán y datos del partido.</p>
           <div class="status">
@@ -340,7 +357,8 @@
           </div>
         </article>
 
-        <article class="card">
+        <article class="card step-card{% if hub_current_step > 2 %} is-done{% elif hub_current_step == 2 %} is-now{% else %} is-todo{% endif %}">
+          <span class="step-badge">{% if hub_current_step > 2 %}Hecho{% elif hub_current_step == 2 %}Ahora{% else %}Después{% endif %}</span>
           <h2>2 · 11 inicial</h2>
           <p>Define titulares, banquillo y ajustes tácticos previos.</p>
           <div class="status">
@@ -354,7 +372,8 @@
           </div>
         </article>
 
-        <article class="card">
+        <article class="card step-card{% if hub_current_step > 3 %} is-done{% elif hub_current_step == 3 %} is-now{% else %} is-todo{% endif %}">
+          <span class="step-badge">{% if hub_current_step > 3 %}Hecho{% elif hub_current_step == 3 %}Ahora{% else %}Después{% endif %}</span>
           <h2>3 · Acciones</h2>
           <p>Registra goles, pases, duelos, zonas y sustituciones en vivo.</p>
           <div class="status">
@@ -374,7 +393,8 @@
           </div>
         </article>
 
-        <article class="card">
+        <article class="card step-card{% if hub_current_step > 4 %} is-done{% elif hub_current_step == 4 %} is-now{% else %} is-todo{% endif %}">
+          <span class="step-badge">{% if hub_current_step > 4 %}Hecho{% elif hub_current_step == 4 %}Ahora{% else %}Después{% endif %}</span>
           <h2>4 · Cerrar &amp; PDFs</h2>
           <p>Genera acta, imprime la ficha y archiva el partido.</p>
           <div class="status">
