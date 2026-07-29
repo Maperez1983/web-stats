@@ -2206,6 +2206,53 @@ def rival_league_import_status(request):
     return JsonResponse({"ok": True, "status": cache.get(status_key) or {"state": "idle"}})
 
 
+@login_required
+@require_POST
+def rival_squad_ingest(request):
+    """Ingesta de plantillas rivales YA parseadas en cliente (residencial) — laPreferente bloquea al
+    servidor de prod (403), así que el fetch/parse se hace desde una conexión residencial y aquí solo
+    se persiste. Acepta JSON {season, skip_codes, teams:[{name, code, url, players:[<filas>]}]} y hace
+    upsert de RivalPlayer por equipo (dedup Team + J-id). Coach-gated + CSRF. Nunca crea Player."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+    import json as _json
+
+    from football.models import resolve_or_create_team
+    from .rival_roster_services import import_rival_squad
+
+    try:
+        data = _json.loads((request.body or b"").decode("utf-8") or "{}")
+    except Exception:
+        return JsonResponse({"ok": False, "error": "bad_json"}, status=400)
+    teams = data.get("teams") if isinstance(data, dict) else None
+    if not isinstance(teams, list) or not teams:
+        return JsonResponse({"ok": False, "error": "no_teams"}, status=400)
+    season = str(data.get("season") or "")[:20]
+    skip = {str(c).strip().upper() for c in (data.get("skip_codes") or []) if str(c).strip()}
+    totals = {"teams": 0, "created": 0, "updated": 0, "deactivated": 0, "matched": 0, "skipped": 0}
+    results = []
+    for t in teams[:40]:
+        if not isinstance(t, dict):
+            continue
+        code = str(t.get("code") or "").strip()
+        if code and code.upper() in skip:
+            totals["skipped"] += 1
+            continue
+        name = str(t.get("name") or "").strip()
+        url = str(t.get("url") or "").strip()[:300]
+        players = t.get("players") if isinstance(t.get("players"), list) else []
+        if not name or not players:
+            continue
+        team, _created = resolve_or_create_team(name=name or url, external_id=code, preferente_url=url)
+        res = import_rival_squad(team, players[:60], season_label=season)
+        totals["teams"] += 1
+        for k in ("created", "updated", "deactivated", "matched"):
+            totals[k] += res.get(k, 0)
+        results.append({"name": name, "team_id": int(team.id), **res})
+    return JsonResponse({"ok": True, "totals": totals, "teams": results})
+
+
 TASK_MATERIAL_LIBRARY = [
     {"label": "CONO", "title": "Cono alto", "kind": "cone", "category": "delimitacion", "icon": "△"},
     {"label": "SETA", "title": "Seta baja", "kind": "marker", "category": "delimitacion", "icon": "◉"},
