@@ -624,6 +624,11 @@
     const ctxPhaseSelect = document.getElementById('vs-ctx-phase');
     const eventPresetsWrap = document.getElementById('vs-event-presets');
     const presetsPackSelect = document.getElementById('vs-presets-pack');
+    // Pack por defecto de presets de eventos (propio/rival), calculado en el servidor según el vídeo.
+    // FALTABA esta lectura: `defaultPack` se usaba en loadPackSelection() y en el handler del selector
+    // pero nunca se declaraba -> ReferenceError que rompía la carga de presets y dejaba muerto el
+    // selector Pack. El input #vs-default-pack se creó justo para alimentar esta variable.
+    const defaultPack = safeText(document.getElementById('vs-default-pack')?.value, 'own') === 'rival' ? 'rival' : 'own';
     const presetsAutoClipSelect = document.getElementById('vs-presets-autoclip');
     const presetsPreInput = document.getElementById('vs-presets-pre');
     const presetsPostInput = document.getElementById('vs-presets-post');
