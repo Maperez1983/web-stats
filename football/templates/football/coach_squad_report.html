@@ -59,6 +59,7 @@
   .sqr .club{display:flex;align-items:center;gap:9px;margin-top:10px;color:var(--ink-soft);font-size:14px}
   .sqr .crest{width:24px;height:24px;border-radius:6px;background:
     radial-gradient(circle at 50% 38%,var(--accent) 0 38%,transparent 39%),var(--accent-deep);flex-shrink:0}
+  .sqr .crest-img{width:28px;height:28px;border-radius:4px;background:none;object-fit:contain}
   .sqr .hd-meta{text-align:right;font-size:13px;color:var(--ink-soft)}
   .sqr .hd-meta .big{font-size:15px;font-weight:700;color:var(--ink);display:block}
   .sqr .dl-row{margin-top:10px}
@@ -212,7 +213,7 @@
     <div>
       <p class="eyebrow">Informe al cuerpo técnico · Estado de plantilla</p>
       <h1 class="title">{{ phase_sub }}</h1>
-      <div class="club"><span class="crest" aria-hidden="true"></span> {{ team_display_name }}</div>
+      <div class="club">{% if team_crest_url %}<img class="crest-img" src="{{ team_crest_url }}" alt="" />{% else %}<span class="crest" aria-hidden="true"></span>{% endif %} {{ team_display_name }}</div>
     </div>
     <div class="hd-meta">
       <span class="big">{{ phase_label }}{% if season_label %} · {{ season_label }}{% endif %}</span>

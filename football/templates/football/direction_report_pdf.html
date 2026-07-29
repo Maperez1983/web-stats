@@ -12,7 +12,9 @@
   .muted { color: #64748b; }
   h1 { font-size: 19px; margin: 0 0 2px; }
   h2 { font-size: 13px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.06em; color: #0b3a2e; border-bottom: 2px solid #0f7a35; padding-bottom: 4px; }
-  .head { border-bottom: 3px solid #0f7a35; padding-bottom: 10px; }
+  .head { border-bottom: 3px solid #0f7a35; padding-bottom: 10px; display: flex; align-items: center; gap: 14px; }
+  .head .crest { width: 54px; height: 54px; object-fit: contain; flex: 0 0 auto; }
+  .head .head-txt { flex: 1; min-width: 0; }
   .head .meta { color: #475569; font-size: 11px; margin-top: 2px; }
   section { margin-top: 15px; page-break-inside: avoid; }
   .kpis { display: flex; gap: 8px; margin-top: 12px; }
@@ -48,7 +50,8 @@
   .pb-legend { display: flex !important; }
   /* Listado en pagina nueva (pag. 2) con mini-cabecera de continuacion. */
   .listado { page-break-before: always; break-before: page; }
-  .cont-head { font-size: 11px; color: #64748b; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin: 0 0 2px; font-weight: 700; }
+  .cont-head { font-size: 11px; color: #64748b; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin: 0 0 2px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .cont-head .cont-crest { width: 20px; height: 20px; object-fit: contain; flex: 0 0 auto; }
   .fich-ok { color: #16a34a; font-weight: 700; }
   .fich-no { color: #b45309; font-weight: 700; }
 </style>
@@ -64,8 +67,11 @@
 
   <div class="a4-sheet">
   <div class="head">
-    <h1>Informe de dirección · {{ team_name }}</h1>
-    <div class="meta muted">Resumen ejecutivo de plantilla · {{ date_from|date:"d/m/Y" }} → {{ date_to|date:"d/m/Y" }}</div>
+    {% if team_crest_url %}<img class="crest" src="{{ team_crest_url }}" alt="" />{% endif %}
+    <div class="head-txt">
+      <h1>Informe de dirección · {{ team_name }}</h1>
+      <div class="meta muted">Resumen ejecutivo de plantilla · {{ date_from|date:"d/m/Y" }} → {{ date_to|date:"d/m/Y" }}</div>
+    </div>
   </div>
 
   <div class="kpis">
@@ -91,7 +97,7 @@
 
   {% if coach_pitch_players %}
   <section class="listado">
-    <div class="cont-head">Informe de dirección · {{ team_name }} — Plantilla <span class="muted">(cont.)</span></div>
+    <div class="cont-head">{% if team_crest_url %}<img class="cont-crest" src="{{ team_crest_url }}" alt="" />{% endif %}Informe de dirección · {{ team_name }} — Plantilla <span class="muted">(cont.)</span></div>
     <h2>Listado de jugadores</h2>
     <table>
       <thead><tr><th>#</th><th>Nombre</th><th>Ficha</th><th class="num">Edad</th><th>Posición</th><th>Estado</th><th class="num">Valoración</th></tr></thead>

@@ -21165,6 +21165,11 @@ def direction_report_pdf(request, as_page=False):
         "scout": scout,
         "alerts": alerts,
     }
+    # Escudo del club en la cabecera del informe (mismo resolutor que el resto de la app).
+    try:
+        ctx["team_crest_url"] = resolve_team_crest_url(request, primary_team, sync=False) or ""
+    except Exception:
+        ctx["team_crest_url"] = ""
     # Pizarra de plantilla (misma fuente única) para AMBAS salidas: página interactiva y PDF.
     ctx["primary_team_id"] = int(primary_team.id)
     try:
@@ -39742,6 +39747,7 @@ def squad_status_report_page(request):
         "phases": phases_ctx,
         "is_pretemporada": phase == "pretemporada",
         "team_display_name": str(getattr(primary_team, "name", "") or "Equipo"),
+        "team_crest_url": (resolve_team_crest_url(request, primary_team, sync=False) or "") if primary_team else "",
         "season_label": str(getattr(active_club_season, "label", "") or "") if active_club_season else "",
         "today": today,
         "pct_closed": pct_closed,
