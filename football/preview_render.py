@@ -204,13 +204,22 @@ def _browser_executable_candidates(browser_type=None) -> list[str]:
             value = str(raw or "").strip()
             if not value:
                 continue
-            root = Path(value).expanduser()
-            if root.exists() and root.is_dir():
-                roots.append(root)
+            try:
+                root = Path(value).expanduser()
+                if root.exists() and root.is_dir():
+                    roots.append(root)
+            except Exception:
+                # Rutas inaccesibles (p.ej. /root/.cache cuando el proceso NO corre como root en
+                # Render): .exists() lanza PermissionError. Se ignoran en vez de tumbar todo el
+                # arranque del navegador (que hacía caer el snapshot al fallback siempre).
+                continue
         deduped_roots: list[Path] = []
         seen_roots = set()
         for root in roots:
-            key = str(root.resolve() if root.exists() else root)
+            try:
+                key = str(root.resolve() if root.exists() else root)
+            except Exception:
+                key = str(root)
             if key in seen_roots:
                 continue
             seen_roots.add(key)
@@ -221,10 +230,10 @@ def _browser_executable_candidates(browser_type=None) -> list[str]:
         for path in paths:
             try:
                 path = Path(path)
+                if path.exists() and path.is_file():
+                    candidates.append(str(path))
             except Exception:
                 continue
-            if path.exists() and path.is_file():
-                candidates.append(str(path))
 
     cache_roots = _playwright_cache_roots()
     if cache_roots:
@@ -263,7 +272,10 @@ def _launch_browser_with_fallbacks(browser_type, *, launch_kwargs=None):
     launch_kwargs = dict(launch_kwargs or {})
     last_error = None
     for executable_path in _browser_executable_candidates(browser_type):
-        if not Path(executable_path).exists():
+        try:
+            if not Path(executable_path).exists():
+                continue
+        except Exception:
             continue
         try:
             browser = browser_type.launch(executable_path=executable_path, **launch_kwargs)
