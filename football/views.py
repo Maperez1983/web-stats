@@ -56864,11 +56864,20 @@ def regenerate_task_previews_action(request):
     if request.method == "GET" and str(request.GET.get("probe") or "").strip() in {"1", "true", "yes"}:
         info = {"chromium_ok": False, "error": ""}
         try:
+            import glob as _glob
             import os as _os
 
             from football.preview_render import _acquire_playwright_browser
 
-            _os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", "0")
+            if not str(_os.environ.get("PLAYWRIGHT_BROWSERS_PATH") or "").strip():
+                _os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "0"
+            info["browsers_path_env"] = _os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
+            try:
+                info["found_chromium"] = _glob.glob(
+                    "/opt/render/project/**/ms-playwright*/**/chrome-linux/chrome", recursive=True
+                )[:3] or _glob.glob(str(Path.home() / ".cache/ms-playwright/**/chrome"), recursive=True)[:3]
+            except Exception as _g:
+                info["found_chromium"] = f"glob-error: {_g}"
             with _acquire_playwright_browser() as (_pw, _browser):
                 if _browser is None:
                     info["error"] = "browser is None"

@@ -14,7 +14,12 @@ from django.conf import settings
 
 # Render: ensure Playwright browsers are looked up from the "hermetic" install location (bundled with
 # the app) instead of a per-user cache that may not persist between build/runtime or across instances.
-os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", "0")
+# IMPORTANTE: usamos asignación forzada (no setdefault) cuando el valor está VACÍO. En algunos servicios
+# la env llega como cadena vacía ("") en runtime; setdefault la respeta y Playwright cae al default
+# /root/.cache/ms-playwright, que el proceso web (no-root) no puede leer -> PermissionError. Con "0"
+# Playwright busca los navegadores dentro del paquete pip (donde build.sh los instala con :-0).
+if not str(os.environ.get("PLAYWRIGHT_BROWSERS_PATH") or "").strip():
+    os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "0"
 
 
 def shutdown_preview_renderer() -> None:
