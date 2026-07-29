@@ -1,0 +1,83 @@
+/* ==========================================================================
+   Segunda Jugada · Identidad FM — FUENTE ÚNICA (design tokens + componentes)
+   Cargado en toda la app vía pwa_head.html. Aditivo y seguro:
+   solo define variables --fm-* y clases .fm-* (no toca estilos existentes).
+   Para migrar una vista: sustituir sus colores/estilos inline por estos tokens/clases.
+   ========================================================================== */
+:root {
+  /* Superficies */
+  --fm-bg:        #0b1016;
+  --fm-panel:     #111725;
+  --fm-panel-2:   #0e1420;
+  --fm-line:      #1f2b39;
+  --fm-line-2:    #2b3b4e;
+  /* Tinta */
+  --fm-ink:       #eef3fa;
+  --fm-ink-2:     #9fb0c6;
+  --fm-ink-3:     #6d8098;
+  /* Acento e identidad */
+  --fm-gold:      #e8b84b;
+  --fm-accent:    #4a86e8;
+  /* Semánticos (estado) */
+  --fm-good:      #3fbf6a;
+  --fm-mid:       #e2a53a;
+  --fm-low:       #e2564a;
+  --fm-teal:      #2dd4bf;
+  /* Radios y sombras */
+  --fm-radius:    14px;
+  --fm-radius-sm: 9px;
+  --fm-shadow:    0 18px 50px rgba(0,0,0,.28);
+  /* Tipografía */
+  --fm-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --fm-bg:      #f4f6fa;
+    --fm-panel:   #ffffff;
+    --fm-panel-2: #eef2f7;
+    --fm-line:    #dbe2ec;
+    --fm-line-2:  #c6d1de;
+    --fm-ink:     #111a24;
+    --fm-ink-2:   #42566b;
+    --fm-ink-3:   #6d8098;
+    --fm-gold:    #b7871a;
+    --fm-shadow:  0 12px 34px rgba(15,23,42,.14);
+  }
+}
+:root[data-theme="dark"]  { --fm-bg:#0b1016; --fm-panel:#111725; --fm-panel-2:#0e1420; --fm-line:#1f2b39; --fm-line-2:#2b3b4e; --fm-ink:#eef3fa; --fm-ink-2:#9fb0c6; --fm-ink-3:#6d8098; --fm-gold:#e8b84b; }
+:root[data-theme="light"] { --fm-bg:#f4f6fa; --fm-panel:#ffffff; --fm-panel-2:#eef2f7; --fm-line:#dbe2ec; --fm-line-2:#c6d1de; --fm-ink:#111a24; --fm-ink-2:#42566b; --fm-ink-3:#6d8098; --fm-gold:#b7871a; }
+
+/* ---------- Componentes reutilizables (.fm-*) ---------- */
+.fm-card { background: var(--fm-panel); border: 1px solid var(--fm-line); border-radius: var(--fm-radius); padding: 1rem 1.1rem; color: var(--fm-ink); }
+.fm-card--accent { border-left: 4px solid var(--fm-gold); }
+.fm-panel-2 { background: var(--fm-panel-2); border: 1px solid var(--fm-line); border-radius: 13px; }
+
+.fm-label { font-size: .64rem; text-transform: uppercase; letter-spacing: .08em; color: var(--fm-ink-3); font-weight: 800; }
+.fm-title { font-size: 1rem; font-weight: 800; color: var(--fm-ink); margin: 0; }
+
+.fm-chip { font-size: .78rem; font-weight: 800; padding: .5rem .85rem; border-radius: var(--fm-radius-sm); border: 1px solid var(--fm-line-2); background: var(--fm-panel); color: var(--fm-ink-2); display: inline-flex; gap: .4rem; align-items: center; }
+.fm-chip b { color: var(--fm-ink); }
+.fm-chip--good { color: var(--fm-good); border-color: #1f4a30; background: #12241a; }
+.fm-chip--warn { color: var(--fm-mid);  border-color: #5a4620; background: #241d10; }
+.fm-chip--low  { color: var(--fm-low);  border-color: #4a2029; background: #26141a; }
+
+.fm-tag { font-size: .62rem; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; padding: 2px 7px; border-radius: 6px; white-space: nowrap; }
+.fm-tag--good { color: var(--fm-good); background: #12241a; }
+.fm-tag--warn { color: var(--fm-mid);  background: #241d10; }
+.fm-tag--low  { color: var(--fm-low);  background: #26141a; }
+.fm-tag--gold { color: #0b1016; background: var(--fm-gold); }
+
+.fm-pill { font-size: .8rem; font-weight: 700; color: var(--fm-ink-2); background: var(--fm-panel-2); border: 1px solid var(--fm-line-2); border-radius: 999px; padding: .3rem .7rem; text-decoration: none; }
+
+.fm-table { width: 100%; border-collapse: collapse; font-size: .82rem; color: var(--fm-ink); }
+.fm-table th, .fm-table td { padding: .5rem .7rem; border-top: 1px solid var(--fm-line); text-align: left; white-space: nowrap; }
+.fm-table thead th { border-top: none; font-size: .62rem; text-transform: uppercase; letter-spacing: .06em; color: var(--fm-ink-3); }
+.fm-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.fm-table tbody tr:hover { background: rgba(148,163,184,.05); }
+
+/* Color helpers por estado (texto) */
+.fm-t-good { color: var(--fm-good) !important; }
+.fm-t-mid  { color: var(--fm-mid)  !important; }
+.fm-t-low  { color: var(--fm-low)  !important; }
+.fm-t-gold { color: var(--fm-gold) !important; }
+.fm-t-muted{ color: var(--fm-ink-3)!important; }
