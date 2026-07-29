@@ -2127,6 +2127,84 @@ def _schedule_preferente_roster_refresh(primary_team, *, force: bool = False):
         return
 
 
+def _rival_league_import_keys(team_id):
+    return (f"football:rival_league_import:lock:{int(team_id)}", f"football:rival_league_import:status:{int(team_id)}")
+
+
+def _run_rival_league_import(primary_team):
+    """Lanza en background la importación de las plantillas de TODOS los rivales de la liga vinculada
+    (deriva la competición de primary_team.preferente_url; excluye el propio equipo). Guarda el estado
+    en caché para que el front lo consulte. Idempotente por lock (una a la vez por equipo)."""
+    prefer_url = str(getattr(primary_team, "preferente_url", "") or "").strip()
+    lock_key, status_key = _rival_league_import_keys(primary_team.id)
+    comp_match = re.search(r"C(\d+)", prefer_url)
+    if not comp_match:
+        cache.set(status_key, {"state": "error", "msg": "Este equipo no tiene liga de laPreferente vinculada."}, 60 * 30)
+        return False
+    try:
+        if cache.get(lock_key):
+            return True  # ya hay una en curso
+        cache.set(lock_key, 1, 60 * 20)
+    except Exception:
+        pass
+    comp_url = f"https://lapreferente.com/C{comp_match.group(1)}-1/x"
+    own_match = re.search(r"E(\d+)C", prefer_url)
+    own_code = f"E{own_match.group(1)}" if own_match else ""
+    cache.set(status_key, {"state": "running"}, 60 * 30)
+
+    def _run():
+        try:
+            from .rival_roster_services import import_rival_competition
+
+            res = import_rival_competition(comp_url, skip_team_codes=[own_code] if own_code else None)
+            payload = dict(res.get("totals") or {})
+            payload["state"] = "done"
+            payload["teams"] = [
+                {"name": t.get("name"), "ok": bool(t.get("ok")), "count": (t.get("created", 0) + t.get("updated", 0))}
+                for t in (res.get("teams") or [])
+            ]
+            cache.set(status_key, payload, 60 * 60)
+        except Exception as exc:
+            cache.set(status_key, {"state": "error", "msg": str(exc)[:200]}, 60 * 30)
+        finally:
+            try:
+                cache.delete(lock_key)
+            except Exception:
+                pass
+
+    try:
+        threading.Thread(target=_run, name=f"rival-league-import:{int(primary_team.id)}", daemon=True).start()
+    except Exception:
+        cache.delete(lock_key)
+        return False
+    return True
+
+
+@login_required
+@require_POST
+def rival_league_import(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({"ok": False, "error": "no_team"}, status=400)
+    started = _run_rival_league_import(primary_team)
+    return JsonResponse({"ok": bool(started), "started": bool(started)})
+
+
+@login_required
+def rival_league_import_status(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({"ok": False}, status=400)
+    _, status_key = _rival_league_import_keys(primary_team.id)
+    return JsonResponse({"ok": True, "status": cache.get(status_key) or {"state": "idle"}})
+
+
 TASK_MATERIAL_LIBRARY = [
     {"label": "CONO", "title": "Cono alto", "kind": "cone", "category": "delimitacion", "icon": "△"},
     {"label": "SETA", "title": "Seta baja", "kind": "marker", "category": "delimitacion", "icon": "◉"},

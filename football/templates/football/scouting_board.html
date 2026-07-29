@@ -719,8 +719,16 @@
           <div class="actions">
           <a class="btn" href="{% url 'coach-cards' %}">Áreas</a>
           <a class="btn" href="{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Staff</a>
+          {% if can_manage_workspace %}
+          <button type="button" class="btn" id="rival-league-import-btn"
+                  data-url="{% url 'rival-league-import' %}" data-status-url="{% url 'rival-league-import-status' %}"
+                  title="Descarga las plantillas de los rivales de tu liga (laPreferente) para el análisis del 11 rival">
+            Importar plantillas de la liga
+          </button>
+          {% endif %}
         </div>
       </header>
+      <div id="rival-league-import-status" class="sub" style="margin-top:0.4rem;" aria-live="polite"></div>
 
       <div class="workspace-tabs" role="tablist" aria-label="Vistas de dirección deportiva">
         <button class="workspace-tab" type="button" data-scout-tab-target="list">Listado</button>
@@ -1230,6 +1238,47 @@
           bands.forEach((band) => band.classList.toggle('is-dim', zone !== 'all' && band.dataset.zone !== zone));
         };
         btns.forEach((b) => b.addEventListener('click', () => apply(b.dataset.zoneFilter || 'all')));
+      })();
+    </script>
+    <script>
+      (function () {
+        var btn = document.getElementById('rival-league-import-btn');
+        if (!btn) return;
+        var out = document.getElementById('rival-league-import-status');
+        var polling = null;
+        function csrf() { var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/); return m ? decodeURIComponent(m[1]) : ''; }
+        function say(t) { if (out) out.textContent = t; }
+        function poll() {
+          fetch(btn.dataset.statusUrl, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+              var s = (d && d.status) || {};
+              if (s.state === 'running') { say('Importando plantillas de la liga… (puede tardar ~1 min)'); return; }
+              if (s.state === 'done') {
+                if (polling) { clearInterval(polling); polling = null; }
+                var teams = s.teams ? s.teams.filter(function (x) { return x.ok; }).length : 0;
+                var players = (s.created || 0) + (s.updated || 0);
+                say('Liga importada: ' + teams + ' equipos · ' + players + ' jugadores rivales'
+                  + (s.matched ? ' · ' + s.matched + ' reconocidos' : '')
+                  + (s.failed ? ' · ' + s.failed + ' con error' : '') + '.');
+                btn.disabled = false;
+              } else if (s.state === 'error') {
+                if (polling) { clearInterval(polling); polling = null; }
+                say('Error: ' + (s.msg || 'no se pudo importar.')); btn.disabled = false;
+              }
+            }).catch(function () {});
+        }
+        btn.addEventListener('click', function () {
+          if (!confirm('¿Descargar las plantillas de todos los rivales de tu liga desde laPreferente? Puede tardar ~1 minuto.')) return;
+          btn.disabled = true; say('Lanzando importación…');
+          fetch(btn.dataset.url, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': csrf(), 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+              if (!d || !d.ok) { say('No se pudo lanzar la importación.'); btn.disabled = false; return; }
+              if (polling) clearInterval(polling);
+              polling = setInterval(poll, 3000); poll();
+            }).catch(function () { say('Error de red.'); btn.disabled = false; });
+        });
       })();
     </script>
   </body>

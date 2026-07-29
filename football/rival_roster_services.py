@@ -158,6 +158,77 @@ def _detect_matched_player(row):
     return None
 
 
+def fetch_and_import_rival_team(*, name, preferente_url, external_id="", group=None, season_label=""):
+    """Baja y importa la plantilla de UN equipo rival. Crea/resuelve el Team (dedup) y devuelve
+    (team, result_dict) o (team, None) si falló la descarga/parseo (no rompe el resto de la liga)."""
+    from .models import resolve_or_create_team
+    from .services import _fetch_preferente_response
+
+    team, _created = resolve_or_create_team(
+        name=name or preferente_url, external_id=external_id, preferente_url=preferente_url, group=group
+    )
+    try:
+        resp = _fetch_preferente_response(preferente_url, timeout=25)
+        if getattr(resp, "status_code", None) == 403:
+            return team, None
+        resp.raise_for_status()
+        rows = parse_rival_squad(resp.text)
+    except Exception:
+        return team, None
+    if not rows:
+        return team, None
+    return team, import_rival_squad(team, rows, season_label=season_label)
+
+
+def import_rival_competition(competition_url, *, season_label="", limit=None, skip_team_codes=None):
+    """Importa las plantillas de TODOS los equipos de una competición de laPreferente hacia
+    RivalPlayer. Lee la clasificación para obtener los equipos (nombre + código ExxxC), construye la
+    URL de cada plantilla (`E{code}C{comp}-1/x` funciona sin slug) e importa cada una. Resiliente: si
+    un equipo falla (403/estructura), lo salta y sigue. Devuelve un resumen por equipo + totales."""
+    import re as _re
+
+    from .preferente_competition_services import parse_preferente_standings
+    from .services import _fetch_preferente_response
+
+    comp_match = _re.search(r"C(\d+)", str(competition_url or ""))
+    if not comp_match:
+        raise ValueError("No pude extraer el código de competición (C…) de la URL.")
+    comp_code = comp_match.group(1)
+
+    resp = _fetch_preferente_response(competition_url, timeout=25)
+    resp.raise_for_status()
+    standings = parse_preferente_standings(resp.text)
+    if not standings:
+        raise ValueError("No pude leer la clasificación (¿HTML bloqueado o competición vacía?).")
+
+    skip = {str(c).strip().upper() for c in (skip_team_codes or []) if str(c).strip()}
+    per_team = []
+    totals = {"teams": 0, "created": 0, "updated": 0, "deactivated": 0, "matched": 0, "failed": 0, "skipped": 0}
+    for i, row in enumerate(standings):
+        if limit is not None and i >= int(limit):
+            break
+        name = str(row.get("full_name") or row.get("team") or "").strip()
+        code = str(row.get("team_code") or "").strip()  # ej. "E282"
+        if not code:
+            continue
+        if code.upper() in skip:  # tu propio equipo: no es un rival
+            totals["skipped"] += 1
+            continue
+        team_url = f"{PREFERENTE_BASE}{code}C{comp_code}-1/x"
+        team, result = fetch_and_import_rival_team(
+            name=name, preferente_url=team_url, external_id=code, group=None, season_label=season_label
+        )
+        totals["teams"] += 1
+        if result is None:
+            totals["failed"] += 1
+            per_team.append({"name": name, "team_id": getattr(team, "id", None), "ok": False})
+        else:
+            for k in ("created", "updated", "deactivated", "matched"):
+                totals[k] += result.get(k, 0)
+            per_team.append({"name": name, "team_id": getattr(team, "id", None), "ok": True, **result})
+    return {"totals": totals, "teams": per_team}
+
+
 def import_rival_squad(rival_team, rows, *, season_label="", replace_missing=True):
     """Upsert de RivalPlayer para un equipo rival. Dedup por J-id (o nombre si no hay J-id). Detecta
     'reconocido como' contra Players. Da de baja (is_active=False) los que ya no aparecen. Nunca crea
