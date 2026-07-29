@@ -3809,8 +3809,6 @@
         try{
           var params = new URLSearchParams(location.search);
           if(params.get('regen_batch') === null) return;
-          var tab = "{{ active_task_tab|escapejs }}", gtab = "{{ active_task_edit_tab|escapejs }}";
-          if(tab !== 'edit' || gtab !== 'graphic') return;
           var team = params.get('team') || '';
           var ids = (params.get('regen_batch') || '').split(',').map(function(s){return s.trim();}).filter(Boolean);
           var sleep = function(ms){return new Promise(function(r){setTimeout(r,ms);});};
@@ -3819,6 +3817,10 @@
             var next = ids.shift(); var rest = ids.join(',');
             location.href = '/coach/sesiones/tarea/' + encodeURIComponent(next) + '/?tab=edit&edit_tab=graphic&format=club' + (team?('&team='+encodeURIComponent(team)):'') + '&regen_batch=' + encodeURIComponent(rest);
           };
+          var tab = "{{ active_task_tab|escapejs }}", gtab = "{{ active_task_edit_tab|escapejs }}";
+          /* Si esta tarea NO es editable en gráfico (p.ej. jugada/con fecha -> el servidor la abre en
+             presentación), no podemos re-renderizarla; la SALTAMOS y seguimos la cadena. */
+          if(tab !== 'edit' || gtab !== 'graphic'){ setTimeout(goNext, 900); return; }
           (async function(){
             try{
               /* El editor real vive en un <iframe> (builder_embed_url). El guardado que regenera la
