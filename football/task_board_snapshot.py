@@ -61,22 +61,35 @@ RENDER_GATE_TIMEOUT_SECONDS = 180
 
 
 def board_signature(task) -> str:
-    """Huella del DIBUJO. Si no cambia, la foto sigue valiendo."""
+    """Huella del DIBUJO. Si no cambia, la foto sigue valiendo.
+
+    OJO con la estructura: el lienzo NO cuelga de la raiz de `tactical_layout`, sino de
+    `meta.graphic_editor.canvas_state` (ver task_library_services.extract_canvas_state_for_preview).
+    Mirar en la raiz devolvia siempre firma vacia y la foto no llegaba a encolarse nunca.
+    """
+    from .task_library_services import extract_canvas_state_for_preview
+
     layout = getattr(task, "tactical_layout", None) or {}
     if not isinstance(layout, dict):
+        layout = {}
+    meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
+
+    try:
+        canvas_state, world_w, world_h = extract_canvas_state_for_preview(task)
+    except Exception:
+        canvas_state, world_w, world_h = None, 0, 0
+    if not (isinstance(canvas_state, dict) and canvas_state.get("objects")):
         return ""
+
     parts = []
-    for key in ("canvas", "graphic_editor", "canvas_width", "canvas_height",
-                "pitch_orientation", "grass_style", "surface_preset"):
-        value = layout.get(key)
-        if value in (None, "", {}, []):
-            continue
-        try:
-            parts.append(f"{key}={json.dumps(value, sort_keys=True, ensure_ascii=False)}")
-        except Exception:
-            parts.append(f"{key}={value!r}")
-    if not parts:
-        return ""
+    try:
+        parts.append(json.dumps(canvas_state, sort_keys=True, ensure_ascii=False))
+    except Exception:
+        parts.append(repr(canvas_state))
+    parts.append(f"w={world_w}|h={world_h}")
+    # La superficie tambien cambia la foto aunque no se mueva ninguna ficha.
+    for key in ("pitch_preset", "pitch_orientation", "pitch_grass_style"):
+        parts.append(f"{key}={meta.get(key)!r}")
     return hashlib.sha1("|".join(parts).encode("utf-8")).hexdigest()
 
 
