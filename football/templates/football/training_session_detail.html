@@ -272,6 +272,7 @@
       {% if error %}<div class="alert err">{{ error }}</div>{% endif %}
 
 	      <section class="sheet" id="session-view">
+        {% if session_cover_path %}<div style="width:100%; height:160px; background-image:url('{% static session_cover_path %}'); background-size:cover; background-position:center 35%; border-radius:14px 14px 0 0;" title="Entrenamiento"></div>{% endif %}
 	        <div class="club-head">
 	          <table style="width:100%; border-collapse:collapse;">
 	            <tr>

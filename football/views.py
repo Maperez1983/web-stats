@@ -34382,6 +34382,7 @@ def training_session_detail_page(request, session_id):
         "football/training_session_detail.html",
         {
             "session": session_obj,
+            "session_cover_path": _session_cover_static_path(session_obj),
             "recommended_tasks": recommended_tasks,
             "session_display_title": session_display_title,
             "session_number": session_number,
