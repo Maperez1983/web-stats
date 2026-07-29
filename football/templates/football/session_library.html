@@ -24,6 +24,7 @@
       .card{border:1px solid rgba(148,163,184,.2);border-radius:16px;background:rgba(255,255,255,.02);overflow:hidden;display:flex;flex-direction:column;}
       .card-thumbs{display:grid;grid-template-columns:repeat(2,1fr);gap:2px;background:#0b1220;}
       .card-thumbs .th{aspect-ratio:16/9;background-size:cover;background-position:center;background-color:#123021;}
+      .card-cover{aspect-ratio:16/9;background-size:cover;background-position:center;background-color:#123021;}
       .card-thumbs.one{grid-template-columns:1fr;}
       .card-body{padding:12px 14px;display:flex;flex-direction:column;gap:8px;flex:1;}
       .card-title{font-weight:800;font-size:1.02rem;line-height:1.2;}
@@ -55,7 +56,9 @@
       <div class="grid">
         {% for t in templates %}
         <div class="card">
-          {% if t.thumbs %}
+          {% if t.cover %}
+          <div class="card-cover" style="background-image:url('{% static t.cover %}');" title="Portada de entrenamiento"></div>
+          {% elif t.thumbs %}
           <div class="card-thumbs {% if t.thumbs|length == 1 %}one{% endif %}">
             {% for th in t.thumbs %}<span class="th" style="background-image:url('{{ th }}');"></span>{% endfor %}
           </div>

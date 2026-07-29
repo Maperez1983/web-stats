@@ -56424,6 +56424,20 @@ def sessions_task_edit_page(request, task_id):
     return session_task_builder_page(request, scope_key="coach", scope_title="Sesiones · Entrenador", task_id=task_id)
 
 
+SESSION_COVER_POOL = 6
+
+
+def _session_cover_static_path(session):
+    """Asigna, de forma determinista por id, una portada fotorrealista de entreno general
+    del repertorio (football/static/football/images/session_covers/)."""
+    try:
+        sid = int(getattr(session, "id", 0) or 0)
+    except Exception:
+        sid = 0
+    idx = (sid % SESSION_COVER_POOL) + 1
+    return f"football/images/session_covers/session_cover_{idx}.jpg"
+
+
 @login_required
 @ensure_csrf_cookie
 def session_library_page(request):
@@ -56518,6 +56532,7 @@ def session_library_page(request):
                 "duration": int(_s.duration_minutes or 0),
                 "intensity": _s.get_intensity_display(),
                 "thumbs": _thumbs,
+                "cover": _session_cover_static_path(_s),
                 "view_url": reverse("training-session-detail", args=[int(_s.id)]) + _team_q,
             }
         )
