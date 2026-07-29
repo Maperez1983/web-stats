@@ -462,6 +462,7 @@
 	          </div>
 
 	          {% if forloop.first and forloop.parentloop.first %}
+          {% if session_cover_url %}<div style="width:100%; height:38mm; background-image:url('{{ session_cover_url }}'); background-size:cover; background-position:center 35%; border-radius:8px; margin-bottom:6px;"></div>{% endif %}
 	          <div class="rfef-section">
 		            <div class="rfef-section-title">Detalles de la sesión</div>
 	            <table class="rfef-table">
