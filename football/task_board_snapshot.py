@@ -226,7 +226,7 @@ def _render_and_store(task_id: int, url: str, cookies: list, sig: str) -> None:
             # Blindaje (mismo criterio que la regeneracion de miniaturas): si sale el campo pelado
             # sin fichas, NO pisamos la imagen buena que ya tenia la tarea.
             logger.warning("board snapshot: descartada (campo vacio) para tarea %s", task_id)
-            _note(task_id, "descartada: la foto sale como campo vacio (sin fichas)")
+            _note(task_id, f"descartada: la foto sale como campo vacio (sin fichas) · {_stats_text(png)}")
             _mark_failed(task_id)
             return
         jpeg = _to_jpeg(png)
@@ -268,6 +268,20 @@ def _render_locked(url: str, cookies: list) -> bytes | None:
         wait_for_js=SNAPSHOT_READY_JS,
         timeout_ms=60000,
         settle_ms=1500,
+    )
+
+
+def _stats_text(png_bytes: bytes) -> str:
+    from .task_library_services import analyze_preview_image_bytes
+
+    stats = analyze_preview_image_bytes(png_bytes) or {}
+    if not stats:
+        return "sin metricas"
+    return (
+        f"{stats.get('width')}x{stats.get('height')} "
+        f"verde={float(stats.get('green_ratio') or 0):.2f} "
+        f"blanco={float(stats.get('white_ratio') or 0):.2f} "
+        f"oscuro={float(stats.get('dark_ratio') or 0):.2f}"
     )
 
 
@@ -357,6 +371,19 @@ def board_snapshot_status_view(request, task_id):
     task = SessionTask.objects.filter(pk=int(task_id)).first()
     if not task:
         return JsonResponse({"ok": False, "error": "not_found"}, status=404)
+
+    if str(request.GET.get("shot") or "").strip() in {"1", "true", "yes"}:
+        # Diagnostico: renderiza AHORA y devuelve el PNG en crudo (no guarda nada). Sirve para ver
+        # con los ojos que esta fotografiando Playwright cuando el blindaje la rechaza.
+        from django.http import HttpResponse
+
+        png = _render(editor_snapshot_url(request, task), session_cookies_for(request))
+        if not png:
+            return JsonResponse({"ok": False, "error": "sin foto (Playwright o pizarra no lista)"}, status=503)
+        resp = HttpResponse(png, content_type="image/png")
+        resp["X-Board-Stats"] = _stats_text(png)
+        resp["Cache-Control"] = "no-store"
+        return resp
 
     force = str(request.GET.get("force") or "").strip() in {"1", "true", "yes"}
     if force:
