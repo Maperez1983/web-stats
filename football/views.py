@@ -42604,6 +42604,56 @@ def tactics_roles_page(request):
 
 
 @login_required
+def team_page(request):
+    """Ficha del equipo (estilo FM): identidad (escudo, categoría, ciudad, estadio, colores de kit)
+    + resumen de plantilla (fichados, a prueba, lesionados, fichas libres, cobertura) + cuerpo
+    técnico del equipo + accesos rápidos. Solo lectura."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404("Equipo principal no configurado")
+
+    crest = ""
+    try:
+        crest = (primary_team.crest_image.url if getattr(primary_team, "crest_image", None) else "") or (primary_team.crest_url or "")
+    except Exception:
+        crest = getattr(primary_team, "crest_url", "") or ""
+    club_obj = getattr(primary_team, "club", None)
+
+    try:
+        fed = _build_federative_squad_report(request, primary_team)
+    except Exception:
+        fed = None
+
+    staff = []
+    try:
+        workspace = _get_active_workspace(request)
+        if workspace is not None:
+            for sm in StaffMember.objects.filter(workspace=workspace, is_active=True).select_related("team"):
+                tid = getattr(sm, "team_id", None)
+                # Staff del equipo o del club completo (team vacío).
+                if tid and int(tid) != int(primary_team.id):
+                    continue
+                staff.append({"name": sm.name, "role": (getattr(sm, "role_title", "") or "Staff")})
+    except Exception:
+        staff = []
+
+    season_label = ""
+    try:
+        ws = _get_active_workspace(request)
+        season_label = str(getattr(ws, "active_season", "") or "") if ws else ""
+    except Exception:
+        season_label = ""
+
+    return render(request, "football/team_page.html", {
+        "team": primary_team, "crest": crest, "club_obj": club_obj,
+        "fed": fed, "staff": staff, "season_label": season_label,
+    })
+
+
+@login_required
 def contracts_page(request):
     """Panel de contratos y renovaciones (estilo FM): toda la plantilla por vencimiento de contrato,
     con rol, cláusula y prioridad de renovación (clave/titular que vencen = urgente). Reutiliza el

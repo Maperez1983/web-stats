@@ -1,0 +1,100 @@
+{% load static football_extras %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ficha del equipo · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      .tm-wrap{max-width:1000px;margin:0 auto;padding:1rem;color:#eef2f8;}
+      .tm-head{display:flex;gap:1.1rem;align-items:center;background:#111725;border:1px solid #1f2b39;border-radius:16px;padding:1.1rem 1.2rem;margin-bottom:1.1rem;}
+      .tm-crest{width:74px;height:74px;object-fit:contain;border-radius:12px;background:#0b1220;flex:0 0 auto;}
+      .tm-crest.ph{background:#1e293b;display:grid;place-items:center;font-size:1.6rem;font-weight:900;color:#64748b;}
+      .tm-name{font-size:1.55rem;font-weight:900;line-height:1.05;}
+      .tm-meta{font-size:.8rem;color:#9fb0c6;font-weight:700;margin-top:.25rem;display:flex;gap:.9rem;flex-wrap:wrap;align-items:center;}
+      .tm-kit{display:inline-flex;gap:3px;align-items:center;}
+      .tm-sw{width:15px;height:15px;border-radius:4px;border:1px solid rgba(255,255,255,.2);}
+      .tm-sect{font-size:.68rem;text-transform:uppercase;letter-spacing:.12em;color:#6d8098;font-weight:800;margin:1.3rem 0 .7rem;}
+      .tm-chips{display:flex;gap:.6rem;flex-wrap:wrap;}
+      .tm-chip{border:1px solid #1f2b39;background:#111725;border-radius:12px;padding:.6rem .9rem;min-width:96px;}
+      .tm-chip .n{font-size:1.4rem;font-weight:900;line-height:1;}
+      .tm-chip .k{font-size:.6rem;text-transform:uppercase;letter-spacing:.06em;color:#6d8098;font-weight:800;margin-top:.2rem;}
+      .tm-chip.ok .n{color:#3fbf6a;} .tm-chip.amber .n{color:#e2a53a;} .tm-chip.red .n{color:#e2564a;}
+      .tm-cov{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:.5rem;}
+      .tm-covcard{border:1px solid #1f2b39;background:#0e1420;border-radius:10px;padding:.5rem .6rem;display:flex;justify-content:space-between;align-items:center;}
+      .tm-covcard .lab{font-size:.72rem;color:#cbd5e1;font-weight:700;}
+      .tm-covcard .v{font-size:.72rem;font-weight:900;padding:2px 7px;border-radius:6px;}
+      .tm-covcard .v.ok{color:#3fbf6a;background:#12241a;} .tm-covcard .v.warn{color:#e2564a;background:#26141a;}
+      .tm-staff{display:flex;gap:.4rem;flex-wrap:wrap;}
+      .tm-staff span{font-size:.8rem;color:#cbd5e1;background:#111725;border:1px solid #1f2b39;border-radius:999px;padding:.3rem .75rem;}
+      .tm-staff b{color:#eef2f8;}
+      .tm-quick{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.5rem;}
+      .tm-quick a{background:#111725;border:1px solid #1f2b39;border-radius:11px;padding:.7rem .8rem;text-decoration:none;color:#eef2f8;font-weight:700;font-size:.85rem;}
+      .tm-quick a:hover{border-color:#2b3b4e;background:#141c28;}
+      .tm-empty{color:#6d8098;font-size:.85rem;}
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <div class="app-shell">
+      {% include 'football/includes/dragon_nav.html' %}
+      <main class="tm-wrap">
+        <div class="tm-head">
+          {% if crest %}<img class="tm-crest" src="{{ crest }}" alt="" />{% else %}<div class="tm-crest ph">{{ team.name|slice:':1'|upper }}</div>{% endif %}
+          <div style="flex:1;min-width:0;">
+            <div class="tm-name">{{ team.display_name|default:team.name }}</div>
+            <div class="tm-meta">
+              {% if team.category %}<span>{{ team.category }}</span>{% endif %}
+              {% if team.city %}<span>📍 {{ team.city }}</span>{% endif %}
+              {% if team.home_stadium %}<span>🏟️ {{ team.home_stadium }}</span>{% endif %}
+              {% if season_label %}<span>🗓️ {{ season_label }}</span>{% endif %}
+              {% if team.kit_primary_color %}<span class="tm-kit">Kit <i class="tm-sw" style="background:{{ team.kit_primary_color }};"></i>{% if team.kit_secondary_color %}<i class="tm-sw" style="background:{{ team.kit_secondary_color }};"></i>{% endif %}</span>{% endif %}
+              {% if club_obj %}<span>🏛️ {{ club_obj.name }}</span>{% endif %}
+            </div>
+          </div>
+        </div>
+
+        {% if fed %}
+        <div class="tm-sect">Plantilla</div>
+        <div class="tm-chips">
+          <div class="tm-chip ok"><div class="n">{{ fed.fichados }}<span style="font-size:.8rem;color:#6d8098;">/{{ fed.cap }}</span></div><div class="k">Fichados</div></div>
+          <div class="tm-chip"><div class="n">{{ fed.fichas_disponibles }}</div><div class="k">Fichas libres</div></div>
+          <div class="tm-chip amber"><div class="n">{{ fed.a_prueba }}</div><div class="k">A prueba</div></div>
+          <div class="tm-chip red"><div class="n">{{ fed.lesionados }}</div><div class="k">Lesionados</div></div>
+          <div class="tm-chip"><div class="n">{{ fed.total_activos }}</div><div class="k">Total activos</div></div>
+        </div>
+
+        <div class="tm-sect">Cobertura por puesto</div>
+        <div class="tm-cov">
+          {% for c in fed.coverage %}
+          <div class="tm-covcard"><span class="lab">{{ c.label }}</span><span class="v {% if c.missing %}warn{% else %}ok{% endif %}">{{ c.have }} / {{ c.min }}</span></div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="tm-sect">Cuerpo técnico</div>
+        {% if staff %}
+        <div class="tm-staff">
+          {% for s in staff %}<span><b>{{ s.name }}</b> · {{ s.role }}</span>{% endfor %}
+        </div>
+        {% else %}
+        <p class="tm-empty">Sin staff registrado para este equipo. Añádelo en Dirección → Staff.</p>
+        {% endif %}
+
+        <div class="tm-sect">Accesos</div>
+        <div class="tm-quick">
+          <a href="{% url 'coach-roster' %}">👥 Plantilla</a>
+          <a href="{% url 'squad-planner' %}">🧩 Planificador</a>
+          <a href="{% url 'tactics-roles' %}">♟️ Táctica · roles</a>
+          <a href="{% url 'medical-center' %}">🩺 Centro médico</a>
+          <a href="{% url 'contracts' %}">📝 Contratos</a>
+          <a href="{% url 'development' %}">📈 Desarrollo</a>
+          <a href="{% url 'training-load' %}">🗓️ Carga semanal</a>
+          <a href="{% url 'coach-inbox' %}">📥 Bandeja</a>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>
