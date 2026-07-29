@@ -1,0 +1,116 @@
+{% load static football_extras %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Comparar jugadores · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      .cp-wrap{max-width:940px;margin:0 auto;padding:1rem;color:#eef2f8;}
+      .cp-h1{margin:0;color:#f8fafc;font-size:1.5rem;font-weight:900;}
+      .cp-sub{color:#6d8098;font-weight:700;font-size:.78rem;margin:.15rem 0 1rem;}
+      .cp-sels{display:grid;grid-template-columns:1fr auto 1fr;gap:.8rem;align-items:end;margin-bottom:1.3rem;}
+      @media(max-width:560px){.cp-sels{grid-template-columns:1fr;}.cp-vs{display:none;}}
+      .cp-sel label{font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;font-weight:800;display:block;margin-bottom:.25rem;}
+      .cp-sel.a label{color:#8fb4ff;} .cp-sel.b label{color:#f4b400;}
+      .cp-sel select{width:100%;background:#0b0f17;color:#eef2f8;border:1px solid #2a3750;border-radius:9px;padding:.55rem .7rem;font-weight:700;}
+      .cp-vs{font-weight:900;color:#6d8098;padding-bottom:.5rem;}
+      .cp-card{background:#111725;border:1px solid #1f2b39;border-radius:16px;padding:1.1rem;margin-bottom:1.1rem;}
+      .cp-top{display:grid;grid-template-columns:1fr auto 1fr;gap:1rem;align-items:center;margin-bottom:.6rem;}
+      .cp-pl{text-align:center;}
+      .cp-pl .nm{font-size:1.05rem;font-weight:900;}
+      .cp-pl.a .nm{color:#8fb4ff;} .cp-pl.b .nm{color:#f4b400;}
+      .cp-ov{font-size:2rem;font-weight:900;line-height:1;}
+      .cp-ovk{font-size:.58rem;text-transform:uppercase;letter-spacing:.08em;color:#6d8098;font-weight:800;}
+      .cp-radar{display:flex;justify-content:center;margin:.4rem 0;}
+      .cp-rows{margin-top:.8rem;}
+      .cp-row{display:grid;grid-template-columns:56px 1fr 90px 1fr 56px;gap:.5rem;align-items:center;padding:.4rem 0;border-top:1px solid #1e2838;}
+      .cp-row:first-child{border-top:none;}
+      .cp-val{font-size:1rem;font-weight:900;font-variant-numeric:tabular-nums;text-align:center;}
+      .cp-lab{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:#9fb0c6;font-weight:800;text-align:center;}
+      .cp-barwrap{height:9px;border-radius:5px;background:rgba(148,163,184,.12);overflow:hidden;display:flex;}
+      .cp-bar-a{height:100%;background:#4a86e8;margin-left:auto;} .cp-bar-b{height:100%;background:#f4b400;}
+      .win{color:#3fbf6a !important;}
+      .cp-links{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem;}
+      .cp-links a{font-size:.75rem;font-weight:800;color:#8fb4ff;text-decoration:none;border:1px solid #25406e;border-radius:8px;padding:.35rem .6rem;background:#141f33;}
+      .cp-empty{color:#6d8098;font-size:.85rem;text-align:center;padding:1.2rem 0;}
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <div class="app-shell">
+      {% include 'football/includes/dragon_nav.html' %}
+      <main class="cp-wrap">
+        <h1 class="cp-h1">Comparar jugadores</h1>
+        <p class="cp-sub">{{ primary_team.display_name|default:primary_team.name }} · radar de atributos superpuesto</p>
+
+        <form method="get" class="cp-sels" id="cmp-form">
+          <div class="cp-sel a">
+            <label>Jugador A</label>
+            <select name="a" onchange="document.getElementById('cmp-form').submit()">
+              <option value="">Elegir…</option>
+              {% for p in roster %}<option value="{{ p.id }}" {% if pa and pa.id == p.id %}selected{% endif %}>{% if p.number %}#{{ p.number }} {% endif %}{{ p.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="cp-vs">vs</div>
+          <div class="cp-sel b">
+            <label>Jugador B</label>
+            <select name="b" onchange="document.getElementById('cmp-form').submit()">
+              <option value="">Elegir…</option>
+              {% for p in roster %}<option value="{{ p.id }}" {% if pb and pb.id == p.id %}selected{% endif %}>{% if p.number %}#{{ p.number }} {% endif %}{{ p.name }}</option>{% endfor %}
+            </select>
+          </div>
+        </form>
+
+        {% if compare %}
+        <div class="cp-card">
+          <div class="cp-top">
+            <div class="cp-pl a"><div class="nm">{{ pa.name }}</div><div class="cp-ov" style="color:#8fb4ff;">{{ prof_a.overall|floatformat:1 }}</div><div class="cp-ovk">Media</div></div>
+            <div class="cp-radar">
+              <svg viewBox="0 0 260 220" width="240" height="204" role="img" aria-label="Radar comparativo">
+                <circle cx="130" cy="110" r="80" fill="none" stroke="rgba(226,232,240,0.18)" stroke-width="1"></circle>
+                <circle cx="130" cy="110" r="40" fill="none" stroke="rgba(226,232,240,0.12)" stroke-width="1"></circle>
+                <line x1="130" y1="30" x2="130" y2="190" stroke="rgba(226,232,240,0.12)"></line>
+                <line x1="50" y1="110" x2="210" y2="110" stroke="rgba(226,232,240,0.12)"></line>
+                <polygon points="{{ prof_b.radar_points }}" fill="rgba(244,180,0,0.20)" stroke="#f4b400" stroke-width="2"></polygon>
+                <polygon points="{{ prof_a.radar_points }}" fill="rgba(74,134,232,0.20)" stroke="#4a86e8" stroke-width="2"></polygon>
+                <text x="130" y="16" text-anchor="middle" fill="#9fb0c6" font-size="10" font-weight="700">Técnico</text>
+                <text x="226" y="113" text-anchor="start" fill="#9fb0c6" font-size="10" font-weight="700">Físico</text>
+                <text x="130" y="212" text-anchor="middle" fill="#9fb0c6" font-size="10" font-weight="700">Mental</text>
+                <text x="34" y="113" text-anchor="end" fill="#9fb0c6" font-size="10" font-weight="700">Táctico</text>
+              </svg>
+            </div>
+            <div class="cp-pl b"><div class="nm">{{ pb.name }}</div><div class="cp-ov" style="color:#f4b400;">{{ prof_b.overall|floatformat:1 }}</div><div class="cp-ovk">Media</div></div>
+          </div>
+
+          <div class="cp-rows">
+            {% for c in compare %}
+            <div class="cp-row">
+              <div class="cp-val {% if c.a_win %}win{% endif %}" style="color:#8fb4ff;">{{ c.a|floatformat:1 }}</div>
+              <div class="cp-barwrap"><span class="cp-bar-a" style="width:{% widthratio c.a 10 100 %}%;"></span></div>
+              <div class="cp-lab">{{ c.label }}</div>
+              <div class="cp-barwrap"><span class="cp-bar-b" style="width:{% widthratio c.b 10 100 %}%;"></span></div>
+              <div class="cp-val {% if c.b_win %}win{% endif %}" style="color:#f4b400;">{{ c.b|floatformat:1 }}</div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% elif pa or pb %}
+          <p class="cp-empty">
+            {% if pa and not prof_a.has_data %}<strong>{{ pa.name }}</strong> no tiene evaluación con atributos. {% endif %}
+            {% if pb and not prof_b.has_data %}<strong>{{ pb.name }}</strong> no tiene evaluación con atributos. {% endif %}
+            Elige dos jugadores evaluados para comparar sus radares.
+          </p>
+        {% else %}
+          <p class="cp-empty">Elige dos jugadores arriba para superponer sus radares de atributos.</p>
+        {% endif %}
+
+        <div class="cp-links">
+          <a href="{% url 'coach-roster' %}">← Plantilla</a>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

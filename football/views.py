@@ -42322,6 +42322,71 @@ def medical_center_page(request):
     })
 
 
+_CMP_RADAR_ORDER = ["technical", "physical", "mental", "tactical"]
+_CMP_RADAR_DIRS = [(0, -1), (1, 0), (0, 1), (-1, 0)]
+_CMP_CX, _CMP_CY, _CMP_R = 130, 110, 80
+
+
+def _player_compare_profile(player):
+    """Perfil para comparar dos jugadores: medias por área + overall + polígono de radar (misma
+    geometría que la ficha). None si no hay jugador; has_data=False si no tiene evaluación."""
+    if player is None:
+        return None
+    try:
+        ev = (
+            PlayerEvaluation.objects.filter(player=player, status=PlayerEvaluation.STATUS_CLOSED)
+            .order_by("-evaluated_on", "-updated_at", "-id").first()
+        )
+    except Exception:
+        ev = None
+    fm = _fm_evaluation_presentation(ev, _evaluation_catalog_for_player(player)) if ev else None
+    if not fm:
+        return {"player": player, "has_data": False}
+    area_avg = {g["key"]: g["avg"] for g in fm.get("groups", [])}
+    pts = []
+    for (dx, dy), key in zip(_CMP_RADAR_DIRS, _CMP_RADAR_ORDER):
+        avg = area_avg.get(key)
+        r = (float(avg) / 10.0) * _CMP_R if avg is not None else 0.0
+        pts.append(f"{int(round(_CMP_CX + dx * r))},{int(round(_CMP_CY + dy * r))}")
+    return {
+        "player": player, "has_data": True,
+        "overall": fm.get("overall"), "groups": fm.get("groups"),
+        "area_avg": area_avg, "radar_points": " ".join(pts),
+    }
+
+
+@login_required
+def player_compare_page(request):
+    """Comparar dos jugadores (estilo FM): radar superpuesto de áreas + comparativa por área, con el
+    mejor resaltado. Usa el radar de evaluación que ya existe."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404("Equipo principal no configurado")
+    roster = list(Player.objects.filter(team=primary_team, is_active=True).order_by("number", "name"))
+    by_id = {int(p.id): p for p in roster}
+    pa = by_id.get(_parse_int(request.GET.get("a")) or 0)
+    pb = by_id.get(_parse_int(request.GET.get("b")) or 0)
+    prof_a = _player_compare_profile(pa)
+    prof_b = _player_compare_profile(pb)
+    compare = []
+    if prof_a and prof_b and prof_a.get("has_data") and prof_b.get("has_data"):
+        labels = {"technical": "Técnico", "tactical": "Táctico", "physical": "Físico", "mental": "Mental"}
+        for key in ["technical", "tactical", "physical", "mental"]:
+            av = prof_a["area_avg"].get(key)
+            bv = prof_b["area_avg"].get(key)
+            compare.append({
+                "label": labels[key], "a": av, "b": bv,
+                "a_win": (av or 0) > (bv or 0), "b_win": (bv or 0) > (av or 0),
+            })
+    return render(request, "football/player_compare.html", {
+        "roster": roster, "pa": pa, "pb": pb,
+        "prof_a": prof_a, "prof_b": prof_b, "compare": compare,
+    })
+
+
 @login_required
 def coach_load_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
