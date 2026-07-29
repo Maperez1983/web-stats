@@ -50906,6 +50906,18 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             _ensure_original_task_snapshot(existing_task)
     except Exception:
         pass
+
+    def _keep_if_blank(_key):
+        # ANTI-PÉRDIDA DE DATOS: para una tarea EXISTENTE, un campo enviado vacío ("")
+        # se trata como "no enviado" (None) → se conserva el valor anterior. Evita que un
+        # guardado parcial de la pizarra (que ya no tiene formulario de ficha) o un POST
+        # incompleto por un bug de JS/recarga machaque título, objetivo, consignas, etc.
+        # Para tareas NUEVAS se respeta el vacío (se aplica la lógica de título provisional).
+        _v = request.POST.get(_key)
+        if existing_task is not None and _v is not None and not str(_v).strip():
+            return None
+        return _v
+
     target_session_id = _parse_int(request.POST.get("draw_target_session_id"))
     raw_submission_uid = str(request.POST.get("task_submit_uid") or "").strip()[:64]
     submission_uid = re.sub(r"[^0-9a-zA-Z_-]", "", raw_submission_uid)
@@ -50914,7 +50926,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         or request.POST.get("library_repo")
         or LIBRARY_REPOSITORY_TRADITIONAL
     )
-    raw_title = request.POST.get("draw_task_title")
+    raw_title = _keep_if_blank("draw_task_title")
     title = (
         _sanitize_task_text((raw_title or "").strip(), multiline=False, max_len=160)
         if raw_title is not None
@@ -50940,44 +50952,44 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     minutes = minutes or 15
     # IMPORTANTE: en algunos flujos el front puede mandar un POST parcial (bug de JS, recarga, etc.).
     # Para tareas existentes, si un campo NO viene en POST, conservamos su valor anterior.
-    raw_objective = request.POST.get("draw_task_objective")
+    raw_objective = _keep_if_blank("draw_task_objective")
     objective = (
         _sanitize_task_text(str(raw_objective or "").strip(), multiline=True, max_len=8000)
         if raw_objective is not None
         else str(getattr(existing_task, "objective", "") or "")
     )
-    raw_coaching_points = request.POST.get("draw_task_coaching_points")
+    raw_coaching_points = _keep_if_blank("draw_task_coaching_points")
     coaching_points = (
         _sanitize_task_text(str(raw_coaching_points or "").strip(), multiline=True)
         if raw_coaching_points is not None
         else str(getattr(existing_task, "coaching_points", "") or "")
     )
-    raw_confrontation_rules = request.POST.get("draw_task_confrontation_rules")
+    raw_confrontation_rules = _keep_if_blank("draw_task_confrontation_rules")
     confrontation_rules = (
         _sanitize_task_text(str(raw_confrontation_rules or "").strip(), multiline=True)
         if raw_confrontation_rules is not None
         else str(getattr(existing_task, "confrontation_rules", "") or "")
     )
 
-    raw_description = request.POST.get("draw_task_description")
+    raw_description = _keep_if_blank("draw_task_description")
     description = (
         _sanitize_task_text(str(raw_description or "").strip(), multiline=True, max_len=1200)
         if raw_description is not None
         else str(existing_task_sheet.get("description") or "")
     )
-    raw_description_html = request.POST.get("draw_task_description_html")
+    raw_description_html = _keep_if_blank("draw_task_description_html")
     description_html = (
         _sanitize_task_rich_html(str(raw_description_html or "").strip())
         if raw_description_html is not None
         else str(existing_task_sheet.get("description_html") or "")
     )
-    raw_coaching_html = request.POST.get("draw_task_coaching_points_html")
+    raw_coaching_html = _keep_if_blank("draw_task_coaching_points_html")
     coaching_html = (
         _sanitize_task_rich_html(str(raw_coaching_html or "").strip())
         if raw_coaching_html is not None
         else str(existing_task_sheet.get("coaching_html") or "")
     )
-    raw_rules_html = request.POST.get("draw_task_confrontation_rules_html")
+    raw_rules_html = _keep_if_blank("draw_task_confrontation_rules_html")
     rules_html = (
         _sanitize_task_rich_html(str(raw_rules_html or "").strip())
         if raw_rules_html is not None
@@ -50992,7 +51004,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         coaching_html = _sanitize_task_rich_html(_rich_html_from_plain_text(coaching_points))
     if raw_confrontation_rules is not None and raw_rules_html is None:
         rules_html = _sanitize_task_rich_html(_rich_html_from_plain_text(confrontation_rules))
-    raw_players = request.POST.get("draw_task_players")
+    raw_players = _keep_if_blank("draw_task_players")
     players = (
         _sanitize_task_text(str(raw_players or "").strip(), multiline=False, max_len=120)
         if raw_players is not None
@@ -52358,8 +52370,21 @@ def _save_task_studio_entry(request, owner, existing_task=None):
     existing_task_sheet = (
         existing_analysis.get("task_sheet") if isinstance(existing_analysis.get("task_sheet"), dict) else {}
     )
+    try:
+        if existing_task:
+            _ensure_original_task_snapshot(existing_task)
+    except Exception:
+        pass
 
-    raw_title = request.POST.get("draw_task_title")
+    def _keep_if_blank(_key):
+        # ANTI-PÉRDIDA DE DATOS (ver _save_task_builder_entry): tarea existente + campo
+        # vacío ("") = "no enviado" → conserva el valor anterior; nueva = respeta el vacío.
+        _v = request.POST.get(_key)
+        if existing_task is not None and _v is not None and not str(_v).strip():
+            return None
+        return _v
+
+    raw_title = _keep_if_blank("draw_task_title")
     title = (
         _sanitize_task_text((raw_title or "").strip(), multiline=False, max_len=160)
         if raw_title is not None
@@ -52379,49 +52404,49 @@ def _save_task_studio_entry(request, owner, existing_task=None):
     )
     minutes = minutes or 15
 
-    raw_objective = request.POST.get("draw_task_objective")
+    raw_objective = _keep_if_blank("draw_task_objective")
     objective = (
         _sanitize_task_text(str(raw_objective or "").strip(), multiline=True, max_len=8000)
         if raw_objective is not None
         else str(getattr(existing_task, "objective", "") or "")
     )
-    raw_coaching_points = request.POST.get("draw_task_coaching_points")
+    raw_coaching_points = _keep_if_blank("draw_task_coaching_points")
     coaching_points = (
         _sanitize_task_text(str(raw_coaching_points or "").strip(), multiline=True)
         if raw_coaching_points is not None
         else str(getattr(existing_task, "coaching_points", "") or "")
     )
-    raw_confrontation_rules = request.POST.get("draw_task_confrontation_rules")
+    raw_confrontation_rules = _keep_if_blank("draw_task_confrontation_rules")
     confrontation_rules = (
         _sanitize_task_text(str(raw_confrontation_rules or "").strip(), multiline=True)
         if raw_confrontation_rules is not None
         else str(getattr(existing_task, "confrontation_rules", "") or "")
     )
-    raw_description = request.POST.get("draw_task_description")
+    raw_description = _keep_if_blank("draw_task_description")
     description = (
         _sanitize_task_text(str(raw_description or "").strip(), multiline=True, max_len=1200)
         if raw_description is not None
         else str(existing_task_sheet.get("description") or "")
     )
-    raw_description_html = request.POST.get("draw_task_description_html")
+    raw_description_html = _keep_if_blank("draw_task_description_html")
     description_html = (
         _sanitize_task_rich_html(str(raw_description_html or "").strip())
         if raw_description_html is not None
         else str(existing_task_sheet.get("description_html") or "")
     )
-    raw_coaching_html = request.POST.get("draw_task_coaching_points_html")
+    raw_coaching_html = _keep_if_blank("draw_task_coaching_points_html")
     coaching_html = (
         _sanitize_task_rich_html(str(raw_coaching_html or "").strip())
         if raw_coaching_html is not None
         else str(existing_task_sheet.get("coaching_html") or "")
     )
-    raw_rules_html = request.POST.get("draw_task_confrontation_rules_html")
+    raw_rules_html = _keep_if_blank("draw_task_confrontation_rules_html")
     rules_html = (
         _sanitize_task_rich_html(str(raw_rules_html or "").strip())
         if raw_rules_html is not None
         else str(existing_task_sheet.get("rules_html") or "")
     )
-    raw_players = request.POST.get("draw_task_players")
+    raw_players = _keep_if_blank("draw_task_players")
     players = (
         _sanitize_task_text(str(raw_players or "").strip(), multiline=False, max_len=120)
         if raw_players is not None
