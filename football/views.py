@@ -74666,6 +74666,177 @@ def _fm_evaluation_presentation(evaluation, catalog):
     }
 
 
+# Encaje por rol (estilo FM): por grupo de posición, roles con los atributos clave que los definen.
+# Las claves de atributo son las de EVALUATION_PARAMETER_CATALOG (jugador de campo).
+FM_ROLE_CATALOG = {
+    "gk": [
+        ("portero_linea", "Portero de línea", ["gk_blocaje", "gk_reflejos", "gk_mano_a_mano", "gk_colocacion", "gk_reduccion_angulo", "gk_concentracion", "gk_agilidad", "gk_reaccion"]),
+        ("portero_area", "Dominador del área", ["gk_salidas", "gk_juego_aereo", "gk_despejes", "gk_salto", "gk_valentia", "gk_mando", "gk_colocacion", "gk_fuerza"]),
+        ("portero_libero", "Portero-líbero", ["gk_juego_pies", "gk_saque_pie", "gk_inicio", "gk_decisiones", "gk_salidas", "gk_anticipacion", "gk_compostura", "gk_comunicacion"]),
+    ],
+    "central": [
+        ("central_marca", "Central de marca", ["marcaje", "entradas", "anticipacion", "fuerza", "cabeza", "colocacion", "concentracion", "salto"]),
+        ("central_salida", "Central de salida", ["pase", "control", "tecnica", "decisiones", "vision", "compostura", "colocacion", "anticipacion"]),
+        ("central_agresivo", "Central agresivo", ["entradas", "agresividad", "valentia", "fuerza", "velocidad", "anticipacion", "determinacion", "marcaje"]),
+    ],
+    "lateral": [
+        ("lateral_ofensivo", "Lateral ofensivo", ["centros", "velocidad", "aceleracion", "resistencia", "desmarque", "regate", "pase", "sacrificio"]),
+        ("carrilero", "Carrilero", ["resistencia", "centros", "trabajo_equipo", "sacrificio", "velocidad", "pase", "marcaje", "colocacion"]),
+        ("lateral_defensivo", "Lateral defensivo", ["marcaje", "entradas", "anticipacion", "colocacion", "fuerza", "concentracion", "velocidad", "decisiones"]),
+    ],
+    "pivote": [
+        ("pivote_defensivo", "Pivote defensivo", ["marcaje", "entradas", "anticipacion", "colocacion", "trabajo_equipo", "sacrificio", "fuerza", "concentracion"]),
+        ("organizador", "Organizador", ["pase", "vision", "tecnica", "decisiones", "control", "compostura", "colocacion", "trabajo_equipo"]),
+        ("box_to_box", "Box to box", ["resistencia", "desmarque", "pase", "sacrificio", "velocidad", "definicion", "trabajo_equipo", "determinacion"]),
+    ],
+    "medio": [
+        ("organizador", "Organizador", ["pase", "vision", "tecnica", "decisiones", "control", "compostura", "colocacion", "trabajo_equipo"]),
+        ("box_to_box", "Box to box", ["resistencia", "desmarque", "pase", "sacrificio", "velocidad", "definicion", "trabajo_equipo", "determinacion"]),
+        ("mediapunta", "Mediapunta", ["pase", "vision", "regate", "definicion", "desmarque", "tecnica", "talento", "control"]),
+    ],
+    "banda": [
+        ("extremo", "Extremo", ["velocidad", "aceleracion", "regate", "centros", "desmarque", "definicion", "agilidad", "tecnica"]),
+        ("mediapunta", "Mediapunta", ["pase", "vision", "regate", "definicion", "desmarque", "tecnica", "talento", "control"]),
+        ("interior_llegador", "Interior llegador", ["desmarque", "definicion", "velocidad", "resistencia", "regate", "pase", "sacrificio", "aceleracion"]),
+    ],
+    "delantero": [
+        ("referencia", "Delantero referencia", ["cabeza", "fuerza", "definicion", "salto", "colocacion", "control", "valentia", "anticipacion"]),
+        ("movil", "Delantero móvil", ["desmarque", "definicion", "control", "pase", "aceleracion", "tecnica", "decisiones", "velocidad"]),
+        ("segundo_punta", "Segundo punta", ["desmarque", "definicion", "regate", "aceleracion", "tecnica", "vision", "talento", "control"]),
+    ],
+}
+
+FM_POSITION_GROUP = {
+    "POR": "gk", "DFC": "central", "LD": "lateral", "LI": "lateral",
+    "CARRILERO D": "lateral", "CARRILERO I": "lateral", "MCD": "pivote",
+    "MC": "medio", "INTERIOR D": "medio", "INTERIOR I": "medio",
+    "MP": "banda", "ED": "banda", "EI": "banda", "SD": "delantero", "DC": "delantero",
+}
+
+
+def _fm_flat_scores(scores):
+    """Aplana parameter_scores {area:{param:val}} a {param:float}."""
+    flat = {}
+    if isinstance(scores, dict):
+        for area_scores in scores.values():
+            if isinstance(area_scores, dict):
+                for k, v in area_scores.items():
+                    try:
+                        flat[k] = float(v)
+                    except (TypeError, ValueError):
+                        continue
+    return flat
+
+
+def _fm_scores_mean(scores):
+    flat = _fm_flat_scores(scores)
+    return (sum(flat.values()) / len(flat)) if flat else None
+
+
+def _fm_role_fit(player, fm_eval, evaluation, player_evaluations, matches_played=0):
+    """Nivel + potencial + confianza + encaje por rol a partir de parameter_scores.
+    Devuelve None si no hay evaluación con atributos."""
+    if not fm_eval or not evaluation:
+        return None
+    flat = _fm_flat_scores(getattr(evaluation, "parameter_scores", None))
+    if not flat:
+        return None
+
+    pos = (getattr(player, "position", "") or getattr(evaluation, "evaluated_position", "")
+           or getattr(player, "preferred_position", "") or "").strip().upper()
+    group = FM_POSITION_GROUP.get(pos)
+    if not group:
+        if pos.startswith("POR"):
+            group = "gk"
+        elif pos.startswith("L") or "CARRIL" in pos:
+            group = "lateral"
+        elif pos.startswith("DF") or pos == "CT":
+            group = "central"
+        elif pos.startswith("MCD"):
+            group = "pivote"
+        elif pos.startswith("E") or pos == "MP":
+            group = "banda"
+        elif pos.startswith("DC") or pos.startswith("SD"):
+            group = "delantero"
+        else:
+            group = "medio"
+
+    def _tone_pct(p):
+        return "good" if p >= 70 else ("mid" if p >= 55 else "low")
+
+    roles = []
+    for rkey, rlabel, params in FM_ROLE_CATALOG.get(group, []):
+        vals = [flat[p] for p in params if p in flat]
+        if len(vals) < 3:
+            continue
+        pct = max(0, min(100, int(round((sum(vals) / len(vals)) * 10))))
+        roles.append({"key": rkey, "label": rlabel, "pct": pct, "tone": _tone_pct(pct)})
+    roles.sort(key=lambda r: -r["pct"])
+    best_role = roles[0]["label"] if roles else None
+
+    level = fm_eval.get("overall")
+    potential = None
+    try:
+        pr = float(getattr(evaluation, "potential_rating", None) or 0) or None
+    except (TypeError, ValueError):
+        pr = None
+    if pr and level and pr >= level:
+        potential = round(min(10.0, pr), 1)
+    elif level is not None:
+        age = getattr(player, "age", None)
+        if age is None:
+            head = 0.5
+        elif age <= 20:
+            head = 1.5
+        elif age <= 23:
+            head = 1.0
+        elif age <= 27:
+            head = 0.5
+        elif age <= 30:
+            head = 0.2
+        else:
+            head = 0.0
+        potential = round(min(10.0, level + head), 1)
+    headroom = round(potential - level, 1) if (potential is not None and level is not None) else None
+
+    closed = [e for e in (player_evaluations or [])
+              if str(getattr(e, "status", "") or "") == PlayerEvaluation.STATUS_CLOSED]
+    trend = None
+    trend_dir = "flat"
+    if len(closed) >= 2:
+        m_now = _fm_scores_mean(getattr(closed[0], "parameter_scores", None))
+        m_prev = _fm_scores_mean(getattr(closed[1], "parameter_scores", None))
+        if m_now is not None and m_prev is not None:
+            trend = round(m_now - m_prev, 1)
+            trend_dir = "up" if trend > 0.05 else ("down" if trend < -0.05 else "flat")
+
+    n_evals = len(closed)
+    if n_evals >= 4:
+        dots, clabel = 3, "Alta"
+    elif n_evals >= 2:
+        dots, clabel = 2, "Media"
+    else:
+        dots, clabel = 1, "Baja"
+    if len(flat) < 8 and dots > 1:
+        dots -= 1
+        clabel = "Media" if dots == 2 else "Baja"
+
+    return {
+        "level": level,
+        "level_pct": int(round((level or 0) * 10)),
+        "potential": potential,
+        "potential_pct": int(round((potential or 0) * 10)),
+        "headroom": headroom,
+        "trend": trend,
+        "trend_abs": abs(trend) if trend is not None else None,
+        "trend_dir": trend_dir,
+        "roles": roles,
+        "best_role": best_role,
+        "confidence": {"label": clabel, "dots": dots, "n_evals": n_evals, "n_matches": int(matches_played or 0)},
+        "position_label": dict(POSITION_CHOICES).get(pos, pos or "—"),
+    }
+
+
 @login_required
 def player_detail_page(request, player_id):
     try:
@@ -75683,6 +75854,10 @@ def player_detail_page(request, player_id):
         }
         # Presentación estilo Football Manager de la pestaña Evaluación (atributos + radar + informe).
         fm_eval = _fm_evaluation_presentation(latest_closed_evaluation, _evaluation_catalog_for_player(player))
+        fm_role_fit = _fm_role_fit(
+            player, fm_eval, latest_closed_evaluation, player_evaluations,
+            matches_played=(safe_stats.get("pj") if isinstance(safe_stats, dict) else 0),
+        )
         player_traits_catalog, player_traits_chips = _player_traits_context(player)
         evaluation_chart_context = _player_evaluation_chart_context(player_evaluations)
         latest_evaluation_improvement_rows = (
@@ -76468,6 +76643,7 @@ def player_detail_page(request, player_id):
                 "player_evaluations": player_evaluations,
                 "evaluation_summary": evaluation_summary,
                 "fm_eval": fm_eval,
+                "fm_role_fit": fm_role_fit,
                 "player_traits_catalog": player_traits_catalog,
                 "player_traits_chips": player_traits_chips,
                 "work_focus": work_focus,

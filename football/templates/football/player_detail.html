@@ -2017,6 +2017,63 @@
 
       <section class="card tab-pane" data-pane="evaluations">
         <h2 style="margin-top:0;">Evaluaciones</h2>
+        {% if fm_role_fit %}
+        <section aria-label="Perfil y encaje por rol" style="border:1px solid rgba(148,163,184,0.18);border-radius:16px;padding:1.1rem 1.15rem;margin:0 0 1.1rem;background:rgba(2,6,23,0.32);">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.4rem;margin-bottom:1rem;">
+            <h3 style="margin:0;font-size:1rem;">Perfil y encaje</h3>
+            <span class="subtle" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;font-weight:800;">{{ fm_role_fit.position_label }}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:minmax(240px,300px) 1fr;gap:1rem;align-items:start;">
+            {% with dg='border:1px solid rgba(148,163,184,0.16);border-radius:13px;background:rgba(2,6,23,0.4);padding:1rem;' k3='font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:#6b7c94;font-weight:800;' %}
+            <div style="{{ dg }}">
+              <p style="{{ k3 }}margin:0 0 .8rem;">Nivel del jugador</p>
+              <div style="display:flex;align-items:center;gap:1rem;">
+                <div style="width:96px;height:96px;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;position:relative;background:conic-gradient(#3fbf6a 0 {{ fm_role_fit.level_pct }}%, rgba(148,163,184,.16) {{ fm_role_fit.level_pct }}% 100%);">
+                  <div style="position:absolute;inset:8px;border-radius:50%;background:rgba(2,6,23,0.85);"></div>
+                  <span style="position:relative;font-size:1.7rem;font-weight:900;line-height:1;color:#eef2f8;">{{ fm_role_fit.level|floatformat:1 }}<span style="font-size:.62rem;font-weight:700;color:#6b7c94;">/10</span></span>
+                </div>
+                <div style="flex:1;min-width:0;">
+                  <div style="{{ k3 }}">Potencial</div>
+                  <div style="font-size:1.05rem;font-weight:800;color:#eef2f8;margin:1px 0 .35rem;">{{ fm_role_fit.potential|floatformat:1 }}
+                    {% if fm_role_fit.trend_dir == 'up' %}<span style="color:#3fbf6a;font-weight:800;font-size:.85rem;">↑ +{{ fm_role_fit.trend_abs|floatformat:1 }}</span>{% elif fm_role_fit.trend_dir == 'down' %}<span style="color:#e2564a;font-weight:800;font-size:.85rem;">↓ {{ fm_role_fit.trend|floatformat:1 }}</span>{% endif %}
+                  </div>
+                  <div style="position:relative;height:8px;border-radius:5px;background:rgba(148,163,184,.16);overflow:hidden;">
+                    <div style="position:absolute;left:0;top:0;height:100%;width:{{ fm_role_fit.potential_pct }}%;background:repeating-linear-gradient(90deg,rgba(244,180,0,.5) 0 4px,transparent 4px 8px);"></div>
+                    <div style="position:absolute;left:0;top:0;height:100%;width:{{ fm_role_fit.level_pct }}%;background:#4a86e8;"></div>
+                  </div>
+                  {% if fm_role_fit.headroom %}<div style="{{ k3 }}margin-top:.4rem;">margen de mejora +{{ fm_role_fit.headroom|floatformat:1 }}</div>{% endif %}
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:.5rem;margin-top:.9rem;padding-top:.9rem;border-top:1px solid rgba(148,163,184,0.16);">
+                <div style="display:flex;gap:4px;">
+                  {% for d in "xxx"|make_list %}<span style="width:9px;height:9px;border-radius:50%;background:{% if forloop.counter <= fm_role_fit.confidence.dots %}#f4b400{% else %}rgba(148,163,184,.28){% endif %};"></span>{% endfor %}
+                </div>
+                <div style="font-size:.75rem;color:#9fb0c6;font-weight:700;">Confianza <b style="color:#eef2f8;">{{ fm_role_fit.confidence.label }}</b> · {{ fm_role_fit.confidence.n_evals }} eval.{% if fm_role_fit.confidence.n_matches %} · {{ fm_role_fit.confidence.n_matches }} PJ{% endif %}</div>
+              </div>
+            </div>
+            <div style="{{ dg }}">
+              <p style="{{ k3 }}margin:0 0 .85rem;">Encaje por rol</p>
+              {% if fm_role_fit.roles %}
+              {% for role in fm_role_fit.roles %}
+              <div style="margin-bottom:.7rem;">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+                  <span style="font-size:.86rem;font-weight:700;color:#eef2f8;">{{ role.label }}{% if forloop.first %} <span style="font-size:.58rem;font-weight:900;text-transform:uppercase;letter-spacing:.05em;color:#0b0f17;background:#f4b400;border-radius:5px;padding:1px 6px;vertical-align:middle;">Rol óptimo</span>{% endif %}</span>
+                  <span style="font-size:.85rem;font-weight:900;font-variant-numeric:tabular-nums;color:{% if role.tone == 'good' %}#3fbf6a{% elif role.tone == 'mid' %}#e2a53a{% else %}#e2564a{% endif %};">{{ role.pct }}%</span>
+                </div>
+                <div style="height:9px;border-radius:5px;background:rgba(148,163,184,.14);overflow:hidden;">
+                  <div style="height:100%;border-radius:5px;width:{{ role.pct }}%;background:{% if role.tone == 'good' %}linear-gradient(90deg,#2f9e57,#3fbf6a){% elif role.tone == 'mid' %}linear-gradient(90deg,#c98a26,#e2a53a){% else %}linear-gradient(90deg,#b8404a,#e2564a){% endif %};"></div>
+                </div>
+              </div>
+              {% endfor %}
+              <div style="{{ k3 }}margin-top:.7rem;padding-top:.7rem;border-top:1px solid rgba(148,163,184,0.16);letter-spacing:.02em;text-transform:none;font-weight:600;color:#6b7c94;font-size:.72rem;">Encaje calculado desde sus atributos evaluados, ponderados por rol. A más evaluaciones, más fiable.</div>
+              {% else %}
+              <p class="subtle" style="margin:0;">Aún no hay atributos suficientes para calcular el encaje. Completa una evaluación con puntuaciones por parámetro.</p>
+              {% endif %}
+            </div>
+            {% endwith %}
+          </div>
+        </section>
+        {% endif %}
         {% if fm_eval %}
         <section aria-label="Perfil del jugador (estilo FM)" style="border:1px solid rgba(148,163,184,0.18);border-radius:14px;padding:1rem;margin:0 0 1.1rem;background:rgba(2,6,23,0.28);">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;margin-bottom:.9rem;">
