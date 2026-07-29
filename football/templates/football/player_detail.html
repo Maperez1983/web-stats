@@ -2071,7 +2071,7 @@
         <h3 style="margin-top:1rem;">Evolución y mejora</h3>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem;margin:0.5rem 0 1.1rem;">
           {% with radar=evaluation_chart_context.radar %}
-          {% if radar.has_data %}
+          {% if radar.has_data and not fm_eval %}
           <div style="border:1px solid var(--prod-line,rgba(144,161,185,0.22));border-radius:0.9rem;padding:0.8rem;">
             <div class="subtle" style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.2rem;">Perfil (última evaluación)</div>
             <svg viewBox="0 0 220 220" style="width:100%;max-width:250px;display:block;margin:0 auto;" role="img" aria-label="Radar de la última evaluación">
