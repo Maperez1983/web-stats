@@ -1917,6 +1917,31 @@
 
       <section class="card tab-pane" data-pane="seasons">
         <h2 style="margin-top:0;">Temporadas e histórico</h2>
+        {% if player_season_rating.avg or player_match_ratings.matches %}
+        <section aria-label="Nota media y partidos (temporada)" style="border:1px solid rgba(148,163,184,0.18);border-radius:14px;padding:1rem;margin:0 0 1.1rem;background:rgba(2,6,23,0.32);">
+          <div style="display:flex;align-items:center;gap:1.2rem;flex-wrap:wrap;margin-bottom:.85rem;">
+            {% if player_season_rating.avg %}
+            <div style="display:flex;align-items:baseline;gap:.5rem;">
+              <span style="font-size:2rem;font-weight:900;line-height:1;color:{% if player_season_rating.avg >= 7 %}#3fbf6a{% elif player_season_rating.avg >= 6 %}#e2a53a{% else %}#e2564a{% endif %};">{{ player_season_rating.avg|floatformat:1 }}</span>
+              <div><div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:#6b7c94;font-weight:800;">Nota media</div><div style="font-size:.72rem;color:#9fb0c6;">temporada · {{ player_season_rating.count }} partido{{ player_season_rating.count|pluralize }}</div></div>
+            </div>
+            {% endif %}
+            {% if player_match_ratings.form %}<div style="display:flex;align-items:baseline;gap:.4rem;"><span style="font-size:1.3rem;font-weight:900;color:#eef2f8;">{{ player_match_ratings.form|floatformat:1 }}</span><span style="font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:#6b7c94;font-weight:800;">Forma (5)</span></div>{% endif %}
+            <span class="subtle" style="font-size:.72rem;margin-left:auto;">Se acumula al cerrar cada partido</span>
+          </div>
+          {% if player_match_ratings.matches %}
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+            {% for m in player_match_ratings.matches %}
+            <a href="{% url 'player-match-stats' player.id m.match_id %}" style="text-decoration:none;flex:0 0 auto;min-width:88px;border:1px solid rgba(148,163,184,0.18);border-radius:11px;padding:.45rem .55rem;background:rgba(2,6,23,0.4);text-align:center;">
+              <div style="font-size:1.25rem;font-weight:900;line-height:1;color:{% if m.tone == 'good' %}#3fbf6a{% elif m.tone == 'mid' %}#e2a53a{% else %}#e2564a{% endif %};">{{ m.rating|floatformat:1 }}</div>
+              <div style="font-size:.64rem;color:#9fb0c6;margin-top:.25rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:84px;">{{ m.opponent }}</div>
+              <div style="font-size:.56rem;color:#6b7c94;">{% if m.date %}{{ m.date|date:'d/m' }}{% endif %}{% if m.goals %} · {{ m.goals }}G{% endif %}{% if m.assists %} · {{ m.assists }}A{% endif %}</div>
+            </a>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </section>
+        {% endif %}
         <p class="subtle" style="margin-top:0;">
           La ficha del jugador permanece aunque cambie de estado. Cada temporada conserva su pertenencia, confirmación y documentos filtrados por año.
         </p>
@@ -2517,7 +2542,10 @@
         <section aria-label="Rating por partido (automático)" style="border:1px solid rgba(148,163,184,0.18);border-radius:14px;padding:1rem;margin:0 0 1.1rem;background:rgba(2,6,23,0.32);">
           <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.5rem;margin-bottom:.85rem;">
             <h3 style="margin:0;font-size:1rem;">Rating por partido <span style="font-size:.62rem;color:#6b7c94;font-weight:800;text-transform:uppercase;letter-spacing:.08em;">auto · estilo FM</span></h3>
-            {% if player_match_ratings.form %}<span style="font-size:.78rem;color:#9fb0c6;font-weight:700;">Forma (últimos 5): <b style="color:#eef2f8;font-size:1.05rem;">{{ player_match_ratings.form|floatformat:1 }}</b></span>{% endif %}
+            <span style="font-size:.78rem;color:#9fb0c6;font-weight:700;display:flex;gap:1rem;flex-wrap:wrap;">
+              {% if player_season_rating.avg %}<span>Media temporada: <b style="color:#eef2f8;font-size:1.05rem;">{{ player_season_rating.avg|floatformat:1 }}</b> <span style="color:#6b7c94;">({{ player_season_rating.count }} PJ)</span></span>{% endif %}
+              {% if player_match_ratings.form %}<span>Forma (últimos 5): <b style="color:#eef2f8;font-size:1.05rem;">{{ player_match_ratings.form|floatformat:1 }}</b></span>{% endif %}
+            </span>
           </div>
           <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
             {% for m in player_match_ratings.matches %}

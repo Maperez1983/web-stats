@@ -75605,9 +75605,23 @@ def _result_based_match_rating(primary_team, player, match, source):
     }
 
 
+def _frozen_match_rating(player, match):
+    """Nota congelada (guardada al cerrar el partido) de un jugador, o None."""
+    try:
+        v = (
+            PlayerStatistic.objects.filter(
+                player=player, match=match, name="rating", context="auto-rating"
+            ).values_list("value", flat=True).first()
+        )
+        return round(float(v), 1) if v is not None else None
+    except Exception:
+        return None
+
+
 def _compute_match_rating(primary_team, player, match):
     """Rating de una actuación según la fuente del partido: acciones en vivo, edición manual, o
-    solo resultado. Devuelve dict (rating/method/confidence/...) o None si el jugador no participó."""
+    solo resultado. Si el partido ya se cerró, PREFIERE la nota congelada (queda fija aunque se
+    editen datos luego). Devuelve dict o None si el jugador no participó (sin minutos)."""
     if not primary_team or not player or not match:
         return None
     source = str(getattr(match, "stats_source", "") or "")
@@ -75617,15 +75631,27 @@ def _compute_match_rating(primary_team, player, match):
         except Exception:
             payload = None
         rating = _auto_match_rating_from_stats(payload, getattr(player, "position", ""))
-        if rating is None:
-            return None
-        return {
+        info = None if rating is None else {
             "rating": rating, "method": "live", "method_label": "en vivo", "confidence": "alta",
             "goals": int((payload or {}).get("goals", 0) or 0),
             "assists": int((payload or {}).get("assists", 0) or 0),
-            "tone": "good" if rating >= 7 else ("mid" if rating >= 6 else "low"),
         }
-    return _result_based_match_rating(primary_team, player, match, source)
+    else:
+        info = _result_based_match_rating(primary_team, player, match, source)
+    # Nota congelada: manda si el partido ya está cerrado.
+    frozen = _frozen_match_rating(player, match)
+    if frozen is not None:
+        if info is None:
+            info = {"rating": frozen, "method": "frozen", "method_label": "cerrado",
+                    "confidence": "—", "goals": 0, "assists": 0}
+        else:
+            info["rating"] = frozen
+        info["frozen"] = True
+    if info is None:
+        return None
+    r = info["rating"]
+    info["tone"] = "good" if r >= 7 else ("mid" if r >= 6 else "low")
+    return info
 
 
 def _match_participants(primary_team, match):
@@ -76817,6 +76843,20 @@ def player_detail_page(request, player_id):
             player_match_ratings = _build_player_match_ratings(primary_team, player, limit=6)
         except Exception:
             player_match_ratings = {"matches": [], "form": None, "best": None}
+        # Nota media de temporada: se "engorda" a partir de las notas congeladas al cerrar cada partido.
+        player_season_rating = {"avg": None, "count": 0}
+        try:
+            from django.db.models import Avg, Count
+            _rq = PlayerStatistic.objects.filter(player=player, name="rating", context="auto-rating")
+            if selected_club_season_id:
+                _rq = _rq.filter(match__club_season_id=selected_club_season_id)
+            _agg = _rq.aggregate(a=Avg("value"), n=Count("id"))
+            player_season_rating = {
+                "avg": round(float(_agg["a"]), 1) if _agg.get("a") is not None else None,
+                "count": int(_agg.get("n") or 0),
+            }
+        except Exception:
+            player_season_rating = {"avg": None, "count": 0}
         player_traits_catalog, player_traits_chips = _player_traits_context(player)
         evaluation_chart_context = _player_evaluation_chart_context(player_evaluations)
         latest_evaluation_improvement_rows = (
@@ -77604,6 +77644,7 @@ def player_detail_page(request, player_id):
                 "fm_eval": fm_eval,
                 "fm_role_fit": fm_role_fit,
                 "player_match_ratings": player_match_ratings,
+                "player_season_rating": player_season_rating,
                 "player_traits_catalog": player_traits_catalog,
                 "player_traits_chips": player_traits_chips,
                 "work_focus": work_focus,
