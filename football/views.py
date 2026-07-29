@@ -57608,29 +57608,63 @@ def regenerate_task_previews_action(request):
  h1{font-size:1.35rem;margin:0 0 8px;} .kick{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:#93a4c3;font-weight:800;}
  p{color:#cbd5e1;line-height:1.5;} .muted{color:#93a4c3;font-size:.9rem;}
  .btn{display:inline-flex;align-items:center;gap:.4rem;border:1px solid rgba(52,211,153,.45);background:rgba(52,211,153,.16);color:#bbf7d0;border-radius:11px;padding:.7rem 1.1rem;font-size:1rem;font-weight:800;cursor:pointer;text-decoration:none;}
- .log{margin-top:16px;font-size:.9rem;color:#93a4c3;white-space:pre-line;}
+ .bar{height:12px;border-radius:999px;background:rgba(148,163,184,.16);overflow:hidden;margin:16px 0 6px;display:none;}
+ .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#34d399,#10b981);transition:width .3s;}
+ iframe.wk{position:fixed;left:-10000px;top:0;width:1280px;height:840px;border:0;}
 </style></head><body><div class="wrap">
  <div class="kick">Mantenimiento · Entrenamiento</div>
  <h1>🛠️ Recuperar miniaturas (re-render del editor)</h1>
  <div id="box"></div>
+ <div class="bar" id="barwrap"><i id="fill"></i></div>
 </div>
+<iframe class="wk" id="wk" title="editor"></iframe>
 <script>
  var TEAM=__TEAM__, DONE=__DONE__, ONLY=__ONLY__;
- var box=document.getElementById('box');
- function editUrl(id, rest){return '/coach/sesiones/tarea/'+id+'/?tab=edit&edit_tab=graphic&format=club&team='+TEAM+'&regen_batch='+encodeURIComponent(rest||'');}
- if(DONE){ box.innerHTML='<p>✅ <strong>Recuperación terminada.</strong> Recarga una ficha con Cmd+Shift+R para verlo.</p><p class="muted">Si quedara alguna vacía, vuelve a lanzar.</p><p><a class="btn" href="/coach/sesiones/miniaturas/regenerar/?client=1&team='+TEAM+'">↻ Repasar de nuevo</a></p>'; }
- else {
-   box.innerHTML='<p>Buscando tareas con la miniatura vacía…</p>';
-   var proceed=function(ids){
-     if(!ids.length){ box.innerHTML='<p>✅ No hay miniaturas vacías que recuperar.</p>'; return; }
-     box.innerHTML='<p>Voy a recuperar <strong>'+ids.length+'</strong> tarea(s) abriendo su editor y guardando (una a una). <strong>No cierres esta pestaña</strong>; irá navegando sola.</p><p class="muted">Empezando…</p>';
-     var first=ids.shift(); setTimeout(function(){ location.href=editUrl(first, ids.join(',')); }, 1200);
-   };
-   if(ONLY){ proceed([ONLY]); }
-   else {
-     fetch(window.location.pathname+'?list=1&team='+TEAM, {credentials:'same-origin'}).then(function(r){return r.json();}).then(function(d){ proceed((d&&d.ids)||[]); }).catch(function(e){ box.innerHTML='<p>Error obteniendo la lista: '+e.message+'</p>'; });
-   }
+ var box=document.getElementById('box'), frame=document.getElementById('wk'), fill=document.getElementById('fill'), barwrap=document.getElementById('barwrap');
+ var sleep=function(ms){return new Promise(function(r){setTimeout(r,ms);});};
+ function directUrl(id){return '/coach/sesiones/tareas/'+id+'/editar/?team='+TEAM+'&embedded=1';}
+ function processOne(id){
+   return new Promise(function(resolve){
+     var handled=false, settled=false, to=null;
+     function done(){ if(settled) return; settled=true; if(to){clearTimeout(to);} resolve(); }
+     frame.onload=function(){
+       if(handled) return; handled=true;
+       (async function(){
+         try{
+           var t0=Date.now();
+           while(Date.now()-t0<35000){
+             try{ var iw=frame.contentWindow, idoc=frame.contentDocument;
+               if(iw && iw.__WEBSTATS_TPAD_READY===true && idoc.getElementById('task-builder-save-top')){ break; }
+             }catch(e){}
+             await sleep(500);
+           }
+           await sleep(6500); /* margen para avatares/objetos del editor */
+           try{ var b=frame.contentDocument.getElementById('task-builder-save-top'); if(b){ b.click(); } }catch(e){}
+           await sleep(8000); /* guardado (buildPreviewData HD + POST) */
+         }catch(e){}
+         done();
+       })();
+     };
+     to=setTimeout(done, 75000); /* failsafe: nunca colgar la cadena */
+     frame.src=directUrl(id);
+   });
  }
+ async function run(ids){
+   if(!ids.length){ box.innerHTML='<p>✅ No hay miniaturas vacías que recuperar.</p>'; return; }
+   var total=ids.length; barwrap.style.display='block';
+   box.innerHTML='<p>Recuperando <strong>'+total+'</strong> tarea(s) desde el editor. <strong>No cierres esta pestaña.</strong></p><p class="muted" id="st">Empezando…</p>';
+   var st=document.getElementById('st');
+   for(var i=0;i<total;i++){
+     st.textContent='Procesando '+(i+1)+'/'+total+' · tarea #'+ids[i]+'…';
+     fill.style.width=Math.round(i/total*100)+'%';
+     await processOne(ids[i]);
+   }
+   fill.style.width='100%';
+   location.href='/coach/sesiones/miniaturas/regenerar/?client=1&done=1&team='+TEAM;
+ }
+ if(DONE){ box.innerHTML='<p>✅ <strong>Recuperación terminada.</strong> Recarga una ficha con Cmd+Shift+R para verlo.</p><p class="muted">Si quedara alguna vacía, vuelve a lanzar.</p><p><a class="btn" href="/coach/sesiones/miniaturas/regenerar/?client=1&team='+TEAM+'">↻ Repasar de nuevo</a></p>'; }
+ else if(ONLY){ run([ONLY]); }
+ else { box.innerHTML='<p>Buscando tareas con la miniatura vacía…</p>'; fetch(window.location.pathname+'?list=1&team='+TEAM,{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(d){ run((d&&d.ids)||[]); }).catch(function(e){ box.innerHTML='<p>Error obteniendo la lista: '+e.message+'</p>'; }); }
 </script></body></html>"""
             .replace("__TEAM__", str(_team_id))
             .replace("__DONE__", "true" if _done else "false")
