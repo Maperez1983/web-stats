@@ -45,5 +45,9 @@ En impresión el folio ocupa la página completa sin sombra ni márgenes de pant
     body.report-a4 .pb-view-toggle,
     body.report-a4 .pb-reset,
     body.report-a4 .pb-head-actions{ display:none !important; }
+    /* Evita paginas en blanco: deja que las secciones (y el listado) PARTAN entre paginas en vez de
+       saltar enteras; y da al campo una altura fija (sin aspect-ratio, que a veces calcula de mas). */
+    body.report-a4 section, body.report-a4 .pb-list, body.report-a4 .pb-list-row{ page-break-inside:auto !important; break-inside:auto !important; }
+    body.report-a4 .pb-field{ aspect-ratio:auto !important; height:140mm !important; break-inside:avoid; }
   }
 </style>
