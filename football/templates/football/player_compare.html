@@ -43,6 +43,7 @@
     <div class="app-shell">
       {% include 'football/includes/dragon_nav.html' %}
       <main class="cp-wrap">
+        {% include 'football/includes/_zone_subnav.html' with zone='equipo' %}
         <h1 class="cp-h1">Comparar jugadores</h1>
         <p class="cp-sub">{{ primary_team.display_name|default:primary_team.name }} · radar de atributos superpuesto</p>
 

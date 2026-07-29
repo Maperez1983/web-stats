@@ -770,6 +770,7 @@
   </head>
   <body class="prod-commercial">
     <main class="page">
+      {% include 'football/includes/_zone_subnav.html' with zone='equipo' %}
       {% include 'football/includes/dragon_nav.html' %}
       <header class="top">
         <div>
@@ -789,17 +790,8 @@
             <summary class="button">📋 Informes ▾</summary>
             <div class="export-menu-list">
               <a href="{% url 'coach-upload-avatars' %}">🖼️ Subir avatares de jugador</a>
-              <a href="{% url 'squad-planner' %}">🧩 Planificador de plantilla</a>
               <a href="{% url 'coach-squad-report' %}" target="_blank" rel="noopener">Estado de plantilla (por fases)</a>
               <a href="{% url 'coach-microcycle-report' %}" target="_blank" rel="noopener">Evaluación de microciclo</a>
-              <a href="{% url 'training-load' %}">🗓️ Carga semanal (entreno)</a>
-              <a href="{% url 'medical-center' %}">🩺 Centro médico</a>
-              <a href="{% url 'player-compare' %}">⚖️ Comparar jugadores</a>
-              <a href="{% url 'coach-inbox' %}">📥 Bandeja (avisos)</a>
-              <a href="{% url 'development' %}">📈 Plan de desarrollo</a>
-              <a href="{% url 'contracts' %}">📝 Contratos y renovaciones</a>
-              <a href="{% url 'tactics-roles' %}">♟️ Táctica · roles y encaje</a>
-              <a href="{% url 'team-page' %}">🏳️ Ficha del equipo</a>
               <a href="{% url 'coach-next-match-report' %}" target="_blank" rel="noopener">Próximo partido</a>
             </div>
           </details>

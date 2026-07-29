@@ -41,6 +41,7 @@
     <div class="app-shell">
       {% include 'football/includes/dragon_nav.html' %}
       <main class="tm-wrap">
+        {% include 'football/includes/_zone_subnav.html' with zone='equipo' %}
         <div class="tm-head">
           {% if crest %}<img class="tm-crest" src="{{ crest }}" alt="" />{% else %}<div class="tm-crest ph">{{ team.name|slice:':1'|upper }}</div>{% endif %}
           <div style="flex:1;min-width:0;">

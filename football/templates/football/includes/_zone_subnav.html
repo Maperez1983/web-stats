@@ -1,0 +1,42 @@
+{% comment %}Sub-navegación por zona (estilo FM): pon las vistas de cada zona a un clic, fuera del
+cajón "Informes". Uso: {% include 'football/includes/_zone_subnav.html' with zone='equipo' %}.
+Auto-resalta la página activa con nav_url_name (global). Seguro si falta: solo no resalta.{% endcomment %}
+<style>
+  .zone-subnav{display:flex;gap:.35rem;overflow-x:auto;padding:.1rem 0 .8rem;margin:0 0 .4rem;-webkit-overflow-scrolling:touch;align-items:center;}
+  .zone-subnav::-webkit-scrollbar{height:0;}
+  .zone-subnav .zt{flex:0 0 auto;font-size:.64rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#6d8098;padding-right:.35rem;}
+  .zone-subnav a{flex:0 0 auto;font-size:.82rem;font-weight:700;color:#9fb0c6;background:rgba(148,163,184,.06);border:1px solid rgba(148,163,184,.22);border-radius:9px;padding:.44rem .8rem;text-decoration:none;white-space:nowrap;}
+  .zone-subnav a:hover{border-color:rgba(148,163,184,.42);color:#eef2f8;}
+  .zone-subnav a.on{color:#0b0f17;background:#e8b84b;border-color:#e8b84b;}
+</style>
+{% if zone == 'equipo' %}
+<nav class="zone-subnav" aria-label="Equipo">
+  <span class="zt">👥 Equipo</span>
+  <a href="{% url 'coach-roster' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'coach-roster' %}on{% endif %}">Plantilla</a>
+  <a href="{% url 'squad-planner' %}" class="{% if request.resolver_match.url_name == 'squad-planner' %}on{% endif %}">Planificador</a>
+  <a href="{% url 'medical-center' %}" class="{% if request.resolver_match.url_name == 'medical-center' %}on{% endif %}">Centro médico</a>
+  <a href="{% url 'contracts' %}" class="{% if request.resolver_match.url_name == 'contracts' %}on{% endif %}">Contratos</a>
+  <a href="{% url 'development' %}" class="{% if request.resolver_match.url_name == 'development' %}on{% endif %}">Desarrollo</a>
+  <a href="{% url 'player-compare' %}" class="{% if request.resolver_match.url_name == 'player-compare' %}on{% endif %}">Comparar</a>
+  <a href="{% url 'team-page' %}" class="{% if request.resolver_match.url_name == 'team-page' %}on{% endif %}">Ficha equipo</a>
+</nav>
+{% elif zone == 'tactica' %}
+<nav class="zone-subnav" aria-label="Táctica">
+  <span class="zt">♟️ Táctica</span>
+  <a href="{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'coach-tactics' %}on{% endif %}">Pizarra</a>
+  <a href="{% url 'tactics-roles' %}" class="{% if request.resolver_match.url_name == 'tactics-roles' %}on{% endif %}">Roles y encaje</a>
+</nav>
+{% elif zone == 'entreno' %}
+<nav class="zone-subnav" aria-label="Entrenamiento">
+  <span class="zt">🏋️ Entrenamiento</span>
+  <a href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'sessions' %}on{% endif %}">Sesiones</a>
+  <a href="{% url 'training-load' %}" class="{% if request.resolver_match.url_name == 'training-load' %}on{% endif %}">Carga semanal</a>
+</nav>
+{% elif zone == 'direccion' %}
+<nav class="zone-subnav" aria-label="Dirección">
+  <span class="zt">🔎 Dirección</span>
+  <a href="{% url 'scouting-board' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'scouting-board' %}on{% endif %}">Ojeo</a>
+  <a href="{% url 'scouting-shortlist' %}" class="{% if request.resolver_match.url_name == 'scouting-shortlist' %}on{% endif %}">Shortlist</a>
+  <a href="{% url 'rival-players-index' %}" class="{% if request.resolver_match.url_name == 'rival-players-index' %}on{% endif %}">Rivales</a>
+</nav>
+{% endif %}

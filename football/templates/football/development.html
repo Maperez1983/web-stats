@@ -37,6 +37,7 @@
     <div class="app-shell">
       {% include 'football/includes/dragon_nav.html' %}
       <main class="dv-wrap">
+        {% include 'football/includes/_zone_subnav.html' with zone='equipo' %}
         <h1 class="dv-h1">Plan de desarrollo</h1>
         <p class="dv-sub">{{ primary_team.display_name|default:primary_team.name }} · objetivos de trabajo y progresión de atributos</p>
 

@@ -40,6 +40,7 @@
     <div class="app-shell">
       {% include 'football/includes/dragon_nav.html' %}
       <main class="tk-wrap">
+        {% include 'football/includes/_zone_subnav.html' with zone='tactica' %}
         <h1 class="tk-h1">Táctica · roles y funciones</h1>
         <p class="tk-sub">{{ primary_team.display_name|default:primary_team.name }} · elige formación y rol por puesto · el % es el encaje del jugador al rol</p>
 

@@ -37,6 +37,7 @@
     <div class="app-shell">
       {% include 'football/includes/dragon_nav.html' %}
       <main class="ct-wrap">
+        {% include 'football/includes/_zone_subnav.html' with zone='equipo' %}
         <h1 class="ct-h1">Contratos y renovaciones</h1>
         <p class="ct-sub">{{ primary_team.display_name|default:primary_team.name }} · plantilla por vencimiento de contrato</p>
 
