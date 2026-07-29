@@ -45771,19 +45771,24 @@ def _clone_training_session(source_session, target_microcycle, target_date=None,
 
 
 def _get_or_create_session_library_microcycle(team):
-    """Microciclo-biblioteca del equipo donde viven las PLANTILLAS de sesión (y tareas)."""
-    from .library_repositories import LIBRARY_MICROCYCLE_MARKER as _LMM
+    """Microciclo-biblioteca DEDICADO del equipo para las PLANTILLAS de sesión.
 
-    today = timezone.localdate()
-    week_start = today - timedelta(days=today.weekday())
-    week_end = week_start + timedelta(days=6)
+    Usa una semana-centinela lejana (año 2000) para NO colisionar jamás con los microciclos
+    reales de entrenamiento (get_or_create por semana real agarraría el microciclo de la
+    semana en curso y lo convertiría en 'biblioteca'). Así las plantillas viven aparte.
+    """
+    from .library_repositories import LIBRARY_MICROCYCLE_MARKER as _LMM
+    from datetime import date as _date
+
+    sentinel_start = _date(2000, 1, 3)  # lunes lejano, nunca es una semana de entrenamiento real
+    sentinel_end = _date(2000, 1, 9)
     mc, _created = TrainingMicrocycle.objects.get_or_create(
         team=team,
-        week_start=week_start,
+        week_start=sentinel_start,
         defaults={
-            "week_end": week_end,
-            "title": "Biblioteca",
-            "objective": "Repositorio de sesiones y tareas",
+            "week_end": sentinel_end,
+            "title": "Biblioteca de sesiones",
+            "objective": "Plantillas de sesión reutilizables",
             "status": TrainingMicrocycle.STATUS_DRAFT,
             "notes": _LMM,
         },
