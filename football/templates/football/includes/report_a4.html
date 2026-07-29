@@ -37,5 +37,13 @@ En impresión el folio ocupa la página completa sin sombra ni márgenes de pant
   @media print{
     body.report-a4{ background:#fff; padding:0; }
     body.report-a4 .a4-sheet{ box-shadow:none; width:auto; max-width:none; min-height:0; padding:0; border-radius:0; margin:0; }
+    /* Al imprimir / guardar como PDF: fuera los controles de interfaz y la pizarra fija en CAMPO,
+       para que el PDF salga limpio (como el folio, sin barra ni toggle). */
+    body.report-a4 .no-print,
+    body.report-a4 .pb-view-toggle,
+    body.report-a4 .pb-reset,
+    body.report-a4 .pb-head-actions{ display:none !important; }
+    body.report-a4 .pb-field{ display:block !important; }
+    body.report-a4 .pb-list{ display:none !important; }
   }
 </style>
