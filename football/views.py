@@ -57161,6 +57161,64 @@ def regenerate_task_previews_action(request):
                 {"task_id": int(_rone), "result": _r, "was_empty": _before_empty, "now_empty": _after_empty}
             )
 
+    # Lista de IDs de tareas cuya miniatura ACTUAL está vacía (a recuperar con el re-render cliente).
+    if request.method == "GET" and str(request.GET.get("list") or "").strip() in {"1", "true", "yes"}:
+        _ids = []
+        for _t in base_qs.only("id", "task_preview_image", "tactical_layout"):
+            try:
+                if _preview_is_pitch_only(_current_preview_bytes(_t)):
+                    _ids.append(int(_t.id))
+            except Exception:
+                continue
+        return JsonResponse({"ids": _ids, "count": len(_ids)})
+
+    # Lanzadera del re-render CLIENTE: encadena por navegación las fichas en modo edición gráfica,
+    # que se auto-guardan (ver script regen_batch en session_task_detail.html) reproduciendo las
+    # fichas con el motor del navegador (que SÍ dibuja los tokens). Recupera las miniaturas vacías.
+    if request.method == "GET" and str(request.GET.get("client") or "").strip() in {"1", "true", "yes"}:
+        _team_id = int(primary_team.id)
+        _done = str(request.GET.get("done") or "").strip() in {"1", "true", "yes"}
+        _only = _parse_int(request.GET.get("only"))
+        _html = (
+            """<!doctype html><html lang="es"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Recuperar miniaturas · 2J</title>
+<style>
+ body{margin:0;background:#050b1c;color:#e5e7eb;font-family:"Avenir Next","Inter","Segoe UI",system-ui,sans-serif;}
+ .wrap{max-width:640px;margin:0 auto;padding:34px 20px;}
+ h1{font-size:1.35rem;margin:0 0 8px;} .kick{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:#93a4c3;font-weight:800;}
+ p{color:#cbd5e1;line-height:1.5;} .muted{color:#93a4c3;font-size:.9rem;}
+ .btn{display:inline-flex;align-items:center;gap:.4rem;border:1px solid rgba(52,211,153,.45);background:rgba(52,211,153,.16);color:#bbf7d0;border-radius:11px;padding:.7rem 1.1rem;font-size:1rem;font-weight:800;cursor:pointer;text-decoration:none;}
+ .log{margin-top:16px;font-size:.9rem;color:#93a4c3;white-space:pre-line;}
+</style></head><body><div class="wrap">
+ <div class="kick">Mantenimiento · Entrenamiento</div>
+ <h1>🛠️ Recuperar miniaturas (re-render del editor)</h1>
+ <div id="box"></div>
+</div>
+<script>
+ var TEAM=__TEAM__, DONE=__DONE__, ONLY=__ONLY__;
+ var box=document.getElementById('box');
+ function editUrl(id, rest){return '/coach/sesiones/tarea/'+id+'/?tab=edit&edit_tab=graphic&format=club&team='+TEAM+'&regen_batch='+encodeURIComponent(rest||'');}
+ if(DONE){ box.innerHTML='<p>✅ <strong>Recuperación terminada.</strong> Recarga una ficha con Cmd+Shift+R para verlo.</p><p class="muted">Si quedara alguna vacía, vuelve a lanzar.</p><p><a class="btn" href="/coach/sesiones/miniaturas/regenerar/?client=1&team='+TEAM+'">↻ Repasar de nuevo</a></p>'; }
+ else {
+   box.innerHTML='<p>Buscando tareas con la miniatura vacía…</p>';
+   var proceed=function(ids){
+     if(!ids.length){ box.innerHTML='<p>✅ No hay miniaturas vacías que recuperar.</p>'; return; }
+     box.innerHTML='<p>Voy a recuperar <strong>'+ids.length+'</strong> tarea(s) abriendo su editor y guardando (una a una). <strong>No cierres esta pestaña</strong>; irá navegando sola.</p><p class="muted">Empezando…</p>';
+     var first=ids.shift(); setTimeout(function(){ location.href=editUrl(first, ids.join(',')); }, 1200);
+   };
+   if(ONLY){ proceed([ONLY]); }
+   else {
+     fetch(window.location.pathname+'?list=1&team='+TEAM, {credentials:'same-origin'}).then(function(r){return r.json();}).then(function(d){ proceed((d&&d.ids)||[]); }).catch(function(e){ box.innerHTML='<p>Error obteniendo la lista: '+e.message+'</p>'; });
+   }
+ }
+</script></body></html>"""
+            .replace("__TEAM__", str(_team_id))
+            .replace("__DONE__", "true" if _done else "false")
+            .replace("__ONLY__", str(int(_only)) if _only else "0")
+        )
+        return HttpResponse(_html)
+
     if request.method == "POST" and str(request.POST.get("mode") or "").strip() == "restore":
         # Restauración por CURSOR: solo toca tareas cuya miniatura ACTUAL está vacía (mi estropicio).
         try:

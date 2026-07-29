@@ -3801,5 +3801,40 @@
       }
     </script>
     <script type="module" src="{% static 'football/js/session_task_detail_3d.js' %}?v=task-detail-3d-stadium-v7-debug-portal{% if static_build_id %}-{{ static_build_id|urlencode }}{% endif %}"></script>
+    <script>
+      /* Re-render por LOTES de miniaturas: si la URL trae ?regen_batch=<ids>, esta ficha (en modo
+         edición gráfica) espera a que cargue el editor, pulsa "Guardar" del gráfico (regenera la
+         miniatura con el motor del navegador, que SÍ dibuja las fichas) y salta a la siguiente. */
+      (function(){
+        try{
+          var params = new URLSearchParams(location.search);
+          if(params.get('regen_batch') === null) return;
+          var tab = "{{ active_task_tab|escapejs }}", gtab = "{{ active_task_edit_tab|escapejs }}";
+          if(tab !== 'edit' || gtab !== 'graphic') return;
+          var team = params.get('team') || '';
+          var ids = (params.get('regen_batch') || '').split(',').map(function(s){return s.trim();}).filter(Boolean);
+          var sleep = function(ms){return new Promise(function(r){setTimeout(r,ms);});};
+          var goNext = function(){
+            if(ids.length === 0){ location.href = '/coach/sesiones/miniaturas/regenerar/?client=1&done=1' + (team?('&team='+encodeURIComponent(team)):''); return; }
+            var next = ids.shift(); var rest = ids.join(',');
+            location.href = '/coach/sesiones/tarea/' + encodeURIComponent(next) + '/?tab=edit&edit_tab=graphic&format=club' + (team?('&team='+encodeURIComponent(team)):'') + '&regen_batch=' + encodeURIComponent(rest);
+          };
+          (async function(){
+            try{
+              var t0 = Date.now();
+              while(Date.now()-t0 < 25000){
+                if(window.__WEBSTATS_TPAD_READY === true && document.getElementById('graphic-save-btn')) break;
+                await sleep(400);
+              }
+              await sleep(6500); /* margen para avatares/objetos */
+              var btn = document.getElementById('graphic-save-btn');
+              if(btn){ try{ btn.click(); }catch(e){} }
+              await sleep(6000); /* espera al guardado AJAX */
+            }catch(e){}
+            goNext();
+          })();
+        }catch(e){}
+      })();
+    </script>
   </body>
 </html>
