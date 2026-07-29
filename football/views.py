@@ -50738,9 +50738,16 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
                 elif _raw_sel.isdigit() and int(_raw_sel) in _season_ids:
                     library_season_selected = int(_raw_sel)
                 else:
-                    # Por defecto "Todas" (banco reutilizable: se ve todo y el entrenador filtra).
-                    library_season_selected = "all"
-                _ = _active_id  # (disponible por si se quiere resaltar la activa en el futuro)
+                    # Por defecto, la temporada ACTUAL (2026/2027): la marcada activa o, si no hay,
+                    # la más reciente (`_season_opts` viene ordenado por -is_active,-start_date).
+                    # "Todas" queda como opción explícita para el entrenador.
+                    _def_sid = _active_id
+                    if not _def_sid and _season_opts:
+                        try:
+                            _def_sid = int(_season_opts[0]["id"])
+                        except Exception:
+                            _def_sid = None
+                    library_season_selected = int(_def_sid) if _def_sid else "all"
 
                 if library_season_selected == "none":
                     task_library = [t for t in task_library if _task_season_id(t) == 0]
@@ -51060,6 +51067,9 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
     if planner_tables_ready:
         inbox_microcycle = _get_or_create_inbox_microcycle(primary_team)
         trash_microcycle = _get_or_create_trash_microcycle(primary_team)
+        _season_obj, _season_start, _season_end = _selected_club_season_bounds(
+            request, workspace=_get_active_workspace(request)
+        )
         planning_microcycles_qs = (
             TrainingMicrocycle.objects.filter(team=primary_team)
             .exclude(week_start=INBOX_MICROCYCLE_WEEK_START)
@@ -51072,6 +51082,13 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
             )
             .order_by("-week_start", "-id")
         )
+        # Por defecto, solo microciclos de la temporada ACTUAL (2026/2027): acotamos por el INICIO
+        # de la temporada (no ponemos tope superior para no ocultar semanas FUTURAS del plan) y solo
+        # si deja resultados (evita vaciar la vista si las fechas de la temporada no cuadran).
+        if _season_obj and _season_start:
+            _mc_season = planning_microcycles_qs.filter(week_start__gte=_season_start)
+            if _mc_season.exists():
+                planning_microcycles_qs = _mc_season
         planning_microcycles = list(planning_microcycles_qs[:24])
         planning_session_qs = (
             TrainingSession.objects.select_related("microcycle")
@@ -51079,9 +51096,6 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
             .order_by("-microcycle__week_start", "session_date", "start_time", "order", "id")
         )
         planning_session_qs = _exclude_library_sessions_qs(planning_session_qs)
-        _season_obj, _season_start, _season_end = _selected_club_season_bounds(
-            request, workspace=_get_active_workspace(request)
-        )
         if _season_obj:
             planning_session_qs = _apply_club_season_filter(
                 planning_session_qs, _season_obj, "session_date", _season_start, _season_end

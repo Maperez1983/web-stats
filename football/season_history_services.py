@@ -23,7 +23,14 @@ def active_club_season(workspace):
     season = getattr(workspace, 'active_season', None)
     if season and bool(getattr(season, 'is_active', True)):
         return season
-    return None
+    # Fallback robusto: si el workspace no tiene una temporada activa marcada (o apunta a una
+    # inactiva/None), usamos la MÁS RECIENTE (por is_active y luego start_date). Así el DEFAULT
+    # es siempre la temporada actual (p.ej. 2026/2027) en vez de None -> que mezclaría todas.
+    return (
+        WorkspaceSeason.objects.filter(workspace=workspace)
+        .order_by('-is_active', '-start_date', '-id')
+        .first()
+    )
 
 
 def club_season_options_for_workspace(workspace, *, limit=12):
