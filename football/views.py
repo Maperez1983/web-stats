@@ -5867,6 +5867,147 @@ def _build_federative_squad_report(request, primary_team):
     }
 
 
+# --- Planificador de plantilla (estilo FM): roles de plantilla + depth chart + fichas/contratos ---
+SQUAD_ROLE_CHOICES = (
+    ("clave", "Clave"),
+    ("titular", "Titular"),
+    ("rotacion", "Rotación"),
+    ("promesa", "Promesa"),
+    ("suplente", "Suplente"),
+    ("prescindible", "Prescindible"),
+)
+SQUAD_ROLE_LABELS = dict(SQUAD_ROLE_CHOICES)
+SQUAD_ROLE_COLORS = {
+    "clave": "#f4b400", "titular": "#3fbf6a", "rotacion": "#4a86e8",
+    "promesa": "#2dd4bf", "suplente": "#6b7c94", "prescindible": "#e2564a",
+}
+_SQUAD_PLANNER_LINES = (
+    ("Portería", ("POR",)),
+    ("Defensa", ("LD", "DFC", "LI")),
+    ("Medio", ("MCD", "MC", "MP")),
+    ("Ataque", ("ED", "EI", "DC")),
+)
+
+
+def _player_level_value(evaluation):
+    """Nivel 0-10 del jugador para el planificador: media de atributos de la última
+    evaluación cerrada, o su overall_rating. None si no hay datos."""
+    if evaluation is None:
+        return None
+    m = _fm_scores_mean(getattr(evaluation, "parameter_scores", None))
+    if m is not None:
+        return round(m, 1)
+    try:
+        v = getattr(evaluation, "overall_rating", None)
+        if v is not None:
+            return round(float(v), 1)
+    except (TypeError, ValueError):
+        pass
+    return None
+
+
+def _auto_squad_role(level, age):
+    """Rol de plantilla propuesto automáticamente por nivel y edad. Conservador: no
+    etiqueta 'prescindible' solo (esa es una decisión manual)."""
+    if level is None:
+        return "suplente"
+    if level >= 7.2:
+        return "clave"
+    if age is not None and age <= 20 and level >= 5.8:
+        return "promesa"
+    if level >= 6.3:
+        return "titular"
+    if level >= 5.6:
+        return "rotacion"
+    return "suplente"
+
+
+def _build_squad_planner(request, primary_team):
+    """Depth chart por posición + rol de plantilla (auto o fijado) + estado de fichas/contratos.
+    Reutiliza el informe federativo (fichas + cobertura mínima por puesto)."""
+    if not primary_team:
+        return None
+    fed = _build_federative_squad_report(request, primary_team)
+    players = list(Player.objects.filter(team=primary_team, is_active=True))
+    if not players:
+        return {"fed": fed, "lines": [], "contracts": [], "priorities": [], "sin_posicion": []}
+    pids = [int(p.id) for p in players]
+    latest_by_player = {}
+    try:
+        for ev in (
+            PlayerEvaluation.objects.filter(player_id__in=pids, status=PlayerEvaluation.STATUS_CLOSED)
+            .order_by("player_id", "-evaluated_on", "-updated_at", "-id")
+        ):
+            latest_by_player.setdefault(int(ev.player_id), ev)
+    except Exception:
+        latest_by_player = {}
+    try:
+        injured = set(get_active_injury_player_ids(pids))
+    except Exception:
+        injured = set()
+    today = timezone.localdate()
+    by_req = {}
+    sin_pos = []
+    contracts = []
+    for p in players:
+        ev = latest_by_player.get(int(p.id))
+        level = _player_level_value(ev)
+        age = getattr(p, "age", None)
+        manual = str(getattr(p, "squad_role", "") or "").strip().lower()
+        role = manual if manual in SQUAD_ROLE_LABELS else _auto_squad_role(level, age)
+        req = _squad_requirement_key(getattr(p, "position", "") or getattr(p, "preferred_position", ""))
+        ce = getattr(p, "contract_end", None)
+        contract_soon = bool(ce and (ce - today).days <= 150)
+        pdict = {
+            "id": p.id,
+            "name": (getattr(p, "full_name", "") or getattr(p, "name", "") or "").strip() or "Jugador",
+            "level": level,
+            "role": role,
+            "role_label": SQUAD_ROLE_LABELS.get(role, "—"),
+            "role_color": SQUAD_ROLE_COLORS.get(role, "#6b7c94"),
+            "manual": bool(manual in SQUAD_ROLE_LABELS),
+            "ficha": bool(getattr(p, "has_federative_license", False)),
+            "injured": int(p.id) in injured,
+            "contract_end": ce,
+            "contract_soon": contract_soon,
+            "days": ((ce - today).days if ce else None),
+        }
+        if req:
+            by_req.setdefault(req, []).append(pdict)
+        else:
+            sin_pos.append(pdict)
+        if contract_soon:
+            contracts.append(pdict)
+    for k in by_req:
+        by_req[k].sort(key=lambda x: -(x["level"] or 0))
+    cov_map = {c["code"]: c for c in ((fed or {}).get("coverage") or [])}
+    lines = []
+    for line_label, req_keys in _SQUAD_PLANNER_LINES:
+        positions = []
+        for rk in req_keys:
+            plist = by_req.get(rk, [])
+            cov = cov_map.get(rk, {"min": 0, "have": len(plist), "missing": 0, "label": rk})
+            have = int(cov.get("have", len(plist)))
+            positions.append({
+                "code": rk,
+                "label": cov.get("label", rk),
+                "min": int(cov.get("min", 0)),
+                "have": have,
+                "missing": int(cov.get("missing", 0)),
+                "risk": have <= 1,
+                "players": plist,
+            })
+        lines.append({"label": line_label, "positions": positions})
+    priorities = []
+    for c in ((fed or {}).get("coverage") or []):
+        if int(c.get("missing", 0)) > 0:
+            priorities.append({"label": c["label"], "tone": "low", "note": "faltan %d" % int(c["missing"])})
+        elif int(c.get("have", 0)) <= 1:
+            priorities.append({"label": c["label"], "tone": "warn", "note": "sin recambio"})
+    contracts.sort(key=lambda x: (x["contract_end"] or today))
+    return {"fed": fed, "lines": lines, "contracts": contracts, "priorities": priorities, "sin_posicion": sin_pos}
+
+
 def _build_coach_decision_dashboard(*, primary_team, active_club_season, players, memberships, active_injury_ids=None, request=None, stats_by_player=None):
     """Arma el dashboard de decisión de pretemporada: una fila por jugador con
     su estado, su valoración (última PlayerEvaluation cerrada) y la decisión
@@ -39481,6 +39622,45 @@ def _squad_report_rating_class(overall):
     if val >= 6.0:
         return "mid"
     return "lo"
+
+
+@login_required
+def squad_planner_page(request):
+    """Planificador de plantilla estilo FM: depth chart por posición con rol de plantilla
+    (auto o fijado), estado de fichas federativas, contratos que vencen y prioridades de fichaje.
+    Vive en el área Plantilla; enlazado desde Dirección deportiva."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, "players", label="plantilla técnica")
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404("Equipo principal no configurado")
+
+    if request.method == "POST":
+        # Fijar (o limpiar) el rol de plantilla de un jugador. Rol vacío = vuelve a automático.
+        try:
+            pid = int(request.POST.get("player_id") or 0)
+        except (TypeError, ValueError):
+            pid = 0
+        role = str(request.POST.get("squad_role") or "").strip().lower()
+        if pid:
+            try:
+                p = Player.objects.get(id=pid, team=primary_team)
+                p.squad_role = role if role in SQUAD_ROLE_LABELS else ""
+                p.save(update_fields=["squad_role"])
+            except Player.DoesNotExist:
+                pass
+        return redirect("squad-planner")
+
+    planner = _build_squad_planner(request, primary_team)
+    return render(request, "football/squad_planner.html", {
+        "planner": planner,
+        "primary_team": primary_team,
+        "squad_role_choices": SQUAD_ROLE_CHOICES,
+    })
 
 
 @login_required

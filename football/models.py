@@ -1163,6 +1163,10 @@ class Player(models.Model):
     preferred_position = models.CharField(max_length=60, blank=True)
     previous_season_position = models.CharField(max_length=60, blank=True)
     traits = models.JSONField(default=list, blank=True, help_text='Rasgos/preferencias del jugador (estilo FM): claves de PLAYER_TRAITS.')
+    squad_role = models.CharField(
+        max_length=16, blank=True, default='',
+        help_text='Rol de plantilla FIJADO manualmente (clave/titular/rotacion/promesa/suplente/prescindible). Vacío = automático.',
+    )
     number = models.PositiveSmallIntegerField(null=True, blank=True)
     position = models.CharField(max_length=60, blank=True)
     injury = models.CharField(max_length=180, blank=True)

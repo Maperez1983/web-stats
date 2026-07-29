@@ -583,6 +583,7 @@ urlpatterns = [
     path("coach/plantilla/avatares/fotos.zip", views.coach_download_player_photos_zip, name="coach-download-photos-zip"),
     path("coach/plantilla/pdf/", views.coach_roster_pdf, name="coach-roster-pdf"),
     path("coach/plantilla/informe/", views.squad_status_report_page, name="coach-squad-report"),
+    path("coach/plantilla/planificador/", views.squad_planner_page, name="squad-planner"),
     path("coach/microciclo/informe/", views.microcycle_report_page, name="coach-microcycle-report"),
     path("coach/partido/informe/", views.next_match_report_page, name="coach-next-match-report"),
     path("coach/plantilla/pizarra/guardar/", views.coach_pitch_board_save, name="coach-pitch-board-save"),
