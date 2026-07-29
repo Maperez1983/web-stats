@@ -634,7 +634,8 @@ body.ed-chrome .edc-inspector #task-selection-dock:not([hidden]) {
   background: rgba(12,30,19,.62) !important; -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
   border: 1px solid rgba(255,255,255,.14) !important; border-radius: 14px !important;
   box-shadow: 0 18px 50px rgba(0,0,0,.5) !important; padding: 12px !important; color: var(--edc-ink) !important;
-  max-height: calc(100vh - var(--edc-top,56px) - var(--edc-bottom,66px) - 24px); overflow: auto;
+  max-height: calc(100vh - var(--edc-top,56px) - var(--edc-bottom,66px) - 56px); overflow-y: auto; overflow-x: hidden;
+  overscroll-behavior: contain; scrollbar-width: thin; padding-bottom: 14px !important;
 }
 body.ed-chrome .edc-inspector #task-selection-toolbar[hidden],
 body.ed-chrome .edc-inspector #task-selection-dock[hidden] { display: none !important; }
