@@ -1,0 +1,52 @@
+{% load static football_extras %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Plantilla · {{ rival_team.display_name }} · 2J</title>
+    {% include 'football/pwa_head.html' %}
+    <style>
+      .rs-wrap { max-width: 1100px; margin: 0 auto; padding: 1rem; }
+      .rs-back { display:inline-block; color:#7dd3fc; text-decoration:none; font-weight:800; font-size:.85rem; margin-bottom:.6rem; }
+      .rs-h1 { margin:0; color:#f8fafc; font-size:1.6rem; }
+      .rs-sub { color:#94a3b8; font-weight:700; margin:.2rem 0 1rem; }
+      .rs-line { margin:1.1rem 0 .5rem; color:#64748b; font-size:.78rem; text-transform:uppercase; letter-spacing:.08em; font-weight:900; }
+      .rs-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:.7rem; }
+      .rs-card { display:flex; gap:.7rem; align-items:center; background:#0f172a; border:1px solid #1e293b; border-radius:12px; padding:.6rem .7rem; text-decoration:none; }
+      .rs-card:hover { border-color:#334155; background:#111c31; }
+      .rs-ph { width:48px; height:56px; border-radius:8px; object-fit:cover; background:#1e293b; border:1px solid #334155; flex:0 0 auto; }
+      .rs-nm { color:#f1f5f9; font-weight:800; font-size:.92rem; line-height:1.15; }
+      .rs-meta { color:#94a3b8; font-size:.76rem; margin-top:.15rem; }
+      .rs-num { color:#64748b; font-weight:900; min-width:1.6rem; text-align:center; }
+      .rs-known { color:#6ee7b7; font-size:.7rem; font-weight:800; }
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <div class="app-shell">
+      {% include 'football/includes/dragon_nav.html' %}
+      <main class="rs-wrap">
+        <a class="rs-back" href="{% url 'rival-players-index' %}">← Rivales de la liga</a>
+        <h1 class="rs-h1">{{ rival_team.display_name }}</h1>
+        <p class="rs-sub">Plantilla rival · {{ players|length }} jugadores · toca un jugador para su ficha y herramientas</p>
+        {% regroup players by line as lines %}
+        {% for grp in lines %}
+        <div class="rs-line">{% if grp.grouper == 'gk' %}Porteros{% elif grp.grouper == 'def' %}Defensas{% elif grp.grouper == 'mid' %}Centrocampistas{% elif grp.grouper == 'att' %}Delanteros{% else %}Otros{% endif %}</div>
+        <div class="rs-grid">
+          {% for p in grp.list %}
+          <a class="rs-card" href="{% url 'rival-player-detail' rival_player_id=p.id %}">
+            <span class="rs-num">{% if p.number %}{{ p.number }}{% else %}·{% endif %}</span>
+            {% if p.photo_url %}<img class="rs-ph" src="{{ p.photo_url }}" alt="" />{% else %}<span class="rs-ph"></span>{% endif %}
+            <span>
+              <span class="rs-nm">{{ p.full_name }}</span>
+              <span class="rs-meta">{{ p.position|default:"—" }}{% if p.age %} · {{ p.age }}a{% endif %}</span>
+              {% if p.matched_player_id %}<br /><span class="rs-known">✓ ex-nuestro</span>{% endif %}
+            </span>
+          </a>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </main>
+    </div>
+  </body>
+</html>

@@ -718,6 +718,7 @@
         </div>
           <div class="actions">
           <a class="btn" href="{% url 'coach-cards' %}">Áreas</a>
+          <a class="btn" href="{% url 'rival-players-index' %}">Rivales de la liga</a>
           <a class="btn" href="{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Staff</a>
           {% if can_manage_workspace %}
           <button type="button" class="btn" id="rival-league-import-btn"

@@ -1,0 +1,99 @@
+{% load static football_extras %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ rp.full_name }} · Rival · 2J</title>
+    {% include 'football/pwa_head.html' %}
+    <style>
+      .rpf-wrap { max-width: 900px; margin: 0 auto; padding: 1rem; }
+      .rpf-back { display:inline-block; color:#7dd3fc; text-decoration:none; font-weight:800; font-size:.85rem; margin-bottom:.8rem; }
+      .rpf-card { background:#0f172a; border:1px solid #1e293b; border-radius:16px; padding:1.1rem; }
+      .rpf-top { display:flex; gap:1rem; align-items:center; flex-wrap:wrap; }
+      .rpf-photo { width:96px; height:112px; border-radius:12px; object-fit:cover; background:#1e293b; border:1px solid #334155; }
+      .rpf-name { margin:0; font-size:1.5rem; color:#f8fafc; }
+      .rpf-sub { color:#94a3b8; margin:.2rem 0 0; font-weight:700; }
+      .rpf-chips { display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.5rem; }
+      .rpf-chip { padding:.2rem .6rem; border-radius:999px; font-size:.72rem; font-weight:800; letter-spacing:.03em; background:rgba(148,163,184,.16); color:#cbd5e1; border:1px solid rgba(148,163,184,.32); }
+      .rpf-chip.gk{background:rgba(244,180,0,.16);color:#fde68a;border-color:rgba(244,180,0,.4);}
+      .rpf-chip.def{background:rgba(59,130,246,.16);color:#93c5fd;border-color:rgba(59,130,246,.4);}
+      .rpf-chip.mid{background:rgba(16,185,129,.16);color:#6ee7b7;border-color:rgba(16,185,129,.4);}
+      .rpf-chip.att{background:rgba(239,68,68,.16);color:#fca5a5;border-color:rgba(239,68,68,.4);}
+      .rpf-known { margin-top:.8rem; padding:.6rem .8rem; border-radius:10px; background:rgba(16,185,129,.1); border:1px solid rgba(16,185,129,.35); color:#6ee7b7; font-weight:700; font-size:.85rem; }
+      .rpf-tools { margin-top:1rem; display:grid; gap:.8rem; }
+      .rpf-tool { background:#0b1220; border:1px solid #1e293b; border-radius:12px; padding:.9rem; }
+      .rpf-tool h3 { margin:0 0 .5rem; font-size:.78rem; text-transform:uppercase; letter-spacing:.08em; color:#64748b; }
+      .rpf-btn { display:inline-block; border:0; cursor:pointer; text-decoration:none; border-radius:10px; padding:.6rem 1rem; font-weight:900; font-size:.9rem; }
+      .rpf-btn.primary { background:linear-gradient(90deg,#f59e0b,#22c55e); color:#04121f; }
+      .rpf-btn.ghost { background:#1e293b; color:#e2e8f0; border:1px solid #334155; }
+      .rpf-row { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+      select, .rpf-input { background:#0f172a; color:#e2e8f0; border:1px solid #334155; border-radius:8px; padding:.5rem; }
+      .rpf-note { color:#64748b; font-size:.78rem; margin:.4rem 0 0; }
+      .rpf-msgs { margin-bottom:.8rem; }
+      .rpf-msg { padding:.5rem .8rem; border-radius:8px; font-weight:700; font-size:.85rem; margin-bottom:.4rem; }
+      .rpf-msg.success{background:rgba(16,185,129,.15);color:#6ee7b7;} .rpf-msg.info{background:rgba(59,130,246,.15);color:#93c5fd;} .rpf-msg.error{background:rgba(239,68,68,.15);color:#fca5a5;}
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <div class="app-shell">
+      {% include 'football/includes/dragon_nav.html' %}
+      <main class="rpf-wrap">
+        <a class="rpf-back" href="{% url 'rival-team-squad' team_id=rp.team_id %}">← {{ rp.team.display_name }}</a>
+        {% if messages %}<div class="rpf-msgs">{% for m in messages %}<div class="rpf-msg {{ m.tags }}">{{ m }}</div>{% endfor %}</div>{% endif %}
+        <div class="rpf-card">
+          <div class="rpf-top">
+            {% if rp.photo_url %}<img class="rpf-photo" src="{{ rp.photo_url }}" alt="" />{% else %}<div class="rpf-photo"></div>{% endif %}
+            <div>
+              <h1 class="rpf-name">{{ rp.full_name }}</h1>
+              <p class="rpf-sub">{% if rp.alias and rp.alias != rp.full_name %}“{{ rp.alias }}” · {% endif %}{{ rp.team.display_name }}</p>
+              <div class="rpf-chips">
+                <span class="rpf-chip {{ rp.line }}">{{ rp.position|default:"—" }}</span>
+                {% if rp.number %}<span class="rpf-chip">#{{ rp.number }}</span>{% endif %}
+                {% if rp.age %}<span class="rpf-chip">{{ rp.age }} años</span>{% endif %}
+                {% if rp.matches_played %}<span class="rpf-chip">{{ rp.matches_played }} PJ · {{ rp.minutes }}′ · {{ rp.goals }}G</span>{% endif %}
+              </div>
+            </div>
+          </div>
+
+          {% if rp.matched_player %}
+          <div class="rpf-known">✓ Reconocido como jugador nuestro: <strong>{{ rp.matched_player.name }}</strong> (ficha propia). No se ha duplicado.</div>
+          {% endif %}
+
+          <div class="rpf-tools">
+            <div class="rpf-tool">
+              <h3>Dirección deportiva</h3>
+              {% if existing_target %}
+                <div class="rpf-row">
+                  <span class="rpf-chip">Ya es objetivo</span>
+                  <a class="rpf-btn ghost" href="{% url 'scouting-target-detail' target_id=existing_target.id %}">Abrir en Dirección</a>
+                </div>
+              {% else %}
+                <form method="post" action="{% url 'rival-player-make-target' rival_player_id=rp.id %}">
+                  {% csrf_token %}
+                  <button class="rpf-btn primary" type="submit">Marcar como objetivo de fichaje</button>
+                </form>
+                <p class="rpf-note">Crea un objetivo en la bandeja de Dirección para seguirlo sin duplicar tu plantilla.</p>
+              {% endif %}
+            </div>
+
+            <div class="rpf-tool">
+              <h3>Identidad — ¿es un jugador nuestro?</h3>
+              <form method="post" action="{% url 'rival-player-link-own' rival_player_id=rp.id %}" class="rpf-row">
+                {% csrf_token %}
+                <select name="player_id">
+                  <option value="">— No / desvincular —</option>
+                  {% for p in own_players %}
+                  <option value="{{ p.id }}" {% if rp.matched_player_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+                  {% endfor %}
+                </select>
+                <button class="rpf-btn ghost" type="submit">Guardar</button>
+              </form>
+              <p class="rpf-note">Para ex-jugadores tuyos u ojeados que han fichado por un rival: se reconoce sin fusionar.</p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

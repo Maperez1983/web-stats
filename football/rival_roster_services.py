@@ -146,7 +146,8 @@ def parse_rival_squad(html):
 
 def _detect_matched_player(row):
     """"Reconocido como": localiza un Player ya en el sistema que sea la MISMA persona (sin fusionar).
-    Prioridad: J-id en preferente_profile_url; si no, nombre completo exacto. Devuelve Player o None."""
+    Prioridad: J-id en preferente_profile_url (exacto y fiable) -> nombre completo exacto -> alias
+    exacto (solo si es único, para no casar por error). Devuelve Player o None."""
     jid = str(row.get("source_player_id") or "").strip()
     if jid:
         p = Player.objects.filter(preferente_profile_url__icontains=f"J{jid}C").first()
@@ -154,7 +155,14 @@ def _detect_matched_player(row):
             return p
     full_name = str(row.get("full_name") or "").strip()
     if full_name:
-        return Player.objects.filter(name__iexact=full_name).first()
+        p = Player.objects.filter(name__iexact=full_name).first()
+        if p:
+            return p
+    alias = str(row.get("alias") or "").strip()
+    if alias:
+        cands = list(Player.objects.filter(name__iexact=alias)[:2])
+        if len(cands) == 1:  # alias único -> es esa persona; si hay varios, no arriesgamos
+            return cands[0]
     return None
 
 

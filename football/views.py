@@ -2253,6 +2253,133 @@ def rival_squad_ingest(request):
     return JsonResponse({"ok": True, "totals": totals, "teams": results})
 
 
+@login_required
+def rival_players_index(request):
+    """Índice de rivales: los equipos rivales con plantilla importada (RivalPlayer)."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    from django.db.models import Count
+
+    rows = (
+        RivalPlayer.objects.filter(is_active=True)
+        .values("team_id", "team__name")
+        .annotate(n=Count("id"))
+        .order_by("team__name")
+    )
+    teams = [{"team_id": r["team_id"], "name": r["team__name"], "count": r["n"]} for r in rows]
+    return render(request, "football/rival_players_index.html", {"rival_teams": teams})
+
+
+@login_required
+def rival_team_squad(request, team_id):
+    """Plantilla rival de un equipo: tarjetas de jugador -> ficha con herramientas."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    team = Team.objects.filter(id=int(team_id)).first()
+    if not team:
+        raise Http404("Equipo no encontrado")
+    players = list(
+        RivalPlayer.objects.filter(team=team, is_active=True)
+        .select_related("matched_player")
+        .order_by("line", "number", "full_name")
+    )
+    _line_order = {"gk": 0, "def": 1, "mid": 2, "att": 3}
+    players.sort(key=lambda p: (_line_order.get(p.line, 9), p.number or 999, p.full_name))
+    return render(request, "football/rival_team_squad.html", {"rival_team": team, "players": players})
+
+
+def _get_rival_player(rival_player_id):
+    return RivalPlayer.objects.select_related("team", "matched_player").filter(id=int(rival_player_id)).first()
+
+
+@login_required
+def rival_player_detail(request, rival_player_id):
+    """Ficha del jugador rival + herramientas (marcar objetivo de fichaje / reconocer como nuestro)."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    rp = _get_rival_player(rival_player_id)
+    if not rp:
+        raise Http404("Jugador rival no encontrado")
+    workspace = _get_active_workspace(request)
+    existing_target = None
+    if workspace:
+        existing_target = ScoutingTarget.objects.filter(
+            workspace=workspace, subject_name__iexact=rp.full_name
+        ).first()
+    own_players = list(
+        Player.objects.filter(team=_get_primary_team_for_request(request)).order_by("name")[:400]
+    ) if _get_primary_team_for_request(request) else []
+    return render(
+        request,
+        "football/rival_player_detail.html",
+        {"rp": rp, "existing_target": existing_target, "own_players": own_players},
+    )
+
+
+@login_required
+@require_POST
+def rival_player_make_target(request, rival_player_id):
+    """Herramienta de ficha: crea un objetivo de fichaje (ScoutingTarget) en Dirección desde el rival."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    rp = _get_rival_player(rival_player_id)
+    if not rp:
+        raise Http404("Jugador rival no encontrado")
+    workspace = _get_active_workspace(request)
+    if not workspace:
+        messages.error(request, "No hay workspace activo.")
+        return redirect("rival-player-detail", rival_player_id=rp.id)
+    can_manage = _can_manage_workspace(request.user, workspace)
+    target = ScoutingTarget.objects.filter(workspace=workspace, subject_name__iexact=rp.full_name).first()
+    if target is None:
+        target = ScoutingTarget.objects.create(
+            workspace=workspace,
+            subject_name=rp.full_name[:150],
+            subject_team_name=(rp.team.display_name if rp.team else "")[:160],
+            position=(rp.position or "")[:60],
+            status=ScoutingTarget.STATUS_WATCHLIST,
+            priority=ScoutingTarget.PRIORITY_MEDIUM,
+            created_by=request.user,
+            assigned_to=request.user if can_manage else None,
+        )
+        messages.success(request, f"“{rp.full_name}” añadido como objetivo en Dirección.")
+    else:
+        messages.info(request, f"“{rp.full_name}” ya estaba como objetivo en Dirección.")
+    try:
+        return redirect("scouting-target-detail", target_id=target.id)
+    except Exception:
+        return redirect("rival-player-detail", rival_player_id=rp.id)
+
+
+@login_required
+@require_POST
+def rival_player_link_own(request, rival_player_id):
+    """Herramienta de ficha: reconocer al rival como un jugador NUESTRO (ex-jugador/identidad) sin
+    fusionar — solo enlaza matched_player. Vacío = desvincular."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    rp = _get_rival_player(rival_player_id)
+    if not rp:
+        raise Http404("Jugador rival no encontrado")
+    pid = _parse_int(request.POST.get("player_id"))
+    if pid:
+        player = Player.objects.filter(id=pid).first()
+        rp.matched_player = player
+        rp.save(update_fields=["matched_player", "updated_at"])
+        if player:
+            messages.success(request, f"“{rp.full_name}” reconocido como {player.name}.")
+    else:
+        rp.matched_player = None
+        rp.save(update_fields=["matched_player", "updated_at"])
+        messages.info(request, "Reconocimiento eliminado.")
+    return redirect("rival-player-detail", rival_player_id=rp.id)
+
+
 TASK_MATERIAL_LIBRARY = [
     {"label": "CONO", "title": "Cono alto", "kind": "cone", "category": "delimitacion", "icon": "△"},
     {"label": "SETA", "title": "Seta baja", "kind": "marker", "category": "delimitacion", "icon": "◉"},

@@ -1,0 +1,42 @@
+{% load static football_extras %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rivales de la liga · 2J</title>
+    {% include 'football/pwa_head.html' %}
+    <style>
+      .ri-wrap { max-width: 1000px; margin: 0 auto; padding: 1rem; }
+      .ri-h1 { margin:0; color:#f8fafc; font-size:1.6rem; }
+      .ri-sub { color:#94a3b8; font-weight:700; margin:.2rem 0 1rem; }
+      .ri-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:.7rem; }
+      .ri-card { display:flex; justify-content:space-between; align-items:center; background:#0f172a; border:1px solid #1e293b; border-radius:12px; padding:.9rem 1rem; text-decoration:none; }
+      .ri-card:hover { border-color:#334155; background:#111c31; }
+      .ri-nm { color:#f1f5f9; font-weight:800; }
+      .ri-n { color:#7dd3fc; font-weight:900; font-size:.9rem; }
+      .ri-empty { color:#94a3b8; }
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <div class="app-shell">
+      {% include 'football/includes/dragon_nav.html' %}
+      <main class="ri-wrap">
+        <h1 class="ri-h1">Rivales de la liga</h1>
+        <p class="ri-sub">Plantillas rivales importadas · trabajan con Análisis, Dirección y Partido</p>
+        {% if rival_teams %}
+        <div class="ri-grid">
+          {% for t in rival_teams %}
+          <a class="ri-card" href="{% url 'rival-team-squad' team_id=t.team_id %}">
+            <span class="ri-nm">{{ t.name }}</span>
+            <span class="ri-n">{{ t.count }}</span>
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="ri-empty">Aún no hay plantillas rivales importadas.</p>
+        {% endif %}
+      </main>
+    </div>
+  </body>
+</html>
