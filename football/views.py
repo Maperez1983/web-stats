@@ -42356,6 +42356,75 @@ def _player_compare_profile(player):
 
 
 @login_required
+def coach_inbox_page(request):
+    """Bandeja del entrenador (estilo FM): feed priorizado de lo que requiere acción — próximo
+    partido, cobertura, licencias, lesionados que vuelven, contratos que vencen y evaluaciones
+    pendientes. Reutiliza _build_coach_alerts y añade contratos/evaluaciones."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404("Equipo principal no configurado")
+    try:
+        roster_players = list(_operational_roster_players_for_team(request, primary_team, confirmed_only=False))
+    except Exception:
+        roster_players = []
+    if not roster_players:
+        roster_players = list(Player.objects.filter(team=primary_team, is_active=True))
+    try:
+        active_injury_ids = set(get_active_injury_player_ids([int(p.id) for p in roster_players]))
+    except Exception:
+        active_injury_ids = set()
+    try:
+        federative_report = _build_federative_squad_report(request, primary_team)
+    except Exception:
+        federative_report = None
+    try:
+        next_match = get_next_match(primary_team, getattr(primary_team, "group", None), allow_external_fetch=False)
+    except Exception:
+        next_match = None
+    try:
+        alerts = _build_coach_alerts(
+            primary_team=primary_team, roster_players=roster_players,
+            active_injury_ids=active_injury_ids, federative_report=federative_report, next_match=next_match,
+        ) or []
+    except Exception:
+        alerts = []
+    try:
+        planner = _build_squad_planner(request, primary_team) or {}
+        for c in (planner.get("contracts") or [])[:8]:
+            days = c.get("days")
+            lvl = "critical" if (days is not None and days <= 60) else "warning"
+            det = ("Vence %s" % c["contract_end"].strftime("%d/%m/%Y")) if c.get("contract_end") else "Vence pronto"
+            alerts.append({"level": lvl, "icon": "📝", "title": "Contrato: %s" % c.get("name", "jugador"),
+                           "detail": det, "url": reverse("squad-planner")})
+    except Exception:
+        pass
+    try:
+        pids = [int(p.id) for p in roster_players]
+        evaluated = set(
+            PlayerEvaluation.objects.filter(player_id__in=pids, status=PlayerEvaluation.STATUS_CLOSED)
+            .values_list("player_id", flat=True)
+        )
+        pend = [p for p in roster_players if int(p.id) not in evaluated]
+        if pend:
+            alerts.append({"level": "info", "icon": "📋", "title": "%d jugador(es) sin evaluar" % len(pend),
+                           "detail": ", ".join((p.name or "") for p in pend[:8]), "url": reverse("coach-roster")})
+    except Exception:
+        pass
+    order = {"critical": 0, "warning": 1, "info": 2}
+    alerts.sort(key=lambda a: order.get(a.get("level"), 3))
+    counts = {"critical": 0, "warning": 0, "info": 0}
+    for a in alerts:
+        lvl = a.get("level", "info")
+        counts[lvl] = counts.get(lvl, 0) + 1
+    return render(request, "football/coach_inbox.html", {
+        "primary_team": primary_team, "alerts": alerts, "counts": counts,
+    })
+
+
+@login_required
 def player_compare_page(request):
     """Comparar dos jugadores (estilo FM): radar superpuesto de áreas + comparativa por área, con el
     mejor resaltado. Usa el radar de evaluación que ya existe."""

@@ -1,0 +1,72 @@
+{% load static football_extras %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bandeja · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      .ib-wrap{max-width:820px;margin:0 auto;padding:1rem;color:#eef2f8;}
+      .ib-h1{margin:0;color:#f8fafc;font-size:1.5rem;font-weight:900;}
+      .ib-sub{color:#6d8098;font-weight:700;font-size:.78rem;margin:.15rem 0 1rem;}
+      .ib-chips{display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1.2rem;}
+      .ib-chip{border:1px solid #1f2b39;background:#111725;border-radius:11px;padding:.5rem .85rem;display:flex;align-items:center;gap:.5rem;font-weight:800;font-size:.82rem;}
+      .ib-chip .n{font-size:1.15rem;font-weight:900;}
+      .ib-chip.red .n{color:#e2564a;} .ib-chip.amber .n{color:#e2a53a;} .ib-chip.blue .n{color:#4a86e8;}
+      .ib-row{display:flex;align-items:flex-start;gap:.8rem;background:#111725;border:1px solid #1f2b39;border-radius:12px;padding:.8rem .95rem;margin-bottom:.55rem;text-decoration:none;border-left:4px solid #6b7c94;}
+      .ib-row:hover{background:#141c28;border-color:#2b3b4e;}
+      .ib-row.critical{border-left-color:#e2564a;} .ib-row.warning{border-left-color:#e2a53a;} .ib-row.info{border-left-color:#4a86e8;}
+      .ib-ico{font-size:1.15rem;flex:0 0 auto;line-height:1.3;}
+      .ib-main{flex:1;min-width:0;}
+      .ib-title{font-size:.95rem;font-weight:800;color:#f1f5f9;}
+      .ib-detail{font-size:.78rem;color:#9fb0c6;margin-top:2px;line-height:1.4;}
+      .ib-arrow{color:#6d8098;font-weight:900;flex:0 0 auto;}
+      .ib-empty{text-align:center;color:#6d8098;padding:2.4rem 0;}
+      .ib-empty .big{font-size:2.4rem;}
+      .ib-links{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1.2rem;}
+      .ib-links a{font-size:.75rem;font-weight:800;color:#8fb4ff;text-decoration:none;border:1px solid #25406e;border-radius:8px;padding:.35rem .6rem;background:#141f33;}
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <div class="app-shell">
+      {% include 'football/includes/dragon_nav.html' %}
+      <main class="ib-wrap">
+        <h1 class="ib-h1">Bandeja</h1>
+        <p class="ib-sub">{{ primary_team.display_name|default:primary_team.name }} · lo que requiere tu atención, priorizado</p>
+
+        {% if alerts %}
+        <div class="ib-chips">
+          {% if counts.critical %}<div class="ib-chip red"><span class="n">{{ counts.critical }}</span> urgentes</div>{% endif %}
+          {% if counts.warning %}<div class="ib-chip amber"><span class="n">{{ counts.warning }}</span> avisos</div>{% endif %}
+          {% if counts.info %}<div class="ib-chip blue"><span class="n">{{ counts.info }}</span> info</div>{% endif %}
+        </div>
+
+        {% for a in alerts %}
+        <a class="ib-row {{ a.level }}" href="{{ a.url|default:'#' }}">
+          <span class="ib-ico">{{ a.icon|default:'•' }}</span>
+          <span class="ib-main">
+            <span class="ib-title">{{ a.title }}</span>
+            {% if a.detail %}<span class="ib-detail">{{ a.detail }}</span>{% endif %}
+          </span>
+          <span class="ib-arrow">›</span>
+        </a>
+        {% endfor %}
+        {% else %}
+        <div class="ib-empty">
+          <div class="big">✅</div>
+          <p>Todo al día. No hay nada que requiera tu atención ahora mismo.</p>
+        </div>
+        {% endif %}
+
+        <div class="ib-links">
+          <a href="{% url 'coach-detail' %}">← Entrenador</a>
+          <a href="{% url 'coach-roster' %}">Plantilla</a>
+          <a href="{% url 'medical-center' %}">Centro médico</a>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

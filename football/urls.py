@@ -589,6 +589,7 @@ urlpatterns = [
     path("coach/entrenamiento/carga/", views.training_load_page, name="training-load"),
     path("coach/medico/", views.medical_center_page, name="medical-center"),
     path("coach/comparar/", views.player_compare_page, name="player-compare"),
+    path("coach/bandeja/", views.coach_inbox_page, name="coach-inbox"),
     path("coach/partido/informe/", views.next_match_report_page, name="coach-next-match-report"),
     path("coach/plantilla/pizarra/guardar/", views.coach_pitch_board_save, name="coach-pitch-board-save"),
     path("coach/traspaso/buscar-destino/", views.coach_transfer_team_search, name="coach-transfer-team-search"),
