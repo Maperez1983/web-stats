@@ -36828,6 +36828,90 @@ def scouting_board_page(request):
     )
 
 
+def _ensure_trial_squad_player(target):
+    """Ojeado "A prueba" que viene a entrenar → asegura su Ficha jugador real.
+
+    Crea (o re-ancla) un Player en el equipo principal del club, activo y sin
+    licencia federativa (no cuenta como fichado), y le da una membresía de
+    temporada "pendiente" (= A prueba). Así aparece en sesión, plantilla,
+    informes y home vía la lógica existente, sin filtros frágiles. Idempotente.
+    Silencioso: nunca debe romper el guardado del ojeado.
+    """
+    try:
+        from .models import (
+            Player,
+            ScoutingTarget,
+            WorkspaceSeason,
+            WorkspaceSeasonPlayer,
+        )
+
+        if target is None or not getattr(target, "available_for_coach_tools", False):
+            return None
+        if str(getattr(target, "status", "") or "") in (
+            ScoutingTarget.STATUS_DISCARDED,
+            ScoutingTarget.STATUS_SIGNED,
+            ScoutingTarget.STATUS_SIGNED_OTHER,
+        ):
+            return None
+        ws = getattr(target, "workspace", None)
+        team = getattr(ws, "primary_team", None) if ws is not None else None
+        if team is None:
+            return None
+        name = (getattr(target, "display_name", "") or getattr(target, "subject_name", "") or "").strip()
+        if not name:
+            return None
+
+        player = target.player
+        if player is None:
+            player, _created = Player.objects.get_or_create(
+                team=team,
+                name=name,
+                defaults={
+                    "full_name": name,
+                    "origin_team": target.subject_team_name or "",
+                    "position": target.position or "",
+                    "dominant_foot": target.dominant_foot or "",
+                    "birth_date": target.birth_date,
+                    "is_active": True,
+                    "has_federative_license": False,
+                },
+            )
+            target.player = player
+            target.save(update_fields=["player", "updated_at"])
+        else:
+            _changed = []
+            if getattr(player, "team_id", None) != team.id:
+                player.team = team
+                _changed.append("team")
+            if not getattr(player, "is_active", True):
+                player.is_active = True
+                _changed.append("is_active")
+            if _changed:
+                player.save(update_fields=_changed)
+
+        try:
+            season = (
+                WorkspaceSeason.objects.filter(workspace=ws, is_active=True)
+                .order_by("-start_date", "-id")
+                .first()
+            )
+            if season is not None:
+                WorkspaceSeasonPlayer.objects.get_or_create(
+                    season=season,
+                    player=player,
+                    defaults={
+                        "team": team,
+                        "status": WorkspaceSeasonPlayer.STATUS_PENDING,
+                        "is_confirmed": False,
+                    },
+                )
+        except Exception:
+            pass
+        return player
+    except Exception:
+        return None
+
+
 @login_required
 @require_http_methods(["GET", "POST"])
 def scouting_target_detail_page(request, target_id):
@@ -36913,6 +36997,9 @@ def scouting_target_detail_page(request, target_id):
                         "updated_at",
                     ]
                 )
+                if target.available_for_coach_tools:
+                    # Viene a entrenar → asegurar su Ficha jugador (aparece en todas las listas).
+                    _ensure_trial_squad_player(target)
                 feedback = "Seguimiento guardado."
                 return redirect(f"{reverse('scouting-target-detail', args=[target.id])}?saved=1")
             if action == "promote-to-player":
@@ -36953,6 +37040,9 @@ def scouting_target_detail_page(request, target_id):
                     target.status = ScoutingTarget.STATUS_WATCHLIST
                     update_fields.append("status")
                 target.save(update_fields=update_fields)
+                if new_val:
+                    # Viene a entrenar → asegurar su Ficha jugador (aparece en todas las listas).
+                    _ensure_trial_squad_player(target)
                 feedback = (
                     "Incluido en la plantilla del entrenador (A prueba): ya aparece en entrenos y pizarra."
                     if new_val
@@ -38548,12 +38638,16 @@ def coach_roster_page(request):
     # Jugadores "pasados a ojeado": si tienen una ficha de ojeo en curso (no fichado ni
     # descartado) pertenecen ya al área de Dirección y no deben seguir listándose en la
     # plantilla, aunque conserven su membership de temporada. Ver acción "to-scouting".
+    # EXCEPCIÓN: los ojeados "A prueba" que VIENEN A ENTRENAR (available_for_coach_tools)
+    # sí deben aparecer en la plantilla (además de en la pizarra), por eso se excluyen del
+    # borrado.
     try:
         _roster_player_ids = [int(getattr(p, "id", 0) or 0) for p in players if getattr(p, "id", None)]
         scouting_moved_ids = set(
             ScoutingTarget.objects.filter(
                 workspace=workspace,
                 player_id__in=_roster_player_ids,
+                available_for_coach_tools=False,
             )
             .exclude(status__in=[ScoutingTarget.STATUS_SIGNED, ScoutingTarget.STATUS_DISCARDED])
             .values_list("player_id", flat=True)
