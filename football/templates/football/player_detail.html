@@ -1400,6 +1400,21 @@
           <button class="btn alt" type="submit" title="Lo mueve a Dirección deportiva como ojeado a prueba y lo baja de la plantilla">↩ Pasar a ojeado (a prueba)</button>
         </form>
         {% endif %}
+        {% if move_team_options %}
+        <div style="margin:0 0 1rem;padding:0.7rem 0.85rem;border:1px solid rgba(148,163,184,0.35);border-radius:12px;">
+          <div style="font-weight:800;font-size:0.8rem;letter-spacing:0.04em;text-transform:uppercase;color:var(--prod-muted,rgba(15,23,42,0.6));margin-bottom:0.5rem;">Mover a otro equipo del club</div>
+          <p style="margin:0 0 0.5rem;font-size:0.74rem;" class="subtle">Reasigna al jugador a otro de tus equipos (ej. senior ↔ filial) conservando ficha e identidad. No es un traspaso.</p>
+          <form method="post" style="margin:0;display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;" onsubmit="return confirm('¿Mover este jugador al equipo seleccionado? Sigue siendo tuyo, cambia de plantilla.');">
+            {% csrf_token %}
+            <input type="hidden" name="form_action" value="move_team" />
+            <select name="dest_team_id" required style="min-width:12rem;">
+              <option value="">Elegir equipo destino…</option>
+              {% for t in move_team_options %}<option value="{{ t.id }}">{{ t.display_name|default:t.name }}</option>{% endfor %}
+            </select>
+            <button class="btn" type="submit">Mover</button>
+          </form>
+        </div>
+        {% endif %}
         <div style="margin:0 0 1rem;padding:0.7rem 0.85rem;border:1px solid rgba(148,163,184,0.35);border-radius:12px;">
           <div style="font-weight:800;font-size:0.8rem;letter-spacing:0.04em;text-transform:uppercase;color:var(--prod-muted,rgba(15,23,42,0.6));margin-bottom:0.5rem;">Salida / traspaso a otro club</div>
           {% if player.transferred_to_club %}

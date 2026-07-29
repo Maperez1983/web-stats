@@ -76134,6 +76134,34 @@ def player_detail_page(request, player_id):
                     return redirect(f"{reverse('coach-roster')}?tab=manage")
                 return redirect(f"{reverse('player-detail', args=[player.id])}?error=no-workspace")
 
+            if form_action == "move_team":
+                # Mover al jugador a OTRO de tus equipos (mismo club): reasigna el equipo conservando
+                # ficha e identidad. No es un traspaso (sigue siendo tuyo).
+                _ws = _get_active_workspace(request)
+                _dest_team_id = _parse_int(request.POST.get("dest_team_id"))
+                _dest_team = None
+                if _dest_team_id:
+                    _cand = Team.objects.filter(id=_dest_team_id).first()
+                    # Debe pertenecer al club activo Y el usuario debe poder acceder a ese equipo.
+                    if (
+                        _cand is not None and _ws is not None
+                        and WorkspaceTeam.objects.filter(workspace=_ws, team_id=_dest_team_id).exists()
+                        and _user_can_access_team(request, _cand)
+                    ):
+                        _dest_team = _cand
+                if _dest_team is None or int(_dest_team.id) == int(primary_team.id):
+                    messages.error(request, "Elige un equipo de tu club distinto al actual.")
+                    return redirect(f"{reverse('player-detail', args=[player.id])}?tab=personal")
+                player.team = _dest_team
+                player.is_active = True
+                player.save(update_fields=["team", "is_active"])
+                try:
+                    ensure_workspace_player(_ws, player, current_team=_dest_team, is_active=True)
+                except Exception:
+                    pass
+                messages.success(request, f"{player.name} movido a {_dest_team.display_name}.")
+                return redirect(f"{reverse('player-detail', args=[player.id])}?team={int(_dest_team.id)}&tab=personal")
+
             if form_action == "transfer_out":
                 # "Fichó por otro club" desde la ficha (zona personal): saca al jugador de la
                 # plantilla conservando ficha, histórico e identidad; registra club destino + fecha.
@@ -77024,6 +77052,22 @@ def player_detail_page(request, player_id):
             }
         except Exception:
             player_season_rating = {"avg": None, "count": 0}
+        # Equipos destino para "mover a otro equipo": SOLO los que el usuario puede ver (mismo scope
+        # que el resto de la app: owner/admin todos, staff solo sus equipos). Un staff de un único
+        # equipo no verá ninguna opción de mover (correcto).
+        move_team_options = []
+        try:
+            _ws_move = _get_active_workspace(request)
+            _allowed_move = _allowed_team_ids_for_request(request)
+            if _ws_move is not None:
+                for wt in WorkspaceTeam.objects.filter(workspace=_ws_move).select_related("team"):
+                    if not wt.team_id or int(wt.team_id) == int(primary_team.id):
+                        continue
+                    if _allowed_move and int(wt.team_id) not in _allowed_move:
+                        continue
+                    move_team_options.append(wt.team)
+        except Exception:
+            move_team_options = []
         player_traits_catalog, player_traits_chips = _player_traits_context(player)
         evaluation_chart_context = _player_evaluation_chart_context(player_evaluations)
         latest_evaluation_improvement_rows = (
@@ -77814,6 +77858,7 @@ def player_detail_page(request, player_id):
                 "player_season_rating": player_season_rating,
                 "player_traits_catalog": player_traits_catalog,
                 "player_traits_chips": player_traits_chips,
+                "move_team_options": move_team_options,
                 "work_focus": work_focus,
                 "minutes_load": minutes_load,
                 "season_minutes_load": season_minutes_load,
@@ -85434,11 +85479,61 @@ def search_api(request):
         settings_item,
     ]
 
+    # Rivales (jugadores + equipos) y ojeados: buscables desde la barra sin ir al equipo.
+    rival_items = []
+    try:
+        for rp in (
+            RivalPlayer.objects.filter(is_active=True)
+            .filter(Q(full_name__icontains=q) | Q(alias__icontains=q))
+            .select_related("team").order_by("full_name")[:8]
+        ):
+            meta = " · ".join([p for p in [(rp.team.display_name if rp.team else ""), (rp.position or "")] if p])
+            rival_items.append({
+                "type": "rival", "id": str(rp.id),
+                "label": (rp.full_name or rp.alias or f"Rival {rp.id}"),
+                "meta": meta, "url": reverse("rival-player-detail", args=[rp.id]),
+            })
+    except Exception:
+        rival_items = []
+    rival_team_items = []
+    try:
+        for r in (
+            RivalPlayer.objects.filter(is_active=True, team__name__icontains=q)
+            .values("team_id", "team__name").distinct()[:6]
+        ):
+            rival_team_items.append({
+                "type": "rival_team", "id": str(r["team_id"]),
+                "label": r["team__name"] or f"Equipo {r['team_id']}",
+                "meta": "Rival de la liga", "url": reverse("rival-team-squad", args=[r["team_id"]]),
+            })
+    except Exception:
+        rival_team_items = []
+    scouted_items = []
+    try:
+        _ws_sc = _get_active_workspace(request)
+        _scq = ScoutingTarget.objects.all()
+        if _ws_sc is not None:
+            _scq = _scq.filter(workspace=_ws_sc)
+        for t in _scq.filter(Q(subject_name__icontains=q) | Q(subject_team_name__icontains=q)).order_by("subject_name")[:8]:
+            meta = " · ".join([p for p in [(t.subject_team_name or ""), (t.position or "")] if p])
+            scouted_items.append({
+                "type": "scouted", "id": str(t.id),
+                "label": (t.subject_name or f"Ojeado {t.id}"),
+                "meta": meta, "url": reverse("scouting-target-detail", args=[t.id]),
+            })
+    except Exception:
+        scouted_items = []
+
     groups = []
-    if team_items:
-        groups.append({"key": "teams", "label": "Equipos", "items": team_items})
+    _all_team_items = list(team_items) + list(rival_team_items)
+    if _all_team_items:
+        groups.append({"key": "teams", "label": "Equipos", "items": _all_team_items})
     if player_items:
         groups.append({"key": "players", "label": "Jugadores", "items": player_items})
+    if scouted_items:
+        groups.append({"key": "scouted", "label": "Ojeados", "items": scouted_items})
+    if rival_items:
+        groups.append({"key": "rivals", "label": "Rivales", "items": rival_items})
     if match_items:
         groups.append({"key": "matches", "label": "Partidos", "items": match_items})
     if staff_items:
