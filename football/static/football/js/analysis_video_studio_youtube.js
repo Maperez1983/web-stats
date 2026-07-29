@@ -959,20 +959,29 @@
   }
 
   function loadYouTubeApi() {
-    return new Promise(function (resolve) {
+    return new Promise(function (resolve, reject) {
       if (window.YT && window.YT.Player) { resolve(); return; }
+      var settled = false;
+      var done = function () { if (settled) return; settled = true; resolve(); };
+      var fail = function () { if (settled) return; settled = true; reject(new Error('yt_api_unavailable')); };
       var tag = document.createElement('script');
       tag.src = 'https://www.youtube.com/iframe_api';
       tag.async = true;
+      tag.onerror = fail;
       var first = document.getElementsByTagName('script')[0];
       if (first && first.parentNode) first.parentNode.insertBefore(tag, first);
       else document.head.appendChild(tag);
-      window.onYouTubeIframeAPIReady = function () { resolve(); };
+      // Encadenamos por si otro código ya definió el callback global (idempotente).
+      var prev = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = function () { try { if (typeof prev === 'function') prev(); } catch (e) {} done(); };
+      // Si en 8 s la API no está lista (red/bloqueador/offline), FALLAMOS en vez de dejar el player
+      // colgado en silencio (todos los botones mudos y "Listo." de fondo). initPlayer lo captura.
+      setTimeout(function () { if (window.YT && window.YT.Player) done(); else fail(); }, 8000);
     });
   }
 
   function initPlayer() {
-    if (!youtubeId) { setStatus('Falta youtube_id.'); return; }
+    if (!youtubeId) { setStatus('Este vídeo no tiene enlace de YouTube (los clips sí se listan).'); return; }
     loadYouTubeApi().then(function () {
       try {
         player = new window.YT.Player('vs-youtube-player', {
@@ -1000,6 +1009,8 @@
       } catch (e) {
         setStatus('No se pudo inicializar el player.');
       }
+    }).catch(function () {
+      setStatus('No se pudo cargar YouTube (¿sin conexión o bloqueado?). Recarga la página para reproducir.');
     });
   }
 
@@ -1226,5 +1237,8 @@
   initAssign();
   applyEffects();
   resizeCanvas();
+  // Cargar la lista de clips INDEPENDIENTEMENTE del player: antes solo se cargaba en onReady, así que
+  // si faltaba el enlace de YouTube o la API no arrancaba, la lista quedaba vacía sin motivo.
+  refreshClips();
   initPlayer();
 })();
