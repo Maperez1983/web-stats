@@ -1405,7 +1405,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
   const matchResetBtn = document.getElementById('match-reset-btn');
   if (matchResetBtn) {
     matchResetBtn.addEventListener('click', async () => {
-      const confirmed = confirm('¿Reiniciar solo las acciones pendientes del registro en vivo de este partido?');
+      const confirmed = confirm('¿Reiniciar las acciones pendientes del registro en vivo de este partido? También se descartarán las acciones que quedaran pendientes de sincronizar sin conexión.');
       if (!confirmed) return;
       try {
         const response = await fetch(resetRegisterUrl, {
@@ -1421,9 +1421,15 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
         }
         clearRegisterHistoryUI();
         resetRegisterHudState();
+        // Vaciar también la cola OFFLINE: al reiniciar, las acciones pendientes de sincronizar del
+        // registro en vivo se descartan (antes sobrevivían y podían re-sincronizarse luego).
+        try {
+          writeOfflineQueue([]);
+          updateOfflineQueueUi();
+        } catch (e) {}
         resetClockExternal ? resetClockExternal() : resetClock();
         emitSummaryChange();
-        showPageStatus('Registro en vivo reiniciado. Las acciones finalizadas se mantienen.', 'warning', 4200);
+        showPageStatus('Registro en vivo reiniciado (incluidas las acciones pendientes sin conexión). Las acciones finalizadas se mantienen.', 'warning', 4200);
       } catch (err) {
         console.error(err);
         showPageStatus('Error al reiniciar el registro.', 'danger', 5200);
