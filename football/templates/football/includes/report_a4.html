@@ -27,13 +27,15 @@ En impresión el folio ocupa la página completa sin sombra ni márgenes de pant
     body.report-a4{ padding:12px 0; }
     body.report-a4 .a4-sheet{ --a4-pad-x:6mm; width:100%; min-height:0; border-radius:0; box-shadow:0 4px 18px rgba(0,0,0,.18); }
   }
-  /* Pizarra dentro del folio: se ESTIRA EN VERTICAL (más alta), manteniendo el ancho DENTRO de los
-     márgenes del folio, para dar hueco vertical a los jugadores y que no se solapen. El césped se
-     ajusta al nuevo alto. Jugadores algo más pequeños para rematar. No afecta a la home. */
-  body.report-a4 .pb-field{ aspect-ratio:1.28 / 1; background-size:100% 100%; }
-  body.report-a4 .pb-chip{ width:clamp(40px, 6.6cqw, 82px); }
-  body.report-a4 .pb-avatar{ width:clamp(34px, 5.2cqw, 64px); height:clamp(40px, 6.1cqw, 75px); }
-  body.report-a4 .pb-name{ max-width:clamp(52px, 7cqw, 100px); font-size:clamp(0.55rem, 0.9cqw, 0.72rem); }
+  /* Pizarra dentro del folio: el campo mantiene su PROPORCIÓN NATURAL (idéntica a la home): NO se
+     estira ni se recorta, así sale la MISMA imagen que en pantalla (sin campo "cortado"/deformado).
+     Para dar aire y que los jugadores no se solapen, se encogen un poco (chip/avatar/nombre/badge).
+     No afecta a la home. */
+  body.report-a4 .pb-chip{ width:clamp(38px, 6.4cqw, 80px); gap:1px; }
+  body.report-a4 .pb-avatar{ width:clamp(32px, 5cqw, 62px); height:clamp(38px, 5.9cqw, 74px); }
+  body.report-a4 .pb-name{ max-width:clamp(50px, 6.8cqw, 98px); font-size:clamp(0.5rem, 0.86cqw, 0.68rem); }
+  body.report-a4 .pb-badge{ font-size:0.5rem; padding:0 5px; }
+  body.report-a4 .pb-num, body.report-a4 .pb-rating{ height:17px; min-width:17px; font-size:0.58rem; }
   @media print{
     body.report-a4{ background:#fff; padding:0; }
     /* Imprime fondos/colores (cesped, badges, tarjetas): sin esto Chrome los omite y sale distinto. */
