@@ -42355,6 +42355,83 @@ def _player_compare_profile(player):
     }
 
 
+def _attr_deltas(latest_scores, prev_scores, catalog):
+    """Atributos que más suben/bajan entre dos evaluaciones (flechas de progresión estilo FM)."""
+    latest = _fm_flat_scores(latest_scores)
+    prev = _fm_flat_scores(prev_scores)
+    label_of = {}
+    for area in (catalog or []):
+        for pkey, label in area.get("params", []):
+            label_of[pkey] = label
+    deltas = []
+    for k, v in latest.items():
+        if k in prev:
+            d = round(v - prev[k], 1)
+            if abs(d) >= 0.1:
+                deltas.append({"label": label_of.get(k, k), "delta": d})
+    up = sorted([d for d in deltas if d["delta"] > 0], key=lambda x: -x["delta"])[:3]
+    down = sorted([d for d in deltas if d["delta"] < 0], key=lambda x: x["delta"])[:3]
+    return up, down
+
+
+@login_required
+def development_page(request):
+    """Plan de desarrollo (estilo FM): por jugador, objetivos de trabajo + progresión de atributos
+    (qué sube/baja entre sus dos últimas evaluaciones) + tendencia global. Reutiliza PlayerEvaluation."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404("Equipo principal no configurado")
+    players = list(Player.objects.filter(team=primary_team, is_active=True).order_by("number", "name"))
+    pids = [int(p.id) for p in players]
+    evals_by_player = {}
+    if pids:
+        try:
+            for ev in (
+                PlayerEvaluation.objects.filter(player_id__in=pids, status=PlayerEvaluation.STATUS_CLOSED)
+                .order_by("player_id", "-evaluated_on", "-updated_at", "-id")
+            ):
+                evals_by_player.setdefault(int(ev.player_id), []).append(ev)
+        except Exception:
+            evals_by_player = {}
+    rows = []
+    n_plan = 0
+    for p in players:
+        evs = evals_by_player.get(int(p.id), [])
+        if not evs:
+            rows.append({"player": p, "has_eval": False})
+            continue
+        latest = evs[0]
+        prev = evs[1] if len(evs) > 1 else None
+        catalog = _evaluation_catalog_for_player(p)
+        m_now = _fm_scores_mean(getattr(latest, "parameter_scores", None))
+        trend = None
+        if prev:
+            m_prev = _fm_scores_mean(getattr(prev, "parameter_scores", None))
+            if m_now is not None and m_prev is not None:
+                trend = round(m_now - m_prev, 1)
+        up, down = (_attr_deltas(getattr(latest, "parameter_scores", None), getattr(prev, "parameter_scores", None), catalog)
+                    if prev else ([], []))
+        objetivos = (getattr(latest, "objectives_next", "") or "").strip()
+        mejorar = (getattr(latest, "improvements", "") or "").strip()
+        if objetivos or mejorar:
+            n_plan += 1
+        rows.append({
+            "player": p, "has_eval": True,
+            "overall": (round(m_now, 1) if m_now is not None else None),
+            "trend": trend, "up": up, "down": down,
+            "objetivos": objetivos, "mejorar": mejorar,
+            "evaluated_on": getattr(latest, "evaluated_on", None),
+        })
+    rows.sort(key=lambda r: (0 if (r.get("objetivos") or r.get("mejorar")) else (1 if r.get("has_eval") else 2), -(r.get("overall") or 0)))
+    return render(request, "football/development.html", {
+        "primary_team": primary_team, "rows": rows,
+        "n_plan": n_plan, "n_total": len(players),
+    })
+
+
 @login_required
 def coach_inbox_page(request):
     """Bandeja del entrenador (estilo FM): feed priorizado de lo que requiere acción — próximo
