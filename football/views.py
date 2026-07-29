@@ -22437,6 +22437,95 @@ def coach_pitch_board_save(request):
 
 
 @login_required
+def coach_debug_convocatoria(request):
+    """DIAGNOSTICO temporal: por que salen jugadores del año anterior en el registro de acciones.
+    Replica la seleccion de convocatoria de la pagina y vuelca el estado de temporada de cada jugador."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({"error": "no_primary_team"})
+
+    out = {"team": str(getattr(primary_team, "name", "") or ""), "team_id": int(primary_team.id)}
+
+    # Temporada seleccionada
+    try:
+        season = selected_club_season_for_request(request)
+        out["selected_season"] = {
+            "id": int(getattr(season, "id", 0) or 0) if season else None,
+            "label": str(getattr(season, "label", "") or getattr(season, "name", "") or "") if season else None,
+            "is_active": bool(getattr(season, "is_active", False)) if season else None,
+        }
+    except Exception as e:
+        season = None
+        out["selected_season_error"] = f"{type(e).__name__}: {e}"
+
+    # Partido activo del flujo
+    try:
+        active_match = _resolve_active_match_for_flow(request, primary_team)
+        out["active_match"] = {
+            "id": int(active_match.id),
+            "date": str(getattr(active_match, "date", "") or ""),
+        } if active_match else None
+    except Exception as e:
+        active_match = None
+        out["active_match_error"] = f"{type(e).__name__}: {e}"
+
+    # Convocatoria elegida (misma logica que match_action_page)
+    convocation_record = None
+    try:
+        if active_match:
+            convocation_record = _get_convocation_record_for_match(primary_team, active_match)
+        if not convocation_record:
+            convocation_record = get_current_convocation_record(
+                primary_team, match=active_match, fallback_to_latest=False if active_match else True
+            )
+        if convocation_record:
+            out["convocation"] = {
+                "id": int(convocation_record.id),
+                "match_id": int(convocation_record.match_id) if convocation_record.match_id else None,
+                "match_date": str(getattr(convocation_record, "match_date", "") or ""),
+                "created_at": str(getattr(convocation_record, "created_at", "") or ""),
+                "is_current": bool(getattr(convocation_record, "is_current", False)),
+                "opponent": str(getattr(convocation_record, "opponent_name", "") or ""),
+            }
+        else:
+            out["convocation"] = None
+    except Exception as e:
+        out["convocation_error"] = f"{type(e).__name__}: {e}"
+
+    # Jugadores de la convocatoria + su estado en la temporada seleccionada
+    try:
+        players = list(convocation_record.players.order_by("name")) if convocation_record else []
+        status_by_pid = {}
+        if season:
+            for wsp in WorkspaceSeasonPlayer.objects.filter(
+                season=season, team=primary_team, player_id__in=[p.id for p in players]
+            ).values("player_id", "status"):
+                status_by_pid[wsp["player_id"]] = wsp["status"]
+        rows = []
+        sin_membresia = 0
+        for p in players:
+            st = status_by_pid.get(p.id)
+            if st is None:
+                sin_membresia += 1
+            rows.append({
+                "id": int(p.id),
+                "name": str(getattr(p, "name", "") or ""),
+                "is_active": bool(getattr(p, "is_active", True)),
+                "season_status": st or "SIN_MEMBRESIA_EN_TEMPORADA",
+            })
+        out["convocation_players_count"] = len(players)
+        out["players_sin_membresia_en_temporada_seleccionada"] = sin_membresia
+        out["players"] = rows
+    except Exception as e:
+        out["players_error"] = f"{type(e).__name__}: {e}"
+
+    return JsonResponse(out, json_dumps_params={"ensure_ascii": False})
+
+
+@login_required
 def coach_debug_injuries(request):
     """DIAGNOSTICO temporal: vuelca por que un jugador figura (o no) como lesionado.
     Solo lectura, solo entrenador. `?clearcache=1` limpia la cache del catalogo del editor."""
