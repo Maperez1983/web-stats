@@ -3086,7 +3086,10 @@ const urlWithMatchId = (baseUrl) => {
       };
       renderTacticsBoard = () => {
         renderTacticsBoardImpl();
-        renderRivalTacticsBoardImpl();
+        // Pizarra del rival: a medio implementar (renderRivalTacticsBoardImpl usa variables sin
+        // declarar y lanzaba un ReferenceError -tragado por try/catch- en CADA redibujado). El botón
+        // está oculto; no la llamamos hasta que la feature esté completa. Evita el error de consola.
+        // renderRivalTacticsBoardImpl();
       };
       if (tacticsResetBtn) {
         tacticsResetBtn.addEventListener('click', () => applyBasePositionsToStarters());
