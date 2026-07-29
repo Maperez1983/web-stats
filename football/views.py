@@ -56093,6 +56093,45 @@ def session_task_detail_page(request, task_id):
                 _restore_task_from_original_snapshot(task, scope_key=scope_key)
                 feedback = "Se restauró la versión original de la tarea."
                 task.refresh_from_db()
+            elif detail_action == "duplicate_task":
+                # "Crear copia": duplica la tarea como una NUEVA maestra independiente en la
+                # biblioteca (sin enlace a la original ni versión previa) para poder editar una
+                # sin tocar la otra. Queda disponible para añadir a cualquier sesión.
+                _dup_team = getattr(getattr(getattr(task, "session", None), "microcycle", None), "team", None)
+                if _dup_team is None:
+                    raise ValueError("No se pudo determinar el equipo de la tarea.")
+                import copy as _copy_mod
+
+                _src_layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+                try:
+                    _dup_layout = _copy_mod.deepcopy(_src_layout) if isinstance(_src_layout, dict) else {}
+                except Exception:
+                    _dup_layout = dict(_src_layout) if isinstance(_src_layout, dict) else {}
+                _dup_meta = _dup_layout.get("meta") if isinstance(_dup_layout.get("meta"), dict) else {}
+                _dup_meta = dict(_dup_meta)
+                _dup_meta["is_template"] = True
+                _dup_meta.pop("library_source_task_id", None)
+                _dup_meta.pop("original_version", None)
+                _dup_repo = _normalize_library_repository(_dup_meta.get("repository"))
+                _dup_meta["repository"] = _dup_repo
+                _dup_layout["meta"] = _dup_meta
+                _dup_lib = _get_or_create_library_session_with_repository(_dup_team, scope_key, repository=_dup_repo)
+                _dup_task = SessionTask.objects.create(
+                    session=_dup_lib,
+                    title=(str(task.title or "Tarea").strip()[:150] + " (copia)")[:160],
+                    block=str(task.block or SessionTask.BLOCK_MAIN_1),
+                    duration_minutes=int(getattr(task, "duration_minutes", 0) or 15),
+                    objective=str(getattr(task, "objective", "") or "")[:8000],
+                    coaching_points=str(getattr(task, "coaching_points", "") or ""),
+                    confrontation_rules=str(getattr(task, "confrontation_rules", "") or ""),
+                    tactical_layout=_dup_layout,
+                    task_pdf=task.task_pdf.name if getattr(task, "task_pdf", None) else None,
+                    task_preview_image=task.task_preview_image.name if getattr(task, "task_preview_image", None) else None,
+                    status=SessionTask.STATUS_PLANNED,
+                    order=SessionTask.objects.filter(session=_dup_lib, deleted_at__isnull=True).count() + 1,
+                    notes=f"Copia independiente de tarea #{int(task.id)}",
+                )
+                return redirect(reverse("session-task-detail", args=[int(_dup_task.id)]) + "?copied=1")
             else:
                 error = "Acción no reconocida."
         except ValueError as exc:

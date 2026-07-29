@@ -1427,6 +1427,11 @@
             aria-pressed="{% if is_bookmarked %}true{% else %}false{% endif %}"
             title="{% if is_bookmarked %}Quitar de favoritas{% else %}Marcar como favorita{% endif %}"
           >{% if is_bookmarked %}★ Favorita{% else %}☆ Favorita{% endif %}</button>
+          <form method="post" style="display:inline;" onsubmit="return confirm('¿Crear una copia independiente de esta tarea en la biblioteca?');">
+            {% csrf_token %}
+            <input type="hidden" name="detail_action" value="duplicate_task" />
+            <button type="submit" class="button secondary" title="Crea una copia independiente en la biblioteca (para conservar ambas versiones)">⧉ Crear copia</button>
+          </form>
           {% endif %}
         </div>
       </header>
