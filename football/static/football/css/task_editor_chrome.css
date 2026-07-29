@@ -653,6 +653,11 @@ body.ed-chrome .edc-inspector .edc-dup-ficha ~ * { display: none !important; }
    variar el tamano de una chapa. */
 body.ed-chrome .edc-inspector #task-color-presets-row,
 body.ed-chrome .edc-inspector #task-stroke-presets { display: none !important; }
+/* Devolver el selector de TAMAÑO al inspector: el perfil del editor a veces oculta 'Tamaño'
+   (#task-scale-presets, presets Pequeño/S/M/L/XL + girar/mover). Lo forzamos visible siempre en el
+   inspector para poder variar el tamaño de cualquier elemento (p.ej. una chapa). */
+body.ed-chrome .edc-inspector #task-scale-presets[hidden],
+body.ed-chrome .edc-inspector #task-scale-presets { display: flex !important; flex-wrap: wrap; }
 body.ed-chrome .edc-inspector .selection-toolbar::before { content: "Elemento seleccionado"; display: block; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--edc-accent); margin-bottom: 8px; }
 
 /* Menú ☰: secciones legibles */
