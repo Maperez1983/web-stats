@@ -3480,7 +3480,8 @@
 		  <span id="offline-queue-badge" class="offline-queue-badge" hidden aria-live="polite"></span>
 		  <button type="button" id="offline-queue-sync" class="offline-queue-sync" hidden>Sincronizar</button>
 		  <a id="last-video-clip-btn" class="offline-queue-sync" href="#" hidden>🎬 Último clip</a>
-		  <button type="button" id="video-panel-toggle" class="offline-queue-sync">📺 Vídeo</button>
+		  <!-- Botón oculto: la función de vídeo/replay se eliminó del JS; el botón quedaba visible sin efecto. -->
+		  <button type="button" id="video-panel-toggle" class="offline-queue-sync" hidden style="display:none">📺 Vídeo</button>
 		</div>
 	              <p class="clock-note">Cronómetro en vivo · se registra el minuto en cada acción</p>
 	            </div>
@@ -3694,7 +3695,8 @@
 		              <div class="tactics-board-head">
 		                <h5>Táctica · {{ starters_limit|default:11 }} en campo</h5>
 		                <div class="tactics-board-actions">
-		                  <button type="button" class="toolbar-pill" id="tactics-toggle-rival" title="Mostrar/ocultar titulares del rival">Rival: OFF</button>
+		                  <!-- Botón oculto: "mostrar rival en la pizarra" está a medio implementar (sin handler y con símbolos sin declarar). Se retira hasta completarlo. "Preparar rival" (enlace) sí funciona. -->
+                  <button type="button" class="toolbar-pill" id="tactics-toggle-rival" title="Mostrar/ocultar titulares del rival" hidden style="display:none">Rival: OFF</button>
 		                  <a href="{% url 'coach-rival' %}?match_id={{ match_info.match_id }}" class="toolbar-pill" id="tactics-prep-rival" title="Selecciona convocatoria y titulares del rival">Preparar rival</a>
 		                  <button type="button" class="toolbar-pill" id="tactics-reset-positions" title="Recolocar titulares en una estructura base">Reset posiciones</button>
 		                </div>
@@ -5123,6 +5125,9 @@
           else document.addEventListener('DOMContentLoaded', fn, { once: true });
         };
         ready(() => {
+          // Igual que los otros fallbacks (finalize/submit/tap): si el JS principal cargó bien, no
+          // duplicamos handlers (evita doble binding en las pestañas).
+          if (window.__matchActionsMainOk) return;
           const tabs = Array.from(document.querySelectorAll('[data-stage-tab]') || []);
           const panels = Array.from(document.querySelectorAll('[data-stage-panel]') || []);
           if (!tabs.length || !panels.length) return;
