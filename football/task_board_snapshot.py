@@ -54,6 +54,11 @@ FAIL_COOLDOWN_SECONDS = 30 * 60
 _inflight: set[int] = set()
 _inflight_lock = threading.Lock()
 
+# Un Chromium a la vez por proceso: abrir el editor completo consume bastante memoria y varias
+# fichas abiertas a la vez podrían tumbar la instancia. Los demás esperan turno.
+_render_gate = threading.Semaphore(1)
+RENDER_GATE_TIMEOUT_SECONDS = 180
+
 
 def board_signature(task) -> str:
     """Huella del DIBUJO. Si no cambia, la foto sigue valiendo."""
@@ -228,6 +233,16 @@ def _render_and_store(task_id: int, url: str, cookies: list, sig: str) -> None:
 
 
 def _render(url: str, cookies: list) -> bytes | None:
+    if not _render_gate.acquire(timeout=RENDER_GATE_TIMEOUT_SECONDS):
+        logger.warning("board snapshot: cola llena, se salta esta foto")
+        return None
+    try:
+        return _render_locked(url, cookies)
+    finally:
+        _render_gate.release()
+
+
+def _render_locked(url: str, cookies: list) -> bytes | None:
     from .preview_render import render_url_selector_png
 
     return render_url_selector_png(
