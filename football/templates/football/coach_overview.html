@@ -149,6 +149,9 @@
       .card.compact {
         min-height: 0;
       }
+      /* Plegables: sin alto minimo para que cerrados no dejen un hueco vacio. */
+      details.card { min-height: 0; padding: 0; }
+      details.card > summary { padding: .7rem .9rem; }
       .card h2,
       .card h3 {
         margin: 0 0 0.8rem;
@@ -615,6 +618,7 @@
         {% if federative_report %}
         <div class="hm-stat ok"><div class="n">{{ federative_report.fichados }}<span class="d">/{{ federative_report.cap }}</span></div><div class="k">Fichados</div></div>
         <div class="hm-stat"><div class="n">{{ federative_report.fichas_disponibles }}</div><div class="k">Fichas libres</div></div>
+        <div class="hm-stat"><div class="n">{{ federative_report.a_prueba }}</div><div class="k">A prueba</div></div>
         <div class="hm-stat red"><div class="n">{{ federative_report.lesionados }}</div><div class="k">Lesionados</div></div>
         {% endif %}
         {% if highlighted_standing %}
@@ -700,14 +704,15 @@
             <a class="hm-zone" href="{% url 'analysis' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}"><b>📊 Análisis</b><span>Vídeo · briefing del rival · insights</span></a>
             <a class="hm-zone" href="{% url 'coach-matches' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}"><b>📅 Calendario</b><span>Alta y listado de partidos</span></a>
             <a class="hm-zone" href="{% url 'reports-hub' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}"><b>📄 Informes</b><span>PDF de jugador y de equipo</span></a>
-            <a class="hm-zone" href="{% url 'club-page' %}"><b>🏛️ Club</b><span>Equipos · staff · temporada · ajustes</span></a>
+            <a class="hm-zone" href="{% url 'club-page' %}"><b>🏛️ Club</b><span>Equipos · staff · temporada</span></a>
+            <a class="hm-zone" href="{% url 'club-onboarding' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}"><b>⚙️ Configuración</b><span>Club, temporada, permisos y staff</span></a>
           </div>
         </div>
       </section>
 
         {% include 'football/_coach_pitch_board.html' %}
 
-        <details class="card home-compact ask-compact" aria-label="Asistente del entrenador" style="margin-top:1rem;padding:0;">
+        <details class="ask-compact ask-fab" aria-label="Asistente del entrenador">
           <summary class="ask-summary">
             <span>🤖</span><b>Pregúntale al asistente</b>
             <span class="ask-hint">lesionados · próximo partido · cobertura</span>
@@ -818,6 +823,21 @@
       .hm-rbadge.v{background:var(--prod-success);} .hm-rbadge.e{background:var(--prod-amber);} .hm-rbadge.d{background:var(--prod-danger);color:#fff;}
       .hm-rforms{font-size:.68rem;color:var(--muted);}
       .hm-stat.blue .n{color:#4a86e8;}
+    
+      /* --- Asistente como boton flotante desplegable (patron de portal) --- */
+      .ask-fab{position:fixed;left:16px;bottom:16px;z-index:60;display:flex;flex-direction:column-reverse;align-items:flex-start;min-height:0;padding:0;border:none;background:none;box-shadow:none;}
+      .ask-fab > summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:.5rem;padding:.6rem .95rem;border-radius:999px;
+        background:linear-gradient(135deg, rgba(244,180,0,.92), rgba(230,160,0,.92));color:#0b1626;font-weight:900;font-size:.84rem;
+        border:1px solid rgba(244,180,0,.5);box-shadow:0 10px 26px rgba(0,0,0,.42);white-space:nowrap;}
+      .ask-fab > summary:hover{filter:brightness(1.05);}
+      .ask-fab > summary::-webkit-details-marker{display:none;}
+      .ask-fab .ask-hint{display:none;}
+      .ask-fab .ask-caret{margin-left:.2rem;opacity:.8;}
+      .ask-fab .ask-body{width:min(92vw,380px);margin-bottom:.5rem;padding:.85rem;border-radius:16px;
+        background:var(--panel,rgba(11,19,33,.98));border:1px solid var(--line);box-shadow:0 22px 60px rgba(0,0,0,.5);
+        max-height:min(66vh,520px);overflow:auto;backdrop-filter:blur(8px);}
+      @media (max-width:560px){.ask-fab{left:10px;bottom:10px;}}
+      @media print{.ask-fab{display:none;}}
     </style>
           <script>
           (function(){
@@ -843,44 +863,7 @@
           </script>
         </details>
 
-        {% if federative_report %}
-        <section class="card" aria-label="Fichas y cobertura de plantilla" style="margin-top:1rem;">
-          <h2 style="margin:0 0 0.6rem;font-size:1.05rem;">Fichas y cobertura de plantilla</h2>
-          <div style="display:flex;flex-wrap:wrap;gap:0.6rem;margin-bottom:0.8rem;">
-            <div style="flex:1 1 120px;min-width:120px;border:1px solid rgba(120,200,140,0.35);background:rgba(60,180,100,0.10);border-radius:10px;padding:0.6rem 0.8rem;">
-              <div style="font-size:1.5rem;font-weight:800;line-height:1;">{{ federative_report.fichados }}</div>
-              <div style="font-size:0.78rem;opacity:0.8;">Fichados</div>
-            </div>
-            <div style="flex:1 1 120px;min-width:120px;border:1px solid rgba(240,200,90,0.4);background:rgba(240,200,90,0.10);border-radius:10px;padding:0.6rem 0.8rem;">
-              <div style="font-size:1.5rem;font-weight:800;line-height:1;">{{ federative_report.a_prueba }}</div>
-              <div style="font-size:0.78rem;opacity:0.8;">A prueba</div>
-            </div>
-            <div style="flex:1 1 120px;min-width:120px;border:1px solid rgba(240,120,120,0.4);background:rgba(240,120,120,0.10);border-radius:10px;padding:0.6rem 0.8rem;">
-              <div style="font-size:1.5rem;font-weight:800;line-height:1;">{{ federative_report.lesionados }}</div>
-              <div style="font-size:0.78rem;opacity:0.8;">Lesionados</div>
-            </div>
-            <div style="flex:1 1 140px;min-width:140px;border:1px solid rgba(120,160,240,0.4);background:rgba(120,160,240,0.10);border-radius:10px;padding:0.6rem 0.8rem;">
-              <div style="font-size:1.5rem;font-weight:800;line-height:1;">{{ federative_report.fichas_disponibles }}<span style="font-size:0.9rem;opacity:0.6;"> / {{ federative_report.cap }}</span></div>
-              <div style="font-size:0.78rem;opacity:0.8;">Fichas disponibles</div>
-            </div>
-          </div>
-          {% if federative_report.cubierta %}
-            <p style="margin:0;color:#7bd88f;font-weight:600;">✓ Todos los puestos cubiertos (mínimos alcanzados).</p>
-          {% else %}
-            <p style="margin:0 0 0.4rem;font-weight:600;">Puestos por cubrir:</p>
-            <ul style="margin:0;padding-left:1.1rem;line-height:1.6;">
-              {% for f in federative_report.faltantes %}
-                <li>{{ f.label }}: faltan <strong>{{ f.missing }}</strong> <span style="opacity:0.65;">({{ f.code }})</span></li>
-              {% endfor %}
-            </ul>
-          {% endif %}
-          {% if federative_report.sin_posicion %}
-            <p style="margin:0.5rem 0 0;font-size:0.8rem;opacity:0.7;">{{ federative_report.sin_posicion }} jugador(es) sin posición reconocida (no cuentan para la cobertura).</p>
-          {% endif %}
-        </section>
-        {% endif %}
-
-        {# Tabla de decisión de plantilla: se conserva pero plegada (su sitio natural es Equipo → Planificador). #}
+                {# Tabla de decisión de plantilla: se conserva pero plegada (su sitio natural es Equipo → Planificador). #}
         <details class="card home-compact" style="margin-top:1rem;padding:0;">
           <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;gap:.5rem;padding:.65rem .85rem;font-size:.88rem;font-weight:800;color:var(--ink);">
             <span>📋</span><span>Decisión de plantilla (sigue / no sigue)</span>
