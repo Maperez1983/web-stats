@@ -73,7 +73,8 @@
   </section>
   {% endif %}
 
-  {% if coach_pitch_players %}
+  {% comment %}Tabla plana solo en el PDF: en la pagina ya esta la lista "bonita" de la pizarra (toggle LISTA).{% endcomment %}
+  {% if coach_pitch_players and not interactive %}
   <section>
     <h2>Listado de jugadores</h2>
     <table>
