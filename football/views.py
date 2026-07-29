@@ -78164,6 +78164,25 @@ def match_editor_page(request, match_id):
     players = list(Player.objects.filter(team=primary_team).order_by("number", "name"))
     player_by_id = {int(p.id): p for p in players if getattr(p, "id", None)}
 
+    # Plantilla para el panel de minutos/asistencia: los CONVOCADOS de este partido; si no hay
+    # convocatoria, el roster operativo ACTIVO de la temporada vigente. NUNCA la lista histórica del
+    # equipo (`players` incluye inactivos y jugadores de temporadas pasadas), que solo se usa para
+    # resolver acciones antiguas y los desplegables de edición manual.
+    roster_players = []
+    try:
+        _rec = _get_convocation_record_for_match(primary_team, match)
+        if _rec is not None:
+            roster_players = list(_rec.players.filter(is_active=True).order_by("number", "name"))
+    except Exception:
+        roster_players = []
+    if not roster_players:
+        try:
+            roster_players = list(_operational_roster_players_for_team(request, primary_team, confirmed_only=False))
+        except Exception:
+            roster_players = []
+    if not roster_players:
+        roster_players = [p for p in players if getattr(p, "is_active", True)]
+
     message = str(request.GET.get("msg") or "").strip()[:160]
     error = ""
     if request.method == "POST":
@@ -78196,7 +78215,7 @@ def match_editor_page(request, match_id):
                     # 2) Minutos/goles/asistencias por jugador si el nivel los incluye.
                     if level == "manual_minutes" and season:
                         updates, deletes = [], []
-                        for player in players:
+                        for player in roster_players:
                             pid = int(player.id)
                             values = {
                                 "manual_minutes": _maybe_int(request.POST.get(f"minutes_{pid}")),
@@ -78249,7 +78268,7 @@ def match_editor_page(request, match_id):
                 attendance_marked = 0
                 if str(request.POST.get("count_as_training") or "").strip().lower() in {"1", "on", "true", "yes"}:
                     attendance_marked = _ensure_match_attendance_session(
-                        match, primary_team, players, actor=request.user
+                        match, primary_team, roster_players, actor=request.user
                     )
                 _invalidate_team_dashboard_caches(primary_team)
                 try:
@@ -78277,7 +78296,7 @@ def match_editor_page(request, match_id):
 
                 updates = []
                 deletes = []
-                for player in players:
+                for player in roster_players:
                     pid = int(player.id)
                     minutes_val = _maybe_int(request.POST.get(f"minutes_{pid}"))
                     goals_val = _maybe_int(request.POST.get(f"goals_{pid}"))
@@ -78607,7 +78626,7 @@ def match_editor_page(request, match_id):
 
     manual_player_stats_rows = []
     try:
-        for p in players:
+        for p in roster_players:
             row = manual_player_stats.get(int(p.id), {}) if isinstance(manual_player_stats, dict) else {}
             manual_player_stats_rows.append(
                 {
@@ -78618,7 +78637,7 @@ def match_editor_page(request, match_id):
                 }
             )
     except Exception:
-        manual_player_stats_rows = [{"player": p, "minutes": None, "goals": None, "assists": None} for p in players]
+        manual_player_stats_rows = [{"player": p, "minutes": None, "goals": None, "assists": None} for p in roster_players]
 
     # Coherencia de goles: suma de goles por jugador (manual) vs el marcador a favor. Si no cuadran
     # y ambos tienen valor, avisamos (sin forzar: son fuentes distintas, pero deberían coincidir).
