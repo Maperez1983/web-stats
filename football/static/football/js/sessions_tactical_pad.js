@@ -34594,13 +34594,17 @@
 		      let svgMarkup = '';
 		      let svgSourceEl = svgSurface;
 		      try {
-		        // Miniatura: flat_2d/estadio usan FOTO (no compone -> sin lineas). Regeneramos el campo en
-		        // VECTORIAL (classic) para que la miniatura tenga cesped verde + LINEAS del campo.
+		        // Miniatura: flat_2d/estadio usan FOTO (no compone al rasterizar el SVG -> sin cesped).
+		        // Regeneramos el campo en VECTORIAL para que la miniatura tenga cesped + LINEAS.
+		        // - flat_2d (2D plano, el habitual): usamos 'flat_export' = MISMO verde brillante a franjas
+		        //   que el editor, 100% SVG y sin gradas -> la ficha/PDF muestran igual que la pizarra.
+		        // - estadio (foto de estadio, verde oscuro): mantenemos 'coachboard'.
 		        var _photoSurf = ['flat_2d','stadium_native','stadium_top','stadium_top_h','stadium_top_v'];
 		        if (_photoSurf.indexOf(exportGrassStyle) !== -1 && window.WebstatsPitch25D && typeof window.WebstatsPitch25D.buildPitchSvg === 'function') {
 		          var _orient = safeText((document.getElementById('draw-task-pitch-orientation')||{}).value) || 'landscape';
 		          var _preset = safeText((document.getElementById('draw-task-pitch-preset')||{}).value) || 'full_pitch';
-		          var _built = window.WebstatsPitch25D.buildPitchSvg(_preset, _orient, 'coachboard');
+		          var _exportSurf = (exportGrassStyle === 'flat_2d') ? 'flat_export' : 'coachboard';
+		          var _built = window.WebstatsPitch25D.buildPitchSvg(_preset, _orient, _exportSurf);
 		          var _svgStr = (typeof _built === 'string') ? _built : ((_built && _built.nodeType) ? new XMLSerializer().serializeToString(_built) : '');
 		          if (_svgStr) {
 		            var _doc = new DOMParser().parseFromString(_svgStr, 'image/svg+xml');

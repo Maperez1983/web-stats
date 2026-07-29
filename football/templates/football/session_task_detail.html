@@ -1415,9 +1415,6 @@
         </div>
         <div class="top-actions">
           <a class="button" href="{{ back_url }}">{{ back_label }}</a>
-          {% if can_edit_task and not show_edit_mode %}
-          <button type="button" class="button" id="task-detail-enter-edit"{% if edit_graphic_url %} data-direct-url="{{ edit_graphic_url }}"{% endif %}>Abrir edición</button>
-          {% endif %}
           {% if can_edit_task %}
           <button
             type="button"
@@ -1462,9 +1459,9 @@
           {% if can_edit_task %}
           <span style="flex:1;"></span>
           {% if presentation_inline_edit %}
-          <button type="button" class="button secondary" onclick="var u=new URL(location.href); u.searchParams.delete('edit'); location.href=u.toString();">Salir de edición</button>
+          <a class="button secondary" href="{{ exit_edit_url }}" title="Vuelve a la vista de solo lectura de la ficha">Salir de edición</a>
           {% else %}
-          <button type="button" class="button" onclick="var u=new URL(location.href); u.searchParams.set('edit','ficha'); u.searchParams.set('format','club'); location.href=u.toString();">✏️ Editar ficha</button>
+          <a class="button" href="{{ edit_ficha_url }}" title="Edita los textos de la ficha Club directamente">✏️ Editar ficha</a>
           {% endif %}
           {% endif %}
         </div>

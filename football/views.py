@@ -57026,6 +57026,8 @@ def session_task_detail_page(request, task_id):
     edit_graphic_url = ""
     builder_embed_url = ""
     presentation_url = ""
+    exit_edit_url = ""
+    edit_ficha_url = ""
     task_builder_edit_route_name = _task_builder_edit_route_name(scope_key)
     team = getattr(getattr(getattr(task, "session", None), "microcycle", None), "team", None)
     workspace = None
@@ -57068,6 +57070,21 @@ def session_task_detail_page(request, task_id):
         params.pop("mode", None)
         encoded_base = params.urlencode()
         presentation_url = base_detail_url if not encoded_base else f"{base_detail_url}?{encoded_base}"
+        # URLs robustas (enlaces planos, sin depender de JS) para entrar/salir de la edición de la
+        # ficha Club in situ. "Salir de edición" quita ?edit; "Editar ficha" lo añade. Se conservan
+        # los params de contexto (library_source/from_session/team/workspace) para no perder el back.
+        _exit_p = request.GET.copy()
+        for _k in ("legacy", "mode", "edit"):
+            _exit_p.pop(_k, None)
+        _exit_p["tab"] = "presentation"
+        _exit_p["format"] = "club"
+        exit_edit_url = f"{base_detail_url}?{_exit_p.urlencode()}"
+        _edit_p = request.GET.copy()
+        for _k in ("legacy", "mode"):
+            _edit_p.pop(_k, None)
+        _edit_p["edit"] = "ficha"
+        _edit_p["format"] = "club"
+        edit_ficha_url = f"{base_detail_url}?{_edit_p.urlencode()}"
         if is_editable_task and not is_performed_task:
             edit_params = {}
             try:
@@ -57093,6 +57110,13 @@ def session_task_detail_page(request, task_id):
         edit_graphic_url = ""
         presentation_url = ""
         builder_embed_url = ""
+    if not exit_edit_url:
+        try:
+            exit_edit_url = reverse("session-task-detail", args=[int(task.id)])
+        except Exception:
+            exit_edit_url = ""
+    if not edit_ficha_url:
+        edit_ficha_url = exit_edit_url
 
     pitch3d_player_model_src = ""
     try:
@@ -57169,6 +57193,8 @@ def session_task_detail_page(request, task_id):
             "active_task_format_tab": active_task_format_tab,
             "show_edit_mode": show_edit_mode,
             "presentation_inline_edit": presentation_inline_edit,
+            "exit_edit_url": exit_edit_url,
+            "edit_ficha_url": edit_ficha_url,
             "session_context": session_context,
             "related_tasks": related_tasks,
             "edit_graphic_url": edit_graphic_url,

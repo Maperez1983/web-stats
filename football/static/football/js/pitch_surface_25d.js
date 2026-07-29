@@ -54,6 +54,21 @@
       textureDark: 'rgba(23,56,18,0.075)',
       shadow: 'rgba(18,36,15,0.17)',
     },
+    // Solo para EXPORTAR la miniatura del 2D plano (flat_2d) a imagen: mismo verde brillante a
+    // franjas que el editor, pero 100% SVG (sin <image> de foto, que no compone al rasterizar el
+    // SVG) y SIN estadio/gradas (renderContext=false). Así la ficha y el PDF muestran el MISMO
+    // césped que la pizarra del editor, no el verde oscuro de "coachboard".
+    flat_export: {
+      outer: '#4f7f3a',
+      frame: '#6fa04d',
+      frameEdge: '#4f7f3a',
+      base: '#5c9445',
+      stripeA: '#6ba852',
+      stripeB: '#528a3e',
+      textureLight: 'rgba(255,255,255,0.03)',
+      textureDark: 'rgba(20,52,16,0.08)',
+      shadow: 'rgba(15,36,12,0.16)',
+    },
     pro: {
       outer: '#557d3c',
       frame: '#85aa56',
@@ -1455,7 +1470,7 @@
     const lineStroke = normalizedGrass === 'whiteboard' ? 'rgba(15,23,42,0.88)' : '#fdfefe';
     const lineUnderStroke = normalizedGrass === 'whiteboard' ? 'rgba(255,255,255,0.42)' : 'rgba(9,18,28,0.11)';
     const lineWidth = clamp(pitch.h / 150, 2.7, 5.8);
-    const renderContext = !['whiteboard', 'blackboard', 'coachboard'].includes(normalizedGrass) && pitch.metrics.mode === 'full';
+    const renderContext = !['whiteboard', 'blackboard', 'coachboard', 'flat_export'].includes(normalizedGrass) && pitch.metrics.mode === 'full';
     const leftGoalModes = new Set(['full', 'seven_side', 'seven_side_single', 'futsal', 'defensive_third']);
     const rightGoalModes = new Set(['full', 'seven_side', 'seven_side_single', 'futsal', 'half', 'attacking_third']);
     pitch.idPrefix = idPrefix;
