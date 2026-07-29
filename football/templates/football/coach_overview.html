@@ -620,6 +620,23 @@
             </ul>
           </section>
           {% endif %}
+          {% if coach_alerts %}
+          <section class="card home-compact" aria-label="Requiere tu atención" style="margin:0 0 1rem;padding:0.7rem 0.85rem;border-left:4px solid #e8b84b;">
+            <div class="hc-head">
+              <h2>🔔 Requiere tu atención</h2>
+              <span class="hc-count">{{ coach_alerts|length }}</span>
+            </div>
+            <div class="hc-alerts">
+              {% for a in coach_alerts %}
+              <a href="{{ a.url }}" class="hc-alert hc-{% if a.level == 'critical' %}crit{% elif a.level == 'warning' %}warn{% else %}info{% endif %}">
+                <span class="hc-ico">{{ a.icon }}</span>
+                <span class="hc-txt"><b>{{ a.title }}</b><span class="hc-dt">{{ a.detail }}</span></span>
+                <span class="hc-chev" aria-hidden="true">›</span>
+              </a>
+              {% endfor %}
+            </div>
+          </section>
+          {% endif %}
           <section class="card compact" aria-label="Áreas principales">
             <h2>Áreas</h2>
             <p class="muted" style="margin:0;">Accesos rápidos con lo importante siempre a mano.</p>
@@ -741,24 +758,6 @@
         </section>
 
         {% include 'football/_coach_pitch_board.html' %}
-
-        {% if coach_alerts %}
-        <section class="card home-compact" aria-label="Requiere tu atención" style="margin-top:1rem;padding:0.7rem 0.85rem;border-left:4px solid #e8b84b;">
-          <div class="hc-head">
-            <h2>🔔 Requiere tu atención</h2>
-            <span class="hc-count">{{ coach_alerts|length }}</span>
-          </div>
-          <div class="hc-alerts">
-            {% for a in coach_alerts %}
-            <a href="{{ a.url }}" class="hc-alert hc-{% if a.level == 'critical' %}crit{% elif a.level == 'warning' %}warn{% else %}info{% endif %}">
-              <span class="hc-ico">{{ a.icon }}</span>
-              <span class="hc-txt"><b>{{ a.title }}</b><span class="hc-dt">{{ a.detail }}</span></span>
-              <span class="hc-chev" aria-hidden="true">›</span>
-            </a>
-            {% endfor %}
-          </div>
-        </section>
-        {% endif %}
 
         <details class="card home-compact ask-compact" aria-label="Asistente del entrenador" style="margin-top:1rem;padding:0;">
           <summary class="ask-summary">
