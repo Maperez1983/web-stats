@@ -43465,6 +43465,9 @@ def _initial_eleven_page_impl(request):
             "starters_limit": starters_limit,
             "team_crest_url": team_crest_url,
             "rival_crest_url": rival_crest_url,
+            # Identidad del club en la cabecera (barra de colores del kit).
+            "kit_primary_color": getattr(primary_team, "kit_primary_color", "") or "",
+            "kit_secondary_color": getattr(primary_team, "kit_secondary_color", "") or "",
             "match_id": int(target_match.id) if target_match and getattr(target_match, "id", None) else None,
             "match_selector_options": match_selector_options,
             "selected_match_id": selected_match_id,

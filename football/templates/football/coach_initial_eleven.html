@@ -2225,9 +2225,11 @@
   <body class="prod-commercial">
     <main class="page">
       {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='partido' %}
       <header class="top">
         <div class="top-side is-home">
           <img src="{{ team_crest_url|default_if_none:'' }}" alt="Escudo {{ team_name }}" />
+          {% if kit_primary_color %}<span class="zh-kit" style="--zh-k1:{{ kit_primary_color }};--zh-k2:{{ kit_secondary_color|default:kit_primary_color }};height:34px;" title="Colores del club" aria-hidden="true"></span>{% endif %}
           <div>
             <h1>{{ team_name }}</h1>
             {% if convocation_record %}
