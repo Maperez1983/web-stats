@@ -1,0 +1,110 @@
+{% load static football_extras %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Carga semanal · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      .tl-wrap{max-width:1160px;margin:0 auto;padding:1rem;color:#eef2f8;}
+      .tl-head{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:.4rem;}
+      .tl-h1{margin:0;color:#f8fafc;font-size:1.5rem;font-weight:900;}
+      .tl-sub{color:#6d8098;font-weight:700;font-size:.78rem;margin:.15rem 0 0;}
+      .tl-nav{display:flex;gap:.4rem;align-items:center;}
+      .tl-nav a,.tl-nav span{font-size:.78rem;font-weight:800;color:#8fb4ff;text-decoration:none;border:1px solid #25406e;border-radius:8px;padding:.4rem .7rem;background:#141f33;}
+      .tl-nav .cur{color:#eef2f8;border-color:#2b3b4e;background:#111725;}
+      .tl-load{display:flex;gap:1.2rem;align-items:center;flex-wrap:wrap;background:#111725;border:1px solid #1f2b39;border-radius:14px;padding:.8rem 1.1rem;margin:1rem 0;}
+      .tl-load .big{font-size:1.5rem;font-weight:900;}
+      .tl-k{font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:#6d8098;font-weight:800;}
+      .tl-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:.72rem;color:#9fb0c6;margin-left:auto;}
+      .tl-legend span{display:flex;align-items:center;gap:5px;}
+      .tl-dot{width:10px;height:10px;border-radius:3px;}
+      .tl-grid{display:grid;grid-template-columns:repeat(7,minmax(140px,1fr));gap:10px;overflow-x:auto;padding-bottom:.4rem;}
+      .tl-day{border:1px solid #1f2b39;border-radius:13px;background:#111725;padding:.6rem;display:flex;flex-direction:column;min-height:180px;}
+      .tl-day.today{border-color:#4a86e8;box-shadow:0 0 0 1px rgba(74,134,232,.4);}
+      .tl-dhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.5rem;}
+      .tl-dow{font-size:.7rem;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#9fb0c6;}
+      .tl-date{font-size:.66rem;color:#6d8098;}
+      .tl-card{border-left:3px solid #6b7c94;background:rgba(148,163,184,.05);border-radius:8px;padding:.45rem .55rem;margin-bottom:.4rem;}
+      .tl-md{font-size:.58rem;font-weight:900;text-transform:uppercase;letter-spacing:.04em;color:#cbd5e1;}
+      .tl-focus{font-size:.8rem;font-weight:700;color:#f1f5f9;margin:.12rem 0;line-height:1.2;}
+      .tl-cmeta{font-size:.64rem;color:#6d8098;}
+      .tl-rest{font-size:.72rem;color:#6d8098;text-align:center;margin:auto 0;padding:.6rem 0;}
+      .tl-dfoot{margin-top:auto;padding-top:.5rem;}
+      .tl-track{height:7px;border-radius:5px;background:rgba(148,163,184,.14);overflow:hidden;}
+      .tl-fill{height:100%;border-radius:5px;background:linear-gradient(90deg,#2f6ed0,#4a86e8);}
+      .tl-dl{font-size:.62rem;color:#6d8098;margin-top:3px;text-align:right;}
+      .tl-links{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem;}
+      .tl-links a{font-size:.75rem;font-weight:800;color:#8fb4ff;text-decoration:none;border:1px solid #25406e;border-radius:8px;padding:.35rem .6rem;background:#141f33;}
+      .tl-empty{color:#94a3b8;}
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <div class="app-shell">
+      {% include 'football/includes/dragon_nav.html' %}
+      <main class="tl-wrap">
+        <div class="tl-head">
+          <div>
+            <h1 class="tl-h1">Carga semanal</h1>
+            <p class="tl-sub">{{ primary_team.display_name|default:primary_team.name }}{% if microcycle %} · {{ microcycle.title }} · semana del {{ microcycle.week_start|date:'d/m/Y' }}{% endif %}</p>
+          </div>
+          {% if microcycle %}
+          <div class="tl-nav">
+            {% if prev_mc %}<a href="?microcycle={{ prev_mc.id }}">← anterior</a>{% else %}<span style="opacity:.4;">← anterior</span>{% endif %}
+            <span class="cur">{{ microcycle.week_start|date:'d M' }}</span>
+            {% if next_mc %}<a href="?microcycle={{ next_mc.id }}">siguiente →</a>{% else %}<span style="opacity:.4;">siguiente →</span>{% endif %}
+          </div>
+          {% endif %}
+        </div>
+
+        {% if microcycle and days %}
+        <div class="tl-load">
+          <div><div class="tl-k">Carga semanal</div><div class="big">{{ week_load }} <span style="font-size:.8rem;color:#6d8098;">u.a.</span></div></div>
+          <div class="tl-legend">
+            <span><i class="tl-dot" style="background:#38bdf8"></i>Recuperación</span>
+            <span><i class="tl-dot" style="background:#3fbf6a"></i>Baja</span>
+            <span><i class="tl-dot" style="background:#e2a53a"></i>Media</span>
+            <span><i class="tl-dot" style="background:#e2564a"></i>Alta</span>
+            <span><i class="tl-dot" style="background:#f4b400"></i>Pre-partido</span>
+          </div>
+        </div>
+
+        <div class="tl-grid">
+          {% for d in days %}
+          <div class="tl-day{% if d.is_today %} today{% endif %}">
+            <div class="tl-dhead">
+              <span class="tl-dow">{{ d.label }}</span>
+              <span class="tl-date">{{ d.date|date:'d/m' }}</span>
+            </div>
+            {% for s in d.sessions %}
+            <div class="tl-card" style="border-left-color:{{ s.color }};">
+              {% if s.md %}<div class="tl-md" style="color:{{ s.color }};">{{ s.md }}</div>{% endif %}
+              <div class="tl-focus">{{ s.focus }}</div>
+              <div class="tl-cmeta">{{ s.intensity_label }}{% if s.dominant %} · {{ s.dominant }}{% endif %}{% if s.duration %} · {{ s.duration }}′{% endif %}{% if s.status == 'done' %} · ✓{% endif %}</div>
+            </div>
+            {% empty %}
+            <div class="tl-rest">Descanso</div>
+            {% endfor %}
+            <div class="tl-dfoot">
+              <div class="tl-track"><div class="tl-fill" style="width:{{ d.load_pct }}%;"></div></div>
+              <div class="tl-dl">{{ d.load }} u.a.</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        <p style="font-size:.72rem;color:#6d8098;margin-top:.8rem;">Carga = duración × intensidad (recuperación 0,4 · baja 0,6 · media 1,0 · alta 1,4). Modelo de periodización táctica (MD-x) tomado de cada sesión.</p>
+        {% else %}
+        <p class="tl-empty" style="margin-top:1.4rem;">No hay microciclo con sesiones para este equipo todavía. Crea sesiones en Entrenamiento y aquí verás la carga de la semana.</p>
+        {% endif %}
+
+        <div class="tl-links">
+          <a href="{% url 'sessions' %}">← Sesiones</a>
+          <a href="{% url 'coach-microcycle-report' %}">Informe de microciclo</a>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

@@ -40182,6 +40182,86 @@ def _microcycle_pick_for_report(primary_team, today, requested_id=None):
     return None
 
 
+_TRAINING_INTENSITY_META = {
+    "recovery": {"label": "Recuperación", "color": "#38bdf8", "w": 0.4},
+    "low": {"label": "Baja", "color": "#3fbf6a", "w": 0.6},
+    "medium": {"label": "Media", "color": "#e2a53a", "w": 1.0},
+    "high": {"label": "Alta", "color": "#e2564a", "w": 1.4},
+    "matchday": {"label": "Pre-partido", "color": "#f4b400", "w": 0.8},
+}
+
+
+@login_required
+def training_load_page(request):
+    """Calendario de carga semanal (estilo FM): el microciclo por días con intensidad, día de tensión
+    (MD-x) y carga dominante de cada sesión + carga acumulada de la semana. Reutiliza TrainingSession."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, "sessions", label="entrenamiento")
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404("Equipo principal no configurado")
+
+    today = timezone.localdate()
+    base_qs = TrainingMicrocycle.objects.filter(team=primary_team).exclude(week_start__year__lt=2000)
+    mc = None
+    mc_id = _parse_int(request.GET.get("microcycle"))
+    if mc_id:
+        mc = base_qs.filter(id=mc_id).first()
+    if mc is None:
+        mc = base_qs.filter(week_start__lte=today).order_by("-week_start").first() or base_qs.order_by("-week_start").first()
+
+    sessions = []
+    if mc is not None:
+        sessions = list(
+            TrainingSession.objects.filter(microcycle=mc, is_session_template=False)
+            .order_by("session_date", "order", "id")
+        )
+
+    days = []
+    week_load = 0.0
+    peak = 1.0
+    if mc is not None and getattr(mc, "week_start", None):
+        by_date = {}
+        for s in sessions:
+            by_date.setdefault(s.session_date, []).append(s)
+        dow = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+        for i in range(7):
+            d = mc.week_start + timedelta(days=i)
+            day_sessions = []
+            day_load = 0.0
+            for s in by_date.get(d, []):
+                meta = _TRAINING_INTENSITY_META.get(s.intensity, _TRAINING_INTENSITY_META["medium"])
+                load = int(round((s.duration_minutes or 0) * meta["w"]))
+                day_load += load
+                day_sessions.append({
+                    "id": s.id, "focus": s.focus, "duration": s.duration_minutes,
+                    "intensity_label": meta["label"], "color": meta["color"],
+                    "md": (s.get_md_day_display() if s.md_day else ""),
+                    "dominant": (s.get_dominant_load_display() if s.dominant_load else ""),
+                    "load": load, "status": s.status,
+                    "is_matchday": (s.intensity == "matchday" or s.md_day == "md"),
+                })
+            week_load += day_load
+            peak = max(peak, day_load)
+            days.append({"label": dow[i], "date": d, "is_today": d == today, "sessions": day_sessions, "load": int(day_load)})
+        for dd in days:
+            dd["load_pct"] = int(round((dd["load"] / peak) * 100)) if peak else 0
+
+    prev_mc = next_mc = None
+    if mc is not None and getattr(mc, "week_start", None):
+        prev_mc = base_qs.filter(week_start__lt=mc.week_start).order_by("-week_start").first()
+        next_mc = base_qs.filter(week_start__gt=mc.week_start).order_by("week_start").first()
+
+    return render(request, "football/training_load.html", {
+        "primary_team": primary_team, "microcycle": mc, "days": days,
+        "week_load": int(week_load), "prev_mc": prev_mc, "next_mc": next_mc,
+    })
+
+
 @login_required
 def microcycle_report_page(request):
     """Informe de evaluación del microciclo para el cuerpo técnico: asistencia por jugador y
