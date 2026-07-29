@@ -78161,13 +78161,24 @@ def match_editor_page(request, match_id):
     if not match:
         raise Http404("Partido no encontrado")
 
-    players = list(Player.objects.filter(team=primary_team).order_by("number", "name"))
-    player_by_id = {int(p.id): p for p in players if getattr(p, "id", None)}
+    # En un partido NO tiene sentido el histórico del equipo (jugadores inactivos o de temporadas
+    # pasadas). `all_team_players` solo se usa como mapa interno para RESOLVER acciones antiguas cuyo
+    # jugador ya no esté en la temporada; nunca se muestra como lista.
+    all_team_players = list(Player.objects.filter(team=primary_team).order_by("number", "name"))
+    player_by_id = {int(p.id): p for p in all_team_players if getattr(p, "id", None)}
 
-    # Plantilla para el panel de minutos/asistencia: los CONVOCADOS de este partido; si no hay
-    # convocatoria, el roster operativo ACTIVO de la temporada vigente. NUNCA la lista histórica del
-    # equipo (`players` incluye inactivos y jugadores de temporadas pasadas), que solo se usa para
-    # resolver acciones antiguas y los desplegables de edición manual.
+    # `players` = roster operativo de la TEMPORADA vigente (activos). Alimenta los desplegables de
+    # edición de acciones y el contexto: en un partido eliges entre jugadores de la temporada, no del
+    # histórico.
+    try:
+        players = list(_operational_roster_players_for_team(request, primary_team, confirmed_only=False))
+    except Exception:
+        players = []
+    if not players:
+        players = [p for p in all_team_players if getattr(p, "is_active", True)]
+
+    # Panel de minutos/asistencia: los CONVOCADOS de este partido; si no hay convocatoria, el roster
+    # de temporada. Aún más acotado que `players` (solo quienes fueron citados a este partido).
     roster_players = []
     try:
         _rec = _get_convocation_record_for_match(primary_team, match)
@@ -78176,12 +78187,7 @@ def match_editor_page(request, match_id):
     except Exception:
         roster_players = []
     if not roster_players:
-        try:
-            roster_players = list(_operational_roster_players_for_team(request, primary_team, confirmed_only=False))
-        except Exception:
-            roster_players = []
-    if not roster_players:
-        roster_players = [p for p in players if getattr(p, "is_active", True)]
+        roster_players = list(players)
 
     message = str(request.GET.get("msg") or "").strip()[:160]
     error = ""
