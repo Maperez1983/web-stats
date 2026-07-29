@@ -2284,6 +2284,17 @@ def rival_team_identity(request):
         if not team and code:
             team = Team.objects.filter(external_id__iexact=code).first()
         if not team:
+            # Fallback por nombre: algunos rivales ya existían con otra clave (external_id distinto al
+            # código E…). Resolvemos por name_key, PRIORIZANDO equipos que ya tienen jugadores rivales
+            # (evita casar con el equipo propio u otra categoría del mismo club).
+            name = str(t.get("name") or "").strip()
+            key = normalize_team_name_key(name) if name else ""
+            if key:
+                team = (
+                    Team.objects.filter(name_key=key, rival_players__isnull=False).distinct().first()
+                    or Team.objects.filter(name_key=key).first()
+                )
+        if not team:
             continue
         fields = []
         crest = str(t.get("crest_url") or "").strip()[:300]
