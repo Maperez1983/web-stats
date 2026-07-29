@@ -22150,7 +22150,7 @@ def _coach_pitch_board_pdf_assets(players):
 # alineado con esa plantilla: si cambia el aspecto del tablero en la home, actualizar aquí también.
 _PB_SNAPSHOT_CSS = """
   *{box-sizing:border-box;margin:0;padding:0}
-  .pb-field{position:relative;width:1180px;aspect-ratio:1664/945;background-size:cover;background-position:center;
+  .pb-field{position:relative;width:1240px;aspect-ratio:1664/945;background-size:cover;background-position:center;
     border-radius:18px;border:1px solid rgba(255,255,255,.14);overflow:hidden;box-shadow:inset 0 0 60px rgba(0,0,0,.35);
     container-type:inline-size;font-family:"Helvetica Neue",Arial,sans-serif}
   .pb-chip{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:2px;
@@ -22199,15 +22199,80 @@ def _coach_pitch_board_snapshot_data_url(players):
         f"{it.get('id')}:{it.get('left')}:{it.get('top')}:{it.get('state')}:{it.get('number')}:{it.get('rating')}:{it.get('name')}:{it.get('avatar')}:{int(bool(it.get('signed')))}"
         for it in items
     )
-    cache_key = "pb_snapshot_v1_" + hashlib.sha1(sig_src.encode("utf-8")).hexdigest()
+    cache_key = "pb_snapshot_v2hd_" + hashlib.sha1(sig_src.encode("utf-8")).hexdigest()
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
 
-    try:
-        bg_uri = _coach_pitch_board_pdf_assets(items)  # inyecta avatar_pdf y devuelve el fondo (data URI)
-    except Exception:
-        bg_uri = ""
+    # Assets en ALTA CALIDAD para el snapshot (esto es server-side; al cliente solo llega el PNG
+    # final, así que no importa el peso intermedio). Avatares = PNG con ALFA (son figuras recortadas;
+    # JPEG les metería fondo negro). Césped = JPEG alta resolución (sin alfa, más ligero que el PNG).
+    from django.contrib.staticfiles import finders as _finders
+
+    def _resolve_static(rel):
+        rel = str(rel or "").lstrip("/").strip()
+        if not rel:
+            return None
+        try:
+            found = _finders.find(rel)
+        except Exception:
+            found = None
+        if found:
+            return found
+        for base in (
+            Path(settings.BASE_DIR) / "football" / "static",
+            Path(settings.BASE_DIR) / "static",
+            Path(str(getattr(settings, "STATIC_ROOT", "") or ".")),
+        ):
+            try:
+                cand = base / rel
+                if cand.exists() and cand.is_file():
+                    return str(cand)
+            except Exception:
+                continue
+        return None
+
+    _asset_cache = {}
+
+    def _avatar_uri(rel):
+        if rel in _asset_cache:
+            return _asset_cache[rel]
+        p = _resolve_static(rel)
+        uri = ""
+        if p and Image is not None:
+            try:
+                with Image.open(p) as im:
+                    im = im.convert("RGBA")
+                    im.thumbnail((360, 820))
+                    buf = io.BytesIO()
+                    im.save(buf, format="PNG", optimize=True)
+                uri = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+            except Exception:
+                uri = _file_as_data_uri(p)
+        elif p:
+            uri = _file_as_data_uri(p)
+        _asset_cache[rel] = uri
+        return uri
+
+    def _pitch_uri():
+        p = _resolve_static("football/images/pitch3d/coach_home_pitch_surface.png")
+        if not p:
+            return ""
+        if Image is not None:
+            try:
+                with Image.open(p) as im:
+                    im = im.convert("RGB")
+                    im.thumbnail((2000, 1200))
+                    buf = io.BytesIO()
+                    im.save(buf, format="JPEG", quality=92, optimize=True)
+                return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+            except Exception:
+                return _file_as_data_uri(p)
+        return _file_as_data_uri(p)
+
+    for _it in items:
+        _it["avatar_pdf"] = _avatar_uri(_it.get("avatar"))
+    bg_uri = _pitch_uri()
 
     chips = []
     for p in items:
@@ -22255,10 +22320,10 @@ def _coach_pitch_board_snapshot_data_url(players):
         png = render_html_selector_png(
             html=html,
             selector=".pb-field",
-            viewport_width=1240,
-            viewport_height=760,
-            device_scale_factor=2.0,
-            timeout_ms=20000,
+            viewport_width=1320,
+            viewport_height=820,
+            device_scale_factor=2.5,  # HD: campo 1240px x 2.5 ≈ 3100px de ancho (~430 dpi en A4)
+            timeout_ms=25000,
         )
     except Exception:
         png = None
@@ -22266,7 +22331,19 @@ def _coach_pitch_board_snapshot_data_url(players):
     if not png:
         cache.set(cache_key, "", 60 * 5)  # cachea el fallo un ratito para no reintentar en bucle
         return ""
-    data_uri = "data:image/png;base64," + base64.b64encode(png).decode("ascii")
+    # Mantener HD pero con peso razonable: el PNG a 3100px pesa mucho; el césped es foto y comprime
+    # muy bien a JPEG. Aplanamos sobre el campo (no hay transparencia: la imagen llena el recuadro).
+    try:
+        if Image is not None:
+            with Image.open(io.BytesIO(png)) as _shot:
+                _shot = _shot.convert("RGB")
+                _buf = io.BytesIO()
+                _shot.save(_buf, format="JPEG", quality=90, optimize=True, progressive=True)
+            data_uri = "data:image/jpeg;base64," + base64.b64encode(_buf.getvalue()).decode("ascii")
+        else:
+            data_uri = "data:image/png;base64," + base64.b64encode(png).decode("ascii")
+    except Exception:
+        data_uri = "data:image/png;base64," + base64.b64encode(png).decode("ascii")
     cache.set(cache_key, data_uri, 60 * 60 * 24)  # 24 h; la firma cambia si se mueven fichas
     return data_uri
 
