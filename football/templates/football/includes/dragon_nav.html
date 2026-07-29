@@ -197,6 +197,7 @@
   <span class="nav-primary-links{% if nav_url_name == 'scouting-board' or nav_url_name == 'scouting-target-detail' or nav_url_name == 'player-detail' %} is-collapsed{% endif %}" data-nav-primary>
   {% if can_access_staff|default:False %}
   <a href="{% url 'coach-detail' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Abre la portada del entrenador: plantilla en el campo, competición, próximo rival y accesos." class="{% if nav_url_name == 'coach-detail' or nav_url_name == 'coach-role-trainer' or 'coach/roles/entrenador' in nav_path %}is-active{% endif %}" {% if nav_url_name == 'coach-detail' or nav_url_name == 'coach-role-trainer' or 'coach/roles/entrenador' in nav_path %}aria-current="page"{% endif %}>Inicio</a>
+  <a href="{% url 'coach-role-trainer' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Zona de trabajo del entrenador: pizarra con avatares, resumen ejecutivo y vistas de jugador y partido." class="{% if nav_url_name == 'coach-role-trainer' or 'coach/roles/entrenador' in nav_path %}is-active{% endif %}" {% if nav_url_name == 'coach-role-trainer' or 'coach/roles/entrenador' in nav_path %}aria-current="page"{% endif %}>Entrenador</a>
   {% endif %}
   {% if workspace_module_access.players|default:True %}
     {% if can_manage_workspace or is_admin_user %}
