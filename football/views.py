@@ -21942,6 +21942,16 @@ def coach_debug_injuries(request):
                 .exclude(player_id__in=_op_ids)
                 .count()
             )
+        _jug = []
+        for _p in _all_active:
+            _pid = int(getattr(_p, "id", 0) or 0)
+            _r = _ms.get(_pid)
+            _jug.append({
+                "nombre": str(getattr(_p, "name", "") or ""),
+                "fichado_ficha_federativa": bool(getattr(_p, "has_federative_license", False)),
+                "estado_temporada": (str(getattr(_r, "status", "") or "(sin estado)") if _r else "(SIN membresia de temporada)"),
+                "en_roster_home": _pid in _op_ids,
+            })
         squad = {
             "temporada": str(getattr(_season, "label", "") or getattr(_season, "name", "") or ""),
             "HOME_roster_operativo": {
@@ -21956,6 +21966,7 @@ def coach_debug_injuries(request):
             "por_estado_de_temporada": dict(_bucket),
             "ojeados_a_prueba_no_en_roster": _oj,
             "en_dinamica_informe_ahora": int(_bucket.get("confirmados", 0)) + int(_bucket.get("por_decidir", 0)),
+            "jugadores_detalle": sorted(_jug, key=lambda x: x["nombre"]),
         }
     except Exception as _e:
         squad = {"error": str(_e)}
