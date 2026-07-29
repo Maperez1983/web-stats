@@ -21711,9 +21711,15 @@ def _build_coach_pitch_board_players(primary_team, roster_players, roster_member
         if not pid:
             continue
         membership = memberships.get(pid)
+        # "A prueba" por FICHA FEDERATIVA (mismo criterio que el informe y el panel federativo): sin
+        # ficha = a prueba. Cubre casos como Ismael (confirmado en temporada pero sin ficha), que antes
+        # salia "Disponible" porque solo miraba is_confirmed. Tambien sigue siendo a prueba si la
+        # membresia esta sin confirmar.
+        _sin_ficha = not bool(getattr(player, "has_federative_license", False))
+        _no_confirmado = membership is not None and not bool(getattr(membership, "is_confirmed", False))
         if pid in injury_ids:
             state, state_label, avatar = "injured", "Lesionado", "injured_crutches.png"
-        elif membership is not None and not bool(getattr(membership, "is_confirmed", False)):
+        elif _sin_ficha or _no_confirmado:
             state, state_label, avatar = "trial", "A prueba", "chandal_black.png"
         else:
             state, state_label, avatar = "available", "Disponible", None
