@@ -22,6 +22,13 @@ if not str(os.environ.get("PLAYWRIGHT_BROWSERS_PATH") or "").strip():
     os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "0"
 
 
+# PNG transparente 1x1: se sirve como respuesta a cualquier imagen remota no incrustada durante
+# el render headless, para que Fabric no se cuelgue ni lance (lo que dejaba el lienzo vacío).
+_BLANK_PNG_BYTES = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+)
+
+
 def shutdown_preview_renderer() -> None:
     """
     Best-effort shutdown for Playwright resources.
@@ -632,14 +639,23 @@ def render_task_preview_png(
             page = context.new_page()
             # Avoid external network hangs when Fabric tries to load remote images.
             # We inline local /static and /media URLs into data: URLs before rendering.
-            # Any other remote requests are aborted quickly.
+            # IMPORTANTE: NO abortar las que queden — si una <img> de Fabric falla (abort),
+            # `loadFromJSON` puede LANZAR y el catch acaba pintando el lienzo VACÍO (campo sin
+            # jugadores/flechas). En su lugar respondemos un PNG transparente 1x1: el `load`
+            # resuelve sin error y el resto de objetos (formas + imágenes ya incrustadas) se dibujan.
+            def _route_blank(route):
+                try:
+                    if str(route.request.url or "").startswith(("http://", "https://")):
+                        route.fulfill(status=200, content_type="image/png", body=_BLANK_PNG_BYTES)
+                    else:
+                        route.continue_()
+                except Exception:
+                    try:
+                        route.continue_()
+                    except Exception:
+                        pass
             try:
-                page.route(
-                    "**/*",
-                    lambda route: route.abort()
-                    if route.request.url.startswith(("http://", "https://"))
-                    else route.continue_(),
-                )
+                page.route("**/*", _route_blank)
             except Exception:
                 pass
             page.set_content(html, wait_until="load")
@@ -766,9 +782,20 @@ def render_html_selector_png(
                 device_scale_factor=float(device_scale_factor),
             )
             page = context.new_page()
-            # No external network from snapshot renders.
+            # No external network from snapshot renders (blank pixel para no colgar/lanzar).
+            def _route_blank_sel(route):
+                try:
+                    if str(route.request.url or "").startswith(("http://", "https://")):
+                        route.fulfill(status=200, content_type="image/png", body=_BLANK_PNG_BYTES)
+                    else:
+                        route.continue_()
+                except Exception:
+                    try:
+                        route.continue_()
+                    except Exception:
+                        pass
             try:
-                page.route("**/*", lambda route: route.abort() if route.request.url.startswith(("http://", "https://")) else route.continue_())
+                page.route("**/*", _route_blank_sel)
             except Exception:
                 pass
             page.set_content(str(html), wait_until="load")

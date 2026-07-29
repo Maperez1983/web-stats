@@ -56912,6 +56912,36 @@ def regenerate_task_previews_action(request):
             info["error"] = f"{type(_exc).__name__}: {_exc}"
         return JsonResponse(info)
 
+    # Diagnóstico: fuerza el render server-side de UNA tarea y reporta si sale vacía (solo césped).
+    if request.method == "GET":
+        _one = _parse_int(request.GET.get("render_one"))
+        if _one:
+            _res = {"task_id": int(_one), "rendered": False, "pitch_only": None, "metrics": {}, "error": ""}
+            _t = SessionTask.objects.filter(
+                id=int(_one), session__microcycle__team=primary_team, deleted_at__isnull=True
+            ).first()
+            if not _t:
+                _res["error"] = "tarea no encontrada en el equipo"
+                return JsonResponse(_res)
+            try:
+                _res["rendered"] = bool(_maybe_render_task_preview_server_side(_t, force=True))
+                if _res["rendered"] and getattr(_t, "task_preview_image", None):
+                    try:
+                        _t.task_preview_image.open("rb")
+                        _raw = _t.task_preview_image.read() or b""
+                        _t.task_preview_image.close()
+                    except Exception:
+                        _raw = b""
+                    _m = _analyze_preview_image_bytes(_raw) if _raw else {}
+                    _res["metrics"] = {k: round(float(v), 3) for k, v in (_m or {}).items() if isinstance(v, (int, float))}
+                    _gr = float((_m or {}).get("green_ratio") or 0.0)
+                    _wr = float((_m or {}).get("white_ratio") or 0.0)
+                    _dr = float((_m or {}).get("dark_ratio") or 0.0)
+                    _res["pitch_only"] = bool(_gr >= 0.88 and _wr <= 0.18 and _dr <= 0.35)
+            except Exception as _exc:
+                _res["error"] = f"{type(_exc).__name__}: {_exc}"
+            return JsonResponse(_res)
+
     def _layout_dict(task_obj):
         lay = getattr(task_obj, "tactical_layout", None)
         if isinstance(lay, str):
