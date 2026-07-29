@@ -685,47 +685,88 @@
 	          <div class="section-title" id="participacion">Participación por tarea</div>
 	          <div class="box" style="margin-bottom:12px;">
 	            {% if participation_tasks and available_players %}
-	            <p style="margin:0 0 10px; color:var(--club-muted); font-size:11px;">Marca quién participó en cada tarea (por defecto, toda la plantilla disponible). Los minutos de cada tarea suman a los minutos de entreno del jugador.</p>
-	            <form method="post">
-	              {% csrf_token %}
-	              <input type="hidden" name="action" value="participation" />
-	              <input type="hidden" name="return_to" value="participation" />
-	              <input type="hidden" name="team" value="{{ team.id }}" />
-	              {% for pt in participation_tasks %}
-	              <div style="border:1px solid rgba(148,163,184,0.14); border-radius:12px; padding:0.6rem 0.7rem; margin-bottom:0.6rem;">
-	                <div style="display:flex; align-items:center; justify-content:space-between; gap:0.6rem; flex-wrap:wrap; margin-bottom:0.5rem;">
-	                  <strong>{{ pt.task.title|default:pt.task.get_block_display }}</strong>
-	                  <span class="meta">{{ pt.task.get_block_display }} · {{ pt.minutes }}′</span>
-	                </div>
-	                <div style="display:flex; flex-wrap:wrap; gap:0.4rem;">
-	                  {% for r in pt.rows %}
-	                  <label class="participa-chip" style="display:inline-flex; align-items:center; gap:0.35rem; border:1px solid rgba(148,163,184,0.3); border-radius:999px; padding:0.22rem 0.55rem; cursor:pointer; font-size:0.82rem;">
-	                    <input type="checkbox" name="participa_{{ pt.task.id }}_{{ r.player.id }}" {% if r.checked %}checked{% endif %} />
-	                    {{ r.player.name }}
-	                  </label>
-	                  {% endfor %}
-	                </div>
-	                <div style="margin-top:0.4rem; display:flex; gap:0.35rem;">
-	                  <button type="button" class="btn secondary" style="font-size:0.72rem; padding:0.25rem 0.6rem;" data-part-all="{{ pt.task.id }}">Todos</button>
-	                  <button type="button" class="btn secondary" style="font-size:0.72rem; padding:0.25rem 0.6rem;" data-part-none="{{ pt.task.id }}">Ninguno</button>
-	                </div>
-	              </div>
-	              {% endfor %}
-	              <div style="display:flex; justify-content:flex-end; margin-top:0.5rem;">
-	                <button class="btn primary" type="submit">Guardar participación</button>
-	              </div>
-	            </form>
-	            <script>
-	              (function(){
-	                document.querySelectorAll("[data-part-all],[data-part-none]").forEach(function(btn){
-	                  btn.addEventListener("click", function(){
-	                    var tid = btn.getAttribute("data-part-all") || btn.getAttribute("data-part-none");
-	                    var on = btn.hasAttribute("data-part-all");
-	                    document.querySelectorAll('input[name^="participa_'+tid+'_"]').forEach(function(cb){ cb.checked = on; });
-	                  });
-	                });
-	              })();
-	            </script>
+	            <style>
+              .psx-help{margin:0 0 12px;color:var(--club-muted,#64748b);font-size:12px;line-height:1.45;}
+              .psx-task{border:1px solid rgba(148,163,184,0.22);border-radius:12px;margin-bottom:10px;overflow:hidden;background:transparent;}
+              .psx-task>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;}
+              .psx-task>summary::-webkit-details-marker{display:none;}
+              .psx-task>summary:hover{background:rgba(148,163,184,0.06);}
+              .psx-tt{display:flex;flex-direction:column;gap:2px;min-width:0;}
+              .psx-tt b{font-size:14px!important;font-weight:600!important;text-transform:none!important;letter-spacing:0!important;color:inherit!important;}
+              .psx-tt span{font-size:11px!important;text-transform:none!important;letter-spacing:0!important;color:var(--club-muted,#64748b)!important;}
+              .psx-count{flex:0 0 auto;font-size:12px;font-weight:700;color:#16a34a;background:rgba(22,163,74,0.12);border-radius:999px;padding:3px 11px;white-space:nowrap;}
+              .psx-body{padding:2px 14px 14px;}
+              .psx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:6px;}
+              .psx-chip{display:flex!important;align-items:center;gap:8px;min-height:0!important;width:auto!important;aspect-ratio:auto!important;border:1px solid rgba(148,163,184,0.28);border-radius:8px!important;padding:7px 10px!important;cursor:pointer;font-size:13px!important;text-transform:none!important;letter-spacing:0!important;color:inherit!important;transition:background .12s,border-color .12s;user-select:none;background:transparent;}
+              .psx-chip:hover{border-color:rgba(148,163,184,0.5);}
+              .psx-chip input{margin:0!important;flex:0 0 auto;width:15px!important;height:15px!important;accent-color:#16a34a;}
+              .psx-chip.on{background:rgba(22,163,74,0.10);border-color:rgba(22,163,74,0.45);}
+              .psx-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:1!important;}
+              .psx-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+              .psx-mini{font-size:12px;padding:5px 12px;border-radius:8px;border:1px solid rgba(148,163,184,0.35);background:transparent;color:inherit;cursor:pointer;}
+              .psx-mini:hover{background:rgba(148,163,184,0.1);}
+            </style>
+            <p class="psx-help">Por defecto participa <strong>toda la plantilla disponible</strong>. Abre una tarea solo si quieres marcar excepciones. Los minutos de cada tarea suman a los del jugador.</p>
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="participation" />
+              <input type="hidden" name="return_to" value="participation" />
+              <input type="hidden" name="team" value="{{ team.id }}" />
+              {% for pt in participation_tasks %}
+              <details class="psx-task">
+                <summary>
+                  <span class="psx-tt">
+                    <b>{{ pt.task.title|default:pt.task.get_block_display }}</b>
+                    <span>{{ pt.task.get_block_display }} · {{ pt.minutes }}′</span>
+                  </span>
+                  <span class="psx-count" data-count="{{ pt.task.id }}">{{ pt.checked_count }}/{{ pt.total_count }}</span>
+                </summary>
+                <div class="psx-body">
+                  <div class="psx-grid">
+                    {% for r in pt.rows %}
+                    <label class="psx-chip {% if r.checked %}on{% endif %}">
+                      <input type="checkbox" name="participa_{{ pt.task.id }}_{{ r.player.id }}" {% if r.checked %}checked{% endif %} />
+                      <span>{{ r.player.name }}</span>
+                    </label>
+                    {% endfor %}
+                  </div>
+                  <div class="psx-actions">
+                    <button type="button" class="psx-mini" data-part-all="{{ pt.task.id }}">Todos</button>
+                    <button type="button" class="psx-mini" data-part-none="{{ pt.task.id }}">Ninguno</button>
+                  </div>
+                </div>
+              </details>
+              {% endfor %}
+              <div style="display:flex; justify-content:flex-end; margin-top:0.5rem;">
+                <button class="btn primary" type="submit">Guardar participación</button>
+              </div>
+            </form>
+            <script>
+              (function(){
+                function refresh(tid){
+                  var boxes = document.querySelectorAll('input[name^="participa_'+tid+'_"]');
+                  var on = 0; boxes.forEach(function(cb){ if(cb.checked) on++; });
+                  var cnt = document.querySelector('[data-count="'+tid+'"]');
+                  if(cnt){ cnt.textContent = on+'/'+boxes.length; }
+                }
+                document.querySelectorAll('.psx-chip input').forEach(function(cb){
+                  cb.addEventListener('change', function(){
+                    var chip = cb.closest('.psx-chip'); if(chip){ chip.classList.toggle('on', cb.checked); }
+                    var m = cb.name.match(/^participa_(\d+)_/); if(m){ refresh(m[1]); }
+                  });
+                });
+                document.querySelectorAll("[data-part-all],[data-part-none]").forEach(function(btn){
+                  btn.addEventListener("click", function(){
+                    var tid = btn.getAttribute("data-part-all") || btn.getAttribute("data-part-none");
+                    var on = btn.hasAttribute("data-part-all");
+                    document.querySelectorAll('input[name^="participa_'+tid+'_"]').forEach(function(cb){
+                      cb.checked = on; var chip = cb.closest('.psx-chip'); if(chip){ chip.classList.toggle('on', on); }
+                    });
+                    refresh(tid);
+                  });
+                });
+              })();
+            </script>
 	            {% elif not available_players %}
 	            <span style="color:var(--club-muted);">Marca la asistencia primero: no hay jugadores disponibles (todos ausentes/lesionados/justificados) o la plantilla está vacía.</span>
 	            {% else %}

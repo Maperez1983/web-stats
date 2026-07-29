@@ -33738,7 +33738,13 @@ def training_session_detail_page(request, session_id):
             _checked = (int(_t.id), int(_p.id)) in _existing_part if _any_participation else True
             _prows.append({"player": _p, "checked": _checked})
         participation_tasks.append(
-            {"task": _t, "minutes": int(getattr(_t, "duration_minutes", 0) or 0), "rows": _prows}
+            {
+                "task": _t,
+                "minutes": int(getattr(_t, "duration_minutes", 0) or 0),
+                "rows": _prows,
+                "checked_count": sum(1 for _r in _prows if _r["checked"]),
+                "total_count": len(_prows),
+            }
         )
 
     def _task_preview_url(task):
