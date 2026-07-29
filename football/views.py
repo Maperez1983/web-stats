@@ -56649,8 +56649,30 @@ def regenerate_task_previews_action(request):
     if not primary_team:
         raise Http404("Equipo no configurado")
 
-    RENDER_TAG = "flat_export_v1"
+    RENDER_TAG = "flat_export_v2"
     BATCH = 4
+
+    # Diagnóstico: ¿arranca Chromium/Playwright en este servidor? (mismo chequeo que el comando).
+    if request.method == "GET" and str(request.GET.get("probe") or "").strip() in {"1", "true", "yes"}:
+        info = {"chromium_ok": False, "error": ""}
+        try:
+            import os as _os
+
+            from football.preview_render import _acquire_playwright_browser
+
+            _os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", "0")
+            with _acquire_playwright_browser() as (_pw, _browser):
+                if _browser is None:
+                    info["error"] = "browser is None"
+                else:
+                    info["chromium_ok"] = True
+                    try:
+                        _browser.close()
+                    except Exception:
+                        pass
+        except Exception as _exc:
+            info["error"] = f"{type(_exc).__name__}: {_exc}"
+        return JsonResponse(info)
 
     def _layout_dict(task_obj):
         lay = getattr(task_obj, "tactical_layout", None)
@@ -56687,23 +56709,32 @@ def regenerate_task_previews_action(request):
     )
 
     if request.method == "POST":
-        candidates = list(base_qs)
-        pending = [t for t in candidates if _current_tag(t) != RENDER_TAG]
-        batch = pending[:BATCH]
+        # Avance por CURSOR de id (siempre progresa, aunque una tarea no tenga lienzo o falle).
+        try:
+            after_id = int(request.POST.get("after") or 0)
+        except Exception:
+            after_id = 0
+        batch = list(base_qs.filter(id__gt=after_id)[:BATCH])
         ok = 0
         failed = 0
         skipped = 0
+        errors = []
         for task_obj in batch:
             try:
                 rendered = bool(_maybe_render_task_preview_server_side(task_obj, force=True))
                 if rendered:
                     ok += 1
+                    _stamp_tag(task_obj)  # solo marcamos las que SÍ se regeneran
                 else:
                     skipped += 1
-                _stamp_tag(task_obj)
-            except Exception:
+                    if len(errors) < 3:
+                        errors.append(f"#{int(task_obj.id)}: sin salida (¿sin lienzo o render vacío?)")
+            except Exception as _exc:
                 failed += 1
-        remaining = max(0, len(pending) - len(batch))
+                if len(errors) < 3:
+                    errors.append(f"#{int(task_obj.id)}: {type(_exc).__name__}: {_exc}")
+        next_after = int(batch[-1].id) if batch else after_id
+        remaining = base_qs.filter(id__gt=next_after).count()
         return JsonResponse(
             {
                 "ok": ok,
@@ -56711,7 +56742,8 @@ def regenerate_task_previews_action(request):
                 "skipped": skipped,
                 "processed": len(batch),
                 "remaining": remaining,
-                "total": len(candidates),
+                "next_after": next_after,
+                "errors": errors,
             }
         )
 
@@ -56747,22 +56779,27 @@ def regenerate_task_previews_action(request):
  <div class="log" id="log"></div>
 </div>
 <script>
- var TEAM=__TEAMID__, initialPending=__PENDING__;
+ var TEAM=__TEAMID__;
  function cookie(n){var m=document.cookie.match('(?:^|; )'+n+'=([^;]*)');return m?decodeURIComponent(m[1]):'';}
- var totOk=0,totFail=0,totSkip=0,total=Math.max(1,__TOTAL__),done=0,lastRemaining=initialPending;
+ var totOk=0,totFail=0,totSkip=0,total=Math.max(1,__TOTAL__),after=0,lastErrors=[];
  var goBtn=document.getElementById('go'),logEl=document.getElementById('log'),pendEl=document.getElementById('pend'),fill=document.getElementById('barfill');
  function setBar(rem){var processed=total-rem;var pct=Math.round(processed/total*100);fill.style.width=Math.max(0,Math.min(100,pct))+'%';pendEl.textContent=rem;}
+ function render(rem){var t='Regeneradas: '+totOk+'  ·  Sin cambios: '+totSkip+'  ·  Fallidas: '+totFail+'  ·  Pendientes: '+rem;if(lastErrors.length){t+='\\n\\nDetalle: '+lastErrors.join('  |  ');}logEl.textContent=t;}
  async function step(){
-   var r=await fetch(window.location.pathname+'?team='+TEAM,{method:'POST',headers:{'X-CSRFToken':cookie('csrftoken'),'X-Requested-With':'fetch'},credentials:'same-origin'});
+   var body='team='+TEAM+'&after='+after;
+   var r=await fetch(window.location.pathname,{method:'POST',headers:{'X-CSRFToken':cookie('csrftoken'),'Content-Type':'application/x-www-form-urlencoded'},credentials:'same-origin',body:body});
    if(!r.ok){throw new Error('HTTP '+r.status);}
    var d=await r.json();
    totOk+=d.ok||0;totFail+=d.failed||0;totSkip+=d.skipped||0;
-   setBar(d.remaining);
-   logEl.textContent='Regeneradas: '+totOk+'  ·  Sin cambios: '+totSkip+'  ·  Fallidas: '+totFail+'  ·  Pendientes: '+d.remaining;
-   if(d.remaining<=0){logEl.textContent+='\\n\\n✅ Terminado. Recarga una ficha con Cmd+Shift+R para verlo.';goBtn.textContent='✔ Hecho';return;}
-   if(d.remaining>=lastRemaining && (d.ok||0)===0 && (d.skipped||0)===0){logEl.textContent+='\\n\\n⚠ No hubo progreso (posible fallo de render). Parado. Reintenta o avísame.';goBtn.disabled=false;goBtn.textContent='▶ Reintentar';return;}
-   lastRemaining=d.remaining;
-   setTimeout(step,300);
+   if(d.errors&&d.errors.length){lastErrors=d.errors;}
+   after=d.next_after;
+   setBar(d.remaining);render(d.remaining);
+   if((d.processed||0)===0 || d.remaining<=0){
+     if(totOk>0){logEl.textContent+='\\n\\n✅ Terminado: '+totOk+' regeneradas. Recarga una ficha con Cmd+Shift+R.';goBtn.textContent='✔ Hecho';}
+     else{logEl.textContent+='\\n\\n⚠ 0 regeneradas: el render server-side no produce imagen (Chromium/Playwright). Avísame.';goBtn.disabled=false;goBtn.textContent='▶ Reintentar';}
+     return;
+   }
+   setTimeout(step,250);
  }
  goBtn.addEventListener('click',async function(){goBtn.disabled=true;goBtn.textContent='⏳ Procesando…';logEl.textContent='Procesando…';try{await step();}catch(e){logEl.textContent='Error: '+e.message;goBtn.disabled=false;goBtn.textContent='▶ Reintentar';}});
 </script></body></html>"""
