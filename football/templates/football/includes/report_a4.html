@@ -31,11 +31,19 @@ En impresión el folio ocupa la página completa sin sombra ni márgenes de pant
      estira ni se recorta, así sale la MISMA imagen que en pantalla (sin campo "cortado"/deformado).
      Para dar aire y que los jugadores no se solapen, se encogen un poco (chip/avatar/nombre/badge).
      No afecta a la home. */
-  body.report-a4 .pb-chip{ width:clamp(38px, 6.4cqw, 80px); gap:1px; }
-  body.report-a4 .pb-avatar{ width:clamp(32px, 5cqw, 62px); height:clamp(38px, 5.9cqw, 74px); }
-  body.report-a4 .pb-name{ max-width:clamp(50px, 6.8cqw, 98px); font-size:clamp(0.5rem, 0.86cqw, 0.68rem); }
-  body.report-a4 .pb-badge{ font-size:0.5rem; padding:0 5px; }
-  body.report-a4 .pb-num, body.report-a4 .pb-rating{ height:17px; min-width:17px; font-size:0.58rem; }
+  /* CLAVE (anti-apelmazamiento): la pizarra del informe escala como UNA sola pieza, como un
+     "snapshot". TODOS los tamaños del jugador van en cqw (% del ancho del campo) y SIN mínimos en
+     px. En la home esos mínimos evitan que se vea diminuto; aquí, con el campo más estrecho, son
+     justo lo que hace que los TEXTOS (nombre/número/badge) no encojan y se amontonen. Al ir todo
+     proporcional, es la MISMA pizarra de la home a escala: mismos huecos entre jugadores, nítida. */
+  body.report-a4 .pb-chip{ width:9cqw; gap:0.2cqw; }
+  body.report-a4 .pb-avatar{ width:7.2cqw; height:8.4cqw; filter:drop-shadow(0 0.5cqw 0.6cqw rgba(0,0,0,.5)); }
+  body.report-a4 .pb-name{ max-width:10.5cqw; font-size:1.25cqw; padding:0.2cqw 0.9cqw; border-radius:0.8cqw; margin-top:0.25cqw; }
+  body.report-a4 .pb-num, body.report-a4 .pb-rating{ height:2.1cqw; min-width:2.1cqw; font-size:1.15cqw; border-width:0.2cqw; padding:0 0.4cqw; top:-0.55cqw; }
+  body.report-a4 .pb-signed{ font-size:0.95cqw; }
+  /* El badge de estado (DISPONIBLE/A PRUEBA/LESIONADO) es lo que más apelmaza y es REDUNDANTE:
+     el estado ya se ve por el color/figura del avatar y por la leyenda de abajo. Fuera en el informe. */
+  body.report-a4 .pb-badge{ display:none !important; }
   @media print{
     body.report-a4{ background:#fff; padding:0; }
     /* Imprime fondos/colores (cesped, badges, tarjetas): sin esto Chrome los omite y sale distinto. */
