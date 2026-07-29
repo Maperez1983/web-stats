@@ -192,6 +192,8 @@ class Team(models.Model):
     preferente_url = models.URLField(blank=True, help_text='URL del equipo en LaPreferente')
     crest_url = models.URLField(blank=True, help_text='URL sincronizada del escudo del equipo')
     crest_image = models.ImageField(upload_to='team-crests/', null=True, blank=True)
+    kit_primary_color = models.CharField(max_length=7, blank=True, default='', help_text='Color principal del kit (hex). Derivado del escudo por defecto; editable.')
+    kit_secondary_color = models.CharField(max_length=7, blank=True, default='', help_text='Color secundario del kit (hex).')
     home_stadium = models.CharField(max_length=200, blank=True, help_text='Campo/estadio habitual del equipo')
     home_stadium_address = models.CharField(max_length=260, blank=True, help_text='Dirección postal del campo/estadio')
     home_stadium_latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)

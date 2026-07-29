@@ -5,6 +5,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Rivales de la liga · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
     {% include 'football/pwa_head.html' %}
     <style>
       .ri-wrap { max-width: 1000px; margin: 0 auto; padding: 1rem; }
@@ -13,6 +15,9 @@
       .ri-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:.7rem; }
       .ri-card { display:flex; justify-content:space-between; align-items:center; background:#0f172a; border:1px solid #1e293b; border-radius:12px; padding:.9rem 1rem; text-decoration:none; }
       .ri-card:hover { border-color:#334155; background:#111c31; }
+      .ri-team { display:flex; align-items:center; gap:.6rem; }
+      .ri-crest { width:30px; height:30px; object-fit:contain; border-radius:6px; background:#0b1220; flex:0 0 auto; }
+      .ri-crest-ph { background:#1e293b; }
       .ri-nm { color:#f1f5f9; font-weight:800; }
       .ri-n { color:#7dd3fc; font-weight:900; font-size:.9rem; }
       .ri-empty { color:#94a3b8; }
@@ -27,8 +32,11 @@
         {% if rival_teams %}
         <div class="ri-grid">
           {% for t in rival_teams %}
-          <a class="ri-card" href="{% url 'rival-team-squad' team_id=t.team_id %}">
-            <span class="ri-nm">{{ t.name }}</span>
+          <a class="ri-card" href="{% url 'rival-team-squad' team_id=t.team_id %}"{% if t.kit %} style="border-left:4px solid {{ t.kit }};"{% endif %}>
+            <span class="ri-team">
+              {% if t.crest_url %}<img class="ri-crest" src="{{ t.crest_url }}" alt="" />{% else %}<span class="ri-crest ri-crest-ph"></span>{% endif %}
+              <span class="ri-nm">{{ t.name }}</span>
+            </span>
             <span class="ri-n">{{ t.count }}</span>
           </a>
           {% endfor %}

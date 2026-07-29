@@ -2254,6 +2254,57 @@ def rival_squad_ingest(request):
 
 
 @login_required
+@require_POST
+def rival_team_identity(request):
+    """Ingesta de IDENTIDAD del equipo rival: escudo (crest_url) + colores de kit (derivados del
+    escudo). laPreferente publica el escudo pero no los colores; estos vienen derivados en cliente.
+    Set-if-empty (no pisa un escudo/colores ya puestos a mano). JSON {teams:[{team_id|code, crest_url,
+    kit_primary, kit_secondary}]}."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+    import json as _json
+
+    try:
+        data = _json.loads((request.body or b"").decode("utf-8") or "{}")
+    except Exception:
+        return JsonResponse({"ok": False, "error": "bad_json"}, status=400)
+    teams = data.get("teams") if isinstance(data, dict) else None
+    if not isinstance(teams, list) or not teams:
+        return JsonResponse({"ok": False, "error": "no_teams"}, status=400)
+    updated = 0
+    for t in teams[:60]:
+        if not isinstance(t, dict):
+            continue
+        team = None
+        tid = _parse_int(t.get("team_id"))
+        code = str(t.get("code") or "").strip()
+        if tid:
+            team = Team.objects.filter(id=tid).first()
+        if not team and code:
+            team = Team.objects.filter(external_id__iexact=code).first()
+        if not team:
+            continue
+        fields = []
+        crest = str(t.get("crest_url") or "").strip()[:300]
+        if crest and not (team.crest_url or "").strip():
+            team.crest_url = crest
+            fields.append("crest_url")
+        kp = str(t.get("kit_primary") or "").strip()[:7]
+        if kp and not (team.kit_primary_color or "").strip():
+            team.kit_primary_color = kp
+            fields.append("kit_primary_color")
+        ks = str(t.get("kit_secondary") or "").strip()[:7]
+        if ks and not (team.kit_secondary_color or "").strip():
+            team.kit_secondary_color = ks
+            fields.append("kit_secondary_color")
+        if fields:
+            team.save(update_fields=fields)
+            updated += 1
+    return JsonResponse({"ok": True, "updated": updated})
+
+
+@login_required
 def rival_players_index(request):
     """Índice de rivales: los equipos rivales con plantilla importada (RivalPlayer)."""
     forbidden = _forbid_if_no_coach_access(request.user)
@@ -2263,11 +2314,20 @@ def rival_players_index(request):
 
     rows = (
         RivalPlayer.objects.filter(is_active=True)
-        .values("team_id", "team__name")
+        .values("team_id", "team__name", "team__crest_url", "team__kit_primary_color")
         .annotate(n=Count("id"))
         .order_by("team__name")
     )
-    teams = [{"team_id": r["team_id"], "name": r["team__name"], "count": r["n"]} for r in rows]
+    teams = [
+        {
+            "team_id": r["team_id"],
+            "name": r["team__name"],
+            "count": r["n"],
+            "crest_url": r["team__crest_url"] or "",
+            "kit": r["team__kit_primary_color"] or "",
+        }
+        for r in rows
+    ]
     return render(request, "football/rival_players_index.html", {"rival_teams": teams})
 
 

@@ -5,12 +5,17 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Plantilla · {{ rival_team.display_name }} · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
     {% include 'football/pwa_head.html' %}
     <style>
       .rs-wrap { max-width: 1100px; margin: 0 auto; padding: 1rem; }
       .rs-back { display:inline-block; color:#7dd3fc; text-decoration:none; font-weight:800; font-size:.85rem; margin-bottom:.6rem; }
+      .rs-head { display:flex; align-items:center; gap:.9rem; margin-bottom:1rem; }
+      .rs-crest { width:56px; height:56px; object-fit:contain; border-radius:10px; background:#0b1220; border:1px solid #1e293b; }
       .rs-h1 { margin:0; color:#f8fafc; font-size:1.6rem; }
-      .rs-sub { color:#94a3b8; font-weight:700; margin:.2rem 0 1rem; }
+      .rs-sub { color:#94a3b8; font-weight:700; margin:.2rem 0 0; }
+      .rs-kit { display:inline-block; width:12px; height:12px; border-radius:3px; border:1px solid rgba(255,255,255,.25); vertical-align:middle; margin-right:2px; }
       .rs-line { margin:1.1rem 0 .5rem; color:#64748b; font-size:.78rem; text-transform:uppercase; letter-spacing:.08em; font-weight:900; }
       .rs-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:.7rem; }
       .rs-card { display:flex; gap:.7rem; align-items:center; background:#0f172a; border:1px solid #1e293b; border-radius:12px; padding:.6rem .7rem; text-decoration:none; }
@@ -27,8 +32,13 @@
       {% include 'football/includes/dragon_nav.html' %}
       <main class="rs-wrap">
         <a class="rs-back" href="{% url 'rival-players-index' %}">← Rivales de la liga</a>
-        <h1 class="rs-h1">{{ rival_team.display_name }}</h1>
-        <p class="rs-sub">Plantilla rival · {{ players|length }} jugadores · toca un jugador para su ficha y herramientas</p>
+        <div class="rs-head">
+          {% if rival_team.crest_url %}<img class="rs-crest" src="{{ rival_team.crest_url }}" alt="" />{% endif %}
+          <div>
+            <h1 class="rs-h1">{{ rival_team.display_name }}</h1>
+            <p class="rs-sub">Plantilla rival · {{ players|length }} jugadores{% if rival_team.kit_primary_color %} · <span class="rs-kit" style="background:{{ rival_team.kit_primary_color }};"></span>{% if rival_team.kit_secondary_color %}<span class="rs-kit" style="background:{{ rival_team.kit_secondary_color }};"></span>{% endif %} kit{% endif %}</p>
+          </div>
+        </div>
         {% regroup players by line as lines %}
         {% for grp in lines %}
         <div class="rs-line">{% if grp.grouper == 'gk' %}Porteros{% elif grp.grouper == 'def' %}Defensas{% elif grp.grouper == 'mid' %}Centrocampistas{% elif grp.grouper == 'att' %}Delanteros{% else %}Otros{% endif %}</div>

@@ -137,6 +137,7 @@ urlpatterns = [
     path("coach/rivales/importar-liga/", views.rival_league_import, name="rival-league-import"),
     path("coach/rivales/importar-liga/estado/", views.rival_league_import_status, name="rival-league-import-status"),
     path("coach/rivales/ingesta/", views.rival_squad_ingest, name="rival-squad-ingest"),
+    path("coach/rivales/identidad/", views.rival_team_identity, name="rival-team-identity"),
     path("coach/rivales/", views.rival_players_index, name="rival-players-index"),
     path("coach/rivales/equipo/<int:team_id>/", views.rival_team_squad, name="rival-team-squad"),
     path("coach/rivales/jugador/<int:rival_player_id>/", views.rival_player_detail, name="rival-player-detail"),

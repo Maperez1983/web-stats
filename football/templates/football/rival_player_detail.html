@@ -5,6 +5,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{ rp.full_name }} · Rival · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
     {% include 'football/pwa_head.html' %}
     <style>
       .rpf-wrap { max-width: 900px; margin: 0 auto; padding: 1rem; }
@@ -14,6 +16,8 @@
       .rpf-photo { width:96px; height:112px; border-radius:12px; object-fit:cover; background:#1e293b; border:1px solid #334155; }
       .rpf-name { margin:0; font-size:1.5rem; color:#f8fafc; }
       .rpf-sub { color:#94a3b8; margin:.2rem 0 0; font-weight:700; }
+      .rpf-crest { width:20px; height:20px; object-fit:contain; vertical-align:middle; margin-right:.3rem; border-radius:4px; background:#0b1220; }
+      .rpf-kit { display:inline-block; width:12px; height:12px; border-radius:3px; border:1px solid rgba(255,255,255,.25); vertical-align:middle; margin-left:.3rem; }
       .rpf-chips { display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.5rem; }
       .rpf-chip { padding:.2rem .6rem; border-radius:999px; font-size:.72rem; font-weight:800; letter-spacing:.03em; background:rgba(148,163,184,.16); color:#cbd5e1; border:1px solid rgba(148,163,184,.32); }
       .rpf-chip.gk{background:rgba(244,180,0,.16);color:#fde68a;border-color:rgba(244,180,0,.4);}
@@ -46,7 +50,11 @@
             {% if rp.photo_url %}<img class="rpf-photo" src="{{ rp.photo_url }}" alt="" />{% else %}<div class="rpf-photo"></div>{% endif %}
             <div>
               <h1 class="rpf-name">{{ rp.full_name }}</h1>
-              <p class="rpf-sub">{% if rp.alias and rp.alias != rp.full_name %}“{{ rp.alias }}” · {% endif %}{{ rp.team.display_name }}</p>
+              <p class="rpf-sub">
+                {% if rp.alias and rp.alias != rp.full_name %}“{{ rp.alias }}” · {% endif %}
+                {% if rp.team.crest_url %}<img class="rpf-crest" src="{{ rp.team.crest_url }}" alt="" />{% endif %}{{ rp.team.display_name }}
+                {% if rp.team.kit_primary_color %}<span class="rpf-kit" style="background:{{ rp.team.kit_primary_color }};"></span>{% if rp.team.kit_secondary_color %}<span class="rpf-kit" style="background:{{ rp.team.kit_secondary_color }};"></span>{% endif %}{% endif %}
+              </p>
               <div class="rpf-chips">
                 <span class="rpf-chip {{ rp.line }}">{{ rp.position|default:"—" }}</span>
                 {% if rp.number %}<span class="rpf-chip">#{{ rp.number }}</span>{% endif %}
