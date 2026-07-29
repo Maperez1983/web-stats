@@ -86,7 +86,7 @@
   .sqr .verdict-txt h2{margin:0 0 6px;font-size:19px;font-weight:800;letter-spacing:-.01em;text-wrap:balance}
   .sqr .verdict-txt p{margin:0;color:var(--ink-soft);font-size:14.5px;max-width:62ch}
 
-  .sqr .stats{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px}
+  .sqr .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
   .sqr .stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:13px 14px;
     box-shadow:var(--shadow);position:relative;overflow:hidden}
   .sqr .stat::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c,var(--accent))}
@@ -225,8 +225,8 @@
 
   <section class="verdict">
     <div class="gauge">
-      <div class="ring" style="--p:{{ pct_closed }}"><div><b class="num">{{ pct_closed }}%</b><span>cerrada</span></div></div>
-      <div class="gauge-cap">{{ covered }} de {{ total_target }} plazas</div>
+      <div class="ring" style="--p:{{ pct_closed }}"><div><b class="num">{{ pct_closed }}%</b><span>fichada</span></div></div>
+      <div class="gauge-cap">{{ fed.fichados|default:0 }} de {{ fed.cap|default:25 }} fichas</div>
     </div>
     <div class="verdict-txt">
       <h2>{{ verdict_title }}</h2>
@@ -234,13 +234,11 @@
     </div>
   </section>
 
-  <section class="stats" aria-label="Estado de la plantilla">
-    <div class="stat tot" title="Plantilla viva: confirmados + por decidir (no incluye a los que no siguen)"><div class="n num">{{ counts.confirmed|default:0|add:counts.pending|default:0 }}</div><div class="l">En dinámica</div></div>
-    <div class="stat c-ok"><div class="n num">{{ counts.confirmed|default:0 }}</div><div class="l">Confirmados</div></div>
-    <div class="stat c-trial"><div class="n num">{{ counts.trial|default:0 }}</div><div class="l">A prueba</div></div>
-    <div class="stat c-pending"><div class="n num">{{ counts.pending|default:0 }}</div><div class="l">Por decidir</div></div>
-    <div class="stat c-injured"><div class="n num">{{ counts.injured|default:0 }}</div><div class="l">Lesionados</div></div>
-    <div class="stat c-out"><div class="n num">{{ counts.discarded|default:0 }}</div><div class="l">No siguen</div></div>
+  <section class="stats" aria-label="Fichas y cobertura de plantilla">
+    <div class="stat c-ok" title="Activos con ficha federativa"><div class="n num">{{ fed.fichados|default:0 }}</div><div class="l">Fichados</div></div>
+    <div class="stat c-trial" title="Activos sin ficha federativa"><div class="n num">{{ fed.a_prueba|default:0 }}</div><div class="l">A prueba</div></div>
+    <div class="stat c-injured" title="Con lesión activa"><div class="n num">{{ fed.lesionados|default:0 }}</div><div class="l">Lesionados</div></div>
+    <div class="stat c-pending" title="Fichas libres hasta el tope de {{ fed.cap|default:25 }}"><div class="n num">{{ fed.fichas_disponibles|default:0 }}</div><div class="l">Fichas disponibles</div></div>
   </section>
 
   <section class="pitch-wrap">

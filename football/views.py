@@ -39479,9 +39479,16 @@ def squad_status_report_page(request):
     except Exception:
         pitch_players = []
 
+    # OPCION A (mismo criterio que la home): las tarjetas y el medidor usan el conteo FEDERATIVO
+    # (fichados/a prueba/lesionados/fichas disponibles, tope 25), no el de decision de temporada.
+    fed = _build_federative_squad_report(request, primary_team) or {}
+    _cap = int(fed.get("cap", _FEDERATIVE_LICENSE_CAP) or _FEDERATIVE_LICENSE_CAP)
+    pct_closed = int(round((int(fed.get("fichados", 0) or 0) / _cap) * 100)) if _cap else 0
+
     context = {
         "coach_pitch_players": pitch_players,
         "primary_team_id": int(getattr(primary_team, "id", 0) or 0),
+        "fed": fed,
         "phase": phase,
         "phase_label": phase_label,
         "phase_sub": phase_sub,
