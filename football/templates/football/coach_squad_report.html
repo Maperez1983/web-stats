@@ -235,7 +235,7 @@
   </section>
 
   <section class="stats" aria-label="Estado de la plantilla">
-    <div class="stat tot"><div class="n num">{{ counts.total|default:0 }}</div><div class="l">En dinámica</div></div>
+    <div class="stat tot" title="Plantilla viva: confirmados + por decidir (no incluye a los que no siguen)"><div class="n num">{{ counts.confirmed|default:0|add:counts.pending|default:0 }}</div><div class="l">En dinámica</div></div>
     <div class="stat c-ok"><div class="n num">{{ counts.confirmed|default:0 }}</div><div class="l">Confirmados</div></div>
     <div class="stat c-trial"><div class="n num">{{ counts.trial|default:0 }}</div><div class="l">A prueba</div></div>
     <div class="stat c-pending"><div class="n num">{{ counts.pending|default:0 }}</div><div class="l">Por decidir</div></div>
