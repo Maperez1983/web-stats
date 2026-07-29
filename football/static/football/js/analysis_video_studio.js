@@ -572,8 +572,6 @@
 		    const tlSpeedEndInput = document.getElementById('vs-tl-speed-end');
 		    const tlFadeInInput = document.getElementById('vs-tl-fade-in');
 		    const tlFadeOutInput = document.getElementById('vs-tl-fade-out');
-	    const tlItemResetBtn = document.getElementById('vs-tl-item-reset');
-	    const tlItemSaveBtn = document.getElementById('vs-tl-item-save');
 
 	    const aiGenerateBtn = document.getElementById('vs-ai-generate');
 	    const aiForceBtn = document.getElementById('vs-ai-force');

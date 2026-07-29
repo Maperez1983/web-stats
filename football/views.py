@@ -74874,8 +74874,10 @@ def analysis_video_studio_export_job_cancel_api(request):
         return JsonResponse({"ok": True, "status": status})
 
     try:
+        # Defensa en profundidad: aunque el job ya se validó como del equipo, los update/re-lectura
+        # llevan también team=primary_team para no depender solo del filtro previo.
         if status == VideoStudioExportJob.STATUS_PENDING:
-            VideoStudioExportJob.objects.filter(id=int(job_id)).update(
+            VideoStudioExportJob.objects.filter(id=int(job_id), team=primary_team).update(
                 status=VideoStudioExportJob.STATUS_CANCELED,
                 cancel_requested=True,
                 progress=0,
@@ -74883,14 +74885,14 @@ def analysis_video_studio_export_job_cancel_api(request):
                 finished_at=timezone.now(),
             )
         else:
-            VideoStudioExportJob.objects.filter(id=int(job_id)).update(
+            VideoStudioExportJob.objects.filter(id=int(job_id), team=primary_team).update(
                 cancel_requested=True,
                 message="Cancelando…",
             )
     except Exception:
         return JsonResponse({"ok": False, "error": "No se pudo cancelar."}, status=500)
 
-    job = VideoStudioExportJob.objects.filter(id=int(job_id)).first()
+    job = VideoStudioExportJob.objects.filter(id=int(job_id), team=primary_team).first()
     return JsonResponse({"ok": True, "status": str(getattr(job, "status", "") or "").strip().lower()})
 
 
