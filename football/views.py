@@ -22481,6 +22481,16 @@ def coach_debug_convocatoria(request):
             convocation_record = get_current_convocation_record(
                 primary_team, match=active_match, fallback_to_latest=False if active_match else True
             )
+        # Mismo guard que la página: sin partido activo, descarta convocatoria de temporada pasada.
+        if convocation_record and not active_match:
+            try:
+                _sstart, _ = club_season_date_bounds(season)
+                _cmd = getattr(convocation_record, "match_date", None)
+                if _sstart and _cmd and _cmd < _sstart:
+                    out["convocation_discarded_past_season"] = True
+                    convocation_record = None
+            except Exception:
+                pass
         if convocation_record:
             out["convocation"] = {
                 "id": int(convocation_record.id),
@@ -24103,6 +24113,16 @@ def match_action_page(request):
         )
     if active_match and not convocation_record:
         convocation_record = _ensure_matchday_convocation_record(primary_team, match=active_match, request=request)
+    # Sin partido activo de la temporada actual: NO mostrar una convocatoria de la temporada pasada
+    # (aunque quedara marcada is_current). Evita que salgan jugadores del año anterior por defecto.
+    if convocation_record and not active_match:
+        try:
+            _season_start, _ = club_season_date_bounds(selected_club_season_for_request(request))
+            _conv_md = getattr(convocation_record, "match_date", None)
+            if _season_start and _conv_md and _conv_md < _season_start:
+                convocation_record = None
+        except Exception:
+            pass
     convocation_players = convocation_record.players.order_by("name") if convocation_record else Player.objects.none()
     convocation_players = list(convocation_players)
     for player in convocation_players:
@@ -84965,6 +84985,11 @@ def _resolve_active_match_for_flow(request, primary_team):
         return None
     active_match = None
     requested_match = get_requested_match(request, primary_team)
+    # Si el técnico pide un partido concreto (match_id) respetamos su elección aunque sea de una
+    # temporada pasada (edición de partidos antiguos). El guard de temporada solo aplica a la
+    # AUTO-resolución (sesión/convocatoria/último partido), que es la que arrastraba un partido de
+    # la temporada anterior (y con él su convocatoria vieja con jugadores que ya no siguen).
+    from_explicit = bool(requested_match)
     if requested_match:
         active_match = requested_match
         if hasattr(request, "session"):
@@ -84995,6 +85020,21 @@ def _resolve_active_match_for_flow(request, primary_team):
             active_match = None
     if not active_match:
         active_match = get_latest_live_match(primary_team) or get_active_match(primary_team)
+    # GUARD DE TEMPORADA: si la auto-resolución acabó en un partido ANTERIOR al inicio de la
+    # temporada actual, lo descartamos (y limpiamos la sesión) para no arrastrar la convocatoria de
+    # la temporada pasada (con jugadores que ya no siguen). No aplica a selección explícita.
+    if active_match and not from_explicit:
+        try:
+            _season_start, _ = club_season_date_bounds(selected_club_season_for_request(request))
+            _md = getattr(active_match, "date", None)
+            if _season_start and _md and _md < _season_start:
+                active_match = None
+                if hasattr(request, "session"):
+                    _mapping = request.session.get("active_match_by_team")
+                    if isinstance(_mapping, dict) and _mapping.pop(str(primary_team.id), None) is not None:
+                        request.session["active_match_by_team"] = _mapping
+        except Exception:
+            pass
     # Persistir selección para estabilizar navegación (menú → Registro) dentro del mismo partido.
     if active_match and hasattr(request, "session"):
         try:
