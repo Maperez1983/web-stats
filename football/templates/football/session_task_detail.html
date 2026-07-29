@@ -3821,15 +3821,26 @@
           };
           (async function(){
             try{
+              /* El editor real vive en un <iframe> (builder_embed_url). El guardado que regenera la
+                 miniatura (buildPreviewData -> flat_export + fichas) es #task-builder-save-top DENTRO
+                 del iframe. Esperamos a que el tactical pad del iframe esté listo y lo pulsamos. */
+              var frame = document.querySelector('.task-graphic-embed-frame');
               var t0 = Date.now();
-              while(Date.now()-t0 < 25000){
-                if(window.__WEBSTATS_TPAD_READY === true && document.getElementById('graphic-save-btn')) break;
-                await sleep(400);
+              var ready = false;
+              while(Date.now()-t0 < 35000){
+                try{
+                  var idoc = frame && frame.contentDocument;
+                  var iwin = frame && frame.contentWindow;
+                  if(idoc && iwin && iwin.__WEBSTATS_TPAD_READY === true && idoc.getElementById('task-builder-save-top')){ ready = true; break; }
+                }catch(e){}
+                await sleep(500);
               }
-              await sleep(6500); /* margen para avatares/objetos */
-              var btn = document.getElementById('graphic-save-btn');
-              if(btn){ try{ btn.click(); }catch(e){} }
-              await sleep(6000); /* espera al guardado AJAX */
+              await sleep(ready ? 7000 : 3000); /* margen para avatares/objetos del iframe */
+              try{
+                var sbtn = frame.contentDocument.getElementById('task-builder-save-top');
+                if(sbtn){ sbtn.click(); }
+              }catch(e){}
+              await sleep(9000); /* el save del builder genera la preview HD y postea */
             }catch(e){}
             goNext();
           })();
