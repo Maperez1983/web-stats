@@ -645,6 +645,13 @@ body.ed-chrome .edc-inspector #task-selection-dock[hidden] { display: none !impo
    color, borrar/duplicar, orden, bloquear). Solo aplica dentro del inspector flotante. */
 body.ed-chrome .edc-inspector .edc-dup-ficha,
 body.ed-chrome .edc-inspector .edc-dup-ficha ~ * { display: none !important; }
+/* Consolidar controles repetidos en el inspector: dejamos UNA forma de cada uno.
+   - Color: solo el selector+hex (#task-style-color-row) -> quitamos los 8 botones de color.
+   - Grosor: solo el slider (#task-stroke-width-row) -> quitamos los presets S/M/L/XL.
+   - Tamaño: solo los presets 'Tamaño' (#task-scale-presets) -> quitamos el bloque 'Chapa' que solapa. */
+body.ed-chrome .edc-inspector #task-color-presets-row,
+body.ed-chrome .edc-inspector #task-stroke-presets,
+body.ed-chrome .edc-inspector #task-token-size-presets { display: none !important; }
 body.ed-chrome .edc-inspector .selection-toolbar::before { content: "Elemento seleccionado"; display: block; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--edc-accent); margin-bottom: 8px; }
 
 /* Menú ☰: secciones legibles */
