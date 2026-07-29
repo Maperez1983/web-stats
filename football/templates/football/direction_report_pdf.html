@@ -37,8 +37,9 @@
   .empty { color: #94a3b8; }
   .foot { margin-top: 18px; color: #94a3b8; font-size: 9px; border-top: 1px solid #e2e8f0; padding-top: 6px; }
 </style>
+{% if interactive %}{% include 'football/includes/report_a4.html' %}{% endif %}
 </head>
-<body>
+<body class="{% if interactive %}report-a4{% endif %}">
   {% if interactive %}
   <div style="position:sticky;top:0;z-index:20;display:flex;gap:8px;justify-content:flex-end;align-items:center;padding:10px 14px;background:#0f172a;border-bottom:1px solid #1e293b;">
     {% if back_url %}<a href="{{ back_url }}" style="text-decoration:none;color:#e2e8f0;background:#1e293b;border:1px solid #334155;border-radius:9px;padding:7px 12px;font-weight:800;font-size:13px;">← Volver</a>{% endif %}
@@ -46,6 +47,7 @@
   </div>
   {% endif %}
 
+  <div class="a4-sheet">
   <div class="head">
     <h1>Informe de dirección · {{ team_name }}</h1>
     <div class="meta muted">Resumen ejecutivo de plantilla · {{ date_from|date:"d/m/Y" }} → {{ date_to|date:"d/m/Y" }}</div>
@@ -165,5 +167,6 @@
   {% endif %}
 
   <div class="foot">Segunda Jugada · Informe de dirección de {{ team_name }} · generado {{ date_to|date:"d/m/Y" }}</div>
+  </div>
 </body>
 </html>
