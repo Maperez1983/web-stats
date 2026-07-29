@@ -859,6 +859,11 @@
         justify-content: end;
         align-items: center;
       }
+      .fm-manage > summary { position: relative; padding-left: 1.9rem !important; transition: background .15s ease; }
+      .fm-manage > summary::-webkit-details-marker { display: none; }
+      .fm-manage > summary::before { content: "▸"; position: absolute; left: .85rem; top: 50%; transform: translateY(-50%); transition: transform .15s ease; color: #8fb4ff; }
+      .fm-manage[open] > summary::before { transform: translateY(-50%) rotate(90deg); }
+      .fm-manage > summary:hover { background: rgba(74,134,232,0.12) !important; border-color: rgba(74,134,232,0.4) !important; }
       .attendance-summary-card {
         margin: 0.85rem 0 1rem;
         border: 1px solid rgba(144,161,185,0.22);
@@ -1333,35 +1338,55 @@
 
       <section class="card tab-pane" data-pane="personal">
         <h2 style="margin-top:0;">Datos personales</h2>
-        <section aria-label="Ficha (resumen)" style="border:1px solid rgba(148,163,184,0.22);border-radius:14px;padding:1rem;margin:0 0 1.1rem;background:rgba(2,6,23,0.28);">
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;margin-bottom:.8rem;">
-            <h3 style="margin:0;">Ficha</h3>
-            <span class="subtle" style="font-size:.72rem;">Resumen del jugador</span>
+        {% with kst='font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:#6b7c94;font-weight:800;' vst='font-size:.95rem;font-weight:700;color:#eef2f8;margin-top:1px;' cardst='border:1px solid rgba(148,163,184,0.18);border-radius:12px;padding:.85rem .95rem;background:rgba(2,6,23,0.35);' ctit='font-size:.64rem;text-transform:uppercase;letter-spacing:.12em;color:#6b7c94;font-weight:800;margin:0 0 .65rem;' %}
+        <section aria-label="Resumen del jugador" style="margin:0 0 1.1rem;">
+          <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-bottom:.85rem;">
+            {% if has_active_injury %}<span class="pill warn">Lesión activa</span>{% elif has_manual_sanction %}<span class="pill warn">Sanción</span>{% else %}<span class="pill ok">Disponible</span>{% endif %}
+            {% if convocation_pending %}<span class="pill warn">Convocatoria pendiente</span>{% elif is_called_up %}<span class="pill ok">Convocado</span>{% else %}<span class="pill">No convocado</span>{% endif %}
+            {% if player.position %}<span class="pill" style="background:rgba(74,134,232,.14);border-color:rgba(74,134,232,.4);color:#8fb4ff;">{{ player.position }}</span>{% endif %}
+            {% if player.dominant_foot %}<span class="pill">Pie {{ player.dominant_foot|title }}</span>{% endif %}
+            {% if player.has_federative_license %}<span class="pill ok">Fichado</span>{% else %}<span class="pill">Sin ficha fed.</span>{% endif %}
           </div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:.7rem 1rem;">
-            {% with kst='font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:#6b7c94;font-weight:800;' vst='font-size:.95rem;font-weight:700;color:#eef2f8;margin-top:1px;' %}
-            <div><div style="{{ kst }}">Posición</div><div style="{{ vst }}">{{ player.position|default:'—' }}</div></div>
-            <div><div style="{{ kst }}">Pie</div><div style="{{ vst }}">{{ player.dominant_foot|title|default:'—' }}</div></div>
-            <div><div style="{{ kst }}">Edad</div><div style="{{ vst }}">{% if player.age %}{{ player.age }}{% else %}—{% endif %}</div></div>
-            <div><div style="{{ kst }}">Altura</div><div style="{{ vst }}">{% if player.height_cm %}{{ player.height_cm }} cm{% else %}—{% endif %}</div></div>
-            <div><div style="{{ kst }}">Peso</div><div style="{{ vst }}">{% if player.weight_kg %}{{ player.weight_kg|floatformat:'-1' }} kg{% else %}—{% endif %}</div></div>
-            <div><div style="{{ kst }}">Dorsal</div><div style="{{ vst }}">{% if player.number %}{{ player.number }}{% else %}—{% endif %}</div></div>
-            <div><div style="{{ kst }}">Contrato</div><div style="{{ vst }}">{% if player.contract_end %}{{ player.contract_end|date:'d/m/Y' }}{% else %}—{% endif %}</div></div>
-            <div><div style="{{ kst }}">Ficha fed.</div><div style="{{ vst }}">{% if player.has_federative_license %}Sí{% else %}No{% endif %}</div></div>
-            <div><div style="{{ kst }}">Club origen</div><div style="{{ vst }}">{{ player.origin_team|default:'—' }}</div></div>
-            <div><div style="{{ kst }}">Agente</div><div style="{{ vst }}">{% if player.has_agent %}{{ player.agent_name|default:'Sí' }}{% else %}—{% endif %}</div></div>
-            {% endwith %}
-          </div>
-          {% if player_traits_chips %}
-          <div style="margin-top:.9rem;">
-            <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:#6b7c94;font-weight:800;margin-bottom:.35rem;">Rasgos</div>
-            <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
-              {% for t in player_traits_chips %}<span class="pill" style="background:rgba(74,134,232,.14);border-color:rgba(74,134,232,.4);color:#8fb4ff;">{{ t }}</span>{% endfor %}
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(238px,1fr));gap:.8rem;">
+            <div style="{{ cardst }}">
+              <p style="{{ ctit }}">Ficha</p>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem .9rem;">
+                <div><div style="{{ kst }}">Nombre</div><div style="{{ vst }}">{{ player.full_name|default:player.name }}</div></div>
+                <div><div style="{{ kst }}">Apodo</div><div style="{{ vst }}">{{ player.nickname|default:'—' }}</div></div>
+                <div><div style="{{ kst }}">Nacimiento</div><div style="{{ vst }}">{% if player.birth_date %}{{ player.birth_date|date:'d/m/Y' }}{% if player.age %} · {{ player.age }}{% endif %}{% else %}—{% endif %}</div></div>
+                <div><div style="{{ kst }}">Dorsal</div><div style="{{ vst }}">{% if player.number %}{{ player.number }}{% else %}—{% endif %}</div></div>
+                <div><div style="{{ kst }}">Posición</div><div style="{{ vst }}">{{ player.position|default:'—' }}</div></div>
+                <div><div style="{{ kst }}">Pos. preferida</div><div style="{{ vst }}">{{ player.preferred_position|default:'—' }}</div></div>
+                <div><div style="{{ kst }}">Altura</div><div style="{{ vst }}">{% if player.height_cm %}{{ player.height_cm }} cm{% else %}—{% endif %}</div></div>
+                <div><div style="{{ kst }}">Peso</div><div style="{{ vst }}">{% if player.weight_kg %}{{ player.weight_kg|floatformat:'-1' }} kg{% else %}—{% endif %}</div></div>
+              </div>
             </div>
+            <div style="{{ cardst }}">
+              <p style="{{ ctit }}">Contrato y club</p>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem .9rem;">
+                <div><div style="{{ kst }}">Ficha fed.</div><div style="{{ vst }}">{% if player.has_federative_license %}<span style="color:#3fbf6a;">Sí · fichado</span>{% else %}No{% endif %}</div></div>
+                <div><div style="{{ kst }}">Contrato</div><div style="{{ vst }}">{% if player.contract_end %}hasta {{ player.contract_end|date:'d/m/Y' }}{% else %}—{% endif %}</div></div>
+                <div><div style="{{ kst }}">Cláusula</div><div style="{{ vst }}">{{ player.release_clause|default:'—' }}</div></div>
+                <div><div style="{{ kst }}">Club origen</div><div style="{{ vst }}">{{ player.origin_team|default:'—' }}</div></div>
+                <div><div style="{{ kst }}">Agente</div><div style="{{ vst }}">{% if player.has_agent %}{{ player.agent_name|default:'Sí' }}{% else %}—{% endif %}</div></div>
+                <div><div style="{{ kst }}">Teléfono</div><div style="{{ vst }}">{{ player.phone|default:'—' }}</div></div>
+              </div>
+            </div>
+            {% if player_traits_chips %}
+            <div style="{{ cardst }}">
+              <p style="{{ ctit }}">Rasgos / preferencias</p>
+              <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+                {% for t in player_traits_chips %}<span class="pill" style="background:rgba(74,134,232,.14);border-color:rgba(74,134,232,.4);color:#8fb4ff;">{{ t }}</span>{% endfor %}
+              </div>
+            </div>
+            {% endif %}
           </div>
-          {% endif %}
         </section>
+        {% endwith %}
         {% if not is_player_readonly %}
+        <details class="fm-manage" style="margin:0 0 1rem;">
+          <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.65rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:#cdd8ea;background:rgba(2,6,23,0.35);list-style:none;">⚙ Estado en el club · pasar a ojeado / traspaso</summary>
+          <div style="padding:.95rem .15rem .15rem;">
         {% if player_in_scouting %}
         <form method="post" style="margin:0 0 1rem;" onsubmit="return confirm('¿Devolver este jugador a la plantilla activa? Su ficha de ojeo se marcará como fichado.');">
           {% csrf_token %}
@@ -1499,6 +1524,8 @@
           </script>
           {% endif %}
         </div>
+          </div>
+        </details>
         {% endif %}
         <div class="attendance-summary-card">
           <div class="attendance-summary-head">
@@ -1574,6 +1601,9 @@
             </div>
           {% endif %}
         </div>
+        <details class="fm-manage" style="margin:0 0 1rem;">
+          <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.65rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:#cdd8ea;background:rgba(2,6,23,0.35);list-style:none;">{% if is_player_readonly %}📋 Ficha completa (detalle){% else %}✎ Editar ficha completa{% endif %}</summary>
+          <div style="padding:.95rem .15rem .15rem;">
         <div class="personal-layout">
           {% if not is_player_readonly %}
           <form method="post" enctype="multipart/form-data">
@@ -1878,22 +1908,8 @@
             <p>Foto del jugador</p>
           </aside>
         </div>
-
-        <div style="display:flex;gap:0.6rem;align-items:center;margin-top:1rem;">
-          {% if convocation_pending %}
-            <span class="pill warn">Convocatoria pendiente</span>
-          {% elif is_called_up %}
-            <span class="pill ok">Convocado</span>
-          {% else %}
-            <span class="pill warn">No convocado</span>
-          {% endif %}
-          {% if has_active_injury %}
-            <span class="pill warn">Lesión activa</span>
-          {% endif %}
-          {% if has_manual_sanction %}
-            <span class="pill warn">Sanción manual</span>
-          {% endif %}
-        </div>
+          </div>
+        </details>
 
 
 
