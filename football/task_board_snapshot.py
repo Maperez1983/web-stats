@@ -219,7 +219,7 @@ def _render_and_store(task_id: int, url: str, cookies: list, sig: str) -> None:
         png = _render(url, cookies)
         if not png:
             logger.warning("board snapshot: render vacio para tarea %s", task_id)
-            _note(task_id, f"render vacio (sin Playwright o timeout) url={url}")
+            _note(task_id, f"sin foto: Playwright no disponible o la pizarra no llego a estar lista · {url}")
             _mark_failed(task_id)
             return
         if not _looks_like_a_real_board(png):
@@ -266,8 +266,8 @@ def _render_locked(url: str, cookies: list) -> bytes | None:
         viewport_height=SNAPSHOT_VIEWPORT_HEIGHT,
         device_scale_factor=SNAPSHOT_DEVICE_SCALE,
         wait_for_js=SNAPSHOT_READY_JS,
-        timeout_ms=45000,
-        settle_ms=1200,
+        timeout_ms=60000,
+        settle_ms=1500,
     )
 
 

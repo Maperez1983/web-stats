@@ -880,15 +880,22 @@ def render_url_selector_png(
                 except Exception:
                     pass
 
-            def _route_same_origin_only(route):
+            def _is_external(req_url) -> bool:
+                # Solo interceptamos lo EXTERNO. Enrutar todas las peticiones haria pasar por
+                # Python cada estatico de la pagina (el editor carga muchisimos) y multiplica el
+                # tiempo de carga.
                 try:
-                    req_url = str(route.request.url or "")
-                    host = (urlparse(req_url).hostname or "").lower()
-                    if host and own_host and host != own_host:
-                        # Host externo: devolvemos un pixel en blanco para no colgar el render.
-                        route.fulfill(status=200, content_type="image/png", body=_BLANK_PNG_BYTES)
-                    else:
-                        route.continue_()
+                    raw = str(req_url)
+                    if not raw.startswith(("http://", "https://")):
+                        return False
+                    host = (urlparse(raw).hostname or "").lower()
+                    return bool(host) and bool(own_host) and host != own_host
+                except Exception:
+                    return False
+
+            def _block_external(route):
+                try:
+                    route.fulfill(status=200, content_type="image/png", body=_BLANK_PNG_BYTES)
                 except Exception:
                     try:
                         route.continue_()
@@ -897,18 +904,32 @@ def render_url_selector_png(
 
             page = context.new_page()
             try:
-                page.route("**/*", _route_same_origin_only)
+                page.route(_is_external, _block_external)
             except Exception:
                 pass
-            page.goto(str(url), wait_until="load", timeout=timeout_ms)
+            # `domcontentloaded` (no `load`): la pagina del editor arrastra muchisimas imagenes y
+            # esperar a que TODAS terminen puede eternizarse. Lo que de verdad marca que la pizarra
+            # esta lista es `wait_for_js`.
+            page.goto(str(url), wait_until="domcontentloaded", timeout=timeout_ms)
             if wait_for_js:
+                # Si la pagina nunca dice "listo", NO disparamos la foto: saldria el campo vacio
+                # (sin fichas) y acabariamos guardando una imagen peor que la que ya habia.
                 try:
                     page.wait_for_function(str(wait_for_js), timeout=timeout_ms)
                 except Exception:
-                    pass
+                    try:
+                        context.close()
+                    except Exception:
+                        pass
+                    return None
             loc = page.locator(str(selector))
             try:
                 loc.wait_for(state="visible", timeout=timeout_ms)
+            except Exception:
+                pass
+            # Que terminen de pintarse avatares/equipaciones antes de la foto.
+            try:
+                page.wait_for_load_state("networkidle", timeout=12000)
             except Exception:
                 pass
             if settle_ms:
