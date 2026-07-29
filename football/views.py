@@ -393,6 +393,7 @@ from football.models import (
     PlayerStatistic,
     RivalAnalysisReport,
     RivalConvocationRecord,
+    RivalPlayer,
     RivalVideo,
     ScrapeSource,
     Season,
@@ -10345,32 +10346,61 @@ def rival_roster_api(request):
         )
 
     snapshot = TeamRosterSnapshot.objects.filter(team=team_obj).order_by("-updated_at", "-id").first()
-    payload = snapshot.roster_payload if snapshot and isinstance(snapshot.roster_payload, list) else []
-    payload = payload if isinstance(payload, list) else []
 
     items = []
-    for row in payload[:80]:
-        if not isinstance(row, dict):
-            continue
-        name = str(row.get("name") or row.get("full_name") or "").strip()
-        if not name:
-            continue
-        items.append(
-            {
-                "name": name[:160],
-                "number": str(row.get("number") or row.get("shirt_number") or "").strip()[:10],
-                "position": str(row.get("position") or "").strip()[:40],
-                "minutes": _safe_int(row.get("minutes"), default=0) or "",
-                "goals": _safe_int(row.get("goals"), default=0) or "",
-                "yellow_cards": _safe_int(row.get("yellow_cards"), default=0) or "",
-                "red_cards": _safe_int(row.get("red_cards"), default=0) or "",
-            }
-        )
+    source = ""
+    # Preferimos las plantillas RIVALES importadas de laPreferente (RivalPlayer): más ricas (posición
+    # detallada, línea, edad, foto, dorsal, stats) y con dedup por J-id. Fallback al snapshot antiguo.
+    rival_players = list(
+        RivalPlayer.objects.filter(team=team_obj, is_active=True).order_by("line", "number", "full_name")[:80]
+    )
+    if rival_players:
+        source = "rival_players"
+        _line_lbl = {"gk": "POR", "def": "DEF", "mid": "MED", "att": "DEL"}
+        for rp in rival_players:
+            items.append(
+                {
+                    "name": (rp.full_name or "")[:160],
+                    "number": str(rp.number or "").strip()[:10],
+                    "position": (rp.position or "")[:40],
+                    "line": rp.line or "",
+                    "line_label": _line_lbl.get(rp.line or "", ""),
+                    "age": rp.age or "",
+                    "photo": (rp.photo_url or "")[:300],
+                    "minutes": rp.minutes or "",
+                    "goals": rp.goals or "",
+                    "yellow_cards": rp.yellow_cards or "",
+                    "red_cards": rp.red_cards or "",
+                    "known": bool(rp.matched_player_id),  # ex-jugador propio / ojeado reconocido
+                }
+            )
+    else:
+        source = "snapshot"
+        payload = snapshot.roster_payload if snapshot and isinstance(snapshot.roster_payload, list) else []
+        payload = payload if isinstance(payload, list) else []
+        for row in payload[:80]:
+            if not isinstance(row, dict):
+                continue
+            name = str(row.get("name") or row.get("full_name") or "").strip()
+            if not name:
+                continue
+            items.append(
+                {
+                    "name": name[:160],
+                    "number": str(row.get("number") or row.get("shirt_number") or "").strip()[:10],
+                    "position": str(row.get("position") or "").strip()[:40],
+                    "minutes": _safe_int(row.get("minutes"), default=0) or "",
+                    "goals": _safe_int(row.get("goals"), default=0) or "",
+                    "yellow_cards": _safe_int(row.get("yellow_cards"), default=0) or "",
+                    "red_cards": _safe_int(row.get("red_cards"), default=0) or "",
+                }
+            )
 
     return JsonResponse(
         {
             "ok": True,
             "items": items,
+            "source": source,
             "rival": {
                 "team_id": int(team_obj.id),
                 "team_code": str(getattr(team_obj, "external_id", "") or "").strip(),
