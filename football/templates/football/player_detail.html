@@ -2513,6 +2513,24 @@
 
       <section class="card tab-pane" data-pane="stats">
         <h2 style="margin-top:0;">Rendimiento</h2>
+        {% if player_match_ratings.matches %}
+        <section aria-label="Rating por partido (automático)" style="border:1px solid rgba(148,163,184,0.18);border-radius:14px;padding:1rem;margin:0 0 1.1rem;background:rgba(2,6,23,0.32);">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.5rem;margin-bottom:.85rem;">
+            <h3 style="margin:0;font-size:1rem;">Rating por partido <span style="font-size:.62rem;color:#6b7c94;font-weight:800;text-transform:uppercase;letter-spacing:.08em;">auto · estilo FM</span></h3>
+            {% if player_match_ratings.form %}<span style="font-size:.78rem;color:#9fb0c6;font-weight:700;">Forma (últimos 5): <b style="color:#eef2f8;font-size:1.05rem;">{{ player_match_ratings.form|floatformat:1 }}</b></span>{% endif %}
+          </div>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+            {% for m in player_match_ratings.matches %}
+            <a href="{% url 'player-match-stats' player.id m.match_id %}" style="text-decoration:none;flex:0 0 auto;min-width:90px;border:1px solid rgba(148,163,184,0.18);border-radius:11px;padding:.5rem .6rem;background:rgba(2,6,23,0.4);text-align:center;">
+              <div style="font-size:1.35rem;font-weight:900;line-height:1;color:{% if m.tone == 'good' %}#3fbf6a{% elif m.tone == 'mid' %}#e2a53a{% else %}#e2564a{% endif %};">{{ m.rating|floatformat:1 }}</div>
+              <div style="font-size:.66rem;color:#9fb0c6;margin-top:.28rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:86px;">{{ m.opponent }}</div>
+              <div style="font-size:.58rem;color:#6b7c94;">{% if m.date %}{{ m.date|date:'d/m' }}{% endif %}{% if m.goals %} · {{ m.goals }}G{% endif %}{% if m.assists %} · {{ m.assists }}A{% endif %}</div>
+            </a>
+            {% endfor %}
+          </div>
+          <p class="subtle" style="margin:.75rem 0 0;font-size:.72rem;">Calculado desde las acciones registradas en vivo (goles, asistencias, duelos, pases, tiros, paradas, tarjetas), ponderado por posición. Solo partidos con registro en vivo.</p>
+        </section>
+        {% endif %}
 
       {% if minutes_load %}
       <section class="card" aria-label="Minutos de temporada" style="margin-top:1rem;">

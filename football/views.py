@@ -75329,6 +75329,110 @@ def _fm_role_fit(player, fm_eval, evaluation, player_evaluations, matches_played
     }
 
 
+def _fm_position_group(pos):
+    """Grupo de línea (gk/central/lateral/pivote/medio/banda/delantero) de un código de posición."""
+    pos = (pos or "").strip().upper()
+    g = FM_POSITION_GROUP.get(pos)
+    if g:
+        return g
+    if pos.startswith("POR"):
+        return "gk"
+    if pos.startswith("L") or "CARRIL" in pos:
+        return "lateral"
+    if pos.startswith("DF") or pos == "CT":
+        return "central"
+    if pos.startswith("MCD"):
+        return "pivote"
+    if pos.startswith("E") or pos == "MP":
+        return "banda"
+    if pos.startswith("DC") or pos.startswith("SD"):
+        return "delantero"
+    return "medio"
+
+
+def _auto_match_rating_from_stats(stats, position=None):
+    """Rating FM automático de una actuación (0-10) desde el payload de stats por partido.
+    Base 6.0, pesos por acción tipada, ponderado por línea, clamp 4-10. None si no hay acciones."""
+    if not stats:
+        return None
+    total = int(stats.get("total_actions", 0) or 0)
+    if total <= 0:
+        return None
+    base = 6.0
+    s = 0.0
+    goals = int(stats.get("goals", 0) or 0)
+    s += 1.0 * goals
+    s += 0.7 * int(stats.get("assists", 0) or 0)
+    s += 0.2 * int(stats.get("key_passes_completed", 0) or 0)
+    sot = int(stats.get("shots_on_target", 0) or 0)
+    s += 0.15 * sot
+    s += 0.05 * max(0, int(stats.get("shot_attempts", 0) or 0) - sot)
+    pc = int(stats.get("passes_completed", 0) or 0)
+    pa = int(stats.get("pass_attempts", 0) or 0)
+    s += min(0.8, 0.01 * pc)
+    s -= min(0.8, 0.02 * max(0, pa - pc))
+    dw = int(stats.get("duels_won", 0) or 0)
+    dt = int(stats.get("duels_total", 0) or 0)
+    s += min(0.9, 0.08 * dw)
+    s -= min(0.9, 0.06 * max(0, dt - dw))
+    s += min(1.2, 0.12 * int(stats.get("goalkeeper_saves", 0) or 0))
+    s -= 0.30 * int(stats.get("yellow_cards", 0) or 0)
+    s -= 1.20 * int(stats.get("red_cards", 0) or 0)
+    line = _fm_position_group(position)
+    if line in ("gk", "central"):
+        s += 0.30 * goals
+    elif line == "delantero":
+        s -= 0.10 * goals
+    rating = base + s
+    if total < 5:  # poca implicación: regresa hacia la base
+        rating = base + (rating - base) * 0.6
+    return round(max(4.0, min(10.0, rating)), 1)
+
+
+def _build_player_match_ratings(primary_team, player, limit=6):
+    """Ratings FM automáticos de los últimos partidos con registro en vivo + Forma (media últimos 5).
+    Devuelve {'matches': [...], 'form': float|None, 'best': int|None}. Vacío si no hay acciones."""
+    empty = {"matches": [], "form": None, "best": None}
+    if not primary_team or not player:
+        return empty
+    try:
+        match_ids = list(
+            confirmed_events_queryset()
+            .filter(player=player, match__isnull=False)
+            .values_list("match_id", flat=True)
+            .distinct()
+        )
+    except Exception:
+        match_ids = []
+    if not match_ids:
+        return empty
+    matches = list(Match.objects.filter(id__in=match_ids).order_by("-date", "-id")[: max(1, int(limit))])
+    rows = []
+    for m in matches:
+        try:
+            payload = _build_player_match_stats_payload(primary_team, player, m)
+        except Exception:
+            continue
+        rating = _auto_match_rating_from_stats(payload, getattr(player, "position", ""))
+        if rating is None:
+            continue
+        opp = m.away_team if m.home_team == primary_team else m.home_team
+        rows.append({
+            "match_id": m.id,
+            "date": getattr(m, "date", None),
+            "opponent": ((getattr(opp, "display_name", None) or getattr(opp, "name", "")) if opp else "") or "Rival",
+            "rating": rating,
+            "goals": int(payload.get("goals", 0) or 0),
+            "assists": int(payload.get("assists", 0) or 0),
+            "tone": "good" if rating >= 7 else ("mid" if rating >= 6 else "low"),
+        })
+    rows.reverse()
+    last5 = [r["rating"] for r in rows[-5:]]
+    form = round(sum(last5) / len(last5), 1) if last5 else None
+    best = max((r["rating"] for r in rows), default=None)
+    return {"matches": rows, "form": form, "best": best}
+
+
 @login_required
 def player_detail_page(request, player_id):
     try:
@@ -76350,6 +76454,10 @@ def player_detail_page(request, player_id):
             player, fm_eval, latest_closed_evaluation, player_evaluations,
             matches_played=(safe_stats.get("pj") if isinstance(safe_stats, dict) else 0),
         )
+        try:
+            player_match_ratings = _build_player_match_ratings(primary_team, player, limit=6)
+        except Exception:
+            player_match_ratings = {"matches": [], "form": None, "best": None}
         player_traits_catalog, player_traits_chips = _player_traits_context(player)
         evaluation_chart_context = _player_evaluation_chart_context(player_evaluations)
         latest_evaluation_improvement_rows = (
@@ -77136,6 +77244,7 @@ def player_detail_page(request, player_id):
                 "evaluation_summary": evaluation_summary,
                 "fm_eval": fm_eval,
                 "fm_role_fit": fm_role_fit,
+                "player_match_ratings": player_match_ratings,
                 "player_traits_catalog": player_traits_catalog,
                 "player_traits_chips": player_traits_chips,
                 "work_focus": work_focus,
