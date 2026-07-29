@@ -1014,19 +1014,15 @@ body.ed-chrome .edc-selmore-pop[hidden] { display: none !important; }
 body.ed-chrome .edc-selmore-h { font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--edc-muted); padding: 2px 3px 0; }
 body.ed-chrome .edc-selmore-row { display: flex; flex-wrap: wrap; gap: 4px; }
 
-/* ===== Selector de COLOR (punto + etiqueta) en la barra inferior ===== */
-/* Punto de color + NOMBRE: así se sabe qué es aunque el color no cargue (la etiqueta manda). */
-body.ed-chrome .edc-selgrp-color { gap: 3px; }
-body.ed-chrome .edc-colorbtn {
-  display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 9px 0 7px;
-  border-radius: 8px; border: 1px solid transparent; background: transparent;
-  color: var(--edc-ink); font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; flex: 0 0 auto;
-}
-body.ed-chrome .edc-colorbtn .edc-dot {
-  width: 14px; height: 14px; border-radius: 50%; flex: 0 0 auto;
+/* ===== Selector de COLOR (solo muestra) en la barra inferior ===== */
+/* El color ya dice qué marca (nombre en el tooltip); sin etiqueta cabe todo. */
+body.ed-chrome .edc-selgrp-color { gap: 5px; }
+body.ed-chrome .edc-swatch {
+  width: 26px; height: 26px; padding: 0; border-radius: 50%; cursor: pointer; flex: 0 0 auto;
   background: var(--sw, #888); background-size: cover;
-  border: 1px solid rgba(255,255,255,0.45); box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25);
+  border: 2px solid rgba(255,255,255,0.28); box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  transition: transform .08s ease;
 }
-body.ed-chrome .edc-colorbtn:hover { border-color: rgba(55,208,95,0.5); }
-body.ed-chrome .edc-colorbtn.is-active { background: var(--edc-accent); border-color: var(--edc-accent); color: var(--edc-accent-ink); }
+body.ed-chrome .edc-swatch:hover { transform: scale(1.12); border-color: rgba(255,255,255,0.6); }
+body.ed-chrome .edc-swatch.is-active { border-color: var(--edc-accent); box-shadow: 0 0 0 2px var(--edc-accent), 0 1px 4px rgba(0,0,0,0.5); }
 body.ed-chrome .edc-selgrp-color.is-disabled { opacity: .38; pointer-events: none; }
