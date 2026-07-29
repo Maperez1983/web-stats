@@ -45906,16 +45906,25 @@ def _save_session_as_template(source_session, custom_name=""):
     return tpl
 
 
-def _create_session_from_template(template, target_date, custom_name=""):
+def _create_session_from_template(template, target_date, custom_name="", target_microcycle=None):
     """Crea una sesión REAL a partir de una plantilla de la Biblioteca de sesiones: clona el
-    plan + las tareas en la bandeja de entrada del equipo, con la fecha elegida. Devuelve la
-    sesión creada (is_session_template=False)."""
+    plan + las tareas con la fecha elegida. Si se da `target_microcycle` (planificación de un
+    microciclo), la sesión entra en ese microciclo (fecha ajustada a su semana); si no, va a la
+    bandeja de entrada del equipo. Devuelve la sesión creada (is_session_template=False)."""
     team = getattr(getattr(template, "microcycle", None), "team", None)
     if team is None:
         raise ValueError("No se pudo determinar el equipo de la plantilla.")
-    mc = _get_or_create_inbox_microcycle(team)
+    mc = target_microcycle or _get_or_create_inbox_microcycle(team)
     if mc is None:
         raise ValueError("No se pudo preparar el microciclo destino.")
+    try:
+        if not _is_inbox_microcycle(mc):
+            if target_date < mc.week_start:
+                target_date = mc.week_start
+            elif target_date > mc.week_end:
+                target_date = mc.week_end
+    except Exception:
+        pass
     name = (str(custom_name or "").strip() or str(getattr(template, "focus", "") or "").strip() or "Sesión")[:140]
     session = TrainingSession.objects.create(
         microcycle=mc,
@@ -56464,9 +56473,16 @@ def session_library_page(request):
                 _target = _dt.strptime(_date_raw, "%Y-%m-%d").date() if _date_raw else timezone.localdate()
             except Exception:
                 _target = timezone.localdate()
+            _mc_id = _parse_int(request.POST.get("microcycle_id"))
+            _target_mc = (
+                TrainingMicrocycle.objects.filter(id=_mc_id, team=primary_team).first() if _mc_id else None
+            )
             try:
                 _new = _create_session_from_template(
-                    tpl, _target, custom_name=request.POST.get("session_name") or ""
+                    tpl,
+                    _target,
+                    custom_name=request.POST.get("session_name") or "",
+                    target_microcycle=_target_mc,
                 )
                 return redirect(
                     reverse("training-session-detail", args=[int(_new.id)])
@@ -56505,12 +56521,34 @@ def session_library_page(request):
                 "view_url": reverse("training-session-detail", args=[int(_s.id)]) + _team_q,
             }
         )
+    planning_microcycles = []
+    try:
+        planning_microcycles = list(
+            TrainingMicrocycle.objects.filter(team=primary_team)
+            .exclude(week_start=INBOX_MICROCYCLE_WEEK_START)
+            .exclude(week_start=TRASH_MICROCYCLE_WEEK_START)
+            .exclude(
+                Q(notes__icontains=LIBRARY_MICROCYCLE_MARKER)
+                | Q(notes__icontains=TRASH_MICROCYCLE_MARKER)
+                | Q(title__istartswith="Biblioteca ")
+                | Q(title__istartswith="Papelera")
+            )
+            .order_by("-week_start", "-id")[:24]
+        )
+    except Exception:
+        planning_microcycles = []
+    prefill_mc_id = _parse_int(request.GET.get("microcycle_id")) or 0
+    prefill_mc = next((m for m in planning_microcycles if int(m.id) == prefill_mc_id), None) if prefill_mc_id else None
+
     context = {
         "team": primary_team,
         "templates": rows,
         "message": str(request.GET.get("msg") or "").strip()[:200],
         "back_url": reverse("sessions") + _team_q,
         "today_iso": timezone.localdate().isoformat(),
+        "planning_microcycles": planning_microcycles,
+        "prefill_microcycle_id": prefill_mc_id,
+        "prefill_microcycle": prefill_mc,
     }
     return render(request, "football/session_library.html", context)
 

@@ -2620,6 +2620,7 @@
               <div class="session-library-toolbar">
                 <div class="filter-row">
                   <a class="button" href="?tab=create&create_page=session&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">➕ Crear sesión</a>
+                  <a class="button secondary" href="{% url 'session-library' %}?team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}" title="Crea sesiones a partir de tus plantillas guardadas">📚 Desde biblioteca</a>
                   <a class="button secondary" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}#import-sesiones">📄 Importar PDF</a>
                 </div>
                 <div class="filter-row" role="search" aria-label="Búsqueda rápida de sesiones">

@@ -48,6 +48,7 @@
       </div>
       <p class="hint">Plantillas de sesión reutilizables. Guarda cualquier sesión como plantilla desde su ficha (botón «⭐ Guardar como plantilla») y reutilízala en cualquier semana.</p>
 
+      {% if prefill_microcycle %}<div class="msg" style="background:rgba(59,130,246,.10);border-color:rgba(59,130,246,.4);color:#bfdbfe;">📅 Añadiendo al microciclo <strong>{{ prefill_microcycle.title }}</strong> (semana {{ prefill_microcycle.week_start|date:"d/m" }}–{{ prefill_microcycle.week_end|date:"d/m" }}). Elige plantilla y pulsa «➕ Crear sesión» — ya viene preseleccionado ese microciclo.</div>{% endif %}
       {% if message %}<div class="msg">{{ message }}</div>{% endif %}
 
       {% if templates %}
@@ -70,6 +71,12 @@
               {% csrf_token %}
               <input type="hidden" name="action" value="create-session-from-template" />
               <input type="hidden" name="template_id" value="{{ t.id }}" />
+              <select name="microcycle_id" title="Microciclo destino (o Bandeja de entrada)" style="border:1px solid rgba(148,163,184,.35);background:rgba(148,163,184,.08);color:#e5e7eb;border-radius:9px;padding:.42rem .5rem;font-size:.82rem;max-width:180px;">
+                <option value="">📥 Bandeja de entrada</option>
+                {% for m in planning_microcycles %}
+                <option value="{{ m.id }}" {% if prefill_microcycle_id and m.id == prefill_microcycle_id %}selected{% endif %}>{{ m.week_start|date:"d/m" }}–{{ m.week_end|date:"d/m" }} · {{ m.title }}</option>
+                {% endfor %}
+              </select>
               <input type="date" name="session_date" value="{{ today_iso }}" title="Fecha de la nueva sesión" style="border:1px solid rgba(148,163,184,.35);background:rgba(148,163,184,.08);color:#e5e7eb;border-radius:9px;padding:.42rem .5rem;font-size:.82rem;" />
               <button class="btn" type="submit" style="background:rgba(52,211,153,.16);border-color:rgba(52,211,153,.45);color:#bbf7d0;font-weight:700;" title="Crea una sesión real a partir de esta plantilla en la fecha elegida">➕ Crear sesión</button>
             </form>
