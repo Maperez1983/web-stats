@@ -36,6 +36,8 @@ En impresión el folio ocupa la página completa sin sombra ni márgenes de pant
   body.report-a4 .pb-name{ max-width:clamp(52px, 7cqw, 100px); font-size:clamp(0.55rem, 0.9cqw, 0.72rem); }
   @media print{
     body.report-a4{ background:#fff; padding:0; }
+    /* Imprime fondos/colores (cesped, badges, tarjetas): sin esto Chrome los omite y sale distinto. */
+    body.report-a4, body.report-a4 *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
     body.report-a4 .a4-sheet{ box-shadow:none; width:auto; max-width:none; min-height:0; padding:0; border-radius:0; margin:0; }
     /* Al imprimir / guardar como PDF: fuera los controles de interfaz y la pizarra fija en CAMPO,
        para que el PDF salga limpio (como el folio, sin barra ni toggle). */
