@@ -34697,6 +34697,14 @@ def training_session_detail_page(request, session_id):
                     "coaching_points": str(getattr(t, "coaching_points", "") or "").strip(),
                     "confrontation_rules": str(getattr(t, "confrontation_rules", "") or "").strip(),
                     "preview_url": _task_preview_url(t),
+                    # Imagen de la tarjeta en la ficha de sesion: manda la PORTADA fotorrealista,
+                    # igual que en la biblioteca, y la pizarra queda de respaldo. Se pide reducida
+                    # (?w=) porque son miniaturas de 84px y la pizarra guardada son ~3100px.
+                    "card_image_url": (
+                        reverse("session-task-cover-file", args=[int(t.id)]) + "?w=480"
+                        if getattr(t, "cover_present", False)
+                        else (_task_preview_url(t) + "&w=480")
+                    ),
                     "detail_url": reverse("session-task-detail", args=[int(t.id)]),
                     "pdf_meta": meta_norm,
                     "sheet": sheet,
@@ -34718,6 +34726,12 @@ def training_session_detail_page(request, session_id):
         task_minutes_total = sum(int(getattr(t, "duration_minutes", 0) or 0) for t in tasks)
     except Exception:
         task_minutes_total = 0
+    # Cuanto queda por repartir: la ficha decia "90 min planificada · 30 en tareas" y dejaba al
+    # entrenador haciendo la resta. Si sobra tiempo sin asignar, se dice con todas las letras.
+    try:
+        task_minutes_pending = max(0, int(getattr(session, "duration_minutes", 0) or 0) - int(task_minutes_total or 0))
+    except Exception:
+        task_minutes_pending = 0
 
     task_real_minutes_total = 0
     try:
@@ -34821,17 +34835,16 @@ def training_session_detail_page(request, session_id):
     # La ficha de sesión NO recomienda tareas (petición del usuario).
     recommended_tasks = []
     # Chips de estado (mismo lenguaje que el resto del sistema).
-    try:
-        _presentes = sum(1 for r in (attendance_rows or []) if r.get("present"))
-    except Exception:
-        _presentes = 0
+    # El chip de arriba contaba SOLO a los marcados explicitamente, mientras el resto de la ficha
+    # aplica la regla real ("todos presentes salvo excepcion marcada"). Resultado: la misma pagina
+    # decia "0/27 presentes" arriba y "27 comparecieron" abajo. Se usa la misma cuenta que Asistencia.
     _dur_plan = int(getattr(session_obj, "duration_minutes", 0) or 0)
     session_chips = [
         {"n": tasks_count, "k": "Tareas", "tone": "gold"},
         {"n": task_minutes_total, "d": "/%s′" % _dur_plan if _dur_plan else "′",
          "k": "Minutos en tareas",
          "tone": ("red" if _dur_plan and task_minutes_total > _dur_plan else "ok")},
-        {"n": _presentes, "d": "/%s" % len(attendance_rows or []), "k": "Presentes", "tone": "blue"},
+        {"n": asistieron_count, "d": "/%s" % convocados_count, "k": "Presentes", "tone": "blue"},
     ]
     return render(
         request,
@@ -34859,6 +34872,7 @@ def training_session_detail_page(request, session_id):
             "tasks_by_block": tasks_by_block,
             "tasks_count": tasks_count,
             "task_minutes_total": task_minutes_total,
+            "task_minutes_pending": task_minutes_pending,
             "task_real_minutes_total": task_real_minutes_total,
             "coach_name": coach_name,
             "crest_url": crest_url,

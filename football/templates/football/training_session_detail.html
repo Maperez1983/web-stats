@@ -320,7 +320,7 @@
 	            <tr><td>Workflow</td><td><select class="cev" name="workflow_status">{% for value, label in workflow_status_choices %}<option value="{{ value }}" {% if session.workflow_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td><td>Motivo</td><td><input class="cev" type="text" name="workflow_reason" maxlength="220" value="{{ session.workflow_reason }}" placeholder="Ajuste por carga / lluvia…" /></td></tr>
 	            {% else %}
 	            <tr><td style="width:18%;">Lugar</td><td><div class="v">{% if plan_fields.location %}{{ plan_fields.location }}{% else %}—{% endif %}</div></td><td style="width:18%;">Estado</td><td><div class="v">{{ session.get_status_display }}</div></td></tr>
-	            <tr><td>Duración</td><td><div class="v">{{ session.duration_minutes }} min <span style="opacity:.68; font-weight:600; font-size:.82em;">planificada{% if task_minutes_total and task_minutes_total != session.duration_minutes %} · {{ task_minutes_total }} en tareas{% endif %}</span></div></td><td>Intensidad</td><td><div class="v">{{ session.get_intensity_display }}</div></td></tr>
+	            <tr><td>Duración</td><td><div class="v">{{ session.duration_minutes }} min <span style="opacity:.68; font-weight:600; font-size:.82em;">planificada{% if task_minutes_total and task_minutes_total != session.duration_minutes %} · {{ task_minutes_total }} en tareas{% if task_minutes_pending %} · faltan {{ task_minutes_pending }}′ por asignar{% endif %}{% endif %}</span></div></td><td>Intensidad</td><td><div class="v">{{ session.get_intensity_display }}</div></td></tr>
 	            <tr><td>Tareas</td><td><div class="v">{{ tasks_count }}</div></td><td>Carga (RPE)</td><td><div class="v">{% if workload_points %}{{ workload_points }} ({{ workload_rpe }}×{{ workload_minutes }}'){% elif planned_load %}{{ planned_load }} <span style="opacity:.6;font-weight:600;">prev. ({{ planned_rpe }}×{{ session.duration_minutes }}')</span>{% else %}—{% endif %}</div></td></tr>
 	            <tr><td>Workflow</td><td colspan="3"><div class="v">{{ session.get_workflow_status_display|default:"—" }}{% if session.workflow_updated_at %} <span style="color:var(--club-muted);">· {{ session.workflow_updated_at|date:"d/m H:i" }}</span>{% endif %}</div></td></tr>
 	            {% endif %}
@@ -464,7 +464,7 @@
               .tsk-detail>summary.tsk-sum{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:9px 12px;background:rgba(148,163,184,0.06);}
               .tsk-detail>summary.tsk-sum::-webkit-details-marker{display:none;}
               .tsk-detail>summary.tsk-sum:hover{background:rgba(148,163,184,0.12);}
-              .tsk-thumb{flex:0 0 auto;width:84px;height:54px;border-radius:8px;background-size:cover;background-position:center;background-color:#123021;border:1px solid rgba(148,163,184,0.25);}
+              .tsk-thumb{flex:0 0 auto;width:132px;height:84px;border-radius:8px;background-size:cover;background-position:center;background-color:#123021;border:1px solid rgba(148,163,184,0.25);}
               .tsk-sum-label{flex:1 1 auto;font-size:12px;font-weight:600;color:var(--club-muted,#64748b);text-transform:none;letter-spacing:0;}
               .tsk-sum-label::before{content:"Ver pizarra y detalle";}
               .tsk-detail[open]>summary .tsk-sum-label::before{content:"Ocultar detalle";}
@@ -484,7 +484,7 @@
 	                        <div class="task-title">{{ t.title }}</div>
                         <details class="tsk-detail">
                           <summary class="tsk-sum">
-                            <span class="tsk-thumb" style="background-image:{% if t.preview_url %}url('{{ t.preview_url }}&amp;hd=1'){% else %}none{% endif %};"></span>
+                            <span class="tsk-thumb" style="background-image:{% if t.card_image_url %}url('{{ t.card_image_url }}'){% else %}none{% endif %};"></span>
                             <span class="tsk-sum-label"></span>
                             <span class="tsk-chev">▾</span>
                           </summary>
@@ -492,7 +492,7 @@
 
                           <div class="section-title" style="margin:10px 0 0; border-radius:10px 10px 0 0;">Descripción gráfica</div>
                           <a class="preview-frame" href="{{ t.detail_url }}" title="Abrir tarea" style="border-radius:0 0 12px 12px;">
-                            <span class="preview-img" style="background-image:{% if t.preview_url %}url('{{ t.preview_url }}&amp;hd=1'){% else %}none{% endif %};"></span>
+                            <span class="preview-img" style="background-image:{% if t.card_image_url %}url('{{ t.card_image_url }}'){% else %}none{% endif %};"></span>
                           </a>
 
                           <div class="section-title" style="margin:12px 0 0; border-radius:10px 10px 0 0;">Consigna / explicación</div>
