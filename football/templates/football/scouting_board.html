@@ -52,7 +52,7 @@
       .sub {
         margin: 0.5rem 0 0;
         color: rgba(226, 232, 240, 0.76);
-        max-width: 760px;
+        max-width:var(--fm-page,1120px);
       }
       .pill-row {
         display: flex;
@@ -701,19 +701,20 @@
   <body class="prod-commercial">
     <div class="shell">
       {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='direccion' %}
 
       <header class="header">
         <div>
           <p class="kicker">Dirección deportiva</p>
-          <h1>Seguimiento de jugadores ojeados</h1>
+          <h1 style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>Seguimiento de jugadores ojeados</span></h1>
           <p class="sub">
             Bandeja para priorizar objetivos, registrar informes y coordinar próximos seguimientos sin mezclarlo con la ficha del jugador del día a día.
           </p>
-          <div class="pill-row">
-            <span class="pill">{{ total_targets }} ojeados</span>
-            <span class="pill">{{ active_targets }} activos</span>
-            <span class="pill">{{ review_targets }} para revisar</span>
-            <span class="pill">{{ urgent_targets }} urgentes</span>
+          <div class="zc-row" style="margin:.9rem 0 0;">
+            <div class="zc-chip"><div class="zc-n">{{ total_targets }}</div><div class="zc-k">Ojeados</div></div>
+            <div class="zc-chip zc-ok"><div class="zc-n">{{ active_targets }}</div><div class="zc-k">Activos</div></div>
+            <div class="zc-chip zc-blue"><div class="zc-n">{{ review_targets }}</div><div class="zc-k">Para revisar</div></div>
+            <div class="zc-chip zc-red"><div class="zc-n">{{ urgent_targets }}</div><div class="zc-k">Urgentes</div></div>
           </div>
         </div>
           <div class="actions">

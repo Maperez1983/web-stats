@@ -316,7 +316,7 @@
         gap: 0.9rem;
         align-items: start;
       }
-      @media (max-width: 900px) {
+      @media (max-width:var(--fm-page,1120px)) {
         .fm-attributes-grid { grid-template-columns: 1fr; }
       }
       .fm-radar-card,
@@ -566,14 +566,15 @@
       }
     </style>
   </head>
-  <body>
+  <body class="prod-commercial">
     <div class="shell">
       {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='direccion' %}
 
       <header class="header">
         <div>
           <p class="kicker">Dirección deportiva</p>
-          <h1>{{ target.display_name|display_text }}</h1>
+          <h1 style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>{{ target.display_name|display_text }}</span></h1>
           <p class="sub">
             {% if target.subject_team_name %}{{ target.subject_team_name|display_text }}{% else %}Jugador sin club indicado{% endif %}
             {% if target.position %} · {{ target.position|display_position }}{% endif %}

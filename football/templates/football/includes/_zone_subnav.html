@@ -49,5 +49,6 @@ Auto-resalta la página activa con nav_url_name (global). Seguro si falta: solo 
   <a href="{% url 'scouting-board' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'scouting-board' %}on{% endif %}">🔎 Ojeo</a>
   <a href="{% url 'scouting-shortlist' %}" class="{% if request.resolver_match.url_name == 'scouting-shortlist' %}on{% endif %}">🎯 Shortlist</a>
   <a href="{% url 'rival-players-index' %}" class="{% if request.resolver_match.url_name == 'rival-players-index' %}on{% endif %}">🛡️ Rivales</a>
+  <a href="{% url 'reports-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'reports-hub' %}on{% endif %}">📊 Informes</a>
 </nav>
 {% endif %}

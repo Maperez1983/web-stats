@@ -2376,7 +2376,13 @@ def rival_players_index(request):
         }
         for r in rows
     ]
-    return render(request, "football/rival_players_index.html", {"rival_teams": teams})
+    return render(request, "football/rival_players_index.html", {
+        "rival_teams": teams,
+        "zone_chips": [
+            {"n": len(teams), "k": "Equipos", "tone": "gold"},
+            {"n": sum(int(t.get("count") or 0) for t in teams), "k": "Jugadores"},
+        ],
+    })
 
 
 @login_required
@@ -2395,7 +2401,17 @@ def rival_team_squad(request, team_id):
     )
     _line_order = {"gk": 0, "def": 1, "mid": 2, "att": 3}
     players.sort(key=lambda p: (_line_order.get(p.line, 9), p.number or 999, p.full_name))
-    return render(request, "football/rival_team_squad.html", {"rival_team": team, "players": players})
+    return render(request, "football/rival_team_squad.html", {
+        "rival_team": team,
+        "players": players,
+        "zone_chips": [
+            {"n": len(players), "k": "Jugadores", "tone": "gold"},
+            {"n": sum(1 for p in players if getattr(p, "line", "") == "gk"), "k": "Porteros"},
+            {"n": sum(1 for p in players if getattr(p, "line", "") == "def"), "k": "Defensas"},
+            {"n": sum(1 for p in players if getattr(p, "line", "") == "mid"), "k": "Medios"},
+            {"n": sum(1 for p in players if getattr(p, "line", "") == "att"), "k": "Delanteros"},
+        ],
+    })
 
 
 def _get_rival_player(rival_player_id):

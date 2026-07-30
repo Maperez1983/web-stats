@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
     {% include 'football/pwa_head.html' %}
     <style>
-      .rpf-wrap { max-width: 900px; margin: 0 auto; padding: 1rem; }
+      .rpf-wrap { max-width:var(--fm-page,1120px); margin: 0 auto; padding: 1rem; }
       .rpf-back { display:inline-block; color:#7dd3fc; text-decoration:none; font-weight:800; font-size:.85rem; margin-bottom:.8rem; }
       .rpf-card { background:#0f172a; border:1px solid #1e293b; border-radius:16px; padding:1.1rem; }
       .rpf-top { display:flex; gap:1rem; align-items:center; flex-wrap:wrap; }
@@ -43,13 +43,14 @@
     <div class="app-shell">
       {% include 'football/includes/dragon_nav.html' %}
       <main class="rpf-wrap">
+        {% include 'football/includes/_zone_subnav.html' with zone='direccion' %}
         <a class="rpf-back" href="{% url 'rival-team-squad' team_id=rp.team_id %}">← {{ rp.team.display_name }}</a>
         {% if messages %}<div class="rpf-msgs">{% for m in messages %}<div class="rpf-msg {{ m.tags }}">{{ m }}</div>{% endfor %}</div>{% endif %}
         <div class="rpf-card">
           <div class="rpf-top">
             {% if rp.photo_url %}<img class="rpf-photo" src="{{ rp.photo_url }}" alt="" />{% else %}<div class="rpf-photo"></div>{% endif %}
             <div>
-              <h1 class="rpf-name">{{ rp.full_name }}</h1>
+              <h1 class="rpf-name" style="display:flex;align-items:center;gap:.6rem;">{% if rp.team.kit_primary_color %}<span class="zh-kit" style="--zh-k1:{{ rp.team.kit_primary_color }};--zh-k2:{{ rp.team.kit_secondary_color|default:rp.team.kit_primary_color }};" title="Colores del rival" aria-hidden="true"></span>{% endif %}<span>{{ rp.full_name }}</span></h1>
               <p class="rpf-sub">
                 {% if rp.alias and rp.alias != rp.full_name %}“{{ rp.alias }}” · {% endif %}
                 {% if rp.team.crest_url %}<img class="rpf-crest" src="{{ rp.team.crest_url }}" alt="" />{% endif %}{{ rp.team.display_name }}

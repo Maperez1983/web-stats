@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
     {% include 'football/pwa_head.html' %}
     <style>
-      .ri-wrap { max-width: 1000px; margin: 0 auto; padding: 1rem; }
+      .ri-wrap { max-width:var(--fm-page,1120px); margin: 0 auto; padding: 1rem; }
       .ri-h1 { margin:0; color:var(--prod-text); font-size:1.6rem; }
       .ri-sub { color:#94a3b8; font-weight:700; margin:.2rem 0 1rem; }
       .ri-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:.7rem; }
@@ -27,8 +27,10 @@
     <div class="app-shell">
       {% include 'football/includes/dragon_nav.html' %}
       <main class="ri-wrap">
-        <h1 class="ri-h1">Rivales de la liga</h1>
+        {% include 'football/includes/_zone_subnav.html' with zone='direccion' %}
+        <h1 class="ri-h1" style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>Rivales de la liga</span></h1>
         <p class="ri-sub">Plantillas rivales importadas · trabajan con Análisis, Dirección y Partido</p>
+        {% include 'football/includes/_zone_chips.html' with chips=zone_chips %}
         {% if rival_teams %}
         <div class="ri-grid">
           {% for t in rival_teams %}
