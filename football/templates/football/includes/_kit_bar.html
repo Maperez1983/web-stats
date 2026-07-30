@@ -6,5 +6,10 @@ Prioridad de color, de lo mas especifico a lo mas general:
   2. Colores de marca del club (brand_theme.primary/secondary), que es lo que ya
      usa el resto del producto y SI esta configurado.
   3. Verde/ambar de producto, para que la cabecera nunca se quede sin ancla visual.
-Estilo .zh-kit en fm_theme.css → cambiar la identidad sigue siendo 1 fichero.
-{% endcomment %}<span class="zh-kit" style="--zh-k1:{% if active_team.kit_primary_color %}{{ active_team.kit_primary_color }}{% else %}{{ brand_theme.primary|default:'#2f7d32' }}{% endif %};--zh-k2:{% if active_team.kit_secondary_color %}{{ active_team.kit_secondary_color }}{% elif active_team.kit_primary_color %}{{ active_team.kit_primary_color }}{% else %}{{ brand_theme.secondary|default:'#f4b400' }}{% endif %};" title="Colores del club" aria-hidden="true"></span>
+El estilo va AQUI (igual que en _zone_subnav), no solo en fm_theme.css: hay pantallas
+que no cargan pwa_head y ahi la barra salia de 0x0 (invisible) aunque el HTML estuviera.
+Asi el ancla de cabecera funciona se cargue lo que se cargue.
+{% endcomment %}<style>
+  .zh-kit{width:8px;height:42px;border-radius:4px;flex:0 0 auto;display:inline-block;
+    background:linear-gradient(180deg,var(--zh-k1) 0 50%,var(--zh-k2) 50% 100%);}
+</style><span class="zh-kit" style="--zh-k1:{% if active_team.kit_primary_color %}{{ active_team.kit_primary_color }}{% else %}{{ brand_theme.primary|default:'#2f7d32' }}{% endif %};--zh-k2:{% if active_team.kit_secondary_color %}{{ active_team.kit_secondary_color }}{% elif active_team.kit_primary_color %}{{ active_team.kit_primary_color }}{% else %}{{ brand_theme.secondary|default:'#f4b400' }}{% endif %};" title="Colores del club" aria-hidden="true"></span>
