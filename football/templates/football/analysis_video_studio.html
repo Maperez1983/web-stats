@@ -28,7 +28,7 @@
       .vs-head-actions { min-width:0; display:flex; gap:0.45rem; flex-wrap:wrap; justify-content:flex-end; }
       .vs-kicker { color:#67e8f9; font-size:0.72rem; font-weight:900; letter-spacing:0.18em; text-transform:uppercase; }
       .vs-head h1 { margin:0; font-size:clamp(1.5rem, 2.8vw, 2.2rem); letter-spacing:-0.03em; text-transform:none; line-height:1.02; }
-      .vs-meta { color: rgba(226,232,240,0.72); font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .vs-meta { color: var(--prod-muted); font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
       .vs-pills { display:flex; flex-wrap:wrap; gap:0.45rem; }
       .vs-pill {
         display:inline-flex;
@@ -39,7 +39,7 @@
         border-radius:999px;
         border:1px solid rgba(148,163,184,0.2);
         background:rgba(255,255,255,0.04);
-        color:rgba(226,232,240,0.86);
+        color:var(--prod-muted);
         font-size:0.7rem;
         font-weight:900;
         letter-spacing:0.08em;
@@ -64,8 +64,8 @@
       .toolbar .left > *, .toolbar .right > * { flex:0 0 auto; }
       .toolbar input[type="color"] { width: 38px; height: 38px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.14); background: transparent; padding: 0; }
       .toolbar input[type="range"] { width: 120px; }
-      .toolbar select { height: 38px; border-radius: 12px; padding: 0 0.65rem; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; }
-      .button { min-height:38px; display:inline-flex; align-items:center; justify-content:center; border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.62rem 0.88rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; white-space:nowrap; cursor:pointer; transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease; }
+      .toolbar select { height: 38px; border-radius: 12px; padding: 0 0.65rem; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:var(--prod-text); font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; }
+      .button { min-height:38px; display:inline-flex; align-items:center; justify-content:center; border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:var(--prod-text); padding:0.62rem 0.88rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; white-space:nowrap; cursor:pointer; transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease; }
       .button.primary { background: linear-gradient(135deg, #22d3ee, #67e8f9); border:none; color:#03253c; }
       .button.danger { background: rgba(127,29,29,0.22); border-color: rgba(248,113,113,0.4); color:#fecaca; }
       .button.ghost { background: rgba(255,255,255,0.02); }
@@ -102,7 +102,7 @@
         gap: 0.45rem;
         border: 1px solid rgba(255,255,255,0.16);
         background: rgba(255,255,255,0.05);
-        color: rgba(226,232,240,0.95);
+        color: var(--prod-text);
         cursor: pointer;
         user-select: none;
       }
@@ -111,7 +111,7 @@
       .vs-chip[data-vs-kind="template"] .dot { background: rgba(34,211,238,0.95); }
       .vs-chip[data-vs-kind="tool"] .dot { background: rgba(250,204,21,0.95); }
       .vs-chip[data-vs-kind="fx"] .dot { background: rgba(244,63,94,0.95); }
-      .vs-menu-muted { color: rgba(226,232,240,0.72); font-weight: 800; font-size: 0.78rem; }
+      .vs-menu-muted { color: var(--prod-muted); font-weight: 800; font-size: 0.78rem; }
       .vs-track-toggle { min-height:38px; display:inline-flex; align-items:center; gap:0.38rem; border-radius:999px; border:1px solid rgba(255,255,255,0.16); background:rgba(255,255,255,0.04); color:#dbeafe; padding:0 0.72rem; font-size:0.7rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; white-space:nowrap; }
       .vs-track-toggle input { accent-color:#22d3ee; }
       .stage { position:relative; width:100%; min-width:0; border-radius: 18px; overflow:hidden; border: 1px solid rgba(148,163,184,0.18); background: rgba(0,0,0,0.22); }
@@ -137,21 +137,21 @@
         pointer-events:none;
         display:none;
       }
-      .status { margin-top:0.55rem; color: rgba(226,232,240,0.72); font-weight:800; white-space: pre-line; }
+      .status { margin-top:0.55rem; color: var(--prod-muted); font-weight:800; white-space: pre-line; }
       .field { display:grid; gap:0.45rem; }
-      label { display:grid; gap:0.25rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; color: rgba(226,232,240,0.78); }
+      label { display:grid; gap:0.25rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; color: var(--prod-muted); }
       input[type="text"], input[type="number"], select, textarea {
         width:100%; border-radius: 14px; border: 1px solid rgba(148,163,184,0.18); background: rgba(255,255,255,0.04);
         color:#e7ebf3; padding:0.7rem 0.85rem; font-weight:800;
       }
       textarea { min-height: 86px; resize: vertical; }
       .list { display:grid; gap:0.45rem; margin-top:0.6rem; }
-      .row { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:0.6rem; padding:0.65rem 0.75rem; border-radius: 16px; border:1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.03); color: #f3f7ff; }
-      .row strong { font-weight:900; color: #f3f7ff; }
-      .row small { color: rgba(226,232,240,0.7); font-weight:800; }
+      .row { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:0.6rem; padding:0.65rem 0.75rem; border-radius: 16px; border:1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.03); color: var(--prod-text); }
+      .row strong { font-weight:900; color: var(--prod-text); }
+      .row small { color: var(--prod-muted); font-weight:800; }
       .split { margin-top: 1rem; padding-top: 0.95rem; border-top: 1px solid rgba(148,163,184,0.16); }
       .k { display:inline-flex; align-items:center; justify-content:center; min-width: 26px; padding: 0.1rem 0.4rem; border-radius: 10px; border: 1px solid rgba(148,163,184,0.22); background: rgba(2, 6, 23, 0.35); font-weight: 900; font-size: 0.72rem; }
-      .hint { color: rgba(226,232,240,0.72); font-weight:800; font-size:0.85rem; }
+      .hint { color: var(--prod-muted); font-weight:800; font-size:0.85rem; }
       .vs-flash { animation: vsFlash 1.6s ease-in-out 1; }
       @keyframes vsFlash {
         0% { box-shadow: 0 0 0 0 rgba(34,211,238,0.0); background: rgba(255,255,255,0.03); }
@@ -167,7 +167,7 @@
         border-radius: 999px;
         border: 1px solid rgba(255,255,255,0.18);
         background: rgba(255,255,255,0.04);
-        color:#f3f7ff;
+        color:var(--prod-text);
         padding:0.65rem 0.85rem;
         font-weight: 950;
         letter-spacing: 0.08em;
@@ -202,7 +202,7 @@
 
       /* Accordion para evitar scroll infinito */
       details.vs-acc { margin-top: 1rem; padding-top: 0.25rem; border-top: 1px solid rgba(148,163,184,0.16); }
-      details.vs-acc > summary { cursor:pointer; font-weight: 950; letter-spacing:0.08em; text-transform:uppercase; font-size:0.72rem; color: rgba(226,232,240,0.85); list-style:none; }
+      details.vs-acc > summary { cursor:pointer; font-weight: 950; letter-spacing:0.08em; text-transform:uppercase; font-size:0.72rem; color: var(--prod-muted); list-style:none; }
       details.vs-acc > summary::-webkit-details-marker { display:none; }
       details.vs-acc[open] > summary { color: #e9fbff; }
       details.vs-acc .vs-acc-body { margin-top:0.55rem; display:grid; gap:0.55rem; }
@@ -225,7 +225,7 @@
       #vs-player-recents { display:flex; flex-wrap:wrap; gap:0.35rem; }
       #vs-player-recents button { padding: 0.35rem 0.55rem; font-size: 0.70rem; }
       #vs-player-pop .seg { display:flex; border:1px solid rgba(148,163,184,0.18); background: rgba(255,255,255,0.04); border-radius: 999px; overflow:hidden; }
-      #vs-player-pop .seg button { border:none; background: transparent; color: rgba(226,232,240,0.85); padding:0.45rem 0.6rem; font-weight:950; letter-spacing:0.06em; text-transform:uppercase; font-size:0.68rem; cursor:pointer; }
+      #vs-player-pop .seg button { border:none; background: transparent; color: var(--prod-muted); padding:0.45rem 0.6rem; font-weight:950; letter-spacing:0.06em; text-transform:uppercase; font-size:0.68rem; cursor:pointer; }
       #vs-player-pop .seg button.active { background: linear-gradient(135deg, rgba(34,211,238,0.95), rgba(103,232,249,0.95)); color:#03253c; }
       #vs-player-pop .seg.seg-warn button.active { background: linear-gradient(135deg, rgba(245,158,11,0.95), rgba(251,191,36,0.95)); color:#241004; }
 
@@ -245,7 +245,7 @@
       #vs-text-pop textarea { border-radius: 12px; padding:0.55rem 0.65rem; min-height: 84px; resize: vertical; }
       #vs-text-pop .vs-pop-row { display:flex; gap:0.45rem; align-items:center; }
       #vs-text-pop .seg { display:flex; border:1px solid rgba(148,163,184,0.18); background: rgba(255,255,255,0.04); border-radius: 999px; overflow:hidden; }
-      #vs-text-pop .seg button { border:none; background: transparent; color: rgba(226,232,240,0.85); padding:0.45rem 0.6rem; font-weight:950; letter-spacing:0.06em; text-transform:uppercase; font-size:0.68rem; cursor:pointer; }
+      #vs-text-pop .seg button { border:none; background: transparent; color: var(--prod-muted); padding:0.45rem 0.6rem; font-weight:950; letter-spacing:0.06em; text-transform:uppercase; font-size:0.68rem; cursor:pointer; }
       #vs-text-pop .seg button.active { background: linear-gradient(135deg, rgba(34,211,238,0.95), rgba(103,232,249,0.95)); color:#03253c; }
     </style>
   </head>
@@ -264,7 +264,7 @@
         </div>
         <div class="vs-head-actions">
           {% if not team and vs_assignable_teams %}
-            <select id="vs-assign-team" style="height:38px;border-radius:12px;padding:0 0.65rem;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:#f3f7ff;font-weight:900;letter-spacing:0.04em;text-transform:uppercase;font-size:0.72rem;">
+            <select id="vs-assign-team" style="height:38px;border-radius:12px;padding:0 0.65rem;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:var(--prod-text);font-weight:900;letter-spacing:0.04em;text-transform:uppercase;font-size:0.72rem;">
               <option value="">Asignar a…</option>
               {% for tid,label in vs_assignable_teams %}
                 <option value="{{ tid }}">{{ label }}</option>
@@ -284,7 +284,7 @@
 	              <button type="button" class="button primary" id="vs-play">Play</button>
 	              <button type="button" class="button" id="vs-pause" hidden>Pausa</button>
 	              <button type="button" class="button" id="vs-loop">Loop</button>
-	              <select id="vs-speed" style="height:38px;border-radius:12px;padding:0 0.65rem;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:#f3f7ff;font-weight:900;letter-spacing:0.04em;text-transform:uppercase;font-size:0.72rem;">
+	              <select id="vs-speed" style="height:38px;border-radius:12px;padding:0 0.65rem;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:var(--prod-text);font-weight:900;letter-spacing:0.04em;text-transform:uppercase;font-size:0.72rem;">
 	                <option value="0.5">0.5x</option>
 	                <option value="0.75">0.75x</option>
 	                <option value="1" selected>1x</option>
@@ -492,7 +492,7 @@
                   <textarea id="vs-clip-notes" style="min-height:90px;" placeholder="Qué pasó, qué corregir, qué mirar..."></textarea>
                 </label>
                 <details>
-                  <summary style="cursor:pointer; font-weight:900; letter-spacing:0.08em; text-transform:uppercase; font-size:0.72rem; color: rgba(226,232,240,0.85);">Más campos</summary>
+                  <summary style="cursor:pointer; font-weight:900; letter-spacing:0.08em; text-transform:uppercase; font-size:0.72rem; color: var(--prod-muted);">Más campos</summary>
                   <div style="margin-top:0.55rem; display:grid; gap:0.55rem;">
                     <label>
                       Colección
@@ -827,7 +827,7 @@
                     <div class="hint" id="vs-playlist-count" style="align-self:center;">0 seleccionados</div>
                   </div>
                   <details id="vs-edit-timeline" style="margin-top:0.35rem;">
-                    <summary style="cursor:pointer; font-weight:900; letter-spacing:0.08em; text-transform:uppercase; font-size:0.72rem; color: rgba(226,232,240,0.85);">
+                    <summary style="cursor:pointer; font-weight:900; letter-spacing:0.08em; text-transform:uppercase; font-size:0.72rem; color: var(--prod-muted);">
                       Timeline editor (beta)
                     </summary>
                     <div style="margin-top:0.55rem; display:grid; gap:0.55rem;">
@@ -841,18 +841,18 @@
                           <input type="checkbox" id="vs-tl-include-audio" checked style="width:18px;height:18px;accent-color:#22d3ee;" />
                           Audio original
                         </label>
-                        <select id="vs-tl-project-select" style="height:38px;border-radius:12px;padding:0 0.65rem;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:#f3f7ff;font-weight:900;letter-spacing:0.04em;text-transform:uppercase;font-size:0.72rem; min-width: 220px;">
+                        <select id="vs-tl-project-select" style="height:38px;border-radius:12px;padding:0 0.65rem;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:var(--prod-text);font-weight:900;letter-spacing:0.04em;text-transform:uppercase;font-size:0.72rem; min-width: 220px;">
                           <option value="">(Proyecto)</option>
                         </select>
                       </div>
                       <div class="list" id="vs-tl-items"></div>
 	                      <div style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center;">
-	                        <select id="vs-voiceover-select" style="height:38px;border-radius:12px;padding:0 0.65rem;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:#f3f7ff;font-weight:900;letter-spacing:0.04em;text-transform:uppercase;font-size:0.72rem; min-width: 220px;">
+	                        <select id="vs-voiceover-select" style="height:38px;border-radius:12px;padding:0 0.65rem;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:var(--prod-text);font-weight:900;letter-spacing:0.04em;text-transform:uppercase;font-size:0.72rem; min-width: 220px;">
 	                          <option value="">(Voz en off)</option>
 	                        </select>
 	                        <button type="button" class="button" id="vs-voiceover-record">Grabar voz</button>
 	                        <button type="button" class="button danger" id="vs-voiceover-delete">Borrar voz</button>
-                          <select id="vs-music-select" style="height:38px;border-radius:12px;padding:0 0.65rem;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:#f3f7ff;font-weight:900;letter-spacing:0.04em;text-transform:uppercase;font-size:0.72rem; min-width: 220px;">
+                          <select id="vs-music-select" style="height:38px;border-radius:12px;padding:0 0.65rem;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:var(--prod-text);font-weight:900;letter-spacing:0.04em;text-transform:uppercase;font-size:0.72rem; min-width: 220px;">
                             <option value="">(Música / BGM)</option>
                           </select>
                           <input type="file" id="vs-music-file" accept="audio/*" style="display:none;" />
@@ -895,7 +895,7 @@
 	                          <input type="number" id="vs-voiceover-duck-strength" min="0" max="1" step="0.05" value="1" style="width:90px;" />
 	                        </label>
 	                      </div>
-	                      <dialog id="vs-tl-item-dialog" style="border:1px solid rgba(255,255,255,0.18); background:rgba(9,16,29,0.98); color:#f3f7ff; border-radius:14px; padding:1rem; max-width:520px;">
+	                      <dialog id="vs-tl-item-dialog" style="border:1px solid rgba(255,255,255,0.18); background:rgba(9,16,29,0.98); color:var(--prod-text); border-radius:14px; padding:1rem; max-width:520px;">
 	                        <form method="dialog" style="display:grid; gap:0.65rem;">
 	                          <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase;">Clip FX</div>
 	                          <div class="hint">Recorte IN/OUT + velocidad (constante o ramp) + fades.</div>
@@ -1060,7 +1060,7 @@
                 </div>
               </details>
               <details style="margin-top:0.55rem;">
-                <summary style="cursor:pointer; font-weight:900; letter-spacing:0.08em; text-transform:uppercase; color:rgba(226,232,240,0.82);">AutoCut · ajustes</summary>
+                <summary style="cursor:pointer; font-weight:900; letter-spacing:0.08em; text-transform:uppercase; color:var(--prod-muted);">AutoCut · ajustes</summary>
                 <div style="display:grid; gap:0.55rem; padding-top:0.55rem;">
                   <label style="margin:0;">
                     Perfil
@@ -1101,7 +1101,7 @@
                 <button type="button" class="button" id="vs-event-add">Añadir en tiempo actual</button>
                 <button type="button" class="button" id="vs-event-refresh">Actualizar</button>
                 <button type="button" class="button primary" id="vs-autocut-run" title="Analiza audio + movimiento para proponer cortes automáticamente (beta)">AutoCut</button>
-                <select id="vs-timeline-format" style="height:38px;border-radius:12px;padding:0 0.65rem;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:#f3f7ff;font-weight:900;letter-spacing:0.04em;text-transform:uppercase;font-size:0.72rem;">
+                <select id="vs-timeline-format" style="height:38px;border-radius:12px;padding:0 0.65rem;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:var(--prod-text);font-weight:900;letter-spacing:0.04em;text-transform:uppercase;font-size:0.72rem;">
                   <option value="json" selected>JSON</option>
                   <option value="csv">CSV</option>
                   <option value="xml">XML</option>
@@ -1135,7 +1135,7 @@
                 Incluir en Informe PDF
               </label>
               <div class="hint" id="vs-ai-meta" style="margin-top:0.35rem;">—</div>
-	              <pre id="vs-ai-output" style="margin:0.55rem 0 0; white-space:pre-wrap; word-break:break-word; border-radius:16px; border:1px solid rgba(148,163,184,0.14); background:rgba(255,255,255,0.03); padding:0.7rem 0.75rem; font-weight:800; color: rgba(226,232,240,0.82); min-height:84px;"></pre>
+	              <pre id="vs-ai-output" style="margin:0.55rem 0 0; white-space:pre-wrap; word-break:break-word; border-radius:16px; border:1px solid rgba(148,163,184,0.14); background:rgba(255,255,255,0.03); padding:0.7rem 0.75rem; font-weight:800; color: var(--prod-muted); min-height:84px;"></pre>
                 </div>
 	            </details>
 

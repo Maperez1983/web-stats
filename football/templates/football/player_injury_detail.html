@@ -12,7 +12,7 @@
       body {
         margin: 0;
         min-height: 100vh;
-        color: rgba(245, 247, 250, 0.94);
+        color: var(--prod-text);
         font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
         background:
           radial-gradient(circle at 10% -10%, rgba(56, 189, 248, 0.14), transparent 40%),
@@ -52,7 +52,7 @@
       }
       .sub {
         margin: 0.45rem 0 0;
-        color: rgba(226,232,240,0.76);
+        color: var(--prod-muted);
       }
       .actions {
         display: flex;
@@ -69,7 +69,7 @@
         border-radius: 999px;
         border: 1px solid rgba(244, 180, 0, 0.24);
         background: rgba(15, 23, 42, 0.62);
-        color: rgba(245, 247, 250, 0.94);
+        color: var(--prod-button-text);
         text-decoration: none;
         font-weight: 900;
         letter-spacing: 0.13em;
@@ -111,7 +111,7 @@
         font-size: 0.7rem;
         letter-spacing: 0.12em;
         text-transform: uppercase;
-        color: rgba(226,232,240,0.72);
+        color: var(--prod-muted);
         font-weight: 900;
       }
       .stat .value {
@@ -128,7 +128,7 @@
       .form-grid label, .add-grid label {
         display: grid;
         gap: 0.35rem;
-        color: rgba(226,232,240,0.8);
+        color: var(--prod-muted);
         font-size: 0.7rem;
         text-transform: uppercase;
         letter-spacing: 0.1em;
@@ -140,7 +140,7 @@
         border-radius: 14px;
         border: 1px solid rgba(255,255,255,0.12);
         background: rgba(2, 6, 23, 0.34);
-        color: rgba(245,247,250,0.94);
+        color: var(--prod-text);
         padding: 0.68rem 0.8rem;
         font: inherit;
       }
@@ -155,7 +155,7 @@
         border-radius:999px;
         border:1px solid rgba(244,180,0,0.24);
         background: rgba(15,23,42,0.55);
-        color: rgba(245,247,250,0.94);
+        color: var(--prod-button-text);
         font-size:0.72rem;
         font-weight:900;
         letter-spacing:0.08em;
@@ -171,7 +171,7 @@
       }
       .milestone-head { display:flex; align-items:flex-start; justify-content:space-between; gap:0.75rem; }
       .milestone-title { font-weight:900; }
-      .muted { color: rgba(226,232,240,0.7); }
+      .muted { color: var(--prod-muted); }
       .add-grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:0.7rem; margin-top:0.8rem; }
       .add-grid .wide { grid-column: 1 / -1; }
       .toolbar { display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.8rem; }

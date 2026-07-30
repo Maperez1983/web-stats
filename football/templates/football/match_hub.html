@@ -16,7 +16,7 @@
           radial-gradient(circle at 12% -10%, rgba(70, 211, 255, 0.16), transparent 40%),
           radial-gradient(circle at 90% 0%, rgba(255, 191, 69, 0.14), transparent 35%),
           linear-gradient(180deg, #03070f 0%, #081120 55%, #0a1427 100%);
-        color: rgba(245, 247, 250, 0.92);
+        color: var(--prod-text);
         font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
       }
       .shell {
@@ -47,7 +47,7 @@
       }
       .header p {
         margin: 0.35rem 0 0;
-        color: rgba(226, 232, 240, 0.74);
+        color: var(--prod-muted);
         white-space: normal;
         overflow-wrap: anywhere;
       }
@@ -64,7 +64,7 @@
         border-radius: 999px;
         border: 1px solid rgba(244, 180, 0, 0.18);
         background: rgba(15, 23, 42, 0.55);
-        color: rgba(245, 247, 250, 0.88);
+        color: var(--prod-muted);
         padding: 0.35rem 0.7rem;
         font-size: 0.74rem;
         letter-spacing: 0.08em;
@@ -109,7 +109,7 @@
       }
       .card p {
         margin: 0;
-        color: rgba(226, 232, 240, 0.74);
+        color: var(--prod-muted);
         line-height: 1.42;
         white-space: normal;
         overflow-wrap: anywhere;
@@ -165,7 +165,7 @@
         padding: 0.55rem 0.85rem;
         border: 1px solid rgba(244, 180, 0, 0.18);
         background: rgba(15, 23, 42, 0.62);
-        color: rgba(245, 247, 250, 0.92);
+        color: var(--prod-button-text);
         font-weight: 900;
         letter-spacing: 0.14em;
         text-transform: uppercase;
@@ -196,7 +196,7 @@
         font-size: 0.75rem;
         letter-spacing: 0.18em;
         text-transform: uppercase;
-        color: rgba(226, 232, 240, 0.72);
+        color: var(--prod-muted);
       }
       .modal-backdrop {
         position: fixed;
@@ -228,7 +228,7 @@
       }
       .modal p {
         margin: 0.35rem 0 0.8rem;
-        color: rgba(226, 232, 240, 0.72);
+        color: var(--prod-muted);
       }
       .form-grid {
         display: grid;
@@ -244,7 +244,7 @@
         font-size: 0.68rem;
         letter-spacing: 0.14em;
         text-transform: uppercase;
-        color: rgba(226, 232, 240, 0.72);
+        color: var(--prod-muted);
         margin-bottom: 0.3rem;
         font-weight: 800;
       }
@@ -255,7 +255,7 @@
         border-radius: 12px;
         border: 1px solid rgba(255, 255, 255, 0.14);
         background: rgba(15, 23, 42, 0.55);
-        color: rgba(245, 247, 250, 0.92);
+        color: var(--prod-button-text);
         padding: 0.55rem 0.65rem;
         font-weight: 700;
       }
@@ -424,7 +424,7 @@
           {% if is_admin_user %}
           <div class="split">
             <h3>Operativa admin</h3>
-            <p style="margin:0; color: rgba(226,232,240,0.72);">
+            <p style="margin:0; color: var(--prod-muted);">
               Si este equipo aparece como “categoría” dentro de otro club, sepáralo en un club independiente desde Admin → Equipos.
             </p>
             <div class="actions" style="margin-top:0.7rem;">

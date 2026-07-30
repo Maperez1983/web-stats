@@ -224,7 +224,7 @@
       button.inline-ghost {
         border: 1px solid rgba(148, 163, 184, 0.35);
         background: rgba(2, 6, 23, 0.35);
-        color: rgba(226, 232, 240, 0.92);
+        color: var(--prod-button-text);
         border-radius: 8px;
         padding: 0.3rem 0.5rem;
         cursor: pointer;
@@ -289,7 +289,7 @@
         letter-spacing: 0.04em;
         border: 1px solid rgba(250, 204, 21, 0.78);
         background: rgba(250, 204, 21, 0.26);
-        color: rgba(255, 248, 228, 0.98);
+        color: var(--prod-text);
         text-shadow: 0 1px 0 rgba(2, 6, 23, 0.85);
         box-shadow: 0 8px 18px rgba(2, 6, 23, 0.45);
       }
@@ -376,7 +376,7 @@
         font-size: 0.6rem;
         letter-spacing: 0.12em;
         text-transform: uppercase;
-        color: rgba(148, 163, 184, 0.92);
+        color: var(--prod-text);
         white-space: nowrap;
       }
       .pc-stat .v {
@@ -384,7 +384,7 @@
         font-size: 0.98rem;
         line-height: 1;
         font-variant-numeric: tabular-nums;
-        color: rgba(248, 250, 252, 0.96);
+        color: var(--prod-text);
       }
       .pc-mid {
         margin-top: 0.6rem;
@@ -433,12 +433,12 @@
         font-size: 0.6rem;
         letter-spacing: 0.12em;
         text-transform: uppercase;
-        color: rgba(148, 163, 184, 0.92);
+        color: var(--prod-text);
       }
       .pc-donut-label .v {
         font-weight: 820;
         font-size: 1.05rem;
-        color: rgba(248, 250, 252, 0.96);
+        color: var(--prod-text);
         font-variant-numeric: tabular-nums;
         line-height: 1;
       }
@@ -517,7 +517,7 @@
         font-size: 0.62rem;
         letter-spacing: 0.12em;
         text-transform: uppercase;
-        color: rgba(148, 163, 184, 0.92);
+        color: var(--prod-text);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -526,7 +526,7 @@
         font-weight: 820;
         font-size: 0.98rem;
         letter-spacing: 0.02em;
-        color: rgba(248, 250, 252, 0.96);
+        color: var(--prod-text);
         line-height: 1.1;
         font-variant-numeric: tabular-nums;
         white-space: nowrap;
@@ -558,7 +558,7 @@
         font-size: 0.72rem;
         letter-spacing: 0.1em;
         text-transform: uppercase;
-        color: rgba(148, 163, 184, 0.95);
+        color: var(--prod-text);
         font-weight: 800;
       }
       .scope-field select {
@@ -672,22 +672,22 @@
       .avatar-wrap img.avatar { object-fit: contain; object-position: center; padding: 2px; }
       .dorsal-badge { position:absolute; right: 6px; bottom: 6px; min-width: 30px; height: 30px; padding: 0 7px; border-radius: 999px; display:flex; align-items:center; justify-content:center; font-weight: 820; color: rgba(255,255,255,0.98); background: rgba(2,6,23,0.88); border: 1px solid rgba(250,204,21,0.66); box-shadow: 0 8px 18px rgba(0,0,0,0.34); }
       .broadcast-name { margin:0; font-size: 1.08rem; font-weight: 820; letter-spacing: 0; line-height: 1.12; white-space: nowrap; overflow:hidden; text-overflow: ellipsis; max-width: 100%; }
-      .broadcast-sub { margin-top: 0.22rem; color: rgba(148,163,184,0.92); font-weight: 850; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.76rem; white-space: nowrap; overflow:hidden; text-overflow: ellipsis; }
+      .broadcast-sub { margin-top: 0.22rem; color: var(--prod-text); font-weight: 850; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.76rem; white-space: nowrap; overflow:hidden; text-overflow: ellipsis; }
       .broadcast-pill { display:flex; align-items:center; justify-content:center; min-height:30px; border-radius: 999px; border: 1px solid rgba(148,163,184,0.2); background: rgba(2,6,23,0.5); padding: 0.25rem 0.55rem; font-weight: 820; letter-spacing: 0.06em; text-transform: uppercase; font-size: 0.76rem; }
       .broadcast-staff-rating { margin-top:0.55rem; display:grid; gap:0.24rem; max-width: 230px; }
-      .broadcast-staff-row { display:flex; justify-content:space-between; gap:0.65rem; color:rgba(226,232,240,0.9); font-size:0.72rem; font-weight:820; letter-spacing:0.05em; text-transform:uppercase; }
+      .broadcast-staff-row { display:flex; justify-content:space-between; gap:0.65rem; color:var(--prod-text); font-size:0.72rem; font-weight:820; letter-spacing:0.05em; text-transform:uppercase; }
       .broadcast-staff-track { height:8px; border-radius:999px; overflow:hidden; border:1px solid rgba(34,197,94,0.32); background:rgba(2,6,23,0.36); }
       .broadcast-staff-fill { display:block; height:100%; width:var(--staff-rating-pct, 0%); border-radius:inherit; background:linear-gradient(90deg, var(--prod-success), #facc15); box-shadow:0 0 18px rgba(34,197,94,0.22); }
       .broadcast-mini { margin-top: 0.7rem; display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap: 0.42rem; }
-      .mini-pill { display:flex; align-items:center; justify-content:space-between; gap: 0.28rem; min-width:0; padding: 0.42rem 0.52rem; border-radius: 10px; border: 1px solid rgba(148,163,184,0.18); background: rgba(2,6,23,0.42); font-weight: 850; color: rgba(226,232,240,0.95); white-space:nowrap; font-size:0.78rem; }
+      .mini-pill { display:flex; align-items:center; justify-content:space-between; gap: 0.28rem; min-width:0; padding: 0.42rem 0.52rem; border-radius: 10px; border: 1px solid rgba(148,163,184,0.18); background: rgba(2,6,23,0.42); font-weight: 850; color: var(--prod-button-text); white-space:nowrap; font-size:0.78rem; }
       .mini-pill strong { font-weight: 820; }
       .mini-radar-wrap { margin-top:0.72rem; border:1px solid rgba(148,163,184,0.14); border-radius:12px; background:rgba(2,6,23,0.24); }
       .broadcast-actions { margin-top:0.1rem; padding:0 0.9rem 0.9rem; display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0.45rem; }
-      .broadcast-action { border:1px solid rgba(148,163,184,0.18); border-radius:10px; padding:0.48rem 0.55rem; background:rgba(15,23,42,0.48); font-size:0.78rem; font-weight:760; color:rgba(226,232,240,0.92); }
+      .broadcast-action { border:1px solid rgba(148,163,184,0.18); border-radius:10px; padding:0.48rem 0.55rem; background:rgba(15,23,42,0.48); font-size:0.78rem; font-weight:760; color: var(--prod-button-text); }
       .broadcast-action[open] { grid-column: 1 / -1; }
       .broadcast-action > summary { list-style:none; cursor:pointer; }
       .broadcast-action > summary::-webkit-details-marker { display:none; }
-      .broadcast-action > summary::after { content:"+"; float:right; color:rgba(148,163,184,0.9); }
+      .broadcast-action > summary::after { content:"+"; float:right; color:var(--prod-text); }
       .broadcast-action[open] > summary::after { content:"-"; }
 
       /* Cards de estadísticas: zonas estables para que todas tengan el mismo alto visual. */
@@ -1204,7 +1204,7 @@
 	        </script>
 	        {% else %}
           {% if active_club_season %}
-            <p style="margin:0 0 0.85rem;color:rgba(226,232,240,0.92);">
+            <p style="margin:0 0 0.85rem;color:var(--prod-text);">
               Temporada seleccionada: <strong>{{ active_club_season.label }}</strong>
               {% if active_club_season_is_current %}· activa{% else %}· histórica{% endif %}
               · Confirmados {{ season_confirmed_total|default:0 }} · Pendientes {{ season_pending_total|default:0 }}

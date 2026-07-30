@@ -16,7 +16,7 @@
           radial-gradient(circle at 12% -12%, rgba(34, 211, 238, 0.16), transparent 38%),
           radial-gradient(circle at 95% 0%, rgba(99, 102, 241, 0.14), transparent 38%),
           linear-gradient(180deg, #03070f 0%, #081120 55%, #0a1427 100%);
-        color: rgba(245, 247, 250, 0.92);
+        color: var(--prod-text);
         font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
       }
       .shell { max-width: 980px; margin: 0 auto; padding: 1.15rem; }
@@ -29,7 +29,7 @@
         padding: 1rem;
       }
       h1 { margin: 0; font-size: 1rem; letter-spacing: 0.14em; text-transform: uppercase; }
-      .muted { color: rgba(148, 163, 184, 0.78); font-size: 0.85rem; }
+      .muted { color: var(--prod-muted); font-size: 0.85rem; }
       .grid { display: grid; grid-template-columns: 1fr; gap: 0.8rem; margin-top: 0.9rem; }
       @media (min-width: 880px) { .grid { grid-template-columns: 1fr 1fr; } }
       .card {
@@ -39,8 +39,8 @@
         padding: 0.85rem 0.9rem;
       }
       .card h2 { margin: 0; font-size: 0.95rem; }
-      .card p { margin: 0.35rem 0 0; color: rgba(226, 232, 240, 0.82); line-height: 1.45; font-size: 0.92rem; }
-      .meta { margin-top: 0.55rem; display: flex; gap: 0.5rem; flex-wrap: wrap; color: rgba(148,163,184,0.82); font-size: 0.82rem; }
+      .card p { margin: 0.35rem 0 0; color: var(--prod-muted); line-height: 1.45; font-size: 0.92rem; }
+      .meta { margin-top: 0.55rem; display: flex; gap: 0.5rem; flex-wrap: wrap; color: var(--prod-muted); font-size: 0.82rem; }
       .pill {
         display: inline-flex;
         align-items: center;
@@ -61,20 +61,20 @@
         padding: 0.55rem 0.75rem;
         border: 1px solid rgba(34, 211, 238, 0.28);
         background: rgba(34, 211, 238, 0.10);
-        color: rgba(236, 254, 255, 0.95);
+        color: var(--prod-text);
         font-weight: 900;
         margin-top: 0.7rem;
       }
       .cta:hover { border-color: rgba(34, 211, 238, 0.5); }
-      .section-title { margin: 0.9rem 0 0.35rem; font-size: 0.78rem; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(148,163,184,0.86); }
-      .empty { color: rgba(148,163,184,0.86); margin-top: 0.65rem; }
+      .section-title { margin: 0.9rem 0 0.35rem; font-size: 0.78rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--prod-muted); }
+      .empty { color: var(--prod-muted); margin-top: 0.65rem; }
       .searchbar { margin-top: 0.85rem; display:flex; gap:0.55rem; flex-wrap:wrap; align-items:center; }
       .searchbar input{
         flex: 1 1 240px;
         border-radius: 12px;
         border: 1px solid rgba(255,255,255,0.14);
         background: rgba(2,6,23,0.55);
-        color: rgba(241,245,249,0.92);
+        color: var(--prod-button-text);
         padding: 0.55rem 0.7rem;
         outline: none;
         font-weight: 700;
@@ -85,7 +85,7 @@
         padding: 0.55rem 0.75rem;
         border: 1px solid rgba(148,163,184,0.28);
         background: rgba(148,163,184,0.10);
-        color: rgba(241,245,249,0.92);
+        color: var(--prod-text);
         font-weight: 900;
         cursor:pointer;
         text-decoration:none;

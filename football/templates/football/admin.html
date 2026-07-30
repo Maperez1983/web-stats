@@ -36,7 +36,7 @@
       .module-tabs { display: flex; gap: 0.55rem; flex-wrap: wrap; }
       .module-tab {
         text-decoration: none;
-        color: #cbd5e1;
+        color: var(--prod-text);
         border: 1px solid rgba(121, 170, 230, 0.24);
         padding: 0.48rem 0.8rem;
         border-radius: 999px;
@@ -62,7 +62,7 @@
       }
       .admin-tab {
         text-decoration: none;
-        color: #cbd5e1;
+        color: var(--prod-text);
         border: 1px solid rgba(121, 170, 230, 0.24);
         padding: 0.45rem 0.75rem;
         border-radius: 999px;
@@ -90,7 +90,7 @@
         border-radius: 0.55rem;
         border: 1px solid var(--line);
         background: rgba(9, 20, 36, 0.72);
-        color: #e2e8f0;
+        color: var(--prod-button-text);
         padding: 0.45rem 0.55rem;
       }
       .pill-button {
@@ -217,7 +217,7 @@
 	        <div style="display:flex;justify-content:space-between;gap:1rem;align-items:center;flex-wrap:wrap;">
 	          <div>
 	            <h2 style="margin:0 0 0.35rem;">Tareas recientes</h2>
-	            <p style="margin:0;color:rgba(203,213,225,0.78);">Útil para localizar tareas creadas en iPad aunque no aparezcan donde esperabas.</p>
+	            <p style="margin:0;color:var(--prod-muted);">Útil para localizar tareas creadas en iPad aunque no aparezcan donde esperabas.</p>
 	          </div>
 	          <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
 	            <a class="module-tab {% if tasks_days == 1 %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=tasks&days=1">Hoy</a>
@@ -263,7 +263,7 @@
             {% endfor %}
           </div>
         {% else %}
-          <p style="margin:0.85rem 0 0;color:rgba(203,213,225,0.78);">No hay tareas creadas en este rango.</p>
+          <p style="margin:0.85rem 0 0;color:var(--prod-muted);">No hay tareas creadas en este rango.</p>
         {% endif %}
       </section>
       {% endif %}
@@ -273,7 +273,7 @@
         <div style="display:flex;justify-content:space-between;gap:1rem;align-items:center;flex-wrap:wrap;">
           <div>
             <h2 style="margin:0 0 0.35rem;">Edición manual de partidos y acciones</h2>
-            <p style="margin:0;color:rgba(203,213,225,0.78);">Aquí puedes cargar partidos y acciones manuales. Las estadísticas base manuales siguen disponibles en su acceso específico.</p>
+            <p style="margin:0;color:var(--prod-muted);">Aquí puedes cargar partidos y acciones manuales. Las estadísticas base manuales siguen disponibles en su acceso específico.</p>
           </div>
           <a class="pill-button" style="text-decoration:none;" href="{% url 'manual-player-stats' %}">Abrir estadísticas manuales</a>
         </div>
@@ -416,7 +416,7 @@
       {% elif active_tab == 'teams' %}
 	      <section class="block roster-manager">
         <h2>Clubes · {{ active_workspace.name|default:"Club" }}</h2>
-        <p style="margin:0.25rem 0 0;color:rgba(203,213,225,0.78);">
+        <p style="margin:0.25rem 0 0;color:var(--prod-muted);">
           Cada equipo se crea como club independiente (F7/F11) para no mezclar datos. El escudo se hereda del equipo principal.
         </p>
         {% if team_warnings %}
@@ -490,7 +490,7 @@
           <article class="roster-item">
             <div>
               <strong>{{ link.team.category|default:"(Sin categoría)" }} · {{ link.team.display_name|default:link.team.name }}</strong>
-              <div style="opacity:1;color:rgba(226,232,240,0.92);">
+              <div style="opacity:1;color:var(--prod-text);">
                 <span style="display:inline-flex;gap:0.45rem;flex-wrap:wrap;">
                   <span style="background:rgba(255,255,255,0.05);border:1px solid rgba(160,180,215,0.16);border-radius:999px;padding:0.18rem 0.55rem;">
                     ID equipo: <strong style="color:#fff;">{{ link.team.id }}</strong>
@@ -519,7 +519,7 @@
                   {{ active_admin_club_season.label }} · {{ link.season_status_label }}
                 </span>
                 {% if not active_admin_club_season_is_current %}
-                <span style="font-size:0.78rem;color:rgba(203,213,225,0.76);">Histórico en solo lectura</span>
+                <span style="font-size:0.78rem;color:var(--prod-muted);">Histórico en solo lectura</span>
                 {% endif %}
               </div>
               {% endif %}
@@ -619,7 +619,7 @@
             {% endif %}
 
             <div style="margin-top:0.75rem;border-top:1px solid rgba(121,170,230,0.22);padding-top:0.75rem;">
-              <h3 style="margin:0 0 0.55rem;font-size:0.85rem;letter-spacing:0.08em;text-transform:uppercase;color:rgba(203,213,225,0.82);">Accesos</h3>
+              <h3 style="margin:0 0 0.55rem;font-size:0.85rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--prod-muted);">Accesos</h3>
               <form method="post" class="roster-form" style="grid-template-columns: minmax(180px, 1fr) auto auto; gap:0.5rem;">
                 {% csrf_token %}
                 <input type="hidden" name="form_action" value="team_access_add" />

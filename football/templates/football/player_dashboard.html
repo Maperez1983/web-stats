@@ -38,7 +38,7 @@
 	      .nav-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: flex-end; }
 	      .nav-chip {
 	        display: inline-flex; align-items: center; gap: 0.35rem; text-decoration: none;
-	        color: rgba(226, 232, 240, 0.92); font-size: 0.78rem; font-weight: 700;
+	        color: var(--prod-button-text); font-size: 0.78rem; font-weight: 700;
 	        padding: 0.38rem 0.7rem; border-radius: 999px;
 	        border: 1px solid rgba(148, 163, 184, 0.28); background: rgba(2, 6, 23, 0.4);
 	      }
@@ -59,7 +59,7 @@
       .toolbar-view { margin-top: 0.45rem; }
       .toolbar-label {
         font-size: 0.6rem; font-weight: 760; letter-spacing: 0.14em; text-transform: uppercase;
-        color: rgba(148,163,184,0.85); padding: 0.28rem 0.55rem; border-radius: 999px;
+        color: var(--prod-muted); padding: 0.28rem 0.55rem; border-radius: 999px;
         border: 1px solid rgba(148,163,184,0.24); background: rgba(2,6,23,0.35); align-self: center;
       }
       .toolbar-view .toolbar-label { border-color: rgba(244,180,0,0.3); color: rgba(255,242,199,0.85); }
@@ -126,14 +126,14 @@
 	      .avatar-wrap img.avatar { object-fit: contain; object-position: center; padding: 2px; }
       .dorsal-badge { position:absolute; right: 7px; bottom: 7px; min-width: 34px; height: 34px; padding: 0 8px; border-radius: 999px; display:flex; align-items:center; justify-content:center; font-weight: 820; color: rgba(255,255,255,0.98); background: rgba(2,6,23,0.86); border: 1px solid rgba(250,204,21,0.72); box-shadow: 0 8px 20px rgba(0,0,0,0.36); }
       .broadcast-name { margin:0; font-size: clamp(1.08rem, 0.94rem + 0.5vw, 1.42rem); font-weight: 820; letter-spacing: 0; line-height: 1.05; white-space: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow:hidden; }
-      .broadcast-sub { margin-top: 0.25rem; color: rgba(148,163,184,0.92); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.85rem; }
+      .broadcast-sub { margin-top: 0.25rem; color: var(--prod-text); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.85rem; }
       .broadcast-pill { display:flex; align-items:center; justify-content:center; min-height:35px; border-radius: 999px; border: 1px solid rgba(148,163,184,0.24); background: rgba(2,6,23,0.55); padding: 0.35rem 0.6rem; font-weight: 820; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.86rem; }
       .broadcast-bars { margin-top: 0.75rem; display: grid; gap: 0.55rem; }
       .bar-row { border-radius: 999px; border: 1px solid rgba(148,163,184,0.22); background: rgba(2,6,23,0.35); padding: 0.55rem 0.75rem; display:flex; align-items:center; justify-content:space-between; gap: 0.7rem; }
-      .bar-row span { color: rgba(148,163,184,0.92); font-weight: 760; letter-spacing: 0.14em; text-transform: uppercase; font-size: 0.78rem; }
+      .bar-row span { color: var(--prod-text); font-weight: 760; letter-spacing: 0.14em; text-transform: uppercase; font-size: 0.78rem; }
       .bar-row strong { font-size: 1.35rem; font-weight: 820; }
 	      .broadcast-mini { margin-top: 0.7rem; display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap: 0.45rem; }
-	      .mini-pill { display:flex; align-items:center; justify-content:center; gap: 0.28rem; min-width:0; padding: 0.38rem 0.44rem; border-radius: 999px; border: 1px solid rgba(148,163,184,0.22); background: rgba(2,6,23,0.48); font-weight: 760; color: rgba(226,232,240,0.95); white-space:nowrap; }
+	      .mini-pill { display:flex; align-items:center; justify-content:center; gap: 0.28rem; min-width:0; padding: 0.38rem 0.44rem; border-radius: 999px; border: 1px solid rgba(148,163,184,0.22); background: rgba(2,6,23,0.48); font-weight: 760; color: var(--prod-button-text); white-space:nowrap; }
 	      .mini-pill strong { font-weight: 820; }
 	      .broadcast-kpis {
 	        margin-top: 0.65rem;
@@ -157,13 +157,13 @@
 	        font-weight: 760;
 	        letter-spacing: 0.12em;
 	        text-transform: uppercase;
-	        color: rgba(148, 163, 184, 0.9);
+	        color: var(--prod-text);
 	        white-space: nowrap;
 	      }
 	      .broadcast-kpi .v {
 	        font-size: 0.95rem;
 	        font-weight: 820;
-	        color: rgba(226, 232, 240, 0.96);
+	        color: var(--prod-text);
 	        white-space: nowrap;
 	      }
 	      .broadcast-kpi.is-accent {
@@ -180,16 +180,16 @@
 	      .broadcast-details > summary {
 	        cursor: pointer;
 	        font-weight: 760;
-	        color: rgba(226,232,240,0.92);
+	        color: var(--prod-text);
 	        letter-spacing: 0.02em;
 	      }
 	      .broadcast-details[open] > summary { margin-bottom: 0.6rem; }
       details { margin-top: 0.85rem; }
-      details summary { cursor: pointer; font-weight: 760; color: rgba(226,232,240,0.92); }
+      details summary { cursor: pointer; font-weight: 760; color: var(--prod-text); }
       details table { width: 100%; border-collapse: collapse; margin-top: 0.6rem; font-size: 0.86rem; }
       details th, details td { border-bottom: 1px solid rgba(148,163,184,0.14); padding: 0.4rem 0.45rem; vertical-align: top; }
-      details th { color: rgba(148,163,184,0.9); text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.72rem; }
-      .cell-muted { color: rgba(148,163,184,0.82); }
+      details th { color: var(--prod-text); text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.72rem; }
+      .cell-muted { color: var(--prod-muted); }
       .nowrap { white-space: nowrap; }
       .head {
         display: flex;
@@ -324,7 +324,7 @@
         border: 1px solid rgba(148, 163, 184, 0.25);
         background: rgba(15, 23, 42, 0.55);
         font-size: 0.76rem;
-        color: rgba(248, 250, 252, 0.95);
+        color: var(--prod-button-text);
         white-space: nowrap;
       }
       .mini-kpi strong { font-weight: 800; }
@@ -481,7 +481,7 @@
         gap: 1rem;
       }
       .empty-metric span {
-        color: rgba(148, 163, 184, 0.88);
+        color: var(--prod-muted);
         font-size: 0.72rem;
         font-weight: 760;
         letter-spacing: 0.12em;
@@ -512,7 +512,7 @@
       }
 	      .card-actions .preview-link {
 	        background: rgba(47, 125, 50, 0.18);
-	        color: rgba(236, 255, 241, 0.96);
+	        color: var(--prod-text);
 	        border-color: rgba(47, 125, 50, 0.32);
 	      }
       @media (max-width: 820px) {

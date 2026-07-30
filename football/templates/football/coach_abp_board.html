@@ -13,7 +13,7 @@
         margin: 0;
         font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
         background: radial-gradient(circle at top, #0f172a, #020617 58%);
-        color: #e2e8f0;
+        color: var(--prod-text);
       }
       .page {
         max-width: 1280px;
@@ -55,7 +55,7 @@
         border-radius: 999px;
         border: 1px solid rgba(148, 163, 184, 0.35);
         background: rgba(15, 23, 42, 0.9);
-        color: var(--prod-text);
+        color: var(--prod-button-text);
         padding: 0.35rem 0.7rem;
         font-size: 0.75rem;
         letter-spacing: 0.08em;
@@ -76,7 +76,7 @@
         border-radius: 10px;
         border: 1px solid rgba(148, 163, 184, 0.35);
         background: rgba(2, 6, 23, 0.85);
-        color: var(--prod-text);
+        color: var(--prod-button-text);
         padding: 0.4rem 0.5rem;
       }
       .quick-components {
@@ -89,7 +89,7 @@
         border-radius: 10px;
         border: 1px solid rgba(148, 163, 184, 0.35);
         background: rgba(2, 6, 23, 0.85);
-        color: var(--prod-text);
+        color: var(--prod-button-text);
         padding: 0.35rem;
         font-size: 0.72rem;
         cursor: pointer;
@@ -109,7 +109,7 @@
         font-size: 0.85rem;
       }
       .player-chip small {
-        color: rgba(226, 232, 240, 0.72);
+        color: var(--prod-muted);
       }
       .field-wrap {
         position: relative;
@@ -262,7 +262,7 @@
       .moves {
         margin-top: 0.7rem;
         font-size: 0.82rem;
-        color: rgba(226, 232, 240, 0.82);
+        color: var(--prod-muted);
         max-height: 110px;
         overflow: auto;
       }

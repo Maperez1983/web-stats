@@ -13,7 +13,7 @@
         margin: 0;
         font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
         background: linear-gradient(180deg, #020617 0%, #07162f 100%);
-        color: #e2e8f0;
+        color: var(--prod-text);
       }
       .page {
         width: min(100%, 1040px);
@@ -69,7 +69,7 @@
         text-transform: uppercase;
         border: 1px solid rgba(244, 180, 0, 0.2);
         background: rgba(2, 6, 23, 0.55);
-        color: #e2e8f0;
+        color: var(--prod-button-text);
         cursor: pointer;
         white-space: nowrap;
       }
@@ -86,7 +86,7 @@
         border: 1px solid rgba(255, 255, 255, 0.12);
       }
       .billing-subpanel { margin-top: 1rem; }
-      .billing-copy { margin: 0.35rem 0; color: rgba(148,163,184,0.92); line-height: 1.5; }
+      .billing-copy { margin: 0.35rem 0; color: var(--prod-text); line-height: 1.5; }
       .addon-list { margin-top: 0.65rem; display: grid; gap: 0.55rem; }
       .addon-row {
         display: grid;
@@ -100,7 +100,7 @@
       }
       .addon-row input { margin-top: 0.2rem; }
       .addon-title { font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
-      .addon-desc { color: rgba(148,163,184,0.92); font-size: 0.92rem; line-height: 1.45; }
+      .addon-desc { color: var(--prod-text); font-size: 0.92rem; line-height: 1.45; }
       .billing-note {
         margin-top: 0.65rem;
         border: 1px solid rgba(251,191,36,0.25);
@@ -178,7 +178,7 @@
             <button class="btn" id="apple-restore-btn" type="button">Restaurar compras</button>
             <a class="btn" href="{% url 'dashboard-home' %}">Volver</a>
           </div>
-          <p id="apple-iap-msg" style="margin-top:0.7rem; color:rgba(148,163,184,0.92);"></p>
+          <p id="apple-iap-msg" style="margin-top:0.7rem; color:var(--prod-text);"></p>
         </div>
         {{ apple_iap_products|json_script:"apple-iap-products-data" }}
         {% endif %}
@@ -245,14 +245,14 @@
             </div>
           {% endif %}
 
-          <p id="billing-msg" style="margin-top:0.7rem; color:rgba(148,163,184,0.92);"></p>
+          <p id="billing-msg" style="margin-top:0.7rem; color:var(--prod-text);"></p>
         </div>
         {% else %}
         <div class="cta">
           <a class="btn primary" href="{% url 'support-page' %}">Contactar para activar</a>
           <a class="btn" href="{% url 'dashboard-home' %}">Volver</a>
         </div>
-        <p style="margin-top:1rem;color:rgba(148,163,184,0.9);">
+        <p style="margin-top:1rem;color:var(--prod-text);">
           Stripe no está configurado en este entorno. Contacta con soporte para activar manualmente.
         </p>
         {% endif %}

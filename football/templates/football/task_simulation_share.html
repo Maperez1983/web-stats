@@ -34,7 +34,7 @@
       }
       header p {
         margin: 0.35rem 0 0;
-        color: rgba(226, 232, 240, 0.72);
+        color: var(--prod-muted);
       }
       .card {
         background: rgba(12, 20, 34, 0.92);
@@ -61,7 +61,7 @@
         border-radius: 999px;
         border: 1px solid rgba(255, 255, 255, 0.18);
         background: rgba(255, 255, 255, 0.06);
-        color: #f3f7ff;
+        color: var(--prod-text);
         padding: 0.72rem 0.98rem;
         font-weight: 900;
         letter-spacing: 0.04em;
@@ -84,7 +84,7 @@
         cursor: not-allowed;
       }
       .status {
-        color: rgba(226, 232, 240, 0.72);
+        color: var(--prod-muted);
         font-weight: 700;
       }
       .canvas-wrap {
@@ -126,12 +126,12 @@
         color: #cffafe;
       }
       .steps small {
-        color: rgba(226, 232, 240, 0.7);
+        color: var(--prod-muted);
         font-weight: 700;
       }
       .meta {
         margin-top: 0.4rem;
-        color: rgba(148, 163, 184, 0.95);
+        color: var(--prod-text);
         font-size: 0.85rem;
       }
 
@@ -218,7 +218,7 @@
 	            </label>
 	            <label style="display:flex; gap:10px; align-items:center; font-weight:800; letter-spacing:0.02em; text-transform:none;">
 	              Velocidad
-	              <select id="sim-speed" style="border-radius:999px; padding:0.55rem 0.75rem; background:rgba(255,255,255,0.06); color:#f3f7ff; border:1px solid rgba(255,255,255,0.18); font-weight:900;">
+	              <select id="sim-speed" style="border-radius:999px; padding:0.55rem 0.75rem; background:rgba(255,255,255,0.06); color:var(--prod-text); border:1px solid rgba(255,255,255,0.18); font-weight:900;">
 	                <option value="0.75">0.75×</option>
 	                <option value="1" selected>1×</option>
 	                <option value="1.25">1.25×</option>

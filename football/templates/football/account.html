@@ -26,7 +26,7 @@
           radial-gradient(circle at 8% -12%, rgba(244, 180, 0, 0.12), transparent 38%),
           radial-gradient(circle at 95% 0%, rgba(70, 211, 255, 0.14), transparent 38%),
           linear-gradient(180deg, #03070f 0%, #081120 55%, #0a1427 100%);
-        color: rgba(245, 247, 250, 0.92);
+        color: var(--prod-text);
         font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
       }
       .shell { width: min(100%, 1080px); margin: 0 auto; padding: 1rem 1rem 2.4rem; }
@@ -101,7 +101,7 @@
       .hero p {
         margin: 0;
         max-width: 58ch;
-        color: rgba(226, 232, 240, 0.82);
+        color: var(--prod-muted);
         line-height: 1.65;
       }
       .hero-pills {
@@ -118,7 +118,7 @@
         border-radius: 999px;
         border: 1px solid rgba(255,255,255,0.12);
         background: rgba(255,255,255,0.05);
-        color: rgba(245, 247, 250, 0.92);
+        color: var(--prod-text);
         padding: 0.42rem 0.72rem;
         font-weight: 900;
         letter-spacing: 0.05em;
@@ -139,7 +139,7 @@
       }
       .info-card span {
         display: block;
-        color: rgba(148, 163, 184, 0.9);
+        color: var(--prod-text);
         font-size: 0.72rem;
         letter-spacing: 0.1em;
         text-transform: uppercase;
@@ -151,7 +151,7 @@
       }
       .info-card p {
         margin: 0.45rem 0 0;
-        color: rgba(226, 232, 240, 0.8);
+        color: var(--prod-muted);
         line-height: 1.55;
       }
       .panel {
@@ -176,11 +176,11 @@
       }
       .section-head p {
         margin: 0.3rem 0 0;
-        color: rgba(148, 163, 184, 0.82);
+        color: var(--prod-muted);
         line-height: 1.6;
       }
       h1 { margin: 0; font-size: 1rem; letter-spacing: 0.14em; text-transform: uppercase; overflow-wrap: anywhere; }
-      p { color: rgba(226, 232, 240, 0.82); line-height: 1.55; margin: 0.55rem 0; }
+      p { color: var(--prod-muted); line-height: 1.55; margin: 0.55rem 0; }
       .muted { color: var(--muted); font-size: 0.85rem; }
       .identity-grid {
         display: grid;
@@ -196,7 +196,7 @@
       }
       .identity-item span {
         display: block;
-        color: rgba(148, 163, 184, 0.84);
+        color: var(--prod-muted);
         font-size: 0.72rem;
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -204,7 +204,7 @@
       .identity-item strong {
         display: block;
         margin-top: 0.22rem;
-        color: rgba(245, 247, 250, 0.96);
+        color: var(--prod-text);
         overflow-wrap: anywhere;
       }
       .row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.8rem; }
@@ -218,7 +218,7 @@
         padding: 0.45rem 0.75rem;
         border: 1px solid rgba(244, 180, 0, 0.18);
         background: rgba(15, 23, 42, 0.62);
-        color: rgba(245, 247, 250, 0.92);
+        color: var(--prod-button-text);
         font-weight: 900;
         letter-spacing: 0.14em;
         text-transform: uppercase;
@@ -246,7 +246,7 @@
       .warning {
         border-color: rgba(248, 113, 113, 0.35);
         background: rgba(127, 29, 29, 0.18);
-        color: rgba(254, 226, 226, 0.92);
+        color: var(--prod-text);
       }
       .msg-ok {
         border-radius: 12px;
@@ -254,14 +254,14 @@
         background: rgba(34, 197, 94, 0.10);
         padding: 0.65rem 0.75rem;
         margin-top: 0.8rem;
-        color: rgba(220, 252, 231, 0.92);
+        color: var(--prod-text);
         font-weight: 800;
         letter-spacing: 0.06em;
         text-transform: uppercase;
         font-size: 0.7rem;
       }
       .actions-copy {
-        color: rgba(148, 163, 184, 0.84);
+        color: var(--prod-muted);
         line-height: 1.6;
       }
       .danger-row {

@@ -16,7 +16,7 @@
           radial-gradient(circle at 12% -10%, rgba(70, 211, 255, 0.16), transparent 40%),
           radial-gradient(circle at 90% 0%, rgba(255, 191, 69, 0.14), transparent 35%),
           linear-gradient(180deg, #03070f 0%, #081120 55%, #0a1427 100%);
-        color: rgba(245, 247, 250, 0.92);
+        color: var(--prod-text);
         font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
       }
       .shell {
@@ -59,7 +59,7 @@
       }
       .header p {
         margin: 0.35rem 0 0;
-        color: rgba(226, 232, 240, 0.74);
+        color: var(--prod-muted);
       }
       .header-pills {
         display: flex;
@@ -75,7 +75,7 @@
         border-radius: 999px;
         border: 1px solid rgba(255, 255, 255, 0.14);
         background: rgba(255, 255, 255, 0.05);
-        color: rgba(248, 250, 252, 0.92);
+        color: var(--prod-text);
         font-size: 0.7rem;
         font-weight: 900;
         letter-spacing: 0.05em;
@@ -100,7 +100,7 @@
         border-radius: 999px;
         padding: 0.55rem 0.9rem;
         background: rgba(15, 23, 42, 0.62);
-        color: rgba(245, 247, 250, 0.92);
+        color: var(--prod-button-text);
         font-weight: 900;
         letter-spacing: 0.14em;
         text-transform: uppercase;
@@ -133,7 +133,7 @@
       .quick-create-form label {
         display: grid;
         gap: 0.28rem;
-        color: rgba(226,232,240,0.78);
+        color: var(--prod-muted);
         font-weight: 800;
         font-size: 0.75rem;
       }
@@ -155,7 +155,7 @@
       }
       .quick-create-note {
         grid-column: 1 / -1;
-        color: rgba(226,232,240,0.78);
+        color: var(--prod-muted);
         font-size: 0.82rem;
         line-height: 1.35;
       }
@@ -191,7 +191,7 @@
       }
       .day-card .meta {
         margin: 0.35rem 0 0.85rem;
-        color: rgba(226, 232, 240, 0.74);
+        color: var(--prod-muted);
         font-weight: 800;
       }
       .items { display: grid; gap: 0.55rem; }
@@ -204,7 +204,7 @@
 	        border-radius: 16px;
 	        padding: 0.75rem 0.8rem;
 	        text-decoration: none;
-	        color: rgba(248, 250, 252, 0.94);
+	        color: var(--prod-text);
 	        background: rgba(255, 255, 255, 0.04);
 	      }
 	      .item-wrap { position: relative; }
@@ -227,15 +227,15 @@
 	        border-radius: 10px;
 	        border: 1px solid rgba(255, 255, 255, 0.14);
 	        background: rgba(2, 6, 23, 0.62);
-	        color: rgba(248, 250, 252, 0.95);
+	        color: var(--prod-button-text);
 	        padding: 6px 8px;
 	        cursor: pointer;
 	        font-weight: 900;
 	      }
 	      .item-actions button:hover { border-color: rgba(244, 180, 0, 0.35); }
-	      .item-actions .danger { border-color: rgba(248, 113, 113, 0.35); color: rgba(254, 226, 226, 0.95); }
+	      .item-actions .danger { border-color: rgba(248, 113, 113, 0.35); color: var(--prod-text); }
 	      .item-actions .danger:hover { background: rgba(127, 29, 29, 0.35); border-color: rgba(248, 113, 113, 0.55); }
-	      .item-actions .secondary { border-color: rgba(56, 189, 248, 0.35); color: rgba(224, 242, 254, 0.95); }
+	      .item-actions .secondary { border-color: rgba(56, 189, 248, 0.35); color: var(--prod-text); }
 	      .item-actions .secondary:hover { background: rgba(12, 74, 110, 0.35); border-color: rgba(56, 189, 248, 0.55); }
       .item:hover { border-color: rgba(244, 180, 0, 0.35); }
       .tag {
@@ -257,7 +257,7 @@
       .title { font-weight: 950; letter-spacing: 0.06em; text-transform: uppercase; font-size: 0.76rem; }
       .title,
       .sub { overflow-wrap: anywhere; }
-      .sub { margin-top: 0.18rem; color: rgba(226, 232, 240, 0.74); font-weight: 800; font-size: 0.82rem; }
+      .sub { margin-top: 0.18rem; color: var(--prod-muted); font-weight: 800; font-size: 0.82rem; }
       .att {
         margin-top: 0.35rem;
         display: inline-flex;
@@ -270,15 +270,15 @@
         text-transform: uppercase;
         border: 1px solid rgba(255, 255, 255, 0.16);
         background: rgba(2, 6, 23, 0.28);
-        color: rgba(226, 232, 240, 0.86);
+        color: var(--prod-muted);
       }
       .att.is-pending { border-color: rgba(255, 255, 255, 0.14); }
       .att.is-partial { border-color: rgba(244, 180, 0, 0.35); color: rgba(255, 242, 199, 0.92); }
       .att.is-complete { border-color: rgba(34, 211, 238, 0.3); color: rgba(186, 230, 253, 0.94); }
-      .empty { margin: 0; color: rgba(226, 232, 240, 0.72); font-weight: 800; }
+      .empty { margin: 0; color: var(--prod-muted); font-weight: 800; }
       .footer-note {
         margin-top: 1rem;
-        color: rgba(226, 232, 240, 0.72);
+        color: var(--prod-muted);
         font-size: 0.82rem;
         display: flex;
         gap: 0.5rem;

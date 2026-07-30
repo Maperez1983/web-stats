@@ -26,7 +26,7 @@
           radial-gradient(circle at 8% -12%, rgba(244, 180, 0, 0.12), transparent 38%),
           radial-gradient(circle at 95% 0%, rgba(70, 211, 255, 0.14), transparent 38%),
           linear-gradient(180deg, #03070f 0%, #081120 55%, #0a1427 100%);
-        color: rgba(245, 247, 250, 0.92);
+        color: var(--prod-text);
         font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
       }
       .shell {
@@ -106,7 +106,7 @@
       .hero p {
         margin: 0;
         max-width: 58ch;
-        color: rgba(226, 232, 240, 0.82);
+        color: var(--prod-muted);
         line-height: 1.65;
       }
       .hero-pills {
@@ -123,7 +123,7 @@
         border-radius: 999px;
         border: 1px solid rgba(255,255,255,0.12);
         background: rgba(255,255,255,0.05);
-        color: rgba(245, 247, 250, 0.92);
+        color: var(--prod-text);
         padding: 0.42rem 0.72rem;
         font-weight: 900;
         letter-spacing: 0.05em;
@@ -144,7 +144,7 @@
       }
       .hero-stat span {
         display: block;
-        color: rgba(148, 163, 184, 0.9);
+        color: var(--prod-text);
         font-size: 0.72rem;
         letter-spacing: 0.1em;
         text-transform: uppercase;
@@ -156,7 +156,7 @@
       }
       .hero-stat p {
         margin: 0.45rem 0 0;
-        color: rgba(226, 232, 240, 0.8);
+        color: var(--prod-muted);
         line-height: 1.55;
       }
       .panel {
@@ -191,7 +191,7 @@
       }
       .section-head p {
         margin: 0.3rem 0 0;
-        color: rgba(148, 163, 184, 0.82);
+        color: var(--prod-muted);
         line-height: 1.6;
       }
       .searchbar {
@@ -208,7 +208,7 @@
         padding: 0.65rem 0.95rem;
         border: 1px solid rgba(244, 180, 0, 0.18);
         background: rgba(15, 23, 42, 0.55);
-        color: var(--prod-text);
+        color: var(--prod-button-text);
         font-weight: 700;
         font-size: 0.95rem;
       }
@@ -225,7 +225,7 @@
         padding: 0.55rem 0.85rem;
         border: 1px solid rgba(244, 180, 0, 0.18);
         background: rgba(15, 23, 42, 0.62);
-        color: rgba(245, 247, 250, 0.92);
+        color: var(--prod-button-text);
         font-weight: 900;
         letter-spacing: 0.14em;
         text-transform: uppercase;
@@ -257,7 +257,7 @@
         font-size: 0.8rem;
         letter-spacing: 0.16em;
         text-transform: uppercase;
-        color: rgba(226, 232, 240, 0.8);
+        color: var(--prod-muted);
       }
       .items {
         margin-top: 0.55rem;
@@ -275,21 +275,21 @@
       }
       .item a {
         text-decoration: none;
-        color: rgba(245, 247, 250, 0.92);
+        color: var(--prod-text);
         font-weight: 800;
         flex: 1;
         min-width: 0;
       }
       .item small {
         display: block;
-        color: rgba(226, 232, 240, 0.68);
+        color: var(--prod-muted);
         font-weight: 700;
         margin-top: 0.15rem;
       }
       .star {
         border: 1px solid rgba(244, 180, 0, 0.18);
         background: rgba(15, 23, 42, 0.6);
-        color: rgba(245, 247, 250, 0.88);
+        color: var(--prod-muted);
         border-radius: 999px;
         padding: 0.25rem 0.5rem;
         font-weight: 900;
@@ -303,7 +303,7 @@
       }
       .empty {
         margin-top: 0.55rem;
-        color: rgba(226, 232, 240, 0.68);
+        color: var(--prod-muted);
       }
       .hint {
         margin-top: 0.7rem;

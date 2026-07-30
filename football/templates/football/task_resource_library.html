@@ -44,7 +44,7 @@
         font-size: 0.78rem;
         letter-spacing: 0.14em;
         text-transform: uppercase;
-        color: rgba(148,163,184,0.9);
+        color: var(--prod-text);
         margin-bottom: 0.45rem;
       }
       h1 {
@@ -202,7 +202,7 @@
         font-weight: 700;
         letter-spacing: 0.03em;
         background: rgba(255,255,255,0.07);
-        color: rgba(248,250,252,0.94);
+        color: var(--prod-text);
       }
       .asset-tag.system {
         background: rgba(244,180,0,0.16);
@@ -304,7 +304,7 @@
                   {% if item.static_path %}
                   <img src="{% static item.static_path %}" alt="{{ item.label }}" loading="lazy" />
                   {% else %}
-                  <div style="display:grid;place-items:center;width:100%;height:100%;font-size:2rem;font-weight:800;color:rgba(248,250,252,0.92);">
+                  <div style="display:grid;place-items:center;width:100%;height:100%;font-size:2rem;font-weight:800;color:var(--prod-text);">
                     {{ item.preview_emoji|default:"•" }}
                   </div>
                   {% endif %}

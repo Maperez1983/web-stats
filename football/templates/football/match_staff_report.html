@@ -16,7 +16,7 @@
           radial-gradient(circle at 12% -10%, rgba(70, 211, 255, 0.16), transparent 40%),
           radial-gradient(circle at 90% 0%, rgba(255, 191, 69, 0.14), transparent 35%),
           linear-gradient(180deg, #03070f 0%, #081120 55%, #0a1427 100%);
-        color: rgba(245, 247, 250, 0.92);
+        color: var(--prod-text);
         font-family: "Avenir Next", "Segoe UI", sans-serif;
       }
       .shell { max-width: 1160px; margin: 0 auto; padding: 1.2rem; }
@@ -34,7 +34,7 @@
         backdrop-filter: blur(4px);
       }
       .header h1 { margin: 0; font-size: 1rem; letter-spacing: 0.14em; text-transform: uppercase; }
-      .header p { margin: 0.35rem 0 0; color: rgba(226, 232, 240, 0.74); }
+      .header p { margin: 0.35rem 0 0; color: var(--prod-muted); }
       .meta {
         display: flex;
         gap: 0.5rem;
@@ -48,7 +48,7 @@
         border-radius: 999px;
         border: 1px solid rgba(244, 180, 0, 0.18);
         background: rgba(15, 23, 42, 0.55);
-        color: rgba(245, 247, 250, 0.88);
+        color: var(--prod-muted);
         padding: 0.35rem 0.7rem;
         font-size: 0.74rem;
         letter-spacing: 0.08em;
@@ -69,7 +69,7 @@
         border-radius: 999px;
         padding: 0.55rem 0.9rem;
         background: rgba(15, 23, 42, 0.62);
-        color: rgba(245, 247, 250, 0.92);
+        color: var(--prod-button-text);
         font-weight: 900;
         letter-spacing: 0.14em;
         text-transform: uppercase;
@@ -90,7 +90,7 @@
         padding: 1rem 1rem 1.05rem;
       }
       .card h2 { margin: 0; font-size: 0.85rem; letter-spacing: 0.16em; text-transform: uppercase; }
-      .card p.meta { margin: 0.45rem 0 0.75rem; color: rgba(226, 232, 240, 0.74); font-weight: 800; }
+      .card p.meta { margin: 0.45rem 0 0.75rem; color: var(--prod-muted); font-weight: 800; }
 
       .kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.65rem; }
       @media (max-width: 760px) { .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -100,12 +100,12 @@
         background: rgba(255, 255, 255, 0.04);
         padding: 0.7rem 0.75rem;
       }
-      .kpi .k { font-size: 0.68rem; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(226, 232, 240, 0.72); font-weight: 900; }
+      .kpi .k { font-size: 0.68rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--prod-muted); font-weight: 900; }
       .kpi .v { margin-top: 0.25rem; font-size: 1.15rem; font-weight: 1000; }
 
       .bars { display: grid; grid-template-columns: 1fr; gap: 0.7rem; }
       .bar-row { display: flex; justify-content: space-between; align-items: baseline; gap: 0.8rem; }
-      .bar-row .label { color: rgba(226, 232, 240, 0.78); font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.72rem; }
+      .bar-row .label { color: var(--prod-muted); font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.72rem; }
       .bar-row .value { font-weight: 1000; }
       .track { margin-top: 0.45rem; height: 10px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.12); background: rgba(2, 6, 23, 0.35); overflow: hidden; }
       .fill { height: 100%; width: 0%; border-radius: 999px; background: linear-gradient(90deg, #0f7a35, #22c55e); }
@@ -113,16 +113,16 @@
 
       table { width: 100%; border-collapse: collapse; }
       th, td { border-bottom: 1px solid rgba(255, 255, 255, 0.10); padding: 0.55rem 0; text-align: left; }
-      th { color: rgba(226, 232, 240, 0.72); font-size: 0.7rem; letter-spacing: 0.16em; text-transform: uppercase; }
-      td { font-weight: 800; color: rgba(248, 250, 252, 0.92); }
-      td.muted { color: rgba(226, 232, 240, 0.72); font-weight: 800; }
+      th { color: var(--prod-muted); font-size: 0.7rem; letter-spacing: 0.16em; text-transform: uppercase; }
+      td { font-weight: 800; color: var(--prod-text); }
+      td.muted { color: var(--prod-muted); font-weight: 800; }
       td.right, th.right { text-align: right; }
 
       .timeline { display: grid; gap: 0.6rem; }
       .t-item { display: flex; gap: 0.7rem; align-items: flex-start; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 16px; padding: 0.75rem 0.8rem; background: rgba(255, 255, 255, 0.04); }
       .t-min { min-width: 52px; height: 28px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.12); display: inline-flex; align-items: center; justify-content: center; font-weight: 1000; letter-spacing: 0.08em; text-transform: uppercase; background: rgba(15, 23, 42, 0.7); }
       .t-title { font-weight: 1000; letter-spacing: 0.1em; text-transform: uppercase; font-size: 0.72rem; }
-      .t-text { margin-top: 0.12rem; color: rgba(226, 232, 240, 0.74); font-weight: 800; }
+      .t-text { margin-top: 0.12rem; color: var(--prod-muted); font-weight: 800; }
 
       /* Presentation mode (1 click): hide chrome, enlarge content, add lower-third. */
       .present-toggle { border-color: rgba(186, 230, 253, 0.24); }
@@ -149,7 +149,7 @@
       }
       body.is-present .lower-third { display: flex; }
       .lower-third strong { font-weight: 950; letter-spacing: 0.1em; text-transform: uppercase; font-size: 0.78rem; }
-      .lower-third span { color: rgba(226, 232, 240, 0.78); font-weight: 800; font-size: 0.82rem; }
+      .lower-third span { color: var(--prod-muted); font-weight: 800; font-size: 0.82rem; }
     </style>
   </head>
   <body class="prod-commercial">
@@ -253,7 +253,7 @@
                   <div class="track"><div class="fill" style="width: {{ row.pct }}%;"></div></div>
                 </div>
               {% empty %}
-                <div style="margin-top:0.7rem;color:rgba(226,232,240,0.72);font-weight:800;">No hay acciones registradas.</div>
+                <div style="margin-top:0.7rem;color:var(--prod-muted);font-weight:800;">No hay acciones registradas.</div>
               {% endfor %}
             </div>
             <div>
@@ -264,7 +264,7 @@
                   <div class="track"><div class="fill gold" style="width: {{ row.pct }}%;"></div></div>
                 </div>
               {% empty %}
-                <div style="margin-top:0.7rem;color:rgba(226,232,240,0.72);font-weight:800;">No hay acciones registradas.</div>
+                <div style="margin-top:0.7rem;color:var(--prod-muted);font-weight:800;">No hay acciones registradas.</div>
               {% endfor %}
             </div>
           </div>
@@ -326,7 +326,7 @@
               </div>
             </div>
             {% empty %}
-            <div style="color:rgba(226,232,240,0.72);font-weight:800;">Sin eventos clave.</div>
+            <div style="color:var(--prod-muted);font-weight:800;">Sin eventos clave.</div>
             {% endfor %}
           </div>
         </section>
@@ -357,7 +357,7 @@
       </div>
       <div style="display:flex;gap:0.6rem;align-items:center;">
         <span class="pill">{{ score_label }}</span>
-        <span style="color:rgba(226,232,240,0.82);font-weight:900;letter-spacing:0.1em;text-transform:uppercase;font-size:0.72rem;">Presentación</span>
+        <span style="color:var(--prod-muted);font-weight:900;letter-spacing:0.1em;text-transform:uppercase;font-size:0.72rem;">Presentación</span>
       </div>
     </div>
 

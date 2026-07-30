@@ -73,7 +73,7 @@
         font-size: 0.78rem;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: rgba(226, 232, 240, 0.78);
+        color: var(--prod-muted);
       }
       .top-mid {
         display: grid;
@@ -102,7 +102,7 @@
       .bc-btn {
         border: 1px solid rgba(148, 163, 184, 0.35);
         background: rgba(8, 19, 44, 0.7);
-        color: rgba(248, 250, 252, 0.96);
+        color: var(--prod-button-text);
         border-radius: 999px;
         padding: 0.44rem 0.74rem;
         font-size: 0.72rem;
@@ -159,7 +159,7 @@
       }
       .panel .field-row label {
         font-size: 0.78rem;
-        color: rgba(226, 232, 240, 0.85);
+        color: var(--prod-muted);
         letter-spacing: 0.05em;
         text-transform: uppercase;
       }
@@ -169,7 +169,7 @@
         border: 1px solid rgba(148, 163, 184, 0.3);
         padding: 0.55rem 0.65rem;
         background: rgba(2, 6, 23, 0.6);
-        color: var(--prod-text);
+        color: var(--prod-button-text);
         font-weight: 700;
         letter-spacing: 0.03em;
         outline: none;
@@ -177,7 +177,7 @@
       .panel .field-help {
         margin: 0 0 0.75rem;
         font-size: 0.8rem;
-        color: rgba(226, 232, 240, 0.7);
+        color: var(--prod-muted);
         line-height: 1.3;
       }
       .players {
@@ -270,7 +270,7 @@
         letter-spacing: 0.04em;
       }
       .player-meta {
-        color: rgba(226, 232, 240, 0.7);
+        color: var(--prod-muted);
         font-size: 0.78rem;
       }
       .field {
@@ -361,7 +361,7 @@
         position: relative;
         display: grid;
         place-items: center;
-        color: rgba(248, 250, 252, 0.86);
+        color: var(--prod-muted);
         text-transform: uppercase;
         letter-spacing: 0.28em;
         font-weight: 950;
@@ -439,7 +439,7 @@
         font-weight: 950;
         letter-spacing: 0.12em;
         text-transform: uppercase;
-        color: rgba(248,250,252,0.96);
+        color: var(--prod-text);
         text-shadow: 0 18px 40px rgba(0,0,0,0.60);
         white-space: normal;
         overflow: hidden;
@@ -656,7 +656,7 @@
         font-size: 0.6rem;
         letter-spacing: 0.13em;
         text-transform: uppercase;
-        color: rgba(248, 250, 252, 0.7);
+        color: var(--prod-muted);
       }
       .token {
         margin-top: 0.2rem;
@@ -666,7 +666,7 @@
         font-weight: 650;
         letter-spacing: 0.02em;
         padding: 0.26rem 0.36rem;
-        color: rgba(248, 250, 252, 0.96);
+        color: var(--prod-text);
         display: grid;
         grid-template-columns: 26px minmax(0, 1fr);
         align-items: center;
@@ -725,7 +725,7 @@
         font-size: 0.58rem;
         letter-spacing: 0.16em;
         text-transform: uppercase;
-        color: rgba(226, 232, 240, 0.68);
+        color: var(--prod-muted);
         margin-top: 0.05rem;
       }
       .token--gk { border-color: rgba(56, 189, 248, 0.52); }
@@ -812,7 +812,7 @@
       .xi-token-style-row .xi-seg button {
         border: 0;
         background: transparent;
-        color: rgba(226, 232, 240, 0.78);
+        color: var(--prod-muted);
         font-size: 0.72rem;
         font-weight: 700;
         padding: 0.28rem 0.66rem;
@@ -913,7 +913,7 @@
         font-size: 0.56rem;
         font-weight: 700;
         letter-spacing: 0.12em;
-        color: rgba(226, 232, 240, 0.92);
+        color: var(--prod-text);
         text-shadow: 0 1px 2px rgba(0,0,0,0.85);
       }
       .field-token.is-active .xi-chip-disc {
@@ -960,7 +960,7 @@
       .broadcast-l3 .meta {
         margin-top: 0.08rem;
         font-size: 0.68rem;
-        color: rgba(226, 232, 240, 0.7);
+        color: var(--prod-muted);
         letter-spacing: 0.08em;
         text-transform: uppercase;
         white-space: nowrap;
@@ -982,7 +982,7 @@
       .toolbar button {
         border: 1px solid rgba(148, 163, 184, 0.35);
         background: rgba(8, 19, 44, 0.7);
-        color: var(--prod-text);
+        color: var(--prod-button-text);
         border-radius: 999px;
         padding: 0.36rem 0.7rem;
         font-size: 0.72rem;
@@ -1004,7 +1004,7 @@
       }
       .toolbar .ghost {
         border-color: rgba(148, 163, 184, 0.35);
-        color: rgba(226, 232, 240, 0.92);
+        color: var(--prod-text);
       }
       .status {
         margin-top: 0.5rem;
@@ -1019,7 +1019,7 @@
       }
       .helper-note {
         margin: 0 0 0.75rem;
-        color: rgba(226, 232, 240, 0.78);
+        color: var(--prod-muted);
         line-height: 1.5;
       }
       .toolbar button.is-disabled {
@@ -1044,7 +1044,7 @@
         border-color: rgba(34, 197, 94, 0.4);
       }
       .pill-draft {
-        color: rgba(226, 232, 240, 0.85);
+        color: var(--prod-muted);
         background: rgba(148, 163, 184, 0.16);
         border-color: rgba(148, 163, 184, 0.35);
       }
@@ -1066,11 +1066,11 @@
       }
       .toolbar .toggle {
         border-color: rgba(34, 211, 238, 0.45);
-        color: rgba(224, 242, 254, 0.95);
+        color: var(--prod-text);
       }
       .toolbar .toggle.is-off {
         border-color: rgba(148, 163, 184, 0.35);
-        color: rgba(226, 232, 240, 0.92);
+        color: var(--prod-text);
         opacity: 0.85;
       }
       @media (max-width: 980px) {
@@ -1116,7 +1116,7 @@
         color: #fff;
       }
       .field-token.is-rival .token-name {
-        color: rgba(254, 242, 242, 0.95);
+        color: var(--prod-text);
       }
       .field-token.is-rival .token-role {
         color: rgba(254, 202, 202, 0.92);
@@ -1533,7 +1533,7 @@
         background:
           repeating-linear-gradient(90deg, rgba(255,255,255,0.08) 0 1px, transparent 1px 18px),
           linear-gradient(90deg, rgba(2,6,23,0.92), color-mix(in srgb, var(--xi-team-primary) 50%, rgba(2,6,23,0.86)), rgba(2,6,23,0.92));
-        color: rgba(248,250,252,0.94);
+        color: var(--prod-text);
         font-size: 0.56rem;
         font-weight: 950;
         letter-spacing: 0.13em;
@@ -1579,7 +1579,7 @@
         border-radius: 4px;
         border: 1px solid rgba(255,255,255,0.16);
         background: linear-gradient(90deg, rgba(2,6,23,0.72), color-mix(in srgb, var(--xi-team-primary) 42%, rgba(2,6,23,0.7)), rgba(2,6,23,0.72));
-        color: rgba(248,250,252,0.92);
+        color: var(--prod-text);
         font-size: 0.56rem;
         font-weight: 950;
         letter-spacing: 0.13em;
@@ -1598,7 +1598,7 @@
         border-radius: 999px;
         border: 1px solid rgba(255, 255, 255, 0.22);
         background: rgba(2, 6, 23, 0.56);
-        color: rgba(248, 250, 252, 0.92);
+        color: var(--prod-text);
         font-size: 0.62rem;
         font-weight: 850;
         letter-spacing: 0.08em;
@@ -1622,7 +1622,7 @@
       }
       .broadcast-title h2 {
         margin: 0;
-        color: rgba(248, 250, 252, 0.96);
+        color: var(--prod-text);
         -webkit-text-stroke: 0;
         max-width: min(94%, 820px);
         font-size: clamp(1.28rem, 2.35vw, 2.35rem);
@@ -1634,7 +1634,7 @@
         padding: 0.18rem 0.55rem;
         border-radius: 999px;
         background: rgba(2, 6, 23, 0.74);
-        color: rgba(248, 250, 252, 0.96);
+        color: var(--prod-button-text);
         font-size: 0.66rem;
         font-weight: 950;
         letter-spacing: 0.11em;
@@ -1875,7 +1875,7 @@
         justify-items: center;
         gap: 0.12rem;
         min-width: 46px;
-        color: rgba(248, 250, 252, 0.95);
+        color: var(--prod-text);
         text-align: center;
         text-shadow: 0 8px 20px rgba(0,0,0,0.62);
         font-size: 0.58rem;
@@ -1922,7 +1922,7 @@
         border-radius: 999px;
         border: 1px solid rgba(148, 163, 184, 0.35);
         background: rgba(8, 19, 44, 0.78);
-        color: rgba(248, 250, 252, 0.96);
+        color: var(--prod-button-text);
         padding: 0.34rem 0.58rem;
         font-size: 0.68rem;
         font-weight: 850;
@@ -1988,7 +1988,7 @@
         font-size: 0.82rem;
       }
       .xi-3d-title span {
-        color: rgba(226, 232, 240, 0.72);
+        color: var(--prod-muted);
         font-size: 0.78rem;
       }
       .xi-3d-actions {
@@ -2003,7 +2003,7 @@
         border-radius: 999px;
         border: 1px solid rgba(148, 163, 184, 0.34);
         background: rgba(8, 19, 44, 0.86);
-        color: rgba(248, 250, 252, 0.96);
+        color: var(--prod-button-text);
         padding: 0.38rem 0.68rem;
         font-size: 0.72rem;
         font-weight: 850;
@@ -2027,7 +2027,7 @@
         min-height: min(68vh, 690px);
       }
       .xi-3d-status {
-        color: rgba(226, 232, 240, 0.72);
+        color: var(--prod-muted);
         font-size: 0.78rem;
       }
       .broadcast-main.camera-plan .xi-stadium {
@@ -2217,7 +2217,7 @@
         }
         .broadcast-title h2 {
           -webkit-text-stroke-width: 0;
-          color: rgba(248, 250, 252, 0.96);
+          color: var(--prod-text);
         }
       }
           .xi-chip-fit { font-weight: 900; font-size: .92em; }

@@ -9,28 +9,28 @@
     {% include 'football/pwa_head.html' %}
     <style>
       *, *::before, *::after { box-sizing: border-box; }
-      body { background:#030712; color:#e2e8f0; margin:0; padding:1.2rem 1.2rem 2rem; font-family:var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif); }
+      body { background:#030712; color: var(--prod-button-text); margin:0; padding:1.2rem 1.2rem 2rem; font-family:var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif); }
       .page { max-width:var(--fm-page,1120px); margin: 0 auto; }
       header { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap; margin: 1rem 0 1.2rem; }
       header h1 { margin:0; font-size:1.55rem; }
       header p { margin:0.15rem 0 0; color:var(--prod-muted); }
-      .btn { display:inline-flex; align-items:center; justify-content:center; gap:0.45rem; border-radius:999px; padding:0.55rem 0.85rem; border:1px solid rgba(148,163,184,0.22); background: rgba(2,6,23,0.55); color:#e2e8f0; text-decoration:none; font-weight:800; letter-spacing:0.02em; }
+      .btn { display:inline-flex; align-items:center; justify-content:center; gap:0.45rem; border-radius:999px; padding:0.55rem 0.85rem; border:1px solid rgba(148,163,184,0.22); background: rgba(2,6,23,0.55); color: var(--prod-button-text); text-decoration:none; font-weight:800; letter-spacing:0.02em; }
       .btn:hover { border-color: rgba(250,204,21,0.5); }
       .btn.primary { background: linear-gradient(90deg, rgba(250,204,21,0.95), rgba(132,204,22,0.85)); border-color: rgba(250,204,21,0.2); color:#0b1220; }
       .panel { background: rgba(15,23,42,0.9); border:1px solid rgba(148,163,184,0.22); border-radius: 18px; padding: 0.9rem; margin-bottom: 1rem; }
       .grid { display:grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0.65rem; align-items:end; }
       .grid > div { min-width: 0; }
-      label { display:block; font-weight:800; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; color: rgba(148,163,184,0.95); }
-      input, select { width:100%; display:block; padding:0.6rem 0.7rem; border-radius: 14px; border:1px solid rgba(148,163,184,0.22); background: rgba(2,6,23,0.45); color:#e2e8f0; }
-      input::placeholder { color: rgba(148,163,184,0.65); }
-      .grid small { display:block; color: rgba(148,163,184,0.75); margin:0.35rem 0 0.45rem; font-weight:750; line-height:1.2; }
+      label { display:block; font-weight:800; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; color: var(--prod-text); }
+      input, select { width:100%; display:block; padding:0.6rem 0.7rem; border-radius: 14px; border:1px solid rgba(148,163,184,0.22); background: rgba(2,6,23,0.45); color: var(--prod-button-text); }
+      input::placeholder { color: var(--prod-muted); }
+      .grid small { display:block; color: var(--prod-muted); margin:0.35rem 0 0.45rem; font-weight:750; line-height:1.2; }
       .alert { margin:0 0 0.8rem; padding:0.65rem 0.8rem; border-radius: 14px; font-weight:800; }
       .alert.ok { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.25); color:#bbf7d0; }
       .alert.err { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); color:#fecaca; }
       table { width:100%; border-collapse: separate; border-spacing:0; }
       th, td { padding: 0.55rem 0.55rem; border-bottom: 1px solid rgba(148,163,184,0.12); vertical-align: top; }
-      th { text-align:left; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color: rgba(148,163,184,0.95); }
-      td small { color: rgba(148,163,184,0.75); display:block; margin-top:0.2rem; }
+      th { text-align:left; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color: var(--prod-text); }
+      td small { color: var(--prod-muted); display:block; margin-top:0.2rem; }
       .row-form { display:grid; grid-template-columns: 70px 62px 220px 180px 150px 120px 1fr 170px; gap: 0.5rem; align-items: start; }
       .row-form input, .row-form select { padding:0.5rem 0.6rem; border-radius: 12px; }
       .row-actions { display:flex; gap:0.5rem; justify-content:flex-end; }
@@ -72,7 +72,7 @@
             {% elif match.stats_source == 'manual' %}
               <span style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.72rem;font-weight:900;letter-spacing:0.04em;padding:0.22rem 0.6rem;border-radius:999px;background:rgba(56,189,248,0.16);border:1px solid rgba(56,189,248,0.5);color:#bae6fd;">✍ Estadísticas manuales</span>
             {% elif match.stats_source == 'result_only' %}
-              <span style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.72rem;font-weight:900;letter-spacing:0.04em;padding:0.22rem 0.6rem;border-radius:999px;background:rgba(148,163,184,0.16);border:1px solid rgba(148,163,184,0.4);color:#cbd5e1;">Solo resultado (sin estadísticas)</span>
+              <span style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.72rem;font-weight:900;letter-spacing:0.04em;padding:0.22rem 0.6rem;border-radius:999px;background:rgba(148,163,184,0.16);border:1px solid rgba(148,163,184,0.4);color:var(--prod-text);">Solo resultado (sin estadísticas)</span>
             {% else %}
               <span style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.72rem;font-weight:900;letter-spacing:0.04em;padding:0.22rem 0.6rem;border-radius:999px;background:rgba(148,163,184,0.1);border:1px dashed rgba(148,163,184,0.4);color:var(--prod-muted);">Sin datos aún</span>
             {% endif %}
@@ -116,7 +116,7 @@
 
           <div class="close-minutes" id="close-minutes" hidden>
             <div style="display:flex;gap:0.5rem;align-items:center;margin:0.4rem 0 0.6rem;flex-wrap:wrap;">
-              <span style="font-weight:800;color:#cbd5e1;">Minutos por jugador</span>
+              <span style="font-weight:800;color:var(--prod-text);">Minutos por jugador</span>
               <span style="flex:1;"></span>
               <input type="number" id="bulk-minutes" min="0" max="200" placeholder="35" style="max-width:90px;" />
               <button type="button" class="btn" id="apply-all-min">Aplicar a todos</button>
@@ -142,14 +142,14 @@
           </div>
 
           <div class="close-full" id="close-full" hidden>
-            <p style="margin:0.4rem 0 0;color:#cbd5e1;font-weight:700;max-width:920px;">
+            <p style="margin:0.4rem 0 0;color:var(--prod-text);font-weight:700;max-width:920px;">
               Para estadísticas completas (acción por acción), regístralas en vivo o manualmente:
               <a href="{% url 'match-action-page' %}?match_id={{ match.id }}&stage=close&team={{ primary_team_id }}" style="color:#7dd3fc;text-decoration:underline;">Registro de acciones</a>,
               o en la sección “Edición manual · acciones” de abajo. El marcador de arriba se guarda igual.
             </p>
           </div>
 
-          <label style="display:flex;align-items:center;gap:0.5rem;margin-top:0.9rem;font-weight:700;color:#cbd5e1;">
+          <label style="display:flex;align-items:center;gap:0.5rem;margin-top:0.9rem;font-weight:700;color:var(--prod-text);">
             <input type="checkbox" name="count_as_training" value="1" />
             Contar este partido como sesión de entrenamiento (suma asistencia a los convocados y a quienes tengan minutos)
           </label>

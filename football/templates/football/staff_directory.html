@@ -16,7 +16,7 @@
           radial-gradient(circle at 10% -10%, rgba(70, 211, 255, 0.14), transparent 40%),
           radial-gradient(circle at 90% 0%, rgba(255, 191, 69, 0.13), transparent 35%),
           linear-gradient(180deg, #03070f 0%, #081120 55%, #0a1427 100%);
-        color: rgba(245, 247, 250, 0.92);
+        color: var(--prod-text);
         font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
       }
       .shell {
@@ -46,7 +46,7 @@
       }
       .header p {
         margin: 0.35rem 0 0;
-        color: rgba(226, 232, 240, 0.74);
+        color: var(--prod-muted);
       }
       .filters {
         margin-top: 0.8rem;
@@ -57,7 +57,7 @@
       .filters label {
         display: grid;
         gap: 0.35rem;
-        color: rgba(226, 232, 240, 0.76);
+        color: var(--prod-muted);
         font-size: 0.68rem;
         letter-spacing: 0.12em;
         text-transform: uppercase;
@@ -71,7 +71,7 @@
         padding: 0.65rem 0.75rem;
         border: 1px solid rgba(244, 180, 0, 0.18);
         background: rgba(15, 23, 42, 0.55);
-        color: var(--prod-text);
+        color: var(--prod-button-text);
         font-weight: 700;
         font-size: 0.92rem;
       }
@@ -85,7 +85,7 @@
         padding: 0.55rem 0.85rem;
         border: 1px solid rgba(244, 180, 0, 0.18);
         background: rgba(15, 23, 42, 0.62);
-        color: rgba(245, 247, 250, 0.92);
+        color: var(--prod-button-text);
         font-weight: 900;
         letter-spacing: 0.14em;
         text-transform: uppercase;
@@ -123,7 +123,7 @@
         gap: 0.8rem;
         align-items: center;
         text-decoration: none;
-        color: rgba(245, 247, 250, 0.92);
+        color: var(--prod-button-text);
         transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
       }
       .card:hover,
@@ -145,7 +145,7 @@
         flex: 0 0 auto;
       }
       .card-title {
-        color: rgba(245,247,250,0.92);
+        color: var(--prod-text);
         font-weight: 900;
         letter-spacing: 0.06em;
         text-transform: uppercase;
@@ -153,7 +153,7 @@
       }
       .meta {
         margin-top: 0.15rem;
-        color: rgba(226, 232, 240, 0.74);
+        color: var(--prod-muted);
         font-weight: 700;
         letter-spacing: 0.02em;
         text-transform: none;

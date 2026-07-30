@@ -100,7 +100,7 @@
         border-radius: 999px;
         border: 1px solid rgba(160, 180, 215, 0.22);
         background: rgba(255, 255, 255, 0.04);
-        color: #f3f7ff;
+        color: var(--prod-text);
         padding: 0.65rem 0.9rem;
         text-decoration: none;
         font-weight: 700;
@@ -370,7 +370,7 @@
         border-radius: 999px;
         border: 1px solid rgba(121, 168, 255, 0.36);
         background: rgba(52, 104, 205, 0.18);
-        color: #f3f7ff;
+        color: var(--prod-text);
         padding: 0.72rem 1.05rem;
         font-weight: 700;
         cursor: pointer;
@@ -394,7 +394,7 @@
         border-radius: 999px;
         border: 1px solid rgba(160, 180, 215, 0.22);
         background: rgba(255, 255, 255, 0.04);
-        color: #f3f7ff;
+        color: var(--prod-text);
         padding: 0.6rem 0.85rem;
         cursor: pointer;
         font-weight: 700;
@@ -592,7 +592,7 @@
       .team-stadium-caption strong {
         display: block;
         margin-top: 0.12rem;
-        color: #f3f7ff;
+        color: var(--prod-text);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -872,7 +872,7 @@
         <div class="message ok">
           <div style="font-weight:800; margin-bottom:0.35rem;">Enlace de invitación</div>
           <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
-            <input type="text" value="{{ invite_link }}" readonly style="min-width:320px; flex:1; padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); color:#e2e8f0;" onclick="this.select();" />
+            <input type="text" value="{{ invite_link }}" readonly style="min-width:320px; flex:1; padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); color:var(--prod-text);" onclick="this.select();" />
             <button type="button" class="inline-btn" onclick="navigator.clipboard?.writeText('{{ invite_link }}');">Copiar</button>
           </div>
         </div>
@@ -1334,7 +1334,7 @@
               <div style="margin-top:0.75rem;">
                 <div style="font-weight:800;">Enlace de acceso</div>
                 <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; margin-top:0.35rem;">
-                  <input type="text" value="{{ invite_link }}" readonly style="min-width:320px; flex:1; padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); color:#e2e8f0;" onclick="this.select();" />
+                  <input type="text" value="{{ invite_link }}" readonly style="min-width:320px; flex:1; padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); color:var(--prod-text);" onclick="this.select();" />
                   <button type="button" class="inline-btn" onclick="navigator.clipboard?.writeText('{{ invite_link }}');">Copiar</button>
                 </div>
               </div>

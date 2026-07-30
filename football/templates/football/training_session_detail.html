@@ -15,7 +15,7 @@
           radial-gradient(circle at top, rgba(14,165,233,0.18), transparent 34%),
           radial-gradient(circle at 80% 12%, rgba(99,102,241,0.18), transparent 30%),
           linear-gradient(180deg, #020417 0%, #050b1c 100%);
-        color:#e5e7eb;
+        color:var(--prod-text);
         font-family:var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
       }
       .page { max-width: var(--fm-page,1120px); margin:0 auto; padding: 1.15rem 1rem 2.8rem; }
@@ -37,7 +37,7 @@
       .topbar-copy { display:flex; flex-direction:column; gap:0.32rem; max-width: 700px; }
       .topbar-kicker { color: var(--prod-muted,#a7b6cf); font-size:0.72rem; font-weight:950; letter-spacing:0.16em; text-transform:uppercase; }
       .topbar h1 { margin:0; font-size:clamp(1.35rem, 2vw, 2rem); line-height:1.02; letter-spacing:-0.03em; color:var(--prod-text); }
-      .topbar-subline { display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; color: rgba(226,232,240,0.74); font-weight:850; font-size:0.85rem; }
+      .topbar-subline { display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; color: var(--prod-muted); font-weight:850; font-size:0.85rem; }
       .session-pill {
         display:inline-flex;
         align-items:center;
@@ -53,12 +53,12 @@
         text-transform:uppercase;
       }
       .topbar-actions { display:flex; flex-wrap:wrap; gap:0.55rem; justify-content:flex-end; }
-      .btn { border-radius:999px; border:1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.68rem 0.95rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:0.4rem; transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease; }
+      .btn { border-radius:999px; border:1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:var(--prod-text); padding:0.68rem 0.95rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:0.4rem; transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease; }
       .btn.primary { background: linear-gradient(135deg, #22d3ee, #67e8f9); border:none; color:#03253c; }
       .btn.secondary { background: transparent; }
       .btn:hover { transform: translateY(-1px); border-color: rgba(125,211,252,0.34); background: rgba(255,255,255,0.1); box-shadow: 0 14px 24px rgba(2,6,23,0.18); }
       .btn.primary:hover { background: linear-gradient(135deg, #67e8f9, #a5f3fc); }
-      .meta { color: rgba(226,232,240,0.72); font-weight: 850; }
+      .meta { color: var(--prod-muted); font-weight: 850; }
       .alert { margin:0 0 0.85rem; border-radius:16px; padding:0.75rem 0.85rem; border:1px solid rgba(148,163,184,0.2); background: rgba(2, 6, 23, 0.35); font-weight:850; }
       .alert.ok { border-color: rgba(34,211,238,0.35); }
       .alert.err { border-color: rgba(239,68,68,0.35); color:#fecaca; }
@@ -198,7 +198,7 @@
 
       /* Editor (editable) */
       .edit-card { margin-top: 0.95rem; background: rgba(12, 20, 34, 0.92); border: 1px solid rgba(145, 161, 185, 0.18); border-radius: 22px; box-shadow: 0 22px 52px rgba(0,0,0,0.28); padding: 0.9rem; }
-      label { display:flex; flex-direction:column; gap:0.25rem; font-size:0.78rem; font-weight:900; letter-spacing:0.06em; text-transform:uppercase; color: rgba(226,232,240,0.78); }
+      label { display:flex; flex-direction:column; gap:0.25rem; font-size:0.78rem; font-weight:900; letter-spacing:0.06em; text-transform:uppercase; color: var(--prod-muted); }
       input, select, textarea { border-radius:12px; border:1px solid rgba(148,163,184,0.24); background: rgba(2,6,23,0.35); color:#fff; padding:10px 12px; font-weight:800; letter-spacing:0.01em; }
       textarea { min-height: 86px; resize: vertical; }
       .form-grid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:0.65rem; }

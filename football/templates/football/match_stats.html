@@ -12,7 +12,7 @@
       body {
         font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
         background: #030712;
-        color: #e2e8f0;
+        color: var(--prod-button-text);
         margin: 0;
         padding: 0;
       }
@@ -40,7 +40,7 @@
       }
       .match-stats-kicker {
         margin: 0;
-        color: rgba(148, 163, 184, 0.95);
+        color: var(--prod-text);
         font-size: 0.85rem;
         letter-spacing: 0.02em;
       }
@@ -65,7 +65,7 @@
       }
       .match-stats-sub {
         margin: 0.25rem 0 0;
-        color: rgba(148, 163, 184, 0.95);
+        color: var(--prod-text);
         font-size: 0.9rem;
       }
       .match-stats-actions {
@@ -85,7 +85,7 @@
         border-radius: 0.85rem;
         border: 1px solid rgba(148, 163, 184, 0.28);
         background: rgba(15, 23, 42, 0.65);
-        color: rgba(226, 232, 240, 0.95);
+        color: var(--prod-button-text);
         text-decoration: none;
         font-weight: 800;
         font-size: 0.9rem;
@@ -114,7 +114,7 @@
         border: 1px solid rgba(148, 163, 184, 0.25);
         background: rgba(2, 6, 23, 0.35);
         font-weight: 800;
-        color: rgba(226, 232, 240, 0.92);
+        color: var(--prod-button-text);
         font-size: 0.85rem;
       }
       .ms-switch input {
@@ -136,7 +136,7 @@
       }
       .metric-list li {
         margin: 0.35rem 0;
-        color: rgba(226, 232, 240, 0.9);
+        color: var(--prod-text);
       }
       .match-stats-layout {
         display: grid;
@@ -180,7 +180,7 @@
         line-height: 1;
       }
       .ms-kpi-big span {
-        color: rgba(148, 163, 184, 0.95);
+        color: var(--prod-text);
         font-weight: 800;
         letter-spacing: 0.02em;
         font-size: 0.85rem;
@@ -200,7 +200,7 @@
         border-radius: 999px;
         border: 1px solid rgba(148, 163, 184, 0.2);
         background: rgba(2, 6, 23, 0.35);
-        color: rgba(226, 232, 240, 0.92);
+        color: var(--prod-button-text);
         font-weight: 800;
         font-size: 0.84rem;
         white-space: nowrap;
@@ -232,11 +232,11 @@
         border-radius: 0.85rem;
         border: 1px solid rgba(148, 163, 184, 0.25);
         background: rgba(2, 6, 23, 0.35);
-        color: rgba(226, 232, 240, 0.95);
+        color: var(--prod-button-text);
         outline: none;
       }
       .ms-input::placeholder {
-        color: rgba(148, 163, 184, 0.9);
+        color: var(--prod-text);
       }
       .ms-events {
         list-style: none;
@@ -258,7 +258,7 @@
         background: rgba(2, 6, 23, 0.35);
       }
       .ms-event-time {
-        color: rgba(148, 163, 184, 0.95);
+        color: var(--prod-text);
         font-weight: 900;
         font-size: 0.95rem;
       }
@@ -276,14 +276,14 @@
       }
       .ms-event-player {
         font-weight: 900;
-        color: rgba(226, 232, 240, 0.98);
+        color: var(--prod-text);
       }
       .ms-event-type {
         font-weight: 900;
-        color: rgba(226, 232, 240, 0.9);
+        color: var(--prod-text);
       }
       .ms-event-meta {
-        color: rgba(148, 163, 184, 0.95);
+        color: var(--prod-text);
         font-size: 0.88rem;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -325,7 +325,7 @@
         font-size: 0.66rem;
         font-weight: 800;
         letter-spacing: 0.06em;
-        color: #e2e8f0;
+        color: var(--prod-text);
         background: linear-gradient(145deg, #0f766e, #164e63);
       }
       .player-card strong {
@@ -335,7 +335,7 @@
       .player-card span {
         display: block;
         font-size: 0.85rem;
-        color: rgba(226, 232, 240, 0.8);
+        color: var(--prod-muted);
       }
       @media (max-width: 1060px) {
         .match-stats-topbar {
@@ -398,7 +398,7 @@
           <p class="match-stats-kicker">Estadísticas en directo</p>
           <h1 class="match-stats-title">
             <span>{{ match.opponent }}</span>
-            <span style="color:rgba(148,163,184,0.95);font-weight:900;">· Jornada {{ match.round }}</span>
+            <span style="color:var(--prod-text);font-weight:900;">· Jornada {{ match.round }}</span>
             {% if match.score_label %}
               <span class="match-stats-score" aria-label="Marcador">{{ match.score_label }}</span>
             {% endif %}
@@ -441,7 +441,7 @@
                 <span>Acciones</span>
               </div>
               <div>
-                <p style="margin:0 0 0.45rem;color:rgba(148,163,184,0.95);font-weight:900;letter-spacing:0.03em;text-transform:uppercase;font-size:0.82rem;">Top acciones</p>
+                <p style="margin:0 0 0.45rem;color:var(--prod-text);font-weight:900;letter-spacing:0.03em;text-transform:uppercase;font-size:0.82rem;">Top acciones</p>
                 <div id="ms-top-types" style="display:flex;flex-wrap:wrap;gap:0.4rem;">
                   {% for item in team_metrics.top_event_types %}
                     <span class="ms-chip"><strong>{{ item.count }}</strong> {{ item.event }}</span>
@@ -450,7 +450,7 @@
                   {% endfor %}
                 </div>
 
-                <p style="margin:0.75rem 0 0.45rem;color:rgba(148,163,184,0.95);font-weight:900;letter-spacing:0.03em;text-transform:uppercase;font-size:0.82rem;">Resultados</p>
+                <p style="margin:0.75rem 0 0.45rem;color:var(--prod-text);font-weight:900;letter-spacing:0.03em;text-transform:uppercase;font-size:0.82rem;">Resultados</p>
                 <div id="ms-top-results" style="display:flex;flex-wrap:wrap;gap:0.4rem;">
                   {% for item in team_metrics.top_results %}
                     {% if item.result %}

@@ -12,7 +12,7 @@
       body {
         margin: 0;
         min-height: 100vh;
-        color: rgba(245, 247, 250, 0.94);
+        color: var(--prod-text);
         font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
         background:
           radial-gradient(circle at 10% -10%, rgba(56, 189, 248, 0.14), transparent 40%),
@@ -49,7 +49,7 @@
       }
       .sub {
         margin: 0.45rem 0 0;
-        color: rgba(226,232,240,0.76);
+        color: var(--prod-muted);
       }
       .actions {
         display: flex;
@@ -66,7 +66,7 @@
         border-radius: 999px;
         border: 1px solid rgba(244, 180, 0, 0.24);
         background: rgba(15, 23, 42, 0.62);
-        color: rgba(245, 247, 250, 0.94);
+        color: var(--prod-button-text);
         text-decoration: none;
         font-weight: 900;
         letter-spacing: 0.13em;
@@ -135,7 +135,7 @@
         font-size: 0.68rem;
         letter-spacing: 0.12em;
         text-transform: uppercase;
-        color: rgba(226,232,240,0.68);
+        color: var(--prod-muted);
         font-weight: 900;
       }
       .summary .value {
@@ -178,7 +178,7 @@
       .follow-grid label {
         display: grid;
         gap: 0.35rem;
-        color: rgba(226,232,240,0.74);
+        color: var(--prod-muted);
         font-size: 0.68rem;
         letter-spacing: 0.12em;
         text-transform: uppercase;
@@ -191,7 +191,7 @@
         padding: 0.68rem 0.75rem;
         border: 1px solid rgba(244, 180, 0, 0.18);
         background: rgba(15, 23, 42, 0.55);
-        color: var(--prod-text);
+        color: var(--prod-button-text);
         font-weight: 700;
         font-size: 0.92rem;
       }
@@ -211,7 +211,7 @@
       }
       .section p {
         margin: 0.35rem 0 0;
-        color: rgba(226,232,240,0.74);
+        color: var(--prod-muted);
       }
       .report-grid,
       .follow-grid {
@@ -255,11 +255,11 @@
       }
       .item-meta {
         margin-top: 0.25rem;
-        color: rgba(226,232,240,0.72);
+        color: var(--prod-muted);
       }
       .item-text {
         margin-top: 0.55rem;
-        color: rgba(226,232,240,0.82);
+        color: var(--prod-muted);
         white-space: pre-wrap;
       }
       .split {
@@ -290,7 +290,7 @@
       }
       .fm-attributes-header p {
         margin: 0.35rem 0 0;
-        color: rgba(226,232,240,0.72);
+        color: var(--prod-muted);
         font-weight: 700;
       }
       .fm-summary {
@@ -304,7 +304,7 @@
         letter-spacing: -0.03em;
       }
       .fm-summary span {
-        color: rgba(226,232,240,0.68);
+        color: var(--prod-muted);
         font-size: 0.72rem;
         letter-spacing: 0.14em;
         text-transform: uppercase;
@@ -344,7 +344,7 @@
       }
       .fm-group-head p {
         margin: 0.28rem 0 0;
-        color: rgba(226,232,240,0.72);
+        color: var(--prod-muted);
         font-weight: 700;
       }
       .fm-group-score {
@@ -382,18 +382,18 @@
         font-size: 0.72rem;
         letter-spacing: 0.12em;
         text-transform: uppercase;
-        color: rgba(226,232,240,0.68);
+        color: var(--prod-muted);
         font-weight: 900;
       }
       .fm-row-display {
         display: block;
         margin-top: 0.15rem;
-        color: rgba(245,247,250,0.95);
+        color: var(--prod-text);
         font-weight: 900;
         font-size: 0.96rem;
       }
       .fm-row-top strong {
-        color: rgba(245,247,250,0.95);
+        color: var(--prod-text);
         font-size: 1.05rem;
         font-weight: 950;
         white-space: nowrap;
@@ -414,7 +414,7 @@
       }
       .fm-row-hint {
         margin-top: 0.45rem;
-        color: rgba(226,232,240,0.72);
+        color: var(--prod-muted);
         font-size: 0.82rem;
         line-height: 1.35;
       }
@@ -434,7 +434,7 @@
         font-size: 0.68rem;
         letter-spacing: 0.12em;
         text-transform: uppercase;
-        color: rgba(226,232,240,0.68);
+        color: var(--prod-muted);
         font-weight: 900;
       }
       .mini .value {
@@ -494,30 +494,30 @@
         background: rgba(148,163,184,0.24);
       }
       .decision-score-num { font-size: 2.4rem; font-weight: 900; color: #fde68a; line-height: 1; }
-      .decision-score-den { font-size: 1rem; font-weight: 700; color: rgba(226,232,240,0.55); }
+      .decision-score-den { font-size: 1rem; font-weight: 700; color: var(--prod-muted); }
       .decision-score-label {
         margin-left: 0.5rem;
         font-size: 0.62rem;
         letter-spacing: 0.14em;
         text-transform: uppercase;
-        color: rgba(226,232,240,0.6);
+        color: var(--prod-muted);
       }
       .decision-reco { display: flex; flex-direction: column; gap: 0.35rem; }
       .decision-reco-label {
         font-size: 0.62rem;
         letter-spacing: 0.14em;
         text-transform: uppercase;
-        color: rgba(226,232,240,0.6);
+        color: var(--prod-muted);
       }
       .decision-reco-badge { font-size: 0.82rem; padding: 0.34rem 0.7rem; }
       .decision-metrics { display: flex; gap: 1.4rem; margin-left: auto; flex-wrap: wrap; }
       .decision-metric { display: flex; flex-direction: column; gap: 0.15rem; text-align: center; }
-      .decision-metric-value { font-size: 1.15rem; font-weight: 800; color: rgba(245,247,250,0.94); }
+      .decision-metric-value { font-size: 1.15rem; font-weight: 800; color: var(--prod-text); }
       .decision-metric-label {
         font-size: 0.58rem;
         letter-spacing: 0.12em;
         text-transform: uppercase;
-        color: rgba(226,232,240,0.55);
+        color: var(--prod-muted);
       }
       .tabs {
         margin-top: 0.95rem;
@@ -528,7 +528,7 @@
       .tab-btn {
         border: 1px solid rgba(244,180,0,0.24);
         background: rgba(15,23,42,0.62);
-        color: rgba(245,247,250,0.94);
+        color: var(--prod-button-text);
         border-radius: 999px;
         padding: 0.52rem 0.9rem;
         cursor: pointer;
@@ -686,7 +686,7 @@
               </div>
             </div>
             {% if target.summary %}
-            <p style="margin:0.9rem 0 0;color:rgba(226,232,240,0.78);white-space:pre-wrap;">{{ target.summary }}</p>
+            <p style="margin:0.9rem 0 0;color:var(--prod-muted);white-space:pre-wrap;">{{ target.summary }}</p>
             {% endif %}
             {% if target.budget_note %}
             <p style="margin:0.65rem 0 0;color:#fde68a;font-weight:800;">Presupuesto: {{ target.budget_note }}</p>
@@ -822,7 +822,7 @@
                 <input type="checkbox" name="available_for_coach_tools" value="1" {% if target.available_for_coach_tools and target.status != 'discarded' %}checked{% endif %} />
                 <span><strong>A prueba</strong> — disponible para entrenos y pizarra del entrenador, aunque ya esté en plantilla</span>
               </label>
-              <p style="grid-column:1 / -1; margin:0; color:rgba(226,232,240,0.72); font-size:0.82rem; line-height:1.45;">
+              <p style="grid-column:1 / -1; margin:0; color:var(--prod-muted); font-size:0.82rem; line-height:1.45;">
                 Si mantienes esta casilla activa, el jugador seguirá apareciendo como <strong>A prueba</strong> en la plantilla del entrenador y en los entrenos, aunque ya esté convertido.
               </p>
             </div>
@@ -895,7 +895,7 @@
                 <textarea name="next_steps"></textarea>
               </label>
             </div>
-            <label style="display:flex;align-items:center;gap:0.5rem;margin-top:0.6rem;font-weight:600;text-transform:none;letter-spacing:0;color:rgba(226,232,240,0.8);">
+            <label style="display:flex;align-items:center;gap:0.5rem;margin-top:0.6rem;font-weight:600;text-transform:none;letter-spacing:0;color:var(--prod-muted);">
               <input type="checkbox" name="apply_state" value="1" checked style="width:16px;height:16px;accent-color:var(--prod-amber);" />
               Aplicar la recomendación al estado del ojeado (Descartar→Descartado, Fichar→A prueba, Seguir→Seguimiento activo)
             </label>
