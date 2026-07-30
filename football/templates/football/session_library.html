@@ -9,17 +9,17 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
     <style>
-      body{margin:0;background:radial-gradient(circle at top,rgba(14,165,233,0.18),transparent 34%),radial-gradient(circle at 80% 12%,rgba(99,102,241,0.18),transparent 30%),linear-gradient(180deg,#020417 0%,#050b1c 100%);color:#e5e7eb;font-family:var(--prod-font-ui,"Avenir Next","Inter","Segoe UI",system-ui,sans-serif);}
-      .page{max-width:1120px;margin:0 auto;padding:22px 18px 60px;}
+      body{margin:0;background:var(--prod-bg,#0b1626);color:var(--prod-text,#f5f7fa);font-family:var(--prod-font-ui,"IBM Plex Sans","Inter","Segoe UI",system-ui,sans-serif);}
+      .page{max-width:var(--fm-page,1120px);margin:0 auto;padding:22px 18px 60px;}
       .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px;}
       .topbar h1{font-size:1.5rem;margin:0;}
-      .kicker{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:#93a4c3;font-weight:800;}
-      .btn{display:inline-flex;align-items:center;gap:.4rem;border:1px solid rgba(148,163,184,.35);background:rgba(148,163,184,.08);color:#e5e7eb;border-radius:10px;padding:.5rem .8rem;text-decoration:none;font-size:.85rem;cursor:pointer;}
+      .kicker{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--prod-muted,#a7b6cf);font-weight:800;}
+      .btn{display:inline-flex;align-items:center;gap:.4rem;border:1px solid rgba(148,163,184,.35);background:rgba(148,163,184,.08);color:var(--prod-text,#f5f7fa);border-radius:10px;padding:.5rem .8rem;text-decoration:none;font-size:.85rem;cursor:pointer;}
       .btn:hover{background:rgba(148,163,184,.16);}
       .btn.danger{border-color:rgba(248,113,113,.4);color:#fecaca;background:rgba(248,113,113,.08);}
       .btn.danger:hover{background:rgba(248,113,113,.16);}
       .msg{background:rgba(52,211,153,.10);border:1px solid rgba(52,211,153,.35);border-radius:12px;padding:10px 14px;margin:10px 0;color:#bbf7d0;}
-      .hint{color:#93a4c3;font-size:.85rem;margin:2px 0 18px;}
+      .hint{color:var(--prod-muted,#a7b6cf);font-size:.85rem;margin:2px 0 18px;}
       .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;}
       .card{border:1px solid rgba(148,163,184,.2);border-radius:16px;background:rgba(255,255,255,.02);overflow:hidden;display:flex;flex-direction:column;}
       .card-thumbs{display:grid;grid-template-columns:repeat(2,1fr);gap:2px;background:#0b1220;}
@@ -29,24 +29,27 @@
       .card-body{padding:12px 14px;display:flex;flex-direction:column;gap:8px;flex:1;}
       .card-title{font-weight:800;font-size:1.02rem;line-height:1.2;}
       .badges{display:flex;gap:6px;flex-wrap:wrap;}
-      .badge{font-size:.72rem;font-weight:700;border-radius:999px;padding:3px 9px;background:rgba(148,163,184,.14);color:#cbd5e1;}
+      .badge{font-size:.72rem;font-weight:700;border-radius:999px;padding:3px 9px;background:rgba(148,163,184,.14);color:var(--prod-muted,#a7b6cf);}
       .badge.int{background:rgba(234,179,8,.14);color:#fde68a;}
       .card-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:6px;}
-      .empty{border:1px dashed rgba(148,163,184,.3);border-radius:16px;padding:40px 24px;text-align:center;color:#93a4c3;}
+      .empty{border:1px dashed rgba(148,163,184,.3);border-radius:16px;padding:40px 24px;text-align:center;color:var(--prod-muted,#a7b6cf);}
       form.inline{display:inline;margin:0;}
     </style>
   </head>
   <body class="prod-commercial">
     <main class="page">
+      {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='entreno' %}
       <div class="topbar">
         <div>
           <div class="kicker">Entrenamiento</div>
-          <h1>📚 Biblioteca de sesiones</h1>
+          <h1 style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>📚 Biblioteca de sesiones</span></h1>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <a class="btn" href="{{ back_url }}">← Sesiones</a>
         </div>
       </div>
+      {% include 'football/includes/_zone_chips.html' with chips=zone_chips %}
       <p class="hint">Plantillas de sesión reutilizables. Guarda cualquier sesión como plantilla desde su ficha (botón «⭐ Guardar como plantilla») y reutilízala en cualquier semana.</p>
 
       {% if prefill_microcycle %}<div class="msg" style="background:rgba(59,130,246,.10);border-color:rgba(59,130,246,.4);color:#bfdbfe;">📅 Añadiendo al microciclo <strong>{{ prefill_microcycle.title }}</strong> (semana {{ prefill_microcycle.week_start|date:"d/m" }}–{{ prefill_microcycle.week_end|date:"d/m" }}). Elige plantilla y pulsa «➕ Crear sesión» — ya viene preseleccionado ese microciclo.</div>{% endif %}
@@ -74,13 +77,13 @@
               {% csrf_token %}
               <input type="hidden" name="action" value="create-session-from-template" />
               <input type="hidden" name="template_id" value="{{ t.id }}" />
-              <select name="microcycle_id" title="Microciclo destino (o Bandeja de entrada)" style="border:1px solid rgba(148,163,184,.35);background:rgba(148,163,184,.08);color:#e5e7eb;border-radius:9px;padding:.42rem .5rem;font-size:.82rem;max-width:180px;">
+              <select name="microcycle_id" title="Microciclo destino (o Bandeja de entrada)" style="border:1px solid rgba(148,163,184,.35);background:rgba(148,163,184,.08);color:var(--prod-text,#f5f7fa);border-radius:9px;padding:.42rem .5rem;font-size:.82rem;max-width:180px;">
                 <option value="">📥 Bandeja de entrada</option>
                 {% for m in planning_microcycles %}
                 <option value="{{ m.id }}" {% if prefill_microcycle_id and m.id == prefill_microcycle_id %}selected{% endif %}>{{ m.week_start|date:"d/m" }}–{{ m.week_end|date:"d/m" }} · {{ m.title }}</option>
                 {% endfor %}
               </select>
-              <input type="date" name="session_date" value="{{ today_iso }}" title="Fecha de la nueva sesión" style="border:1px solid rgba(148,163,184,.35);background:rgba(148,163,184,.08);color:#e5e7eb;border-radius:9px;padding:.42rem .5rem;font-size:.82rem;" />
+              <input type="date" name="session_date" value="{{ today_iso }}" title="Fecha de la nueva sesión" style="border:1px solid rgba(148,163,184,.35);background:rgba(148,163,184,.08);color:var(--prod-text,#f5f7fa);border-radius:9px;padding:.42rem .5rem;font-size:.82rem;" />
               <button class="btn" type="submit" style="background:rgba(52,211,153,.16);border-color:rgba(52,211,153,.45);color:#bbf7d0;font-weight:700;" title="Crea una sesión real a partir de esta plantilla en la fecha elegida">➕ Crear sesión</button>
             </form>
             <div class="card-actions">

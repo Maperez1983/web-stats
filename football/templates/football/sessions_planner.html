@@ -77,7 +77,7 @@
         --panel: rgba(12, 12, 12, 0.98);
         --line: rgba(255, 255, 255, 0.42);
       }
-      .page { max-width: 1660px; margin: 0 auto; padding: clamp(0.8rem, 1.4vw, 1.25rem); }
+      .page { max-width: var(--fm-page-wide,1520px); margin: 0 auto; padding: clamp(0.8rem, 1.4vw, 1.25rem); }
       .top {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
@@ -2069,6 +2069,7 @@
         {% endfor %}
       </datalist>
       {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='entreno' %}
       <style>
         .top.planner-hero{position:relative;overflow:hidden;border-radius:18px;padding:26px 28px;border:1px solid rgba(148,163,184,0.16);
           background-image:linear-gradient(90deg,rgba(8,12,20,0.94),rgba(8,12,20,0.58) 52%,rgba(8,12,20,0.22)),url("{% static 'football/images/marketing/home_training_hero.jpg' %}");
@@ -2080,7 +2081,7 @@
 		      <div class="top planner-hero" id="planner-top">
 		        <div class="top-copy">
               <span class="top-kicker">Centro de entrenamiento</span>
-		          <h1>{{ scope_title|default:"Sesiones" }} · Planificación</h1>
+		          <h1 style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>{{ scope_title|default:"Sesiones" }} · Planificación</span></h1>
               <div class="top-subcopy">Crea sesiones, organiza microciclos y mueve la biblioteca desde una sola vista.</div>
             </div>
             <div class="top-actions">
@@ -2091,6 +2092,7 @@
               <a href="{% url 'dashboard-home' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}" class="button">Volver</a>
             </div>
 		      </div>
+      {% include 'football/includes/_zone_chips.html' with chips=zone_chips %}
 	      {# Breadcrumb "Espacio activo" retirado: era redundante con las pestañas (menos capas). #}
 
       {% if messages %}

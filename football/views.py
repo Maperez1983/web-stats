@@ -34737,10 +34737,24 @@ def training_session_detail_page(request, session_id):
 
     # La ficha de sesión NO recomienda tareas (petición del usuario).
     recommended_tasks = []
+    # Chips de estado (mismo lenguaje que el resto del sistema).
+    try:
+        _presentes = sum(1 for r in (attendance_rows or []) if r.get("present"))
+    except Exception:
+        _presentes = 0
+    _dur_plan = int(getattr(session_obj, "duration_minutes", 0) or 0)
+    session_chips = [
+        {"n": tasks_count, "k": "Tareas", "tone": "gold"},
+        {"n": task_minutes_total, "d": "/%s′" % _dur_plan if _dur_plan else "′",
+         "k": "Minutos en tareas",
+         "tone": ("red" if _dur_plan and task_minutes_total > _dur_plan else "ok")},
+        {"n": _presentes, "d": "/%s" % len(attendance_rows or []), "k": "Presentes", "tone": "blue"},
+    ]
     return render(
         request,
         "football/training_session_detail.html",
         {
+            "zone_chips": session_chips,
             "session": session_obj,
             "session_cover_path": _session_cover_static_path(session_obj),
             "recommended_tasks": recommended_tasks,
@@ -52079,6 +52093,13 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
         request,
         "football/sessions_planner.html",
         {
+            # Chips de estado del area, mismo lenguaje que Inicio/Equipo/Partido.
+            "zone_chips": [
+                {"n": len(all_sessions), "k": "Sesiones", "tone": "gold"},
+                {"n": len(microcycle_rows), "k": "Microciclos", "tone": "blue"},
+                {"n": len(task_library), "k": "Tareas"},
+                {"n": (home_next_session or {}).get("tasks", 0), "k": "Tareas próx. sesión", "tone": "ok"},
+            ],
             "home_next_session": home_next_session,
             "team_name": primary_team.display_name,
             "primary_team_id": int(primary_team.id),
@@ -55459,6 +55480,12 @@ def session_task_resource_library_page(request, scope_key="coach", scope_title="
             "upload_scope": upload_scope,
             "upload_api_url": reverse("pdf-graphic-asset-upload"),
             "visibility_api_url": reverse("task-resource-library-visibility-api"),
+            "zone_chips": [
+                {"n": int(resource_library_context.get("board_resource_count") or 0), "k": "Base pizarra", "tone": "gold"},
+                {"n": len(resource_library_context.get("pdf_assets") or []), "k": "Importados"},
+                {"n": len(resource_library_context.get("ppt_icons") or []), "k": "Del sistema", "tone": "blue"},
+                {"n": len(resource_library_context.get("drills_catalog") or []), "k": "Drills e iconos", "tone": "ok"},
+            ],
             "delete_api_url": reverse("pdf-graphic-asset-delete-api"),
             "board_resource_count": int(resource_library_context.get("board_resource_count") or 0),
             "pdf_asset_count": len(resource_library_context.get("pdf_assets") or []),
@@ -58290,6 +58317,11 @@ def session_library_page(request):
         "planning_microcycles": planning_microcycles,
         "prefill_microcycle_id": prefill_mc_id,
         "prefill_microcycle": prefill_mc,
+        "zone_chips": [
+            {"n": len(rows), "k": "Plantillas", "tone": "gold"},
+            {"n": sum(int(r.get("task_count") or 0) for r in rows), "k": "Tareas"},
+            {"n": len(planning_microcycles), "k": "Microciclos", "tone": "blue"},
+        ],
     }
     return render(request, "football/session_library.html", context)
 

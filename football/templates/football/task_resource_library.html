@@ -5,29 +5,31 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Biblioteca de recursos · {{ scope_title }}</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
+    {% include 'football/pwa_head.html' %}
     <style>
       :root {
-        color-scheme: dark;
-        --bg: #081220;
-        --panel: rgba(15, 23, 42, 0.86);
-        --panel-2: rgba(15, 23, 42, 0.68);
-        --line: rgba(255,255,255,0.1);
-        --text: #f8fafc;
-        --muted: rgba(226,232,240,0.76);
-        --accent: #22c55e;
-        --accent-2: #f4b400;
+        /* Alias de la paleta de marca: esta pantalla ya no define colores propios. */
+        --bg: var(--prod-bg, #0b1626);
+        --panel: var(--prod-panel, rgba(18,30,50,.94));
+        --panel-2: var(--prod-panel-flat, rgba(18,30,50,.78));
+        --line: var(--prod-border, rgba(255,255,255,0.1));
+        --text: var(--prod-text, #f5f7fa);
+        --muted: var(--prod-muted, #a7b6cf);
+        --accent: var(--prod-success, #22c55e);
+        --accent-2: var(--prod-amber, #f4b400);
       }
       * { box-sizing: border-box; }
       body {
         margin: 0;
         font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
-        background:
-          radial-gradient(circle at top, rgba(34,197,94,0.16), transparent 30%),
-          linear-gradient(180deg, #081220 0%, #0f172a 100%);
+        background: var(--bg);
         color: var(--text);
       }
       .page {
-        width: min(1520px, calc(100vw - 32px));
+        width: 100%;
+        max-width: var(--fm-page-wide,1520px);
         margin: 0 auto;
         padding: 28px 0 48px;
       }
@@ -257,10 +259,12 @@
   </head>
   <body>
     <main class="page">
+      {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='entreno' %}
       <div class="topbar">
         <div>
           <div class="eyebrow">Biblioteca de recursos</div>
-          <h1>Repositorio visual para la pizarra</h1>
+          <h1 style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>Repositorio visual para la pizarra</span></h1>
           <p class="meta">Aquí se gestionan los recursos del editor en una página propia. El lateral de la tarea queda reservado para insertar material y editar lo que ya está en el campo, sin mezclar administración de biblioteca.</p>
         </div>
         <div class="actions">
@@ -268,24 +272,7 @@
         </div>
       </div>
 
-      <section class="hero-grid">
-        <article class="hero-card">
-          <span>Recursos base pizarra</span>
-          <strong>{{ board_resource_count }}</strong>
-        </article>
-        <article class="hero-card">
-          <span>Recursos importados</span>
-          <strong>{{ pdf_asset_count }}</strong>
-        </article>
-        <article class="hero-card">
-          <span>Material del sistema</span>
-          <strong>{{ ppt_icon_count }}</strong>
-        </article>
-        <article class="hero-card">
-          <span>Drills e iconos técnicos</span>
-          <strong>{{ drill_count }}</strong>
-        </article>
-      </section>
+      {% include 'football/includes/_zone_chips.html' with chips=zone_chips %}
 
       <section class="panel">
         <div class="section-head">

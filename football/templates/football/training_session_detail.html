@@ -18,7 +18,7 @@
         color:#e5e7eb;
         font-family:var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
       }
-      .page { max-width: 1160px; margin:0 auto; padding: 1.15rem 1rem 2.8rem; }
+      .page { max-width: var(--fm-page,1120px); margin:0 auto; padding: 1.15rem 1rem 2.8rem; }
       .topbar {
         display:flex;
         justify-content:space-between;
@@ -35,7 +35,7 @@
         -webkit-backdrop-filter: blur(14px);
       }
       .topbar-copy { display:flex; flex-direction:column; gap:0.32rem; max-width: 700px; }
-      .topbar-kicker { color: rgba(125,211,252,0.9); font-size:0.72rem; font-weight:950; letter-spacing:0.16em; text-transform:uppercase; }
+      .topbar-kicker { color: var(--prod-muted,#a7b6cf); font-size:0.72rem; font-weight:950; letter-spacing:0.16em; text-transform:uppercase; }
       .topbar h1 { margin:0; font-size:clamp(1.35rem, 2vw, 2rem); line-height:1.02; letter-spacing:-0.03em; color:var(--prod-text); }
       .topbar-subline { display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; color: rgba(226,232,240,0.74); font-weight:850; font-size:0.85rem; }
       .session-pill {
@@ -235,14 +235,15 @@
   </head>
   <body class="prod-commercial">
     <main class="page">
+      {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='entreno' %}
       <div class="topbar">
         <div class="topbar-copy">
           <div class="topbar-kicker">Plan de entrenamiento</div>
-          <h1>{{ session_display_title|default:session.focus }}</h1>
+          <h1 style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>{{ session_display_title|default:session.focus }}</span></h1>
           <div class="topbar-subline">
             <span class="session-pill">{{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</span>
             <span class="session-pill">{{ session.get_intensity_display }}</span>
-            <span class="session-pill" title="Minutos en tareas / duración planificada de la sesión">{{ tasks_count }} tareas · {{ task_minutes_total }}/{{ session.duration_minutes }} min</span>
             <span class="session-pill">{{ team.name|default:"Equipo" }}</span>
           </div>
         </div>
@@ -267,6 +268,7 @@
           <button type="button" class="btn" id="toggle-edit" title="Post-sesión (RPE/cargas) y cierre/confirmación de la sesión">⚙️ Post-sesión y cierre</button>
 	        </div>
 	      </div>
+      {% include 'football/includes/_zone_chips.html' with chips=zone_chips %}
 
       {% if message %}<div class="alert ok">{{ message }}</div>{% endif %}
       {% if error %}<div class="alert err">{{ error }}</div>{% endif %}

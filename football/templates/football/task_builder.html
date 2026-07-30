@@ -85,6 +85,9 @@
         {% include 'football/includes/editor_lab_switcher.html' %}
 	      {% if show_dragon_nav|default:True %}
 	      {% include 'football/includes/dragon_nav.html' %}
+	      {# El editor sirve a dos zonas: el sub-nav sigue a la que vienes. #}
+	      {% if tactics_mode %}{% include 'football/includes/_zone_subnav.html' with zone='tactica' %}
+	      {% elif not analysis_item_mode %}{% include 'football/includes/_zone_subnav.html' with zone='entreno' %}{% endif %}
 	      {% endif %}
       {% include 'football/includes/task_builder/topbar.html' %}
       {% include 'football/includes/task_builder/body.html' %}
