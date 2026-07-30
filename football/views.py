@@ -34907,6 +34907,17 @@ def training_session_detail_page(request, session_id):
             "zone_chips": session_chips,
             "session": session_obj,
             "session_cover_path": _session_cover_static_path(session_obj),
+            # La cabecera usaba SIEMPRE una foto de repertorio elegida por el resto del id: la misma
+            # imagen en sesiones completamente distintas, pura decoracion. Si la sesion tiene tareas
+            # con portada, se compone un mosaico con las suyas: cuesta cero (ya estan generadas) y de
+            # un vistazo se ve que contiene el entreno. Sin portadas, se mantiene la foto de fondo.
+            # OJO: `rows` se reinicia en cada bloque, asi que solo tendria las tareas del ultimo.
+            # El mosaico se arma desde `tasks`, que es la lista completa y ya ordenada.
+            "session_cover_tiles": [
+                reverse("session-task-cover-file", args=[int(_t.id)]) + "?w=480"
+                for _t in tasks
+                if getattr(_t, "cover_present", False)
+            ][:4],
             "recommended_tasks": recommended_tasks,
             "session_display_title": session_display_title,
             "session_number": session_number,

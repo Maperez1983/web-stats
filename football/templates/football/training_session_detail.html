@@ -240,7 +240,10 @@
       <div class="topbar">
         <div class="topbar-copy">
           <div class="topbar-kicker">Plan de entrenamiento</div>
-          <h1 style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>{{ session_display_title|default:session.focus }}</span></h1>
+          {% comment %}El titulo se repetia en la cabecera de la pagina y en la del documento (el
+          que se imprime). Aqui queda solo para lectores de pantalla; el visible lo pone el documento.{% endcomment %}
+          <h1 style="position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;">{{ session_display_title|default:session.focus }}</h1>
+          <div style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}</div>
           <div class="topbar-subline">
             <span class="session-pill">{{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</span>
             <span class="session-pill">{{ session.get_intensity_display }}</span>
@@ -274,7 +277,15 @@
       {% if error %}<div class="alert err">{{ error }}</div>{% endif %}
 
 	      <section class="sheet" id="session-view">
-        {% if session_cover_path %}<div style="width:100%; height:160px; background-image:url('{% static session_cover_path %}'); background-size:cover; background-position:center 35%; border-radius:14px 14px 0 0;" title="Entrenamiento"></div>{% endif %}
+        {% comment %}Cabecera: si la sesión tiene tareas con portada, se compone un mosaico con LAS
+        SUYAS (dice de un vistazo qué contiene el entreno). Si no, la foto de repertorio de siempre.{% endcomment %}
+        {% if session_cover_tiles %}
+        <div style="width:100%; height:160px; border-radius:14px 14px 0 0; overflow:hidden; display:grid; grid-template-columns:repeat({{ session_cover_tiles|length }}, 1fr); gap:2px; background:#0b1220;" title="Tareas de la sesión">
+          {% for tile in session_cover_tiles %}
+          <div style="background-image:url('{{ tile }}'); background-size:cover; background-position:center 38%;"></div>
+          {% endfor %}
+        </div>
+        {% elif session_cover_path %}<div style="width:100%; height:160px; background-image:url('{% static session_cover_path %}'); background-size:cover; background-position:center 35%; border-radius:14px 14px 0 0;" title="Entrenamiento"></div>{% endif %}
 	        <div class="club-head">
 	          <table style="width:100%; border-collapse:collapse;">
 	            <tr>
@@ -319,10 +330,12 @@
 	            <tr><td>Tareas</td><td><div class="v">{{ tasks_count }}</div></td><td>Carga (RPE)</td><td><div class="v">{% if workload_points %}{{ workload_points }}{% elif planned_load %}{{ planned_load }} <span style="opacity:.6;font-weight:600;">prev.</span>{% else %}—{% endif %}</div></td></tr>
 	            <tr><td>Workflow</td><td><select class="cev" name="workflow_status">{% for value, label in workflow_status_choices %}<option value="{{ value }}" {% if session.workflow_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td><td>Motivo</td><td><input class="cev" type="text" name="workflow_reason" maxlength="220" value="{{ session.workflow_reason }}" placeholder="Ajuste por carga / lluvia…" /></td></tr>
 	            {% else %}
-	            <tr><td style="width:18%;">Lugar</td><td><div class="v">{% if plan_fields.location %}{{ plan_fields.location }}{% else %}—{% endif %}</div></td><td style="width:18%;">Estado</td><td><div class="v">{{ session.get_status_display }}</div></td></tr>
+	            {% comment %}Se quitan de la lectura la fila "Tareas" (el contador de arriba ya la da) y
+	            "Workflow" (jerga interna, y ademas un SEGUNDO estado al lado de "Estado": confunde).
+	            Ambos siguen editandose en el modo edicion de la ficha.{% endcomment %}
+	            <tr><td style="width:18%;">Lugar</td><td><div class="v">{% if plan_fields.location %}{{ plan_fields.location }}{% else %}<span style="opacity:.45;font-weight:600;">Sin definir</span>{% endif %}</div></td><td style="width:18%;">Estado</td><td><div class="v">{{ session.get_status_display }}</div></td></tr>
 	            <tr><td>Duración</td><td><div class="v">{{ session.duration_minutes }} min <span style="opacity:.68; font-weight:600; font-size:.82em;">planificada{% if task_minutes_total %} · {{ task_minutes_total }} en tareas{% endif %}{% if task_minutes_pending %} · faltan {{ task_minutes_pending }}′ por asignar{% endif %}</span></div></td><td>Intensidad</td><td><div class="v">{{ session.get_intensity_display }}</div></td></tr>
-	            <tr><td>Tareas</td><td><div class="v">{{ tasks_count }}</div></td><td>Carga (RPE)</td><td><div class="v">{% if workload_points %}{{ workload_points }} ({{ workload_rpe }}×{{ workload_minutes }}'){% elif planned_load %}{{ planned_load }} <span style="opacity:.6;font-weight:600;">prev. ({{ planned_rpe }}×{{ session.duration_minutes }}')</span>{% else %}—{% endif %}</div></td></tr>
-	            <tr><td>Workflow</td><td colspan="3"><div class="v">{{ session.get_workflow_status_display|default:"—" }}{% if session.workflow_updated_at %} <span style="color:var(--club-muted);">· {{ session.workflow_updated_at|date:"d/m H:i" }}</span>{% endif %}</div></td></tr>
+	            <tr><td>Carga (RPE)</td><td colspan="3"><div class="v">{% if workload_points %}{{ workload_points }} ({{ workload_rpe }}×{{ workload_minutes }}'){% elif planned_load %}{{ planned_load }} <span style="opacity:.6;font-weight:600;">prev. ({{ planned_rpe }}×{{ session.duration_minutes }}')</span>{% else %}—{% endif %}</div></td></tr>
 	            {% endif %}
 	          </table>
 
@@ -719,7 +732,11 @@
               {% endif %}
 	        </div>
 
-	          <div class="section-title" id="participacion">Participación por tarea</div>
+	          {% comment %}Desde que la participacion se guarda sola al confirmar la sesion, esta
+	          seccion solo hace falta para marcar EXCEPCIONES. Va plegada para no competir con las
+	          tareas, que es lo que se consulta a diario.{% endcomment %}
+	          <details style="margin-bottom:12px;">
+	          <summary class="section-title" id="participacion" style="cursor:pointer; list-style:none;">Participación por tarea <span style="opacity:.65;font-weight:600;text-transform:none;letter-spacing:0;">· solo si hay excepciones</span></summary>
 	          <div class="box" style="margin-bottom:12px;">
 	            {% if participation_tasks and available_players %}
 	            <style>
@@ -810,7 +827,11 @@
 	            <span style="color:var(--club-muted);">Esta sesión no tiene tareas todavía.</span>
 	            {% endif %}
 	          </div>
+	          </details>
 
+	          {% comment %}Secciones vacias fuera: "Post-sesion" e "Historial" pintaban una cabecera
+	          verde solo para decir que no habia nada. Si no hay contenido, no ocupan.{% endcomment %}
+	          {% if review %}
 	          <div class="section-title">Post-sesión (60s)</div>
 	          <div class="box" style="margin-bottom:12px;">
 	            {% if review %}
@@ -826,14 +847,13 @@
 	              {% if review.what_failed %}<p style="margin-top:10px;"><strong>Qué falló:</strong><br />{{ review.what_failed|linebreaksbr }}</p>{% endif %}
 	              {% if review.next_adjustment %}<p style="margin-top:10px;"><strong>Ajuste siguiente:</strong><br />{{ review.next_adjustment|linebreaksbr }}</p>{% endif %}
 	              {% if review.evidence_url %}<p style="margin-top:10px;"><strong>Evidencia:</strong><br /><a href="{{ review.evidence_url }}" target="_blank" rel="noopener noreferrer">{{ review.evidence_url }}</a></p>{% endif %}
-	            {% else %}
-	              <span style="color:var(--club-muted);">(Sin post-sesión guardada)</span>
 	            {% endif %}
 	          </div>
+	          {% endif %}
 
+	          {% if audit_entries %}
 	          <div class="section-title">Historial</div>
 	          <div class="box" style="margin-bottom:12px;">
-	            {% if audit_entries %}
 	              <ul style="margin:0; padding-left:18px;">
 	                {% for row in audit_entries %}
 	                  <li style="margin:6px 0;">
@@ -843,10 +863,8 @@
 	                  </li>
 	                {% endfor %}
 	              </ul>
-	            {% else %}
-	              <span style="color:var(--club-muted);">(Sin entradas de auditoría)</span>
-	            {% endif %}
 	          </div>
+	          {% endif %}
 
 	        <div class="footer">
 	          <div>2J · Sesión</div>
