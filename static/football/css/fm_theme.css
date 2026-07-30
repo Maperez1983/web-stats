@@ -150,3 +150,10 @@
 :root[data-theme="light"] .zc-k { color: rgba(15,23,42,.58); }
 :root[data-theme="light"] .fm-card,
 :root[data-theme="light"] .fm-table { background: #ffffff; border-color: rgba(15,23,42,.12); }
+
+/* Titulos que usan el color secundario del club: en claro puede ser casi blanco
+   (aqui #ebebeb) y quedar ilegible sobre fondo claro. */
+:root[data-theme="light"] body.prod-commercial :where(.card, .panel, .product-card) :where(h2, h3),
+:root[data-theme="light"] body.prod-commercial .eyebrow,
+:root[data-theme="light"] body.prod-commercial .kicker,
+:root[data-theme="light"] body.prod-commercial .hero-kicker { color: rgba(15,23,42,.72); }

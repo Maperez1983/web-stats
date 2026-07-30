@@ -38,6 +38,11 @@
         box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
         backdrop-filter: none;
       }
+      /* Los titulos de tarjeta usan --accent, que es el color SECUNDARIO del club
+         (#ebebeb en este caso): perfecto en oscuro, invisible sobre blanco. */
+      :root[data-theme="light"] .card h2,
+      :root[data-theme="light"] .card h3,
+      :root[data-theme="light"] .eyebrow { color: rgba(15,23,42,.72); }
       :root[data-theme="light"] .hm-mini thead th { color: rgba(15,23,42,.55); }
       :root[data-theme="light"] .hm-mini tr.me { background: rgba(244,180,0,.14); }
       body {
