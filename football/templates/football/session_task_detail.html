@@ -27,13 +27,13 @@
         --bg: #061226;
         --panel: rgba(7, 22, 44, 0.92);
         --line: rgba(255, 255, 255, 0.14);
-        --prod-bg: #020916;
-        --prod-ink: #f3f4f6;
-        --prod-ink-muted: rgba(225, 236, 255, 0.78);
-        --prod-card: rgba(7, 22, 44, 0.92);
-        --prod-card-strong: rgba(9, 25, 50, 0.96);
-        --prod-line: rgba(255, 255, 255, 0.14);
-        --prod-line-strong: rgba(255, 255, 255, 0.22);
+        /* Estos nombres son locales de esta pantalla y antes traian valores PROPIOS, distintos
+           a los del sistema de marca (otro fondo, otras tarjetas, otras lineas). Ahora son
+           alias: la ficha usa exactamente la misma identidad que el resto del producto. */
+        --prod-ink: var(--prod-text);
+        --prod-ink-muted: var(--prod-muted);
+        --prod-card: var(--prod-panel-flat);
+        --prod-card-strong: var(--prod-panel-flat);
         --prod-glass: rgba(255, 255, 255, 0.06);
         --prod-shadow: 0 22px 55px rgba(0, 0, 0, 0.36);
         --ui-bg: #020916;

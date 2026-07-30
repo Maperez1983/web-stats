@@ -7,6 +7,10 @@
 <link rel="apple-touch-icon" href="{% static 'football/pwa/icons/icon-180.png' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
 <link rel="icon" type="image/png" sizes="192x192" href="{% static 'football/pwa/icons/icon-192.png' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
 <link rel="icon" type="image/png" sizes="512x512" href="{% static 'football/pwa/icons/icon-512.png' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+{# Sistema de marca (2J Brand System): tokens de color, tipografia, espaciado y tema claro.
+   Estaba enlazado plantilla a plantilla (106 de 144) y habia pantallas usando var(--prod-*)
+   sin cargarlo, asi que la identidad se aplicaba a medias. Aqui lo ve TODA la app. #}
+<link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
 <link rel="stylesheet" href="{% static 'football/css/fm_theme.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
 {% if brand_theme and brand_theme.css_vars %}
 <style id="brand-theme-vars">

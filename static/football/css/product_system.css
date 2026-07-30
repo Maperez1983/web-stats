@@ -52,6 +52,15 @@
   --prod-pitch: #2f7d32;
   --prod-amber: #f4b400;
   --prod-slate: #a7b6cf;
+
+  /* ---- Regla de acento (una sola, para todo el producto) ----
+     VERDE = lo que pasa en el campo: entrenamiento, tareas, pizarra, partido.
+     AMBAR = club y direccion: gobierno, contratos, ojeo, facturacion.
+     Cualquier pantalla nueva elige UNO de los dos segun su area, y no mezcla. */
+  --prod-accent-pitch: var(--prod-primary);
+  --prod-accent-pitch-soft: var(--prod-primary-soft);
+  --prod-accent-club: var(--prod-secondary);
+  --prod-accent-club-soft: var(--prod-secondary-soft);
 }
 
 /* Light theme (default): activado con <html data-theme="light">.
