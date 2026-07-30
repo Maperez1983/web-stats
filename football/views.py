@@ -32563,6 +32563,11 @@ def _build_task_pdf_context(
         # del editor) esa imagen es la buena: se usa directamente.
         if normalized_variant == "2d" and preview_url and not allow_live_canvas_render:
             return preview_url
+        # Y por lo mismo, en pantalla no tiene sentido enseñar una "Vista 3D" que solo puede salir
+        # como estadio vacío: ocupaba media fila al lado de la pizarra. Sin ella, la 2D va a todo
+        # el ancho (la plantilla ya contempla ese caso).
+        if normalized_variant == "3d" and not allow_live_canvas_render:
+            return ""
         has_objects = (
             isinstance(canvas_state, dict)
             and isinstance(canvas_state.get("objects"), list)
