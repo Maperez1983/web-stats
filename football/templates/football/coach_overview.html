@@ -20,6 +20,26 @@
         --success: #86efac;
         --pitch: #2f7d32;
       }
+      /* Modo claro: esta pantalla define sus propias superficies (--panel, --panel-soft,
+         --muted) con literales oscuros, asi que hay que redefinirlas o las tarjetas se
+         quedan negras sobre fondo claro. El resto del CSS no cambia: usa las variables. */
+      :root[data-theme="light"] {
+        --bg: #f4f7fb;
+        --panel: #ffffff;
+        --panel-soft: #ffffff;
+        --line: rgba(15, 23, 42, 0.14);
+        --muted: rgba(15, 23, 42, 0.62);
+        --success: #15803d;
+      }
+      :root[data-theme="light"] body {
+        background: var(--bg) !important;
+      }
+      :root[data-theme="light"] .card {
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+        backdrop-filter: none;
+      }
+      :root[data-theme="light"] .hm-mini thead th { color: rgba(15,23,42,.55); }
+      :root[data-theme="light"] .hm-mini tr.me { background: rgba(244,180,0,.14); }
       body {
         margin: 0;
         min-height: 100vh;
