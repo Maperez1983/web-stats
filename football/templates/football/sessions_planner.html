@@ -2360,15 +2360,11 @@
 	                      </div>
 	                    </form>
 		      <script>
-		        window.__confirmLooseSession = function (form) {
-		          try {
-		            var mc = form.querySelector('select[name="plan_microcycle_id"]');
-		            if (mc && !String(mc.value || '').trim()) {
-		              return window.confirm('Vas a crear una sesión SUELTA (sin microciclo). Lo recomendable es asignarla a un microciclo. ¿Continuar sin microciclo?');
-		            }
-		          } catch (e) { /* noop */ }
-		          return true;
-		        };
+		        // Habia DOS formularios de creacion con el mismo confirm() de "sesion suelta". Un
+		        // confirm() bloquea el navegador y ademas saltaba siempre en equipos sin microciclos,
+		        // asi que dejaba de avisar de nada. El aviso vive ahora en la propia pagina, junto al
+		        // selector. Se conserva la funcion (la llaman formularios existentes) sin bloquear.
+		        window.__confirmLooseSession = function () { return true; };
 		      </script>
 		      <script>
 		                      (function () {
@@ -2755,7 +2751,7 @@
                           <span class="sr-only">Más acciones</span>
                         </summary>
                         <div class="task-more-body">
-                          <form method="post" onsubmit="return confirm('¿Crear un entreno real desde este PDF? (Generará tareas, convocatoria y asistencia)');">
+                          <form method="post" >
                             {% csrf_token %}
                             <input type="hidden" name="planner_action" value="create_session_from_imported_doc" />
                             <input type="hidden" name="planner_tab" value="sessions" />
@@ -4068,7 +4064,7 @@
                           <div><button type="submit" class="secondary">Duplicar sesión con tareas</button></div>
                         </form>
 	                      </details>
-	                      <form method="post" onsubmit="return confirm('¿Mover esta sesión a “Sesiones sueltas”? (Se podrá vincular de nuevo)');">
+	                      <form method="post" >
 	                        {% csrf_token %}
 	                        <input type="hidden" name="planner_action" value="detach_session_from_microcycle" />
 	                        <input type="hidden" name="planner_tab" value="microcycles" />

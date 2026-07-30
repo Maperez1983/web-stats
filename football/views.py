@@ -34064,6 +34064,59 @@ def training_session_detail_page(request, session_id):
                     except Exception:
                         pass
 
+                # Al CONFIRMAR, la participacion deja de ser una intencion y pasa a ser un hecho.
+                #
+                # Antes, la ficha pintaba "22/22 participan" porque cuando no hay ninguna fila
+                # guardada marca a todos por defecto; pero las filas de SessionTaskParticipation
+                # SOLO se creaban si el entrenador pulsaba "Guardar participacion". Los minutos de
+                # entreno del jugador se suman exclusivamente de esas filas, asi que la sesion se
+                # veia completa y el jugador seguia con "0 ses · 0'". Sin forma de notarlo.
+                #
+                # Regla: se persiste lo que la pantalla ya mostraba. Todos los DISPONIBLES en cada
+                # tarea que no tenga participacion guardada. Si el entrenador ya marco excepciones
+                # en una tarea, esa tarea NO se toca.
+                try:
+                    _absent_now = {
+                        TrainingSessionAttendance.STATUS_ABSENT,
+                        TrainingSessionAttendance.STATUS_INJURED,
+                        TrainingSessionAttendance.STATUS_EXCUSED,
+                    }
+                    _unavailable = set()
+                    for _mk in TrainingSessionAttendance.objects.filter(session=session_obj):
+                        if str(getattr(_mk, "status", "") or "").strip() in _absent_now:
+                            _unavailable.add(int(getattr(_mk, "player_id", 0) or 0))
+                    # Lesionados con parte activo a la fecha de la sesion: la ficha los excluye
+                    # aunque no haya marca guardada, asi que aqui igual.
+                    _session_day = getattr(session_obj, "session_date", None) or timezone.localdate()
+                    for _rec in PlayerInjuryRecord.objects.filter(
+                        player__team=primary_team, is_active=True, injury_date__lte=_session_day
+                    ).filter(Q(return_date__isnull=True) | Q(return_date__gt=_session_day)):
+                        _unavailable.add(int(getattr(_rec, "player_id", 0) or 0))
+
+                    _available_ids = [
+                        int(_p.id)
+                        for _p in Player.objects.filter(team=primary_team, is_active=True)
+                        if int(_p.id) not in _unavailable
+                    ]
+                    _tasks_now = list(session_obj.tasks.filter(deleted_at__isnull=True))
+                    _task_ids_now = [int(_t.id) for _t in _tasks_now]
+                    _with_rows = set(
+                        int(_x)
+                        for _x in SessionTaskParticipation.objects.filter(
+                            session_task_id__in=_task_ids_now
+                        ).values_list("session_task_id", flat=True)
+                    )
+                    _to_create = [
+                        SessionTaskParticipation(session_task_id=_tid, player_id=_pid)
+                        for _tid in _task_ids_now
+                        if _tid not in _with_rows
+                        for _pid in _available_ids
+                    ]
+                    if _to_create:
+                        SessionTaskParticipation.objects.bulk_create(_to_create, ignore_conflicts=True)
+                except Exception:
+                    logger.exception("No se pudo consolidar la participacion al confirmar la sesion")
+
                 # Fase 7: multas automáticas al confirmar. Llega tarde -> 5€; no comparece sin
                 # justificar (ausente) -> 10€. Justificado/lesionado NO multan. Idempotente: no
                 # re-multa la misma sesión (marcamos la nota con [sesion:ID] y comprobamos antes).
