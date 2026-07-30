@@ -32262,11 +32262,28 @@ def _build_task_pdf_context(
     strategy_label = str(meta.get("strategy") or meta.get("training_type") or meta.get("methodology") or "").strip()
     if not strategy_label:
         strategy_label = ""
-    space_label = " · ".join(part for part in [dimensions_text, _display_pdf_value(meta.get("space"))] if part)
+    def _join_unique(parts):
+        """Une partes con ' · ' SIN repetir las que dicen lo mismo.
+
+        `Espacio` salia como "25 x 25 · 25 X 25": son dos campos distintos (medidas y espacio)
+        que el entrenador suele rellenar igual, y se pintaban los dos. Comparamos normalizando
+        mayusculas/espacios/signos para no enseniar el mismo dato dos veces.
+        """
+        seen, out = set(), []
+        for part in parts:
+            text = str(part or "").strip()
+            if not text:
+                continue
+            key = re.sub(r"[^a-z0-9]", "", text.lower())
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(text)
+        return " · ".join(out)
+
+    space_label = _join_unique([dimensions_text, _display_pdf_value(meta.get("space"))])
     # Compat: seguimos generando formato/superficie por si se quiere imprimir como detalle técnico.
-    game_situation_label = " · ".join(
-        part for part in [_display_pdf_value(meta.get("pitch_format")), _display_pdf_value(meta.get("surface"))] if part
-    )
+    game_situation_label = _join_unique([_display_pdf_value(meta.get("pitch_format")), _display_pdf_value(meta.get("surface"))])
     structure_label = str(meta.get("structure") or "").strip()
     dynamics_label = str(meta.get("dynamics") or "").strip()
     coordination_label = str(meta.get("coordination") or "").strip()
