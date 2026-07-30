@@ -162,6 +162,12 @@
     var snapshotHasDrawing = function(){
       try{
         if (window.__WEBSTATS_TPAD_READY !== true) return false;
+        // 1) El CAMPO tiene que estar pintado. Sin esto salian fotos de solo cesped: el verde es
+        //    el fondo CSS del escenario, y si el SVG del campo aun no ha pintado no hay ni lineas
+        //    (se veia en las metricas: verde=0.97 y blanco=0.00, o sea cero lineas).
+        var svg = document.getElementById('task-pitch-surface');
+        if (!svg || svg.querySelectorAll('*').length < 8) return false;
+        // 2) Y encima tiene que haber algo dibujado en la capa de Fabric.
         var c = document.querySelector('#task-pitch-stage canvas.lower-canvas') || document.getElementById('create-task-canvas');
         if (!c || !c.width || !c.height) return false;
         var s = document.createElement('canvas');
@@ -178,7 +184,9 @@
         }
         return false;
       }catch(e){
-        return true; // si no podemos leer el lienzo, no bloqueamos la foto
+        // Lienzo ilegible (p. ej. "tainted" por una imagen de otro dominio): no podemos contar
+        // pixeles, pero el campo SI esta pintado, asi que dejamos pasar la foto.
+        return true;
       }
     };
     var snapReadyTries = 0;

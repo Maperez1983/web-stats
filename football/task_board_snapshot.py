@@ -302,6 +302,10 @@ def _looks_like_a_real_board(png_bytes: bytes) -> bool:
     # pintado. La heuristica de color, calibrada para las miniaturas recortadas de 720 px,
     # daba FALSO POSITIVO con una foto del campo entero: mucho verde y lineas finas que al
     # reducir a 128 px dejan de contar como blanco. Aqui solo caza un rectangulo liso.
+    # Sin NADA de blanco no hay ni lineas de campo: eso no es una pizarra, es cesped a secas
+    # (pasaba cuando la foto se disparaba antes de que el SVG del campo hubiera pintado).
+    if white <= 0.005:
+        return False
     return not (green >= 0.97 and white <= 0.03)
 
 
