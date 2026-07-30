@@ -34728,10 +34728,10 @@ def training_session_detail_page(request, session_id):
         task_minutes_total = 0
     # Cuanto queda por repartir: la ficha decia "90 min planificada · 30 en tareas" y dejaba al
     # entrenador haciendo la resta. Si sobra tiempo sin asignar, se dice con todas las letras.
-    try:
-        task_minutes_pending = max(0, int(getattr(session, "duration_minutes", 0) or 0) - int(task_minutes_total or 0))
-    except Exception:
-        task_minutes_pending = 0
+    # OJO: en esta funcion la sesion se llama `session_obj`; con `session` el try/except se tragaba
+    # un NameError y el aviso no salia nunca.
+    _plan_minutes = int(getattr(session_obj, "duration_minutes", 0) or 0)
+    task_minutes_pending = max(0, _plan_minutes - int(task_minutes_total or 0))
 
     task_real_minutes_total = 0
     try:
