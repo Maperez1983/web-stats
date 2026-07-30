@@ -222,6 +222,9 @@
         gap: 0.45rem;
         margin-top: 0.75rem;
       }
+      /* El kit del sistema pone min-width:0 a los botones dentro de contenedores
+         flex/grid; sin esto la etiqueta larga se parte letra a letra. */
+      .asset-actions > * { min-width: max-content; }
       .asset-actions .button {
         min-height: 38px;
         border-radius: 12px;
