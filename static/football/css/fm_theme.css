@@ -114,3 +114,39 @@
 .fm-page      { width:100%; max-width:var(--fm-page);        margin:0 auto; padding:var(--fm-page-pad); }
 .fm-page-wide { width:100%; max-width:var(--fm-page-wide);   margin:0 auto; padding:var(--fm-page-pad); }
 .fm-page-narrow{width:100%; max-width:var(--fm-page-narrow); margin:0 auto; padding:var(--fm-page-pad); }
+
+/* --- Modo claro: componentes compartidos -------------------------------------------
+   Los tokens ya cambian solos (product_system.css define la paleta clara), pero muchas
+   pantallas heredadas pintan superficies oscuras con literales en su propio <style>.
+   Aqui se corrigen los COMPONENTES COMPARTIDOS (los que esta identidad ha unificado),
+   que es lo que aparece en todas las pantallas: sub-nav de zona, chips de estado,
+   tarjetas y tablas. Lo que siga oscuro sera CSS propio de una pantalla concreta. */
+:root[data-theme="light"] {
+  --fm-ink:   #0f172a;
+  --fm-ink-2: rgba(15,23,42,.78);
+  --fm-ink-3: rgba(15,23,42,.58);
+  --fm-line:  rgba(15,23,42,.14);
+  --fm-line-2:rgba(15,23,42,.22);
+  --fm-panel: #ffffff;
+  --fm-panel-2: #f4f7fb;
+}
+:root[data-theme="light"] .zone-subnav a {
+  color: rgba(15,23,42,.78);
+  background: rgba(15,23,42,.04);
+  border-color: rgba(15,23,42,.14);
+}
+:root[data-theme="light"] .zone-subnav a.on {
+  background: rgba(244,180,0,.16);
+  border-color: rgba(244,180,0,.45);
+  color: #7a5b00;
+}
+:root[data-theme="light"] .zone-subnav .zt { color: rgba(15,23,42,.55); }
+:root[data-theme="light"] .zc-chip {
+  background: #ffffff;
+  border-color: rgba(15,23,42,.12);
+  box-shadow: 0 1px 2px rgba(15,23,42,.06);
+}
+:root[data-theme="light"] .zc-n { color: #0f172a; }
+:root[data-theme="light"] .zc-k { color: rgba(15,23,42,.58); }
+:root[data-theme="light"] .fm-card,
+:root[data-theme="light"] .fm-table { background: #ffffff; border-color: rgba(15,23,42,.12); }

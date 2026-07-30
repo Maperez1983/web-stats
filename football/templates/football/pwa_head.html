@@ -50,12 +50,20 @@ sin cargarlo, asi que la identidad se aplicaba a medias. Aqui lo ve TODA la app.
       var storedMode = (stored || "").toString().trim().toLowerCase();
       if (storedMode !== "light" && storedMode !== "hc" && storedMode !== "dark") storedMode = "";
 
-      var allowLight = false;
-      try { allowLight = document.documentElement && document.documentElement.hasAttribute("data-allow-light-theme"); } catch (e) {}
+      // Modo claro ACTIVADO. Antes hacia falta el atributo data-allow-light-theme en
+      // <html>, que no ponia ninguna plantilla: el modo claro estaba construido pero
+      // era inalcanzable. Ahora se permite salvo que una pantalla lo desactive a
+      // proposito con data-force-dark-theme (p. ej. superficies de video o pizarra).
+      var allowLight = true;
+      try {
+        if (document.documentElement && document.documentElement.hasAttribute("data-force-dark-theme")) allowLight = false;
+      } catch (e) {}
       if (!allowLight && brandMode === "light") brandMode = "dark";
       if (!allowLight && storedMode === "light") storedMode = "dark";
 
-      var forceDark = (brandMode === "dark");
+      // Solo se fuerza oscuro si el CLUB lo eligio, no por el valor por defecto.
+      var uiForced = ("{{ brand_theme.ui_forced|yesno:'1,0' }}" === "1");
+      var forceDark = (brandMode === "dark" && uiForced) || !allowLight;
       var mode = brandMode;
       if (!forceDark) {
         // Solo permitimos override cuando el club NO fuerza oscuro.

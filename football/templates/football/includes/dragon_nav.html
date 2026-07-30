@@ -53,8 +53,10 @@
   const storageKey = '2j_theme';
   const densityKey = '2j_density';
   const root = document.documentElement;
+  // Modo claro activado (ver pwa_head): antes esto exigia un atributo que no ponia
+  // ninguna plantilla, asi que el selector solo alternaba oscuro <-> alto contraste.
   const allowLight = (() => {
-    try { return root && root.hasAttribute('data-allow-light-theme'); } catch (e) { return false; }
+    try { return !(root && root.hasAttribute('data-force-dark-theme')); } catch (e) { return true; }
   })();
 
   const safeGet = () => {

@@ -194,6 +194,10 @@ def brand_theme(request):
         # Default del producto: oscuro (más consistente con la mayoría de pantallas).
         # El club/equipo puede forzar 'light' o 'hc' vía WorkspacePreference si lo desea.
         'ui': str(override.get('ui') or default.get('ui') or 'dark').strip().lower(),
+        # ¿lo ha elegido el club, o es solo el valor por defecto? Sin esto no se puede
+        # saber si 'dark' significa "el club fuerza oscuro" o "nadie ha tocado nada",
+        # y el modo claro quedaba bloqueado para todos.
+        'ui_forced': bool(str(override.get('ui') or default.get('ui') or '').strip()),
         'bg_light': _color(override.get('bg_light') or default.get('bg_light'), '#f4f7fb'),
         'text_light': _color(override.get('text_light') or default.get('text_light'), '#0f172a'),
     }
