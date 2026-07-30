@@ -103,8 +103,8 @@ CORE_ASSET_MAP = {
         "path": "football/templates/football/task_builder.html",
     },
     "dashboard_template": {
-        "label": "Template dashboard",
-        "path": "football/templates/football/dashboard.html",
+        "label": "Template portada del entrenador",
+        "path": "football/templates/football/coach_overview.html",
     },
     "tactical_pad_js": {
         "label": "JS tactical pad",
@@ -495,7 +495,7 @@ SYSTEM_DOMAIN_PLAYBOOKS = {
         "keywords": ["partido", "convocatoria", "rival", "once", "match"],
         "files": [
             "football/views.py",
-            "football/templates/football/dashboard.html",
+            "football/templates/football/match_hub.html",
         ],
         "checks": ["check_critical_routes", "inspect_recent_errors"],
     },
