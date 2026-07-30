@@ -48,7 +48,6 @@ Auto-resalta la página activa con nav_url_name (global). Seguro si falta: solo 
   <span class="zt">🎥 Análisis</span>
   <a href="{% url 'analysis' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'analysis' %}on{% endif %}">🎥 Análisis</a>
   <a href="{% url 'analysis-video-inbox' %}" class="{% if request.resolver_match.url_name == 'analysis-video-inbox' %}on{% endif %}">📥 Bandeja de vídeo</a>
-  <a href="{% url 'rival-players-index' %}" class="{% if request.resolver_match.url_name == 'analysis-rival-profile' %}on{% endif %}">🛡️ Rivales</a>
 </nav>
 {% elif zone == 'club' %}
 <nav class="zone-subnav" aria-label="Club">
