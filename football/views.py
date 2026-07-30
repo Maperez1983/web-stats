@@ -32557,6 +32557,12 @@ def _build_task_pdf_context(
 
     def _render_variant_preview_url(canvas_state, variant: str = "2d", *, fallback_to_primary: bool = False):
         normalized_variant = "3d" if str(variant or "").strip().lower() == "3d" else "2d"
+        # EN PANTALLA (presentación) no reconstruimos el lienzo, así que `canvas_state` viene vacío
+        # y el render server-side devolvía un CAMPO PELADO, sin fichas: por eso la "Vista 2D" de la
+        # ficha no se parecía a la pizarra. Cuando hay imagen guardada (y desde ahora es la FOTO HD
+        # del editor) esa imagen es la buena: se usa directamente.
+        if normalized_variant == "2d" and preview_url and not allow_live_canvas_render:
+            return preview_url
         has_objects = (
             isinstance(canvas_state, dict)
             and isinstance(canvas_state.get("objects"), list)
