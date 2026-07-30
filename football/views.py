@@ -849,8 +849,21 @@ def system_guard_chat_api(request):
         "weekly_summary", "injured", "available", "next_match",
         "coverage", "licenses", "evaluations", "suggested_xi",
     }
+    # Filtro barato antes de nada: si no huele a pregunta de datos, no cargamos
+    # plantilla ni calculamos nada (la ruta del guardian ya es pesada de por si).
+    _q_low = question.lower()
+    _DATA_HINTS = (
+        "lesion", "lesionad", "baja", "enfermeria", "enfermería",
+        "disponible", "cuantos jugador", "cuántos jugador", "plantilla", "cuanta gente",
+        "proximo partido", "próximo partido", "cuando jugamos", "cuándo jugamos",
+        "cobertura", "licencia", "ficha federativa",
+        "evaluacion", "evaluación", "valoracion", "valoración",
+        "11 probable", "once probable", "alineacion", "alineación", "quien juega", "quién juega",
+        "resumen", "digest", "como vamos", "cómo vamos", "estado del equipo",
+    )
+    _looks_like_data = any(h in _q_low for h in _DATA_HINTS)
     try:
-        _team_for_data = _get_primary_team_for_request(request)
+        _team_for_data = _get_primary_team_for_request(request) if _looks_like_data else None
     except Exception:
         _team_for_data = None
     if _team_for_data:
