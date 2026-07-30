@@ -17,6 +17,11 @@
           --club-soft-fill: #eff5f1;
         }
         .club-task-sheet {
+          /* Identidad: el documento usa la TIPOGRAFIA del sistema de marca (2J) y conserva el
+             COLOR del club (--club-*, derivado de pdf_palette). Asi se ve que es la misma casa
+             sin que la ficha deje de ser del club. El fallback importa: en el PDF el motor no
+             carga la fuente propia. */
+          font-family: var(--prod-font-ui, "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif);
           display: grid;
           gap: 0.85rem;
           background: linear-gradient(180deg, var(--club-panel), var(--club-sheet));
@@ -122,6 +127,11 @@
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
         .club-copy-grid-single { grid-template-columns: 1fr; }
+        .club-objective-band {
+          background: var(--club-sheet); border: 1px solid var(--club-border); border-left: 4px solid var(--club-accent);
+          border-radius: 12px; padding: 0.6rem 0.8rem;
+        }
+        .club-objective-text { font-size: 1.02rem; line-height: 1.4; font-weight: 600; margin-top: 0.15rem; }
         .club-undefined { color: rgba(15,23,42,0.38); font-weight: 600; font-size: 0.92em; }
         .club-copy-card {
           border: 1px solid var(--club-border);
@@ -290,6 +300,19 @@
           </table>
         </div>
 
+        {% comment %}El objetivo es lo primero que se lee de una tarea, asi que va en banda ancha
+        bajo la cabecera y no apretado en la columna lateral.{% endcomment %}
+        <div class="club-objective-band">
+          <span class="club-label">Objetivo principal</span>
+          {% if presentation_editable %}
+          <textarea class="cev" name="task_objective" rows="2" placeholder="¿Qué se busca con esta tarea?">{{ club_edit_values.objective }}</textarea>
+          {% else %}
+          {% with objetivo_txt=task_obj.objective|default:task.objective %}
+          <div class="club-objective-text">{% if objetivo_txt and objetivo_txt != "-" %}{{ objetivo_txt|linebreaksbr }}{% else %}<span class="club-undefined">Sin definir</span>{% endif %}</div>
+          {% endwith %}
+          {% endif %}
+        </div>
+
         <table class="club-sheet-grid" role="presentation">
           <tr>
             <td class="club-sheet-graphic">
@@ -384,14 +407,6 @@
             </td>
             <td class="club-sheet-side">
               <div class="club-panel">
-                <div class="club-panel-head club-panel-soft">Objetivo principal</div>
-                {% if presentation_editable %}
-                <div class="club-panel-body"><textarea class="cev" name="task_objective" rows="2" placeholder="¿Qué se busca con esta tarea?">{{ club_edit_values.objective }}</textarea></div>
-                {% else %}
-                {% with objetivo_txt=task_obj.objective|default:task.objective %}<div class="club-panel-body">{% if objetivo_txt and objetivo_txt != "-" %}{{ objetivo_txt|linebreaksbr }}{% else %}<span class="club-undefined">Sin definir</span>{% endif %}</div>{% endwith %}
-                {% endif %}
-              </div>
-              <div class="club-panel">
                 <div class="club-panel-head club-panel-soft">Ficha técnica</div>
                 <div class="club-panel-body">
                   {% if presentation_editable %}
@@ -434,11 +449,17 @@
                   {% else %}
                   {% comment %}Solo se listan los datos que EXISTEN: una ficha que se comparte con el
                   cuerpo tecnico no debe ir enseniando sus huecos con guiones.{% endcomment %}
-                  {% if pc.structure_label or pc.game_situation_label %}
-                  <div class="club-fact"><span class="club-label">Situación</span>{{ pc.structure_label|default:pc.game_situation_label }}</div>
-                  {% endif %}
+                  {% comment %}Agrupada por lo que se pregunta al montar la sesion: primero DONDE y CON
+                  QUIEN, luego la DOSIS (series, tiempos, carga) y al final el material. Antes era una
+                  lista plana donde todo pesaba igual.{% endcomment %}
                   {% if pc.space_label %}
                   <div class="club-fact"><span class="club-label">Espacio</span>{{ pc.space_label }}</div>
+                  {% endif %}
+                  {% if pc.player_count_label and pc.player_count_label != "-" %}
+                  <div class="club-fact"><span class="club-label">Jugadores</span>{{ pc.player_count_label }}</div>
+                  {% endif %}
+                  {% if pc.structure_label or pc.game_situation_label %}
+                  <div class="club-fact"><span class="club-label">Situación</span>{{ pc.structure_label|default:pc.game_situation_label }}</div>
                   {% endif %}
                   {% if pc.coordination_label %}
                   <div class="club-fact"><span class="club-label">Coordinación</span>{{ pc.coordination_label }}</div>
@@ -457,6 +478,9 @@
                   {% if task_meta.work_rest %}
                   <div class="club-fact"><span class="club-label">Trabajo / descanso</span>{{ task_meta.work_rest }}</div>
                   {% endif %}
+                  {% if pc.load_summary_label and pc.load_summary_label != "-" %}
+                  <div class="club-fact"><span class="club-label">Carga</span>{{ pc.load_summary_label }}</div>
+                  {% endif %}
                   {% if pc.materials_items %}
                   <div class="club-fact">
                     <span class="club-label">Materiales</span>
@@ -467,7 +491,7 @@
                   {% endif %}
                   {% endif %}
                   {% if pc.coordination_skills_label and pc.coordination_skills_label != "-" %}
-                  <div class="club-fact"><span class="club-label">Carga</span>{{ pc.coordination_skills_label }}</div>
+                  <div class="club-fact"><span class="club-label">Capacidades</span>{{ pc.coordination_skills_label }}</div>
                   {% endif %}
                 </div>
               </div>
