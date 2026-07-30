@@ -3,6 +3,7 @@ from django.urls import path
 from . import academy_views, account_views, billing_views, kit2d_views
 from . import pwa as pwa_views
 from . import (
+    season_diagnostics,
     season_wizard_views,
     session_pdf,
     tactical_views,
@@ -681,6 +682,8 @@ urlpatterns = [
     path(
         "coach/sesiones/tarea/<int:task_id>/preview/", views.session_task_preview_file, name="session-task-preview-file"
     ),
+    # Diagnostico de temporada: que temporada se usa para filtrar y a cual pertenece cada fila.
+    path("coach/sesiones/diag-temporada/", season_diagnostics.season_debug_view, name="sessions-season-debug"),
     # Pone al dia en lote las fotos HD de la biblioteca (?limit=, ?team=).
     path(
         "coach/sesiones/fotos-hd/",
