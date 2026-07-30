@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
     {% include 'football/pwa_head.html' %}
     <style>
-      .tl-wrap{max-width:1160px;margin:0 auto;padding:1rem;color:var(--fm-ink);}
+      .tl-wrap{max-width:var(--fm-page,1120px);margin:0 auto;padding:1rem;color:var(--fm-ink);}
       .tl-head{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:.4rem;}
       .tl-h1{margin:0;color:var(--fm-ink);font-size:1.5rem;font-weight:900;}
       .tl-sub{color:var(--fm-ink-3);font-weight:700;font-size:.78rem;margin:.15rem 0 0;}
@@ -49,7 +49,7 @@
         {% include 'football/includes/_zone_subnav.html' with zone='entreno' %}
         <div class="tl-head">
           <div>
-            <h1 class="tl-h1">Carga semanal</h1>
+            <h1 class="tl-h1" style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>Carga semanal</span></h1>
             <p class="tl-sub">{{ primary_team.display_name|default:primary_team.name }}{% if microcycle %} · {{ microcycle.title }} · semana del {{ microcycle.week_start|date:'d/m/Y' }}{% endif %}</p>
           </div>
           {% if microcycle %}
@@ -60,6 +60,7 @@
           </div>
           {% endif %}
         </div>
+        {% include 'football/includes/_zone_chips.html' with chips=zone_chips %}
 
         {% if microcycle and days %}
         <div class="tl-load">

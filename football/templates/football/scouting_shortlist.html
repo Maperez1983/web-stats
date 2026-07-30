@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
     {% include 'football/pwa_head.html' %}
     <style>
-      .sl-wrap{max-width:1000px;margin:0 auto;padding:1rem;color:var(--fm-ink);}
+      .sl-wrap{max-width:var(--fm-page,1120px);margin:0 auto;padding:1rem;color:var(--fm-ink);}
       .sl-h1{margin:0;color:var(--fm-ink);font-size:1.5rem;font-weight:900;}
       .sl-sub{color:var(--fm-ink-3);font-weight:700;font-size:.78rem;margin:.15rem 0 1rem;}
       .sl-links{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;}
@@ -40,7 +40,8 @@
       {% include 'football/includes/dragon_nav.html' %}
       <main class="sl-wrap">
         {% include 'football/includes/_zone_subnav.html' with zone='direccion' %}
-        <h1 class="sl-h1">Shortlist por encaje</h1>
+        <h1 class="sl-h1" style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>Shortlist por encaje</span></h1>
+        {% include 'football/includes/_zone_chips.html' with chips=zone_chips %}
         <p class="sl-sub">Candidatos de ojeo ordenados por su encaje al rol que buscas · mismo motor que la ficha</p>
         <div class="sl-links">
           <a href="{% url 'scouting-board' %}">← Dirección</a>

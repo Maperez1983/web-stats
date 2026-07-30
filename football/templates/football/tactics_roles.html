@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
     {% include 'football/pwa_head.html' %}
     <style>
-      .tk-wrap{max-width:1080px;margin:0 auto;padding:1rem;color:var(--fm-ink);}
+      .tk-wrap{max-width:var(--fm-page,1120px);margin:0 auto;padding:1rem;color:var(--fm-ink);}
       .tk-h1{margin:0;color:var(--fm-ink);font-size:1.5rem;font-weight:900;}
       .tk-sub{color:var(--fm-ink-3);font-weight:700;font-size:.78rem;margin:.15rem 0 1rem;}
       .tk-bar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem;}
@@ -41,7 +41,8 @@
       {% include 'football/includes/dragon_nav.html' %}
       <main class="tk-wrap">
         {% include 'football/includes/_zone_subnav.html' with zone='tactica' %}
-        <h1 class="tk-h1">Táctica · roles y funciones</h1>
+        <h1 class="tk-h1" style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>Táctica · roles y funciones</span></h1>
+        {% include 'football/includes/_zone_chips.html' with chips=zone_chips %}
         <p class="tk-sub">{{ primary_team.display_name|default:primary_team.name }} · elige formación y rol por puesto · el % es el encaje del jugador al rol</p>
 
         <div class="tk-bar">

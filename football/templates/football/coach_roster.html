@@ -17,7 +17,7 @@
         color: var(--prod-text, var(--prod-text));
       }
       .page {
-        max-width: 1280px;
+        max-width:var(--fm-page,1120px);
         margin: 0 auto;
         padding: clamp(0.85rem, 1.6vw, 1.35rem);
       }
@@ -770,8 +770,8 @@
   </head>
   <body class="prod-commercial">
     <main class="page">
-      {% include 'football/includes/_zone_subnav.html' with zone='equipo' %}
       {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='equipo' %}
       <header class="top">
         <div>
           <p style="margin:0;color:var(--prod-muted, rgba(15, 23, 42, 0.64));">Cuerpo técnico</p>
@@ -797,6 +797,7 @@
           </details>
         </div>
       </header>
+      {% include 'football/includes/_zone_chips.html' with chips=zone_chips %}
 
       <section class="panel">
         {% if message %}<p class="alert ok">{{ message }}</p>{% endif %}

@@ -510,7 +510,7 @@
         color: var(--ink);
         overflow-wrap: anywhere;
       }
-      @media (max-width: 1120px) {
+      @media (max-width:var(--fm-page,1120px) {
         .primary-grid,
         .secondary-grid {
           grid-template-columns: 1fr;
@@ -584,7 +584,7 @@
       {# ===== INICIO (estructura del mockup aprobado) ===== #}
       <section class="hm-hero" aria-label="Inicio">
         <div class="hm-title">
-          <h2>Inicio</h2>
+          <h2 style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>Inicio</span></h2>
           <span class="hm-date">{% now "l · j F" %}</span>
         </div>
         <p class="hm-lede">Lo que requiere tu atención hoy, y el estado del equipo de un vistazo.</p>

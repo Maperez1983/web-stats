@@ -37811,6 +37811,11 @@ def scouting_shortlist_page(request):
     return render(request, "football/scouting_shortlist.html", {
         "roles": roles, "role": role, "rows": rows,
         "total": len(rows), "evaluated": evaluated,
+        "zone_chips": [
+            {"n": len(rows), "k": "Candidatos"},
+            {"n": evaluated, "k": "Evaluados", "tone": "ok"},
+            {"n": (rows[0]["fit"] if rows else 0), "d": "%", "k": "Mejor encaje", "tone": "gold"},
+        ],
     })
 
 
@@ -39809,10 +39814,27 @@ def coach_roster_page(request):
         encoded = params.urlencode()
         return f"?{encoded}" if encoded else ""
 
+    # Chips de estado con el mismo lenguaje que Inicio y la ficha de equipo
+    # (identidad = organizacion: cada pantalla abre con su estado de un vistazo).
+    try:
+        _fed_chips = _build_federative_squad_report(request, primary_team) or {}
+    except Exception:
+        _fed_chips = {}
+    roster_chips = []
+    if _fed_chips:
+        roster_chips = [
+            {"n": _fed_chips.get("fichados", 0), "d": "/%s" % _fed_chips.get("cap", 25), "k": "Fichados", "tone": "ok"},
+            {"n": _fed_chips.get("fichas_disponibles", 0), "k": "Fichas libres"},
+            {"n": _fed_chips.get("a_prueba", 0), "k": "A prueba", "tone": "mid"},
+            {"n": _fed_chips.get("lesionados", 0), "k": "Lesionados", "tone": "red"},
+            {"n": _fed_chips.get("total_activos", 0), "k": "Total activos"},
+        ]
+
     return render(
         request,
         "football/coach_roster.html",
         {
+            "zone_chips": roster_chips,
             "team_name": primary_team.display_name,
             "players": players,
             "coach_pitch_players": coach_pitch_players,
@@ -40351,6 +40373,11 @@ def training_load_page(request):
     return render(request, "football/training_load.html", {
         "primary_team": primary_team, "microcycle": mc, "days": days,
         "week_load": int(week_load), "prev_mc": prev_mc, "next_mc": next_mc,
+        "zone_chips": [
+            {"n": int(week_load), "k": "Carga semanal", "tone": "gold"},
+            {"n": sum(len(d.get("sessions") or []) for d in days), "k": "Sesiones"},
+            {"n": sum(1 for d in days if d.get("is_matchday")), "k": "Partidos", "tone": "blue"},
+        ],
     })
 
 
@@ -42649,6 +42676,11 @@ def player_compare_page(request):
     return render(request, "football/player_compare.html", {
         "roster": roster, "pa": pa, "pb": pb,
         "prof_a": prof_a, "prof_b": prof_b, "compare": compare,
+        "zone_chips": ([
+            {"n": len(roster), "k": "Comparables"},
+            {"n": sum(1 for c in compare if c.get("a_win")), "k": "Áreas A", "tone": "ok"},
+            {"n": sum(1 for c in compare if c.get("b_win")), "k": "Áreas B", "tone": "blue"},
+        ] if compare else [{"n": len(roster), "k": "Comparables"}]),
     })
 
 
@@ -42719,6 +42751,11 @@ def tactics_roles_page(request):
         "roles_json": json.dumps(roles_by_group),
         "formations_json": json.dumps(formations),
         "formation_names": list(formations.keys()),
+        "zone_chips": [
+            {"n": len(roster), "k": "Jugadores"},
+            {"n": len(formations), "k": "Formaciones", "tone": "gold"},
+            {"n": sum(len(v) for v in roles_by_group.values()), "k": "Roles"},
+        ],
     })
 
 

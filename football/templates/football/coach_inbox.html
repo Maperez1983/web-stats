@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
     {% include 'football/pwa_head.html' %}
     <style>
-      .ib-wrap{max-width:820px;margin:0 auto;padding:1rem;color:var(--fm-ink);}
+      .ib-wrap{max-width:var(--fm-page-narrow,860px);margin:0 auto;padding:1rem;color:var(--fm-ink);}
       .ib-h1{margin:0;color:var(--fm-ink);font-size:1.5rem;font-weight:900;}
       .ib-sub{color:var(--fm-ink-3);font-weight:700;font-size:.78rem;margin:.15rem 0 1rem;}
       .ib-chips{display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1.2rem;}
@@ -34,7 +34,8 @@
     <div class="app-shell">
       {% include 'football/includes/dragon_nav.html' %}
       <main class="ib-wrap">
-        <h1 class="ib-h1">Bandeja</h1>
+        {% include 'football/includes/_zone_subnav.html' with zone='equipo' %}
+        <h1 class="ib-h1" style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>Bandeja</span></h1>
         <p class="ib-sub">{{ primary_team.display_name|default:primary_team.name }} · lo que requiere tu atención, priorizado</p>
 
         {% if alerts %}

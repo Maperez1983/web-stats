@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
     {% include 'football/pwa_head.html' %}
     <style>
-      .cp-wrap{max-width:940px;margin:0 auto;padding:1rem;color:var(--fm-ink);}
+      .cp-wrap{max-width:var(--fm-page,1120px);margin:0 auto;padding:1rem;color:var(--fm-ink);}
       .cp-h1{margin:0;color:var(--fm-ink);font-size:1.5rem;font-weight:900;}
       .cp-sub{color:var(--fm-ink-3);font-weight:700;font-size:.78rem;margin:.15rem 0 1rem;}
       .cp-sels{display:grid;grid-template-columns:1fr auto 1fr;gap:.8rem;align-items:end;margin-bottom:1.3rem;}
@@ -45,6 +45,7 @@
       <main class="cp-wrap">
         {% include 'football/includes/_zone_subnav.html' with zone='equipo' %}
         <h1 class="cp-h1" style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>Comparar jugadores</span></h1>
+        {% include 'football/includes/_zone_chips.html' with chips=zone_chips %}
         <p class="cp-sub">{{ primary_team.display_name|default:primary_team.name }} · radar de atributos superpuesto</p>
 
         <form method="get" class="cp-sels" id="cmp-form">

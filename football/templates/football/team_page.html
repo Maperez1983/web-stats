@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
     {% include 'football/pwa_head.html' %}
     <style>
-      .tm-wrap{max-width:1000px;margin:0 auto;padding:1rem;color:var(--fm-ink);}
+      .tm-wrap{max-width:var(--fm-page,1120px);margin:0 auto;padding:1rem;color:var(--fm-ink);}
       .tm-head{display:flex;gap:1.1rem;align-items:center;background:var(--fm-panel);border:1px solid var(--fm-line);border-radius:16px;padding:1.1rem 1.2rem;margin-bottom:1.1rem;}
       .tm-crest{width:74px;height:74px;object-fit:contain;border-radius:12px;background:#0b1220;flex:0 0 auto;}
       .tm-crest.ph{background:#1e293b;display:grid;place-items:center;font-size:1.6rem;font-weight:900;color:var(--fm-ink-3);}
@@ -45,7 +45,7 @@
         <div class="tm-head">
           {% if crest %}<img class="tm-crest" src="{{ crest }}" alt="" />{% else %}<div class="tm-crest ph">{{ team.name|slice:':1'|upper }}</div>{% endif %}
           <div style="flex:1;min-width:0;">
-            <div class="tm-name">{{ team.display_name|default:team.name }}</div>
+            <div class="tm-name" style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>{{ team.display_name|default:team.name }}</span></div>
             <div class="tm-meta">
               {% if team.category %}<span>{{ team.category }}</span>{% endif %}
               {% if team.city %}<span>📍 {{ team.city }}</span>{% endif %}

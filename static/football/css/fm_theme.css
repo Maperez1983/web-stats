@@ -97,3 +97,20 @@
 .zc-red  .zc-n { color:var(--fm-low); }
 .zc-mid  .zc-n { color:var(--fm-mid); }
 .zc-blue .zc-n { color:var(--fm-accent); }
+
+/* --- Ritmo de pagina (identidad = organizacion) ---------------------------------------
+   Tres anchos y nada mas, para que todas las pantallas "encajen" entre si:
+     --fm-page        estandar (la mayoria de apartados)
+     --fm-page-wide   pizarras y vistas de proyeccion (11 inicial, stats, registro)
+     --fm-page-narrow lecturas de una columna (bandeja/feed)
+   Tambien el padding y el tamano de titulo de referencia. */
+:root{
+  --fm-page: 1120px;
+  --fm-page-wide: 1520px;
+  --fm-page-narrow: 860px;
+  --fm-page-pad: 1rem;
+  --fm-h1: 1.5rem;
+}
+.fm-page      { width:100%; max-width:var(--fm-page);        margin:0 auto; padding:var(--fm-page-pad); }
+.fm-page-wide { width:100%; max-width:var(--fm-page-wide);   margin:0 auto; padding:var(--fm-page-pad); }
+.fm-page-narrow{width:100%; max-width:var(--fm-page-narrow); margin:0 auto; padding:var(--fm-page-pad); }
