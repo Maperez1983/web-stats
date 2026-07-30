@@ -388,7 +388,7 @@
                 {% if presentation_editable %}
                 <div class="club-panel-body"><textarea class="cev" name="task_objective" rows="2" placeholder="¿Qué se busca con esta tarea?">{{ club_edit_values.objective }}</textarea></div>
                 {% else %}
-                <div class="club-panel-body">{{ task_obj.objective|default:task.objective|default:"-"|linebreaksbr }}</div>
+                {% with _obj=task_obj.objective|default:task.objective %}<div class="club-panel-body">{% if _obj and _obj != "-" %}{{ _obj|linebreaksbr }}{% else %}<span class="club-undefined">Sin definir</span>{% endif %}</div>{% endwith %}
                 {% endif %}
               </div>
               <div class="club-panel">
@@ -475,8 +475,8 @@
 
         {% comment %}Si no hay contenido escrito, la tarjeta vacia desaparece y "Normas" ocupa el ancho:
         antes quedaban dos columnas al 50%% con una llena y otra con un guion.{% endcomment %}
-        <div class="club-copy-grid{% if not presentation_editable and not pc.description_rich_html and not pc.description_lines and not task.description and not pc.coaching_rich_html and not task.coaching_points %} club-copy-grid-single{% endif %}">
-          <article class="club-copy-card"{% if not presentation_editable and not pc.description_rich_html and not pc.description_lines and not task.description and not pc.coaching_rich_html and not task.coaching_points %} style="display:none"{% endif %}>
+        <div class="club-copy-grid{% if not presentation_editable and not pc.description_rich_html and not pc.description_lines and not task.description|cut:"-" and not pc.coaching_rich_html and not task.coaching_points %} club-copy-grid-single{% endif %}">
+          <article class="club-copy-card"{% if not presentation_editable and not pc.description_rich_html and not pc.description_lines and not task.description|cut:"-" and not pc.coaching_rich_html and not task.coaching_points %} style="display:none"{% endif %}>
             <div class="club-copy-head">Contenido</div>
             <div class="club-copy-body">
               {% if presentation_editable %}
@@ -489,7 +489,7 @@
                   <div class="task-copy">{{ pc.description_rich_html|striptags|linebreaksbr }}</div>
               {% elif pc.description_lines %}
               <div class="task-copy">{% for line in pc.description_lines %}{{ line }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</div>
-              {% elif task.description %}
+              {% elif task.description and task.description != "-" %}
               <div class="task-copy">{{ task.description|linebreaksbr }}</div>
               {% else %}
               <div class="task-copy">Sin descripción detallada.</div>
