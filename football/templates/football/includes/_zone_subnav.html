@@ -12,40 +12,40 @@ Auto-resalta la página activa con nav_url_name (global). Seguro si falta: solo 
 {% if zone == 'equipo' %}
 <nav class="zone-subnav" aria-label="Equipo">
   <span class="zt">👥 Equipo</span>
-  <a href="{% url 'coach-roster' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'coach-roster' %}on{% endif %}">Plantilla</a>
-  <a href="{% url 'squad-planner' %}" class="{% if request.resolver_match.url_name == 'squad-planner' %}on{% endif %}">Planificador</a>
-  <a href="{% url 'medical-center' %}" class="{% if request.resolver_match.url_name == 'medical-center' %}on{% endif %}">Centro médico</a>
-  <a href="{% url 'contracts' %}" class="{% if request.resolver_match.url_name == 'contracts' %}on{% endif %}">Contratos</a>
-  <a href="{% url 'development' %}" class="{% if request.resolver_match.url_name == 'development' %}on{% endif %}">Desarrollo</a>
-  <a href="{% url 'player-compare' %}" class="{% if request.resolver_match.url_name == 'player-compare' %}on{% endif %}">Comparar</a>
-  <a href="{% url 'team-page' %}" class="{% if request.resolver_match.url_name == 'team-page' %}on{% endif %}">Ficha equipo</a>
+  <a href="{% url 'coach-roster' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'coach-roster' %}on{% endif %}">📋 Plantilla</a>
+  <a href="{% url 'squad-planner' %}" class="{% if request.resolver_match.url_name == 'squad-planner' %}on{% endif %}">🧩 Planificador</a>
+  <a href="{% url 'medical-center' %}" class="{% if request.resolver_match.url_name == 'medical-center' %}on{% endif %}">🩺 Centro médico</a>
+  <a href="{% url 'contracts' %}" class="{% if request.resolver_match.url_name == 'contracts' %}on{% endif %}">📝 Contratos</a>
+  <a href="{% url 'development' %}" class="{% if request.resolver_match.url_name == 'development' %}on{% endif %}">📈 Desarrollo</a>
+  <a href="{% url 'player-compare' %}" class="{% if request.resolver_match.url_name == 'player-compare' %}on{% endif %}">⚖️ Comparar</a>
+  <a href="{% url 'team-page' %}" class="{% if request.resolver_match.url_name == 'team-page' %}on{% endif %}">🏳️ Ficha equipo</a>
 </nav>
 {% elif zone == 'tactica' %}
 <nav class="zone-subnav" aria-label="Táctica">
   <span class="zt">♟️ Táctica</span>
-  <a href="{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'coach-tactics' %}on{% endif %}">Pizarra</a>
-  <a href="{% url 'tactics-roles' %}" class="{% if request.resolver_match.url_name == 'tactics-roles' %}on{% endif %}">Roles y encaje</a>
+  <a href="{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'coach-tactics' %}on{% endif %}">✏️ Pizarra</a>
+  <a href="{% url 'tactics-roles' %}" class="{% if request.resolver_match.url_name == 'tactics-roles' %}on{% endif %}">♟️ Roles y encaje</a>
 </nav>
 {% elif zone == 'entreno' %}
 <nav class="zone-subnav" aria-label="Entrenamiento">
   <span class="zt">🏋️ Entrenamiento</span>
-  <a href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'sessions' %}on{% endif %}">Sesiones</a>
-  <a href="{% url 'training-load' %}" class="{% if request.resolver_match.url_name == 'training-load' %}on{% endif %}">Carga semanal</a>
+  <a href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'sessions' %}on{% endif %}">📆 Sesiones</a>
+  <a href="{% url 'training-load' %}" class="{% if request.resolver_match.url_name == 'training-load' %}on{% endif %}">🗓️ Carga semanal</a>
 </nav>
 {% elif zone == 'partido' %}
 <nav class="zone-subnav" aria-label="Partido">
   <span class="zt">⚽ Partido</span>
-  <a href="{% url 'match-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'match-hub' %}on{% endif %}">Partido</a>
-  <a href="{% url 'coach-matches' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'coach-matches' %}on{% endif %}">Calendario</a>
-  <a href="{% url 'convocation' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'convocation' %}on{% endif %}">Convocatoria</a>
-  <a href="{% url 'initial-eleven' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'initial-eleven' %}on{% endif %}">11 inicial</a>
-  <a href="{% url 'match-action-page' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'match-action-page' %}on{% endif %}">Registro</a>
+  <a href="{% url 'match-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'match-hub' %}on{% endif %}">⚽ Partido</a>
+  <a href="{% url 'coach-matches' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'coach-matches' %}on{% endif %}">📅 Calendario</a>
+  <a href="{% url 'convocation' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'convocation' %}on{% endif %}">📋 Convocatoria</a>
+  <a href="{% url 'initial-eleven' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'initial-eleven' %}on{% endif %}">👕 11 inicial</a>
+  <a href="{% url 'match-action-page' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'match-action-page' %}on{% endif %}">⏱️ Registro</a>
 </nav>
 {% elif zone == 'direccion' %}
 <nav class="zone-subnav" aria-label="Dirección">
   <span class="zt">🔎 Dirección</span>
-  <a href="{% url 'scouting-board' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'scouting-board' %}on{% endif %}">Ojeo</a>
-  <a href="{% url 'scouting-shortlist' %}" class="{% if request.resolver_match.url_name == 'scouting-shortlist' %}on{% endif %}">Shortlist</a>
-  <a href="{% url 'rival-players-index' %}" class="{% if request.resolver_match.url_name == 'rival-players-index' %}on{% endif %}">Rivales</a>
+  <a href="{% url 'scouting-board' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'scouting-board' %}on{% endif %}">🔎 Ojeo</a>
+  <a href="{% url 'scouting-shortlist' %}" class="{% if request.resolver_match.url_name == 'scouting-shortlist' %}on{% endif %}">🎯 Shortlist</a>
+  <a href="{% url 'rival-players-index' %}" class="{% if request.resolver_match.url_name == 'rival-players-index' %}on{% endif %}">🛡️ Rivales</a>
 </nav>
 {% endif %}
