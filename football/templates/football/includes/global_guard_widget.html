@@ -241,7 +241,7 @@
             <div class="guard-remediation" id="global-guard-timeline" style="margin-top:0.75rem;">
               {% for row in guard_observability.timeline %}
                 <div class="guard-remediation-card">
-                  <strong>{{ row.kind|default:"evento" }} · {{ row.title|default:"Actividad de Ollana" }}</strong>
+                  <strong>{{ row.kind|default:"evento" }} · {{ row.title|default:"Actividad del asistente" }}</strong>
                   <div>{{ row.detail|default:"Sin detalle" }}{% if row.created_at %} · {{ row.created_at }}{% endif %}</div>
                 </div>
               {% empty %}
@@ -423,7 +423,7 @@
     shellEl.style.bottom = 'max(1rem, env(safe-area-inset-bottom))';
     shellEl.style.zIndex = '2147483000';
     toggleEl.setAttribute('aria-expanded', open ? 'true' : 'false');
-    toggleEl.textContent = open ? 'Cerrar Ollana' : 'Ollana';
+    toggleEl.textContent = open ? 'Cerrar asistente' : 'Asistente';
     const panelEl = document.getElementById('global-guard-widget-panel');
     if (panelEl) panelEl.style.display = open ? 'flex' : 'none';
     saveUiState({ open: Boolean(open) });
@@ -723,7 +723,7 @@
       if (stages.length) {
         bodyText.push(stages.slice(0, 3).map((row) => `${row && row.done ? 'OK' : 'PEND'} · ${String((row && row.label) || '')}`).join('\n'));
       }
-      if (response.silent_mode) bodyText.push('Ollana sigue trabajando en segundo plano y solo te trae lo importante.');
+      if (response.silent_mode) bodyText.push('El asistente sigue trabajando en segundo plano y solo te trae lo importante.');
       const bodyNode = document.createElement('div');
       bodyNode.textContent = bodyText.join('\n');
       card.appendChild(title);
@@ -914,7 +914,7 @@
     logEl.scrollTop = logEl.scrollHeight;
     return wrap;
   };
-  const renderPendingMessage = (text = 'Ollana está preparando la respuesta…') => {
+  const renderPendingMessage = (text = 'El asistente está preparando la respuesta…') => {
     const node = renderMessage('assistant', text, ['Procesando']);
     if (node) node.dataset.pendingGuardResponse = '1';
     return node;
@@ -1053,7 +1053,7 @@
         const card = document.createElement('div');
         card.className = 'guard-remediation-card';
         const title = document.createElement('strong');
-        title.textContent = `${String(row.kind || 'evento')} · ${String(row.title || 'Actividad de Ollana')}`;
+        title.textContent = `${String(row.kind || 'evento')} · ${String(row.title || 'Actividad del asistente')}`;
         const body = document.createElement('div');
         body.textContent = `${String(row.detail || 'Sin detalle')}${row.created_at ? ` · ${String(row.created_at)}` : ''}`;
         card.appendChild(title);
@@ -1707,7 +1707,7 @@
     } else if (intent.kind === 'support') {
       setStatus('Revisando la incidencia en silencio…');
     } else {
-      setStatus('Consultando guardián…');
+      setStatus('Consultando…');
     }
     const pendingNode = renderPendingMessage();
     setSendingState(true);
@@ -1744,7 +1744,7 @@
       if (!resp.ok || !data?.ok) throw new Error(data?.error || `HTTP ${resp.status}`);
       const response = data?.chat?.response || {};
       const permissions = data?.permissions && typeof data.permissions === 'object' ? data.permissions : {};
-      const text = String(response.message || 'Sin respuesta útil del guardián.');
+      const text = String(response.message || 'Sin respuesta útil del asistente.');
       const highlights = Array.isArray(response.highlights) ? response.highlights : [];
       if (pendingNode && pendingNode.parentNode) pendingNode.remove();
       renderMessage('assistant', text, highlights, response);
@@ -1792,7 +1792,7 @@
     } catch (error) {
       if (requestId !== activeRequestId) return;
       const isAbort = error?.name === 'AbortError';
-      const msg = isAbort ? 'Ollana tardó demasiado en responder. Puedes reintentar la consulta.' : (error?.message || 'No se pudo consultar el guardián.');
+      const msg = isAbort ? 'El asistente tardó demasiado en responder. Puedes reintentar la consulta.' : (error?.message || 'No se pudo consultar el asistente.');
       if (pendingNode && pendingNode.parentNode) {
         pendingNode.remove();
       }
