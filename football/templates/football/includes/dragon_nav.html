@@ -280,7 +280,7 @@
       {% endif %}
       {% if can_access_staff|default:False and workspace_module_access.match_actions|default:True %}
       <a href="{% url 'reports-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Informes (PDF)</a>
-      <a href="{% url 'coach-rivals' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Rivales</a>
+      <a href="{% url 'coach-rivals' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Rivales · clasificación</a>
       {% endif %}
       {% if workspace_module_access.academy|default:False %}
       <a href="{% url 'academy-home' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Academia</a>

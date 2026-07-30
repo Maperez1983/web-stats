@@ -18,7 +18,8 @@ from football.models import (
 
 
 class CoachOverviewSeasonGuardTests(TestCase):
-    """La portada no debe mostrar clasificación ni próximo rival de una temporada ya cerrada."""
+    """La portada no debe presentar datos de una temporada cerrada COMO SI fueran los actuales:
+    la clasificación vieja se muestra etiquetada y el último partido no cuenta como próximo."""
 
     def setUp(self):
         self.user = get_user_model().objects.create_superuser('guard', 'guard@example.com', 'x')
@@ -56,7 +57,11 @@ class CoachOverviewSeasonGuardTests(TestCase):
         body = resp.content.decode('utf-8', 'ignore')
 
         self.assertEqual(resp.status_code, 200)
-        self.assertIn('Aún no hay clasificación', body)  # estado de pretemporada
+        # La decisión cambió: en vez de OCULTAR la tabla vieja (que dejaba la home en blanco),
+        # se muestra la última disponible ETIQUETADA con su temporada. Lo que no puede pasar es
+        # que se presente como si fuera la actual.
+        self.assertIn('2019/2020', body)
+        self.assertIn('aún no hay clasificación de la actual', body)
         self.assertNotIn('Jornada X', body)  # el partido viejo no se pinta como próximo
         self.assertIn('Rival por confirmar', body)
 

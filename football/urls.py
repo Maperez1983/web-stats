@@ -578,7 +578,12 @@ urlpatterns = [
     path("coach/staff/<int:staff_id>/cert/", views.staff_member_cert_file, name="staff-member-cert-file"),
     path("coach/staff/<int:staff_id>/pdf/", views.staff_member_pdf, name="staff-member-pdf"),
     path("coach/rival/", views.coach_rival_page, name="coach-rival"),
-    path("coach/rivales/", views.coach_rivals_page, name="coach-rivals"),
+    # Esta pagina (cards de rivales con la clasificacion: puesto, puntos, estadio,
+    # informes y videos por rival) quedo INALCANZABLE al anadir mas arriba
+    # "coach/rivales/" para las plantillas rivales importadas. Son dos cosas
+    # distintas, asi que recupera su propia ruta; el nombre no cambia para no
+    # romper los enlaces que ya existen.
+    path("coach/rivales/clasificacion/", views.coach_rivals_page, name="coach-rivals"),
     path("coach/rivales/<int:rival_id>/", views.analysis_rival_profile_page, name="coach-rival-profile"),
     path("coach/plantilla/", views.coach_roster_page, name="coach-roster"),
     path("coach/plantilla/avatares/subir/", views.coach_upload_avatars, name="coach-upload-avatars"),

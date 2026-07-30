@@ -2508,6 +2508,7 @@
                     {% endif %}
                   </p>
                   <p>{% if weekly_staff_brief %}{{ weekly_staff_brief.headline }}{% else %}Sin briefing semanal{% endif %}</p>
+                  <p style="margin:.45rem 0 0;"><a href="{% url 'coach-rivals' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" style="font-weight:800;color:var(--prod-amber,#f4b400);text-decoration:none;">Rivales de la liga · clasificación →</a></p>
                 </div>
               </div>
             </div>
