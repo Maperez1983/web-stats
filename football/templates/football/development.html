@@ -38,7 +38,7 @@
       {% include 'football/includes/dragon_nav.html' %}
       <main class="dv-wrap">
         {% include 'football/includes/_zone_subnav.html' with zone='equipo' %}
-        <h1 class="dv-h1">Plan de desarrollo</h1>
+        <h1 class="dv-h1" style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>Plan de desarrollo</span></h1>
         <p class="dv-sub">{{ primary_team.display_name|default:primary_team.name }} · objetivos de trabajo y progresión de atributos</p>
 
         <div class="dv-chips">

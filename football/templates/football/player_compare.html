@@ -44,7 +44,7 @@
       {% include 'football/includes/dragon_nav.html' %}
       <main class="cp-wrap">
         {% include 'football/includes/_zone_subnav.html' with zone='equipo' %}
-        <h1 class="cp-h1">Comparar jugadores</h1>
+        <h1 class="cp-h1" style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>Comparar jugadores</span></h1>
         <p class="cp-sub">{{ primary_team.display_name|default:primary_team.name }} · radar de atributos superpuesto</p>
 
         <form method="get" class="cp-sels" id="cmp-form">

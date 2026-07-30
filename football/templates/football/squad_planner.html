@@ -72,7 +72,7 @@
         {% include 'football/includes/_zone_subnav.html' with zone='equipo' %}
         <div class="sp-head">
           <div>
-            <h1>Planificador de plantilla</h1>
+            <h1 style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>Planificador de plantilla</span></h1>
             <p class="sp-sub">{{ primary_team.display_name|default:primary_team.name }} · profundidad por puesto · roles · fichas y contratos</p>
             <div class="sp-links">
               <a href="{% url 'coach-roster' %}">← Plantilla</a>

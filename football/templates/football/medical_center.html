@@ -39,7 +39,7 @@
       {% include 'football/includes/dragon_nav.html' %}
       <main class="mc-wrap">
         {% include 'football/includes/_zone_subnav.html' with zone='equipo' %}
-        <h1 class="mc-h1">Centro médico</h1>
+        <h1 class="mc-h1" style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>Centro médico</span></h1>
         <p class="mc-sub">{{ primary_team.display_name|default:primary_team.name }} · disponibilidad de la plantilla de un vistazo</p>
 
         <div class="mc-chips">

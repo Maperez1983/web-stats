@@ -1,0 +1,4 @@
+{% comment %}Barra con los colores del kit del club (identidad corporativa).
+Uso: {% include 'football/includes/_kit_bar.html' %}  — no necesita contexto: usa active_team (global).
+Estilo .zh-kit en fm_theme.css → cambiar la identidad sigue siendo 1 fichero.
+{% endcomment %}{% if active_team.kit_primary_color %}<span class="zh-kit" style="--zh-k1:{{ active_team.kit_primary_color }};--zh-k2:{{ active_team.kit_secondary_color|default:active_team.kit_primary_color }};" title="Colores del club" aria-hidden="true"></span>{% endif %}
