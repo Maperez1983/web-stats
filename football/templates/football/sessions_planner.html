@@ -3273,7 +3273,7 @@
 					                  {% if row.obj.cover_present %}
 					                  <img src="{% url 'session-task-cover-file' row.obj.id %}" alt="Portada de {{ row.sheet.title }}" loading="lazy" />
 					                  {% else %}
-					                  <img src="{% url 'session-task-preview-file' row.obj.id %}?hd=1&amp;v={% if row.obj.task_preview_image %}{{ row.obj.task_preview_image.name|urlencode }}{% else %}{{ row.obj.id }}{% endif %}" alt="Representación gráfica" loading="lazy" />
+					                  <img src="{% url 'session-task-preview-file' row.obj.id %}?w=640&amp;v={% if row.obj.task_preview_image %}{{ row.obj.task_preview_image.name|urlencode }}{% else %}{{ row.obj.id }}{% endif %}" alt="Representación gráfica" loading="lazy" />
 					                  {% endif %}
 					                </div>
 		                  <div class="task-body">
@@ -4498,7 +4498,7 @@
 	                {% if t.has_cover %}
 		              <img src="{% url 'session-task-cover-file' t.id %}" alt="Portada de {{ t.title }}" loading="lazy" />
 	                {% elif t.task_preview_image or t.task_pdf or t.is_drawn %}
-		              <img src="{% url 'session-task-preview-file' t.id %}?hd=1&amp;v={% if t.task_preview_image %}{{ t.task_preview_image.name|urlencode }}{% else %}{{ t.id }}{% endif %}" alt="Representacion grafica de {{ t.title }}" loading="lazy" />
+		              <img src="{% url 'session-task-preview-file' t.id %}?w=640&amp;v={% if t.task_preview_image %}{{ t.task_preview_image.name|urlencode }}{% else %}{{ t.id }}{% endif %}" alt="Representacion grafica de {{ t.title }}" loading="lazy" />
 	              {% else %}
 	              <div class="task-media-fallback"><svg viewBox="0 0 48 32" aria-hidden="true" focusable="false"><rect x="1.5" y="1.5" width="45" height="29" rx="3" fill="none" stroke="currentColor" stroke-width="1.4"/><line x1="24" y1="1.5" x2="24" y2="30.5" stroke="currentColor" stroke-width="1.2"/><circle cx="24" cy="16" r="5" fill="none" stroke="currentColor" stroke-width="1.2"/></svg><span>Sin imagen · {{ t.get_block_display }}</span></div>
 	              {% endif %}

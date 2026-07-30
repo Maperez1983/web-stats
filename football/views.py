@@ -59469,6 +59469,46 @@ def session_task_preview_file(request, task_id):
         ".webp": "image/webp",
         ".gif": "image/gif",
     }.get(extension, "application/octet-stream")
+    # `?w=` -> version reducida para TARJETAS. Desde que la pizarra se guarda como foto HD
+    # (~3100 px, cerca de 1 MB), una rejilla de biblioteca se bajaba varios MB para pintar
+    # miniaturas de 200 px. Se cachea en memoria por fichero+ancho, asi que el redimensionado
+    # solo ocurre la primera vez.
+    try:
+        want_width = int(request.GET.get("w") or 0)
+    except Exception:
+        want_width = 0
+    if want_width and Image is not None:
+        want_width = max(160, min(want_width, 1600))
+        cache_key = "task_preview_thumb:" + hashlib.sha1(
+            f"{file_field.name}|{want_width}".encode("utf-8")
+        ).hexdigest()
+        thumb = cache.get(cache_key)
+        if thumb is None:
+            thumb = b""
+            try:
+                raw = file_field.read() or b""
+                with Image.open(io.BytesIO(raw)) as img:
+                    if img.width > want_width:
+                        img = img.convert("RGB")
+                        img.thumbnail((want_width, want_width * 3))
+                        buf = io.BytesIO()
+                        img.save(buf, format="JPEG", quality=82, optimize=True, progressive=True)
+                        thumb = buf.getvalue()
+            except Exception:
+                thumb = b""
+            try:
+                cache.set(cache_key, thumb, 60 * 60 * 24 * 7)
+            except Exception:
+                pass
+            try:
+                file_field.seek(0)
+            except Exception:
+                pass
+        if thumb:
+            resp = HttpResponse(thumb, content_type="image/jpeg")
+            resp["Cache-Control"] = "private, max-age=604800"
+            return resp
+
     response = FileResponse(file_field, content_type=content_type)
     response["Content-Disposition"] = f'inline; filename="{Path(file_field.name).name}"'
     response["Cache-Control"] = "private, max-age=0, must-revalidate"
