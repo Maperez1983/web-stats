@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
     <style>
-      .page { max-width: 1280px; margin: 0 auto; padding: 1.1rem; }
+      .page { max-width:var(--fm-page,1120px); margin: 0 auto; padding: 1.1rem; }
       .head { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; flex-wrap:wrap; margin-bottom: 0.9rem; }
       .head h1 { margin:0; font-size:1.05rem; letter-spacing:0.08em; text-transform:uppercase; }
       .meta { color: rgba(226,232,240,0.72); font-weight:800; }
@@ -44,9 +44,9 @@
     </style>
   </head>
   <body class="prod-commercial">
+    <main class="page">
     {% include 'football/includes/dragon_nav.html' %}
     {% include 'football/includes/_zone_subnav.html' with zone='analisis' %}
-    <main class="page">
       <div class="head">
         <div>
           <h1>Configurador de indicadores</h1>

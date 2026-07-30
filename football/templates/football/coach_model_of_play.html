@@ -18,7 +18,7 @@
         color:#e5e7eb;
         font-family:var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
       }
-      .page { max-width: 1080px; margin:0 auto; padding: 1.1rem 1rem 2.8rem; }
+      .page { max-width:var(--fm-page,1120px); margin:0 auto; padding: 1.1rem 1rem 2.8rem; }
       .top {
         display:flex;
         justify-content:space-between;
@@ -67,9 +67,9 @@
     </style>
   </head>
   <body class="prod-commercial">
+    <main class="page">
     {% include 'football/includes/dragon_nav.html' %}
     {% include 'football/includes/_zone_subnav.html' with zone='entreno' %}
-    <main class="page">
       <div class="top">
         <div class="top-copy">
           <div class="top-kicker">Identidad de juego</div>
