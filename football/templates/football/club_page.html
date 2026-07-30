@@ -47,7 +47,7 @@
         <div class="cl-head">
           {% if club_crest %}<img class="cl-crest" src="{{ club_crest }}" alt="" />{% else %}<div class="cl-crest ph">{{ club_name|slice:':1'|upper }}</div>{% endif %}
           <div style="flex:1;min-width:0;">
-            <div class="cl-name">{{ club_name }}</div>
+            <div class="cl-name" style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>{{ club_name }}</span></div>
             <div class="cl-meta">
               <span>🏛️ Club</span>
               {% if season_label %}<span>🗓️ {{ season_label }}</span>{% endif %}
