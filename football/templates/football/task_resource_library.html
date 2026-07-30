@@ -216,15 +216,20 @@
         background: rgba(239, 68, 68, 0.18);
         color: #fecaca;
       }
+      /* Los dos botones no caben en una fila dentro de una tarjeta estrecha:
+         se envuelven en vez de comprimirse. El selector lleva body.prod-commercial
+         porque el kit del sistema fija min-width:0 con esa misma especificidad. */
       .asset-actions {
-        display: grid;
-        grid-template-columns: 1fr auto;
+        display: flex;
+        flex-wrap: wrap;
         gap: 0.45rem;
         margin-top: 0.75rem;
       }
-      /* El kit del sistema pone min-width:0 a los botones dentro de contenedores
-         flex/grid; sin esto la etiqueta larga se parte letra a letra. */
-      .asset-actions > * { min-width: max-content; }
+      body.prod-commercial .asset-actions > * {
+        min-width: max-content;
+        flex: 1 1 auto;
+        white-space: nowrap;
+      }
       .asset-actions .button {
         min-height: 38px;
         border-radius: 12px;
