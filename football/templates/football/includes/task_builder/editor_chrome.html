@@ -158,15 +158,46 @@
     // va detras, en el SVG), asi que contar pixeles con alfa nos dice si hay fichas de verdad.
     // Antes se miraba el color de la foto ya hecha y una pizarra normal (mucho verde, lineas finas)
     // se confundia con un campo vacio.
+        // Las <image> de un SVG NO tienen `complete` ni `naturalWidth` (mirarlo daba siempre "true"
+    // y por eso se disparaba la foto con el campo a medio cargar). Se comprueba precargando la
+    // misma URL con un Image() normal: si el navegador ya la tiene, resuelve al instante.
+    var _pitchImgKey = '';
+    var _pitchImgOk = false;
+    var pitchImagesLoaded = function(svg){
+      var nodes = svg.querySelectorAll('image');
+      if (!nodes.length) return true;
+      var urls = Array.prototype.map.call(nodes, function(n){
+        return n.getAttribute('href') || n.getAttribute('xlink:href') || '';
+      }).filter(Boolean);
+      if (!urls.length) return true;
+      var key = urls.join('|');
+      if (key !== _pitchImgKey) {
+        _pitchImgKey = key;
+        _pitchImgOk = false;
+        var pending = urls.length;
+        urls.forEach(function(u){
+          var probe = new Image();
+          var done = function(){ pending -= 1; if (pending <= 0) _pitchImgOk = true; };
+          probe.onload = done;
+          probe.onerror = done;
+          probe.src = u;
+        });
+      }
+      return _pitchImgOk;
+    };
     window.__WEBSTATS_SNAPSHOT_READY = false;
     var snapshotHasDrawing = function(){
       try{
         if (window.__WEBSTATS_TPAD_READY !== true) return false;
         // 1) El CAMPO tiene que estar pintado. Sin esto salian fotos de solo cesped: el verde es
-        //    el fondo CSS del escenario, y si el SVG del campo aun no ha pintado no hay ni lineas
+        //    el fondo CSS del escenario, y si el campo aun no ha pintado no hay ni lineas
         //    (se veia en las metricas: verde=0.97 y blanco=0.00, o sea cero lineas).
+        //    OJO: segun la superficie, el campo puede ser lineas vectoriales O UNA SOLA <image>
+        //    (un PNG con las lineas ya dibujadas). Por eso no vale contar elementos: hay campos
+        //    perfectamente validos con UN unico hijo.
         var svg = document.getElementById('task-pitch-surface');
-        if (!svg || svg.querySelectorAll('*').length < 8) return false;
+        if (!svg || !svg.firstElementChild) return false;
+        if (!pitchImagesLoaded(svg)) return false;
         // 2) Y encima tiene que haber algo dibujado en la capa de Fabric.
         var c = document.querySelector('#task-pitch-stage canvas.lower-canvas') || document.getElementById('create-task-canvas');
         if (!c || !c.width || !c.height) return false;
