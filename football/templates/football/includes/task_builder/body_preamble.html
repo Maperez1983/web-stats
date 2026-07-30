@@ -76,8 +76,8 @@
         {% if not tactics_mode %}
         <div class="task-mode-tabs" id="task-mode-tabs" role="tablist" aria-label="Vista de edición">
           <button type="button" class="is-active" data-task-mode="board" role="tab" aria-selected="true">Pizarra</button>
-          {# Los datos (nombre, objetivo, clasificación, material, carga…) se editan en la FICHA Club,
-             no aquí. La pizarra es solo para dibujar. Se conservan ocultos para no romper el guardado. #}
+          {% comment %} Los datos (nombre, objetivo, clasificación, material, carga…) se editan en la FICHA Club,
+             no aquí. La pizarra es solo para dibujar. Se conservan ocultos para no romper el guardado. {% endcomment %}
           <button type="button" data-task-mode="config" role="tab" aria-selected="false" hidden style="display:none;">Configuración</button>
           <button type="button" data-task-mode="methodology" role="tab" aria-selected="false" hidden style="display:none;">Metodología</button>
           <button type="button" data-task-mode="load" role="tab" aria-selected="false" hidden style="display:none;">Carga</button>

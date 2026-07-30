@@ -851,9 +851,9 @@
     </script>
     {% endif %}
 
-    {# Inicio no lleva la barra global (aqui la navegacion es el bloque "Ir a"),
+    {% comment %} Inicio no lleva la barra global (aqui la navegacion es el bloque "Ir a"),
        y el asistente viaja dentro de esa barra: se incluye aparte para que la
-       home no se quede sin el unico asistente del sistema. #}
+       home no se quede sin el unico asistente del sistema. {% endcomment %}
     {% if request.user.is_authenticated and not hide_global_guard_widget %}
       {% include 'football/includes/global_guard_widget.html' %}
     {% endif %}

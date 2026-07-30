@@ -1,7 +1,7 @@
 {% load static %}
-{# Carcasa del editor estilo mockup: rail izquierdo + barra superior + barra inferior.
+{% comment %} Carcasa del editor estilo mockup: rail izquierdo + barra superior + barra inferior.
    Cablea a los handlers globales ya existentes (window.__tpadActivateTool, __tpadCanvasAction,
-   __webstatsTaskBuilderSetPreset) y a los controles por id. #}
+   __webstatsTaskBuilderSetPreset) y a los controles por id. {% endcomment %}
 <link rel="stylesheet" href="{% static 'football/css/task_editor_chrome.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
 
 <div class="edc-topbar" role="toolbar" aria-label="Vista del campo">

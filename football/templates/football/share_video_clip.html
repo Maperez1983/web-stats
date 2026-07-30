@@ -49,8 +49,8 @@
           <div class="meta">2J · Video Studio · {{ video.title }}</div>
         </div>
         <div class="head-actions">
-          {# ?download=1 sirve el MP4 RECORTADO del segmento IN→OUT (la máquina de recorte ya existe
-             en el endpoint), no el vídeo fuente completo. Antes se bajaba el partido entero. #}
+          {% comment %} ?download=1 sirve el MP4 RECORTADO del segmento IN→OUT (la máquina de recorte ya existe
+             en el endpoint), no el vídeo fuente completo. Antes se bajaba el partido entero. {% endcomment %}
           <a class="button" href="{{ video_stream_url }}?download=1" download>Descargar</a>
         </div>
       </div>

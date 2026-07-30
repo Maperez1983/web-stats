@@ -84,8 +84,8 @@
         <p class="tm-empty">Sin staff registrado para este equipo. Añádelo en Dirección → Staff.</p>
         {% endif %}
 
-        {# Plantilla, Planificador, Centro medico, Contratos y Desarrollo ya estan en
-           el sub-nav de Equipo: aqui solo los accesos de OTRAS zonas. #}
+        {% comment %} Plantilla, Planificador, Centro medico, Contratos y Desarrollo ya estan en
+           el sub-nav de Equipo: aqui solo los accesos de OTRAS zonas. {% endcomment %}
         <div class="tm-sect">Accesos</div>
         <div class="tm-quick">
           <a href="{% url 'tactics-roles' %}">♟️ Táctica · roles</a>

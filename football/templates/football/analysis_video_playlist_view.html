@@ -110,9 +110,9 @@
         </div>
       </section>
 
-      {# Los datos de clips DEBEN ir antes del <script> que los lee: un <script> clásico se ejecuta
+      {% comment %} Los datos de clips DEBEN ir antes del <script> que los lee: un <script> clásico se ejecuta
          al cerrarse su etiqueta, así que si json_script iba después, getElementById daba null y la
-         lista de clips salía SIEMPRE vacía (Play/Stop/Ir muertos). #}
+         lista de clips salía SIEMPRE vacía (Play/Stop/Ir muertos). {% endcomment %}
       {{ clips|json_script:"pl-clips" }}
       <script>
         (function () {

@@ -258,8 +258,8 @@
           {% endif %}
         </span>
       </div>
-      {# Harden: algunas builds antiguas del JS de pizarra referenciaban `diagCopyBtn` como variable global.
-         Definimos un placeholder para evitar ReferenceError aunque el botón no exista / esté oculto. #}
+      {% comment %} Harden: algunas builds antiguas del JS de pizarra referenciaban `diagCopyBtn` como variable global.
+         Definimos un placeholder para evitar ReferenceError aunque el botón no exista / esté oculto. {% endcomment %}
       <script>
         // eslint-disable-next-line no-unused-vars
         var diagCopyBtn = null;

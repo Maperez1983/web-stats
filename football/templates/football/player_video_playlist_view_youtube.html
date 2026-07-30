@@ -70,8 +70,8 @@
         </aside>
       </div>
 
-      {# Los datos DEBEN ir antes del <script> que los lee (se ejecuta síncrono al cerrar la etiqueta);
-         si no, getElementById daba null y la lista de clips salía SIEMPRE vacía. #}
+      {% comment %} Los datos DEBEN ir antes del <script> que los lee (se ejecuta síncrono al cerrar la etiqueta);
+         si no, getElementById daba null y la lista de clips salía SIEMPRE vacía. {% endcomment %}
       {{ clips|json_script:"pl-clips" }}
       <script>
         (function () {
