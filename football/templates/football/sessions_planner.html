@@ -3269,7 +3269,16 @@
 				                  role="link"
 				                  aria-label="Abrir ficha de tarea {{ row.sheet.title }}"
 				                >
-					                <div class="task-media"><img src="{% url 'session-task-preview-file' row.obj.id %}?hd=1&amp;v={% if row.obj.task_preview_image %}{{ row.obj.task_preview_image.name|urlencode }}{% else %}{{ row.obj.id }}{% endif %}" alt="Representación gráfica" loading="lazy" /></div>
+					                {% comment %}En la BIBLIOTECA manda la portada fotorrealista: la tarjeta es escaparate.
+					                La pizarra tiene su sitio en la ficha (zona 2D) y aqui solo entra como respaldo cuando
+					                la tarea aun no tiene portada generada. Esta rejilla nunca miraba la portada.{% endcomment %}
+					                <div class="task-media">
+					                  {% if row.obj.cover_present %}
+					                  <img src="{% url 'session-task-cover-file' row.obj.id %}" alt="Portada de {{ row.sheet.title }}" loading="lazy" />
+					                  {% else %}
+					                  <img src="{% url 'session-task-preview-file' row.obj.id %}?hd=1&amp;v={% if row.obj.task_preview_image %}{{ row.obj.task_preview_image.name|urlencode }}{% else %}{{ row.obj.id }}{% endif %}" alt="Representación gráfica" loading="lazy" />
+					                  {% endif %}
+					                </div>
 		                  <div class="task-body">
 	                    <div class="task-mainline">
 	                      <h3 class="task-title">{{ row.sheet.title }}</h3>
