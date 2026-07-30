@@ -200,6 +200,10 @@ def brand_theme(request):
         'ui_forced': bool(str(override.get('ui') or default.get('ui') or '').strip()),
         'bg_light': _color(override.get('bg_light') or default.get('bg_light'), '#f4f7fb'),
         'text_light': _color(override.get('text_light') or default.get('text_light'), '#0f172a'),
+        # Superficies del tema claro. Sin esto, css_vars_light reutilizaba el panel y la
+        # linea OSCUROS del club, y el modo claro salia con las tarjetas negras.
+        'panel_flat_light': _color(override.get('panel_flat_light') or default.get('panel_flat_light'), 'rgba(255, 255, 255, 0.94)'),
+        'line_light': _color(override.get('line_light') or default.get('line_light'), 'rgba(15, 23, 42, 0.14)'),
     }
     if theme['ui'] not in {'dark', 'light', 'hc'}:
         theme['ui'] = 'dark'
@@ -289,9 +293,9 @@ def brand_theme(request):
         # En tema claro, el muted debe oscurecerse para ser legible.
         '--prod-muted': 'rgba(15, 23, 42, 0.72)',
         '--prod-muted-soft': 'rgba(15, 23, 42, 0.82)',
-        '--prod-line': theme['line'],
-        '--prod-panel-flat': theme['panel_flat'],
-        '--prod-panel': theme['panel_flat'],
+        '--prod-line': theme['line_light'],
+        '--prod-panel-flat': theme['panel_flat_light'],
+        '--prod-panel': theme['panel_flat_light'],
         '--prod-shadow-lg': shadow_lg,
         '--prod-shadow-md': shadow_md,
         '--prod-system-image': system_image_value,
