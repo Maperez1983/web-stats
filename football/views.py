@@ -34198,6 +34198,12 @@ def training_session_detail_page(request, session_id):
                     }
                 except Exception:
                     already_copied = False
+                # Si la sesion YA ES de biblioteca, el destino del archivado es ELLA MISMA: clonar
+                # ahi deja la sesion con sus tareas duplicadas ("28/07/2026 · RONDO 8 x 2" junto a
+                # "RONDO 8 x 2"). Comprobado en la 122 al confirmarla. En ese caso no se archiva:
+                # las tareas ya viven en la biblioteca.
+                if _is_library_session(session_obj):
+                    already_copied = True
                 if not already_copied:
                     try:
                         # Inferir scope/repo desde la primera tarea (fallback: coach + traditional).
