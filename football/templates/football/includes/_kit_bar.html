@@ -1,4 +1,8 @@
 {% comment %}Barra con los colores del kit del club (identidad corporativa).
 Uso: {% include 'football/includes/_kit_bar.html' %}  — no necesita contexto: usa active_team (global).
+
+Si el equipo aún no tiene colores guardados, cae a los colores de marca (verde/ámbar)
+para que la cabecera tenga SIEMPRE el mismo ancla visual: en cuanto se guarden los
+colores del club en la ficha de equipo, todas las pantallas se personalizan solas.
 Estilo .zh-kit en fm_theme.css → cambiar la identidad sigue siendo 1 fichero.
-{% endcomment %}{% if active_team.kit_primary_color %}<span class="zh-kit" style="--zh-k1:{{ active_team.kit_primary_color }};--zh-k2:{{ active_team.kit_secondary_color|default:active_team.kit_primary_color }};" title="Colores del club" aria-hidden="true"></span>{% endif %}
+{% endcomment %}<span class="zh-kit{% if not active_team.kit_primary_color %} zh-kit-brand{% endif %}" style="--zh-k1:{{ active_team.kit_primary_color|default:'#2f7d32' }};--zh-k2:{{ active_team.kit_secondary_color|default:active_team.kit_primary_color|default:'#f4b400' }};" title="{% if active_team.kit_primary_color %}Colores del club{% else %}Colores del club sin configurar (ficha de equipo){% endif %}" aria-hidden="true"></span>
