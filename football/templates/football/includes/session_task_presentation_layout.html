@@ -121,6 +121,8 @@
           gap: 0.5rem;
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
+        .club-copy-grid-single { grid-template-columns: 1fr; }
+        .club-undefined { color: rgba(15,23,42,0.38); font-weight: 600; font-size: 0.92em; }
         .club-copy-card {
           border: 1px solid var(--club-border);
           border-radius: 14px;
@@ -216,8 +218,8 @@
           <input type="hidden" name="detail_action" value="update_task_detail" />
         {% endif %}
         {% if task.cover_present or task_obj.cover_present %}
-        <div style="margin:0 0 0.65rem; border-radius:16px; overflow:hidden; border:1px solid var(--club-border); box-shadow:0 8px 26px rgba(2,6,23,0.18); background:#0b1220; max-height:230px; display:flex; align-items:center; justify-content:center;">
-          <img src="{% url 'session-task-cover-file' task.id %}" alt="Portada realista de {{ task_obj.title|default:task.title }}" style="width:100%; height:100%; max-height:230px; object-fit:cover; display:block;" loading="lazy" />
+        <div style="margin:0 0 0.65rem; border-radius:16px; overflow:hidden; border:1px solid var(--club-border); box-shadow:0 8px 26px rgba(2,6,23,0.18); background:#0b1220; max-height:132px; display:flex; align-items:center; justify-content:center;">
+          <img src="{% url 'session-task-cover-file' task.id %}" alt="Portada realista de {{ task_obj.title|default:task.title }}" style="width:100%; height:100%; max-height:132px; object-fit:cover; display:block;" loading="lazy" />
         </div>
         {% endif %}
         <div class="club-sheet-hero">
@@ -266,7 +268,7 @@
                   {% for bval, blabel in task_blocks %}<option value="{{ bval }}"{% if bval == club_edit_values.block %} selected{% endif %}>{{ blabel }}</option>{% endfor %}
                 </select>
                 {% else %}
-                <strong>{{ task_obj.get_block_display|default:"-" }}</strong>
+                {% if task_obj.get_block_display %}<strong>{{ task_obj.get_block_display }}</strong>{% else %}<span class="club-undefined">Sin definir</span>{% endif %}
                 {% endif %}
               </td>
               <td style="width:25%; background:var(--club-sheet); border:1px solid var(--club-border); border-radius:12px; padding:0.65rem;">
@@ -277,12 +279,12 @@
                   {% for sval, slabel in task_strategy_choices %}<option value="{{ sval }}"{% if sval == club_edit_values.strategy %} selected{% endif %}>{{ slabel }}</option>{% endfor %}
                 </select>
                 {% else %}
-                <strong>{{ pc.strategy_label|default:"-" }}</strong>
+                {% if pc.strategy_label %}<strong>{{ pc.strategy_label }}</strong>{% else %}<span class="club-undefined">Sin definir</span>{% endif %}
                 {% endif %}
               </td>
               <td style="width:25%; background:var(--club-sheet); border:1px solid var(--club-border); border-radius:12px; padding:0.65rem;">
                 <span class="club-label">Microciclo</span>
-                <strong>{{ pc.microcycle.title|default:"-" }}</strong>
+                {% if pc.microcycle.title %}<strong>{{ pc.microcycle.title }}</strong>{% else %}<span class="club-undefined">Sin definir</span>{% endif %}
               </td>
             </tr>
           </table>
@@ -357,7 +359,7 @@
                     {% if pc.graphic_view_3d_url or pc.task_preview_3d_embed_url %}
                     <button type="button" class="button" id="task-detail-3d-open">Ir a vista 3D</button>
                     {% elif can_edit_task %}
-                    <button type="button" class="button secondary" id="task-detail-enter-edit-empty">Completar pizarra 2D</button>
+                    <button type="button" class="button secondary" id="task-detail-enter-edit-empty">{% if pc.graphic_view_2d_url %}Editar pizarra{% else %}Completar pizarra 2D{% endif %}</button>
                     {% endif %}
                     {% if pc.recreation_2d_url or pc.recreation_3d_url or pc.recreation_3d_embed_url %}
                     <button type="button" class="button secondary" id="task-detail-open-sequence">Ver secuencia</button>
@@ -430,13 +432,29 @@
                     </div>
                   </div>
                   {% else %}
-                  <div class="club-fact"><span class="club-label">Situación</span>{{ pc.structure_label|default:pc.game_situation_label|default:"-" }}</div>
-                  <div class="club-fact"><span class="club-label">Espacio</span>{{ pc.space_label|default:"-" }}</div>
-                  <div class="club-fact"><span class="club-label">Coordinación</span>{{ pc.coordination_label|default:"-" }}</div>
-                  <div class="club-fact"><span class="club-label">Intención</span>{{ pc.tactical_intent_label|default:"-" }}</div>
-                  <div class="club-fact"><span class="club-label">Material</span>{{ pc.materials_label|default:"-" }}</div>
-                  <div class="club-fact"><span class="club-label">Series / rep.</span>{% if task_meta.series or task_meta.repetitions %}{{ task_meta.series|default:"-" }} · {{ task_meta.repetitions|default:"-" }}{% else %}-{% endif %}</div>
-                  <div class="club-fact"><span class="club-label">Trabajo / descanso</span>{% if task_meta.work_rest %}{{ task_meta.work_rest }}{% else %}-{% endif %}</div>
+                  {% comment %}Solo se listan los datos que EXISTEN: una ficha que se comparte con el
+                  cuerpo tecnico no debe ir enseniando sus huecos con guiones.{% endcomment %}
+                  {% if pc.structure_label or pc.game_situation_label %}
+                  <div class="club-fact"><span class="club-label">Situación</span>{{ pc.structure_label|default:pc.game_situation_label }}</div>
+                  {% endif %}
+                  {% if pc.space_label %}
+                  <div class="club-fact"><span class="club-label">Espacio</span>{{ pc.space_label }}</div>
+                  {% endif %}
+                  {% if pc.coordination_label %}
+                  <div class="club-fact"><span class="club-label">Coordinación</span>{{ pc.coordination_label }}</div>
+                  {% endif %}
+                  {% if pc.tactical_intent_label %}
+                  <div class="club-fact"><span class="club-label">Intención</span>{{ pc.tactical_intent_label }}</div>
+                  {% endif %}
+                  {% if pc.materials_label %}
+                  <div class="club-fact"><span class="club-label">Material</span>{{ pc.materials_label }}</div>
+                  {% endif %}
+                  {% if task_meta.series or task_meta.repetitions %}
+                  <div class="club-fact"><span class="club-label">Series / rep.</span>{{ task_meta.series|default:"-" }} · {{ task_meta.repetitions|default:"-" }}</div>
+                  {% endif %}
+                  {% if task_meta.work_rest %}
+                  <div class="club-fact"><span class="club-label">Trabajo / descanso</span>{{ task_meta.work_rest }}</div>
+                  {% endif %}
                   {% if pc.materials_items %}
                   <div class="club-fact">
                     <span class="club-label">Materiales</span>
@@ -446,7 +464,7 @@
                   </div>
                   {% endif %}
                   {% endif %}
-                  {% if pc.coordination_skills_label %}
+                  {% if pc.coordination_skills_label and pc.coordination_skills_label != "-" %}
                   <div class="club-fact"><span class="club-label">Carga</span>{{ pc.coordination_skills_label }}</div>
                   {% endif %}
                 </div>
@@ -455,8 +473,10 @@
           </tr>
         </table>
 
-        <div class="club-copy-grid">
-          <article class="club-copy-card">
+        {% comment %}Si no hay contenido escrito, la tarjeta vacia desaparece y "Normas" ocupa el ancho:
+        antes quedaban dos columnas al 50%% con una llena y otra con un guion.{% endcomment %}
+        <div class="club-copy-grid{% if not presentation_editable and not pc.description_rich_html and not pc.description_lines and not task.description and not pc.coaching_rich_html and not task.coaching_points %} club-copy-grid-single{% endif %}">
+          <article class="club-copy-card"{% if not presentation_editable and not pc.description_rich_html and not pc.description_lines and not task.description and not pc.coaching_rich_html and not task.coaching_points %} style="display:none"{% endif %}>
             <div class="club-copy-head">Contenido</div>
             <div class="club-copy-body">
               {% if presentation_editable %}
@@ -926,7 +946,7 @@
                 {% if pc.graphic_view_3d_url or pc.task_preview_3d_embed_url %}
                 <button type="button" class="button" id="task-detail-3d-open">Ir a vista 3D</button>
                 {% elif can_edit_task %}
-                <button type="button" class="button secondary" id="task-detail-enter-edit-empty">Completar pizarra 2D</button>
+                <button type="button" class="button secondary" id="task-detail-enter-edit-empty">{% if pc.graphic_view_2d_url %}Editar pizarra{% else %}Completar pizarra 2D{% endif %}</button>
                 {% endif %}
                 {% if pc.recreation_2d_url or pc.recreation_3d_url or pc.recreation_3d_embed_url %}
                 <button type="button" class="button secondary" id="task-detail-open-sequence">Ver secuencia</button>
@@ -1191,7 +1211,7 @@
               {% if task_obj.task_preview_image or pc.task_preview_url %}
               <button type="button" class="button" id="task-detail-3d-open">Ir a vista 3D</button>
               {% elif can_edit_task %}
-              <button type="button" class="button secondary" id="task-detail-enter-edit-empty">Completar pizarra 2D</button>
+              <button type="button" class="button secondary" id="task-detail-enter-edit-empty">{% if pc.graphic_view_2d_url %}Editar pizarra{% else %}Completar pizarra 2D{% endif %}</button>
               {% endif %}
               {% if pc.animation_frames|default:False %}
               <button type="button" class="button secondary" id="task-detail-open-sequence">Ver secuencia</button>

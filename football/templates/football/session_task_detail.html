@@ -1402,6 +1402,34 @@
   <body class="prod-commercial session-task-detail-page{% if active_task_tab != 'edit' %} is-presentation{% endif %}{% if active_task_tab == 'edit' and active_task_edit_tab == 'graphic' %} task-detail-graphic-edit{% endif %}">
     <main class="page product-shell">
       {% include 'football/includes/dragon_nav.html' %}
+      <style>
+        /* ===== Revision de identidad visual de la ficha =====
+           La cabecera de la pagina y la cabecera del DOCUMENTO repetian el mismo titulo y el
+           mismo "Formato Club" a pocos centimetros. Aqui la pagina se queda como barra de
+           contexto + acciones de gestion, y el titulo de verdad lo pone el documento (que es
+           lo que se imprime y se comparte). Este bloque solo afecta a PANTALLA: el PDF arma
+           su propio contexto y no lo ve. */
+        body.session-task-detail-page .top-copy h1 {
+          position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+          overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+        }
+        body.session-task-detail-page .top-pills .top-pill { color: rgba(248,250,252,0.88); }
+        /* El formato ya lo dicen las pestanas Formato UEFA / Formato Club. */
+        body.session-task-detail-page .club-sheet-badge { display: none !important; }
+        /* Volver es navegacion, no una accion: que no compita con Editar ficha. */
+        body.session-task-detail-page .top-actions .task-back-link {
+          background: transparent; border: 1px solid rgba(248,250,252,0.22); font-weight: 600;
+        }
+        body.session-task-detail-page .top-actions .task-back-link:hover { background: rgba(248,250,252,0.08); }
+        /* La pizarra se puede ver a tamanio real. */
+        body.session-task-detail-page .club-panel-body img.preview { cursor: zoom-in; }
+        .sheet-lightbox {
+          position: fixed; inset: 0; z-index: 9999; display: none; align-items: center;
+          justify-content: center; background: rgba(2,6,23,0.92); padding: 24px; cursor: zoom-out;
+        }
+        .sheet-lightbox.is-open { display: flex; }
+        .sheet-lightbox img { max-width: 100%; max-height: 100%; border-radius: 10px; box-shadow: 0 24px 70px rgba(0,0,0,.6); }
+      </style>
       <header class="top">
         <div class="top-copy">
           <div class="top-kicker">Biblioteca de tarea</div>
@@ -1414,7 +1442,7 @@
           </div>
         </div>
         <div class="top-actions">
-          <a class="button" href="{{ back_url }}">{{ back_label }}</a>
+          <a class="button secondary task-back-link" href="{{ back_url }}">← {{ back_label }}</a>
           {% if can_edit_task %}
           <button
             type="button"
@@ -3849,5 +3877,29 @@
         }catch(e){}
       })();
     </script>
-  </body>
+  
+<!-- La pizarra guardada es una foto de ~2500px; en la ficha se ve a 270px. Un clic la abre entera. -->
+<div class="sheet-lightbox" id="sheet-lightbox" role="dialog" aria-label="Pizarra a tamaño completo"><img alt="" /></div>
+<script>
+(function(){
+  var box = document.getElementById('sheet-lightbox');
+  if (!box) return;
+  var img = box.querySelector('img');
+  document.addEventListener('click', function(ev){
+    var t = ev.target;
+    if (t && t.tagName === 'IMG' && t.classList.contains('preview') && t.closest('.club-panel-body')) {
+      img.src = t.currentSrc || t.src;
+      img.alt = t.alt || '';
+      box.classList.add('is-open');
+      ev.preventDefault();
+      return;
+    }
+    if (box.classList.contains('is-open')) box.classList.remove('is-open');
+  });
+  document.addEventListener('keydown', function(ev){
+    if (ev.key === 'Escape') box.classList.remove('is-open');
+  });
+})();
+</script>
+</body>
 </html>
