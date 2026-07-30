@@ -59571,6 +59571,38 @@ def session_task_cover_file(request, task_id):
     if not got:
         raise Http404("Sin portada")
     raw, mime = got
+    # `?w=` -> version reducida para TARJETAS. La portada vive en la base de datos en base64 y
+    # pesa lo suyo: una rejilla de biblioteca pedia 8 portadas a tamanio completo y las tarjetas
+    # se quedaban en gris varios segundos. Se cachea una semana por tarea+ancho.
+    try:
+        want_width = int(request.GET.get("w") or 0)
+    except Exception:
+        want_width = 0
+    if want_width and Image is not None:
+        want_width = max(160, min(want_width, 1600))
+        cache_key = f"task_cover_thumb:{int(task.id)}:{want_width}:{len(raw)}"
+        thumb = cache.get(cache_key)
+        if thumb is None:
+            thumb = b""
+            try:
+                with Image.open(io.BytesIO(raw)) as img:
+                    if img.width > want_width:
+                        img = img.convert("RGB")
+                        img.thumbnail((want_width, want_width * 3))
+                        buf = io.BytesIO()
+                        img.save(buf, format="JPEG", quality=82, optimize=True, progressive=True)
+                        thumb = buf.getvalue()
+            except Exception:
+                thumb = b""
+            try:
+                cache.set(cache_key, thumb, 60 * 60 * 24 * 7)
+            except Exception:
+                pass
+        if thumb:
+            resp = HttpResponse(thumb, content_type="image/jpeg")
+            resp["Cache-Control"] = "private, max-age=604800"
+            return resp
+
     resp = HttpResponse(raw, content_type=(mime or "image/jpeg"))
     resp["Content-Disposition"] = f'inline; filename="task-{int(task.id)}-cover.jpg"'
     resp["Cache-Control"] = "private, max-age=86400"

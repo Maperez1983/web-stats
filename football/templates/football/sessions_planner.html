@@ -3271,7 +3271,7 @@
 					                la tarea aun no tiene portada generada. Esta rejilla nunca miraba la portada.{% endcomment %}
 					                <div class="task-media">
 					                  {% if row.obj.cover_present %}
-					                  <img src="{% url 'session-task-cover-file' row.obj.id %}" alt="Portada de {{ row.sheet.title }}" loading="lazy" />
+					                  <img src="{% url 'session-task-cover-file' row.obj.id %}?w=640" alt="Portada de {{ row.sheet.title }}" loading="lazy" />
 					                  {% else %}
 					                  <img src="{% url 'session-task-preview-file' row.obj.id %}?w=640&amp;v={% if row.obj.task_preview_image %}{{ row.obj.task_preview_image.name|urlencode }}{% else %}{{ row.obj.id }}{% endif %}" alt="Representación gráfica" loading="lazy" />
 					                  {% endif %}
@@ -4496,7 +4496,7 @@
               {% endif %}
 	              <div class="task-media">
 	                {% if t.has_cover %}
-		              <img src="{% url 'session-task-cover-file' t.id %}" alt="Portada de {{ t.title }}" loading="lazy" />
+		              <img src="{% url 'session-task-cover-file' t.id %}?w=640" alt="Portada de {{ t.title }}" loading="lazy" />
 	                {% elif t.task_preview_image or t.task_pdf or t.is_drawn %}
 		              <img src="{% url 'session-task-preview-file' t.id %}?w=640&amp;v={% if t.task_preview_image %}{{ t.task_preview_image.name|urlencode }}{% else %}{{ t.id }}{% endif %}" alt="Representacion grafica de {{ t.title }}" loading="lazy" />
 	              {% else %}
