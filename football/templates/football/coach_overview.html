@@ -712,29 +712,6 @@
 
         {% include 'football/_coach_pitch_board.html' %}
 
-        <details class="ask-compact ask-fab" aria-label="Asistente del entrenador">
-          <summary class="ask-summary">
-            <span>🤖</span><b>Pregúntale al asistente</b>
-            <span class="ask-hint">lesionados · próximo partido · cobertura</span>
-            <span class="ask-caret" aria-hidden="true">▾</span>
-          </summary>
-          <div class="ask-body">
-          {% csrf_token %}
-          <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-            <input id="coachAskInput" type="text" autocomplete="off" placeholder="p. ej. ¿quién está lesionado? · próximo partido · cobertura" style="flex:1 1 260px;min-width:0;padding:0.55rem 0.7rem;border-radius:8px;border:1px solid rgba(148,163,184,0.4);background:rgba(2,6,23,0.35);color:inherit;" />
-            <button id="coachAskBtn" type="button" class="btn">Preguntar</button>
-          </div>
-          <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.5rem;">
-            <button type="button" class="ask-chip" data-q="¿quién está lesionado?">Lesionados</button>
-            <button type="button" class="ask-chip" data-q="próximo partido">Próximo partido</button>
-            <button type="button" class="ask-chip" data-q="cobertura de plantilla">Cobertura</button>
-            <button type="button" class="ask-chip" data-q="licencias que caducan">Licencias</button>
-            <button type="button" class="ask-chip" data-q="jugadores disponibles">Disponibles</button>
-            <button type="button" class="ask-chip" data-q="11 probable">11 probable</button>
-            <button type="button" class="ask-chip" data-q="resumen de la semana">Resumen</button>
-          </div>
-          <div id="coachAskAnswer" role="status" style="margin-top:0.7rem;display:none;border-radius:10px;padding:0.6rem 0.8rem;background:rgba(120,160,240,0.10);border:1px solid rgba(120,160,240,0.3);"></div>
-          </div>
           <style>
           .home-compact .hc-head{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.45rem;}
           .home-compact .hc-head h2{margin:0;font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;opacity:.62;font-weight:800;}
@@ -750,16 +727,6 @@
           .home-compact .hc-txt b{font-size:.84rem;font-weight:700;}
           .home-compact .hc-dt{font-size:.75rem;opacity:.62;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
           .home-compact .hc-chev{margin-left:auto;opacity:.4;font-size:1rem;flex:none;}
-          .ask-compact{overflow:hidden;}
-          .ask-compact>.ask-summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:.5rem;padding:.6rem .85rem;font-size:.88rem;}
-          .ask-compact>.ask-summary::-webkit-details-marker{display:none;}
-          .ask-compact .ask-summary b{font-weight:700;}
-          .ask-compact .ask-hint{font-size:.72rem;opacity:.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-          .ask-compact .ask-caret{margin-left:auto;opacity:.5;transition:transform .15s ease;flex:none;}
-          .ask-compact[open] .ask-caret{transform:rotate(180deg);}
-          .ask-compact .ask-body{padding:0 .85rem .85rem;}
-          .ask-chip{border:1px solid rgba(148,163,184,0.35);background:rgba(148,163,184,0.10);color:inherit;border-radius:999px;padding:0.3rem 0.7rem;font-size:0.78rem;cursor:pointer;}.ask-chip:hover{background:rgba(148,163,184,0.2);}
-          @media (max-width:640px){.ask-compact .ask-hint{display:none;}}
           
       /* --- Inicio estilo mockup: estado + duo (rival | clasificacion) --- */
       .hm-status{display:flex;gap:.6rem;flex-wrap:wrap;margin:0 0 1rem;}
@@ -828,19 +795,6 @@
       .hm-stat.blue .n{color:#4a86e8;}
     
       /* --- Asistente como boton flotante desplegable (patron de portal) --- */
-      .ask-fab{position:fixed;left:16px;bottom:16px;z-index:60;display:flex;flex-direction:column-reverse;align-items:flex-start;min-height:0;padding:0;border:none;background:none;box-shadow:none;}
-      .ask-fab > summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:.5rem;padding:.6rem .95rem;border-radius:999px;
-        background:linear-gradient(135deg, rgba(244,180,0,.92), rgba(230,160,0,.92));color:#0b1626;font-weight:900;font-size:.84rem;
-        border:1px solid rgba(244,180,0,.5);box-shadow:0 10px 26px rgba(0,0,0,.42);white-space:nowrap;}
-      .ask-fab > summary:hover{filter:brightness(1.05);}
-      .ask-fab > summary::-webkit-details-marker{display:none;}
-      .ask-fab .ask-hint{display:none;}
-      .ask-fab .ask-caret{margin-left:.2rem;opacity:.8;}
-      .ask-fab .ask-body{width:min(92vw,380px);margin-bottom:.5rem;padding:.85rem;border-radius:16px;
-        background:var(--panel,rgba(11,19,33,.98));border:1px solid var(--line);box-shadow:0 22px 60px rgba(0,0,0,.5);
-        max-height:min(66vh,520px);overflow:auto;backdrop-filter:blur(8px);}
-      @media (max-width:560px){.ask-fab{left:10px;bottom:10px;}}
-      @media print{.ask-fab{display:none;}}
     
       /* Escudos en la mini-clasificacion de Inicio */
       .hm-tm{display:flex;align-items:center;gap:.4rem;min-width:0;}
@@ -848,29 +802,6 @@
       .hm-tcrest.ph{background:rgba(148,163,184,.18);}
       .hm-tnm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
     </style>
-          <script>
-          (function(){
-            var url="{% url 'coach-assistant' %}";
-            var input=document.getElementById('coachAskInput'), btn=document.getElementById('coachAskBtn'), out=document.getElementById('coachAskAnswer');
-            function csrf(){var i=document.querySelector('input[name=csrfmiddlewaretoken]');if(i&&i.value)return i.value;var m=document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);return m?decodeURIComponent(m[1]):'';}
-            function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');}
-            function ask(q){
-              q=(q||'').trim(); if(!q) return;
-              out.style.display='block'; out.textContent='…';
-              fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf(),'X-Requested-With':'XMLHttpRequest'},credentials:'same-origin',body:JSON.stringify({question:q})})
-                .then(function(r){return r.json();})
-                .then(function(d){
-                  var html=esc(d.answer);
-                  if(d.links&&d.links.length){d.links.forEach(function(l){html+=' <a href="'+encodeURI(l.url)+'" style="text-decoration:underline;font-weight:600;">'+esc(l.label)+'</a>';});}
-                  out.innerHTML=html;
-                }).catch(function(){out.textContent='No pude responder ahora mismo.';});
-            }
-            if(btn) btn.addEventListener('click',function(){ask(input.value);});
-            if(input) input.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();ask(input.value);}});
-            document.querySelectorAll('.ask-chip').forEach(function(c){c.addEventListener('click',function(){input.value=c.getAttribute('data-q');ask(c.getAttribute('data-q'));});});
-          })();
-          </script>
-        </details>
 
                 {# Tabla de decisión de plantilla: se conserva pero plegada (su sitio natural es Equipo → Planificador). #}
         <details class="card home-compact" style="margin-top:1rem;padding:0;">

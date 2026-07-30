@@ -838,6 +838,43 @@ def system_guard_chat_api(request):
     question = str(payload.get("message") or "").strip()
     if not question:
         return JsonResponse({"ok": False, "error": "Mensaje vacío."}, status=400)
+
+    # --- Asistente unico -------------------------------------------------------
+    # Habia DOS asistentes: este (guia del programa) y el del entrenador (datos del
+    # club). Ahora hay un solo boton y es este endpoint quien enruta: si la pregunta
+    # es de DATOS del equipo, la contesta el asistente del entrenador; si no, sigue
+    # el guardian. Solo se enrutan intenciones de datos reconocidas: las de
+    # navegacion/ayuda y "action_redirect" se dejan al guardian, que sabe llevarte.
+    _DATA_INTENTS = {
+        "weekly_summary", "injured", "available", "next_match",
+        "coverage", "licenses", "evaluations", "suggested_xi",
+    }
+    try:
+        _team_for_data = _get_primary_team_for_request(request)
+    except Exception:
+        _team_for_data = None
+    if _team_for_data:
+        try:
+            _res = answer_coach_question(request, _team_for_data, question[:300]) or {}
+        except Exception:
+            _res = {}
+        if str(_res.get("intent") or "") in _DATA_INTENTS:
+            _links = [l for l in (_res.get("links") or []) if isinstance(l, dict)]
+            _msg = str(_res.get("answer") or "").strip()
+            if _links:
+                _msg += "\n\n" + " · ".join(
+                    f"{l.get('label') or 'Abrir'}: {l.get('url') or ''}".strip() for l in _links
+                )
+            return JsonResponse({
+                "ok": True,
+                "chat": {"response": {
+                    "message": _msg,
+                    "highlights": [str(l.get("label") or "") for l in _links][:4] or ["Datos del equipo"],
+                }},
+                "permissions": {},
+            })
+    # --- fin asistente unico ---------------------------------------------------
+
     run_smoke = str(payload.get("run_smoke") or "").strip().lower() in {"1", "true", "yes", "on"}
     auto_fix = str(payload.get("auto_fix") or "").strip().lower() in {"1", "true", "yes", "on"}
     maintenance_action = str(payload.get("maintenance_action") or "").strip()

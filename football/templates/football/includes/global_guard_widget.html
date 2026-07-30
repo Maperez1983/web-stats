@@ -106,12 +106,12 @@
 </style>
 
 <div class="guard-widget-shell" id="global-guard-widget-shell" style="position:fixed; right:max(1rem, env(safe-area-inset-right)); bottom:max(1rem, env(safe-area-inset-bottom)); z-index:2147483000; display:flex; flex-direction:column; align-items:flex-end; gap:0.75rem; pointer-events:auto;">
-  <button type="button" class="guard-widget-toggle" id="global-guard-widget-toggle" aria-expanded="false" aria-controls="global-guard-widget-panel" style="border-radius:999px; border:1px solid rgba(250,204,21,0.35); background:linear-gradient(135deg, #14532d, #22c55e 60%, #facc15 140%); color:#f8fafc; padding:0.82rem 1.05rem; font-size:0.76rem; font-weight:950; letter-spacing:0.08em; text-transform:uppercase; box-shadow:0 24px 60px rgba(20,83,45,0.34); cursor:pointer; position:relative; overflow:hidden;">Ollana</button>
-  <section class="guard-widget-panel" id="global-guard-widget-panel" aria-label="Chat global del guardián del sistema" style="width:min(420px, calc(100vw - 1.5rem)); max-height:min(78vh, 760px); overflow:hidden; display:flex; flex-direction:column; box-shadow:0 28px 80px rgba(2,6,23,0.45); border:1px solid rgba(163,230,53,0.16); background:radial-gradient(circle at top right, rgba(250,204,21,0.14), transparent 30%), linear-gradient(180deg, rgba(8,31,20,0.98) 0%, rgba(3,14,10,0.98) 100%); border-radius:22px; padding:0.9rem; color:#e5e7eb; font-family:var(--prod-font-ui, 'Avenir Next', 'Inter', 'Segoe UI', system-ui, sans-serif); position:relative; isolation:isolate;">
+  <button type="button" class="guard-widget-toggle" id="global-guard-widget-toggle" aria-expanded="false" aria-controls="global-guard-widget-panel" style="border-radius:999px; border:1px solid rgba(250,204,21,0.35); background:linear-gradient(135deg, #14532d, #22c55e 60%, #facc15 140%); color:#f8fafc; padding:0.82rem 1.05rem; font-size:0.76rem; font-weight:950; letter-spacing:0.08em; text-transform:uppercase; box-shadow:0 24px 60px rgba(20,83,45,0.34); cursor:pointer; position:relative; overflow:hidden;">Asistente</button>
+  <section class="guard-widget-panel" id="global-guard-widget-panel" aria-label="Asistente del club" style="width:min(420px, calc(100vw - 1.5rem)); max-height:min(78vh, 760px); overflow:hidden; display:flex; flex-direction:column; box-shadow:0 28px 80px rgba(2,6,23,0.45); border:1px solid rgba(163,230,53,0.16); background:radial-gradient(circle at top right, rgba(250,204,21,0.14), transparent 30%), linear-gradient(180deg, rgba(8,31,20,0.98) 0%, rgba(3,14,10,0.98) 100%); border-radius:22px; padding:0.9rem; color:#e5e7eb; font-family:var(--prod-font-ui, 'Avenir Next', 'Inter', 'Segoe UI', system-ui, sans-serif); position:relative; isolation:isolate;">
     <div class="guard-chat-header">
       <div>
-        <div class="section-title" style="margin:0 0 0.2rem; font-size:0.95rem; font-weight:800; color:rgba(248,250,252,0.94);">Ollana</div>
-        <p style="margin:0; color:rgba(226,232,240,0.68); font-weight:600;">Pídeme ayuda con esta pantalla, una navegación o una incidencia.</p>
+        <div class="section-title" style="margin:0 0 0.2rem; font-size:0.95rem; font-weight:800; color:rgba(248,250,252,0.94);">Asistente</div>
+        <p style="margin:0; color:rgba(226,232,240,0.68); font-weight:600;">Pregúntame por tu equipo (lesionados, próximo partido, cobertura) o por el programa (dónde está algo, no me deja guardar…).</p>
       </div>
       <button type="button" class="guard-chat-close" id="global-guard-widget-close" aria-label="Ocultar chat">×</button>
     </div>
@@ -133,27 +133,27 @@
            data-queue-running="{{ guard_observability.task_queue.running|default:0 }}"
            data-queue-completed="{{ guard_observability.task_queue.completed|default:0 }}"
            data-queue-blocked="{{ guard_observability.task_queue.blocked|default:0 }}">
-        <strong>Ollana</strong>
-        <div id="global-guard-silent-copy">Ollana vigila el sistema en segundo plano y te resume solo lo importante.</div>
+        <strong>Asistente</strong>
+        <div id="global-guard-silent-copy">El asistente vigila el sistema en segundo plano y te resume solo lo importante.</div>
       </div>
       <div class="guard-chip-group">
         <strong>Consultas rápidas</strong>
         <div class="guard-suggestion-row" id="global-guard-suggestions">
           <button type="button" class="guard-suggestion-chip" data-guard-suggestion="Ayúdame con esta pantalla">Ayúdame con esta pantalla</button>
-          <button type="button" class="guard-suggestion-chip" data-guard-suggestion="Inspecciona esta pantalla y dime qué falla visualmente">Inspecciona esta pantalla</button>
+          <button type="button" class="guard-suggestion-chip" data-guard-suggestion="¿Quién está lesionado?">¿Quién está lesionado?</button>
           <button type="button" class="guard-suggestion-chip" data-guard-suggestion="Llévame a vídeo análisis">Llévame a vídeo análisis</button>
-          <button type="button" class="guard-suggestion-chip" data-guard-suggestion="Abre biblioteca de tareas">Abre biblioteca de tareas</button>
+          <button type="button" class="guard-suggestion-chip" data-guard-suggestion="¿Cuándo es el próximo partido?">Próximo partido</button>
         </div>
       </div>
       <div id="global-guard-chat-log" class="guard-chat-log">
         <div class="guard-msg assistant">
-          <span class="role">Guardián</span>
-          <div class="body">Estoy listo. Puedes pedirme una explicación, una navegación o que revise un problema.</div>
+          <span class="role">Asistente</span>
+          <div class="body">Estoy listo. Pregúntame por tu equipo (¿quién está lesionado?, próximo partido, cobertura) o por el programa (llévame a…, no me deja guardar…).</div>
         </div>
       </div>
       <div class="guard-controls">
         <div class="guard-composer">
-          <label><textarea id="global-guard-chat-input" placeholder="Escribe a Ollana..."></textarea></label>
+          <label><textarea id="global-guard-chat-input" placeholder="Pregunta lo que necesites..."></textarea></label>
           <div class="guard-composer-actions">
             <button type="button" class="guard-btn primary" id="global-guard-chat-send">Enviar</button>
             <button type="button" class="guard-btn" id="global-guard-chat-clear">Limpiar</button>
@@ -509,7 +509,7 @@
       'match-hub': 'Ej.: ayúdame con esta pantalla, llévame a vídeo análisis, revisa una incidencia en partido...',
       'session-task-detail': 'Ej.: inspecciona esta ficha, revisa el título, comprueba la representación 3D, dime qué falla visualmente...',
     };
-    inputEl.placeholder = placeholderMap[page] || 'Ej.: llévame a vídeo análisis, abre biblioteca de tareas, ayúdame con esta pantalla, no me deja guardar...';
+    inputEl.placeholder = placeholderMap[page] || 'Ej.: ¿quién está lesionado? · próximo partido · llévame a vídeo análisis · no me deja guardar...';
   };
   const syncSilentCard = (ob = null) => {
     if (!silentCopyEl) return;
@@ -681,7 +681,7 @@
     wrap.className = `guard-msg ${role}`;
     const label = document.createElement('span');
     label.className = 'role';
-    label.textContent = role === 'user' ? 'Tú' : 'Guardián';
+    label.textContent = role === 'user' ? 'Tú' : 'Asistente';
     const body = document.createElement('div');
     body.className = 'body';
     body.textContent = text || '';
@@ -927,7 +927,7 @@
     replacement.className = 'guard-msg assistant';
     const label = document.createElement('span');
     label.className = 'role';
-    label.textContent = 'Guardián';
+    label.textContent = 'Asistente';
     const body = document.createElement('div');
     body.className = 'body';
     body.textContent = text || '';
