@@ -1067,18 +1067,18 @@
                   {% elif task.coaching_points %}
                   <div class="task-copy">{{ task.coaching_points|linebreaksbr }}</div>
                   {% else %}
-                  <p>Sin consignas concretas registradas todavia.</p>
+                  <p>Sin consignas concretas registradas todavía.</p>
                   {% endif %}
                 </div>
               </article>
               <article class="uefa-coach-card">
-                <h4>Evolucion de la tarea</h4>
+                <h4>Evolución de la tarea</h4>
                 <div class="uefa-plain-stack">
-                  {% if task_meta.progression %}<p><strong>Progresion:</strong> {% if pc.progression_rich_html %}{{ pc.progression_rich_html|striptags|linebreaksbr }}{% else %}{{ task_meta.progression }}{% endif %}</p>{% endif %}
-                  {% if task_meta.regression %}<p><strong>Regresion:</strong> {% if pc.regression_rich_html %}{{ pc.regression_rich_html|striptags|linebreaksbr }}{% else %}{{ task_meta.regression }}{% endif %}</p>{% endif %}
-                  {% if task_meta.success_criteria %}<p><strong>Criterio de exito:</strong> {% if pc.success_criteria_rich_html %}{{ pc.success_criteria_rich_html|striptags|linebreaksbr }}{% else %}{{ task_meta.success_criteria }}{% endif %}</p>{% endif %}
+                  {% if task_meta.progression %}<p><strong>Progresión:</strong> {% if pc.progression_rich_html %}{{ pc.progression_rich_html|striptags|linebreaksbr }}{% else %}{{ task_meta.progression }}{% endif %}</p>{% endif %}
+                  {% if task_meta.regression %}<p><strong>Regresión:</strong> {% if pc.regression_rich_html %}{{ pc.regression_rich_html|striptags|linebreaksbr }}{% else %}{{ task_meta.regression }}{% endif %}</p>{% endif %}
+                  {% if task_meta.success_criteria %}<p><strong>Criterio de éxito:</strong> {% if pc.success_criteria_rich_html %}{{ pc.success_criteria_rich_html|striptags|linebreaksbr }}{% else %}{{ task_meta.success_criteria }}{% endif %}</p>{% endif %}
                   {% if not task_meta.progression and not task_meta.regression and not task_meta.success_criteria %}
-                  <p>Sin progresiones, regresiones ni criterio de exito definidos todavia.</p>
+                  <p>Sin progresiones, regresiones ni criterio de éxito definidos todavía.</p>
                   {% endif %}
                 </div>
               </article>
@@ -1095,7 +1095,7 @@
               {% elif pc.description_lines %}
               <div class="task-copy">{% for line in pc.description_lines %}{{ line }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</div>
               {% else %}
-              <div class="task-copy">-</div>
+              <div class="task-copy"><span class="club-undefined">Sin reglas ni variantes definidas</span></div>
               {% endif %}
 
               {% if pc.coaching_rich_html or task.coaching_points %}
@@ -1124,10 +1124,10 @@
 
               {% if task_meta.provocation_rule or task_meta.progression or task_meta.regression or task_meta.success_criteria %}
               <div style="margin-top:0.8rem;">
-                {% if task_meta.provocation_rule %}<p><strong>Norma de provocacion:</strong> {{ task_meta.provocation_rule }}</p>{% endif %}
-                {% if task_meta.progression %}<p><strong>Progresion:</strong> {% if pc.progression_rich_html %}{{ pc.progression_rich_html|striptags|linebreaksbr }}{% else %}{{ task_meta.progression }}{% endif %}</p>{% endif %}
-                {% if task_meta.regression %}<p><strong>Regresion:</strong> {% if pc.regression_rich_html %}{{ pc.regression_rich_html|striptags|linebreaksbr }}{% else %}{{ task_meta.regression }}{% endif %}</p>{% endif %}
-                {% if task_meta.success_criteria %}<p><strong>Criterio de exito:</strong> {% if pc.success_criteria_rich_html %}{{ pc.success_criteria_rich_html|striptags|linebreaksbr }}{% else %}{{ task_meta.success_criteria }}{% endif %}</p>{% endif %}
+                {% if task_meta.provocation_rule %}<p><strong>Norma de provocación:</strong> {{ task_meta.provocation_rule }}</p>{% endif %}
+                {% if task_meta.progression %}<p><strong>Progresión:</strong> {% if pc.progression_rich_html %}{{ pc.progression_rich_html|striptags|linebreaksbr }}{% else %}{{ task_meta.progression }}{% endif %}</p>{% endif %}
+                {% if task_meta.regression %}<p><strong>Regresión:</strong> {% if pc.regression_rich_html %}{{ pc.regression_rich_html|striptags|linebreaksbr }}{% else %}{{ task_meta.regression }}{% endif %}</p>{% endif %}
+                {% if task_meta.success_criteria %}<p><strong>Criterio de éxito:</strong> {% if pc.success_criteria_rich_html %}{{ pc.success_criteria_rich_html|striptags|linebreaksbr }}{% else %}{{ task_meta.success_criteria }}{% endif %}</p>{% endif %}
               </div>
               {% endif %}
             </div>
