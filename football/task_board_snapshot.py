@@ -43,7 +43,7 @@ SNAPSHOT_VIEWPORT_WIDTH = 1600
 SNAPSHOT_VIEWPORT_HEIGHT = 1000
 SNAPSHOT_DEVICE_SCALE = 2.0
 SNAPSHOT_SELECTOR = "#task-pitch-stage"
-SNAPSHOT_READY_JS = "() => window.__WEBSTATS_TPAD_READY === true"
+SNAPSHOT_READY_JS = "() => window.__WEBSTATS_SNAPSHOT_READY === true"
 
 META_SIG_KEY = "board_hd_sig"
 
@@ -297,7 +297,12 @@ def _looks_like_a_real_board(png_bytes: bytes) -> bool:
         dark = float(stats.get("dark_ratio") or 0.0)
     except Exception:
         return True
-    return not (green >= 0.88 and white <= 0.18 and dark <= 0.35)
+    # Criterio MUY laxo a proposito. El guardia de verdad es la senal del navegador
+    # (`__WEBSTATS_SNAPSHOT_READY`), que solo se activa cuando la capa de Fabric tiene algo
+    # pintado. La heuristica de color, calibrada para las miniaturas recortadas de 720 px,
+    # daba FALSO POSITIVO con una foto del campo entero: mucho verde y lineas finas que al
+    # reducir a 128 px dejan de contar como blanco. Aqui solo caza un rectangulo liso.
+    return not (green >= 0.97 and white <= 0.03)
 
 
 def _to_jpeg(png_bytes: bytes) -> bytes:

@@ -153,6 +153,43 @@
     };
     fitSnapshotStage();
     window.addEventListener('load', fitSnapshotStage);
+    // Senal FIABLE de "ya se puede fotografiar": ademas de que el motor diga "listo", la capa de
+    // Fabric tiene que tener algo PINTADO. El lienzo es transparente donde no hay nada (el cesped
+    // va detras, en el SVG), asi que contar pixeles con alfa nos dice si hay fichas de verdad.
+    // Antes se miraba el color de la foto ya hecha y una pizarra normal (mucho verde, lineas finas)
+    // se confundia con un campo vacio.
+    window.__WEBSTATS_SNAPSHOT_READY = false;
+    var snapshotHasDrawing = function(){
+      try{
+        if (window.__WEBSTATS_TPAD_READY !== true) return false;
+        var c = document.querySelector('#task-pitch-stage canvas.lower-canvas') || document.getElementById('create-task-canvas');
+        if (!c || !c.width || !c.height) return false;
+        var s = document.createElement('canvas');
+        s.width = 160;
+        s.height = Math.max(1, Math.round(160 * c.height / c.width));
+        var sc = s.getContext('2d', { willReadFrequently: true });
+        if (!sc) return false;
+        sc.clearRect(0, 0, s.width, s.height);
+        sc.drawImage(c, 0, 0, s.width, s.height);
+        var d = sc.getImageData(0, 0, s.width, s.height).data;
+        var n = 0;
+        for (var i = 3; i < d.length; i += 4) {
+          if (d[i] > 16) { n += 1; if (n > 40) return true; }
+        }
+        return false;
+      }catch(e){
+        return true; // si no podemos leer el lienzo, no bloqueamos la foto
+      }
+    };
+    var snapReadyTries = 0;
+    var snapReadyTimer = setInterval(function(){
+      if (snapshotHasDrawing()) {
+        window.__WEBSTATS_SNAPSHOT_READY = true;
+        clearInterval(snapReadyTimer);
+      } else if (++snapReadyTries > 300) {
+        clearInterval(snapReadyTimer);
+      }
+    }, 200);
     var snapTries = 0;
     var snapTimer = setInterval(function(){
       fitSnapshotStage();
