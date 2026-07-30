@@ -105,7 +105,6 @@
             <button type="submit" class="btn" title="Consulta la competición (Universo) y te muestra qué partidos/resultados traería, SIN escribir nada. Luego decides si aplicar.">🔄 Sincronizar competición</button>
           </form>
           {% endif %}
-          <a class="btn" href="{% url 'match-hub' %}">Ir a Partido</a>
           {% if calendar_ics_url %}
           <button type="button" class="btn" id="btnSubscribeIcs" data-ics="{{ calendar_ics_url }}" title="Suscribir este calendario en Apple/Google Calendar">📅 Suscribir calendario</button>
           <a class="btn" href="{{ calendar_ics_url }}" download="calendario.ics" title="Descargar .ics">⬇︎ .ics</a>

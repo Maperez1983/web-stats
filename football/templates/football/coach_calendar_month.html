@@ -1,3 +1,4 @@
+{% load static %}
 <!doctype html>
 <html lang="es">
   <head>
@@ -7,6 +8,9 @@
     {% load static %}
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
+    {% include 'football/pwa_head.html' %}
     <style>
       .cmw-wrap { max-width: 1100px; margin: 0 auto; }
       .cmw-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.7rem; margin:.6rem 0 1rem; }
@@ -41,6 +45,7 @@
   <body class="prod-commercial">
     <main class="page">
       {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='partido' %}
       <div class="cmw-wrap">
         <header>
           <div>

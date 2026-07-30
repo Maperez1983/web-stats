@@ -5,6 +5,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Subir avatares · {{ primary_team.name }}</title>
+  <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
+  <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
+  {% include 'football/pwa_head.html' %}
   <style>
     :root { --bg:#0a1a11; --card:#0f2417; --card2:#123019; --line:rgba(255,255,255,0.10); --ink:#eaf3ec; --muted:#9fb6a6; --accent:#37d05f; --accent-ink:#0c1a10; }
     * { box-sizing: border-box; }
@@ -36,8 +39,10 @@
     .badge.none { background:rgba(148,163,184,0.16); color:var(--muted); }
   </style>
 </head>
-<body>
+<body class="prod-commercial">
   <div class="wrap">
+      {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='equipo' %}
     <a class="back" href="{% url 'coach-roster' %}">← Volver a Plantilla</a>
     <h1>Subir avatares de jugador</h1>
     <p class="sub">Sube los PNG generados (uno por jugador). Cada archivo se asigna solo al jugador por el número de su nombre: <code>player-&lt;id&gt;.png</code> o, si no, por el <b>dorsal</b>.</p>

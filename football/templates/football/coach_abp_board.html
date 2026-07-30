@@ -275,6 +275,7 @@
     <div class="page">
       <form style="display:none;">{% csrf_token %}</form>
       {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='tactica' %}
       <div class="top">
         <h1>Pizarra ABP · {{ team_name }}</h1>
         <a class="pill-button" style="border-radius:12px;" href="{% url 'coach-role-abp' %}">Volver</a>

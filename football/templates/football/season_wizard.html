@@ -5,6 +5,9 @@
     <meta charset="UTF-8" />
     <title>Temporada · Cierre y nueva · 2J Club</title>
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
+    {% include 'football/pwa_head.html' %}
     <style>
       :root {
         --deep: #050913;
@@ -215,8 +218,10 @@
       }
     </style>
   </head>
-  <body>
+  <body class="prod-commercial">
     <div class="page">
+      {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='club' %}
       <div class="topline">
         <div class="top-copy">
           <div class="top-kicker">Cierre y reinicio de ciclo</div>
