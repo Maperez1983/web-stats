@@ -32,7 +32,6 @@
       {% include 'football/includes/dragon_nav.html' %}
       <main class="rs-wrap">
         {% include 'football/includes/_zone_subnav.html' with zone='direccion' %}
-        <a class="rs-back" href="{% url 'rival-players-index' %}">← Rivales de la liga</a>
         <div class="rs-head">
           {% if rival_team.crest_url %}<img class="rs-crest" src="{{ rival_team.crest_url }}" alt="" />{% endif %}
           <div>

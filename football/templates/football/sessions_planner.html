@@ -2071,7 +2071,7 @@
       {% include 'football/includes/dragon_nav.html' %}
       {% include 'football/includes/_zone_subnav.html' with zone='entreno' %}
       <style>
-        .top.planner-hero{position:relative;overflow:hidden;border-radius:18px;padding:26px 28px;border:1px solid rgba(148,163,184,0.16);
+        .top.planner-hero{position:relative;overflow:hidden;border-radius:18px;padding:16px 20px;border:1px solid rgba(148,163,184,0.16);
           background-image:linear-gradient(90deg,rgba(8,12,20,0.94),rgba(8,12,20,0.58) 52%,rgba(8,12,20,0.22)),url("{% static 'football/images/marketing/home_training_hero.jpg' %}");
           background-size:cover;background-position:center 40%;}
         .top.planner-hero .top-copy,.top.planner-hero .top-actions{position:relative;z-index:1}
@@ -2082,14 +2082,11 @@
 		        <div class="top-copy">
               <span class="top-kicker">Centro de entrenamiento</span>
 		          <h1 style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>{{ scope_title|default:"Sesiones" }} · Planificación</span></h1>
-              <div class="top-subcopy">Crea sesiones, organiza microciclos y mueve la biblioteca desde una sola vista.</div>
-            </div>
+                          </div>
+            {# 'Volver' y 'Gobierno del club' se retiran: navegar ya es trabajo del menu
+               global y del sub-nav de zona. Aqui solo la accion propia de la pantalla. #}
             <div class="top-actions">
               <button type="button" class="button primary" id="planner-save-top" disabled title="Guardar (sección activa)">Guardar</button>
-              {% if request.user.is_staff or request.user.is_superuser %}
-              <a href="{% url 'platform-overview' %}" class="button">Gobierno del club</a>
-              {% endif %}
-              <a href="{% url 'dashboard-home' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}" class="button">Volver</a>
             </div>
 		      </div>
       {% include 'football/includes/_zone_chips.html' with chips=zone_chips %}

@@ -43,11 +43,6 @@
         <h1 class="sl-h1" style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>Shortlist por encaje</span></h1>
         {% include 'football/includes/_zone_chips.html' with chips=zone_chips %}
         <p class="sl-sub">Candidatos de ojeo ordenados por su encaje al rol que buscas · mismo motor que la ficha</p>
-        <div class="sl-links">
-          <a href="{% url 'scouting-board' %}">← Dirección</a>
-          <a href="{% url 'rival-players-index' %}">Rivales de la liga</a>
-          <a href="{% url 'squad-planner' %}">Planificador</a>
-        </div>
 
         <form method="get" class="sl-bar">
           <div>

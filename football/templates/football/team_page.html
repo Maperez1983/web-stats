@@ -84,14 +84,11 @@
         <p class="tm-empty">Sin staff registrado para este equipo. Añádelo en Dirección → Staff.</p>
         {% endif %}
 
+        {# Plantilla, Planificador, Centro medico, Contratos y Desarrollo ya estan en
+           el sub-nav de Equipo: aqui solo los accesos de OTRAS zonas. #}
         <div class="tm-sect">Accesos</div>
         <div class="tm-quick">
-          <a href="{% url 'coach-roster' %}">👥 Plantilla</a>
-          <a href="{% url 'squad-planner' %}">🧩 Planificador</a>
           <a href="{% url 'tactics-roles' %}">♟️ Táctica · roles</a>
-          <a href="{% url 'medical-center' %}">🩺 Centro médico</a>
-          <a href="{% url 'contracts' %}">📝 Contratos</a>
-          <a href="{% url 'development' %}">📈 Desarrollo</a>
           <a href="{% url 'training-load' %}">🗓️ Carga semanal</a>
           <a href="{% url 'coach-inbox' %}">📥 Bandeja</a>
         </div>

@@ -718,10 +718,8 @@
           </div>
         </div>
           <div class="actions">
-          <a class="btn" href="{% url 'coach-cards' %}">Áreas</a>
-          <a class="btn" href="{% url 'squad-planner' %}">🧩 Planificador de plantilla</a>
-          <a class="btn" href="{% url 'scouting-shortlist' %}">🎯 Shortlist por encaje</a>
-          <a class="btn" href="{% url 'rival-players-index' %}">Rivales de la liga</a>
+          {# Shortlist, Rivales y Areas ya viven en el sub-nav de zona y en el menu
+             global: aqui solo quedan las acciones propias de esta pantalla. #}
           <a class="btn" href="{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Staff</a>
           {% if can_manage_workspace %}
           <button type="button" class="btn" id="rival-league-import-btn"
