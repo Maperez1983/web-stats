@@ -34756,14 +34756,12 @@ def training_session_detail_page(request, session_id):
                     "coaching_points": str(getattr(t, "coaching_points", "") or "").strip(),
                     "confrontation_rules": str(getattr(t, "confrontation_rules", "") or "").strip(),
                     "preview_url": _task_preview_url(t),
-                    # Imagen de la tarjeta en la ficha de sesion: manda la PORTADA fotorrealista,
-                    # igual que en la biblioteca, y la pizarra queda de respaldo. Se pide reducida
-                    # (?w=) porque son miniaturas de 84px y la pizarra guardada son ~3100px.
-                    "card_image_url": (
-                        reverse("session-task-cover-file", args=[int(t.id)]) + "?w=480"
-                        if getattr(t, "cover_present", False)
-                        else (_task_preview_url(t) + "&w=480")
-                    ),
+                    # DENTRO de la ficha manda la CAPTURA DE LA PIZARRA, no la portada: la
+                    # fotorrealista es una recreacion aproximada y aqui lo que se consulta es el
+                    # ejercicio exacto (posiciones, zonas, recorridos). La portada se queda para
+                    # presentar: tarjeta de biblioteca y cabecera. Se pide reducida (?w=) porque
+                    # son miniaturas y la pizarra guardada son ~3100 px.
+                    "card_image_url": _task_preview_url(t) + "&w=480",
                     "detail_url": reverse("session-task-detail", args=[int(t.id)]),
                     "pdf_meta": meta_norm,
                     "sheet": sheet,
