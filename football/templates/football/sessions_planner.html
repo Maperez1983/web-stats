@@ -2231,7 +2231,25 @@
 	                          {% endfor %}
 	                          <option value="">Sin microciclo (sesión suelta)</option>
 	                        </select>
-	                        <small class="meta" style="display:block; margin-top:0.25rem;">Recomendado: asígnala a un microciclo (se preselecciona el activo). Si eliges <strong>Sin microciclo</strong>, irá a <strong>Sesiones sueltas</strong>.</small>
+	                        <small class="meta" id="create-session-mc-hint" style="display:block; margin-top:0.25rem;">Recomendado: asígnala a un microciclo (se preselecciona el activo). Si eliges <strong>Sin microciclo</strong>, irá a <strong>Sesiones sueltas</strong>.</small>
+	                        <script>
+	                          (function () {
+	                            var sel = document.getElementById('create-session-microcycle');
+	                            var hint = document.getElementById('create-session-mc-hint');
+	                            if (!sel || !hint) return;
+	                            var base = hint.innerHTML;
+	                            var sync = function () {
+	                              var suelta = !String(sel.value || '').trim();
+	                              hint.innerHTML = suelta
+	                                ? 'Esta sesión quedará <strong>suelta</strong> (sin microciclo): irá a <strong>Sesiones sueltas</strong>. Puedes vincularla más tarde.'
+	                                : base;
+	                              hint.style.color = suelta ? '#f4b400' : '';
+	                              hint.style.opacity = suelta ? '1' : '';
+	                            };
+	                            sel.addEventListener('change', sync);
+	                            sync();
+	                          })();
+	                        </script>
 	                      </label>
 	                      <label>
 	                        Fecha
@@ -2370,15 +2388,13 @@
 		                        const form = document.getElementById('create-session-form');
 		                        if (!form) return;
 		                        let locked = false;
+		                        // El aviso de "sesión suelta" era un window.confirm() en el submit. Un confirm()
+		                        // BLOQUEA el navegador hasta que alguien pulsa, y ademas repetia lo que ya pone
+		                        // debajo del selector. Peor aun: si el equipo no tiene microciclos (caso normal
+		                        // al empezar temporada), TODAS las sesiones son sueltas y el dialogo saltaba
+		                        // siempre, con lo que dejaba de avisar de nada. Ahora se resalta en la propia
+		                        // pagina, sin interrumpir.
 		                        form.addEventListener('submit', (ev) => {
-		                          // Insinuar: avisar si se crea una sesión suelta (sin microciclo).
-		                          const mc = form.querySelector('#create-session-microcycle');
-		                          if (mc && !String(mc.value || '').trim()) {
-		                            if (!window.confirm('Vas a crear una sesión SUELTA (sin microciclo). Lo recomendable es asignarla a un microciclo. ¿Continuar sin microciclo?')) {
-		                              if (ev && ev.preventDefault) ev.preventDefault();
-		                              return;
-		                            }
-		                          }
 		                          if (locked) return;
 		                          locked = true;
 		                          const submits = Array.from(form.querySelectorAll('button[type=\"submit\"], input[type=\"submit\"]'));
