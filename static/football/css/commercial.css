@@ -1607,3 +1607,35 @@ body.prod-commercial .ws-presentation-exit button {
 :root[data-theme="light"] body.prod-commercial .nav-context-sep { color: rgba(15, 23, 42, 0.42); }
 :root[data-theme="light"] body.prod-commercial .nav-context-section { color: rgba(15, 23, 42, 0.62); }
 :root[data-theme="light"] body.prod-commercial .nav-context-subtitle { color: #8a6400; }
+
+/* Modo claro: campos de formulario. El estilo base es oscuro (pensado para fondo
+   oscuro) y no cambia solo, asi que en claro salian cajas negras sobre blanco. */
+:root[data-theme="light"] body.prod-commercial input,
+:root[data-theme="light"] body.prod-commercial select,
+:root[data-theme="light"] body.prod-commercial textarea {
+  color: rgba(15, 23, 42, 0.92);
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.18);
+}
+:root[data-theme="light"] body.prod-commercial input::placeholder,
+:root[data-theme="light"] body.prod-commercial textarea::placeholder {
+  color: rgba(15, 23, 42, 0.45);
+}
+:root[data-theme="light"] body.prod-commercial input:focus,
+:root[data-theme="light"] body.prod-commercial select:focus,
+:root[data-theme="light"] body.prod-commercial textarea:focus {
+  border-color: rgba(244, 180, 0, 0.55);
+  outline: none;
+}
+/* Botones neutros: en claro, superficie clara con texto oscuro. Los .primary,
+   .secondary y .danger conservan su color propio (ya tienen su regla). */
+:root[data-theme="light"] body.prod-commercial :where(button, .button, .btn):not(.primary):not(.secondary):not(.danger):not(.ghost) {
+  background: #ffffff !important;
+  color: rgba(15, 23, 42, 0.92) !important;
+  -webkit-text-fill-color: rgba(15, 23, 42, 0.92);
+  border-color: rgba(15, 23, 42, 0.16) !important;
+}
+:root[data-theme="light"] body.prod-commercial :where(button, .button, .btn):not(.primary):not(.secondary):not(.danger):hover {
+  background: #f8fafc !important;
+  border-color: rgba(244, 180, 0, 0.45) !important;
+}
