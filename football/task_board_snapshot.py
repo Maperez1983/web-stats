@@ -412,3 +412,89 @@ def board_snapshot_status_view(request, task_id):
         "last_note": cache.get(_last_error_key(int(task.id))) or "",
         "url": editor_snapshot_url(request, task),
     })
+
+def queue_many(request, tasks) -> int:
+    """Encola varias tareas en UN solo hilo que las procesa en fila.
+
+    La foto se generaba solo al abrir cada ficha, asi que una biblioteca entera tardaba en
+    ponerse al dia. Esto permite lanzarlas de golpe sin levantar N Chromium: el hilo va una por
+    una y cada foto sigue pasando por el mismo blindaje (si sale mal, no se pisa la imagen buena).
+    """
+    if not getattr(settings, "TASK_BOARD_SNAPSHOT_ENABLED", True):
+        return 0
+    cookies = session_cookies_for(request)
+    if not cookies:
+        return 0
+
+    jobs = []
+    for task in tasks:
+        try:
+            task_id = int(getattr(task, "id", 0) or 0)
+        except Exception:
+            continue
+        if not task_id or snapshot_is_current(task):
+            continue
+        sig = board_signature(task)
+        if not sig:
+            continue
+        with _inflight_lock:
+            if task_id in _inflight:
+                continue
+            _inflight.add(task_id)
+        jobs.append((task_id, editor_snapshot_url(request, task), sig))
+
+    if not jobs:
+        return 0
+
+    def _run_all():
+        for task_id, url, sig in jobs:
+            try:
+                _render_and_store(task_id, url, cookies, sig)
+            except Exception:
+                logger.exception("board snapshot: fallo en lote, tarea %s", task_id)
+
+    threading.Thread(target=_run_all, name="board-snapshot-batch", daemon=True).start()
+    return len(jobs)
+
+
+def board_snapshot_batch_view(request):
+    """Pone al dia las fotos de la biblioteca: `?limit=` (por defecto 12, maximo 60)."""
+    from django.http import JsonResponse
+
+    from .models import SessionTask
+    from .permissions import can_access_sessions_workspace
+
+    if not can_access_sessions_workspace(request.user):
+        return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+
+    try:
+        limit = int(request.GET.get("limit") or 12)
+    except Exception:
+        limit = 12
+    limit = max(1, min(limit, 60))
+
+    qs = SessionTask.objects.order_by("-id")
+    try:
+        team_id = int(request.GET.get("team") or 0)
+    except Exception:
+        team_id = 0
+    if team_id:
+        qs = qs.filter(session__microcycle__team_id=team_id)
+
+    pending = []
+    for task in qs[: limit * 6]:
+        if snapshot_is_current(task):
+            continue
+        if cache.get(_fail_key(int(task.id))):
+            continue
+        pending.append(task)
+        if len(pending) >= limit:
+            break
+
+    started = queue_many(request, pending)
+    return JsonResponse({
+        "ok": True,
+        "encoladas": started,
+        "ids": [int(t.id) for t in pending][:started],
+        "nota": "Van de una en una; cada foto tarda 1-3 min. Vuelve a llamar para seguir.",
+    })

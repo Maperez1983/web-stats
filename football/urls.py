@@ -681,6 +681,12 @@ urlpatterns = [
     path(
         "coach/sesiones/tarea/<int:task_id>/preview/", views.session_task_preview_file, name="session-task-preview-file"
     ),
+    # Pone al dia en lote las fotos HD de la biblioteca (?limit=, ?team=).
+    path(
+        "coach/sesiones/fotos-hd/",
+        task_board_snapshot.board_snapshot_batch_view,
+        name="session-tasks-board-hd-batch",
+    ),
     # Estado (y disparo manual) de la FOTO HD de la pizarra: ?force=1 la vuelve a pedir.
     path(
         "coach/sesiones/tarea/<int:task_id>/foto-hd/",
