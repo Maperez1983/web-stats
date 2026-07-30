@@ -10,7 +10,7 @@
     {% include 'football/pwa_head.html' %}
     <style>
       body { margin:0; background:#030712; color:#e5e7eb; font-family:var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif); }
-      .page { max-width:1180px; margin:0 auto; padding:1.2rem 1rem 2.4rem; }
+      .page { max-width:var(--fm-page,1120px); margin:0 auto; padding:1.2rem 1rem 2.4rem; }
       header { margin:1rem 0 1.2rem; display:flex; justify-content:space-between; gap:1rem; align-items:flex-start; flex-wrap:wrap; }
       h1 { margin:0.1rem 0 0; font-size:1.65rem; letter-spacing:0.01em; }
       p { margin:0; color:#94a3b8; }
@@ -37,10 +37,11 @@
   <body class="prod-commercial">
     <main class="page">
       {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='direccion' %}
       <header>
         <div>
           <p>Entrenador · {{ team_name }}</p>
-          <h1>Rivales</h1>
+          <h1 style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>Rivales · clasificación</span></h1>
           <p>{{ rival_cards|length }} fichas{% if standings_count %} · clasificación detectada: {{ standings_count }} equipos{% endif %}</p>
         </div>
         <div class="actions">

@@ -175,7 +175,7 @@
       .add-grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:0.7rem; margin-top:0.8rem; }
       .add-grid .wide { grid-column: 1 / -1; }
       .toolbar { display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.8rem; }
-      @media (max-width: 960px) {
+      @media (max-width:var(--fm-page,1120px)) {
         .grid { grid-template-columns: 1fr; }
         .form-grid, .add-grid { grid-template-columns: 1fr; }
         .header { grid-template-columns: 1fr; }
@@ -183,12 +183,14 @@
       }
     </style>
   </head>
-  <body>
+  <body class="prod-commercial">
     <div class="shell">
+      {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='equipo' %}
       <header class="header">
         <div>
           <p class="kicker">Ficha de lesión</p>
-          <h1>{{ player.name }}</h1>
+          <h1 style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>{{ player.name }}</span></h1>
           <p class="sub">
             {{ record.injury }}{% if record.injury_type %} · {{ record.injury_type }}{% endif %}{% if record.injury_zone %} · {{ record.injury_zone }}{% endif %}
           </p>

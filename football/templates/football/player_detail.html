@@ -14,7 +14,7 @@
 	        margin: 0;
 	        padding: clamp(0.85rem, 1.8vw, 1.35rem);
 	      }
-      .container { max-width: 1320px; margin: 0 auto; }
+      .container { max-width:var(--fm-page-wide,1520px); margin: 0 auto; }
       header {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
@@ -1051,6 +1051,7 @@
 	        </div>
       </a>
       {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True hide_dragon_logo=False %}
+      {% if not is_player_readonly %}{% include 'football/includes/_zone_subnav.html' with zone='equipo' %}{% endif %}
       <header>
         <div class="player-head-main">
           <div class="player-photo-mini">
@@ -1062,8 +1063,8 @@
           </div>
           <div class="player-head-copy">
           <p style="margin:0;" class="subtle">Jugador · {{ player.team.display_name }}</p>
-          <h1>
-            {{ player.name }}
+          <h1 style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">
+            {% if not is_player_readonly %}{% include 'football/includes/_kit_bar.html' %}{% endif %}{{ player.name }}
             {% if has_active_injury %}
               <span class="injury-alert-icon" title="Jugador con lesión activa">✚</span>
             {% endif %}

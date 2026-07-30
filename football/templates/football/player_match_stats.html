@@ -29,7 +29,7 @@
         padding: 2rem;
       }
       .container {
-        max-width: 1220px;
+        max-width:var(--fm-page,1120px);
         margin: 0 auto;
       }
       header {
@@ -199,10 +199,11 @@
   <body class="prod-commercial">
     <div class="container">
       {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True hide_global_guard_widget=True %}
+      {% include 'football/includes/_zone_subnav.html' with zone='partido' %}
       <header>
         <div>
           <p class="meta">Resumen individual del partido</p>
-          <h1>{{ player.name }} · {{ match.opponent }}</h1>
+          <h1 style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>{{ player.name }} · {{ match.opponent }}</span></h1>
 	          <p class="meta">{{ match.date }} · {{ match.location }} · Jornada {{ match.round }} · ID {{ match.match_id }}</p>
         </div>
         <a href="{% url 'player-detail' player.id %}">← Volver al jugador</a>

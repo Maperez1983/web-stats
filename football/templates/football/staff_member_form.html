@@ -50,7 +50,7 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 0.75rem;
       }
-      @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+      @media (max-width:var(--fm-page,1120px)) { .grid { grid-template-columns: 1fr; } }
       label {
         display: grid;
         gap: 0.35rem;
@@ -258,11 +258,12 @@
   <body class="prod-commercial">
     <div class="shell">
       {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='club' %}
 
       <section class="panel">
         <div class="row" style="margin-top:0;">
           <div>
-            <h1>{% if mode == 'create' %}Nuevo miembro{% else %}Ficha staff{% endif %}</h1>
+            <h1 style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>{% if mode == 'create' %}Nuevo miembro{% else %}Ficha staff{% endif %}</span></h1>
             {% if mode == 'create' %}
             <p class="sub">{{ team_label }}</p>
             {% else %}
