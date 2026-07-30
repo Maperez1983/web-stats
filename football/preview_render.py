@@ -951,3 +951,86 @@ def render_url_selector_png(
             except Exception:
                 pass
             return None
+
+def probe_url_state(*, url: str, cookies: list | None = None, script: str,
+                    viewport_width: int = 1600, viewport_height: int = 1000,
+                    wait_ms: int = 20000) -> dict | None:
+    """Abre una URL, espera un rato y devuelve lo que diga `script` (JSON serializable).
+
+    Sirve para saber POR QUE una foto no sale: si el motor de pizarra llego a marcar "listo",
+    si dibujo algo, y que error guardo. Sin esto solo se ve "no hay foto" y se acaba adivinando.
+    """
+    if not url or not script:
+        return None
+    try:
+        own_host = (urlparse(str(url)).hostname or "").lower()
+    except Exception:
+        own_host = ""
+    with _acquire_playwright_browser() as (pw, browser):
+        if not pw or not browser:
+            return {"error": "playwright no disponible"}
+        context = None
+        try:
+            context = browser.new_context(
+                viewport={"width": int(viewport_width), "height": int(viewport_height)},
+                device_scale_factor=1.0,
+            )
+            if cookies:
+                try:
+                    context.add_cookies(list(cookies))
+                except Exception:
+                    pass
+            page = context.new_page()
+            errors: list = []
+            try:
+                page.on("pageerror", lambda exc: errors.append(str(exc)[:200]))
+                page.on("console", lambda msg: errors.append("console:" + str(msg.text)[:160]) if msg.type == "error" else None)
+            except Exception:
+                pass
+
+            def _block_external(route):
+                try:
+                    route.fulfill(status=200, content_type="image/png", body=_BLANK_PNG_BYTES)
+                except Exception:
+                    try:
+                        route.continue_()
+                    except Exception:
+                        pass
+
+            def _is_external(req_url) -> bool:
+                try:
+                    raw = str(req_url)
+                    if not raw.startswith(("http://", "https://")):
+                        return False
+                    host = (urlparse(raw).hostname or "").lower()
+                    return bool(host) and bool(own_host) and host != own_host
+                except Exception:
+                    return False
+
+            try:
+                page.route(_is_external, _block_external)
+            except Exception:
+                pass
+            page.goto(str(url), wait_until="domcontentloaded", timeout=45000)
+            try:
+                page.wait_for_timeout(max(0, min(int(wait_ms or 0), 60000)))
+            except Exception:
+                pass
+            try:
+                state = page.evaluate(str(script))
+            except Exception as exc:
+                state = {"eval_error": f"{type(exc).__name__}: {exc}"}
+            if isinstance(state, dict):
+                state["errores_pagina"] = errors[:6]
+            try:
+                context.close()
+            except Exception:
+                pass
+            return state
+        except Exception as exc:
+            try:
+                if context:
+                    context.close()
+            except Exception:
+                pass
+            return {"error": f"{type(exc).__name__}: {exc}"}

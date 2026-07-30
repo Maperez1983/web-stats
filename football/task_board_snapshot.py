@@ -390,13 +390,18 @@ def board_snapshot_status_view(request, task_id):
         resp["Cache-Control"] = "no-store"
         return resp
 
+    if str(request.GET.get("probe") or "").strip() in {"1", "true", "yes"}:
+        return JsonResponse(_probe(request, task))
+
     force = str(request.GET.get("force") or "").strip() in {"1", "true", "yes"}
     if force:
         try:
             cache.delete(_fail_key(int(task.id)))
         except Exception:
             pass
-    queued = queue_snapshot(request, task, force=force)
+    # OJO: consultar el estado NO debe encolar nada. Antes cada consulta lanzaba otra foto y
+    # se formaba cola sola (ademas con 2 workers el estado en memoria no es comparable).
+    queued = queue_snapshot(request, task, force=force) if force else False
 
     field = getattr(task, "task_preview_image", None)
     return JsonResponse({
@@ -498,3 +503,49 @@ def board_snapshot_batch_view(request):
         "ids": [int(t.id) for t in pending][:started],
         "nota": "Van de una en una; cada foto tarda 1-3 min. Vuelve a llamar para seguir.",
     })
+
+_PROBE_JS = """() => {
+  const out = {};
+  try { out.tpad_listo = window.__WEBSTATS_TPAD_READY === true; } catch (e) { out.tpad_listo = 'err'; }
+  try { out.foto_lista = window.__WEBSTATS_SNAPSHOT_READY === true; } catch (e) { out.foto_lista = 'err'; }
+  try { out.modo_foto = document.body ? document.body.classList.contains('edc-snapshot') : false; } catch (e) {}
+  try {
+    const err = window.__WEBSTATS_LAST_TPAD_ERROR;
+    out.error_pizarra = err ? String(err.message || err).slice(0, 220) : '';
+  } catch (e) {}
+  try {
+    const stage = document.getElementById('task-pitch-stage');
+    out.escenario = stage ? Math.round(stage.getBoundingClientRect().width) + 'x' + Math.round(stage.getBoundingClientRect().height) : 'no hay';
+  } catch (e) {}
+  try {
+    const c = document.querySelector('#task-pitch-stage canvas.lower-canvas') || document.getElementById('create-task-canvas');
+    out.lienzo = c ? (c.width + 'x' + c.height) : 'no hay';
+    if (c && c.width) {
+      const s = document.createElement('canvas');
+      s.width = 160; s.height = Math.max(1, Math.round(160 * c.height / c.width));
+      const sc = s.getContext('2d', { willReadFrequently: true });
+      sc.clearRect(0, 0, s.width, s.height);
+      sc.drawImage(c, 0, 0, s.width, s.height);
+      const d = sc.getImageData(0, 0, s.width, s.height).data;
+      let n = 0;
+      for (let i = 3; i < d.length; i += 4) { if (d[i] > 16) n++; }
+      out.pixeles_pintados = n;
+    }
+  } catch (e) { out.lienzo_error = String(e).slice(0, 160); }
+  return out;
+}"""
+
+
+def _probe(request, task) -> dict:
+    from .preview_render import probe_url_state
+
+    url = editor_snapshot_url(request, task)
+    state = probe_url_state(
+        url=url,
+        cookies=session_cookies_for(request),
+        script=_PROBE_JS,
+        viewport_width=SNAPSHOT_VIEWPORT_WIDTH,
+        viewport_height=SNAPSHOT_VIEWPORT_HEIGHT,
+        wait_ms=25000,
+    )
+    return {"ok": True, "task": int(task.id), "url": url, "estado": state}
