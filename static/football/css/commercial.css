@@ -1599,3 +1599,11 @@ body.prod-commercial .ws-presentation-exit button {
   background: rgba(15, 23, 42, 0.04);
   color: rgba(15, 23, 42, 0.92);
 }
+
+/* Modo claro: la linea de contexto de la barra (club · equipo · temporada) usa
+   grises clarisimos pensados para fondo oscuro; sobre blanco no se lee. */
+:root[data-theme="light"] body.prod-commercial .nav-context { color: rgba(15, 23, 42, 0.76); }
+:root[data-theme="light"] body.prod-commercial .nav-context-team { color: rgba(15, 23, 42, 0.88); }
+:root[data-theme="light"] body.prod-commercial .nav-context-sep { color: rgba(15, 23, 42, 0.42); }
+:root[data-theme="light"] body.prod-commercial .nav-context-section { color: rgba(15, 23, 42, 0.62); }
+:root[data-theme="light"] body.prod-commercial .nav-context-subtitle { color: #8a6400; }
