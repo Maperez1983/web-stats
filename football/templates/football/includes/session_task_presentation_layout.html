@@ -388,7 +388,7 @@
                 {% if presentation_editable %}
                 <div class="club-panel-body"><textarea class="cev" name="task_objective" rows="2" placeholder="¿Qué se busca con esta tarea?">{{ club_edit_values.objective }}</textarea></div>
                 {% else %}
-                {% with _obj=task_obj.objective|default:task.objective %}<div class="club-panel-body">{% if _obj and _obj != "-" %}{{ _obj|linebreaksbr }}{% else %}<span class="club-undefined">Sin definir</span>{% endif %}</div>{% endwith %}
+                {% with objetivo_txt=task_obj.objective|default:task.objective %}<div class="club-panel-body">{% if objetivo_txt and objetivo_txt != "-" %}{{ objetivo_txt|linebreaksbr }}{% else %}<span class="club-undefined">Sin definir</span>{% endif %}</div>{% endwith %}
                 {% endif %}
               </div>
               <div class="club-panel">
