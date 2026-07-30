@@ -286,27 +286,31 @@ def _stats_text(png_bytes: bytes) -> str:
 
 
 def _looks_like_a_real_board(png_bytes: bytes) -> bool:
+    """Ultima comprobacion: que la imagen sea una imagen y tenga tamanio de pizarra.
+
+    Aqui habia una heuristica de color (verde/blanco) heredada de las miniaturas, y era la que
+    estaba TIRANDO FOTOS BUENAS. Mide sobre una reduccion a 128 px: a esa escala una linea de
+    campo de 4 px se mezcla con el cesped y deja de contar como blanco, asi que una foto
+    impecable de campo entero salia como "verde=0.97 blanco=0.00" y se descartaba. Solo se
+    salvaban las que tenian chapas amarillas o dorsales blancos, de ahi que unas tareas si y
+    otras no, sin patron.
+
+    El guardia de verdad esta en el navegador: la foto no se dispara hasta que el campo esta
+    pintado (imagenes del cesped incluidas) y la capa de Fabric tiene pixeles.
+    """
     from .task_library_services import analyze_preview_image_bytes
 
+    if not png_bytes or len(png_bytes) < 2048:
+        return False
     stats = analyze_preview_image_bytes(png_bytes)
     if not stats:
         return True  # sin Pillow no podemos juzgar: no bloqueamos
     try:
-        green = float(stats.get("green_ratio") or 0.0)
-        white = float(stats.get("white_ratio") or 0.0)
-        dark = float(stats.get("dark_ratio") or 0.0)
+        width = int(stats.get("width") or 0)
+        height = int(stats.get("height") or 0)
     except Exception:
         return True
-    # Criterio MUY laxo a proposito. El guardia de verdad es la senal del navegador
-    # (`__WEBSTATS_SNAPSHOT_READY`), que solo se activa cuando la capa de Fabric tiene algo
-    # pintado. La heuristica de color, calibrada para las miniaturas recortadas de 720 px,
-    # daba FALSO POSITIVO con una foto del campo entero: mucho verde y lineas finas que al
-    # reducir a 128 px dejan de contar como blanco. Aqui solo caza un rectangulo liso.
-    # Sin NADA de blanco no hay ni lineas de campo: eso no es una pizarra, es cesped a secas
-    # (pasaba cuando la foto se disparaba antes de que el SVG del campo hubiera pintado).
-    if white <= 0.005:
-        return False
-    return not (green >= 0.97 and white <= 0.03)
+    return min(width, height) >= 200
 
 
 def _to_jpeg(png_bytes: bytes) -> bytes:
