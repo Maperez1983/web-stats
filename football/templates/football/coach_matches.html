@@ -88,7 +88,7 @@
       {% include 'football/includes/_zone_subnav.html' with zone='partido' %}
       <header>
         <div style="display:flex;gap:.85rem;align-items:center;">
-          {% if kit_primary_color %}<span class="zh-kit" style="--zh-k1:{{ kit_primary_color }};--zh-k2:{{ kit_secondary_color|default:kit_primary_color }};" title="Colores del club" aria-hidden="true"></span>{% endif %}
+          {% include 'football/includes/_kit_bar.html' %}
           <div>
             <h1 style="margin:0;">Calendario</h1>
             <p style="margin:.15rem 0 0;">{{ team_name }} · {{ season_label }}</p>

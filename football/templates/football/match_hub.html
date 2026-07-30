@@ -312,7 +312,7 @@
 
       <header class="header" style="margin-top: 0.9rem;">
         <div style="display:flex;gap:.85rem;align-items:flex-start;">
-          {% if kit_primary_color %}<span class="zh-kit" style="--zh-k1:{{ kit_primary_color }};--zh-k2:{{ kit_secondary_color|default:kit_primary_color }};" title="Colores del club" aria-hidden="true"></span>{% endif %}
+          {% include 'football/includes/_kit_bar.html' %}
         <div>
           <h1>Partido</h1>
           <p>{{ team_label }}{% if match_label %} · {{ match_label }}{% endif %}</p>

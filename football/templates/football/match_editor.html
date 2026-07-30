@@ -54,7 +54,7 @@
 
       <header>
         <div style="display:flex;gap:.85rem;align-items:flex-start;">
-          {% if kit_primary_color %}<span class="zh-kit" style="--zh-k1:{{ kit_primary_color }};--zh-k2:{{ kit_secondary_color|default:kit_primary_color }};" title="Colores del club" aria-hidden="true"></span>{% endif %}
+          {% include 'football/includes/_kit_bar.html' %}
         <div>
           {% if score_for != '' and score_against != '' %}
           <div class="me-score"><span class="me-tm">{{ team_name }}</span><span class="me-sc">{{ score_for }} – {{ score_against }}</span><span class="me-tm me-away">{{ opponent_name|default:"Rival" }}</span></div>
