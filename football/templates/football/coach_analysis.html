@@ -22,7 +22,7 @@
 	        color: var(--prod-text);
 	      }
       .page {
-        max-width: 1100px;
+        max-width:var(--fm-page,1120px);
         margin: 0 auto;
         padding: 2rem 1.25rem 3rem;
       }
@@ -660,10 +660,11 @@
 	  <body class="prod-commercial" data-active-tab="{{ active_tab|default:'reports' }}">
 	    <div class="page product-shell">
       {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='analisis' %}
       <header>
         <div class="header-copy">
           <p class="header-kicker">Área técnica · Scouting rival</p>
-          <h1>{{ section_title }}</h1>
+          <h1 style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>{{ section_title }}</span></h1>
           <p>Centraliza vídeo, cortes, hallazgos y contexto competitivo en una única superficie operativa.</p>
           <div class="header-pills">
             <span class="header-pill">Vídeo</span>
@@ -1228,7 +1229,6 @@
 		            </p>
 	            <div class="actions" style="justify-content:flex-start; margin-top:0.85rem;">
 	              <a class="button ghost" href="{{ tab_link_videos }}">Ir a Vídeos</a>
-	              <a class="button ghost" href="{% url 'analysis-video-inbox' %}">Bandeja</a>
 	            </div>
 	          </div>
 	          {% for video in rival_videos %}

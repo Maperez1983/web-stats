@@ -22,7 +22,7 @@
       }
       a { color: inherit; text-decoration: none; }
       .shell {
-        max-width: 1280px;
+        max-width:var(--fm-page,1120px);
         margin: 0 auto;
         padding: clamp(0.85rem, 1.4vw, 1.2rem) clamp(0.75rem, 1.4vw, 1rem) 3rem;
       }
@@ -325,7 +325,7 @@
       }
     </style>
   </head>
-  <body>
+  <body class="prod-commercial">
     <div class="topbar">
       <div class="crumbs">
         <a class="pill" href="{% url 'coach-rivals' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">← Rivales</a>
@@ -337,6 +337,8 @@
       </div>
     </div>
     <main class="shell">
+      {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='analisis' %}
       <section class="hero">
         <div class="hero-head">
           <div class="hero-title">
@@ -349,7 +351,7 @@
             {% endif %}
             <div style="min-width:0;">
               <div class="hero-kicker">Scouting rival</div>
-              <h1>{{ rival.name|default:"Rival" }}</h1>
+              <h1 style="display:flex;align-items:center;gap:.6rem;">{% if rival.kit_primary_color %}<span class="zh-kit" style="--zh-k1:{{ rival.kit_primary_color }};--zh-k2:{{ rival.kit_secondary_color|default:rival.kit_primary_color }};" title="Colores del rival" aria-hidden="true"></span>{% endif %}<span>{{ rival.name|default:"Rival" }}</span></h1>
               <div class="meta">
                 {% if primary_team %}{{ primary_team.display_name|default:primary_team.name }} · {% endif %}
                 {% if standings_row %}{{ standings_row.rank|default:"—" }}º · {{ standings_row.points|default:"—" }} pts{% else %}Sin clasificación enlazada{% endif %}
@@ -563,7 +565,6 @@
               <div class="meta">Bandeja de vídeos y acceso al Video Studio.</div>
               <div class="actions" style="margin-left:auto;">
                 <a class="button" href="{% url 'analysis' %}?tab=videos&team_id={{ rival.id }}">Gestionar</a>
-                <a class="button ghost" href="{% url 'analysis-video-inbox' %}">Inbox</a>
               </div>
             </div>
 

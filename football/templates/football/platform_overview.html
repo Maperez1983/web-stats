@@ -21,7 +21,7 @@
       }
 
       .shell {
-        max-width: 1380px;
+        max-width:var(--fm-page,1120px);
         margin: 0 auto;
         padding: 1.1rem 1.25rem 2.2rem;
       }
@@ -1071,6 +1071,8 @@
   </head>
   <body class="prod-commercial">
     <main class="shell">
+      {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='club' %}
       <div class="brand-rail">
         <div class="product-brand">
           <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J Football Intelligence" style="width:220px;height:auto;" />
@@ -1082,8 +1084,8 @@
           <div class="hero-topline">
 	            <div class="hero-title-block">
               <div class="hero-kicker">Gobierno y control</div>
-	              <div class="product-kicker">2J Platform</div>
-	              <h1>Platform</h1>
+	              
+	              <h1 style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>Gobierno del club</span></h1>
 	              <p>Vista de control para revisar el estado de los clubes, entrar a sus fichas y gestionar la configuración global sin mezclarlo con la operación diaria.</p>
                 <div class="hero-pills">
                   <span class="hero-pill">Clubes</span>

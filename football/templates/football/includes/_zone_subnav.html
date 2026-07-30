@@ -43,6 +43,29 @@ Auto-resalta la página activa con nav_url_name (global). Seguro si falta: solo 
   <a href="{% url 'initial-eleven' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'initial-eleven' %}on{% endif %}">👕 11 inicial</a>
   <a href="{% url 'match-action-page' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'match-action-page' %}on{% endif %}">⏱️ Registro</a>
 </nav>
+{% elif zone == 'analisis' %}
+<nav class="zone-subnav" aria-label="Análisis">
+  <span class="zt">🎥 Análisis</span>
+  <a href="{% url 'analysis' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'analysis' %}on{% endif %}">🎥 Análisis</a>
+  <a href="{% url 'analysis-video-inbox' %}" class="{% if request.resolver_match.url_name == 'analysis-video-inbox' %}on{% endif %}">📥 Bandeja de vídeo</a>
+  <a href="{% url 'rival-players-index' %}" class="{% if request.resolver_match.url_name == 'analysis-rival-profile' %}on{% endif %}">🛡️ Rivales</a>
+</nav>
+{% elif zone == 'club' %}
+<nav class="zone-subnav" aria-label="Club">
+  <span class="zt">🏛️ Club</span>
+  <a href="{% url 'club-page' %}" class="{% if request.resolver_match.url_name == 'club-page' %}on{% endif %}">🏛️ Ficha del club</a>
+  <a href="{% url 'team-page' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'team-page' %}on{% endif %}">🏳️ Ficha del equipo</a>
+  <a href="{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'staff-directory' %}on{% endif %}">👔 Staff</a>
+  <a href="{% url 'club-onboarding' %}" class="{% if request.resolver_match.url_name == 'club-onboarding' %}on{% endif %}">⚙️ Configuración</a>
+  {% if request.user.is_staff or request.user.is_superuser %}<a href="{% url 'platform-overview' %}" class="{% if request.resolver_match.url_name == 'platform-overview' %}on{% endif %}">🛠️ Gobierno</a>{% endif %}
+</nav>
+{% elif zone == 'entrenador' %}
+<nav class="zone-subnav" aria-label="Entrenador">
+  <span class="zt">🧑‍🏫 Entrenador</span>
+  <a href="{% url 'coach-detail' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'coach-detail' %}on{% endif %}">🏠 Inicio</a>
+  <a href="{% url 'coach-cards' %}" class="{% if request.resolver_match.url_name == 'coach-cards' %}on{% endif %}">🗂️ Áreas</a>
+  <a href="{% url 'coach-inbox' %}" class="{% if request.resolver_match.url_name == 'coach-inbox' %}on{% endif %}">📥 Bandeja</a>
+</nav>
 {% elif zone == 'direccion' %}
 <nav class="zone-subnav" aria-label="Dirección">
   <span class="zt">🔎 Dirección</span>

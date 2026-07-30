@@ -103,7 +103,7 @@
       .focus-panel-head p {
         margin: 0.7rem 0 0;
         color: rgba(226, 232, 240, 0.75);
-        max-width: 720px;
+        max-width:var(--fm-page,1120px);
         overflow-wrap: anywhere;
       }
       .focus-responsible {
@@ -207,11 +207,12 @@
   <body class="prod-commercial">
     <div class="page">
       {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='entrenador' %}
       <header>
         <div class="head-main">
-          <div class="head-kicker">Staff hub</div>
+          <div class="head-kicker">Áreas del cuerpo técnico</div>
           <p style="margin:0;color:rgba(226,232,240,0.6);">Cliente · Áreas del staff</p>
-          <h1>Cuerpo técnico</h1>
+          <h1 style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>Cuerpo técnico</span></h1>
           <p style="margin:.5rem 0 0;color:rgba(226,232,240,0.72);">El trabajo del staff se organiza aquí por áreas: estadísticas grupales, partido, entrenamiento y análisis.</p>
           <div class="head-pills">
             <span class="head-pill">Staff</span>
@@ -221,7 +222,6 @@
         </div>
         <div class="head-actions">
           <a class="pill-button" style="border-radius:12px;" href="{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Staff</a>
-          <a class="pill-button" style="border-radius:12px;" href="{% url 'coach-detail' %}">Volver</a>
         </div>
       </header>
       <p style="margin:1rem 0 0; color:#bae6fd; font-weight:700;">Miembros técnicos visibles: {{ staff_count }}</p>

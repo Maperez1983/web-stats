@@ -10,7 +10,7 @@
     {% include 'football/pwa_head.html' %}
     <style>
       body { margin:0; background: linear-gradient(180deg, #020417 0%, #050b1c 100%); color:var(--prod-text); font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif); }
-      .page { max-width: 1100px; margin:0 auto; padding: 1.2rem; }
+      .page { max-width:var(--fm-page,1120px); margin:0 auto; padding: 1.2rem; }
       .head { display:flex; align-items:flex-start; justify-content:space-between; gap:0.9rem; flex-wrap:wrap; margin-bottom:1rem; }
       h1 { margin:0; font-size:1.05rem; letter-spacing:0.08em; text-transform:uppercase; }
       .meta { color: rgba(226,232,240,0.72); font-weight:800; }
@@ -28,9 +28,11 @@
   </head>
   <body class="prod-commercial">
     <main class="page">
+      {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='analisis' %}
       <div class="head">
         <div>
-          <h1>Bandeja · Análisis</h1>
+          <h1 style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>Bandeja · Análisis</span></h1>
           <div class="meta">
             {% if team %}{{ team.display_name|default:team.name }}{% endif %}
             · <span class="k">{{ unread_count|default:0 }}</span> sin leer

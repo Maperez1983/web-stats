@@ -181,7 +181,7 @@
         color: rgba(255, 242, 199, 0.92);
         font-weight: 800;
       }
-      @media (max-width: 720px) {
+      @media (max-width:var(--fm-page,1120px)) {
         .header { grid-template-columns: 1fr; }
         .head-actions { justify-content: flex-start; }
         .head-actions .btn { width: 100%; }
@@ -193,10 +193,11 @@
   <body class="prod-commercial">
     <div class="shell">
       {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='club' %}
 
       <header class="header">
         <div>
-          <h1>Staff</h1>
+          <h1 style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>Staff</span></h1>
           <p>{{ team_label }}</p>
           <p class="meta" style="margin-top:0.35rem;">
             {% if visible_items_count is not None %}

@@ -42,6 +42,7 @@
   <body class="prod-commercial">
     <div class="app-shell">
       {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='club' %}
       <main class="cl-wrap">
         <div class="cl-head">
           {% if club_crest %}<img class="cl-crest" src="{{ club_crest }}" alt="" />{% else %}<div class="cl-crest ph">{{ club_name|slice:':1'|upper }}</div>{% endif %}
@@ -90,12 +91,6 @@
         {% else %}
         <p class="cl-empty">Sin staff registrado. Añádelo en Dirección → Staff.</p>
         {% endif %}
-
-        <div class="cl-links">
-          <a href="{% url 'team-page' %}">🏳️ Ficha del equipo</a>
-          <a href="{% url 'staff-directory' %}">Staff</a>
-          <a href="{% url 'club-onboarding' %}">Configuración del club</a>
-        </div>
       </main>
     </div>
   </body>

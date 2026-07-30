@@ -68,7 +68,7 @@
         opacity: 0.55;
       }
       .page {
-        max-width: 1220px;
+        max-width:var(--fm-page,1120px);
         margin: 0 auto;
         padding: 1.6rem 1.15rem 3rem;
         position: relative;
@@ -2430,10 +2430,11 @@
   <body class="prod-commercial">
     <div class="page product-shell">
       {% include 'football/includes/dragon_nav.html' with compact_workspace_tabs=True hide_product_shortcuts=True %}
+      {% include 'football/includes/_zone_subnav.html' with zone='entrenador' %}
       <header class="role-header">
         <div class="title">
           <p class="product-kicker">Workspace por rol</p>
-          <h1>{{ role_title }}</h1>
+          <h1 style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>{{ role_title }}</span></h1>
           <p>{{ role_description }}</p>
           {% if role_key == 'trainer' %}
           <div class="role-meta-row" aria-label="Contexto rápido del entrenador">
