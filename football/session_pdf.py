@@ -1166,22 +1166,16 @@ def build_session_pdf_context(request, team, session, pdf_style='uefa'):
     # La hoja de campo pone DOS tareas por fila, como la plantilla en papel. Con una tarea por
     # fila a lo ancho, cinco tareas ya se iban a una segunda pagina y deja de ser una hoja.
     field_cards = list(annex_cards)
-    # Simulacion para AJUSTAR el diseno: ?tareas=N repite las tareas existentes hasta N y permite
-    # comprobar en un PDF real si el numero habitual (6) sigue cabiendo en una hoja. No toca datos.
-    try:
-        wanted = int(request.GET.get('tareas') or 0)
-    except Exception:
-        wanted = 0
-    if 0 < wanted <= 12 and field_cards:
-        field_cards = [dict(field_cards[i % len(field_cards)]) for i in range(wanted)]
-        for index, card in enumerate(field_cards, start=1):
-            card['annex_index'] = index
     field_task_pairs = [field_cards[i:i + 2] for i in range(0, len(field_cards), 2)]
-    # La pizarra se encoge segun cuantas tareas haya: con 6 hay tres filas y el alto manda.
+    # La pizarra se encoge segun cuantas tareas haya: es lo que decide si todo cabe en UNA hoja.
+    # Medido en un PDF real (se simulo el numero de tareas para ajustarlo): con 6 tareas la tinta
+    # acaba en 183,8 mm de 210 y sobran 26 mm; con 8 ya salta a una segunda pagina, y no se
+    # encoge mas porque a partir de ahi las pizarras no se leen en el campo.
     field_board_mm = 36 if len(field_cards) <= 4 else (30 if len(field_cards) <= 6 else 24)
 
     return {
         **_build_pdf_nav_urls(request),
+        'field_cards': field_cards,
         'field_task_pairs': field_task_pairs,
         'field_board_mm': field_board_mm,
         'field_tasks_count': len(field_cards),

@@ -142,25 +142,25 @@ tan estrechas que no se puede leer nada.
           <table class="task-cols" style="margin-top:3px;">
             <tr>
               <td class="band rowhead">Tareas</td>
-              {% for card in annex_cards %}
+              {% for card in field_cards %}
               <td class="band">Tarea {{ card.annex_index }}</td>
               {% endfor %}
             </tr>
             <tr>
               <td class="band rowhead">Tipo de tarea</td>
-              {% for card in annex_cards %}
+              {% for card in field_cards %}
               <td class="cell">{{ card.section_label|default:"—" }}<br />{{ card.sheet.minutes }}′</td>
               {% endfor %}
             </tr>
             <tr>
               <td class="band rowhead">Contenidos</td>
-              {% for card in annex_cards %}
+              {% for card in field_cards %}
               <td class="cell">{{ card.sheet.contents_label|default:"—" }}</td>
               {% endfor %}
             </tr>
             <tr>
               <td class="band rowhead">Estructura</td>
-              {% for card in annex_cards %}
+              {% for card in field_cards %}
               <td class="cell">{{ card.sheet.players_label|default:"—" }}{% if card.sheet.dimensions_label %}<br />{{ card.sheet.dimensions_label }}{% endif %}</td>
               {% endfor %}
             </tr>
