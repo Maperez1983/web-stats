@@ -270,7 +270,7 @@
       {% if task_context_warning %}<div class="alert warn">{{ task_context_warning }}</div>{% endif %}
       {% if duplicate_task_matches %}
       <div class="alert warn" style="display:flex; flex-direction:column; gap:0.6rem;">
-        <div><strong>Duplicados detectados por Ollana:</strong> {{ duplicate_task_warning|default:'Hay coincidencias sospechosas en esta tarea.' }}</div>
+        <div><strong>Duplicados detectados:</strong> {{ duplicate_task_warning|default:'Hay coincidencias sospechosas en esta tarea.' }}</div>
         <div style="display:grid; gap:0.35rem;">
           {% for dup in duplicate_task_matches %}
             <a class="button" href="{{ dup.url }}" style="justify-content:space-between; text-align:left;">

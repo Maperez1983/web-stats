@@ -211,8 +211,11 @@ sin cargarlo, asi que la identidad se aplicaba a medias. Aqui lo ve TODA la app.
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.id = launcherId;
-        btn.textContent = 'Ollana';
-        btn.setAttribute('aria-label', 'Abrir Ollana');
+        // Mismo nombre que el lanzador real (#global-guard-widget-toggle): este es solo su
+        // suplente cuando aquel no ha montado, y verlos con dos nombres distintos hacia pensar
+        // que eran dos asistentes.
+        btn.textContent = 'Asistente';
+        btn.setAttribute('aria-label', 'Abrir el asistente');
         btn.style.position = 'fixed';
         btn.style.right = 'max(14px, env(safe-area-inset-right))';
         btn.style.bottom = 'max(14px, env(safe-area-inset-bottom))';
