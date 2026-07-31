@@ -188,3 +188,62 @@ class TemplateCommentsAreRealCommentsTests(TestCase):
                     if "\n" in match.group(1):
                         offenders.append(f"{path}: {match.group(1)[:60]!r}")
         self.assertEqual(offenders, [], "Usa {% comment %} para comentarios de varias líneas")
+
+
+class AccountLinkVisibilityTests(TestCase):
+    """
+    El panel decía "vinculado" pero no a quién, y no dejaba deshacerlo.
+
+    Importa porque los vínculos viejos los pudo escribir el auto-vinculado por parecido de
+    nombre que se retiró en la fase 0: hay que poder mirar si son correctos y soltarlos.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.owner = get_user_model().objects.create_user(username="mister", password="pass-1234")
+        self.workspace = Workspace.objects.create(
+            name="C.D. Prueba", kind=Workspace.KIND_CLUB, is_active=True, owner_user=self.owner
+        )
+        self.team = Team.objects.create(name="Primer equipo", slug="senior", is_primary=True)
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.team)
+        self.player = Player.objects.create(team=self.team, name="Ayala", is_active=True)
+        self.linked = get_user_model().objects.create_user(
+            username="otra.persona", email="otra@example.com", password="pass-1234",
+            first_name="Otra", last_name="Persona",
+        )
+        self.player.user = self.linked
+        self.player.save(update_fields=["user"])
+        self.client = Client()
+        self.client.force_login(self.owner)
+        session = self.client.session
+        session["active_workspace_id"] = self.workspace.id
+        session.save()
+
+    def test_panel_says_which_account(self):
+        response = self.client.get(reverse("player-portal-settings"), HTTP_HOST="localhost")
+        self.assertContains(response, "Otra Persona")
+        self.assertContains(response, "otra@example.com")
+
+    def test_the_link_can_be_undone(self):
+        self.client.post(
+            reverse("player-portal-settings"),
+            {"action": "unlink", "player_id": self.player.id},
+            HTTP_HOST="localhost",
+        )
+        self.player.refresh_from_db()
+        self.assertIsNone(self.player.user_id)
+        # La cuenta no se borra: sólo se suelta de esta ficha.
+        self.assertTrue(get_user_model().objects.filter(id=self.linked.id).exists())
+
+    def test_cannot_unlink_a_player_from_another_club(self):
+        # `Player.user` es OneToOne: una cuenta no puede estar en dos fichas.
+        other_team = Team.objects.create(name="Ajeno", slug="ajeno")
+        other_user = get_user_model().objects.create_user(username="ajeno", password="pass-1234")
+        outsider = Player.objects.create(team=other_team, name="Ajeno", is_active=True, user=other_user)
+        self.client.post(
+            reverse("player-portal-settings"),
+            {"action": "unlink", "player_id": outsider.id},
+            HTTP_HOST="localhost",
+        )
+        outsider.refresh_from_db()
+        self.assertEqual(outsider.user_id, other_user.id)

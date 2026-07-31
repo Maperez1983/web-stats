@@ -414,6 +414,26 @@ def player_portal_settings_page(request):
                 if target_team is None
                 else f"Regla de {target_team.name} guardada."
             )
+        elif not error and action == "unlink":
+            # Deshacer un vínculo equivocado. Los vínculos viejos los pudo escribir el
+            # auto-vinculado por parecido de nombre que se retiró en la fase 0, así que hay
+            # que poder revisarlos. No se toca la cuenta: sólo se suelta de esta ficha.
+            from .models import Player as _Player
+
+            _pid = str(request.POST.get("player_id") or "").strip()
+            _player = (
+                _Player.objects.filter(
+                    id=int(_pid), team__workspace_links__workspace=workspace
+                ).first()
+                if _pid.isdigit()
+                else None
+            )
+            if _player is None:
+                error = "Ese jugador no es de este club."
+            else:
+                _player.user = None
+                _player.save(update_fields=["user"])
+                notice = f"{_player.name} ya no está vinculado a ninguna cuenta."
         elif not error and action == "reset" and target_team is not None:
             PlayerPortalPolicy.objects.filter(workspace=workspace, team=target_team).delete()
             notice = f"{target_team.name} vuelve a la regla del club."
@@ -473,7 +493,15 @@ def player_portal_settings_page(request):
                 account = "invitado"
             else:
                 account = "sin cuenta"
-            squad.append({"player": player, "account": account})
+            linked = player.user
+            squad.append({
+                "player": player,
+                "account": account,
+                "linked_label": (
+                    (linked.get_full_name() or linked.get_username()) if linked else ""
+                ),
+                "linked_email": (getattr(linked, "email", "") or "") if linked else "",
+            })
     except Exception:
         logger.debug("No se pudo listar la plantilla para el panel del portal", exc_info=True)
 

@@ -24,6 +24,7 @@ Auto-resalta la página activa con nav_url_name (global). Seguro si falta: solo 
   <a href="{% url 'development' %}" class="{% if request.resolver_match.url_name == 'development' %}on{% endif %}">📈 Desarrollo</a>
   <a href="{% url 'player-compare' %}" class="{% if request.resolver_match.url_name == 'player-compare' %}on{% endif %}">⚖️ Comparar</a>
   <a href="{% url 'team-page' %}" class="{% if request.resolver_match.url_name == 'team-page' %}on{% endif %}">🏳️ Ficha equipo</a>
+  {% if can_manage_workspace %}<a href="{% url 'player-portal-settings' %}" class="{% if request.resolver_match.url_name == 'player-portal-settings' %}on{% endif %}">📱 Portal del jugador</a>{% endif %}
 </nav>
 {% elif zone == 'tactica' %}
 <nav class="zone-subnav" aria-label="Táctica">

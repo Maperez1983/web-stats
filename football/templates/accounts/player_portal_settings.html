@@ -155,11 +155,23 @@
               <div class="muted">
                 {{ item.player.team.name }}
                 {% if item.player.number %} · #{{ item.player.number }}{% endif %}
+                {% if item.linked_label %}
+                  · cuenta: <strong>{{ item.linked_label }}</strong>{% if item.linked_email %} ({{ item.linked_email }}){% endif %}
+                {% endif %}
               </div>
             </div>
             <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
               <span class="tag">{{ item.account }}</span>
               <a class="btn alt" href="{% url 'player-home' %}?ver_como={{ item.player.id }}">Ver como él</a>
+              {% if item.linked_label %}
+                <form method="post" style="margin:0;"
+                      onsubmit="return confirm('¿Soltar la cuenta de {{ item.linked_label|escapejs }} de la ficha de {{ item.player.name|escapejs }}? La cuenta no se borra.');">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="unlink" />
+                  <input type="hidden" name="player_id" value="{{ item.player.id }}" />
+                  <button class="btn alt" type="submit">Desvincular</button>
+                </form>
+              {% endif %}
             </div>
           </div>
         {% empty %}
