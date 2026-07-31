@@ -41,9 +41,9 @@
   </head>
   <body class="prod-commercial">
     <main class="page">
-      {# Identidad = organización: estas páginas tenían las hojas del sistema pero
+      {% comment %} Identidad = organización: estas páginas tenían las hojas del sistema pero
          ninguna estructura compartida, así que al jugador se le caía la navegación
-         y no sabía cómo volver a su espacio. #}
+         y no sabía cómo volver a su espacio. {% endcomment %}
       {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True %}
       <p style="margin:0 0 1rem;">
         <a class="btn alt" href="{% url 'player-home' %}">← Mi espacio</a>

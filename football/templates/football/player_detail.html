@@ -1096,8 +1096,8 @@
 		            <a class="btn alt" href="{% if home_url %}{{ home_url }}{% else %}{{ workspace_entry_url|default:'/' }}{% endif %}">Mi inicio</a>
 		            <a class="btn" href="{% url 'player-pdf' player.id %}" target="_blank" rel="noopener">PDF</a>
 		          {% else %}
-			          {# El jugador ya no entra en esta ficha: tiene su portal. Esto abre su portal
-			             tal cual lo recibe él, que es la única forma de comprobar qué ve. #}
+			          {% comment %} El jugador ya no entra en esta ficha: tiene su portal. Esto abre su portal
+			             tal cual lo recibe él, que es la única forma de comprobar qué ve. {% endcomment %}
 			          {% if can_preview_player_view %}
 			            <a class="btn alt" href="{% url 'player-home' %}?ver_como={{ player.id }}">Ver como jugador</a>
 			            {% if player_view_preview %}
@@ -1330,8 +1330,8 @@
 
 
 
-      {# Las pestañas del jugador salen de la política del club (`vis`), no de la plantilla.
-         Para el staff `vis` no restringe nada y salen todas. #}
+      {% comment %} Las pestañas del jugador salen de la política del club (`vis`), no de la plantilla.
+         Para el staff `vis` no restringe nada y salen todas. {% endcomment %}
       <div class="tabs" role="tablist">
         <button class="tab-btn" data-tab="personal" role="tab">Datos personales</button>
         {% if vis.performance %}<button class="tab-btn" data-tab="stats" role="tab">Rendimiento</button>{% endif %}
