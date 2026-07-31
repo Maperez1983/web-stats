@@ -255,7 +255,7 @@
           </div>
         </div>
 	        <div class="toggle-row topbar-actions">
-	          <a class="btn secondary" href="{% url 'team-agenda' %}{% if team %}?team={{ team.id }}{% endif %}">← Agenda</a>
+	          <a class="btn ghost" href="{% url 'team-agenda' %}{% if team %}?team={{ team.id }}{% endif %}">← Agenda</a>
 	          
 	          
 	          <a class="btn" href="{% url 'session-plan-pdf' session.id %}?style=uefa" data-pdf-viewer="1" data-pdf-title="Sesión · {{ session.focus }} · UEFA">📄 PDF UEFA</a>
@@ -264,9 +264,9 @@
             {% csrf_token %}
             <input type="hidden" name="action" value="save-as-template" />
             <input type="hidden" name="team" value="{{ team.id }}" />
-            <button type="submit" class="btn secondary" title="Guarda la sesión (tareas incluidas) como plantilla reutilizable en la Biblioteca de sesiones">⭐ Guardar como plantilla</button>
+            <button type="submit" class="btn ghost" title="Guarda la sesión (tareas incluidas) como plantilla reutilizable en la Biblioteca de sesiones">⭐ Guardar como plantilla</button>
           </form>
-          <a class="btn secondary" href="{% url 'session-library' %}?team={{ team.id }}" title="Ver tus plantillas de sesión guardadas">📚 Biblioteca de sesiones</a>
+          <a class="btn ghost" href="{% url 'session-library' %}?team={{ team.id }}" title="Ver tus plantillas de sesión guardadas">📚 Biblioteca de sesiones</a>
 	          {% if session_inline_edit %}
           <a class="btn secondary" href="{% url 'training-session-detail' session.id %}{% if team %}?team={{ team.id }}{% endif %}">👁️ Ver ficha</a>
           {% else %}

@@ -1442,11 +1442,11 @@
           </div>
         </div>
         <div class="top-actions">
-          <a class="button secondary task-back-link" href="{{ back_url }}">← {{ back_label }}</a>
+          <a class="button ghost task-back-link" href="{{ back_url }}">← {{ back_label }}</a>
           {% if can_edit_task %}
           <button
             type="button"
-            class="button secondary"
+            class="button ghost"
             id="bookmark-toggle"
             data-task-id="{{ task.id }}"
             aria-pressed="{% if is_bookmarked %}true{% else %}false{% endif %}"
@@ -1455,7 +1455,7 @@
           <form method="post" style="display:inline;" onsubmit="return confirm('¿Crear una copia independiente de esta tarea en la biblioteca?');">
             {% csrf_token %}
             <input type="hidden" name="detail_action" value="duplicate_task" />
-            <button type="submit" class="button secondary" title="Crea una copia independiente en la biblioteca (para conservar ambas versiones)">⧉ Crear copia</button>
+            <button type="submit" class="button ghost" title="Crea una copia independiente en la biblioteca (para conservar ambas versiones)">⧉ Crear copia</button>
           </form>
           {% endif %}
         </div>
