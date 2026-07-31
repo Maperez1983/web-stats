@@ -950,6 +950,20 @@ def build_session_pdf_context(request, team, session, pdf_style='uefa'):
     other_cards.sort(key=lambda c: (int(getattr(c.get('task'), 'order', 0) or 0), int(getattr(c.get('task'), 'id', 0) or 0)))
     if other_cards:
         task_sections.append({'key': 'other', 'label': 'Otros', 'cards': other_cards})
+    # ANEXO: lista PLANA de tareas en el orden real de la sesion (el que impone task_sections:
+    # calentamiento -> activacion -> principal 1 -> principal 2 -> vuelta a la calma), con su
+    # numero de tarea y su pagina ya calculados. Club y UEFA tiran de esta misma lista para que el
+    # anexo sea el mismo documento con dos pieles: si cada estilo numerase por su cuenta, el indice
+    # de uno no cuadraria con las paginas del otro (Club recorria task_cards, sin reordenar).
+    annex_cards = []
+    for section in task_sections:
+        for card in section['cards']:
+            card['section_label'] = section['label']
+            card['annex_index'] = len(annex_cards) + 1
+            card['annex_page'] = len(annex_cards) + 2  # la 1 es la sesion
+            annex_cards.append(card)
+    for card in annex_cards:
+        card['annex_total'] = len(annex_cards)
     # Sugerencias para plantilla UEFA (no bloqueante).
     session_materials_summary = ', '.join(
         sorted(
@@ -1073,6 +1087,7 @@ def build_session_pdf_context(request, team, session, pdf_style='uefa'):
         'task_sheets': task_sheets,
         'task_cards': task_cards,
         'task_sections': task_sections,
+        'annex_cards': annex_cards,
         'tasks_count': len(tasks),
         'task_minutes_total': total_task_minutes,
         'pdf_style': pdf_style,

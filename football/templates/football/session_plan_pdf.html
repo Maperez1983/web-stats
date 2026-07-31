@@ -399,8 +399,10 @@
 		      .rfef-box.rfef-graphic {
 		        padding: 0;
 		      }
-		      .rfef-graphic {
-			        height: 70mm;
+		      /* La pizarra manda: cada tarea tiene su pagina entera, asi que ya no hay que encogerla
+	         para que quepa debajo de la sesion (antes 70 mm, y 54 mm en la primera). */
+	      .rfef-graphic {
+			        height: 112mm;
 			        overflow: hidden;
 			        line-height: 0;
 			        text-align: center;
@@ -438,10 +440,10 @@
 	        text-align: center;
 	        vertical-align: middle;
 	      }
-		      .rfef-graphic.rfef-graphic-compact { height: 54mm; }
+
 		      .rfef-graphic img {
 			        max-width: 100%;
-			        max-height: 58mm;
+			        max-height: 106mm;
 			        width: auto;
 			        height: auto;
 			        display: inline-block;
@@ -452,18 +454,18 @@
               border: 1px solid rgba(255,255,255,0.18);
               background: rgba(255,255,255,0.02);
 		      }
-		      .rfef-graphic.rfef-graphic-compact img {
-			        max-height: 42mm;
-		      }
 		      .rfef-muted { color: #6b7280; }
 		    </style>
 	  </head>
 	    <body>
 	    {% if pdf_style != 'club' %}
-	      {% if task_sections %}
-	        {% for section in task_sections %}
-	          {% for card in section.cards %}
-	        <section class="rfef-page{% if not forloop.first or not forloop.parentloop.first %} uefa-page-break{% endif %}">
+	      {% comment %}Club y UEFA son el MISMO documento con dos pieles: pagina 1 la sesion con su
+	      indice, y a partir de ahi una pagina por tarea. Antes la sesion iba montada encima de la
+	      primera tarea (y a esa tarea se le encogia la pizarra a 42 mm para que cupiese), asi que el
+	      mismo entrenamiento salia con 4 hojas en UEFA y 5 en Club, y los numeros de pagina del
+	      indice no valian para los dos.{% endcomment %}
+	      {% if annex_cards %}
+	        <section class="rfef-page">
 	          <div class="rfef-header">
 	            <table>
 	              <tr>
@@ -473,29 +475,32 @@
 	                  </div>
 	                </td>
 	                <td style="vertical-align:middle;">
-		                  <div class="rfef-title">Entrega Sesión</div>
+	                  <div class="rfef-title">Entrega Sesión</div>
 	                </td>
 	              </tr>
 	            </table>
 	          </div>
-
-	          {% if forloop.first and forloop.parentloop.first %}
-          {% if session_cover_url %}<div style="width:100%; height:38mm; background-image:url('{{ session_cover_url }}'); background-size:cover; background-position:center 35%; border-radius:8px; margin-bottom:6px;"></div>{% endif %}
 	          <div class="rfef-section">
-		            <div class="rfef-section-title">Detalles de la sesión</div>
+	            <div class="rfef-section-title">Detalles de la sesión</div>
+	            {% if session_cover_url %}<div style="width:100%; height:38mm; background-image:url('{{ session_cover_url }}'); background-size:cover; background-position:center 35%; border-radius:8px; margin-bottom:6px;"></div>{% endif %}
 	            <table class="rfef-table">
 	              <tr>
 	                <td class="rfef-label">Título</td>
 	                <td colspan="3">{{ session_display_name|default:session.focus }}</td>
 	              </tr>
 	              <tr>
-	                <td class="rfef-label">Tiempo</td>
-	                <td>{{ session.duration_minutes }}{% if session.duration_minutes %}'{% endif %}</td>
+	                <td class="rfef-label">Fecha</td>
+	                <td>{{ session.session_date|date:"d/m/Y" }}</td>
 	                <td class="rfef-label">N Jugadores</td>
 	                <td>{{ session_player_count_display|default:"-" }}</td>
 	              </tr>
+	              <tr>
+	                <td class="rfef-label">Tiempo</td>
+	                <td>{{ session.duration_minutes }}{% if session.duration_minutes %}'{% endif %}</td>
+	                <td class="rfef-label">Tareas</td>
+	                <td>{{ annex_cards|length }}</td>
+	              </tr>
 	            </table>
-
 	            <div style="margin-top:6px;">
 	              <table class="rfef-table" style="margin-bottom:6px;">
 	                <tr>
@@ -517,14 +522,49 @@
 	              </table>
 	            </div>
 	          </div>
-	          {% endif %}
-
 	          <div class="rfef-section">
-		            <div class="rfef-section-title">Detalles de la sección</div>
+	            <div class="rfef-section-title">Tareas de la sesión</div>
+	            <table class="rfef-table">
+	              {% for card in annex_cards %}
+	              <tr>
+	                <td class="rfef-label" style="width:8%;">{{ card.annex_index }}</td>
+	                <td>{{ card.sheet.title }}</td>
+	                <td style="width:30%;">{{ card.section_label }} · {{ card.sheet.minutes }}{% if card.sheet.minutes %}'{% endif %}</td>
+	                <td style="width:14%;">pág. {{ card.annex_page }}</td>
+	              </tr>
+	              {% endfor %}
+	            </table>
+	          </div>
+	        </section>
+
+	        {% for card in annex_cards %}
+	        <section class="rfef-page uefa-page-break">
+	          <div class="rfef-header">
+	            <table>
+	              <tr>
+	                <td style="width:56px; vertical-align:middle;">
+	                  <div class="uefa-logo-wrap" style="background: rgba(0,0,0,0.16);">
+	                    <img src="{{ logo_url }}" alt="RFEF" />
+	                  </div>
+	                </td>
+	                <td style="vertical-align:middle;">
+	                  <div class="rfef-title">Entrega Sesión</div>
+	                </td>
+	              </tr>
+	            </table>
+	          </div>
+	          <div class="rfef-section">
+	            <div class="rfef-section-title">Detalles de la sección</div>
 	            <table class="rfef-table">
 	              <tr>
+	                <td class="rfef-label">Anexo</td>
+	                <td>Tarea {{ card.annex_index }} de {{ card.annex_total }}</td>
+	                <td class="rfef-label">Sesión</td>
+	                <td>{{ session.session_date|date:"d/m/Y" }}</td>
+	              </tr>
+	              <tr>
 	                <td class="rfef-label">Nombre</td>
-	                <td colspan="3">{{ section.label|default:"" }}</td>
+	                <td colspan="3">{{ card.section_label|default:"" }}</td>
 	              </tr>
 	              <tr>
 	                <td class="rfef-label">Equipos</td>
@@ -536,8 +576,8 @@
 	          </div>
 
 	          <div class="rfef-section">
-		            <div class="rfef-section-title">Descripción gráfica</div>
-	            <div class="rfef-box rfef-graphic{% if forloop.first and forloop.parentloop.first %} rfef-graphic-compact{% endif %}">
+	            <div class="rfef-section-title">Descripción gráfica</div>
+	            <div class="rfef-box rfef-graphic">
 	              <table>
 	                <tr>
 	                  <td>
@@ -553,14 +593,14 @@
 	          </div>
 
 	          <div class="rfef-section">
-		            <div class="rfef-section-title">Consigna / explicación</div>
+	            <div class="rfef-section-title">Consigna / explicación</div>
 	            <div class="rfef-box">
 	              {% if card.sheet.focus %}{{ card.sheet.focus }}{% elif card.sheet.description %}{{ card.sheet.description }}{% else %}-{% endif %}
 	            </div>
 	          </div>
 
 	          <div class="rfef-section">
-		            <div class="rfef-section-title">Detalles del ejercicio</div>
+	            <div class="rfef-section-title">Detalles del ejercicio</div>
 	            <table class="rfef-table">
 	              <tr>
 	                <td class="rfef-label">Título</td>
@@ -605,7 +645,6 @@
 	            </table>
 	          </div>
 	        </section>
-	          {% endfor %}
 	        {% endfor %}
 	      {% else %}
 	        <section class="rfef-page">
@@ -739,24 +778,24 @@
 	        <div class="section-title {% if pdf_style == 'club' %}club{% else %}uefa{% endif %}">
 	          Tareas de la sesión
 	        </div>
-	        {% if task_cards %}
-	        {% comment %}Indice: para localizar una tarea sin hojear el anexo entero. La pagina es
-	        el orden + 1 porque la sesion ocupa la primera.{% endcomment %}
+	        {% if annex_cards %}
+	        {% comment %}Indice: para localizar una tarea sin hojear el anexo entero. Numero y pagina
+	        vienen calculados de annex_cards, la misma lista que usa el estilo UEFA.{% endcomment %}
 	        <table class="table" style="margin-bottom:10px;">
-	          {% for card in task_cards %}
+	          {% for card in annex_cards %}
 	          <tr>
-	            <td style="width:8%; font-weight:900;">{{ forloop.counter }}</td>
+	            <td style="width:8%; font-weight:900;">{{ card.annex_index }}</td>
 	            <td>{{ card.sheet.title }}</td>
 	            <td style="width:32%; text-align:right; opacity:.72;">{{ card.sheet.block_label }} · {{ card.sheet.minutes }} min</td>
-	            <td style="width:16%; text-align:right; opacity:.72;">pág. {{ forloop.counter|add:1 }}</td>
+	            <td style="width:16%; text-align:right; opacity:.72;">pág. {{ card.annex_page }}</td>
 	          </tr>
 	          {% endfor %}
 	        </table>
-	          {% for card in task_cards %}
+	          {% for card in annex_cards %}
 	          <div class="task-sheet-card">
 	            {% comment %}Cada hoja del anexo se sostiene sola: dice de que sesion viene y que
 	            numero de tarea es, porque se reparte suelta.{% endcomment %}
-	            <div class="task-meta" style="opacity:.6; letter-spacing:.06em; text-transform:uppercase; font-size:8.5px;">Anexo · tarea {{ forloop.counter }} de {{ task_cards|length }} · {{ session.session_date|date:"d/m/Y" }}</div>
+	            <div class="task-meta" style="opacity:.6; letter-spacing:.06em; text-transform:uppercase; font-size:8.5px;">Anexo · tarea {{ card.annex_index }} de {{ card.annex_total }} · {{ session.session_date|date:"d/m/Y" }}</div>
 	            <div class="task-title">{{ card.sheet.title }}</div>
 	            <div class="task-meta">{{ card.sheet.block_label }} · {{ card.sheet.minutes }} min{% if card.sheet.type_label and card.sheet.type_label != '-' %} · {{ card.sheet.type_label }}{% endif %}</div>
 		              {% if card.preview_url %}
