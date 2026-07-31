@@ -2714,85 +2714,9 @@
           </article>
         </div>
         {% if not is_player_readonly %}
-        <details class="fm-manage" style="margin:1rem 0;">
-          <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.65rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:var(--prod-text);background:rgba(2,6,23,0.35);list-style:none;">✎ Registrar o actualizar lesión</summary>
-          <div style="padding:.95rem .15rem .15rem;">
-        <form method="post" enctype="multipart/form-data">
-          {% csrf_token %}
-          <input type="hidden" name="form_action" value="injuries" />
-          {% if latest_injury_record %}<input type="hidden" name="injury_record_id" value="{{ latest_injury_record.id }}" />{% endif %}
-          <div class="form-grid">
-            <label>Lesión
-              <select name="injury">
-                <option value="" {% if not player.injury %}selected{% endif %}>Sin lesión</option>
-                <option value="Rotura fibrilar" {% if player.injury == 'Rotura fibrilar' %}selected{% endif %}>Rotura fibrilar</option>
-                <option value="Sobrecarga muscular" {% if player.injury == 'Sobrecarga muscular' %}selected{% endif %}>Sobrecarga muscular</option>
-                <option value="Contractura" {% if player.injury == 'Contractura' %}selected{% endif %}>Contractura</option>
-                <option value="Esguince" {% if player.injury == 'Esguince' %}selected{% endif %}>Esguince</option>
-                <option value="Tendinopatia" {% if player.injury == 'Tendinopatia' %}selected{% endif %}>Tendinopatía</option>
-                <option value="Contusion" {% if player.injury == 'Contusion' %}selected{% endif %}>Contusión</option>
-                <option value="Fractura" {% if player.injury == 'Fractura' %}selected{% endif %}>Fractura</option>
-                <option value="Lumbalgia" {% if player.injury == 'Lumbalgia' %}selected{% endif %}>Lumbalgia</option>
-                <option value="Pubalgia" {% if player.injury == 'Pubalgia' %}selected{% endif %}>Pubalgia</option>
-                <option value="Otra" {% if player.injury == 'Otra' %}selected{% endif %}>Otra (detallar en notas)</option>
-              </select>
-            </label>
-            <label>Tipo lesión
-              <select name="injury_type">
-                <option value="" {% if not player.injury_type %}selected{% endif %}>No aplica</option>
-                <option value="Muscular" {% if player.injury_type == 'Muscular' %}selected{% endif %}>Muscular</option>
-                <option value="Articular" {% if player.injury_type == 'Articular' %}selected{% endif %}>Articular</option>
-                <option value="Tendinosa" {% if player.injury_type == 'Tendinosa' %}selected{% endif %}>Tendinosa</option>
-                <option value="Ligamentosa" {% if player.injury_type == 'Ligamentosa' %}selected{% endif %}>Ligamentosa</option>
-                <option value="Osea" {% if player.injury_type == 'Osea' %}selected{% endif %}>Ósea</option>
-                <option value="Neuromuscular" {% if player.injury_type == 'Neuromuscular' %}selected{% endif %}>Neuromuscular</option>
-              </select>
-            </label>
-            <label>Zona lesión
-              <select name="injury_zone">
-                <option value="" {% if not player.injury_zone %}selected{% endif %}>No aplica</option>
-                <option value="Isquios" {% if player.injury_zone == 'Isquios' %}selected{% endif %}>Isquios</option>
-                <option value="Aductor" {% if player.injury_zone == 'Aductor' %}selected{% endif %}>Aductor</option>
-                <option value="Cuadriceps" {% if player.injury_zone == 'Cuadriceps' %}selected{% endif %}>Cuádriceps</option>
-                <option value="Gemelo" {% if player.injury_zone == 'Gemelo' %}selected{% endif %}>Gemelo</option>
-                <option value="Soleo" {% if player.injury_zone == 'Soleo' %}selected{% endif %}>Sóleo</option>
-                <option value="Rodilla" {% if player.injury_zone == 'Rodilla' %}selected{% endif %}>Rodilla</option>
-                <option value="Tobillo" {% if player.injury_zone == 'Tobillo' %}selected{% endif %}>Tobillo</option>
-                <option value="Planta del pie" {% if player.injury_zone == 'Planta del pie' %}selected{% endif %}>Planta del pie</option>
-                <option value="Cadera" {% if player.injury_zone == 'Cadera' %}selected{% endif %}>Cadera</option>
-                <option value="Pubis" {% if player.injury_zone == 'Pubis' %}selected{% endif %}>Pubis</option>
-                <option value="Lumbar" {% if player.injury_zone == 'Lumbar' %}selected{% endif %}>Lumbar</option>
-                <option value="Hombro" {% if player.injury_zone == 'Hombro' %}selected{% endif %}>Hombro</option>
-                <option value="Muñeca" {% if player.injury_zone == 'Muñeca' %}selected{% endif %}>Muñeca</option>
-                <option value="Radio" {% if player.injury_zone == 'Radio' %}selected{% endif %}>Radio</option>
-                <option value="Húmero" {% if player.injury_zone == 'Húmero' %}selected{% endif %}>Húmero</option>
-              </select>
-            </label>
-            <label>Lado
-              <select name="injury_side">
-                <option value="" {% if not player.injury_side %}selected{% endif %}>No aplica</option>
-                <option value="izquierdo" {% if player.injury_side == 'izquierdo' %}selected{% endif %}>Izquierdo</option>
-                <option value="derecho" {% if player.injury_side == 'derecho' %}selected{% endif %}>Derecho</option>
-                <option value="bilateral" {% if player.injury_side == 'bilateral' %}selected{% endif %}>Bilateral</option>
-              </select>
-            </label>
-            <label>Fecha lesión
-              <input type="date" name="injury_date" value="{{ player.injury_date|date:'Y-m-d' }}" />
-            </label>
-            <label>Fecha de alta
-              <input type="date" name="injury_return_date" value="{% if latest_injury_record and latest_injury_record.is_active == False and latest_injury_record.return_date %}{{ latest_injury_record.return_date|date:'Y-m-d' }}{% endif %}" />
-            </label>
-            <label>Notas lesión
-              <input type="text" name="injury_notes" value="{% if latest_injury_record %}{{ latest_injury_record.notes|default:'' }}{% endif %}" placeholder="Contexto, diagnóstico, limitaciones..." />
-            </label>
-          </div>
-          <div style="margin-top:0.85rem;display:flex;gap:0.55rem;flex-wrap:wrap;">
-            <button type="submit" name="injury_record_mode" value="update">Guardar ficha</button>
-            <button type="submit" name="injury_record_mode" value="new">Añadir lesión al historial</button>
-          </div>
-        </form>
-          </div>
-        </details>
+        <p style="margin:.6rem 0 1rem;">
+          <a class="btn alt" href="{% url 'player-form' player.id 'lesion' %}">✎ Registrar o actualizar lesión</a>
+        </p>
         {% endif %}
         {% if not is_player_readonly and injury_records %}
         <form method="post" onsubmit="return confirm('¿Eliminar las lesiones seleccionadas? No se puede deshacer.');">
@@ -2932,68 +2856,9 @@
         {% endif %}
         {# El dato es suyo; el formulario de alta no. #}
         {% if not is_player_readonly %}
-        <details class="fm-manage" style="margin:1rem 0;">
-          <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.65rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:var(--prod-text);background:rgba(2,6,23,0.35);list-style:none;">✎ Añadir registro físico · RPE · wellness · tests · madurez</summary>
-          <div style="padding:.95rem .15rem .15rem;">
-        <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="form_action" value="physical" />
-          <div class="form-grid">
-            <label>Fecha
-              <input type="date" name="recorded_on" value="{% now 'Y-m-d' %}" />
-            </label>
-            <label>Carga / contenido
-              <input type="text" name="workload" placeholder="Ej. Gimnasio + HIIT" />
-            </label>
-            <label>RPE sesión (1-10)
-              <input type="number" name="rpe" min="1" max="10" />
-            </label>
-            <label>Minutos sesión
-              <input type="number" name="session_minutes" min="0" />
-            </label>
-            <label>Peso (kg)
-              <input type="number" step="0.01" min="0" name="weight_kg" />
-            </label>
-          </div>
-          <h4 style="margin:1.1rem 0 0.3rem;">Wellness (1-10)</h4>
-          <div class="form-grid">
-            <label>Global<input type="number" name="wellness" min="1" max="10" /></label>
-            <label>Sueño/descanso<input type="number" name="wellness_sleep" min="1" max="10" /></label>
-            <label>Fatiga<input type="number" name="wellness_fatigue" min="1" max="10" /></label>
-            <label>Dolor muscular<input type="number" name="wellness_soreness" min="1" max="10" /></label>
-            <label>Estrés<input type="number" name="wellness_stress" min="1" max="10" /></label>
-            <label>Motivación<input type="number" name="wellness_motivation" min="1" max="10" /></label>
-          </div>
-          <h4 style="margin:1.1rem 0 0.3rem;">Tests físicos</h4>
-          <div class="form-grid">
-            <label>Yo-Yo IR1 (m)<input type="number" name="yo_yo_ir1_m" min="0" /></label>
-            <label>Sprint 5m (s)<input type="number" step="0.01" min="0" name="sprint_5m_s" /></label>
-            <label>Sprint 10m (s)<input type="number" step="0.01" min="0" name="sprint_10m_s" /></label>
-            <label>Sprint 20m (s)<input type="number" step="0.01" min="0" name="sprint_20m_s" /></label>
-            <label>Agilidad 505 (s)<input type="number" step="0.01" min="0" name="agility_505_s" /></label>
-            <label>CMJ (cm)<input type="number" step="0.01" min="0" name="cmj_cm" /></label>
-            <label>Copenhagen (s)<input type="number" min="0" name="copenhagen_seconds" /></label>
-          </div>
-          <h4 style="margin:1.1rem 0 0.3rem;">Madurez / PHV</h4>
-          <div class="form-grid">
-            <label>Maduración
-              <select name="maturation_status">
-                <option value="">Sin definir</option>
-                <option value="pre_phv">Pre-PHV</option>
-                <option value="circa_phv">Circa-PHV</option>
-                <option value="post_phv">Post-PHV</option>
-              </select>
-            </label>
-            <label>Offset PHV (años)<input type="number" step="0.01" name="maturity_offset_years" /></label>
-            <label>Vel. crecimiento (cm/año)<input type="number" step="0.01" min="0" name="growth_velocity_cm_year" /></label>
-            <label>Notas
-              <textarea name="physical_notes" placeholder="Dolencias, fatiga, adaptación de carga..."></textarea>
-            </label>
-          </div>
-          <div style="margin-top:0.85rem;"><button type="submit">Añadir registro físico</button></div>
-        </form>
-          </div>
-        </details>
+        <p style="margin:.6rem 0 1rem;">
+          <a class="btn alt" href="{% url 'player-form' player.id 'fisico' %}">✎ Añadir registro físico</a>
+        </p>
         {% endif %}
 
         <div style="overflow-x:auto;">
@@ -3080,31 +2945,9 @@
               {% endif %}
             </p>
             {% if not is_player_readonly %}
-            <details class="fm-manage" style="margin:.4rem 0 1rem;">
-              <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.65rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:var(--prod-text);background:rgba(2,6,23,0.35);list-style:none;">✎ Nueva comunicación · convocatoria · interna · parte médico</summary>
-              <div style="padding:.95rem .15rem .15rem;">
-            <form method="post">
-              {% csrf_token %}
-              <input type="hidden" name="form_action" value="communication" />
-              <div class="form-grid">
-                <label>Tipo
-                  <select name="category">
-                    <option value="convocatoria">Convocatoria</option>
-                    <option value="interna">Comunicación interna</option>
-                    <option value="medica">Parte médico</option>
-                  </select>
-                </label>
-                <label>Programar para
-                  <input type="datetime-local" name="scheduled_for" />
-                </label>
-                <label style="grid-column: 1 / -1;">Mensaje
-                  <textarea name="message" placeholder="Ej. Convocado para Jornada 25, citación 16:15 en vestuarios."></textarea>
-                </label>
-              </div>
-              <div style="margin-top:0.85rem;"><button type="submit">Guardar comunicación</button></div>
-            </form>
-              </div>
-            </details>
+            <p style="margin:.6rem 0 1rem;">
+              <a class="btn alt" href="{% url 'player-form' player.id 'comunicacion' %}">✎ Nueva comunicación</a>
+            </p>
             {% endif %}
 
             <table>

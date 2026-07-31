@@ -103,3 +103,57 @@ class PlayerEvaluationNewPageTests(TestCase):
             HTTP_HOST="localhost",
         )
         self.assertTrue(PlayerEvaluation.objects.filter(player=self.player).exists())
+
+
+class PlayerFormPageTests(TestCase):
+    """
+    Una sola pantalla aloja los formularios de mantenimiento que salieron de la ficha.
+
+    El ajuste manual de estadísticas NO salió: precarga con las estadísticas agregadas que la
+    ficha calcula, y ese cálculo no se duplica. Además pertenece a la pestaña que ajusta.
+    """
+
+    def setUp(self):
+        self.team = Team.objects.create(name="Senior", slug="senior", is_primary=True)
+        self.player = Player.objects.create(team=self.team, name="Juanmi", is_active=True)
+        self.workspace = Workspace.objects.create(name="Club", kind=Workspace.KIND_CLUB, is_active=True)
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.team)
+        staff = get_user_model().objects.create_superuser("mister3", "m3@example.com", "x")
+        self.workspace.owner_user = staff
+        self.workspace.save(update_fields=["owner_user"])
+        self.client = Client()
+        self.client.force_login(staff)
+        session = self.client.session
+        session["active_workspace_id"] = self.workspace.id
+        session["active_team_id"] = self.team.id
+        session.save()
+
+    def test_each_form_has_its_page(self):
+        for key, titulo in [("fisico", "registro físico"), ("lesion", "lesión"), ("comunicacion", "comunicación")]:
+            response = self.client.get(reverse("player-form", args=[self.player.id, key]), HTTP_HOST="localhost")
+            self.assertEqual(response.status_code, 200, key)
+            self.assertContains(response, titulo)
+
+    def test_an_invented_key_is_404(self):
+        response = self.client.get(reverse("player-form", args=[self.player.id, "inventado"]), HTTP_HOST="localhost")
+        self.assertEqual(response.status_code, 404)
+
+    def test_the_ficha_links_them_and_dropped_the_forms(self):
+        response = self.client.get(reverse("player-detail", args=[self.player.id]), HTTP_HOST="localhost")
+        for key in ("fisico", "lesion", "comunicacion"):
+            self.assertContains(response, reverse("player-form", args=[self.player.id, key]))
+        for accion in ('value="physical"', 'value="injuries"', 'value="communication"'):
+            self.assertNotContains(response, accion)
+        # El ajuste manual se queda en su pestaña.
+        self.assertContains(response, 'value="manual_stats"')
+
+    def test_saving_an_injury_still_works(self):
+        from football.models import PlayerInjuryRecord
+
+        self.client.post(
+            reverse("player-detail", args=[self.player.id]),
+            {"form_action": "injuries", "injury": "Sobrecarga", "injury_date": "2026-07-01",
+             "injury_record_mode": "new"},
+            HTTP_HOST="localhost",
+        )
+        self.assertTrue(PlayerInjuryRecord.objects.filter(player=self.player).exists())

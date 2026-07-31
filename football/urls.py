@@ -534,6 +534,7 @@ urlpatterns = [
     path("player/<int:player_id>/license/", views.player_license_file, name="player-license-file"),
     path("player/<int:player_id>/editar/", views.player_edit_page, name="player-edit"),
     path("player/<int:player_id>/valoracion/nueva/", views.player_evaluation_new_page, name="player-evaluation-new"),
+    path("player/<int:player_id>/formulario/<str:key>/", views.player_form_page, name="player-form"),
     path("player/<int:player_id>/pdf/", views.player_pdf, name="player-pdf"),
     path("player/<int:player_id>/evolucion/pdf/", views.player_evolution_pdf, name="player-evolution-pdf"),
     path(

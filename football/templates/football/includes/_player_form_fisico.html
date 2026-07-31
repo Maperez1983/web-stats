@@ -1,0 +1,60 @@
+{% load static l10n football_extras %}
+{% comment %}Formulario de mantenimiento sacado de la ficha del jugador.
+El POST sigue yendo a la ficha, que ya sabe procesarlo.{% endcomment %}
+        <form method="post" action="{% url 'player-detail' player.id %}">
+          {% csrf_token %}
+          <input type="hidden" name="form_action" value="physical" />
+          <div class="form-grid">
+            <label>Fecha
+              <input type="date" name="recorded_on" value="{% now 'Y-m-d' %}" />
+            </label>
+            <label>Carga / contenido
+              <input type="text" name="workload" placeholder="Ej. Gimnasio + HIIT" />
+            </label>
+            <label>RPE sesión (1-10)
+              <input type="number" name="rpe" min="1" max="10" />
+            </label>
+            <label>Minutos sesión
+              <input type="number" name="session_minutes" min="0" />
+            </label>
+            <label>Peso (kg)
+              <input type="number" step="0.01" min="0" name="weight_kg" />
+            </label>
+          </div>
+          <h4 style="margin:1.1rem 0 0.3rem;">Wellness (1-10)</h4>
+          <div class="form-grid">
+            <label>Global<input type="number" name="wellness" min="1" max="10" /></label>
+            <label>Sueño/descanso<input type="number" name="wellness_sleep" min="1" max="10" /></label>
+            <label>Fatiga<input type="number" name="wellness_fatigue" min="1" max="10" /></label>
+            <label>Dolor muscular<input type="number" name="wellness_soreness" min="1" max="10" /></label>
+            <label>Estrés<input type="number" name="wellness_stress" min="1" max="10" /></label>
+            <label>Motivación<input type="number" name="wellness_motivation" min="1" max="10" /></label>
+          </div>
+          <h4 style="margin:1.1rem 0 0.3rem;">Tests físicos</h4>
+          <div class="form-grid">
+            <label>Yo-Yo IR1 (m)<input type="number" name="yo_yo_ir1_m" min="0" /></label>
+            <label>Sprint 5m (s)<input type="number" step="0.01" min="0" name="sprint_5m_s" /></label>
+            <label>Sprint 10m (s)<input type="number" step="0.01" min="0" name="sprint_10m_s" /></label>
+            <label>Sprint 20m (s)<input type="number" step="0.01" min="0" name="sprint_20m_s" /></label>
+            <label>Agilidad 505 (s)<input type="number" step="0.01" min="0" name="agility_505_s" /></label>
+            <label>CMJ (cm)<input type="number" step="0.01" min="0" name="cmj_cm" /></label>
+            <label>Copenhagen (s)<input type="number" min="0" name="copenhagen_seconds" /></label>
+          </div>
+          <h4 style="margin:1.1rem 0 0.3rem;">Madurez / PHV</h4>
+          <div class="form-grid">
+            <label>Maduración
+              <select name="maturation_status">
+                <option value="">Sin definir</option>
+                <option value="pre_phv">Pre-PHV</option>
+                <option value="circa_phv">Circa-PHV</option>
+                <option value="post_phv">Post-PHV</option>
+              </select>
+            </label>
+            <label>Offset PHV (años)<input type="number" step="0.01" name="maturity_offset_years" /></label>
+            <label>Vel. crecimiento (cm/año)<input type="number" step="0.01" min="0" name="growth_velocity_cm_year" /></label>
+            <label>Notas
+              <textarea name="physical_notes" placeholder="Dolencias, fatiga, adaptación de carga..."></textarea>
+            </label>
+          </div>
+          <div style="margin-top:0.85rem;"><button type="submit">Añadir registro físico</button></div>
+        </form>

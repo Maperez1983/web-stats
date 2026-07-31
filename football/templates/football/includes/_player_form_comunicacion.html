@@ -1,0 +1,23 @@
+{% load static l10n football_extras %}
+{% comment %}Formulario de mantenimiento sacado de la ficha del jugador.
+El POST sigue yendo a la ficha, que ya sabe procesarlo.{% endcomment %}
+            <form method="post" action="{% url 'player-detail' player.id %}">
+              {% csrf_token %}
+              <input type="hidden" name="form_action" value="communication" />
+              <div class="form-grid">
+                <label>Tipo
+                  <select name="category">
+                    <option value="convocatoria">Convocatoria</option>
+                    <option value="interna">Comunicación interna</option>
+                    <option value="medica">Parte médico</option>
+                  </select>
+                </label>
+                <label>Programar para
+                  <input type="datetime-local" name="scheduled_for" />
+                </label>
+                <label style="grid-column: 1 / -1;">Mensaje
+                  <textarea name="message" placeholder="Ej. Convocado para Jornada 25, citación 16:15 en vestuarios."></textarea>
+                </label>
+              </div>
+              <div style="margin-top:0.85rem;"><button type="submit">Guardar comunicación</button></div>
+            </form>

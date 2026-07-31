@@ -79759,6 +79759,59 @@ def player_detail_page(request, player_id):
         return HttpResponse("Error interno al cargar la ficha del jugador.", status=500)
 
 
+# Formularios de mantenimiento de la ficha, cada uno en su pantalla. La ficha era a la vez
+# pantalla de consulta y formulario: 198 campos y 15 formularios medidos en producción. Aquí
+# viven los que se sacaron; el guardado NO se duplica — todos siguen enviando a la ficha.
+_PLAYER_FORMS = {
+    "fisico": {"titulo": "Añadir registro físico", "partial": "_player_form_fisico.html", "tab": "physical"},
+    "lesion": {"titulo": "Registrar o actualizar lesión", "partial": "_player_form_lesion.html", "tab": "injuries"},
+    "comunicacion": {"titulo": "Nueva comunicación", "partial": "_player_form_comunicacion.html", "tab": "discipline"},
+}
+
+
+@login_required
+@ensure_csrf_cookie
+def player_form_page(request, player_id, key):
+    """Una sola pantalla que aloja el formulario que le pidas, en vez de cuatro casi iguales."""
+    ficha = _PLAYER_FORMS.get(str(key or ""))
+    if not ficha:
+        raise Http404("Formulario no encontrado")
+    portal_redirect = _redirect_player_account_to_portal(request)
+    if portal_redirect:
+        return portal_redirect
+    forbidden = _forbid_if_workspace_module_disabled(request, "players", label="módulo de jugadores")
+    if forbidden:
+        return forbidden
+    primary_team, player = _resolve_player_for_request_scope(request, int(player_id))
+    if not primary_team:
+        raise Http404("Equipo principal no configurado")
+    if not player:
+        raise Http404("Jugador no encontrado")
+    forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
+    if forbidden:
+        return forbidden
+
+    latest_injury_record = None
+    if key == "lesion":
+        try:
+            latest_injury_record = (
+                PlayerInjuryRecord.objects.filter(player=player).order_by("-injury_date", "-id").first()
+            )
+        except Exception:
+            latest_injury_record = None
+
+    return render(request, "football/player_form.html", {
+        "player": player,
+        "team": primary_team,
+        "form_key": key,
+        "form_title": ficha["titulo"],
+        "form_partial": "football/includes/" + ficha["partial"],
+        "back_tab": ficha["tab"],
+        "latest_injury_record": latest_injury_record,
+        "is_player_readonly": False,
+    })
+
+
 @login_required
 @ensure_csrf_cookie
 def player_evaluation_new_page(request, player_id):
