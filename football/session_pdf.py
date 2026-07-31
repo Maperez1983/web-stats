@@ -1132,6 +1132,24 @@ def build_session_pdf_context(request, team, session, pdf_style='uefa'):
         except Exception:
             return 0
 
+    # Reparto de petos de la sesion (session_plan_fields.'bibs'). Hasta ahora esta columna se
+    # imprimia siempre en blanco porque el dato no existia.
+    bib_hex_by_value = {
+        'rojo': '#d64545', 'azul': '#2f6fd6', 'amarillo': '#f4b400', 'verde': '#2f7d32',
+        'naranja': '#e07a1f', 'blanco': '#f4f6f8', 'negro': '#1f2933',
+    }
+    bibs_by_player = {}
+    try:
+        import json as _json
+
+        raw_bibs = str(session_plan_fields.get('bibs') or '').strip()
+        if raw_bibs:
+            parsed_bibs = _json.loads(raw_bibs)
+            if isinstance(parsed_bibs, dict):
+                bibs_by_player = {str(k): str(v or '') for k, v in parsed_bibs.items()}
+    except Exception:
+        bibs_by_player = {}
+
     field_players = []
     try:
         marks = {
@@ -1147,11 +1165,14 @@ def build_session_pdf_context(request, team, session, pdf_style='uefa'):
             status = getattr(mark, 'status', '') or ''
             if status in {TrainingSessionAttendance.STATUS_ABSENT, TrainingSessionAttendance.STATUS_EXCUSED}:
                 continue
+            bib_value = bibs_by_player.get(str(int(player.id)), '')
             field_players.append(
                 {
                     'number': player.number or '',
                     'name': (str(player.name or '').strip() or str(player.full_name or '').strip()),
                     'injured': status == TrainingSessionAttendance.STATUS_INJURED,
+                    'bib': bib_value,
+                    'bib_hex': bib_hex_by_value.get(bib_value, ''),
                 }
             )
     except Exception:
@@ -1161,7 +1182,7 @@ def build_session_pdf_context(request, team, session, pdf_style='uefa'):
     field_rows_min = 20
     field_player_rows = list(field_players)
     while len(field_player_rows) < field_rows_min:
-        field_player_rows.append({'number': '', 'name': '', 'injured': False})
+        field_player_rows.append({'number': '', 'name': '', 'injured': False, 'bib': '', 'bib_hex': ''})
 
     # La hoja de campo pone DOS tareas por fila, como la plantilla en papel. Con una tarea por
     # fila a lo ancho, cinco tareas ya se iban a una segunda pagina y deja de ser una hoja.

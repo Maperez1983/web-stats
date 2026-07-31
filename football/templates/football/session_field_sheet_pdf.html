@@ -57,7 +57,11 @@ tan estrechas que no se puede leer nada.
       /* Renglones de jugador: alto fijo, para poder escribir encima. */
       .players td { height: 15.5px; font-size: 8.2px; }
       .players .num { width: 20px; text-align: center; font-weight: 800; }
-      .players .bib { width: 44px; background-color: #ffffff; }
+      .players .bib { width: 46px; background-color: #ffffff; text-align: center; }
+      /* El nombre del color va ENCIMA del color: en blanco y negro la casilla se imprime gris y
+         sin el texto no se sabria de que equipo es cada uno. */
+      .players .bib-lab { font-size: 6.6px; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; color: #ffffff; }
+      .players .bib-lab.on-light { color: #12202f; }
       .players .inj { color: #b4232a; font-weight: 800; }
 
       .task-cols td { text-align: center; }
@@ -105,7 +109,9 @@ tan estrechas que no se puede leer nada.
             <tr>
               <td class="num cell">{{ row.number }}</td>
               <td class="cell{% if row.injured %} inj{% endif %}">{{ row.name }}{% if row.injured %} ·L{% endif %}</td>
-              <td class="bib"></td>
+              {% comment %}Si hay peto repartido se pinta el color con su nombre; si no, la casilla
+              se queda en blanco para escribirlo a mano en el campo.{% endcomment %}
+              <td class="bib"{% if row.bib_hex %} style="background-color:{{ row.bib_hex }};"{% endif %}>{% if row.bib %}<span class="bib-lab{% if row.bib == 'blanco' or row.bib == 'amarillo' %} on-light{% endif %}">{{ row.bib }}</span>{% endif %}</td>
             </tr>
             {% endfor %}
           </table>

@@ -11,6 +11,12 @@ SESSION_PLAN_KEYS = [
     'location',
     'materials',
     'absences',
+    # Reparto de petos de la sesion, como JSON {"<id_jugador>": "rojo", ...}. Va aqui y no en
+    # TrainingSessionAttendance porque esa tabla BORRA la fila cuando el jugador esta "presente"
+    # (la marca solo existe para incidencias), y el peto lo llevan justo los que entrenan: se
+    # perderia al guardar la asistencia. Tampoco va en el jugador: el color cambia cada dia, es
+    # como se han hecho los equipos hoy.
+    'bibs',
     'agenda_hidden',
     'confirmed_at',
     'confirmed_by',

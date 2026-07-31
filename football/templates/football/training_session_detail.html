@@ -436,7 +436,18 @@
 	                        {% endfor %}
 	                      </select>
 	                    </td>
-                    <td style="width:220px;">
+                    <td style="width:126px;">
+                      {% comment %}Peto de ESTA sesion. Se guarda con el mismo boton que la
+                      asistencia porque se decide en el mismo momento: quien viene y de que equipo
+                      va.{% endcomment %}
+                      <select name="attendance_bib_{{ p.id }}" class="js-bib">
+                        <option value="">Sin peto</option>
+                        {% for value, label, hex in session_bib_choices %}
+                        <option value="{{ value }}" {% if row.bib == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                    <td style="width:200px;">
                       <input type="text" name="attendance_notes_{{ p.id }}" maxlength="180" placeholder="Nota…" value="{% if mark %}{{ mark.notes }}{% elif injury_default %}{{ injury_default.injury|default:'' }}{% endif %}" />
                     </td>
                     <td style="width:240px;">
@@ -457,8 +468,44 @@
               </tbody>
             </table>
           </div>
+          <script>
+            (() => {
+              const form = document.getElementById('att-form');
+              if (!form) return;
+              // Reparte por turnos SOLO entre quienes van a entrenar: dar peto a un ausente o a un
+              // lesionado no significa nada, y ademas ensucia la hoja de campo.
+              const entrena = (fila) => {
+                const est = fila.querySelector('.js-attendance-status');
+                const v = est ? String(est.value || '') : '';
+                return v === '' || v === 'present' || v === 'late';
+              };
+              form.querySelectorAll('[data-bib-split]').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                  const grupos = parseInt(btn.dataset.bibSplit || '0', 10);
+                  const filas = Array.from(form.querySelectorAll('tr')).filter((tr) => tr.querySelector('.js-bib'));
+                  const colores = Array.from(form.querySelector('.js-bib').options)
+                    .map((o) => o.value).filter(Boolean);
+                  let i = 0;
+                  filas.forEach((fila) => {
+                    const sel = fila.querySelector('.js-bib');
+                    if (!sel) return;
+                    if (!grupos || !entrena(fila)) { sel.value = ''; return; }
+                    sel.value = colores[i % Math.min(grupos, colores.length)];
+                    i += 1;
+                  });
+                });
+              });
+            })();
+          </script>
           <div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-top:0.7rem;">
             <button class="btn secondary" type="button" id="attendance-all-present" title="Inscribe a toda la plantilla como presente; luego marca las excepciones">✓ Inscribir toda la plantilla (todos presentes)</button>
+            <span class="meta" style="display:inline-flex; align-items:center; gap:0.35rem; flex-wrap:wrap;">
+              Petos:
+              <button class="btn ghost" type="button" data-bib-split="2" title="Reparte a los que entrenan en 2 equipos">2 equipos</button>
+              <button class="btn ghost" type="button" data-bib-split="3" title="Reparte a los que entrenan en 3 equipos">3 equipos</button>
+              <button class="btn ghost" type="button" data-bib-split="4" title="Reparte a los que entrenan en 4 equipos">4 equipos</button>
+              <button class="btn ghost" type="button" data-bib-split="0" title="Quita todos los petos">Limpiar</button>
+            </span>
             <button class="btn primary" type="submit">Guardar asistencia</button>
           </div>
         </form>

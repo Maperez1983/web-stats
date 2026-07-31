@@ -33872,6 +33872,20 @@ def session_plan_pdf(request, session_id):
     return session_pdf.session_plan_pdf(request, session_id)
 
 
+# Paleta de petos: la comparten la ficha de sesion y la hoja de campo, para que el color que
+# eliges sea EXACTAMENTE el que se imprime.
+SESSION_BIB_CHOICES = [
+    ("rojo", "Rojo", "#d64545"),
+    ("azul", "Azul", "#2f6fd6"),
+    ("amarillo", "Amarillo", "#f4b400"),
+    ("verde", "Verde", "#2f7d32"),
+    ("naranja", "Naranja", "#e07a1f"),
+    ("blanco", "Blanco", "#f4f6f8"),
+    ("negro", "Negro", "#1f2933"),
+]
+SESSION_BIB_VALUES = {value for value, _label, _hex in SESSION_BIB_CHOICES}
+
+
 @never_cache
 @login_required
 def training_session_detail_page(request, session_id):
@@ -34047,6 +34061,16 @@ def training_session_detail_page(request, session_id):
         for p in players
     ]
     allowed_statuses = [(value, label) for value, label in TrainingSessionAttendance.STATUS_CHOICES]
+    # Petos: el color se guarda por sesion en el plan (ver session_plan_fields.'bibs').
+    _bibs_raw = _parse_session_plan_fields(getattr(session_obj, "content", "")).get("bibs") or ""
+    try:
+        session_bibs = json.loads(_bibs_raw) if _bibs_raw else {}
+        if not isinstance(session_bibs, dict):
+            session_bibs = {}
+    except Exception:
+        session_bibs = {}
+    for row in attendance_rows:
+        row["bib"] = str(session_bibs.get(str(int(row["player"].id)) , "") or "")
 
     plan_fields = _parse_session_plan_fields(getattr(session_obj, "content", ""))
     requested_return_to = ""
@@ -34590,6 +34614,21 @@ def training_session_detail_page(request, session_id):
                 allowed_values = {value for value, _ in TrainingSessionAttendance.STATUS_CHOICES}
                 now = timezone.now()
                 updated = 0
+                # Reparto de petos: viaja con la asistencia porque se decide en el mismo momento
+                # (quien viene y de que equipo va). Se guarda en el plan de la sesion y no en la
+                # marca de asistencia, que se BORRA cuando el jugador esta presente.
+                bibs_map = {}
+                for p in players:
+                    color = str(request.POST.get(f"attendance_bib_{p.id}") or "").strip().lower()[:12]
+                    if color and color in SESSION_BIB_VALUES:
+                        bibs_map[str(int(p.id))] = color
+                try:
+                    _bib_plan = _parse_session_plan_fields(getattr(session_obj, "content", ""))
+                    _bib_plan["bibs"] = json.dumps(bibs_map, ensure_ascii=False) if bibs_map else ""
+                    session_obj.content = _serialize_session_plan_fields(_bib_plan)
+                    session_obj.save(update_fields=["content"])
+                except Exception:
+                    pass
                 for p in players:
                     status_key = str(request.POST.get(f"attendance_status_{p.id}") or "").strip()
                     notes = str(request.POST.get(f"attendance_notes_{p.id}") or "").strip()[:180]
@@ -35237,6 +35276,7 @@ def training_session_detail_page(request, session_id):
             "injury_catalog_entries": injury_catalog_entries,
             "marks": marks,
             "attendance_rows": attendance_rows,
+            "session_bib_choices": SESSION_BIB_CHOICES,
             "participation_tasks": participation_tasks,
             "available_players": available_players,
             "allowed_statuses": allowed_statuses,
