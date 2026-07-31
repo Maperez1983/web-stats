@@ -1,0 +1,91 @@
+{% comment %}Selector de contexto: en QUE estas trabajando.
+
+Dos cosas que antes vivian en sitios distintos (o en ninguno):
+  1. La CATEGORIA del club (División de Honor, Cadete, Alevín…). Es un `Team` dentro del
+     mismo club, asi que se cambia con `workspace-active-team`; el selector de club NO sirve
+     para esto (cambia de cliente, no de categoria).
+  2. Otros CLUBES, para quien administra varios: entra igual que "Entrar" desde Gobierno.
+
+El estilo va aqui, no en la hoja global: hay pantallas (Inicio) que no cargan la barra.
+{% endcomment %}
+{% if active_team_options|length > 1 or can_access_platform and active_workspace_options|length > 1 %}
+<style>
+  .ctx-menu{position:relative;}
+  .ctx-menu > summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:.4rem;
+    font-size:.66rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--fm-ink-2,#cbd5e1);
+    background:rgba(148,163,184,.06);border:1px solid rgba(148,163,184,.20);border-radius:999px;padding:.62rem .9rem;}
+  .ctx-menu > summary::-webkit-details-marker{display:none;}
+  .ctx-menu > summary:hover{border-color:rgba(244,180,0,.34);color:var(--fm-ink,#f8fafc);}
+  .ctx-menu[open] > summary{color:#fff7dd;background:rgba(244,180,0,.14);border-color:rgba(244,180,0,.62);}
+  .ctx-now{max-width:13rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .ctx-caret{opacity:.6;font-size:.6rem;}
+  .ctx-list{position:absolute;z-index:60;top:calc(100% + .35rem);right:0;min-width:250px;
+    display:flex;flex-direction:column;gap:.15rem;padding:.35rem;border-radius:14px;
+    background:var(--prod-panel-flat,rgba(14,23,39,.98));border:1px solid rgba(148,163,184,.24);
+    box-shadow:0 22px 48px rgba(2,6,23,.5);}
+  .ctx-list form{display:flex;flex-direction:column;gap:.15rem;margin:0;}
+  .ctx-item{font-size:.72rem;font-weight:800;color:var(--fm-ink-2,#cbd5e1);text-decoration:none;text-align:left;
+    padding:.45rem .6rem;border-radius:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    background:transparent;border:0;cursor:pointer;font-family:inherit;width:100%;}
+  .ctx-item:hover{background:rgba(148,163,184,.14);color:var(--fm-ink,#f8fafc);}
+  .ctx-item.on{color:#fff7dd;background:rgba(244,180,0,.14);}
+  .ctx-more{border-top:1px solid rgba(148,163,184,.18);margin-top:.2rem;padding-top:.5rem;
+    font-size:.64rem;letter-spacing:.08em;text-transform:uppercase;}
+  .ctx-title{font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--fm-ink-3,#94a3b8);padding:.35rem .6rem .25rem;}
+  :root[data-theme="light"] .ctx-list{background:#ffffff;border-color:rgba(15,23,42,.14);box-shadow:0 22px 48px rgba(15,23,42,.16);}
+  :root[data-theme="light"] .ctx-item{color:rgba(15,23,42,.82);}
+  :root[data-theme="light"] .ctx-item:hover{background:rgba(15,23,42,.06);color:rgba(15,23,42,.96);}
+  :root[data-theme="light"] .ctx-item.on{background:rgba(244,180,0,.18);color:rgba(15,23,42,.96);}
+  :root[data-theme="light"] .ctx-title{color:rgba(15,23,42,.55);}
+  :root[data-theme="light"] .ctx-menu > summary{color:rgba(15,23,42,.72);}
+</style>
+<details class="ctx-menu" data-ctx-menu>
+  <summary title="Cambiar de categoría o de club">
+    <span aria-hidden="true">🏛️</span>
+    <span class="ctx-now">{% if active_team %}{{ active_team.display_name|default:active_team.name }}{% else %}{{ active_workspace.name|default:"Contexto" }}{% endif %}</span>
+    <span class="ctx-caret" aria-hidden="true">&#9662;</span>
+  </summary>
+  <div class="ctx-list">
+    {% if active_team_options|length > 1 %}
+    <div class="ctx-title">{{ active_workspace.name|default:"Club" }} · categorías</div>
+    <form method="post" action="{% url 'workspace-active-team' %}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}" />
+      {% for option in active_team_options %}
+      <button type="submit" name="team_id" value="{{ option.id }}"
+              class="ctx-item{% if active_team and option.id == active_team.id %} on{% endif %}"
+              {% if active_team and option.id == active_team.id %}aria-current="true"{% endif %}>{{ option.label }}</button>
+      {% endfor %}
+    </form>
+    {% endif %}
+    {% if can_access_platform and active_workspace_options|length > 1 %}
+    <div class="ctx-title">Otros clubes</div>
+    {% for ws in active_workspace_options %}
+      {% if ws.kind == 'club' and ws.id != active_workspace.id %}
+      <a class="ctx-item" href="{% url 'platform-workspace-enter' ws.id %}">{{ ws.label }}</a>
+      {% endif %}
+    {% endfor %}
+    <a class="ctx-item ctx-more" href="{% url 'platform-overview' %}">Gobierno del club →</a>
+    {% endif %}
+  </div>
+</details>
+<script>
+  // Un <details> no se cierra al pulsar fuera; aqui si.
+  (function () {
+    if (window.__ctxMenuWired) return;
+    window.__ctxMenuWired = true;
+    document.addEventListener('click', function (ev) {
+      document.querySelectorAll('details[data-ctx-menu][open]').forEach(function (menu) {
+        if (!menu.contains(ev.target)) menu.removeAttribute('open');
+      });
+    });
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key !== 'Escape') return;
+      document.querySelectorAll('details[data-ctx-menu][open]').forEach(function (menu) {
+        menu.removeAttribute('open');
+      });
+    });
+  })();
+</script>
+{% endif %}

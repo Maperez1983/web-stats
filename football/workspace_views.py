@@ -15,6 +15,27 @@ from .services import _parse_int
 from . import workspace_context
 
 
+def _next_url_con_equipo(next_url, team_id):
+    """Reescribe `?team=` en la URL de vuelta al equipo recien elegido.
+
+    Muchas pantallas leen el equipo del parametro `team` de la URL, que MANDA sobre la sesion.
+    Si se vuelve a la misma direccion con el team viejo, el cambio de categoria no se nota:
+    cambia el nombre de arriba y los datos siguen siendo los del equipo anterior.
+    """
+    from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+    try:
+        partes = urlsplit(str(next_url or ''))
+        if not partes.path:
+            return next_url
+        query = [(k, v) for k, v in parse_qsl(partes.query, keep_blank_values=True) if k != 'team']
+        if 'team' in dict(parse_qsl(partes.query, keep_blank_values=True)):
+            query.append(('team', str(int(team_id))))
+        return urlunsplit(('', '', partes.path, urlencode(query), partes.fragment))
+    except Exception:
+        return next_url
+
+
 @login_required
 @require_POST
 def workspace_set_active_team(request):
@@ -44,7 +65,7 @@ def workspace_set_active_team(request):
         mapping = {}
     mapping[str(workspace.id)] = int(team_id)
     request.session['active_team_by_workspace'] = mapping
-    return redirect(next_url)
+    return redirect(_next_url_con_equipo(next_url, int(team_id)))
 
 
 @login_required

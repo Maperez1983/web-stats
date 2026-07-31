@@ -605,26 +605,10 @@
         se incluye aqui: es la pantalla de entrada y tiene que poder cambiarse desde ella.{% endcomment %}
         {% include 'football/includes/_search_button.html' %}
         {% include 'football/includes/_theme_picker.html' %}
-        {% if can_access_platform and active_workspace_options|length > 1 %}
-        {% comment %}Cambio de club sin pasar por Gobierno: desde Inicio se salta directo al
-        club que quieras. Solo se pinta si administras mas de uno.{% endcomment %}
-        <details class="hm-club" data-hm-club>
-          <summary title="Cambiar de club">
-            <span aria-hidden="true">🏛️</span>
-            <span class="hm-club-now">{{ active_workspace.name|default:"Club" }}</span>
-            <span class="hm-club-caret" aria-hidden="true">▾</span>
-          </summary>
-          <div class="hm-club-list">
-            <div class="hm-club-title">Cambiar de club</div>
-            {% for ws in active_workspace_options %}
-              {% if ws.kind == 'club' %}
-              <a href="{% url 'platform-workspace-enter' ws.id %}"{% if ws.id == active_workspace.id %} class="on" aria-current="true"{% endif %}>{{ ws.label }}</a>
-              {% endif %}
-            {% endfor %}
-            <a class="hm-club-more" href="{% url 'platform-overview' %}">Gobierno del club →</a>
-          </div>
-        </details>
-        {% elif can_access_platform %}
+        {% comment %}Mismo selector de contexto que el resto del producto: categoría del club
+        (Cadete, Alevín…) y, si administras varios, otros clubes.{% endcomment %}
+        {% include 'football/includes/_context_switcher.html' %}
+        {% if can_access_platform %}
         <a class="product-pill-cta" style="padding:0.68rem 1rem;" href="{% url 'platform-overview' %}">Gobierno del club</a>
         {% endif %}
       </header>
@@ -853,34 +837,6 @@
       .hm-tcrest{width:16px;height:16px;object-fit:contain;border-radius:3px;flex:0 0 auto;background:rgba(255,255,255,.06);}
       .hm-tcrest.ph{background:rgba(148,163,184,.18);}
       .hm-tnm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-      /* Selector de club: mismo lenguaje que los menus de la barra global (pastilla + panel). */
-      .hm-club{position:relative;margin-left:.2rem;}
-      .hm-club > summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:.4rem;
-        font-size:.66rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--fm-ink-2);
-        background:rgba(148,163,184,.06);border:1px solid rgba(148,163,184,.20);border-radius:999px;padding:.62rem .9rem;}
-      .hm-club > summary::-webkit-details-marker{display:none;}
-      .hm-club > summary:hover{border-color:rgba(244,180,0,.34);color:var(--fm-ink);}
-      .hm-club[open] > summary{color:#fff7dd;background:rgba(244,180,0,.14);border-color:rgba(244,180,0,.62);}
-      .hm-club-now{max-width:12rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-      .hm-club-caret{opacity:.6;font-size:.6rem;}
-      .hm-club-list{position:absolute;z-index:60;top:calc(100% + .35rem);right:0;min-width:240px;
-        display:flex;flex-direction:column;gap:.15rem;padding:.35rem;border-radius:14px;
-        background:var(--prod-panel-flat,rgba(14,23,39,.98));border:1px solid rgba(148,163,184,.24);
-        box-shadow:0 22px 48px rgba(2,6,23,.5);}
-      .hm-club-list a{font-size:.72rem;font-weight:800;color:var(--fm-ink-2);text-decoration:none;
-        padding:.45rem .6rem;border-radius:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-      .hm-club-list a:hover{background:rgba(148,163,184,.14);color:var(--fm-ink);}
-      .hm-club-list a.on{color:#fff7dd;background:rgba(244,180,0,.14);}
-      .hm-club-more{border-top:1px solid rgba(148,163,184,.18);margin-top:.2rem;padding-top:.5rem !important;
-        font-size:.64rem !important;letter-spacing:.08em;text-transform:uppercase;}
-      .hm-club-title{font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
-        color:var(--fm-ink-3);padding:.25rem .6rem .35rem;}
-      :root[data-theme="light"] .hm-club-list{background:#ffffff;border-color:rgba(15,23,42,.14);box-shadow:0 22px 48px rgba(15,23,42,.16);}
-      :root[data-theme="light"] .hm-club-list a{color:rgba(15,23,42,.82);}
-      :root[data-theme="light"] .hm-club-list a:hover{background:rgba(15,23,42,.06);color:rgba(15,23,42,.96);}
-      :root[data-theme="light"] .hm-club-list a.on{background:rgba(244,180,0,.18);color:rgba(15,23,42,.96);}
-      :root[data-theme="light"] .hm-club-title{color:rgba(15,23,42,.55);}
-      :root[data-theme="light"] .hm-club > summary{color:rgba(15,23,42,.72);}
       .hm-tmlink{color:inherit;text-decoration:none;border-radius:6px;}
       .hm-tmlink:hover .hm-tnm,.hm-tmlink:focus-visible .hm-tnm{color:var(--fm-accent,#4a86e8);text-decoration:underline;}
       .hm-tmlink:focus-visible{outline:2px solid var(--fm-accent,#4a86e8);outline-offset:2px;}
@@ -901,18 +857,6 @@
   
     {# Forma del rival: se carga en cliente para no ralentizar el render de Inicio. #}
     {% if next_match_opponent and next_match_opponent != "Rival por confirmar" %}
-    <script>
-      // El selector de club se cierra al pulsar fuera (un <details> solo no lo hace).
-      document.addEventListener('click', function (ev) {
-        var menu = document.querySelector('details[data-hm-club][open]');
-        if (menu && !menu.contains(ev.target)) menu.removeAttribute('open');
-      });
-      document.addEventListener('keydown', function (ev) {
-        if (ev.key !== 'Escape') return;
-        var menu = document.querySelector('details[data-hm-club][open]');
-        if (menu) menu.removeAttribute('open');
-      });
-    </script>
     <script>
       (function () {
         var box = document.getElementById('hm-rival-form');
