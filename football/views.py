@@ -4372,6 +4372,15 @@ def staff_member_create_page(request):
     )
 
 
+def _staff_team_label(team):
+    """Mismo nombre que en el selector de categorías: "CADETE · Benagalbon c. d."."""
+    category = str(getattr(team, "category", "") or "").strip()
+    name = str(getattr(team, "name", "") or "").strip()
+    if category and name and category.casefold() != name.casefold():
+        return f"{category} · {name}"
+    return category or name or "Categoría"
+
+
 def _staff_member_access_context(workspace, member, active_team):
     """
     Lo que la ficha de staff necesita para gobernar accesos SIN mandarte a otra pantalla:
@@ -4440,12 +4449,7 @@ def _staff_member_access_context(workspace, member, active_team):
         "access_teams": [
             {
                 "id": team.id,
-                "label": (
-                    getattr(team, "display_name", "")
-                    or getattr(team, "category", "")
-                    or getattr(team, "name", "")
-                    or "Categoría"
-                ),
+                "label": _staff_team_label(team),
                 "granted": int(team.id) in granted_team_ids,
                 "is_active_team": bool(active_team and int(team.id) == int(active_team.id)),
             }
