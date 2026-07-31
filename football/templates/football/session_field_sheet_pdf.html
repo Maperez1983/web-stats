@@ -76,7 +76,7 @@ tan estrechas que no se puede leer nada.
         color: {{ pdf_palette.primary|default:"#0f7a35" }};
       }
       .board { width: 38%; text-align: center; padding: 2px; }
-      .board img { width: 100%; height: auto; max-height: 33mm; display: block; }
+      .board img { width: 100%; height: auto; max-height: {{ field_board_mm|default:33 }}mm; display: block; }
       .board .noboard { color: #7c8794; font-style: italic; padding: 14px 0; }
       .side { width: 32%; padding: 0; }
       .side table { width: 100%; }

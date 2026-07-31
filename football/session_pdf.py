@@ -1165,11 +1165,26 @@ def build_session_pdf_context(request, team, session, pdf_style='uefa'):
 
     # La hoja de campo pone DOS tareas por fila, como la plantilla en papel. Con una tarea por
     # fila a lo ancho, cinco tareas ya se iban a una segunda pagina y deja de ser una hoja.
-    field_task_pairs = [annex_cards[i:i + 2] for i in range(0, len(annex_cards), 2)]
+    field_cards = list(annex_cards)
+    # Simulacion para AJUSTAR el diseno: ?tareas=N repite las tareas existentes hasta N y permite
+    # comprobar en un PDF real si el numero habitual (6) sigue cabiendo en una hoja. No toca datos.
+    try:
+        wanted = int(request.GET.get('tareas') or 0)
+    except Exception:
+        wanted = 0
+    if 0 < wanted <= 12 and field_cards:
+        field_cards = [dict(field_cards[i % len(field_cards)]) for i in range(wanted)]
+        for index, card in enumerate(field_cards, start=1):
+            card['annex_index'] = index
+    field_task_pairs = [field_cards[i:i + 2] for i in range(0, len(field_cards), 2)]
+    # La pizarra se encoge segun cuantas tareas haya: con 6 hay tres filas y el alto manda.
+    field_board_mm = 36 if len(field_cards) <= 4 else (30 if len(field_cards) <= 6 else 24)
 
     return {
         **_build_pdf_nav_urls(request),
         'field_task_pairs': field_task_pairs,
+        'field_board_mm': field_board_mm,
+        'field_tasks_count': len(field_cards),
         'field_player_rows': field_player_rows,
         'field_players_count': len(field_players),
         'field_season_label': _season_label_for_date(getattr(session, 'session_date', None)),
