@@ -51,26 +51,27 @@
       || kind === 'token' || kind === 'ball' || kind === 'ball_token';
   };
 
+  /* El fantasma va DENTRO del contenedor de Fabric, no del escenario.
+     El escenario incluye el decorado de la superficie (marco de estadio, vallas, porterias) y
+     segun la superficie elegida -2D plano, cesped natural, media cancha, vertical- el lienzo no
+     tiene por que llenarlo: puede quedar centrado con bandas. Anclado al escenario, el fantasma se
+     estiraria respecto a las fichas de verdad y marcaria posiciones que no son. Anclado al
+     contenedor del lienzo, comparte exactamente el mismo rectangulo que Fabric, sea cual sea la
+     superficie. Va como primer hijo, asi que las dos capas de Fabric lo tapan por orden del DOM:
+     el fantasma queda debajo de las fichas reales sin tocar sus z-index. */
   const ensureCanvas = () => {
-    const stage = document.getElementById('task-pitch-stage');
-    if (!stage) return null;
+    const host = document.querySelector('#task-pitch-stage .canvas-container')
+      || document.querySelector('.canvas-container');
+    if (!host) return null;
     let el = document.getElementById(ID);
     if (!el) {
       el = document.createElement('canvas');
       el.id = ID;
       el.setAttribute('aria-hidden', 'true');
-      /* El escenario ya tiene capas propias: cesped 3D (z=1), lineas del campo en SVG (z=2) y el
-         lienzo de Fabric dentro de .canvas-container (z=3). El fantasma va ENTRE el campo y las
-         fichas: con z=2 pero detras del SVG en el DOM se lo tragaba el cesped. Va con z=2 y
-         despues del SVG, asi empata con el campo y gana por orden, pero sigue por debajo de las
-         fichas de verdad. Sin capturar el raton: es una guia, no un objeto. */
-      el.style.cssText = 'position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:2;';
-      const pitchSvg = stage.querySelector('#task-pitch-surface');
-      const fabricLayer = stage.querySelector('.canvas-container') || stage.querySelector('canvas');
-      if (pitchSvg && pitchSvg.nextSibling) stage.insertBefore(el, pitchSvg.nextSibling);
-      else if (fabricLayer) stage.insertBefore(el, fabricLayer);
-      else stage.appendChild(el);
+      // Sin capturar el raton: es una guia, no un objeto.
+      el.style.cssText = 'position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none;';
     }
+    if (el.parentElement !== host) host.insertBefore(el, host.firstChild);
     return el;
   };
 
@@ -89,8 +90,8 @@
 
     const el = ensureCanvas();
     if (!el) return;
-    const stage = el.parentElement;
-    const rect = stage.getBoundingClientRect();
+    // Mismo rectangulo que el lienzo de Fabric: ver ensureCanvas.
+    const rect = el.parentElement.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
 
     const srcW = num((opts || {}).width) || num(state.width) || rect.width;
