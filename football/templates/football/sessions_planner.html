@@ -163,6 +163,12 @@
       :root[data-theme="light"] .create-side-head { border-bottom-color: rgba(15,23,42,.10); }
       /* Los botones de esta pantalla usan un velo blanco translucido (perfecto sobre
          oscuro, invisible sobre blanco) y pisan al del sistema por especificidad. */
+      /* La pantalla redefine la variable de boton del kit a un blanco translucido;
+         en claro hay que devolverla a una superficie solida. */
+      :root[data-theme="light"] {
+        --ui-button-bg: #ffffff;
+        --ui-button-text: rgba(15,23,42,.92);
+      }
       :root[data-theme="light"] .button {
         background: #ffffff;
         color: rgba(15,23,42,.92);
