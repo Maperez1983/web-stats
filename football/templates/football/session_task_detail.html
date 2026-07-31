@@ -1496,15 +1496,17 @@
         {% if presentation_inline_edit %}
         <p class="meta" style="margin:0.3rem 0 0.55rem;">Estás <strong>editando la ficha Club</strong>. Cambia los campos directamente y pulsa <strong>Guardar cambios</strong>. El formato UEFA se genera solo.</p>
         {% endif %}
-        {% if active_task_format_tab == 'club' %}
-          <div class="task-detail-format-panel is-active" data-task-format-panel="club">
-            {% include 'football/includes/session_task_presentation_layout.html' with presentation_format='Club' presentation_context=task_presentation_pdf_context_by_format.club presentation_editable=presentation_inline_edit %}
-          </div>
-        {% else %}
-          <div class="task-detail-format-panel is-active" data-task-format-panel="uefa">
-            {% include 'football/includes/session_task_presentation_layout.html' with presentation_format='UEFA' presentation_context=task_presentation_pdf_context_by_format.uefa %}
-          </div>
-        {% endif %}
+        {% comment %}Se pintan LOS DOS formatos y se enseña el activo. Antes solo venia uno, asi que
+        cambiar de formato obligaba a recargar la pagina entera: pulsabas y no pasaba nada durante
+        casi un segundo. El servidor ya calcula los dos contextos (task_presentation_pdf_context_by_format
+        tiene .club y .uefa), asi que esto no cuesta trabajo extra: solo unos KB mas de HTML, y el
+        cambio pasa a ser instantaneo.{% endcomment %}
+        <div class="task-detail-format-panel{% if active_task_format_tab == 'club' %} is-active{% endif %}" data-task-format-panel="club"{% if active_task_format_tab != 'club' %} hidden{% endif %}>
+          {% include 'football/includes/session_task_presentation_layout.html' with presentation_format='Club' presentation_context=task_presentation_pdf_context_by_format.club presentation_editable=presentation_inline_edit %}
+        </div>
+        <div class="task-detail-format-panel{% if active_task_format_tab != 'club' %} is-active{% endif %}" data-task-format-panel="uefa"{% if active_task_format_tab == 'club' %} hidden{% endif %}>
+          {% include 'football/includes/session_task_presentation_layout.html' with presentation_format='UEFA' presentation_context=task_presentation_pdf_context_by_format.uefa %}
+        </div>
       </section>
 
       {% if can_edit_task %}
@@ -3348,20 +3350,10 @@
             editTab: activeTaskTab === 'edit' ? activeTaskEditTab : '',
             format: nextFormatTab,
           });
-          if (activeTaskTab === 'presentation' && previousFormatTab !== nextFormatTab) {
-            try {
-              const url = new URL(window.location.href);
-              url.searchParams.set('format', nextFormatTab);
-              window.location.href = url.toString();
-              return;
-            } catch (error) {
-              const query = new URLSearchParams(window.location.search || '');
-              query.set('format', nextFormatTab);
-              const separator = query.toString() ? '?' : '';
-              window.location.href = `${window.location.pathname}${separator}${query.toString()}`;
-              return;
-            }
-          }
+          // Ya NO se recarga la pagina al cambiar de formato: los dos paneles vienen pintados y
+          // el intercambio de arriba es instantaneo. La recarga existia porque el servidor solo
+          // mandaba el formato activo; era eso lo que hacia que pulsar pareciera no hacer nada.
+          void previousFormatTab;
         };
         const syncTaskSettingsTab = (tabName) => {
           const nextTab = ['sheet', 'content', 'methodology', 'load'].includes(tabName) ? tabName : 'sheet';
