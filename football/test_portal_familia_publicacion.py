@@ -153,3 +153,43 @@ class PublicacionDeComunicacionesTests(TestCase):
         )
         self.interna.refresh_from_db()
         self.assertFalse(self.interna.published_to_player)
+
+
+class FichaSeisPestanasTests(TestCase):
+    """La ficha del jugador se reagrupa en seis pestañas sin romper los enlaces viejos."""
+
+    def setUp(self):
+        cache.clear()
+        self.owner = User.objects.create_user(username="dueno6", password="x")
+        self.workspace = Workspace.objects.create(
+            name="Club pestanas", slug="club-pestanas", kind=Workspace.KIND_CLUB, owner_user=self.owner
+        )
+        self.team = Team.objects.create(name="Senior pest", slug="senior-pest")
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.team, is_default=True)
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace, user=self.owner, role=WorkspaceMembership.ROLE_OWNER
+        )
+        self.player = Player.objects.create(name="Jugador Pest", team=self.team, is_active=True)
+        self.client.force_login(self.owner)
+        session = self.client.session
+        session["active_workspace_id"] = self.workspace.id
+        session["active_team_by_workspace"] = {str(self.workspace.id): int(self.team.id)}
+        session.save()
+
+    def test_hay_seis_pestanas_y_ya_no_las_viejas(self):
+        resp = self.client.get(reverse("player-detail", args=[self.player.id]))
+        html = resp.content.decode()
+
+        self.assertEqual(resp.status_code, 200)
+        for tab in ["resumen", "stats", "evaluations", "salud", "desarrollo", "club"]:
+            self.assertIn(f'data-tab="{tab}"', html)
+        for viejo in ["physical", "injuries", "seasons", "videos", "discipline", "personal"]:
+            self.assertNotIn(f'data-tab="{viejo}"', html)
+
+    def test_los_enlaces_viejos_siguen_teniendo_alias(self):
+        resp = self.client.get(reverse("player-detail", args=[self.player.id]) + "?tab=physical")
+        html = resp.content.decode()
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("physical: 'salud'", html)
+        self.assertIn("injuries: 'salud'", html)

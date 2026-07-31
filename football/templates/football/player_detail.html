@@ -1344,17 +1344,18 @@
       {% comment %} Las pestañas del jugador salen de la política del club (`vis`), no de la plantilla.
          Para el staff `vis` no restringe nada y salen todas. {% endcomment %}
       <div class="tabs" role="tablist">
-        <button class="tab-btn" data-tab="personal" role="tab">Datos personales</button>
-        {% if vis.performance %}<button class="tab-btn" data-tab="stats" role="tab">Rendimiento</button>{% endif %}
-        {% if vis.evaluation %}<button class="tab-btn" data-tab="evaluations" role="tab">Evaluación</button>{% endif %}
-        {% if vis.physical %}<button class="tab-btn" data-tab="physical" role="tab">Físico</button>{% endif %}
-        {% if vis.injuries %}<button class="tab-btn" data-tab="injuries" role="tab">Lesiones</button>{% endif %}
-        {% if vis.seasons %}<button class="tab-btn" data-tab="seasons" role="tab">Histórico</button>{% endif %}
-        {% if vis.communication or vis.fines %}<button class="tab-btn" data-tab="discipline" role="tab">Comunicación y multas</button>{% endif %}
-        {% if vis.videos %}<button class="tab-btn" data-tab="videos" role="tab">Vídeos</button>{% endif %}
+        {% comment %}Seis pestañas, no ocho: Físico y Lesiones son la misma pregunta (cómo está),
+        y el Histórico es rendimiento de otros años. Los nombres viejos siguen valiendo en ?tab=
+        gracias a los alias de abajo.{% endcomment %}
+        <button class="tab-btn" data-tab="resumen" role="tab">Resumen</button>
+        {% if vis.performance or vis.seasons %}<button class="tab-btn" data-tab="stats" role="tab">Rendimiento</button>{% endif %}
+        {% if vis.evaluation %}<button class="tab-btn" data-tab="evaluations" role="tab">Valoración</button>{% endif %}
+        {% if vis.physical or vis.injuries %}<button class="tab-btn" data-tab="salud" role="tab">Salud</button>{% endif %}
+        {% if vis.videos %}<button class="tab-btn" data-tab="desarrollo" role="tab">Desarrollo</button>{% endif %}
+        {% if vis.communication or vis.fines %}<button class="tab-btn" data-tab="club" role="tab">Club</button>{% endif %}
       </div>
 
-      <section class="card tab-pane" data-pane="personal">
+      <section class="card tab-pane" data-pane="resumen">
         <h2 style="margin-top:0;">Datos personales</h2>
         {% with kst='font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--prod-muted);font-weight:800;' vst='font-size:.95rem;font-weight:700;color:var(--prod-text);margin-top:1px;' cardst='border:1px solid rgba(148,163,184,0.18);border-radius:12px;padding:.85rem .95rem;background:rgba(2,6,23,0.35);' ctit='font-size:.64rem;text-transform:uppercase;letter-spacing:.12em;color:var(--prod-muted);font-weight:800;margin:0 0 .65rem;' %}
         <section aria-label="Resumen del jugador" style="margin:0 0 1.1rem;">
@@ -1653,7 +1654,7 @@
       </section>
 
       {% if vis.seasons %}
-      <section class="card tab-pane" data-pane="seasons">
+      <section class="card tab-pane" data-pane="stats">
         <h2 style="margin-top:0;">Temporadas e histórico</h2>
         {% if not is_player_readonly %}
         <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin:0 0 1rem;">
@@ -2696,7 +2697,7 @@
       {% endif %}
 
       {% if vis.injuries %}
-      <section class="card tab-pane" data-pane="injuries">
+      <section class="card tab-pane" data-pane="salud">
         <h2 style="margin-top:0;">Historial de lesiones</h2>
         <div class="stats-grid" style="margin-top:0.4rem;">
           <article class="stat">
@@ -2780,7 +2781,7 @@
       {% endif %}
 
       {% if vis.videos %}
-      <section class="card tab-pane" data-pane="videos">
+      <section class="card tab-pane" data-pane="desarrollo">
         <h2 style="margin-top:0;">Vídeos asignados</h2>
         <p class="subtle">Material compartido por el analista para preparar rival, situaciones específicas o clips de aprendizaje.</p>
         <div class="video-grid">
@@ -2809,7 +2810,7 @@
       {% endif %}
 
       {% if vis.physical %}
-      <section class="card tab-pane" data-pane="physical">
+      <section class="card tab-pane" data-pane="salud">
         <h2 style="margin-top:0;">Físico</h2>
         <div class="stats-grid" style="margin-top:0;">
           <article class="stat">
@@ -2892,7 +2893,7 @@
       {% endif %}
 
       {% if vis.communication or vis.fines %}
-      <section class="card tab-pane" data-pane="discipline">
+      <section class="card tab-pane" data-pane="club">
         <h2 style="margin-top:0;">Comunicación y multas</h2>
         <div class="split">
           <section class="section" style="margin-top:0;">
@@ -2993,12 +2994,20 @@
 
 	    <script>
 	      (() => {
+        // Los ?tab= viejos (y los que reparten las redirecciones de los formularios) siguen
+        // llevando a su sitio aunque las pestañas se hayan reagrupado.
         const tabAliases = {
-          general: 'personal',
+          general: 'resumen',
+          personal: 'resumen',
           performance: 'stats',
+          seasons: 'stats',
           attributes: 'evaluations',
-          communication: 'discipline',
-          fines: 'discipline',
+          physical: 'salud',
+          injuries: 'salud',
+          videos: 'desarrollo',
+          discipline: 'club',
+          communication: 'club',
+          fines: 'club',
         };
         const rawTab = '{{ active_tab|default:"stats"|escapejs }}' || 'stats';
         const fallbackTab = tabAliases[rawTab] || rawTab;
