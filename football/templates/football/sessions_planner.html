@@ -2124,9 +2124,12 @@
                           </div>
             {% comment %} 'Volver' y 'Gobierno del club' se retiran: navegar ya es trabajo del menu
                global y del sub-nav de zona. Aqui solo la accion propia de la pantalla. {% endcomment %}
-            <div class="top-actions">
-              <button type="button" class="button primary" id="planner-save-top" disabled title="Guardar (sección activa)">Guardar</button>
-            </div>
+            {% comment %}Aqui NO va un "Guardar": esta pantalla no es un formulario, es el centro de
+               entrenamiento. Habia uno que adivinaba por JavaScript que formulario enviar (el del
+               elemento con el foco, o el primer submit visible del panel activo). Encima del todo,
+               sobre la foto y casi siempre desactivado, no decia que guardaba, y cuando se activaba
+               podia guardar una seccion distinta de la que el entrenador creia. Cada bloque tiene
+               ya su propio boton de guardar dentro.{% endcomment %}
 		      </div>
       {% include 'football/includes/_zone_chips.html' with chips=zone_chips %}
 	      {# Breadcrumb "Espacio activo" retirado: era redundante con las pestañas (menos capas). #}
@@ -5030,88 +5033,6 @@
           applyFilters();
         });
         applyFilters();
-      })();
-    </script>
-    <script>
-      (function () {
-        const topSaveBtn = document.getElementById('planner-save-top');
-        if (!topSaveBtn) return;
-
-        const isElementVisible = (el) => {
-          if (!el) return false;
-          if (el.disabled) return false;
-          const style = window.getComputedStyle(el);
-          if (!style || style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
-          const rect = el.getBoundingClientRect();
-          return rect.width > 0 && rect.height > 0;
-        };
-
-        const findActivePanel = () => (
-          document.querySelector('.tab-panel.is-active')
-          || document.querySelector('main.page')
-          || document.body
-        );
-
-        const findSubmitInForm = (form) => {
-          if (!form) return null;
-          const btn = form.querySelector('button[type="submit"], input[type="submit"]');
-          if (!btn || !isElementVisible(btn)) return null;
-          return btn;
-        };
-
-        const findBestSubmitButton = () => {
-          // 1) Si el usuario está editando dentro de un form, guarda ese form.
-          try {
-            const active = document.activeElement;
-            const form = active && active.closest ? active.closest('form') : null;
-            const submit = findSubmitInForm(form);
-            if (submit) return submit;
-          } catch (e) { /* ignore */ }
-
-          // 2) Fallback: el primer submit "Guardar*" visible en el panel activo.
-          const scope = findActivePanel();
-          const candidates = Array.from(
-            scope.querySelectorAll('button[type="submit"].primary, button[type="submit"].button.primary, input[type="submit"].primary')
-          ).filter(isElementVisible);
-          if (!candidates.length) return null;
-          const byGuardar = candidates.find((el) => String(el.textContent || '').toLowerCase().includes('guardar'));
-          return byGuardar || candidates[0];
-        };
-
-        const syncTopSaveState = () => {
-          const target = findBestSubmitButton();
-          if (!target) {
-            topSaveBtn.disabled = true;
-            topSaveBtn.textContent = 'Guardar';
-            return;
-          }
-          topSaveBtn.disabled = false;
-          const label = String(target.textContent || '').trim();
-          topSaveBtn.textContent = label && label.length <= 32 ? label : 'Guardar';
-        };
-
-        topSaveBtn.addEventListener('click', (ev) => {
-          ev.preventDefault();
-          const target = findBestSubmitButton();
-          if (!target) return;
-          try {
-            const form = target.form || (target.closest ? target.closest('form') : null);
-            if (form && form.requestSubmit) {
-              form.requestSubmit(target);
-              return;
-            }
-          } catch (e) { /* ignore */ }
-          try { target.click(); } catch (e) { /* ignore */ }
-        });
-
-        // Mantiene el botón actualizado al cambiar de pestaña o al enfocar inputs.
-        document.addEventListener('focusin', syncTopSaveState, { passive: true });
-        document.addEventListener('click', () => window.setTimeout(syncTopSaveState, 0), { passive: true });
-        document.addEventListener('keydown', () => window.setTimeout(syncTopSaveState, 0), { passive: true });
-        window.addEventListener('hashchange', syncTopSaveState);
-        window.addEventListener('popstate', syncTopSaveState);
-        window.addEventListener('load', syncTopSaveState);
-        window.setTimeout(syncTopSaveState, 300);
       })();
     </script>
     <script src="{% static 'football/js/sessions_planner_page.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>

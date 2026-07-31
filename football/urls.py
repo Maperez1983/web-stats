@@ -690,6 +690,8 @@ urlpatterns = [
     ),
     # Diagnostico de temporada: que temporada se usa para filtrar y a cual pertenece cada fila.
     path("coach/sesiones/diag-temporada/", season_diagnostics.season_debug_view, name="sessions-season-debug"),
+    # Diagnostico de rendimiento de la pantalla de Entrenamiento: SQL vs Python y consultas caras.
+    path("coach/sesiones/diag-perf/", season_diagnostics.sessions_perf_view, name="sessions-perf-debug"),
     # Pone al dia en lote las fotos HD de la biblioteca (?limit=, ?team=).
     path(
         "coach/sesiones/fotos-hd/",
