@@ -78,6 +78,13 @@ if [ "${_pw_flag}" = "true" ] || [ "${_pw_flag}" = "1" ] || [ "${_pw_flag}" = "y
   fi
 fi
 
+# Candado de la CHAPA del editor 2D (formato aprobado por el propietario).
+# Si alguien vuelve a tapar el escudo o a cambiar el estilo por detrás, el build FALLA
+# aquí y Render mantiene en producción la versión anterior. No lo desactives:
+# quitarlo o relajarlo requiere petición expresa del propietario.
+# Detalle de cada invariante: scripts/check_chapa_contract.py
+python scripts/check_chapa_contract.py
+
 _build_migrate_flag="$(echo "${RUN_MIGRATIONS_AT_BUILD:-false}" | tr '[:upper:]' '[:lower:]' | xargs)"
 if [ "${_build_migrate_flag}" = "true" ] || [ "${_build_migrate_flag}" = "1" ] || [ "${_build_migrate_flag}" = "yes" ] || [ "${_build_migrate_flag}" = "on" ]; then
   python manage.py migrate --noinput

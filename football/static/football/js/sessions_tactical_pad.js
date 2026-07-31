@@ -4080,6 +4080,7 @@
 		      return kit2dCanvasImagesBySlot[slot] || kit2dCanvasImagesBySlot.home || kit2dEditorImagesBySlot[slot] || kit2dEditorImagesBySlot.home || kit2dEditorImageEl;
 		    };
 		    const applyKit2dDefaultTokenStyle = () => {
+		      // CONTRATO DE LA CHAPA — no tocar sin petición expresa del propietario.
 		      // Solo es un DEFECTO: si el entrenador ya eligió estilo, no se le toca.
 		      // (Antes la condición incluía `|| tokenGlobalStyle === 'disk'`, así que la CHAPA era el
 		      //  único estilo tratado como "sin elegir" y se convertía sola en camiseta al recargar.)
@@ -5911,6 +5912,10 @@
 		        try { fn(node); } catch (e) { /* ignore */ }
 		        if (Array.isArray(node?._objects)) node._objects.forEach((child) => walkObjects(child, fn));
 		      };
+	      // CONTRATO DE LA CHAPA — no tocar sin petición expresa del propietario.
+	      // Protegido por scripts/check_chapa_contract.py (falla el despliegue) y por
+	      // football/test_chapa_contract.py.
+	      //
 	      // La chapa con escudo es una IMAGEN (chapa_*.png) que YA trae el color de la equipación
 	      // horneado. Recolorearla no aporta nada y, peor, el fallback de abajo acababa pintando un
 	      // aro decorativo (token_face_ring) que va ENCIMA del PNG: un disco liso tapando el escudo.
@@ -5949,6 +5954,7 @@
 		          // Portero u otros tokens sin franjas: recolorea el círculo de relleno POR ROL.
 		          // (Antes se cogía circles[1] a ciegas, contando por posición: en cuanto cambió el
 		          //  orden de capas ese índice dejó de ser el disco base y pasó a ser un aro de adorno.)
+		          // NO vuelvas a elegir la capa por índice — el candado del contrato lo rechaza.
 		          const fills = [];
 		          walkObjects(group, (child) => {
 		            if (!child || child.type !== 'circle') return;
