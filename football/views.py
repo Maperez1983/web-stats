@@ -52783,28 +52783,33 @@ def _task_builder_resource_library_context(request, primary_team, *, context_cac
 
 
 def _tactical_latest_closed_ratings(player_ids):
-    """{player_id: nota 1-10} de la última evaluación CERRADA de cada jugador."""
+    """
+    {player_id: nota 1-10} = MEDIA del cuerpo técnico, no la última valoración suelta.
+
+    Antes mandaba quien hubiera escrito el último: dos entrenadores con opiniones distintas
+    y la chapa enseñaba la del más reciente. Ahora es la media de todos, un miembro un voto,
+    y la autovaloración del jugador no entra.
+    """
+    from .evaluation_consensus import staff_consensus
+
     ratings = {}
     ids = [int(pid) for pid in player_ids if pid]
     if not ids:
         return ratings
     try:
-        eval_qs = PlayerEvaluation.objects.filter(
-            player_id__in=ids, status=PlayerEvaluation.STATUS_CLOSED
-        ).order_by("player_id", "-evaluated_on", "-updated_at", "-id")
-        seen = set()
+        eval_qs = list(
+            PlayerEvaluation.objects.filter(
+                player_id__in=ids, status=PlayerEvaluation.STATUS_CLOSED
+            ).select_related("created_by")
+        )
+        by_player = {}
         for ev in eval_qs:
-            pid = int(ev.player_id)
-            if pid in seen:
-                continue
-            seen.add(pid)
-            val = ev.average_rating or ev.overall_rating
-            if val is None:
-                continue
-            try:
-                ratings[pid] = round(float(val), 1)
-            except (TypeError, ValueError):
-                continue
+            by_player.setdefault(int(ev.player_id), []).append(ev)
+        for pid, evaluations in by_player.items():
+            # `player` sólo se usa para el log del helper; el cálculo va sobre la lista.
+            consensus = staff_consensus(None, evaluations=evaluations)
+            if consensus.get("overall") is not None:
+                ratings[pid] = consensus["overall"]
     except Exception:
         return {}
     return ratings
@@ -78468,6 +78473,9 @@ def player_detail_page(request, player_id):
         evaluation_pending = latest_closed_evaluation is None or (
             evaluation_days_since is not None and evaluation_days_since > 30
         )
+        from .evaluation_consensus import staff_consensus as _staff_consensus
+
+        evaluation_consensus = _staff_consensus(player, club_season=selected_club_season)
         evaluation_summary = {
             "latest": latest_closed_evaluation,
             "days_since": evaluation_days_since,
@@ -79383,6 +79391,7 @@ def player_detail_page(request, player_id):
                 "fines_summary": fines_summary,
                 "fines_records": fines_records,
                 "stats_error": stats_error,
+                "evaluation_consensus": evaluation_consensus,
                 "is_player_readonly": is_player_readonly,
                 # `vis` = qué secciones ve el jugador (política del club). Distinto de
                 # `is_player_readonly`, que es "no puede editar".

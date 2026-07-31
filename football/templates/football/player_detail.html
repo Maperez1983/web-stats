@@ -1076,7 +1076,7 @@
             {% elif has_manual_sanction %}<span class="ph-badge ph-danger">Sancionado</span>
             {% else %}<span class="ph-badge ph-ok">Disponible</span>{% endif %}
             {% if player.has_federative_license %}<span class="ph-badge ph-ok" title="Ficha federativa">✅ Fichado</span>{% else %}<span class="ph-badge" title="Sin ficha federativa">Sin ficha</span>{% endif %}
-            {% if evaluation_summary.latest %}<span class="ph-badge ph-accent" title="Nota media (última evaluación cerrada)">★ {{ evaluation_summary.latest.average_rating|default:evaluation_summary.latest.overall_rating|default:'–' }}</span>{% endif %}
+            {% if evaluation_consensus.overall %}<span class="ph-badge ph-accent" title="Media del cuerpo técnico · {{ evaluation_consensus.voters }} valoración{{ evaluation_consensus.voters|pluralize:"es" }}">★ {{ evaluation_consensus.overall }}</span>{% endif %}
             {% if player.position %}<span class="ph-badge ph-muted">{{ player.position|display_position }}</span>{% endif %}
             {% if player.number %}<span class="ph-badge ph-muted">#{{ player.number }}</span>{% endif %}
           </div>
@@ -2217,6 +2217,54 @@
           <p class="subtle" style="margin:0;">Sin objetivos registrados. Añade los del plan de trabajo del jugador.</p>
           {% endfor %}
         </section>
+        {% comment %}La valoración de un jugador es la MEDIA del cuerpo técnico, no la del
+        último que escribió. Un miembro, un voto (su última). La autovaloración del jugador va
+        aparte y NO entra en la media: lo interesante de ella es la distancia.{% endcomment %}
+        <div class="attendance-summary-card" style="margin-bottom:0.9rem;">
+          <div class="attendance-summary-head">
+            <div>
+              <strong style="letter-spacing:0.12em;text-transform:uppercase;font-size:0.82rem;">Valoración del cuerpo técnico</strong>
+              <div class="subtle" style="margin-top:0.25rem;">
+                {% if evaluation_consensus.overall %}
+                  Media <strong style="font-size:1.15rem;">{{ evaluation_consensus.overall }}</strong>
+                  · sostenida por {{ evaluation_consensus.voters }} valoración{{ evaluation_consensus.voters|pluralize:"es" }}
+                {% else %}
+                  Todavía no hay ninguna valoración cerrada del cuerpo técnico.
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% if evaluation_consensus.overall %}
+          <div class="stats-grid" style="margin-top:0.7rem;">
+            {% for area in evaluation_consensus.areas %}
+              <article class="stat">
+                <div class="label">{{ area.label }}</div>
+                <div class="value">{% if area.value %}{{ area.value }}{% else %}–{% endif %}</div>
+              </article>
+            {% endfor %}
+          </div>
+          <div class="subtle" style="margin-top:0.6rem;font-size:0.78rem;">
+            Quién la sostiene:
+            {% for c in evaluation_consensus.contributions %}
+              <span class="product-chip">{{ c.created_by|default:"sin autor" }} · {{ c.average_rating|default:c.overall_rating|default:"–" }} · {{ c.evaluated_on|date:"d/m/y" }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+          {% if evaluation_consensus.self_assessment %}
+          <div style="margin-top:0.8rem;padding-top:0.7rem;border-top:1px solid rgba(148,163,184,0.22);">
+            <strong style="font-size:0.86rem;">Cómo se ve él</strong>
+            <div class="subtle" style="margin-top:0.2rem;font-size:0.8rem;">
+              Autovaloración del {{ evaluation_consensus.self_assessment.evaluated_on|date:"d/m/Y" }}:
+              <strong>{{ evaluation_consensus.self_assessment.average_rating|default:"–" }}</strong>
+              {% if evaluation_consensus.gap %}
+                · se pone <strong>{{ evaluation_consensus.gap }}</strong> respecto a vosotros
+              {% endif %}
+              <br />No entra en la media: es su percepción, no un voto.
+            </div>
+          </div>
+          {% endif %}
+        </div>
+
         <div class="attendance-summary-card">
           <div class="attendance-summary-head">
             <div>

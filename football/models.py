@@ -4338,6 +4338,19 @@ class PlayerEvaluation(models.Model):
     evaluation_type = models.CharField(max_length=24, choices=TYPE_CHOICES, default=TYPE_MONTHLY)
     evaluated_on = models.DateField(default=timezone.localdate)
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_DRAFT)
+    # QUIÉN valora. Cada miembro del cuerpo técnico mete la suya y lo que se presenta es la
+    # media entre ellos; el jugador puede autovalorarse, pero su percepción NO entra en esa
+    # media — es un dato aparte, y justo su interés está en la distancia con la del staff.
+    AUTHOR_STAFF = 'staff'
+    AUTHOR_SELF = 'self'
+    AUTHOR_CHOICES = [
+        (AUTHOR_STAFF, 'Cuerpo técnico'),
+        (AUTHOR_SELF, 'Autovaloración del jugador'),
+    ]
+    author_kind = models.CharField(
+        max_length=12, choices=AUTHOR_CHOICES, default=AUTHOR_STAFF, db_index=True,
+        help_text='Quién la firma. Sólo las del cuerpo técnico entran en la media.',
+    )
     # CERRADA NO ES PUBLICADA. Cerrar una evaluación es un acto interno del cuerpo técnico;
     # enseñársela al jugador es una decisión aparte y deliberada, como "Publicar 11 y avisar".
     # Antes, cerrar una valoración la publicaba sola. Las históricas se quedan en False: el

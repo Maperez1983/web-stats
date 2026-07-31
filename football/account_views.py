@@ -616,6 +616,44 @@ def player_home_page(request):
     from .models import Player, PlayerObjective
 
     player = Player.objects.filter(user=request.user).select_related("team").first()
+
+    # Autovaloración: el jugador se puntúa a sí mismo. NO entra en la media del cuerpo
+    # técnico (`author_kind='self'`); lo valioso es justo la distancia entre ambas.
+    if request.method == "POST" and str(request.POST.get("form_action") or "") == "self_assessment":
+        if player is not None:
+            from .models import PlayerEvaluation
+
+            def _score(name):
+                raw = str(request.POST.get(name) or "").strip().replace(",", ".")
+                try:
+                    value = float(raw)
+                except ValueError:
+                    return None
+                return max(1.0, min(10.0, value))
+
+            try:
+                PlayerEvaluation.objects.create(
+                    team=player.team,
+                    player=player,
+                    author_kind=PlayerEvaluation.AUTHOR_SELF,
+                    # Se guarda CERRADA: el jugador no tiene pantalla de borradores, si la
+                    # envía es que la da por hecha.
+                    status=PlayerEvaluation.STATUS_CLOSED,
+                    evaluated_on=timezone.localdate(),
+                    technical_rating=_score("technical_rating"),
+                    tactical_rating=_score("tactical_rating"),
+                    physical_rating=_score("physical_rating"),
+                    mental_rating=_score("mental_rating"),
+                    social_rating=_score("social_rating"),
+                    strengths=str(request.POST.get("strengths") or "")[:2000],
+                    improvements=str(request.POST.get("improvements") or "")[:2000],
+                    created_by=request.user,
+                )
+            except Exception:
+                logger.exception("No se pudo guardar la autovaloración del jugador %s", player.id)
+        from django.shortcuts import redirect
+
+        return redirect(f"{reverse('player-home')}#valoracion")
     # "Ver como jugador": el cuerpo técnico abre el portal TAL CUAL lo recibe un jugador
     # concreto. Sin esto, cerrar la ficha dejaría al club sin forma de comprobar qué ve, y
     # una política que no se puede mirar no se puede confiar. Es sólo lectura: no marca
@@ -764,6 +802,7 @@ def _player_home_zones(request, player, vis):
 
     zones = {
         "evaluations": [],
+        "self_assessment": None,
         "notifications": [],
         "next_session": None,
         "next_session_attendance": None,
@@ -850,6 +889,11 @@ def _player_home_zones(request, player, vis):
         try:
             from .models import PlayerEvaluation
 
+            zones["self_assessment"] = (
+                PlayerEvaluation.objects.filter(
+                    player=player, author_kind=PlayerEvaluation.AUTHOR_SELF
+                ).order_by("-evaluated_on", "-id").first()
+            )
             # Cerrada NO basta: sólo lo que el cuerpo técnico ha publicado a propósito. Y los
             # comentarios sólo si se marcaron al publicar (segunda llave).
             zones["evaluations"] = list(
