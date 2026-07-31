@@ -1,0 +1,1533 @@
+/* Asistente global del producto.
+ *
+ * Vivia INCRUSTADO en cada pagina (~103 KB de JavaScript dentro del HTML, sin cache): se
+ * volvia a descargar entero en cada carga y era el grueso del peso de cualquier pantalla.
+ * Aqui es un estatico normal, cacheado, y lo que cambia por pagina viaja en un bloque de
+ * configuracion diminuto (window.__GUARD__) que escribe la plantilla.
+ */
+(function () {
+  var G = window.__GUARD__ || {};
+  G.urls = G.urls || {};
+  function U(nombre) { return G.urls[nombre] || '/'; }
+  function qt(sep) { return G.teamId ? sep + 'team=' + G.teamId : ''; }
+  function qw(sep) { return G.workspaceId ? sep + 'workspace=' + G.workspaceId : ''; }
+
+(() => {
+  if (window.__globalGuardWidgetInitialized) return;
+  window.__globalGuardWidgetInitialized = true;
+  const shellEl = document.getElementById('global-guard-widget-shell');
+  const toggleEl = document.getElementById('global-guard-widget-toggle');
+  const closeEl = document.getElementById('global-guard-widget-close');
+  const logEl = document.getElementById('global-guard-chat-log');
+  const inputEl = document.getElementById('global-guard-chat-input');
+  const sendEl = document.getElementById('global-guard-chat-send');
+  const clearEl = document.getElementById('global-guard-chat-clear');
+  const suggestionsEl = document.getElementById('global-guard-suggestions');
+  const commandGridEl = document.getElementById('global-guard-command-grid');
+  const silentCardEl = document.getElementById('global-guard-silent-card');
+  const silentCopyEl = document.getElementById('global-guard-silent-copy');
+  const smokeEl = document.getElementById('global-guard-run-smoke');
+  const fixEl = document.getElementById('global-guard-auto-fix');
+  const statusEl = document.getElementById('global-guard-chat-status');
+  const quickActionsEl = document.getElementById('global-guard-quick-actions');
+  const autonomyEl = document.getElementById('global-guard-autonomy-mode');
+  const audienceEl = document.getElementById('global-guard-audience-mode');
+  const lastToolsEl = document.getElementById('global-guard-last-tools');
+  const lastLatencyEl = document.getElementById('global-guard-last-latency');
+  const observabilityEl = document.getElementById('global-guard-observability');
+  const queuePreviewEl = document.getElementById('global-guard-queue-preview');
+  const timelineEl = document.getElementById('global-guard-timeline');
+  const taskMemoryEl = document.getElementById('global-guard-task-memory');
+  const healthPillEl = document.getElementById('global-guard-health-pill');
+  const alertsEl = document.getElementById('global-guard-alerts');
+  const storageKey = 'ollana-global-widget:v4';
+  const apiUrl = U('system-guard-chat-api');
+  const routeCatalog = [
+    { key: 'dashboard', label: 'Portada', url: U('dashboard-home') + qt('?'), keywords: ['portada', 'inicio', 'home', 'dashboard'] },
+    { key: 'analysis', label: 'Vídeo análisis', url: U('analysis') + qt('?'), keywords: ['video analisis', 'vídeo análisis', 'analisis', 'análisis', 'video', 'vídeo'] },
+    { key: 'library', label: 'Biblioteca de tareas', url: U('sessions') + '?tab=library&library_repo=traditional' + qt('&') + qw('&'), keywords: ['biblioteca de tareas', 'biblioteca', 'tareas', 'ejercicios', 'task library'] },
+    { key: 'library_ai_trainer', label: 'Biblioteca IA Trainer', url: U('sessions') + '?tab=library&library_repo=ai_trainer&library_source=created' + qt('&') + qw('&'), keywords: ['biblioteca ia trainer', 'biblioteca ai trainer', 'tareas ia trainer', 'biblioteca trainer'] },
+    { key: 'task_builder', label: 'Crear tarea', url: U('sessions-task-create') + (G.teamId ? '?team=' + G.teamId + qw('&') : ''), keywords: ['crear tarea', 'editor', 'pizarra'] },
+    { key: 'sessions', label: 'Entrenamiento', url: U('sessions') + qt('?'), keywords: ['entrenamiento', 'entrenos', 'sesiones', 'microciclo'] },
+    { key: 'match', label: 'Partido', url: U('match-hub') + qt('?'), keywords: ['partido', 'match', 'convocatoria', 'once inicial'] },
+    { key: 'players', label: 'Jugadores', url: (G.canManage ? U('coach-roster') + '?tab=stats' + qt('&') : U('player-dashboard') + qt('?')), keywords: ['jugadores', 'jugador', 'plantilla', 'roster'] },
+    { key: 'agenda', label: 'Agenda', url: U('team-agenda') + qt('?'), keywords: ['agenda', 'calendario'] },
+    { key: 'staff', label: 'Staff', url: U('staff-directory') + qt('?'), keywords: ['staff', 'cuerpo tecnico', 'cuerpo técnico'] },
+    { key: 'tactics', label: 'Táctica', url: U('coach-tactics') + qt('?'), keywords: ['tactica', 'táctica', 'abp', 'playbook'] },
+    { key: 'reports', label: 'Informes', url: U('reports-hub') + qt('?'), keywords: ['informes', 'pdf', 'reportes'] },
+    { key: 'ai_trainer', label: 'IA Trainer', url: U('ai-trainer') + (G.teamId ? '?team=' + G.teamId + qw('&') : ''), keywords: ['ia trainer', 'ai trainer', 'trainer'] },
+    { key: 'platform', label: 'Platform', url: U('platform-overview'), keywords: ['platform', 'clientes', 'clubes'] },
+  ];
+  const history = [];
+  let pendingExecution = null;
+  let activeRequestId = 0;
+
+  const mountToBody = () => {
+    if (!shellEl || !document.body) return;
+    if (shellEl.parentElement === document.body) return;
+    document.body.appendChild(shellEl);
+  };
+  const loadUiState = () => {
+    try {
+      return JSON.parse(window.localStorage.getItem(storageKey) || '{}') || {};
+    } catch (error) {
+      return {};
+    }
+  };
+  const saveUiState = (patch = {}) => {
+    try {
+      const nextState = { ...loadUiState(), ...patch };
+      window.localStorage.setItem(storageKey, JSON.stringify(nextState));
+    } catch (error) {}
+  };
+  const applyUiMode = (mode) => {
+    const nextMode = mode === 'operator' ? 'operator' : 'assistant';
+    if (shellEl) shellEl.dataset.uiMode = nextMode;
+    if (autonomyEl) autonomyEl.value = nextMode === 'operator' ? 'operator' : 'advisor';
+    if (audienceEl) audienceEl.value = nextMode === 'operator' ? 'technical' : 'guided';
+    saveUiState({ uiMode: nextMode });
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', mountToBody, { once: true });
+  } else {
+    mountToBody();
+  }
+
+  const setOpen = (open) => {
+    if (!shellEl || !toggleEl) return;
+    shellEl.classList.toggle('is-open', Boolean(open));
+    shellEl.style.display = 'flex';
+    shellEl.style.position = 'fixed';
+    shellEl.style.right = 'max(1rem, env(safe-area-inset-right))';
+    shellEl.style.bottom = 'max(1rem, env(safe-area-inset-bottom))';
+    shellEl.style.zIndex = '2147483000';
+    toggleEl.setAttribute('aria-expanded', open ? 'true' : 'false');
+    toggleEl.textContent = open ? 'Cerrar asistente' : 'Asistente';
+    const panelEl = document.getElementById('global-guard-widget-panel');
+    if (panelEl) panelEl.style.display = open ? 'flex' : 'none';
+    saveUiState({ open: Boolean(open) });
+  };
+  const normalizeText = (value) => {
+    try {
+      return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+    } catch (error) {
+      return String(value || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    }
+  };
+  const helpMarkers = ['como', 'cómo', 'ayudame', 'ayúdame', 'explica', 'que hace', 'qué hace', 'para que sirve', 'guia', 'guía'];
+  const inspectMarkers = ['inspecciona', 'inspeccionar', 'observa', 'mira', 'comprueba', 'revisa esta ficha', 'revisa la ficha', 'qué ves', 'que ves', 'dime qué ves', 'dime que ves'];
+  const screenMarkers = ['esta pantalla', 'esta pagina', 'esta página', 'donde estoy', 'qué puedo hacer aquí', 'que puedo hacer aqui'];
+  const issueMarkers = ['no me deja', 'no funciona', 'error', 'falla', 'fallo', 'problema', 'no aparece', 'no se muestra', 'va lento', 'se ha roto'];
+  const complexTaskMarkers = ['codigo', 'código', 'trabaja hasta', 'arregla', 'mejora', 'haz que', 'consigue', 'profesional', '3d', 'estadio'];
+  const executeMarkers = ['introduce un jugador', 'jugador en plantilla', 'crea una sesion', 'crea una sesión', 'crea una tarea', 'alta de jugador'];
+  const navigationVerbs = ['abre', 'abrir', 'abreme', 'abreme', 'llévame', 'llevame', 've a', 'ir a', 'quiero ir', 'quiero ver', 'quiero abrir', 'vamos a'];
+  const pageGuideCatalog = {
+    'dashboard-home': {
+      title: 'Portada del club',
+      tips: [
+        'Aquí ves el resumen del equipo, agenda, briefing semanal y accesos a las áreas principales.',
+        'Si buscas tareas o entrenamientos, la ruta más directa es Entrenamiento o Biblioteca de tareas.',
+      ],
+      suggestions: ['Abre biblioteca de tareas', 'Llévame a vídeo análisis', 'Introduce un jugador en plantilla'],
+    },
+    sessions: {
+      title: 'Entrenamiento',
+      tips: [
+        'Desde aquí organizas microciclos, sesiones y tareas.',
+        'Si quieres reutilizar ejercicios, te conviene abrir Biblioteca de tareas.',
+      ],
+      suggestions: ['Abre biblioteca ia trainer', 'Quiero crear una tarea', 'Crea una sesión para mañana'],
+    },
+    'match-hub': {
+      title: 'Partido',
+      tips: [
+        'En esta zona preparas convocatoria, once inicial y seguimiento del día de partido.',
+        'Si necesitas revisar acciones o incidencias, la ruta natural es Partido.',
+      ],
+      suggestions: ['Ayúdame con esta pantalla', 'Llévame a vídeo análisis', 'Revisa una incidencia en esta pantalla'],
+    },
+    analysis: {
+      title: 'Análisis',
+      tips: [
+        'Esta área está pensada para vídeo análisis, rival y elaboración de informes.',
+        'Si quieres entrar directo a vídeo, te puedo llevar a Vídeo análisis.',
+      ],
+      suggestions: ['Llévame a vídeo análisis', 'Ayúdame con esta pantalla', 'Abre biblioteca de tareas'],
+    },
+    'session-task-detail': {
+      title: 'Ficha de tarea',
+      tips: [
+        'Aquí revisas la ficha visible de la tarea, su presentación 2D/3D, la secuencia y el bloque editable.',
+        'Si algo no se ve bien, lo correcto es inspeccionar esta ficha antes de navegar a otro módulo.',
+      ],
+      suggestions: ['Inspecciona esta ficha', 'Revisa si el título se ve bien', 'Comprueba la representación 3D'],
+    },
+  };
+  const syncSuggestionRow = () => {
+    if (!suggestionsEl) return;
+    const guide = currentGuide();
+    const defaults = ['Ayúdame con esta pantalla', 'Llévame a vídeo análisis', 'Abre biblioteca de tareas'];
+    const messages = Array.isArray(guide?.suggestions) && guide.suggestions.length ? guide.suggestions : defaults;
+    suggestionsEl.innerHTML = '';
+    messages.slice(0, 3).forEach((message) => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'guard-suggestion-chip';
+      chip.dataset.guardSuggestion = String(message || '');
+      chip.textContent = String(message || '');
+      suggestionsEl.appendChild(chip);
+    });
+  };
+  const syncInputPlaceholder = () => {
+    if (!inputEl) return;
+    const page = String(currentPageContext().page || '').trim();
+    const placeholderMap = {
+      sessions: 'Ej.: crea una tarea título: Rondo 4x2, abre biblioteca ia trainer, crea una sesión para mañana...',
+      analysis: 'Ej.: llévame a vídeo análisis, ayúdame con esta pantalla, revisa una incidencia de clips...',
+      'dashboard-home': 'Ej.: introduce un jugador en plantilla, quiero ir a biblioteca de tareas, revisa el sistema...',
+      'match-hub': 'Ej.: ayúdame con esta pantalla, llévame a vídeo análisis, revisa una incidencia en partido...',
+      'session-task-detail': 'Ej.: inspecciona esta ficha, revisa el título, comprueba la representación 3D, dime qué falla visualmente...',
+    };
+    inputEl.placeholder = placeholderMap[page] || 'Ej.: ¿quién está lesionado? · próximo partido · llévame a vídeo análisis · no me deja guardar...';
+  };
+  const syncSilentCard = (ob = null) => {
+    if (!silentCopyEl) return;
+    const data = ob && typeof ob === 'object' ? ob : {};
+    const scheduled = data.scheduled_state && typeof data.scheduled_state === 'object' ? data.scheduled_state : {};
+    const queue = data.task_queue && typeof data.task_queue === 'object' ? data.task_queue : {};
+    const topPriority = data.top_priority && typeof data.top_priority === 'object' ? data.top_priority : {};
+    const strategy = data.strategy && typeof data.strategy === 'object' ? data.strategy : {};
+    const pieces = [];
+    if (scheduled.last_finished_at) {
+      pieces.push(`Último barrido: ${String(scheduled.last_finished_at).replace('T', ' ').replace('Z', ' UTC')}`);
+    } else {
+      pieces.push('Último barrido: pendiente de primera ejecución.');
+    }
+    const totalQueue = Number(queue.pending || 0) + Number(queue.running || 0) + Number(queue.completed || 0) + Number(queue.blocked || 0);
+    if (totalQueue > 0) {
+      pieces.push(`Cola ${Number(queue.pending || 0)} pendientes · ${Number(queue.running || 0)} en curso · ${Number(queue.completed || 0)} resueltas · ${Number(queue.blocked || 0)} bloqueadas.`);
+    } else {
+      pieces.push('Sin tareas silenciosas registradas todavía.');
+    }
+    if (topPriority.title) {
+      pieces.push(`Prioridad actual: ${String(topPriority.priority_band || 'next')} · ${String(topPriority.title)}.`);
+    }
+    if (strategy.mode) {
+      pieces.push(`Estrategia: ${String(strategy.mode)}.`);
+    }
+    silentCopyEl.textContent = pieces.join('\n');
+  };
+  const detectNavigationIntent = (message) => {
+    const text = normalizeText(message);
+    if (!text) return null;
+    const hasVerb = navigationVerbs.some((token) => text.includes(normalizeText(token)));
+    const pageKey = String(currentPageContext().page || '').trim();
+    if (pageKey === 'session-task-detail' && !hasVerb) return null;
+    if (!hasVerb && !routeCatalog.some((route) => route.keywords.some((keyword) => text.includes(normalizeText(keyword))))) return null;
+    let best = null;
+    routeCatalog.forEach((route) => {
+      let score = 0;
+      route.keywords.forEach((keyword) => {
+        const normalizedKeyword = normalizeText(keyword);
+        if (!normalizedKeyword) return;
+        if (text.includes(normalizedKeyword)) score += Math.max(2, normalizedKeyword.split(' ').length * 2);
+      });
+      if (route.key === 'analysis' && text.includes('video')) score += 2;
+      if (route.key === 'library' && text.includes('biblioteca')) score += 2;
+      if (route.key === 'library_ai_trainer' && text.includes('biblioteca') && (text.includes('trainer') || text.includes('ia'))) score += 6;
+      if (route.key === 'match' && text.includes('partido')) score += 2;
+      if (!best || score > best.score) best = { route, score };
+    });
+    return best && best.score > 0 ? best.route : null;
+  };
+  const navigateToRoute = (route, originalMessage = '') => {
+    if (!route || !route.url) return false;
+    const text = `Te llevo a ${route.label}.`;
+    renderMessage('assistant', text, originalMessage ? [route.label] : []);
+    history.push({ role: 'assistant', content: text });
+    setStatus(`Abriendo ${route.label}…`);
+    window.setTimeout(() => {
+      try { window.location.href = route.url; } catch (error) {}
+    }, 220);
+    return true;
+  };
+  const currentGuide = () => pageGuideCatalog[String(currentPageContext().page || '').trim()] || null;
+  const buildHelpResponse = (message, navigationRoute = null) => {
+    const guide = currentGuide();
+    const lines = [];
+    if (guide) {
+      lines.push(`Estás en ${guide.title}.`);
+      guide.tips.forEach((tip) => lines.push(tip));
+    } else {
+      lines.push('Puedo ayudarte a entender esta pantalla y a llevarte al módulo correcto.');
+    }
+    if (navigationRoute) lines.push(`Si quieres, te llevo directamente a ${navigationRoute.label}.`);
+    return lines.join(' ');
+  };
+  const classifyIntent = (message) => {
+    const text = normalizeText(message);
+    const pageKey = String(currentPageContext().page || '').trim();
+    if (pageKey === 'session-task-detail' && inspectMarkers.some((item) => text.includes(normalizeText(item)))) {
+      return { kind: 'inspect' };
+    }
+    const navigationRoute = detectNavigationIntent(message);
+    if (navigationRoute) return { kind: 'navigate', route: navigationRoute };
+    if (screenMarkers.some((item) => text.includes(normalizeText(item)))) return { kind: 'help' };
+    if (helpMarkers.some((item) => text.includes(normalizeText(item)))) return { kind: 'help' };
+    if (executeMarkers.some((item) => text.includes(normalizeText(item)))) return { kind: 'execute' };
+    if (complexTaskMarkers.some((item) => text.includes(normalizeText(item)))) return { kind: 'task' };
+    if (issueMarkers.some((item) => text.includes(normalizeText(item)))) return { kind: 'support' };
+    return { kind: 'support' };
+  };
+  const actionPresets = {
+    status: { message: 'Revisa el estado actual del sistema y resúmelo para esta pantalla.', runSmoke: false, autoFix: false, maintenanceAction: '' },
+    help: { message: 'Ayúdame con esta pantalla y responde como asistente del producto, guiando al usuario de forma clara.', runSmoke: false, autoFix: false, maintenanceAction: '' },
+    smoke: { message: 'Ejecuta smoke del sistema y resume incidencias relevantes para esta pantalla.', runSmoke: true, autoFix: false, maintenanceAction: '' },
+    auto_fix: { message: 'Propón y, si procede, ejecuta auto-fix seguro para la incidencia detectada.', runSmoke: false, autoFix: true, maintenanceAction: '' },
+    goto_library: { navigation: 'library' },
+    goto_analysis: { navigation: 'analysis' },
+    create_player: { message: 'Introduce un jugador en plantilla nombre: Nuevo jugador, dorsal 8, posición mediocentro.', runSmoke: false, autoFix: false, maintenanceAction: '' },
+    create_session: { message: 'Crea una sesión nombre: Activación prepartido, fecha 2026-06-21, hora 18:30, duración 60.', runSmoke: false, autoFix: false, maintenanceAction: '' },
+    remote_deploy: { message: 'Lanza un despliegue remoto gobernado y resume el estado del pipeline.', runSmoke: false, autoFix: false, maintenanceAction: '' },
+    remote_rollback: { message: 'Lanza un rollback remoto gobernado y resume el estado de la reversión.', runSmoke: false, autoFix: false, maintenanceAction: '' },
+  };
+  const alertPresetFromRow = (row) => {
+    const text = String((row && row.text) || '').trim();
+    const level = String((row && row.level) || '').trim().toLowerCase();
+    if (!text || text === 'Sin alertas recientes') return null;
+    if (level === 'regression') return { message: `Ataja esta regresión: ${text}. Revisa estado, logs y configuración implicada y guía al usuario con pasos concretos.`, runSmoke: true, autoFix: false, maintenanceAction: '' };
+    if (level === 'repeat') return { message: `Investiga esta incidencia repetida: ${text}. Compara ejecuciones previas y dame la remediación prioritaria para sistema y usuario.`, runSmoke: false, autoFix: false, maintenanceAction: '' };
+    return { message: `Resume esta mejora y cómo consolidarla sin romper el sistema: ${text}.`, runSmoke: false, autoFix: false, maintenanceAction: '' };
+  };
+  const csrfToken = () => {
+    const raw = document.cookie.split(';').map((row) => row.trim()).find((row) => row.startsWith('csrftoken='));
+    return raw ? decodeURIComponent(raw.split('=').slice(1).join('=')) : '';
+  };
+  const setStatus = (text, isError = false) => {
+    if (!statusEl) return;
+    statusEl.textContent = text || '';
+    statusEl.style.color = isError ? '#fca5a5' : 'rgba(226,232,240,0.78)';
+  };
+  const renderMessage = (role, text, extra = [], response = null) => {
+    if (!logEl) return;
+    const wrap = document.createElement('div');
+    wrap.className = `guard-msg ${role}`;
+    const label = document.createElement('span');
+    label.className = 'role';
+    label.textContent = role === 'user' ? 'Tú' : 'Asistente';
+    const body = document.createElement('div');
+    body.className = 'body';
+    body.textContent = text || '';
+    wrap.appendChild(label);
+    wrap.appendChild(body);
+    if (Array.isArray(extra) && extra.length) {
+      const badges = document.createElement('div');
+      badges.className = 'guard-badges';
+      extra.slice(0, 6).forEach((row) => {
+        const chip = document.createElement('span');
+        chip.className = 'guard-badge';
+        chip.textContent = String(row || '');
+        badges.appendChild(chip);
+      });
+      wrap.appendChild(badges);
+    }
+    if (response && Array.isArray(response.plan) && response.plan.length) {
+      const planEl = document.createElement('div');
+      planEl.className = 'guard-plan';
+      response.plan.slice(0, 4).forEach((row) => {
+        const line = document.createElement('div');
+        line.className = 'guard-plan-row';
+        line.textContent = `${row && row.done ? 'OK' : 'PEND'} · ${String((row && row.step) || '')}`;
+        planEl.appendChild(line);
+      });
+      wrap.appendChild(planEl);
+    }
+    if (response && response.runbook && typeof response.runbook === 'object') {
+      const runbookEl = document.createElement('div');
+      runbookEl.className = 'guard-runbook';
+      const card = document.createElement('div');
+      card.className = 'guard-runbook-card';
+      const title = document.createElement('strong');
+      const taskKind = response?.task?.kind ? ` · ${String(response.task.kind)}` : '';
+      title.textContent = `Runbook${taskKind} · ${String(response.runbook.label || response.runbook.key || 'operativo')}`;
+      const bodyText = [];
+      if (response.runbook.goal) bodyText.push(String(response.runbook.goal));
+      const stages = Array.isArray(response.runbook.stages) ? response.runbook.stages : [];
+      if (stages.length) {
+        bodyText.push(stages.slice(0, 3).map((row) => `${row && row.done ? 'OK' : 'PEND'} · ${String((row && row.label) || '')}`).join('\n'));
+      }
+      if (response.silent_mode) bodyText.push('El asistente sigue trabajando en segundo plano y solo te trae lo importante.');
+      const bodyNode = document.createElement('div');
+      bodyNode.textContent = bodyText.join('\n');
+      card.appendChild(title);
+      card.appendChild(bodyNode);
+      runbookEl.appendChild(card);
+      wrap.appendChild(runbookEl);
+    }
+    if (response && response.snapshot_diff && typeof response.snapshot_diff === 'object') {
+      const diffEl = document.createElement('div');
+      diffEl.className = 'guard-diff';
+      (Array.isArray(response.snapshot_diff.regressions) ? response.snapshot_diff.regressions : []).slice(0, 2).forEach((item) => {
+        const row = document.createElement('div');
+        row.className = 'guard-diff-card regression';
+        row.textContent = `Regresión · ${String(item || '')}`;
+        diffEl.appendChild(row);
+      });
+      (Array.isArray(response.snapshot_diff.improvements) ? response.snapshot_diff.improvements : []).slice(0, 2).forEach((item) => {
+        const row = document.createElement('div');
+        row.className = 'guard-diff-card improvement';
+        row.textContent = `Mejora · ${String(item || '')}`;
+        diffEl.appendChild(row);
+      });
+      if (diffEl.childElementCount) wrap.appendChild(diffEl);
+    }
+    if (response && response.remediation && typeof response.remediation === 'object') {
+      const remediationEl = document.createElement('div');
+      remediationEl.className = 'guard-remediation';
+      const suggestions = Array.isArray(response.remediation.suggestions) ? response.remediation.suggestions : [];
+      const codeChanges = Array.isArray(response.remediation.code_changes) ? response.remediation.code_changes : [];
+      const patchProposals = Array.isArray(response.remediation.patch_proposals) ? response.remediation.patch_proposals : [];
+      const guides = Array.isArray(response.remediation.user_guidance) ? response.remediation.user_guidance : [];
+      suggestions.slice(0, 2).forEach((row) => {
+        const card = document.createElement('div');
+        card.className = 'guard-remediation-card';
+        const title = document.createElement('strong');
+        title.textContent = String(row.title || 'Remediación');
+        const body = document.createElement('div');
+        body.textContent = Array.isArray(row.steps) ? row.steps.map((item) => `• ${String(item)}`).join('\n') : '';
+        card.appendChild(title);
+        card.appendChild(body);
+        remediationEl.appendChild(card);
+      });
+      codeChanges.slice(0, 1).forEach((row) => {
+        const card = document.createElement('div');
+        card.className = 'guard-remediation-card';
+        const title = document.createElement('strong');
+        title.textContent = `Cambio de código · ${String(row.title || 'Propuesta')}`;
+        const body = document.createElement('div');
+        const files = Array.isArray(row.files) ? row.files.join(', ') : '';
+        body.textContent = `${String(row.reason || '')}${files ? `\nFiles: ${files}` : ''}`;
+        card.appendChild(title);
+        card.appendChild(body);
+        remediationEl.appendChild(card);
+      });
+      patchProposals.slice(0, 1).forEach((row) => {
+        const card = document.createElement('div');
+        card.className = 'guard-remediation-card';
+        const title = document.createElement('strong');
+        title.textContent = `Patch dry-run · ${String(row.title || 'Propuesta')}`;
+        const body = document.createElement('div');
+        const files = Array.isArray(row.files) ? row.files.join(', ') : '';
+        body.textContent = `${String(row.summary || '')}${files ? `\nFiles: ${files}` : ''}${row.dry_run ? `\nDry run: ${row.dry_run}` : ''}`;
+        card.appendChild(title);
+        card.appendChild(body);
+        remediationEl.appendChild(card);
+      });
+      guides.slice(0, 1).forEach((item) => {
+        const card = document.createElement('div');
+        card.className = 'guard-remediation-card';
+        const title = document.createElement('strong');
+        title.textContent = 'Guía usuario';
+        const body = document.createElement('div');
+        body.textContent = String(item || '');
+        card.appendChild(title);
+        card.appendChild(body);
+        remediationEl.appendChild(card);
+      });
+      if (remediationEl.childElementCount) wrap.appendChild(remediationEl);
+    }
+    if (response && Array.isArray(response.ui_actions) && response.ui_actions.length) {
+      const actionsEl = document.createElement('div');
+      actionsEl.className = 'guard-ui-actions';
+      response.ui_actions.slice(0, 4).forEach((row) => {
+        if (!row || typeof row !== 'object') return;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'guard-ui-action';
+        btn.dataset.kind = String(row.type || '').trim();
+        if (row.url) btn.dataset.url = String(row.url || '');
+        if (row.prompt) btn.dataset.prompt = String(row.prompt || '');
+        if (row.reason) btn.title = String(row.reason || '');
+        btn.textContent = String(row.label || 'Acción');
+        actionsEl.appendChild(btn);
+      });
+      if (actionsEl.childElementCount) wrap.appendChild(actionsEl);
+    }
+    if (response && response.assistant_action && typeof response.assistant_action === 'object' && Object.keys(response.assistant_action).length) {
+      const action = response.assistant_action;
+      const actionEl = document.createElement('div');
+      actionEl.className = 'guard-remediation';
+      const card = document.createElement('div');
+      card.className = 'guard-remediation-card';
+      const title = document.createElement('strong');
+      title.textContent = action.kind === 'create_player' ? 'Acción asistida · Jugador' : (action.kind === 'create_session' ? 'Acción asistida · Sesión' : (action.kind === 'create_task' ? 'Acción asistida · Tarea' : (action.kind === 'navigate_module' ? 'Acción asistida · Navegación' : (action.kind === 'guide_user' ? 'Acción asistida · Guía' : 'Acción asistida'))));
+      const body = document.createElement('div');
+      const lines = [];
+      if (action.message) lines.push(String(action.message || ''));
+      if (Array.isArray(action.missing_fields) && action.missing_fields.length) {
+        lines.push(`Faltan: ${action.missing_fields.map((item) => String(item || '')).join(', ')}`);
+      }
+      if (action.player && typeof action.player === 'object') {
+        const parts = [];
+        if (action.player.name) parts.push(String(action.player.name || ''));
+        if (action.player.number) parts.push(`#${String(action.player.number || '')}`);
+        if (action.player.position) parts.push(String(action.player.position || ''));
+        if (action.player.team) parts.push(String(action.player.team || ''));
+        if (parts.length) lines.push(parts.join(' · '));
+      }
+      if (action.session && typeof action.session === 'object') {
+        const parts = [];
+        if (action.session.focus) parts.push(String(action.session.focus || ''));
+        if (action.session.date) parts.push(String(action.session.date || ''));
+        if (action.session.duration_minutes) parts.push(`${String(action.session.duration_minutes || '')} min`);
+        if (action.session.team) parts.push(String(action.session.team || ''));
+        if (parts.length) lines.push(parts.join(' · '));
+      }
+      if (action.task && typeof action.task === 'object') {
+        const parts = [];
+        if (action.task.title) parts.push(String(action.task.title || ''));
+        if (action.task.repository) parts.push(String(action.task.repository || ''));
+        if (action.task.duration_minutes) parts.push(`${String(action.task.duration_minutes || '')} min`);
+        if (action.task.team) parts.push(String(action.task.team || ''));
+        if (parts.length) lines.push(parts.join(' · '));
+      }
+      if (action.navigate_to && typeof action.navigate_to === 'object') {
+        const parts = [];
+        if (action.navigate_to.label) parts.push(String(action.navigate_to.label || ''));
+        if (action.navigate_to.url) parts.push(String(action.navigate_to.url || ''));
+        if (parts.length) lines.push(parts.join(' · '));
+      }
+      if (action.guidance && typeof action.guidance === 'object') {
+        if (action.guidance.page) lines.push(`Pantalla actual: ${String(action.guidance.page || '')}`);
+        if (Array.isArray(action.guidance.next_modules) && action.guidance.next_modules.length) {
+          lines.push(`Siguientes módulos: ${action.guidance.next_modules.map((item) => String(item || '')).join(', ')}`);
+        }
+      }
+      if (action.permission_required) {
+        lines.push('Permiso requerido: solo un usuario con gestión del workspace puede ejecutar esta acción.');
+      }
+      body.textContent = lines.join('\n');
+      card.appendChild(title);
+      card.appendChild(body);
+      actionEl.appendChild(card);
+      wrap.appendChild(actionEl);
+    }
+    if (response && Array.isArray(response.improvement_proposals) && response.improvement_proposals.length) {
+      const proposalsEl = document.createElement('div');
+      proposalsEl.className = 'guard-remediation';
+      response.improvement_proposals.slice(0, 2).forEach((row) => {
+        if (!row || typeof row !== 'object') return;
+        const card = document.createElement('div');
+        card.className = 'guard-remediation-card';
+        const title = document.createElement('strong');
+        title.textContent = `Mejora · ${String(row.title || 'Propuesta')}`;
+        const body = document.createElement('div');
+        body.textContent = String(row.reason || '');
+        card.appendChild(title);
+        card.appendChild(body);
+        proposalsEl.appendChild(card);
+      });
+      if (proposalsEl.childElementCount) wrap.appendChild(proposalsEl);
+    }
+    if (response && response.capabilities && typeof response.capabilities === 'object') {
+      const caps = Array.isArray(response.capabilities.skills) ? response.capabilities.skills : [];
+      if (caps.length) {
+        const capsEl = document.createElement('div');
+        capsEl.className = 'guard-badges';
+        caps.slice(0, 4).forEach((row) => {
+          const chip = document.createElement('span');
+          chip.className = 'guard-badge';
+          chip.textContent = String(row.label || row.key || '');
+          capsEl.appendChild(chip);
+        });
+        wrap.appendChild(capsEl);
+      }
+    }
+    logEl.appendChild(wrap);
+    logEl.scrollTop = logEl.scrollHeight;
+    return wrap;
+  };
+  const renderPendingMessage = (text = 'El asistente está preparando la respuesta…') => {
+    const node = renderMessage('assistant', text, ['Procesando']);
+    if (node) node.dataset.pendingGuardResponse = '1';
+    return node;
+  };
+  const replacePendingMessage = (pendingNode, text, extra = [], response = null) => {
+    if (!pendingNode || !pendingNode.parentNode) {
+      return renderMessage('assistant', text, extra, response);
+    }
+    const replacement = document.createElement('div');
+    replacement.className = 'guard-msg assistant';
+    const label = document.createElement('span');
+    label.className = 'role';
+    label.textContent = 'Asistente';
+    const body = document.createElement('div');
+    body.className = 'body';
+    body.textContent = text || '';
+    replacement.appendChild(label);
+    replacement.appendChild(body);
+    pendingNode.parentNode.replaceChild(replacement, pendingNode);
+    if (Array.isArray(extra) && extra.length) {
+      const badges = document.createElement('div');
+      badges.className = 'guard-badges';
+      extra.slice(0, 6).forEach((row) => {
+        const chip = document.createElement('span');
+        chip.className = 'guard-badge';
+        chip.textContent = String(row || '');
+        badges.appendChild(chip);
+      });
+      replacement.appendChild(badges);
+    }
+    if (response) {
+      renderMessage('assistant', text, extra, response);
+      replacement.remove();
+      return null;
+    }
+    logEl.scrollTop = logEl.scrollHeight;
+    return replacement;
+  };
+  const setSendingState = (sending) => {
+    if (!sendEl || !inputEl) return;
+    sendEl.disabled = Boolean(sending);
+    inputEl.disabled = Boolean(sending);
+    clearEl && (clearEl.disabled = Boolean(sending));
+    sendEl.style.opacity = sending ? '0.7' : '1';
+    sendEl.textContent = sending ? 'Pensando…' : (sendEl.dataset.confirming === '1' ? 'Confirmar ejecución' : 'Enviar');
+  };
+  const triggerUiAction = (button) => {
+    if (!button) return;
+    const kind = String(button.dataset.kind || '').trim();
+    if (kind === 'navigate' && button.dataset.url) {
+      window.location.href = String(button.dataset.url || '');
+      return;
+    }
+    if (kind === 'prompt' && button.dataset.prompt && inputEl) {
+      inputEl.value = String(button.dataset.prompt || '');
+      inputEl.focus();
+      setStatus('Prompt preparado.');
+      return;
+    }
+    if (kind === 'confirm_execution' && pendingExecution && sendEl?.dataset.confirming === '1') {
+      sendEl.click();
+      return;
+    }
+  };
+  const applyMetrics = (response) => {
+    const metrics = response && response.metrics ? response.metrics : {};
+    if (lastToolsEl) lastToolsEl.value = String(metrics.executed_tools ?? '-');
+    if (lastLatencyEl) lastLatencyEl.value = metrics.latency_ms ? `${metrics.latency_ms} ms` : '-';
+  };
+  const applyObservability = (payload) => {
+    if (!observabilityEl || !payload || typeof payload.observability !== 'object') return;
+    const ob = payload.observability || {};
+    const repeated = Array.isArray(ob.repeated_issues) ? ob.repeated_issues : [];
+    const llmStates = Array.isArray(ob.llm_states) ? ob.llm_states : [];
+    const recentStatuses = Array.isArray(ob.recent_statuses) ? ob.recent_statuses : [];
+    const alerts = Array.isArray(ob.alerts) ? ob.alerts : [];
+    const setText = (selector, text) => {
+      const node = observabilityEl.querySelector(selector);
+      if (node) node.textContent = text || '';
+    };
+    if (healthPillEl) {
+      const state = String(ob.health_state || 'amber');
+      healthPillEl.dataset.state = state;
+      const textNode = healthPillEl.querySelector('[data-guard-health-text]');
+      if (textNode) textNode.textContent = state === 'red' ? 'Atención' : (state === 'green' ? 'Estable' : 'Vigilancia');
+    }
+    if (alertsEl) {
+      alertsEl.innerHTML = '';
+      const rows = alerts.length ? alerts : [{ level: 'improvement', text: 'Sin alertas recientes' }];
+      rows.slice(0, 4).forEach((row) => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'guard-alert-chip';
+        chip.dataset.level = String(row.level || 'repeat');
+        chip.dataset.guardAlert = String(row.text || '');
+        chip.textContent = String(row.text || '');
+        alertsEl.appendChild(chip);
+      });
+    }
+    setText('[data-guard-ob-value="trend"]', String(ob.trend || 'sin_historial'));
+    setText('[data-guard-ob-detail="trend"]', `${Number(ob.history_count || 0)} snapshots${recentStatuses.length ? ` · ${recentStatuses.join(', ')}` : ''}`);
+    setText('[data-guard-ob-value="llm"]', String(ob.llm_stability || 'unknown'));
+    setText('[data-guard-ob-detail="llm"]', `Degradado ${Number(ob.degraded_rate_pct || 0)}%${llmStates.length ? ` · ${llmStates.map((row) => `${String(row.state || 'unknown')} x${Number(row.count || 0)}`).join(', ')}` : ''}`);
+    setText('[data-guard-ob-value="ops"]', `${Number(ob.executed_tools || 0)} tools`);
+    const queueCounts = ob.task_queue && typeof ob.task_queue === 'object' ? ob.task_queue : {};
+    setText('[data-guard-ob-detail="ops"]', `${Number(ob.turns || 0)} turnos · ${Number(ob.confirmations || 0)} confirmaciones${ob.last_latency_ms ? ` · ${Number(ob.last_latency_ms)} ms` : ''}${queueCounts.pending || queueCounts.running || queueCounts.completed || queueCounts.blocked ? ` · cola ${Number(queueCounts.pending || 0)}/${Number(queueCounts.running || 0)}/${Number(queueCounts.completed || 0)}/${Number(queueCounts.blocked || 0)}` : ''}`);
+    setText('[data-guard-ob-value="memory"]', String(ob.last_status || 'sin_estado'));
+    if (repeated.length) {
+      setText('[data-guard-ob-detail="memory"]', `Repite ${String(repeated[0].issue_id || '')} x${Number(repeated[0].count || 0)}`);
+    } else if (ob.summary) {
+      setText('[data-guard-ob-detail="memory"]', String(ob.summary));
+    } else {
+      setText('[data-guard-ob-detail="memory"]', 'Sin incidencias persistentes registradas.');
+    }
+    if (queuePreviewEl) {
+      const preview = Array.isArray(ob.priority_queue_preview) ? ob.priority_queue_preview : [];
+      queuePreviewEl.innerHTML = '';
+      const rows = preview.length ? preview : [{ kind: 'task', title: 'Siguiente paso', priority_band: 'next', status: 'idle', priority_reason: 'No hay acciones activas ahora mismo.' }];
+      rows.slice(0, 4).forEach((row) => {
+        const card = document.createElement('div');
+        card.className = 'guard-remediation-card';
+        const title = document.createElement('strong');
+        title.textContent = `${String(row.kind || 'task')} · ${String(row.title || 'Tarea del guard')}`;
+        const body = document.createElement('div');
+        body.textContent = `${String(row.priority_band || 'next')} · ${String(row.status || 'pending')} · ${String(row.priority_reason || row.result_summary || row.summary || 'Sin detalle')}`;
+        card.appendChild(title);
+        card.appendChild(body);
+        queuePreviewEl.appendChild(card);
+      });
+    }
+    if (timelineEl) {
+      const timeline = Array.isArray(ob.timeline) ? ob.timeline : [];
+      timelineEl.innerHTML = '';
+      const rows = timeline.length ? timeline : [{ kind: 'timeline', title: 'Actividad reciente', detail: 'Sin actividad reciente registrada.' }];
+      rows.slice(0, 4).forEach((row) => {
+        const card = document.createElement('div');
+        card.className = 'guard-remediation-card';
+        const title = document.createElement('strong');
+        title.textContent = `${String(row.kind || 'evento')} · ${String(row.title || 'Actividad del asistente')}`;
+        const body = document.createElement('div');
+        body.textContent = `${String(row.detail || 'Sin detalle')}${row.created_at ? ` · ${String(row.created_at)}` : ''}`;
+        card.appendChild(title);
+        card.appendChild(body);
+        timelineEl.appendChild(card);
+      });
+    }
+    if (taskMemoryEl) {
+      const taskMemory = Array.isArray(ob.task_memory) ? ob.task_memory : [];
+      taskMemoryEl.innerHTML = '';
+      const rows = taskMemory.length ? taskMemory : [{ title: 'Sin memoria de tareas', status: '' }];
+      rows.slice(0, 5).forEach((row) => {
+        const chip = document.createElement('span');
+        chip.className = 'guard-badge';
+        chip.textContent = `${String(row.title || 'Tarea')}${row.status ? ` · ${String(row.status)}` : ''}`;
+        taskMemoryEl.appendChild(chip);
+      });
+    }
+    syncSilentCard(ob);
+  };
+  const resetPending = () => {
+    pendingExecution = null;
+    if (sendEl) {
+      sendEl.textContent = 'Enviar';
+      sendEl.dataset.confirming = '0';
+    }
+  };
+  const isVisibleNode = (node) => {
+    if (!(node instanceof Element)) return false;
+    if (node.closest('#global-guard-widget-shell')) return false;
+    const style = window.getComputedStyle(node);
+    if (!style || style.display === 'none' || style.visibility === 'hidden') return false;
+    const rect = node.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
+  };
+  const compactTextList = (selector, limit = 6, maxLen = 120) => {
+    const rows = [];
+    document.querySelectorAll(selector).forEach((node) => {
+      if (rows.length >= limit || !isVisibleNode(node)) return;
+      const text = String(node.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!text) return;
+      rows.push(text.slice(0, maxLen));
+    });
+    return rows;
+  };
+  const ensureRuntimeDiagnostics = () => {
+    const root = window.__ollanaRuntimeDiagnostics && typeof window.__ollanaRuntimeDiagnostics === 'object'
+      ? window.__ollanaRuntimeDiagnostics
+      : {};
+    if (!Array.isArray(root.js_errors)) root.js_errors = [];
+    if (!Array.isArray(root.promise_rejections)) root.promise_rejections = [];
+    if (!Array.isArray(root.resource_errors)) root.resource_errors = [];
+    if (!Array.isArray(root.failed_requests)) root.failed_requests = [];
+    if (!Array.isArray(root.console_errors)) root.console_errors = [];
+    root.request_totals = root.request_totals && typeof root.request_totals === 'object' ? root.request_totals : { total: 0, failed: 0 };
+    root.ready_state = String(document.readyState || '').trim();
+    root.last_updated_at = Date.now();
+    window.__ollanaRuntimeDiagnostics = root;
+    return root;
+  };
+  const pushRuntimeEvent = (bucket, row, limit = 12) => {
+    const root = ensureRuntimeDiagnostics();
+    if (!Array.isArray(root[bucket])) root[bucket] = [];
+    root[bucket].unshift({
+      ...row,
+      captured_at: Date.now(),
+    });
+    root[bucket] = root[bucket].slice(0, limit);
+    root.last_updated_at = Date.now();
+  };
+  const installRuntimeDiagnostics = () => {
+    if (window.__ollanaRuntimeDiagnosticsInstalled) return;
+    window.__ollanaRuntimeDiagnosticsInstalled = true;
+    ensureRuntimeDiagnostics();
+    window.addEventListener('error', (event) => {
+      const target = event.target;
+      if (target instanceof HTMLScriptElement || target instanceof HTMLLinkElement || target instanceof HTMLImageElement || target instanceof HTMLVideoElement) {
+        pushRuntimeEvent('resource_errors', {
+          tag: String(target.tagName || '').toLowerCase().slice(0, 24),
+          source: String(target.src || target.href || '').trim().slice(0, 220),
+          message: String(event.message || 'resource_load_failed').trim().slice(0, 160),
+        });
+        return;
+      }
+      pushRuntimeEvent('js_errors', {
+        message: String(event.message || 'javascript_error').trim().slice(0, 180),
+        source: String(event.filename || '').trim().slice(0, 220),
+        line: Math.max(0, Number(event.lineno || 0)),
+        column: Math.max(0, Number(event.colno || 0)),
+      });
+    }, true);
+    window.addEventListener('unhandledrejection', (event) => {
+      const reason = event && Object.prototype.hasOwnProperty.call(event, 'reason') ? event.reason : '';
+      const text = typeof reason === 'string'
+        ? reason
+        : String((reason && reason.message) || reason || 'promise_rejection');
+      pushRuntimeEvent('promise_rejections', {
+        message: text.trim().slice(0, 180),
+      });
+    });
+    const originalFetch = typeof window.fetch === 'function' ? window.fetch.bind(window) : null;
+    if (originalFetch) {
+      window.fetch = async (...args) => {
+        const root = ensureRuntimeDiagnostics();
+        root.request_totals.total += 1;
+        const url = String((args[0] && args[0].url) || args[0] || '').trim().slice(0, 220);
+        try {
+          const response = await originalFetch(...args);
+          if (!response.ok) {
+            root.request_totals.failed += 1;
+            pushRuntimeEvent('failed_requests', {
+              method: String((args[1] && args[1].method) || 'GET').trim().slice(0, 12),
+              url,
+              status: Math.max(0, Number(response.status || 0)),
+              kind: 'fetch_http_error',
+            });
+          }
+          return response;
+        } catch (error) {
+          root.request_totals.failed += 1;
+          pushRuntimeEvent('failed_requests', {
+            method: String((args[1] && args[1].method) || 'GET').trim().slice(0, 12),
+            url,
+            status: 0,
+            kind: 'fetch_network_error',
+            message: String((error && error.message) || error || 'network_error').trim().slice(0, 160),
+          });
+          throw error;
+        }
+      };
+    }
+    const originalOpen = window.XMLHttpRequest && window.XMLHttpRequest.prototype
+      ? window.XMLHttpRequest.prototype.open
+      : null;
+    const originalSend = window.XMLHttpRequest && window.XMLHttpRequest.prototype
+      ? window.XMLHttpRequest.prototype.send
+      : null;
+    if (originalOpen && originalSend) {
+      window.XMLHttpRequest.prototype.open = function patchedOpen(method, url, ...rest) {
+        this.__ollanaMethod = String(method || 'GET').trim().slice(0, 12);
+        this.__ollanaUrl = String(url || '').trim().slice(0, 220);
+        return originalOpen.call(this, method, url, ...rest);
+      };
+      window.XMLHttpRequest.prototype.send = function patchedSend(...args) {
+        const root = ensureRuntimeDiagnostics();
+        root.request_totals.total += 1;
+        this.addEventListener('loadend', () => {
+          const status = Math.max(0, Number(this.status || 0));
+          if (status >= 400 || status === 0) {
+            root.request_totals.failed += 1;
+            pushRuntimeEvent('failed_requests', {
+              method: String(this.__ollanaMethod || 'GET').trim().slice(0, 12),
+              url: String(this.__ollanaUrl || '').trim().slice(0, 220),
+              status,
+              kind: status === 0 ? 'xhr_network_error' : 'xhr_http_error',
+            });
+          }
+        }, { once: true });
+        return originalSend.call(this, ...args);
+      };
+    }
+  };
+  installRuntimeDiagnostics();
+  const normalizeCssColor = (value) => String(value || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+  const parseCssColor = (value) => {
+    const raw = String(value || '').trim().toLowerCase();
+    const match = raw.match(/^rgba?\(([^)]+)\)$/);
+    if (!match) return null;
+    const parts = match[1].split(',').map((item) => Number(String(item || '').trim()));
+    if (parts.length < 3) return null;
+    const [r, g, b, a = 1] = parts;
+    if ([r, g, b].some((item) => !Number.isFinite(item))) return null;
+    return {
+      r: Math.max(0, Math.min(255, Math.round(r))),
+      g: Math.max(0, Math.min(255, Math.round(g))),
+      b: Math.max(0, Math.min(255, Math.round(b))),
+      a: Math.max(0, Math.min(1, Number.isFinite(a) ? a : 1)),
+    };
+  };
+  const relativeLuminance = ({ r, g, b }) => {
+    const channels = [r, g, b].map((channel) => {
+      const value = Math.max(0, Math.min(255, Number(channel) || 0)) / 255;
+      return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+    });
+    return (0.2126 * channels[0]) + (0.7152 * channels[1]) + (0.0722 * channels[2]);
+  };
+  const contrastRatio = (fg, bg) => {
+    const foreground = parseCssColor(fg);
+    const background = parseCssColor(bg);
+    if (!foreground || !background) return 0;
+    const l1 = relativeLuminance(foreground);
+    const l2 = relativeLuminance(background);
+    const lighter = Math.max(l1, l2);
+    const darker = Math.min(l1, l2);
+    return Number(((lighter + 0.05) / (darker + 0.05)).toFixed(2));
+  };
+  const resolveEffectiveBackground = (node) => {
+    let current = node instanceof Element ? node : null;
+    while (current && current !== document.documentElement) {
+      const bg = normalizeCssColor(window.getComputedStyle(current).backgroundColor);
+      if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') return bg;
+      current = current.parentElement;
+    }
+    return normalizeCssColor(window.getComputedStyle(document.body || document.documentElement).backgroundColor) || 'rgb(255,255,255)';
+  };
+  const lowContrastCandidate = (node) => {
+    if (!(node instanceof Element) || !isVisibleNode(node)) return null;
+    const text = String(node.textContent || '').replace(/\s+/g, ' ').trim();
+    if (!text) return null;
+    const style = window.getComputedStyle(node);
+    const fg = normalizeCssColor(style.color);
+    const bg = resolveEffectiveBackground(node);
+    const ratio = contrastRatio(fg, bg);
+    if (!ratio || ratio >= 3) return null;
+    return {
+      tag: String(node.tagName || '').toLowerCase().slice(0, 24),
+      text: text.slice(0, 80),
+      fg,
+      bg,
+      ratio,
+    };
+  };
+  const collectLowContrastSignals = () => {
+    const selectors = ['main h1', 'main h2', 'main .top-pill', 'main .button', 'main .task-detail-tab', 'main .chip', 'main a'];
+    const rows = [];
+    selectors.forEach((selector) => {
+      document.querySelectorAll(selector).forEach((node) => {
+        if (rows.length >= 8) return;
+        const row = lowContrastCandidate(node);
+        if (row) rows.push(row);
+      });
+    });
+    return rows;
+  };
+  const gatherRuntimeSnapshot = () => {
+    const root = ensureRuntimeDiagnostics();
+    root.ready_state = String(document.readyState || '').trim();
+    root.last_updated_at = Date.now();
+    const sectionStates = [];
+    document.querySelectorAll('main section, [role="main"] section, main [data-module], [role="main"] [data-module]').forEach((node) => {
+      if (sectionStates.length >= 8 || !(node instanceof Element) || !isVisibleNode(node)) return;
+      const text = String(node.textContent || '').replace(/\s+/g, ' ').trim();
+      const label = String(
+        node.getAttribute('data-module')
+        || node.getAttribute('aria-label')
+        || node.querySelector('h1, h2, h3, h4')?.textContent
+        || node.id
+        || node.className
+        || ''
+      ).replace(/\s+/g, ' ').trim().slice(0, 90);
+      if (!label) return;
+      sectionStates.push({
+        label,
+        visible: true,
+        text_density: Math.min(100, Math.trunc((text.length / 240) * 100)),
+      });
+    });
+    const alerts = [];
+    const jsErrors = Array.isArray(root.js_errors) ? root.js_errors : [];
+    const resourceErrors = Array.isArray(root.resource_errors) ? root.resource_errors : [];
+    const failedRequests = Array.isArray(root.failed_requests) ? root.failed_requests : [];
+    const promiseRejections = Array.isArray(root.promise_rejections) ? root.promise_rejections : [];
+    if (jsErrors.length) alerts.push(`Errores JS recientes: ${jsErrors.length}`);
+    if (promiseRejections.length) alerts.push(`Promesas rechazadas: ${promiseRejections.length}`);
+    if (resourceErrors.length) alerts.push(`Recursos que no cargan: ${resourceErrors.length}`);
+    if (failedRequests.length) alerts.push(`Peticiones fallidas: ${failedRequests.length}`);
+    return {
+      ready_state: String(root.ready_state || '').slice(0, 20),
+      request_totals: {
+        total: Math.max(0, Math.trunc((root.request_totals || {}).total || 0)),
+        failed: Math.max(0, Math.trunc((root.request_totals || {}).failed || 0)),
+      },
+      js_errors: jsErrors.slice(0, 4).map((row) => ({
+        message: String((row || {}).message || '').trim().slice(0, 180),
+        source: String((row || {}).source || '').trim().slice(0, 220),
+        line: Math.max(0, Math.trunc((row || {}).line || 0)),
+        column: Math.max(0, Math.trunc((row || {}).column || 0)),
+      })),
+      promise_rejections: promiseRejections.slice(0, 4).map((row) => ({
+        message: String((row || {}).message || '').trim().slice(0, 180),
+      })),
+      resource_errors: resourceErrors.slice(0, 4).map((row) => ({
+        tag: String((row || {}).tag || '').trim().slice(0, 24),
+        source: String((row || {}).source || '').trim().slice(0, 220),
+        message: String((row || {}).message || '').trim().slice(0, 160),
+      })),
+      failed_requests: failedRequests.slice(0, 5).map((row) => ({
+        method: String((row || {}).method || '').trim().slice(0, 12),
+        url: String((row || {}).url || '').trim().slice(0, 220),
+        status: Math.max(0, Math.trunc((row || {}).status || 0)),
+        kind: String((row || {}).kind || '').trim().slice(0, 32),
+        message: String((row || {}).message || '').trim().slice(0, 160),
+      })),
+      section_states: sectionStates,
+      alerts: alerts.slice(0, 4),
+    };
+  };
+  const gatherModuleSnapshot = () => {
+    const modules = [];
+    document.querySelectorAll('main section, [role="main"] section, main article, [role="main"] article, main .card, [role="main"] .card, main [data-module], [role="main"] [data-module]').forEach((node) => {
+      if (modules.length >= 10 || !(node instanceof Element) || !isVisibleNode(node)) return;
+      const label = String(
+        node.getAttribute('data-module')
+        || node.getAttribute('aria-label')
+        || node.querySelector('h1, h2, h3, h4, strong')?.textContent
+        || node.id
+        || ''
+      ).replace(/\s+/g, ' ').trim().slice(0, 90);
+      if (!label) return;
+      const buttons = node.querySelectorAll('button, a, [role="button"]').length;
+      const forms = node.querySelectorAll('input, select, textarea').length;
+      const media = node.querySelectorAll('img, canvas, svg, video').length;
+      const notices = node.querySelectorAll('.alert, .notice, .error, .toast, .messages li, [data-error], .form-error').length;
+      const text = String(node.textContent || '').replace(/\s+/g, ' ').trim();
+      const rect = node.getBoundingClientRect();
+      modules.push({
+        label,
+        kind: String(node.getAttribute('data-module-kind') || node.tagName || '').toLowerCase().slice(0, 24),
+        x: Math.max(0, Math.trunc(rect.left)),
+        y: Math.max(0, Math.trunc(rect.top)),
+        w: Math.max(0, Math.trunc(rect.width)),
+        h: Math.max(0, Math.trunc(rect.height)),
+        action_count: Math.max(0, buttons),
+        form_count: Math.max(0, forms),
+        media_count: Math.max(0, media),
+        notice_count: Math.max(0, notices),
+        text_density: Math.min(100, Math.trunc((text.length / 280) * 100)),
+      });
+    });
+    return { modules };
+  };
+  const gatherHealthSnapshot = (runtimeSnapshot, visualSnapshot, moduleSnapshot) => {
+    const notices = compactTextList('.alert, .notice, .error, .toast, .messages li, [data-error], .form-error', 8, 160);
+    const loadingHints = compactTextList('[aria-busy="true"], .loading, .spinner, .skeleton, [data-loading="true"]', 6, 120);
+    const emptyHints = compactTextList('.empty-state, [data-empty="true"], .no-data, .empty, .blank-state', 6, 140);
+    const disabledControls = Array.from(document.querySelectorAll('button:disabled, input:disabled, select:disabled, textarea:disabled'))
+      .filter((node) => isVisibleNode(node))
+      .slice(0, 8)
+      .map((node) => String(node.getAttribute('aria-label') || node.textContent || node.name || node.id || 'control').replace(/\s+/g, ' ').trim().slice(0, 80))
+      .filter(Boolean);
+    const moduleRows = Array.isArray((moduleSnapshot || {}).modules) ? moduleSnapshot.modules : [];
+    const alerts = [];
+    if (Array.isArray((runtimeSnapshot || {}).alerts) && runtimeSnapshot.alerts.length) alerts.push(...runtimeSnapshot.alerts);
+    if (Array.isArray((visualSnapshot || {}).render_alerts) && visualSnapshot.render_alerts.length) alerts.push(...visualSnapshot.render_alerts);
+    const lowContrastElements = Array.isArray((visualSnapshot || {}).low_contrast_elements) ? visualSnapshot.low_contrast_elements : [];
+    if (lowContrastElements.length) alerts.push(`Elementos con bajo contraste: ${lowContrastElements.length}`);
+    if (notices.length) alerts.push(`Avisos visibles: ${notices.length}`);
+    if (loadingHints.length) alerts.push(`Bloques en carga: ${loadingHints.length}`);
+    if (emptyHints.length) alerts.push(`Bloques vacios: ${emptyHints.length}`);
+    if (disabledControls.length >= 3) alerts.push(`Controles deshabilitados: ${disabledControls.length}`);
+    const degradedModules = moduleRows.filter((row) => Number(row.notice_count || 0) > 0 || (Number(row.media_count || 0) > 0 && Number(row.text_density || 0) < 8));
+    const blockedModules = moduleRows.filter((row) => Number(row.action_count || 0) === 0 && Number(row.form_count || 0) === 0 && Number(row.text_density || 0) < 10);
+    const healthyModules = Math.max(0, moduleRows.length - degradedModules.length - blockedModules.length);
+    const status = alerts.length
+      ? (degradedModules.length || blockedModules.length ? 'degraded' : 'watch')
+      : 'healthy';
+    return {
+      status,
+      notices,
+      loading_hints: loadingHints,
+      empty_hints: emptyHints,
+      disabled_controls: disabledControls,
+      low_contrast_elements: lowContrastElements.slice(0, 8).map((row) => ({
+        tag: String((row || {}).tag || '').slice(0, 24),
+        text: String((row || {}).text || '').slice(0, 80),
+        fg: String((row || {}).fg || '').slice(0, 40),
+        bg: String((row || {}).bg || '').slice(0, 40),
+        ratio: Math.max(0, Number((row || {}).ratio || 0)),
+      })),
+      module_counts: {
+        total: moduleRows.length,
+        healthy: healthyModules,
+        degraded: degradedModules.length,
+        blocked: blockedModules.length,
+      },
+      degraded_modules: degradedModules.slice(0, 6).map((row) => ({
+        label: String((row || {}).label || '').slice(0, 90),
+        notice_count: Math.max(0, Math.trunc((row || {}).notice_count || 0)),
+        media_count: Math.max(0, Math.trunc((row || {}).media_count || 0)),
+        text_density: Math.max(0, Math.trunc((row || {}).text_density || 0)),
+      })),
+      blocked_modules: blockedModules.slice(0, 6).map((row) => ({
+        label: String((row || {}).label || '').slice(0, 90),
+        action_count: Math.max(0, Math.trunc((row || {}).action_count || 0)),
+        form_count: Math.max(0, Math.trunc((row || {}).form_count || 0)),
+        text_density: Math.max(0, Math.trunc((row || {}).text_density || 0)),
+      })),
+      alerts: alerts.slice(0, 6),
+    };
+  };
+  const sampleCanvasDrawState = (node) => {
+    if (!(node instanceof HTMLCanvasElement)) return { mode: 'unknown', non_empty_samples: 0 };
+    const width = Math.max(0, Number(node.width || 0));
+    const height = Math.max(0, Number(node.height || 0));
+    if (!width || !height) return { mode: 'empty_buffer', non_empty_samples: 0 };
+    try {
+      const ctx2d = node.getContext('2d');
+      if (!ctx2d || typeof ctx2d.getImageData !== 'function') return { mode: 'unknown', non_empty_samples: 0 };
+      const samplePoints = [
+        [0.5, 0.5],
+        [0.25, 0.25],
+        [0.75, 0.25],
+        [0.25, 0.75],
+        [0.75, 0.75],
+      ];
+      let nonEmpty = 0;
+      samplePoints.forEach(([rx, ry]) => {
+        const x = Math.max(0, Math.min(width - 1, Math.round(width * rx)));
+        const y = Math.max(0, Math.min(height - 1, Math.round(height * ry)));
+        const alpha = Number((ctx2d.getImageData(x, y, 1, 1).data || [0, 0, 0, 0])[3] || 0);
+        if (alpha > 0) nonEmpty += 1;
+      });
+      return {
+        mode: nonEmpty ? 'painted' : 'blank',
+        non_empty_samples: nonEmpty,
+      };
+    } catch (error) {
+      return { mode: 'unknown', non_empty_samples: 0 };
+    }
+  };
+  const gatherRenderSurfaceSnapshot = () => {
+    const seen = new Set();
+    const diagnosticsRoot = window.__ollanaDiagnostics && typeof window.__ollanaDiagnostics === 'object'
+      ? window.__ollanaDiagnostics
+      : {};
+    const diagnosticSurfaces = diagnosticsRoot.render_surfaces && typeof diagnosticsRoot.render_surfaces === 'object'
+      ? diagnosticsRoot.render_surfaces
+      : {};
+    const surfaces = [];
+    document.querySelectorAll('canvas, svg').forEach((node) => {
+      if (!(node instanceof Element) || !isVisibleNode(node)) return;
+      const key = String(node.id || node.getAttribute('data-ollana-surface') || `${node.tagName}-${surfaces.length}`).trim();
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      const rect = node.getBoundingClientRect();
+      const row = diagnosticSurfaces[key] && typeof diagnosticSurfaces[key] === 'object' ? diagnosticSurfaces[key] : {};
+      const canvasState = sampleCanvasDrawState(node);
+      const isCanvas = node instanceof HTMLCanvasElement;
+      const typeHint = String(row.kind || node.getAttribute('data-ollana-surface') || (isCanvas ? 'canvas' : 'svg')).trim().slice(0, 40);
+      surfaces.push({
+        id: key.slice(0, 60),
+        tag: String(node.tagName || '').toLowerCase().slice(0, 24),
+        kind: typeHint,
+        label: String(row.label || node.getAttribute('aria-label') || node.getAttribute('data-ollana-label') || key).trim().slice(0, 90),
+        visible: true,
+        modal_open: Boolean(row.modal_open),
+        x: Math.max(0, Math.trunc(rect.left)),
+        y: Math.max(0, Math.trunc(rect.top)),
+        w: Math.max(0, Math.trunc(rect.width)),
+        h: Math.max(0, Math.trunc(rect.height)),
+        buffer_w: Math.max(0, Math.trunc(row.buffer_width || node.width || 0)),
+        buffer_h: Math.max(0, Math.trunc(row.buffer_height || node.height || 0)),
+        draw_state: String(row.draw_state || canvasState.mode || '').trim().slice(0, 32),
+        non_empty_samples: Math.max(0, Math.trunc(row.non_empty_samples || canvasState.non_empty_samples || 0)),
+        webgl_context: String(row.webgl_context || '').trim().slice(0, 20),
+        scene_status: String(row.scene_status || '').trim().slice(0, 40),
+        issue: String(row.issue || '').trim().slice(0, 60),
+        step_index: Math.max(0, Math.trunc(row.step_index || 0)),
+        step_count: Math.max(0, Math.trunc(row.step_count || 0)),
+        object_count: Math.max(0, Math.trunc(row.object_count || 0)),
+        player_count: Math.max(0, Math.trunc(row.player_count || 0)),
+        ball_count: Math.max(0, Math.trunc(row.ball_count || 0)),
+        path_count: Math.max(0, Math.trunc(row.path_count || 0)),
+        render_calls: Math.max(0, Math.trunc(row.render_calls || 0)),
+        rendered_frames: Math.max(0, Math.trunc(row.rendered_frames || 0)),
+      });
+    });
+    const alerts = [];
+    surfaces.forEach((row) => {
+      const kind = String(row.kind || '').toLowerCase();
+      if ((kind.includes('three') || kind.includes('3d')) && row.modal_open && !row.webgl_context) {
+        alerts.push(`Superficie ${row.label || row.id}: WebGL no disponible`);
+      } else if ((kind.includes('three') || kind.includes('3d')) && row.modal_open && row.object_count === 0) {
+        alerts.push(`Superficie ${row.label || row.id}: escena 3D abierta sin objetos`);
+      } else if (row.draw_state === 'blank' && row.w > 120 && row.h > 80) {
+        alerts.push(`Superficie ${row.label || row.id}: canvas visible sin trazo aparente`);
+      } else if (row.issue) {
+        alerts.push(`Superficie ${row.label || row.id}: ${row.issue.replace(/_/g, ' ')}`);
+      }
+    });
+    return {
+      surfaces: surfaces.slice(0, 6),
+      alerts: alerts.slice(0, 4),
+    };
+  };
+  const gatherVisualSnapshot = () => {
+    const blocks = [];
+    const palette = [];
+    let textNodeCount = 0;
+    let mediaCount = 0;
+    let interactiveCount = 0;
+    const sampleNodes = document.querySelectorAll('main * , [role="main"] *');
+    sampleNodes.forEach((node) => {
+      if (!(node instanceof Element) || !isVisibleNode(node)) return;
+      const rect = node.getBoundingClientRect();
+      if (rect.width < 24 || rect.height < 16) return;
+      const style = window.getComputedStyle(node);
+      const text = String(node.textContent || '').replace(/\s+/g, ' ').trim();
+      if (text && blocks.length < 12) {
+        blocks.push({
+          tag: String(node.tagName || '').toLowerCase(),
+          text: text.slice(0, 90),
+          x: Math.max(0, Math.trunc(rect.left)),
+          y: Math.max(0, Math.trunc(rect.top)),
+          w: Math.max(0, Math.trunc(rect.width)),
+          h: Math.max(0, Math.trunc(rect.height)),
+          emphasis: rect.width > window.innerWidth * 0.7 ? 'wide' : (rect.height > 120 ? 'tall' : 'normal'),
+        });
+      }
+      if (palette.length < 10) {
+        const bg = normalizeCssColor(style.backgroundColor);
+        const fg = normalizeCssColor(style.color);
+        if (bg && bg !== 'rgba(0, 0, 0, 0)' && !palette.includes(bg)) palette.push(bg);
+        if (fg && !palette.includes(fg)) palette.push(fg);
+      }
+      if (text) textNodeCount += 1;
+      if (['img', 'video', 'canvas', 'svg'].includes(String(node.tagName || '').toLowerCase())) mediaCount += 1;
+      if (['button', 'input', 'select', 'textarea', 'a'].includes(String(node.tagName || '').toLowerCase())) interactiveCount += 1;
+    });
+    const viewportArea = Math.max(1, Math.trunc((window.innerWidth || 0) * (window.innerHeight || 0)));
+    const coveredArea = blocks.reduce((acc, row) => acc + Math.max(0, Number(row.w || 0) * Number(row.h || 0)), 0);
+    const renderSurfaceSnapshot = gatherRenderSurfaceSnapshot();
+    const lowContrastElements = collectLowContrastSignals();
+    return {
+      blocks,
+      palette: palette.slice(0, 8),
+      text_density: Math.min(100, Math.trunc((textNodeCount / 120) * 100)),
+      visual_density: Math.min(100, Math.trunc((coveredArea / viewportArea) * 100)),
+      media_count: mediaCount,
+      interactive_count: interactiveCount,
+      low_contrast_elements: lowContrastElements,
+      render_surfaces: renderSurfaceSnapshot.surfaces,
+      render_alerts: renderSurfaceSnapshot.alerts,
+      scroll: {
+        y: Math.max(0, Math.trunc(window.scrollY || 0)),
+        max_y: Math.max(0, Math.trunc((document.documentElement?.scrollHeight || 0) - (window.innerHeight || 0))),
+      },
+    };
+  };
+  const gatherUiSnapshot = () => {
+    const activeForms = [];
+    const headings = compactTextList('main h1, main h2, main h3, [role="main"] h1, [role="main"] h2, [role="main"] h3, h1:first-of-type', 6, 120);
+    const primaryActions = compactTextList('main button, main a.btn, main [role="button"], [role="main"] button, [role="main"] a.btn, [role="main"] [role="button"]', 8, 80);
+    document.querySelectorAll('input, select, textarea, button').forEach((node) => {
+      if (activeForms.length >= 10 || !isVisibleNode(node)) return;
+      const labelNode = node.closest('label');
+      const rawLabel = labelNode ? String(labelNode.textContent || '') : String(node.getAttribute('aria-label') || node.getAttribute('placeholder') || node.getAttribute('name') || node.id || '');
+      const label = rawLabel.replace(/\s+/g, ' ').trim().slice(0, 80);
+      if (!label) return;
+      activeForms.push({
+        tag: String(node.tagName || '').toLowerCase(),
+        type: String(node.getAttribute('type') || '').toLowerCase().slice(0, 24),
+        label,
+      });
+    });
+    return {
+      headings,
+      heading_count: headings.length,
+      primary_actions: primaryActions,
+      primary_action_count: primaryActions.length,
+      low_contrast_elements: collectLowContrastSignals(),
+      visible_forms: activeForms,
+      notices: compactTextList('.alert, .notice, .error, .toast, .messages li, [data-error], .form-error', 6, 140),
+      panels: compactTextList('main section h2, main .card h2, main .card h3, [role="main"] section h2, [role="main"] .card h2, [role="main"] .card h3', 8, 100),
+      body_excerpt: compactTextList('main p, [role="main"] p, main li, [role="main"] li', 8, 140),
+      screen_summary: {
+        title: String(document.title || '').trim().slice(0, 140),
+        h1: headings[0] || '',
+        controls: primaryActions.slice(0, 5),
+      },
+      viewport: {
+        width: Math.max(0, Math.trunc(window.innerWidth || 0)),
+        height: Math.max(0, Math.trunc(window.innerHeight || 0)),
+      },
+    };
+  };
+  const currentPageContext = () => ({
+    ...(() => {
+      const runtimeSnapshot = gatherRuntimeSnapshot();
+      const visualSnapshot = gatherVisualSnapshot();
+      const moduleSnapshot = gatherModuleSnapshot();
+      const healthSnapshot = gatherHealthSnapshot(runtimeSnapshot, visualSnapshot, moduleSnapshot);
+      const taskTitle = String(document.querySelector('main h1')?.textContent || document.title || '').trim().slice(0, 160);
+      const activeTab = String(document.querySelector('.task-detail-tab.is-active')?.textContent || '').trim().slice(0, 40);
+      const taskPanelHeading = String(document.querySelector('.presentation-workbench h2, .task-edit-panel h2')?.textContent || '').trim().slice(0, 80);
+      return {
+    page: G.page,
+    path: window.location.pathname,
+    browser_target_url: window.location.href,
+    title: document.title,
+    task_detail: {
+      title: taskTitle,
+      active_tab: activeTab,
+      panel_heading: taskPanelHeading,
+      analysis_block_open: Boolean(document.querySelector('details[open][data-task-edit-panel="descriptive"]')),
+    },
+    team_id: G.teamId,
+    team_name: G.teamName,
+    workspace_id: G.workspaceId,
+    workspace_name: G.workspaceName,
+        ui_snapshot: gatherUiSnapshot(),
+        visual_snapshot: visualSnapshot,
+        runtime_snapshot: runtimeSnapshot,
+        module_snapshot: moduleSnapshot,
+        health_snapshot: healthSnapshot,
+      };
+    })(),
+  });
+  const sendMessage = async (preset = null, options = {}) => {
+    const usePreset = preset && typeof preset === 'object' ? preset : null;
+    const executeConfirmed = Boolean(options.executeConfirmed);
+    const message = usePreset ? String(usePreset.message || '').trim() : String(inputEl?.value || '').trim();
+    const presetNavigationRoute = usePreset && usePreset.navigation
+      ? routeCatalog.find((route) => route.key === String(usePreset.navigation || '').trim())
+      : null;
+    const intent = presetNavigationRoute ? { kind: 'navigate', route: presetNavigationRoute } : classifyIntent(message);
+    if (!message) {
+      setStatus('Escribe un mensaje.', true);
+      return;
+    }
+    if (usePreset && pendingExecution && !executeConfirmed) resetPending();
+    if (usePreset) {
+      if (smokeEl) smokeEl.checked = Boolean(usePreset.runSmoke);
+      if (fixEl) fixEl.checked = Boolean(usePreset.autoFix);
+    }
+    const requestId = ++activeRequestId;
+    setOpen(true);
+    renderMessage('user', message);
+    history.push({ role: 'user', content: message });
+    if (inputEl) inputEl.value = '';
+    if (intent.kind === 'navigate' && intent.route) {
+      navigateToRoute(intent.route, message);
+      resetPending();
+      return;
+    }
+    if (intent.kind === 'inspect') {
+      setStatus('Inspeccionando la ficha visible…');
+    }
+    if (intent.kind === 'help') {
+      const text = buildHelpResponse(message, detectNavigationIntent(message));
+      renderMessage('assistant', text);
+      history.push({ role: 'assistant', content: text });
+      setStatus('Guía lista.');
+      resetPending();
+      return;
+    }
+    if (intent.kind === 'execute') {
+      setStatus('Preparando acción asistida…');
+    } else if (intent.kind === 'task') {
+      setStatus('Activando modo operador silencioso…');
+    } else if (intent.kind === 'support') {
+      setStatus('Revisando la incidencia en silencio…');
+    } else {
+      setStatus('Consultando…');
+    }
+    const pendingNode = renderPendingMessage();
+    setSendingState(true);
+    try {
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 30000);
+      const implicitOperator = intent.kind === 'task' || Boolean(usePreset && (usePreset.autoFix || usePreset.runSmoke || usePreset.maintenanceAction));
+      const resolvedAutonomy = usePreset
+        ? String(autonomyEl?.value || 'advisor')
+        : ((shellEl?.dataset.uiMode === 'operator' || implicitOperator) ? 'operator' : String(autonomyEl?.value || 'advisor'));
+      const resolvedAudience = usePreset
+        ? String(audienceEl?.value || 'guided')
+        : ((shellEl?.dataset.uiMode === 'operator' || implicitOperator || intent.kind === 'inspect') ? 'technical' : String(audienceEl?.value || 'guided'));
+      const resp = await fetch(apiUrl, {
+        method: 'POST',
+        credentials: 'same-origin',
+        signal: controller.signal,
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken(), Accept: 'application/json' },
+        body: JSON.stringify({
+          message,
+          run_smoke: usePreset ? Boolean(usePreset.runSmoke) : Boolean(smokeEl?.checked),
+          auto_fix: usePreset ? Boolean(usePreset.autoFix) : Boolean(fixEl?.checked),
+          maintenance_action: usePreset ? String(usePreset.maintenanceAction || '') : '',
+          autonomy_mode: resolvedAutonomy,
+          audience: resolvedAudience,
+          execute_confirmed: executeConfirmed,
+          history,
+          page_context: currentPageContext(),
+        }),
+      });
+      window.clearTimeout(timeoutId);
+      if (requestId !== activeRequestId) return;
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data?.ok) throw new Error(data?.error || `HTTP ${resp.status}`);
+      const response = data?.chat?.response || {};
+      const permissions = data?.permissions && typeof data.permissions === 'object' ? data.permissions : {};
+      const text = String(response.message || 'Sin respuesta útil del asistente.');
+      const highlights = Array.isArray(response.highlights) ? response.highlights : [];
+      if (pendingNode && pendingNode.parentNode) pendingNode.remove();
+      renderMessage('assistant', text, highlights, response);
+      history.push({ role: 'assistant', content: text });
+      if (intent.kind === 'task' && permissions.can_operate_guard_code === false) {
+        const notice = 'He tratado tu petición en modo supervisado. Solo el usuario operador autorizado puede lanzar cambios de código o auto-fix.';
+        renderMessage('assistant', notice, ['Modo supervisado']);
+        history.push({ role: 'assistant', content: notice });
+      }
+      if (response && typeof response.snapshot_diff === 'object' && data && typeof data.observability === 'object') {
+        const regressions = Array.isArray(response.snapshot_diff.regressions) ? response.snapshot_diff.regressions : [];
+        const improvements = Array.isArray(response.snapshot_diff.improvements) ? response.snapshot_diff.improvements : [];
+        if (regressions.length || improvements.length) {
+          const nextAlerts = [];
+          regressions.slice(0, 2).forEach((item) => nextAlerts.push({ level: 'regression', text: String(item || '') }));
+          improvements.slice(0, 1).forEach((item) => nextAlerts.push({ level: 'improvement', text: String(item || '') }));
+          data.observability.alerts = nextAlerts;
+          data.observability.regression_count = regressions.length;
+          data.observability.improvement_count = improvements.length;
+          data.observability.health_state = regressions.length ? 'red' : (improvements.length ? 'green' : (data.observability.health_state || 'amber'));
+        }
+      }
+      applyMetrics(response);
+      applyObservability(data);
+      const summary = data?.report?.issue_summary || {};
+      const degraded = data?.chat?.degraded ? ' · degradado' : '';
+      const confirm = response.needs_confirmation ? ` · ${response.confirmation_text || 'pendiente de confirmación'}` : '';
+      const taskMode = response.silent_mode ? ' · silencioso' : '';
+      const taskKind = response?.task?.kind ? ` · ${String(response.task.kind)}` : '';
+      setStatus(`Estado: ${response.status || 'watch'}${taskKind} · blockers ${summary.blockers || 0} · warnings ${summary.warnings || 0}${degraded}${taskMode}${confirm}`);
+      if (response.needs_confirmation) {
+        pendingExecution = {
+          message,
+          runSmoke: usePreset ? Boolean(usePreset.runSmoke) : Boolean(smokeEl?.checked),
+          autoFix: usePreset ? Boolean(usePreset.autoFix) : Boolean(fixEl?.checked),
+          maintenanceAction: usePreset ? String(usePreset.maintenanceAction || '') : '',
+        };
+        if (sendEl) {
+          sendEl.textContent = 'Confirmar ejecución';
+          sendEl.dataset.confirming = '1';
+        }
+      } else {
+        resetPending();
+      }
+    } catch (error) {
+      if (requestId !== activeRequestId) return;
+      const isAbort = error?.name === 'AbortError';
+      const msg = isAbort ? 'El asistente tardó demasiado en responder. Puedes reintentar la consulta.' : (error?.message || 'No se pudo consultar el asistente.');
+      if (pendingNode && pendingNode.parentNode) {
+        pendingNode.remove();
+      }
+      renderMessage('assistant', `Error: ${msg}`);
+      history.push({ role: 'assistant', content: `Error: ${msg}` });
+      setStatus(msg, true);
+      resetPending();
+    } finally {
+      if (requestId === activeRequestId) {
+        setSendingState(false);
+      }
+    }
+  };
+  sendEl?.addEventListener('click', () => {
+    if (pendingExecution && sendEl?.dataset.confirming === '1') {
+      const ok = window.confirm(`Se va a ejecutar esta acción supervisada:\n\n${pendingExecution.message}\n\n¿Confirmas la ejecución?`);
+      if (!ok) {
+        setStatus('Ejecución cancelada por el usuario.', true);
+        resetPending();
+        return;
+      }
+      const payload = { ...pendingExecution };
+      resetPending();
+      sendMessage(payload, { executeConfirmed: true });
+      return;
+    }
+    sendMessage();
+  });
+  inputEl?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+      event.preventDefault();
+      sendMessage();
+    }
+  });
+  clearEl?.addEventListener('click', () => {
+    history.length = 0;
+    if (logEl) {
+      logEl.innerHTML = '';
+      renderMessage('assistant', 'Conversación reiniciada. Puedo revisar estado, guiar al usuario y responder sobre esta pantalla o sobre el sistema.');
+    }
+    resetPending();
+    if (lastToolsEl) lastToolsEl.value = '0';
+    if (lastLatencyEl) lastLatencyEl.value = '-';
+    setStatus('');
+    syncSuggestionRow();
+    syncInputPlaceholder();
+  });
+  quickActionsEl?.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-guard-action]');
+    if (!btn) return;
+    const key = String(btn.getAttribute('data-guard-action') || '').trim();
+    const preset = actionPresets[key];
+    if (!preset) return;
+    sendMessage(preset);
+  });
+  logEl?.addEventListener('click', (event) => {
+    const btn = event.target.closest('.guard-ui-action');
+    if (!btn) return;
+    triggerUiAction(btn);
+  });
+  alertsEl?.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-guard-alert]');
+    if (!btn) return;
+    const preset = alertPresetFromRow({
+      text: String(btn.getAttribute('data-guard-alert') || '').trim(),
+      level: String(btn.getAttribute('data-level') || '').trim().toLowerCase(),
+    });
+    if (!preset) {
+      setStatus('No hay una acción prioritaria para esta alerta.', true);
+      return;
+    }
+    sendMessage(preset);
+  });
+  suggestionsEl?.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-guard-suggestion]');
+    if (!btn || !inputEl) return;
+    inputEl.value = String(btn.getAttribute('data-guard-suggestion') || '').trim();
+    sendMessage();
+  });
+  commandGridEl?.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-guard-command]');
+    if (!btn || !inputEl) return;
+    inputEl.value = String(btn.getAttribute('data-guard-command') || '').trim();
+    sendMessage();
+  });
+  toggleEl?.addEventListener('click', () => setOpen(!shellEl?.classList.contains('is-open')));
+  closeEl?.addEventListener('click', () => setOpen(false));
+  syncSuggestionRow();
+  syncInputPlaceholder();
+  syncSilentCard({
+    task_queue: {
+      pending: Number(silentCardEl?.dataset.queuePending || 0),
+      running: Number(silentCardEl?.dataset.queueRunning || 0),
+      completed: Number(silentCardEl?.dataset.queueCompleted || 0),
+      blocked: Number(silentCardEl?.dataset.queueBlocked || 0),
+    },
+    scheduled_state: {
+      last_finished_at: String(silentCardEl?.dataset.lastFinished || ''),
+    },
+  });
+  applyUiMode('assistant');
+  setOpen(Boolean(loadUiState().open));
+})();
+
+})();
