@@ -1,0 +1,194 @@
+{% load static l10n football_extras %}
+{% comment %}Formulario de nueva valoración: 67 campos y su script de auto-cálculo.
+Vivía dentro de la pestaña Evaluación, que es una pantalla de consulta. Se saca a su
+propia página; el POST sigue yendo a la ficha, que ya sabe guardarlo.{% endcomment %}
+        <h3 style="margin-top:1rem;">Nueva evaluación</h3>
+        <form method="post" action="{% url 'player-detail' player.id %}">
+          {% csrf_token %}
+          <input type="hidden" name="form_action" value="evaluation" />
+          {% if selected_club_season %}<input type="hidden" name="club_season_id" value="{{ selected_club_season.id }}" />{% endif %}
+          <div class="form-grid">
+            <label>Tipo
+              <select name="evaluation_type">
+                {% for value, label in evaluation_type_choices %}
+                  <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>Fecha
+              <input type="date" name="evaluated_on" value="{% now 'Y-m-d' %}" />
+            </label>
+            <label>Rol
+              <input type="text" name="role" maxlength="80" placeholder="Titular, rotación, desarrollo..." />
+            </label>
+            <label>Posición evaluada
+              <input type="text" name="evaluated_position" maxlength="60" value="{{ player.position|default:'' }}" />
+            </label>
+            <label>Posición recomendada
+              <input type="text" name="recommended_position" maxlength="60" placeholder="Dónde debería competir" />
+            </label>
+            <label>Nota global
+              <input type="number" name="overall_rating" min="1" max="10" step="0.1" data-eval-overall />
+              <small class="field-hint" data-eval-overall-hint>Se calcula sola como media de las notas de abajo. Puedes sobrescribirla.</small>
+            </label>
+            <div class="eval-areas" style="grid-column:1 / -1;">
+              {% for area in evaluation_parameter_catalog %}
+              <div class="eval-area" style="--accent:{{ area.accent }};" data-eval-area>
+                <header class="eval-area-head">
+                  <span class="eval-area-name">{{ area.label }}</span>
+                  <label class="eval-area-score" title="Media de los parámetros (puedes ajustarla)">
+                    <input type="number" name="{{ area.rating_field }}" min="1" max="10" step="0.1"
+                           data-eval-subrating data-eval-area-score placeholder="—" />
+                    <small title="Media de los atributos valorados, en escala 0-10 (no divide entre 10)">media (0-10)</small>
+                  </label>
+                </header>
+                <div class="eval-params">
+                  {% for p in area.params %}
+                  <div class="eval-param">
+                    <span class="eval-param-label">{{ p.label }}</span>
+                    <input type="range" name="param_{{ area.key }}_{{ p.key }}" min="0" max="10" step="1" value="0" data-eval-param />
+                    <output class="eval-param-val">–</output>
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            <style>
+              .eval-areas{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin:6px 0 4px}
+              .eval-area{border:1px solid rgba(148,163,184,.22);border-top:4px solid var(--accent);border-radius:14px;padding:14px;background:rgba(148,163,184,.05)}
+              .eval-area-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:10px}
+              .eval-area-name{font-weight:800;font-size:1rem;color:var(--accent);letter-spacing:.01em}
+              .eval-area-score{display:flex;flex-direction:column;align-items:center;gap:1px;margin:0}
+              .eval-area-score input{width:66px;text-align:center;font-weight:800;font-size:1.05rem;padding:5px 4px;border-radius:9px;border:1px solid var(--accent);background:transparent;color:inherit}
+              .eval-area-score small{font-size:.58rem;text-transform:uppercase;letter-spacing:.05em;opacity:.6}
+              .eval-params{display:flex;flex-direction:column;gap:9px}
+              .eval-param{display:grid;grid-template-columns:130px 1fr 36px;gap:10px;align-items:center}
+              .eval-param-label{font-size:.8rem;opacity:.9;line-height:1.15}
+              .eval-param input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;height:20px}
+              .eval-param-val{font-weight:800;font-variant-numeric:tabular-nums;text-align:center;border-radius:7px;padding:3px 0;font-size:.85rem;background:rgba(148,163,184,.16);transition:background .15s,color .15s}
+              .eval-param-val[data-band="low"]{color:#ef4444;background:rgba(239,68,68,.16)}
+              .eval-param-val[data-band="mid"]{color:#f59e0b;background:rgba(245,158,11,.16)}
+              .eval-param-val[data-band="high"]{color:#22c55e;background:rgba(34,197,94,.16)}
+              @media(max-width:720px){.eval-areas{grid-template-columns:1fr}.eval-param{grid-template-columns:104px 1fr 32px}}
+            </style>
+            <script>
+              (function(){
+                document.querySelectorAll('.eval-area').forEach(function(area){
+                  var score = area.querySelector('[data-eval-area-score]');
+                  var ranges = area.querySelectorAll('[data-eval-param]');
+                  var manual = false, programmatic = false;
+                  if (score){ score.addEventListener('input', function(){ if(!programmatic) manual = true; }); }
+                  function recompute(){
+                    var vals = [];
+                    ranges.forEach(function(r){
+                      var v = parseInt(r.value, 10) || 0;
+                      var out = r.parentElement.querySelector('.eval-param-val');
+                      if (out){
+                        out.textContent = v >= 1 ? v : '–';
+                        out.setAttribute('data-band', v >= 8 ? 'high' : (v >= 5 ? 'mid' : (v >= 1 ? 'low' : '')));
+                      }
+                      if (v >= 1) vals.push(v);
+                    });
+                    if (!manual && score){
+                      programmatic = true;
+                      if (vals.length){
+                        var avg = vals.reduce(function(a,b){return a+b;}, 0) / vals.length;
+                        score.value = Math.round(avg * 10) / 10;
+                      } else { score.value = ''; }
+                      score.dispatchEvent(new Event('input', {bubbles:true}));
+                      programmatic = false;
+                    }
+                  }
+                  ranges.forEach(function(r){ r.addEventListener('input', recompute); });
+                  recompute();
+                });
+              })();
+            </script>
+            <label>Social/grupo
+              <input type="number" name="social_rating" min="1" max="10" step="0.1" data-eval-subrating />
+            </label>
+            <label>KPIs objetivos
+              <input type="number" name="objective_performance_rating" min="1" max="10" step="0.1" placeholder="1-10"
+                     data-eval-objective
+                     {% if objective_score_suggestion is not None %}value="{{ objective_score_suggestion|stringformat:'.1f' }}" data-eval-objective-suggestion="{{ objective_score_suggestion|stringformat:'.1f' }}"{% endif %} />
+              <small class="field-hint">
+                {% if objective_score_suggestion is not None %}Calculado de sus KPIs reales (percentiles de rendimiento). Editable.{% else %}Se calculará solo cuando el jugador tenga datos de rendimiento. Editable.{% endif %}
+              </small>
+            </label>
+            <label>Disponibilidad
+              <input type="number" name="availability_rating" min="1" max="10" step="0.1" placeholder="1-10" />
+            </label>
+            <label>Control monopodal
+              <input type="number" name="single_leg_control_rating" min="1" max="10" step="0.1" placeholder="1-10" />
+            </label>
+            <label>Estado
+              <select name="status">
+                {% for value, label in evaluation_status_choices %}
+                  <option value="{{ value }}" {% if value == 'closed' %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <div style="grid-column:1 / -1;padding:0.6rem 0.75rem;border:1px dashed rgba(148,163,184,0.4);border-radius:10px;">
+              <span class="subtle">Wellness, RPE/minutos, tests físicos (sprint, CMJ, Yo-Yo, 505, Copenhagen) y madurez/PHV se registran y visualizan ahora en la pestaña <a href="{% url 'player-detail' player.id %}?tab=physical"><strong>Físico</strong></a> — una sola fuente, sin doble entrada. Esta evaluación se centra en la valoración del cuerpo técnico.</span>
+            </div>
+            <label style="grid-column:1 / -1;">Notas de evidencia
+              <textarea name="evidence_notes" rows="3" placeholder="Condiciones del test, fatiga, muestra disponible, observaciones objetivas..."></textarea>
+            </label>
+            <label style="grid-column:1 / -1;">Puntos fuertes
+              <textarea name="strengths" rows="3" placeholder="Qué sostiene su rendimiento..."></textarea>
+            </label>
+            <label style="grid-column:1 / -1;">Aspectos a mejorar
+              <textarea name="improvements" rows="3" placeholder="Qué debe trabajar en el próximo ciclo..."></textarea>
+            </label>
+            <label style="grid-column:1 / -1;">Objetivos próximos
+              <textarea name="objectives_next" rows="3" placeholder="2-3 objetivos concretos y medibles..."></textarea>
+            </label>
+            <label style="grid-column:1 / -1;">Comentario del técnico
+              <textarea name="coach_comments" rows="3" placeholder="Contexto, evolución, decisión técnica..."></textarea>
+            </label>
+          </div>
+          <div style="margin-top:0.85rem;"><button type="submit">Guardar evaluación</button></div>
+        </form>
+        <script>
+          (function () {
+            var overall = document.querySelector('input[data-eval-overall]');
+            if (!overall) { return; }
+            var form = overall.closest('form');
+            if (!form) { return; }
+            var subs = Array.prototype.slice.call(form.querySelectorAll('input[data-eval-subrating]'));
+            var hint = form.querySelector('[data-eval-overall-hint]');
+            // La media manda mientras el usuario no toque la Nota global a mano.
+            var manual = false;
+            function computeAverage() {
+              var vals = [];
+              subs.forEach(function (el) {
+                var v = parseFloat(el.value);
+                if (!isNaN(v)) { vals.push(v); }
+              });
+              if (!vals.length) { return null; }
+              var avg = vals.reduce(function (a, b) { return a + b; }, 0) / vals.length;
+              return Math.round(avg * 10) / 10;
+            }
+            function refresh() {
+              if (manual) { return; }
+              var avg = computeAverage();
+              overall.value = (avg === null) ? '' : avg;
+              if (hint) {
+                hint.textContent = (avg === null)
+                  ? 'Se calcula sola como media de las notas de abajo. Puedes sobrescribirla.'
+                  : 'Media automática de las notas de abajo (' + avg + '). Escríbela para fijar otra.';
+              }
+            }
+            subs.forEach(function (el) { el.addEventListener('input', refresh); });
+            // Si el usuario edita la Nota global, dejamos de auto-calcular.
+            overall.addEventListener('input', function () {
+              manual = true;
+              if (hint) { hint.textContent = 'Valor manual. Bórralo para volver a la media automática.'; }
+            });
+            overall.addEventListener('change', function () {
+              if (overall.value.trim() === '') { manual = false; refresh(); }
+            });
+            refresh();
+          })();
+        </script>

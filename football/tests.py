@@ -11452,7 +11452,10 @@ class PlayerDetailStatsFallbackTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.player.refresh_from_db()
         self.assertEqual(str(self.player.weight_kg), '76.50')
-        self.assertContains(response, 'name="weight_kg_base" value="76.50"', html=False)
+        # El formulario ya no vive en la ficha (era mantenimiento dentro de una pantalla de
+        # consulta): el campo se comprueba donde ahora se edita.
+        edit = self.client.get(reverse('player-edit', args=[self.player.id]))
+        self.assertContains(edit, 'name="weight_kg_base" value="76.50"', html=False)
 
     def test_player_detail_injury_form_creates_record_in_injuries_tab(self):
         self.client.force_login(self.user)

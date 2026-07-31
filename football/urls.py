@@ -532,6 +532,8 @@ urlpatterns = [
     path("player/<int:player_id>/", views.player_detail_page, name="player-detail"),
     path("player/<int:player_id>/photo/", views.player_photo_file, name="player-photo-file"),
     path("player/<int:player_id>/license/", views.player_license_file, name="player-license-file"),
+    path("player/<int:player_id>/editar/", views.player_edit_page, name="player-edit"),
+    path("player/<int:player_id>/valoracion/nueva/", views.player_evaluation_new_page, name="player-evaluation-new"),
     path("player/<int:player_id>/pdf/", views.player_pdf, name="player-pdf"),
     path("player/<int:player_id>/evolucion/pdf/", views.player_evolution_pdf, name="player-evolution-pdf"),
     path(
@@ -542,7 +544,6 @@ urlpatterns = [
         views.player_evaluation_report_page,
         name="player-evaluation-report",
     ),
-    path("player/<int:player_id>/presentacion/", views.player_presentation, name="player-presentation"),
     path("player/<int:player_id>/match/<int:match_id>/", views.player_match_stats_page, name="player-match-stats"),
     path("match/<int:match_id>/", views.match_stats_page, name="match-stats"),
     path("coach/partidos/<int:match_id>/editar/", views.match_editor_page, name="match-editor"),

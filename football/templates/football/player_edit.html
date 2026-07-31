@@ -1,0 +1,60 @@
+{% load static football_extras %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Editar ficha · {{ player.name }} · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      {% comment %}Sólo la disposición de esta pantalla; colores y tipografía los pone el
+      sistema. Un formulario largo se lee mejor en una columna estrecha que en todo el ancho.{% endcomment %}
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--prod-text);
+        font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
+        background:
+          radial-gradient(circle at 10% -10%, rgba(56, 189, 248, 0.14), transparent 40%),
+          linear-gradient(180deg, #020617 0%, #07111f 52%, #091423 100%);
+      }
+      .shell { width: min(100%, 980px); margin: 0 auto; padding: clamp(0.85rem, 1.25vw, 1.2rem); }
+      .head {
+        display: flex; gap: 0.9rem; align-items: center; flex-wrap: wrap;
+        border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 18px;
+        background: rgba(7, 16, 30, 0.86); padding: 1rem 1.2rem; margin-bottom: 0.9rem;
+      }
+      .head .who { flex: 1; min-width: 12rem; }
+      .head h1 { margin: 0; font-size: clamp(1.15rem, 3.5vw, 1.5rem); letter-spacing: -0.02em; }
+      .head p { margin: 0.15rem 0 0; color: var(--prod-muted); font-size: 0.86rem; }
+      .card {
+        border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 18px;
+        background: rgba(7, 16, 30, 0.86); padding: clamp(0.9rem, 2.2vw, 1.3rem);
+      }
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <div class="shell">
+      {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True %}
+      {% include 'football/includes/_zone_subnav.html' with zone='equipo' %}
+
+      <div class="head">
+        <div class="who">
+          <h1>Editar ficha · {{ player.name }}</h1>
+          <p>
+            {% if team %}{{ team.display_name|default:team.name }}{% endif %}
+            {% if player.number %} · #{{ player.number }}{% endif %}
+            {% if player.position %} · {{ player.position }}{% endif %}
+          </p>
+        </div>
+        <a class="btn alt" href="{% url 'player-detail' player.id %}">← Volver a la ficha</a>
+      </div>
+
+      <div class="card">
+        {% include 'football/includes/_player_edit_form.html' %}
+      </div>
+    </div>
+  </body>
+</html>

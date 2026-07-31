@@ -79718,6 +79718,151 @@ def player_detail_page(request, player_id):
 
 @login_required
 @ensure_csrf_cookie
+def player_evaluation_new_page(request, player_id):
+    """
+    Nueva valoración, en su propia pantalla.
+
+    Eran 67 campos y su script de auto-cálculo dentro de la pestaña Evaluación, que es de
+    consulta. El formulario es el MISMO markup (partial compartido) y sigue enviando a
+    `player-detail`: el guardado no se toca.
+    """
+    portal_redirect = _redirect_player_account_to_portal(request)
+    if portal_redirect:
+        return portal_redirect
+    forbidden = _forbid_if_workspace_module_disabled(request, "players", label="módulo de jugadores")
+    if forbidden:
+        return forbidden
+    primary_team, player = _resolve_player_for_request_scope(request, int(player_id))
+    if not primary_team:
+        raise Http404("Equipo principal no configurado")
+    if not player:
+        raise Http404("Jugador no encontrado")
+    forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
+    if forbidden:
+        return forbidden
+
+    selected_club_season = None
+    try:
+        _ws = _get_active_workspace(request)
+        if _ws:
+            selected_club_season = selected_club_season_for_request(request, workspace=_ws)
+    except Exception:
+        selected_club_season = None
+
+    _accents = {
+        "technical": "#3b82f6",
+        "tactical": "#8b5cf6",
+        "physical": "#22c55e",
+        "mental": "#f59e0b",
+    }
+    catalogo = [
+        {
+            "key": _a["key"],
+            "label": _a["label"],
+            "rating_field": _a["rating_field"],
+            "accent": _accents.get(_a["key"], "#3b82f6"),
+            "params": [{"key": _k, "label": _l} for _k, _l in _a["params"]],
+        }
+        for _a in _evaluation_catalog_for_player(player)
+    ]
+
+    return render(request, "football/player_evaluation_new.html", {
+        "player": player,
+        "team": primary_team,
+        "selected_club_season": selected_club_season,
+        "evaluation_type_choices": PlayerEvaluation.TYPE_CHOICES,
+        "evaluation_status_choices": PlayerEvaluation.STATUS_CHOICES,
+        "evaluation_parameter_catalog": catalogo,
+        # La sugerencia objetiva se calcula con los percentiles de la ficha; aquí se deja
+        # vacía a propósito en vez de recalcular media pantalla de estadísticas.
+        "objective_score_suggestion": None,
+        "is_player_readonly": False,
+    })
+
+
+@login_required
+@ensure_csrf_cookie
+def player_edit_page(request, player_id):
+    """
+    Mantenimiento de la ficha del jugador, en su propia pantalla.
+
+    Vivía como un plegable dentro de la pestaña Datos personales: 62 campos de edición dentro
+    de una pantalla de consulta. La ficha se lee; la ficha se edita aquí. El formulario es el
+    MISMO markup (partial compartido) y sigue enviando a `player-detail`, que ya sabe
+    procesarlo — no se duplica ni una línea de guardado.
+    """
+    portal_redirect = _redirect_player_account_to_portal(request)
+    if portal_redirect:
+        return portal_redirect
+    forbidden = _forbid_if_workspace_module_disabled(request, "players", label="módulo de jugadores")
+    if forbidden:
+        return forbidden
+    primary_team, player = _resolve_player_for_request_scope(request, int(player_id))
+    if not primary_team:
+        raise Http404("Equipo principal no configurado")
+    if not player:
+        raise Http404("Jugador no encontrado")
+    forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
+    if forbidden:
+        return forbidden
+
+    license_expiry_badge = None
+    try:
+        _exp = getattr(player, "federation_license_expires_at", None)
+        if _exp:
+            _days = (_exp - timezone.localdate()).days
+            _tone = "ok" if _days > 30 else "warn"
+            if _days < 0:
+                _label = f"Licencia caducada ({_exp.strftime('%d/%m/%Y')})"
+            elif _days <= 30:
+                _label = f"Licencia caduca en {_days} día{'s' if _days != 1 else ''}"
+            else:
+                _label = f"Licencia vigente hasta {_exp.strftime('%d/%m/%Y')}"
+            license_expiry_badge = {"tone": _tone, "label": _label}
+    except Exception:
+        license_expiry_badge = None
+
+    contract_badge = None
+    try:
+        _end = getattr(player, "contract_end", None)
+        if _end:
+            _days = (_end - timezone.localdate()).days
+            _tone = "ok" if _days > 90 else "warn"
+            if _days < 0:
+                _label = f"Contrato finalizado ({_end.strftime('%d/%m/%Y')})"
+            elif _days <= 90:
+                _label = f"Contrato acaba en {_days} día{'s' if _days != 1 else ''}"
+            else:
+                _label = f"Contrato hasta {_end.strftime('%d/%m/%Y')}"
+            contract_badge = {"tone": _tone, "label": _label}
+    except Exception:
+        contract_badge = None
+
+    player_traits_catalog, _chips = _player_traits_context(player)
+
+    return render(request, "football/player_edit.html", {
+        "player": player,
+        "team": primary_team,
+        "position_choices": POSITION_CHOICES,
+        "foot_choices": FOOT_CHOICES,
+        "skin_tone_choices": SKIN_TONE_CHOICES,
+        "avatar_hair_choices": AVATAR_HAIR_COLORS,
+        "avatar_pending": player_avatar_pending(player),
+        "player_photo_url": resolve_player_photo_url(request, player),
+        "player_license_url": resolve_player_license_url(request, player),
+        "player_traits_catalog": player_traits_catalog,
+        "license_expiry_badge": license_expiry_badge,
+        "contract_badge": contract_badge,
+        "has_active_injury": player.id in get_active_injury_player_ids([player.id]),
+        "current_position": getattr(player, "position", ""),
+        # El formulario cae a `stats.position` cuando el jugador no tiene posición propia.
+        "stats": {"position": getattr(player, "position", "")},
+        "is_player_readonly": False,
+    })
+
+
+@login_required
+@ensure_csrf_cookie
 def player_evaluation_report_page(request, player_id, evaluation_id):
     forbidden = _forbid_if_workspace_module_disabled(request, "players", label="módulo de jugadores")
     if forbidden:
@@ -81972,42 +82117,6 @@ def player_pdf(request, player_id):
     return _build_pdf_response_or_html_fallback(request, html, filename, inline=True, force_pdf=True)
 
 
-@login_required
-def player_presentation(request, player_id):
-    forbidden = _forbid_if_workspace_module_disabled(request, "players", label="módulo de jugadores")
-    if forbidden:
-        return forbidden
-    primary_team, player = _resolve_player_for_request_scope(request, int(player_id))
-    if not primary_team:
-        raise Http404("Equipo principal no configurado")
-    if not player:
-        raise Http404("Jugador no encontrado")
-    forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
-    if forbidden:
-        return forbidden
-    # La presentación es el modo "player view" (pantalla) de la ficha del jugador.
-    # El PDF de temporada se descarga desde /pdf/.
-    try:
-        url = reverse("player-detail", args=[int(player_id)])
-    except Exception:
-        url = "/"
-    params = {"preview": "player"}
-    try:
-        team = str(request.GET.get("team") or "").strip()
-        if team:
-            params["team"] = team
-    except Exception:
-        pass
-    try:
-        workspace = str(request.GET.get("workspace") or "").strip()
-        if workspace:
-            params["workspace"] = workspace
-    except Exception:
-        pass
-    return redirect(f"{url}?{urlencode(params)}")
-
-
-@login_required
 def match_stats_page(request, match_id):
     forbidden = _forbid_if_no_coach_access(request.user)
     if forbidden:
