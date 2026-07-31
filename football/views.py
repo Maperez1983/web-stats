@@ -32945,7 +32945,7 @@ def _build_task_pdf_context(
         }
 
     def _normalize_preview_grass_style(variant: str = "2d") -> str:
-        raw_grass_style = str(meta.get("pitch_grass_style") or "broadcast_premium").strip().lower()
+        raw_grass_style = str(meta.get("pitch_grass_style") or "flat_2d").strip().lower()
         normalized_variant = "3d" if str(variant or "").strip().lower() == "3d" else "2d"
         if normalized_variant == "3d":
             return "stadium_top"
@@ -33120,7 +33120,7 @@ def _build_task_pdf_context(
     def _render_explicit_2d_preview_url(canvas_state):
         normalized_orientation = str(meta.get("pitch_orientation") or "landscape").strip().lower()
         safe_state = canvas_state if isinstance(canvas_state, dict) else {"objects": []}
-        raw_grass_style = str(meta.get("pitch_grass_style") or "broadcast_premium").strip().lower()
+        raw_grass_style = str(meta.get("pitch_grass_style") or "flat_2d").strip().lower()
         if raw_grass_style in {"stadium_top", "stadium_top_h", "stadium_top_v", "stadium_native"}:
             pitch_grass_style = "stadium_native"
         elif raw_grass_style in {
@@ -54319,13 +54319,19 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         pitch_preset = "full_pitch"
     if pitch_orientation not in {"landscape", "portrait"}:
         pitch_orientation = "landscape"
-    if pitch_grass_style in {"stadium_top", "stadium_top_h", "stadium_top_v"}:
-        pitch_grass_style = "stadium_native"
+    # Una tarea se dibuja en 2D cenital. El estadio es del 11 inicial, no de aqui: la familia
+    # stadium_* se pliega a "2D plano", igual que ya hacia el editor al ABRIR la tarea
+    # (_task_builder_initial_values). Antes se plegaba al reves y "flat_2d" ni siquiera estaba en la
+    # lista de validos, asi que cada guardado convertia la superficie del entrenador en estadio: en
+    # el editor seguias viendo 2D plano -porque al abrir se remapeaba- pero lo GUARDADO decia
+    # estadio, y la ficha, el PDF y la miniatura -que leen lo guardado- pintaban otra cosa.
+    if pitch_grass_style in {"stadium_top", "stadium_top_h", "stadium_top_v", "stadium_native"}:
+        pitch_grass_style = "flat_2d"
     if pitch_grass_style not in {
+        "flat_2d",
         "classic",
         "broadcast",
         "broadcast_premium",
-        "stadium_native",
         "realistic",
         "pro",
         "natural",
@@ -54340,7 +54346,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         "whiteboard",
         "blackboard",
     }:
-        pitch_grass_style = "stadium_native"
+        pitch_grass_style = "flat_2d"
     try:
         pitch_zoom = float(pitch_zoom or 1.0)
     except Exception:
@@ -56091,14 +56097,8 @@ def session_task_builder_page(request, scope_key="coach", scope_title="Sesiones 
                 initial["surface"] = default_surface
     except Exception:
         pass
-    try:
-        if local_editor_lab_active and isinstance(initial, dict):
-            initial = dict(initial)
-            # En laboratorio local queremos una superficie de edición limpia y más cercana
-            # a la referencia visual profesional: campo clásico, sin la estética de estadio 3D.
-            initial["pitch_grass_style"] = "natural"
-    except Exception:
-        pass
+    # (Antes el laboratorio local forzaba aquí "natural". Se quitó: hacía que el editor en local
+    # no se pareciera al de producción, y cualquier prueba visual hecha en casa era engañosa.)
 
     # Si venimos desde una sesión (Sesiones → Crear tarea) preseleccionamos la sesión destino
     # SOLO cuando se pide explícitamente. Así "Crear tarea" puede ir a biblioteca por defecto.
