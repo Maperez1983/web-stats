@@ -757,7 +757,10 @@ def player_home_page(request):
     # Autovaloración: el jugador se puntúa a sí mismo. NO entra en la media del cuerpo
     # técnico (`author_kind='self'`); lo valioso es justo la distancia entre ambas.
     if request.method == "POST" and str(request.POST.get("form_action") or "") == "self_assessment":
-        if player is not None:
+        # Valorarse es un acto del jugador. Si detrás de la cuenta está su familia, no se
+        # guarda: una autovaloración firmada por otro ensucia justo el dato que la hace útil
+        # (la distancia entre cómo se ve él y cómo le ve el cuerpo técnico).
+        if player is not None and not getattr(player, "user_is_guardian", False):
             from .models import PlayerEvaluation
 
             def _score(name):
@@ -902,6 +905,7 @@ def player_home_page(request):
             "objectives": objectives if vis.objectives else [],
             "training_marker": training_marker,
             "display_name": request.user.get_full_name() or request.user.username,
+            "is_guardian_account": bool(getattr(player, "user_is_guardian", False)) if player is not None else False,
             **_player_home_zones(request, player, vis),
         },
     )
@@ -1065,11 +1069,11 @@ def _player_home_zones(request, player, vis):
 
     if vis.communication:
         try:
-            # La misma regla que en la ficha: sólo lo que va dirigido a él y sólo cuando toca.
+            # Publicación deliberada: sólo lo que el staff ha publicado para él, y sólo
+            # cuando toca. Antes bastaba con ser de categoría `convocatoria`, así que no había
+            # forma de mandarle una comunicación concreta ni de guardarse una convocatoria.
             zones["communications"] = list(
-                PlayerCommunication.objects.filter(
-                    player=player, category=PlayerCommunication.CATEGORY_CONVOCATION
-                )
+                PlayerCommunication.objects.filter(player=player, published_to_player=True)
                 .filter(Q(scheduled_for__isnull=True) | Q(scheduled_for__lte=timezone.now()))
                 .order_by("-created_at", "-id")[:8]
             )

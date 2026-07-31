@@ -19317,7 +19317,11 @@ def invitation_accept_page(request, token):
                     linked_player = invitation.player
                     if linked_player is not None and not linked_player.user_id:
                         linked_player.user = invitation.user
-                        linked_player.save(update_fields=["user"])
+                        # De quién es el email de contacto decide de quién es la cuenta.
+                        linked_player.user_is_guardian = bool(
+                            getattr(linked_player, "contact_is_guardian", False)
+                        )
+                        linked_player.save(update_fields=["user", "user_is_guardian"])
                     elif linked_player is not None and linked_player.user_id != invitation.user_id:
                         logger.warning(
                             "Invitación %s apunta al jugador %s, que ya está vinculado a otro usuario",
@@ -78507,13 +78511,43 @@ def player_detail_page(request, player_id):
             if form_action == "communication":
                 message = request.POST.get("message", "").strip()
                 if message:
+                    _category = request.POST.get("category") or PlayerCommunication.CATEGORY_INTERNAL
+                    # Se publica si lo marcas. Una convocatoria viene marcada de serie porque
+                    # es, por definición, un aviso para él.
+                    _publish = str(request.POST.get("publish_to_player") or "").strip().lower() in {
+                        "on", "1", "true", "yes", "si", "sí",
+                    } or _category == PlayerCommunication.CATEGORY_CONVOCATION
                     PlayerCommunication.objects.create(
                         player=player,
                         match=active_match,
-                        category=request.POST.get("category") or PlayerCommunication.CATEGORY_INTERNAL,
+                        category=_category,
                         message=message,
                         scheduled_for=_parse_datetime_value(request.POST.get("scheduled_for")),
                         created_by=(request.user.get_username() if request.user.is_authenticated else ""),
+                        published_to_player=_publish,
+                        published_to_player_at=(timezone.now() if _publish else None),
+                        published_to_player_by=(request.user if _publish and request.user.is_authenticated else None),
+                    )
+                return redirect(f"{reverse('player-detail', args=[player.id])}?tab=communication")
+
+            if form_action == "communication_publish":
+                _comm_id = str(request.POST.get("communication_id") or "").strip()
+                _comm = (
+                    PlayerCommunication.objects.filter(id=int(_comm_id), player=player).first()
+                    if _comm_id.isdigit()
+                    else None
+                )
+                if _comm is not None:
+                    _on = str(request.POST.get("publish") or "").strip().lower() in {"1", "true", "yes", "on"}
+                    _comm.published_to_player = _on
+                    _comm.published_to_player_at = timezone.now() if _on else None
+                    _comm.published_to_player_by = request.user if (_on and request.user.is_authenticated) else None
+                    _comm.save(
+                        update_fields=[
+                            "published_to_player",
+                            "published_to_player_at",
+                            "published_to_player_by",
+                        ]
                     )
                 return redirect(f"{reverse('player-detail', args=[player.id])}?tab=communication")
 

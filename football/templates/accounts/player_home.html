@@ -110,6 +110,12 @@
                 {% if player.team %}{{ player.team.display_name|default:player.team.name }}{% endif %}
                 {% if player.position %} · {{ player.position }}{% endif %}
               </p>
+              {% if is_guardian_account %}
+              <p style="margin-top:.35rem;font-size:.82rem;color:var(--prod-muted);">
+                Estás entrando como familia de {{ player.name }}. Ves su espacio; lo que sólo puede
+                hacer él aparece desactivado.
+              </p>
+              {% endif %}
             </div>
           </div>
         </div>
@@ -238,7 +244,12 @@
               <span class="when">{{ self_assessment.evaluated_on|date:"d/m/Y" }}</span>
             </div>
           {% endif %}
-          {% if not preview_of %}
+          {% if is_guardian_account %}
+          <p class="empty" style="margin-top:0.6rem;">
+            Valorarse lo hace el propio jugador desde su cuenta: es la comparación con la nota del
+            cuerpo técnico lo que tiene valor, y firmada por otra persona ya no dice eso.
+          </p>
+          {% elif not preview_of %}
           <details style="margin-top:0.6rem;">
             <summary style="cursor:pointer;font-weight:800;font-size:.78rem;letter-spacing:.05em;text-transform:uppercase;padding:.55rem .85rem;border:1px solid rgba(255,255,255,.16);border-radius:999px;color:var(--prod-muted);list-style:none;">
               {% if self_assessment %}Volver a valorarme{% else %}Valorarme{% endif %}

@@ -1151,6 +1151,10 @@ class Player(models.Model):
     contact_email = models.EmailField(blank=True, help_text='Email al que llega la invitación al portal.')
     contact_name = models.CharField(max_length=160, blank=True, help_text='De quién es ese email (el jugador, su padre, su madre…).')
     contact_is_guardian = models.BooleanField(default=False, help_text='El contacto es un familiar o tutor, no el propio jugador.')
+    # Quién hay DETRÁS de la cuenta vinculada. Con ~2 de cada 3 jugadores menores, la cuenta
+    # suele ser del padre o de la madre: el portal tiene que saberlo para no atribuirle al
+    # jugador actos que no son suyos (p. ej. su autovaloración).
+    user_is_guardian = models.BooleanField(default=False, help_text='La cuenta vinculada es de un familiar o tutor.')
     origin_team = models.CharField(max_length=160, blank=True)
     current_club = models.CharField(max_length=160, blank=True)
     has_agent = models.BooleanField(default=False)
@@ -1618,6 +1622,17 @@ class PlayerCommunication(models.Model):
     scheduled_for = models.DateTimeField(null=True, blank=True, help_text='Fecha/hora objetivo de la comunicación')
     created_by = models.CharField(max_length=80, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    # Publicación DELIBERADA, registro a registro. Que una comunicación exista no significa
+    # que sea suya: las internas y los partes médicos se escriben para el staff.
+    published_to_player = models.BooleanField(default=False, help_text='Visible en el portal del jugador.')
+    published_to_player_at = models.DateTimeField(null=True, blank=True)
+    published_to_player_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='published_player_communications',
+    )
 
     class Meta:
         ordering = ['-created_at']

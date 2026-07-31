@@ -2953,7 +2953,7 @@
 
             <table>
               <thead>
-                <tr><th>Fecha</th><th>Tipo</th><th>Partido</th><th>Programada</th><th>Mensaje</th><th>Autor</th></tr>
+                <tr><th>Fecha</th><th>Tipo</th><th>Partido</th><th>Programada</th><th>Mensaje</th><th>Autor</th><th>¿La ve él?</th></tr>
               </thead>
               <tbody>
                 {% for item in communications %}
@@ -2964,9 +2964,24 @@
                   <td>{% if item.scheduled_for %}{{ item.scheduled_for|date:'d/m/Y H:i' }}{% else %}-{% endif %}</td>
                   <td>{{ item.message }}</td>
                   <td>{{ item.created_by|default:'-' }}</td>
+                  <td>
+                    {% if not is_player_readonly %}
+                    <form method="post" style="margin:0;">
+                      {% csrf_token %}
+                      <input type="hidden" name="form_action" value="communication_publish" />
+                      <input type="hidden" name="communication_id" value="{{ item.id }}" />
+                      <input type="hidden" name="publish" value="{% if item.published_to_player %}0{% else %}1{% endif %}" />
+                      <button type="submit" class="btn ghost sm">
+                        {% if item.published_to_player %}Publicada · ocultar{% else %}Publicar{% endif %}
+                      </button>
+                    </form>
+                    {% else %}
+                    {% if item.published_to_player %}Sí{% else %}No{% endif %}
+                    {% endif %}
+                  </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="6">Sin comunicaciones registradas.</td></tr>
+                <tr><td colspan="7">Sin comunicaciones registradas.</td></tr>
                 {% endfor %}
               </tbody>
             </table>

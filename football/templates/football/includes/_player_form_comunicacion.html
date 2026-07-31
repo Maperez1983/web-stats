@@ -18,6 +18,14 @@ El POST sigue yendo a la ficha, que ya sabe procesarlo.{% endcomment %}
                 <label style="grid-column: 1 / -1;">Mensaje
                   <textarea name="message" placeholder="Ej. Convocado para Jornada 25, citación 16:15 en vestuarios."></textarea>
                 </label>
+                <label style="grid-column: 1 / -1; display:flex; align-items:center; gap:0.5rem; text-transform:none; letter-spacing:normal;">
+                  <input type="checkbox" name="publish_to_player" value="1" style="width:auto;" />
+                  Que la vea el jugador en su portal
+                </label>
+                <p style="grid-column:1/-1;margin:0;font-size:0.8rem;opacity:0.75;">
+                  Las convocatorias se publican solas. Las internas y los partes médicos no se
+                  publican salvo que lo marques aquí — o después, desde la lista.
+                </p>
               </div>
               <div style="margin-top:0.85rem;"><button type="submit">Guardar comunicación</button></div>
             </form>
