@@ -9171,6 +9171,30 @@ def _kit2d_url_for_team_name(team_name, *, workspace=None, primary_team=None, ow
     return _generated_team_kit2d_svg_url(str(team_name or "Rival"))
 
 
+_TOKENS_TIPO_CLUB = {
+    "cf", "cd", "ud", "sd", "ad", "fc", "cp", "sad", "at", "atl", "pd", "ucd",
+    "c", "d", "f", "u", "s", "a", "p",
+}
+
+
+def _clave_laxa_de_equipo(nombre):
+    """Nombre del club sin el tipo de sociedad, para casar "ALHAURIN … C.F." con "Alhaurin …".
+
+    Solo se quitan tokens de tipo de club al PRINCIPIO y al FINAL; el nucleo del nombre tiene
+    que coincidir entero. Es deliberadamente estrecho: nada de subcadenas ni de sufijos por
+    dentro, que es donde se cuelan los falsos positivos (filiales, clubes homonimos).
+    """
+    import unicodedata as _ud
+
+    texto = _ud.normalize("NFKD", str(nombre or "")).encode("ascii", "ignore").decode("ascii").lower()
+    tokens = [t for t in re.split(r"[^a-z0-9]+", texto) if t]
+    while tokens and tokens[0] in _TOKENS_TIPO_CLUB:
+        tokens.pop(0)
+    while tokens and tokens[-1] in _TOKENS_TIPO_CLUB:
+        tokens.pop()
+    return "".join(tokens)
+
+
 def _standings_team_url_lookup(rows, *, primary_team=None):
     """Ficha a la que lleva cada equipo de la clasificacion, en UNA sola consulta.
 
@@ -9178,9 +9202,14 @@ def _standings_team_url_lookup(rows, *, primary_team=None):
     la fila se puede enlazar sin datos nuevos: el equipo propio va a su ficha y el rival a su
     plantilla, que es donde estan las fotos y las estadisticas publicadas.
 
-    Identidad, de mas fiable a menos: external_id (E282…) -> name_key. Si un name_key apunta a
-    varios equipos (dos categorias del mismo club lo comparten) NO se enlaza: mejor sin enlace
-    que llevar a la ficha equivocada.
+    Identidad, de mas fiable a menos: external_id (E282…) -> name_key -> nombre sin el sufijo
+    de tipo de club (C.F./C.D./…). Si una clave apunta a varios equipos (dos categorias del
+    mismo club la comparten) NO se enlaza: mejor sin enlace que llevar a la ficha equivocada.
+
+    Entre varios candidatos gana el que TIENE plantilla importada: el mismo club real puede
+    estar duplicado (uno creado al importar la clasificacion y otro al importar plantillas,
+    "Alhaurin Torre" vs "Alhaurin de la Torre"), y enlazar al vacio no sirve de nada. El
+    equipo propio manda siempre sobre cualquier duplicado.
     """
     from football.models import normalize_team_name_key
 
@@ -9197,12 +9226,26 @@ def _standings_team_url_lookup(rows, *, primary_team=None):
     if not codes and not keys:
         return lambda row: ""
 
+    # Equipos con plantilla importada: son los que hacen util el enlace, y ademas los que
+    # desempatan cuando el mismo club real esta duplicado.
+    try:
+        con_plantilla = set(
+            RivalPlayer.objects.filter(is_active=True)
+            .order_by()  # sin esto, el Meta.ordering del modelo rompe el distinct()
+            .values_list("team_id", flat=True)
+            .distinct()[:200]
+        )
+    except Exception:
+        con_plantilla = set()
+
     filtro = Q()
     if codes:
         filtro |= Q(external_id__in=codes)
     if keys:
         filtro |= Q(name_key__in=keys)
-    equipos = list(Team.objects.filter(filtro).only("id", "external_id", "name_key")[:120])
+    if con_plantilla:
+        filtro |= Q(id__in=con_plantilla)
+    equipos = list(Team.objects.filter(filtro).only("id", "name", "external_id", "name_key")[:200])
 
     primary_id = int(getattr(primary_team, "id", 0) or 0)
     try:
@@ -9218,32 +9261,59 @@ def _standings_team_url_lookup(rows, *, primary_team=None):
         except Exception:
             return ""
 
+    def _rango(team_id):
+        """Quien gana cuando el mismo club real esta duplicado: propio > con plantilla > el resto."""
+        if primary_id and team_id == primary_id:
+            return 2
+        return 1 if team_id in con_plantilla else 0
+
+    def _mejor(actual, candidato):
+        if actual is None:
+            return candidato
+        return candidato if _rango(candidato) > _rango(actual) else actual
+
+    def _indexar(indice, ambiguas, clave, team_id):
+        """Guarda el mejor equipo por clave; ambiguo = varios empatados en el rango mas alto."""
+        if not clave:
+            return
+        previo = indice.get(clave)
+        if previo is None or previo == team_id:
+            indice.setdefault(clave, team_id)
+            return
+        if _rango(team_id) > _rango(previo):
+            indice[clave] = team_id
+            ambiguas.discard(clave)
+        elif _rango(team_id) == _rango(previo):
+            ambiguas.add(clave)
+
     por_codigo, por_clave, claves_ambiguas = {}, {}, set()
+    por_laxa, laxas_ambiguas = {}, set()
     for team in equipos:
         code = str(getattr(team, "external_id", "") or "").strip()
-        if code and code not in por_codigo:
-            por_codigo[code] = team.id
-        key = str(getattr(team, "name_key", "") or "").strip()
-        if not key:
-            continue
-        if key in por_clave and por_clave[key] != team.id:
-            # El equipo propio gana el desempate; en cualquier otro caso se deja sin enlace.
-            if primary_id and team.id == primary_id:
-                por_clave[key] = team.id
-                claves_ambiguas.discard(key)
-            elif not (primary_id and por_clave[key] == primary_id):
-                claves_ambiguas.add(key)
-        else:
-            por_clave.setdefault(key, team.id)
+        if code:
+            por_codigo[code] = _mejor(por_codigo.get(code), team.id)
+        _indexar(por_clave, claves_ambiguas, str(getattr(team, "name_key", "") or "").strip(), team.id)
+        _indexar(por_laxa, laxas_ambiguas, _clave_laxa_de_equipo(getattr(team, "name", "")), team.id)
 
     def resolver(row):
+        nombre = row.get("full_name") or row.get("team") or ""
         code = str(row.get("team_code") or row.get("code") or row.get("external_id") or "").strip()
-        team_id = por_codigo.get(code) if code else None
-        if not team_id:
-            key = normalize_team_name_key(row.get("full_name") or row.get("team") or "")
-            if key and key not in claves_ambiguas:
-                team_id = por_clave.get(key)
-        return _url(team_id) if team_id else ""
+        clave = normalize_team_name_key(nombre)
+        laxa = _clave_laxa_de_equipo(nombre)
+
+        candidatos = []
+        if code and code in por_codigo:
+            candidatos.append(por_codigo[code])
+        if clave and clave not in claves_ambiguas and clave in por_clave:
+            candidatos.append(por_clave[clave])
+        if laxa and laxa not in laxas_ambiguas and laxa in por_laxa:
+            candidatos.append(por_laxa[laxa])
+        if not candidatos:
+            return ""
+        elegido = None
+        for candidato in candidatos:
+            elegido = _mejor(elegido, candidato)
+        return _url(elegido) if elegido else ""
 
     return resolver
 
