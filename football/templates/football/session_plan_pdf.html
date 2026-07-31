@@ -410,26 +410,12 @@
 			        page-break-inside: avoid;
               position: relative;
               box-sizing: border-box;
-              padding: 6mm;
-              background-color: rgba(2, 6, 23, 0.96);
-              background-image:
-                radial-gradient(120% 85% at 50% 0%, rgba(255,255,255,0.20), rgba(255,255,255,0.00) 55%),
-                radial-gradient(120% 85% at 50% 100%, rgba(0,0,0,0.42), rgba(0,0,0,0.00) 60%),
-                linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(2, 6, 23, 0.96)),
-                repeating-linear-gradient(0deg, rgba(255,255,255,0.070) 0 1px, rgba(255,255,255,0) 1px 12px),
-                repeating-linear-gradient(90deg, rgba(255,255,255,0.055) 0 1px, rgba(255,255,255,0) 1px 14px);
+              padding: 4mm;
+              /* El marco era un panel negro con vineta encima y apagaba el cesped: la misma pizarra
+                 salia verde brillante en Club y casi negra en UEFA. La foto de la tarea es el dato,
+                 no el decorado, asi que el marco se aparta. */
+              background: #ffffff;
 		      }
-          .rfef-graphic::before {
-            content: "";
-            position: absolute;
-            inset: 5mm;
-            border-radius: 6mm;
-            pointer-events: none;
-            background:
-              linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.0) 35%),
-              linear-gradient(0deg, rgba(0,0,0,0.22), rgba(0,0,0,0.0) 45%);
-            opacity: 0.75;
-          }
 	      .rfef-graphic table {
 	        width: 100%;
 	        height: 100%;
@@ -451,8 +437,7 @@
               position: relative;
               z-index: 1;
               border-radius: 4mm;
-              border: 1px solid rgba(255,255,255,0.18);
-              background: rgba(255,255,255,0.02);
+              border: 1px solid #d5dde7;
 		      }
 		      .rfef-muted { color: #6b7280; }
 		    </style>
