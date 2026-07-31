@@ -702,6 +702,8 @@ urlpatterns = [
     path("coach/sesiones/diag-formato/", season_diagnostics.task_format_cost_view, name="sessions-format-cost-debug"),
     # Radiografia de los microciclos de biblioteca antes de consolidarlos.
     path("coach/sesiones/diag-bibliotecas/", season_diagnostics.library_microcycles_audit_view, name="sessions-library-mc-debug"),
+    # ¿El guion derivado dice lo mismo que los pasos guardados, y cuanto pesa?
+    path("coach/sesiones/diag-guion/", season_diagnostics.task_script_audit_view, name="sessions-task-script-debug"),
     # Pone al dia en lote las fotos HD de la biblioteca (?limit=, ?team=).
     path(
         "coach/sesiones/fotos-hd/",

@@ -2934,6 +2934,19 @@ class SessionTask(models.Model):
                 _m = _light.get('meta')
                 if isinstance(_m, dict):
                     _light['meta'] = {k: v for k, v in _m.items() if k not in ('graphic_editor', 'original_version')}
+                # El GUION va DENTRO de la copia ligera: pesa unos cientos de bytes y asi los
+                # listados, la ficha y el portal del jugador pueden reproducir el movimiento sin
+                # des-diferir la columna pesada (que es lo que costaba 5 s por pantalla).
+                try:
+                    from .task_script import build_script
+
+                    _script = build_script(_lay)
+                    if _script:
+                        _light['script'] = _script
+                    else:
+                        _light.pop('script', None)
+                except Exception:
+                    _light.pop('script', None)
                 self.task_layout_light = _light
             else:
                 self.task_layout_light = {}

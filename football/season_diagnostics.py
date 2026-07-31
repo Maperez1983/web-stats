@@ -358,3 +358,83 @@ def library_microcycles_audit_view(request):
             "microciclos": rows,
         }
     )
+
+
+def task_script_audit_view(request):
+    """
+    ¿El guion dice lo mismo que los pasos guardados, y cuánto pesa? (coach-gated)
+
+    El guion es una DERIVACIÓN del lienzo, así que antes de que nadie lo pinte hay que comprobar
+    dos cosas contra tareas reales: que no pierde pasos ni actores por el camino, y que de verdad
+    pesa lo que prometía. Si el guion tuviera menos pasos que el timeline, el movimiento saldría
+    cortado y nadie se enteraría hasta verlo en el campo.
+    """
+    import json as _json
+
+    from .models import SessionTask
+    from .permissions import can_access_sessions_workspace
+    from .task_script import build_script
+
+    if not can_access_sessions_workspace(request.user):
+        return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+    try:
+        team_id = int(request.GET.get("team") or 0)
+    except Exception:
+        team_id = 0
+    if not team_id:
+        return JsonResponse({"ok": False, "error": "falta ?team="}, status=400)
+
+    rows = []
+    con_pasos = 0
+    peso_pesado = 0
+    peso_guion = 0
+    discrepancias = []
+    for task in (
+        SessionTask.objects.filter(session__microcycle__team_id=team_id, deleted_at__isnull=True)
+        .order_by("-id")[:120]
+    ):
+        layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+        timeline = layout.get("timeline") if isinstance(layout.get("timeline"), list) else []
+        script = build_script(layout)
+        bytes_layout = len(_json.dumps(layout, separators=(",", ":"), default=str))
+        bytes_script = len(_json.dumps(script, separators=(",", ":"), default=str)) if script else 0
+        peso_pesado += bytes_layout
+        peso_guion += bytes_script
+        if timeline:
+            con_pasos += 1
+            if len(script.get("steps", [])) != len(timeline):
+                discrepancias.append(
+                    {
+                        "id": task.id,
+                        "titulo": str(task.title or "")[:50],
+                        "pasos_timeline": len(timeline),
+                        "pasos_guion": len(script.get("steps", [])),
+                    }
+                )
+        rows.append(
+            {
+                "id": task.id,
+                "titulo": str(task.title or "")[:50],
+                "pasos_timeline": len(timeline),
+                "pasos_guion": len(script.get("steps", [])),
+                "actores": len(script.get("actors", [])),
+                "kb_layout": round(bytes_layout / 1024.0, 1),
+                "kb_guion": round(bytes_script / 1024.0, 2),
+            }
+        )
+
+    con_guion = [r for r in rows if r["pasos_guion"]]
+    return JsonResponse(
+        {
+            "ok": True,
+            "tareas_revisadas": len(rows),
+            "con_pasos_dibujados": con_pasos,
+            "con_guion": len(con_guion),
+            "kb_total_layout": round(peso_pesado / 1024.0, 1),
+            "kb_total_guion": round(peso_guion / 1024.0, 1),
+            "ahorro_pct": (round(100 - peso_guion / peso_pesado * 100) if peso_pesado else 0),
+            "discrepancias_pasos": discrepancias,
+            "veredicto": "coinciden" if not discrepancias else "REVISAR",
+            "tareas": sorted(rows, key=lambda r: -r["kb_layout"])[:20],
+        }
+    )
