@@ -1641,11 +1641,13 @@ body.prod-commercial .ws-presentation-exit button {
 /* Selector de tema del menu: tres opciones a la vista, con la activa marcada.
    Antes era un boton ciclico cuya etiqueta mostraba el tema ACTUAL, asi que no
    se sabia ni que opciones habia ni cual estaba puesta. */
+body.prod-commercial .nav-context { flex-wrap: wrap; }
 body.prod-commercial .nav-theme-picker {
   display: inline-flex;
   align-items: center;
   gap: 0.2rem;
-  margin-left: 0.6rem;
+  margin-left: auto;
+  flex: 0 0 auto;
   padding: 0.16rem;
   border-radius: 999px;
   border: 1px solid rgba(148, 163, 184, 0.20);
