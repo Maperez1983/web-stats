@@ -15521,7 +15521,15 @@ def platform_workspace_detail_page(request, workspace_id):
     invite_link = ""
     if workspace.kind not in {Workspace.KIND_CLUB, Workspace.KIND_TASK_STUDIO}:
         raise Http404("Este tipo de workspace no está soportado.")
-    active_detail_tab = "configuracion"
+    # La pestaña viaja en la URL (?tab=) y el servidor pinta SOLO su panel: la ficha entera
+    # pesaba 581 KB porque Categorías (184) y Equipos (228) se renderizaban siempre, aunque
+    # fueras a tocar otra cosa; de ahí también los 502 intermitentes.
+    PESTANAS_FICHA_CLUB = {
+        "configuracion", "usuarios", "competicion", "modulos", "categorias", "equipos", "avanzado",
+    }
+    active_detail_tab = str(request.GET.get("tab") or "").strip().lower()
+    if active_detail_tab not in PESTANAS_FICHA_CLUB:
+        active_detail_tab = "configuracion"
     competition_search_inputs = {
         "provider": WorkspaceCompetitionContext.PROVIDER_MANUAL,
         "team_query": "",

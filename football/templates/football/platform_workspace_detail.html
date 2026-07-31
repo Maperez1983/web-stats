@@ -913,15 +913,16 @@
 	      </section>
 
       <nav class="club-tabs" aria-label="Ficha del club">
-        <button class="club-tab is-active" type="button" data-tab-target="configuracion">General</button>
-        <button class="club-tab" type="button" data-tab-target="usuarios">Usuarios</button>
-        <button class="club-tab" type="button" data-tab-target="competicion">Competición</button>
-        <button class="club-tab" type="button" data-tab-target="modulos">Módulos</button>
-        <button class="club-tab" type="button" data-tab-target="categorias">Categorías</button>
-        <button class="club-tab" type="button" data-tab-target="equipos">Equipos</button>
-        <button class="club-tab" type="button" data-tab-target="avanzado">Avanzado</button>
+        <a class="club-tab{% if active_detail_tab == 'configuracion' %} is-active{% endif %}" href="?tab=configuracion"{% if active_detail_tab == 'configuracion' %} aria-current="page"{% endif %}>General</a>
+        <a class="club-tab{% if active_detail_tab == 'usuarios' %} is-active{% endif %}" href="?tab=usuarios"{% if active_detail_tab == 'usuarios' %} aria-current="page"{% endif %}>Usuarios</a>
+        <a class="club-tab{% if active_detail_tab == 'competicion' %} is-active{% endif %}" href="?tab=competicion"{% if active_detail_tab == 'competicion' %} aria-current="page"{% endif %}>Competición</a>
+        <a class="club-tab{% if active_detail_tab == 'modulos' %} is-active{% endif %}" href="?tab=modulos"{% if active_detail_tab == 'modulos' %} aria-current="page"{% endif %}>Módulos</a>
+        <a class="club-tab{% if active_detail_tab == 'categorias' %} is-active{% endif %}" href="?tab=categorias"{% if active_detail_tab == 'categorias' %} aria-current="page"{% endif %}>Categorías</a>
+        <a class="club-tab{% if active_detail_tab == 'equipos' %} is-active{% endif %}" href="?tab=equipos"{% if active_detail_tab == 'equipos' %} aria-current="page"{% endif %}>Equipos</a>
+        <a class="club-tab{% if active_detail_tab == 'avanzado' %} is-active{% endif %}" href="?tab=avanzado"{% if active_detail_tab == 'avanzado' %} aria-current="page"{% endif %}>Avanzado</a>
       </nav>
 
+      {% if active_detail_tab == 'configuracion' %}
       <section class="tab-panel is-active" data-tab-panel="configuracion">
       <section class="grid config-grid">
 	        <article class="panel">
@@ -1165,8 +1166,10 @@
         </article>
       </section>
       </section>
+      {% endif %}
 
-      <section class="tab-panel" data-tab-panel="competicion">
+      {% if active_detail_tab == 'competicion' %}
+      <section class="tab-panel is-active" data-tab-panel="competicion">
         <article class="panel">
           {% if workspace.kind == 'club' %}
           <div class="section-shell panel-block" id="workspace-competition">
@@ -1317,8 +1320,10 @@
           {% endif %}
         </article>
       </section>
+      {% endif %}
 
-      <section class="tab-panel" data-tab-panel="usuarios">
+      {% if active_detail_tab == 'usuarios' %}
+      <section class="tab-panel is-active" data-tab-panel="usuarios">
         <article class="panel">
           <div class="section-shell panel-block" id="workspace-miembros">
           <div class="section-kicker">Acceso</div>
@@ -1440,8 +1445,10 @@
         </article>
 
       </section>
+      {% endif %}
 
-      <section class="tab-panel" data-tab-panel="modulos">
+      {% if active_detail_tab == 'modulos' %}
+      <section class="tab-panel is-active" data-tab-panel="modulos">
         <section class="module-list" id="workspace-modulos">
           <article class="module-card">
             <div class="section-kicker">Módulos</div>
@@ -1500,8 +1507,10 @@
           {% endfor %}
         </section>
       </section>
+      {% endif %}
 
-      <section class="tab-panel" data-tab-panel="avanzado">
+      {% if active_detail_tab == 'avanzado' %}
+      <section class="tab-panel is-active" data-tab-panel="avanzado">
         <article class="panel">
           <div class="section-kicker">Avanzado</div>
           <h2 style="margin-top:0.55rem;">Información técnica</h2>
@@ -1528,8 +1537,10 @@
           </div>
         </article>
       </section>
+      {% endif %}
 
-      <section class="tab-panel" data-tab-panel="categorias">
+      {% if active_detail_tab == 'categorias' %}
+      <section class="tab-panel is-active" data-tab-panel="categorias">
         <article class="panel">
           <div class="section-kicker">Categorías</div>
           <h2 style="margin-top:0.55rem;">Categorías del club</h2>
@@ -1605,8 +1616,10 @@
           </div>
         </article>
       </section>
+      {% endif %}
 
-      <section class="tab-panel" data-tab-panel="equipos">
+      {% if active_detail_tab == 'equipos' %}
+      <section class="tab-panel is-active" data-tab-panel="equipos">
         <article class="panel">
           <div class="section-kicker">Equipos</div>
           <div class="team-create-head" style="margin-top:0.55rem;">
@@ -1772,6 +1785,7 @@
           </div>
         </article>
       </section>
+      {% endif %}
     </main>
     <script>
       (function () {
@@ -1793,30 +1807,6 @@
         });
         syncDeliverables();
 
-        const tabs = Array.from(document.querySelectorAll('[data-tab-target]'));
-        const panels = Array.from(document.querySelectorAll('[data-tab-panel]'));
-        const serverTab = "{{ active_detail_tab|default:'configuracion'|escapejs }}";
-        function activateTab(key, updateHash) {
-          const targetKey = key || 'configuracion';
-          tabs.forEach((tab) => {
-            tab.classList.toggle('is-active', tab.dataset.tabTarget === targetKey);
-          });
-          panels.forEach((panel) => {
-            panel.classList.toggle('is-active', panel.dataset.tabPanel === targetKey);
-          });
-          if (updateHash) {
-            history.replaceState(null, '', `#${targetKey}`);
-          }
-        }
-        tabs.forEach((tab) => {
-          tab.addEventListener('click', () => activateTab(tab.dataset.tabTarget, true));
-        });
-        const initialTab = String(window.location.hash || '').replace('#', '');
-        if (initialTab && tabs.some((tab) => tab.dataset.tabTarget === initialTab)) {
-          activateTab(initialTab, false);
-        } else if (serverTab && tabs.some((tab) => tab.dataset.tabTarget === serverTab)) {
-          activateTab(serverTab, false);
-        }
       })();
     </script>
   </body>
