@@ -1,0 +1,104 @@
+/* Estilos comunes de Platform (Gobierno, ficha de club, ficha de equipo, asistente).
+ *
+ * Estaban copiados dentro de cada plantilla: 69 KB de CSS incrustado que el navegador
+ * no cachea, con 38 selectores repetidos entre pantallas (20 identicos letra por letra)
+ * y otros 22 definidos dos o tres veces DENTRO del mismo fichero. Eso ultimo era la causa
+ * de que cambiar un color no siempre se aplicara: mandaba la ultima definicion.
+ *
+ * Aqui vive lo que comparten. Lo especifico de cada pantalla sigue en su plantilla.
+ */
+/* Modo claro: esta zona nunca se adapto y se pintaba con literales de tema oscuro sobre el fondo claro del producto (22 textos por debajo del minimo, tres invisibles). Los colores pasan a variables y se redefinen abajo para el tema claro. */ :root {
+  --pg-body: #08111d;
+  --pg-ink: #f8fbff;
+  --pg-ink-2: #d9e5f7;
+  --pg-ink-3: #9aa8bf;
+  --pg-panel: rgba(7, 13, 25, 0.95);
+  --pg-panel-2: rgba(7, 13, 25, 0.5);
+  --pg-soft: rgba(255, 255, 255, 0.04);
+  --pg-line: rgba(160, 180, 215, 0.14);
+  --pg-danger: #ffb7b7;
+  --pg-glow-a: rgba(244, 180, 0, 0.12);
+  --pg-glow-b: rgba(47, 125, 50, 0.14);
+  }
+:root[data-theme="light"] {
+  --pg-body: #f4f7fb;
+  --pg-ink: #0f172a;
+  --pg-ink-2: rgba(15, 23, 42, 0.76);
+  --pg-ink-3: rgba(15, 23, 42, 0.58);
+  --pg-panel: #ffffff;
+  --pg-panel-2: #f7f9fc;
+  --pg-soft: rgba(15, 23, 42, 0.04);
+  --pg-line: rgba(15, 23, 42, 0.12);
+  --pg-danger: #b91c1c;
+  --pg-glow-a: rgba(244, 180, 0, 0.10);
+  --pg-glow-b: rgba(47, 125, 50, 0.07);
+  }
+.hero-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.42rem 0.72rem;
+  border-radius: 999px;
+  border:1px solid var(--pg-line);
+  background:var(--pg-soft);
+  color:var(--pg-ink);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  }
+.hero-links a.primary-link {
+  background: linear-gradient(135deg, rgba(244, 180, 0, 0.16), rgba(47, 125, 50, 0.16));
+  border-color: rgba(244, 180, 0, 0.28);
+  }
+.subnav {
+  margin-top: 1rem;
+  display: flex;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  }
+.section-shell {
+  border-radius: 24px;
+  border:1px solid var(--pg-line);
+  background:var(--pg-panel-2);
+  padding: 1rem;
+  }
+.section-kicker {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.32rem 0.65rem;
+  background: rgba(52, 104, 205, 0.15);
+  color: #a9c4ff;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  }
+.metric span {
+  display: block;
+  color:var(--pg-ink-3);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  }
+.message.ok {
+  background: rgba(55, 168, 97, 0.14);
+  border: 1px solid rgba(55, 168, 97, 0.36);
+  color: #97edb2;
+  }
+/* Acentos de color: en oscuro son tonos pastel sobre fondo oscuro; en claro hay que bajarlos o quedan lavados (era lo unico que seguia por debajo del minimo). */
+:root[data-theme="light"] .section-kicker { color: #1d4ed8; background: rgba(52, 104, 205, 0.12); }
+:root[data-theme="light"] .chip { color: #1d4ed8; background: rgba(52, 104, 205, 0.12); }
+:root[data-theme="light"] .active-banner { color: #7a5b00; background: rgba(255, 191, 69, 0.18); }
+:root[data-theme="light"] .inline-btn.danger { color: #b91c1c; }
+:root[data-theme="light"] .summary-note, :root[data-theme="light"] .message { color: rgba(15, 23, 42, 0.82); }
+/* Pildoras de estado y rotulos: llevan tonos pastel sobre fondo de color, pensados para tema oscuro. En claro hay que oscurecer la tinta (Activo/Inactivo salian invisibles). */
+:root[data-theme="light"] .user-pill.ok, :root[data-theme="light"] .ws-pill.ok { color:#15803d; background:rgba(34,197,94,.14); }
+:root[data-theme="light"] .user-pill.warn, :root[data-theme="light"] .ws-pill.warn { color:#92400e; background:rgba(245,158,11,.16); }
+:root[data-theme="light"] .ws-pill.bad { color:#b91c1c; background:rgba(220,38,38,.12); }
+:root[data-theme="light"] .user-pill, :root[data-theme="light"] .ws-pill, :root[data-theme="light"] .count-pill { color:rgba(15,23,42,.82); }
+:root[data-theme="light"] label, :root[data-theme="light"] .field label, :root[data-theme="light"] .hero-metric span, :root[data-theme="light"] .metric span { color:rgba(15,23,42,.66); }
+:root[data-theme="light"] .message.ok { color:#15803d; }
+:root[data-theme="light"] .message.error, :root[data-theme="light"] .message.bad { color:#b91c1c; }
+:root[data-theme="light"] .governance-note { color:rgba(15,23,42,.78); }
