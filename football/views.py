@@ -2283,11 +2283,64 @@ def rival_squad_ingest_agent(request):
     return _rival_squad_ingest_guardar(request)
 
 
+def _resolver_equipo_rival(nombre, code, url, indice_laxo):
+    """Equipo para una plantilla importada, con una red mas que `resolve_or_create_team`.
+
+    El mismo club real llega con nombre distinto segun la fuente ("ALHAURIN DE LA TORRE C.F."
+    en la clasificacion de Universo, "Alhaurin de la Torre" en laPreferente) y con otro
+    external_id, asi que la cadena habitual (external_id -> preferente_url -> name_key) no lo
+    reconocia y creaba un DUPLICADO cada temporada. Antes de crear se prueba el nombre sin el
+    sufijo de tipo de club, y solo se adopta si hay UN unico candidato.
+
+    Al adoptarlo se le guarda la URL de laPreferente si no tenia: la proxima importacion ya
+    acierta por identidad directa, sin depender de la heuristica.
+    """
+    from football.models import resolve_or_create_team
+
+    code = str(code or "").strip()
+    url = str(url or "").strip()
+    if code:
+        team = Team.objects.filter(external_id=code).first()
+        if team:
+            return team
+    if url:
+        team = Team.objects.filter(preferente_url=url).first()
+        if team:
+            return team
+
+    candidatos = indice_laxo.get(_clave_laxa_de_equipo(nombre)) or []
+    if len(candidatos) == 1:
+        team = Team.objects.filter(id=candidatos[0]).first()
+        if team:
+            cambios = []
+            if url and not str(getattr(team, "preferente_url", "") or "").strip():
+                team.preferente_url = url[:300]
+                cambios.append("preferente_url")
+            if code and not str(getattr(team, "external_id", "") or "").strip():
+                team.external_id = code
+                cambios.append("external_id")
+            if cambios:
+                team.save(update_fields=cambios)
+            return team
+
+    team, _created = resolve_or_create_team(name=nombre or url, external_id=code, preferente_url=url)
+    return team
+
+
+def _indice_laxo_de_equipos():
+    """{nombre sin tipo de club -> [ids]} de todos los equipos, para reconocer al mismo club."""
+    indice = {}
+    for team_id, nombre in Team.objects.order_by("id").values_list("id", "name")[:1000]:
+        clave = _clave_laxa_de_equipo(nombre)
+        if clave:
+            indice.setdefault(clave, []).append(team_id)
+    return indice
+
+
 def _rival_squad_ingest_guardar(request):
     """Guardado compartido por los dos endpoints de ingesta (interfaz y agente)."""
     import json as _json
 
-    from football.models import resolve_or_create_team
     from .rival_roster_services import import_rival_squad
 
     try:
@@ -2301,6 +2354,7 @@ def _rival_squad_ingest_guardar(request):
     skip = {str(c).strip().upper() for c in (data.get("skip_codes") or []) if str(c).strip()}
     totals = {"teams": 0, "created": 0, "updated": 0, "deactivated": 0, "matched": 0, "skipped": 0}
     results = []
+    indice_laxo = _indice_laxo_de_equipos()
     for t in teams[:40]:
         if not isinstance(t, dict):
             continue
@@ -2313,7 +2367,7 @@ def _rival_squad_ingest_guardar(request):
         players = t.get("players") if isinstance(t.get("players"), list) else []
         if not name or not players:
             continue
-        team, _created = resolve_or_create_team(name=name or url, external_id=code, preferente_url=url)
+        team = _resolver_equipo_rival(name, code, url, indice_laxo)
         res = import_rival_squad(team, players[:60], season_label=season)
         # Ademas del catalogo RivalPlayer (fichas, fotos, buscador), dejamos la MISMA plantilla
         # como snapshot: es lo que leen el 11 probable del rival, el informe de proximo partido
