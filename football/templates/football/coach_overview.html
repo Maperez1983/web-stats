@@ -603,6 +603,7 @@
 	        </div>
         {% comment %}Inicio no incluye la barra global, asi que el selector de tema
         se incluye aqui: es la pantalla de entrada y tiene que poder cambiarse desde ella.{% endcomment %}
+        {% include 'football/includes/_search_button.html' %}
         {% include 'football/includes/_theme_picker.html' %}
         {% if can_access_platform %}
         <a class="product-pill-cta" style="padding:0.68rem 1rem;" href="{% url 'platform-overview' %}">Gobierno del club</a>

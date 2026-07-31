@@ -1,0 +1,8 @@
+{% comment %}Boton de buscador global.
+Uso: {% include 'football/includes/_search_button.html' %}
+
+Lleva a la pagina /buscar/, que es la que esta implementada de verdad (consume
+/api/search/: equipos propios y rivales, jugadores propios y rivales, ojeados,
+partidos, sesiones, tareas y staff). La paleta emergente del HTML nunca llego a
+tener JavaScript, asi que no se enlaza aqui.
+{% endcomment %}<a class="nav-search-btn" href="{% url 'search-page' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" title="Buscar equipos, jugadores, rivales, ojeados…" data-help="Buscador global: equipos, jugadores, rivales, ojeados, partidos y sesiones.">🔎<span>Buscar</span></a>

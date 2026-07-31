@@ -1688,3 +1688,34 @@ body.prod-commercial .nav-theme-picker .ntp-opt:disabled { opacity: 0.35; cursor
 :root[data-theme="light"] body.prod-commercial .nav-theme-picker .ntp-opt { color: rgba(15,23,42,.7); border-color: rgba(15,23,42,.16); }
 :root[data-theme="light"] body.prod-commercial .nav-theme-picker .ntp-opt.is-on { color: #7a5b00; }
 @media (max-width: 520px) { body.prod-commercial .nav-theme-picker .ntp-opt span { display: none; } }
+
+/* Boton del buscador global: mismo idioma que el selector de tema (pastilla,
+   versalitas, acento dorado), para que la barra tenga un solo estilo. */
+.nav-search-btn,
+body.prod-commercial .nav-search-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: auto;
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 0.24rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(148, 163, 184, 0.06);
+  color: var(--prod-muted);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+body.prod-commercial .nav-search-btn:hover {
+  border-color: rgba(244, 180, 0, 0.45);
+  background: rgba(244, 180, 0, 0.10);
+  color: var(--prod-text);
+}
+/* Si van juntos, solo el primero empuja hacia la derecha. */
+body.prod-commercial .nav-search-btn + .nav-theme-picker { margin-left: 0.35rem; }
+:root[data-theme="light"] body.prod-commercial .nav-search-btn { color: rgba(15,23,42,.72); border-color: rgba(15,23,42,.16); background: rgba(15,23,42,.03); }
+@media (max-width: 520px) { body.prod-commercial .nav-search-btn span { display: none; } }
