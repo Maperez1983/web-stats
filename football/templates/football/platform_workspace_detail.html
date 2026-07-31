@@ -826,6 +826,14 @@
           flex-direction: column;
         }
       }
+      /* Acentos de color: en oscuro son tonos pastel sobre fondo oscuro; en claro hay que
+         bajarlos o quedan lavados (era lo unico que seguia por debajo del minimo). */
+      :root[data-theme="light"] .section-kicker { color: #1d4ed8; background: rgba(52, 104, 205, 0.12); }
+      :root[data-theme="light"] .chip { color: #1d4ed8; background: rgba(52, 104, 205, 0.12); }
+      :root[data-theme="light"] .active-banner { color: #7a5b00; background: rgba(255, 191, 69, 0.18); }
+      :root[data-theme="light"] .inline-btn.danger { color: #b91c1c; }
+      :root[data-theme="light"] .summary-note,
+      :root[data-theme="light"] .message { color: rgba(15, 23, 42, 0.82); }
     </style>
   </head>
   <body class="prod-commercial">
