@@ -834,6 +834,20 @@
       :root[data-theme="light"] .inline-btn.danger { color: #b91c1c; }
       :root[data-theme="light"] .summary-note,
       :root[data-theme="light"] .message { color: rgba(15, 23, 42, 0.82); }
+      /* Pildoras de estado y rotulos: llevan tonos pastel sobre fondo de color, pensados para
+         tema oscuro. En claro hay que oscurecer la tinta (Activo/Inactivo salian invisibles). */
+      :root[data-theme="light"] .user-pill.ok,
+      :root[data-theme="light"] .ws-pill.ok { color:#15803d; background:rgba(34,197,94,.14); }
+      :root[data-theme="light"] .user-pill.warn,
+      :root[data-theme="light"] .ws-pill.warn { color:#92400e; background:rgba(245,158,11,.16); }
+      :root[data-theme="light"] .ws-pill.bad { color:#b91c1c; background:rgba(220,38,38,.12); }
+      :root[data-theme="light"] .user-pill,
+      :root[data-theme="light"] .ws-pill,
+      :root[data-theme="light"] .count-pill { color:rgba(15,23,42,.82); }
+      :root[data-theme="light"] label,
+      :root[data-theme="light"] .field label,
+      :root[data-theme="light"] .hero-metric span,
+      :root[data-theme="light"] .metric span { color:rgba(15,23,42,.66); }
     </style>
   </head>
   <body class="prod-commercial">
