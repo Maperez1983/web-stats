@@ -890,5 +890,8 @@
     {% if request.user.is_authenticated and not hide_global_guard_widget %}
       {% include 'football/includes/global_guard_widget.html' %}
     {% endif %}
+    {% comment %}Inicio no lleva la barra global, asi que la paleta se incluye aqui
+    para que el boton de buscar se comporte igual que en el resto.{% endcomment %}
+    {% include 'football/includes/_search_palette.html' %}
   </body>
 </html>

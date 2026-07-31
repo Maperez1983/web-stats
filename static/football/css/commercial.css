@@ -1727,3 +1727,14 @@ body.prod-commercial .nav-search-btn:hover {
 body.prod-commercial .nav-search-btn + .nav-theme-picker { margin-left: 0.35rem; }
 :root[data-theme="light"] body.prod-commercial .nav-search-btn { color: rgba(15,23,42,.72); border-color: rgba(15,23,42,.16); background: rgba(15,23,42,.03); }
 @media (max-width: 520px) { body.prod-commercial .nav-search-btn span { display: none; } }
+
+body.prod-commercial .nav-search-btn .nav-search-kbd {
+  font: inherit;
+  font-size: 0.55rem;
+  opacity: 0.6;
+  border: 1px solid currentColor;
+  border-radius: 5px;
+  padding: 0 0.22rem;
+  margin-left: 0.1rem;
+}
+@media (max-width: 640px) { body.prod-commercial .nav-search-btn .nav-search-kbd { display: none; } }
