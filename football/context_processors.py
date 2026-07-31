@@ -537,9 +537,11 @@ def workspace_access(request):
         if isinstance(cached_ws, list):
             workspace_options = cached_ws
         else:
+            # Sin .only(): la consulta de origen ya trae select_related('primary_team', 'owner_user')
+            # y Django rechaza diferir un campo que ademas se recorre por select_related. El
+            # FieldError caia en el except de abajo, asi que la lista de clubes salia SIEMPRE vacia.
             candidates = list(
                 workspace_context.available_workspaces_for_user(request.user)
-                .only('id', 'name', 'kind')
                 .order_by('kind', 'name', 'id')[:12]
             )
             for ws in candidates:
