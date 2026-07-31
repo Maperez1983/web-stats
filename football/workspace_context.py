@@ -104,29 +104,43 @@ def child_workspace_map(workspaces=None):
         logger.debug('No se pudieron leer los workspaces para agrupar', exc_info=True)
         return {}
 
-    por_clave = {}
-    for item in items:
-        clave = _normalize_workspace_group_key(getattr(item, 'name', '') or '')
-        if clave:
-            por_clave.setdefault(clave, int(getattr(item, 'id', 0) or 0))
-
-    hijos = {}
+    # Mismo criterio que usa Platform al listar: se agrupa por el nombre del club (lo que va
+    # antes del "·", el origen anotado, o el nombre entero). Dos espacios que se llaman IGUAL
+    # tambien caen en el mismo grupo: es el caso de los dos "Benagalbón".
+    grupos = {}
+    etiquetas = {}
     for item in items:
         item_id = int(getattr(item, 'id', 0) or 0)
+        if not item_id:
+            continue
         nombre = str(getattr(item, 'name', '') or '').strip()
         notas = str(getattr(item, 'notes', '') or '').strip()
-        candidatos = []
         origen = re.search(r'Separado automáticamente desde\s+(.+?)(?:\.|$)', notas, flags=re.IGNORECASE)
         if origen:
-            candidatos.append((_normalize_workspace_group_key(origen.group(1).strip()), nombre))
-        if '·' in nombre:
-            padre, _, resto = nombre.partition('·')
-            candidatos.append((_normalize_workspace_group_key(padre.strip()), resto.strip() or nombre))
-        for clave, etiqueta in candidatos:
-            padre_id = por_clave.get(clave)
-            if clave and padre_id and padre_id != item_id:
-                hijos[item_id] = (padre_id, etiqueta or nombre)
-                break
+            etiqueta_grupo = origen.group(1).strip()
+            etiquetas[item_id] = nombre
+        elif '·' in nombre:
+            etiqueta_grupo, _, resto = nombre.partition('·')
+            etiquetas[item_id] = resto.strip() or nombre
+        else:
+            etiqueta_grupo = nombre
+            etiquetas[item_id] = nombre
+        clave = _normalize_workspace_group_key(etiqueta_grupo) or _normalize_workspace_group_key(nombre)
+        if clave:
+            grupos.setdefault(clave, []).append(item_id)
+
+    hijos = {}
+    for clave, ids in grupos.items():
+        if len(ids) < 2:
+            continue
+        # El padre es el que se llama como el grupo (el club "entero"); si empatan, el mas antiguo.
+        candidatos = [i for i in ids if _normalize_workspace_group_key(
+            next((str(getattr(x, 'name', '') or '') for x in items if int(getattr(x, 'id', 0) or 0) == i), '')
+        ) == clave]
+        padre_id = min(candidatos or ids)
+        for item_id in ids:
+            if item_id != padre_id:
+                hijos[item_id] = (padre_id, etiquetas.get(item_id) or '')
     return hijos
 
 
