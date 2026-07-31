@@ -196,14 +196,25 @@
                   <input type="hidden" name="player_id" value="{{ item.player.id }}" />
                   <button class="btn alt" type="submit">Desvincular</button>
                 </form>
+              {% else %}
+                <form method="post" style="margin:0;display:flex;gap:0.35rem;align-items:center;flex-wrap:wrap;">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="invite_player" />
+                  <input type="hidden" name="player_id" value="{{ item.player.id }}" />
+                  <input type="email" name="player_email" placeholder="email de contacto"
+                         autocapitalize="none" autocorrect="off" spellcheck="false"
+                         style="min-width:210px;" />
+                  <button class="btn primary" type="submit">Invitar</button>
+                </form>
               {% endif %}
             </div>
           </div>
         {% empty %}
           <p class="muted">No hay jugadores activos en este club.</p>
         {% endfor %}
-        <p style="margin-top:1rem;">
-          <a class="btn primary" href="{% url 'workspace-members' %}">Invitar a un jugador</a>
+        <p class="muted" style="margin-top:1rem;">
+          La invitación va al email que pongas aquí — en los equipos de cantera, el del padre o la
+          madre. La ficha del jugador todavía no guarda ningún email, por eso se pide en el momento.
         </p>
       </div>
       {% endif %}

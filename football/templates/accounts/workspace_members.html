@@ -77,8 +77,13 @@
       {% if error %}<div class="notice error">{{ error }}</div>{% endif %}
 
       <div class="card">
-        <h2>Invitar a un miembro</h2>
-        <p class="hint">Le enviaremos un email con un enlace para unirse y crear su contraseña. Elige su rol.</p>
+        <h2>Dar acceso a directiva o administración</h2>
+        <p class="hint">
+          Sólo para quien no es cuerpo técnico ni jugador: presidencia, tesorería, secretaría.
+          Al <a href="{% url 'staff-directory' %}">cuerpo técnico</a> se le invita desde su ficha de staff,
+          y a los <a href="{% url 'player-portal-settings' %}">jugadores</a> desde la plantilla, porque la
+          invitación necesita saber su cargo, su categoría y qué ve.
+        </p>
         <form class="invite" method="post">
           {% csrf_token %}
           <input type="hidden" name="action" value="invite" />
@@ -93,43 +98,12 @@
           <div class="field">
             <label for="inv_role">Rol</label>
             <select id="inv_role" name="role_preset">
-              {% for key, label, ar, mr in role_presets %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+              {% for key, label, ar, mr in invite_role_presets %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
             </select>
-          </div>
-          {% comment %} Invitar a un jugador exige decir A QUIÉN: el vínculo con su ficha viaja en la
-             invitación y se escribe al aceptarla, en vez de adivinarse luego por el nombre. {% endcomment %}
-          <div class="field" id="inv_player_field" style="grid-column:1/-1;display:none;">
-            <label for="inv_player">¿Qué jugador de la plantilla es?</label>
-            <select id="inv_player" name="player_id">
-              <option value="">— Elige el jugador —</option>
-              {% for p in linkable_players %}
-                <option value="{{ p.id }}">{{ p.name }}{% if p.number %} · #{{ p.number }}{% endif %}{% if p.team %} · {{ p.team.name }}{% endif %}</option>
-              {% endfor %}
-            </select>
-            {% if not linkable_players %}
-              <p class="muted" style="margin:0.35rem 0 0;font-size:0.78rem;">
-                Todos los jugadores de la plantilla tienen ya una cuenta vinculada.
-              </p>
-            {% endif %}
           </div>
           <button class="btn primary" type="submit" style="grid-column:1/-1">Enviar invitación</button>
         </form>
-        <script>
-          (function () {
-            var role = document.getElementById('inv_role');
-            var field = document.getElementById('inv_player_field');
-            var select = document.getElementById('inv_player');
-            if (!role || !field || !select) return;
-            var sync = function () {
-              var isPlayer = role.value === 'jugador';
-              field.style.display = isPlayer ? '' : 'none';
-              select.required = isPlayer;
-              if (!isPlayer) select.value = '';
-            };
-            role.addEventListener('change', sync);
-            sync();
-          })();
-        </script>
+
       </div>
 
       <div class="card">
@@ -144,6 +118,8 @@
             {% if r.is_owner %}<span class="tag owner">Propietario</span>
             {% else %}<span class="tag role">{{ r.role_label }}</span>{% endif %}
             {% if r.pending %}<span class="tag pending">Pendiente</span>{% endif %}
+            {% for team in r.teams %}<span class="tag">{{ team }}</span>{% endfor %}
+            {% if not r.is_owner and not r.staff_id %}<span class="tag pending">Sin ficha</span>{% endif %}
           </div>
           {% if not r.is_owner %}
           <div class="actions">
@@ -155,6 +131,9 @@
                 {% for key, label, ar, mr in role_presets %}<option value="{{ key }}" {% if key == r.preset_key %}selected{% endif %}>{{ label }}</option>{% endfor %}
               </select>
             </form>
+            {% if r.staff_id %}
+            <a class="btn ghost sm" href="{% url 'staff-member-detail' r.staff_id %}">Ficha</a>
+            {% endif %}
             <a class="btn ghost sm" href="{% url 'workspace-member-access' r.membership_id %}">Accesos</a>
             {% if r.pending and r.email %}
             <form method="post">

@@ -242,6 +242,16 @@ def workspace_members_page(request):
             if action == "invite":
                 key = request.POST.get("role_preset")
                 _k, _label, app_role, member_role = _resolve_member_preset(key)
+                # Aquí sólo se dan accesos que NO cuelgan de una ficha (directiva, administración).
+                # El cuerpo técnico se invita desde su ficha de staff y los jugadores desde la
+                # plantilla: la invitación necesita saber cargo, categoría y qué ve, y eso vive
+                # en la ficha. Si no, acabas con usuarios que no son nadie.
+                if _k not in {"administrador", "viewer"}:
+                    raise ValueError(
+                        "Desde aquí sólo se invita a directiva o administración (solo lectura). "
+                        "Al cuerpo técnico se le invita desde su ficha de staff, y a los jugadores "
+                        "desde la plantilla."
+                    )
                 invited_player = None
                 if app_role == "jugador":
                     from .models import Player
@@ -310,6 +320,29 @@ def workspace_members_page(request):
             user__in=[m.user for m in memberships], is_active=True, accepted_at__isnull=True
         )
     }
+    # En qué categorías trabaja cada uno y dónde está su ficha: esta pantalla es el espejo
+    # de los accesos, no el sitio donde se dan de alta.
+    teams_by_user = {}
+    staff_by_user = {}
+    try:
+        from .models import StaffMember, WorkspaceTeamAccess
+
+        for access in (
+            WorkspaceTeamAccess.objects.filter(workspace=workspace)
+            .select_related("team")
+            .order_by("team__category", "team__name")
+        ):
+            label = (
+                str(getattr(access.team, "category", "") or "").strip()
+                or str(getattr(access.team, "name", "") or "").strip()
+            )
+            if label:
+                teams_by_user.setdefault(int(access.user_id), []).append(label)
+        for staff in StaffMember.objects.filter(workspace=workspace, user__isnull=False).only("id", "user_id"):
+            staff_by_user.setdefault(int(staff.user_id), staff.id)
+    except Exception:
+        logger.debug("No se pudieron resolver categorías/fichas de los miembros", exc_info=True)
+
     rows = []
     for m in memberships:
         u = m.user
@@ -325,6 +358,8 @@ def workspace_members_page(request):
             "preset_key": _preset_key_for_membership(m),
             "role_label": ("Propietario" if is_owner else dict((p[0], p[1]) for p in MEMBER_ROLE_PRESETS).get(_preset_key_for_membership(m), "Miembro")),
             "pending": bool(pending) and not is_owner,
+            "teams": teams_by_user.get(int(u.id)) or [],
+            "staff_id": staff_by_user.get(int(u.id)),
         })
 
     # Jugadores del club que todavía no tienen cuenta: son los que se pueden invitar.
@@ -347,6 +382,7 @@ def workspace_members_page(request):
         "rows": rows,
         "linkable_players": linkable_players,
         "role_presets": MEMBER_ROLE_PRESETS,
+        "invite_role_presets": [p for p in MEMBER_ROLE_PRESETS if p[0] in {"administrador", "viewer"}],
         "notice": notice,
         "error": error,
     })
@@ -414,6 +450,45 @@ def player_portal_settings_page(request):
                 if target_team is None
                 else f"Regla de {target_team.name} guardada."
             )
+        elif not error and action == "invite_player":
+            # La invitación del jugador se hace AQUÍ, donde está su plantilla y donde se decide
+            # qué ve, y no en la lista de usuarios del club. El email se pide en el momento
+            # porque la ficha del jugador todavía no guarda ninguno (sólo teléfono).
+            from .models import Player as _Player
+
+            _pid = str(request.POST.get("player_id") or "").strip()
+            _email = str(request.POST.get("player_email") or "").strip()
+            _player = (
+                _Player.objects.filter(
+                    id=int(_pid), team__workspace_links__workspace=workspace
+                ).first()
+                if _pid.isdigit()
+                else None
+            )
+            if _player is None:
+                error = "Ese jugador no es de este club."
+            elif not _email:
+                error = "Hace falta un email para poder mandarle la invitación."
+            elif _player.user_id:
+                error = f"{_player.name} ya tiene una cuenta vinculada."
+            else:
+                try:
+                    _k, _label, app_role, member_role = _resolve_member_preset("jugador")
+                    send_workspace_member_invite(
+                        request,
+                        workspace,
+                        _email,
+                        _player.full_name or _player.name,
+                        app_role,
+                        member_role,
+                        player=_player,
+                    )
+                    notice = f"Invitación enviada a {_email} para {_player.name}."
+                except ValueError as exc:
+                    error = str(exc)
+                except Exception:
+                    logger.exception("No se pudo invitar al jugador %s", getattr(_player, "id", None))
+                    error = "No se pudo enviar la invitación."
         elif not error and action == "unlink":
             # Deshacer un vínculo equivocado. Los vínculos viejos los pudo escribir el
             # auto-vinculado por parecido de nombre que se retiró en la fase 0, así que hay
