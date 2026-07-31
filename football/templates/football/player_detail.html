@@ -1370,26 +1370,33 @@
               <p style="{{ ctit }}">Ficha</p>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem .9rem;">
                 <div><div style="{{ kst }}">Nombre</div><div style="{{ vst }}">{{ player.full_name|default:player.name }}</div></div>
-                <div><div style="{{ kst }}">Apodo</div><div style="{{ vst }}">{{ player.nickname|default:'—' }}</div></div>
+                {% if player.nickname %}<div><div style="{{ kst }}">Apodo</div><div style="{{ vst }}">{{ player.nickname }}</div></div>{% endif %}
                 <div><div style="{{ kst }}">Nacimiento</div><div style="{{ vst }}">{% if player.birth_date %}{{ player.birth_date|date:'d/m/Y' }}{% if player.age %} · {{ player.age }}{% endif %}{% else %}—{% endif %}</div></div>
-                <div><div style="{{ kst }}">Dorsal</div><div style="{{ vst }}">{% if player.number %}{{ player.number }}{% else %}—{% endif %}</div></div>
-                <div><div style="{{ kst }}">Posición</div><div style="{{ vst }}">{{ player.position|default:'—' }}</div></div>
-                <div><div style="{{ kst }}">Pos. preferida</div><div style="{{ vst }}">{{ player.preferred_position|default:'—' }}</div></div>
-                <div><div style="{{ kst }}">Altura</div><div style="{{ vst }}">{% if player.height_cm %}{{ player.height_cm }} cm{% else %}—{% endif %}</div></div>
-                <div><div style="{{ kst }}">Peso</div><div style="{{ vst }}">{% if player.weight_kg %}{{ player.weight_kg|floatformat:'-1' }} kg{% else %}—{% endif %}</div></div>
+                {% if player.number %}<div><div style="{{ kst }}">Dorsal</div><div style="{{ vst }}">{{ player.number }}</div></div>{% endif %}
+                {% if player.position %}<div><div style="{{ kst }}">Posición</div><div style="{{ vst }}">{{ player.position }}</div></div>{% endif %}
+                {% if player.preferred_position %}<div><div style="{{ kst }}">Pos. preferida</div><div style="{{ vst }}">{{ player.preferred_position }}</div></div>{% endif %}
+                {% if player.height_cm %}<div><div style="{{ kst }}">Altura</div><div style="{{ vst }}">{{ player.height_cm }} cm</div></div>{% endif %}
+                {% if player.weight_kg %}<div><div style="{{ kst }}">Peso</div><div style="{{ vst }}">{{ player.weight_kg|floatformat:'-1' }} kg</div></div>{% endif %}
               </div>
             </div>
+            {% if player.contract_end or player.release_clause or player.origin_team or player.has_agent or player.phone or player.has_federative_license %}
             <div style="{{ cardst }}">
               <p style="{{ ctit }}">Contrato y club</p>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem .9rem;">
                 <div><div style="{{ kst }}">Ficha fed.</div><div style="{{ vst }}">{% if player.has_federative_license %}<span style="color:#3fbf6a;">Sí · fichado</span>{% else %}No{% endif %}</div></div>
-                <div><div style="{{ kst }}">Contrato</div><div style="{{ vst }}">{% if player.contract_end %}hasta {{ player.contract_end|date:'d/m/Y' }}{% else %}—{% endif %}</div></div>
-                <div><div style="{{ kst }}">Cláusula</div><div style="{{ vst }}">{{ player.release_clause|default:'—' }}</div></div>
-                <div><div style="{{ kst }}">Club origen</div><div style="{{ vst }}">{{ player.origin_team|default:'—' }}</div></div>
-                <div><div style="{{ kst }}">Agente</div><div style="{{ vst }}">{% if player.has_agent %}{{ player.agent_name|default:'Sí' }}{% else %}—{% endif %}</div></div>
-                <div><div style="{{ kst }}">Teléfono</div><div style="{{ vst }}">{{ player.phone|default:'—' }}</div></div>
+                {% if player.contract_end %}<div><div style="{{ kst }}">Contrato</div><div style="{{ vst }}">hasta {{ player.contract_end|date:'d/m/Y' }}</div></div>{% endif %}
+                {% if player.release_clause %}<div><div style="{{ kst }}">Cláusula</div><div style="{{ vst }}">{{ player.release_clause }}</div></div>{% endif %}
+                {% if player.origin_team %}<div><div style="{{ kst }}">Club origen</div><div style="{{ vst }}">{{ player.origin_team }}</div></div>{% endif %}
+                {% if player.has_agent %}<div><div style="{{ kst }}">Agente</div><div style="{{ vst }}">{{ player.agent_name|default:'Sí' }}</div></div>{% endif %}
+                {% if player.phone %}<div><div style="{{ kst }}">Teléfono</div><div style="{{ vst }}">{{ player.phone }}</div></div>{% endif %}
               </div>
             </div>
+            {% elif not is_player_readonly %}
+            <div style="{{ cardst }}">
+              <p style="{{ ctit }}">Contrato y club</p>
+              <p class="subtle" style="margin:.3rem 0 0;font-size:.82rem;">Sin datos todavía. Se rellena en «Editar ficha completa».</p>
+            </div>
+            {% endif %}
             {% if player_traits_chips %}
             <div style="{{ cardst }}">
               <p style="{{ ctit }}">Rasgos / preferencias</p>
@@ -2838,6 +2845,10 @@
           })();
         </script>
         {% if stats %}
+        <details data-kpi-detail {% if stats.pj and stats.pj >= 3 %}open{% endif %} style="margin-top:.6rem;">
+          <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.6rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:var(--prod-muted);list-style:none;">
+            📈 KPI de rendimiento en detalle{% if not stats.pj or stats.pj < 3 %} · aún con pocos partidos{% endif %}
+          </summary>
 	          <div class="performance-overview" data-kpi-container>
 	            <h3>KPI de rendimiento</h3>
             <details class="kpi-customizer" data-kpi-pref-key="player_detail">
@@ -3004,6 +3015,7 @@
 	              {{ stats.matches|json_script:"player-trend-matches" }}
 	            {% endif %}
 	          </div>
+        </details>
 
           <div class="performance-map">
             <div class="field-diagram">
