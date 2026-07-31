@@ -751,13 +751,12 @@
       body:not(.tactics-mode).task-mode-ready.task-mode-board.task-editor-kind-2d .task-workflow-strip {
         display: none;
       }
-      body:not(.tactics-mode).task-mode-ready.task-mode-board.task-editor-kind-2d #task-scenarios-btn,
-      body:not(.tactics-mode).task-mode-ready.task-mode-board.task-editor-kind-2d #task-step-add-quick,
-      body:not(.tactics-mode).task-mode-ready.task-mode-board.task-editor-kind-2d #task-step-duplicate-quick,
-      body:not(.tactics-mode).task-mode-ready.task-mode-board.task-editor-kind-2d #task-step-remove-quick,
-      body:not(.tactics-mode).task-mode-ready.task-mode-board.task-editor-kind-2d #task-step-play-quick {
-        display: none !important;
-      }
+      /* La secuencia (Escenarios y los botones de paso) estaba OCULTA justo en el modo 2D, que es
+         el que se usa siempre por defecto. Resultado medible: de 107 tareas del club, CERO tenian
+         pasos dibujados. La herramienta llevaba ahi todo el tiempo y nadie podia verla.
+
+         El movimiento no es una propiedad del "modo interactivo": una pizarra 2D con pasos ES la
+         animacion. Se deja visible en 2D. */
       body:not(.tactics-mode).task-mode-ready.task-mode-board.task-editor-kind-2d .task-timeline-dock {
         opacity: 0 !important;
         pointer-events: none !important;

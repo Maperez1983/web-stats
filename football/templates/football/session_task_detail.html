@@ -1496,6 +1496,27 @@
         {% if presentation_inline_edit %}
         <p class="meta" style="margin:0.3rem 0 0.55rem;">Estás <strong>editando la ficha Club</strong>. Cambia los campos directamente y pulsa <strong>Guardar cambios</strong>. El formato UEFA se genera solo.</p>
         {% endif %}
+        {% comment %}Reproductor del GUION. Sale ANTES de los formatos y solo si la tarea tiene
+        movimiento de verdad (dos pasos o mas): con un paso no hay nada que reproducir y la foto de
+        la pizarra ya lo cuenta. El JS se carga solo en esta pagina, nunca en los listados.{% endcomment %}
+        {% if task_script and task_script.steps|length > 1 %}
+        <section class="panel task-script-panel">
+          <h3 style="margin:0 0 2px; font-size:13px; text-transform:uppercase; letter-spacing:.06em;">Movimiento de la tarea</h3>
+          <p class="meta" style="margin:0 0 10px;">{{ task_script.steps|length }} pasos · {{ task_script.actors|length }} jugadores. Pulsa play o arrastra la barra.</p>
+          <div data-task-script-player data-script-id="task-script-json"></div>
+        </section>
+        {{ task_script|json_script:"task-script-json" }}
+        <script src="{% static 'football/js/task_script_player.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+        <style>
+          .task-script-panel .tsp-canvas { width:100%; border-radius:14px; display:block; }
+          .task-script-panel .tsp-bar { display:flex; align-items:center; gap:10px; margin-top:8px; }
+          .task-script-panel .tsp-play { flex:0 0 auto; width:38px; height:38px; border-radius:999px; cursor:pointer;
+            border:1px solid rgba(148,163,184,.3); background:rgba(148,163,184,.1); font-size:14px; }
+          .task-script-panel .tsp-step { flex:0 0 auto; font-size:12px; font-weight:800; opacity:.8; min-width:9rem; }
+          .task-script-panel .tsp-seek { flex:1 1 auto; }
+        </style>
+        {% endif %}
+
         {% comment %}Se pintan LOS DOS formatos y se ensena el activo, para que el cambio sea
         instantaneo. OJO con el guard: un panel cuyo contexto venga VACIO revienta la pagina, no se
         queda en blanco — la plantilla resuelve `pc.space_label` como ARGUMENTO de filtro, y ahi

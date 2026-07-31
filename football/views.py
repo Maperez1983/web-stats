@@ -59701,6 +59701,13 @@ def session_task_detail_page(request, task_id):
                 ensure_ascii=False,
             ),
             "task_presentation_pdf_context_by_format": task_presentation_pdf_context_by_format,
+            # El GUION (football/task_script.py). Se lee de la copia LIGERA, que ya viene cargada:
+            # asi la ficha puede reproducir el movimiento sin des-diferir el lienzo pesado.
+            "task_script": (
+                (task.task_layout_light or {}).get("script")
+                if isinstance(getattr(task, "task_layout_light", None), dict)
+                else None
+            ),
             "pitch3d_assets": pitch3d_assets,
             "is_bookmarked": (
                 SessionTaskBookmark.objects.filter(user=request.user, task=task).exists()
