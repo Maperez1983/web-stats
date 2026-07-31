@@ -53,12 +53,11 @@
         text-transform:uppercase;
       }
       .topbar-actions { display:flex; flex-wrap:wrap; gap:0.55rem; justify-content:flex-end; }
-      /* Los botones de esta ficha son los MISMOS que los de la biblioteca y la ficha de tarea
-         (.button de 00_shell.css). Esta pagina se habia inventado su propio juego: primario en
-         degradado cian y "secondary" transparente, mientras que en las otras dos el primario es
-         ambar y "secondary" va tenido de azul. Es decir, la misma palabra pintaba cosas opuestas
-         segun la pantalla. Se mantiene el nombre .btn (22 usos en esta plantilla) y se le da el
-         aspecto compartido. */
+      /* Base alineada con .button (00_shell.css), el juego que usan la biblioteca y la ficha de
+         tarea. Lo que de verdad pinta estos botones es el tema `body.prod-commercial`, que ya
+         trata .btn y .button como lo mismo; esto solo fija la base y, sobre todo, el acento del
+         primario, que aqui iba en degradado cian mientras el resto del programa lo tiene en
+         ambar. Se conserva el nombre .btn porque hay 22 usos en esta plantilla. */
       .btn { display:inline-flex; align-items:center; justify-content:center; gap:0.45rem; min-height:38px; padding:0.5rem 0.9rem; border-radius:999px; border:1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.05); color:var(--prod-text); font-weight:900; letter-spacing:0.06em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease; }
       .btn.primary { border-color: rgba(244, 180, 0, 0.34); background: rgba(244, 180, 0, 0.12); }
       .btn.secondary { border-color: rgba(125, 211, 252, 0.26); background: rgba(125, 211, 252, 0.08); }
