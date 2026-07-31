@@ -49135,9 +49135,6 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
                         if not attached_count
                         else f"Sesión creada: {focus}. Tareas añadidas: {attached_count}."
                     )
-                # UX: tras crear sesión, siempre pasamos a Biblioteca para seleccionar las tareas.
-                active_tab = "library"
-                auto_selected_session_id = int(session_obj.id)
                 # Limpia picks (si venían del selector en Biblioteca para crear sesión).
                 try:
                     picks_map = request.session.get(CREATE_SESSION_TASK_PICKS_SESSION_KEY)
@@ -49146,6 +49143,19 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
                         request.session[CREATE_SESSION_TASK_PICKS_SESSION_KEY] = picks_map
                 except Exception:
                     pass
+                # Crear una sesión termina EN SU FICHA, igual que crearla desde un PDF importado
+                # (que ya redirigía ahí). Antes se volvía al planificador con la pestaña Biblioteca
+                # abierta: era el flujo de cuando la ficha de sesión no existía y había que elegir
+                # las tareas desde el listado. Hoy la ficha tiene sus propios botones para añadir
+                # tareas, así que ese rodeo dejaba al entrenador en una pantalla de configuración
+                # antigua en vez de en la sesión que acababa de crear.
+                return redirect(
+                    "%s?msg=%s"
+                    % (
+                        reverse("training-session-detail", args=[int(session_obj.id)]),
+                        quote(feedback or "Sesión creada."),
+                    )
+                )
 
             elif planner_action == "attach_session_to_microcycle":
                 microcycle_id = _parse_int(request.POST.get("attach_microcycle_id"))

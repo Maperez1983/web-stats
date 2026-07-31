@@ -38,11 +38,20 @@
     border: 1px solid rgba(148,163,184,0.28);
   }
   .nav-collapse-toggle:hover { background: rgba(148,163,184,0.22); }
+  /* El logo YA era un enlace, pero no lo parecia: sin cursor ni reaccion al pasar por encima
+     nadie sabia que se podia pulsar para volver a Inicio. */
+  .dragon-nav .dragon-link { display:inline-flex; cursor:pointer; border-radius:18px; transition: transform 140ms ease, filter 140ms ease; }
+  .dragon-nav .dragon-link:hover { transform: translateY(-1px) scale(1.02); filter: brightness(1.08); }
+  .dragon-nav .dragon-link:focus-visible { outline: 2px solid rgba(244,180,0,0.62); outline-offset: 3px; }
+  .nav-zone-slot:empty { display: none; }
   .nav-collapse-toggle[aria-expanded="true"] { background: rgba(250,204,21,0.16); border-color: rgba(250,204,21,0.4); color: #fde68a; }
 </style>
 {% if not hide_dragon_logo %}
 <div class="dragon-nav">
-	  <a href="{% if club_dashboard_url %}{{ club_dashboard_url }}{% elif active_team %}{% url 'dashboard-home' %}?team={{ active_team.id }}{% elif home_url %}{{ home_url }}{% elif workspace_entry_url %}{{ workspace_entry_url }}{% else %}{% url 'dashboard-home' %}{% endif %}" class="dragon-link" title="Volver al inicio">
+	  {% comment %}El logo va a INICIO, la misma pantalla que el boton Inicio de la barra. Antes
+	  apuntaba al panel del club, que no es donde uno espera aterrizar al pulsar el logo. Para
+	  quien no sea cuerpo tecnico se mantiene su propia entrada.{% endcomment %}
+	  <a href="{% if can_access_staff|default:False %}{% url 'coach-detail' %}{% if active_team %}?team={{ active_team.id }}{% endif %}{% elif home_url %}{{ home_url }}{% elif workspace_entry_url %}{{ workspace_entry_url }}{% else %}{% url 'dashboard-home' %}{% endif %}" class="dragon-link" title="Ir a Inicio">
 	    <img src="{% static 'football/images/2j-icon.svg' %}" alt="Segunda Jugada · 2J" loading="lazy" />
 	  </a>
 </div>
@@ -209,6 +218,10 @@
     {% comment %}El selector de tema vivia dentro del menu heredado, que esta
     desactivado por defecto (show_legacy_nav_menu): no habia forma de llegar a el.
     Va aqui, junto a la temporada, que es la otra preferencia siempre visible.{% endcomment %}
+    {% comment %}Hueco donde _zone_subnav.html mete su menu: las secciones de la zona dejan de ser
+    una segunda fila de pestanas debajo y pasan a un desplegable aqui, al lado de Buscar. Si la
+    pagina no incluye el sub-nav, el hueco se queda vacio y no ocupa nada.{% endcomment %}
+    <span class="nav-zone-slot" id="zone-menu-slot"></span>
     {% include 'football/includes/_search_button.html' %}
     {% include 'football/includes/_theme_picker.html' %}
   </div>

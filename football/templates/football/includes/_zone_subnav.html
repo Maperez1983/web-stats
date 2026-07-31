@@ -1,22 +1,39 @@
-{% comment %}Sub-navegación por zona (estilo FM): pon las vistas de cada zona a un clic, fuera del
-cajón "Informes". Uso: {% include 'football/includes/_zone_subnav.html' with zone='equipo' %}.
-Auto-resalta la página activa con nav_url_name (global). Seguro si falta: solo no resalta.{% endcomment %}
+{% comment %}Secciones de la zona. Uso: {% include 'football/includes/_zone_subnav.html' with zone='equipo' %}.
+Auto-resalta la página activa con nav_url_name (global). Seguro si falta: solo no resalta.
+
+Antes era una SEGUNDA FILA de pestañas debajo de la barra: dos niveles de pastillas apilados que
+se leían como si fueran lo mismo y empujaban el contenido hacia abajo. Ahora es un desplegable
+que se coloca arriba, junto a Buscar (el hueco #zone-menu-slot de dragon_nav). Si ese hueco no
+existe, se queda donde está y sigue funcionando.{% endcomment %}
 <style>
-  .zone-subnav{display:flex;gap:.35rem;overflow-x:auto;padding:.1rem 0 .8rem;margin:0 0 .4rem;-webkit-overflow-scrolling:touch;align-items:center;}
-  .zone-subnav::-webkit-scrollbar{height:0;}
-  .zone-subnav .zt{flex:0 0 auto;font-size:.64rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--fm-ink-3);padding-right:.35rem;}
-  /* Mismo IDIOMA que la barra global (pastilla redonda, versalitas, espaciado de
-     letra y acento dorado), en tamano menor: son dos niveles del mismo sistema,
-     no dos estilos distintos apilados. */
-  .zone-subnav a{flex:0 0 auto;font-size:.66rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
-    color:var(--fm-ink-2);background:rgba(148,163,184,.06);border:1px solid rgba(148,163,184,.20);
-    border-radius:999px;padding:.34rem .74rem;text-decoration:none;white-space:nowrap;line-height:1.15;}
-  .zone-subnav a:hover{border-color:rgba(244,180,0,.34);color:var(--fm-ink);}
-  .zone-subnav a.on{color:#fff7dd;background:rgba(244,180,0,.14);border-color:rgba(244,180,0,.62);}
+  .zone-subnav{display:flex;gap:.35rem;padding:.1rem 0 .8rem;margin:0 0 .4rem;align-items:center;}
+  .zone-subnav.is-docked{padding:0;margin:0;}
+  .zone-menu{position:relative;}
+  .zone-menu > summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:.4rem;
+    font-size:.66rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--fm-ink-2);
+    background:rgba(148,163,184,.06);border:1px solid rgba(148,163,184,.20);border-radius:999px;
+    padding:.34rem .74rem;white-space:nowrap;line-height:1.15;}
+  .zone-menu > summary::-webkit-details-marker{display:none;}
+  .zone-menu > summary:hover{border-color:rgba(244,180,0,.34);color:var(--fm-ink);}
+  .zone-menu[open] > summary{color:#fff7dd;background:rgba(244,180,0,.14);border-color:rgba(244,180,0,.62);}
+  .zone-menu .zone-menu-caret{opacity:.6;font-size:.6rem;}
+  .zone-menu-list{position:absolute;z-index:60;top:calc(100% + .35rem);left:0;min-width:230px;
+    display:flex;flex-direction:column;gap:.15rem;padding:.35rem;border-radius:14px;
+    background:var(--prod-panel-flat, rgba(14,23,39,.98));border:1px solid rgba(148,163,184,.24);
+    box-shadow:0 22px 48px rgba(2,6,23,.42);}
+  .zone-menu-list a{font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--fm-ink-2);text-decoration:none;padding:.42rem .6rem;border-radius:10px;white-space:nowrap;}
+  .zone-menu-list a:hover{background:rgba(148,163,184,.14);color:var(--fm-ink);}
+  .zone-menu-list a.on{color:#fff7dd;background:rgba(244,180,0,.14);}
+  .zone-menu-title{font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--fm-ink-3);padding:.25rem .6rem .35rem;}
 </style>
 {% if zone == 'equipo' %}
 <nav class="zone-subnav" aria-label="Equipo">
-  <span class="zt">👥 Equipo</span>
+  <details class="zone-menu">
+    <summary><span data-zone-current>👥 Equipo</span><span class="zone-menu-caret" aria-hidden="true">&#9662;</span></summary>
+    <div class="zone-menu-list">
+      <div class="zone-menu-title">👥 Equipo</div>
   <a href="{% url 'coach-roster' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'coach-roster' %}on{% endif %}">📋 Plantilla</a>
   <a href="{% url 'squad-planner' %}" class="{% if request.resolver_match.url_name == 'squad-planner' %}on{% endif %}">🧩 Planificador</a>
   <a href="{% url 'medical-center' %}" class="{% if request.resolver_match.url_name == 'medical-center' %}on{% endif %}">🩺 Centro médico</a>
@@ -24,39 +41,64 @@ Auto-resalta la página activa con nav_url_name (global). Seguro si falta: solo 
   <a href="{% url 'development' %}" class="{% if request.resolver_match.url_name == 'development' %}on{% endif %}">📈 Desarrollo</a>
   <a href="{% url 'player-compare' %}" class="{% if request.resolver_match.url_name == 'player-compare' %}on{% endif %}">⚖️ Comparar</a>
   <a href="{% url 'team-page' %}" class="{% if request.resolver_match.url_name == 'team-page' %}on{% endif %}">🏳️ Ficha equipo</a>
+    </div>
+  </details>
 </nav>
 {% elif zone == 'tactica' %}
 <nav class="zone-subnav" aria-label="Táctica">
-  <span class="zt">♟️ Táctica</span>
+  <details class="zone-menu">
+    <summary><span data-zone-current>♟️ Táctica</span><span class="zone-menu-caret" aria-hidden="true">&#9662;</span></summary>
+    <div class="zone-menu-list">
+      <div class="zone-menu-title">♟️ Táctica</div>
   <a href="{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'coach-tactics' %}on{% endif %}">✏️ Pizarra</a>
   <a href="{% url 'tactics-roles' %}" class="{% if request.resolver_match.url_name == 'tactics-roles' %}on{% endif %}">♟️ Roles y encaje</a>
+    </div>
+  </details>
 </nav>
 {% elif zone == 'entreno' %}
 <nav class="zone-subnav" aria-label="Entrenamiento">
-  <span class="zt">🏋️ Entrenamiento</span>
+  <details class="zone-menu">
+    <summary><span data-zone-current>🏋️ Entrenamiento</span><span class="zone-menu-caret" aria-hidden="true">&#9662;</span></summary>
+    <div class="zone-menu-list">
+      <div class="zone-menu-title">🏋️ Entrenamiento</div>
   <a href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'sessions' %}on{% endif %}">📆 Sesiones</a>
   <a href="{% url 'session-library' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'session-library' %}on{% endif %}">📚 Biblioteca</a>
   <a href="{% url 'sessions-task-library' %}" class="{% if request.resolver_match.url_name == 'sessions-task-library' %}on{% endif %}">🎨 Recursos</a>
   <a href="{% url 'training-load' %}" class="{% if request.resolver_match.url_name == 'training-load' %}on{% endif %}">🗓️ Carga semanal</a>
+    </div>
+  </details>
 </nav>
 {% elif zone == 'partido' %}
 <nav class="zone-subnav" aria-label="Partido">
-  <span class="zt">⚽ Partido</span>
+  <details class="zone-menu">
+    <summary><span data-zone-current>⚽ Partido</span><span class="zone-menu-caret" aria-hidden="true">&#9662;</span></summary>
+    <div class="zone-menu-list">
+      <div class="zone-menu-title">⚽ Partido</div>
   <a href="{% url 'match-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'match-hub' %}on{% endif %}">⚽ Partido</a>
   <a href="{% url 'coach-matches' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'coach-matches' %}on{% endif %}">📅 Calendario</a>
   <a href="{% url 'convocation' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'convocation' %}on{% endif %}">📋 Convocatoria</a>
   <a href="{% url 'initial-eleven' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'initial-eleven' %}on{% endif %}">👕 11 inicial</a>
   <a href="{% url 'match-action-page' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'match-action-page' %}on{% endif %}">⏱️ Registro</a>
+    </div>
+  </details>
 </nav>
 {% elif zone == 'analisis' %}
 <nav class="zone-subnav" aria-label="Análisis">
-  <span class="zt">🎥 Análisis</span>
+  <details class="zone-menu">
+    <summary><span data-zone-current>🎥 Análisis</span><span class="zone-menu-caret" aria-hidden="true">&#9662;</span></summary>
+    <div class="zone-menu-list">
+      <div class="zone-menu-title">🎥 Análisis</div>
   <a href="{% url 'analysis' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'analysis' %}on{% endif %}">🎥 Análisis</a>
   <a href="{% url 'analysis-video-inbox' %}" class="{% if request.resolver_match.url_name == 'analysis-video-inbox' %}on{% endif %}">📥 Bandeja de vídeo</a>
+    </div>
+  </details>
 </nav>
 {% elif zone == 'club' %}
 <nav class="zone-subnav" aria-label="Club">
-  <span class="zt">🏛️ Club</span>
+  <details class="zone-menu">
+    <summary><span data-zone-current>🏛️ Club</span><span class="zone-menu-caret" aria-hidden="true">&#9662;</span></summary>
+    <div class="zone-menu-list">
+      <div class="zone-menu-title">🏛️ Club</div>
   <a href="{% url 'club-page' %}" class="{% if request.resolver_match.url_name == 'club-page' %}on{% endif %}">🏛️ Ficha del club</a>
   <a href="{% url 'team-page' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'team-page' %}on{% endif %}">🏳️ Ficha del equipo</a>
   <a href="{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'staff-directory' %}on{% endif %}">👔 Staff</a>
@@ -64,20 +106,61 @@ Auto-resalta la página activa con nav_url_name (global). Seguro si falta: solo 
   {% if can_manage_workspace %}<a href="{% url 'player-portal-settings' %}" class="{% if request.resolver_match.url_name == 'player-portal-settings' %}on{% endif %}">📱 Portal del jugador</a>{% endif %}
   <a href="{% url 'club-onboarding' %}" class="{% if request.resolver_match.url_name == 'club-onboarding' %}on{% endif %}">⚙️ Configuración</a>
   {% if request.user.is_staff or request.user.is_superuser %}<a href="{% url 'platform-overview' %}" class="{% if request.resolver_match.url_name == 'platform-overview' %}on{% endif %}">🛠️ Gobierno</a>{% endif %}
+    </div>
+  </details>
 </nav>
 {% elif zone == 'entrenador' %}
 <nav class="zone-subnav" aria-label="Entrenador">
-  <span class="zt">🧑‍🏫 Entrenador</span>
+  <details class="zone-menu">
+    <summary><span data-zone-current>🧑‍🏫 Entrenador</span><span class="zone-menu-caret" aria-hidden="true">&#9662;</span></summary>
+    <div class="zone-menu-list">
+      <div class="zone-menu-title">🧑‍🏫 Entrenador</div>
   <a href="{% url 'coach-detail' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'coach-detail' %}on{% endif %}">🏠 Inicio</a>
   <a href="{% url 'coach-cards' %}" class="{% if request.resolver_match.url_name == 'coach-cards' %}on{% endif %}">🗂️ Áreas</a>
   <a href="{% url 'coach-inbox' %}" class="{% if request.resolver_match.url_name == 'coach-inbox' %}on{% endif %}">📥 Bandeja</a>
+    </div>
+  </details>
 </nav>
 {% elif zone == 'direccion' %}
 <nav class="zone-subnav" aria-label="Dirección">
-  <span class="zt">🔎 Dirección</span>
+  <details class="zone-menu">
+    <summary><span data-zone-current>🔎 Dirección</span><span class="zone-menu-caret" aria-hidden="true">&#9662;</span></summary>
+    <div class="zone-menu-list">
+      <div class="zone-menu-title">🔎 Dirección</div>
   <a href="{% url 'scouting-board' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'scouting-board' %}on{% endif %}">🔎 Ojeo</a>
   <a href="{% url 'scouting-shortlist' %}" class="{% if request.resolver_match.url_name == 'scouting-shortlist' %}on{% endif %}">🎯 Shortlist</a>
   <a href="{% url 'rival-players-index' %}" class="{% if request.resolver_match.url_name == 'rival-players-index' %}on{% endif %}">🛡️ Plantillas rivales</a>
   <a href="{% url 'reports-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'reports-hub' %}on{% endif %}">📊 Informes</a>
+    </div>
+  </details>
 </nav>
 {% endif %}
+
+<script>
+(() => {
+  // El menu vive arriba, junto a Buscar. dragon_nav deja el hueco; si no esta (paginas que no
+  // pintan la barra), se queda donde esta y funciona igual.
+  const nav = document.querySelector('.zone-subnav');
+  if (!nav) return;
+  const slot = document.getElementById('zone-menu-slot');
+  if (slot && !slot.contains(nav)) {
+    slot.appendChild(nav);
+    nav.classList.add('is-docked');
+  }
+  // El boton dice DONDE ESTAS, no solo la zona: "Entrenamiento" a secas no distingue Sesiones de
+  // Biblioteca, que era medio problema de las pestanas.
+  const current = nav.querySelector('.zone-menu-list a.on');
+  const label = nav.querySelector('[data-zone-current]');
+  if (current && label) label.textContent = current.textContent.trim();
+  // Cerrar al pulsar fuera o con Escape: un desplegable abierto tapando la pagina molesta mas
+  // que la fila que quitamos.
+  const details = nav.querySelector('details.zone-menu');
+  if (!details) return;
+  document.addEventListener('click', (ev) => {
+    if (details.open && !details.contains(ev.target)) details.open = false;
+  });
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && details.open) details.open = false;
+  });
+})();
+</script>
