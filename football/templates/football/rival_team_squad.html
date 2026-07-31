@@ -27,6 +27,15 @@
       .rs-meta { color:#94a3b8; font-size:.76rem; margin-top:.15rem; }
       .rs-num { color:#64748b; font-weight:900; min-width:1.6rem; text-align:center; }
       .rs-known { color:#6ee7b7; font-size:.7rem; font-weight:800; }
+      /* Modo claro: estas tarjetas fijan su propio fondo oscuro (#0f172a) mientras el
+         texto ya sigue al tema, asi que el nombre quedaba del MISMO color que el fondo. */
+      :root[data-theme="light"] .rs-card { background:#ffffff; border-color:rgba(15,23,42,.12); }
+      :root[data-theme="light"] .rs-card:hover { background:#f8fafc; border-color:rgba(244,180,0,.45); }
+      :root[data-theme="light"] .rs-meta { color:rgba(15,23,42,.62); }
+      :root[data-theme="light"] .rs-num { color:rgba(15,23,42,.45); }
+      :root[data-theme="light"] .rs-ph { background:#eef2f7; border-color:rgba(15,23,42,.12); }
+      :root[data-theme="light"] .rs-line { color:rgba(15,23,42,.55); }
+      :root[data-theme="light"] .rs-known { color:#15803d; }
     </style>
   </head>
   <body class="prod-commercial">
