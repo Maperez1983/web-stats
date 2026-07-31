@@ -195,6 +195,14 @@
     <span class="nav-context-sep">·</span>
     <span class="nav-context-season">{{ active_club_season.label }}</span>
     {% endif %}
+    {% comment %}El selector de tema vivia dentro del menu heredado, que esta
+    desactivado por defecto (show_legacy_nav_menu): no habia forma de llegar a el.
+    Va aqui, junto a la temporada, que es la otra preferencia siempre visible.{% endcomment %}
+    <div class="nav-theme-picker" role="group" aria-label="Tema de la interfaz" data-help="Elige el aspecto: oscuro, claro o alto contraste.">
+      <button type="button" class="ntp-opt" data-theme-set="dark" title="Tema oscuro">🌙<span>Oscuro</span></button>
+      <button type="button" class="ntp-opt" data-theme-set="light" title="Tema claro">☀️<span>Claro</span></button>
+      <button type="button" class="ntp-opt" data-theme-set="hc" title="Alto contraste">🔆<span>Contraste</span></button>
+    </div>
   </div>
   {% endif %}
   {% with nav_path=request.path|default:'' nav_url_name=request.resolver_match.url_name|default:'' cdurl=club_dashboard_url|default:'' %}
@@ -236,12 +244,6 @@
       <button class="nav-command-btn nav-command-btn--panel" type="button" id="webstats-global-help" title="Guía rápida (Alt: guía general)">Guía</button>
       <button class="nav-command-btn nav-command-btn--panel" type="button" data-webstats-help-mode-toggle data-help="Activa o desactiva las explicaciones breves de los botones visibles." title="Mostrar explicación de botones">Explicar botones</button>
       <button class="nav-command-btn nav-command-btn--panel" type="button" data-webstats-demo-mode-toggle data-help="Activa modo muestra: puedes tocar botones para aprender sin navegar, guardar ni enviar cambios reales." title="Modo muestra">Modo muestra</button>
-      <div class="nav-theme-picker" role="group" aria-label="Tema de la interfaz" data-help="Elige el aspecto: oscuro, claro o alto contraste.">
-        <span class="ntp-label">Tema</span>
-        <button type="button" class="ntp-opt" data-theme-set="dark" title="Oscuro">🌙<span>Oscuro</span></button>
-        <button type="button" class="ntp-opt" data-theme-set="light" title="Claro">☀️<span>Claro</span></button>
-        <button type="button" class="ntp-opt" data-theme-set="hc" title="Alto contraste">🔆<span>Contraste</span></button>
-      </div>
       <button class="nav-command-btn nav-command-btn--panel" type="button" id="webstats-density-toggle" title="Cambiar densidad (Normal/Compacta)"><span>Densidad</span></button>
       <button type="button" class="nav-command-btn nav-command-btn--panel" data-command-palette>Buscar / Ir a…</button>
       <button type="button" class="nav-command-btn nav-command-btn--panel" data-webstats-shortcuts>Atajos</button>

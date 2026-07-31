@@ -1642,22 +1642,14 @@ body.prod-commercial .ws-presentation-exit button {
    Antes era un boton ciclico cuya etiqueta mostraba el tema ACTUAL, asi que no
    se sabia ni que opciones habia ni cual estaba puesta. */
 body.prod-commercial .nav-theme-picker {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  width: 100%;
-  padding: 0.4rem 0.5rem;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  background: rgba(255, 255, 255, 0.03);
-}
-body.prod-commercial .nav-theme-picker .ntp-label {
-  font-size: 0.6rem;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--prod-muted);
-  margin-right: auto;
+  gap: 0.2rem;
+  margin-left: 0.6rem;
+  padding: 0.16rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.20);
+  background: rgba(148, 163, 184, 0.06);
 }
 body.prod-commercial .nav-theme-picker .ntp-opt {
   display: inline-flex;
