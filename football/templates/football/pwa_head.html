@@ -198,7 +198,7 @@ sin cargarlo, asi que la identidad se aplicaba a medias. Aqui lo ve TODA la app.
    vista previa tiene que ser FIEL, y con el lanzador puesto el staff vería un botón que el
    jugador no tiene. En el resto de páginas la variable no existe y no estorba.
 {% endcomment %}
-{% if can_access_staff and not is_player_readonly %}
+{% if can_access_staff and not is_player_readonly and not hide_global_guard_widget %}
 <script>
   (function () {
     const launcherId = 'global-guard-fallback-launcher';

@@ -1127,19 +1127,20 @@
     <main class="shell">
       {% include 'football/includes/dragon_nav.html' %}
       {% include 'football/includes/_zone_subnav.html' with zone='club' %}
-      <div class="brand-rail">
-        <div class="product-brand">
-          <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J Football Intelligence" style="width:220px;height:auto;" />
-        </div>
-        <span class="product-brand-badge">Segunda Jugada · Football Intelligence</span>
-      </div>
+      {% comment %}El logotipo grande salia DEBAJO del de la barra: dos marcas apiladas en la
+      misma cabecera. La identidad ya la pone la barra global.{% endcomment %}
       <section class="hero">
         <div class="hero-copy">
           <div class="hero-topline">
 	            <div class="hero-title-block">
               <div class="hero-kicker">Gobierno y control</div>
 	              
-	              <h1 style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>Gobierno del club</span></h1>
+	              {% comment %}La barra de colores va FUERA del <h1>: el partial trae su propio
+	              <style>, y dentro del titulo acababa formando parte del texto del encabezado.{% endcomment %}
+	              <div style="display:flex;align-items:center;gap:.6rem;">
+	                {% include 'football/includes/_kit_bar.html' %}
+	                <h1 style="margin:0;">Gobierno del club</h1>
+	              </div>
 	              <p>Vista de control para revisar el estado de los clubes, entrar a sus fichas y gestionar la configuración global sin mezclarlo con la operación diaria.</p>
                 <div class="hero-pills">
                   <span class="hero-pill">Clubes</span>

@@ -870,6 +870,10 @@
     boton dentro del contenido o con el boton atras del navegador.{% endcomment %}
     {% include 'football/includes/dragon_nav.html' %}
     <main class="shell">
+      {% comment %}Esta ficha la abre tambien el DUENO de un club, que no es administrador de la
+      plataforma: para el, esto es la configuracion de SU club, no el gobierno de una cartera de
+      clientes. El texto de proveedor solo se muestra a quien administra la plataforma.{% endcomment %}
+      {% if can_access_platform %}
       <div class="brand-strip">
         <img src="{% static 'football/images/2j-mark.svg' %}" alt="Segunda Jugada · 2J" />
         <div class="brand-strip-copy">
@@ -877,12 +881,13 @@
           <span>2J Platform · Gobierno de clientes, accesos y módulos activos.</span>
         </div>
       </div>
+      {% endif %}
       <section class="hero">
 	        <div class="hero-top">
 	          <div>
 	            <div class="chip">{{ workspace.get_kind_display }}</div>
 	            <h1 style="margin-top:0.55rem;">{{ workspace.name }}</h1>
-	            <p>Ficha de gobierno del club. Aquí defines quién entra y qué módulos y entregables tiene activos este espacio; la operativa diaria se realiza dentro del propio club.</p>
+	            <p>{% if can_access_platform %}Ficha de gobierno del club. Aquí defines quién entra y qué módulos y entregables tiene activos este espacio; la operativa diaria se realiza dentro del propio club.{% else %}Configuración de tu club: quién entra, qué módulos y entregables están activos y los datos que heredan tus categorías. El día a día se hace dentro del club.{% endif %}</p>
             <div class="hero-subline">
               <span class="sub-chip">Slug · {{ workspace.slug }}</span>
               <span class="sub-chip">{% if workspace.owner_user %}Propietario · {{ workspace.owner_user.username }}{% else %}Sin propietario{% endif %}</span>

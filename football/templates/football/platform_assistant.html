@@ -7,7 +7,7 @@
     <title>Segunda Jugada · Asistente</title>
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
-    {% include 'football/pwa_head.html' %}
+    {% include 'football/pwa_head.html' with hide_global_guard_widget=1 %}
     <style>
       /* Modo claro: esta zona nunca se adapto y se pintaba con literales de tema oscuro sobre
          el fondo claro del producto (22 textos por debajo del minimo, tres invisibles). Los
@@ -376,7 +376,9 @@
   <body class="prod-commercial">
     {% comment %}Sin barra, estas pantallas eran un callejon sin salida: solo se salia por un
     boton dentro del contenido o con el boton atras del navegador.{% endcomment %}
-    {% include 'football/includes/dragon_nav.html' %}
+    {% comment %}Sin el flotante: esta pantalla YA es el asistente, tenerlo encima duplicado
+    solo tapa contenido.{% endcomment %}
+    {% include 'football/includes/dragon_nav.html' with hide_global_guard_widget=1 %}
     <div class="shell">
       <header class="topbar">
         <div class="topbar-copy">
