@@ -3994,8 +3994,11 @@
 			      if (!btn) return;
 			      event.preventDefault();
 			      tokenGlobalStyle = normalizeTokenStyle(btn.dataset.globalTokenStyle);
+		      tokenGlobalStyleUserSelected = true;
+		      tokenGlobalStyleStored = true;
 		      try { window.localStorage?.setItem(TOKEN_STYLE_STORAGE_KEY, tokenGlobalStyle); } catch (e) { /* ignore */ }
 		      syncTokenGlobalStyleUi();
+		      try { applyGlobalTokenStyleToCanvas(tokenGlobalStyle); } catch (e) { /* ignore */ }
 		      setStatus(`Estilo de fichas: ${tokenStyleLabel(tokenGlobalStyle)}.`);
 		      // Refresca el banco de jugadores para que el estilo se vea inmediatamente.
 			      runWhenIdle(() => {
@@ -4077,12 +4080,13 @@
 		      return kit2dCanvasImagesBySlot[slot] || kit2dCanvasImagesBySlot.home || kit2dEditorImagesBySlot[slot] || kit2dEditorImagesBySlot.home || kit2dEditorImageEl;
 		    };
 		    const applyKit2dDefaultTokenStyle = () => {
-		      if (!tokenGlobalStyleStored || tokenGlobalStyle === 'disk') {
-		        tokenGlobalStyle = 'jersey';
-		        tokenGlobalStyleStored = true;
-		        try { window.localStorage?.setItem(TOKEN_STYLE_STORAGE_KEY, tokenGlobalStyle); } catch (e) { /* ignore */ }
-		        try { syncTokenGlobalStyleUi(); } catch (e) { /* ignore */ }
-		      }
+		      // Solo es un DEFECTO: si el entrenador ya eligió estilo, no se le toca.
+		      // (Antes la condición incluía `|| tokenGlobalStyle === 'disk'`, así que la CHAPA era el
+		      //  único estilo tratado como "sin elegir" y se convertía sola en camiseta al recargar.)
+		      if (tokenGlobalStyleUserSelected || tokenGlobalStyleStored) return;
+		      tokenGlobalStyle = 'jersey';
+		      tokenGlobalStyleStored = true;
+		      try { syncTokenGlobalStyleUi(); } catch (e) { /* ignore */ }
 		    };
 		    const loadKit2dSlotImage = (slot, url, target = 'editor') => {
 		      if (!url) return;
@@ -5907,6 +5911,18 @@
 		        try { fn(node); } catch (e) { /* ignore */ }
 		        if (Array.isArray(node?._objects)) node._objects.forEach((child) => walkObjects(child, fn));
 		      };
+	      // La chapa con escudo es una IMAGEN (chapa_*.png) que YA trae el color de la equipación
+	      // horneado. Recolorearla no aporta nada y, peor, el fallback de abajo acababa pintando un
+	      // aro decorativo (token_face_ring) que va ENCIMA del PNG: un disco liso tapando el escudo.
+	      let usesChapaImage = false;
+	      walkObjects(group, (child) => {
+	        if (!child || child.type !== 'image') return;
+	        if (safeText(child?.data?.role) === 'token_base') usesChapaImage = true;
+	      });
+	      if (usesChapaImage) {
+	        group.dirty = true;
+	        return;
+	      }
 	      const stripeRects = [];
 	      const paintableStripes = [];
 	      walkObjects(group, (child) => {
@@ -5930,10 +5946,16 @@
 	            child.set({ fill: colorHex });
 	          });
 		        } else {
-		          // Portero u otros tokens sin franjas: intentamos recolorear el círculo principal.
-		          const circles = [];
-		          walkObjects(group, (child) => { if (child?.type === 'circle') circles.push(child); });
-		          const target = circles.length > 1 ? circles[1] : circles[0];
+		          // Portero u otros tokens sin franjas: recolorea el círculo de relleno POR ROL.
+		          // (Antes se cogía circles[1] a ciegas, contando por posición: en cuanto cambió el
+		          //  orden de capas ese índice dejó de ser el disco base y pasó a ser un aro de adorno.)
+		          const fills = [];
+		          walkObjects(group, (child) => {
+		            if (!child || child.type !== 'circle') return;
+		            const role = safeText(child?.data?.role);
+		            if (role === 'token_fill' || role === 'token_base') fills.push(child);
+		          });
+		          const target = fills[0] || null;
 		          if (target) target.set({ fill: colorHex });
 		        }
 		        // Asegura que el número/texto también cambia con el color.
@@ -7868,12 +7890,13 @@
 		      } catch (e) { /* ignore */ }
 		    };
 
-		    const setActiveTokenStyle = (rawStyle) => {
-		      const active = activeInspectableObject();
-		      if (!active || !isTokenGroup(active)) return;
+		    const restyleTokenObject = (target, rawStyle, opts = {}) => {
+		      const silent = opts.silent === true;
+		      const active = target;
+		      if (!active || !isTokenGroup(active)) return false;
 		      if (active?.data?.locked) {
-		        setStatus('Elemento bloqueado. Usa “Desbloquear” para editarlo.', true);
-		        return;
+		        if (!silent) setStatus('Elemento bloqueado. Usa “Desbloquear” para editarlo.', true);
+		        return false;
 		      }
 		      const nextStyle = normalizeTokenStyle(rawStyle);
 		      const tokenKind = safeText(active?.data?.token_kind);
@@ -7893,9 +7916,9 @@
 		        role: safeText(active?.data?.token_role),
 		      };
 		      const factory = playerTokenFactory(tokenKind || 'player_local', player, { style: nextStyle, ...palette });
-		      if (typeof factory !== 'function') return;
+		      if (typeof factory !== 'function') return false;
 		      const fresh = factory(center.x, center.y);
-		      if (!fresh) return;
+		      if (!fresh) return false;
 
 		      const prevData = active.data || {};
 		      const objects = canvas.getObjects() || [];
@@ -7928,8 +7951,30 @@
 		      updateTokenAppearance(fresh, { name: safeText(prevData.playerName), number: safeText(prevData.playerNumber) });
 		      applyTokenPalette(fresh, palette);
 		      keepTokenAtCenter(fresh, center);
-		      canvas.setActiveObject(fresh);
-		      commitObjectChange(`Token: ${tokenStyleLabel(nextStyle)}.`);
+		      if (opts.activate !== false) canvas.setActiveObject(fresh);
+		      if (!silent) commitObjectChange(`Token: ${tokenStyleLabel(nextStyle)}.`);
+		      return true;
+		    };
+
+		    const setActiveTokenStyle = (rawStyle) => restyleTokenObject(activeInspectableObject(), rawStyle);
+
+		    // Cambiar el estilo global (Chapa/Camiseta/Foto/Avatar) tiene que repintar TAMBIÉN las
+		    // fichas ya colocadas. Antes solo se refrescaba el banco de jugadores, así que el botón
+		    // sacaba el aviso pero la pizarra no cambiaba: solo afectaba a lo que colocases después.
+		    const applyGlobalTokenStyleToCanvas = (rawStyle) => {
+		      const nextStyle = normalizeTokenStyle(rawStyle);
+		      const tokens = (canvas?.getObjects?.() || []).filter((obj) => isTokenGroup(obj) && !obj?.data?.locked);
+		      if (!tokens.length) return 0;
+		      let changed = 0;
+		      tokens.forEach((token) => {
+		        if (normalizeTokenStyle(token?.data?.token_style) === nextStyle) return;
+		        if (restyleTokenObject(token, nextStyle, { activate: false, silent: true })) changed += 1;
+		      });
+		      if (!changed) return 0;
+		      try { canvas.discardActiveObject(); } catch (e) { /* ignore */ }
+		      try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+		      commitObjectChange(`Estilo de fichas: ${tokenStyleLabel(nextStyle)}.`);
+		      return changed;
 		    };
 
 		    const setActiveTokenKitSlot = (rawSlot) => {
@@ -34259,10 +34304,12 @@
           if (styleBtn) {
             event.preventDefault();
             tokenGlobalStyleUserSelected = true;
+            tokenGlobalStyleStored = true;
             tokenGlobalStyle = normalizeTokenStyle(styleBtn.dataset.bankStyle);
             try { window.localStorage?.setItem(TOKEN_STYLE_STORAGE_KEY, tokenGlobalStyle); } catch (e) { /* ignore */ }
             syncTokenGlobalStyleUi();
             renderPlayerBank();
+            try { applyGlobalTokenStyleToCanvas(tokenGlobalStyle); } catch (e) { /* ignore */ }
             setStatus(`Estilo de fichas: ${tokenStyleLabel(tokenGlobalStyle)}.`);
           }
         });
