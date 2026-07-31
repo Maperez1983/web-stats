@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  EJEMPLO de tarea programada de macOS para el agente de plantillas rivales.
+  Corre los lunes a las 9:00. Si el Mac estaba apagado o dormido a esa hora,
+  launchd la lanza en cuanto vuelve a estar disponible.
+
+  Instalar:
+    cp scripts/ejemplo-launchd-agente-rivales.plist ~/Library/LaunchAgents/es.segundajugada.agente-rivales.plist
+    (edita la ruta RUTA_DEL_REPOSITORIO dentro del fichero)
+    launchctl load ~/Library/LaunchAgents/es.segundajugada.agente-rivales.plist
+
+  Comprobar / quitar:
+    launchctl list | grep segundajugada
+    launchctl unload ~/Library/LaunchAgents/es.segundajugada.agente-rivales.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>es.segundajugada.agente-rivales</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>RUTA_DEL_REPOSITORIO/scripts/agente_rivales_semanal.sh</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Weekday</key><integer>1</integer>
+    <key>Hour</key><integer>9</integer>
+    <key>Minute</key><integer>0</integer>
+  </dict>
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>

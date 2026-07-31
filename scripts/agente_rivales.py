@@ -109,6 +109,7 @@ def main() -> int:
                     help="Codigos de equipo a NO importar, separados por coma (tu propio equipo). Ej: E282")
     ap.add_argument("--fuente", choices=["preferente", "universo"], default="preferente")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--guardar", default="", help="Escribe el JSON a un fichero en vez de enviarlo (para revisarlo antes).")
     args = ap.parse_args()
 
     if args.fuente == "universo":
@@ -117,7 +118,7 @@ def main() -> int:
         return 2
     if not args.competicion:
         raise SystemExit("Falta la competicion: --competicion o SJ_COMPETICION_URL.")
-    if not args.dry_run and not args.token:
+    if not args.dry_run and not args.guardar and not args.token:
         raise SystemExit("Falta el token: --token o SJ_INGEST_TOKEN (o usa --dry-run).")
 
     saltar = {c.strip().upper() for c in str(args.saltar or "").split(",") if c.strip()}
@@ -149,6 +150,11 @@ def main() -> int:
         raise SystemExit("No se pudo leer ninguna plantilla. Nada que enviar.")
 
     print(f"\nTotal: {total} jugadores · {total - sin_foto} con foto · {sin_foto} sin foto (saldra avatar)")
+    if args.guardar:
+        with open(args.guardar, "w", encoding="utf-8") as fh:
+            json.dump({"season": args.temporada, "skip_codes": sorted(saltar), "teams": payload_equipos}, fh, ensure_ascii=False)
+        print(f"Guardado en {args.guardar} (no se ha enviado nada).")
+        return 0
     if args.dry_run:
         print("Modo prueba: no se ha enviado nada.")
         return 0
