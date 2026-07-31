@@ -14591,6 +14591,15 @@ def _sanitize_username(value, *, max_len=150):
 
 
 @login_required
+def _usuario_del_post(request, campo="user_id"):
+    """Usuario referido por el formulario, o ValueError. Repetido en 4 sitios de Gobierno."""
+    user_id = _parse_int(request.POST.get(campo))
+    user_obj = User.objects.filter(id=user_id).first() if user_id else None
+    if not user_obj:
+        raise ValueError("Usuario no encontrado.")
+    return user_obj
+
+
 def platform_overview_page(request):
     if not _can_access_platform(request.user):
         return HttpResponse("No tienes permisos para acceder a la plataforma.", status=403)
@@ -14966,13 +14975,10 @@ def platform_overview_page(request):
         elif form_action == "platform_user_invite_create":
             active_tab = "users"
             users_subtab = "list"
-            user_id = _parse_int(request.POST.get("user_id"))
             validity_days = _parse_int(request.POST.get("valid_days")) or 7
             validity_days = max(1, min(validity_days, 30))
-            user_obj = User.objects.filter(id=user_id).first() if user_id else None
             try:
-                if not user_obj:
-                    raise ValueError("Usuario no encontrado.")
+                user_obj = _usuario_del_post(request)
                 UserInvitation.objects.filter(user=user_obj, is_active=True, accepted_at__isnull=True).update(
                     is_active=False
                 )
@@ -15040,11 +15046,8 @@ def platform_overview_page(request):
         elif form_action == "platform_user_toggle_active":
             active_tab = "users"
             users_subtab = "list"
-            user_id = _parse_int(request.POST.get("user_id"))
-            user_obj = User.objects.filter(id=user_id).first() if user_id else None
             try:
-                if not user_obj:
-                    raise ValueError("Usuario no encontrado.")
+                user_obj = _usuario_del_post(request)
                 user_obj.is_active = not bool(user_obj.is_active)
                 role_value = _get_user_role(user_obj)
                 if not user_obj.is_active and role_value == AppUserRole.ROLE_ADMIN:
@@ -15060,11 +15063,8 @@ def platform_overview_page(request):
         elif form_action == "platform_user_delete":
             active_tab = "users"
             users_subtab = "list"
-            user_id = _parse_int(request.POST.get("user_id"))
-            user_obj = User.objects.filter(id=user_id).first() if user_id else None
             try:
-                if not user_obj:
-                    raise ValueError("Usuario no encontrado.")
+                user_obj = _usuario_del_post(request)
                 owned_club_workspace = Workspace.objects.filter(kind=Workspace.KIND_CLUB, owner_user=user_obj).first()
                 if owned_club_workspace:
                     raise ValueError(

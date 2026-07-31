@@ -1011,7 +1011,7 @@ form.workspace-form {
 	                    {{ workspace.platform_category_count|default:0 }} categorías · {{ workspace.platform_player_count|default:0 }} jugadores
 	                  </div>
 	                </div>
-	                <a class="link-btn" href="{% url 'platform-workspace-detail' workspace.id %}">Abrir ficha</a>
+	                <a class="link-btn" href="{% url 'platform-workspace-detail' workspace.id %}">Configurar</a>
 	              </div>
 	              {% empty %}
 	              <div class="user-row"><div>Sin clubes todavía.</div></div>
@@ -1164,8 +1164,10 @@ form.workspace-form {
               <div class="workspace-note">{{ workspace.notes|truncatechars:180 }}</div>
               {% endif %}
 	              <div class="actions-row">
-	                <a class="link-btn" href="{% url 'platform-workspace-enter' workspace.id %}">Entrar</a>
-	                <a class="link-btn" href="{% url 'platform-workspace-detail' workspace.id %}">Abrir ficha</a>
+	                {% comment %}Dos acciones distintas: una te mete a trabajar en el club y la otra
+	                abre su configuracion. Se llamaban "Entrar" y "Abrir ficha", que sonaba a lo mismo.{% endcomment %}
+	                <a class="link-btn" href="{% url 'platform-workspace-enter' workspace.id %}">Entrar al club</a>
+	                <a class="link-btn" href="{% url 'platform-workspace-detail' workspace.id %}">Configurar</a>
 	              </div>
             </article>
 	            {% empty %}
