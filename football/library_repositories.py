@@ -12,6 +12,14 @@ INBOX_MICROCYCLE_WEEK_END = date(2099, 12, 31)
 INBOX_MICROCYCLE_TITLE = 'Sesiones sueltas (sin microciclo)'
 
 LIBRARY_MICROCYCLE_MARKER = '[2J_LIBRARY_MICROCYCLE]'
+# Semana centinela de la BIBLIOTECA DE TAREAS. Antes se creaba en la semana en curso REAL, y como
+# el get_or_create va por (equipo, semana), en cuanto exista un microciclo de verdad en esa semana
+# la biblioteca se lo encuentra y le pega su marcador: el microciclo real desaparece del
+# planificador y del informe, y sus sesiones quedan excluidas. Es el mismo destrozo que la
+# migracion 0214 tuvo que reparar para las plantillas de sesion. Fuera del calendario no molesta a
+# nadie. (2000-01-03 lo ocupa la biblioteca de plantillas de sesion.)
+LIBRARY_TASKS_MICROCYCLE_WEEK_START = date(2000, 1, 10)
+LIBRARY_TASKS_MICROCYCLE_WEEK_END = date(2000, 1, 16)
 TRASH_MICROCYCLE_WEEK_START = date(1970, 1, 1)
 TRASH_MICROCYCLE_WEEK_END = date(1970, 1, 7)
 TRASH_MICROCYCLE_TITLE = 'Papelera (sistema)'

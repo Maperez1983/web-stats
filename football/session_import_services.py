@@ -23,6 +23,8 @@ from .library_repositories import (
     INBOX_MICROCYCLE_WEEK_START,
     LIBRARY_MICROCYCLE_MARKER,
     LIBRARY_REPOSITORY_AI_TRAINER,
+    LIBRARY_TASKS_MICROCYCLE_WEEK_END,
+    LIBRARY_TASKS_MICROCYCLE_WEEK_START,
     LIBRARY_REPOSITORY_INTERACTIVE,
     LIBRARY_REPOSITORY_TRADITIONAL,
     normalize_library_repository,
@@ -1061,6 +1063,9 @@ def get_or_create_week_microcycle(*args, **kwargs):
     team = args[0] if args else kwargs.get('team')
     session_date = args[1] if len(args) > 1 else kwargs.get('session_date')
     title_hint = kwargs.get('title_hint', '')
+    # El texto de la nota lo pone quien llama: este helper lo usan tanto el import de PDF como el
+    # alta normal de sesiones, y decir "importada" en los dos sitios seria mentir.
+    notes = kwargs.get('notes', '(Sistema) Microciclo creado automáticamente desde sesión importada.')
     if not team or not session_date:
         return None
     week_start, week_end = week_bounds_for_date(session_date)
@@ -1077,7 +1082,7 @@ def get_or_create_week_microcycle(*args, **kwargs):
             week_start=week_start,
             week_end=week_end,
             status=TrainingMicrocycle.STATUS_DRAFT,
-            notes='(Sistema) Microciclo creado automáticamente desde sesión importada.',
+            notes=notes,
         )
     except Exception:
         return None
@@ -1224,24 +1229,34 @@ def get_or_create_library_session_with_repository(*args, **kwargs):
         LIBRARY_REPOSITORY_AI_TRAINER: 'IA-Trainer',
     }.get(repository, 'PDF')
 
-    microcycle, _ = TrainingMicrocycle.objects.get_or_create(
-        team=team,
-        week_start=week_start,
-        defaults={
-            'week_end': week_end,
-            'title': f'Biblioteca {scope_label}',
-            'objective': 'Repositorio de tareas (tradicionales, interactivas e IA-Trainer)',
-            'status': TrainingMicrocycle.STATUS_DRAFT,
-            'notes': f'{LIBRARY_MICROCYCLE_MARKER} Microciclo tecnico generado automaticamente para biblioteca.',
-        },
+    # Se busca por MARCADOR, no por semana. Buscarlo por (equipo, semana en curso) hacia que, en
+    # cuanto hubiera un microciclo real esa semana, la biblioteca se lo apropiara marcandolo: el
+    # microciclo de verdad desaparecia del planificador y del informe. Y el marcador solo se pone
+    # en microciclos que crea la propia biblioteca; NUNCA sobre uno que ya existia.
+    microcycle = (
+        TrainingMicrocycle.objects.filter(team=team, notes__contains=LIBRARY_MICROCYCLE_MARKER)
+        .order_by('week_start', 'id')
+        .first()
     )
-    try:
-        notes = str(getattr(microcycle, 'notes', '') or '')
-        if LIBRARY_MICROCYCLE_MARKER not in notes:
-            microcycle.notes = (notes + '\n' if notes else '') + f'{LIBRARY_MICROCYCLE_MARKER}'
-            microcycle.save(update_fields=['notes'])
-    except Exception:
-        pass
+    if microcycle is None:
+        # Compat: bibliotecas creadas antes de la semana centinela (van por titulo "Biblioteca ...").
+        microcycle = (
+            TrainingMicrocycle.objects.filter(team=team, title__istartswith='Biblioteca ')
+            .order_by('week_start', 'id')
+            .first()
+        )
+    if microcycle is None:
+        microcycle, _ = TrainingMicrocycle.objects.get_or_create(
+            team=team,
+            week_start=LIBRARY_TASKS_MICROCYCLE_WEEK_START,
+            defaults={
+                'week_end': LIBRARY_TASKS_MICROCYCLE_WEEK_END,
+                'title': f'Biblioteca {scope_label}',
+                'objective': 'Repositorio de tareas (tradicionales, interactivas e IA-Trainer)',
+                'status': TrainingMicrocycle.STATUS_DRAFT,
+                'notes': f'{LIBRARY_MICROCYCLE_MARKER} Microciclo tecnico generado automaticamente para biblioteca.',
+            },
+        )
     if repository == LIBRARY_REPOSITORY_TRADITIONAL:
         legacy_focus = f'Biblioteca PDF · {scope_label}'
         legacy = TrainingSession.objects.filter(microcycle=microcycle, focus__iexact=legacy_focus).order_by('-session_date', '-id').first()

@@ -49060,15 +49060,8 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
 
             elif planner_action == "create_session_plan":
                 microcycle_id = _parse_int(request.POST.get("plan_microcycle_id"))
-                microcycle = None
-                if microcycle_id:
-                    microcycle = TrainingMicrocycle.objects.filter(id=microcycle_id, team=primary_team).first()
-                    if not microcycle:
-                        raise ValueError("Microciclo no encontrado para crear la sesión.")
-                else:
-                    microcycle = _get_or_create_inbox_microcycle(primary_team)
-                    if not microcycle:
-                        raise ValueError("No se pudo preparar la bandeja de sesiones sueltas.")
+                # La fecha se lee ANTES que el microciclo: sin ella no se puede saber a que semana
+                # pertenece la sesion, y esa es justo la que decide su microciclo.
                 session_date_raw = str(request.POST.get("plan_session_date") or "").strip()
                 focus = str(request.POST.get("plan_session_focus") or "").strip()[:140]
                 if not session_date_raw or not focus:
@@ -49077,6 +49070,26 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
                     session_date = datetime.strptime(session_date_raw, "%Y-%m-%d").date()
                 except ValueError:
                     raise ValueError("Fecha de sesión no válida.")
+                microcycle = None
+                if microcycle_id:
+                    microcycle = TrainingMicrocycle.objects.filter(id=microcycle_id, team=primary_team).first()
+                    if not microcycle:
+                        raise ValueError("Microciclo no encontrado para crear la sesión.")
+                else:
+                    # Sin microciclo elegido, la sesion entra en el de SU SEMANA, creandolo si hace
+                    # falta. Antes caia siempre en la bandeja de sueltas, y como el planificador y
+                    # el informe excluyen esa bandeja, el equipo acababa con todas las sesiones
+                    # fuera de cualquier semana: el informe de microciclo salia vacio.
+                    microcycle = session_import_services.get_or_create_week_microcycle(
+                        primary_team,
+                        session_date,
+                        notes="(Sistema) Microciclo creado automáticamente al programar una sesión de esa semana.",
+                    )
+                    if not microcycle:
+                        # Ultimo recurso: la bandeja de sueltas, para no perder la sesion.
+                        microcycle = _get_or_create_inbox_microcycle(primary_team)
+                    if not microcycle:
+                        raise ValueError("No se pudo preparar el microciclo de la semana.")
                 if not _is_inbox_microcycle(microcycle):
                     if session_date < microcycle.week_start or session_date > microcycle.week_end:
                         raise ValueError("La fecha de la sesión debe estar dentro del microciclo.")
