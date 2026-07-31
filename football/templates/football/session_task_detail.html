@@ -3193,243 +3193,9 @@
             bookmarkBtn.disabled = false;
           }
         });
-        const syncTaskQueryState = ({ tab, editTab, format } = {}) => {
-          try {
-            const url = new URL(window.location.href);
-            if (tab) {
-              url.searchParams.set('tab', tab);
-              url.searchParams.delete('mode');
-            } else if (url.searchParams.has('tab')) {
-              url.searchParams.delete('tab');
-            }
-            if (editTab && tab === 'edit') {
-              url.searchParams.set('edit_tab', editTab);
-            } else {
-              url.searchParams.delete('edit_tab');
-            }
-            if (format) {
-              url.searchParams.set('format', format);
-            } else {
-              url.searchParams.delete('format');
-            }
-            window.history.replaceState({}, '', url.toString());
-          } catch (error) {
-            const params = new URLSearchParams(window.location.search || '');
-            if (tab) {
-              params.set('tab', tab);
-              params.delete('mode');
-            } else {
-              params.delete('tab');
-            }
-            if (editTab && tab === 'edit') {
-              params.set('edit_tab', editTab);
-            } else {
-              params.delete('edit_tab');
-            }
-            if (format) {
-              params.set('format', format);
-            } else {
-              params.delete('format');
-            }
-            const query = params.toString();
-            window.history.replaceState({}, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
-          }
-        };
-        const activeTaskEditTabFromServer = canEditTask ? "{{ active_task_edit_tab|default:'graphic'|escapejs }}" : 'graphic';
-        const activeTaskFormatFromServer = "{{ active_task_format_tab|default:'uefa'|escapejs }}";
-        const tabButtons = Array.from(document.querySelectorAll('[data-task-tab]'));
-        const editTabButtons = Array.from(document.querySelectorAll('[data-task-edit-tab]'));
-        const editTabPanels = Array.from(document.querySelectorAll('[data-task-edit-tab-panel]'));
-        const settingsTabButtons = Array.from(document.querySelectorAll('[data-task-settings-tab]'));
-        const settingsTabPanels = Array.from(document.querySelectorAll('[data-task-settings-pane]'));
-        const formatTabButtons = Array.from(document.querySelectorAll('[data-task-format-tab]'));
-        const formatTabPanels = Array.from(document.querySelectorAll('[data-task-format-panel]'));
-        const tabPanels = Array.from(document.querySelectorAll('[data-task-tab-panel]'));
-        const inlineEditor = document.getElementById('task-inline-editor');
-        const enterEditButton = document.getElementById('task-detail-enter-edit');
-        let activeTaskEditTab = activeTaskEditTabFromServer;
-        let activeTaskFormatTab = activeTaskFormatFromServer;
-        let activeTaskSettingsTab = 'sheet';
-        const syncTaskTab = (tabName, shouldScroll = false) => {
-          const nextTab = canEditTask && ['presentation', 'edit', 'export'].includes(tabName)
-            ? tabName
-            : (!canEditTask && ['presentation', 'export'].includes(tabName) ? tabName : 'presentation');
-          activeTaskTab = nextTab;
-          editorOpen = nextTab === 'edit';
-          isPresentationMode = nextTab !== 'edit';
-          try {
-            document.body.classList.toggle('is-presentation', nextTab !== 'edit');
-          } catch (error) {}
-          if (inlineEditor) inlineEditor.classList.toggle('is-open', nextTab === 'edit');
-          tabButtons.forEach((button) => {
-            const isActive = button.dataset.taskTab === nextTab;
-            button.classList.toggle('is-active', isActive);
-            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
-          });
-          tabPanels.forEach((panel) => {
-            const isActive = panel.dataset.taskTabPanel === nextTab;
-            panel.classList.toggle('is-active', isActive);
-          });
-          syncTaskQueryState({
-            tab: nextTab,
-            editTab: nextTab === 'edit' ? activeTaskEditTab : '',
-            format: activeTaskFormatTab,
-          });
-          scheduleDiagnosticsPublish();
-          if (nextTab === 'edit') {
-            window.requestAnimationFrame(() => {
-              try {
-                fitCanvasToContainer(true);
-                refreshLayerList();
-                canvas.renderAll();
-                scheduleDiagnosticsPublish();
-              } catch (error) {}
-            });
-          }
-          if (shouldScroll) {
-            const activePanel = document.querySelector(`[data-task-tab-panel="${nextTab}"]`);
-            activePanel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-          if (nextTab === 'edit' && canEditTask) {
-            syncTaskEditTab(activeTaskEditTab, false);
-          }
-        };
-        const syncTaskEditTab = (editTab, shouldScroll = false) => {
-          if (!canEditTask) return;
-          const nextEditTab = editTab === 'settings' ? 'settings' : 'graphic';
-          activeTaskEditTab = nextEditTab;
-          editTabButtons.forEach((button) => {
-            const isActive = button.dataset.taskEditTab === nextEditTab;
-            button.classList.toggle('is-active', isActive);
-            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
-          });
-          editTabPanels.forEach((panel) => {
-            const isActive = panel.dataset.taskEditTabPanel === nextEditTab;
-            panel.classList.toggle('is-active', isActive);
-            panel.hidden = !isActive;
-          });
-          if (inlineEditor) {
-            inlineEditor.classList.toggle('is-open', activeTaskTab === 'edit' && nextEditTab === 'graphic');
-            inlineEditor.setAttribute('aria-hidden', activeTaskTab === 'edit' && nextEditTab === 'graphic' ? 'false' : 'true');
-          }
-          if (activeTaskTab === 'edit') {
-            syncTaskQueryState({
-              tab: activeTaskTab,
-              editTab: nextEditTab,
-              format: activeTaskFormatTab,
-            });
-          }
-          scheduleDiagnosticsPublish();
-          if (shouldScroll) {
-            const activePanel = document.querySelector(`[data-task-edit-tab-panel="${nextEditTab}"]`);
-            activePanel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-          if (nextEditTab === 'graphic' && activeTaskTab === 'edit') {
-            window.requestAnimationFrame(() => {
-              try {
-                fitCanvasToContainer(true);
-                refreshLayerList();
-                canvas.renderAll();
-                scheduleDiagnosticsPublish();
-              } catch (error) {}
-            });
-          }
-        };
-        const syncTaskFormatTab = (formatTab) => {
-          const nextFormatTab = formatTab === 'club' ? 'club' : 'uefa';
-          const previousFormatTab = activeTaskFormatTab;
-          activeTaskFormatTab = nextFormatTab;
-          formatTabButtons.forEach((button) => {
-            const isActive = button.dataset.taskFormatTab === nextFormatTab;
-            button.classList.toggle('is-active', isActive);
-            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
-          });
-          formatTabPanels.forEach((panel) => {
-            const isActive = panel.dataset.taskFormatPanel === nextFormatTab;
-            panel.classList.toggle('is-active', isActive);
-            panel.hidden = !isActive;
-          });
-          syncTaskQueryState({
-            tab: activeTaskTab,
-            editTab: activeTaskTab === 'edit' ? activeTaskEditTab : '',
-            format: nextFormatTab,
-          });
-          // Si el panel del otro formato SI esta pintado, ya se ha intercambiado arriba: no se
-          // recarga nada. La recarga queda de respaldo para cuando ese panel no se pudo construir.
-          const targetPanelExists = formatTabPanels.some(
-            (panel) => panel.dataset.taskFormatPanel === nextFormatTab
-          );
-          if (activeTaskTab === 'presentation' && previousFormatTab !== nextFormatTab && !targetPanelExists) {
-            try {
-              const url = new URL(window.location.href);
-              url.searchParams.set('format', nextFormatTab);
-              window.location.href = url.toString();
-              return;
-            } catch (error) {
-              const query = new URLSearchParams(window.location.search || '');
-              query.set('format', nextFormatTab);
-              const separator = query.toString() ? '?' : '';
-              window.location.href = `${window.location.pathname}${separator}${query.toString()}`;
-              return;
-            }
-          }
-        };
-        const syncTaskSettingsTab = (tabName) => {
-          const nextTab = ['sheet', 'content', 'methodology', 'load'].includes(tabName) ? tabName : 'sheet';
-          activeTaskSettingsTab = nextTab;
-          settingsTabButtons.forEach((button) => {
-            const isActive = button.dataset.taskSettingsTab === nextTab;
-            button.classList.toggle('is-active', isActive);
-            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
-          });
-          settingsTabPanels.forEach((panel) => {
-            const isActive = panel.dataset.taskSettingsPane === nextTab;
-            panel.classList.toggle('is-active', isActive);
-            panel.hidden = !isActive;
-          });
-        };
-        tabButtons.forEach((button) => {
-          button.addEventListener('click', () => {
-            const directUrl = String(button.dataset.directUrl || '').trim();
-            if ((button.dataset.taskTab || '') === 'edit' && directUrl) {
-              window.location.href = directUrl;
-              return;
-            }
-            syncTaskTab(button.dataset.taskTab || 'presentation', true);
-          });
-        });
-        editTabButtons.forEach((button) => {
-          button.addEventListener('click', () => {
-            const directUrl = String(button.dataset.directUrl || '').trim();
-            if ((button.dataset.taskEditTab || '') === 'graphic' && directUrl) {
-              window.location.href = directUrl;
-              return;
-            }
-            syncTaskEditTab(button.dataset.taskEditTab || 'graphic', true);
-          });
-        });
-        settingsTabButtons.forEach((button) => {
-          button.addEventListener('click', () => {
-            syncTaskSettingsTab(button.dataset.taskSettingsTab || 'sheet');
-          });
-        });
-        formatTabButtons.forEach((button) => {
-          button.addEventListener('click', () => {
-            syncTaskFormatTab(button.dataset.taskFormatTab || 'uefa');
-          });
-        });
-        enterEditButton?.addEventListener('click', () => {
-          const directUrl = String(enterEditButton.dataset.directUrl || '').trim();
-          if (directUrl) {
-            window.location.href = directUrl;
-            return;
-          }
-          syncTaskTab('edit', true);
-          syncTaskEditTab('graphic', false);
-        });
-        syncTaskTab(activeTaskTab, false);
-        syncTaskFormatTab(activeTaskFormatTab, false);
-        syncTaskEditTab(activeTaskEditTab, false);
+        /* Las pestanas de la ficha (tab / edit_tab / format / configuracion) las gobierna un
+           unico controlador al final del documento, fuera de este IIFE: aqui no llegaria a
+           ejecutarse nada, porque el bloque entero sale por `if (!canvasEl) return;`. */
         let resizeTimer = null;
       window.addEventListener('resize', () => {
           clearTimeout(resizeTimer);
@@ -3712,6 +3478,15 @@
       })();
     </script>
     <script>
+      /* CONTROLADOR ÚNICO de las pestañas de la ficha de tarea: Presentación/Edición/Exportar,
+         Formato UEFA/Club, sub-pestañas de Edición y sub-pestañas de Configuración.
+
+         Vive FUERA del IIFE del editor Fabric a propósito: aquel arranca con
+         `if (!window.fabric) return;` y `if (!canvasEl) return;`, y hoy el lienzo
+         `#task-graphic-canvas` ya no está en la página (el editor va en un <iframe>), así que nada
+         de lo que hay dentro llega a ejecutarse. Antes había aquí un segundo bloque duplicado que
+         ataba los mismos botones dos veces; si vuelves a necesitar algo del editor, publícalo en
+         `window`, no dupliques estas funciones. */
       (() => {
         const canEditTask = "{{ can_edit_task|yesno:'true,false' }}" === 'true';
         const tabButtons = Array.from(document.querySelectorAll('[data-task-tab]'));
@@ -3720,80 +3495,173 @@
         const editTabPanels = Array.from(document.querySelectorAll('[data-task-edit-tab-panel]'));
         const formatTabButtons = Array.from(document.querySelectorAll('[data-task-format-tab]'));
         const formatTabPanels = Array.from(document.querySelectorAll('[data-task-format-panel]'));
+        const settingsTabButtons = Array.from(document.querySelectorAll('[data-task-settings-tab]'));
+        const settingsTabPanels = Array.from(document.querySelectorAll('[data-task-settings-pane]'));
         const enterEditButton = document.getElementById('task-detail-enter-edit');
         if (!tabButtons.length || !tabPanels.length) return;
 
         let activeTaskTab = "{{ active_task_tab|escapejs }}" || 'presentation';
-        let activeTaskEditTab = "{{ active_task_edit_tab|default:'graphic'|escapejs }}" || 'graphic';
+        let activeTaskEditTab = canEditTask ? ("{{ active_task_edit_tab|default:'graphic'|escapejs }}" || 'graphic') : 'graphic';
         let activeTaskFormatTab = "{{ active_task_format_tab|default:'uefa'|escapejs }}" || 'uefa';
+        let activeTaskSettingsTab = 'sheet';
 
-        const writeQueryState = () => {
+        /* La URL refleja el estado (?tab=&edit_tab=&format=) para poder compartir/recargar la vista.
+           `mode` es el parámetro viejo: se borra para que no compita con `tab`. */
+        const syncTaskQueryState = ({ tab, editTab, format } = {}) => {
           try {
             const url = new URL(window.location.href);
-            url.searchParams.set('tab', activeTaskTab);
-            if (activeTaskTab === 'edit') url.searchParams.set('edit_tab', activeTaskEditTab);
-            else url.searchParams.delete('edit_tab');
-            if (activeTaskFormatTab) url.searchParams.set('format', activeTaskFormatTab);
+            if (tab) {
+              url.searchParams.set('tab', tab);
+              url.searchParams.delete('mode');
+            } else {
+              url.searchParams.delete('tab');
+            }
+            if (editTab && tab === 'edit') {
+              url.searchParams.set('edit_tab', editTab);
+            } else {
+              url.searchParams.delete('edit_tab');
+            }
+            if (format) {
+              url.searchParams.set('format', format);
+            } else {
+              url.searchParams.delete('format');
+            }
             window.history.replaceState({}, '', url.toString());
-          } catch (e) { /* ignore */ }
+          } catch (error) {
+            const params = new URLSearchParams(window.location.search || '');
+            if (tab) {
+              params.set('tab', tab);
+              params.delete('mode');
+            } else {
+              params.delete('tab');
+            }
+            if (editTab && tab === 'edit') {
+              params.set('edit_tab', editTab);
+            } else {
+              params.delete('edit_tab');
+            }
+            if (format) {
+              params.set('format', format);
+            } else {
+              params.delete('format');
+            }
+            const query = params.toString();
+            window.history.replaceState({}, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
+          }
         };
 
-        const syncTaskEditTab = (nextTab, shouldScroll = false) => {
+        const syncTaskSettingsTab = (tabName) => {
+          const nextTab = ['sheet', 'content', 'methodology', 'load'].includes(tabName) ? tabName : 'sheet';
+          activeTaskSettingsTab = nextTab;
+          settingsTabButtons.forEach((button) => {
+            const isActive = button.dataset.taskSettingsTab === nextTab;
+            button.classList.toggle('is-active', isActive);
+            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+          });
+          settingsTabPanels.forEach((panel) => {
+            const isActive = panel.dataset.taskSettingsPane === nextTab;
+            panel.classList.toggle('is-active', isActive);
+            panel.hidden = !isActive;
+          });
+        };
+
+        const syncTaskEditTab = (editTab, shouldScroll = false) => {
           if (!canEditTask || !editTabButtons.length || !editTabPanels.length) return;
-          activeTaskEditTab = nextTab === 'settings' ? 'settings' : 'graphic';
+          const nextEditTab = editTab === 'settings' ? 'settings' : 'graphic';
+          activeTaskEditTab = nextEditTab;
           editTabButtons.forEach((button) => {
-            const isActive = button.dataset.taskEditTab === activeTaskEditTab;
+            const isActive = button.dataset.taskEditTab === nextEditTab;
             button.classList.toggle('is-active', isActive);
             button.setAttribute('aria-selected', isActive ? 'true' : 'false');
           });
           editTabPanels.forEach((panel) => {
-            const isActive = panel.dataset.taskEditTabPanel === activeTaskEditTab;
+            const isActive = panel.dataset.taskEditTabPanel === nextEditTab;
             panel.classList.toggle('is-active', isActive);
             panel.hidden = !isActive;
           });
-          writeQueryState();
+          if (activeTaskTab === 'edit') {
+            syncTaskQueryState({
+              tab: activeTaskTab,
+              editTab: nextEditTab,
+              format: activeTaskFormatTab,
+            });
+          }
           if (shouldScroll) {
-            document.querySelector(`[data-task-edit-tab-panel="${activeTaskEditTab}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            document.querySelector(`[data-task-edit-tab-panel="${nextEditTab}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }
         };
 
-        const syncTaskFormatTab = (nextTab) => {
-          activeTaskFormatTab = nextTab === 'club' ? 'club' : 'uefa';
+        const syncTaskFormatTab = (formatTab) => {
+          const nextFormatTab = formatTab === 'club' ? 'club' : 'uefa';
+          const previousFormatTab = activeTaskFormatTab;
+          activeTaskFormatTab = nextFormatTab;
           formatTabButtons.forEach((button) => {
-            const isActive = button.dataset.taskFormatTab === activeTaskFormatTab;
+            const isActive = button.dataset.taskFormatTab === nextFormatTab;
             button.classList.toggle('is-active', isActive);
             button.setAttribute('aria-selected', isActive ? 'true' : 'false');
           });
           formatTabPanels.forEach((panel) => {
-            const isActive = panel.dataset.taskFormatPanel === activeTaskFormatTab;
+            const isActive = panel.dataset.taskFormatPanel === nextFormatTab;
             panel.classList.toggle('is-active', isActive);
             panel.hidden = !isActive;
           });
-          writeQueryState();
+          syncTaskQueryState({
+            tab: activeTaskTab,
+            editTab: activeTaskTab === 'edit' ? activeTaskEditTab : '',
+            format: nextFormatTab,
+          });
+          // Si el panel del otro formato SI esta pintado, ya se ha intercambiado arriba: no se
+          // recarga nada. La recarga queda de respaldo para cuando ese panel no se pudo construir.
+          const targetPanelExists = formatTabPanels.some(
+            (panel) => panel.dataset.taskFormatPanel === nextFormatTab
+          );
+          if (activeTaskTab === 'presentation' && previousFormatTab !== nextFormatTab && !targetPanelExists) {
+            try {
+              const url = new URL(window.location.href);
+              url.searchParams.set('format', nextFormatTab);
+              window.location.href = url.toString();
+              return;
+            } catch (error) {
+              const query = new URLSearchParams(window.location.search || '');
+              query.set('format', nextFormatTab);
+              const separator = query.toString() ? '?' : '';
+              window.location.href = `${window.location.pathname}${separator}${query.toString()}`;
+              return;
+            }
+          }
         };
 
-        const syncTaskTab = (nextTab, shouldScroll = false) => {
-          const normalized = canEditTask && ['presentation', 'edit', 'export'].includes(nextTab)
-            ? nextTab
-            : (!canEditTask && ['presentation', 'export'].includes(nextTab) ? nextTab : 'presentation');
-          activeTaskTab = normalized;
-          document.body.classList.toggle('is-presentation', activeTaskTab !== 'edit');
+        const syncTaskTab = (tabName, shouldScroll = false) => {
+          const nextTab = canEditTask && ['presentation', 'edit', 'export'].includes(tabName)
+            ? tabName
+            : (!canEditTask && ['presentation', 'export'].includes(tabName) ? tabName : 'presentation');
+          activeTaskTab = nextTab;
+          try {
+            document.body.classList.toggle('is-presentation', nextTab !== 'edit');
+          } catch (error) {}
           tabButtons.forEach((button) => {
-            const isActive = button.dataset.taskTab === activeTaskTab;
+            const isActive = button.dataset.taskTab === nextTab;
             button.classList.toggle('is-active', isActive);
             button.setAttribute('aria-selected', isActive ? 'true' : 'false');
           });
           tabPanels.forEach((panel) => {
-            const isActive = panel.dataset.taskTabPanel === activeTaskTab;
+            const isActive = panel.dataset.taskTabPanel === nextTab;
             panel.classList.toggle('is-active', isActive);
           });
-          if (activeTaskTab === 'edit') syncTaskEditTab(activeTaskEditTab, false);
-          writeQueryState();
+          syncTaskQueryState({
+            tab: nextTab,
+            editTab: nextTab === 'edit' ? activeTaskEditTab : '',
+            format: activeTaskFormatTab,
+          });
+          if (nextTab === 'edit' && canEditTask) {
+            syncTaskEditTab(activeTaskEditTab, false);
+          }
           if (shouldScroll) {
-            document.querySelector(`[data-task-tab-panel="${activeTaskTab}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            document.querySelector(`[data-task-tab-panel="${nextTab}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }
         };
 
+        /* `data-direct-url` = ir directo al editor real en vez de abrir el panel embebido. */
         tabButtons.forEach((button) => {
           button.addEventListener('click', () => {
             const directUrl = String(button.dataset.directUrl || '').trim();
@@ -3815,7 +3683,14 @@
           });
         });
         formatTabButtons.forEach((button) => {
-          button.addEventListener('click', () => syncTaskFormatTab(button.dataset.taskFormatTab || 'uefa'));
+          button.addEventListener('click', () => {
+            syncTaskFormatTab(button.dataset.taskFormatTab || 'uefa');
+          });
+        });
+        settingsTabButtons.forEach((button) => {
+          button.addEventListener('click', () => {
+            syncTaskSettingsTab(button.dataset.taskSettingsTab || 'sheet');
+          });
         });
         enterEditButton?.addEventListener('click', () => {
           const directUrl = String(enterEditButton.dataset.directUrl || '').trim();
@@ -3828,8 +3703,9 @@
         });
 
         syncTaskTab(activeTaskTab, false);
-        syncTaskEditTab(activeTaskEditTab, false);
         syncTaskFormatTab(activeTaskFormatTab);
+        syncTaskEditTab(activeTaskEditTab, false);
+        syncTaskSettingsTab(activeTaskSettingsTab);
       })();
     </script>
     <script type="importmap">
