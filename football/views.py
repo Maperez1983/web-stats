@@ -9171,6 +9171,83 @@ def _kit2d_url_for_team_name(team_name, *, workspace=None, primary_team=None, ow
     return _generated_team_kit2d_svg_url(str(team_name or "Rival"))
 
 
+def _standings_team_url_lookup(rows, *, primary_team=None):
+    """Ficha a la que lleva cada equipo de la clasificacion, en UNA sola consulta.
+
+    Los rivales ya existen como Team (los crea la importacion semanal de plantillas), asi que
+    la fila se puede enlazar sin datos nuevos: el equipo propio va a su ficha y el rival a su
+    plantilla, que es donde estan las fotos y las estadisticas publicadas.
+
+    Identidad, de mas fiable a menos: external_id (E282…) -> name_key. Si un name_key apunta a
+    varios equipos (dos categorias del mismo club lo comparten) NO se enlaza: mejor sin enlace
+    que llevar a la ficha equivocada.
+    """
+    from football.models import normalize_team_name_key
+
+    codes, keys = set(), set()
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        code = str(row.get("team_code") or row.get("code") or row.get("external_id") or "").strip()
+        if code:
+            codes.add(code)
+        key = normalize_team_name_key(row.get("full_name") or row.get("team") or "")
+        if key:
+            keys.add(key)
+    if not codes and not keys:
+        return lambda row: ""
+
+    filtro = Q()
+    if codes:
+        filtro |= Q(external_id__in=codes)
+    if keys:
+        filtro |= Q(name_key__in=keys)
+    equipos = list(Team.objects.filter(filtro).only("id", "external_id", "name_key")[:120])
+
+    primary_id = int(getattr(primary_team, "id", 0) or 0)
+    try:
+        propia_url = reverse("team-page")
+    except Exception:
+        propia_url = ""
+
+    def _url(team_id):
+        if primary_id and int(team_id) == primary_id:
+            return propia_url
+        try:
+            return reverse("rival-team-squad", args=[int(team_id)])
+        except Exception:
+            return ""
+
+    por_codigo, por_clave, claves_ambiguas = {}, {}, set()
+    for team in equipos:
+        code = str(getattr(team, "external_id", "") or "").strip()
+        if code and code not in por_codigo:
+            por_codigo[code] = team.id
+        key = str(getattr(team, "name_key", "") or "").strip()
+        if not key:
+            continue
+        if key in por_clave and por_clave[key] != team.id:
+            # El equipo propio gana el desempate; en cualquier otro caso se deja sin enlace.
+            if primary_id and team.id == primary_id:
+                por_clave[key] = team.id
+                claves_ambiguas.discard(key)
+            elif not (primary_id and por_clave[key] == primary_id):
+                claves_ambiguas.add(key)
+        else:
+            por_clave.setdefault(key, team.id)
+
+    def resolver(row):
+        code = str(row.get("team_code") or row.get("code") or row.get("external_id") or "").strip()
+        team_id = por_codigo.get(code) if code else None
+        if not team_id:
+            key = normalize_team_name_key(row.get("full_name") or row.get("team") or "")
+            if key and key not in claves_ambiguas:
+                team_id = por_clave.get(key)
+        return _url(team_id) if team_id else ""
+
+    return resolver
+
+
 def _enrich_standings_rows_with_crests(rows, *, workspace=None, primary_team=None):
     if not isinstance(rows, list):
         return []
@@ -9178,6 +9255,11 @@ def _enrich_standings_rows_with_crests(rows, *, workspace=None, primary_team=Non
     capture_lookup = _build_universo_capture_team_lookup()
     crest_lookup = _build_team_crest_lookup()
     own_kit2d_url = _workspace_home_kit2d_url(workspace)
+    try:
+        team_url_for = _standings_team_url_lookup(rows, primary_team=primary_team)
+    except Exception:
+        logger.debug("No se pudieron resolver las fichas de la clasificacion", exc_info=True)
+        team_url_for = lambda row: ""  # noqa: E731 — la tabla se pinta igual, solo sin enlaces
     enriched = []
     for row in rows:
         if not isinstance(row, dict):
@@ -9201,6 +9283,7 @@ def _enrich_standings_rows_with_crests(rows, *, workspace=None, primary_team=Non
             primary_team=primary_team,
             own_kit2d_url=own_kit2d_url,
         )
+        row_copy["team_url"] = str(row_copy.get("team_url") or "").strip() or team_url_for(row_copy)
         enriched.append(row_copy)
     return enriched
 
