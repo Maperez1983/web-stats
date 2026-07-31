@@ -468,8 +468,21 @@
               </tbody>
             </table>
           </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-top:0.7rem;">
+            <button class="btn secondary" type="button" id="attendance-all-present" title="Inscribe a toda la plantilla como presente; luego marca las excepciones">✓ Inscribir toda la plantilla (todos presentes)</button>
+            <span class="meta" style="display:inline-flex; align-items:center; gap:0.35rem; flex-wrap:wrap;">
+              Petos:
+              <button class="btn ghost" type="button" data-bib-split="2" title="Reparte a los que entrenan en 2 equipos">2 equipos</button>
+              <button class="btn ghost" type="button" data-bib-split="3" title="Reparte a los que entrenan en 3 equipos">3 equipos</button>
+              <button class="btn ghost" type="button" data-bib-split="4" title="Reparte a los que entrenan en 4 equipos">4 equipos</button>
+              <button class="btn ghost" type="button" data-bib-split="0" title="Quita todos los petos">Limpiar</button>
+            </span>
+            <button class="btn primary" type="submit">Guardar asistencia</button>
+          </div>
           <script>
-            (() => {
+            // Espera al DOM: este bloque se ejecuta mientras se parsea la pagina y los botones
+            // de reparto estan MAS ABAJO, asi que sin esto no se enganchaba ninguno.
+            const wireBibs = () => {
               const form = document.getElementById('att-form');
               if (!form) return;
               // Reparte por turnos SOLO entre quienes van a entrenar: dar peto a un ausente o a un
@@ -495,19 +508,14 @@
                   });
                 });
               });
-            })();
+            };
+            if (document.readyState === 'loading') {
+              document.addEventListener('DOMContentLoaded', wireBibs);
+            } else {
+              wireBibs();
+            }
           </script>
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-top:0.7rem;">
-            <button class="btn secondary" type="button" id="attendance-all-present" title="Inscribe a toda la plantilla como presente; luego marca las excepciones">✓ Inscribir toda la plantilla (todos presentes)</button>
-            <span class="meta" style="display:inline-flex; align-items:center; gap:0.35rem; flex-wrap:wrap;">
-              Petos:
-              <button class="btn ghost" type="button" data-bib-split="2" title="Reparte a los que entrenan en 2 equipos">2 equipos</button>
-              <button class="btn ghost" type="button" data-bib-split="3" title="Reparte a los que entrenan en 3 equipos">3 equipos</button>
-              <button class="btn ghost" type="button" data-bib-split="4" title="Reparte a los que entrenan en 4 equipos">4 equipos</button>
-              <button class="btn ghost" type="button" data-bib-split="0" title="Quita todos los petos">Limpiar</button>
-            </span>
-            <button class="btn primary" type="submit">Guardar asistencia</button>
-          </div>
+
         </form>
         <script>
           (function(){
