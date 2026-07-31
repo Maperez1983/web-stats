@@ -14600,6 +14600,428 @@ def _usuario_del_post(request, campo="user_id"):
     return user_obj
 
 
+def _platform_overview_post(request, *, active_tab, users_subtab, workspace_form, user_form):
+    """Procesa los formularios de Gobierno y devuelve el estado que vera la pantalla.
+
+    Vivia dentro de platform_overview_page: 394 de sus 1066 lineas eran este bloque, lo que
+    obligaba a leer los siete formularios enteros para entender como se pinta una pestana.
+    No redirige (los mensajes se muestran en la misma respuesta), asi que devuelve lo que
+    cambia: pestana activa, mensajes y los formularios repoblados.
+    """
+    feedback = ""
+    error = ""
+    user_message = ""
+    user_error = ""
+    invitation_links = []
+    carousel_message = ""
+    primary_team = Team.objects.filter(is_primary=True).first()
+
+    form_action = (request.POST.get("form_action") or "workspace_create").strip().lower()
+    if form_action == "workspace_create":
+        active_tab = "workspace-create"
+        workspace_name = _sanitize_task_text(
+            (request.POST.get("workspace_name") or "").strip(), multiline=False, max_len=160
+        )
+        workspace_kind = str(request.POST.get("workspace_kind") or Workspace.KIND_CLUB).strip()
+        if workspace_kind not in {Workspace.KIND_CLUB, Workspace.KIND_TASK_STUDIO}:
+            workspace_kind = Workspace.KIND_CLUB
+        owner_username = _sanitize_username(request.POST.get("owner_username"), max_len=150)
+        team_id = _parse_int(request.POST.get("team_id"))
+        team_new_name = _sanitize_task_text(
+            (request.POST.get("team_new_name") or "").strip(), multiline=False, max_len=150
+        )
+        workspace_notes = _sanitize_task_text(
+            (request.POST.get("workspace_notes") or "").strip(), multiline=True, max_len=1200
+        )
+        competition_provider = str(
+            request.POST.get("competition_provider") or WorkspaceCompetitionContext.PROVIDER_MANUAL
+        ).strip()
+        external_competition_key = str(request.POST.get("external_competition_key") or "").strip()[:140]
+        external_group_key = str(request.POST.get("external_group_key") or "").strip()[:140]
+        external_team_key = str(request.POST.get("external_team_key") or "").strip()[:140]
+        external_team_name = _sanitize_task_text(
+            (request.POST.get("external_team_name") or "").strip(), multiline=False, max_len=160
+        )
+        competition_auto_sync = str(request.POST.get("competition_auto_sync") or "").lower() in {
+            "1",
+            "true",
+            "on",
+            "yes",
+        }
+        seed_demo_data = str(request.POST.get("seed_demo_data") or "").lower() in {"1", "true", "on", "yes"}
+        initial_admin_usernames = str(request.POST.get("initial_admin_usernames") or "")
+        initial_member_usernames = str(request.POST.get("initial_member_usernames") or "")
+        valid_providers = {choice[0] for choice in WorkspaceCompetitionContext.PROVIDER_CHOICES}
+        if competition_provider not in valid_providers:
+            competition_provider = WorkspaceCompetitionContext.PROVIDER_MANUAL
+        module_catalog = _workspace_module_catalog(workspace_kind)
+        module_preset = str(request.POST.get("module_preset") or "").strip().lower()
+        if module_preset not in {"basic", "complete", "custom"}:
+            module_preset = "custom"
+        if module_preset in {"basic", "complete"}:
+            if module_preset == "basic":
+                defaults = _workspace_default_modules(workspace_kind)
+                default_keys = set(_workspace_selected_module_keys(workspace_kind, defaults))
+                selected_modules = {item["key"]: item["key"] in default_keys for item in module_catalog}
+            else:
+                selected_modules = {item["key"]: True for item in module_catalog}
+            selected_deliverables = {}
+        else:
+            selected_modules = {
+                item["key"]: str(request.POST.get(f"module_{item['key']}") or "").lower()
+                in {"1", "true", "on", "yes"}
+                for item in module_catalog
+            }
+            selected_deliverables = {
+                _workspace_deliverable_flag(item["key"], deliverable["key"]): (
+                    str(request.POST.get(f"deliverable_{item['key']}__{deliverable['key']}") or "").lower()
+                    in {"1", "true", "on", "yes"}
+                )
+                for item in module_catalog
+                for deliverable in item.get("deliverables", []) or []
+            }
+        if not any(selected_modules.values()):
+            selected_modules = {item["key"]: True for item in module_catalog}
+        expanded_modules = _expand_workspace_module_selection(
+            workspace_kind, selected_modules, selected_deliverables
+        )
+        workspace_form = {
+            "workspace_name": workspace_name,
+            "workspace_kind": workspace_kind,
+            "owner_username": owner_username,
+            "team_id": str(team_id or ""),
+            "team_new_name": team_new_name,
+            "workspace_notes": workspace_notes,
+            "competition_provider": competition_provider,
+            "external_competition_key": external_competition_key,
+            "external_group_key": external_group_key,
+            "external_team_key": external_team_key,
+            "external_team_name": external_team_name,
+            "competition_auto_sync": competition_auto_sync,
+            "seed_demo_data": seed_demo_data,
+            "initial_admin_usernames": initial_admin_usernames,
+            "initial_member_usernames": initial_member_usernames,
+            "module_preset": module_preset,
+            "modules": expanded_modules,
+            "module_keys": [key for key, enabled in selected_modules.items() if enabled],
+            "deliverable_keys": [key for key, enabled in selected_deliverables.items() if enabled],
+        }
+        try:
+            if not workspace_name:
+                raise ValueError("Indica un nombre para el workspace.")
+            owner_user = User.objects.filter(username__iexact=owner_username).first() if owner_username else None
+            if owner_username and not owner_user:
+                raise ValueError(f'No existe el usuario propietario "{owner_username}".')
+            if workspace_kind == Workspace.KIND_TASK_STUDIO and not owner_user:
+                raise ValueError("Task Studio requiere un usuario propietario.")
+            admin_users, missing_admin_users = _parse_workspace_usernames(initial_admin_usernames)
+            member_users, missing_member_users = _parse_workspace_usernames(initial_member_usernames)
+            if missing_admin_users:
+                raise ValueError(f'No existen estos administradores iniciales: {", ".join(missing_admin_users)}.')
+            if missing_member_users:
+                raise ValueError(f'No existen estos miembros iniciales: {", ".join(missing_member_users)}.')
+            primary_workspace_team = None
+            if workspace_kind == Workspace.KIND_CLUB and team_new_name:
+                primary_workspace_team = _ensure_platform_team(team_new_name)
+            if not primary_workspace_team and team_id:
+                primary_workspace_team = Team.objects.filter(id=team_id).first()
+            workspace = Workspace.objects.create(
+                name=workspace_name,
+                slug=_unique_workspace_slug(workspace_name),
+                kind=workspace_kind,
+                owner_user=owner_user,
+                primary_team=primary_workspace_team if workspace_kind == Workspace.KIND_CLUB else None,
+                enabled_modules=expanded_modules,
+                notes=workspace_notes,
+            )
+            if workspace.kind == Workspace.KIND_CLUB:
+                _bootstrap_workspace_competition_context(
+                    workspace,
+                    primary_team=primary_workspace_team,
+                    provider=competition_provider,
+                    external_competition_key=external_competition_key,
+                    external_group_key=external_group_key,
+                    external_team_key=external_team_key,
+                    external_team_name=external_team_name,
+                    auto_sync_enabled=competition_auto_sync,
+                )
+                if competition_auto_sync:
+                    _sync_workspace_competition_context(workspace, primary_team=primary_workspace_team)
+                if seed_demo_data and workspace.primary_team_id:
+                    _bootstrap_demo_club_workspace(workspace)
+            if owner_user:
+                WorkspaceMembership.objects.get_or_create(
+                    workspace=workspace,
+                    user=owner_user,
+                    defaults={"role": WorkspaceMembership.ROLE_OWNER},
+                )
+            if workspace.kind == Workspace.KIND_TASK_STUDIO and owner_user:
+                TaskStudioProfile.objects.update_or_create(
+                    user=owner_user,
+                    defaults={"workspace": workspace, "is_enabled": True},
+                )
+            for admin_user in admin_users:
+                if owner_user and admin_user.id == owner_user.id:
+                    continue
+                WorkspaceMembership.objects.update_or_create(
+                    workspace=workspace,
+                    user=admin_user,
+                    defaults={"role": WorkspaceMembership.ROLE_ADMIN},
+                )
+            for member_user in member_users:
+                if owner_user and member_user.id == owner_user.id:
+                    continue
+                if any(admin_user.id == member_user.id for admin_user in admin_users):
+                    continue
+                WorkspaceMembership.objects.update_or_create(
+                    workspace=workspace,
+                    user=member_user,
+                    defaults={"role": WorkspaceMembership.ROLE_MEMBER},
+                )
+            feedback = f"Workspace creado: {workspace.name}."
+            workspace_form = {
+                "workspace_name": "",
+                "workspace_kind": Workspace.KIND_CLUB,
+                "owner_username": "",
+                "team_id": "",
+                "team_new_name": "",
+                "workspace_notes": "",
+                "competition_provider": WorkspaceCompetitionContext.PROVIDER_MANUAL,
+                "external_competition_key": "",
+                "external_group_key": "",
+                "external_team_key": "",
+                "external_team_name": "",
+                "competition_auto_sync": True,
+                "seed_demo_data": False,
+                "initial_admin_usernames": "",
+                "initial_member_usernames": "",
+                "module_preset": "complete",
+                "modules": _workspace_default_modules(Workspace.KIND_CLUB),
+                "module_keys": [item["key"] for item in _workspace_module_catalog(Workspace.KIND_CLUB)],
+                "deliverable_keys": _workspace_selected_deliverable_keys(
+                    Workspace.KIND_CLUB,
+                    _expand_workspace_module_selection(
+                        Workspace.KIND_CLUB,
+                        {item["key"]: True for item in _workspace_module_catalog(Workspace.KIND_CLUB)},
+                    ),
+                ),
+            }
+        except ValueError as exc:
+            error = str(exc)
+        except Exception:
+            error = "No se pudo crear el workspace."
+    elif form_action == "platform_user_create":
+        active_tab = "users"
+        users_subtab = "create"
+        full_name = _sanitize_task_text((request.POST.get("full_name") or "").strip(), multiline=False, max_len=150)
+        username = re.sub(r"\s+", "", str(request.POST.get("username") or "").strip()).lower()[:150]
+        email = re.sub(r"\s+", "", str(request.POST.get("email") or "").strip()).lower()[:190]
+        password = (request.POST.get("password") or "").strip()
+        role_value = str(request.POST.get("role") or AppUserRole.ROLE_PLAYER).strip()
+        assign_workspace_id = _parse_int(request.POST.get("assign_workspace_id"))
+        assign_member_role = str(request.POST.get("assign_member_role") or WorkspaceMembership.ROLE_MEMBER).strip()
+        role_choices = {choice[0] for choice in AppUserRole.ROLE_CHOICES}
+        if role_value not in role_choices:
+            role_value = AppUserRole.ROLE_PLAYER
+        if assign_member_role not in {choice[0] for choice in WorkspaceMembership.ROLE_CHOICES}:
+            assign_member_role = WorkspaceMembership.ROLE_MEMBER
+        user_form = {
+            "full_name": full_name,
+            "username": username,
+            "email": email,
+            "role": role_value,
+            "assign_workspace_id": str(assign_workspace_id or ""),
+            "assign_member_role": assign_member_role,
+        }
+        try:
+            if not username:
+                raise ValueError("El usuario es obligatorio.")
+            if User.objects.filter(username__iexact=username).exists():
+                raise ValueError("Ese usuario ya existe.")
+            if len(password) < 8:
+                raise ValueError("La contraseña debe tener al menos 8 caracteres.")
+            first_name, last_name = _split_full_name(full_name)
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+                first_name=first_name,
+                last_name=last_name,
+            )
+            if role_value == AppUserRole.ROLE_ADMIN:
+                user.is_staff = True
+                user.save(update_fields=["is_staff"])
+            AppUserRole.objects.update_or_create(user=user, defaults={"role": role_value})
+            if role_value == AppUserRole.ROLE_TASK_STUDIO:
+                try:
+                    workspace = _ensure_task_studio_workspace(user)
+                    if workspace:
+                        TaskStudioProfile.objects.update_or_create(
+                            user=user,
+                            defaults={"workspace": workspace, "is_enabled": True},
+                        )
+                except Exception:
+                    pass
+            assigned_workspace = None
+            if assign_workspace_id:
+                assigned_workspace = Workspace.objects.filter(id=assign_workspace_id, is_active=True).first()
+                if not assigned_workspace:
+                    raise ValueError("Workspace no encontrado para asignación.")
+                WorkspaceMembership.objects.update_or_create(
+                    workspace=assigned_workspace,
+                    user=user,
+                    defaults={"role": assign_member_role},
+                )
+            if assigned_workspace:
+                user_message = f"Usuario creado en Plataforma: {username}. Asignado a {assigned_workspace.name}."
+            else:
+                user_message = f"Usuario creado en Plataforma: {username}."
+            user_form = {
+                "full_name": "",
+                "username": "",
+                "email": "",
+                "role": AppUserRole.ROLE_PLAYER,
+                "assign_workspace_id": "",
+                "assign_member_role": WorkspaceMembership.ROLE_MEMBER,
+            }
+        except ValueError as exc:
+            user_error = str(exc)
+        except Exception:
+            user_error = "No se pudo crear el usuario global."
+    elif form_action == "platform_user_invite_create":
+        active_tab = "users"
+        users_subtab = "list"
+        validity_days = _parse_int(request.POST.get("valid_days")) or 7
+        validity_days = max(1, min(validity_days, 30))
+        try:
+            user_obj = _usuario_del_post(request)
+            UserInvitation.objects.filter(user=user_obj, is_active=True, accepted_at__isnull=True).update(
+                is_active=False
+            )
+            invitation = UserInvitation.objects.create(
+                user=user_obj,
+                token=UserInvitation.generate_token(),
+                email=(user_obj.email or "").strip(),
+                expires_at=timezone.now() + timedelta(days=validity_days),
+                created_by=request.user.get_username() if request.user.is_authenticated else "",
+                is_active=True,
+            )
+            invite_url = request.build_absolute_uri(reverse("user-invite-accept", args=[invitation.token]))
+            invitation_links.append(
+                {
+                    "username": user_obj.username,
+                    "url": invite_url,
+                    "expires_at": invitation.expires_at,
+                }
+            )
+            user_message = f"Invitación generada en Plataforma para {user_obj.username}."
+        except ValueError as exc:
+            user_error = str(exc)
+        except Exception:
+            user_error = "No se pudo generar la invitación global."
+    elif form_action == "platform_user_update":
+        active_tab = "users"
+        users_subtab = "list"
+        user_id = _parse_int(request.POST.get("user_id"))
+        full_name = _sanitize_task_text((request.POST.get("full_name") or "").strip(), multiline=False, max_len=150)
+        email = re.sub(r"\s+", "", str(request.POST.get("email") or "").strip()).lower()[:190]
+        password = (request.POST.get("password") or "").strip()
+        role_value = str(request.POST.get("role") or AppUserRole.ROLE_PLAYER).strip()
+        is_active = str(request.POST.get("is_active") or "").lower() in {"1", "true", "on", "yes"}
+        role_choices = {choice[0] for choice in AppUserRole.ROLE_CHOICES}
+        if role_value not in role_choices:
+            role_value = AppUserRole.ROLE_PLAYER
+        user_obj = User.objects.filter(id=user_id).first() if user_id else None
+        try:
+            if not user_obj:
+                raise ValueError("Usuario no encontrado.")
+            if password and len(password) < 8:
+                raise ValueError("La nueva contraseña debe tener al menos 8 caracteres.")
+            first_name, last_name = _split_full_name(full_name)
+            user_obj.first_name = first_name
+            user_obj.last_name = last_name
+            user_obj.email = email
+            user_obj.is_active = is_active
+            user_obj.is_staff = bool(is_active and role_value == AppUserRole.ROLE_ADMIN)
+            if password:
+                user_obj.set_password(password)
+            update_fields = ["first_name", "last_name", "email", "is_active", "is_staff"]
+            if password:
+                update_fields.append("password")
+            user_obj.save(update_fields=update_fields)
+            # Si el admin se cambia su propia contraseña desde este panel,
+            # Django invalida la sesión (auth hash). Mantén la sesión activa.
+            if password and request.user.is_authenticated and user_obj.id == request.user.id:
+                update_session_auth_hash(request, user_obj)
+            AppUserRole.objects.update_or_create(user=user_obj, defaults={"role": role_value})
+            user_message = f"Usuario actualizado: {user_obj.username}."
+        except ValueError as exc:
+            user_error = str(exc)
+        except Exception:
+            user_error = "No se pudo actualizar el usuario."
+    elif form_action == "platform_user_toggle_active":
+        active_tab = "users"
+        users_subtab = "list"
+        try:
+            user_obj = _usuario_del_post(request)
+            user_obj.is_active = not bool(user_obj.is_active)
+            role_value = _get_user_role(user_obj)
+            if not user_obj.is_active and role_value == AppUserRole.ROLE_ADMIN:
+                user_obj.is_staff = False
+            elif user_obj.is_active and role_value == AppUserRole.ROLE_ADMIN:
+                user_obj.is_staff = True
+            user_obj.save(update_fields=["is_active", "is_staff"])
+            user_message = f'Usuario {"activado" if user_obj.is_active else "desactivado"}: {user_obj.username}.'
+        except ValueError as exc:
+            user_error = str(exc)
+        except Exception:
+            user_error = "No se pudo cambiar el estado del usuario."
+    elif form_action == "platform_user_delete":
+        active_tab = "users"
+        users_subtab = "list"
+        try:
+            user_obj = _usuario_del_post(request)
+            owned_club_workspace = Workspace.objects.filter(kind=Workspace.KIND_CLUB, owner_user=user_obj).first()
+            if owned_club_workspace:
+                raise ValueError(
+                    f"No puedes borrar {user_obj.username} mientras sea propietario de {owned_club_workspace.name}."
+                )
+            owned_studio_workspace = Workspace.objects.filter(
+                kind=Workspace.KIND_TASK_STUDIO, owner_user=user_obj
+            ).first()
+            if owned_studio_workspace:
+                try:
+                    _delete_task_studio_workspace(owned_studio_workspace, disable_owner_profile=False)
+                except Exception:
+                    pass
+            WorkspaceMembership.objects.filter(user=user_obj).delete()
+            UserInvitation.objects.filter(user=user_obj).update(is_active=False)
+            username = user_obj.username
+            user_obj.delete()
+            user_message = f"Usuario eliminado: {username}."
+        except ValueError as exc:
+            user_error = str(exc)
+        except Exception:
+            user_error = "No se pudo eliminar el usuario."
+    elif form_action in {"carousel_upload", "carousel_update", "carousel_delete"}:
+        active_tab = "home-global"
+        if _handle_home_carousel_post(request):
+            carousel_message = "Cambios guardados en Home global."
+
+    return {
+        "active_tab": active_tab,
+        "users_subtab": users_subtab,
+        "feedback": feedback,
+        "error": error,
+        "user_message": user_message,
+        "user_error": user_error,
+        "carousel_message": carousel_message,
+        "invitation_links": invitation_links,
+        "user_form": user_form,
+        "workspace_form": workspace_form,
+    }
+
+
 def platform_overview_page(request):
     if not _can_access_platform(request.user):
         return HttpResponse("No tienes permisos para acceder a la plataforma.", status=403)
@@ -14700,397 +15122,26 @@ def platform_overview_page(request):
                 continue
 
     if request.method == "POST":
-        form_action = (request.POST.get("form_action") or "workspace_create").strip().lower()
-        if form_action == "workspace_create":
-            active_tab = "workspace-create"
-            workspace_name = _sanitize_task_text(
-                (request.POST.get("workspace_name") or "").strip(), multiline=False, max_len=160
-            )
-            workspace_kind = str(request.POST.get("workspace_kind") or Workspace.KIND_CLUB).strip()
-            if workspace_kind not in {Workspace.KIND_CLUB, Workspace.KIND_TASK_STUDIO}:
-                workspace_kind = Workspace.KIND_CLUB
-            owner_username = _sanitize_username(request.POST.get("owner_username"), max_len=150)
-            team_id = _parse_int(request.POST.get("team_id"))
-            team_new_name = _sanitize_task_text(
-                (request.POST.get("team_new_name") or "").strip(), multiline=False, max_len=150
-            )
-            workspace_notes = _sanitize_task_text(
-                (request.POST.get("workspace_notes") or "").strip(), multiline=True, max_len=1200
-            )
-            competition_provider = str(
-                request.POST.get("competition_provider") or WorkspaceCompetitionContext.PROVIDER_MANUAL
-            ).strip()
-            external_competition_key = str(request.POST.get("external_competition_key") or "").strip()[:140]
-            external_group_key = str(request.POST.get("external_group_key") or "").strip()[:140]
-            external_team_key = str(request.POST.get("external_team_key") or "").strip()[:140]
-            external_team_name = _sanitize_task_text(
-                (request.POST.get("external_team_name") or "").strip(), multiline=False, max_len=160
-            )
-            competition_auto_sync = str(request.POST.get("competition_auto_sync") or "").lower() in {
-                "1",
-                "true",
-                "on",
-                "yes",
-            }
-            seed_demo_data = str(request.POST.get("seed_demo_data") or "").lower() in {"1", "true", "on", "yes"}
-            initial_admin_usernames = str(request.POST.get("initial_admin_usernames") or "")
-            initial_member_usernames = str(request.POST.get("initial_member_usernames") or "")
-            valid_providers = {choice[0] for choice in WorkspaceCompetitionContext.PROVIDER_CHOICES}
-            if competition_provider not in valid_providers:
-                competition_provider = WorkspaceCompetitionContext.PROVIDER_MANUAL
-            module_catalog = _workspace_module_catalog(workspace_kind)
-            module_preset = str(request.POST.get("module_preset") or "").strip().lower()
-            if module_preset not in {"basic", "complete", "custom"}:
-                module_preset = "custom"
-            if module_preset in {"basic", "complete"}:
-                if module_preset == "basic":
-                    defaults = _workspace_default_modules(workspace_kind)
-                    default_keys = set(_workspace_selected_module_keys(workspace_kind, defaults))
-                    selected_modules = {item["key"]: item["key"] in default_keys for item in module_catalog}
-                else:
-                    selected_modules = {item["key"]: True for item in module_catalog}
-                selected_deliverables = {}
-            else:
-                selected_modules = {
-                    item["key"]: str(request.POST.get(f"module_{item['key']}") or "").lower()
-                    in {"1", "true", "on", "yes"}
-                    for item in module_catalog
-                }
-                selected_deliverables = {
-                    _workspace_deliverable_flag(item["key"], deliverable["key"]): (
-                        str(request.POST.get(f"deliverable_{item['key']}__{deliverable['key']}") or "").lower()
-                        in {"1", "true", "on", "yes"}
-                    )
-                    for item in module_catalog
-                    for deliverable in item.get("deliverables", []) or []
-                }
-            if not any(selected_modules.values()):
-                selected_modules = {item["key"]: True for item in module_catalog}
-            expanded_modules = _expand_workspace_module_selection(
-                workspace_kind, selected_modules, selected_deliverables
-            )
-            workspace_form = {
-                "workspace_name": workspace_name,
-                "workspace_kind": workspace_kind,
-                "owner_username": owner_username,
-                "team_id": str(team_id or ""),
-                "team_new_name": team_new_name,
-                "workspace_notes": workspace_notes,
-                "competition_provider": competition_provider,
-                "external_competition_key": external_competition_key,
-                "external_group_key": external_group_key,
-                "external_team_key": external_team_key,
-                "external_team_name": external_team_name,
-                "competition_auto_sync": competition_auto_sync,
-                "seed_demo_data": seed_demo_data,
-                "initial_admin_usernames": initial_admin_usernames,
-                "initial_member_usernames": initial_member_usernames,
-                "module_preset": module_preset,
-                "modules": expanded_modules,
-                "module_keys": [key for key, enabled in selected_modules.items() if enabled],
-                "deliverable_keys": [key for key, enabled in selected_deliverables.items() if enabled],
-            }
-            try:
-                if not workspace_name:
-                    raise ValueError("Indica un nombre para el workspace.")
-                owner_user = User.objects.filter(username__iexact=owner_username).first() if owner_username else None
-                if owner_username and not owner_user:
-                    raise ValueError(f'No existe el usuario propietario "{owner_username}".')
-                if workspace_kind == Workspace.KIND_TASK_STUDIO and not owner_user:
-                    raise ValueError("Task Studio requiere un usuario propietario.")
-                admin_users, missing_admin_users = _parse_workspace_usernames(initial_admin_usernames)
-                member_users, missing_member_users = _parse_workspace_usernames(initial_member_usernames)
-                if missing_admin_users:
-                    raise ValueError(f'No existen estos administradores iniciales: {", ".join(missing_admin_users)}.')
-                if missing_member_users:
-                    raise ValueError(f'No existen estos miembros iniciales: {", ".join(missing_member_users)}.')
-                primary_workspace_team = None
-                if workspace_kind == Workspace.KIND_CLUB and team_new_name:
-                    primary_workspace_team = _ensure_platform_team(team_new_name)
-                if not primary_workspace_team and team_id:
-                    primary_workspace_team = Team.objects.filter(id=team_id).first()
-                workspace = Workspace.objects.create(
-                    name=workspace_name,
-                    slug=_unique_workspace_slug(workspace_name),
-                    kind=workspace_kind,
-                    owner_user=owner_user,
-                    primary_team=primary_workspace_team if workspace_kind == Workspace.KIND_CLUB else None,
-                    enabled_modules=expanded_modules,
-                    notes=workspace_notes,
-                )
-                if workspace.kind == Workspace.KIND_CLUB:
-                    _bootstrap_workspace_competition_context(
-                        workspace,
-                        primary_team=primary_workspace_team,
-                        provider=competition_provider,
-                        external_competition_key=external_competition_key,
-                        external_group_key=external_group_key,
-                        external_team_key=external_team_key,
-                        external_team_name=external_team_name,
-                        auto_sync_enabled=competition_auto_sync,
-                    )
-                    if competition_auto_sync:
-                        _sync_workspace_competition_context(workspace, primary_team=primary_workspace_team)
-                    if seed_demo_data and workspace.primary_team_id:
-                        _bootstrap_demo_club_workspace(workspace)
-                if owner_user:
-                    WorkspaceMembership.objects.get_or_create(
-                        workspace=workspace,
-                        user=owner_user,
-                        defaults={"role": WorkspaceMembership.ROLE_OWNER},
-                    )
-                if workspace.kind == Workspace.KIND_TASK_STUDIO and owner_user:
-                    TaskStudioProfile.objects.update_or_create(
-                        user=owner_user,
-                        defaults={"workspace": workspace, "is_enabled": True},
-                    )
-                for admin_user in admin_users:
-                    if owner_user and admin_user.id == owner_user.id:
-                        continue
-                    WorkspaceMembership.objects.update_or_create(
-                        workspace=workspace,
-                        user=admin_user,
-                        defaults={"role": WorkspaceMembership.ROLE_ADMIN},
-                    )
-                for member_user in member_users:
-                    if owner_user and member_user.id == owner_user.id:
-                        continue
-                    if any(admin_user.id == member_user.id for admin_user in admin_users):
-                        continue
-                    WorkspaceMembership.objects.update_or_create(
-                        workspace=workspace,
-                        user=member_user,
-                        defaults={"role": WorkspaceMembership.ROLE_MEMBER},
-                    )
-                feedback = f"Workspace creado: {workspace.name}."
-                workspace_form = {
-                    "workspace_name": "",
-                    "workspace_kind": Workspace.KIND_CLUB,
-                    "owner_username": "",
-                    "team_id": "",
-                    "team_new_name": "",
-                    "workspace_notes": "",
-                    "competition_provider": WorkspaceCompetitionContext.PROVIDER_MANUAL,
-                    "external_competition_key": "",
-                    "external_group_key": "",
-                    "external_team_key": "",
-                    "external_team_name": "",
-                    "competition_auto_sync": True,
-                    "seed_demo_data": False,
-                    "initial_admin_usernames": "",
-                    "initial_member_usernames": "",
-                    "module_preset": "complete",
-                    "modules": _workspace_default_modules(Workspace.KIND_CLUB),
-                    "module_keys": [item["key"] for item in _workspace_module_catalog(Workspace.KIND_CLUB)],
-                    "deliverable_keys": _workspace_selected_deliverable_keys(
-                        Workspace.KIND_CLUB,
-                        _expand_workspace_module_selection(
-                            Workspace.KIND_CLUB,
-                            {item["key"]: True for item in _workspace_module_catalog(Workspace.KIND_CLUB)},
-                        ),
-                    ),
-                }
-            except ValueError as exc:
-                error = str(exc)
-            except Exception:
-                error = "No se pudo crear el workspace."
-        elif form_action == "platform_user_create":
-            active_tab = "users"
-            users_subtab = "create"
-            full_name = _sanitize_task_text((request.POST.get("full_name") or "").strip(), multiline=False, max_len=150)
-            username = re.sub(r"\s+", "", str(request.POST.get("username") or "").strip()).lower()[:150]
-            email = re.sub(r"\s+", "", str(request.POST.get("email") or "").strip()).lower()[:190]
-            password = (request.POST.get("password") or "").strip()
-            role_value = str(request.POST.get("role") or AppUserRole.ROLE_PLAYER).strip()
-            assign_workspace_id = _parse_int(request.POST.get("assign_workspace_id"))
-            assign_member_role = str(request.POST.get("assign_member_role") or WorkspaceMembership.ROLE_MEMBER).strip()
-            role_choices = {choice[0] for choice in AppUserRole.ROLE_CHOICES}
-            if role_value not in role_choices:
-                role_value = AppUserRole.ROLE_PLAYER
-            if assign_member_role not in {choice[0] for choice in WorkspaceMembership.ROLE_CHOICES}:
-                assign_member_role = WorkspaceMembership.ROLE_MEMBER
-            user_form = {
-                "full_name": full_name,
-                "username": username,
-                "email": email,
-                "role": role_value,
-                "assign_workspace_id": str(assign_workspace_id or ""),
-                "assign_member_role": assign_member_role,
-            }
-            try:
-                if not username:
-                    raise ValueError("El usuario es obligatorio.")
-                if User.objects.filter(username__iexact=username).exists():
-                    raise ValueError("Ese usuario ya existe.")
-                if len(password) < 8:
-                    raise ValueError("La contraseña debe tener al menos 8 caracteres.")
-                first_name, last_name = _split_full_name(full_name)
-                user = User.objects.create_user(
-                    username=username,
-                    email=email,
-                    password=password,
-                    first_name=first_name,
-                    last_name=last_name,
-                )
-                if role_value == AppUserRole.ROLE_ADMIN:
-                    user.is_staff = True
-                    user.save(update_fields=["is_staff"])
-                AppUserRole.objects.update_or_create(user=user, defaults={"role": role_value})
-                if role_value == AppUserRole.ROLE_TASK_STUDIO:
-                    try:
-                        workspace = _ensure_task_studio_workspace(user)
-                        if workspace:
-                            TaskStudioProfile.objects.update_or_create(
-                                user=user,
-                                defaults={"workspace": workspace, "is_enabled": True},
-                            )
-                    except Exception:
-                        pass
-                assigned_workspace = None
-                if assign_workspace_id:
-                    assigned_workspace = Workspace.objects.filter(id=assign_workspace_id, is_active=True).first()
-                    if not assigned_workspace:
-                        raise ValueError("Workspace no encontrado para asignación.")
-                    WorkspaceMembership.objects.update_or_create(
-                        workspace=assigned_workspace,
-                        user=user,
-                        defaults={"role": assign_member_role},
-                    )
-                if assigned_workspace:
-                    user_message = f"Usuario creado en Plataforma: {username}. Asignado a {assigned_workspace.name}."
-                else:
-                    user_message = f"Usuario creado en Plataforma: {username}."
-                user_form = {
-                    "full_name": "",
-                    "username": "",
-                    "email": "",
-                    "role": AppUserRole.ROLE_PLAYER,
-                    "assign_workspace_id": "",
-                    "assign_member_role": WorkspaceMembership.ROLE_MEMBER,
-                }
-            except ValueError as exc:
-                user_error = str(exc)
-            except Exception:
-                user_error = "No se pudo crear el usuario global."
-        elif form_action == "platform_user_invite_create":
-            active_tab = "users"
-            users_subtab = "list"
-            validity_days = _parse_int(request.POST.get("valid_days")) or 7
-            validity_days = max(1, min(validity_days, 30))
-            try:
-                user_obj = _usuario_del_post(request)
-                UserInvitation.objects.filter(user=user_obj, is_active=True, accepted_at__isnull=True).update(
-                    is_active=False
-                )
-                invitation = UserInvitation.objects.create(
-                    user=user_obj,
-                    token=UserInvitation.generate_token(),
-                    email=(user_obj.email or "").strip(),
-                    expires_at=timezone.now() + timedelta(days=validity_days),
-                    created_by=request.user.get_username() if request.user.is_authenticated else "",
-                    is_active=True,
-                )
-                invite_url = request.build_absolute_uri(reverse("user-invite-accept", args=[invitation.token]))
-                invitation_links.append(
-                    {
-                        "username": user_obj.username,
-                        "url": invite_url,
-                        "expires_at": invitation.expires_at,
-                    }
-                )
-                user_message = f"Invitación generada en Plataforma para {user_obj.username}."
-            except ValueError as exc:
-                user_error = str(exc)
-            except Exception:
-                user_error = "No se pudo generar la invitación global."
-        elif form_action == "platform_user_update":
-            active_tab = "users"
-            users_subtab = "list"
-            user_id = _parse_int(request.POST.get("user_id"))
-            full_name = _sanitize_task_text((request.POST.get("full_name") or "").strip(), multiline=False, max_len=150)
-            email = re.sub(r"\s+", "", str(request.POST.get("email") or "").strip()).lower()[:190]
-            password = (request.POST.get("password") or "").strip()
-            role_value = str(request.POST.get("role") or AppUserRole.ROLE_PLAYER).strip()
-            is_active = str(request.POST.get("is_active") or "").lower() in {"1", "true", "on", "yes"}
-            role_choices = {choice[0] for choice in AppUserRole.ROLE_CHOICES}
-            if role_value not in role_choices:
-                role_value = AppUserRole.ROLE_PLAYER
-            user_obj = User.objects.filter(id=user_id).first() if user_id else None
-            try:
-                if not user_obj:
-                    raise ValueError("Usuario no encontrado.")
-                if password and len(password) < 8:
-                    raise ValueError("La nueva contraseña debe tener al menos 8 caracteres.")
-                first_name, last_name = _split_full_name(full_name)
-                user_obj.first_name = first_name
-                user_obj.last_name = last_name
-                user_obj.email = email
-                user_obj.is_active = is_active
-                user_obj.is_staff = bool(is_active and role_value == AppUserRole.ROLE_ADMIN)
-                if password:
-                    user_obj.set_password(password)
-                update_fields = ["first_name", "last_name", "email", "is_active", "is_staff"]
-                if password:
-                    update_fields.append("password")
-                user_obj.save(update_fields=update_fields)
-                # Si el admin se cambia su propia contraseña desde este panel,
-                # Django invalida la sesión (auth hash). Mantén la sesión activa.
-                if password and request.user.is_authenticated and user_obj.id == request.user.id:
-                    update_session_auth_hash(request, user_obj)
-                AppUserRole.objects.update_or_create(user=user_obj, defaults={"role": role_value})
-                user_message = f"Usuario actualizado: {user_obj.username}."
-            except ValueError as exc:
-                user_error = str(exc)
-            except Exception:
-                user_error = "No se pudo actualizar el usuario."
-        elif form_action == "platform_user_toggle_active":
-            active_tab = "users"
-            users_subtab = "list"
-            try:
-                user_obj = _usuario_del_post(request)
-                user_obj.is_active = not bool(user_obj.is_active)
-                role_value = _get_user_role(user_obj)
-                if not user_obj.is_active and role_value == AppUserRole.ROLE_ADMIN:
-                    user_obj.is_staff = False
-                elif user_obj.is_active and role_value == AppUserRole.ROLE_ADMIN:
-                    user_obj.is_staff = True
-                user_obj.save(update_fields=["is_active", "is_staff"])
-                user_message = f'Usuario {"activado" if user_obj.is_active else "desactivado"}: {user_obj.username}.'
-            except ValueError as exc:
-                user_error = str(exc)
-            except Exception:
-                user_error = "No se pudo cambiar el estado del usuario."
-        elif form_action == "platform_user_delete":
-            active_tab = "users"
-            users_subtab = "list"
-            try:
-                user_obj = _usuario_del_post(request)
-                owned_club_workspace = Workspace.objects.filter(kind=Workspace.KIND_CLUB, owner_user=user_obj).first()
-                if owned_club_workspace:
-                    raise ValueError(
-                        f"No puedes borrar {user_obj.username} mientras sea propietario de {owned_club_workspace.name}."
-                    )
-                owned_studio_workspace = Workspace.objects.filter(
-                    kind=Workspace.KIND_TASK_STUDIO, owner_user=user_obj
-                ).first()
-                if owned_studio_workspace:
-                    try:
-                        _delete_task_studio_workspace(owned_studio_workspace, disable_owner_profile=False)
-                    except Exception:
-                        pass
-                WorkspaceMembership.objects.filter(user=user_obj).delete()
-                UserInvitation.objects.filter(user=user_obj).update(is_active=False)
-                username = user_obj.username
-                user_obj.delete()
-                user_message = f"Usuario eliminado: {username}."
-            except ValueError as exc:
-                user_error = str(exc)
-            except Exception:
-                user_error = "No se pudo eliminar el usuario."
-        elif form_action in {"carousel_upload", "carousel_update", "carousel_delete"}:
-            active_tab = "home-global"
-            if _handle_home_carousel_post(request):
-                carousel_message = "Cambios guardados en Home global."
+        # Todo el manejo de formularios vive en su propia funcion; aqui solo se recoge lo que
+        # cambia para pintar la pantalla. El feedback guardado en sesion se conserva si el
+        # formulario no dejo mensaje propio.
+        _post = _platform_overview_post(
+            request,
+            active_tab=active_tab,
+            users_subtab=users_subtab,
+            workspace_form=workspace_form,
+            user_form=user_form,
+        )
+        active_tab = _post["active_tab"]
+        users_subtab = _post["users_subtab"]
+        error = _post["error"]
+        user_message = _post["user_message"]
+        user_error = _post["user_error"]
+        carousel_message = _post["carousel_message"]
+        invitation_links = _post["invitation_links"]
+        user_form = _post["user_form"]
+        workspace_form = _post["workspace_form"]
+        feedback = _post["feedback"] or feedback
 
     club_workspace_count = Workspace.objects.filter(kind=Workspace.KIND_CLUB).count()
     # Cuenta agrupada (la que ve el usuario en la lista): los espacios hijo van con su padre.
