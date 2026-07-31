@@ -1070,6 +1070,11 @@ body.ed-chrome.edc-snapshot .pitch-drills-strip,
 body.ed-chrome.edc-snapshot .board-status-row,
 body.ed-chrome.edc-snapshot .board-flow-note,
 body.ed-chrome.edc-snapshot .task-timeline-dock,
+body.ed-chrome.edc-snapshot #task-focus-exit,
+body.ed-chrome.edc-snapshot .focus-exit,
+body.ed-chrome.edc-snapshot .ws-demo-floating-toggle,
+body.ed-chrome.edc-snapshot .ws-demo-banner,
+body.ed-chrome.edc-snapshot .ws-help-chip,
 body.ed-chrome.edc-snapshot #task-selection-dock { display: none !important; }
 
 /* El campo manda: ocupa toda la ventana headless, sin barras que le roben alto. Asi el stage

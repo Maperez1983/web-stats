@@ -185,6 +185,26 @@
       }
       return _pitchImgOk;
     };
+    // Todo lo que FLOTA por encima del campo se cuela en la foto: Playwright recorta por la caja
+    // de #task-pitch-stage, y un boton `position:fixed` que caiga dentro de esa caja sale impreso
+    // en la ficha y en el PDF (asi aparecio el "SALIR" del modo presentacion en la esquina).
+    // Apagarlos uno a uno por CSS no aguanta: cada vez que alguien anade un flotante nuevo vuelve
+    // a colarse en TODAS las pizarras. Barremos por posicion, que es lo que de verdad importa.
+    var hideFloatersOverStage = function(){
+      try{
+        var stage = document.getElementById('task-pitch-stage');
+        if (!stage) return;
+        var nodes = document.body.querySelectorAll('*');
+        for (var i = 0; i < nodes.length; i += 1) {
+          var el = nodes[i];
+          if (el === stage || stage.contains(el) || el.contains(stage)) continue;
+          var pos = '';
+          try{ pos = window.getComputedStyle(el).position; }catch(e){ continue; }
+          if (pos !== 'fixed' && pos !== 'sticky') continue;
+          el.style.setProperty('display', 'none', 'important');
+        }
+      }catch(e){}
+    };
     window.__WEBSTATS_SNAPSHOT_READY = false;
     var snapshotHasDrawing = function(){
       try{
@@ -222,7 +242,9 @@
     };
     var snapReadyTries = 0;
     var snapReadyTimer = setInterval(function(){
+      hideFloatersOverStage();
       if (snapshotHasDrawing()) {
+        hideFloatersOverStage();
         window.__WEBSTATS_SNAPSHOT_READY = true;
         clearInterval(snapReadyTimer);
       } else if (++snapReadyTries > 300) {

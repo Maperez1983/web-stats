@@ -206,10 +206,21 @@
 	      .task-graphic img {
 	        width: 100%;
 	        height: auto;
-	        max-height: 132mm;
+	        max-height: 150mm;
 	        object-fit: contain;
 	        display: block;
 	      }
+
+	      /* ANEXO: la hoja es SOLO de esta tarea, asi que se lee a un brazo de distancia y de pie en
+	         el campo. Con el cuerpo de 10,5 px de la sesion sobraba media pagina en blanco y ademas
+	         obligaba a acercarse el papel. Aqui subimos cuerpo y aire; sigue cabiendo en una pagina
+	         porque la tarjeta lleva break-inside: avoid. */
+	      .task-sheet-card { padding: 16px 18px; }
+	      .task-sheet-card .task-title { font-size: 19px; line-height: 1.2; }
+	      .task-sheet-card .task-meta { font-size: 12px; }
+	      .task-sheet-card .task-sheet-grid { margin-top: 10px; }
+	      .task-sheet-card .task-sheet-grid td { padding: 9px 10px; font-size: 12px; line-height: 1.45; }
+	      .task-sheet-card .task-sheet-grid strong { font-size: 9.5px; margin-bottom: 5px; }
 	      .task-graphic {
 	        page-break-inside: avoid;
 	        break-inside: avoid;
