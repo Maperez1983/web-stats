@@ -1327,15 +1327,17 @@
 
 
 
+      {# Las pestañas del jugador salen de la política del club (`vis`), no de la plantilla.
+         Para el staff `vis` no restringe nada y salen todas. #}
       <div class="tabs" role="tablist">
         <button class="tab-btn" data-tab="personal" role="tab">Datos personales</button>
-        <button class="tab-btn" data-tab="stats" role="tab">Rendimiento</button>
-        <button class="tab-btn" data-tab="evaluations" role="tab">Evaluación</button>
-        <button class="tab-btn" data-tab="physical" role="tab">Físico</button>
-        <button class="tab-btn" data-tab="injuries" role="tab">Lesiones</button>
-        <button class="tab-btn" data-tab="seasons" role="tab">Histórico</button>
-        <button class="tab-btn" data-tab="discipline" role="tab">Comunicación y multas</button>
-        <button class="tab-btn" data-tab="videos" role="tab">Vídeos</button>
+        {% if vis.performance %}<button class="tab-btn" data-tab="stats" role="tab">Rendimiento</button>{% endif %}
+        {% if vis.evaluation %}<button class="tab-btn" data-tab="evaluations" role="tab">Evaluación</button>{% endif %}
+        {% if vis.physical %}<button class="tab-btn" data-tab="physical" role="tab">Físico</button>{% endif %}
+        {% if vis.injuries %}<button class="tab-btn" data-tab="injuries" role="tab">Lesiones</button>{% endif %}
+        {% if vis.seasons %}<button class="tab-btn" data-tab="seasons" role="tab">Histórico</button>{% endif %}
+        {% if vis.communication or vis.fines %}<button class="tab-btn" data-tab="discipline" role="tab">Comunicación y multas</button>{% endif %}
+        {% if vis.videos %}<button class="tab-btn" data-tab="videos" role="tab">Vídeos</button>{% endif %}
       </div>
 
       <section class="card tab-pane" data-pane="personal">
@@ -1932,6 +1934,7 @@
 
       </section>
 
+      {% if vis.seasons %}
       <section class="card tab-pane" data-pane="seasons">
         <h2 style="margin-top:0;">Temporadas e histórico</h2>
         {% if player_season_rating.avg or player_match_ratings.matches %}
@@ -2056,7 +2059,9 @@
         </details>
         {% endif %}
       </section>
+      {% endif %}
 
+      {% if vis.evaluation %}
       <section class="card tab-pane" data-pane="evaluations">
         <h2 style="margin-top:0;">Evaluaciones</h2>
         {% if fm_role_fit %}
@@ -2533,12 +2538,45 @@
                   {% if evaluation.objectives_next %}
                     <p class="subtle" style="margin:0.35rem 0 0;"><strong>Objetivos:</strong> {{ evaluation.objectives_next }}</p>
                   {% endif %}
-                  {% if evaluation.coach_comments and not is_player_readonly %}
-                    <p class="subtle" style="margin:0.35rem 0 0;"><strong>Staff:</strong> {{ evaluation.coach_comments }}</p>
+                  {# Los comentarios del staff sólo llegan al jugador si se marcaron al publicar. #}
+                  {% if evaluation.coach_comments %}
+                    {% if not is_player_readonly %}
+                      <p class="subtle" style="margin:0.35rem 0 0;"><strong>Staff:</strong> {{ evaluation.coach_comments }}</p>
+                    {% elif evaluation.published_comments_to_player %}
+                      <p class="subtle" style="margin:0.35rem 0 0;"><strong>Del cuerpo técnico:</strong> {{ evaluation.coach_comments }}</p>
+                    {% endif %}
                   {% endif %}
                 </div>
                 {% if evaluation.status == 'closed' or not is_player_readonly %}
-                <div style="display:flex;gap:0.45rem;flex-wrap:wrap;justify-content:flex-end;">
+                <div style="display:flex;gap:0.45rem;flex-wrap:wrap;justify-content:flex-end;align-items:center;">
+                  {% if not is_player_readonly and evaluation.status == 'closed' %}
+                    {# Cerrar es interno; publicar es enseñársela al jugador. Dos gestos. #}
+                    {% if evaluation.published_to_player %}
+                      <span class="product-chip" title="El jugador puede verla en su portal">Publicada al jugador{% if evaluation.published_comments_to_player %} · con comentarios{% endif %}</span>
+                      <form method="post" style="margin:0;">
+                        {% csrf_token %}
+                        <input type="hidden" name="form_action" value="evaluation_publish" />
+                        <input type="hidden" name="evaluation_id" value="{{ evaluation.id }}" />
+                        <input type="hidden" name="publish" value="0" />
+                        <button class="btn alt" type="submit">Retirar</button>
+                      </form>
+                    {% else %}
+                      <span class="subtle" style="font-size:0.72rem;">Sólo el cuerpo técnico</span>
+                      <form method="post" style="margin:0;display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;" onsubmit="return confirm('¿Publicar esta valoración al jugador? Podrá verla en su portal.');">
+                        {% csrf_token %}
+                        <input type="hidden" name="form_action" value="evaluation_publish" />
+                        <input type="hidden" name="evaluation_id" value="{{ evaluation.id }}" />
+                        <input type="hidden" name="publish" value="1" />
+                        {% if evaluation.coach_comments %}
+                        <label class="subtle" style="display:flex;gap:0.3rem;align-items:center;font-size:0.72rem;margin:0;">
+                          <input type="checkbox" name="publish_comments" value="1" />
+                          Incluir mis comentarios
+                        </label>
+                        {% endif %}
+                        <button class="btn alt" type="submit">Publicar al jugador</button>
+                      </form>
+                    {% endif %}
+                  {% endif %}
                   <a class="btn alt" href="{% url 'player-evaluation-report' player.id evaluation.id %}">Informe</a>
                 </div>
                 {% endif %}
@@ -2552,7 +2590,9 @@
           </div>
         {% endif %}
       </section>
+      {% endif %}
 
+      {% if vis.performance %}
       <section class="card tab-pane" data-pane="stats">
         <h2 style="margin-top:0;">Rendimiento</h2>
         {% if player_match_ratings.matches %}
@@ -2592,6 +2632,7 @@
           </div>
         </div>
       </section>
+      {% endif %}
       {% endif %}
 
         {% if season_minutes_load %}
@@ -2970,6 +3011,7 @@
         {% endif %}
       </section>
 
+      {% if vis.evaluation %}
       <section class="card tab-pane" data-pane="evaluations">
         <h2 style="margin-top:0;">Atributos · lectura FM</h2>
         <p class="subtle" style="margin:0 0 0.4rem;">Radar derivado de las estadísticas y percentiles del jugador (perfil objetivo, no editable) · complementa el radar de valoración.</p>
@@ -3058,7 +3100,9 @@
           {% endif %}
         </div>
       </section>
+      {% endif %}
 
+      {% if vis.injuries %}
       <section class="card tab-pane" data-pane="injuries">
         <h2 style="margin-top:0;">Historial de lesiones</h2>
         <div class="stats-grid" style="margin-top:0.4rem;">
@@ -3216,7 +3260,9 @@
         </script>
         {% endif %}
       </section>
+      {% endif %}
 
+      {% if vis.videos %}
       <section class="card tab-pane" data-pane="videos">
         <h2 style="margin-top:0;">Vídeos asignados</h2>
         <p class="subtle">Material compartido por el analista para preparar rival, situaciones específicas o clips de aprendizaje.</p>
@@ -3243,9 +3289,10 @@
           {% endfor %}
         </div>
       </section>
+      {% endif %}
 
+      {% if vis.physical %}
       <section class="card tab-pane" data-pane="physical">
-        {% if not is_player_readonly %}
         <h2 style="margin-top:0;">Físico</h2>
         <div class="stats-grid" style="margin-top:0;">
           <article class="stat">
@@ -3291,6 +3338,8 @@
           {% endif %}
         </div>
         {% endif %}
+        {# El dato es suyo; el formulario de alta no. #}
+        {% if not is_player_readonly %}
         <details class="fm-manage" style="margin:1rem 0;">
           <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.65rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:#cdd8ea;background:rgba(2,6,23,0.35);list-style:none;">✎ Añadir registro físico · RPE · wellness · tests · madurez</summary>
           <div style="padding:.95rem .15rem .15rem;">
@@ -3353,6 +3402,7 @@
         </form>
           </div>
         </details>
+        {% endif %}
 
         <div style="overflow-x:auto;">
         <table>
@@ -3380,12 +3430,10 @@
           </tbody>
         </table>
         </div>
-        {% else %}
-        <h2 style="margin-top:0;">Métricas físicas</h2>
-        <p class="subtle" style="margin-top:0;">Estas métricas están disponibles solo para el staff.</p>
-        {% endif %}
       </section>
+      {% endif %}
 
+      {% if vis.communication or vis.fines %}
       <section class="card tab-pane" data-pane="discipline">
         <h2 style="margin-top:0;">Comunicación y multas</h2>
         <div class="split">
@@ -3489,6 +3537,7 @@
           </section>
         </div>
       </section>
+      {% endif %}
     </div>
 
 	    <script>

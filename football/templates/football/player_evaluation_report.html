@@ -203,7 +203,8 @@
           <div class="text-block">{{ evaluation.evidence_notes }}</div>
         </article>
         {% endif %}
-        {% if evaluation.coach_comments and not is_player_readonly %}
+        {# Misma regla que en la ficha: al jugador sólo si se marcaron al publicar. #}
+        {% if evaluation.coach_comments and not is_player_readonly or evaluation.coach_comments and evaluation.published_comments_to_player %}
         <article class="card">
           <h2>Comentario técnico</h2>
           <div class="text-block">{{ evaluation.coach_comments }}</div>

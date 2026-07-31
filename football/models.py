@@ -1163,6 +1163,14 @@ class Player(models.Model):
     preferred_position = models.CharField(max_length=60, blank=True)
     previous_season_position = models.CharField(max_length=60, blank=True)
     traits = models.JSONField(default=list, blank=True, help_text='Rasgos/preferencias del jugador (estilo FM): claves de PLAYER_TRAITS.')
+    portal_overrides = models.JSONField(
+        default=dict, blank=True,
+        help_text=(
+            'Excepciones de visibilidad del portal SOLO para este jugador '
+            '(mismo formato que PlayerPortalPolicy.sections). Vacío = manda la política del club. '
+            'Sin interfaz a propósito: es la salida para el caso raro, no la forma normal de configurar.'
+        ),
+    )
     squad_role = models.CharField(
         max_length=16, blank=True, default='',
         help_text='Rol de plantilla FIJADO manualmente (clave/titular/rotacion/promesa/suplente/prescindible). Vacío = automático.',
@@ -1608,6 +1616,50 @@ class PlayerCommunication(models.Model):
 
     def __str__(self):
         return f'{self.player.name} · {self.category}'
+
+
+class PlayerPortalPolicy(models.Model):
+    """
+    Qué ve el jugador en su portal, decidido por el club.
+
+    Un registro con `team` vacío es la regla del CLUB (lo normal: una decisión, cinco
+    minutos, y listo). Un registro con `team` es la excepción de esa categoría, que se
+    aplica encima. La excepción de un jugador suelto vive en `Player.portal_overrides`.
+
+    El contenido de `sections` y el orden de resolución están en
+    `football/player_portal_policy.py`, que es quien manda: aquí sólo se guarda.
+    """
+
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name='player_portal_policies')
+    team = models.ForeignKey(
+        Team, on_delete=models.CASCADE, null=True, blank=True, related_name='player_portal_policies',
+        help_text='Vacío = regla del club. Con equipo = regla de esa categoría, que pisa a la del club.',
+    )
+    sections = models.JSONField(
+        default=dict, blank=True,
+        help_text='Mapa sección -> estado (hidden/visible/published_only). Lo que falte cae al valor por defecto.',
+    )
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='player_portal_policies_updated')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['workspace'], condition=models.Q(team__isnull=True),
+                name='uniq_player_portal_policy_club',
+            ),
+            models.UniqueConstraint(
+                fields=['workspace', 'team'], condition=models.Q(team__isnull=False),
+                name='uniq_player_portal_policy_team',
+            ),
+        ]
+        verbose_name = 'Política del portal del jugador'
+        verbose_name_plural = 'Políticas del portal del jugador'
+
+    def __str__(self):
+        scope = self.team.name if self.team_id else 'club'
+        return f'{self.workspace.name} · portal jugador ({scope})'
 
 
 class ScoutingTarget(models.Model):
@@ -4286,6 +4338,24 @@ class PlayerEvaluation(models.Model):
     evaluation_type = models.CharField(max_length=24, choices=TYPE_CHOICES, default=TYPE_MONTHLY)
     evaluated_on = models.DateField(default=timezone.localdate)
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_DRAFT)
+    # CERRADA NO ES PUBLICADA. Cerrar una evaluación es un acto interno del cuerpo técnico;
+    # enseñársela al jugador es una decisión aparte y deliberada, como "Publicar 11 y avisar".
+    # Antes, cerrar una valoración la publicaba sola. Las históricas se quedan en False: el
+    # club decide cuáles abre, ninguna se abre por arrastre.
+    published_to_player = models.BooleanField(
+        default=False,
+        help_text='Publicada al jugador. Cerrar la evaluación NO la publica: es un gesto aparte.',
+    )
+    # Publicar la valoración y publicar lo que el entrenador escribió sobre ella son dos
+    # decisiones: hay comentarios que se comparten y comentarios que no. Se elige al publicar.
+    published_comments_to_player = models.BooleanField(
+        default=False,
+        help_text='Al publicar, incluir también los comentarios del cuerpo técnico.',
+    )
+    published_to_player_at = models.DateTimeField(null=True, blank=True)
+    published_to_player_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='published_player_evaluations',
+    )
 
     role = models.CharField(max_length=80, blank=True)
     evaluated_position = models.CharField(max_length=60, blank=True)

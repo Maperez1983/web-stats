@@ -121,6 +121,10 @@ from .library_repositories import (
 )
 from .local_llm import ai_trainer_senior_local_advice, call_ollama_json, local_llm_config
 from .ops_logging import log_exception
+from .player_portal_policy import (
+    PUBLISHED_ONLY as PORTAL_PUBLISHED_ONLY,
+    visibility_for_request as player_portal_visibility_for_request,
+)
 from .preview_render import render_html_selector_png, render_task_preview_png
 from .session_plan_fields import parse_session_plan_fields, serialize_session_plan_fields
 from .session_task_editor_services import (
@@ -77248,6 +77252,16 @@ def player_detail_page(request, player_id):
             current_role == AppUserRole.ROLE_PLAYER and not _is_admin_user(request.user)
         )
         is_player_readonly = player_view_preview or is_player_account
+        # Fase 1: qué SECCIONES ve el jugador ya no lo decide la plantilla, lo decide la
+        # política del club (con la excepción por jugador). `is_player_readonly` sigue
+        # significando "no puede editar"; son dos cosas distintas y se habían mezclado.
+        # La previsualización del staff usa la misma política para que sea fiel.
+        portal_vis = player_portal_visibility_for_request(
+            player,
+            workspace=_get_active_workspace(request),
+            team=primary_team,
+            is_player_view=is_player_readonly,
+        )
         active_match = get_active_match(primary_team)
         current_convocation = get_current_convocation_record(primary_team, match=active_match)
         is_called_up = bool(current_convocation and current_convocation.players.filter(id=player.id).exists())
@@ -77743,6 +77757,33 @@ def player_detail_page(request, player_id):
                     PlayerObjective.objects.filter(id=_obj_id, player=player).delete()
                 return redirect(f"{reverse('player-detail', args=[player.id])}?tab=evaluations")
 
+            if form_action == "evaluation_publish":
+                # Publicar/retirar una valoración al jugador. Es un gesto DELIBERADO y
+                # aparte de cerrarla, igual que "Publicar 11 y avisar": el cuerpo técnico
+                # cierra para su trabajo interno y decide después qué comparte.
+                _eval_id = _parse_int(request.POST.get("evaluation_id"))
+                _evaluation = (
+                    PlayerEvaluation.objects.filter(id=_eval_id, player=player).first() if _eval_id else None
+                )
+                if _evaluation and _evaluation.status == PlayerEvaluation.STATUS_CLOSED:
+                    _publish = str(request.POST.get("publish") or "").strip() == "1"
+                    # Los comentarios del staff son una segunda llave: se comparten sólo si
+                    # se marca la casilla al publicar. Al retirar, se cierran los dos.
+                    _publish_comments = _publish and bool(request.POST.get("publish_comments"))
+                    _evaluation.published_to_player = _publish
+                    _evaluation.published_comments_to_player = _publish_comments
+                    _evaluation.published_to_player_at = timezone.now() if _publish else None
+                    _evaluation.published_to_player_by = request.user if _publish else None
+                    _evaluation.save(
+                        update_fields=[
+                            "published_to_player",
+                            "published_comments_to_player",
+                            "published_to_player_at",
+                            "published_to_player_by",
+                        ]
+                    )
+                return redirect(f"{reverse('player-detail', args=[player.id])}?tab=evaluations")
+
             if form_action == "evaluation":
                 active_workspace_for_eval = _get_active_workspace(request)
                 club_season = None
@@ -78213,6 +78254,11 @@ def player_detail_page(request, player_id):
             }
         except Exception:
             player_percentiles = {}
+        if is_player_readonly:
+            # El portal del jugador es INDIVIDUAL. Un percentil es su posición relativa
+            # dentro de la plantilla: enseñárselo es enseñarle a sus compañeros por la puerta
+            # de atrás. Se comparará consigo mismo en el tiempo, no con el vestuario.
+            player_percentiles = {}
         # Sugerencia objetiva 1-10 para "KPIs objetivos": media de los percentiles de
         # rendimiento disponibles (0-100) reescalada a 0-10. Sirve como valor de partida
         # editable en el formulario de evaluación (el staff puede sobrescribirlo).
@@ -78239,7 +78285,14 @@ def player_detail_page(request, player_id):
         if selected_club_season:
             evaluations_qs = evaluations_qs.filter(club_season=selected_club_season)
         if is_player_readonly:
-            evaluations_qs = evaluations_qs.filter(status=PlayerEvaluation.STATUS_CLOSED)
+            # Decisión de producto: el jugador NO ve valoraciones salvo que se publiquen
+            # expresamente. Cerrada ≠ publicada (antes bastaba con cerrarla).
+            if not portal_vis.evaluation:
+                evaluations_qs = evaluations_qs.none()
+            else:
+                evaluations_qs = evaluations_qs.filter(
+                    status=PlayerEvaluation.STATUS_CLOSED, published_to_player=True
+                )
         player_evaluations = list(evaluations_qs[:24])
         latest_closed_evaluation = next(
             (
@@ -78351,13 +78404,16 @@ def player_detail_page(request, player_id):
         if club_date_start and club_date_end:
             _comm_qs = _comm_qs.filter(created_at__date__gte=club_date_start, created_at__date__lte=club_date_end)
         if is_player_readonly:
-            # SEGURIDAD (portal del jugador, fase 0): la tabla se pintaba ENTERA para el jugador,
-            # con las notas internas del staff sobre él y su parte médico dentro. Sólo ve lo que
-            # va dirigido a él (convocatoria) y sólo cuando ya toca: una comunicación programada
-            # para el futuro no se enseña antes de tiempo.
-            _comm_qs = _comm_qs.filter(category=PlayerCommunication.CATEGORY_CONVOCATION).filter(
-                Q(scheduled_for__isnull=True) | Q(scheduled_for__lte=timezone.now())
-            )
+            # La tabla se pintaba ENTERA para el jugador, con las notas internas del staff
+            # sobre él y su parte médico dentro. Ahora manda la política: cerrada, o sólo lo
+            # que va dirigido a él (convocatoria) y sólo cuando ya toca — una comunicación
+            # programada para el futuro no se enseña antes de tiempo.
+            if not portal_vis.communication:
+                _comm_qs = _comm_qs.none()
+            else:
+                _comm_qs = _comm_qs.filter(category=PlayerCommunication.CATEGORY_CONVOCATION).filter(
+                    Q(scheduled_for__isnull=True) | Q(scheduled_for__lte=timezone.now())
+                )
         communications = _comm_qs[:20]
         # Activos (pendiente, en curso) primero; cumplidos al final; dentro, más nuevos arriba.
         _obj_qs = player.objectives.all()
@@ -79174,6 +79230,9 @@ def player_detail_page(request, player_id):
                 "fines_records": fines_records,
                 "stats_error": stats_error,
                 "is_player_readonly": is_player_readonly,
+                # `vis` = qué secciones ve el jugador (política del club). Distinto de
+                # `is_player_readonly`, que es "no puede editar".
+                "vis": portal_vis,
                 "player_view_preview": player_view_preview,
                 "is_player_account": is_player_account,
                 "position_choices": POSITION_CHOICES,
@@ -79230,7 +79289,11 @@ def player_evaluation_report_page(request, player_id, evaluation_id):
     )
     if not evaluation:
         raise Http404("Evaluación no encontrada")
-    if is_player_readonly and evaluation.status != PlayerEvaluation.STATUS_CLOSED:
+    # La misma regla que en la ficha, o el informe sería la puerta de atrás: cerrada NO basta,
+    # tiene que estar publicada al jugador.
+    if is_player_readonly and (
+        evaluation.status != PlayerEvaluation.STATUS_CLOSED or not evaluation.published_to_player
+    ):
         return HttpResponse("No tienes permisos para ver esta evaluación.", status=403)
 
     previous = _evaluation_previous_for(evaluation)
