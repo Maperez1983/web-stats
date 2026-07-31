@@ -52,6 +52,10 @@ body.prod-commercial {
 /* Light theme: superficies claras y acentos de marca. */
 :root[data-theme="light"] body.prod-commercial {
   --panel-soft: rgba(248, 250, 252, 0.92);
+  /* .ghost estaba pensado solo para el fondo oscuro: su texto es casi blanco y sobre papel
+     claro los botones apagados salian ilegibles, con pinta de deshabilitados. En claro el
+     apagado tiene que seguir leyendose: gris oscuro y borde algo mas marcado. */
+  --ui-button-muted-text: rgba(15, 23, 42, 0.72);
 
   background-image:
     linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(244, 247, 251, 0.9)),
@@ -536,6 +540,10 @@ body.prod-commercial button.ghost {
   color: var(--ui-button-muted-text) !important;
   -webkit-text-fill-color: var(--ui-button-muted-text);
   box-shadow: none !important;
+}
+
+:root[data-theme="light"] body.prod-commercial :where(.button, .btn, button, a).ghost {
+  border-color: rgba(15, 23, 42, 0.22) !important;
 }
 
 body.prod-commercial .button.is-disabled,
