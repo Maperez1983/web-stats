@@ -241,8 +241,8 @@
         gap: 0.15rem 1rem;
       }
       .access-module {
-        justify-content: space-between;
-        gap: 0.6rem;
+        justify-content: flex-start;
+        gap: 0.5rem;
         padding: 0.4rem 0;
         font-size: 0.94rem;
         border-top: 1px solid rgba(255,255,255,0.08);
@@ -543,8 +543,8 @@
             <div class="access-modules">
               {% for module in access_modules %}
               <label class="access-module">
-                <span>{{ module.label }}</span>
                 <input type="checkbox" name="access_module_{{ module.key }}" value="1" {% if module.allowed %}checked{% endif %} />
+                <span>{{ module.label }}</span>
               </label>
               {% endfor %}
             </div>
