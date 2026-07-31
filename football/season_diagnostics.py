@@ -158,3 +158,63 @@ def sessions_perf_view(request):
             ],
         }
     )
+
+
+def task_meta_light_audit_view(request):
+    """
+    ¿Dice lo mismo la copia ligera que el campo gordo? (coach-gated)
+
+    Los listados pasaron a leer `task_layout_light` para poder diferir `tactical_layout`. Si la
+    copia ligera estuviera vacía o desfasada en alguna fila, esa tarea se clasificaría distinto
+    (ámbito, importada, realizada, repositorio) y aparecería o desaparecería de la biblioteca sin
+    que nadie la haya tocado. Esto compara clave a clave las dos fuentes y saca solo las que NO
+    coinciden.
+    """
+    from .models import SessionTask
+    from .permissions import can_access_sessions_workspace
+
+    if not can_access_sessions_workspace(request.user):
+        return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+
+    try:
+        team_id = int(request.GET.get("team") or 0)
+    except Exception:
+        team_id = 0
+    if not team_id:
+        return JsonResponse({"ok": False, "error": "falta ?team="}, status=400)
+
+    watched = ("scope", "source", "pdf_source_name", "import_mode", "performed_on",
+               "repository", "library_repo", "library_repository")
+    rows = (
+        SessionTask.objects.filter(session__microcycle__team_id=team_id, deleted_at__isnull=True)
+        .order_by("-id")[:400]
+    )
+    total = 0
+    empty_light = []
+    mismatches = []
+    for task in rows:
+        total += 1
+        light = task.task_layout_light if isinstance(task.task_layout_light, dict) else {}
+        full = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+        lmeta = light.get("meta") if isinstance(light.get("meta"), dict) else None
+        fmeta = full.get("meta") if isinstance(full.get("meta"), dict) else {}
+        if lmeta is None:
+            empty_light.append({"id": task.id, "title": str(task.title or "")[:60]})
+            continue
+        diff = {
+            key: {"light": lmeta.get(key), "full": fmeta.get(key)}
+            for key in watched
+            if str(lmeta.get(key) or "") != str(fmeta.get(key) or "")
+        }
+        if diff:
+            mismatches.append({"id": task.id, "title": str(task.title or "")[:60], "diff": diff})
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "tasks_checked": total,
+            "sin_copia_ligera": empty_light,
+            "discrepancias": mismatches,
+            "veredicto": "coinciden" if not empty_light and not mismatches else "REVISAR",
+        }
+    )
