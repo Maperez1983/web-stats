@@ -1328,7 +1328,7 @@
           <a class="btn alt" href="{% url 'player-home' %}?ver_como={{ player.id }}" target="_blank" rel="noopener">Abrir a pantalla completa</a>
         </div>
         <details>
-          <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.6rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:#cdd8ea;list-style:none;">
+          <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.6rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:var(--prod-text);list-style:none;">
             Mostrar la vista previa
           </summary>
           <div style="margin-top:0.9rem;display:flex;justify-content:center;">
@@ -1356,7 +1356,7 @@
 
       <section class="card tab-pane" data-pane="personal">
         <h2 style="margin-top:0;">Datos personales</h2>
-        {% with kst='font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:#6b7c94;font-weight:800;' vst='font-size:.95rem;font-weight:700;color:#eef2f8;margin-top:1px;' cardst='border:1px solid rgba(148,163,184,0.18);border-radius:12px;padding:.85rem .95rem;background:rgba(2,6,23,0.35);' ctit='font-size:.64rem;text-transform:uppercase;letter-spacing:.12em;color:#6b7c94;font-weight:800;margin:0 0 .65rem;' %}
+        {% with kst='font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--prod-muted);font-weight:800;' vst='font-size:.95rem;font-weight:700;color:var(--prod-text);margin-top:1px;' cardst='border:1px solid rgba(148,163,184,0.18);border-radius:12px;padding:.85rem .95rem;background:rgba(2,6,23,0.35);' ctit='font-size:.64rem;text-transform:uppercase;letter-spacing:.12em;color:var(--prod-muted);font-weight:800;margin:0 0 .65rem;' %}
         <section aria-label="Resumen del jugador" style="margin:0 0 1.1rem;">
           <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-bottom:.85rem;">
             {% if has_active_injury %}<span class="pill warn">Lesión activa</span>{% elif has_manual_sanction %}<span class="pill warn">Sanción</span>{% else %}<span class="pill ok">Disponible</span>{% endif %}
@@ -1403,7 +1403,7 @@
         {% endwith %}
         {% if not is_player_readonly %}
         <details class="fm-manage" style="margin:0 0 1rem;">
-          <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.65rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:#cdd8ea;background:rgba(2,6,23,0.35);list-style:none;">⚙ Estado en el club · pasar a ojeado / traspaso</summary>
+          <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.65rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:var(--prod-text);background:rgba(2,6,23,0.35);list-style:none;">⚙ Estado en el club · pasar a ojeado / traspaso</summary>
           <div style="padding:.95rem .15rem .15rem;">
         {% if player_in_scouting %}
         <form method="post" style="margin:0 0 1rem;" onsubmit="return confirm('¿Devolver este jugador a la plantilla activa? Su ficha de ojeo se marcará como fichado.');">
@@ -1635,7 +1635,7 @@
           {% endif %}
         </div>
         <details class="fm-manage" style="margin:0 0 1rem;">
-          <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.65rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:#cdd8ea;background:rgba(2,6,23,0.35);list-style:none;">{% if is_player_readonly %}📋 Ficha completa (detalle){% else %}✎ Editar ficha completa{% endif %}</summary>
+          <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.65rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:var(--prod-text);background:rgba(2,6,23,0.35);list-style:none;">{% if is_player_readonly %}📋 Ficha completa (detalle){% else %}✎ Editar ficha completa{% endif %}</summary>
           <div style="padding:.95rem .15rem .15rem;">
         <div class="personal-layout">
           {% if not is_player_readonly %}
@@ -1695,7 +1695,7 @@
                 </select>
               </label>
               <div style="grid-column:1/-1;border-top:1px solid rgba(148,163,184,.18);padding-top:.7rem;margin-top:.2rem;">
-                <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:#9fb0c6;font-weight:800;margin-bottom:.5rem;">Rasgos / preferencias</div>
+                <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--prod-muted);font-weight:800;margin-bottom:.5rem;">Rasgos / preferencias</div>
                 <div style="display:flex;gap:.45rem .95rem;flex-wrap:wrap;">
                   {% for t in player_traits_catalog %}
                   <label style="display:flex;align-items:center;gap:.35rem;font-size:.82rem;font-weight:600;cursor:pointer;flex-direction:row;">
@@ -1704,7 +1704,7 @@
                   {% endfor %}
                 </div>
               </div>
-              <div style="grid-column:1/-1;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:#9fb0c6;font-weight:800;border-top:1px solid rgba(148,163,184,.18);padding-top:.7rem;margin-top:.3rem;">Enlaces externos</div>
+              <div style="grid-column:1/-1;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--prod-muted);font-weight:800;border-top:1px solid rgba(148,163,184,.18);padding-top:.7rem;margin-top:.3rem;">Enlaces externos</div>
               <label>Perfil La Preferente (URL)
                 <input type="url" name="preferente_profile_url" value="{{ player.preferente_profile_url|default:'' }}" placeholder="https://www.lapreferente.com/J..." />
               </label>
@@ -1714,7 +1714,7 @@
               <label>Perfil BeSoccer (URL)
                 <input type="url" name="besoccer_url" value="{{ player.besoccer_url|default:'' }}" placeholder="https://es.besoccer.com/jugador/..." />
               </label>
-              <div style="grid-column:1/-1;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:#9fb0c6;font-weight:800;border-top:1px solid rgba(148,163,184,.18);padding-top:.7rem;margin-top:.3rem;">Avatar</div>
+              <div style="grid-column:1/-1;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--prod-muted);font-weight:800;border-top:1px solid rgba(148,163,184,.18);padding-top:.7rem;margin-top:.3rem;">Avatar</div>
               <label>Tono de piel (avatar)
                 <select name="skin_tone">
                   <option value="" {% if not player.skin_tone %}selected{% endif %}>Automático</option>
@@ -1781,7 +1781,7 @@
                   hair.addEventListener('change', refresh);
                 })();
               </script>
-              <div style="grid-column:1/-1;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:#9fb0c6;font-weight:800;border-top:1px solid rgba(148,163,184,.18);padding-top:.7rem;margin-top:.3rem;">Físico y contacto</div>
+              <div style="grid-column:1/-1;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--prod-muted);font-weight:800;border-top:1px solid rgba(148,163,184,.18);padding-top:.7rem;margin-top:.3rem;">Físico y contacto</div>
               <label>Altura (cm)
                 <input type="number" name="height_cm" min="100" max="240" value="{{ player.height_cm|default:'' }}" />
               </label>
@@ -1826,7 +1826,7 @@
                 })();
               </script>
 
-              <div style="grid-column:1/-1;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:#9fb0c6;font-weight:800;border-top:1px solid rgba(148,163,184,.18);padding-top:.7rem;margin-top:.3rem;">Documentación</div>
+              <div style="grid-column:1/-1;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--prod-muted);font-weight:800;border-top:1px solid rgba(148,163,184,.18);padding-top:.7rem;margin-top:.3rem;">Documentación</div>
               <label>Foto del jugador
                 <input type="file" name="player_photo" accept="image/*" />
               </label>
@@ -1957,10 +1957,10 @@
             {% if player_season_rating.avg %}
             <div style="display:flex;align-items:baseline;gap:.5rem;">
               <span style="font-size:2rem;font-weight:900;line-height:1;color:{% if player_season_rating.avg >= 7 %}#3fbf6a{% elif player_season_rating.avg >= 6 %}#e2a53a{% else %}#e2564a{% endif %};">{{ player_season_rating.avg|floatformat:1 }}</span>
-              <div><div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:#6b7c94;font-weight:800;">Nota media</div><div style="font-size:.72rem;color:#9fb0c6;">temporada · {{ player_season_rating.count }} partido{{ player_season_rating.count|pluralize }}</div></div>
+              <div><div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--prod-muted);font-weight:800;">Nota media</div><div style="font-size:.72rem;color:var(--prod-muted);">temporada · {{ player_season_rating.count }} partido{{ player_season_rating.count|pluralize }}</div></div>
             </div>
             {% endif %}
-            {% if player_match_ratings.form %}<div style="display:flex;align-items:baseline;gap:.4rem;"><span style="font-size:1.3rem;font-weight:900;color:#eef2f8;">{{ player_match_ratings.form|floatformat:1 }}</span><span style="font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:#6b7c94;font-weight:800;">Forma (5)</span></div>{% endif %}
+            {% if player_match_ratings.form %}<div style="display:flex;align-items:baseline;gap:.4rem;"><span style="font-size:1.3rem;font-weight:900;color:var(--prod-text);">{{ player_match_ratings.form|floatformat:1 }}</span><span style="font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:var(--prod-muted);font-weight:800;">Forma (5)</span></div>{% endif %}
             <span class="subtle" style="font-size:.72rem;margin-left:auto;">Se acumula al cerrar cada partido</span>
           </div>
           {% if player_match_ratings.matches %}
@@ -1968,8 +1968,8 @@
             {% for m in player_match_ratings.matches %}
             <a href="{% url 'player-match-stats' player.id m.match_id %}" style="text-decoration:none;flex:0 0 auto;min-width:88px;border:1px solid rgba(148,163,184,0.18);border-radius:11px;padding:.45rem .55rem;background:rgba(2,6,23,0.4);text-align:center;">
               <div style="font-size:1.25rem;font-weight:900;line-height:1;color:{% if m.tone == 'good' %}#3fbf6a{% elif m.tone == 'mid' %}#e2a53a{% else %}#e2564a{% endif %};">{{ m.rating|floatformat:1 }}</div>
-              <div style="font-size:.64rem;color:#9fb0c6;margin-top:.25rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:84px;">{{ m.opponent }}</div>
-              <div style="font-size:.56rem;color:#6b7c94;">{% if m.date %}{{ m.date|date:'d/m' }}{% endif %}{% if m.goals %} · {{ m.goals }}G{% endif %}{% if m.assists %} · {{ m.assists }}A{% endif %}</div>
+              <div style="font-size:.64rem;color:var(--prod-muted);margin-top:.25rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:84px;">{{ m.opponent }}</div>
+              <div style="font-size:.56rem;color:var(--prod-muted);">{% if m.date %}{{ m.date|date:'d/m' }}{% endif %}{% if m.goals %} · {{ m.goals }}G{% endif %}{% if m.assists %} · {{ m.assists }}A{% endif %}</div>
             </a>
             {% endfor %}
           </div>
@@ -2062,7 +2062,7 @@
         {% endif %}
         {% if not is_player_readonly %}
         <details class="fm-manage" style="margin-top:0.6rem;">
-          <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.65rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:#cdd8ea;background:rgba(2,6,23,0.35);list-style:none;">⇪ Rellenar/actualizar desde La Preferente (pegar)</summary>
+          <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.65rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:var(--prod-text);background:rgba(2,6,23,0.35);list-style:none;">⇪ Rellenar/actualizar desde La Preferente (pegar)</summary>
           <p class="subtle" style="margin:0.5rem 0;">Abre la ficha del jugador en La Preferente, selecciónala entera (Cmd+A), cópiala (Cmd+C) y pégala aquí. Se rellena su historial (temporadas, equipos, PJ, minutos, goles, tarjetas).</p>
           <form method="post">
             {% csrf_token %}
@@ -2079,23 +2079,23 @@
       <section class="card tab-pane" data-pane="evaluations">
         <h2 style="margin-top:0;">Evaluaciones</h2>
         {% if fm_role_fit %}
-        <section aria-label="Perfil y encaje por rol" style="border:1px solid rgba(148,163,184,0.18);border-radius:16px;padding:1.1rem 1.15rem;margin:0 0 1.1rem;background:rgba(2,6,23,0.32);">
+        <section aria-label="Perfil y encaje por rol" style="border:1px solid rgba(148,163,184,0.18);border-radius:16px;padding:1.1rem 1.15rem;margin:0 0 1.1rem;background:var(--prod-panel-flat, rgba(2,6,23,0.32));">
           <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.4rem;margin-bottom:1rem;">
             <h3 style="margin:0;font-size:1rem;">Perfil y encaje</h3>
             <span class="subtle" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;font-weight:800;">{{ fm_role_fit.position_label }}</span>
           </div>
           <div style="display:grid;grid-template-columns:minmax(240px,300px) 1fr;gap:1rem;align-items:start;">
-            {% with dg='border:1px solid rgba(148,163,184,0.16);border-radius:13px;background:rgba(2,6,23,0.4);padding:1rem;' k3='font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:#6b7c94;font-weight:800;' %}
+            {% with dg='border:1px solid rgba(148,163,184,0.16);border-radius:13px;background:rgba(2,6,23,0.4);padding:1rem;' k3='font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:var(--prod-muted);font-weight:800;' %}
             <div style="{{ dg }}">
-              <p style="{{ k3 }}margin:0 0 .8rem;">Nivel del jugador</p>
+              <p style="{{ k3 }}margin:0 0 .8rem;">Nivel por atributos</p>
               <div style="display:flex;align-items:center;gap:1rem;">
                 <div style="width:96px;height:96px;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;position:relative;background:conic-gradient(#3fbf6a 0 {{ fm_role_fit.level_pct }}%, rgba(148,163,184,.16) {{ fm_role_fit.level_pct }}% 100%);">
                   <div style="position:absolute;inset:8px;border-radius:50%;background:rgba(2,6,23,0.85);"></div>
-                  <span style="position:relative;font-size:1.7rem;font-weight:900;line-height:1;color:#eef2f8;">{{ fm_role_fit.level|floatformat:1 }}<span style="font-size:.62rem;font-weight:700;color:#6b7c94;">/10</span></span>
+                  <span style="position:relative;font-size:1.7rem;font-weight:900;line-height:1;color:var(--prod-text);">{{ fm_role_fit.level|floatformat:1 }}<span style="font-size:.62rem;font-weight:700;color:var(--prod-muted);">/10</span></span>
                 </div>
                 <div style="flex:1;min-width:0;">
                   <div style="{{ k3 }}">Potencial</div>
-                  <div style="font-size:1.05rem;font-weight:800;color:#eef2f8;margin:1px 0 .35rem;">{{ fm_role_fit.potential|floatformat:1 }}
+                  <div style="font-size:1.05rem;font-weight:800;color:var(--prod-text);margin:1px 0 .35rem;">{{ fm_role_fit.potential|floatformat:1 }}
                     {% if fm_role_fit.trend_dir == 'up' %}<span style="color:#3fbf6a;font-weight:800;font-size:.85rem;">↑ +{{ fm_role_fit.trend_abs|floatformat:1 }}</span>{% elif fm_role_fit.trend_dir == 'down' %}<span style="color:#e2564a;font-weight:800;font-size:.85rem;">↓ {{ fm_role_fit.trend|floatformat:1 }}</span>{% endif %}
                   </div>
                   <div style="position:relative;height:8px;border-radius:5px;background:rgba(148,163,184,.16);overflow:hidden;">
@@ -2109,7 +2109,7 @@
                 <div style="display:flex;gap:4px;">
                   {% for d in "xxx"|make_list %}<span style="width:9px;height:9px;border-radius:50%;background:{% if forloop.counter <= fm_role_fit.confidence.dots %}#f4b400{% else %}rgba(148,163,184,.28){% endif %};"></span>{% endfor %}
                 </div>
-                <div style="font-size:.75rem;color:#9fb0c6;font-weight:700;">Confianza <b style="color:#eef2f8;">{{ fm_role_fit.confidence.label }}</b> · {{ fm_role_fit.confidence.n_evals }} eval.{% if fm_role_fit.confidence.n_matches %} · {{ fm_role_fit.confidence.n_matches }} PJ{% endif %}</div>
+                <div style="font-size:.75rem;color:var(--prod-muted);font-weight:700;">Confianza <b style="color:var(--prod-text);">{{ fm_role_fit.confidence.label }}</b> · {{ fm_role_fit.confidence.n_evals }} eval.{% if fm_role_fit.confidence.n_matches %} · {{ fm_role_fit.confidence.n_matches }} PJ{% endif %}</div>
               </div>
             </div>
             <div style="{{ dg }}">
@@ -2118,7 +2118,7 @@
               {% for role in fm_role_fit.roles %}
               <div style="margin-bottom:.7rem;">
                 <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
-                  <span style="font-size:.86rem;font-weight:700;color:#eef2f8;">{{ role.label }}{% if forloop.first %} <span style="font-size:.58rem;font-weight:900;text-transform:uppercase;letter-spacing:.05em;color:#0b0f17;background:#f4b400;border-radius:5px;padding:1px 6px;vertical-align:middle;">Rol óptimo</span>{% endif %}</span>
+                  <span style="font-size:.86rem;font-weight:700;color:var(--prod-text);">{{ role.label }}{% if forloop.first %} <span style="font-size:.58rem;font-weight:900;text-transform:uppercase;letter-spacing:.05em;color:#0b0f17;background:#f4b400;border-radius:5px;padding:1px 6px;vertical-align:middle;">Rol óptimo</span>{% endif %}</span>
                   <span style="font-size:.85rem;font-weight:900;font-variant-numeric:tabular-nums;color:{% if role.tone == 'good' %}#3fbf6a{% elif role.tone == 'mid' %}#e2a53a{% else %}#e2564a{% endif %};">{{ role.pct }}%</span>
                 </div>
                 <div style="height:9px;border-radius:5px;background:rgba(148,163,184,.14);overflow:hidden;">
@@ -2126,7 +2126,7 @@
                 </div>
               </div>
               {% endfor %}
-              <div style="{{ k3 }}margin-top:.7rem;padding-top:.7rem;border-top:1px solid rgba(148,163,184,0.16);letter-spacing:.02em;text-transform:none;font-weight:600;color:#6b7c94;font-size:.72rem;">Encaje calculado desde sus atributos evaluados, ponderados por rol. A más evaluaciones, más fiable.</div>
+              <div style="{{ k3 }}margin-top:.7rem;padding-top:.7rem;border-top:1px solid rgba(148,163,184,0.16);letter-spacing:.02em;text-transform:none;font-weight:600;color:var(--prod-muted);font-size:.72rem;">Encaje calculado desde sus atributos evaluados, ponderados por rol. A más evaluaciones, más fiable.</div>
               {% else %}
               <p class="subtle" style="margin:0;">Aún no hay atributos suficientes para calcular el encaje. Completa una evaluación con puntuaciones por parámetro.</p>
               {% endif %}
@@ -2136,13 +2136,18 @@
         </section>
         {% endif %}
         {% if fm_eval %}
-        <section aria-label="Perfil del jugador (estilo FM)" style="border:1px solid rgba(148,163,184,0.18);border-radius:14px;padding:1rem;margin:0 0 1.1rem;background:rgba(2,6,23,0.28);">
+        <details style="margin:0 0 1.1rem;">
+          <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.65rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:var(--prod-muted);background:var(--prod-panel-flat, rgba(2,6,23,0.35));list-style:none;">
+            📊 Atributos y encaje en detalle{% if fm_eval.overall %} · atributos {{ fm_eval.overall|floatformat:'-1' }}{% endif %}
+          </summary>
+          <div style="padding-top:.9rem;">
+        <section aria-label="Perfil del jugador (estilo FM)" style="border:1px solid rgba(148,163,184,0.18);border-radius:14px;padding:1rem;margin:0 0 1.1rem;background:var(--prod-panel-flat, rgba(2,6,23,0.28));">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;margin-bottom:.9rem;">
             <h3 style="margin:0;">Perfil del jugador</h3>
             <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;">
               {% if fm_eval.role %}<span class="pill">{{ fm_eval.role }}</span>{% endif %}
               {% if fm_eval.evaluated_position %}<span class="pill">{{ fm_eval.evaluated_position }}</span>{% endif %}
-              {% if fm_eval.overall %}<span class="pill" style="font-weight:900;color:#eef2f8;">Media {{ fm_eval.overall|floatformat:'-1' }}</span>{% endif %}
+              {% if fm_eval.overall %}<span class="pill" style="font-weight:900;color:var(--prod-text);" title="Media de los atributos evaluados, no la nota del cuerpo técnico">Atributos {{ fm_eval.overall|floatformat:'-1' }}</span>{% endif %}
               {% if fm_eval.evaluated_on %}<span class="subtle" style="font-size:.72rem;">{{ fm_eval.evaluated_on|date:'d/m/Y' }}</span>{% endif %}
             </div>
           </div>
@@ -2158,7 +2163,7 @@
                 <line x1="130" y1="110" x2="130" y2="190" stroke="rgba(148,163,184,.22)"/>
                 <line x1="130" y1="110" x2="50" y2="110" stroke="rgba(148,163,184,.22)"/>
                 <polygon points="{{ fm_eval.radar_points }}" fill="rgba(74,134,232,.22)" stroke="#4a86e8" stroke-width="2"/>
-                {% for ax in fm_eval.radar_axes %}<text x="{{ ax.x }}" y="{{ ax.y }}" fill="#9fb0c6" font-size="11" font-weight="700" text-anchor="{{ ax.anchor }}">{{ ax.label }}{% if ax.avg %} {{ ax.avg|floatformat:'-1' }}{% endif %}</text>{% endfor %}
+                {% for ax in fm_eval.radar_axes %}<text x="{{ ax.x }}" y="{{ ax.y }}" fill="var(--prod-muted)" font-size="11" font-weight="700" text-anchor="{{ ax.anchor }}">{{ ax.label }}{% if ax.avg %} {{ ax.avg|floatformat:'-1' }}{% endif %}</text>{% endfor %}
               </svg>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:.5rem;">
                 <div>
@@ -2174,10 +2179,10 @@
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem 1.4rem;">
               {% for g in fm_eval.groups %}
               <div>
-                <h4 style="margin:0 0 .4rem;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:#9fb0c6;display:flex;justify-content:space-between;">{{ g.label }} <span style="color:#eef2f8;font-weight:900;">{{ g.avg|floatformat:'-1' }}</span></h4>
+                <h4 style="margin:0 0 .4rem;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--prod-muted);display:flex;justify-content:space-between;">{{ g.label }} <span style="color:var(--prod-text);font-weight:900;">{{ g.avg|floatformat:'-1' }}</span></h4>
                 {% for p in g.params %}
                 <div style="display:flex;align-items:center;gap:.5rem;margin:.2rem 0;">
-                  <span style="flex:1;font-size:.8rem;color:#9fb0c6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ p.label }}</span>
+                  <span style="flex:1;font-size:.8rem;color:var(--prod-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ p.label }}</span>
                   <span style="width:70px;height:6px;border-radius:3px;background:rgba(148,163,184,.18);overflow:hidden;flex:0 0 auto;"><i style="display:block;height:100%;border-radius:3px;width:{{ p.pct }}%;background:{% if p.tone == 'good' %}#3fbf6a{% elif p.tone == 'mid' %}#e2a53a{% else %}#e2564a{% endif %};"></i></span>
                   <span style="width:22px;text-align:right;font-size:.8rem;font-weight:800;color:{% if p.tone == 'good' %}#3fbf6a{% elif p.tone == 'mid' %}#e2a53a{% else %}#e2564a{% endif %};">{{ p.value|floatformat:'-1' }}</span>
                 </div>
@@ -2187,6 +2192,8 @@
             </div>
           </div>
         </section>
+          </div>
+        </details>
         {% endif %}
         <section aria-label="Objetivos de trabajo" style="border:1px solid rgba(56,189,248,0.3);border-radius:12px;padding:0.7rem 0.85rem;margin:0 0 1rem;">
           <h3 style="margin:0 0 0.5rem;">Objetivos de trabajo</h3>
@@ -2226,8 +2233,9 @@
               <strong style="letter-spacing:0.12em;text-transform:uppercase;font-size:0.82rem;">Valoración del cuerpo técnico</strong>
               <div class="subtle" style="margin-top:0.25rem;">
                 {% if evaluation_consensus.overall %}
-                  Media <strong style="font-size:1.15rem;">{{ evaluation_consensus.overall }}</strong>
-                  · sostenida por {{ evaluation_consensus.voters }} valoración{{ evaluation_consensus.voters|pluralize:"es" }}
+                  Nota <strong style="font-size:1.15rem;">{{ evaluation_consensus.overall }}</strong>
+                  · media de {{ evaluation_consensus.voters }} valoración{{ evaluation_consensus.voters|pluralize:"es" }} del cuerpo técnico
+                  <br /><span style="font-size:0.74rem;">Es LA nota del jugador. Lo demás que veas en esta pestaña —atributos, encaje, potencial— es otra cosa y va con su nombre.</span>
                 {% else %}
                   Todavía no hay ninguna valoración cerrada del cuerpo técnico.
                 {% endif %}
@@ -2273,7 +2281,7 @@
                 {% if evaluation_summary.latest %}
                   Última cerrada: <strong>{{ evaluation_summary.latest.get_evaluation_type_display }}</strong>
                   · {{ evaluation_summary.latest.evaluated_on|date:"d/m/Y" }}
-                  · Media <strong>{{ evaluation_summary.latest.average_rating|default:evaluation_summary.latest.overall_rating|default:"--" }}</strong>
+                  · esa valoración suelta: <strong>{{ evaluation_summary.latest.average_rating|default:evaluation_summary.latest.overall_rating|default:"--" }}</strong>
                   {% if evaluation_summary.days_since is not None %} · hace {{ evaluation_summary.days_since }} días{% endif %}
                 {% else %}
                   Sin evaluación cerrada en este contexto de temporada.
@@ -2660,18 +2668,18 @@
         {% if player_match_ratings.matches %}
         <section aria-label="Rating por partido (automático)" style="border:1px solid rgba(148,163,184,0.18);border-radius:14px;padding:1rem;margin:0 0 1.1rem;background:rgba(2,6,23,0.32);">
           <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.5rem;margin-bottom:.85rem;">
-            <h3 style="margin:0;font-size:1rem;">Rating por partido <span style="font-size:.62rem;color:#6b7c94;font-weight:800;text-transform:uppercase;letter-spacing:.08em;">auto · estilo FM</span></h3>
-            <span style="font-size:.78rem;color:#9fb0c6;font-weight:700;display:flex;gap:1rem;flex-wrap:wrap;">
-              {% if player_season_rating.avg %}<span>Media temporada: <b style="color:#eef2f8;font-size:1.05rem;">{{ player_season_rating.avg|floatformat:1 }}</b> <span style="color:#6b7c94;">({{ player_season_rating.count }} PJ)</span></span>{% endif %}
-              {% if player_match_ratings.form %}<span>Forma (últimos 5): <b style="color:#eef2f8;font-size:1.05rem;">{{ player_match_ratings.form|floatformat:1 }}</b></span>{% endif %}
+            <h3 style="margin:0;font-size:1rem;">Rating por partido <span style="font-size:.62rem;color:var(--prod-muted);font-weight:800;text-transform:uppercase;letter-spacing:.08em;">auto · estilo FM</span></h3>
+            <span style="font-size:.78rem;color:var(--prod-muted);font-weight:700;display:flex;gap:1rem;flex-wrap:wrap;">
+              {% if player_season_rating.avg %}<span>Media temporada: <b style="color:var(--prod-text);font-size:1.05rem;">{{ player_season_rating.avg|floatformat:1 }}</b> <span style="color:var(--prod-muted);">({{ player_season_rating.count }} PJ)</span></span>{% endif %}
+              {% if player_match_ratings.form %}<span>Forma (últimos 5): <b style="color:var(--prod-text);font-size:1.05rem;">{{ player_match_ratings.form|floatformat:1 }}</b></span>{% endif %}
             </span>
           </div>
           <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
             {% for m in player_match_ratings.matches %}
             <a href="{% url 'player-match-stats' player.id m.match_id %}" style="text-decoration:none;flex:0 0 auto;min-width:90px;border:1px solid rgba(148,163,184,0.18);border-radius:11px;padding:.5rem .6rem;background:rgba(2,6,23,0.4);text-align:center;">
               <div style="font-size:1.35rem;font-weight:900;line-height:1;color:{% if m.tone == 'good' %}#3fbf6a{% elif m.tone == 'mid' %}#e2a53a{% else %}#e2564a{% endif %};">{{ m.rating|floatformat:1 }}</div>
-              <div style="font-size:.66rem;color:#9fb0c6;margin-top:.28rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:86px;">{{ m.opponent }}</div>
-              <div style="font-size:.58rem;color:#6b7c94;">{% if m.date %}{{ m.date|date:'d/m' }}{% endif %}{% if m.goals %} · {{ m.goals }}G{% endif %}{% if m.assists %} · {{ m.assists }}A{% endif %}</div>
+              <div style="font-size:.66rem;color:var(--prod-muted);margin-top:.28rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:86px;">{{ m.opponent }}</div>
+              <div style="font-size:.58rem;color:var(--prod-muted);">{% if m.date %}{{ m.date|date:'d/m' }}{% endif %}{% if m.goals %} · {{ m.goals }}G{% endif %}{% if m.assists %} · {{ m.assists }}A{% endif %}</div>
             </a>
             {% endfor %}
           </div>
@@ -3185,7 +3193,7 @@
         </div>
         {% if not is_player_readonly %}
         <details class="fm-manage" style="margin:1rem 0;">
-          <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.65rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:#cdd8ea;background:rgba(2,6,23,0.35);list-style:none;">✎ Registrar o actualizar lesión</summary>
+          <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.65rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:var(--prod-text);background:rgba(2,6,23,0.35);list-style:none;">✎ Registrar o actualizar lesión</summary>
           <div style="padding:.95rem .15rem .15rem;">
         <form method="post" enctype="multipart/form-data">
           {% csrf_token %}
@@ -3403,7 +3411,7 @@
         {# El dato es suyo; el formulario de alta no. #}
         {% if not is_player_readonly %}
         <details class="fm-manage" style="margin:1rem 0;">
-          <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.65rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:#cdd8ea;background:rgba(2,6,23,0.35);list-style:none;">✎ Añadir registro físico · RPE · wellness · tests · madurez</summary>
+          <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.65rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:var(--prod-text);background:rgba(2,6,23,0.35);list-style:none;">✎ Añadir registro físico · RPE · wellness · tests · madurez</summary>
           <div style="padding:.95rem .15rem .15rem;">
         <form method="post">
           {% csrf_token %}
@@ -3551,7 +3559,7 @@
             </p>
             {% if not is_player_readonly %}
             <details class="fm-manage" style="margin:.4rem 0 1rem;">
-              <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.65rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:#cdd8ea;background:rgba(2,6,23,0.35);list-style:none;">✎ Nueva comunicación · convocatoria · interna · parte médico</summary>
+              <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.65rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:var(--prod-text);background:rgba(2,6,23,0.35);list-style:none;">✎ Nueva comunicación · convocatoria · interna · parte médico</summary>
               <div style="padding:.95rem .15rem .15rem;">
             <form method="post">
               {% csrf_token %}
