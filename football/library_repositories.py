@@ -111,8 +111,13 @@ def library_repository_for_task(task):
     if not task:
         return LIBRARY_REPOSITORY_TRADITIONAL
     try:
-        layout = task.tactical_layout if isinstance(getattr(task, 'tactical_layout', None), dict) else {}
-        meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+        # Copia ligera primero: esta funcion se llama por cada fila de los listados, que traen
+        # `tactical_layout` diferido; leerlo aqui seria una consulta por tarea.
+        light = getattr(task, 'task_layout_light', None)
+        meta = light.get('meta') if isinstance(light, dict) and isinstance(light.get('meta'), dict) else None
+        if meta is None:
+            layout = task.tactical_layout if isinstance(getattr(task, 'tactical_layout', None), dict) else {}
+            meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
         raw_repo = meta.get('repository') or meta.get('library_repo') or meta.get('library_repository')
         repo = normalize_library_repository(raw_repo, fallback='')
         if repo in LIBRARY_REPOSITORY_CHOICES:

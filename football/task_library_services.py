@@ -275,9 +275,29 @@ def sanitize_task_text(value, multiline=True, max_len=None):
     )
 
 
+def task_meta_light(task):
+    """
+    Devuelve `meta` de la tarea SIN tocar el canvas.
+
+    `tactical_layout` pesa ~165 KB por tarea (canvas/graphic_editor/original_version) y los
+    listados solo necesitan cuatro claves de `meta`. Para eso existe `task_layout_light`: la
+    misma estructura pero sin el canvas. Leyendo de ahi, quien lista puede DIFERIR
+    `tactical_layout` y no arrastrar megas por pantalla.
+
+    Si la copia ligera aun no esta poblada (filas anteriores a la columna) se cae al campo
+    gordo: mas lento para esa fila, pero nunca devuelve un dato equivocado.
+    """
+    light = getattr(task, 'task_layout_light', None)
+    if isinstance(light, dict) and isinstance(light.get('meta'), dict):
+        return light['meta']
+    layout = getattr(task, 'tactical_layout', None)
+    if isinstance(layout, dict) and isinstance(layout.get('meta'), dict):
+        return layout['meta']
+    return {}
+
+
 def task_scope_for_item(task):
-    layout = task.tactical_layout if isinstance(getattr(task, 'tactical_layout', None), dict) else {}
-    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+    meta = task_meta_light(task)
     scope = str(meta.get('scope') or '').strip()
     return scope or 'coach'
 

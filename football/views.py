@@ -46870,8 +46870,9 @@ def _storage_url_or_empty(name):
 def _is_imported_task(task):
     if not task:
         return False
-    layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
-    meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
+    # Solo se miran cuatro claves de `meta`: se leen de la copia ligera para no traerse el canvas
+    # (~165 KB/tarea) en cada fila de un listado.
+    meta = task_library_services.task_meta_light(task)
     source = str(meta.get("source") or "").strip().lower()
     # Por defecto, las tareas creadas en el editor visual son "Creadas".
     # Pero si una tarea se importó desde PDF y luego se editó (source manual-studio),
@@ -51184,7 +51185,7 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
             SessionTask.objects.select_related("session__microcycle")
             # Perf: los blobs base64 (preview/portada) viven en columnas propias; NO los cargamos
             # al listar (los sirve un endpoint aparte). cover_present da el has_cover barato.
-            .defer("preview_data_b64", "cover_data_b64")
+            .defer("tactical_layout", "preview_data_b64", "cover_data_b64")
             .filter(session__microcycle__team=primary_team, deleted_at__isnull=True)
             .filter(
                 Q(session__microcycle__notes__icontains=LIBRARY_MICROCYCLE_MARKER)
@@ -51307,8 +51308,9 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
             def _chip_value(_t, _field, _from_meta):
                 if not _from_meta:
                     return str(getattr(_t, _field, "") or "").strip()
-                _lay = _t.tactical_layout if isinstance(_t.tactical_layout, dict) else {}
-                _mta = _lay.get("meta") if isinstance(_lay.get("meta"), dict) else {}
+                # Copia ligera: estas filas vienen con `tactical_layout` diferido y leerlo aqui
+                # dispararia una consulta POR TAREA (hasta 600) al filtrar por chips.
+                _mta = task_library_services.task_meta_light(_t)
                 return str((_mta or {}).get(_field) or "").strip()
 
             _chip_sel = {}
@@ -51377,8 +51379,7 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
             library_facets_clear_href = ""
 
         def _is_performed_task(task):
-            layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
-            meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
+            meta = task_library_services.task_meta_light(task)
             source = str(meta.get("source") or "").strip().lower()
             if source == "performed":
                 return True
@@ -51439,6 +51440,7 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
             task_library = []
         deleted_candidates = list(
             SessionTask.objects.select_related("session__microcycle")
+            .defer("tactical_layout", "preview_data_b64", "cover_data_b64")
             .filter(session__microcycle__team=primary_team, deleted_at__isnull=False)
             .filter(
                 Q(session__microcycle__notes__icontains=LIBRARY_MICROCYCLE_MARKER)
@@ -52059,6 +52061,10 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
     if planner_tables_ready:
         source_task_candidates = list(
             SessionTask.objects.select_related("session__microcycle")
+            # Perf: esto alimenta un DESPLEGABLE (id, titulo, bloque, minutos, sesion). Traia las
+            # 73 columnas de 220 filas, canvas incluido: ~2,3 s de las ~5 s de la pantalla. El
+            # `meta` que necesitan los filtros sale de task_layout_light.
+            .defer("tactical_layout", "preview_data_b64", "cover_data_b64")
             .filter(session__microcycle__team=primary_team, deleted_at__isnull=True)
             .order_by("-id")[:220]
         )
