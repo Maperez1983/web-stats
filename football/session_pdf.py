@@ -1163,8 +1163,13 @@ def build_session_pdf_context(request, team, session, pdf_style='uefa'):
     while len(field_player_rows) < field_rows_min:
         field_player_rows.append({'number': '', 'name': '', 'injured': False})
 
+    # La hoja de campo pone DOS tareas por fila, como la plantilla en papel. Con una tarea por
+    # fila a lo ancho, cinco tareas ya se iban a una segunda pagina y deja de ser una hoja.
+    field_task_pairs = [annex_cards[i:i + 2] for i in range(0, len(annex_cards), 2)]
+
     return {
         **_build_pdf_nav_urls(request),
+        'field_task_pairs': field_task_pairs,
         'field_player_rows': field_player_rows,
         'field_players_count': len(field_players),
         'field_season_label': _season_label_for_date(getattr(session, 'session_date', None)),

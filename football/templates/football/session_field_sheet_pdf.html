@@ -65,18 +65,23 @@ tan estrechas que no se puede leer nada.
 
       .task-block { margin-top: 3px; }
       .task-block td { vertical-align: top; }
+      .task-block > tbody > tr > td.half { width: 50%; padding: 0; }
+      .inner { width: 100%; }
+      /* Al ir dos por fila, cada bloque tiene la mitad de ancho: la letra y la pizarra bajan un
+         punto para que siga cabiendo todo en una hoja. */
+      .task-block .inner td { font-size: 7.6px; }
       .dev { width: 30%; }
       .dev .dev-label {
         font-weight: 900; text-transform: uppercase; font-size: 7.6px;
         color: {{ pdf_palette.primary|default:"#0f7a35" }};
       }
       .board { width: 38%; text-align: center; padding: 2px; }
-      .board img { width: 100%; height: auto; max-height: 46mm; display: block; }
+      .board img { width: 100%; height: auto; max-height: 33mm; display: block; }
       .board .noboard { color: #7c8794; font-style: italic; padding: 14px 0; }
       .side { width: 32%; padding: 0; }
       .side table { width: 100%; }
       .side .band { font-size: 7.6px; padding: 2px; }
-      .side .val { height: 26px; }
+      .side .val { height: 20px; }
 
       .footline td { height: 22px; }
       .meta-foot { font-size: 7.4px; color: #6b7785; padding-top: 3px; }
@@ -161,33 +166,46 @@ tan estrechas que no se puede leer nada.
             </tr>
           </table>
 
-          {% for card in annex_cards %}
+          {% comment %}DOS tareas por fila, como la plantilla en papel. Con una por fila a lo ancho,
+          cinco tareas ya se iban a una segunda hoja y esto deja de ser "la hoja" del entreno. Si la
+          fila se queda coja (numero impar), la ultima tarea ocupa el ancho entero.{% endcomment %}
+          {% for pair in field_task_pairs %}
           <table class="task-block">
             <tr>
-              <td class="band" colspan="3">Tarea {{ card.annex_index }} · {{ card.sheet.title }}</td>
+              {% for card in pair %}
+              <td class="band"{% if pair|length == 1 %} colspan="2"{% endif %}>Tarea {{ card.annex_index }} · {{ card.sheet.title }}</td>
+              {% endfor %}
             </tr>
             <tr>
-              <td class="dev cell">
-                <span class="dev-label">Desarrollo</span><br />
-                {% if card.sheet.description %}{{ card.sheet.description }}{% else %}—{% endif %}
-              </td>
-              <td class="board">
-                {% if card.preview_url %}
-                  <img src="{{ card.preview_url }}" alt="Pizarra de la tarea {{ card.annex_index }}" />
-                {% else %}
-                  <div class="noboard">(Sin pizarra dibujada)</div>
-                {% endif %}
-              </td>
-              <td class="side">
-                <table>
-                  <tr><td class="band">Reglas</td></tr>
-                  <tr><td class="val cell-white">{% if card.sheet.rules %}{{ card.sheet.rules }}{% endif %}</td></tr>
-                  <tr><td class="band">Incidir en</td></tr>
-                  <tr><td class="val cell-white">{% if card.sheet.focus %}{{ card.sheet.focus }}{% endif %}</td></tr>
-                  <tr><td class="band">Variantes</td></tr>
-                  <tr><td class="val cell-white">{% if card.sheet.variants %}{{ card.sheet.variants }}{% endif %}</td></tr>
+              {% for card in pair %}
+              <td class="half"{% if pair|length == 1 %} colspan="2"{% endif %}>
+                <table class="inner">
+                  <tr>
+                    <td class="dev cell">
+                      <span class="dev-label">Desarrollo</span><br />
+                      {% if card.sheet.description %}{{ card.sheet.description }}{% else %}—{% endif %}
+                    </td>
+                    <td class="board">
+                      {% if card.preview_url %}
+                        <img src="{{ card.preview_url }}" alt="Pizarra de la tarea {{ card.annex_index }}" />
+                      {% else %}
+                        <div class="noboard">(Sin pizarra)</div>
+                      {% endif %}
+                    </td>
+                    <td class="side">
+                      <table>
+                        <tr><td class="band">Reglas</td></tr>
+                        <tr><td class="val cell-white">{% if card.sheet.rules %}{{ card.sheet.rules }}{% endif %}</td></tr>
+                        <tr><td class="band">Incidir en</td></tr>
+                        <tr><td class="val cell-white">{% if card.sheet.focus %}{{ card.sheet.focus }}{% endif %}</td></tr>
+                        <tr><td class="band">Variantes</td></tr>
+                        <tr><td class="val cell-white">{% if card.sheet.variants %}{{ card.sheet.variants }}{% endif %}</td></tr>
+                      </table>
+                    </td>
+                  </tr>
                 </table>
               </td>
+              {% endfor %}
             </tr>
           </table>
           {% empty %}
