@@ -143,18 +143,29 @@
       </div>
 
       <div class="panel">
-        <h2>Quién tiene cuenta</h2>
+        <h2>Quién tiene cuenta{% if squad_team %} · {{ squad_team.name }}{% endif %}</h2>
         <p class="lead">
           Sin cuenta no hay portal. Al invitar se elige a qué jugador pertenece: el vínculo
           viaja en la invitación, así que nadie acaba en la ficha de otro.
         </p>
+        {% comment %}Como en el resto de la app, la lista es del equipo activo. Las pastillas
+        cambian de categoría con el mismo `?team=` que entiende toda la aplicación.{% endcomment %}
+        {% if squad_team_options|length > 1 %}
+          <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.9rem;">
+            {% for opt in squad_team_options %}
+              <a class="btn alt" href="?team={{ opt.team.id }}"
+                 style="{% if opt.active %}border-color:rgba(244,180,0,0.55);{% endif %}">
+                {{ opt.team.name }} · {{ opt.count }}
+              </a>
+            {% endfor %}
+          </div>
+        {% endif %}
         {% for item in squad %}
           <div class="row">
             <div>
               <strong>{{ item.player.name }}</strong>
               <div class="muted">
-                {{ item.player.team.name }}
-                {% if item.player.number %} · #{{ item.player.number }}{% endif %}
+                {% if item.player.number %}#{{ item.player.number }}{% else %}sin dorsal{% endif %}
                 {% if item.linked_label %}
                   · cuenta: <strong>{{ item.linked_label }}</strong>{% if item.linked_email %} ({{ item.linked_email }}){% endif %}
                 {% endif %}

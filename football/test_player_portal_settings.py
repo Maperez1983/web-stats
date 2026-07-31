@@ -137,11 +137,13 @@ class PortalSettingsPanelTests(TestCase):
         self.assertFalse(PlayerPortalPolicy.objects.filter(team=outsider).exists())
 
     def test_squad_shows_who_has_an_account(self):
+        # La lista es del equipo activo, así que ambos casos van en el mismo equipo.
         user = get_user_model().objects.create_user(username="ayala", password="pass-1234")
         AppUserRole.objects.create(user=user, role=AppUserRole.ROLE_PLAYER)
         self.player.user = user
         self.player.save(update_fields=["user"])
-        response = self.client.get(self._url(), HTTP_HOST="localhost")
+        Player.objects.create(team=self.senior, name="Sin cuenta aun", is_active=True)
+        response = self.client.get(f"{self._url()}?team={self.senior.id}", HTTP_HOST="localhost")
         self.assertContains(response, "vinculado")
         self.assertContains(response, "sin cuenta")
 
@@ -247,3 +249,51 @@ class AccountLinkVisibilityTests(TestCase):
         )
         outsider.refresh_from_db()
         self.assertEqual(outsider.user_id, other_user.id)
+
+
+class SquadListFollowsActiveTeamTests(TestCase):
+    """
+    La lista de jugadores es del EQUIPO ACTIVO, como el resto de la app.
+
+    Salió al usarlo: estando en el primer equipo, el panel volcaba los 68 jugadores del club
+    —bebés incluidos— saltándose la regla del equipo activo que sigue toda la aplicación.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.owner = get_user_model().objects.create_user(username="mister", password="pass-1234")
+        self.workspace = Workspace.objects.create(
+            name="C.D. Prueba", kind=Workspace.KIND_CLUB, is_active=True, owner_user=self.owner
+        )
+        self.senior = Team.objects.create(name="Primer equipo", slug="senior", is_primary=True)
+        self.bebe = Team.objects.create(name="Bebe", slug="bebe")
+        for team in (self.senior, self.bebe):
+            WorkspaceTeam.objects.create(workspace=self.workspace, team=team)
+        Player.objects.create(team=self.senior, name="Juanmi", is_active=True)
+        Player.objects.create(team=self.bebe, name="Nahuel", is_active=True)
+        self.client = Client()
+        self.client.force_login(self.owner)
+        session = self.client.session
+        session["active_workspace_id"] = self.workspace.id
+        session.save()
+
+    def test_only_the_active_team_players_are_listed(self):
+        response = self.client.get(
+            reverse("player-portal-settings") + f"?team={self.senior.id}", HTTP_HOST="localhost"
+        )
+        self.assertContains(response, "Juanmi")
+        self.assertNotContains(response, "Nahuel")
+
+    def test_you_can_switch_category(self):
+        response = self.client.get(
+            reverse("player-portal-settings") + f"?team={self.bebe.id}", HTTP_HOST="localhost"
+        )
+        self.assertContains(response, "Nahuel")
+        self.assertNotContains(response, "Juanmi")
+
+    def test_the_policy_stays_club_wide(self):
+        # Sólo la LISTA sigue al equipo activo; la política de arriba es del club.
+        response = self.client.get(
+            reverse("player-portal-settings") + f"?team={self.senior.id}", HTTP_HOST="localhost"
+        )
+        self.assertContains(response, "Bebe")  # sigue apareciendo en "Por categoría"

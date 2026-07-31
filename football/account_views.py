@@ -474,6 +474,16 @@ def player_portal_settings_page(request):
         })
 
     # Quién tiene cuenta y quién no: sin esto el panel dice qué se ve pero no quién lo ve.
+    # Va por EQUIPO ACTIVO, como el resto de la app: estando en el primer equipo no pintamos
+    # los bebés. La política de arriba sí es del club entero, que es otra cosa.
+    from .workspace_context import get_active_team_for_request
+
+    squad_team = get_active_team_for_request(request)
+    if squad_team is not None and squad_team.id not in {t.id for t in teams}:
+        squad_team = None
+    if squad_team is None:
+        squad_team = teams[0] if teams else None
+
     squad = []
     try:
         invited_ids = set(
@@ -481,12 +491,13 @@ def player_portal_settings_page(request):
                 player__isnull=False, is_active=True, accepted_at__isnull=True
             ).values_list("player_id", flat=True)
         )
-        for player in (
-            Player.objects.filter(team__workspace_links__workspace=workspace, is_active=True)
-            .select_related("team", "user")
-            .order_by("team__name", "name")
-            .distinct()
-        ):
+        squad_qs = Player.objects.filter(is_active=True).select_related("team", "user")
+        squad_qs = (
+            squad_qs.filter(team=squad_team)
+            if squad_team is not None
+            else squad_qs.filter(team__workspace_links__workspace=workspace)
+        )
+        for player in squad_qs.order_by("name").distinct():
             if player.user_id:
                 account = "vinculado"
             elif player.id in invited_ids:
@@ -505,9 +516,28 @@ def player_portal_settings_page(request):
     except Exception:
         logger.debug("No se pudo listar la plantilla para el panel del portal", exc_info=True)
 
+    squad_team_options = []
+    try:
+        from django.db.models import Count
+
+        counts = dict(
+            Player.objects.filter(team__in=teams, is_active=True)
+            .values("team")
+            .annotate(n=Count("id"))
+            .values_list("team", "n")
+        )
+        squad_team_options = [
+            {"team": t, "count": counts.get(t.id, 0), "active": bool(squad_team and t.id == squad_team.id)}
+            for t in teams
+        ]
+    except Exception:
+        logger.debug("No se pudieron contar los jugadores por equipo", exc_info=True)
+
     return render(request, "accounts/player_portal_settings.html", {
         "workspace": workspace,
         "teams": teams,
+        "squad_team": squad_team,
+        "squad_team_options": squad_team_options,
         "editing_team": editing_team,
         "section_rows": section_rows,
         "team_rows": team_rows,
