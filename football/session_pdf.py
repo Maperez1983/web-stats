@@ -965,16 +965,36 @@ def build_session_pdf_context(request, team, session, pdf_style='uefa'):
     for card in annex_cards:
         card['annex_total'] = len(annex_cards)
     # Sugerencias para plantilla UEFA (no bloqueante).
-    session_materials_summary = ', '.join(
-        sorted(
-            {
-                str(sheet.get('materials_label') or '').strip()
-                for sheet in task_sheets
-                if str(sheet.get('materials_label') or '').strip() and str(sheet.get('materials_label') or '').strip() != '-'
-            }
-        )
-    )
-    session_objectives_summary = str(session.focus or '').strip()
+    def _dedupe_items(labels) -> str:
+        """
+        Junta varias etiquetas separadas por comas en UNA lista sin repetidos.
+
+        Antes se metian las etiquetas ENTERAS en un set, asi que "Conos, Balones" y
+        "Conos, Petos, Picas" se consideraban distintas y el PDF acababa diciendo
+        "Conos, Balones, Conos, Petos, Picas". Hay que comparar item a item.
+        """
+        seen = {}
+        for label in labels:
+            text = str(label or '').strip()
+            if not text or text == '-':
+                continue
+            for chunk in re.split(r'[,;·\n]+', text):
+                item = chunk.strip(' .')
+                if not item or item == '-':
+                    continue
+                key = item.lower()
+                if key not in seen:
+                    seen[key] = item
+        return ', '.join(seen.values())
+
+    session_materials_summary = _dedupe_items(sheet.get('materials_label') for sheet in task_sheets)
+    # OJO: `session.focus` es el NOMBRE de la sesion, no su objetivo. Ponerlo aqui hacia que la
+    # ficha UEFA repitiera el titulo en "Objetivos" y ademas sin el renombrado que si se aplica al
+    # titulo (salia el "Biblioteca PDF · Entrenador" interno). El objetivo es un campo del plan; si
+    # no esta escrito, resumimos los objetivos de las tareas, que es de donde sale el trabajo real.
+    session_objectives_summary = str(session_plan_fields.get('objective') or '').strip()
+    if not session_objectives_summary:
+        session_objectives_summary = _dedupe_items(sheet.get('contents_label') for sheet in task_sheets)
     session_materials_override = str(session_plan_fields.get('materials') or '').strip()
     if session_materials_override:
         session_materials_summary = session_materials_override
@@ -1038,9 +1058,10 @@ def build_session_pdf_context(request, team, session, pdf_style='uefa'):
             lines.append(f'{prefix.get(key, key)}: {", ".join(items)}')
         return '\n'.join(lines).strip()
 
+    # Sin ausencias escritas se caia en las NOTAS de la sesion, asi que en el PDF aparecia el texto
+    # libre del entrenador bajo "Lesionados / Ausencias". Las notas ya tienen su sitio (Contenido /
+    # explicacion); aqui, si no hay nadie marcado, es que no hay ausencias.
     session_absences_summary = str(session_plan_fields.get('absences') or '').strip()
-    if not session_absences_summary:
-        session_absences_summary = str(session_plan_fields.get('notes') or '').strip()
     attendance_incidents = _attendance_incidents_summary()
     if attendance_incidents:
         if session_absences_summary:

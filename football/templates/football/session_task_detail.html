@@ -1889,14 +1889,14 @@
             </section>
             <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
               <button class="button" type="submit">Guardar cambios</button>
-              <button type="button" class="button secondary" id="task-detail-focus-editor">Ir a pizarra</button>
+              <button type="button" class="button secondary" id="task-detail-focus-editor">✏️ Editar pizarra</button>
             </div>
           </form>
 
           <form method="post" style="margin-top:0.7rem; display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
             {% csrf_token %}
             <input type="hidden" name="detail_action" value="generate_ollana_analysis" />
-            <button class="button secondary" type="submit">Regenerar análisis con Ollana</button>
+            <button class="button secondary" type="submit">Regenerar análisis</button>
           </form>
 
           {% if original_version %}
@@ -1953,7 +1953,7 @@
           <details class="edit-section" style="margin-top:0.7rem;">
             <summary>Análisis automático</summary>
             <div class="chips" style="margin:0.4rem 0 0.5rem;">
-              <span class="chip">{% firstof analysis_meta.generated_by "Ollana" %}</span>
+              <span class="chip">{% firstof analysis_meta.generated_by "Asistente" %}</span>
               {% if analysis_meta.generation_mode %}<span class="chip">{{ analysis_meta.generation_mode }}</span>{% endif %}
               {% if analysis_meta.generated_at %}<span class="chip">{{ analysis_meta.generated_at }}</span>{% endif %}
             </div>
@@ -2024,8 +2024,8 @@
         <h2>Exportar</h2>
         <p class="meta">Exporta la misma ficha HTML en PDF para compartirla o imprimirla sin salir de la tarea.</p>
         <div class="grid">
-          <a class="button" href="{% url 'session-task-pdf' task.id %}?style=uefa&one_page=1" target="_blank" rel="noopener">PDF UEFA</a>
-          <a class="button" href="{% url 'session-task-pdf' task.id %}?style=club&one_page=1" target="_blank" rel="noopener">PDF Club</a>
+          <a class="button" href="{% url 'session-task-pdf' task.id %}?style=uefa&one_page=1" target="_blank" rel="noopener">📄 PDF UEFA</a>
+          <a class="button" href="{% url 'session-task-pdf' task.id %}?style=club&one_page=1" target="_blank" rel="noopener">📄 PDF Club</a>
           {% if task.task_pdf %}
           <a class="button" href="{% url 'session-task-file' task.id %}" target="_blank" rel="noopener">Abrir PDF original</a>
           {% endif %}
