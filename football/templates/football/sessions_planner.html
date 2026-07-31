@@ -165,7 +165,9 @@
          oscuro, invisible sobre blanco) y pisan al del sistema por especificidad. */
       /* La pantalla redefine la variable de boton del kit a un blanco translucido;
          en claro hay que devolverla a una superficie solida. */
-      :root[data-theme="light"] {
+      /* La variable la declara body.sessions-planner-page, no :root: hay que
+         redefinirla al mismo nivel o no llega. */
+      :root[data-theme="light"] body.sessions-planner-page {
         --ui-button-bg: #ffffff;
         --ui-button-text: rgba(15,23,42,.92);
       }

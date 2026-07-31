@@ -448,15 +448,11 @@ body.prod-commercial .surface-trigger * {
   -webkit-text-fill-color: currentColor;
 }
 
-:root[data-theme="light"] body.prod-commercial .button,
-:root[data-theme="light"] body.prod-commercial .btn,
-:root[data-theme="light"] body.prod-commercial button,
-:root[data-theme="light"] body.prod-commercial [role="button"],
-:root[data-theme="light"] body.prod-commercial .surface-trigger,
-:root[data-theme="light"] body.prod-commercial button.button,
-:root[data-theme="light"] body.prod-commercial button.btn,
-:root[data-theme="light"] body.prod-commercial a.button,
-:root[data-theme="light"] body.prod-commercial a.btn {
+/* Esta regla forzaba el fondo de TODOS los botones en tema claro, incluidos los que
+   tienen color propio (.primary/.secondary/.danger): se comia su degradado y dejaba
+   su texto claro sobre superficie clara, es decir, invisible. Ahora solo alcanza a
+   los botones neutros. */
+:root[data-theme="light"] body.prod-commercial :where(.button, .btn, button, [role="button"], .surface-trigger):not(.primary):not(.secondary):not(.danger) {
   background: var(--ui-button-bg) !important;
   box-shadow: 0 0 0 1px rgba(2, 6, 23, 0.06) inset;
 }
