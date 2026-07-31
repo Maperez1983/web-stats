@@ -1,0 +1,218 @@
+{% comment %}
+HOJA DE CAMPO (?style=campo) — una sola pagina para llevar al entrenamiento.
+
+Es la cuadricula de la plantilla RFEF que ya usa el entrenador en papel: jugadores y peto a la
+izquierda, las tareas en columnas arriba, y debajo el bloque de cada tarea con su PIZARRA. La
+diferencia es que aqui se rellena sola con los datos de la sesion y va con los colores del club.
+
+Que se deja EN BLANCO a proposito: la columna del peto y los renglones de jugadores que sobran.
+Es una hoja para escribir encima en el campo, y el reparto de petos el programa no lo guarda
+todavia; poner una casilla vacia es honesto, inventarse un color no.
+
+Horizontal (A4 apaisado) porque la cuadricula es ancha: en vertical las columnas de tarea salen
+tan estrechas que no se puede leer nada.
+{% endcomment %}<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Sesión · Hoja de campo · {{ session_display_name|default:session.focus }}</title>
+    <style>
+      @page { size: A4 landscape; margin: 8mm; }
+      * { box-sizing: border-box; }
+      body {
+        font-family: var(--print-font, "Segoe UI", Arial, sans-serif);
+        font-size: 8.6px;
+        color: #12202f;
+        background: #ffffff;
+        margin: 0;
+      }
+      :root {
+        --fs-brand: {{ pdf_palette.primary|default:"#0f7a35" }};
+        --fs-ink: #12202f;
+        --fs-line: #9aa7b4;
+        --fs-fill: #e9edf1;
+      }
+      table { border-collapse: collapse; width: 100%; }
+      td, th { border: 1px solid var(--fs-line); padding: 2.5px 4px; vertical-align: top; }
+      /* Las bandas de la plantilla original: fondo de marca y texto en blanco. */
+      .band {
+        background: var(--fs-brand);
+        color: #ffffff;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        text-align: center;
+        font-size: 8.4px;
+      }
+      .band-lg { font-size: 10px; padding: 4px; }
+      .cell { background: var(--fs-fill); }
+      .cell-white { background: #ffffff; }
+
+      .sheet-grid { width: 100%; }
+      .sheet-grid > tbody > tr > td { border: none; padding: 0; vertical-align: top; }
+      .col-players { width: 128px; padding-right: 4px !important; }
+      .col-main { padding-left: 0 !important; }
+
+      .crest-row td { border: none; padding: 0 0 3px 0; }
+      .crest { height: 34px; }
+      .crest img { height: 34px; width: auto; }
+      .sheet-title {
+        font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em;
+        color: var(--fs-brand); font-size: 11px; padding-left: 6px;
+      }
+
+      /* Renglones de jugador: alto fijo, para poder escribir encima. */
+      .players td { height: 15.5px; font-size: 8.2px; }
+      .players .num { width: 20px; text-align: center; font-weight: 800; }
+      .players .bib { width: 44px; background: #ffffff; }
+      .players .inj { color: #b4232a; font-weight: 800; }
+
+      .task-cols td { text-align: center; }
+      .task-cols .rowhead { text-align: left; width: 96px; }
+
+      .task-block { margin-top: 3px; }
+      .task-block td { vertical-align: top; }
+      .dev { width: 30%; }
+      .dev .dev-label { font-weight: 900; text-transform: uppercase; font-size: 7.6px; color: var(--fs-brand); }
+      .board { width: 38%; text-align: center; padding: 2px; }
+      .board img { width: 100%; height: auto; max-height: 46mm; object-fit: contain; display: block; }
+      .board .noboard { color: #7c8794; font-style: italic; padding: 14px 0; }
+      .side { width: 32%; padding: 0 !important; }
+      .side table { width: 100%; }
+      .side .band { font-size: 7.6px; padding: 2px; }
+      .side .val { height: 26px; }
+
+      .footline td { height: 22px; }
+      .meta-foot { font-size: 7.4px; color: #6b7785; padding-top: 3px; }
+    </style>
+  </head>
+  <body>
+    <table class="sheet-grid">
+      <tr>
+        <td class="col-players">
+          <table class="crest-row">
+            <tr>
+              <td class="crest">{% if logo_url %}<img src="{{ logo_url }}" alt="{{ team_name }}" />{% endif %}</td>
+            </tr>
+          </table>
+          <table class="players">
+            <tr>
+              <td class="band" colspan="2">Jugadores</td>
+              <td class="band">Peto</td>
+            </tr>
+            {% for row in field_player_rows %}
+            <tr>
+              <td class="num cell">{{ row.number }}</td>
+              <td class="cell{% if row.injured %} inj{% endif %}">{{ row.name }}{% if row.injured %} ·L{% endif %}</td>
+              <td class="bib"></td>
+            </tr>
+            {% endfor %}
+          </table>
+        </td>
+
+        <td class="col-main">
+          <table>
+            <tr>
+              <td class="band">Temporada</td>
+              <td class="band">Equipo</td>
+              <td class="band">Microciclo</td>
+              <td class="band">Sesión</td>
+              <td class="band">Fecha</td>
+              <td class="band">Entrenador</td>
+            </tr>
+            <tr>
+              <td class="cell">{{ field_season_label }}</td>
+              <td class="cell">{{ team_name }}</td>
+              <td class="cell">{{ microcycle_display_title|default:"—" }}</td>
+              <td class="cell">{% if field_session_number %}S{{ field_session_number }}{% else %}—{% endif %}</td>
+              <td class="cell">{{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</td>
+              <td class="cell">{{ coach_name }}</td>
+            </tr>
+          </table>
+
+          <table style="margin-top:3px;">
+            <tr>
+              <td class="band band-lg" colspan="6">{{ session_display_name|default:session.focus }} · {{ session.duration_minutes }}′ · {{ intensity_label }}</td>
+            </tr>
+          </table>
+
+          {% comment %}Resumen de tareas en columnas, como la plantilla original. Se recorre
+          annex_cards (orden real de la sesion) para que coincida con el resto de documentos.{% endcomment %}
+          <table class="task-cols" style="margin-top:3px;">
+            <tr>
+              <td class="band rowhead">Tareas</td>
+              {% for card in annex_cards %}
+              <td class="band">Tarea {{ card.annex_index }}</td>
+              {% endfor %}
+            </tr>
+            <tr>
+              <td class="band rowhead">Tipo de tarea</td>
+              {% for card in annex_cards %}
+              <td class="cell">{{ card.section_label|default:"—" }}<br />{{ card.sheet.minutes }}′</td>
+              {% endfor %}
+            </tr>
+            <tr>
+              <td class="band rowhead">Contenidos</td>
+              {% for card in annex_cards %}
+              <td class="cell">{{ card.sheet.contents_label|default:"—" }}</td>
+              {% endfor %}
+            </tr>
+            <tr>
+              <td class="band rowhead">Estructura</td>
+              {% for card in annex_cards %}
+              <td class="cell">{{ card.sheet.players_label|default:"—" }}{% if card.sheet.dimensions_label %}<br />{{ card.sheet.dimensions_label }}{% endif %}</td>
+              {% endfor %}
+            </tr>
+          </table>
+
+          {% for card in annex_cards %}
+          <table class="task-block">
+            <tr>
+              <td class="band" colspan="3">Tarea {{ card.annex_index }} · {{ card.sheet.title }}</td>
+            </tr>
+            <tr>
+              <td class="dev cell">
+                <span class="dev-label">Desarrollo</span><br />
+                {% if card.sheet.description %}{{ card.sheet.description }}{% else %}—{% endif %}
+              </td>
+              <td class="board">
+                {% if card.preview_url %}
+                  <img src="{{ card.preview_url }}" alt="Pizarra de la tarea {{ card.annex_index }}" />
+                {% else %}
+                  <div class="noboard">(Sin pizarra dibujada)</div>
+                {% endif %}
+              </td>
+              <td class="side">
+                <table>
+                  <tr><td class="band">Reglas</td></tr>
+                  <tr><td class="val cell-white">{% if card.sheet.rules %}{{ card.sheet.rules }}{% endif %}</td></tr>
+                  <tr><td class="band">Incidir en</td></tr>
+                  <tr><td class="val cell-white">{% if card.sheet.focus %}{{ card.sheet.focus }}{% endif %}</td></tr>
+                  <tr><td class="band">Variantes</td></tr>
+                  <tr><td class="val cell-white">{% if card.sheet.variants %}{{ card.sheet.variants }}{% endif %}</td></tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+          {% empty %}
+          <table class="task-block">
+            <tr><td class="cell" style="text-align:center; padding:14px;">Esta sesión todavía no tiene tareas.</td></tr>
+          </table>
+          {% endfor %}
+
+          <table class="footline" style="margin-top:3px;">
+            <tr>
+              <td class="band" style="width:70px;">Ausencias</td>
+              <td class="cell">{{ session_absences_summary }}</td>
+              <td class="band" style="width:80px;">Observaciones</td>
+              <td class="cell-white"></td>
+            </tr>
+          </table>
+          <div class="meta-foot">
+            {{ team_name }} · {{ field_players_count }} jugador{{ field_players_count|pluralize:"es" }} · Material: {{ session_materials_summary|default:"—" }}
+          </div>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

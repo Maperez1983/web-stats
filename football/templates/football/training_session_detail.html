@@ -260,6 +260,10 @@
 	          
 	          <a class="btn" href="{% url 'session-plan-pdf' session.id %}?style=uefa" data-pdf-viewer="1" data-pdf-title="Sesión · {{ session.focus }} · UEFA">📄 PDF UEFA</a>
 	          <a class="btn" href="{% url 'session-plan-pdf' session.id %}?style=club" data-pdf-viewer="1" data-pdf-title="Sesión · {{ session.focus }}">📄 PDF Club</a>
+	          {% comment %}Hoja de UNA pagina para llevar al campo: la cuadricula de la plantilla RFEF
+	          (jugadores y petos a un lado, tareas en columnas, pizarra de cada tarea) rellenada sola.
+	          Los otros dos PDF son el dossier; este es el papel que va en la carpeta.{% endcomment %}
+	          <a class="btn" href="{% url 'session-plan-pdf' session.id %}?style=campo" data-pdf-viewer="1" data-pdf-title="Sesión · {{ session.focus }} · Hoja de campo">📋 Hoja de campo</a>
           <form method="post" style="display:inline;" onsubmit="return confirm('¿Guardar esta sesión como plantilla reutilizable en la Biblioteca de sesiones?');">
             {% csrf_token %}
             <input type="hidden" name="action" value="save-as-template" />

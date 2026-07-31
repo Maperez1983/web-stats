@@ -55,12 +55,18 @@ def session_plan_pdf(request, session_id):
         raise Http404('Sesión no encontrada')
 
     pdf_style = (request.GET.get('style') or 'uefa').strip().lower()
-    if pdf_style not in {'uefa', 'club', 'hybrid'}:
+    # 'campo' = hoja de UNA pagina para llevar al entrenamiento: la cuadricula de la plantilla
+    # RFEF (jugadores + petos a la izquierda, tareas en columnas, pizarra de cada tarea) pero con
+    # los colores del club y rellenada sola con los datos de la sesion.
+    if pdf_style not in {'uefa', 'club', 'hybrid', 'campo'}:
         pdf_style = 'uefa'
     force_pdf = str(request.GET.get('force_pdf') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     inline = str(request.GET.get('inline') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     context = build_session_pdf_context(request, session.microcycle.team, session, pdf_style=pdf_style)
-    html = render_to_string('football/session_plan_pdf.html', context)
+    template_name = (
+        'football/session_field_sheet_pdf.html' if pdf_style == 'campo' else 'football/session_plan_pdf.html'
+    )
+    html = render_to_string(template_name, context)
     filename = slugify(f'sesion-{session.session_date}-{session.focus}') or f'sesion-{session.id}'
     return pdf_services.build_pdf_response_or_html_fallback(request, html, filename, inline=inline, force_pdf=force_pdf)
 
@@ -1095,8 +1101,74 @@ def build_session_pdf_context(request, team, session, pdf_style='uefa'):
             microcycle_display_title = 'Repositorio'
     except Exception:
         pass
+    # ---- Datos propios de la HOJA DE CAMPO (estilo 'campo') --------------------------------
+    # Es la cuadricula de la plantilla RFEF que usa el entrenador en el campo: a la izquierda los
+    # jugadores con su peto, arriba las tareas en columnas, y debajo la pizarra de cada tarea. Todo
+    # sale de la sesion; lo unico que se deja en blanco a proposito es el color del peto, que se
+    # reparte sobre la marcha (el programa aun no lo guarda).
+    def _season_label_for_date(day):
+        try:
+            year = day.year if day.month >= 7 else day.year - 1
+            return '%02d/%02d' % (year % 100, (year + 1) % 100)
+        except Exception:
+            return ''
+
+    def _session_number_in_season(day):
+        """Mismo criterio que la ficha: orden por fecha dentro de la temporada."""
+        try:
+            from datetime import date as _date
+
+            year = day.year if day.month >= 7 else day.year - 1
+            ids = list(
+                TrainingSession.objects.filter(
+                    microcycle__team=team,
+                    session_date__gte=_date(year, 7, 1),
+                    session_date__lte=_date(year + 1, 6, 30),
+                )
+                .order_by('session_date', 'start_time', 'id')
+                .values_list('id', flat=True)
+            )
+            return ids.index(int(session.id)) + 1 if int(session.id) in ids else 0
+        except Exception:
+            return 0
+
+    field_players = []
+    try:
+        marks = {
+            int(mark.player_id): mark
+            for mark in TrainingSessionAttendance.objects.select_related('player').filter(session=session)
+            if mark.player_id
+        }
+        roster = list(
+            team.players.filter(is_active=True).order_by('number', 'name', 'id')
+        )
+        for player in roster:
+            mark = marks.get(int(player.id))
+            status = getattr(mark, 'status', '') or ''
+            if status in {TrainingSessionAttendance.STATUS_ABSENT, TrainingSessionAttendance.STATUS_EXCUSED}:
+                continue
+            field_players.append(
+                {
+                    'number': player.number or '',
+                    'name': (str(player.name or '').strip() or str(player.full_name or '').strip()),
+                    'injured': status == TrainingSessionAttendance.STATUS_INJURED,
+                }
+            )
+    except Exception:
+        field_players = []
+    # La hoja tiene un numero fijo de renglones: si sobran, se dejan en blanco para escribir a mano
+    # (asi funciona la plantilla en papel).
+    field_rows_min = 20
+    field_player_rows = list(field_players)
+    while len(field_player_rows) < field_rows_min:
+        field_player_rows.append({'number': '', 'name': '', 'injured': False})
+
     return {
         **_build_pdf_nav_urls(request),
+        'field_player_rows': field_player_rows,
+        'field_players_count': len(field_players),
+        'field_season_label': _season_label_for_date(getattr(session, 'session_date', None)),
+        'field_session_number': _session_number_in_season(getattr(session, 'session_date', None)),
         'team_name': team.name,
         'session': session,
         'microcycle': session.microcycle,
