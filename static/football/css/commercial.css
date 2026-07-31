@@ -521,15 +521,21 @@ body.prod-commercial a.danger {
   color: var(--prod-text) !important;
 }
 
+/* .ghost = la variante APAGADA: navegar, volver, acciones raras. Necesita !important en fondo,
+   borde y sombra porque la regla base de arriba pinta `background: var(--ui-button-bg)
+   !important` a todo boton, asi que sin esto la variante no llegaba a aplicarse NUNCA y un
+   .ghost salia igual de macizo que cualquier otro. Se anade tambien `.btn.ghost`: la lista solo
+   traia `.btn-ghost` con guion, que no es la misma clase. */
 body.prod-commercial .button.ghost,
+body.prod-commercial .btn.ghost,
 body.prod-commercial .btn-ghost,
 body.prod-commercial a.ghost,
 body.prod-commercial button.ghost {
-  background: transparent;
-  border-color: rgba(148, 163, 184, 0.24);
+  background: transparent !important;
+  border-color: rgba(148, 163, 184, 0.24) !important;
   color: var(--ui-button-muted-text) !important;
   -webkit-text-fill-color: var(--ui-button-muted-text);
-  box-shadow: none;
+  box-shadow: none !important;
 }
 
 body.prod-commercial .button.is-disabled,
