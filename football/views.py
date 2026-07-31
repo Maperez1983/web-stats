@@ -2314,6 +2314,37 @@ def _rival_squad_ingest_guardar(request):
             continue
         team, _created = resolve_or_create_team(name=name or url, external_id=code, preferente_url=url)
         res = import_rival_squad(team, players[:60], season_label=season)
+        # Ademas del catalogo RivalPlayer (fichas, fotos, buscador), dejamos la MISMA plantilla
+        # como snapshot: es lo que leen el 11 probable del rival, el informe de proximo partido
+        # y el analisis del rival. Sin esto, la importacion semanal no llegaba a esas pantallas.
+        try:
+            _payload = [
+                {
+                    "name": str(p.get("full_name") or "").strip(),
+                    "alias": str(p.get("alias") or "").strip(),
+                    "number": p.get("number"),
+                    "dorsal": p.get("number"),
+                    "position": str(p.get("position") or "").strip(),
+                    "pj": int(p.get("matches_played") or 0),
+                    "pt": int(p.get("matches_played") or 0),
+                    "minutes": int(p.get("minutes") or 0),
+                    "goals": int(p.get("goals") or 0),
+                    "yellow_cards": int(p.get("yellow_cards") or 0),
+                    "red_cards": int(p.get("red_cards") or 0),
+                    "photo_url": str(p.get("photo_url") or "").strip(),
+                    "age": p.get("age"),
+                }
+                for p in players[:60]
+                if str(p.get("full_name") or "").strip()
+            ]
+            if _payload:
+                TeamRosterSnapshot.objects.update_or_create(
+                    team=team,
+                    provider=TeamRosterSnapshot.PROVIDER_PREFERENTE,
+                    defaults={"roster_payload": _payload, "source_url": url, "error": ""},
+                )
+        except Exception:
+            pass  # el catalogo ya se guardo: un fallo aqui no debe tumbar la ingesta
         totals["teams"] += 1
         for k in ("created", "updated", "deactivated", "matched"):
             totals[k] += res.get(k, 0)
