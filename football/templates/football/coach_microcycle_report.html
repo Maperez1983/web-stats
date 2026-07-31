@@ -107,6 +107,28 @@
   .sqr .mtx-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line-soft);font-size:11px;color:var(--ink-soft)}
   .sqr .mtx-legend span{display:inline-flex;align-items:center;gap:6px}
 
+  /* Entrenamiento: minutos, bloques, contenidos y tendencia. Barras en vez de numeros sueltos:
+     lo que interesa de un vistazo es el REPARTO, no la cifra exacta. */
+  .sqr .bars{display:flex;flex-direction:column;gap:9px;margin-top:4px}
+  .sqr .bar-row{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:baseline}
+  .sqr .bar-row .lab{font-size:12.5px;font-weight:700}
+  .sqr .bar-row .val{font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+  .sqr .bar-track{grid-column:1/-1;height:7px;border-radius:99px;background:var(--line-soft);overflow:hidden}
+  .sqr .bar-fill{height:100%;border-radius:99px;background:var(--ok)}
+  .sqr .bar-fill.alt{background:var(--trial)}
+  .sqr .mins{width:100%;border-collapse:collapse;font-size:12.5px}
+  .sqr .mins th{text-align:left;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);padding:0 6px 6px}
+  .sqr .mins td{padding:5px 6px;border-top:1px solid var(--line-soft);font-variant-numeric:tabular-nums}
+  .sqr .mins td.n{text-align:right}
+  .sqr .mins .pos{font-size:10px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;margin-left:5px}
+  .sqr .trend{display:flex;gap:10px;align-items:flex-end;margin-top:6px}
+  .sqr .tcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px}
+  .sqr .tbar{width:100%;max-width:46px;background:var(--line-soft);border-radius:6px 6px 0 0;display:flex;align-items:flex-end;height:82px;overflow:hidden}
+  .sqr .tbar i{display:block;width:100%;background:var(--ok);border-radius:6px 6px 0 0}
+  .sqr .tcol.now .tbar i{background:var(--trial)}
+  .sqr .tcol .tlab{font-size:10.5px;color:var(--ink-soft);font-variant-numeric:tabular-nums;text-align:center;line-height:1.3}
+  .sqr .tcol.now .tlab{color:var(--ink);font-weight:800}
+
   /* Multas */
   .sqr .fine-top{display:flex;gap:10px;margin-bottom:14px}
   .sqr .fine-big{flex:1;background:var(--surface-2);border:1px solid var(--line-soft);border-radius:10px;padding:11px 12px}
@@ -281,6 +303,77 @@
     </div>
   </section>
 
+  {% if training_has_data %}
+  <section class="grid">
+    <div class="card">
+      <h3><span class="dot"></span>Minutos entrenados</h3>
+      <p class="sub">Suma de la duración de las tareas en las que participó cada jugador. Se rellena solo al confirmar la sesión.</p>
+      <table class="mins">
+        <tr><th>Jugador</th><th style="text-align:right">Tareas</th><th style="text-align:right">Minutos</th><th style="text-align:right">% semana</th></tr>
+        {% for r in training_minutes_rows %}
+        <tr>
+          <td>{% if r.number %}<b>{{ r.number }}</b> {% endif %}{{ r.name }}{% if r.position %}<span class="pos">{{ r.position }}</span>{% endif %}</td>
+          <td class="n">{{ r.tasks }}</td>
+          <td class="n"><b>{{ r.minutes }}′</b></td>
+          <td class="n">{{ r.pct }}%</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4"><div class="empty">Nadie tiene participación registrada. Se rellena al confirmar la sesión.</div></td></tr>
+        {% endfor %}
+      </table>
+    </div>
+
+    <div class="card">
+      <h3><span class="dot" style="background:var(--trial)"></span>Reparto por bloque</h3>
+      <p class="sub">{{ training_tasks_count }} tarea{{ training_tasks_count|pluralize }} · {{ training_minutes_total }}′ de trabajo planificado esta semana.</p>
+      <div class="bars">
+        {% for b in training_blocks %}
+        <div class="bar-row">
+          <span class="lab">{{ b.label }}</span>
+          <span class="val">{{ b.minutes }}′ · {{ b.pct }}%</span>
+          <span class="bar-track"><span class="bar-fill" style="width:{{ b.pct }}%"></span></span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <section class="grid2">
+    <div class="card">
+      <h3><span class="dot"></span>Contenidos trabajados</h3>
+      {% if training_focus %}
+      <p class="sub">Foco del microciclo: <b>{{ training_focus }}</b>{% if training_focus_hits %} · {{ training_focus_hits }} tarea{{ training_focus_hits|pluralize }} lo trabajan{% else %} · <b>ninguna tarea lo declara</b>{% endif %}.</p>
+      {% else %}
+      <p class="sub">Este microciclo no tiene foco declarado, así que no se puede contrastar lo trabajado con lo previsto.</p>
+      {% endif %}
+      <div class="bars">
+        {% for c in training_contents %}
+        <div class="bar-row">
+          <span class="lab">{{ c.label }}</span>
+          <span class="val">{{ c.minutes }}′ · {{ c.tasks }} tarea{{ c.tasks|pluralize }}</span>
+          <span class="bar-track"><span class="bar-fill alt" style="width:{{ c.pct }}%"></span></span>
+        </div>
+        {% empty %}
+        <div class="empty">Las tareas de esta semana no declaran contenidos (tipo, fase, principio o subprincipio).</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="dot"></span>Evolución por semanas</h3>
+      <p class="sub">Volumen de trabajo de las últimas semanas. La barra alta es la de más minutos.</p>
+      <div class="trend">
+        {% for t in training_trend %}
+        <div class="tcol{% if t.is_current %} now{% endif %}">
+          <span class="tbar"><i style="height:{{ t.bar_pct }}%"></i></span>
+          <span class="tlab"><b>{{ t.minutes }}′</b><br />{{ t.label }}<br />{{ t.sessions }} ses · {{ t.attendance }}%</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
   <section class="grid2">
     <div class="card">
       <h3><span class="dot" style="background:var(--trial)"></span>Incidencias</h3>
@@ -308,7 +401,7 @@
   </section>
 
   <footer class="ft">
-    <span><b>Fuente:</b> asistencia de sesiones, multas e incidencias registradas en Entrenamiento.</span>
+    <span><b>Fuente:</b> asistencia, multas e incidencias registradas en Entrenamiento; minutos y contenidos, de las tareas de cada sesión.</span>
     <span><b>Semana:</b> microciclo del equipo (usa ◀ ▶ para cambiar de semana).</span>
   </footer>
 

@@ -68,6 +68,7 @@ from . import (
     player_documents,
     player_media,
     season_history_services,
+    microcycle_training_report,
     session_import_services,
     standings_services,
     stats_services,
@@ -41062,6 +41063,11 @@ def microcycle_report_page(request):
         "prev_microcycle_id": int(prev_mc.id) if prev_mc else 0,
         "next_microcycle_id": int(next_mc.id) if next_mc else 0,
     }
+    # Qué se ha ENTRENADO (minutos, bloques, contenidos y tendencia). Vive en su propio módulo:
+    # views.py ya pasa de las 85.000 líneas. Nunca lanza; si falta el dato, el bloque se apaga.
+    context.update(
+        microcycle_training_report.build_training_block(primary_team, microcycle, sessions_ctx, players_by_id)
+    )
     return render(request, "football/coach_microcycle_report.html", context)
 
 
