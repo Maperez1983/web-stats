@@ -402,6 +402,15 @@
 	          </form>
 	          {% endif %}
 
+	          <style>
+	            .ssx-tool{border:1px solid rgba(148,163,184,.24); border-radius:12px; margin:10px 0 0; overflow:hidden;}
+	            .ssx-tool>summary{list-style:none; cursor:pointer; padding:10px 13px; font-size:12.5px; font-weight:800;
+	              color:var(--club-muted,#64748b); background:rgba(148,163,184,.06);}
+	            .ssx-tool>summary::-webkit-details-marker{display:none;}
+	            .ssx-tool>summary:hover{background:rgba(148,163,184,.12); color:inherit;}
+	            .ssx-tool[open]>summary{border-bottom:1px solid rgba(148,163,184,.20);}
+	            .ssx-tool>*:not(summary){padding:0 13px 13px;}
+	          </style>
 	          <div class="section-title" id="asistencia">Asistencia</div>
 	          <div class="box" style="margin-bottom:12px;">
 	            <div style="display:flex; gap:0.9rem; flex-wrap:wrap; margin-bottom:10px;">
@@ -412,6 +421,30 @@
 	            {% if plan_fields.absences %}
 	              <p style="margin:10px 0 0;"><strong>Incidencias:</strong><br />{{ plan_fields.absences|linebreaksbr }}</p>
 	            {% endif %}
+	            {% comment %}El reparto de petos, LEIDO. Antes solo existia dentro del formulario, asi
+	            que para saber como estaban los equipos habia que abrir la herramienta.{% endcomment %}
+	            {% if session_bib_groups %}
+	            <div style="margin-top:12px;">
+	              <strong style="font-size:12px; text-transform:uppercase; letter-spacing:.05em; opacity:.75;">Petos</strong>
+	              <div style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">
+	                {% for g in session_bib_groups %}
+	                <div style="display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;">
+	                  <span style="flex:0 0 auto; display:inline-flex; align-items:center; gap:6px; font-weight:800; font-size:12px;">
+	                    <span style="width:11px; height:11px; border-radius:3px; background:{{ g.hex }}; border:1px solid rgba(15,23,42,.25); display:inline-block;"></span>{{ g.label }}
+	                    <span style="opacity:.65; font-weight:600;">({{ g.players|length }})</span>
+	                  </span>
+	                  <span style="font-size:12px; opacity:.85;">{{ g.players|join:", " }}</span>
+	                </div>
+	                {% endfor %}
+	              </div>
+	            </div>
+	            {% endif %}
+	            {% comment %}A PARTIR DE AQUI ya no es documento, es herramienta: 162 campos para
+	            pasar lista y repartir petos. Iban sueltos en medio de la ficha, asi que lo que se
+	            comparte y se imprime tenia un formulario incrustado por el medio. Se pliega, igual
+	            que Participación: la ficha se lee como documento y el trabajo se abre cuando toca.{% endcomment %}
+	            <details class="ssx-tool">
+	            <summary>Pasar lista · marcar excepciones y repartir petos</summary>
 	            <div class="meta" style="margin:8px 0 4px;">Marca las excepciones (ausencia/tarde/lesión/justificado). El resto cuenta como presente.</div>
 		        <form id="att-form" method="post" style="margin-top:0.65rem;">
 		          {% csrf_token %}
@@ -531,6 +564,7 @@
             });
           })();
         </script>
+	            </details>
 	          </div>
 
 		          <div class="section-title" style="display:flex; align-items:center; justify-content:space-between; gap:0.65rem; flex-wrap:wrap;">

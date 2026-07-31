@@ -34087,6 +34087,21 @@ def training_session_detail_page(request, session_id):
         session_bibs = {}
     for row in attendance_rows:
         row["bib"] = str(session_bibs.get(str(int(row["player"].id)) , "") or "")
+    # Resumen LEIDO del reparto de petos: la ficha tiene que poder contarlo sin abrir el
+    # formulario, que es justo lo que se estaba mezclando.
+    _bib_label_by_value = {value: label for value, label, _hex in SESSION_BIB_CHOICES}
+    _bib_hex_by_value = {value: hexa for value, _label, hexa in SESSION_BIB_CHOICES}
+    _bib_groups = {}
+    for row in attendance_rows:
+        color = row.get("bib") or ""
+        if not color:
+            continue
+        entry = _bib_groups.setdefault(
+            color,
+            {"value": color, "label": _bib_label_by_value.get(color, color), "hex": _bib_hex_by_value.get(color, ""), "players": []},
+        )
+        entry["players"].append(str(getattr(row["player"], "name", "") or "").strip())
+    session_bib_groups = sorted(_bib_groups.values(), key=lambda e: (-len(e["players"]), e["label"]))
 
     plan_fields = _parse_session_plan_fields(getattr(session_obj, "content", ""))
     requested_return_to = ""
@@ -35293,6 +35308,7 @@ def training_session_detail_page(request, session_id):
             "marks": marks,
             "attendance_rows": attendance_rows,
             "session_bib_choices": SESSION_BIB_CHOICES,
+            "session_bib_groups": session_bib_groups,
             "participation_tasks": participation_tasks,
             "available_players": available_players,
             "allowed_statuses": allowed_statuses,
