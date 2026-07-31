@@ -14678,7 +14678,12 @@ def platform_overview_page(request):
     visible_club_workspace_count = club_workspace_count
     studio_workspace_count = Workspace.objects.filter(kind=Workspace.KIND_TASK_STUDIO).count()
     linked_club_user_count = (
-        WorkspaceMembership.objects.filter(workspace__kind=Workspace.KIND_CLUB).values("user_id").distinct().count()
+        # order_by() vacio: WorkspaceMembership ordena por workspace__name y
+        # user__username, y esos campos entran en el DISTINCT, asi que un usuario
+        # en varios clubes se contaba mas de una vez.
+        WorkspaceMembership.objects.filter(workspace__kind=Workspace.KIND_CLUB)
+        .order_by()
+        .values("user_id").distinct().count()
     )
     club_workspaces_without_team = Workspace.objects.filter(kind=Workspace.KIND_CLUB, primary_team__isnull=True).count()
     club_workspaces_without_members = (
@@ -86827,7 +86832,11 @@ def search_api(request):
     rival_team_items = []
     try:
         for r in (
+            # order_by() vacio a proposito: RivalPlayer tiene Meta.ordering
+            # ('line','number','full_name'), y esos campos entran en el SELECT del
+            # DISTINCT, asi que el mismo equipo salia repetido una vez por jugador.
             RivalPlayer.objects.filter(is_active=True, team__name__icontains=q)
+            .order_by()
             .values("team_id", "team__name").distinct()[:6]
         ):
             rival_team_items.append({
