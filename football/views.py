@@ -27303,16 +27303,10 @@ def team_agenda_page(request):
         if status not in {item[0] for item in TrainingSession.STATUS_CHOICES}:
             status = TrainingSession.STATUS_PLANNED
 
-        microcycle = (
-            TrainingMicrocycle.objects.filter(
-                team=primary_team, week_start__lte=session_date, week_end__gte=session_date
-            )
-            .exclude(week_start=INBOX_MICROCYCLE_WEEK_START)
-            .order_by("-week_start", "-id")
-            .first()
-        )
-        if not microcycle:
-            microcycle = _get_or_create_inbox_microcycle(primary_team)
+        # Igual que al crear desde el planificador: la sesion entra en el microciclo de SU semana,
+        # creandolo si no existe. Antes, si esa semana no tenia microciclo, caia en la bandeja de
+        # sueltas, que el informe y el planificador EXCLUYEN: la sesion quedaba invisible.
+        microcycle = _resolve_week_microcycle_for_session(primary_team, session_date)
         if not microcycle:
             return HttpResponse("No se pudo preparar el microciclo para la sesión.", status=500)
 
@@ -47719,6 +47713,45 @@ def _save_session_as_template(source_session, custom_name=""):
     return tpl
 
 
+def _resolve_week_microcycle_for_session(team, session_date):
+    """
+    Microciclo al que debe entrar una sesion por su FECHA.
+
+    Reglas, en este orden:
+      1. Un microciclo REAL del equipo que cubra esa fecha. Se descartan los especiales (bandeja de
+         sueltas, papelera y los de biblioteca): la biblioteca de tareas antigua vive en una semana
+         real del calendario, y sin este filtro una sesion podia acabar dentro de ella y
+         desaparecer de los listados, porque las sesiones de biblioteca se excluyen en todas partes.
+      2. Si esa semana no tiene microciclo, se crea (lunes-domingo de la fecha).
+      3. Ultimo recurso, la bandeja de sueltas, para no perder la sesion si algo falla.
+    """
+    if not team or not session_date:
+        return None
+    try:
+        candidates = TrainingMicrocycle.objects.filter(
+            team=team, week_start__lte=session_date, week_end__gte=session_date
+        ).order_by("-week_start", "-id")
+        for candidate in candidates:
+            if not _microcycle_is_special(candidate):
+                return candidate
+    except Exception:
+        pass
+    microcycle = session_import_services.get_or_create_week_microcycle(
+        team,
+        session_date,
+        notes="(Sistema) Microciclo creado automáticamente al programar una sesión de esa semana.",
+    )
+    # Ese helper busca por (equipo, lunes) y devuelve lo que haya, sea lo que sea. Si el hueco de
+    # esa semana lo ocupa un microciclo especial (una biblioteca antigua, por ejemplo), meter ahi
+    # la sesion la haria desaparecer de los listados, porque las sesiones de biblioteca se excluyen
+    # en todas partes. Como unique(equipo, semana) impide crear otro en ese lunes, en ese caso vale
+    # mas dejarla en la bandeja de sueltas: visible como pendiente, en vez de perdida. La migracion
+    # 0221 saca esas bibliotecas del calendario para que este caso deje de darse.
+    if microcycle is not None and _microcycle_is_special(microcycle):
+        return _get_or_create_inbox_microcycle(team)
+    return microcycle or _get_or_create_inbox_microcycle(team)
+
+
 def _create_session_from_template(template, target_date, custom_name="", target_microcycle=None):
     """Crea una sesión REAL a partir de una plantilla de la Biblioteca de sesiones: clona el
     plan + las tareas con la fecha elegida. Si se da `target_microcycle` (planificación de un
@@ -47727,7 +47760,9 @@ def _create_session_from_template(template, target_date, custom_name="", target_
     team = getattr(getattr(template, "microcycle", None), "team", None)
     if team is None:
         raise ValueError("No se pudo determinar el equipo de la plantilla.")
-    mc = target_microcycle or _get_or_create_inbox_microcycle(team)
+    # Sin microciclo destino explicito, la sesion va al de la semana de su fecha (creandolo si
+    # hace falta) en vez de a la bandeja de sueltas, que queda como ultimo recurso.
+    mc = target_microcycle or _resolve_week_microcycle_for_session(team, target_date)
     if mc is None:
         raise ValueError("No se pudo preparar el microciclo destino.")
     try:
@@ -49210,14 +49245,10 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
                     # falta. Antes caia siempre en la bandeja de sueltas, y como el planificador y
                     # el informe excluyen esa bandeja, el equipo acababa con todas las sesiones
                     # fuera de cualquier semana: el informe de microciclo salia vacio.
-                    microcycle = session_import_services.get_or_create_week_microcycle(
-                        primary_team,
-                        session_date,
-                        notes="(Sistema) Microciclo creado automáticamente al programar una sesión de esa semana.",
-                    )
-                    if not microcycle:
-                        # Ultimo recurso: la bandeja de sueltas, para no perder la sesion.
-                        microcycle = _get_or_create_inbox_microcycle(primary_team)
+                    # Misma regla que en la agenda y al instanciar plantillas: un solo sitio decide
+                    # a que microciclo va una sesion por su fecha. Buscarlo aqui por su cuenta era
+                    # como podia acabar dentro del microciclo de biblioteca de esa semana.
+                    microcycle = _resolve_week_microcycle_for_session(primary_team, session_date)
                     if not microcycle:
                         raise ValueError("No se pudo preparar el microciclo de la semana.")
                 if not _is_inbox_microcycle(microcycle):
