@@ -381,6 +381,14 @@
 			                          <button type="button" class="button danger" id="task-scenario-remove">Eliminar</button>
 			                          <button type="button" class="button" id="task-scenario-template-3" title="Crea 3 escenarios rápidos: Inicio, Desarrollo, Final">Plantilla 3</button>
 			                        </div>
+			                          {# La Ruta solo existia en el Playbook: en el editor no habia forma de dibujar el movimiento. #}
+			                          <p class="meta">Movimiento: dibuja adonde va cada ficha con <strong>Ruta</strong> y pulsa <strong>Crear escenario</strong>.</p>
+			                          <div class="scenarios-controls">
+			                            <button type="button" class="button" id="task-scenario-route" aria-pressed="false" title="Toca una ficha y arrastra hasta su destino (Mayus para encadenar varias)">Ruta</button>
+			                            <button type="button" class="button" id="task-scenario-route-steps" title="Crea el escenario en el que las fichas ya han llegado al final de su ruta">Crear escenario</button>
+			                            <button type="button" class="button danger" id="task-scenario-route-clear" title="Borra las rutas dibujadas">Borrar rutas</button>
+			                            <span class="meta" id="task-scenario-route-count" data-tactics-route-count>0 rutas</span>
+			                          </div>
 			                        <div class="scenarios-fields" aria-label="Datos del escenario activo">
 			                          <label>
 			                            Título

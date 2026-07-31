@@ -2,6 +2,11 @@
     {{ tactical_player_catalog|json_script:"tpad-players-catalog" }}
     {{ confirmed_player_ids|json_script:"tpad-confirmed-player-ids" }}
     <script src="{% static 'football/js/ui_tour.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    {% comment %}Papel cebolla. Va FUERA de {% templatetag openblock %} if tactics_mode {% templatetag closeblock %}:
+    en el editor de tareas el pad se carga de forma diferida (03_stack_loader), asi que dentro de esa
+    rama no llegaba nunca. Es un fichero pequeno y sin dependencias; si el pad no arranca, no
+    estorba.{% endcomment %}
+    <script src="{% static 'football/js/task_onion_skin.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
     {% if tactics_mode %}
     <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
     <script src="{% static 'football/js/pitch_surface_25d.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>

@@ -3106,6 +3106,10 @@
 		    const scenarioAddBtn = document.getElementById('task-scenario-add');
 		    const scenarioDuplicateBtn = document.getElementById('task-scenario-duplicate');
 		    const scenarioRemoveBtn = document.getElementById('task-scenario-remove');
+	    const scenarioRouteBtn = document.getElementById('task-scenario-route');
+	    const scenarioRouteStepsBtn = document.getElementById('task-scenario-route-steps');
+	    const scenarioRouteClearBtn = document.getElementById('task-scenario-route-clear');
+	    const scenarioRouteCountEl = document.getElementById('task-scenario-route-count');
 		    const scenarioTitleInput = document.getElementById('task-scenario-title-pop');
 		    const scenarioDurationInput = document.getElementById('task-scenario-duration-pop');
 		    const patternTitle = document.getElementById('task-pattern-title');
@@ -34346,6 +34350,21 @@
 	        applyRatingsUi();
 	      });
 	    }
+	    /* Papel cebolla: pinta el paso ANTERIOR en fantasma mientras editas este. Sin esto no se
+	       ve de donde venia cada ficha y hay que colocar la secuencia de memoria. Va en un canvas
+	       aparte (task_onion_skin.js), asi que no puede ensuciar el dibujo ni guardarse. */
+	    const paintOnionSkin = () => {
+	      try {
+	        const skin = window.__tpadOnionSkin;
+	        if (!skin) return;
+	        const prev = activeStepIndex > 0 ? timeline[activeStepIndex - 1] : null;
+	        if (!prev || !prev.canvas_state) { skin.clear(); return; }
+	        skin.render(prev.canvas_state, {
+	          width: parseIntSafe(prev.canvas_width) || parseIntSafe(prev.canvas_state.width),
+	          height: parseIntSafe(prev.canvas_height) || parseIntSafe(prev.canvas_state.height),
+	        });
+	      } catch (e) { /* el fantasma es una ayuda: si falla, el editor sigue igual */ }
+	    };
 	    const selectTimelineStep = (index) => {
 	      if (index < 0 || index >= timeline.length) return;
 	      if (playbackTimer) return;
@@ -34355,6 +34374,7 @@
 	        renderTimeline();
 	        setStatus(`Editando ${timeline[index].title}.`);
 	        schedulePlayerBankUpdate();
+	        paintOnionSkin();
 	      }, { sourceWidth: parseIntSafe(timeline[index].canvas_width), sourceHeight: parseIntSafe(timeline[index].canvas_height) });
 	    };
 	    const addTimelineStep = (duplicateCurrent = false) => {
@@ -34377,7 +34397,76 @@
 	      renderTimeline();
 	      pushHistory();
 	      setStatus(duplicateCurrent ? 'Paso duplicado.' : 'Paso añadido.');
+	      // Al crear el paso nuevo, el anterior pasa a ser la referencia: es justo cuando mas
+	      // falta hace ver de donde venian las fichas.
+	      paintOnionSkin();
 	      schedulePlayerBankUpdate();
+	    };
+	    /* Rutas dibujadas -> escenario nuevo.
+	       Es el paso que faltaba para que dibujar el movimiento sirva de algo: el guion
+	       (task_script.py) anima de un escenario al siguiente, asi que una ruta solo cuenta algo
+	       cuando existe el escenario en el que la ficha YA ha llegado.
+	       No se reutiliza "Convertir en simulación" (generateSimulationFromRoutes) porque aquella
+	       pide datos en un modal y escribe en el simulador, que es otra cosa y no se guarda con la
+	       tarea. */
+	    const addStepFromRoutes = () => {
+	      const destinos = new Map();
+	      (canvas.getObjects() || []).forEach((obj) => {
+	        const rutas = Array.isArray(obj?.data?.interactive_routes) ? obj.data.interactive_routes : [];
+	        if (!rutas.length) return;
+	        const uid = safeText(obj?.data?.layer_uid) || safeText(obj?.data?.playerId);
+	        const destino = rutas[rutas.length - 1]?.to;
+	        if (uid && destino) destinos.set(uid, { x: Number(destino.x) || 0, y: Number(destino.y) || 0 });
+	      });
+	      if (!destinos.size) {
+	        setStatus('Dibuja alguna ruta con “Ruta” antes de crear el escenario.', true);
+	        return;
+	      }
+	      persistActiveStepSnapshot();
+	      const { w, h } = worldSize();
+	      // Sin escenarios previos, el estado de partida tiene que quedar guardado como el primero:
+	      // si no, se perderia el "antes" y el movimiento no se veria.
+	      if (!timeline.length) {
+	        timeline.push({
+	          title: 'Inicio',
+	          duration: 3,
+	          canvas_state: sanitizeLoadedState(serializeCanvasOnly()),
+	          canvas_width: Math.round(w || 0),
+	          canvas_height: Math.round(h || 0),
+	        });
+	        activeStepIndex = 0;
+	      }
+	      const siguiente = JSON.parse(JSON.stringify(serializeCanvasOnly() || { version: '5.3.0', objects: [] }));
+	      siguiente.objects = (Array.isArray(siguiente.objects) ? siguiente.objects : [])
+	        // Las flechas amarillas cuentan el movimiento del escenario ANTERIOR; en este las fichas
+	        // ya han llegado, asi que sobran.
+	        .filter((obj) => safeText(obj?.data?.kind) !== 'route_arrow')
+	        .map((obj) => {
+	          const uid = safeText(obj?.data?.layer_uid) || safeText(obj?.data?.playerId);
+	          const destino = uid ? destinos.get(uid) : null;
+	          if (destino) {
+	            obj.left = destino.x;
+	            obj.top = destino.y;
+	          }
+	          if (obj && obj.data) obj.data.interactive_routes = [];
+	          return obj;
+	        });
+	      const insercion = activeStepIndex >= 0 ? activeStepIndex + 1 : timeline.length;
+	      timeline.splice(insercion, 0, {
+	        title: `Movimiento ${insercion + 1}`,
+	        duration: 3,
+	        canvas_state: sanitizeLoadedState(siguiente),
+	        canvas_width: Math.round(w || 0),
+	        canvas_height: Math.round(h || 0),
+	      });
+	      activeStepIndex = insercion;
+	      loadCanvasSnapshot(timeline[insercion].canvas_state, () => {
+	        renderTimeline();
+	        pushHistory();
+	        setStatus(`Escenario creado con ${destinos.size} movimiento${destinos.size === 1 ? '' : 's'}.`);
+	        paintOnionSkin();
+	        schedulePlayerBankUpdate();
+	      }, { sourceWidth: Math.round(w || 0), sourceHeight: Math.round(h || 0) });
 	    };
 	    const removeTimelineStep = () => {
       if (activeStepIndex < 0 || !timeline[activeStepIndex]) return;
@@ -37027,6 +37116,48 @@
     scenarioAddBtn?.addEventListener('click', () => addTimelineStep(false));
     scenarioDuplicateBtn?.addEventListener('click', () => addTimelineStep(true));
     scenarioRemoveBtn?.addEventListener('click', removeTimelineStep);
+    /* Ruta: dibujar el movimiento dentro del editor de tareas. El motor esta en el bloque de
+       tactica interactiva y se alcanza por __tpadRouteTool, que se registra al arrancar el pad.
+       Se consulta en el click (no al cargar) porque ese bloque se inicializa despues que este. */
+    const syncScenarioRouteUi = () => {
+      const tool = window.__tpadRouteTool;
+      if (!tool) return;
+      try {
+        const on = tool.isOn();
+        scenarioRouteBtn?.classList.toggle('primary', on);
+        scenarioRouteBtn?.setAttribute('aria-pressed', on ? 'true' : 'false');
+        if (scenarioRouteBtn) scenarioRouteBtn.textContent = on ? 'Ruta (dibujando)' : 'Ruta';
+        const n = tool.count();
+        if (scenarioRouteCountEl) scenarioRouteCountEl.textContent = `${n} ruta${n === 1 ? '' : 's'}`;
+      } catch (e) { /* ignore */ }
+    };
+    scenarioRouteBtn?.addEventListener('click', (event) => {
+      event.preventDefault();
+      const tool = window.__tpadRouteTool;
+      if (!tool) {
+        setStatus('La herramienta de rutas no está disponible en esta pizarra.', true);
+        return;
+      }
+      tool.toggle();
+      syncScenarioRouteUi();
+    });
+    scenarioRouteStepsBtn?.addEventListener('click', (event) => {
+      event.preventDefault();
+      // Salir del modo dibujo antes de crear el escenario: si no, el siguiente clic en el campo
+      // empezaria otra ruta sobre un escenario que acaba de cambiar.
+      if (window.__tpadRouteTool?.isOn()) window.__tpadRouteTool.toggle();
+      addStepFromRoutes();
+      syncScenarioRouteUi();
+    });
+    scenarioRouteClearBtn?.addEventListener('click', (event) => {
+      event.preventDefault();
+      window.__tpadRouteTool?.clear();
+      syncScenarioRouteUi();
+    });
+    // El gesto termina en el lienzo (mouse:up), no en el boton: hay que refrescar el estado del
+    // chip cuando la ruta se cierra sola. El propio popover al abrirse tambien se resincroniza.
+    scenariosBtn?.addEventListener('click', () => { window.setTimeout(syncScenarioRouteUi, 0); });
+    try { canvas.on('mouse:up', () => { window.setTimeout(syncScenarioRouteUi, 0); }); } catch (e) { /* ignore */ }
     scenarioTemplate3Btn?.addEventListener('click', async () => {
       if (isSimulating) {
         setStatus('Sal del simulador para usar plantillas de escenarios.', true);
@@ -39366,6 +39497,16 @@
                   const p = canvas.getPointer(opt.e);
                   const from = interactiveRouteFrom.start || { x: Number(interactiveRouteFrom.obj.left) || 0, y: Number(interactiveRouteFrom.obj.top) || 0 };
                   const to = { x: Number(p.x) || 0, y: Number(p.y) || 0 };
+                  /* Fabric arrastra la ficha con el gesto, pero una ruta dice "de aqui a alli": la
+                     ficha tiene que quedarse en el origen y contarlo la flecha. Si se queda en el
+                     destino, el escenario de partida ya sale movido y el que se genera despues es
+                     identico, asi que el movimiento desaparece. Ademas todo lo que consume rutas
+                     (generateSimulationFromRoutes, addStepFromRoutes) da por hecho que la posicion
+                     actual es el origen. */
+                  try {
+                    interactiveRouteFrom.obj.set({ left: from.x, top: from.y });
+                    interactiveRouteFrom.obj.setCoords();
+                  } catch (e) { /* ignore */ }
                   addInteractiveRoute(interactiveRouteFrom.obj, from, to);
                   interactiveRouteFrom = null;
                   // Si no mantiene Shift, desactiva el modo ruta (evita confusiones).
@@ -39373,6 +39514,31 @@
                   if (!keep) setInteractiveRouteMode(false);
                 });
               } catch (e) { /* ignore */ }
+
+              /* Gancho para el editor de tareas (mismo patron que __tpadActivateTool).
+                 La Ruta esta escrita aqui desde hace tiempo, pero sus botones viven en la barra
+                 del Playbook, que el editor de tareas no renderiza: existia el codigo y no habia
+                 forma de llegar a el. Se expone para que el popover de Escenarios lo use.
+
+                 Al encender la ruta se enciende tambien el modo interactivo porque los gestos del
+                 raton lo exigen (mouse:down/up lo comprueban) y en el editor no hay conmutador
+                 Estatica/Interactiva que lo active. Sin persistir, para no cambiarle el modo
+                 guardado a quien si usa el Playbook. La clase que anade al body solo pinta dentro
+                 de body.tactics-mode, asi que aqui no cambia nada visualmente. */
+              try {
+                window.__tpadRouteTool = {
+                  toggle: () => {
+                    const on = !interactiveRouteMode;
+                    if (on && !tacticsInteractiveEnabled) setTacticsInteractiveEnabled(true, { persist: false });
+                    setInteractiveRouteMode(on);
+                    return interactiveRouteMode;
+                  },
+                  isOn: () => !!interactiveRouteMode,
+                  count: () => countInteractiveRoutes(),
+                  clear: () => clearInteractiveRoutes(),
+                };
+              } catch (e) { /* ignore */ }
+
               if (tacticsQuickRecentsEl) {
                 tacticsQuickRecentsEl.addEventListener('click', (event) => {
                   const favBtn = event.target.closest('[data-tactics-fav-toggle]');
