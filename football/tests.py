@@ -13102,14 +13102,17 @@ class PlayerDashboardViewTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response['Location'], reverse('player-detail', args=[self.player.id]))
 
-    def test_player_dashboard_allows_player_without_workspace(self):
+    def test_player_dashboard_redirects_player_to_own_space(self):
+        # Antes esta prueba fijaba lo contrario (200 + nombre del rival): el jugador veía el
+        # cuadro de mando de TODA la plantilla. El portal del jugador es individual, así que
+        # ahora se le devuelve a su espacio. Ver football/test_player_portal_fase0.py.
         AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_PLAYER)
         self.client.force_login(self.user)
 
         response = self.client.get(reverse('player-dashboard'))
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Rival View')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], reverse('player-home'))
 
     def test_player_detail_allows_player_without_workspace(self):
         AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_PLAYER)

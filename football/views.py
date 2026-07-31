@@ -8498,83 +8498,57 @@ def _resolve_player_for_user(user, primary_team):
     if linked:
         return linked
 
+    # SEGURIDAD (portal del jugador, fase 0): la resolución por parecido de nombre se ha
+    # retirado. Antes esto (a) devolvía el único jugador activo del equipo a CUALQUIER
+    # usuario con rol jugador sin comprobar nada, (b) puntuaba por subcadenas ("Ángel X"
+    # podía ganar en la ficha de "Ángel Y") y (c) auto-vinculaba y GUARDABA el acierto,
+    # dejando a una persona dentro de la ficha de otra de forma permanente.
+    #
+    # Ahora sólo resolvemos con certeza: vínculo explícito (arriba) o coincidencia EXACTA
+    # de nombre con un único candidato. La vinculación la hace el staff (o la invitación,
+    # que ya lleva el jugador elegido); aquí nunca se escribe en base de datos.
     candidates = list(Player.objects.filter(team=primary_team, is_active=True).order_by("id"))
     if not candidates:
         return None
-    if len(candidates) == 1:
-        return candidates[0]
 
-    # Tokens "fuertes" para desempatar sin depender de heurísticas frágiles.
-    raw_username = str(user.get_username() or "").strip()
-    username_pre = re.sub(r"[\.\_\-]+", " ", raw_username)
-    username_tokens = [tok for tok in normalize_player_name(username_pre).split("-") if tok]
-    first_name_token = normalize_player_name(getattr(user, "first_name", "") or "")
-    last_name_token = normalize_player_name(getattr(user, "last_name", "") or "")
-    raw_values = [
+    identity_tokens = set()
+    for raw in (
         user.get_username(),
         getattr(user, "email", ""),
-        getattr(user, "first_name", ""),
-        getattr(user, "last_name", ""),
         user.get_full_name(),
-    ]
-    normalized_tokens = set()
-    for raw in raw_values:
+    ):
         value = str(raw or "").strip()
         if not value:
             continue
-        normalized_tokens.add(normalize_player_name(value))
+        normalized = normalize_player_name(value)
+        if normalized:
+            identity_tokens.add(normalized)
         if "@" in value:
-            normalized_tokens.add(normalize_player_name(value.split("@", 1)[0]))
-    best_player = None
-    best_score = 0
-    second_best_score = 0
+            normalized_local = normalize_player_name(value.split("@", 1)[0])
+            if normalized_local:
+                identity_tokens.add(normalized_local)
+    if not identity_tokens:
+        return None
+
+    exact_matches = []
     for player in candidates:
-        variants = [
-            player.name,
-            getattr(player, "full_name", ""),
-            getattr(player, "nickname", ""),
-        ]
-        score = 0
-        for variant in variants:
+        for variant in (player.name, getattr(player, "full_name", ""), getattr(player, "nickname", "")):
             normalized_variant = normalize_player_name(variant)
-            if not normalized_variant:
-                continue
-            if normalized_variant in normalized_tokens:
-                score = max(score, 100)
-            for token in normalized_tokens:
-                if not token:
-                    continue
-                if token in normalized_variant or normalized_variant in token:
-                    score = max(score, min(len(token), len(normalized_variant)))
-            # Bonus por tokens fuertes (apellidos/username) para evitar mezclar "Ángel X" vs "Ángel Y".
-            if last_name_token and last_name_token in normalized_variant:
-                score = max(score, score + 20)
-            if first_name_token and first_name_token in normalized_variant:
-                score = max(score, score + 5)
-            if username_tokens and any(tok in normalized_variant for tok in username_tokens):
-                score = max(score, score + 10)
-        if score > best_score:
-            second_best_score = best_score
-            best_score = score
-            best_player = player
-        elif score > second_best_score:
-            second_best_score = score
+            if normalized_variant and normalized_variant in identity_tokens:
+                exact_matches.append(player)
+                break
 
-    resolved = best_player if best_score >= 4 else None
-
-    # Autovinculado (conservador): sólo si el ganador es claramente mejor que el segundo.
-    try:
-        if (
-            resolved
-            and not resolved.user_id
-            and _get_user_role(user) == AppUserRole.ROLE_PLAYER
-            and best_score > second_best_score
-        ):
-            resolved.user = user
-            resolved.save(update_fields=["user"])
-    except Exception:
-        pass
-    return resolved
+    if len(exact_matches) == 1:
+        return exact_matches[0]
+    if len(exact_matches) > 1:
+        logger.warning(
+            "Vinculación jugador ambigua: el usuario %s coincide exactamente con %s jugadores del equipo %s; "
+            "hace falta vincular a mano.",
+            getattr(user, "id", None),
+            len(exact_matches),
+            getattr(primary_team, "id", None),
+        )
+    return None
 
 
 def _is_team_only_action(action_type: str) -> bool:
@@ -12830,7 +12804,9 @@ def dashboard_page(request):
         current_player = _resolve_player_for_user(request.user, primary_team)
         if current_player:
             return redirect("player-detail", player_id=current_player.id)
-        return redirect("player-dashboard")
+        # Sin ficha vinculada NO se cae al cuadro de mando de la plantilla (datos de sus
+        # compañeros): se le lleva a su espacio, que ya explica que falta vincular la cuenta.
+        return redirect("player-home")
     # Home de staff: la portada principal es la vista del entrenador.
     staff_roles = {
         AppUserRole.ROLE_COACH,
@@ -20473,6 +20449,12 @@ def share_video_export_stream(request, token):
 
 @login_required
 def player_dashboard_page(request):
+    # SEGURIDAD (portal del jugador, fase 0): esta pantalla es el cuadro de mando de TODA la
+    # plantilla (minutos, %titularidad, influencia, importancia de cada compañero). Sólo tenía
+    # `login_required` + módulo, así que un jugador la veía entera. El portal del jugador es
+    # estrictamente individual: se le devuelve a su espacio.
+    if _get_user_role(request.user) == AppUserRole.ROLE_PLAYER and not _is_admin_user(request.user):
+        return redirect("player-home")
     forbidden = _forbid_if_workspace_module_disabled(request, "players", label="módulo de jugadores")
     if forbidden:
         return forbidden
@@ -78368,6 +78350,14 @@ def player_detail_page(request, player_id):
         _comm_qs = player.communications.select_related("match").all()
         if club_date_start and club_date_end:
             _comm_qs = _comm_qs.filter(created_at__date__gte=club_date_start, created_at__date__lte=club_date_end)
+        if is_player_readonly:
+            # SEGURIDAD (portal del jugador, fase 0): la tabla se pintaba ENTERA para el jugador,
+            # con las notas internas del staff sobre él y su parte médico dentro. Sólo ve lo que
+            # va dirigido a él (convocatoria) y sólo cuando ya toca: una comunicación programada
+            # para el futuro no se enseña antes de tiempo.
+            _comm_qs = _comm_qs.filter(category=PlayerCommunication.CATEGORY_CONVOCATION).filter(
+                Q(scheduled_for__isnull=True) | Q(scheduled_for__lte=timezone.now())
+            )
         communications = _comm_qs[:20]
         # Activos (pendiente, en curso) primero; cumplidos al final; dentro, más nuevos arriba.
         _obj_qs = player.objectives.all()

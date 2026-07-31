@@ -182,6 +182,11 @@ def _is_blocked_next_for_user(user, next_url: str) -> bool:
         # Un jugador no debería aterrizar en módulos de staff por `next`.
         if re.match(r"^/(coach|convocatoria|registro-acciones|incidencias)\b", path):
             return True
+        # `/players/` a secas es el cuadro de mando de TODA la plantilla: no es su sitio.
+        # Sus sub-rutas sí lo son (buzón de vídeo, marcar asistencia), así que no se
+        # bloquea el prefijo entero.
+        if path.rstrip("/") == "/players":
+            return True
         if path.startswith("/player/") or path.startswith("/players/") or path == "/":
             return False
         return True

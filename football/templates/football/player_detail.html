@@ -1051,7 +1051,7 @@
 	          <span>2J Player · Football Intelligence</span>
 	        </div>
       </a>
-      {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True hide_dragon_logo=False %}
+      {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True hide_dragon_logo=False hide_global_guard_widget=is_player_readonly %}
       {% if not is_player_readonly %}{% include 'football/includes/_zone_subnav.html' with zone='equipo' %}{% endif %}
       <header>
         <div class="player-head-main">

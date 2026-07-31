@@ -189,6 +189,10 @@ sin cargarlo, asi que la identidad se aplicaba a medias. Aqui lo ve TODA la app.
     } catch (e) {}
   })();
 </script>
+{# Lanzador de reserva del asistente: sólo para quien puede usarlo. Se montaba SIEMPRE que
+   faltara el widget, justo el caso del jugador, y al pulsarlo le mandaba a una pantalla de
+   staff (403). El asistente responde con datos del club: no es del jugador. #}
+{% if can_access_staff %}
 <script>
   (function () {
     const launcherId = 'global-guard-fallback-launcher';
@@ -274,6 +278,7 @@ sin cargarlo, asi que la identidad se aplicaba a medias. Aqui lo ve TODA la app.
     window.addEventListener('load', syncLauncherVisibility);
   })();
 </script>
+{% endif %}
 <script>
   (function () {
     // Mantiene la sesión viva en WebView/PWA cuando el usuario está leyendo/edita sin hacer requests.

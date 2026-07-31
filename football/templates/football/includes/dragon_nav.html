@@ -250,7 +250,10 @@ que hacia falta, vive ahora en la linea de contexto de la barra.{% endcomment %}
   {% endwith %}
 </nav>
 {% endif %}
-{% if request.user.is_authenticated and not hide_global_guard_widget %}
+{# El asistente responde con datos del CLUB y su endpoint exige acceso de cuerpo técnico
+   (403 en caso contrario). Pintarlo para un jugador sólo le ofrecía botones rotos del tipo
+   "¿quién está lesionado?", así que se pinta únicamente a quien puede usarlo. #}
+{% if request.user.is_authenticated and can_access_staff and not hide_global_guard_widget %}
   {% include 'football/includes/global_guard_widget.html' %}
 {% endif %}
 
