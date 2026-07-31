@@ -2170,20 +2170,20 @@
       {% if main_tab == 'create' and not create_page %}
       <section class="panel intro-strip">
         <h2>¿Qué quieres crear?</h2>
-        <p class="meta" style="margin:-0.1rem 0 0.85rem;">De la pieza pequeña a la grande: una <strong>tarea</strong> se usa dentro de una <strong>sesión</strong>, y las sesiones forman el <strong>microciclo</strong> de la semana.</p>
+        <p class="meta" style="margin:-0.1rem 0 0.85rem;">De lo pequeño a lo grande: las <strong>tareas</strong> se montan en una <strong>sesión</strong>, y las sesiones forman el <strong>microciclo</strong> de la semana.</p>
         <div class="workflow-grid flow-steps" style="margin-bottom:0;">
           <div class="workflow-card">
             <div class="workflow-step"><span class="wf-ico" aria-hidden="true">🎯</span> Tarea{% if task_library %} · <span class="wf-count">{{ task_library|length }} en biblioteca</span>{% endif %}</div>
-            <strong class="wf-title">Plantilla + pizarra</strong>
+            <strong class="wf-title">Crear una tarea</strong>
             <p>Dibuja la tarea en el editor, valida su ficha técnica y deja los recursos listos para reutilizar.</p>
             <a
               class="button secondary"
               href="{% url task_builder_route_name %}?repo=traditional&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}"
-            >Abrir creador</a>
+            >Crear tarea</a>
           </div>
           <div class="workflow-card is-primary">
             <div class="workflow-step"><span class="wf-ico" aria-hidden="true">📆</span> Sesión{% if all_sessions %} · <span class="wf-count">{{ all_sessions|length }} creada{{ all_sessions|length|pluralize }}</span>{% endif %}</div>
-            <strong class="wf-title">Componer el entreno</strong>
+            <strong class="wf-title">Montar una sesión</strong>
             <p>Elige tareas por bloques y monta la sesión completa con sus tiempos.</p>
             <a class="button primary" href="?tab=create&create_page=session&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Crear sesión</a>
           </div>
@@ -2191,14 +2191,14 @@
             <div class="workflow-step"><span class="wf-ico" aria-hidden="true">🗓️</span> Microciclo{% if microcycle_rows %} · <span class="wf-count">{{ microcycle_rows|length }} activo{{ microcycle_rows|length|pluralize }}</span>{% endif %}</div>
             <strong class="wf-title">Planificar la semana</strong>
             <p>Distribuye el volumen semanal y ajusta cargas para mantener coherencia.</p>
-            <a class="button secondary" href="?tab=create&create_page=microcycle&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Abrir microciclo</a>
+            <a class="button secondary" href="?tab=create&create_page=microcycle&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Crear microciclo</a>
           </div>
         </div>
       </section>
       {% endif %}
 
 			      <div class="tabs" id="planner-tabs">
-			        <a class="tab-link {% if main_tab == 'create' %}is-active{% endif %}" href="?tab=create&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Inicio</a>
+			        <a class="tab-link {% if main_tab == 'create' %}is-active{% endif %}" href="?tab=create&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Crear</a>
 				        <a class="tab-link {% if main_tab == 'library' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_source={{ library_source_tab|default:'created' }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Biblioteca</a>
 				        <a class="tab-link {% if main_tab == 'import' %}is-active{% endif %}" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Importar</a>
 				      </div>

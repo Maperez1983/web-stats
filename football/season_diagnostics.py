@@ -134,6 +134,13 @@ def sessions_perf_view(request):
         entry["ms"] += float(q.get("time") or 0.0) * 1000.0
 
     top = sorted(by_shape.items(), key=lambda kv: kv[1]["ms"], reverse=True)[:12]
+    slowest = max(queries, key=lambda q: float(q.get("time") or 0.0)) if queries else {}
+    slowest_sql = str(slowest.get("sql") or "")
+    # Lo que importa de la consulta cara es que columnas trae y por que filtra, no la lista
+    # entera de campos: cortamos por FROM para ver el WHERE completo.
+    from_at = slowest_sql.find(" FROM ")
+    slowest_tail = slowest_sql[from_at:from_at + 900] if from_at != -1 else slowest_sql[:900]
+    slowest_cols = slowest_sql[:from_at].count(",") + 1 if from_at != -1 else 0
     return JsonResponse(
         {
             "ok": True,
@@ -143,6 +150,9 @@ def sessions_perf_view(request):
             "sql_ms": round(sql_ms, 1),
             "python_ms": round(total_ms - sql_ms, 1),
             "query_count": len(queries),
+            "slowest_ms": round(float(slowest.get("time") or 0.0) * 1000.0, 1),
+            "slowest_columns": slowest_cols,
+            "slowest_from_where": slowest_tail,
             "top_queries": [
                 {"n": v["n"], "ms": round(v["ms"], 1), "sql": k} for k, v in top
             ],
