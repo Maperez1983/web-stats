@@ -203,12 +203,31 @@
       }
       .access-block h2 { margin: 0; font-size: 1.02rem; }
       .access-block .meta { margin: 0.25rem 0 0.7rem; color: var(--prod-muted); font-size: 0.88rem; }
-      .access-all { display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.92rem; margin-bottom: 0.6rem; }
+      /* Los `label` de esta ficha van en MAYUSCULAS y en rejilla (regla global de arriba):
+         aqui son casillas normales, asi que se anula. */
+      .access-block label.access-all,
+      .access-block label.access-chip,
+      .access-block label.access-module,
+      .access-block .access-scope label {
+        display: flex;
+        align-items: center;
+        text-transform: none;
+        letter-spacing: normal;
+        font-weight: 500;
+        color: var(--prod-text);
+      }
+      .access-block input[type="checkbox"] {
+        width: auto;
+        min-width: 0;
+        flex: 0 0 auto;
+        margin: 0;
+      }
+      .access-block .access-scope select { width: auto; max-width: 100%; }
+      .access-all { gap: 0.45rem; font-size: 0.92rem; margin-bottom: 0.6rem; }
       .access-chips { display: flex; flex-wrap: wrap; gap: 0.45rem; }
       .access-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
+        gap: 0.45rem;
+        white-space: nowrap;
         padding: 0.35rem 0.7rem;
         border-radius: 999px;
         font-size: 0.9rem;
@@ -222,8 +241,6 @@
         gap: 0.15rem 1rem;
       }
       .access-module {
-        display: flex;
-        align-items: center;
         justify-content: space-between;
         gap: 0.6rem;
         padding: 0.4rem 0;
