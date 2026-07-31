@@ -452,7 +452,7 @@ body.prod-commercial .surface-trigger * {
    tienen color propio (.primary/.secondary/.danger): se comia su degradado y dejaba
    su texto claro sobre superficie clara, es decir, invisible. Ahora solo alcanza a
    los botones neutros. */
-:root[data-theme="light"] body.prod-commercial :where(.button, .btn, button, [role="button"], .surface-trigger):not(.primary):not(.secondary):not(.danger) {
+:root[data-theme="light"] body.prod-commercial :where(.button, .btn, button, [role="button"], .surface-trigger):not(.primary):not(.secondary):not(.danger):not(.ghost) {
   background: var(--ui-button-bg) !important;
   box-shadow: 0 0 0 1px rgba(2, 6, 23, 0.06) inset;
 }
