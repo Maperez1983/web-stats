@@ -696,6 +696,8 @@ urlpatterns = [
     path("coach/sesiones/diag-perf/", season_diagnostics.sessions_perf_view, name="sessions-perf-debug"),
     # Comprueba que la copia ligera del layout clasifica igual que el campo completo.
     path("coach/sesiones/diag-layout-light/", season_diagnostics.task_meta_light_audit_view, name="sessions-layout-light-debug"),
+    # Cuanto cuesta construir el contexto de cada formato (Club/UEFA) de una tarea.
+    path("coach/sesiones/diag-formato/", season_diagnostics.task_format_cost_view, name="sessions-format-cost-debug"),
     # Pone al dia en lote las fotos HD de la biblioteca (?limit=, ?team=).
     path(
         "coach/sesiones/fotos-hd/",

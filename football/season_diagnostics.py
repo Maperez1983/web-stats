@@ -218,3 +218,73 @@ def task_meta_light_audit_view(request):
             "veredicto": "coinciden" if not empty_light and not mismatches else "REVISAR",
         }
     )
+
+
+def task_format_cost_view(request):
+    """
+    ¿Cuánto cuesta construir el contexto del OTRO formato? (coach-gated)
+
+    El detalle de tarea construye a propósito solo el formato activo: hay un comentario en
+    views.py diciendo que construir los dos costaba 8 s y provocaba 502 en tareas pesadas. Pero
+    desde entonces la presentación dejó de re-renderizar el canvas (allow_live_canvas_render), así
+    que ese número puede estar caducado. Antes de decidir si se pueden pintar los dos formatos a
+    la vez, hay que medirlo en tareas reales en vez de suponerlo.
+    """
+    import time
+
+    from .models import SessionTask
+    from .permissions import can_access_sessions_workspace
+    from .views import _build_task_pdf_context
+
+    if not can_access_sessions_workspace(request.user):
+        return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+
+    try:
+        task_id = int(request.GET.get("task") or 0)
+    except Exception:
+        task_id = 0
+    task = SessionTask.objects.select_related("session__microcycle__team").filter(id=task_id).first()
+    if not task:
+        return JsonResponse({"ok": False, "error": "falta ?task=<id> valido"}, status=400)
+
+    session_obj = getattr(task, "session", None)
+    microcycle_obj = getattr(session_obj, "microcycle", None)
+    team_obj = getattr(microcycle_obj, "team", None)
+    # Igual que la pantalla: la copia LIGERA, sin el canvas.
+    layout = task.task_layout_light if isinstance(task.task_layout_light, dict) else {}
+    preview_url = ""
+    try:
+        if getattr(task, "task_preview_image", None):
+            preview_url = task.task_preview_image.url or ""
+    except Exception:
+        preview_url = ""
+
+    timings = {}
+    sizes = {}
+    for style in ("club", "uefa"):
+        started = time.perf_counter()
+        ctx = _build_task_pdf_context(
+            request=request,
+            team=team_obj,
+            session=session_obj,
+            microcycle=microcycle_obj,
+            task=task,
+            tactical_layout=layout,
+            pdf_style=style,
+            preview_url=preview_url,
+            one_page=False,
+            allow_live_canvas_render=False,
+        )
+        timings[style] = round((time.perf_counter() - started) * 1000.0, 1)
+        sizes[style] = len(ctx) if isinstance(ctx, dict) else 0
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "task": task.id,
+            "title": str(task.title or "")[:60],
+            "ms_por_formato": timings,
+            "claves_en_contexto": sizes,
+            "coste_del_segundo_ms": min(timings.values()),
+        }
+    )
