@@ -21,6 +21,7 @@
         --pg-panel-2: rgba(7, 13, 25, 0.5);
         --pg-soft: rgba(255, 255, 255, 0.04);
         --pg-line: rgba(160, 180, 215, 0.14);
+        --pg-danger: #ffb7b7;
         --pg-glow-a: rgba(244, 180, 0, 0.12);
         --pg-glow-b: rgba(47, 125, 50, 0.14);
       }
@@ -33,6 +34,7 @@
         --pg-panel-2: #f7f9fc;
         --pg-soft: rgba(15, 23, 42, 0.04);
         --pg-line: rgba(15, 23, 42, 0.12);
+        --pg-danger: #b91c1c;
         --pg-glow-a: rgba(244, 180, 0, 0.10);
         --pg-glow-b: rgba(47, 125, 50, 0.07);
       }
@@ -370,7 +372,7 @@
 
       .deliverable-row small {
         display: block;
-        color: #9fb0c9;
+        color:var(--pg-ink-3);
         margin-top: 0.14rem;
       }
 
@@ -428,7 +430,7 @@
       }
       .inline-btn.danger {
         border-color: rgba(212, 73, 73, 0.36);
-        color: #ffb7b7;
+        color:var(--pg-danger);
       }
       .summary-note {
         margin-top: 1rem;
@@ -912,7 +914,7 @@
 	          <details style="display:inline-block;">
 	            <summary class="inline-btn danger" style="cursor:pointer;">Eliminar club</summary>
 	            <div style="margin-top:0.6rem; padding:0.75rem; border-radius:12px; border:1px solid var(--pg-line); background:var(--pg-soft); min-width:min(460px, 92vw);">
-	              <p style="margin:0 0 0.55rem; color:#ffb7b7; font-weight:800;">
+	              <p style="margin:0 0 0.55rem; color:var(--pg-danger); font-weight:800;">
 	                Acción irreversible. Solo borra el workspace (club). Los equipos/jugadores quedan en BBDD.
 	              </p>
 	              <form method="post" action="{% url 'platform-workspace-delete' workspace.id %}" onsubmit="return confirm('¿Eliminar definitivamente este club?');" class="inline-form">
@@ -1500,7 +1502,7 @@
                     <input type="checkbox" name="module_{{ module.key }}" data-module-toggle {% if module.enabled %}checked{% endif %} />
                     <span class="toggle-copy">
                       <strong style="display:block;">{{ module.label }}</strong>
-                      <small style="display:block; color:#9fb0c9; margin-top:0.18rem;">{{ module.description }}</small>
+                      <small style="display:block; color:var(--pg-ink-3); margin-top:0.18rem;">{{ module.description }}</small>
                       <span class="module-kpis">
                         <span class="mini-pill">{{ module.enabled_deliverable_count }}/{{ module.deliverable_count }} entregables activos</span>
                       </span>

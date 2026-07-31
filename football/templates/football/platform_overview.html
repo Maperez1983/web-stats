@@ -21,6 +21,7 @@
         --pg-panel-2: rgba(7, 13, 25, 0.5);
         --pg-soft: rgba(255, 255, 255, 0.04);
         --pg-line: rgba(160, 180, 215, 0.14);
+        --pg-danger: #ffb7b7;
         --pg-glow-a: rgba(244, 180, 0, 0.12);
         --pg-glow-b: rgba(47, 125, 50, 0.14);
       }
@@ -33,6 +34,7 @@
         --pg-panel-2: #f7f9fc;
         --pg-soft: rgba(15, 23, 42, 0.04);
         --pg-line: rgba(15, 23, 42, 0.12);
+        --pg-danger: #b91c1c;
         --pg-glow-a: rgba(244, 180, 0, 0.10);
         --pg-glow-b: rgba(47, 125, 50, 0.07);
       }
@@ -840,7 +842,7 @@
       .message.error {
         background: rgba(212, 73, 73, 0.14);
         border: 1px solid rgba(212, 73, 73, 0.36);
-        color: #ffaeae;
+        color:var(--pg-danger);
       }
 
       .actions-row {
@@ -867,7 +869,7 @@
         border-radius: 999px;
         border: 1px solid rgba(212, 73, 73, 0.36);
         background: rgba(212, 73, 73, 0.12);
-        color: #ffb7b7;
+        color:var(--pg-danger);
         padding: 0.6rem 0.85rem;
         cursor: pointer;
         font-weight: 700;
