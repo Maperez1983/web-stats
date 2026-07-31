@@ -382,7 +382,7 @@
                     {% if pc.graphic_view_3d_url or pc.task_preview_3d_embed_url %}
                     <button type="button" class="button" id="task-detail-3d-open">Ir a vista 3D</button>
                     {% elif can_edit_task %}
-                    <button type="button" class="button secondary" data-task-enter-edit-empty>{% if pc.graphic_view_2d_url %}Editar pizarra{% else %}Completar pizarra 2D{% endif %}</button>
+                    <button type="button" class="button secondary" id="task-detail-enter-edit-empty">{% if pc.graphic_view_2d_url %}Editar pizarra{% else %}Completar pizarra 2D{% endif %}</button>
                     {% endif %}
                     {% if pc.recreation_2d_url or pc.recreation_3d_url or pc.recreation_3d_embed_url %}
                     <button type="button" class="button secondary" id="task-detail-open-sequence">Ver secuencia</button>
@@ -956,7 +956,7 @@
                 {% if pc.graphic_view_3d_url or pc.task_preview_3d_embed_url %}
                 <button type="button" class="button" id="task-detail-3d-open">Ir a vista 3D</button>
                 {% elif can_edit_task %}
-                <button type="button" class="button secondary" data-task-enter-edit-empty>{% if pc.graphic_view_2d_url %}Editar pizarra{% else %}Completar pizarra 2D{% endif %}</button>
+                <button type="button" class="button secondary" id="task-detail-enter-edit-empty">{% if pc.graphic_view_2d_url %}Editar pizarra{% else %}Completar pizarra 2D{% endif %}</button>
                 {% endif %}
                 {% if pc.recreation_2d_url or pc.recreation_3d_url or pc.recreation_3d_embed_url %}
                 <button type="button" class="button secondary" id="task-detail-open-sequence">Ver secuencia</button>
@@ -1229,7 +1229,7 @@
               {% if task_obj.task_preview_image or pc.task_preview_url %}
               <button type="button" class="button" id="task-detail-3d-open">Ir a vista 3D</button>
               {% elif can_edit_task %}
-              <button type="button" class="button secondary" data-task-enter-edit-empty>{% if pc.graphic_view_2d_url %}Editar pizarra{% else %}Completar pizarra 2D{% endif %}</button>
+              <button type="button" class="button secondary" id="task-detail-enter-edit-empty">{% if pc.graphic_view_2d_url %}Editar pizarra{% else %}Completar pizarra 2D{% endif %}</button>
               {% endif %}
               {% if pc.animation_frames|default:False %}
               <button type="button" class="button secondary" id="task-detail-open-sequence">Ver secuencia</button>

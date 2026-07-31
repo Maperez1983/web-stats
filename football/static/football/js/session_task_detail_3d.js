@@ -8,10 +8,7 @@ import { clone as cloneSkeleton } from '../../vendor/three/examples/jsm/utils/Sk
   const canvas = document.getElementById('task-detail-3d-canvas');
   const openBtn = document.getElementById('task-detail-3d-open');
   const enterEditBtn = document.getElementById('task-detail-enter-edit');
-  // Este boton sale en varias ramas del layout y, desde que se pintan los dos formatos a la
-  // vez, puede haber mas de uno en la pagina. Por id solo se enganchaba el primero, que
-  // ademas podia ser el del formato oculto.
-  const enterEditEmptyBtns = Array.from(document.querySelectorAll('[data-task-enter-edit-empty]'));
+  const enterEditEmptyBtn = document.getElementById('task-detail-enter-edit-empty');
   const openSequenceBtn = document.getElementById('task-detail-open-sequence');
   const focusEditorBtn = document.getElementById('task-detail-focus-editor');
   if (!payloadEl || !sceneHost || !canvas) return;
@@ -3112,11 +3109,9 @@ import { clone as cloneSkeleton } from '../../vendor/three/examples/jsm/utils/Sk
     event.preventDefault();
     switchTaskTab('edit');
   });
-  enterEditEmptyBtns.forEach((btn) => {
-    btn.addEventListener('click', (event) => {
-      event.preventDefault();
-      switchTaskTab('edit');
-    });
+  enterEditEmptyBtn?.addEventListener('click', (event) => {
+    event.preventDefault();
+    switchTaskTab('edit');
   });
   openSequenceBtn?.addEventListener('click', (event) => {
     event.preventDefault();
