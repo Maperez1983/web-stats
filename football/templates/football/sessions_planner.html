@@ -2188,7 +2188,7 @@
             <a class="button primary" href="?tab=create&create_page=session&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Crear sesión</a>
           </div>
           <div class="workflow-card">
-            <div class="workflow-step"><span class="wf-ico" aria-hidden="true">🗓️</span> Microciclo{% if microcycle_rows %} · <span class="wf-count">{{ microcycle_rows|length }} activo{{ microcycle_rows|length|pluralize }}</span>{% endif %}</div>
+            <div class="workflow-step"><span class="wf-ico" aria-hidden="true">🗓️</span> Microciclo{% if planning_microcycle_rows %} · <span class="wf-count">{{ planning_microcycle_rows|length }} activo{{ planning_microcycle_rows|length|pluralize }}</span>{% endif %}</div>
             <strong class="wf-title">Planificar la semana</strong>
             <p>Distribuye el volumen semanal y ajusta cargas para mantener coherencia.</p>
             <a class="button secondary" href="?tab=create&create_page=microcycle&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Crear microciclo</a>
