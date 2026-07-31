@@ -288,3 +288,73 @@ def task_format_cost_view(request):
             "coste_del_segundo_ms": min(timings.values()),
         }
     )
+
+
+def library_microcycles_audit_view(request):
+    """
+    Radiografía de los microciclos de BIBLIOTECA antes de consolidarlos (coach-gated).
+
+    El código antiguo creaba uno nuevo cada semana, así que hay una docena ocupando semanas reales
+    del calendario. Consolidarlos implica MOVER sus sesiones a uno solo y borrar los contenedores
+    vacíos, y borrar un microciclo arrastra sus sesiones en cascada. Antes de escribir eso hay que
+    saber exactamente qué hay dentro: cuántas sesiones, con qué fecha y con qué nombre, porque
+    `TrainingSession` tiene un unique de (microciclo, fecha, nombre en minúsculas) y al juntarlas
+    todas en uno pueden chocar.
+    """
+    from .library_repositories import LIBRARY_MICROCYCLE_MARKER
+    from .models import SessionTask, TrainingMicrocycle, TrainingSession
+    from .permissions import can_access_sessions_workspace
+
+    if not can_access_sessions_workspace(request.user):
+        return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+    try:
+        team_id = int(request.GET.get("team") or 0)
+    except Exception:
+        team_id = 0
+    if not team_id:
+        return JsonResponse({"ok": False, "error": "falta ?team="}, status=400)
+
+    rows = []
+    collisions = {}
+    for mc in TrainingMicrocycle.objects.filter(team_id=team_id).order_by("week_start", "id"):
+        notes = str(mc.notes or "")
+        title = str(mc.title or "")
+        is_lib = LIBRARY_MICROCYCLE_MARKER in notes or title.strip().lower().startswith("biblioteca ")
+        if not is_lib:
+            continue
+        sessions = list(TrainingSession.objects.filter(microcycle=mc).order_by("session_date", "id"))
+        detail = []
+        for s in sessions:
+            key = "%s|%s" % (s.session_date, str(s.focus or "").strip().lower())
+            collisions[key] = collisions.get(key, 0) + 1
+            detail.append(
+                {
+                    "id": s.id,
+                    "fecha": _iso(s.session_date),
+                    "nombre": str(s.focus or "")[:60],
+                    "tareas": SessionTask.objects.filter(session=s, deleted_at__isnull=True).count(),
+                }
+            )
+        rows.append(
+            {
+                "id": mc.id,
+                "semana": _iso(mc.week_start),
+                "titulo": title[:60],
+                "en_calendario": not (mc.week_start and mc.week_start.year <= 2000),
+                "sesiones": len(sessions),
+                "detalle": detail,
+            }
+        )
+
+    choca = {k: v for k, v in collisions.items() if v > 1}
+    return JsonResponse(
+        {
+            "ok": True,
+            "bibliotecas": len(rows),
+            "en_calendario": sum(1 for r in rows if r["en_calendario"]),
+            "sesiones_totales": sum(r["sesiones"] for r in rows),
+            "tareas_totales": sum(d["tareas"] for r in rows for d in r["detalle"]),
+            "colisiones_fecha_nombre": choca,
+            "microciclos": rows,
+        }
+    )

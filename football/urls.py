@@ -698,6 +698,8 @@ urlpatterns = [
     path("coach/sesiones/diag-layout-light/", season_diagnostics.task_meta_light_audit_view, name="sessions-layout-light-debug"),
     # Cuanto cuesta construir el contexto de cada formato (Club/UEFA) de una tarea.
     path("coach/sesiones/diag-formato/", season_diagnostics.task_format_cost_view, name="sessions-format-cost-debug"),
+    # Radiografia de los microciclos de biblioteca antes de consolidarlos.
+    path("coach/sesiones/diag-bibliotecas/", season_diagnostics.library_microcycles_audit_view, name="sessions-library-mc-debug"),
     # Pone al dia en lote las fotos HD de la biblioteca (?limit=, ?team=).
     path(
         "coach/sesiones/fotos-hd/",
