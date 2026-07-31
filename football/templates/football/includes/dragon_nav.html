@@ -27,24 +27,35 @@
       height: 2.9rem;
     }
   }
-  .nav-primary-links { display: contents; }
-  .nav-primary-links.is-collapsed { display: none; }
-  .nav-collapse-toggle {
-    display: inline-flex; align-items: center; gap: 0.4rem;
-    padding: 0.42rem 0.85rem; border-radius: 0.7rem; cursor: pointer;
-    font-weight: 800; font-size: 0.86rem;
-    color: var(--prod-text);
-    background: rgba(148,163,184,0.14);
-    border: 1px solid rgba(148,163,184,0.28);
-  }
-  .nav-collapse-toggle:hover { background: rgba(148,163,184,0.22); }
   /* El logo YA era un enlace, pero no lo parecia: sin cursor ni reaccion al pasar por encima
      nadie sabia que se podia pulsar para volver a Inicio. */
   .dragon-nav .dragon-link { display:inline-flex; cursor:pointer; border-radius:18px; transition: transform 140ms ease, filter 140ms ease; }
   .dragon-nav .dragon-link:hover { transform: translateY(-1px) scale(1.02); filter: brightness(1.08); }
   .dragon-nav .dragon-link:focus-visible { outline: 2px solid rgba(244,180,0,0.62); outline-offset: 3px; }
-  .nav-zone-slot:empty { display: none; }
-  .nav-collapse-toggle[aria-expanded="true"] { background: rgba(250,204,21,0.16); border-color: rgba(250,204,21,0.4); color: #fde68a; }
+  .nav-zone-slot:empty, .nav-areas-slot:empty { display: none; }
+  /* Menu de AREAS: mismo aspecto que el de zona (pastilla + panel), para que la barra
+     hable un solo idioma en vez de mezclar pastillas grandes con chips pequenos. */
+  .areas-menu { position: relative; }
+  .areas-menu > summary { list-style:none; cursor:pointer; display:inline-flex; align-items:center; gap:.4rem;
+    font-size:.66rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--prod-muted);
+    background:rgba(148,163,184,.06); border:1px solid rgba(148,163,184,.20); border-radius:999px;
+    padding:.34rem .74rem; white-space:nowrap; line-height:1.15; }
+  .areas-menu > summary::-webkit-details-marker { display:none; }
+  .areas-menu > summary:hover { border-color:rgba(244,180,0,.34); color:var(--prod-text); }
+  .areas-menu[open] > summary { color:#fff7dd; background:rgba(244,180,0,.14); border-color:rgba(244,180,0,.62); }
+  .areas-menu-list { position:absolute; z-index:61; top:calc(100% + .35rem); left:0; min-width:230px;
+    display:flex; flex-direction:column; gap:.15rem; padding:.35rem; border-radius:14px;
+    background:var(--prod-panel-flat, rgba(14,23,39,.98)); border:1px solid rgba(148,163,184,.24);
+    box-shadow:0 22px 48px rgba(2,6,23,.42); }
+  .areas-menu-list a { font-size:.68rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--prod-muted); text-decoration:none; padding:.42rem .6rem; border-radius:10px; white-space:nowrap; }
+  .areas-menu-list a:hover { background:rgba(148,163,184,.14); color:var(--prod-text); }
+  .areas-menu-list a.is-active { color:#fff7dd; background:rgba(244,180,0,.14); }
+  :root[data-theme="light"] .areas-menu-list { background:#ffffff; border-color:rgba(15,23,42,.14);
+    box-shadow:0 22px 48px rgba(15,23,42,.16); }
+  :root[data-theme="light"] .areas-menu-list a { color:rgba(15,23,42,.82); }
+  :root[data-theme="light"] .areas-menu-list a:hover { background:rgba(15,23,42,.06); color:rgba(15,23,42,.96); }
+  :root[data-theme="light"] .areas-menu-list a.is-active { background:rgba(244,180,0,.18); color:rgba(15,23,42,.96); }
 </style>
 {% if not hide_dragon_logo %}
 <div class="dragon-nav">
@@ -221,6 +232,10 @@
     {% comment %}Hueco donde _zone_subnav.html mete su menu: las secciones de la zona dejan de ser
     una segunda fila de pestanas debajo y pasan a un desplegable aqui, al lado de Buscar. Si la
     pagina no incluye el sub-nav, el hueco se queda vacio y no ocupa nada.{% endcomment %}
+    {% comment %}Las AREAS (Inicio, Equipo, Entrenamiento...) tambien viajan aqui: antes eran
+    una fila de pastillas grandes debajo, con otro tamano y otro peso que el resto de la
+    barra. Ahora son un desplegable con el mismo idioma que el de zona.{% endcomment %}
+    <span class="nav-areas-slot" id="areas-menu-slot"></span>
     <span class="nav-zone-slot" id="zone-menu-slot"></span>
     {% include 'football/includes/_search_button.html' %}
     {% include 'football/includes/_theme_picker.html' %}
@@ -228,8 +243,10 @@
   {% endif %}
   {% with nav_path=request.path|default:'' nav_url_name=request.resolver_match.url_name|default:'' cdurl=club_dashboard_url|default:'' %}
   {# Orden tabs (staff): Entrenador → Entrenamiento → Partido → Jugador #}
-  <button type="button" class="nav-collapse-toggle" data-nav-toggle aria-expanded="{% if nav_url_name == 'scouting-board' or nav_url_name == 'scouting-target-detail' or nav_url_name == 'player-detail' %}false{% else %}true{% endif %}" aria-label="Mostrar u ocultar navegacion" title="Mostrar/ocultar navegacion">&#8801; Menu</button>
-  <span class="nav-primary-links{% if nav_url_name == 'scouting-board' or nav_url_name == 'scouting-target-detail' or nav_url_name == 'player-detail' %} is-collapsed{% endif %}" data-nav-primary>
+<details class="areas-menu" data-areas-menu>
+    <summary><span aria-hidden="true">&#8801;</span> <span data-areas-current>Áreas</span> <span class="zone-menu-caret" aria-hidden="true">▾</span></summary>
+    <div class="areas-menu-list">
+      <div class="zone-menu-title">Áreas</div>
   {% if can_access_staff|default:False %}
   <a href="{% url 'coach-detail' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Abre la portada del entrenador: plantilla en el campo, competición, próximo rival y accesos." class="{% if nav_url_name == 'coach-detail' or nav_url_name == 'coach-role-trainer' or 'coach/roles/entrenador' in nav_path %}is-active{% endif %}" {% if nav_url_name == 'coach-detail' or nav_url_name == 'coach-role-trainer' or 'coach/roles/entrenador' in nav_path %}aria-current="page"{% endif %}>Inicio</a>
   <a href="{% url 'coach-role-trainer' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Zona de trabajo del entrenador: pizarra con avatares, resumen ejecutivo y vistas de jugador y partido." class="{% if nav_url_name == 'coach-role-trainer' or 'coach/roles/entrenador' in nav_path %}is-active{% endif %}" {% if nav_url_name == 'coach-role-trainer' or 'coach/roles/entrenador' in nav_path %}aria-current="page"{% endif %}>Entrenador</a>
@@ -256,7 +273,8 @@
   {% if can_manage_workspace and active_workspace and active_workspace.kind == 'club' %}
   <a href="{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Club: temporada, identidad, permisos y staff." class="{% if nav_url_name == 'club-onboarding' or nav_url_name == 'club-season-wizard' %}is-active{% endif %}" {% if nav_url_name == 'club-onboarding' or nav_url_name == 'club-season-wizard' %}aria-current="page"{% endif %}>Club</a>
   {% endif %}
-  </span>
+    </div>
+  </details>
   {% comment %}Menu heredado retirado: iba detras de show_legacy_nav_menu, que nadie
 activa, asi que sus botones eran inalcanzables. El selector de tema, que era el unico
 que hacia falta, vive ahora en la linea de contexto de la barra.{% endcomment %}
@@ -413,13 +431,22 @@ que hacia falta, vive ahora en la linea de contexto de la barra.{% endcomment %}
 
 <script>
 (() => {
-  document.querySelectorAll('[data-nav-toggle]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const links = document.querySelector('[data-nav-primary]');
-      if (!links) return;
-      const collapsed = links.classList.toggle('is-collapsed');
-      btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  // El menu de AREAS se acopla arriba, junto al de zona y a Buscar (mismo patron que
+  // _zone_subnav). Si el hueco no existe, se queda donde esta y sigue funcionando.
+  const areas = document.querySelector('[data-areas-menu]');
+  if (areas) {
+    const slot = document.getElementById('areas-menu-slot');
+    if (slot && !slot.contains(areas)) slot.appendChild(areas);
+    // El boton dice DONDE ESTAS, no un generico "Menu".
+    const actual = areas.querySelector('.areas-menu-list a.is-active');
+    const etiqueta = areas.querySelector('[data-areas-current]');
+    if (actual && etiqueta) etiqueta.textContent = actual.textContent.trim();
+    document.addEventListener('click', (ev) => {
+      if (areas.open && !areas.contains(ev.target)) areas.open = false;
     });
-  });
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape' && areas.open) areas.open = false;
+    });
+  }
 })();
 </script>
