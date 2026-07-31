@@ -209,11 +209,7 @@
     {% comment %}El selector de tema vivia dentro del menu heredado, que esta
     desactivado por defecto (show_legacy_nav_menu): no habia forma de llegar a el.
     Va aqui, junto a la temporada, que es la otra preferencia siempre visible.{% endcomment %}
-    <div class="nav-theme-picker" role="group" aria-label="Tema de la interfaz" data-help="Elige el aspecto: oscuro, claro o alto contraste.">
-      <button type="button" class="ntp-opt" data-theme-set="dark" title="Tema oscuro">🌙<span>Oscuro</span></button>
-      <button type="button" class="ntp-opt" data-theme-set="light" title="Tema claro">☀️<span>Claro</span></button>
-      <button type="button" class="ntp-opt" data-theme-set="hc" title="Alto contraste">🔆<span>Contraste</span></button>
-    </div>
+    {% include 'football/includes/_theme_picker.html' %}
   </div>
   {% endif %}
   {% with nav_path=request.path|default:'' nav_url_name=request.resolver_match.url_name|default:'' cdurl=club_dashboard_url|default:'' %}

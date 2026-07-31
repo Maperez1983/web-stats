@@ -1642,6 +1642,7 @@ body.prod-commercial .ws-presentation-exit button {
    Antes era un boton ciclico cuya etiqueta mostraba el tema ACTUAL, asi que no
    se sabia ni que opciones habia ni cual estaba puesta. */
 body.prod-commercial .nav-context { flex-wrap: wrap; }
+.nav-theme-picker,
 body.prod-commercial .nav-theme-picker {
   display: inline-flex;
   align-items: center;
@@ -1653,6 +1654,7 @@ body.prod-commercial .nav-theme-picker {
   border: 1px solid rgba(148, 163, 184, 0.20);
   background: rgba(148, 163, 184, 0.06);
 }
+.nav-theme-picker .ntp-opt,
 body.prod-commercial .nav-theme-picker .ntp-opt {
   display: inline-flex;
   align-items: center;

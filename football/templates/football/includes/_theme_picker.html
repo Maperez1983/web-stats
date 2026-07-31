@@ -1,0 +1,54 @@
+{% comment %}Selector de tema (oscuro / claro / alto contraste).
+Uso: {% include 'football/includes/_theme_picker.html' %}
+
+Autosuficiente a proposito: la logica va aqui y no en dragon_nav, porque Inicio no
+incluye la barra global (su navegacion es el bloque "Ir a") y ahi tambien hace falta.
+El estilo .nav-theme-picker vive en commercial.css.
+{% endcomment %}
+<div class="nav-theme-picker" role="group" aria-label="Tema de la interfaz" data-help="Elige el aspecto: oscuro, claro o alto contraste.">
+  <button type="button" class="ntp-opt" data-theme-set="dark" title="Tema oscuro">🌙<span>Oscuro</span></button>
+  <button type="button" class="ntp-opt" data-theme-set="light" title="Tema claro">☀️<span>Claro</span></button>
+  <button type="button" class="ntp-opt" data-theme-set="hc" title="Alto contraste">🔆<span>Contraste</span></button>
+</div>
+<script>
+(() => {
+  if (window.__wsThemePickerReady) return;   // el partial puede incluirse dos veces
+  window.__wsThemePickerReady = true;
+  const KEY = '2j_theme';
+  const root = document.documentElement;
+  const permiteClaro = () => { try { return !root.hasAttribute('data-force-dark-theme'); } catch (e) { return true; } };
+  const aplicar = (t) => {
+    if (t === 'light' && !permiteClaro()) t = 'dark';
+    if (t === 'dark' || !t) { root.removeAttribute('data-theme'); return; }
+    root.setAttribute('data-theme', t);
+  };
+  const marcar = () => {
+    const t = root.getAttribute('data-theme') || 'dark';
+    document.querySelectorAll('.nav-theme-picker [data-theme-set]').forEach((b) => {
+      const on = b.getAttribute('data-theme-set') === t;
+      b.classList.toggle('is-on', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      if (b.getAttribute('data-theme-set') === 'light' && !permiteClaro()) {
+        b.disabled = true; b.title = 'Desactivado para este club';
+      }
+    });
+  };
+  const enlazar = () => {
+    document.querySelectorAll('.nav-theme-picker').forEach((p) => {
+      if (p.dataset.wired === '1') return;
+      p.dataset.wired = '1';
+      p.addEventListener('click', (ev) => {
+        const opt = ev.target.closest('[data-theme-set]');
+        if (!opt || opt.disabled) return;
+        const t = opt.getAttribute('data-theme-set');
+        aplicar(t);
+        try { window.localStorage.setItem(KEY, t); } catch (e) {}
+        marcar();
+      });
+    });
+    marcar();
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', enlazar);
+  else enlazar();
+})();
+</script>
