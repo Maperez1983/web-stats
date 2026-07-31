@@ -24,7 +24,6 @@ Auto-resalta la página activa con nav_url_name (global). Seguro si falta: solo 
   <a href="{% url 'development' %}" class="{% if request.resolver_match.url_name == 'development' %}on{% endif %}">📈 Desarrollo</a>
   <a href="{% url 'player-compare' %}" class="{% if request.resolver_match.url_name == 'player-compare' %}on{% endif %}">⚖️ Comparar</a>
   <a href="{% url 'team-page' %}" class="{% if request.resolver_match.url_name == 'team-page' %}on{% endif %}">🏳️ Ficha equipo</a>
-  {% if can_manage_workspace %}<a href="{% url 'player-portal-settings' %}" class="{% if request.resolver_match.url_name == 'player-portal-settings' %}on{% endif %}">📱 Portal del jugador</a>{% endif %}
 </nav>
 {% elif zone == 'tactica' %}
 <nav class="zone-subnav" aria-label="Táctica">
@@ -61,6 +60,8 @@ Auto-resalta la página activa con nav_url_name (global). Seguro si falta: solo 
   <a href="{% url 'club-page' %}" class="{% if request.resolver_match.url_name == 'club-page' %}on{% endif %}">🏛️ Ficha del club</a>
   <a href="{% url 'team-page' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'team-page' %}on{% endif %}">🏳️ Ficha del equipo</a>
   <a href="{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'staff-directory' %}on{% endif %}">👔 Staff</a>
+  {% if can_manage_workspace %}<a href="{% url 'workspace-members' %}" class="{% if request.resolver_match.url_name == 'workspace-members' %}on{% endif %}">👥 Miembros</a>{% endif %}
+  {% if can_manage_workspace %}<a href="{% url 'player-portal-settings' %}" class="{% if request.resolver_match.url_name == 'player-portal-settings' %}on{% endif %}">📱 Portal del jugador</a>{% endif %}
   <a href="{% url 'club-onboarding' %}" class="{% if request.resolver_match.url_name == 'club-onboarding' %}on{% endif %}">⚙️ Configuración</a>
   {% if request.user.is_staff or request.user.is_superuser %}<a href="{% url 'platform-overview' %}" class="{% if request.resolver_match.url_name == 'platform-overview' %}on{% endif %}">🛠️ Gobierno</a>{% endif %}
 </nav>
