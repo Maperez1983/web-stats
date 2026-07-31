@@ -21,6 +21,11 @@ fi
 set -a; . "$CONFIG"; set +a
 
 cd "$REPO" || exit 1
+
+# Trae la ultima version del agente antes de correr, para que no se quede atras.
+git fetch -q --depth 1 origin main >> "$LOG" 2>&1 && git reset --hard -q origin/main >> "$LOG" 2>&1 || \
+  echo "aviso: no se pudo actualizar el codigo; sigo con la version local" >> "$LOG"
+
 python3 scripts/agente_rivales.py >> "$LOG" 2>&1
 codigo=$?
 echo "salida: $codigo" >> "$LOG"
