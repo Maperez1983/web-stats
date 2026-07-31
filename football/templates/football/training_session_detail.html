@@ -339,6 +339,31 @@
 	            {% endif %}
 	          </table>
 
+	          {% comment %}Foco de la SEMANA y ausencias: es lo primero que necesita leer un segundo
+	          entrenador antes de saltar al campo. El foco vive en el microciclo y no bajaba a la
+	          sesion; las ausencias habia que deducirlas leyendo 27 selects.{% endcomment %}
+	          {% if microcycle_focus.attack or microcycle_focus.defense or microcycle_focus.set_pieces or microcycle_focus.rival_notes or session_absences %}
+	          <div class="section-title">Foco de la semana</div>
+	          <div class="box" style="margin-bottom:12px;">
+	            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:10px;">
+	              {% if microcycle_focus.attack %}<div><span class="k">Ataque</span><div class="v" style="font-weight:600;">{{ microcycle_focus.attack|linebreaksbr }}</div></div>{% endif %}
+	              {% if microcycle_focus.defense %}<div><span class="k">Defensa</span><div class="v" style="font-weight:600;">{{ microcycle_focus.defense|linebreaksbr }}</div></div>{% endif %}
+	              {% if microcycle_focus.set_pieces %}<div><span class="k">Balón parado</span><div class="v" style="font-weight:600;">{{ microcycle_focus.set_pieces|linebreaksbr }}</div></div>{% endif %}
+	              {% if microcycle_focus.rival_notes %}<div><span class="k">Rival</span><div class="v" style="font-weight:600;">{{ microcycle_focus.rival_notes|linebreaksbr }}</div></div>{% endif %}
+	            </div>
+	            {% if session_absences %}
+	            <div style="margin-top:10px; padding-top:10px; border-top:1px solid rgba(148,163,184,0.22);">
+	              <span class="k">No disponibles ({{ session_absences|length }})</span>
+	              <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:5px;">
+	                {% for a in session_absences %}
+	                <span style="font-size:12px; font-weight:700; border-radius:999px; padding:3px 10px; background:rgba(244,180,0,0.14); border:1px solid rgba(244,180,0,0.35);">{{ a.name }} <span style="opacity:.7; font-weight:600;">· {{ a.label }}</span></span>
+	                {% endfor %}
+	              </div>
+	            </div>
+	            {% endif %}
+	          </div>
+	          {% endif %}
+
 	          <div class="section-title">Contenido / explicación{% if not session_inline_edit %} <span style="opacity:.7; font-weight:700; text-transform:none; letter-spacing:0;">· resumen</span>{% endif %}</div>
 	          <div class="box" style="margin-bottom:12px;">
 	            {% if session_inline_edit %}
@@ -484,6 +509,10 @@
               .tsk-chev{flex:0 0 auto;font-size:13px;color:var(--club-muted,#64748b);transition:transform .12s;}
               .tsk-detail[open]>summary .tsk-chev{transform:rotate(180deg);}
               .tsk-inner{padding:2px 12px 12px;}
+              .tsk-goal{font-size:12.5px;line-height:1.4;margin:2px 0 0;color:var(--club-ink,#0f172a);}
+              .tsk-cue{font-size:12px;line-height:1.4;margin:5px 0 0;padding:5px 9px;border-radius:8px;
+                background:rgba(47,125,50,0.08);border-left:3px solid var(--club-accent,#2f7d32);}
+              .tsk-cue b{text-transform:uppercase;letter-spacing:.05em;font-size:10px;opacity:.75;display:block;}
             </style>
               <div class="tasks">
 	                {% for block in tasks_by_block %}
@@ -495,6 +524,11 @@
 	                      </div>
 	                      <div class="task-body">
 	                        <div class="task-title">{{ t.title }}</div>
+	                        {% comment %}El objetivo y el "incidir en" estaban DENTRO del desplegable:
+	                        habia que abrir tarea por tarea para saber que se busca. Un segundo
+	                        entrenador necesita leerlo de corrido antes de saltar al campo.{% endcomment %}
+	                        {% if t.objective %}<div class="tsk-goal">{{ t.objective|truncatechars:130 }}</div>{% endif %}
+	                        {% if t.coaching_points %}<div class="tsk-cue"><b>Incidir en</b> {{ t.coaching_points|truncatechars:160 }}</div>{% endif %}
                         <details class="tsk-detail">
                           <summary class="tsk-sum">
                             <span class="tsk-thumb" style="background-image:{% if t.card_image_url %}url('{{ t.card_image_url }}'){% else %}none{% endif %};"></span>

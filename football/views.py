@@ -34910,6 +34910,34 @@ def training_session_detail_page(request, session_id):
         {
             "zone_chips": session_chips,
             "session": session_obj,
+            # --- Datos que pide una ficha de sesion de verdad (plantilla UEFA B del club + fichas
+            # clasicas): el foco de la SEMANA baja a la sesion, las ausencias se leen de un vistazo
+            # y cada tarea trae su "incidir en". Todo sale de datos que ya existian y no se pintaban.
+            "microcycle_focus": _parse_microcycle_plan_fields(
+                getattr(getattr(session_obj, "microcycle", None), "notes", "")
+            ),
+            "session_absences": [
+                {
+                    "name": str(getattr(_r.get("player"), "full_name", "") or getattr(_r.get("player"), "name", "") or "").strip(),
+                    "label": (
+                        _r["mark"].get_status_display()
+                        if _r.get("mark") and hasattr(_r["mark"], "get_status_display")
+                        else "Lesionado"
+                    ),
+                }
+                for _r in attendance_rows
+                if _r.get("injury_default")
+                or (
+                    _r.get("mark")
+                    and str(getattr(_r["mark"], "status", "") or "")
+                    in {
+                        TrainingSessionAttendance.STATUS_ABSENT,
+                        TrainingSessionAttendance.STATUS_INJURED,
+                        TrainingSessionAttendance.STATUS_EXCUSED,
+                        TrainingSessionAttendance.STATUS_LATE,
+                    }
+                )
+            ],
             "session_cover_path": _session_cover_static_path(session_obj),
             # La cabecera usaba SIEMPRE una foto de repertorio elegida por el resto del id: la misma
             # imagen en sesiones completamente distintas, pura decoracion. Si la sesion tiene tareas
