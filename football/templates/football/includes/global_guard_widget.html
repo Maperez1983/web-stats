@@ -109,8 +109,8 @@
      mensajes y el campo de escribir salian ilegibles. Aqui se fuerzan tintas claras DENTRO
      del panel, sin tocar su diseno. */
   :root[data-theme="light"] .guard-widget-panel,
-  :root[data-theme="light"] .guard-widget-panel .body,
-  :root[data-theme="light"] .guard-msg { color:#eef4ff; }
+  :root[data-theme="light"] .guard-widget-panel *:not(button):not(.guard-widget-close) { color:#eef4ff; }
+  :root[data-theme="light"] .guard-widget-panel .guard-widget-close { color:#0f172a; }
   :root[data-theme="light"] .guard-widget-panel label,
   :root[data-theme="light"] .guard-widget-panel textarea::placeholder { color:rgba(238,244,255,0.72); }
   :root[data-theme="light"] .guard-widget-panel input,
