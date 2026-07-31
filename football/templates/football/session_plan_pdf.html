@@ -142,8 +142,13 @@
         padding: 11px;
         margin-bottom: 8px;
         border-radius: 14px;
-        page-break-inside: auto;
-        break-inside: auto;
+        /* ANEXO: una pagina por tarea. Asi se imprime la sesion y se reparte la hoja de cada
+           tarea al ayudante que la dirige. Antes iban seguidas y una tarea podia quedar cortada
+           entre dos paginas, que es justo lo que no sirve en el campo. */
+        page-break-before: always;
+        break-before: page;
+        page-break-inside: avoid;
+        break-inside: avoid;
         box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
       }
       .task-sheet-card:last-child {
@@ -201,6 +206,8 @@
 	      .task-graphic img {
 	        width: 100%;
 	        height: auto;
+	        max-height: 132mm;
+	        object-fit: contain;
 	        display: block;
 	      }
 	      .task-graphic {
@@ -722,9 +729,24 @@
 	          Tareas de la sesión
 	        </div>
 	        {% if task_cards %}
+	        {% comment %}Indice: para localizar una tarea sin hojear el anexo entero. La pagina es
+	        el orden + 1 porque la sesion ocupa la primera.{% endcomment %}
+	        <table class="table" style="margin-bottom:10px;">
+	          {% for card in task_cards %}
+	          <tr>
+	            <td style="width:8%; font-weight:900;">{{ forloop.counter }}</td>
+	            <td>{{ card.sheet.title }}</td>
+	            <td style="width:32%; text-align:right; opacity:.72;">{{ card.sheet.block_label }} · {{ card.sheet.minutes }} min</td>
+	            <td style="width:16%; text-align:right; opacity:.72;">pág. {{ forloop.counter|add:1 }}</td>
+	          </tr>
+	          {% endfor %}
+	        </table>
 	          {% for card in task_cards %}
 	          <div class="task-sheet-card">
-	            <div class="task-title">Tarea {{ forloop.counter }} · {{ card.sheet.title }}</div>
+	            {% comment %}Cada hoja del anexo se sostiene sola: dice de que sesion viene y que
+	            numero de tarea es, porque se reparte suelta.{% endcomment %}
+	            <div class="task-meta" style="opacity:.6; letter-spacing:.06em; text-transform:uppercase; font-size:8.5px;">Anexo · tarea {{ forloop.counter }} de {{ task_cards|length }} · {{ session.session_date|date:"d/m/Y" }}</div>
+	            <div class="task-title">{{ card.sheet.title }}</div>
 	            <div class="task-meta">{{ card.sheet.block_label }} · {{ card.sheet.minutes }} min{% if card.sheet.type_label and card.sheet.type_label != '-' %} · {{ card.sheet.type_label }}{% endif %}</div>
 		              {% if card.preview_url %}
 		              <div class="task-graphic" style="margin-top:8px; margin-bottom:10px;">
