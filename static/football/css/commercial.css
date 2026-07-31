@@ -388,14 +388,14 @@ body.prod-commercial .badge.danger,
 body.prod-commercial .badge.err {
   border-color: rgba(248, 113, 113, 0.5);
   background: rgba(220, 38, 38, 0.18);
-  color: rgba(254, 226, 226, 0.95);
+  color: var(--prod-text);
 }
 
 body.prod-commercial .ui-badge.is-info,
 body.prod-commercial .badge.info {
   border-color: rgba(34, 211, 238, 0.38);
   background: rgba(34, 211, 238, 0.12);
-  color: rgba(226, 245, 255, 0.96);
+  color: var(--prod-text);
 }
 
 /* Buttons (supports `.button`, `.btn`, bare <button> and editor trigger buttons). */
@@ -513,7 +513,7 @@ body.prod-commercial button.secondary,
 body.prod-commercial a.secondary {
   border-color: rgba(47, 125, 50, 0.32) !important;
   background: linear-gradient(135deg, rgba(47, 125, 50, 0.88), rgba(24, 63, 38, 0.84)) !important;
-  color: rgba(245, 247, 250, 0.96) !important;
+  color: var(--prod-text) !important;
 }
 
 body.prod-commercial .button.danger,
@@ -522,7 +522,7 @@ body.prod-commercial button.danger,
 body.prod-commercial a.danger {
   border-color: rgba(248, 113, 113, 0.5) !important;
   background: rgba(220, 38, 38, 0.18) !important;
-  color: rgba(254, 226, 226, 0.95) !important;
+  color: var(--prod-text) !important;
 }
 
 body.prod-commercial .button.ghost,
@@ -570,7 +570,7 @@ body.prod-commercial .tab-link {
   border-radius: 999px;
   border: 1px solid rgba(148, 163, 184, 0.22) !important;
   background: rgba(255, 255, 255, 0.04) !important;
-  color: rgba(226, 232, 240, 0.92) !important;
+  color: var(--prod-text) !important;
   font-size: 0.76rem;
   font-weight: 750;
   letter-spacing: 0.06em;
@@ -587,7 +587,7 @@ body.prod-commercial .module-tab {
   border-radius: 999px !important;
   border: 1px solid rgba(148, 163, 184, 0.22) !important;
   background: rgba(255, 255, 255, 0.04) !important;
-  color: rgba(226, 232, 240, 0.92) !important;
+  color: var(--prod-text) !important;
   font-size: 0.76rem !important;
   font-weight: 750 !important;
   letter-spacing: 0.06em !important;
@@ -665,7 +665,7 @@ body.prod-commercial .badge {
   border-radius: 999px;
   border: 1px solid rgba(148, 163, 184, 0.2);
   background: rgba(15, 23, 42, 0.55);
-  color: rgba(226, 232, 240, 0.92);
+  color: var(--prod-button-text);
   font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.10em;
@@ -679,7 +679,7 @@ body.prod-commercial select,
 body.prod-commercial textarea {
   font-family: inherit;
   font-size: max(16px, var(--prod-font-size-base, 16px));
-  color: rgba(245, 247, 250, 0.94);
+  color: var(--prod-button-text);
   background: rgba(15, 23, 42, 0.55);
   border: 1px solid rgba(148, 163, 184, 0.22);
   border-radius: 14px;
@@ -689,7 +689,7 @@ body.prod-commercial textarea {
 
 body.prod-commercial input::placeholder,
 body.prod-commercial textarea::placeholder {
-  color: rgba(148, 163, 184, 0.78);
+  color: var(--prod-muted);
 }
 
 body.prod-commercial input:focus,
@@ -723,7 +723,7 @@ body.prod-commercial td {
 }
 
 body.prod-commercial th {
-  color: rgba(176, 188, 205, 0.9);
+  color: var(--prod-text);
 }
 
 @supports (-webkit-touch-callout: none) {
@@ -856,7 +856,7 @@ body.prod-commercial .ws-modal-head strong {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   font-size: 0.78rem;
-  color: rgba(245, 247, 250, 0.94);
+  color: var(--prod-text);
 }
 
 :root[data-theme="light"] body.prod-commercial .ws-modal-head strong {
@@ -867,7 +867,7 @@ body.prod-commercial .ws-modal-close {
   appearance: none;
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.04);
-  color: rgba(226, 232, 240, 0.92);
+  color: var(--prod-text);
   border-radius: 12px;
   padding: 0.55rem 0.7rem;
   font-weight: 900;
@@ -885,7 +885,7 @@ body.prod-commercial .ws-modal-close {
 
 body.prod-commercial .ws-modal-body {
   padding: 0.9rem 1rem 1rem;
-  color: rgba(226, 232, 240, 0.92);
+  color: var(--prod-text);
 }
 
 :root[data-theme="light"] body.prod-commercial .ws-modal-body {
@@ -933,7 +933,7 @@ body.prod-commercial .ws-kbd {
   padding: 0.28rem 0.6rem;
   border: 1px solid rgba(244, 180, 0, 0.28);
   background: rgba(15, 23, 42, 0.55);
-  color: rgba(255, 247, 221, 0.96);
+  color: var(--prod-button-text);
   font-weight: 950;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -1036,7 +1036,7 @@ body.prod-commercial .nav-context {
   align-items: baseline;
   gap: 0.35rem;
   padding: 0.15rem 0.05rem 0.05rem;
-  color: rgba(226, 232, 240, 0.82);
+  color: var(--prod-muted);
   font-size: 0.76rem;
   letter-spacing: 0.02em;
 }
@@ -1048,7 +1048,7 @@ body.prod-commercial .nav-context-name {
 }
 
 body.prod-commercial .nav-context-sep {
-  color: rgba(148, 163, 184, 0.85);
+  color: var(--prod-muted);
 }
 
 body.prod-commercial .nav-context-subtitle {
@@ -1060,20 +1060,20 @@ body.prod-commercial .nav-context-subtitle {
 
 body.prod-commercial .nav-context-team {
   font-weight: 850;
-  color: rgba(226, 232, 240, 0.92);
+  color: var(--prod-text);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
 body.prod-commercial .nav-context-section {
   font-weight: 900;
-  color: rgba(148, 163, 184, 0.92);
+  color: var(--prod-text);
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
 body.prod-commercial .nav-context-season {
-  color: rgba(226, 232, 240, 0.88);
+  color: var(--prod-muted);
   font-weight: 850;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1088,7 +1088,7 @@ body.prod-commercial .nav-season-form select {
   border: 1px solid rgba(148, 163, 184, 0.28);
   border-radius: 999px;
   padding: 0.22rem 1.85rem 0.22rem 0.72rem;
-  color: rgba(245, 247, 250, 0.94);
+  color: var(--prod-button-text);
   background: rgba(15, 23, 42, 0.72);
   font-size: 0.68rem;
   font-weight: 850;
@@ -1186,7 +1186,7 @@ body.prod-commercial .nav-more-subtitle {
   letter-spacing: 0.16em;
   text-transform: uppercase;
   font-weight: 900;
-  color: rgba(148, 163, 184, 0.95);
+  color: var(--prod-text);
 }
 
 body.prod-commercial .team-switcher {
@@ -1210,7 +1210,7 @@ body.prod-commercial .team-switcher-label {
   font-size: 0.7rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(226, 232, 240, 0.75);
+  color: var(--prod-muted);
   font-weight: 800;
 }
 
@@ -1311,7 +1311,7 @@ body.prod-commercial .cmdk-close {
   appearance: none;
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.04);
-  color: rgba(226, 232, 240, 0.92);
+  color: var(--prod-text);
   border-radius: 12px;
   padding: 0.62rem 0.7rem;
   font-weight: 900;
@@ -1323,7 +1323,7 @@ body.prod-commercial .cmdk-close {
 
 body.prod-commercial .cmdk-hint {
   padding: 0.5rem 0.85rem;
-  color: rgba(226, 232, 240, 0.72);
+  color: var(--prod-muted);
   font-weight: 700;
   font-size: 0.78rem;
 }
@@ -1345,7 +1345,7 @@ body.prod-commercial .cmdk-item {
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.10);
   background: rgba(255, 255, 255, 0.03);
-  color: rgba(245, 247, 250, 0.92);
+  color: var(--prod-text);
   cursor: pointer;
 }
 
@@ -1371,7 +1371,7 @@ body.prod-commercial .cmdk-title {
 
 body.prod-commercial .cmdk-sub {
   margin-top: 0.15rem;
-  color: rgba(226, 232, 240, 0.70);
+  color: var(--prod-muted);
   font-size: 0.78rem;
   white-space: nowrap;
   overflow: hidden;
@@ -1383,7 +1383,7 @@ body.prod-commercial .cmdk-star {
   appearance: none;
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.03);
-  color: rgba(226, 232, 240, 0.92);
+  color: var(--prod-text);
   border-radius: 999px;
   padding: 0.25rem 0.55rem;
   font-weight: 950;
@@ -1399,7 +1399,7 @@ body.prod-commercial .cmdk-star.is-fav {
 body.prod-commercial .cmdk-section {
   margin: 0.35rem 0 0.2rem;
   padding: 0.25rem 0.55rem 0.15rem;
-  color: rgba(148, 163, 184, 0.92);
+  color: var(--prod-text);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   font-weight: 950;
@@ -1500,7 +1500,7 @@ body.prod-commercial .cmdk-section {
 :root[data-theme="hc"] body.prod-commercial .nav-more summary {
   border-color: rgba(255, 255, 255, 0.34);
   background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.92);
+  color: var(--prod-text);
 }
 
 :root[data-theme="hc"] body.prod-commercial .nav-more-panel {
@@ -1586,7 +1586,7 @@ body.prod-commercial .ws-presentation-exit button {
   appearance: none;
   border: 1px solid rgba(244, 180, 0, 0.28);
   background: rgba(15, 23, 42, 0.55);
-  color: rgba(255, 247, 221, 0.96);
+  color: var(--prod-button-text);
   border-radius: 999px;
   padding: 0.55rem 0.8rem;
   font-weight: 950;
