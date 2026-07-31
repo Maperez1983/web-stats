@@ -20,8 +20,10 @@
       .rs-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:.7rem; }
       .rs-card { display:flex; gap:.7rem; align-items:center; background:#0f172a; border:1px solid #1e293b; border-radius:12px; padding:.6rem .7rem; text-decoration:none; }
       .rs-card:hover { border-color:#334155; background:#111c31; }
+      .rs-ph.is-ph { object-fit:contain; padding:6px; opacity:.55; }
       .rs-ph { width:48px; height:56px; border-radius:8px; object-fit:cover; background:#1e293b; border:1px solid #334155; flex:0 0 auto; }
       .rs-nm { color:var(--prod-text); font-weight:800; font-size:.92rem; line-height:1.15; }
+      .rs-stats { display:block; color:var(--prod-amber,#f4b400); font-size:.7rem; font-weight:800; margin-top:.1rem; letter-spacing:.02em; }
       .rs-meta { color:#94a3b8; font-size:.76rem; margin-top:.15rem; }
       .rs-num { color:#64748b; font-weight:900; min-width:1.6rem; text-align:center; }
       .rs-known { color:#6ee7b7; font-size:.7rem; font-weight:800; }
@@ -47,10 +49,12 @@
           {% for p in grp.list %}
           <a class="rs-card" href="{% url 'rival-player-detail' rival_player_id=p.id %}">
             <span class="rs-num">{% if p.number %}{{ p.number }}{% else %}·{% endif %}</span>
-            {% if p.photo_url %}<img class="rs-ph" src="{{ p.photo_url }}" alt="" />{% else %}<span class="rs-ph"></span>{% endif %}
+            {% if p.photo_url %}<img class="rs-ph" src="{{ p.photo_url }}" alt="" loading="lazy" onerror="this.onerror=null;this.src='{% static 'football/images/player-avatar.svg' %}';this.classList.add('is-ph');" />{% else %}<img class="rs-ph is-ph" src="{% static 'football/images/player-avatar.svg' %}" alt="" />{% endif %}
             <span>
               <span class="rs-nm">{{ p.full_name }}</span>
               <span class="rs-meta">{{ p.position|default:"—" }}{% if p.age %} · {{ p.age }}a{% endif %}</span>
+              {% comment %}Estadisticas publicadas por la fuente, de un vistazo en el listado.{% endcomment %}
+              {% if p.matches_played or p.goals %}<span class="rs-stats">{{ p.matches_played|default:0 }} PJ{% if p.minutes %} · {{ p.minutes }}′{% endif %}{% if p.goals %} · {{ p.goals }} G{% endif %}{% if p.yellow_cards %} · {{ p.yellow_cards }} TA{% endif %}{% if p.red_cards %} · {{ p.red_cards }} TR{% endif %}</span>{% endif %}
               {% if p.matched_player_id %}<br /><span class="rs-known">✓ ex-nuestro</span>{% endif %}
             </span>
           </a>

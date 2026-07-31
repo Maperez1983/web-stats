@@ -13,6 +13,7 @@
       .rpf-back { display:inline-block; color:#7dd3fc; text-decoration:none; font-weight:800; font-size:.85rem; margin-bottom:.8rem; }
       .rpf-card { background:#0f172a; border:1px solid #1e293b; border-radius:16px; padding:1.1rem; }
       .rpf-top { display:flex; gap:1rem; align-items:center; flex-wrap:wrap; }
+      .rpf-photo.is-ph { object-fit:contain; padding:10px; opacity:.55; }
       .rpf-photo { width:96px; height:112px; border-radius:12px; object-fit:cover; background:#1e293b; border:1px solid #334155; }
       .rpf-name { margin:0; font-size:1.5rem; color:var(--prod-text); }
       .rpf-sub { color:var(--prod-muted); margin:.2rem 0 0; font-weight:700; }
@@ -48,7 +49,7 @@
         {% if messages %}<div class="rpf-msgs">{% for m in messages %}<div class="rpf-msg {{ m.tags }}">{{ m }}</div>{% endfor %}</div>{% endif %}
         <div class="rpf-card">
           <div class="rpf-top">
-            {% if rp.photo_url %}<img class="rpf-photo" src="{{ rp.photo_url }}" alt="" />{% else %}<div class="rpf-photo"></div>{% endif %}
+            {% if rp.photo_url %}<img class="rpf-photo" src="{{ rp.photo_url }}" alt="" onerror="this.onerror=null;this.src='{% static 'football/images/player-avatar.svg' %}';this.classList.add('is-ph');" />{% else %}<img class="rpf-photo is-ph" src="{% static 'football/images/player-avatar.svg' %}" alt="" />{% endif %}
             <div>
               <h1 class="rpf-name" style="display:flex;align-items:center;gap:.6rem;">{% if rp.team.kit_primary_color %}<span class="zh-kit" style="--zh-k1:{{ rp.team.kit_primary_color }};--zh-k2:{{ rp.team.kit_secondary_color|default:rp.team.kit_primary_color }};" title="Colores del rival" aria-hidden="true"></span>{% endif %}<span>{{ rp.full_name }}</span></h1>
               <p class="rpf-sub">
@@ -60,10 +61,23 @@
                 <span class="rpf-chip {{ rp.line }}">{{ rp.position|default:"—" }}</span>
                 {% if rp.number %}<span class="rpf-chip">#{{ rp.number }}</span>{% endif %}
                 {% if rp.age %}<span class="rpf-chip">{{ rp.age }} años</span>{% endif %}
-                {% if rp.matches_played %}<span class="rpf-chip">{{ rp.matches_played }} PJ · {{ rp.minutes }}′ · {{ rp.goals }}G</span>{% endif %}
               </div>
             </div>
           </div>
+
+          {% comment %}Estadisticas publicadas por la fuente (laPreferente hoy; Universo RFAF
+          cuando este disponible). Se muestran SIEMPRE, con "—" si la fuente no las trae,
+          para que el bloque no quede vacio y se vea de un vistazo si hay dato o no.{% endcomment %}
+          <div class="zc-row" style="margin:.9rem 0 0;">
+            <div class="zc-chip zc-gold"><div class="zc-n">{{ rp.matches_played|default_if_none:"—" }}</div><div class="zc-k">Partidos</div></div>
+            <div class="zc-chip"><div class="zc-n">{{ rp.minutes|default_if_none:"—" }}<span class="zc-d">′</span></div><div class="zc-k">Minutos</div></div>
+            <div class="zc-chip zc-ok"><div class="zc-n">{{ rp.goals|default_if_none:"—" }}</div><div class="zc-k">Goles</div></div>
+            <div class="zc-chip zc-mid"><div class="zc-n">{{ rp.yellow_cards|default_if_none:"—" }}</div><div class="zc-k">Amarillas</div></div>
+            <div class="zc-chip zc-red"><div class="zc-n">{{ rp.red_cards|default_if_none:"—" }}</div><div class="zc-k">Rojas</div></div>
+          </div>
+          <p style="margin:.45rem 0 0;font-size:.7rem;color:var(--prod-muted);">
+            Datos publicados por la fuente{% if rp.season_label %} · temporada {{ rp.season_label }}{% endif %}{% if rp.updated_at %} · actualizado {{ rp.updated_at|date:"d/m/Y" }}{% endif %}.
+          </p>
 
           {% if rp.matched_player %}
           <div class="rpf-known">✓ Mismo jugador que <strong>{{ rp.matched_player.name }}</strong> (ya existe en el sistema, enlazado por su id). No se ha duplicado.</div>

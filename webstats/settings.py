@@ -50,6 +50,12 @@ if DJANGO_ALLOW_ASYNC_UNSAFE_ENV in {'1', 'true', 'yes', 'on'}:
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('SECRET_KEY', '').strip()
+
+# Token para el agente de plantillas rivales (maquina a maquina). laPreferente bloquea
+# al datacenter (403), asi que la descarga y el parseo se hacen desde una IP residencial
+# y el resultado se envia a /api/rivales/ingesta/. Si esta vacio, ese endpoint queda
+# DESACTIVADO: sin token no se acepta ninguna ingesta de maquina.
+RIVAL_INGEST_TOKEN = os.getenv('RIVAL_INGEST_TOKEN', '').strip()
 if not SECRET_KEY:
     if DEBUG:
         SECRET_KEY = 'dev-insecure-change-me'

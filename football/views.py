@@ -2260,16 +2260,29 @@ def rival_league_import_status(request):
     return JsonResponse({"ok": True, "status": cache.get(status_key) or {"state": "idle"}})
 
 
-@login_required
+@csrf_exempt
 @require_POST
-def rival_squad_ingest(request):
-    """Ingesta de plantillas rivales YA parseadas en cliente (residencial) — laPreferente bloquea al
-    servidor de prod (403), así que el fetch/parse se hace desde una conexión residencial y aquí solo
-    se persiste. Acepta JSON {season, skip_codes, teams:[{name, code, url, players:[<filas>]}]} y hace
-    upsert de RivalPlayer por equipo (dedup Team + J-id). Coach-gated + CSRF. Nunca crea Player."""
-    forbidden = _forbid_if_no_coach_access(request.user)
-    if forbidden:
-        return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+def rival_squad_ingest_agent(request):
+    """Ingesta de plantillas rivales desde el AGENTE (maquina a maquina).
+
+    Va aparte del endpoint de la interfaz a proposito: aquel usa sesion + CSRF y no
+    conviene debilitarlo. Este solo acepta un token en la cabecera X-Ingest-Token,
+    comparado en tiempo constante. Sin token configurado en el servidor, responde 404
+    para no anunciar siquiera que existe. Mismo cuerpo JSON y misma logica de guardado.
+    """
+    import hmac
+
+    esperado = str(getattr(settings, "RIVAL_INGEST_TOKEN", "") or "")
+    if not esperado:
+        raise Http404("ingesta de agente desactivada")
+    recibido = str(request.headers.get("X-Ingest-Token") or "")
+    if not recibido or not hmac.compare_digest(recibido, esperado):
+        return JsonResponse({"ok": False, "error": "token"}, status=403)
+    return _rival_squad_ingest_guardar(request)
+
+
+def _rival_squad_ingest_guardar(request):
+    """Guardado compartido por los dos endpoints de ingesta (interfaz y agente)."""
     import json as _json
 
     from football.models import resolve_or_create_team
@@ -2305,6 +2318,19 @@ def rival_squad_ingest(request):
             totals[k] += res.get(k, 0)
         results.append({"name": name, "team_id": int(team.id), **res})
     return JsonResponse({"ok": True, "totals": totals, "teams": results})
+
+
+@login_required
+@require_POST
+def rival_squad_ingest(request):
+    """Ingesta de plantillas rivales YA parseadas en cliente (residencial) — laPreferente bloquea al
+    servidor de prod (403), así que el fetch/parse se hace desde una conexión residencial y aquí solo
+    se persiste. Acepta JSON {season, skip_codes, teams:[{name, code, url, players:[<filas>]}]} y hace
+    upsert de RivalPlayer por equipo (dedup Team + J-id). Coach-gated + CSRF. Nunca crea Player."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+    return _rival_squad_ingest_guardar(request)
 
 
 @login_required
