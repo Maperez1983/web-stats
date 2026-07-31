@@ -9,13 +9,40 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
     <style>
+      /* Modo claro: esta zona nunca se adapto y se pintaba con literales de tema oscuro sobre
+         el fondo claro del producto (22 textos por debajo del minimo, tres invisibles). Los
+         colores pasan a variables y se redefinen abajo para el tema claro. */
       :root {
-        --bg: #08111d;
-        --panel: rgba(11, 19, 33, 0.95);
-        --panel-soft: rgba(15, 23, 39, 0.84);
-        --line: rgba(148, 163, 184, 0.18);
-        --ink: #e7ebf3;
-        --muted: #aab6c8;
+        --pg-body: #08111d;
+        --pg-ink: #f8fbff;
+        --pg-ink-2: #d9e5f7;
+        --pg-ink-3: #9aa8bf;
+        --pg-panel: rgba(7, 13, 25, 0.95);
+        --pg-panel-2: rgba(7, 13, 25, 0.5);
+        --pg-soft: rgba(255, 255, 255, 0.04);
+        --pg-line: rgba(160, 180, 215, 0.14);
+        --pg-glow-a: rgba(244, 180, 0, 0.12);
+        --pg-glow-b: rgba(47, 125, 50, 0.14);
+      }
+      :root[data-theme="light"] {
+        --pg-body: #f4f7fb;
+        --pg-ink: #0f172a;
+        --pg-ink-2: rgba(15, 23, 42, 0.76);
+        --pg-ink-3: rgba(15, 23, 42, 0.58);
+        --pg-panel: #ffffff;
+        --pg-panel-2: #f7f9fc;
+        --pg-soft: rgba(15, 23, 42, 0.04);
+        --pg-line: rgba(15, 23, 42, 0.12);
+        --pg-glow-a: rgba(244, 180, 0, 0.10);
+        --pg-glow-b: rgba(47, 125, 50, 0.07);
+      }
+      :root {
+        --bg: var(--pg-body);
+        --panel: var(--pg-panel);
+        --panel-soft: var(--pg-panel-2);
+        --line: var(--pg-line);
+        --ink: var(--pg-ink);
+        --muted: var(--pg-ink-3);
         --accent: #f4b400;
         --pitch: #2f7d32;
         --shadow: 0 28px 68px rgba(0, 0, 0, 0.32);
@@ -26,9 +53,9 @@
       body {
         margin: 0;
         background:
-          radial-gradient(circle at top left, rgba(244, 180, 0, 0.12), transparent 26%),
-          radial-gradient(circle at top right, rgba(47, 125, 50, 0.14), transparent 24%),
-          linear-gradient(180deg, #050c17 0%, #08111d 100%);
+          radial-gradient(circle at top left, var(--pg-glow-a), transparent 26%),
+          radial-gradient(circle at top right, var(--pg-glow-b), transparent 24%),
+          var(--pg-body);
         color: var(--ink);
         font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
       }
@@ -130,9 +157,9 @@
         gap: 0.35rem;
         padding: 0.42rem 0.72rem;
         border-radius: 999px;
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        background: rgba(255, 255, 255, 0.05);
-        color: #f8fbff;
+        border:1px solid var(--pg-line);
+        background:var(--pg-soft);
+        color:var(--pg-ink);
         font-size: 0.72rem;
         font-weight: 900;
         letter-spacing: 0.05em;
@@ -146,13 +173,13 @@
         border-radius: 22px;
         padding: 1rem;
         background:
-          radial-gradient(circle at top left, rgba(244, 180, 0, 0.12), transparent 38%),
+          radial-gradient(circle at top left, var(--pg-glow-a), transparent 38%),
           rgba(255, 255, 255, 0.04);
         border: 1px solid rgba(255, 255, 255, 0.1);
       }
       .metric-card span {
         display: block;
-        color: #9db4d7;
+        color:var(--pg-ink-3);
         font-size: 0.72rem;
         letter-spacing: 0.1em;
         text-transform: uppercase;
@@ -200,8 +227,8 @@
         align-items: center;
         justify-content: center;
         min-height: 44px;
-        border: 1px solid rgba(255,255,255,0.12);
-        background: rgba(255,255,255,0.05);
+        border:1px solid var(--pg-line);
+        background:var(--pg-soft);
         color: var(--ink);
         border-radius: 999px;
         padding: 0.72rem 1rem;
@@ -229,7 +256,7 @@
         max-width: 580px;
         border-radius: 16px;
         border: 1px dashed rgba(255, 255, 255, 0.16);
-        background: rgba(255, 255, 255, 0.03);
+        background:var(--pg-soft);
         color: var(--muted);
         padding: 0.82rem 0.9rem;
       }
@@ -237,7 +264,7 @@
         min-height: 48px;
         border-radius: 14px;
         border: 1px solid var(--line);
-        background: rgba(255,255,255,0.04);
+        background:var(--pg-soft);
         color: var(--ink);
         padding: 0.82rem 0.9rem;
         font: inherit;
@@ -261,8 +288,8 @@
         font-size: 0.72rem;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: #cbd7ea;
-        background: rgba(255,255,255,0.03);
+        color:var(--pg-ink-2);
+        background:var(--pg-soft);
       }
       .meta {
         opacity: 0.85;
@@ -282,7 +309,7 @@
         gap: 0.4rem;
       }
       .field span {
-        color: #cbd7ea;
+        color:var(--pg-ink-2);
         font-size: 0.74rem;
         font-weight: 800;
         letter-spacing: 0.08em;
@@ -307,7 +334,7 @@
         min-height: 112px;
         padding: 0.55rem;
         border-radius: 16px;
-        background: rgba(255,255,255,0.05);
+        background:var(--pg-soft);
         border: 1px solid rgba(255,255,255,0.08);
       }
       .asset-thumb img {
@@ -319,7 +346,7 @@
         border-radius: 14px;
       }
       .asset-name {
-        color: #f8fbff;
+        color:var(--pg-ink);
         font-size: 0.82rem;
         font-weight: 800;
         line-height: 1.4;
@@ -346,6 +373,9 @@
     </style>
   </head>
   <body class="prod-commercial">
+    {% comment %}Sin barra, estas pantallas eran un callejon sin salida: solo se salia por un
+    boton dentro del contenido o con el boton atras del navegador.{% endcomment %}
+    {% include 'football/includes/dragon_nav.html' %}
     <div class="shell">
       <header class="topbar">
         <div class="topbar-copy">

@@ -87,6 +87,49 @@ def _normalize_workspace_group_key(value):
     return re.sub(r'[^a-z0-9]+', '', ascii_value)
 
 
+def child_workspace_map(workspaces=None):
+    """{id_hijo: (id_padre, etiqueta_corta)} de los workspaces club que cuelgan de otro.
+
+    Un "hijo" es un espacio creado a partir de otro club: o se llama "Padre · Categoría", o
+    sus notas dicen "Separado automáticamente desde Padre". Platform ya los agrupa al listar,
+    pero el contador de la cabecera y el selector de contexto los contaban sueltos: de ahí que
+    la misma etiqueta "Clubes" dijera 5 en una pestaña y 7 en otra, y que en el selector
+    salieran dos "Benagalbón" indistinguibles.
+    """
+    try:
+        items = list(workspaces) if workspaces is not None else list(
+            Workspace.objects.filter(kind=Workspace.KIND_CLUB, is_active=True).only('id', 'name', 'notes')
+        )
+    except Exception:
+        logger.debug('No se pudieron leer los workspaces para agrupar', exc_info=True)
+        return {}
+
+    por_clave = {}
+    for item in items:
+        clave = _normalize_workspace_group_key(getattr(item, 'name', '') or '')
+        if clave:
+            por_clave.setdefault(clave, int(getattr(item, 'id', 0) or 0))
+
+    hijos = {}
+    for item in items:
+        item_id = int(getattr(item, 'id', 0) or 0)
+        nombre = str(getattr(item, 'name', '') or '').strip()
+        notas = str(getattr(item, 'notes', '') or '').strip()
+        candidatos = []
+        origen = re.search(r'Separado automáticamente desde\s+(.+?)(?:\.|$)', notas, flags=re.IGNORECASE)
+        if origen:
+            candidatos.append((_normalize_workspace_group_key(origen.group(1).strip()), nombre))
+        if '·' in nombre:
+            padre, _, resto = nombre.partition('·')
+            candidatos.append((_normalize_workspace_group_key(padre.strip()), resto.strip() or nombre))
+        for clave, etiqueta in candidatos:
+            padre_id = por_clave.get(clave)
+            if clave and padre_id and padre_id != item_id:
+                hijos[item_id] = (padre_id, etiqueta or nombre)
+                break
+    return hijos
+
+
 def _workspace_group_ids(workspace):
     if not workspace or workspace.kind != Workspace.KIND_CLUB:
         return []

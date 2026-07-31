@@ -14931,7 +14931,15 @@ def platform_overview_page(request):
                 carousel_message = "Cambios guardados en Home global."
 
     club_workspace_count = Workspace.objects.filter(kind=Workspace.KIND_CLUB).count()
-    visible_club_workspace_count = club_workspace_count
+    # Cuenta agrupada (la que ve el usuario en la lista): los espacios hijo van con su padre.
+    # Antes solo se calculaba en las pestañas que construyen la lista, asi que la MISMA
+    # etiqueta "Clubes" decia 5 en Dashboard y 7 en Configuracion.
+    try:
+        visible_club_workspace_count = max(
+            0, club_workspace_count - len(workspace_context.child_workspace_map())
+        )
+    except Exception:
+        visible_club_workspace_count = club_workspace_count
     studio_workspace_count = Workspace.objects.filter(kind=Workspace.KIND_TASK_STUDIO).count()
     linked_club_user_count = (
         # order_by() vacio: WorkspaceMembership ordena por workspace__name y

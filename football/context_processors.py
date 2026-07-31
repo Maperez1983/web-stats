@@ -553,6 +553,20 @@ def workspace_access(request):
                         'kind_label': str(getattr(ws, 'get_kind_display', lambda: '')() or '').strip(),
                     }
                 )
+            # Los espacios "hijo" (Padre · Categoría) se marcan para poder pintarlos colgando
+            # de su padre, igual que hace Platform al listar: si no, salian dos "Benagalbón"
+            # sueltos e indistinguibles en el selector.
+            try:
+                hijos = workspace_context.child_workspace_map()
+            except Exception:
+                hijos = {}
+            for opcion in workspace_options:
+                dato = hijos.get(opcion['id'])
+                if not dato:
+                    continue
+                opcion['parent_id'] = dato[0]
+                opcion['label'] = str(dato[1] or opcion['label']).strip() or opcion['label']
+
             # Dos workspaces pueden llamarse igual ("Benagalbón" y "Benagalbón"): en un selector
             # de club eso es indistinguible, asi que a los repetidos se les anade su equipo.
             repetidos = {}

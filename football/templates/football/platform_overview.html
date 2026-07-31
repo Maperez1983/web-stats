@@ -9,14 +9,40 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
     <style>
+      /* Modo claro: esta zona nunca se adapto y se pintaba con literales de tema oscuro sobre
+         el fondo claro del producto (22 textos por debajo del minimo, tres invisibles). Los
+         colores pasan a variables y se redefinen abajo para el tema claro. */
+      :root {
+        --pg-body: #08111d;
+        --pg-ink: #f8fbff;
+        --pg-ink-2: #d9e5f7;
+        --pg-ink-3: #9aa8bf;
+        --pg-panel: rgba(7, 13, 25, 0.95);
+        --pg-panel-2: rgba(7, 13, 25, 0.5);
+        --pg-soft: rgba(255, 255, 255, 0.04);
+        --pg-line: rgba(160, 180, 215, 0.14);
+        --pg-glow-a: rgba(244, 180, 0, 0.12);
+        --pg-glow-b: rgba(47, 125, 50, 0.14);
+      }
+      :root[data-theme="light"] {
+        --pg-body: #f4f7fb;
+        --pg-ink: #0f172a;
+        --pg-ink-2: rgba(15, 23, 42, 0.76);
+        --pg-ink-3: rgba(15, 23, 42, 0.58);
+        --pg-panel: #ffffff;
+        --pg-panel-2: #f7f9fc;
+        --pg-soft: rgba(15, 23, 42, 0.04);
+        --pg-line: rgba(15, 23, 42, 0.12);
+        --pg-glow-a: rgba(244, 180, 0, 0.10);
+        --pg-glow-b: rgba(47, 125, 50, 0.07);
+      }
       body {
         margin: 0;
         background:
-          radial-gradient(circle at top left, rgba(244, 180, 0, 0.12), transparent 26%),
-          radial-gradient(circle at top right, rgba(47, 125, 50, 0.14), transparent 24%),
-          linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 18%),
-          #08111d;
-        color: #e7ebf3;
+          radial-gradient(circle at top left, var(--pg-glow-a), transparent 26%),
+          radial-gradient(circle at top right, var(--pg-glow-b), transparent 24%),
+          var(--pg-body);
+        color:var(--pg-ink);
         font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
       }
 
@@ -68,7 +94,7 @@
 
       .hero p {
         margin: 0.35rem 0 0;
-        color: #aeb9cc;
+        color:var(--pg-ink-3);
         max-width: 60ch;
         line-height: 1.6;
       }
@@ -88,9 +114,9 @@
         gap: 0.35rem;
         padding: 0.42rem 0.72rem;
         border-radius: 999px;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        background: rgba(255, 255, 255, 0.05);
-        color: #f8fbff;
+        border:1px solid var(--pg-line);
+        background:var(--pg-soft);
+        color:var(--pg-ink);
         font-size: 0.72rem;
         font-weight: 900;
         letter-spacing: 0.05em;
@@ -108,7 +134,7 @@
       .submit-btn {
         border-radius: 999px;
         border: 1px solid rgba(244, 180, 0, 0.18);
-        background: rgba(255, 255, 255, 0.04);
+        background:var(--pg-soft);
         color: var(--prod-text);
         padding: 0.62rem 0.92rem;
         text-decoration: none;
@@ -143,8 +169,8 @@
         padding: 0.72rem 1rem;
         border-radius: 999px;
         border: 1px solid rgba(145, 161, 185, 0.16);
-        background: rgba(255, 255, 255, 0.035);
-        color: #d9e5f7;
+        background:var(--pg-soft);
+        color:var(--pg-ink-2);
         text-decoration: none;
         font-weight: 700;
       }
@@ -153,7 +179,7 @@
       .subtab-nav a.is-active {
         background: linear-gradient(135deg, rgba(244, 180, 0, 0.16), rgba(47, 125, 50, 0.16));
         border-color: rgba(244, 180, 0, 0.28);
-        color: #f8fbff;
+        color:var(--pg-ink);
       }
 
       .subtab-nav {
@@ -169,9 +195,9 @@
         justify-content: center;
         padding: 0.62rem 0.9rem;
         border-radius: 999px;
-        border: 1px solid rgba(160, 180, 215, 0.14);
-        background: rgba(255, 255, 255, 0.03);
-        color: #d9e5f7;
+        border:1px solid var(--pg-line);
+        background:var(--pg-soft);
+        color:var(--pg-ink-2);
         text-decoration: none;
         font-weight: 700;
       }
@@ -195,8 +221,8 @@
         text-decoration: none;
         color: inherit;
         border-radius: 18px;
-        border: 1px solid rgba(160, 180, 215, 0.16);
-        background: rgba(255, 255, 255, 0.03);
+        border:1px solid var(--pg-line);
+        background:var(--pg-soft);
         padding: 1rem;
         transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
       }
@@ -212,7 +238,7 @@
       }
       .quick-card span {
         display: block;
-        color: #9aa8bf;
+        color:var(--pg-ink-3);
         line-height: 1.45;
       }
       .attention-list {
@@ -222,8 +248,8 @@
       }
       .attention-item {
         border-radius: 14px;
-        border: 1px solid rgba(160, 180, 215, 0.12);
-        background: rgba(255, 255, 255, 0.03);
+        border:1px solid var(--pg-line);
+        background:var(--pg-soft);
         padding: 0.75rem 0.85rem;
         color: #d7e2f4;
       }
@@ -244,8 +270,8 @@
 
       .dashboard-card {
         border-radius: 18px;
-        border: 1px solid rgba(160, 180, 215, 0.14);
-        background: rgba(255, 255, 255, 0.03);
+        border:1px solid var(--pg-line);
+        background:var(--pg-soft);
         padding: 1rem;
       }
 
@@ -257,7 +283,7 @@
       .dashboard-card span {
         display: block;
         margin-top: 0.3rem;
-        color: #9aa8bf;
+        color:var(--pg-ink-3);
       }
 
       .config-grid {
@@ -275,8 +301,8 @@
 
       .hero-stat {
         border-radius: 16px;
-        border: 1px solid rgba(160, 180, 215, 0.12);
-        background: rgba(255, 255, 255, 0.028);
+        border:1px solid var(--pg-line);
+        background:var(--pg-soft);
         padding: 0.78rem 0.85rem;
       }
 
@@ -311,8 +337,8 @@
 
       .section-shell {
         border-radius: 24px;
-        border: 1px solid rgba(160, 180, 215, 0.12);
-        background: rgba(7, 13, 25, 0.28);
+        border:1px solid var(--pg-line);
+        background:var(--pg-panel-2);
         padding: 1rem;
       }
 
@@ -334,7 +360,7 @@
 
       .panel p {
         margin: 0;
-        color: #9aa8bf;
+        color:var(--pg-ink-3);
       }
 
       .workspace-list {
@@ -403,8 +429,8 @@
         width: 44px;
         height: 44px;
         border-radius: 14px;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        background: rgba(255, 255, 255, 0.04);
+        border:1px solid var(--pg-line);
+        background:var(--pg-soft);
         display: grid;
         place-items: center;
         overflow: hidden;
@@ -465,8 +491,8 @@
         align-items: center;
         border-radius: 999px;
         padding: 0.18rem 0.55rem;
-        border: 1px solid rgba(160, 180, 215, 0.14);
-        background: rgba(255, 255, 255, 0.035);
+        border:1px solid var(--pg-line);
+        background:var(--pg-soft);
         color: var(--prod-text);
         font-size: 0.72rem;
         font-weight: 850;
@@ -506,7 +532,7 @@
 
       .workspace-card small,
       .workspace-card p {
-        color: #9aa8bf;
+        color:var(--pg-ink-3);
       }
 
       .workspace-meta {
@@ -520,8 +546,8 @@
         margin-top: 0.8rem;
         padding: 0.78rem 0.85rem;
         border-radius: 14px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(160, 180, 215, 0.1);
+        background:var(--pg-soft);
+        border:1px solid var(--pg-line);
         color: #b7c4d8;
       }
 
@@ -553,7 +579,7 @@
         align-items: center;
         padding: 0.62rem 0.72rem;
         border-radius: 14px;
-        border: 1px solid rgba(160, 180, 215, 0.14);
+        border:1px solid var(--pg-line);
         background: rgba(15, 23, 42, 0.62);
         color: #e5edf8;
         text-decoration: none;
@@ -632,14 +658,14 @@
 
       .metric {
         border-radius: 16px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(160, 180, 215, 0.12);
+        background:var(--pg-soft);
+        border:1px solid var(--pg-line);
         padding: 0.7rem 0.8rem;
       }
 
       .metric span {
         display: block;
-        color: #89a0c7;
+        color:var(--pg-ink-3);
         font-size: 0.72rem;
         text-transform: uppercase;
         letter-spacing: 0.08em;
@@ -674,9 +700,9 @@
       .field select,
       .field textarea {
         border-radius: 14px;
-        border: 1px solid rgba(160, 180, 215, 0.22);
-        background: rgba(7, 13, 25, 0.95);
-        color: #eff4ff;
+        border:1px solid var(--pg-line);
+        background:var(--pg-panel);
+        color:var(--pg-ink);
         padding: 0.85rem 0.95rem;
         font: inherit;
       }
@@ -685,8 +711,8 @@
         display: grid;
         gap: 0.8rem;
         border-radius: 18px;
-        border: 1px solid rgba(160, 180, 215, 0.14);
-        background: rgba(255, 255, 255, 0.025);
+        border:1px solid var(--pg-line);
+        background:var(--pg-soft);
         padding: 0.95rem;
       }
 
@@ -697,7 +723,7 @@
 
       .fieldset p {
         margin: 0;
-        color: #9aa8bf;
+        color:var(--pg-ink-3);
         font-size: 0.92rem;
       }
 
@@ -712,8 +738,8 @@
         gap: 0.65rem;
         align-items: start;
         border-radius: 14px;
-        border: 1px solid rgba(160, 180, 215, 0.14);
-        background: rgba(7, 13, 25, 0.72);
+        border:1px solid var(--pg-line);
+        background:var(--pg-panel-2);
         padding: 0.75rem 0.8rem;
       }
 
@@ -740,8 +766,8 @@
         gap: 0.55rem;
         align-items: start;
         border-radius: 12px;
-        border: 1px solid rgba(160, 180, 215, 0.1);
-        background: rgba(255, 255, 255, 0.028);
+        border:1px solid var(--pg-line);
+        background:var(--pg-soft);
         padding: 0.62rem 0.7rem;
       }
 
@@ -771,9 +797,9 @@
         align-items: center;
         border-radius: 999px;
         padding: 0.22rem 0.55rem;
-        background: rgba(255, 255, 255, 0.055);
-        border: 1px solid rgba(160, 180, 215, 0.12);
-        color: #cfe0ff;
+        background:var(--pg-soft);
+        border:1px solid var(--pg-line);
+        color:var(--pg-ink-2);
         font-size: 0.74rem;
         font-weight: 700;
       }
@@ -829,8 +855,8 @@
         align-items: center;
         justify-content: center;
         border-radius: 999px;
-        border: 1px solid rgba(160, 180, 215, 0.22);
-        background: rgba(255, 255, 255, 0.04);
+        border:1px solid var(--pg-line);
+        background:var(--pg-soft);
         color: var(--prod-text);
         padding: 0.6rem 0.85rem;
         text-decoration: none;
@@ -851,7 +877,7 @@
         margin-top: 0.9rem;
         border-radius: 16px;
         padding: 0.9rem 1rem;
-        border: 1px solid rgba(160, 180, 215, 0.12);
+        border:1px solid var(--pg-line);
         background: linear-gradient(135deg, rgba(52, 104, 205, 0.12), rgba(24, 179, 132, 0.08));
         color: #d8e4f8;
       }
@@ -868,15 +894,15 @@
         gap: 1rem;
         align-items: center;
         border-radius: 16px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(160, 180, 215, 0.12);
+        background:var(--pg-soft);
+        border:1px solid var(--pg-line);
         padding: 0.8rem;
       }
 
       .user-card {
         border-radius: 18px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(160, 180, 215, 0.12);
+        background:var(--pg-soft);
+        border:1px solid var(--pg-line);
         padding: 0.95rem 0.95rem 1rem;
         display: grid;
         gap: 0.8rem;
@@ -890,7 +916,7 @@
       }
 
       .user-card-sub {
-        color: #9aa8bf;
+        color:var(--pg-ink-3);
         margin-top: 0.18rem;
       }
 
@@ -901,7 +927,7 @@
         gap: 0.55rem;
         flex-wrap: wrap;
         text-align: right;
-        color: #9aa8bf;
+        color:var(--pg-ink-3);
       }
 
       .user-pill {
@@ -909,9 +935,9 @@
         align-items: center;
         border-radius: 999px;
         padding: 0.22rem 0.55rem;
-        border: 1px solid rgba(160, 180, 215, 0.12);
-        background: rgba(255, 255, 255, 0.045);
-        color: #cfe0ff;
+        border:1px solid var(--pg-line);
+        background:var(--pg-soft);
+        color:var(--pg-ink-2);
         font-size: 0.78rem;
         font-weight: 750;
         letter-spacing: 0.04em;
@@ -980,8 +1006,8 @@
         gap: 0.75rem;
         align-items: center;
         border-radius: 16px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(160, 180, 215, 0.12);
+        background:var(--pg-soft);
+        border:1px solid var(--pg-line);
         padding: 0.8rem;
       }
 
@@ -990,7 +1016,7 @@
         height: 64px;
         object-fit: cover;
         border-radius: 12px;
-        border: 1px solid rgba(160, 180, 215, 0.12);
+        border:1px solid var(--pg-line);
       }
 
       .document-list {
@@ -1005,15 +1031,15 @@
         gap: 0.9rem;
         align-items: center;
         border-radius: 16px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(160, 180, 215, 0.12);
+        background:var(--pg-soft);
+        border:1px solid var(--pg-line);
         padding: 0.85rem 0.9rem;
       }
 
       .document-card small {
         display: block;
         margin-top: 0.18rem;
-        color: #9aa8bf;
+        color:var(--pg-ink-3);
       }
 
       .document-actions {
@@ -1448,7 +1474,7 @@
                 </select>
               </div>
             </div>
-            <p style="margin-top:0.5rem;color:#9aa8bf;">Si este usuario va a <strong>gestionar</strong> el club, usa <strong>Administrador</strong> u <strong>Owner</strong>. La plantilla se configura dentro del club (p. ej. “Coach → Plantilla”).</p>
+            <p style="margin-top:0.5rem;color:var(--pg-ink-3);">Si este usuario va a <strong>gestionar</strong> el club, usa <strong>Administrador</strong> u <strong>Owner</strong>. La plantilla se configura dentro del club (p. ej. “Coach → Plantilla”).</p>
             <button class="submit-btn" type="submit">Crear usuario global</button>
           </form>
           {% else %}
@@ -1465,7 +1491,7 @@
                 <button class="submit-btn" type="submit">Buscar</button>
               </div>
             </div>
-            <p style="margin:0.5rem 0 0; color:#9aa8bf;">{{ platform_users_total }} usuario(s) · página {{ platform_users_page }}</p>
+            <p style="margin:0.5rem 0 0; color:var(--pg-ink-3);">{{ platform_users_total }} usuario(s) · página {{ platform_users_page }}</p>
           </form>
 
           {% if edit_user %}
@@ -1617,9 +1643,9 @@
                   {% if ev.workspace %}{{ ev.workspace.name }} · {% endif %}
                   {% if ev.actor %}{{ ev.actor }}{% elif ev.actor_user %}{{ ev.actor_user.username }}{% endif %}
                 </div>
-                {% if ev.message %}<div style="margin-top:0.25rem;color:#aeb9cc;">{{ ev.message }}</div>{% endif %}
+                {% if ev.message %}<div style="margin-top:0.25rem;color:var(--pg-ink-3);">{{ ev.message }}</div>{% endif %}
               </div>
-              <div style="text-align:right; color:#94a3b8; font-weight:700;">
+              <div style="text-align:right; color:var(--pg-ink-3); font-weight:700;">
                 {{ ev.created_at|date:"d/m/Y H:i" }}
               </div>
             </div>
@@ -1817,7 +1843,7 @@
                   </select>
                 </div>
                 <div class="field" style="display:flex; align-items:flex-end;">
-                  <div style="color:#9aa8bf; font-weight:700;">
+                  <div style="color:var(--pg-ink-3); font-weight:700;">
                     En Básico/Completo no hace falta tocar los checks.
                   </div>
                 </div>

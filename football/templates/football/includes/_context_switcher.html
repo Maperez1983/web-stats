@@ -29,6 +29,7 @@ El estilo va aqui, no en la hoja global: hay pantallas (Inicio) que no cargan la
     background:transparent;border:0;cursor:pointer;font-family:inherit;width:100%;}
   .ctx-item:hover{background:rgba(148,163,184,.14);color:var(--fm-ink,#f8fafc);}
   .ctx-item.on{color:#fff7dd;background:rgba(244,180,0,.14);}
+  .ctx-child{padding-left:1.2rem;font-weight:700;opacity:.9;}
   .ctx-more{border-top:1px solid rgba(148,163,184,.18);margin-top:.2rem;padding-top:.5rem;
     font-size:.64rem;letter-spacing:.08em;text-transform:uppercase;}
   .ctx-title{font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
@@ -63,7 +64,7 @@ El estilo va aqui, no en la hoja global: hay pantallas (Inicio) que no cargan la
     <div class="ctx-title">Otros clubes</div>
     {% for ws in active_workspace_options %}
       {% if ws.kind == 'club' and ws.id != active_workspace.id %}
-      <a class="ctx-item" href="{% url 'platform-workspace-enter' ws.id %}">{{ ws.label }}</a>
+      <a class="ctx-item{% if ws.parent_id %} ctx-child{% endif %}" href="{% url 'platform-workspace-enter' ws.id %}">{% if ws.parent_id %}↳ {% endif %}{{ ws.label }}</a>
       {% endif %}
     {% endfor %}
     <a class="ctx-item ctx-more" href="{% url 'platform-overview' %}">Gobierno del club →</a>

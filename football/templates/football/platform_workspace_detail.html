@@ -9,13 +9,40 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
     <style>
+      /* Modo claro: esta zona nunca se adapto y se pintaba con literales de tema oscuro sobre
+         el fondo claro del producto (22 textos por debajo del minimo, tres invisibles). Los
+         colores pasan a variables y se redefinen abajo para el tema claro. */
+      :root {
+        --pg-body: #08111d;
+        --pg-ink: #f8fbff;
+        --pg-ink-2: #d9e5f7;
+        --pg-ink-3: #9aa8bf;
+        --pg-panel: rgba(7, 13, 25, 0.95);
+        --pg-panel-2: rgba(7, 13, 25, 0.5);
+        --pg-soft: rgba(255, 255, 255, 0.04);
+        --pg-line: rgba(160, 180, 215, 0.14);
+        --pg-glow-a: rgba(244, 180, 0, 0.12);
+        --pg-glow-b: rgba(47, 125, 50, 0.14);
+      }
+      :root[data-theme="light"] {
+        --pg-body: #f4f7fb;
+        --pg-ink: #0f172a;
+        --pg-ink-2: rgba(15, 23, 42, 0.76);
+        --pg-ink-3: rgba(15, 23, 42, 0.58);
+        --pg-panel: #ffffff;
+        --pg-panel-2: #f7f9fc;
+        --pg-soft: rgba(15, 23, 42, 0.04);
+        --pg-line: rgba(15, 23, 42, 0.12);
+        --pg-glow-a: rgba(244, 180, 0, 0.10);
+        --pg-glow-b: rgba(47, 125, 50, 0.07);
+      }
       body {
         margin: 0;
         background:
-          radial-gradient(circle at top left, rgba(244, 180, 0, 0.12), transparent 24%),
-          radial-gradient(circle at top right, rgba(47, 125, 50, 0.14), transparent 22%),
-          #08111d;
-        color: #e7ebf3;
+          radial-gradient(circle at top left, var(--pg-glow-a), transparent 24%),
+          radial-gradient(circle at top right, var(--pg-glow-b), transparent 22%),
+          var(--pg-body);
+        color:var(--pg-ink);
         font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
       }
       .shell {
@@ -43,7 +70,7 @@
       .brand-strip-copy span {
         display: block;
         margin-top: 0.2rem;
-        color: #aab6c8;
+        color:var(--pg-ink-3);
       }
       .hero,
       .panel,
@@ -76,7 +103,7 @@
       .hero p,
       .panel p,
       .module-card p {
-        color: #aab6c8;
+        color:var(--pg-ink-3);
       }
       .hero-links,
       .module-links {
@@ -98,8 +125,8 @@
         align-items: center;
         justify-content: center;
         border-radius: 999px;
-        border: 1px solid rgba(160, 180, 215, 0.22);
-        background: rgba(255, 255, 255, 0.04);
+        border:1px solid var(--pg-line);
+        background:var(--pg-soft);
         color: var(--prod-text);
         padding: 0.65rem 0.9rem;
         text-decoration: none;
@@ -121,9 +148,9 @@
         justify-content: center;
         padding: 0.72rem 1rem;
         border-radius: 999px;
-        border: 1px solid rgba(160, 180, 215, 0.16);
-        background: rgba(255, 255, 255, 0.035);
-        color: #d9e5f7;
+        border:1px solid var(--pg-line);
+        background:var(--pg-soft);
+        color:var(--pg-ink-2);
         text-decoration: none;
         font-weight: 700;
       }
@@ -134,21 +161,21 @@
         flex-wrap: wrap;
         padding: 0.45rem;
         border-radius: 18px;
-        border: 1px solid rgba(160, 180, 215, 0.14);
-        background: rgba(7, 13, 25, 0.42);
+        border:1px solid var(--pg-line);
+        background:var(--pg-panel-2);
       }
       .club-tab {
         border: 0;
         border-radius: 999px;
         background: transparent;
-        color: #cbd7ea;
+        color:var(--pg-ink-2);
         padding: 0.7rem 1rem;
         font: inherit;
         font-weight: 850;
         cursor: pointer;
       }
       .club-tab.is-active {
-        color: #fff;
+        color:var(--pg-ink);
         background: rgba(52, 104, 205, 0.22);
         box-shadow: inset 0 0 0 1px rgba(160, 180, 215, 0.2);
       }
@@ -179,13 +206,13 @@
       }
       .metric {
         border-radius: 16px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(160, 180, 215, 0.12);
+        background:var(--pg-soft);
+        border:1px solid var(--pg-line);
         padding: 0.8rem;
       }
       .metric span {
         display: block;
-        color: #89a0c7;
+        color:var(--pg-ink-3);
         font-size: 0.72rem;
         text-transform: uppercase;
         letter-spacing: 0.08em;
@@ -231,9 +258,9 @@
         align-items: center;
         border-radius: 999px;
         padding: 0.38rem 0.7rem;
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(160, 180, 215, 0.14);
-        color: #dbe6f6;
+        background:var(--pg-soft);
+        border:1px solid var(--pg-line);
+        color:var(--pg-ink-2);
         font-weight: 700;
         font-size: 0.78rem;
       }
@@ -274,8 +301,8 @@
         gap: 1rem;
         align-items: center;
         border-radius: 16px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(160, 180, 215, 0.12);
+        background:var(--pg-soft);
+        border:1px solid var(--pg-line);
         padding: 0.8rem;
       }
       .toggle-row label {
@@ -305,9 +332,9 @@
         cursor: pointer;
         width: max-content;
         border-radius: 999px;
-        border: 1px solid rgba(160, 180, 215, 0.16);
-        background: rgba(255, 255, 255, 0.035);
-        color: #dbe6f6;
+        border:1px solid var(--pg-line);
+        background:var(--pg-soft);
+        color:var(--pg-ink-2);
         padding: 0.45rem 0.7rem;
         font-size: 0.78rem;
         font-weight: 850;
@@ -323,8 +350,8 @@
         gap: 0.55rem;
         align-items: start;
         border-radius: 12px;
-        border: 1px solid rgba(160, 180, 215, 0.1);
-        background: rgba(255, 255, 255, 0.025);
+        border:1px solid var(--pg-line);
+        background:var(--pg-soft);
         padding: 0.62rem 0.7rem;
       }
 
@@ -359,8 +386,8 @@
         align-items: center;
         border-radius: 999px;
         padding: 0.24rem 0.55rem;
-        background: rgba(255, 255, 255, 0.055);
-        border: 1px solid rgba(160, 180, 215, 0.12);
+        background:var(--pg-soft);
+        border:1px solid var(--pg-line);
         color: #d8e6fb;
         font-size: 0.74rem;
         font-weight: 700;
@@ -384,16 +411,16 @@
       .inline-form input,
       .inline-form select {
         border-radius: 12px;
-        border: 1px solid rgba(160, 180, 215, 0.22);
-        background: rgba(7, 13, 25, 0.95);
-        color: #eff4ff;
+        border:1px solid var(--pg-line);
+        background:var(--pg-panel);
+        color:var(--pg-ink);
         padding: 0.65rem 0.8rem;
         font: inherit;
       }
       .inline-btn {
         border-radius: 999px;
-        border: 1px solid rgba(160, 180, 215, 0.22);
-        background: rgba(255, 255, 255, 0.04);
+        border:1px solid var(--pg-line);
+        background:var(--pg-soft);
         color: var(--prod-text);
         padding: 0.6rem 0.85rem;
         cursor: pointer;
@@ -407,7 +434,7 @@
         margin-top: 1rem;
         border-radius: 16px;
         padding: 0.9rem 1rem;
-        border: 1px solid rgba(160, 180, 215, 0.12);
+        border:1px solid var(--pg-line);
         background: linear-gradient(135deg, rgba(52, 104, 205, 0.12), rgba(24, 179, 132, 0.08));
         color: #d8e4f8;
       }
@@ -425,8 +452,8 @@
       }
       .section-shell {
         border-radius: 24px;
-        border: 1px solid rgba(160, 180, 215, 0.12);
-        background: rgba(7, 13, 25, 0.28);
+        border:1px solid var(--pg-line);
+        background:var(--pg-panel-2);
         padding: 1rem;
       }
       .card-grid {
@@ -437,7 +464,7 @@
       }
       .club-data-card {
         border-radius: 20px;
-        border: 1px solid rgba(160, 180, 215, 0.14);
+        border:1px solid var(--pg-line);
         background: rgba(12, 20, 34, 0.9);
         padding: 1rem;
         min-width: 0;
@@ -484,8 +511,8 @@
         width: 48px;
         height: 48px;
         border-radius: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        background: rgba(255, 255, 255, 0.04);
+        border:1px solid var(--pg-line);
+        background:var(--pg-soft);
         display: grid;
         place-items: center;
         overflow: hidden;
@@ -496,7 +523,7 @@
         width: 74px;
         height: 74px;
         border-radius: 20px;
-        background: rgba(255, 255, 255, 0.08);
+        background:var(--pg-soft);
         box-shadow: 0 16px 34px rgba(0, 0, 0, 0.32);
       }
       .team-crest img {
@@ -556,7 +583,7 @@
         min-height: 138px;
         border-radius: 16px;
         overflow: hidden;
-        border: 1px solid rgba(160, 180, 215, 0.14);
+        border:1px solid var(--pg-line);
         background: linear-gradient(135deg, rgba(7, 13, 25, 0.9), rgba(22, 45, 31, 0.82));
       }
       .team-stadium-media img {
@@ -583,7 +610,7 @@
       }
       .team-stadium-caption span {
         display: block;
-        color: #aab6c8;
+        color:var(--pg-ink-3);
         font-size: 0.7rem;
         text-transform: uppercase;
         letter-spacing: 0.08em;
@@ -601,7 +628,7 @@
         margin-top: 0.75rem;
         display: grid;
         gap: 0.4rem;
-        color: #aab6c8;
+        color:var(--pg-ink-3);
       }
       .team-card-meta {
         margin-top: 0.85rem;
@@ -611,14 +638,14 @@
       }
       .team-meta-box {
         border-radius: 14px;
-        border: 1px solid rgba(160, 180, 215, 0.12);
-        background: rgba(255, 255, 255, 0.035);
+        border:1px solid var(--pg-line);
+        background:var(--pg-soft);
         padding: 0.62rem 0.7rem;
         min-width: 0;
       }
       .team-meta-box span {
         display: block;
-        color: #89a0c7;
+        color:var(--pg-ink-3);
         font-size: 0.7rem;
         text-transform: uppercase;
         letter-spacing: 0.08em;
@@ -627,7 +654,7 @@
       .team-meta-box strong {
         display: block;
         margin-top: 0.18rem;
-        color: #edf4ff;
+        color:var(--pg-ink);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -635,12 +662,12 @@
       .team-staff-list {
         margin-top: 0.75rem;
         border-radius: 14px;
-        border: 1px solid rgba(160, 180, 215, 0.12);
-        background: rgba(255, 255, 255, 0.035);
+        border:1px solid var(--pg-line);
+        background:var(--pg-soft);
         padding: 0.68rem 0.75rem;
       }
       .team-staff-title {
-        color: #89a0c7;
+        color:var(--pg-ink-3);
         font-size: 0.7rem;
         text-transform: uppercase;
         letter-spacing: 0.08em;
@@ -656,9 +683,9 @@
         max-width: 100%;
         min-height: 58px;
         border-radius: 12px;
-        border: 1px solid rgba(160, 180, 215, 0.14);
-        background: rgba(7, 13, 25, 0.48);
-        color: #edf4ff;
+        border:1px solid var(--pg-line);
+        background:var(--pg-panel-2);
+        color:var(--pg-ink);
         padding: 0.48rem;
         font-size: 0.82rem;
         font-weight: 800;
@@ -679,7 +706,7 @@
       .team-staff-card small {
         display: block;
         margin-top: 0.08rem;
-        color: #aab6c8;
+        color:var(--pg-ink-3);
         font-weight: 700;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -690,8 +717,8 @@
         height: 42px;
         border-radius: 10px;
         flex: 0 0 auto;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        background: rgba(255, 255, 255, 0.06);
+        border:1px solid var(--pg-line);
+        background:var(--pg-soft);
         object-fit: cover;
       }
       .team-staff-name {
@@ -704,8 +731,8 @@
       .team-staff-empty {
         border-radius: 12px;
         border: 1px dashed rgba(160, 180, 215, 0.14);
-        background: rgba(7, 13, 25, 0.34);
-        color: #aab6c8;
+        background:var(--pg-panel-2);
+        color:var(--pg-ink-3);
         padding: 0.55rem 0.65rem;
         font-size: 0.78rem;
         font-weight: 800;
@@ -717,8 +744,8 @@
       }
       .nested-team-row {
         border-radius: 14px;
-        border: 1px solid rgba(160, 180, 215, 0.12);
-        background: rgba(255, 255, 255, 0.03);
+        border:1px solid var(--pg-line);
+        background:var(--pg-soft);
         padding: 0.65rem 0.75rem;
         display: flex;
         justify-content: space-between;
@@ -728,7 +755,7 @@
         margin-top: 1rem;
         border-radius: 18px;
         border: 1px solid rgba(121, 168, 255, 0.2);
-        background: rgba(7, 13, 25, 0.44);
+        background:var(--pg-panel-2);
         padding: 1rem;
       }
       .team-create-head {
@@ -750,7 +777,7 @@
       .team-create-form label {
         display: grid;
         gap: 0.28rem;
-        color: #aab6c8;
+        color:var(--pg-ink-3);
         font-size: 0.82rem;
         font-weight: 800;
       }
@@ -758,9 +785,9 @@
       .team-create-form select {
         width: 100%;
         border-radius: 12px;
-        border: 1px solid rgba(160, 180, 215, 0.22);
-        background: rgba(7, 13, 25, 0.95);
-        color: #eff4ff;
+        border:1px solid var(--pg-line);
+        background:var(--pg-panel);
+        color:var(--pg-ink);
         padding: 0.68rem 0.78rem;
         font: inherit;
       }
@@ -802,6 +829,9 @@
     </style>
   </head>
   <body class="prod-commercial">
+    {% comment %}Sin barra, estas pantallas eran un callejon sin salida: solo se salia por un
+    boton dentro del contenido o con el boton atras del navegador.{% endcomment %}
+    {% include 'football/includes/dragon_nav.html' %}
     <main class="shell">
       <div class="brand-strip">
         <img src="{% static 'football/images/2j-mark.svg' %}" alt="Segunda Jugada · 2J" />
@@ -846,7 +876,7 @@
           </form>
 	          <details style="display:inline-block;">
 	            <summary class="inline-btn danger" style="cursor:pointer;">Eliminar club</summary>
-	            <div style="margin-top:0.6rem; padding:0.75rem; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); min-width:min(460px, 92vw);">
+	            <div style="margin-top:0.6rem; padding:0.75rem; border-radius:12px; border:1px solid var(--pg-line); background:var(--pg-soft); min-width:min(460px, 92vw);">
 	              <p style="margin:0 0 0.55rem; color:#ffb7b7; font-weight:800;">
 	                Acción irreversible. Solo borra el workspace (club). Los equipos/jugadores quedan en BBDD.
 	              </p>
@@ -872,7 +902,7 @@
         <div class="message ok">
           <div style="font-weight:800; margin-bottom:0.35rem;">Enlace de invitación</div>
           <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
-            <input type="text" value="{{ invite_link }}" readonly style="min-width:320px; flex:1; padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); color:var(--prod-text);" onclick="this.select();" />
+            <input type="text" value="{{ invite_link }}" readonly style="min-width:320px; flex:1; padding:10px 12px; border-radius:12px; border:1px solid var(--pg-line); background:var(--pg-soft); color:var(--prod-text);" onclick="this.select();" />
             <button type="button" class="inline-btn" onclick="navigator.clipboard?.writeText('{{ invite_link }}');">Copiar</button>
           </div>
         </div>
@@ -980,7 +1010,7 @@
               </label>
               <div class="wide" style="grid-column:1 / -1;">
                 <div class="section-kicker">Kits 2D del club</div>
-                <p style="margin:0.45rem 0 0;color:#aab6c8;">Sube aquí las imágenes reales de las equipaciones del club padre. Todas las categorías las heredarán automáticamente.</p>
+                <p style="margin:0.45rem 0 0;color:var(--pg-ink-3);">Sube aquí las imágenes reales de las equipaciones del club padre. Todas las categorías las heredarán automáticamente.</p>
               </div>
               <label>
                 Kit 2D local
@@ -1032,7 +1062,7 @@
               </label>
               <div class="wide" style="grid-column:1 / -1;">
                 <div class="section-kicker">Vallas del estadio</div>
-                <p style="margin:0.45rem 0 0;color:#aab6c8;">Texto y logo opcional para cada valla de la pizarra táctica. Si hay logo, se muestra el logo; si no, se muestra el texto.</p>
+                <p style="margin:0.45rem 0 0;color:var(--pg-ink-3);">Texto y logo opcional para cada valla de la pizarra táctica. Si hay logo, se muestra el logo; si no, se muestra el texto.</p>
               </div>
               <label>
                 Texto superior
@@ -1092,7 +1122,7 @@
               </div>
             </form>
             {% else %}
-            <div class="message" style="background:rgba(255,255,255,0.04); border:1px solid rgba(160,180,215,0.12); color:#c7d3e8;">
+            <div class="message" style="background:var(--pg-soft); border:1px solid var(--pg-line); color:var(--pg-ink-2);">
               Vincula un equipo principal para poder guardar la identidad heredable del club.
             </div>
             {% endif %}
@@ -1334,7 +1364,7 @@
               <div style="margin-top:0.75rem;">
                 <div style="font-weight:800;">Enlace de acceso</div>
                 <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; margin-top:0.35rem;">
-                  <input type="text" value="{{ invite_link }}" readonly style="min-width:320px; flex:1; padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); color:var(--prod-text);" onclick="this.select();" />
+                  <input type="text" value="{{ invite_link }}" readonly style="min-width:320px; flex:1; padding:10px 12px; border-radius:12px; border:1px solid var(--pg-line); background:var(--pg-soft); color:var(--prod-text);" onclick="this.select();" />
                   <button type="button" class="inline-btn" onclick="navigator.clipboard?.writeText('{{ invite_link }}');">Copiar</button>
                 </div>
               </div>
@@ -1364,14 +1394,14 @@
                 </form>
                 <details style="display:inline-block;">
                   <summary class="inline-btn" style="cursor:pointer;">Permisos</summary>
-                  <div style="margin-top:0.6rem; padding:0.75rem; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); min-width:320px;">
+                  <div style="margin-top:0.6rem; padding:0.75rem; border-radius:12px; border:1px solid var(--pg-line); background:var(--pg-soft); min-width:320px;">
                     <form method="post">
                       {% csrf_token %}
                       <input type="hidden" name="form_action" value="update_member_modules" />
                       <input type="hidden" name="membership_id" value="{{ membership.id }}" />
                       <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">
                         {% for row in membership.access_module_rows %}
-                          <label style="display:inline-flex; align-items:center; gap:8px; padding:8px 10px; border-radius:999px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.03); {% if not row.workspace_enabled %}opacity:0.45;{% endif %}">
+                          <label style="display:inline-flex; align-items:center; gap:8px; padding:8px 10px; border-radius:999px; border:1px solid var(--pg-line); background:var(--pg-soft); {% if not row.workspace_enabled %}opacity:0.45;{% endif %}">
                             <input type="checkbox" name="member_module_{{ row.key }}" {% if row.allowed %}checked{% endif %} {% if not row.workspace_enabled %}disabled{% endif %} />
                             <span>{{ row.label }}</span>
                           </label>
@@ -1454,7 +1484,7 @@
               <button class="submit-btn" type="submit">Guardar módulos y entregables</button>
             </form>
             {% else %}
-            <div class="message" style="background:rgba(255,255,255,0.04); border:1px solid rgba(160,180,215,0.12); color:#c7d3e8;">
+            <div class="message" style="background:var(--pg-soft); border:1px solid var(--pg-line); color:var(--pg-ink-2);">
               Solo el propietario o un administrador del cliente pueden modificar módulos.
             </div>
             {% endif %}
