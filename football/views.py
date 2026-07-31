@@ -78248,6 +78248,11 @@ def player_detail_page(request, player_id):
                 player.height_cm = _parse_int(request.POST.get("height_cm"))
                 player.weight_kg = _parse_decimal_value(request.POST.get("weight_kg_base"))
                 player.phone = request.POST.get("phone", "").strip()
+                player.contact_email = request.POST.get("contact_email", "").strip()[:254]
+                player.contact_name = request.POST.get("contact_name", "").strip()[:160]
+                player.contact_is_guardian = str(request.POST.get("contact_is_guardian") or "").strip().lower() in {
+                    "on", "1", "true", "yes", "si", "sí",
+                }
                 player.origin_team = request.POST.get("origin_team", "").strip()
                 player.current_club = request.POST.get("current_club", "").strip()
                 player.has_agent = str(request.POST.get("has_agent") or "").strip().lower() in {"on", "1", "true", "yes", "si", "sí"}

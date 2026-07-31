@@ -94,3 +94,58 @@ class InvitacionesDesdeLaFichaTests(TestCase):
 
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(User.objects.count(), antes)
+
+
+class ContactoEnLaFichaTests(TestCase):
+    """El email vive en la ficha del jugador y de ahí sale la invitación en bloque."""
+
+    def setUp(self):
+        self.owner = User.objects.create_user(username="dueno3", password="x", email="d3@club.com")
+        self.workspace = Workspace.objects.create(
+            name="Club contacto",
+            slug="club-contacto",
+            kind=Workspace.KIND_CLUB,
+            owner_user=self.owner,
+        )
+        self.team = Team.objects.create(name="Benjamin cont", slug="benjamin-cont")
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.team, is_default=True)
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace, user=self.owner, role=WorkspaceMembership.ROLE_OWNER
+        )
+        self.con_email = Player.objects.create(
+            name="Con email",
+            team=self.team,
+            is_active=True,
+            contact_email="padre@casa.com",
+            contact_name="Su padre",
+            contact_is_guardian=True,
+        )
+        self.sin_email = Player.objects.create(name="Sin email", team=self.team, is_active=True)
+        self.client.force_login(self.owner)
+        session = self.client.session
+        session["active_workspace_id"] = self.workspace.id
+        session["active_team_by_workspace"] = {str(self.workspace.id): int(self.team.id)}
+        session.save()
+
+    def test_la_ficha_guarda_el_contacto(self):
+        self.assertTrue(self.con_email.contact_is_guardian)
+        self.assertEqual(self.con_email.contact_email, "padre@casa.com")
+
+    def test_invitacion_en_bloque_usa_el_email_de_la_ficha(self):
+        resp = self.client.post(
+            reverse("player-portal-settings"),
+            {
+                "action": "invite_squad",
+                "player_ids": [self.con_email.id, self.sin_email.id],
+            },
+        )
+
+        self.assertEqual(resp.status_code, 200)
+        invitado = User.objects.filter(email="padre@casa.com").first()
+        self.assertIsNotNone(invitado)
+        self.assertTrue(
+            UserInvitation.objects.filter(user=invitado, player=self.con_email, is_active=True).exists()
+        )
+        # El que no tiene email no se inventa ninguna cuenta, y se dice cuántos quedaron fuera.
+        self.assertFalse(UserInvitation.objects.filter(player=self.sin_email).exists())
+        self.assertContains(resp, "1 sin email en su ficha")

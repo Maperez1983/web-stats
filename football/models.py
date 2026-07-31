@@ -1146,6 +1146,11 @@ class Player(models.Model):
     height_cm = models.PositiveSmallIntegerField(null=True, blank=True)
     weight_kg = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     phone = models.CharField(max_length=40, blank=True)
+    # Contacto para el acceso al portal. En cantera es el del padre o la madre: por eso se
+    # guarda de quién es el email, y no se asume que sea del jugador.
+    contact_email = models.EmailField(blank=True, help_text='Email al que llega la invitación al portal.')
+    contact_name = models.CharField(max_length=160, blank=True, help_text='De quién es ese email (el jugador, su padre, su madre…).')
+    contact_is_guardian = models.BooleanField(default=False, help_text='El contacto es un familiar o tutor, no el propio jugador.')
     origin_team = models.CharField(max_length=160, blank=True)
     current_club = models.CharField(max_length=160, blank=True)
     has_agent = models.BooleanField(default=False)

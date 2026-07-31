@@ -159,6 +159,19 @@ el mismo y el POST sigue yendo a la ficha, que ya sabe procesarlo.{% endcomment 
               <label>Teléfono
                 <input type="tel" name="phone" value="{{ player.phone|default:'' }}" placeholder="Ej. 600 000 000" />
               </label>
+              <label>Email de contacto
+                <input type="email" name="contact_email" value="{{ player.contact_email|default:'' }}" placeholder="madre@casa.com" autocapitalize="none" autocorrect="off" spellcheck="false" />
+              </label>
+              <label>¿De quién es ese email?
+                <input type="text" name="contact_name" value="{{ player.contact_name|default:'' }}" placeholder="El jugador, su padre, su madre…" />
+              </label>
+              <label style="display:flex;align-items:center;gap:.5rem;text-transform:none;letter-spacing:normal;font-size:.85rem;">
+                <input type="checkbox" name="contact_is_guardian" value="1" {% if player.contact_is_guardian %}checked{% endif %} style="width:auto;" />
+                Es de un familiar o tutor
+              </label>
+              <p style="grid-column:1/-1;margin:.1rem 0 .3rem;font-size:.78rem;color:var(--prod-muted);">
+                A este email le llega la invitación al portal del jugador. En cantera, el del padre o la madre.
+              </p>
               <label>Club de origen
                 <input type="text" name="origin_team" value="{{ player.origin_team|default:'' }}" placeholder="Club de procedencia" />
               </label>

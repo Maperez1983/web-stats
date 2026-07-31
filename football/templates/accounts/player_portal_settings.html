@@ -201,9 +201,13 @@
                   {% csrf_token %}
                   <input type="hidden" name="action" value="invite_player" />
                   <input type="hidden" name="player_id" value="{{ item.player.id }}" />
-                  <input type="email" name="player_email" placeholder="email de contacto"
+                  <input type="email" name="player_email" value="{{ item.contact_email }}"
+                         placeholder="email de contacto"
                          autocapitalize="none" autocorrect="off" spellcheck="false"
                          style="min-width:210px;" />
+                  <input type="checkbox" name="player_ids" value="{{ item.player.id }}"
+                         form="invite-squad-form" title="Incluir en la invitación en bloque"
+                         {% if item.contact_email %}checked{% endif %} style="width:auto;" />
                   <button class="btn primary" type="submit">Invitar</button>
                 </form>
               {% endif %}
@@ -212,10 +216,16 @@
         {% empty %}
           <p class="muted">No hay jugadores activos en este club.</p>
         {% endfor %}
-        <p class="muted" style="margin-top:1rem;">
-          La invitación va al email que pongas aquí — en los equipos de cantera, el del padre o la
-          madre. La ficha del jugador todavía no guarda ningún email, por eso se pide en el momento.
-        </p>
+        <form method="post" id="invite-squad-form" style="margin-top:1rem;display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap;"
+              onsubmit="return confirm('Se enviará la invitación al portal a los jugadores marcados que tengan email en su ficha. ¿Seguimos?');">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="invite_squad" />
+          <button class="btn primary" type="submit">Invitar a los marcados</button>
+          <span class="muted">
+            El email sale de la ficha de cada jugador (Contacto). En cantera es el del padre o la
+            madre; quien no lo tenga guardado se queda fuera y te lo decimos.
+          </span>
+        </form>
       </div>
       {% endif %}
     </div>

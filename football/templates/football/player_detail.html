@@ -1379,7 +1379,7 @@
                 {% if player.weight_kg %}<div><div style="{{ kst }}">Peso</div><div style="{{ vst }}">{{ player.weight_kg|floatformat:'-1' }} kg</div></div>{% endif %}
               </div>
             </div>
-            {% if player.contract_end or player.release_clause or player.origin_team or player.has_agent or player.phone or player.has_federative_license %}
+            {% if player.contract_end or player.release_clause or player.origin_team or player.has_agent or player.phone or player.contact_email or player.has_federative_license %}
             <div style="{{ cardst }}">
               <p style="{{ ctit }}">Contrato y club</p>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem .9rem;">
@@ -1389,6 +1389,7 @@
                 {% if player.origin_team %}<div><div style="{{ kst }}">Club origen</div><div style="{{ vst }}">{{ player.origin_team }}</div></div>{% endif %}
                 {% if player.has_agent %}<div><div style="{{ kst }}">Agente</div><div style="{{ vst }}">{{ player.agent_name|default:'Sí' }}</div></div>{% endif %}
                 {% if player.phone %}<div><div style="{{ kst }}">Teléfono</div><div style="{{ vst }}">{{ player.phone }}</div></div>{% endif %}
+                {% if player.contact_email %}<div><div style="{{ kst }}">Email de contacto</div><div style="{{ vst }}">{{ player.contact_email }}{% if player.contact_name %} · {{ player.contact_name }}{% endif %}{% if player.contact_is_guardian %} (tutor){% endif %}</div></div>{% endif %}
               </div>
             </div>
             {% elif not is_player_readonly %}

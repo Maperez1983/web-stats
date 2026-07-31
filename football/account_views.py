@@ -489,6 +489,49 @@ def player_portal_settings_page(request):
                 except Exception:
                     logger.exception("No se pudo invitar al jugador %s", getattr(_player, "id", None))
                     error = "No se pudo enviar la invitación."
+        elif not error and action == "invite_squad":
+            # Invitación en bloque: sólo a quien tiene email guardado en su ficha. Los que no
+            # lo tienen se cuentan aparte, para que se vea por qué se quedaron fuera.
+            from .models import Player as _Player
+
+            _ids = [i for i in request.POST.getlist("player_ids") if str(i).strip().isdigit()]
+            _players = list(
+                _Player.objects.filter(
+                    id__in=[int(i) for i in _ids],
+                    team__workspace_links__workspace=workspace,
+                    user__isnull=True,
+                    is_active=True,
+                ).distinct()
+            )
+            _k, _label, app_role, member_role = _resolve_member_preset("jugador")
+            enviados = 0
+            sin_email = 0
+            fallidos = 0
+            for _player in _players:
+                _dest = str(getattr(_player, "contact_email", "") or "").strip()
+                if not _dest:
+                    sin_email += 1
+                    continue
+                try:
+                    send_workspace_member_invite(
+                        request,
+                        workspace,
+                        _dest,
+                        _player.full_name or _player.name,
+                        app_role,
+                        member_role,
+                        player=_player,
+                    )
+                    enviados += 1
+                except Exception:
+                    logger.exception("No se pudo invitar en bloque al jugador %s", _player.id)
+                    fallidos += 1
+            partes = [f"{enviados} invitaciones enviadas"]
+            if sin_email:
+                partes.append(f"{sin_email} sin email en su ficha")
+            if fallidos:
+                partes.append(f"{fallidos} fallaron")
+            notice = " · ".join(partes) + "."
         elif not error and action == "unlink":
             # Deshacer un vínculo equivocado. Los vínculos viejos los pudo escribir el
             # auto-vinculado por parecido de nombre que se retiró en la fase 0, así que hay
@@ -583,6 +626,7 @@ def player_portal_settings_page(request):
             squad.append({
                 "player": player,
                 "account": account,
+                "contact_email": str(getattr(player, "contact_email", "") or "").strip(),
                 "linked_label": (
                     (linked.get_full_name() or linked.get_username()) if linked else ""
                 ),
