@@ -194,6 +194,44 @@
         font-size: 0.88rem;
         line-height: 1.35;
       }
+      .access-block {
+        margin-top: 1.1rem;
+        border-radius: 16px;
+        padding: 0.9rem 1rem;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.12);
+      }
+      .access-block h2 { margin: 0; font-size: 1.02rem; }
+      .access-block .meta { margin: 0.25rem 0 0.7rem; color: var(--prod-muted); font-size: 0.88rem; }
+      .access-all { display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.92rem; margin-bottom: 0.6rem; }
+      .access-chips { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+      .access-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.9rem;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.14);
+      }
+      .access-chip.is-current { border-color: rgba(212,175,55,0.55); }
+      .access-modules {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 0.15rem 1rem;
+      }
+      .access-module {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6rem;
+        padding: 0.4rem 0;
+        font-size: 0.94rem;
+        border-top: 1px solid rgba(255,255,255,0.08);
+      }
+      .access-scope { margin-top: 0.75rem; font-size: 0.9rem; }
+      .access-scope select { margin-left: 0.4rem; }
       .access-panel {
         grid-column: 1 / -1;
         display: grid;
@@ -252,6 +290,7 @@
         .row > .btn { width: 100%; }
         .preview { grid-template-columns: 1fr; }
         .access-grid { grid-template-columns: 1fr; }
+        .access-modules { grid-template-columns: 1fr; }
       }
     </style>
   </head>
@@ -304,8 +343,8 @@
             <span class="label">Usuario</span>
             <div class="value">{% if member.user %}Vinculado{% else %}Sin vincular{% endif %}</div>
             <div class="meta">{% if member.user %}{{ member.user.username }}{% else %}La ficha no tiene acceso de usuario asociado.{% endif %}</div>
-            {% if member.user and access_membership_id and can_manage_workspace %}
-            <a class="btn" href="{% url 'workspace-member-access' access_membership_id %}" style="margin-top:.6rem;display:inline-block;text-decoration:none">Configurar qué ve</a>
+            {% if member.user and can_manage_workspace %}
+            <a class="btn" href="#staff-access-block" style="margin-top:.6rem;display:inline-block;text-decoration:none">Configurar qué ve</a>
             {% endif %}
           </article>
           <article class="status-card">
@@ -381,7 +420,7 @@
                 </label>
               </div>
               <p style="margin:0.4rem 0 0; font-size:0.78rem; color:var(--prod-muted); text-transform:none; letter-spacing:0.01em; line-height:1.4;">
-                La invitación llega al <strong>email</strong> de la ficha. Con "Crear invitación" le enviamos el enlace para entrar. Tras aceptar, con el botón <strong>"Configurar qué ve"</strong> (arriba) limitas sus áreas.
+                La invitación llega al <strong>email</strong> de la ficha. Con "Crear invitación" le enviamos el enlace para entrar. Tras aceptar, más abajo (<strong>Dónde trabaja</strong> y <strong>Qué ve</strong>) decides sus categorías y sus áreas.
               </p>
             </div>
             {% endif %}
@@ -450,6 +489,58 @@
             </label>
             {% endif %}
           </div>
+
+          {% if mode != 'create' and can_manage_workspace and access_has_user %}
+          <div class="access-block" id="staff-access-block">
+            <h2>Dónde trabaja</h2>
+            <p class="meta">Marca sus categorías. Fuera de estas, ni entra ni aparece en los listados.</p>
+            <label class="access-all">
+              <input type="checkbox" name="access_all_teams" value="1" {% if access_all_teams %}checked{% endif %} />
+              Todo el club
+            </label>
+            <div class="access-chips">
+              {% for team in access_teams %}
+              <label class="access-chip{% if team.is_active_team %} is-current{% endif %}">
+                <input type="checkbox" name="access_team_{{ team.id }}" value="1" {% if team.granted %}checked{% endif %} />
+                {{ team.label }}
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="access-block">
+            <h2>Qué ve{% if active_team %} en {{ team_label }}{% endif %}</h2>
+            {% if access_sees_everything %}
+            <p class="meta">Es propietario o administrador del club: ve todo por diseño y no se le puede limitar aquí.</p>
+            {% else %}
+            <p class="meta">
+              {% if access_scope_is_team %}
+                Esta categoría tiene su propia regla.
+              {% else %}
+                Ahora mismo sigue la regla del club. Si guardas sólo para esta categoría, pasa a tener la suya.
+              {% endif %}
+            </p>
+            <div class="access-modules">
+              {% for module in access_modules %}
+              <label class="access-module">
+                <span>{{ module.label }}</span>
+                <input type="checkbox" name="access_module_{{ module.key }}" value="1" {% if module.allowed %}checked{% endif %} />
+              </label>
+              {% endfor %}
+            </div>
+            <div class="access-scope">
+              <label>
+                Al guardar, esto vale para
+                <select name="access_modules_scope">
+                  <option value="team">sólo {% if active_team %}{{ team_label }}{% else %}esta categoría{% endif %}</option>
+                  <option value="club">todo el club</option>
+                  {% if access_scope_is_team %}<option value="reset">volver a la regla del club</option>{% endif %}
+                </select>
+              </label>
+            </div>
+            {% endif %}
+          </div>
+          {% endif %}
 
           <div class="row">
             <div class="row-actions">

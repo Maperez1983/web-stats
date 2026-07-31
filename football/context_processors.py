@@ -482,6 +482,13 @@ def workspace_access(request):
                     return bool(enabled_modules.get(key))
             return bool(defaults.get(key, False))
 
+        # Excepción de la categoría activa (si la tiene): manda sobre la regla del club.
+        team_module_access = None
+        try:
+            team_module_access = permissions.team_module_access_rule(workspace, request.user, active_team)
+        except Exception:
+            team_module_access = None
+
         def _member_allows(key: str) -> bool:
             if user_is_platform or user_is_owner:
                 return True
@@ -489,6 +496,8 @@ def workspace_access(request):
                 return False
             if member_role in {WorkspaceMembership.ROLE_OWNER, WorkspaceMembership.ROLE_ADMIN}:
                 return True
+            if team_module_access is not None:
+                return team_module_access.get(key, True) is not False
             if not member_module_access:
                 return True
             return member_module_access.get(key, True) is not False

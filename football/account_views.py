@@ -573,6 +573,24 @@ def workspace_member_access_page(request, membership_id):
 
         return HttpResponseForbidden("Miembro no encontrado.")
 
+    # Los accesos se gobiernan desde la ficha de staff de la persona (ahí se ve en qué
+    # categoría estás y qué hereda del club). Esta pantalla suelta sólo queda como
+    # respaldo para miembros del club que aún no tienen ficha de staff.
+    try:
+        from django.shortcuts import redirect
+
+        from .models import StaffMember
+
+        staff_member = (
+            StaffMember.objects.filter(workspace=workspace, user_id=membership.user_id)
+            .order_by("-is_active", "-updated_at", "-id")
+            .first()
+        )
+        if staff_member is not None:
+            return redirect(f"{reverse('staff-member-detail', args=[staff_member.id])}#staff-access-block")
+    except Exception:
+        pass
+
     catalog = _views._workspace_access_module_catalog(getattr(workspace, "kind", None))
     is_owner = is_workspace_owner_user(membership.user, workspace)
     # owner/admin ven todo por diseño; el gating por módulo solo aplica a member/viewer.

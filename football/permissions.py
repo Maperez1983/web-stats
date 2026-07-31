@@ -55,7 +55,7 @@ def can_access_coach_workspace(user):
     return workspace_context.get_user_role(user) in TECHNICAL_ROLES or has_club_workspace_access(user)
 
 
-def workspace_has_module_for_user(workspace, module_key, *, user=None):
+def workspace_has_module_for_user(workspace, module_key, *, user=None, team=None):
     if not workspace or not module_key:
         return True
     if getattr(workspace, 'kind', None) == Workspace.KIND_TASK_STUDIO:
@@ -102,7 +102,7 @@ def workspace_has_module_for_user(workspace, module_key, *, user=None):
             if key in modules:
                 modules[key] = bool(value)
         modules['dashboard'] = True
-    if user is not None and not workspace_member_allows_module(workspace, user, module_key):
+    if user is not None and not workspace_member_allows_module(workspace, user, module_key, team=team):
         return False
     return bool(modules.get(str(module_key), False))
 
@@ -132,7 +132,31 @@ def workspace_default_modules(kind):
     }
 
 
-def workspace_member_allows_module(workspace, user, module_key):
+def team_module_access_rule(workspace, user, team):
+    """
+    Excepción de módulos de una categoría concreta, si la tiene.
+
+    Devuelve el dict guardado en WorkspaceTeamAccess.module_access, o None cuando esa
+    categoría no define nada propio: entonces manda la regla del club.
+    """
+    if not workspace or not user or not team:
+        return None
+    try:
+        from .models import WorkspaceTeamAccess
+
+        row = (
+            WorkspaceTeamAccess.objects
+            .filter(workspace=workspace, user=user, team=team)
+            .only('id', 'module_access')
+            .first()
+        )
+    except Exception:
+        return None
+    raw = getattr(row, 'module_access', None) if row else None
+    return raw if isinstance(raw, dict) and raw else None
+
+
+def workspace_member_allows_module(workspace, user, module_key, team=None):
     if not workspace or not module_key:
         return True
     if not user or not getattr(user, 'is_authenticated', False):
@@ -146,16 +170,36 @@ def workspace_member_allows_module(workspace, user, module_key):
         return False
     if membership.role in {WorkspaceMembership.ROLE_OWNER, WorkspaceMembership.ROLE_ADMIN}:
         return True
+    team_rule = team_module_access_rule(workspace, user, team)
+    if team_rule is not None:
+        return team_rule.get(module_key, True) is not False
     raw = getattr(membership, 'module_access', None)
     if not isinstance(raw, dict) or not raw:
         return True
     return raw.get(module_key, True) is not False
 
 
+def active_team_for_module_gate(request):
+    """Categoría activa de la peticion, para resolver la excepcion por categoria."""
+    if request is None:
+        return None
+    try:
+        from . import views as _views
+
+        return _views._get_active_team_for_request(request)
+    except Exception:
+        return None
+
+
 def forbid_if_workspace_module_disabled(request, module_key, label='modulo'):
     workspace = workspace_context.get_active_workspace(request)
     if not workspace:
         return None
-    if workspace_has_module_for_user(workspace, module_key, user=getattr(request, 'user', None)):
+    if workspace_has_module_for_user(
+        workspace,
+        module_key,
+        user=getattr(request, 'user', None),
+        team=active_team_for_module_gate(request),
+    ):
         return None
     return HttpResponse(f'Este club no tiene activo el modulo {label}.', status=403)

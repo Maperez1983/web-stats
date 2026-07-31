@@ -4372,6 +4372,153 @@ def staff_member_create_page(request):
     )
 
 
+def _staff_member_access_context(workspace, member, active_team):
+    """
+    Lo que la ficha de staff necesita para gobernar accesos SIN mandarte a otra pantalla:
+    en qué categorías trabaja la persona y qué ve en la categoría activa.
+
+    Regla: la categoría manda si tiene excepción propia (WorkspaceTeamAccess.module_access);
+    si no, hereda la del club (WorkspaceMembership.module_access), que es el comportamiento
+    de siempre.
+    """
+    linked_user = getattr(member, "user", None) if member else None
+    catalog = _workspace_access_module_catalog(getattr(workspace, "kind", None))
+    club_teams = []
+    try:
+        rows = (
+            WorkspaceTeam.objects.filter(workspace=workspace)
+            .select_related("team")
+            .order_by("team__category", "team__name", "id")
+        )
+        seen_team_ids = set()
+        for row in rows:
+            team = getattr(row, "team", None)
+            if not team or int(team.id) in seen_team_ids:
+                continue
+            seen_team_ids.add(int(team.id))
+            club_teams.append(team)
+    except Exception:
+        club_teams = []
+
+    granted_team_ids = set()
+    team_rule = None
+    if linked_user:
+        try:
+            accesses = list(
+                WorkspaceTeamAccess.objects.filter(workspace=workspace, user=linked_user).only(
+                    "team_id", "module_access"
+                )
+            )
+        except Exception:
+            accesses = []
+        for access in accesses:
+            granted_team_ids.add(int(access.team_id))
+            if active_team and int(access.team_id) == int(active_team.id):
+                raw = getattr(access, "module_access", None)
+                team_rule = raw if isinstance(raw, dict) and raw else None
+
+    membership = None
+    if linked_user:
+        try:
+            membership = WorkspaceMembership.objects.filter(workspace=workspace, user=linked_user).first()
+        except Exception:
+            membership = None
+    club_rule = getattr(membership, "module_access", None)
+    club_rule = club_rule if isinstance(club_rule, dict) else {}
+    effective = team_rule if team_rule is not None else club_rule
+
+    sees_everything = False
+    try:
+        if membership and membership.role in {WorkspaceMembership.ROLE_OWNER, WorkspaceMembership.ROLE_ADMIN}:
+            sees_everything = True
+        if linked_user and int(getattr(workspace, "owner_user_id", 0) or 0) == int(linked_user.id):
+            sees_everything = True
+    except Exception:
+        sees_everything = False
+
+    return {
+        "access_teams": [
+            {
+                "id": team.id,
+                "label": (getattr(team, "category", "") or getattr(team, "name", "") or "Categoría"),
+                "granted": int(team.id) in granted_team_ids,
+                "is_active_team": bool(active_team and int(team.id) == int(active_team.id)),
+            }
+            for team in club_teams
+        ],
+        "access_modules": [
+            {
+                "key": entry["key"],
+                "label": entry["label"],
+                "allowed": effective.get(entry["key"], True) is not False,
+            }
+            for entry in catalog
+        ],
+        "access_scope_is_team": team_rule is not None,
+        "access_sees_everything": sees_everything,
+        "access_has_user": bool(linked_user),
+        "access_all_teams": bool(club_teams) and len(granted_team_ids) >= len(club_teams),
+    }
+
+
+def _save_staff_member_access(request, workspace, member, active_team):
+    """Guarda categorías y módulos desde la propia ficha de staff."""
+    linked_user = getattr(member, "user", None) if member else None
+    if not linked_user:
+        return
+    catalog = _workspace_access_module_catalog(getattr(workspace, "kind", None))
+    club_teams = []
+    try:
+        for row in WorkspaceTeam.objects.filter(workspace=workspace).select_related("team"):
+            if getattr(row, "team", None):
+                club_teams.append(row.team)
+    except Exception:
+        club_teams = []
+    if not club_teams:
+        return
+
+    all_club = str(request.POST.get("access_all_teams") or "").strip().lower() in {"1", "true", "yes", "on"}
+    wanted_team_ids = set()
+    for team in club_teams:
+        raw = str(request.POST.get(f"access_team_{int(team.id)}") or "").strip().lower()
+        if all_club or raw in {"1", "true", "yes", "on"}:
+            wanted_team_ids.add(int(team.id))
+    for team in club_teams:
+        if int(team.id) in wanted_team_ids:
+            WorkspaceTeamAccess.objects.get_or_create(workspace=workspace, team=team, user=linked_user)
+        else:
+            WorkspaceTeamAccess.objects.filter(workspace=workspace, team=team, user=linked_user).delete()
+
+    modules_scope = str(request.POST.get("access_modules_scope") or "").strip().lower()
+    if modules_scope not in {"team", "club", "reset"}:
+        return
+    if modules_scope == "reset":
+        if active_team:
+            WorkspaceTeamAccess.objects.filter(
+                workspace=workspace, team=active_team, user=linked_user
+            ).update(module_access={})
+        return
+
+    access = {}
+    for entry in catalog:
+        key = entry.get("key")
+        if key:
+            access[key] = bool(request.POST.get(f"access_module_{key}"))
+
+    if modules_scope == "team" and active_team and int(active_team.id) in wanted_team_ids:
+        row, _created = WorkspaceTeamAccess.objects.get_or_create(
+            workspace=workspace, team=active_team, user=linked_user
+        )
+        row.module_access = access
+        row.save(update_fields=["module_access"])
+        return
+    membership = WorkspaceMembership.objects.filter(workspace=workspace, user=linked_user).first()
+    if membership:
+        membership.module_access = access
+        membership.save(update_fields=["module_access"])
+        # La regla pasa a ser del club: se limpian las excepciones por categoría.
+        WorkspaceTeamAccess.objects.filter(workspace=workspace, user=linked_user).update(module_access={})
+
 @login_required
 @ensure_csrf_cookie
 def staff_member_detail_page(request, staff_id):
@@ -4437,6 +4584,8 @@ def staff_member_detail_page(request, staff_id):
                     except Exception:
                         pass
             member.save()
+            if can_manage:
+                _save_staff_member_access(request, workspace, member, active_team)
             if access_action == "invite":
                 _sm_app_role, _sm_member_role = _staff_role_preset(request.POST.get("role_preset"))
                 _, invite_link = _create_staff_access_invitation(
@@ -4512,6 +4661,7 @@ def staff_member_detail_page(request, staff_id):
             "error": error,
             "feedback": feedback,
             "invite_link": invite_link,
+            **_staff_member_access_context(workspace, member, active_team),
             "staff_access_role_choices": _staff_access_role_choices(),
             "workspace_member_role_choices": WorkspaceMembership.ROLE_CHOICES,
             "role_presets": _staff_role_presets(),
@@ -7597,17 +7747,17 @@ def _workspace_access_module_catalog(kind):
             {"key": "task_studio_pdfs", "label": "PDFs"},
         ]
     entries = [
-        {"key": "dashboard", "label": "Portada"},
-        {"key": "coach_overview", "label": "Cuerpo técnico"},
-        {"key": "players", "label": "Plantilla"},
+        {"key": "dashboard", "label": "Inicio"},
+        {"key": "coach_overview", "label": "Entrenador"},
+        {"key": "players", "label": "Equipo (plantilla)"},
         {"key": "convocation", "label": "Convocatoria"},
-        {"key": "match_actions", "label": "Acciones"},
-        {"key": "sessions", "label": "Sesiones"},
+        {"key": "match_actions", "label": "Registro de acciones"},
+        {"key": "sessions", "label": "Entrenamiento"},
         {"key": "academy", "label": "Academia"},
         {"key": "analysis", "label": "Análisis"},
         {"key": "abp_board", "label": "ABP"},
         {"key": "tactics", "label": "Táctica"},
-        {"key": "manual_stats", "label": "Est. manuales"},
+        {"key": "manual_stats", "label": "Estadísticas manuales"},
     ]
     return entries
 

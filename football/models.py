@@ -843,6 +843,9 @@ class WorkspaceTeamAccess(models.Model):
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='workspace_team_accesses')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='workspace_team_accesses')
     is_default = models.BooleanField(default=False)
+    # Excepción de módulos SOLO para esta categoría. Vacío = hereda la regla del club
+    # (WorkspaceMembership.module_access), que es como se ha comportado siempre.
+    module_access = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
