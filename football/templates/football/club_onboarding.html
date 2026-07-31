@@ -641,6 +641,7 @@
           <a href="#config-branding">Branding</a>
           <a href="#config-competition">Competición</a>
           <a href="#config-modules">Módulos</a>
+          <a href="#config-player-portal">Portal del jugador</a>
         </nav>
 
         <section class="config-section" id="config-staff">
@@ -666,6 +667,14 @@
                 <a class="config-chip-link" href="{% url 'staff-directory' %}?team={{ workspace.primary_team_id }}">Ver staff</a>
                 {% endif %}
                 <a class="config-chip-link" href="{% url 'platform-workspace-detail' workspace.id %}">Usuarios y roles</a>
+              </div>
+            </article>
+            <article class="config-mini-card" id="config-player-portal">
+              <h3>Portal del jugador</h3>
+              <p>Qué ve cada jugador en su espacio: rendimiento, evaluación, lesiones, multas, vídeos… Lo sensible arranca cerrado; se enciende a propósito.</p>
+              <div class="config-section-actions" style="margin-top:0.65rem;">
+                <a class="config-chip-link" href="{% url 'player-portal-settings' %}">Abrir portal del jugador</a>
+                <a class="config-chip-link" href="{% url 'workspace-members' %}">Invitar jugadores</a>
               </div>
             </article>
             <article class="config-mini-card" id="config-permissions">

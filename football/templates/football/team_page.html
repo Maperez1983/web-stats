@@ -86,6 +86,45 @@
 
         {% comment %} Plantilla, Planificador, Centro medico, Contratos y Desarrollo ya estan en
            el sub-nav de Equipo: aqui solo los accesos de OTRAS zonas. {% endcomment %}
+        {% if portal_rows %}
+        <div class="tm-sect">Portal del jugador</div>
+        <p style="margin:0 0 0.8rem;color:var(--prod-muted);font-size:0.86rem;line-height:1.5;">
+          Qué ve un jugador de este equipo cuando entra en su espacio.
+          {% if portal_has_own_rule %}
+            Este equipo tiene <strong>regla propia</strong>.
+          {% else %}
+            Ahora mismo sigue la regla del club; si cambias algo, este equipo pasa a tener la suya.
+          {% endif %}
+        </p>
+        {% if portal_can_manage %}
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="form_action" value="player_portal" />
+          {% for row in portal_rows %}
+            <div style="display:grid;grid-template-columns:1fr auto;gap:0.6rem 1rem;align-items:start;padding:0.6rem 0;border-bottom:1px solid rgba(148,163,184,0.18);">
+              <div>
+                <strong style="font-size:0.92rem;">{{ row.label }}</strong>
+                {% if not row.inherited %}<span style="font-size:0.62rem;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:#fbbf24;margin-left:0.4rem;">propio</span>{% endif %}
+                <span style="display:block;color:var(--prod-muted);font-size:0.76rem;line-height:1.4;margin-top:0.15rem;">{{ row.help }}</span>
+              </div>
+              <select name="section__{{ row.key }}" aria-label="{{ row.label }}" style="min-width:11rem;">
+                {% for o in row.options %}
+                  <option value="{{ o.value }}" {% if o.selected %}selected{% endif %}>{{ o.label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          {% endfor %}
+          <div style="margin-top:0.9rem;">
+            <button class="btn primary" type="submit">Guardar lo que ve este equipo</button>
+          </div>
+        </form>
+        {% else %}
+          <ul style="margin:0 0 1rem;padding-left:1.1rem;color:var(--prod-muted);font-size:0.86rem;">
+            {% for row in portal_rows %}<li>{{ row.label }} · {{ row.current_label }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+        {% endif %}
+
         <div class="tm-sect">Accesos</div>
         <div class="tm-quick">
           <a href="{% url 'tactics-roles' %}">♟️ Táctica · roles</a>

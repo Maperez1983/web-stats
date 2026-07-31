@@ -1099,7 +1099,7 @@
 			          {% comment %} El jugador ya no entra en esta ficha: tiene su portal. Esto abre su portal
 			             tal cual lo recibe él, que es la única forma de comprobar qué ve. {% endcomment %}
 			          {% if can_preview_player_view %}
-			            <a class="btn alt" href="{% url 'player-home' %}?ver_como={{ player.id }}">Ver como jugador</a>
+			            <a class="btn alt" href="#portal-preview">👁️ Vista previa de su portal</a>
 			            {% if player_view_preview %}
 			              			            {% else %}
 			              			            {% endif %}
@@ -1329,6 +1329,35 @@
       {% endif %}
 
 
+
+      {% if can_preview_player_view %}
+      {% comment %}Vista previa DEL PORTAL, no de esta ficha: el jugador ya no entra aquí, así
+      que lo único que tiene sentido comprobar es su espacio. Va embebida para verla sin salir,
+      a ancho de móvil, que es donde la abre él.{% endcomment %}
+      <section class="card" id="portal-preview" style="margin-bottom:1rem;">
+        <div style="display:flex;gap:0.7rem;align-items:baseline;justify-content:space-between;flex-wrap:wrap;margin-bottom:0.7rem;">
+          <div>
+            <h2 style="margin:0;font-size:1rem;">👁️ Vista previa de su portal</h2>
+            <p class="subtle" style="margin:0.2rem 0 0;font-size:0.78rem;">
+              Esto es exactamente lo que ve {{ player.name }} al entrar en su espacio, con la
+              política de su equipo aplicada. Es sólo lectura.
+            </p>
+          </div>
+          <a class="btn alt" href="{% url 'player-home' %}?ver_como={{ player.id }}" target="_blank" rel="noopener">Abrir a pantalla completa</a>
+        </div>
+        <details>
+          <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.6rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:#cdd8ea;list-style:none;">
+            Mostrar la vista previa
+          </summary>
+          <div style="margin-top:0.9rem;display:flex;justify-content:center;">
+            <iframe src="{% url 'player-home' %}?ver_como={{ player.id }}"
+                    title="Vista previa del portal de {{ player.name }}"
+                    loading="lazy"
+                    style="width:min(100%,420px);height:720px;border:1px solid rgba(148,163,184,0.28);border-radius:22px;background:#020617;"></iframe>
+          </div>
+        </details>
+      </section>
+      {% endif %}
 
       {% comment %} Las pestañas del jugador salen de la política del club (`vis`), no de la plantilla.
          Para el staff `vis` no restringe nada y salen todas. {% endcomment %}

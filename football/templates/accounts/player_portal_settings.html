@@ -74,6 +74,17 @@
           {% endif %}
         </p>
 
+        {% if not club_row and not editing_team %}
+          <p style="margin:0 0 0.9rem;">
+            <span class="tag" style="color:#86efac;border-color:rgba(34,197,94,0.4);">Estás usando la configuración recomendada</span>
+          </p>
+        {% endif %}
+
+        <details {% if club_row or editing_team %}open{% endif %}>
+          <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.6rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:var(--prod-muted);list-style:none;">
+            ⚙️ Personalizar lo que ven
+          </summary>
+          <div style="padding-top:1rem;">
         <form method="post">
           {% csrf_token %}
           <input type="hidden" name="action" value="save" />
@@ -101,6 +112,9 @@
             {% endif %}
           </div>
         </form>
+
+          </div>
+        </details>
 
         {% if editing_team %}
           <form method="post" style="margin-top:0.8rem;"
@@ -133,8 +147,8 @@
                 {% endif %}
               </div>
             </div>
-            <a class="btn alt" href="{% url 'player-portal-settings' %}?equipo={{ row.team.id }}">
-              {% if row.diffs %}Editar su regla{% else %}Ponerle regla propia{% endif %}
+            <a class="btn alt" href="{% url 'team-page' %}?team={{ row.team.id }}">
+              Ver en su ficha de equipo
             </a>
           </div>
         {% empty %}

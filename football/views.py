@@ -387,6 +387,7 @@ from football.models import (
     PdfGraphicAsset,
     Player,
     PlayerCommunication,
+    PlayerPortalPolicy,
     PlayerObjective,
     PlayerEvaluation,
     PlayerFine,
@@ -43158,9 +43159,67 @@ def team_page(request):
     except Exception:
         season_label = ""
 
+    # Portal del jugador de ESTE equipo. La regla general es del club; aquí se ve qué recibe
+    # un jugador de esta categoría y se cambia sin salir de su ficha, que es donde uno lo
+    # busca: lo que ve un cadete no tiene por que ser lo que ve el primer equipo.
+    from . import player_portal_policy as _portal_policy
+
+    portal_can_manage = False
+    portal_rows = []
+    portal_has_own_rule = False
+    try:
+        _ws = _get_active_workspace(request)
+        # `_can_manage_workspace` de views ya resuelve el acceso de plataforma por dentro.
+        portal_can_manage = bool(_ws and _can_manage_workspace(request.user, _ws))
+        if _ws and primary_team is not None:
+            if request.method == "POST" and portal_can_manage and str(request.POST.get("form_action") or "") == "player_portal":
+                _sections = {}
+                for _section in _portal_policy.SECTIONS:
+                    _value = str(request.POST.get(f"section__{_section['key']}") or "").strip()
+                    if _value:
+                        _sections[_section["key"]] = _value
+                _club = _portal_policy.policy_sections_for(_ws)
+                _cleaned = _portal_policy.normalize_sections(_sections, base=_club)
+                _stored = {k: v for k, v in _cleaned.items() if v != _club.get(k)}
+                if _stored:
+                    PlayerPortalPolicy.objects.update_or_create(
+                        workspace=_ws, team=primary_team,
+                        defaults={"sections": _stored, "updated_by": request.user},
+                    )
+                else:
+                    # Sin diferencias, no dejamos una fila vacía: vuelve a seguir al club.
+                    PlayerPortalPolicy.objects.filter(workspace=_ws, team=primary_team).delete()
+                return redirect(f"{reverse('team-page')}?team={primary_team.id}")
+
+            _club = _portal_policy.policy_sections_for(_ws)
+            _resolved = _portal_policy.policy_sections_for(_ws, team=primary_team)
+            portal_has_own_rule = PlayerPortalPolicy.objects.filter(
+                workspace=_ws, team=primary_team
+            ).exists()
+            _labels = dict(_portal_policy.STATE_CHOICES)
+            for _section in _portal_policy.SECTIONS:
+                _current = _resolved[_section["key"]]
+                portal_rows.append({
+                    "key": _section["key"],
+                    "label": _section["label"],
+                    "help": _section["help"],
+                    "current": _current,
+                    "current_label": _labels.get(_current, _current),
+                    "inherited": _current == _club[_section["key"]],
+                    "options": [
+                        {"value": st, "label": _labels[st], "selected": st == _current}
+                        for st in _section["states"]
+                    ],
+                })
+    except Exception:
+        logger.debug("No se pudo preparar el portal del jugador de la ficha de equipo", exc_info=True)
+
     return render(request, "football/team_page.html", {
         "team": primary_team, "crest": crest, "club_obj": club_obj,
         "fed": fed, "staff": staff, "season_label": season_label,
+        "portal_can_manage": portal_can_manage,
+        "portal_rows": portal_rows,
+        "portal_has_own_rule": portal_has_own_rule,
     })
 
 

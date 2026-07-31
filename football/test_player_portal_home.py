@@ -308,3 +308,76 @@ class InvitationLinksThePlayerTests(TestCase):
         )
         self.assertContains(response, "ya tiene una cuenta vinculada")
         self.assertFalse(UserInvitation.objects.exists())
+
+
+class TeamPagePortalConfigTests(TestCase):
+    """La regla de cada categoría se toca en la ficha de SU equipo."""
+
+    def setUp(self):
+        cache.clear()
+        self.owner = get_user_model().objects.create_superuser("mister", "m@example.com", "x")
+        self.workspace = Workspace.objects.create(
+            name="C.D. Prueba", kind=Workspace.KIND_CLUB, is_active=True, owner_user=self.owner
+        )
+        self.team = Team.objects.create(name="Cadete", slug="cadete", is_primary=True)
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.team)
+        self.player = Player.objects.create(team=self.team, name="Nano", is_active=True)
+        self.client = Client()
+        self.client.force_login(self.owner)
+        session = self.client.session
+        session["active_workspace_id"] = self.workspace.id
+        session["active_team_id"] = self.team.id
+        session.save()
+
+    def test_team_page_shows_the_portal_block(self):
+        response = self.client.get(reverse("team-page"), HTTP_HOST="localhost")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Portal del jugador")
+        self.assertContains(response, "sigue la regla del club")
+
+    def test_saving_from_the_team_page_creates_its_own_rule(self):
+        from football import player_portal_policy as policy
+        from football.models import PlayerPortalPolicy
+
+        self.client.post(
+            reverse("team-page"),
+            {"form_action": "player_portal", "section__fines": policy.HIDDEN},
+            HTTP_HOST="localhost",
+        )
+        self.assertTrue(PlayerPortalPolicy.objects.filter(workspace=self.workspace, team=self.team).exists())
+        self.assertEqual(
+            policy.player_portal_visibility(self.player, workspace=self.workspace)["fines"], policy.HIDDEN
+        )
+
+    def test_matching_the_club_removes_the_own_rule(self):
+        # Sin diferencias no se deja una fila vacía colgando: vuelve a seguir al club.
+        from football import player_portal_policy as policy
+        from football.models import PlayerPortalPolicy
+
+        PlayerPortalPolicy.objects.create(
+            workspace=self.workspace, team=self.team, sections={"fines": policy.HIDDEN}
+        )
+        self.client.post(
+            reverse("team-page"),
+            {"form_action": "player_portal", "section__fines": policy.VISIBLE},
+            HTTP_HOST="localhost",
+        )
+        self.assertFalse(PlayerPortalPolicy.objects.filter(workspace=self.workspace, team=self.team).exists())
+
+    def test_ficha_embeds_the_portal_preview(self):
+        # Lo que se previsualiza es SU PORTAL, no esta ficha: el jugador ya no entra aquí.
+        response = self.client.get(reverse("player-detail", args=[self.player.id]), HTTP_HOST="localhost")
+        self.assertContains(response, "Vista previa de su portal")
+        self.assertContains(response, 'id="portal-preview"')
+        self.assertContains(response, f"?ver_como={self.player.id}")
+
+    def test_the_preview_is_not_offered_to_a_player(self):
+        user = get_user_model().objects.create_user(username="nano", password="pass-1234")
+        AppUserRole.objects.create(user=user, role=AppUserRole.ROLE_PLAYER)
+        self.player.user = user
+        self.player.save(update_fields=["user"])
+        client = Client()
+        client.force_login(user)
+        response = client.get(reverse("player-detail", args=[self.player.id]), HTTP_HOST="localhost")
+        # Ni siquiera abre la ficha: va a su portal.
+        self.assertEqual(response.status_code, 302)
