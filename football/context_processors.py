@@ -553,6 +553,17 @@ def workspace_access(request):
                         'kind_label': str(getattr(ws, 'get_kind_display', lambda: '')() or '').strip(),
                     }
                 )
+            # Dos workspaces pueden llamarse igual ("Benagalbón" y "Benagalbón"): en un selector
+            # de club eso es indistinguible, asi que a los repetidos se les anade su equipo.
+            repetidos = {}
+            for opcion in workspace_options:
+                repetidos[opcion['label']] = repetidos.get(opcion['label'], 0) + 1
+            for ws, opcion in zip(candidates, workspace_options):
+                if repetidos.get(opcion['label'], 0) < 2:
+                    continue
+                equipo = getattr(ws, 'primary_team', None)
+                detalle = str(getattr(equipo, 'name', '') or '').strip() or f"#{opcion['id']}"
+                opcion['label'] = f"{opcion['label']} · {detalle}"
             try:
                 cache.set(ws_cache_key, workspace_options, cache_ttl_s)
             except Exception:
