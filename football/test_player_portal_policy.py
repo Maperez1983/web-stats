@@ -107,59 +107,6 @@ class PortalPolicyResolutionTests(TestCase):
         self.assertFalse(vis.documents)
 
 
-class PortalPolicyFichaTests(TestCase):
-    """La ficha obedece la política."""
-
-    def setUp(self):
-        cache.clear()
-        self.workspace = Workspace.objects.create(name="Club", kind=Workspace.KIND_CLUB, is_active=True)
-        self.team = Team.objects.create(name="Senior", slug="senior", is_primary=True)
-        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.team)
-        self.player = Player.objects.create(team=self.team, name="Ayala", is_active=True)
-        self.user = get_user_model().objects.create_user(username="ayala", password="pass-1234")
-        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_PLAYER)
-        self.player.user = self.user
-        self.player.save(update_fields=["user"])
-        WorkspaceMembership.objects.create(
-            workspace=self.workspace, user=self.user, role=WorkspaceMembership.ROLE_VIEWER
-        )
-        WorkspaceTeamAccess.objects.create(workspace=self.workspace, team=self.team, user=self.user)
-        # La ficha ya no la abre el jugador: lo que recibe se comprueba por la
-        # previsualización del staff, que está hecha para ser fiel.
-        staff = get_user_model().objects.create_superuser("mister", "m@example.com", "x")
-        self.client = Client()
-        self.client.force_login(staff)
-        session = self.client.session
-        session["active_workspace_id"] = self.workspace.id
-        session["active_team_id"] = self.team.id
-        session.save()
-
-    def _get_ficha(self):
-        return self.client.get(
-            reverse("player-detail", args=[self.player.id]) + "?preview=player", HTTP_HOST="localhost"
-        )
-
-    def test_hidden_section_drops_tab_and_content(self):
-        PlayerPortalPolicy.objects.create(
-            workspace=self.workspace, team=None, sections={"injuries": policy.HIDDEN}
-        )
-        response = self._get_ficha()
-        self.assertEqual(response.status_code, 200)
-        # Ni la pestaña ni el panel: esconder sólo el botón dejaría el dato en el HTML.
-        self.assertNotContains(response, 'data-tab="injuries"')
-        self.assertNotContains(response, 'data-pane="injuries"')
-
-    def test_visible_section_is_rendered(self):
-        response = self._get_ficha()
-        self.assertContains(response, 'data-tab="injuries"')
-        self.assertContains(response, 'data-pane="injuries"')
-
-    def test_player_never_sees_squad_percentiles(self):
-        # El portal es individual: un percentil es su posición dentro del vestuario.
-        response = self._get_ficha()
-        self.assertEqual(response.context["player_percentiles"], {})
-
-
 class EvaluationPublishTests(TestCase):
     """Cerrada no es publicada."""
 
@@ -198,14 +145,14 @@ class EvaluationPublishTests(TestCase):
             session["active_team_id"] = self.team.id
             session.save()
 
-    def _ficha(self):
-        return reverse("player-detail", args=[self.player.id]) + "?preview=player"
+    def _portal(self):
+        response = self.client.get(reverse("player-home"), HTTP_HOST="localhost")
+        self.assertEqual(response.status_code, 200)
+        return response
 
     def test_closed_but_unpublished_is_invisible_to_the_player(self):
-        response = self.preview.get(self._ficha(), HTTP_HOST="localhost")
-        self.assertEqual(list(response.context["player_evaluations"]), [])
-        # Y tampoco se filtra por lo derivado (la chapa de media sale de aquí).
-        self.assertIsNone(response.context["evaluation_summary"]["latest"])
+        response = self._portal()
+        self.assertEqual(list(response.context["evaluations"]), [])
 
     def test_report_url_is_not_the_back_door(self):
         response = self.client.get(
@@ -218,8 +165,8 @@ class EvaluationPublishTests(TestCase):
         self.evaluation.published_to_player = True
         self.evaluation.save(update_fields=["published_to_player"])
 
-        response = self.preview.get(self._ficha(), HTTP_HOST="localhost")
-        self.assertEqual([e.id for e in response.context["player_evaluations"]], [self.evaluation.id])
+        response = self._portal()
+        self.assertEqual([e.id for e in response.context["evaluations"]], [self.evaluation.id])
 
         report = self.client.get(
             reverse("player-evaluation-report", args=[self.player.id, self.evaluation.id]),
@@ -261,7 +208,6 @@ class EvaluationPublishTests(TestCase):
         staff_client = Client()
         staff_client.force_login(staff)
         url = reverse("player-detail", args=[self.player.id])
-        ficha = self._ficha()
         informe = reverse("player-evaluation-report", args=[self.player.id, self.evaluation.id])
 
         # Publicada SIN comentarios.
@@ -273,7 +219,7 @@ class EvaluationPublishTests(TestCase):
         self.evaluation.refresh_from_db()
         self.assertTrue(self.evaluation.published_to_player)
         self.assertFalse(self.evaluation.published_comments_to_player)
-        self.assertNotContains(self.preview.get(ficha, HTTP_HOST="localhost"), self.evaluation.coach_comments)
+        self.assertNotContains(self._portal(), self.evaluation.coach_comments)
         self.assertNotContains(self.client.get(informe, HTTP_HOST="localhost"), self.evaluation.coach_comments)
 
         # Publicada CON comentarios.
@@ -289,7 +235,7 @@ class EvaluationPublishTests(TestCase):
         )
         self.evaluation.refresh_from_db()
         self.assertTrue(self.evaluation.published_comments_to_player)
-        self.assertContains(self.preview.get(ficha, HTTP_HOST="localhost"), self.evaluation.coach_comments)
+        self.assertContains(self._portal(), self.evaluation.coach_comments)
         self.assertContains(self.client.get(informe, HTTP_HOST="localhost"), self.evaluation.coach_comments)
 
     def test_retiring_closes_both_keys(self):

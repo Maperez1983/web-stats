@@ -763,6 +763,7 @@ def _player_home_zones(request, player, vis):
     )
 
     zones = {
+        "evaluations": [],
         "notifications": [],
         "next_session": None,
         "next_session_attendance": None,
@@ -843,6 +844,23 @@ def _player_home_zones(request, player, vis):
                 }
         except Exception:
             logger.debug("No se pudo cargar la lesión activa del jugador", exc_info=True)
+
+    # MI VALORACIÓN ---------------------------------------------------------------------
+    if vis.evaluation:
+        try:
+            from .models import PlayerEvaluation
+
+            # Cerrada NO basta: sólo lo que el cuerpo técnico ha publicado a propósito. Y los
+            # comentarios sólo si se marcaron al publicar (segunda llave).
+            zones["evaluations"] = list(
+                PlayerEvaluation.objects.filter(
+                    player=player,
+                    status=PlayerEvaluation.STATUS_CLOSED,
+                    published_to_player=True,
+                ).order_by("-evaluated_on", "-id")[:6]
+            )
+        except Exception:
+            logger.debug("No se pudieron cargar las evaluaciones publicadas del jugador", exc_info=True)
 
     # MI TRABAJO ------------------------------------------------------------------------
     if vis.videos:

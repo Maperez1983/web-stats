@@ -117,6 +117,7 @@
         <nav class="zonebar" aria-label="Zonas de mi espacio">
           <a href="#hoy">Hoy</a>
           {% if vis.performance %}<a href="#rendimiento">Mi rendimiento</a>{% endif %}
+          {% if vis.evaluation %}<a href="#valoracion">Mi valoración</a>{% endif %}
           {% if vis.physical or vis.injuries %}<a href="#cuerpo">Mi cuerpo</a>{% endif %}
           {% if vis.objectives or vis.videos %}<a href="#trabajo">Mi trabajo</a>{% endif %}
           {% if vis.fines or vis.communication %}<a href="#club">Club</a>{% endif %}
@@ -198,6 +199,32 @@
           <p class="empty" style="margin-top:0.7rem;font-size:0.74rem;">
             Se actualiza con la asistencia y la participación por tarea que registra tu entrenador.
           </p>
+        </section>
+        {% endif %}
+
+        {% if vis.evaluation %}
+        <section class="panel" id="valoracion">
+          <h2>Mi valoración</h2>
+          {% if evaluations %}
+            {% for e in evaluations %}
+              <div class="row">
+                <div>
+                  <strong>{{ e.get_evaluation_type_display }}</strong>
+                  <div class="empty">
+                    Media {{ e.average_rating|default:e.overall_rating|default:"–" }}
+                    {% if e.strengths %}<br />Fuertes: {{ e.strengths }}{% endif %}
+                    {% if e.improvements %}<br />A mejorar: {{ e.improvements }}{% endif %}
+                    {% if e.published_comments_to_player and e.coach_comments %}
+                      <br />Del cuerpo técnico: {{ e.coach_comments }}
+                    {% endif %}
+                  </div>
+                </div>
+                <span class="when">{{ e.evaluated_on|date:"d/m/Y" }}</span>
+              </div>
+            {% endfor %}
+          {% else %}
+            <p class="empty">Tu entrenador todavía no ha compartido ninguna valoración contigo.</p>
+          {% endif %}
         </section>
         {% endif %}
 

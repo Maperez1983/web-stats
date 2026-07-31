@@ -11392,18 +11392,18 @@ class PlayerDetailStatsFallbackTests(TestCase):
         self.assertNotContains(response, 'type="file"', html=False)
         self.assertNotContains(response, 'Guardar comunicación')
 
-    def test_staff_can_preview_player_readonly_view(self):
+    def test_staff_previews_the_player_portal_not_this_ficha(self):
+        # Antes esto fijaba `?preview=player`: ver ESTA ficha "como jugador". Se retiro porque
+        # el jugador ya no entra aqui — tiene su portal—, asi que previsualizar la ficha no
+        # comprobaba nada. Lo que se previsualiza ahora es su portal, embebido en la ficha.
         self.client.force_login(self.user)
 
-        response = self.client.get(reverse('player-detail', args=[self.player.id]), {'preview': 'player'})
+        response = self.client.get(reverse('player-detail', args=[self.player.id]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.context['is_player_readonly'])
-        self.assertTrue(response.context['player_view_preview'])
-        self.assertContains(response, 'Vista previa jugador')
-        self.assertContains(response, 'Ficha personal')
-        self.assertNotContains(response, 'type="file"', html=False)
-        self.assertNotContains(response, 'Guardar comunicación')
+        self.assertFalse(response.context['is_player_readonly'])
+        self.assertContains(response, 'Vista previa de su portal')
+        self.assertContains(response, f"?ver_como={self.player.id}")
 
     def test_player_detail_uses_players_team_crest(self):
         team = self.player.team

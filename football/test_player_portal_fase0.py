@@ -152,64 +152,41 @@ class PlayerCommunicationsVisibilityTests(TestCase):
             scheduled_for=timezone.now() + timezone.timedelta(days=7),
         )
 
-    def _staff_client(self):
-        """La ficha es del staff: lo que ve el jugador se comprueba por la previsualización."""
-        staff = get_user_model().objects.create_superuser("preview", "p@example.com", "x")
+    def _portal_messages(self):
+        """Lo que ve el jugador se comprueba en SU PORTAL: la ficha ya no la abre."""
         client = Client()
-        client.force_login(staff)
-        return client
-
-    def _messages_for(self, client, preview=False):
+        client.force_login(self.user)
         session = client.session
         session["active_workspace_id"] = self.workspace.id
         session["active_team_id"] = self.team.id
         session.save()
-        url = reverse("player-detail", args=[self.player.id])
-        if preview:
-            url += "?preview=player"
-        response = client.get(url, HTTP_HOST="localhost")
+        response = client.get(reverse("player-home"), HTTP_HOST="localhost")
         self.assertEqual(response.status_code, 200)
-        return {item.message for item in response.context["communications"]}
+        return response, {c.message for c in response.context["communications"]}
 
     def test_player_only_sees_own_convocations_already_due(self):
-        messages = self._messages_for(self._staff_client(), preview=True)
-
+        _, messages = self._portal_messages()
         self.assertIn(self.convocation.message, messages)
         self.assertNotIn(self.internal.message, messages)
         self.assertNotIn(self.medical.message, messages)
         self.assertNotIn(self.future.message, messages)
 
-    def test_staff_still_sees_everything(self):
+    def test_staff_still_sees_everything_in_the_ficha(self):
         staff = get_user_model().objects.create_superuser("mister", "m@example.com", "x")
         client = Client()
         client.force_login(staff)
-        messages = self._messages_for(client)
-
-        self.assertIn(self.internal.message, messages)
-        self.assertIn(self.medical.message, messages)
-
-    def test_club_assistant_widget_is_not_rendered_for_the_player(self):
-        # El asistente contesta con datos del club y su endpoint le da 403: para el jugador
-        # sólo era un botón roto ("¿quién está lesionado?").
-        client = self._staff_client()
         session = client.session
         session["active_workspace_id"] = self.workspace.id
         session["active_team_id"] = self.team.id
         session.save()
-        response = client.get(
-            reverse("player-detail", args=[self.player.id]) + "?preview=player", HTTP_HOST="localhost"
-        )
-        self.assertNotContains(response, "global-guard-widget-shell")
+        response = client.get(reverse("player-detail", args=[self.player.id]), HTTP_HOST="localhost")
+        messages = {c.message for c in response.context["communications"]}
+        self.assertIn(self.internal.message, messages)
+        self.assertIn(self.medical.message, messages)
 
-    def test_staff_preview_of_player_view_is_faithful(self):
-        staff = get_user_model().objects.create_superuser("mister2", "m2@example.com", "x")
-        client = Client()
-        client.force_login(staff)
-        response = client.get(
-            reverse("player-detail", args=[self.player.id]) + "?preview=player", HTTP_HOST="localhost"
-        )
-        messages = {item.message for item in response.context["communications"]}
-        self.assertNotIn(self.internal.message, messages)
+    def test_club_assistant_widget_is_not_in_the_portal(self):
+        response, _ = self._portal_messages()
+        self.assertNotContains(response, "global-guard-widget-shell")
 
 
 class PlayerLoginNextTests(TestCase):

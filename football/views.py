@@ -77375,12 +77375,17 @@ def player_detail_page(request, player_id):
         can_preview_player_view = request.user.is_authenticated and (
             current_role != AppUserRole.ROLE_PLAYER or _is_admin_user(request.user)
         )
-        preview_mode = (request.GET.get("preview") or "").strip().lower()
-        player_view_preview = can_preview_player_view and preview_mode == "player"
+        # `?preview=player` (ver ESTA ficha "como jugador") se retira: el jugador ya no entra
+        # aquí, tiene su portal, así que previsualizar la ficha no comprobaba nada — enseñaba
+        # una pantalla que él nunca va a ver. Lo que se previsualiza ahora es su portal, y va
+        # embebido en esta misma ficha.
+        player_view_preview = False
         is_player_account = bool(
             current_role == AppUserRole.ROLE_PLAYER and not _is_admin_user(request.user)
         )
-        is_player_readonly = player_view_preview or is_player_account
+        # Se conserva como red de seguridad: la puerta real es el redirect de arriba, pero si
+        # algún día se abriera otra vía, la ficha seguiría sin soltar lo que no es suyo.
+        is_player_readonly = is_player_account
         # Fase 1: qué SECCIONES ve el jugador ya no lo decide la plantilla, lo decide la
         # política del club (con la excepción por jugador). `is_player_readonly` sigue
         # significando "no puede editar"; son dos cosas distintas y se habían mezclado.
