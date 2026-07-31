@@ -844,8 +844,12 @@ def build_session_pdf_context(request, team, session, pdf_style='uefa'):
                 bottom = min(rgb.size[1], int(bbox[3]) + pad)
                 cropped = rgb.crop((left, top, right, bottom))
                 out = BytesIO()
-                cropped.save(out, format='PNG', optimize=True)
-                return 'data:image/png;base64,' + base64.b64encode(out.getvalue()).decode('ascii')
+                # JPEG, no PNG. La pizarra ya no es un dibujo de lineas: desde que se guarda como
+                # FOTO del editor es una imagen fotografica, y `PNG optimize=True` sobre 2100 px
+                # hace varias pasadas de compresion para nada. Medido: el PDF UEFA tardaba 11,6 s
+                # frente a 4,9 s del Club, que no pasa por aqui.
+                cropped.save(out, format='JPEG', quality=88, optimize=True, progressive=True)
+                return 'data:image/jpeg;base64,' + base64.b64encode(out.getvalue()).decode('ascii')
             except Exception:
                 return data_url
 
