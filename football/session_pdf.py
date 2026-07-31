@@ -141,12 +141,32 @@ def _file_field_as_data_url(file_field):
     return f"data:{mime};base64,{base64.b64encode(raw).decode('utf-8')}"
 
 
-def _downscale_preview_data_url(data_url: str, *, max_side: int = 1800, quality: int = 86) -> str:
+# Ancho util de un A4 con margenes: 180 mm = 7,09". A 300 dpi (calidad de imprenta) son 2126 px.
+# Por encima de eso no se anade detalle visible en papel, solo peso y memoria. Ese es el techo.
+PDF_IMAGE_MAX_WIDTH_PX = 2100
+PDF_IMAGE_MIN_WIDTH_PX = 1100
+# WeasyPrint descomprime TODAS las imagenes a la vez: cada una ocupa ancho x alto x 4 bytes. Se
+# reparte un presupuesto entre las tareas de la sesion, asi una sesion de 3 tareas va a calidad de
+# imprenta y una de 12 baja sola en vez de tumbar la exportacion (los 502 que ya sufrimos).
+PDF_IMAGE_RAM_BUDGET_MB = 60
+
+
+def pdf_image_width_for(task_count: int) -> int:
+    """Ancho de las pizarras del PDF segun cuantas tareas lleve la sesion."""
+    tasks = max(1, int(task_count or 1))
+    # ancho x (ancho x 0,58 de alto) x 4 bytes <= presupuesto / nº tareas
+    budget_bytes = (PDF_IMAGE_RAM_BUDGET_MB * 1024 * 1024) / tasks
+    width = int((budget_bytes / (0.58 * 4)) ** 0.5)
+    return max(PDF_IMAGE_MIN_WIDTH_PX, min(width, PDF_IMAGE_MAX_WIDTH_PX))
+
+
+def _downscale_preview_data_url(data_url: str, *, max_side: int = PDF_IMAGE_MAX_WIDTH_PX, quality: int = 86) -> str:
     """Limita el tamaño de una preview antes de incrustarla en el PDF.
 
     La foto HD de la pizarra (Playwright, ~3200 px) es perfecta para la ficha en pantalla, pero
     WeasyPrint la descomprime entera en memoria: con varias tareas por sesión eso es justo lo que
-    provocaba los 502 por OOM al exportar. 1800 px siguen dando ~230 dpi en A4.
+    provocaba los 502 por OOM al exportar. El tope son 2100 px = 300 dpi a ancho de A4, que es
+    calidad de imprenta; el original a 3200 px da 442 dpi, detalle que el papel no puede mostrar.
     """
     raw = str(data_url or '')
     if not raw.startswith('data:image/') or ';base64,' not in raw:
@@ -602,6 +622,8 @@ def build_session_pdf_context(request, team, session, pdf_style='uefa'):
     # Mantén el mismo orden que la "ficha de sesión" (training_session_detail_page):
     # orden por bloque/fase + orden dentro de bloque.
     tasks = list(session.tasks.filter(deleted_at__isnull=True).order_by('block', 'order', 'id'))
+    # Calidad de las pizarras del PDF: se decide una vez, segun cuantas tareas haya que incrustar.
+    pdf_image_width = pdf_image_width_for(len(tasks))
     block_order = [
         SessionTask.BLOCK_CONDITIONING,
         SessionTask.BLOCK_ACTIVATION,
@@ -830,7 +852,7 @@ def build_session_pdf_context(request, team, session, pdf_style='uefa'):
         # 1) Imagen ya guardada.
         preview = _file_field_as_data_url(getattr(task, 'task_preview_image', None))
         if preview:
-            return _autocrop_preview_data_url(_downscale_preview_data_url(preview))
+            return _autocrop_preview_data_url(_downscale_preview_data_url(preview, max_side=pdf_image_width))
         layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
         if isinstance(layout, str):
             layout = coerce_json_dict(layout) or {}

@@ -59606,7 +59606,7 @@ def session_task_preview_file(request, task_id):
     except Exception:
         want_width = 0
     if want_width and Image is not None:
-        want_width = max(160, min(want_width, 1600))
+        want_width = max(160, min(want_width, 2400))
         cache_key = "task_preview_thumb:" + hashlib.sha1(
             f"{file_field.name}|{want_width}".encode("utf-8")
         ).hexdigest()
@@ -59707,7 +59707,7 @@ def session_task_cover_file(request, task_id):
     except Exception:
         want_width = 0
     if want_width and Image is not None:
-        want_width = max(160, min(want_width, 1600))
+        want_width = max(160, min(want_width, 2400))
         cache_key = f"task_cover_thumb:{int(task.id)}:{want_width}:{len(raw)}"
         thumb = cache.get(cache_key)
         if thumb is None:
