@@ -1425,6 +1425,16 @@ class PlayerInjuryRecord(models.Model):
             self.is_active = True
         super().save(*args, **kwargs)
 
+    @property
+    def detail_url(self):
+        """URL de su ficha de detalle. La plantilla la pedía y nadie la daba."""
+        from django.urls import reverse
+
+        try:
+            return reverse('player-injury-detail', args=[self.player_id, self.id])
+        except Exception:
+            return ''
+
     def __str__(self):
         return f'{self.player.name} · {self.injury} ({self.injury_date:%d/%m/%Y})'
 

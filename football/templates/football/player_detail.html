@@ -2598,14 +2598,9 @@
                     · Mental {{ evaluation.mental_rating|default:"--" }}
                     · Grupo {{ evaluation.social_rating|default:"--" }}
                   </div>
-                  <div class="subtle" style="margin-top:0.35rem;">
-                    Wellness {{ evaluation.wellness_score|default:"--" }}
-                    · sRPE {{ evaluation.srpe_load|default:"--" }}
-                    · Yo-Yo {{ evaluation.yo_yo_ir1_m|default:"--" }} m
-                    · 20m {{ evaluation.sprint_20m_s|default:"--" }} s
-                    · CMJ {{ evaluation.cmj_cm|default:"--" }} cm
-                    {% if evaluation.maturation_status %} · {{ evaluation.get_maturation_status_display }}{% endif %}
-                  </div>
+                  {% if evaluation.maturation_status %}
+                  <div class="subtle" style="margin-top:0.35rem;">{{ evaluation.get_maturation_status_display }}</div>
+                  {% endif %}
                   {% if evaluation.strengths %}
                     <p class="subtle" style="margin:0.55rem 0 0;"><strong>Fuertes:</strong> {{ evaluation.strengths }}</p>
                   {% endif %}
