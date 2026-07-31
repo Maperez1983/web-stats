@@ -513,7 +513,7 @@ body.prod-commercial button.secondary,
 body.prod-commercial a.secondary {
   border-color: rgba(47, 125, 50, 0.32) !important;
   background: linear-gradient(135deg, rgba(47, 125, 50, 0.88), rgba(24, 63, 38, 0.84)) !important;
-  color: var(--prod-text) !important;
+  color: var(--prod-button-text) !important;
 }
 
 body.prod-commercial .button.danger,
@@ -1629,13 +1629,15 @@ body.prod-commercial .ws-presentation-exit button {
 }
 /* Botones neutros: en claro, superficie clara con texto oscuro. Los .primary,
    .secondary y .danger conservan su color propio (ya tienen su regla). */
-:root[data-theme="light"] body.prod-commercial :where(button, .button, .btn):not(.primary):not(.secondary):not(.danger):not(.ghost) {
+/* Solo los botones NEUTROS: los que llevan variante (.primary/.secondary/.danger/
+   .ghost) o pintan su propio fondo se dejan en paz. */
+:root[data-theme="light"] body.prod-commercial :where(button, .button, .btn):not(.primary):not(.secondary):not(.danger):not(.ghost):not([class*="chip"]):not([class*="tab"]) {
   background: #ffffff !important;
   color: rgba(15, 23, 42, 0.92) !important;
   -webkit-text-fill-color: rgba(15, 23, 42, 0.92);
   border-color: rgba(15, 23, 42, 0.16) !important;
 }
-:root[data-theme="light"] body.prod-commercial :where(button, .button, .btn):not(.primary):not(.secondary):not(.danger):hover {
+:root[data-theme="light"] body.prod-commercial :where(button, .button, .btn):not(.primary):not(.secondary):not(.danger):not(.ghost):not([class*="chip"]):not([class*="tab"]):hover {
   background: #f8fafc !important;
   border-color: rgba(244, 180, 0, 0.45) !important;
 }
