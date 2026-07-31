@@ -20,23 +20,20 @@ tan estrechas que no se puede leer nada.
       @page { size: A4 landscape; margin: 8mm; }
       * { box-sizing: border-box; }
       body {
-        font-family: var(--print-font, "Segoe UI", Arial, sans-serif);
+        font-family: "Segoe UI", Arial, sans-serif;
         font-size: 8.6px;
         color: #12202f;
         background: #ffffff;
         margin: 0;
       }
-      :root {
-        --fs-brand: {{ pdf_palette.primary|default:"#0f7a35" }};
-        --fs-ink: #12202f;
-        --fs-line: #9aa7b4;
-        --fs-fill: #e9edf1;
-      }
+      /* OJO: nada de var() aqui. WeasyPrint resuelve las variables en propiedades sueltas
+         (color) pero las DESCARTA dentro de abreviadas como `border` o `background`, asi que la
+         hoja salia sin un solo borde ni banda: texto suelto sobre papel blanco. El color de marca
+         se escribe directo desde la plantilla. */
       table { border-collapse: collapse; width: 100%; }
-      td, th { border: 1px solid var(--fs-line); padding: 2.5px 4px; vertical-align: top; }
-      /* Las bandas de la plantilla original: fondo de marca y texto en blanco. */
+      td, th { border: 1px solid #9aa7b4; padding: 2.5px 4px; vertical-align: top; }
       .band {
-        background: var(--fs-brand);
+        background-color: {{ pdf_palette.primary|default:"#0f7a35" }};
         color: #ffffff;
         font-weight: 900;
         text-transform: uppercase;
@@ -45,26 +42,22 @@ tan estrechas que no se puede leer nada.
         font-size: 8.4px;
       }
       .band-lg { font-size: 10px; padding: 4px; }
-      .cell { background: var(--fs-fill); }
-      .cell-white { background: #ffffff; }
+      .cell { background-color: #e9edf1; }
+      .cell-white { background-color: #ffffff; }
 
       .sheet-grid { width: 100%; }
       .sheet-grid > tbody > tr > td { border: none; padding: 0; vertical-align: top; }
-      .col-players { width: 128px; padding-right: 4px !important; }
-      .col-main { padding-left: 0 !important; }
+      .col-players { width: 128px; padding-right: 4px; }
+      .col-main { padding-left: 0; }
 
       .crest-row td { border: none; padding: 0 0 3px 0; }
       .crest { height: 34px; }
       .crest img { height: 34px; width: auto; }
-      .sheet-title {
-        font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em;
-        color: var(--fs-brand); font-size: 11px; padding-left: 6px;
-      }
 
       /* Renglones de jugador: alto fijo, para poder escribir encima. */
       .players td { height: 15.5px; font-size: 8.2px; }
       .players .num { width: 20px; text-align: center; font-weight: 800; }
-      .players .bib { width: 44px; background: #ffffff; }
+      .players .bib { width: 44px; background-color: #ffffff; }
       .players .inj { color: #b4232a; font-weight: 800; }
 
       .task-cols td { text-align: center; }
@@ -73,11 +66,14 @@ tan estrechas que no se puede leer nada.
       .task-block { margin-top: 3px; }
       .task-block td { vertical-align: top; }
       .dev { width: 30%; }
-      .dev .dev-label { font-weight: 900; text-transform: uppercase; font-size: 7.6px; color: var(--fs-brand); }
+      .dev .dev-label {
+        font-weight: 900; text-transform: uppercase; font-size: 7.6px;
+        color: {{ pdf_palette.primary|default:"#0f7a35" }};
+      }
       .board { width: 38%; text-align: center; padding: 2px; }
-      .board img { width: 100%; height: auto; max-height: 46mm; object-fit: contain; display: block; }
+      .board img { width: 100%; height: auto; max-height: 46mm; display: block; }
       .board .noboard { color: #7c8794; font-style: italic; padding: 14px 0; }
-      .side { width: 32%; padding: 0 !important; }
+      .side { width: 32%; padding: 0; }
       .side table { width: 100%; }
       .side .band { font-size: 7.6px; padding: 2px; }
       .side .val { height: 26px; }
