@@ -4440,7 +4440,12 @@ def _staff_member_access_context(workspace, member, active_team):
         "access_teams": [
             {
                 "id": team.id,
-                "label": (getattr(team, "category", "") or getattr(team, "name", "") or "Categoría"),
+                "label": (
+                    getattr(team, "display_name", "")
+                    or getattr(team, "category", "")
+                    or getattr(team, "name", "")
+                    or "Categoría"
+                ),
                 "granted": int(team.id) in granted_team_ids,
                 "is_active_team": bool(active_team and int(team.id) == int(active_team.id)),
             }
@@ -4458,6 +4463,9 @@ def _staff_member_access_context(workspace, member, active_team):
         "access_sees_everything": sees_everything,
         "access_has_user": bool(linked_user),
         "access_all_teams": bool(club_teams) and len(granted_team_ids) >= len(club_teams),
+        # Sin ninguna fila NO significa "no entra": el sistema lo limita a la categoría por
+        # defecto del club. Hay que decirlo, o la pantalla miente.
+        "access_unrestricted": not granted_team_ids,
     }
 
 

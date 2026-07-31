@@ -493,7 +493,10 @@
           {% if mode != 'create' and can_manage_workspace and access_has_user %}
           <div class="access-block" id="staff-access-block">
             <h2>Dónde trabaja</h2>
-            <p class="meta">Marca sus categorías. Fuera de estas, ni entra ni aparece en los listados.</p>
+            <p class="meta">
+              Marca sus categorías. Fuera de estas, ni entra ni aparece en los listados.
+              {% if access_unrestricted %}<br />Ahora no tiene ninguna marcada: entra en la categoría por defecto del club. En cuanto marques una, queda acotado a lo que marques.{% endif %}
+            </p>
             <label class="access-all">
               <input type="checkbox" name="access_all_teams" value="1" {% if access_all_teams %}checked{% endif %} />
               Todo el club
