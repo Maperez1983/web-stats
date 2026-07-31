@@ -86488,6 +86488,13 @@ def _score_team_search_candidate(*, team, workspace, query_norm, is_default=Fals
         score += 12
     if normalize_label(getattr(team, "slug", "") or "") == query_norm:
         score += 10
+
+    # Sin coincidencia de texto no hay resultado. Los puntos de abajo son solo para
+    # ORDENAR entre equipos que ya coinciden; si se sumaran siempre, el equipo activo
+    # aparecia en toda busqueda (buscabas "tadeo" y salia tu propio equipo).
+    if score <= 0:
+        return 0
+
     if is_default:
         score += 8
     if active_team_id and int(getattr(team, "id", 0) or 0) == int(active_team_id):
