@@ -1637,3 +1637,52 @@ body.prod-commercial .ws-presentation-exit button {
   background: #f8fafc !important;
   border-color: rgba(244, 180, 0, 0.45) !important;
 }
+
+/* Selector de tema del menu: tres opciones a la vista, con la activa marcada.
+   Antes era un boton ciclico cuya etiqueta mostraba el tema ACTUAL, asi que no
+   se sabia ni que opciones habia ni cual estaba puesta. */
+body.prod-commercial .nav-theme-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.03);
+}
+body.prod-commercial .nav-theme-picker .ntp-label {
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--prod-muted);
+  margin-right: auto;
+}
+body.prod-commercial .nav-theme-picker .ntp-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 30px;
+  padding: 0.24rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: transparent;
+  color: var(--prod-muted);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+body.prod-commercial .nav-theme-picker .ntp-opt:hover:not(:disabled) { border-color: rgba(244, 180, 0, 0.4); color: var(--prod-text); }
+body.prod-commercial .nav-theme-picker .ntp-opt.is-on {
+  border-color: rgba(244, 180, 0, 0.62);
+  background: rgba(244, 180, 0, 0.14);
+  color: #fff7dd;
+}
+body.prod-commercial .nav-theme-picker .ntp-opt:disabled { opacity: 0.35; cursor: not-allowed; }
+:root[data-theme="light"] body.prod-commercial .nav-theme-picker { background: rgba(15,23,42,.03); border-color: rgba(15,23,42,.12); }
+:root[data-theme="light"] body.prod-commercial .nav-theme-picker .ntp-opt { color: rgba(15,23,42,.7); border-color: rgba(15,23,42,.16); }
+:root[data-theme="light"] body.prod-commercial .nav-theme-picker .ntp-opt.is-on { color: #7a5b00; }
+@media (max-width: 520px) { body.prod-commercial .nav-theme-picker .ntp-opt span { display: none; } }
