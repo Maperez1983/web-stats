@@ -158,3 +158,33 @@ class PortalSettingsPanelTests(TestCase):
         session.save()
         response = client.get(reverse("player-portal-settings"), HTTP_HOST="localhost")
         self.assertEqual(response.status_code, 403)
+
+
+class TemplateCommentsAreRealCommentsTests(TestCase):
+    """
+    Django sólo admite `{# #}` en UNA línea: partido en varias es texto, no comentario.
+
+    Pasó de verdad y llegó a producción: los comentarios que escribí en `pwa_head.html` y
+    `dragon_nav.html` —que carga toda la app— se imprimieron como texto visible en la
+    cabecera de TODAS las páginas. No lo vio ningún test porque ninguno miraba la página
+    renderizada buscando basura; sólo se vio al abrir la app de verdad.
+    """
+
+    def test_no_multiline_hash_comments_in_templates(self):
+        import glob
+        import re
+
+        from django.conf import settings
+
+        pattern = re.compile(r"\{#(.*?)#\}", re.S)
+        offenders = []
+        for base in [str(p) for p in settings.TEMPLATES[0]["DIRS"]] + ["football/templates"]:
+            for path in glob.glob(f"{base}/**/*.html", recursive=True):
+                try:
+                    source = open(path, encoding="utf-8", errors="replace").read()
+                except OSError:
+                    continue
+                for match in pattern.finditer(source):
+                    if "\n" in match.group(1):
+                        offenders.append(f"{path}: {match.group(1)[:60]!r}")
+        self.assertEqual(offenders, [], "Usa {% comment %} para comentarios de varias líneas")
