@@ -180,9 +180,14 @@ body {
       }
 .dashboard-grid {
         display: grid;
-        grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+        /* Se queda a una columna cuando solo hay un panel (al quitar "Clubes recientes"
+           el dashboard tenia medio ancho vacio). */
+        grid-template-columns: minmax(0, 1fr);
         gap: 1rem;
         align-items: start;
+      }
+.dashboard-grid:has(> * + *) {
+        grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
       }
 .dashboard-card-grid {
         margin-top: 1rem;
