@@ -187,6 +187,10 @@ def _is_blocked_next_for_user(user, next_url: str) -> bool:
         # bloquea el prefijo entero.
         if path.rstrip("/") == "/players":
             return True
+        # La ficha del staff (y su PDF) tampoco: el jugador tiene su portal. Sus sub-rutas
+        # propias —informe de una evaluación publicada, detalle de su lesión— siguen abiertas.
+        if re.match(r"^/player/\d+/?$", path) or re.match(r"^/player/\d+/pdf/?$", path):
+            return True
         if path.startswith("/player/") or path.startswith("/players/") or path == "/":
             return False
         return True

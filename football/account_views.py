@@ -5,15 +5,22 @@ Verificación SUAVE: al registrarse se envía un correo con un enlace firmado; v
 correo va a los logs y el usuario sigue trabajando con normalidad). El enlace usa
 `django.core.signing` (token firmado con caducidad), sin almacenar tokens en base de datos.
 """
+import logging
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core import signing
 from django.core.mail import send_mail
+from django.db.models import Q
 from django.shortcuts import render
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
+
+from .player_portal_policy import visibility_for_request as player_portal_visibility_for_request
+
+logger = logging.getLogger(__name__)
 
 _SALT = "sj-email-verify"
 _MAX_AGE = 60 * 60 * 24 * 7  # 7 días
@@ -114,6 +121,7 @@ MEMBER_ROLE_PRESETS = [
     ("preparador_fisico", "Preparador físico", "preparador_fisico", "member"),
     ("preparador_portero", "Preparador de portero", "preparador_portero", "member"),
     ("administrador", "Administrador (del club)", "entrenador", "admin"),
+    ("jugador", "Jugador", "jugador", "viewer"),
     ("viewer", "Solo lectura", "invitado", "viewer"),
 ]
 _MEMBER_PRESET_BY_KEY = {p[0]: p for p in MEMBER_ROLE_PRESETS}
@@ -129,6 +137,8 @@ def _preset_key_for_membership(membership):
 
     role = getattr(membership, "role", "")
     app_role = getattr(getattr(membership.user, "app_role", None), "role", "") if membership else ""
+    if app_role == "jugador":
+        return "jugador"
     if role == WorkspaceMembership.ROLE_VIEWER:
         return "viewer"
     if role == WorkspaceMembership.ROLE_ADMIN:
@@ -139,7 +149,7 @@ def _preset_key_for_membership(membership):
     return "entrenador"
 
 
-def send_workspace_member_invite(request, workspace, email, name, app_role, member_role):
+def send_workspace_member_invite(request, workspace, email, name, app_role, member_role, player=None):
     """Crea/enlaza el usuario (inactivo), rol global + membresía y envía el email de invitación."""
     from django.urls import reverse
     from django.utils import timezone
@@ -181,6 +191,7 @@ def send_workspace_member_invite(request, workspace, email, name, app_role, memb
     UserInvitation.objects.filter(user=user_obj, is_active=True, accepted_at__isnull=True).update(is_active=False)
     invitation = UserInvitation.objects.create(
         user=user_obj,
+        player=player,
         token=UserInvitation.generate_token(),
         email=email,
         expires_at=timezone.now() + timedelta(days=14),
@@ -231,10 +242,24 @@ def workspace_members_page(request):
             if action == "invite":
                 key = request.POST.get("role_preset")
                 _k, _label, app_role, member_role = _resolve_member_preset(key)
+                invited_player = None
+                if app_role == "jugador":
+                    from .models import Player
+
+                    _player_id = str(request.POST.get("player_id") or "").strip()
+                    if not _player_id:
+                        raise ValueError("Elige a qué jugador de la plantilla pertenece esta cuenta.")
+                    invited_player = Player.objects.filter(
+                        id=int(_player_id), team__workspace_links__workspace=workspace
+                    ).first()
+                    if invited_player is None:
+                        raise ValueError("Ese jugador no es de este club.")
+                    if invited_player.user_id:
+                        raise ValueError(f"{invited_player.name} ya tiene una cuenta vinculada.")
                 _u, _inv, url = send_workspace_member_invite(
                     request, workspace,
                     request.POST.get("email"), request.POST.get("name"),
-                    app_role, member_role,
+                    app_role, member_role, player=invited_player,
                 )
                 notice = f"Invitación enviada a {(request.POST.get('email') or '').strip().lower()}."
             elif action == "role":
@@ -302,10 +327,164 @@ def workspace_members_page(request):
             "pending": bool(pending) and not is_owner,
         })
 
+    # Jugadores del club que todavía no tienen cuenta: son los que se pueden invitar.
+    linkable_players = []
+    try:
+        from .models import Player
+
+        linkable_players = list(
+            Player.objects.filter(
+                team__workspace_links__workspace=workspace, is_active=True, user__isnull=True
+            )
+            .select_related("team")
+            .order_by("team__name", "name")
+        )
+    except Exception:
+        logger.debug("No se pudieron listar los jugadores vinculables del club", exc_info=True)
+
     return render(request, "accounts/workspace_members.html", {
         "workspace": workspace,
         "rows": rows,
+        "linkable_players": linkable_players,
         "role_presets": MEMBER_ROLE_PRESETS,
+        "notice": notice,
+        "error": error,
+    })
+
+
+@login_required
+@login_required
+def player_portal_settings_page(request):
+    """
+    Panel del club: qué ve cada jugador en su portal, y quién tiene cuenta.
+
+    Sin esta pantalla la política existía pero sólo se podía tocar desde una shell, o sea que
+    de hecho no se podía tocar: mandaban los valores por defecto que trae el código. Aquí el
+    dueño del club decide, que es de quien es la decisión.
+
+    Dos niveles: la regla del CLUB (lo normal, una decisión para todos) y, encima, la regla
+    de una CATEGORÍA concreta. La del jugador suelto (`Player.portal_overrides`) sigue sin
+    interfaz a propósito: es la salida para el caso raro, no la forma de configurar.
+    """
+    from . import player_portal_policy as policy
+    from .access_policy import can_manage_workspace
+    from .models import Player, PlayerPortalPolicy, Team, UserInvitation
+    from .workspace_context import can_access_platform, get_active_workspace
+
+    workspace = get_active_workspace(request)
+    platform = can_access_platform(request.user)
+    if not workspace or not can_manage_workspace(request.user, workspace, platform_access=platform):
+        from django.http import HttpResponseForbidden
+
+        return HttpResponseForbidden("No tienes permiso para configurar el portal del jugador.")
+
+    teams = list(Team.objects.filter(workspace_links__workspace=workspace).order_by("name").distinct())
+    editing_team = None
+    raw_team = str(request.GET.get("equipo") or "").strip()
+    if raw_team:
+        editing_team = next((t for t in teams if str(t.id) == raw_team), None)
+
+    notice = ""
+    error = ""
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip()
+        target_team = None
+        raw_target = str(request.POST.get("team_id") or "").strip()
+        if raw_target:
+            target_team = next((t for t in teams if str(t.id) == raw_target), None)
+            if target_team is None:
+                error = "Ese equipo no es de este club."
+        if not error and action == "save":
+            sections = {}
+            for section in policy.SECTIONS:
+                value = str(request.POST.get(f"section__{section['key']}") or "").strip()
+                if value:
+                    sections[section["key"]] = value
+            # `normalize_sections` es quien filtra: un estado imposible para esa sección no
+            # entra, venga de donde venga.
+            base = policy.default_sections() if target_team is None else policy.policy_sections_for(workspace)
+            cleaned = policy.normalize_sections(sections, base=base)
+            stored = {k: v for k, v in cleaned.items() if v != base.get(k)}
+            row, _ = PlayerPortalPolicy.objects.update_or_create(
+                workspace=workspace, team=target_team,
+                defaults={"sections": stored, "updated_by": request.user},
+            )
+            notice = (
+                "Regla del club guardada."
+                if target_team is None
+                else f"Regla de {target_team.name} guardada."
+            )
+        elif not error and action == "reset" and target_team is not None:
+            PlayerPortalPolicy.objects.filter(workspace=workspace, team=target_team).delete()
+            notice = f"{target_team.name} vuelve a la regla del club."
+
+    club_sections = policy.policy_sections_for(workspace)
+    club_row = PlayerPortalPolicy.objects.filter(workspace=workspace, team__isnull=True).first()
+
+    # Cada categoría dice sólo lo que le pasa: igual que el club, o cuántos cambios tiene.
+    team_rows = []
+    for team in teams:
+        resolved = policy.policy_sections_for(workspace, team=team)
+        diffs = [
+            {
+                "label": section["label"],
+                "state": resolved[section["key"]],
+            }
+            for section in policy.SECTIONS
+            if resolved[section["key"]] != club_sections[section["key"]]
+        ]
+        team_rows.append({"team": team, "diffs": diffs, "sections": resolved})
+
+    editing_sections = (
+        policy.policy_sections_for(workspace, team=editing_team) if editing_team else club_sections
+    )
+    section_rows = []
+    for section in policy.SECTIONS:
+        current = editing_sections[section["key"]]
+        section_rows.append({
+            "key": section["key"],
+            "label": section["label"],
+            "help": section["help"],
+            "current": current,
+            "inherited": bool(editing_team and current == club_sections[section["key"]]),
+            "options": [
+                {"value": state, "label": dict(policy.STATE_CHOICES)[state], "selected": state == current}
+                for state in section["states"]
+            ],
+        })
+
+    # Quién tiene cuenta y quién no: sin esto el panel dice qué se ve pero no quién lo ve.
+    squad = []
+    try:
+        invited_ids = set(
+            UserInvitation.objects.filter(
+                player__isnull=False, is_active=True, accepted_at__isnull=True
+            ).values_list("player_id", flat=True)
+        )
+        for player in (
+            Player.objects.filter(team__workspace_links__workspace=workspace, is_active=True)
+            .select_related("team", "user")
+            .order_by("team__name", "name")
+            .distinct()
+        ):
+            if player.user_id:
+                account = "vinculado"
+            elif player.id in invited_ids:
+                account = "invitado"
+            else:
+                account = "sin cuenta"
+            squad.append({"player": player, "account": account})
+    except Exception:
+        logger.debug("No se pudo listar la plantilla para el panel del portal", exc_info=True)
+
+    return render(request, "accounts/player_portal_settings.html", {
+        "workspace": workspace,
+        "teams": teams,
+        "editing_team": editing_team,
+        "section_rows": section_rows,
+        "team_rows": team_rows,
+        "club_row": club_row,
+        "squad": squad,
         "notice": notice,
         "error": error,
     })
@@ -379,6 +558,24 @@ def player_home_page(request):
     from .models import Player, PlayerObjective
 
     player = Player.objects.filter(user=request.user).select_related("team").first()
+    # "Ver como jugador": el cuerpo técnico abre el portal TAL CUAL lo recibe un jugador
+    # concreto. Sin esto, cerrar la ficha dejaría al club sin forma de comprobar qué ve, y
+    # una política que no se puede mirar no se puede confiar. Es sólo lectura: no marca
+    # avisos como leídos ni permite confirmar asistencia (el formulario se oculta).
+    preview_of = None
+    raw_preview = str(request.GET.get("ver_como") or "").strip()
+    if raw_preview:
+        try:
+            from .permissions import can_access_coach_workspace
+
+            if can_access_coach_workspace(request.user):
+                candidate = Player.objects.select_related("team").filter(id=int(raw_preview)).first()
+                if candidate is not None and _player_belongs_to_request_club(request, candidate):
+                    preview_of = candidate
+                    player = candidate
+        except Exception:
+            logger.debug("No se pudo resolver la previsualización del portal", exc_info=True)
+
     objectives = []
     if player is not None:
         try:
@@ -450,13 +647,176 @@ def player_home_page(request):
         except Exception:
             pass
 
+    workspace = None
+    try:
+        from .workspace_context import get_active_workspace
+
+        workspace = get_active_workspace(request)
+    except Exception:
+        logger.debug("No se pudo resolver el workspace activo del jugador", exc_info=True)
+
+    vis = player_portal_visibility_for_request(
+        player, workspace=workspace, team=getattr(player, "team", None), is_player_view=True
+    )
+
     return render(
         request,
         "accounts/player_home.html",
         {
             "player": player,
-            "objectives": objectives,
+            "vis": vis,
+            "preview_of": preview_of,
+            "objectives": objectives if vis.objectives else [],
             "training_marker": training_marker,
             "display_name": request.user.get_full_name() or request.user.username,
+            **_player_home_zones(request, player, vis),
         },
     )
+
+
+def _player_belongs_to_request_club(request, player):
+    """El staff sólo puede previsualizar el portal de jugadores de SU club."""
+    from .models import WorkspaceTeam
+    from .workspace_context import get_active_workspace
+
+    workspace = get_active_workspace(request)
+    if not workspace or not getattr(player, "team_id", None):
+        return False
+    return WorkspaceTeam.objects.filter(workspace=workspace, team_id=player.team_id).exists()
+
+
+def _player_home_zones(request, player, vis):
+    """
+    Los datos de las cinco zonas del portal.
+
+    Todo lo que sale de aquí pasa por la política (`vis`): la plantilla pinta lo que reciba
+    y no decide nada. Cada bloque va en su propio try porque una zona que falle no puede
+    tumbar el portal entero — el jugador se queda sin esa tarjeta, no sin su espacio.
+    """
+    from django.db.models import Sum
+
+    from .models import (
+        PlayerCommunication,
+        PlayerFine,
+        PlayerNotification,
+        TrainingSession,
+        TrainingSessionAttendance,
+        VideoInboxItem,
+    )
+
+    zones = {
+        "notifications": [],
+        "next_session": None,
+        "next_session_attendance": None,
+        "attendance_status_choices": TrainingSessionAttendance.STATUS_CHOICES,
+        "match_notice": None,
+        "active_injury": None,
+        "inbox_items": [],
+        "inbox_unread": 0,
+        "fines": [],
+        "fines_total": 0,
+        "communications": [],
+    }
+    if player is None:
+        return zones
+
+    # En previsualización, el "usuario" del portal es el del jugador previsualizado: si
+    # usáramos el del staff, el entrenador vería sus propios avisos dentro de la pantalla
+    # del jugador y la previsualización mentiría.
+    user = getattr(player, "user", None) or request.user
+
+    # HOY -------------------------------------------------------------------------------
+    try:
+        notifications = list(
+            PlayerNotification.objects.filter(target_user=user, is_read=False).order_by("-created_at", "-id")[:8]
+        )
+        zones["notifications"] = notifications
+        # Su estado de partido sale del aviso PUBLICADO, no de la convocatoria cruda: así
+        # sólo ve lo que el cuerpo técnico ha decidido publicar, y sólo lo suyo.
+        zones["match_notice"] = next(
+            (n for n in notifications if n.kind in {"convocatoria", "alineacion"}), None
+        )
+    except Exception:
+        logger.debug("No se pudieron cargar los avisos del jugador", exc_info=True)
+
+    try:
+        if getattr(player, "team_id", None):
+            today = timezone.localdate()
+            zones["next_session"] = (
+                TrainingSession.objects.filter(
+                    microcycle__team_id=player.team_id, session_date__gte=today
+                )
+                .exclude(status=TrainingSession.STATUS_CANCELED)
+                .order_by("session_date", "id")
+                .first()
+            )
+            if zones["next_session"] is not None:
+                zones["next_session_attendance"] = TrainingSessionAttendance.objects.filter(
+                    session=zones["next_session"], player=player
+                ).first()
+    except Exception:
+        logger.debug("No se pudo cargar la próxima sesión del jugador", exc_info=True)
+
+    # MI CUERPO -------------------------------------------------------------------------
+    if vis.injuries:
+        try:
+            from .models import PlayerInjuryRecord
+
+            # El parte abierto (sin alta) es el que le importa; si no hay ficha de lesión
+            # pero el jugador está marcado como lesionado, al menos se le dice qué tiene.
+            record = (
+                PlayerInjuryRecord.objects.filter(player=player, return_date__isnull=True)
+                .order_by("-injury_date", "-id")
+                .first()
+            )
+            if record is not None:
+                zones["active_injury"] = {
+                    "name": record.injury,
+                    "zone": record.injury_zone,
+                    "since": record.injury_date,
+                    "expected_return": record.estimated_return_date,
+                }
+            elif str(getattr(player, "injury", "") or "").strip():
+                zones["active_injury"] = {
+                    "name": player.injury,
+                    "zone": getattr(player, "injury_zone", ""),
+                    "since": getattr(player, "injury_date", None),
+                    "expected_return": None,
+                }
+        except Exception:
+            logger.debug("No se pudo cargar la lesión activa del jugador", exc_info=True)
+
+    # MI TRABAJO ------------------------------------------------------------------------
+    if vis.videos:
+        try:
+            inbox = VideoInboxItem.objects.filter(target_user=user).order_by("-created_at", "-id")
+            zones["inbox_items"] = list(inbox[:6])
+            zones["inbox_unread"] = int(inbox.filter(is_read=False).count())
+        except Exception:
+            logger.debug("No se pudo cargar el buzón de vídeo del jugador", exc_info=True)
+
+    # CLUB ------------------------------------------------------------------------------
+    if vis.fines:
+        try:
+            fines = list(PlayerFine.objects.filter(player=player).order_by("-created_at", "-id")[:12])
+            zones["fines"] = fines
+            zones["fines_total"] = int(
+                PlayerFine.objects.filter(player=player).aggregate(total=Sum("amount")).get("total") or 0
+            )
+        except Exception:
+            logger.debug("No se pudieron cargar las multas del jugador", exc_info=True)
+
+    if vis.communication:
+        try:
+            # La misma regla que en la ficha: sólo lo que va dirigido a él y sólo cuando toca.
+            zones["communications"] = list(
+                PlayerCommunication.objects.filter(
+                    player=player, category=PlayerCommunication.CATEGORY_CONVOCATION
+                )
+                .filter(Q(scheduled_for__isnull=True) | Q(scheduled_for__lte=timezone.now()))
+                .order_by("-created_at", "-id")[:8]
+            )
+        except Exception:
+            logger.debug("No se pudieron cargar las comunicaciones del jugador", exc_info=True)
+
+    return zones

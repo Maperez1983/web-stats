@@ -8482,6 +8482,21 @@ def _can_access_player_resource(user, player, primary_team=None):
     return False
 
 
+def _redirect_player_account_to_portal(request):
+    """
+    La ficha es la herramienta del cuerpo técnico; el jugador tiene su portal.
+
+    Durante mucho tiempo el jugador "entraba en su espacio" abriendo la ficha del staff en
+    modo lectura. Eso obligaba a tapar cosas una por una en una pantalla que no se diseñó
+    para él —y cada apartado nuevo nacía visible hasta que alguien se acordaba de taparlo—.
+    Ahora la ficha se cierra y se le lleva a `/mi-espacio/`. El staff conserva la
+    previsualización (`?preview=player`) para ver qué recibe.
+    """
+    if _get_user_role(request.user) == AppUserRole.ROLE_PLAYER and not _is_admin_user(request.user):
+        return redirect("player-home")
+    return None
+
+
 def _forbid_if_no_coach_access(user):
     if _can_access_coach_workspace(user):
         return None
@@ -12804,12 +12819,7 @@ def dashboard_page(request):
             except Exception:
                 return redirect("platform-overview")
     if current_role == AppUserRole.ROLE_PLAYER:
-        primary_team = _get_primary_team_for_request(request)
-        current_player = _resolve_player_for_user(request.user, primary_team)
-        if current_player:
-            return redirect("player-detail", player_id=current_player.id)
-        # Sin ficha vinculada NO se cae al cuadro de mando de la plantilla (datos de sus
-        # compañeros): se le lleva a su espacio, que ya explica que falta vincular la cuenta.
+        # Su sitio es su portal, con o sin ficha vinculada (si falta, el portal lo explica).
         return redirect("player-home")
     # Home de staff: la portada principal es la vista del entrenador.
     staff_roles = {
@@ -18806,6 +18816,21 @@ def invitation_accept_page(request, token):
                     )
                 except Exception:
                     pass
+                # El vínculo con su ficha lo trae la invitación, no una heurística de nombre.
+                # Sólo se escribe si esa ficha no es ya de otra persona.
+                try:
+                    linked_player = invitation.player
+                    if linked_player is not None and not linked_player.user_id:
+                        linked_player.user = invitation.user
+                        linked_player.save(update_fields=["user"])
+                    elif linked_player is not None and linked_player.user_id != invitation.user_id:
+                        logger.warning(
+                            "Invitación %s apunta al jugador %s, que ya está vinculado a otro usuario",
+                            invitation.id,
+                            linked_player.id,
+                        )
+                except Exception:
+                    logger.exception("No se pudo vincular el jugador de la invitación %s", invitation.id)
                 invitation.accepted_at = timezone.now()
                 invitation.is_active = False
                 invitation.save(update_fields=["accepted_at", "is_active"])
@@ -77231,6 +77256,9 @@ def _build_player_match_ratings(primary_team, player, limit=6):
 @login_required
 def player_detail_page(request, player_id):
     try:
+        portal_redirect = _redirect_player_account_to_portal(request)
+        if portal_redirect:
+            return portal_redirect
         forbidden = _forbid_if_workspace_module_disabled(request, "players", label="módulo de jugadores")
         if forbidden:
             return forbidden
@@ -79609,6 +79637,11 @@ def player_season_report_edit_page(request, player_id):
 @login_required
 @pdf_view_guard
 def player_pdf(request, player_id):
+    # El PDF es la ficha entera impresa: sin este guard sería la puerta de atrás que deja
+    # sin efecto todo lo anterior (notas internas, parte médico, valoraciones sin publicar).
+    portal_redirect = _redirect_player_account_to_portal(request)
+    if portal_redirect:
+        return portal_redirect
     forbidden = _forbid_if_workspace_module_disabled(request, "players", label="módulo de jugadores")
     if forbidden:
         return forbidden

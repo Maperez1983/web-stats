@@ -152,19 +152,27 @@ class PlayerCommunicationsVisibilityTests(TestCase):
             scheduled_for=timezone.now() + timezone.timedelta(days=7),
         )
 
-    def _messages_for(self, client):
+    def _staff_client(self):
+        """La ficha es del staff: lo que ve el jugador se comprueba por la previsualización."""
+        staff = get_user_model().objects.create_superuser("preview", "p@example.com", "x")
+        client = Client()
+        client.force_login(staff)
+        return client
+
+    def _messages_for(self, client, preview=False):
         session = client.session
         session["active_workspace_id"] = self.workspace.id
         session["active_team_id"] = self.team.id
         session.save()
-        response = client.get(reverse("player-detail", args=[self.player.id]), HTTP_HOST="localhost")
+        url = reverse("player-detail", args=[self.player.id])
+        if preview:
+            url += "?preview=player"
+        response = client.get(url, HTTP_HOST="localhost")
         self.assertEqual(response.status_code, 200)
         return {item.message for item in response.context["communications"]}
 
     def test_player_only_sees_own_convocations_already_due(self):
-        client = Client()
-        client.force_login(self.user)
-        messages = self._messages_for(client)
+        messages = self._messages_for(self._staff_client(), preview=True)
 
         self.assertIn(self.convocation.message, messages)
         self.assertNotIn(self.internal.message, messages)
@@ -183,13 +191,14 @@ class PlayerCommunicationsVisibilityTests(TestCase):
     def test_club_assistant_widget_is_not_rendered_for_the_player(self):
         # El asistente contesta con datos del club y su endpoint le da 403: para el jugador
         # sólo era un botón roto ("¿quién está lesionado?").
-        client = Client()
-        client.force_login(self.user)
+        client = self._staff_client()
         session = client.session
         session["active_workspace_id"] = self.workspace.id
         session["active_team_id"] = self.team.id
         session.save()
-        response = client.get(reverse("player-detail", args=[self.player.id]), HTTP_HOST="localhost")
+        response = client.get(
+            reverse("player-detail", args=[self.player.id]) + "?preview=player", HTTP_HOST="localhost"
+        )
         self.assertNotContains(response, "global-guard-widget-shell")
 
     def test_staff_preview_of_player_view_is_faithful(self):
@@ -213,6 +222,11 @@ class PlayerLoginNextTests(TestCase):
         self.assertTrue(_is_blocked_next_for_user(self.user, "/players/"))
         self.assertTrue(_is_blocked_next_for_user(self.user, "/players"))
 
+    def test_staff_ficha_is_blocked_as_next(self):
+        # La ficha (y su PDF) son del cuerpo técnico; el jugador tiene su portal.
+        self.assertTrue(_is_blocked_next_for_user(self.user, "/player/3/"))
+        self.assertTrue(_is_blocked_next_for_user(self.user, "/player/3/pdf/"))
+
     def test_player_facing_subroutes_still_allowed(self):
         self.assertFalse(_is_blocked_next_for_user(self.user, "/players/videos/inbox/"))
-        self.assertFalse(_is_blocked_next_for_user(self.user, "/player/3/"))
+        self.assertFalse(_is_blocked_next_for_user(self.user, "/player/3/lesiones/5/"))

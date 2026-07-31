@@ -1,0 +1,175 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Portal del jugador · {{ workspace.name }} · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      /* Sólo la disposición de esta pantalla; el resto lo pone el sistema (`--prod-*`). */
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--prod-text);
+        font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
+        background:
+          radial-gradient(circle at 10% -10%, rgba(56, 189, 248, 0.14), transparent 40%),
+          radial-gradient(circle at 92% 0%, rgba(244, 180, 0, 0.10), transparent 34%),
+          linear-gradient(180deg, #020617 0%, #07111f 52%, #091423 100%);
+      }
+      .shell { width: min(100%, 1100px); margin: 0 auto; padding: clamp(0.85rem, 1.25vw, 1.2rem); }
+      .panel {
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 20px;
+        background: rgba(7, 16, 30, 0.86);
+        padding: clamp(0.9rem, 2.4vw, 1.3rem);
+        margin-bottom: 0.9rem;
+      }
+      .panel h2 { margin: 0 0 0.3rem; font-size: 1.05rem; }
+      .panel .lead { margin: 0 0 1rem; color: var(--prod-muted); font-size: 0.88rem; line-height: 1.5; }
+      .sec { display: grid; grid-template-columns: 1fr auto; gap: 0.7rem 1rem; align-items: start;
+             padding: 0.75rem 0; border-bottom: 1px solid rgba(255, 255, 255, 0.07); }
+      .sec:last-of-type { border-bottom: 0; }
+      .sec strong { font-size: 0.94rem; }
+      .sec .help { display: block; color: var(--prod-muted); font-size: 0.78rem; line-height: 1.45; margin-top: 0.15rem; }
+      .sec select { min-width: 11rem; }
+      .tag { display: inline-block; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.06em;
+             text-transform: uppercase; padding: 0.15rem 0.5rem; border-radius: 999px;
+             border: 1px solid rgba(255, 255, 255, 0.16); color: var(--prod-muted); margin-left: 0.4rem; }
+      .row { display: flex; gap: 0.7rem; align-items: center; justify-content: space-between;
+             padding: 0.6rem 0; border-bottom: 1px solid rgba(255, 255, 255, 0.07); flex-wrap: wrap; }
+      .row:last-child { border-bottom: 0; }
+      .muted { color: var(--prod-muted); font-size: 0.82rem; }
+      .notice { border-radius: 14px; padding: 0.7rem 0.9rem; margin-bottom: 0.9rem; font-size: 0.88rem; }
+      .notice.ok { border: 1px solid rgba(34, 197, 94, 0.4); color: #86efac; }
+      .notice.bad { border: 1px solid rgba(248, 113, 113, 0.4); color: #fca5a5; }
+      @media (max-width: 640px) {
+        .sec { grid-template-columns: 1fr; }
+        .sec select { width: 100%; }
+      }
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <div class="shell">
+      {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True %}
+      {% include 'football/includes/_zone_subnav.html' with zone='equipo' %}
+
+      {% if notice %}<div class="notice ok">{{ notice }}</div>{% endif %}
+      {% if error %}<div class="notice bad">{{ error }}</div>{% endif %}
+
+      <div class="panel">
+        <h2>Portal del jugador · {{ workspace.name }}</h2>
+        <p class="lead">
+          Qué ve cada jugador cuando entra en su espacio. Lo sensible arranca cerrado: se
+          enciende a propósito, no se apaga.
+          {% if editing_team %}
+            Estás editando la regla de <strong>{{ editing_team.name }}</strong>, que se aplica
+            encima de la del club.
+          {% else %}
+            Ésta es la regla del club: vale para todos los equipos salvo que una categoría
+            tenga la suya.
+          {% endif %}
+        </p>
+
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save" />
+          {% if editing_team %}<input type="hidden" name="team_id" value="{{ editing_team.id }}" />{% endif %}
+
+          {% for s in section_rows %}
+            <div class="sec">
+              <div>
+                <strong>{{ s.label }}</strong>
+                {% if s.inherited and editing_team %}<span class="tag">Heredado del club</span>{% endif %}
+                <span class="help">{{ s.help }}</span>
+              </div>
+              <select name="section__{{ s.key }}" aria-label="{{ s.label }}">
+                {% for o in s.options %}
+                  <option value="{{ o.value }}" {% if o.selected %}selected{% endif %}>{{ o.label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          {% endfor %}
+
+          <div style="display:flex;gap:0.6rem;flex-wrap:wrap;margin-top:1rem;">
+            <button class="btn primary" type="submit">Guardar</button>
+            {% if editing_team %}
+              <a class="btn alt" href="{% url 'player-portal-settings' %}">Volver a la regla del club</a>
+            {% endif %}
+          </div>
+        </form>
+
+        {% if editing_team %}
+          <form method="post" style="margin-top:0.8rem;"
+                onsubmit="return confirm('¿Quitar la regla propia de {{ editing_team.name }}? Volverá a seguir la del club.');">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="reset" />
+            <input type="hidden" name="team_id" value="{{ editing_team.id }}" />
+            <button class="btn alt" type="submit">Que siga la regla del club</button>
+          </form>
+        {% endif %}
+      </div>
+
+      {% if not editing_team %}
+      <div class="panel">
+        <h2>Por categoría</h2>
+        <p class="lead">
+          Cada equipo sigue la regla del club salvo que le pongas la suya. Lo que ve un cadete
+          no tiene por qué ser lo que ve el primer equipo.
+        </p>
+        {% for row in team_rows %}
+          <div class="row">
+            <div>
+              <strong>{{ row.team.name }}</strong>
+              <div class="muted">
+                {% if row.diffs %}
+                  {{ row.diffs|length }} cambio{{ row.diffs|pluralize }} respecto al club ·
+                  {% for d in row.diffs %}{{ d.label }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                {% else %}
+                  Igual que el club
+                {% endif %}
+              </div>
+            </div>
+            <a class="btn alt" href="{% url 'player-portal-settings' %}?equipo={{ row.team.id }}">
+              {% if row.diffs %}Editar su regla{% else %}Ponerle regla propia{% endif %}
+            </a>
+          </div>
+        {% empty %}
+          <p class="muted">Este club todavía no tiene equipos.</p>
+        {% endfor %}
+      </div>
+
+      <div class="panel">
+        <h2>Quién tiene cuenta</h2>
+        <p class="lead">
+          Sin cuenta no hay portal. Al invitar se elige a qué jugador pertenece: el vínculo
+          viaja en la invitación, así que nadie acaba en la ficha de otro.
+        </p>
+        {% for item in squad %}
+          <div class="row">
+            <div>
+              <strong>{{ item.player.name }}</strong>
+              <div class="muted">
+                {{ item.player.team.name }}
+                {% if item.player.number %} · #{{ item.player.number }}{% endif %}
+              </div>
+            </div>
+            <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+              <span class="tag">{{ item.account }}</span>
+              <a class="btn alt" href="{% url 'player-home' %}?ver_como={{ item.player.id }}">Ver como él</a>
+            </div>
+          </div>
+        {% empty %}
+          <p class="muted">No hay jugadores activos en este club.</p>
+        {% endfor %}
+        <p style="margin-top:1rem;">
+          <a class="btn primary" href="{% url 'workspace-members' %}">Invitar a un jugador</a>
+        </p>
+      </div>
+      {% endif %}
+    </div>
+  </body>
+</html>

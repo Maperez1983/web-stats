@@ -67,7 +67,10 @@
           <div class="eyebrow">Gestión del club</div>
           <h1>Miembros · {{ workspace.name }}</h1>
         </div>
-        <a class="back" href="/">← Volver a la app</a>
+        <div style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap;">
+          <a class="btn alt" href="{% url 'player-portal-settings' %}">Portal del jugador</a>
+          <a class="back" href="/">← Volver a la app</a>
+        </div>
       </div>
 
       {% if notice %}<div class="notice ok">{{ notice }}</div>{% endif %}
@@ -93,8 +96,40 @@
               {% for key, label, ar, mr in role_presets %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
             </select>
           </div>
+          {# Invitar a un jugador exige decir A QUIÉN: el vínculo con su ficha viaja en la
+             invitación y se escribe al aceptarla, en vez de adivinarse luego por el nombre. #}
+          <div class="field" id="inv_player_field" style="grid-column:1/-1;display:none;">
+            <label for="inv_player">¿Qué jugador de la plantilla es?</label>
+            <select id="inv_player" name="player_id">
+              <option value="">— Elige el jugador —</option>
+              {% for p in linkable_players %}
+                <option value="{{ p.id }}">{{ p.name }}{% if p.number %} · #{{ p.number }}{% endif %}{% if p.team %} · {{ p.team.name }}{% endif %}</option>
+              {% endfor %}
+            </select>
+            {% if not linkable_players %}
+              <p class="muted" style="margin:0.35rem 0 0;font-size:0.78rem;">
+                Todos los jugadores de la plantilla tienen ya una cuenta vinculada.
+              </p>
+            {% endif %}
+          </div>
           <button class="btn primary" type="submit" style="grid-column:1/-1">Enviar invitación</button>
         </form>
+        <script>
+          (function () {
+            var role = document.getElementById('inv_role');
+            var field = document.getElementById('inv_player_field');
+            var select = document.getElementById('inv_player');
+            if (!role || !field || !select) return;
+            var sync = function () {
+              var isPlayer = role.value === 'jugador';
+              field.style.display = isPlayer ? '' : 'none';
+              select.required = isPlayer;
+              if (!isPlayer) select.value = '';
+            };
+            role.addEventListener('change', sync);
+            sync();
+          })();
+        </script>
       </div>
 
       <div class="card">

@@ -4518,6 +4518,14 @@ class AnalystMatchReport(models.Model):
 
 class UserInvitation(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='invitations')
+    # A qué jugador se invita. Antes la invitación no lo sabía y la app tenía que ADIVINAR
+    # después, por parecido de nombre, a quién pertenecía la cuenta — con el riesgo de meter
+    # a una persona en la ficha de otra. Eligiendo el jugador aquí, el vínculo se escribe
+    # solo al aceptar y no hay nada que adivinar.
+    player = models.ForeignKey(
+        'Player', on_delete=models.SET_NULL, null=True, blank=True, related_name='invitations',
+        help_text='Jugador al que se vincula la cuenta al aceptar la invitación.',
+    )
     token = models.CharField(max_length=120, unique=True, db_index=True)
     email = models.EmailField(blank=True)
     expires_at = models.DateTimeField()

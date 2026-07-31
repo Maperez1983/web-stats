@@ -124,15 +124,20 @@ class PortalPolicyFichaTests(TestCase):
             workspace=self.workspace, user=self.user, role=WorkspaceMembership.ROLE_VIEWER
         )
         WorkspaceTeamAccess.objects.create(workspace=self.workspace, team=self.team, user=self.user)
+        # La ficha ya no la abre el jugador: lo que recibe se comprueba por la
+        # previsualización del staff, que está hecha para ser fiel.
+        staff = get_user_model().objects.create_superuser("mister", "m@example.com", "x")
         self.client = Client()
-        self.client.force_login(self.user)
+        self.client.force_login(staff)
         session = self.client.session
         session["active_workspace_id"] = self.workspace.id
         session["active_team_id"] = self.team.id
         session.save()
 
     def _get_ficha(self):
-        return self.client.get(reverse("player-detail", args=[self.player.id]), HTTP_HOST="localhost")
+        return self.client.get(
+            reverse("player-detail", args=[self.player.id]) + "?preview=player", HTTP_HOST="localhost"
+        )
 
     def test_hidden_section_drops_tab_and_content(self):
         PlayerPortalPolicy.objects.create(
@@ -183,13 +188,21 @@ class EvaluationPublishTests(TestCase):
 
         self.client = Client()
         self.client.force_login(self.user)
-        session = self.client.session
-        session["active_workspace_id"] = self.workspace.id
-        session["active_team_id"] = self.team.id
-        session.save()
+        # Para mirar la ficha con los ojos del jugador (que ya no puede abrirla) se usa la
+        # previsualización del staff.
+        self.preview = Client()
+        self.preview.force_login(get_user_model().objects.create_superuser("ojos", "o@example.com", "x"))
+        for client in (self.client, self.preview):
+            session = client.session
+            session["active_workspace_id"] = self.workspace.id
+            session["active_team_id"] = self.team.id
+            session.save()
+
+    def _ficha(self):
+        return reverse("player-detail", args=[self.player.id]) + "?preview=player"
 
     def test_closed_but_unpublished_is_invisible_to_the_player(self):
-        response = self.client.get(reverse("player-detail", args=[self.player.id]), HTTP_HOST="localhost")
+        response = self.preview.get(self._ficha(), HTTP_HOST="localhost")
         self.assertEqual(list(response.context["player_evaluations"]), [])
         # Y tampoco se filtra por lo derivado (la chapa de media sale de aquí).
         self.assertIsNone(response.context["evaluation_summary"]["latest"])
@@ -205,7 +218,7 @@ class EvaluationPublishTests(TestCase):
         self.evaluation.published_to_player = True
         self.evaluation.save(update_fields=["published_to_player"])
 
-        response = self.client.get(reverse("player-detail", args=[self.player.id]), HTTP_HOST="localhost")
+        response = self.preview.get(self._ficha(), HTTP_HOST="localhost")
         self.assertEqual([e.id for e in response.context["player_evaluations"]], [self.evaluation.id])
 
         report = self.client.get(
@@ -248,7 +261,7 @@ class EvaluationPublishTests(TestCase):
         staff_client = Client()
         staff_client.force_login(staff)
         url = reverse("player-detail", args=[self.player.id])
-        ficha = reverse("player-detail", args=[self.player.id])
+        ficha = self._ficha()
         informe = reverse("player-evaluation-report", args=[self.player.id, self.evaluation.id])
 
         # Publicada SIN comentarios.
@@ -260,7 +273,7 @@ class EvaluationPublishTests(TestCase):
         self.evaluation.refresh_from_db()
         self.assertTrue(self.evaluation.published_to_player)
         self.assertFalse(self.evaluation.published_comments_to_player)
-        self.assertNotContains(self.client.get(ficha, HTTP_HOST="localhost"), self.evaluation.coach_comments)
+        self.assertNotContains(self.preview.get(ficha, HTTP_HOST="localhost"), self.evaluation.coach_comments)
         self.assertNotContains(self.client.get(informe, HTTP_HOST="localhost"), self.evaluation.coach_comments)
 
         # Publicada CON comentarios.
@@ -276,7 +289,7 @@ class EvaluationPublishTests(TestCase):
         )
         self.evaluation.refresh_from_db()
         self.assertTrue(self.evaluation.published_comments_to_player)
-        self.assertContains(self.client.get(ficha, HTTP_HOST="localhost"), self.evaluation.coach_comments)
+        self.assertContains(self.preview.get(ficha, HTTP_HOST="localhost"), self.evaluation.coach_comments)
         self.assertContains(self.client.get(informe, HTTP_HOST="localhost"), self.evaluation.coach_comments)
 
     def test_retiring_closes_both_keys(self):

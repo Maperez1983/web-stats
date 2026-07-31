@@ -203,6 +203,7 @@ urlpatterns = [
     path("verify-email/<str:token>/", account_views.verify_email, name="verify_email"),
     # Fase 3: gestión de miembros del club (owner/admin).
     path("coach/miembros/", account_views.workspace_members_page, name="workspace-members"),
+    path("coach/portal-jugador/", account_views.player_portal_settings_page, name="player-portal-settings"),
     path("coach/miembros/<int:membership_id>/accesos/", account_views.workspace_member_access_page, name="workspace-member-access"),
     # Fase 6: espacio propio del jugador.
     path("mi-espacio/", account_views.player_home_page, name="player-home"),

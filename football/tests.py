@@ -13099,8 +13099,9 @@ class PlayerDashboardViewTests(TestCase):
         self.client.force_login(self.user)
         response = self.client.get(reverse('dashboard-home'))
 
+        # La ficha es del cuerpo técnico: el jugador aterriza en su portal.
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response['Location'], reverse('player-detail', args=[self.player.id]))
+        self.assertEqual(response['Location'], reverse('player-home'))
 
     def test_player_dashboard_redirects_player_to_own_space(self):
         # Antes esta prueba fijaba lo contrario (200 + nombre del rival): el jugador veía el
@@ -13114,7 +13115,9 @@ class PlayerDashboardViewTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response['Location'], reverse('player-home'))
 
-    def test_player_detail_allows_player_without_workspace(self):
+    def test_player_detail_sends_the_player_to_the_portal(self):
+        # Antes fijaba que el jugador abría la ficha del staff. Ahora la ficha es la
+        # herramienta del cuerpo técnico y él tiene su portal.
         AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_PLAYER)
         self.player.full_name = 'dashboard user'
         self.player.save(update_fields=['full_name'])
@@ -13122,8 +13125,8 @@ class PlayerDashboardViewTests(TestCase):
 
         response = self.client.get(reverse('player-detail', args=[self.player.id]))
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Hiago')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], reverse('player-home'))
 
     def test_player_dashboard_shows_preview_link_for_staff_roles(self):
         AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)

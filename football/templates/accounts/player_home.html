@@ -3,119 +3,304 @@
 <html lang="es">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Mi espacio · 2J</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Mi espacio · {{ player.name|default:display_name }} · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
     <style>
-      :root{
-        --bg:#07101a; --panel:rgba(14,24,40,.98); --line:rgba(145,161,185,.18);
-        --text:#f5f7fa; --muted:#95a6be; --muted-soft:#c8d3df;
-        --accent:#f4b400; --pitch:#2f7d32;
+      /* Sólo lo específico de esta pantalla. Colores, tipografía, botones y tarjetas los pone
+         el sistema (`--prod-*`): aquí no se redefine nada de eso. Antes esta página se lo
+         inventaba todo y por eso se veía como otra web. El portal se abre en un móvil, así
+         que se diseña a una columna y crece en pantallas grandes. */
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--prod-text);
+        font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
+        background:
+          radial-gradient(circle at 10% -10%, rgba(56, 189, 248, 0.14), transparent 40%),
+          radial-gradient(circle at 92% 0%, rgba(244, 180, 0, 0.10), transparent 34%),
+          linear-gradient(180deg, #020617 0%, #07111f 52%, #091423 100%);
       }
-      *{box-sizing:border-box}
-      body{margin:0;min-height:100vh;color:var(--text);font-family:"Avenir Next","Inter","Segoe UI",sans-serif;
-        background:radial-gradient(circle at top left,rgba(47,125,50,.18),transparent 30%),
-          radial-gradient(circle at top right,rgba(244,180,0,.14),transparent 26%),
-          linear-gradient(180deg,#050b14 0%,#07101a 48%,#09131f 100%);}
-      .wrap{max-width:620px;margin:0 auto;padding:clamp(16px,4vw,36px)}
-      .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.3rem}
-      .top img{width:120px;max-width:44%;height:auto}
-      .top a{color:var(--muted-soft);text-decoration:none;font-size:.8rem}
-      .eyebrow{font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:#fff4cf;font-weight:800}
-      h1{margin:.3rem 0 1rem;font-size:clamp(1.7rem,5vw,2.3rem);letter-spacing:-.03em;line-height:1.05}
-      .card{border:1px solid var(--line);border-radius:20px;background:var(--panel);padding:1.2rem;margin-bottom:1rem}
-      .identity{display:flex;gap:1rem;align-items:center}
-      .avatar{width:60px;height:60px;flex:0 0 60px;border-radius:16px;display:grid;place-items:center;
-        background:linear-gradient(135deg,rgba(244,180,0,.2),rgba(47,125,50,.2));font-size:1.5rem;font-weight:800;color:#fff4cf}
-      .identity h2{margin:0;font-size:1.2rem}
-      .identity p{margin:.15rem 0 0;color:var(--muted);font-size:.9rem}
-      .chips{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.6rem}
-      .chip{font-size:.72rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:.3rem .7rem;
-        border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--muted-soft)}
-      .btn{display:flex;align-items:center;justify-content:center;width:100%;min-height:52px;border-radius:999px;
-        text-decoration:none;font-size:.82rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
-        border:none;background:linear-gradient(135deg,var(--accent),var(--pitch));color:#081320;margin-top:.4rem}
-      .card h3{margin:0 0 .8rem;font-size:1rem}
-      ul.obj{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.6rem}
-      ul.obj li{display:flex;gap:.6rem;align-items:flex-start;font-size:.92rem;line-height:1.45}
-      ul.obj li::before{content:"◎";color:var(--accent);font-weight:800}
-      .obj-status{display:block;font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:.1rem}
-      .empty{color:var(--muted);font-size:.92rem;line-height:1.55}
-      .foot{margin-top:1rem;text-align:center}
-      .foot a{color:var(--muted-soft);text-decoration:none;font-size:.82rem}
+      .shell { width: min(100%, 900px); margin: 0 auto; padding: clamp(0.85rem, 1.25vw, 1.2rem); }
+      .panel {
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 20px;
+        background: rgba(7, 16, 30, 0.86);
+        padding: clamp(0.9rem, 2.4vw, 1.25rem);
+        margin-bottom: 0.9rem;
+      }
+      .panel h2 {
+        margin: 0 0 0.75rem;
+        font-size: 0.78rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--prod-muted);
+      }
+      .identity { display: flex; gap: 0.9rem; align-items: center; }
+      .identity .dorsal {
+        width: 56px; height: 56px; flex: 0 0 56px;
+        border-radius: 16px; display: grid; place-items: center;
+        font-size: 1.4rem; font-weight: 900;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+      }
+      .identity h1 { margin: 0; font-size: clamp(1.25rem, 4.5vw, 1.6rem); letter-spacing: -0.02em; }
+      .identity p { margin: 0.15rem 0 0; color: var(--prod-muted); font-size: 0.86rem; }
+      .zonebar { display: flex; gap: 0.4rem; overflow-x: auto; padding-bottom: 0.3rem; margin-bottom: 0.9rem; }
+      .zonebar a {
+        flex: 0 0 auto; text-decoration: none; font-size: 0.74rem; font-weight: 800;
+        letter-spacing: 0.05em; text-transform: uppercase;
+        padding: 0.45rem 0.85rem; border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        color: var(--prod-muted); background: rgba(255, 255, 255, 0.03);
+      }
+      .marks { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: 0.7rem; }
+      .mark .n { font-size: 1.7rem; font-weight: 900; line-height: 1; }
+      .mark .l { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--prod-muted); margin-top: 0.2rem; }
+      .row { display: flex; gap: 0.6rem; align-items: baseline; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px solid rgba(255, 255, 255, 0.07); }
+      .row:last-child { border-bottom: 0; }
+      .row .when { color: var(--prod-muted); font-size: 0.74rem; white-space: nowrap; }
+      .empty { color: var(--prod-muted); font-size: 0.88rem; line-height: 1.5; margin: 0; }
+      .pill {
+        display: inline-block; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.05em;
+        text-transform: uppercase; padding: 0.25rem 0.6rem; border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.16); color: var(--prod-muted);
+      }
+      .pill.warn { color: #fbbf24; border-color: rgba(251, 191, 36, 0.4); }
+      .attend { display: flex; gap: 0.45rem; flex-wrap: wrap; margin-top: 0.7rem; }
+      .attend button { flex: 1 1 8rem; }
     </style>
   </head>
-  <body>
-    <div class="wrap">
-      <div class="top">
-        <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J" />
-        <a href="{% url 'logout' %}">Cerrar sesión</a>
-      </div>
+  <body class="prod-commercial">
+    <div class="shell">
+      {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True %}
 
-      <div class="eyebrow">Mi espacio</div>
-      <h1>Hola, {{ display_name }}</h1>
+      {% if preview_of %}
+        <div class="panel" style="border-color:rgba(251,191,36,0.45);">
+          <h2 style="color:#fbbf24;">Vista previa · lo que ve {{ preview_of.name }}</h2>
+          <p class="empty">
+            Estás viendo su espacio tal cual lo recibe él, con la política de visibilidad del club
+            aplicada. Es sólo lectura: desde aquí no se confirma asistencia ni se marca nada como leído.
+          </p>
+          <p style="margin:0.7rem 0 0;">
+            <a class="btn alt" href="{% url 'player-detail' preview_of.id %}">Volver a su ficha</a>
+          </p>
+        </div>
+      {% endif %}
 
-      {% if player %}
-      <div class="card">
-        <div class="identity">
-          <div class="avatar">{{ player.number|default:"·" }}</div>
-          <div>
-            <h2>{{ player.name }}</h2>
-            <p>{% if player.team %}{{ player.team.name }}{% endif %}</p>
-            <div class="chips">
-              {% if player.position %}<span class="chip">{{ player.position }}</span>{% endif %}
-              {% if player.number %}<span class="chip">Dorsal {{ player.number }}</span>{% endif %}
+      {% if not player %}
+        <div class="panel">
+          <h2>Mi espacio</h2>
+          <p class="empty">
+            Hola, {{ display_name }}. Tu cuenta todavía no está vinculada a una ficha de jugador.
+            Habla con tu entrenador para que la enlace: entonces verás aquí tus convocatorias,
+            tus entrenamientos y tu seguimiento.
+          </p>
+        </div>
+      {% else %}
+
+        <div class="panel">
+          <div class="identity">
+            <div class="dorsal">{{ player.number|default:"·" }}</div>
+            <div>
+              <h1>{{ player.name }}</h1>
+              <p>
+                {% if player.team %}{{ player.team.display_name|default:player.team.name }}{% endif %}
+                {% if player.position %} · {{ player.position }}{% endif %}
+              </p>
             </div>
           </div>
         </div>
-        <a class="btn" href="{% url 'player-detail' player.id %}">Ver mi ficha completa</a>
-      </div>
 
-      {% if player %}
-      <div class="card">
-        <h3>Mi entreno (temporada)</h3>
-        <div style="display:flex; flex-wrap:wrap; gap:0.9rem;">
-          <div style="min-width:6.5rem;">
-            <div style="font-size:1.9rem; font-weight:900; line-height:1;">{{ training_marker.sessions_attended }}<span style="font-size:0.9rem; opacity:0.6;">/{{ training_marker.sessions_total }}</span></div>
-            <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em; opacity:0.7; margin-top:0.2rem;">Sesiones asistidas</div>
-          </div>
-          <div style="min-width:6.5rem;">
-            <div style="font-size:1.9rem; font-weight:900; line-height:1; color:#34d399;">{{ training_marker.minutes }}′</div>
-            <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em; opacity:0.7; margin-top:0.2rem;">Minutos de entreno</div>
-          </div>
-          <div style="min-width:6.5rem;">
-            <div style="font-size:1.9rem; font-weight:900; line-height:1;">{{ training_marker.sessions_trained }}</div>
-            <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em; opacity:0.7; margin-top:0.2rem;">Sesiones con carga</div>
-          </div>
-        </div>
-        <p style="margin:0.6rem 0 0; font-size:0.74rem; opacity:0.6;">Se actualiza con la asistencia y la participación por tarea que registra tu entrenador.</p>
-      </div>
-      {% endif %}
+        <nav class="zonebar" aria-label="Zonas de mi espacio">
+          <a href="#hoy">Hoy</a>
+          {% if vis.performance %}<a href="#rendimiento">Mi rendimiento</a>{% endif %}
+          {% if vis.physical or vis.injuries %}<a href="#cuerpo">Mi cuerpo</a>{% endif %}
+          {% if vis.objectives or vis.videos %}<a href="#trabajo">Mi trabajo</a>{% endif %}
+          {% if vis.fines or vis.communication %}<a href="#club">Club</a>{% endif %}
+        </nav>
 
-      <div class="card">
-        <h3>Mis objetivos</h3>
-        {% if objectives %}
-        <ul class="obj">
-          {% for o in objectives %}
-          <li><span>{{ o.text }}<span class="obj-status">{{ o.get_status_display|default:o.status }}</span></span></li>
-          {% endfor %}
-        </ul>
-        {% else %}
-        <p class="empty">Aún no tienes objetivos asignados. Tu entrenador puede añadirlos desde tu ficha.</p>
+        <section class="panel" id="hoy">
+          <h2>Hoy</h2>
+
+          {% if match_notice %}
+            <div class="row">
+              <div>
+                <strong>{{ match_notice.title }}</strong>
+                {% if match_notice.message %}<div class="empty">{{ match_notice.message }}</div>{% endif %}
+              </div>
+              <span class="when">{{ match_notice.created_at|date:"d/m H:i" }}</span>
+            </div>
+          {% endif %}
+
+          {% if next_session %}
+            <div class="row">
+              <div>
+                <strong>Próximo entrenamiento</strong>
+                <div class="empty">
+                  {{ next_session.session_date|date:"l d/m" }}
+                  {% if next_session.start_time %} · {{ next_session.start_time|time:"H:i" }}{% endif %}
+                  {% if next_session.focus %} · {{ next_session.focus }}{% endif %}
+                </div>
+              </div>
+              {% if next_session_attendance %}
+                <span class="pill">{{ next_session_attendance.get_status_display }}</span>
+              {% endif %}
+            </div>
+            {% if not preview_of %}
+            <form class="attend" method="post" action="{% url 'player-attendance-mark' %}">
+              {% csrf_token %}
+              <input type="hidden" name="session_id" value="{{ next_session.id }}" />
+              {# Sin `next` el endpoint devuelve al jugador a la ficha del staff. #}
+              <input type="hidden" name="next" value="{% url 'player-home' %}" />
+              {% for value, label in attendance_status_choices %}
+                <button class="btn alt" type="submit" name="status" value="{{ value }}">{{ label }}</button>
+              {% endfor %}
+            </form>
+            {% endif %}
+          {% else %}
+            <p class="empty">No hay ningún entrenamiento programado por ahora.</p>
+          {% endif %}
+
+          {% if notifications %}
+            <h2 style="margin-top:1.1rem;">Avisos</h2>
+            {% for n in notifications %}
+              <div class="row">
+                <div>
+                  <strong>{{ n.title }}</strong>
+                  {% if n.message %}<div class="empty">{{ n.message }}</div>{% endif %}
+                </div>
+                <span class="when">{{ n.created_at|date:"d/m H:i" }}</span>
+              </div>
+            {% endfor %}
+          {% endif %}
+        </section>
+
+        {% if vis.performance %}
+        <section class="panel" id="rendimiento">
+          <h2>Mi rendimiento</h2>
+          <div class="marks">
+            <div class="mark">
+              <div class="n">{{ training_marker.sessions_attended }}<span style="font-size:0.9rem;opacity:0.6;">/{{ training_marker.sessions_total }}</span></div>
+              <div class="l">Sesiones asistidas</div>
+            </div>
+            <div class="mark">
+              <div class="n">{{ training_marker.minutes }}′</div>
+              <div class="l">Minutos de entreno</div>
+            </div>
+            <div class="mark">
+              <div class="n">{{ training_marker.sessions_trained }}</div>
+              <div class="l">Sesiones con carga</div>
+            </div>
+          </div>
+          <p class="empty" style="margin-top:0.7rem;font-size:0.74rem;">
+            Se actualiza con la asistencia y la participación por tarea que registra tu entrenador.
+          </p>
+        </section>
         {% endif %}
-      </div>
 
-      <div class="card">
-        <h3>Disponibilidad y asistencia</h3>
-        <p class="empty">Desde tu ficha puedes confirmar tu asistencia a los entrenamientos y consultar tu seguimiento.</p>
-        <a class="btn" href="{% url 'player-detail' player.id %}">Ir a mi ficha</a>
-      </div>
-      {% else %}
-      <div class="card">
-        <p class="empty">Tu cuenta todavía no está vinculada a una ficha de jugador. Habla con tu entrenador para que la enlace y así podrás ver tu seguimiento, objetivos y confirmar tu asistencia.</p>
-      </div>
+        {% if vis.physical or vis.injuries %}
+        <section class="panel" id="cuerpo">
+          <h2>Mi cuerpo</h2>
+          {% if active_injury %}
+            <div class="row">
+              <div>
+                <strong>{{ active_injury.name }}</strong>
+                {% if active_injury.zone %}<div class="empty">{{ active_injury.zone }}</div>{% endif %}
+                {% if active_injury.since %}<div class="empty">Desde el {{ active_injury.since|date:"d/m/Y" }}</div>{% endif %}
+              </div>
+              {% if active_injury.expected_return %}
+                <span class="pill warn">Alta est. {{ active_injury.expected_return|date:"d/m" }}</span>
+              {% endif %}
+            </div>
+          {% else %}
+            <p class="empty">Sin lesiones activas.</p>
+          {% endif %}
+        </section>
+        {% endif %}
+
+        {% if vis.objectives or vis.videos %}
+        <section class="panel" id="trabajo">
+          <h2>Mi trabajo</h2>
+
+          {% if vis.objectives %}
+            {% if objectives %}
+              {% for o in objectives %}
+                <div class="row">
+                  <div>{{ o.text }}</div>
+                  <span class="when">{{ o.get_status_display }}</span>
+                </div>
+              {% endfor %}
+            {% else %}
+              <p class="empty">Aún no tienes objetivos asignados.</p>
+            {% endif %}
+          {% endif %}
+
+          {% if vis.videos %}
+            <h2 style="margin-top:1.1rem;">
+              Vídeos{% if inbox_unread %} · <span class="pill warn">{{ inbox_unread }} sin ver</span>{% endif %}
+            </h2>
+            {% if inbox_items %}
+              {% for item in inbox_items %}
+                <div class="row">
+                  <div>
+                    <a href="{% url 'player-video-inbox-open' item.id %}">{{ item.title|default:item.get_kind_display }}</a>
+                    {% if item.message %}<div class="empty">{{ item.message }}</div>{% endif %}
+                  </div>
+                  <span class="when">{{ item.created_at|date:"d/m" }}</span>
+                </div>
+              {% endfor %}
+            {% else %}
+              <p class="empty">Tu entrenador todavía no te ha mandado ningún vídeo.</p>
+            {% endif %}
+          {% endif %}
+        </section>
+        {% endif %}
+
+        {% if vis.fines or vis.communication %}
+        <section class="panel" id="club">
+          <h2>Club</h2>
+
+          {% if vis.communication %}
+            {% if communications %}
+              {% for c in communications %}
+                <div class="row">
+                  <div>{{ c.message }}</div>
+                  <span class="when">{{ c.created_at|date:"d/m" }}</span>
+                </div>
+              {% endfor %}
+            {% else %}
+              <p class="empty">No tienes comunicaciones.</p>
+            {% endif %}
+          {% endif %}
+
+          {% if vis.fines %}
+            <h2 style="margin-top:1.1rem;">Multas{% if fines_total %} · {{ fines_total }}€{% endif %}</h2>
+            {% if fines %}
+              {% for f in fines %}
+                <div class="row">
+                  <div>
+                    <strong>{{ f.get_reason_display }}</strong>
+                    {% if f.note %}<div class="empty">{{ f.note }}</div>{% endif %}
+                  </div>
+                  <span class="when">{{ f.amount }}€ · {{ f.created_at|date:"d/m" }}</span>
+                </div>
+              {% endfor %}
+            {% else %}
+              <p class="empty">No tienes multas.</p>
+            {% endif %}
+          {% endif %}
+        </section>
+        {% endif %}
+
       {% endif %}
 
-      <div class="foot"><a href="{% url 'account-page' %}">Mi cuenta</a></div>
+      <div class="panel" style="display:flex;gap:0.6rem;flex-wrap:wrap;justify-content:center;">
+        <a class="btn alt" href="{% url 'account-page' %}">Mi cuenta</a>
+        <a class="btn alt" href="{% url 'logout' %}">Cerrar sesión</a>
+      </div>
     </div>
   </body>
 </html>
