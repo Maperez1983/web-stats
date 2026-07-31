@@ -994,30 +994,9 @@ form.workspace-form {
 	              {% endfor %}
 	            </div>
 	          </section>
-	          <section class="section-shell">
-	            <div class="section-head">
-	              <div>
-	                <div class="section-kicker">Acceso rápido</div>
-	                <h2>Clubes recientes</h2>
-	                <p>Entra en la ficha del club para categorías, equipos y configuración propia.</p>
-	              </div>
-	            </div>
-	            <div class="simple-list">
-	              {% for workspace in club_workspaces|slice:":5" %}
-	              <div class="user-row">
-	                <div>
-	                  <strong>{{ workspace.name }}</strong>
-	                  <div class="user-card-sub">
-	                    {{ workspace.platform_category_count|default:0 }} categorías · {{ workspace.platform_player_count|default:0 }} jugadores
-	                  </div>
-	                </div>
-	                <a class="link-btn" href="{% url 'platform-workspace-detail' workspace.id %}">Configurar</a>
-	              </div>
-	              {% empty %}
-	              <div class="user-row"><div>Sin clubes todavía.</div></div>
-	              {% endfor %}
-	            </div>
-	          </section>
+	          {% comment %}Aqui habia un "Clubes recientes" que listaba los mismos clubes que la
+	          pestana Clubes, con menos datos y el mismo boton: la misma lista dos veces en la
+	          misma pantalla. El atajo solo tendria sentido con muchos clubes.{% endcomment %}
 	        </div>
 
 	        {% elif active_tab == 'configuration' %}
