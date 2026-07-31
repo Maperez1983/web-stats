@@ -59017,10 +59017,8 @@ def session_task_detail_page(request, task_id):
                 preview_url_for_pdf = ""
             if not preview_url_for_pdf:
                 preview_url_for_pdf = _file_field_as_data_url(task.task_preview_image)
-        # Perf: construir SOLO el formato activo. El template presenta uno (UEFA o Club) y el
-        # cambio de formato recarga la pagina; antes se construian AMBOS contextos PDF en cada
-        # visita -> doble coste (procesar el canvas 2x), causaba 8s / 502 en tareas pesadas.
         _active_fmt = active_task_format_tab if active_task_format_tab in ("uefa", "club") else "uefa"
+        _other_fmt = "club" if _active_fmt == "uefa" else "uefa"
         task_presentation_pdf_context_by_format[_active_fmt] = _build_task_pdf_context(
             request=request,
             team=team_obj_for_pdf,
@@ -59036,6 +59034,28 @@ def session_task_detail_page(request, task_id):
             # Solo en modo edicion/PDF (layout completo) permitimos el render vivo.
             allow_live_canvas_render=_wants_full_layout,
         )
+        # El OTRO formato tambien, para que cambiar Club<->UEFA sea instantaneo en vez de recargar
+        # la pagina. Aqui habia un comentario diciendo que construir los dos costaba 8 s y provocaba
+        # 502 en tareas pesadas; eso era cuando la presentacion re-renderizaba el canvas. Medido hoy
+        # en tareas reales (endpoint diag-formato): 7,6 - 59 ms el segundo. Va siempre con
+        # allow_live_canvas_render=False, que es de donde salia aquel coste.
+        try:
+            task_presentation_pdf_context_by_format[_other_fmt] = _build_task_pdf_context(
+                request=request,
+                team=team_obj_for_pdf,
+                session=session_obj_for_pdf,
+                microcycle=microcycle_obj_for_pdf,
+                task=task,
+                tactical_layout=tactical_layout_for_pdf,
+                pdf_style=_other_fmt,
+                preview_url=preview_url_for_pdf,
+                one_page=False,
+                allow_live_canvas_render=False,
+            )
+        except Exception:
+            # Que falle el formato de repuesto NO puede tumbar la ficha: se queda vacio y la
+            # plantilla no pinta ese panel (se vuelve al cambio por recarga, que sigue existiendo).
+            task_presentation_pdf_context_by_format[_other_fmt] = {}
     except Exception:
         task_presentation_pdf_context_by_format = {"uefa": {}, "club": {}}
 

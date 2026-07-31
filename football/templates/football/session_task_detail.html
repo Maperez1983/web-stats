@@ -1496,12 +1496,18 @@
         {% if presentation_inline_edit %}
         <p class="meta" style="margin:0.3rem 0 0.55rem;">Estás <strong>editando la ficha Club</strong>. Cambia los campos directamente y pulsa <strong>Guardar cambios</strong>. El formato UEFA se genera solo.</p>
         {% endif %}
-        {% if active_task_format_tab == 'club' %}
-          <div class="task-detail-format-panel is-active" data-task-format-panel="club">
+        {% comment %}Se pintan LOS DOS formatos y se ensena el activo, para que el cambio sea
+        instantaneo. OJO con el guard: un panel cuyo contexto venga VACIO revienta la pagina, no se
+        queda en blanco — la plantilla resuelve `pc.space_label` como ARGUMENTO de filtro, y ahi
+        Django si lanza VariableDoesNotExist en vez de tragarselo. Asi que cada panel solo se pinta
+        si su contexto existe; si falta, el boton recarga la pagina como antes.{% endcomment %}
+        {% if task_presentation_pdf_context_by_format.club %}
+          <div class="task-detail-format-panel{% if active_task_format_tab == 'club' %} is-active{% endif %}" data-task-format-panel="club"{% if active_task_format_tab != 'club' %} hidden{% endif %}>
             {% include 'football/includes/session_task_presentation_layout.html' with presentation_format='Club' presentation_context=task_presentation_pdf_context_by_format.club presentation_editable=presentation_inline_edit %}
           </div>
-        {% else %}
-          <div class="task-detail-format-panel is-active" data-task-format-panel="uefa">
+        {% endif %}
+        {% if task_presentation_pdf_context_by_format.uefa %}
+          <div class="task-detail-format-panel{% if active_task_format_tab != 'club' %} is-active{% endif %}" data-task-format-panel="uefa"{% if active_task_format_tab == 'club' %} hidden{% endif %}>
             {% include 'football/includes/session_task_presentation_layout.html' with presentation_format='UEFA' presentation_context=task_presentation_pdf_context_by_format.uefa %}
           </div>
         {% endif %}
@@ -3348,7 +3354,12 @@
             editTab: activeTaskTab === 'edit' ? activeTaskEditTab : '',
             format: nextFormatTab,
           });
-          if (activeTaskTab === 'presentation' && previousFormatTab !== nextFormatTab) {
+          // Si el panel del otro formato SI esta pintado, ya se ha intercambiado arriba: no se
+          // recarga nada. La recarga queda de respaldo para cuando ese panel no se pudo construir.
+          const targetPanelExists = formatTabPanels.some(
+            (panel) => panel.dataset.taskFormatPanel === nextFormatTab
+          );
+          if (activeTaskTab === 'presentation' && previousFormatTab !== nextFormatTab && !targetPanelExists) {
             try {
               const url = new URL(window.location.href);
               url.searchParams.set('format', nextFormatTab);
