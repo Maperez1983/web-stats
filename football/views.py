@@ -47958,6 +47958,7 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
             "update_microcycle_plan",
             "attach_session_to_microcycle",
             "detach_session_from_microcycle",
+            "group_standalone_sessions_by_week",
             "clone_microcycle_plan",
         }:
             return "library", "microcycles"
@@ -49503,6 +49504,48 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
                         quote(feedback or "Sesión creada."),
                     )
                 )
+
+            elif planner_action == "group_standalone_sessions_by_week":
+                # Reparte de una vez las sesiones que estan en la bandeja de sueltas al microciclo
+                # de SU semana, creandolo si no existe. Es una accion explicita y no algo que pase
+                # solo: mueve sesiones ya guardadas, y eso lo decide el entrenador.
+                inbox = _get_or_create_inbox_microcycle(primary_team)
+                if not inbox:
+                    raise ValueError("No se pudo leer la bandeja de sesiones sueltas.")
+                pending = list(
+                    TrainingSession.objects.filter(microcycle=inbox).order_by("session_date", "id")
+                )
+                moved = 0
+                skipped = 0
+                for sess in pending:
+                    target = _resolve_week_microcycle_for_session(primary_team, sess.session_date)
+                    if not target or _is_inbox_microcycle(target) or int(target.id) == int(inbox.id):
+                        skipped += 1
+                        continue
+                    # unique(microciclo, fecha, nombre en minusculas): si ya hay una igual en esa
+                    # semana, se deja donde esta en vez de reventar el guardado.
+                    clash = (
+                        TrainingSession.objects.filter(
+                            microcycle=target, session_date=sess.session_date, focus__iexact=str(sess.focus or "")
+                        )
+                        .exclude(id=sess.id)
+                        .exists()
+                    )
+                    if clash:
+                        skipped += 1
+                        continue
+                    sess.microcycle = target
+                    sess.save(update_fields=["microcycle"])
+                    moved += 1
+                if moved and skipped:
+                    feedback = f"{moved} sesión(es) agrupadas por semana. {skipped} se quedaron sueltas (ya había otra igual esa semana)."
+                elif moved:
+                    feedback = f"{moved} sesión(es) agrupadas en el microciclo de su semana."
+                elif skipped:
+                    feedback = f"No se pudo agrupar ninguna: {skipped} chocaban con una sesión igual de esa semana."
+                else:
+                    feedback = "No hay sesiones sueltas que agrupar."
+                active_tab = "microcycles"
 
             elif planner_action == "attach_session_to_microcycle":
                 microcycle_id = _parse_int(request.POST.get("attach_microcycle_id"))

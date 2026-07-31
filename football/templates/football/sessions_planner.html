@@ -2197,6 +2197,26 @@
       </section>
       {% endif %}
 
+      {% comment %}Aviso de sesiones sueltas. Aparece SOLO si las hay, y en cualquier pestana: una
+      sesion en la bandeja no sale ni en el planificador ni en el informe de microciclo, asi que
+      conviene que se vea que estan ahi y se puedan colocar de una vez.{% endcomment %}
+      {% if standalone_sessions %}
+      <section class="panel" style="border-color: rgba(244,180,0,.38);">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:0.9rem; flex-wrap:wrap;">
+          <div>
+            <strong>{{ standalone_sessions|length }} sesión{{ standalone_sessions|length|pluralize:"es" }} sin semana asignada</strong>
+            <p class="meta" style="margin:0.2rem 0 0;">No aparecen en el mapa de planificación ni en el informe de microciclo. Agruparlas las mete en el microciclo de su semana, creándolo si hace falta.</p>
+          </div>
+          <form method="post" style="margin:0;">
+            {% csrf_token %}
+            <input type="hidden" name="planner_action" value="group_standalone_sessions_by_week" />
+            <input type="hidden" name="team" value="{{ primary_team_id }}" />
+            <button type="submit" class="button primary">Agrupar por semana</button>
+          </form>
+        </div>
+      </section>
+      {% endif %}
+
 			      <div class="tabs" id="planner-tabs">
 			        <a class="tab-link {% if main_tab == 'create' %}is-active{% endif %}" href="?tab=create&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Crear</a>
 				        <a class="tab-link {% if main_tab == 'library' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_source={{ library_source_tab|default:'created' }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Biblioteca</a>
