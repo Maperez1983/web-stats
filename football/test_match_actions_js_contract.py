@@ -50,3 +50,6 @@ class MatchActionsJavascriptContractTests(SimpleTestCase):
             submit_block,
             "El submit no debe pisar el minuto manual con el cronómetro.",
         )
+
+        self.assertIn("fieldPopup.setAttribute('aria-hidden', 'false');", live_source)
+        self.assertIn("fieldPopup.setAttribute('aria-hidden', 'true');", live_source)

@@ -3465,7 +3465,12 @@
 	                  var zoneInput = form.querySelector('input[name=\"zone\"]');
 	                  var teamOnlyInput = form.querySelector('input[name=\"team_only\"]');
 	                  var closeBtns = popup ? popup.querySelectorAll('.close-popup') : [];
-	                  var hidePopup = function () { try { removeClass(popup, 'is-visible'); } catch (e) {} };
+	                  var hidePopup = function () {
+	                    try {
+	                      removeClass(popup, 'is-visible');
+	                      if (popup) popup.setAttribute('aria-hidden', 'true');
+	                    } catch (e) {}
+	                  };
 	                  for (var cb = 0; cb < closeBtns.length; cb++) {
 	                    closeBtns[cb].addEventListener('click', function (ev) { try { ev.preventDefault(); } catch (e) {} hidePopup(); });
 	                  }
@@ -4726,7 +4731,10 @@
 		          const form = document.getElementById('field-popup-form');
 		          if (!surface || !popup || !form) return;
 	          const hidePopup = () => {
-	            try { popup.classList.remove('is-visible'); } catch (e) {}
+	            try {
+	              popup.classList.remove('is-visible');
+	              popup.setAttribute('aria-hidden', 'true');
+	            } catch (e) {}
 	          };
 	          // Permite cerrar el popup incluso si el JS principal no ha cargado.
 	          try {
@@ -4764,9 +4772,10 @@
 		            const left = clamp(x - w / 2, 8, rect.width - w - 8);
 		            let top = y - h - 12;
 		            if (top < 8) top = clamp(y + 12, 8, rect.height - h - 8);
-		            popup.style.left = `${offsetX + left}px`;
-		            popup.style.top = `${offsetY + top}px`;
-		            popup.classList.add('is-visible');
+	            popup.style.left = `${offsetX + left}px`;
+	            popup.style.top = `${offsetY + top}px`;
+	            popup.classList.add('is-visible');
+	            popup.setAttribute('aria-hidden', 'false');
 		          };
           let lastAt = 0;
           const handleTap = (clientX, clientY, ev) => {

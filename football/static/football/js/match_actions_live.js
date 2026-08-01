@@ -615,7 +615,10 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       });
     } catch (e) {}
     try {
-      if (fieldPopup) fieldPopup.classList.remove('is-visible');
+      if (fieldPopup) {
+        fieldPopup.classList.remove('is-visible');
+        fieldPopup.setAttribute('aria-hidden', 'true');
+      }
       hideQuickHistoryModal?.();
     } catch (e) {}
     try {
@@ -1052,12 +1055,14 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     fieldPopup.style.left = `${offsetX + left}px`;
     fieldPopup.style.top = `${offsetY + top}px`;
     fieldPopup.classList.add('is-visible');
+    fieldPopup.setAttribute('aria-hidden', 'false');
     // UX iPad: no bloquear el flujo obligando a elegir "Resultado" cada vez.
     ensureResultSelected(String(actionInput?.value || '').trim());
     syncAutoFields();
   };
   const hidePopup = () => {
     fieldPopup.classList.remove('is-visible');
+    fieldPopup.setAttribute('aria-hidden', 'true');
     setPopupEditMode(false);
   };
   popupCloseButtons.forEach((btn) => btn.addEventListener('click', hidePopup));
