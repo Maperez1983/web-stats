@@ -64,7 +64,12 @@
   const pitchImage = (pitch) => {
     const preset = String(pitch?.preset || 'full_pitch');
     const orientation = String(pitch?.orientation || 'landscape');
-    const grass = String(pitch?.grass || 'flat_2d');
+    /* Un SVG cargado como <img> NO puede traerse imagenes externas, y el cesped "2D plano" es
+       justo eso: una foto referenciada dentro del SVG. Por eso salia el campo en blanco. Para
+       rasterizar existe `flat_export`: el mismo verde a franjas dibujado en SVG puro. Es el mismo
+       cambio que ya se hizo para la miniatura de la ficha y el PDF. */
+    const grassRaw = String(pitch?.grass || 'flat_2d');
+    const grass = grassRaw === 'flat_2d' ? 'flat_export' : grassRaw;
     const key = `${preset}|${orientation}|${grass}`;
     if (pitchImageCache.has(key)) return pitchImageCache.get(key);
     let img = null;
