@@ -21,3 +21,12 @@ class MatchActionsJavascriptContractTests(SimpleTestCase):
             source.index(first_use),
             "convocationCards debe existir antes de rellenar MVP y capitán.",
         )
+
+    def test_lineup_loops_ignore_formation_and_metadata(self):
+        source = MATCH_ACTIONS_JS.read_text(encoding="utf-8")
+
+        self.assertNotIn(
+            "Object.keys(lineupState)",
+            source,
+            "El payload del once contiene formation y _meta; solo se recorren sus secciones de jugadores.",
+        )

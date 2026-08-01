@@ -2703,8 +2703,8 @@ const urlWithMatchId = (baseUrl) => {
       };
       const refreshCardAssignments = () => {
         const assigned = new Map();
-        Object.keys(lineupState).forEach((sectionKey) => {
-          lineupState[sectionKey].forEach((player) => {
+        Object.keys(lineupSections).forEach((sectionKey) => {
+          (lineupState[sectionKey] || []).forEach((player) => {
             if (player?.id) {
               assigned.set(String(player.id), sectionKey);
             }
@@ -3158,7 +3158,7 @@ const urlWithMatchId = (baseUrl) => {
 
 	      const removeLineupEntry = (playerId) => {
 	        let changed = false;
-	        Object.keys(lineupState).forEach((sectionKey) => {
+	        Object.keys(lineupSections).forEach((sectionKey) => {
 	          const originalLength = lineupState[sectionKey].length;
 	          lineupState[sectionKey] = lineupState[sectionKey].filter((entry) => entry.id !== playerId);
 	          if (lineupState[sectionKey].length !== originalLength) {
@@ -3176,7 +3176,7 @@ const urlWithMatchId = (baseUrl) => {
 	        if (!playerId) return null;
 	        const id = String(playerId);
 	        return (
-	          Object.keys(lineupState).find((sectionKey) =>
+	          Object.keys(lineupSections).find((sectionKey) =>
 	            (lineupState[sectionKey] || []).some((entry) => String(entry.id) === id),
 	          ) || null
 	        );
