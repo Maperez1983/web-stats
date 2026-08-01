@@ -13687,6 +13687,150 @@ def _onboarding_guardar_imagenes(request, *, workspace, primary_team, cover_prev
     return {"error": error, "success": success, "cover_preview_url": cover_preview_url, "crest_preview_url": crest_preview_url}
 
 
+def _onboarding_guardar_equipaciones(request, *, workspace, primary_team, kit_form, teams, defaults, error, success):
+    """Colores de las equipaciones (1a, 2a, 3a y las tres de portero)."""
+    try:
+        if not workspace or not primary_team:
+            raise ValueError("Primero crea el club y selecciona un equipo.")
+
+        def _clean_hex(value, fallback):
+            raw = str(value or "").strip()
+            if not raw:
+                return fallback
+            if raw.startswith("#") and len(raw) == 7:
+                return raw.lower()
+            return fallback
+
+        kit_payload = {
+            "home_main": _clean_hex(request.POST.get("kit_home_main"), kit_form.get("home_main") or "#06814d"),
+            "home_trim": _clean_hex(request.POST.get("kit_home_trim"), kit_form.get("home_trim") or "#ffffff"),
+            "away_main": _clean_hex(request.POST.get("kit_away_main"), kit_form.get("away_main") or "#0b1220"),
+            "away_trim": _clean_hex(request.POST.get("kit_away_trim"), kit_form.get("away_trim") or "#f4b400"),
+            "gk_main": _clean_hex(request.POST.get("kit_gk_main"), kit_form.get("gk_main") or "#7c2d12"),
+            "gk_trim": _clean_hex(request.POST.get("kit_gk_trim"), kit_form.get("gk_trim") or "#ffffff"),
+        }
+        use_as_default = str(request.POST.get("kit_use_as_default") or "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+            "si",
+        }
+
+        pref = WorkspacePreference.objects.filter(workspace=workspace, key="kit_theme:v1").first()
+        raw = pref.value if pref and isinstance(pref.value, dict) else {}
+        raw = dict(raw) if isinstance(raw, dict) else {}
+        default = raw.get("default") if isinstance(raw.get("default"), dict) else {}
+        teams = raw.get("teams") if isinstance(raw.get("teams"), dict) else {}
+        default = dict(default)
+        teams = dict(teams)
+        if use_as_default:
+            default.update(kit_payload)
+        teams[str(int(primary_team.id))] = kit_payload
+        raw["default"] = default
+        raw["teams"] = teams
+        WorkspacePreference.objects.update_or_create(
+            workspace=workspace,
+            key="kit_theme:v1",
+            defaults={"value": raw},
+        )
+        kit_form.update(kit_payload)
+        success = "Equipaciones guardadas."
+    except Exception as exc:
+        error = str(exc) or "No se pudo guardar la equipación."
+
+    return {"error": error, "success": success, "teams": teams, "workspace": workspace, "defaults": defaults}
+
+
+def _onboarding_importar_plantilla(request, *, primary_team, competition_context, provider, preferente_url, replace_roster, defaults, error, success):
+    """Importa la plantilla desde la fuente configurada (Universo o laPreferente)."""
+    uploaded_excel = request.FILES.get("roster_excel")
+    if uploaded_excel:
+        roster_rows = _parse_roster_excel(uploaded_excel)
+        created_players, updated_players, deactivated = _import_players_from_roster_rows(
+            primary_team,
+            roster_rows,
+            replace_existing=replace_roster,
+        )
+        success = (
+            "Plantilla importada desde Excel. "
+            f"Creados: {created_players}, actualizados: {updated_players}"
+            + (f", desactivados: {deactivated}." if deactivated else ".")
+        )
+    else:
+        roster_provider = None
+        roster_rows = []
+        roster_source_url = ""
+        roster_error = ""
+        team_code = (
+            str(getattr(competition_context, "external_team_key", "") or "").strip()
+            if competition_context
+            else ""
+        )
+        if provider == WorkspaceCompetitionContext.PROVIDER_UNIVERSO and team_code:
+            try:
+                roster_rows = fetch_universo_team_roster(team_code)
+                roster_provider = TeamRosterSnapshot.PROVIDER_UNIVERSO
+            except Exception as exc:
+                roster_error = str(exc) or "No se pudo consultar la plantilla en Universo."
+        if not roster_rows:
+            team_url = str(getattr(primary_team, "preferente_url", "") or "").strip()
+            if not team_url:
+                team_url = find_preferente_team_url(primary_team.name)
+                if team_url:
+                    primary_team.preferente_url = team_url
+                    primary_team.save(update_fields=["preferente_url"])
+            if team_url:
+                roster_source_url = team_url
+                try:
+                    roster_rows = fetch_preferente_team_roster(team_url)
+                    roster_provider = TeamRosterSnapshot.PROVIDER_PREFERENTE
+                except Exception as exc:
+                    roster_error = str(exc) or "No se pudo consultar La Preferente."
+        if not roster_rows:
+            if roster_error:
+                raise ValueError(roster_error)
+            raise ValueError(
+                "No se pudo importar la plantilla: falta Excel, código de Universo o URL de La Preferente."
+            )
+        created_players, updated_players, deactivated = _import_players_from_roster_rows(
+            primary_team,
+            roster_rows,
+            replace_existing=replace_roster,
+        )
+        if roster_provider:
+            TeamRosterSnapshot.objects.update_or_create(
+                team=primary_team,
+                provider=roster_provider,
+                defaults={
+                    "roster_payload": roster_rows,
+                    "source_url": roster_source_url,
+                    "error": "",
+                },
+            )
+        success = "Plantilla importada. " f"Creados: {created_players}, actualizados: {updated_players}" + (
+            f", desactivados: {deactivated}." if deactivated else "."
+        )
+
+    return {"defaults": defaults, "provider": provider, "success": success, "error": error}
+
+
+def _onboarding_datos_demo(request, *, workspace, error, success):
+    """Genera el juego de datos de ejemplo del club (jugadores, partido, eventos)."""
+    created = _bootstrap_demo_club_workspace(workspace)
+    success = (
+        "Datos demo cargados. "
+        f"Jugadores: {created.get('players', 0)}, "
+        f"partidos: {created.get('matches', 0)}, "
+        f"eventos: {created.get('events', 0)}, "
+        f"sesiones: {created.get('sessions', 0)}, "
+        f"tareas: {created.get('tasks', 0)}, "
+        f"estadísticas: {created.get('stats', 0)}."
+    )
+
+    return {"error": error, "success": success}
+
+
 def club_onboarding_page(request):
     redirect_response = _redirect_to_app_host_if_landing(request, path="/onboarding/")
     if redirect_response:
@@ -14027,55 +14171,12 @@ def club_onboarding_page(request):
             crest_preview_url = _r["crest_preview_url"]
             return _render_onboarding_page(status=200)
         if action == "kit_theme":
-            try:
-                if not workspace or not primary_team:
-                    raise ValueError("Primero crea el club y selecciona un equipo.")
-
-                def _clean_hex(value, fallback):
-                    raw = str(value or "").strip()
-                    if not raw:
-                        return fallback
-                    if raw.startswith("#") and len(raw) == 7:
-                        return raw.lower()
-                    return fallback
-
-                kit_payload = {
-                    "home_main": _clean_hex(request.POST.get("kit_home_main"), kit_form.get("home_main") or "#06814d"),
-                    "home_trim": _clean_hex(request.POST.get("kit_home_trim"), kit_form.get("home_trim") or "#ffffff"),
-                    "away_main": _clean_hex(request.POST.get("kit_away_main"), kit_form.get("away_main") or "#0b1220"),
-                    "away_trim": _clean_hex(request.POST.get("kit_away_trim"), kit_form.get("away_trim") or "#f4b400"),
-                    "gk_main": _clean_hex(request.POST.get("kit_gk_main"), kit_form.get("gk_main") or "#7c2d12"),
-                    "gk_trim": _clean_hex(request.POST.get("kit_gk_trim"), kit_form.get("gk_trim") or "#ffffff"),
-                }
-                use_as_default = str(request.POST.get("kit_use_as_default") or "").strip().lower() in {
-                    "1",
-                    "true",
-                    "yes",
-                    "on",
-                    "si",
-                }
-
-                pref = WorkspacePreference.objects.filter(workspace=workspace, key="kit_theme:v1").first()
-                raw = pref.value if pref and isinstance(pref.value, dict) else {}
-                raw = dict(raw) if isinstance(raw, dict) else {}
-                default = raw.get("default") if isinstance(raw.get("default"), dict) else {}
-                teams = raw.get("teams") if isinstance(raw.get("teams"), dict) else {}
-                default = dict(default)
-                teams = dict(teams)
-                if use_as_default:
-                    default.update(kit_payload)
-                teams[str(int(primary_team.id))] = kit_payload
-                raw["default"] = default
-                raw["teams"] = teams
-                WorkspacePreference.objects.update_or_create(
-                    workspace=workspace,
-                    key="kit_theme:v1",
-                    defaults={"value": raw},
-                )
-                kit_form.update(kit_payload)
-                success = "Equipaciones guardadas."
-            except Exception as exc:
-                error = str(exc) or "No se pudo guardar la equipación."
+            _r = _onboarding_guardar_equipaciones(
+                request, workspace=workspace, primary_team=primary_team, kit_form=kit_form,
+                teams=teams, defaults=defaults, error=error, success=success,
+            )
+            error, success = _r["error"], _r["success"]
+            teams, workspace, defaults = _r["teams"], _r["workspace"], _r["defaults"]
             return _render_onboarding_page(status=200)
         workspace_name = _sanitize_nombre_propio(
             (request.POST.get("workspace_name") or "").strip(), multiline=False, max_len=160
@@ -14538,84 +14639,16 @@ def club_onboarding_page(request):
                     raise ValueError(sync_error)
                 success = "Configuración guardada y sincronización completada."
             elif action == "import_roster":
-                uploaded_excel = request.FILES.get("roster_excel")
-                if uploaded_excel:
-                    roster_rows = _parse_roster_excel(uploaded_excel)
-                    created_players, updated_players, deactivated = _import_players_from_roster_rows(
-                        primary_team,
-                        roster_rows,
-                        replace_existing=replace_roster,
-                    )
-                    success = (
-                        "Plantilla importada desde Excel. "
-                        f"Creados: {created_players}, actualizados: {updated_players}"
-                        + (f", desactivados: {deactivated}." if deactivated else ".")
-                    )
-                else:
-                    roster_provider = None
-                    roster_rows = []
-                    roster_source_url = ""
-                    roster_error = ""
-                    team_code = (
-                        str(getattr(competition_context, "external_team_key", "") or "").strip()
-                        if competition_context
-                        else ""
-                    )
-                    if provider == WorkspaceCompetitionContext.PROVIDER_UNIVERSO and team_code:
-                        try:
-                            roster_rows = fetch_universo_team_roster(team_code)
-                            roster_provider = TeamRosterSnapshot.PROVIDER_UNIVERSO
-                        except Exception as exc:
-                            roster_error = str(exc) or "No se pudo consultar la plantilla en Universo."
-                    if not roster_rows:
-                        team_url = str(getattr(primary_team, "preferente_url", "") or "").strip()
-                        if not team_url:
-                            team_url = find_preferente_team_url(primary_team.name)
-                            if team_url:
-                                primary_team.preferente_url = team_url
-                                primary_team.save(update_fields=["preferente_url"])
-                        if team_url:
-                            roster_source_url = team_url
-                            try:
-                                roster_rows = fetch_preferente_team_roster(team_url)
-                                roster_provider = TeamRosterSnapshot.PROVIDER_PREFERENTE
-                            except Exception as exc:
-                                roster_error = str(exc) or "No se pudo consultar La Preferente."
-                    if not roster_rows:
-                        if roster_error:
-                            raise ValueError(roster_error)
-                        raise ValueError(
-                            "No se pudo importar la plantilla: falta Excel, código de Universo o URL de La Preferente."
-                        )
-                    created_players, updated_players, deactivated = _import_players_from_roster_rows(
-                        primary_team,
-                        roster_rows,
-                        replace_existing=replace_roster,
-                    )
-                    if roster_provider:
-                        TeamRosterSnapshot.objects.update_or_create(
-                            team=primary_team,
-                            provider=roster_provider,
-                            defaults={
-                                "roster_payload": roster_rows,
-                                "source_url": roster_source_url,
-                                "error": "",
-                            },
-                        )
-                    success = "Plantilla importada. " f"Creados: {created_players}, actualizados: {updated_players}" + (
-                        f", desactivados: {deactivated}." if deactivated else "."
-                    )
-            elif action == "seed_demo":
-                created = _bootstrap_demo_club_workspace(workspace)
-                success = (
-                    "Datos demo cargados. "
-                    f"Jugadores: {created.get('players', 0)}, "
-                    f"partidos: {created.get('matches', 0)}, "
-                    f"eventos: {created.get('events', 0)}, "
-                    f"sesiones: {created.get('sessions', 0)}, "
-                    f"tareas: {created.get('tasks', 0)}, "
-                    f"estadísticas: {created.get('stats', 0)}."
+                _r = _onboarding_importar_plantilla(
+                    request, primary_team=primary_team, competition_context=competition_context,
+                    provider=provider, preferente_url=preferente_url, replace_roster=replace_roster,
+                    defaults=defaults, error=error, success=success,
                 )
+                defaults, provider = _r["defaults"], _r["provider"]
+                success, error = _r["success"], _r["error"]
+            elif action == "seed_demo":
+                _r = _onboarding_datos_demo(request, workspace=workspace, error=error, success=success)
+                error, success = _r["error"], _r["success"]
             else:
                 success = "Configuración guardada."
         except ValueError as exc:
