@@ -605,7 +605,9 @@ body.ed-chrome.edc-modebar-on .task-mode-tabs { display: none !important; }
    SOLO cuando el rail de categorias se ha construido (body.edc-rail-cats).
    Si el JS fallara, no hay clase y el rail antiguo sigue visible (degradacion segura).
    ============================================================ */
-body.ed-chrome.edc-rail-cats .edc-rail .edc-tool[data-edc-tool]:not([data-edc-tool="select"]) { display: none !important; }
+/* Selección y Ruta no son categorías de material: son MODOS de trabajo con el ratón, así que
+   se quedan en el carril. El resto de herramientas sueltas sí las sustituyen las categorías. */
+body.ed-chrome.edc-rail-cats .edc-rail .edc-tool[data-edc-tool]:not([data-edc-tool="select"]):not([data-edc-tool="route"]) { display: none !important; }
 body.ed-chrome.edc-rail-cats .edc-rail .edc-tool-lib { display: none !important; }
 body.ed-chrome .edc-tool-cat { cursor: pointer; }
 

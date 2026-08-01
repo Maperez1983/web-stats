@@ -18,6 +18,7 @@
     <button type="button" class="edc-btn" data-edc="zoom_out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg>Zoom</button>
     <button type="button" class="edc-btn" data-edc="zoom_in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Zoom</button>
     <button type="button" class="edc-btn" data-edc="zoom_reset">100%</button>
+    <button type="button" class="edc-btn" data-edc="steps" title="Pasos de la tarea: la secuencia y el movimiento"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 18h4v-4H4zM10 14h4v-4h-4zM16 10h4V6h-4z"/></svg>Pasos</button>
     <button type="button" class="edc-btn" data-edc="reset"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 4v4h4"/></svg>Restablecer</button>
   </div>
   <div class="edc-seg" data-edc-group="focus">
@@ -41,6 +42,7 @@
   <button type="button" class="edc-tool" data-edc-tool="goal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16v11H4z"/><path d="M4 7v11M20 7v11M8 7v11M12 7v11M16 7v11M4 11h16M4 15h16"/></svg>Portería</button>
   <button type="button" class="edc-tool" data-edc-tool="zone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-dasharray="3 3"><path d="M4 4h16v16H4z"/></svg>Zona</button>
   <button type="button" class="edc-tool" data-edc-tool="arrow_solid"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19L19 5M11 5h8v8"/></svg>Flecha</button>
+  <button type="button" class="edc-tool" data-edc-tool="route" title="Marca adónde va cada ficha: tócala y arrastra hasta su destino"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19c0-5 4-6 7-7s5-2 5-5" stroke-dasharray="3 3"/><path d="M14 4h4v4"/><circle cx="5" cy="19" r="2"/></svg>Ruta</button>
   <button type="button" class="edc-tool" data-edc-tool="text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6h12M12 6v12"/></svg>Texto</button>
   <button type="button" class="edc-tool edc-tool-lib" data-edc="more" title="Abrir biblioteca de elementos gráficos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.4"/><rect x="14" y="3" width="7" height="7" rx="1.4"/><rect x="3" y="14" width="7" height="7" rx="1.4"/><rect x="14" y="14" width="7" height="7" rx="1.4"/></svg>Elementos</button>
 </div>
@@ -302,6 +304,13 @@
       document.querySelectorAll('.edc-tool').forEach(function(b){ b.classList.remove('is-active'); });
       btn.classList.add('is-active');
       var kind = btn.getAttribute('data-edc-tool');
+      if(kind === 'route'){
+        // Ruta no inserta un objeto: enciende el modo de dibujar movimiento. El propio gesto lo
+        // apaga al soltar (salvo con Mayus), y el pad avisa por evento para que el carril vuelva
+        // a Selección sin que haya que sondear nada.
+        try{ if(window.__tpadRouteTool) window.__tpadRouteTool.toggle(); }catch(e){}
+        return;
+      }
       if(kind === 'select'){
         try{ if(window.__tpadCanvasAction) window.__tpadCanvasAction('move'); }catch(e){}
         proxyClick('task-quick-move');
@@ -310,6 +319,23 @@
       try{ if(window.__tpadActivateTool) window.__tpadActivateTool(kind); }catch(e){}
     });
   });
+  // El modo ruta se apaga solo al soltar el raton: el pad lo anuncia y el carril se sincroniza.
+  window.addEventListener('webstats:tpad:route-mode', function(ev){
+    try{
+      var on = !!(ev && ev.detail && ev.detail.on);
+      var ruta = document.querySelector('.edc-tool[data-edc-tool="route"]');
+      if(!ruta) return;
+      if(on){
+        document.querySelectorAll('.edc-tool').forEach(function(b){ b.classList.remove('is-active'); });
+        ruta.classList.add('is-active');
+      }else if(ruta.classList.contains('is-active')){
+        ruta.classList.remove('is-active');
+        var sel = document.querySelector('.edc-tool[data-edc-tool="select"]');
+        if(sel) sel.classList.add('is-active');
+      }
+    }catch(e){}
+  });
+
   // Flechita "variantes": cada herramienta con variantes deep-linkea a su categoría del cajón.
   var RAIL_CAT = { player_local:'plantilla', goalkeeper_local:'plantilla', cone:'material', pole_marker:'material', goal:'porterias', zone:'zonas', arrow_solid:'flechas' };
   document.querySelectorAll('.edc-tool[data-edc-tool]').forEach(function(btn){
@@ -397,6 +423,7 @@
   var actions = {
     fit: function(){ edcSize('pitch-size-fit'); },                                  // ajustar tamaño del campo a la ventana
     center: function(){ try{ if(window.__tpadCenterViewport) window.__tpadCenterViewport(); }catch(e){} }, // centrar contenido (reset paneo)
+    steps: function(){ proxyClick('task-scenarios-btn'); },                        // panel de Pasos (secuencia + movimiento)
     zoom_in: function(){ edcZoom('pitch-zoom-in'); },                               // ZOOM real (viewport)
     zoom_out: function(){ edcZoom('pitch-zoom-out'); },
     zoom_reset: function(){ edcZoom('pitch-zoom-reset'); },                         // zoom al 100%

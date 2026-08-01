@@ -38365,6 +38365,12 @@
 	              const setInteractiveRouteMode = (on) => {
 	                interactiveRouteMode = !!on;
 	                interactiveRouteFrom = null;
+	                // El gesto se apaga solo al soltar el raton, asi que quien pinte un boton de
+	                // "Ruta" no puede saberlo por su cuenta: se avisa por evento, como ya hace el
+	                // panel de recursos (webstats:tpad:resource-panel-change).
+	                try {
+	                  window.dispatchEvent(new CustomEvent('webstats:tpad:route-mode', { detail: { on: interactiveRouteMode } }));
+	                } catch (e) { /* ignore */ }
 	                if (interactiveRouteMode) stopInteractiveRoutesPlayback();
 	                if (interactiveRouteMode) {
 	                  setStatus('Ruta (Interactiva): toca una ficha y arrastra hasta el destino. (Shift: mantener activo)', false);
