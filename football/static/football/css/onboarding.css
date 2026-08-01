@@ -606,3 +606,11 @@
       :root[data-theme="light"] .badge.ok { color: #15803d; border-color: rgba(34,197,94,.45); }
       :root[data-theme="light"] .badge.todo { color: #92400e; border-color: rgba(245,158,11,.45); }
       :root[data-theme="light"] .badge.optional { color: rgba(15,23,42,.72); }
+      /* Dos consecuencias de pasar los fondos a variables, cazadas al medir: la pildora
+         "Opcional" conservaba fondo oscuro propio, y la etiqueta "Home" de la vista previa
+         llevaba tinta clara sobre una superficie que ahora es clara. */
+      :root[data-theme="light"] .step .badge { background: rgba(15, 23, 42, 0.06); }
+      :root[data-theme="light"] .page-preview-badge {
+        color: rgba(15, 23, 42, 0.86);
+        border-color: rgba(15, 23, 42, 0.14);
+      }
