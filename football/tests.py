@@ -10747,6 +10747,38 @@ class ConvocationWorkflowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['rival_display_name'], 'Rival')
 
+    def test_convocation_page_prefers_active_match_over_future_current_convocation(self):
+        self.client.force_login(self.user)
+        today = timezone.localdate()
+        rival_today = Team.objects.create(name="Rival de Hoy", slug="rival-de-hoy", group=self.team.group)
+        match_today = Match.objects.create(
+            season=self.team.group.season,
+            group=self.team.group,
+            round="Amistoso hoy",
+            date=today,
+            location="Campo Hoy",
+            home_team=self.team,
+            away_team=rival_today,
+            context=Match.CONTEXT_FRIENDLY,
+        )
+        ConvocationRecord.objects.create(
+            team=self.team,
+            round="Amistoso",
+            match_date=today + timedelta(days=11),
+            match_time=time(20, 0),
+            location="Campo Futuro",
+            opponent_name="Rival Futuro",
+            is_current=True,
+        )
+
+        response = self.client.get(reverse("convocation"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["active_match_id"], match_today.id)
+        self.assertEqual(response.context["match_info"]["opponent"], "Rival de Hoy")
+        self.assertEqual(response.context["match_info"]["date"], today.isoformat())
+        self.assertEqual(response.context["match_info"]["location"], "Campo Hoy")
+
     @patch('football.views._build_pdf_response_or_html_fallback')
     def test_convocation_pdf_accepts_team_param_without_active_workspace(self, mock_pdf):
         mock_pdf.return_value = HttpResponse('ok', status=200)
@@ -15515,6 +15547,38 @@ class CoachOverviewTests(TestCase):
         self.assertContains(response, 'Rival Manual')
         self.assertContains(response, 'J25')
         self.assertContains(response, 'NUEVO CAMPO')
+
+    @patch(
+        "football.views.load_preferred_next_match_payload",
+        return_value={
+            "round": "Amistoso",
+            "date": "2026-08-12",
+            "time": "20:00",
+            "location": "Campo Futuro",
+            "opponent": {"name": "Rival Futuro Payload", "full_name": "Rival Futuro Payload"},
+            "home": True,
+            "status": "next",
+            "source": "manual-test",
+        },
+    )
+    def test_coach_overview_prefers_local_match_over_future_preferred_payload(self, _mock_next):
+        Match.objects.create(
+            season=self.group.season,
+            group=self.group,
+            round="Amistoso hoy",
+            date=date(2026, 8, 1),
+            location="Campo Hoy",
+            home_team=self.team,
+            away_team=self.rival_future,
+            context=Match.CONTEXT_FRIENDLY,
+        )
+
+        response = self.client.get(f"{reverse('coach-detail')}?view=overview")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Rival Futuro")
+        self.assertNotContains(response, "Rival Futuro Payload")
+        self.assertContains(response, "Campo Hoy")
 
     @patch('football.views.load_preferred_next_match_payload', return_value=None)
     def test_coach_overview_ignores_current_convocation_without_match_date(self, _mock_next):

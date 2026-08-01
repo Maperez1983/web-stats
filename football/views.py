@@ -9641,11 +9641,7 @@ def _build_weekly_staff_brief_context(primary_team, player_cards=None):
         reference_match=active_match,
     )
     next_match_payload = load_preferred_next_match_payload(primary_team=primary_team)
-    if not _next_match_payload_is_reliable(next_match_payload) and primary_team.group:
-        # Evitar scraping/red en requests de UI (puede provocar timeouts/502).
-        local_next_match = get_next_match(primary_team, primary_team.group, allow_external_fetch=False)
-        if _next_match_payload_is_reliable(local_next_match):
-            next_match_payload = local_next_match
+    next_match_payload = _prefer_local_operational_next_match(primary_team, next_match_payload)
     if not _next_match_payload_is_reliable(next_match_payload):
         convocation_next_match = _build_next_match_from_convocation(primary_team)
         if _next_match_payload_is_reliable(convocation_next_match):
@@ -11465,8 +11461,7 @@ def _build_convocation_whatsapp_text(record, primary_team):
 
 def _build_coach_rival_summary(primary_team):
     next_match_payload = load_preferred_next_match_payload(primary_team=primary_team)
-    if not next_match_payload and primary_team and primary_team.group:
-        next_match_payload = get_next_match(primary_team, primary_team.group, allow_external_fetch=False)
+    next_match_payload = _prefer_local_operational_next_match(primary_team, next_match_payload)
     if not _next_match_payload_is_reliable(next_match_payload):
         convocation_next = _build_next_match_from_convocation(primary_team)
         if _next_match_payload_is_reliable(convocation_next):
@@ -11739,6 +11734,21 @@ def _upsert_match_from_next_match_payload(primary_team, payload):
     if update_fields:
         match.save(update_fields=update_fields)
     return match
+
+
+def _prefer_local_operational_next_match(primary_team, preferred_payload):
+    if not primary_team or not getattr(primary_team, "group", None):
+        return preferred_payload
+    local_payload = get_next_match(primary_team, primary_team.group, allow_external_fetch=False)
+    if not _next_match_payload_is_reliable(local_payload):
+        return preferred_payload
+    if not _next_match_payload_is_reliable(preferred_payload):
+        return local_payload
+    local_date = _parse_payload_date(local_payload.get("date")) if isinstance(local_payload, dict) else None
+    preferred_date = _parse_payload_date(preferred_payload.get("date")) if isinstance(preferred_payload, dict) else None
+    if local_date and preferred_date and local_date < preferred_date:
+        return local_payload
+    return preferred_payload
 
 
 load_universo_snapshot = universo_snapshot_services.load_universo_snapshot
