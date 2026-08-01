@@ -3,10 +3,10 @@
 Molde de las fichas de detalle que cuelgan de la ficha del jugador (lesión, comunicación,
 objetivo, sesión). Antes cada una repetía el mismo <head> y el mismo CSS; ahora se hereda.
 
-OJO con el fondo: se deja EXACTAMENTE el que ya tenían estas páginas. No es que esté bien
-—es un degradado oscuro fijo, y sobrevive en tema claro sólo porque commercial.css lo pisa
-con !important—, pero cambiarlo aquí cambiaría cuatro pantallas de golpe. El valor de este
-fichero es que ese arreglo, cuando toque, se hace UNA vez y en un sitio.
+Los paneles NO llevan color fijo: usan `--prod-panel` y `--prod-text`, que el tema cambia.
+Antes eran un azul oscuro escrito a mano y en tema claro quedaba texto casi negro sobre
+fondo casi negro. El degradado del `body` sí sigue fijo, pero ese lo pisa commercial.css
+en claro y se ve bien.
 {% endcomment %}
 <!DOCTYPE html>
 <html lang="es">
@@ -25,15 +25,16 @@ fichero es que ese arreglo, cuando toque, se hace UNA vez y en un sitio.
           radial-gradient(circle at 12% -10%, rgba(70, 211, 255, 0.15), transparent 40%),
           radial-gradient(circle at 90% 0%, rgba(255, 191, 69, 0.14), transparent 35%),
           linear-gradient(180deg, #03070f 0%, #081120 55%, #0a1427 100%);
-        color: var(--prod-button-text);
+        color: var(--prod-text, #0f172a);
         font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
       }
       .shell { width: min(100%, {% block shell_width %}900px{% endblock %}); margin: 0 auto; padding: clamp(0.85rem, 1.25vw, 1.2rem); }
       .panel {
         margin-top: 0.9rem;
         border-radius: 18px;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        background: rgba(7, 16, 30, 0.86);
+        border: 1px solid var(--prod-line, rgba(148, 163, 184, 0.28));
+        background: var(--prod-panel, rgba(7, 16, 30, 0.86));
+        color: var(--prod-text, #0f172a);
         padding: 1rem 1.1rem;
       }
       h1 { margin: 0; font-size: 1.25rem; }
