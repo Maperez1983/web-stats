@@ -29540,9 +29540,14 @@
     const serializeState = () => {
       persistActiveStepSnapshot();
       const json = serializeCanvasOnly();
+      const { w: mundoW, h: mundoH } = worldSize();
       json.timeline = timeline.map((step, index) => ({
         title: safeText(step.title, `Paso ${index + 1}`),
         duration: clamp(Number(step.duration) || 3, 1, 20),
+        // El tamaño del lienzo VIAJA con el paso. Sin el, el guion no puede pasar las posiciones a
+        // 0..1 y se queda vacio: los pasos se guardaban bien y aun asi la ficha no reproducia nada.
+        canvas_width: Math.round(parseIntSafe(step.canvas_width) || mundoW || 0),
+        canvas_height: Math.round(parseIntSafe(step.canvas_height) || mundoH || 0),
         canvas_state: sanitizeLoadedState(step.canvas_state),
       }));
       json.active_step_index = activeStepIndex;

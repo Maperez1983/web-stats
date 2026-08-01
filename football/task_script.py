@@ -128,10 +128,17 @@ def _actor_from_object(obj, index):
     }
 
 
-def _canvas_size(state, step):
-    """Tamaño del lienzo del paso. Sin él no se puede normalizar y el paso se descarta."""
-    width = _num(step.get('canvas_width')) or _num(state.get('width'))
-    height = _num(step.get('canvas_height')) or _num(state.get('height'))
+def _canvas_size(state, step, fallback=(0.0, 0.0)):
+    """
+    Tamaño del lienzo del paso. Sin él no se pueden pasar las posiciones a 0..1.
+
+    El editor guardaba los pasos SIN tamaño (`serializeState` solo mandaba título, duración y
+    objetos), así que el guion salía vacío aunque los pasos estuvieran bien guardados. Ya se manda,
+    pero los pasos anteriores siguen sin él: se cae al tamaño del lienzo del editor, que es el mismo
+    tablero sobre el que se dibujaron.
+    """
+    width = _num(step.get('canvas_width')) or _num(state.get('width')) or _num(fallback[0])
+    height = _num(step.get('canvas_height')) or _num(state.get('height')) or _num(fallback[1])
     return width, height
 
 
@@ -173,6 +180,10 @@ def build_script(tactical_layout):
                 'canvas_height': _num(editor.get('canvas_height')),
             }]
 
+        # Tamaño de respaldo: el lienzo del editor. Es el mismo tablero sobre el que se dibujaron
+        # los pasos, así que normaliza igual.
+        respaldo = (_num(editor.get('canvas_width')), _num(editor.get('canvas_height')))
+
         actors_by_uid = {}
         steps = []
         for index, step in enumerate(raw_steps[:MAX_STEPS]):
@@ -184,7 +195,7 @@ def build_script(tactical_layout):
             objects = state.get('objects')
             if not isinstance(objects, list):
                 continue
-            width, height = _canvas_size(state, step)
+            width, height = _canvas_size(state, step, respaldo)
             if width <= 0 or height <= 0:
                 continue
 
