@@ -1,0 +1,221 @@
+/* Asistente de cierre y nueva temporada (/onboarding/season/).
+ *
+ * Mismo motivo que onboarding.css: eran 8 KB incrustados en cada carga.
+ */
+
+:root {
+        --deep: #050913;
+        --panel: rgba(7, 16, 30, 0.82);
+        --line: rgba(255, 255, 255, 0.16);
+        --ink: #eef2ff;
+        --muted: rgba(226, 232, 240, 0.76);
+        --amber: #f4b400;
+        --green: #22c55e;
+        --danger: #ef4444;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--ink);
+        font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
+        background:
+          radial-gradient(circle at 10% -10%, rgba(70, 211, 255, 0.18), transparent 40%),
+          radial-gradient(circle at 90% 0%, rgba(255, 191, 69, 0.15), transparent 35%),
+          linear-gradient(180deg, #03070f 0%, #081120 55%, #0a1427 100%);
+        padding: 1rem;
+      }
+      .page { max-width: 980px; margin: 0 auto; }
+      .card {
+        border: 1px solid var(--line);
+        background: var(--panel);
+        border-radius: 24px;
+        padding: 1.1rem;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 24px 58px rgba(0, 0, 0, 0.28);
+      }
+      .topline {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+        padding: 1rem 1.05rem;
+        border-radius: 24px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: linear-gradient(135deg, rgba(8,15,31,0.9), rgba(15,23,42,0.82));
+        box-shadow: 0 24px 56px rgba(0,0,0,0.3);
+        backdrop-filter: blur(14px);
+      }
+      .top-copy { display:flex; flex-direction:column; gap:0.35rem; max-width: 680px; }
+      .top-kicker { color: rgba(125,211,252,0.92); font-size:0.72rem; font-weight:950; letter-spacing:0.18em; text-transform:uppercase; }
+      .title { font-size: clamp(1.35rem, 2.2vw, 2rem); font-weight: 800; line-height:1.02; letter-spacing: -0.03em; }
+      .subtitle { color: var(--muted); font-size: 0.95rem; }
+      .top-pills { display:flex; flex-wrap:wrap; gap:0.45rem; }
+      .top-pill { display:inline-flex; align-items:center; gap:0.35rem; padding:0.42rem 0.72rem; border-radius:999px; border:1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.05); color: var(--ink); font-size:0.72rem; font-weight:900; letter-spacing:0.05em; text-transform:uppercase; }
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.5rem;
+        margin: 0.75rem 0 1rem;
+      }
+      .step {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 0.6rem 0.7rem;
+        color: var(--muted);
+        display: flex;
+        gap: 0.55rem;
+        align-items: center;
+      }
+      .step strong { color: var(--ink); font-weight: 700; }
+      .dot {
+        width: 10px; height: 10px; border-radius: 50%;
+        background: rgba(226,232,240,0.25);
+        border: 1px solid rgba(255,255,255,0.18);
+      }
+      .step.active { border-color: rgba(244,180,0,0.35); color: var(--ink); }
+      .step.active .dot { background: var(--amber); border-color: rgba(255,255,255,0.25); }
+      .grid { display: grid; gap: 0.75rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      label { display: block; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 0.25rem; }
+      input, select, textarea {
+        width: 100%;
+        padding: 0.7rem 0.85rem;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.18);
+        background: rgba(2, 6, 23, 0.52);
+        color: var(--ink);
+        outline: none;
+      }
+      textarea { min-height: 112px; resize: vertical; }
+      .actions { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.85rem; }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.65rem 0.9rem;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.18);
+        background: rgba(2, 6, 23, 0.44);
+        color: var(--ink);
+        text-decoration: none;
+        cursor: pointer;
+        font-weight: 700;
+        transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+      }
+      .btn-primary { background: rgba(244,180,0,0.14); border-color: rgba(244,180,0,0.34); }
+      .btn-danger { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.34); }
+      .btn-ghost { background: rgba(2,6,23,0.18); }
+      .btn:hover { transform: translateY(-1px); box-shadow: 0 14px 24px rgba(0,0,0,0.18); border-color: rgba(125,211,252,0.3); }
+      .alert {
+        border: 1px solid rgba(255,255,255,0.16);
+        border-radius: 14px;
+        padding: 0.75rem 0.85rem;
+        margin: 0.85rem 0 0;
+      }
+      .alert.error { border-color: rgba(239,68,68,0.35); color: var(--prod-text); background: rgba(239,68,68,0.06); }
+      .alert.ok { border-color: rgba(34,197,94,0.35); color: var(--prod-text); background: rgba(34,197,94,0.06); }
+      .player-card {
+        display: flex;
+        gap: 0.9rem;
+        align-items: center;
+        padding: 0.9rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,0.16);
+        background: rgba(2,6,23,0.32);
+        margin-top: 0.75rem;
+      }
+      .player-meta { flex: 1; min-width: 0; }
+      .player-name { font-weight: 800; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .player-sub { color: var(--muted); margin-top: 0.15rem; }
+      .badge { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.55rem; border-radius: 999px; border: 1px solid rgba(255,255,255,0.16); color: var(--muted); font-size: 0.85rem; }
+      .row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+      .team-list {
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+        margin-top: 0.45rem;
+      }
+      .rating-panel {
+        margin-top: 0.9rem;
+        border: 1px solid rgba(255,255,255,0.16);
+        border-radius: 16px;
+        background: rgba(2,6,23,0.28);
+        padding: 0.9rem;
+      }
+      .rating-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 280px;
+        gap: 1rem;
+        align-items: start;
+      }
+      .rating-group {
+        border-top: 1px solid rgba(255,255,255,0.12);
+        padding-top: 0.75rem;
+        margin-top: 0.75rem;
+      }
+      .rating-group:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
+      .rating-group-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: center;
+        margin-bottom: 0.55rem;
+      }
+      .rating-group-title { font-weight: 800; }
+      .rating-average { color: var(--muted); font-size: 0.9rem; }
+      .rating-fields {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.55rem;
+      }
+      .rating-field label {
+        text-transform: none;
+        letter-spacing: 0;
+        font-size: 0.88rem;
+        color: var(--prod-text);
+      }
+      .rating-field select { padding: 0.55rem 0.7rem; border-radius: 10px; }
+      .radar-card {
+        border: 1px solid rgba(255,255,255,0.14);
+        border-radius: 16px;
+        padding: 0.75rem;
+        background: rgba(2,6,23,0.35);
+      }
+      .radar-card canvas {
+        width: 100%;
+        aspect-ratio: 1;
+        display: block;
+      }
+      .scoreline {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.55rem;
+        margin-bottom: 0.75rem;
+      }
+      .scorebox {
+        border: 1px solid rgba(255,255,255,0.14);
+        border-radius: 14px;
+        padding: 0.65rem;
+        background: rgba(2,6,23,0.24);
+      }
+      .scorebox strong { display: block; font-size: 1.25rem; }
+      .scorebox span { color: var(--muted); font-size: 0.82rem; }
+      @media (max-width: 720px) {
+        .grid { grid-template-columns: 1fr; }
+        .steps { grid-template-columns: 1fr; }
+        .rating-layout { grid-template-columns: 1fr; }
+        .rating-fields { grid-template-columns: 1fr; }
+        .scoreline { grid-template-columns: 1fr; }
+      }
+      /* La cabecera es un panel OSCURO fijo (degradado azul noche) en los dos temas: en claro,
+         las variables del producto le metian tinta oscura encima y no se leia ni el titulo del
+         club ni las pastillas. */
+      :root[data-theme="light"] .topline,
+      :root[data-theme="light"] .topline .title,
+      :root[data-theme="light"] .topline .subtitle,
+      :root[data-theme="light"] .top-pill { color: #eef4ff; }
+      :root[data-theme="light"] .top-kicker { color: #bae6fd; }
+      :root[data-theme="light"] .top-pill { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.22); }
