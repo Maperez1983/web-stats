@@ -42644,6 +42644,40 @@ def coach_tournaments_page(request):
 
 
 @login_required
+@login_required
+@require_POST
+def coach_matches_sync_venues(request):
+    """
+    Trae de Universo el terreno de juego de los equipos del grupo activo.
+
+    El dato ya venía en la misma respuesta de la que se saca la plantilla y se tiraba: por
+    eso ningún equipo importado tenía campo. Sólo rellena huecos salvo que se pida corregir.
+    """
+    if not _can_edit_match_actions(request.user):
+        return HttpResponse("Solo el cuerpo técnico puede sincronizar.", status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return HttpResponse("Equipo no configurado.", status=400)
+    workspace = _get_active_workspace(request)
+    if not (_can_access_platform(request.user) or (workspace and _can_manage_workspace(request.user, workspace))):
+        return HttpResponse("Solo el administrador del club puede sincronizar.", status=403)
+
+    from football.universo_venue_services import sincronizar_campos_de_equipos
+
+    sobrescribir = str(request.POST.get("overwrite") or "").strip().lower() in {"1", "true", "on", "yes"}
+    equipos = list(
+        Team.objects.filter(group_id=primary_team.group_id).order_by("name")
+        if primary_team.group_id
+        else Team.objects.filter(id=primary_team.id)
+    )
+    try:
+        resumen = sincronizar_campos_de_equipos(equipos, sobrescribir=sobrescribir)
+    except Exception:
+        logger.exception("No se pudieron sincronizar los campos de juego desde Universo")
+        return JsonResponse({"ok": False, "error": "No se pudo consultar Universo RFAF."}, status=502)
+    return JsonResponse({"ok": True, "resumen": resumen, "equipos": len(equipos)})
+
+
 @require_POST
 def coach_matches_sync_universo(request):
     """Sincroniza el calendario/resultados desde la competición (Universo) hacia Match.

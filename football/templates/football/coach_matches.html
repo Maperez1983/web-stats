@@ -119,6 +119,8 @@
             {% if active_team %}<input type="hidden" name="team" value="{{ active_team.id }}" />{% endif %}
             <button type="submit" class="btn" title="Consulta la competición (Universo) y te muestra qué partidos/resultados traería, SIN escribir nada. Luego decides si aplicar.">🔄 Sincronizar competición</button>
           </form>
+          <button type="button" class="btn" id="btnSyncVenues"
+                  title="Trae de Universo el campo de juego, la dirección y el enlace de mapa de los equipos de tu grupo.">🏟️ Traer campos de juego</button>
           {% endif %}
           {% if calendar_ics_url %}
           <button type="button" class="btn" id="btnSubscribeIcs" data-ics="{{ calendar_ics_url }}" title="Suscribir este calendario en Apple/Google Calendar">📅 Suscribir calendario</button>
@@ -353,5 +355,49 @@
       </section>
     </main>
 	      <script src="{% static 'football/js/match_rival_picker.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    <script>
+      (() => {
+        const boton = document.getElementById('btnSyncVenues');
+        if (!boton) return;
+        const csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+        boton.addEventListener('click', async () => {
+          const corregir = window.confirm(
+            'Aceptar: corrige también los campos que ya estén puestos (útil si alguno está mal).\n' +
+            'Cancelar: sólo rellena los que estén vacíos.'
+          );
+          boton.disabled = true;
+          const textoOriginal = boton.textContent;
+          boton.textContent = 'Consultando Universo…';
+          try {
+            const cuerpo = new URLSearchParams({ overwrite: corregir ? '1' : '0' });
+            if (csrf) cuerpo.set('csrfmiddlewaretoken', csrf.value);
+            const respuesta = await fetch('{% url 'coach-matches-sync-venues' %}', {
+              method: 'POST',
+              body: cuerpo,
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            });
+            const datos = await respuesta.json().catch(() => ({}));
+            if (!respuesta.ok || !datos.ok) {
+              window.alert(datos.error || 'No se pudo consultar Universo RFAF.');
+              return;
+            }
+            const r = datos.resumen || {};
+            const lineas = [`Equipos mirados: ${datos.equipos}`, `Actualizados: ${(r.actualizados || []).length}`];
+            if ((r.actualizados || []).length) lineas.push('', ...r.actualizados.slice(0, 25));
+            if ((r.sin_datos || []).length) lineas.push('', `Sin campo en Universo: ${r.sin_datos.length}`);
+            if ((r.sin_codigo || []).length) lineas.push(`Sin código de Universo: ${r.sin_codigo.length}`);
+            if ((r.errores || []).length) lineas.push('', 'Errores:', ...r.errores.slice(0, 5));
+            window.alert(lineas.join('\n'));
+            if ((r.actualizados || []).length) window.location.reload();
+          } catch (error) {
+            window.alert('No se pudo consultar Universo RFAF.');
+          } finally {
+            boton.disabled = false;
+            boton.textContent = textoOriginal;
+          }
+        });
+      })();
+    </script>
   </body>
 	</html>
