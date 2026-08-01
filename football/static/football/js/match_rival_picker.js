@@ -7,7 +7,13 @@
  * "Alhaurín Torre" acabaría siendo un equipo nuevo distinto de "ALHAURIN DE LA TORRE C.F.".
  */
 (() => {
-  const SUFIJOS = ['cf', 'cd', 'ud', 'sad', 'fc', 'sd', 'ad', 'cp', 'ce', 'club', 'deportivo', 'atletico', 'atco'];
+  /* Palabras que no distinguen a un equipo de otro: formas jurídicas y partículas. Se
+     quitan SOLO para sugerir ("¿te refieres a…?"), nunca para decidir por su cuenta. */
+  const VACIAS = new Set([
+    'cf', 'cd', 'ud', 'sad', 'fc', 'sd', 'ad', 'cp', 'ce', 'cdb', 'club', 'deportivo',
+    'atletico', 'atco', 'union', 'sociedad', 'balompie', 'de', 'del', 'la', 'las', 'el',
+    'los', 'y', 'the',
+  ]);
 
   const base = (texto) =>
     String(texto || '')
@@ -16,24 +22,19 @@
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '');
 
-  const nucleo = (texto) => {
-    let clave = base(texto);
-    let cambio = true;
-    while (cambio) {
-      cambio = false;
-      for (const sufijo of SUFIJOS) {
-        if (clave.length > sufijo.length + 3 && clave.endsWith(sufijo)) {
-          clave = clave.slice(0, -sufijo.length);
-          cambio = true;
-        }
-        if (clave.length > sufijo.length + 3 && clave.startsWith(sufijo)) {
-          clave = clave.slice(sufijo.length);
-          cambio = true;
-        }
-      }
-    }
-    return clave;
-  };
+  /* Núcleo del nombre: sus palabras con contenido, ordenadas. Los puntos se quitan ANTES
+     de partir, o "C.F." llegaría como "c" y "f" y no se reconocería como sigla. Así
+     "Alhaurín Torre" y "ALHAURIN DE LA TORRE C.F." caen en la misma clave. */
+  const nucleo = (texto) =>
+    String(texto || '')
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/\./g, '')
+      .split(/[^a-z0-9]+/)
+      .filter((palabra) => palabra && !VACIAS.has(palabra))
+      .sort()
+      .join('');
 
   const preparar = (input) => {
     const lista = document.getElementById(input.getAttribute('list'));
