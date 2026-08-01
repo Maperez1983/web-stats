@@ -152,7 +152,9 @@
     const sizeCanvas = () => {
       const rect = host.getBoundingClientRect();
       const cssW = Math.max(240, rect.width || 640);
-      const cssH = Math.round(cssW * 0.62);
+      // Acotado: en pantalla ancha un campo a 0.62 se comia media ficha y empujaba el documento
+      // fuera de la vista. La tarea se lee mejor si el movimiento y el texto caben juntos.
+      const cssH = Math.round(Math.min(cssW * 0.62, 420));
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = Math.round(cssW * dpr);
       canvas.height = Math.round(cssH * dpr);
