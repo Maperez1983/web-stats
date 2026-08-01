@@ -65205,7 +65205,7 @@ def player_detail_page(request, player_id):
         except Exception:
             injury_days = 0
 
-        # Próximas sesiones: útiles para que el jugador confirme asistencia.
+        # Próximas sesiones y partidos: agenda del jugador para los próximos 14 días.
         today = timezone.localdate()
         upcoming_end = today + timedelta(days=14)
         upcoming_sessions = list(
@@ -65215,6 +65215,16 @@ def player_detail_page(request, player_id):
             .exclude(status=TrainingSession.STATUS_CANCELED)
             .order_by("session_date", "start_time", "order", "id")[:12]
         )
+        upcoming_matches = []
+        try:
+            upcoming_matches = list(
+                _team_match_queryset(primary_team)
+                .filter(date__range=(today, upcoming_end))
+                .select_related("home_team", "away_team")
+                .order_by("date", "kickoff_time", "id")[:12]
+            )
+        except Exception:
+            upcoming_matches = []
         upcoming_marks = (
             {
                 int(mark.session_id): mark
@@ -65229,13 +65239,23 @@ def player_detail_page(request, player_id):
         upcoming_session_rows = []
         for s in upcoming_sessions:
             mark = upcoming_marks.get(int(s.id))
+            session_meta_bits = [
+                s.start_time.strftime("%H:%M") if getattr(s, "start_time", None) else "",
+                f"{int(getattr(s, 'duration_minutes', 0) or 0)}'" if getattr(s, "duration_minutes", None) else "",
+                str(getattr(s, "get_intensity_display", lambda: "")() or "").strip(),
+            ]
+            session_meta = " · ".join([bit for bit in session_meta_bits if str(bit or "").strip()]) or "Entreno"
             upcoming_session_rows.append(
                 {
+                    "kind": "session",
                     "id": int(s.id),
                     "date": s.session_date,
                     "date_label": s.session_date.strftime("%d/%m/%Y") if s.session_date else "",
                     "time_label": s.start_time.strftime("%H:%M") if getattr(s, "start_time", None) else "",
                     "focus": str(getattr(s, "focus", "") or "").strip() or "Sesión",
+                    "title": str(getattr(s, "focus", "") or "").strip() or "Sesión",
+                    "meta": session_meta,
+                    "detail": str(getattr(s, "content", "") or "").strip(),
                     "status": str(getattr(mark, "status", "") or "").strip(),
                     "status_label": (
                         dict(TrainingSessionAttendance.STATUS_CHOICES).get(getattr(mark, "status", ""), "")
@@ -65243,8 +65263,75 @@ def player_detail_page(request, player_id):
                         else ""
                     ),
                     "notes": str(getattr(mark, "notes", "") or "").strip() if mark else "",
+                    "url": reverse("training-session-detail", args=[int(s.id)]),
+                    "attendance_url": reverse("training-session-detail", args=[int(s.id)]) + "#asistencia",
                 }
             )
+
+        upcoming_match_rows = []
+        for m in upcoming_matches:
+            if not getattr(m, "date", None):
+                continue
+            opponent = m.away_team if m.home_team_id == primary_team.id else m.home_team
+            opponent_name = (
+                str(getattr(opponent, "display_name", "") or getattr(opponent, "name", "") or "").strip() or "Rival"
+            )
+            context_label = dict(Match.CONTEXT_CHOICES).get(getattr(m, "context", ""), "Liga")
+            if m.context == Match.CONTEXT_TOURNAMENT and str(getattr(m, "tournament_name", "") or "").strip():
+                context_label = f"Torneo · {str(m.tournament_name).strip()}"
+            label = f"[{context_label}] vs {opponent_name}".strip()
+            meta_bits = []
+            if getattr(m, "kickoff_time", None):
+                try:
+                    meta_bits.append(m.kickoff_time.strftime("%H:%M"))
+                except Exception:
+                    pass
+            location = str(getattr(m, "location", "") or "").strip()
+            if location:
+                meta_bits.append(location)
+            round_label = str(getattr(m, "round", "") or "").strip()
+            if round_label:
+                meta_bits.append(round_label)
+            upcoming_match_rows.append(
+                {
+                    "kind": "match",
+                    "id": int(m.id),
+                    "date": m.date,
+                    "date_label": m.date.strftime("%d/%m/%Y") if m.date else "",
+                    "time_label": m.kickoff_time.strftime("%H:%M") if getattr(m, "kickoff_time", None) else "",
+                    "focus": label,
+                    "title": label,
+                    "meta": " · ".join([part for part in meta_bits if part]) or "Partido",
+                    "detail": " · ".join(
+                        [part for part in [("Casa" if m.home_team_id == primary_team.id else "Fuera"), label] if part]
+                    ),
+                    "status": "",
+                    "status_label": "",
+                    "notes": "",
+                    "url": reverse("match-hub") + f"?match_id={int(m.id)}&team={int(primary_team.id)}",
+                    "attendance_url": "",
+                }
+            )
+
+        player_agenda_rows = upcoming_session_rows + upcoming_match_rows
+        player_agenda_rows.sort(
+            key=lambda row: (
+                row.get("date") or today,
+                0 if row.get("kind") == "match" else 1,
+                row.get("time_label") or "99:99",
+                int(row.get("id") or 0),
+            )
+        )
+        agenda_view_mode = str(request.GET.get("agenda_view") or "citation").strip().lower()
+        if agenda_view_mode not in {"citation", "detail"}:
+            agenda_view_mode = "citation"
+        if is_player_readonly:
+            agenda_view_mode = "citation"
+        agenda_params = dict(request.GET.items())
+        agenda_params["agenda_view"] = "citation"
+        player_agenda_citation_url = f"{request.path}?{urlencode(agenda_params)}"
+        agenda_params["agenda_view"] = "detail"
+        player_agenda_detail_url = f"{request.path}?{urlencode(agenda_params)}"
 
         can_self_mark_attendance = bool(
             request.user.is_authenticated
@@ -65366,6 +65453,10 @@ def player_detail_page(request, player_id):
                 "attendance_marked_total": marked_total,
                 "attendance_pending": attendance_pending,
                 "injury_days_in_season": injury_days,
+                "player_agenda_rows": player_agenda_rows,
+                "player_agenda_view_mode": agenda_view_mode,
+                "player_agenda_citation_url": player_agenda_citation_url,
+                "player_agenda_detail_url": player_agenda_detail_url,
                 "upcoming_sessions": upcoming_session_rows,
                 "attendance_status_choices": TrainingSessionAttendance.STATUS_CHOICES,
                 "can_self_mark_attendance": can_self_mark_attendance,
@@ -68811,7 +68902,7 @@ def _bootstrap_demo_club_workspace(workspace):
             if was_created:
                 created["events"] += 1
 
-    # Microciclo + sesiones + tareas
+    # Microciclo demo. Las sesiones demo se gestionan aparte para no resembrarlas.
     microcycle, mc_created = TrainingMicrocycle.objects.get_or_create(
         team=team,
         week_start=monday,
@@ -68824,56 +68915,6 @@ def _bootstrap_demo_club_workspace(workspace):
     )
     if mc_created:
         created["sessions"] += 0
-    session_dates = [monday + timedelta(days=1), monday + timedelta(days=3), monday + timedelta(days=5)]
-    for index, session_date in enumerate(session_dates):
-        session, was_created = TrainingSession.objects.get_or_create(
-            microcycle=microcycle,
-            session_date=session_date,
-            defaults={
-                "start_time": None,
-                "duration_minutes": 90,
-                "intensity": TrainingSession.INTENSITY_MEDIUM,
-                "focus": ["Construcción", "Presión", "Finalización"][index],
-                "content": "Sesión de ejemplo para un usuario de prueba.",
-                "status": TrainingSession.STATUS_PLANNED,
-                "order": index,
-            },
-        )
-        if was_created:
-            created["sessions"] += 1
-        if session.tasks.filter(deleted_at__isnull=True).count() < 2:
-            base_tasks = [
-                ("Rondo 6v3", SessionTask.BLOCK_ACTIVATION, 12, "Activar + orientación corporal"),
-                ("Juego de posición", SessionTask.BLOCK_MAIN_1, 20, "Progresar y fijar"),
-            ]
-            for order_idx, (title, block, minutes, objective) in enumerate(base_tasks):
-                task, task_created = SessionTask.objects.get_or_create(
-                    session=session,
-                    title=title,
-                    defaults={
-                        "block": block,
-                        "duration_minutes": minutes,
-                        "objective": objective,
-                        "coaching_points": "- Perfil corporal\n- Pase tenso\n- Apoyos y tercer hombre",
-                        "confrontation_rules": "- 1 punto por 6 pases\n- 2 puntos por robo y salida",
-                        "tactical_layout": {
-                            "tokens": [],
-                            "timeline": [],
-                            "meta": {
-                                "strategy": "passing_wheel",
-                                "complexity": "low",
-                                "dynamics": "extensive",
-                                "structure": "complete",
-                                "coordination": "team",
-                                "tactical_intent": "direct",
-                            },
-                        },
-                        "status": SessionTask.STATUS_PLANNED,
-                        "order": order_idx,
-                    },
-                )
-                if task_created:
-                    created["tasks"] += 1
 
     # Estadísticas rápidas
     if season:
