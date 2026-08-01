@@ -13369,7 +13369,7 @@ def public_signup_page(request):
         "email": (request.POST.get("email") or "").strip().lower() if request.method == "POST" else "",
     }
     if request.method == "POST":
-        club_name = _sanitize_task_text((request.POST.get("club_name") or "").strip(), multiline=False, max_len=160)
+        club_name = _sanitize_nombre_propio((request.POST.get("club_name") or "").strip(), max_len=160)
         email = re.sub(r"\s+", "", str(request.POST.get("email") or "").strip()).lower()[:190]
         password = (request.POST.get("password") or "").strip()
         password_confirm = (request.POST.get("password_confirm") or "").strip()
@@ -14014,10 +14014,10 @@ def club_onboarding_page(request):
             except Exception as exc:
                 error = str(exc) or "No se pudo guardar la equipación."
             return _render_onboarding_page(status=200)
-        workspace_name = _sanitize_task_text(
+        workspace_name = _sanitize_nombre_propio(
             (request.POST.get("workspace_name") or "").strip(), multiline=False, max_len=160
         )
-        team_name = _sanitize_task_text((request.POST.get("team_name") or "").strip(), multiline=False, max_len=150)
+        team_name = _sanitize_nombre_propio((request.POST.get("team_name") or "").strip(), max_len=150)
         preferente_url = str(request.POST.get("preferente_url") or "").strip()[:600]
         provider = str(request.POST.get("provider") or WorkspaceCompetitionContext.PROVIDER_UNIVERSO).strip()
         external_group_key = str(request.POST.get("external_group_key") or "").strip()
@@ -14431,16 +14431,16 @@ def club_onboarding_page(request):
                 candidate_group_key = str(request.POST.get("candidate_external_group_key") or "").strip()
                 candidate_competition_key = str(request.POST.get("candidate_external_competition_key") or "").strip()
                 candidate_team_key = str(request.POST.get("candidate_external_team_key") or "").strip()
-                candidate_team_name = _sanitize_task_text(
+                candidate_team_name = _sanitize_nombre_propio(
                     (request.POST.get("candidate_external_team_name") or "").strip(), multiline=False, max_len=160
                 )
-                candidate_competition_name = _sanitize_task_text(
+                candidate_competition_name = _sanitize_nombre_propio(
                     (request.POST.get("candidate_competition_name") or "").strip(), multiline=False, max_len=150
                 )
-                candidate_group_name = _sanitize_task_text(
+                candidate_group_name = _sanitize_nombre_propio(
                     (request.POST.get("candidate_group_name") or "").strip(), multiline=False, max_len=80
                 )
-                candidate_season_name = _sanitize_task_text(
+                candidate_season_name = _sanitize_nombre_propio(
                     (request.POST.get("candidate_season_name") or "").strip(), multiline=False, max_len=80
                 )
                 if not (candidate_group_key and candidate_team_key):
@@ -14573,6 +14573,19 @@ def _split_full_name(value):
     return parts[0], " ".join(parts[1:])
 
 
+def _sanitize_nombre_propio(value, max_len=160):
+    """Limpia un NOMBRE (club, equipo, competicion, persona) sin reparar palabras pegadas.
+
+    `_sanitize_task_text` esta pensado para el TEXTO de una tarea: separa palabras que vienen
+    pegadas de importaciones y OCR. Con nombres propios eso destroza, y pasaba en CADA guardado:
+    "C.D. Benagalbón" -> "C. D. Benagalbón", "2J Football Intelligence" -> "2 J Football...".
+    """
+    texto = unicodedata.normalize("NFC", str(value or ""))
+    texto = "".join(ch for ch in texto if ch >= " " or ch == "\t")
+    texto = re.sub(r"\s+", " ", texto).strip()
+    return texto[:max_len] if max_len else texto
+
+
 def _sanitize_username(value, *, max_len=150):
     """
     Sanitiza usernames sin aplicar "polish" lingüístico.
@@ -14619,7 +14632,7 @@ def _platform_overview_post(request, *, active_tab, users_subtab, workspace_form
     form_action = (request.POST.get("form_action") or "workspace_create").strip().lower()
     if form_action == "workspace_create":
         active_tab = "workspace-create"
-        workspace_name = _sanitize_task_text(
+        workspace_name = _sanitize_nombre_propio(
             (request.POST.get("workspace_name") or "").strip(), multiline=False, max_len=160
         )
         workspace_kind = str(request.POST.get("workspace_kind") or Workspace.KIND_CLUB).strip()
@@ -14627,7 +14640,7 @@ def _platform_overview_post(request, *, active_tab, users_subtab, workspace_form
             workspace_kind = Workspace.KIND_CLUB
         owner_username = _sanitize_username(request.POST.get("owner_username"), max_len=150)
         team_id = _parse_int(request.POST.get("team_id"))
-        team_new_name = _sanitize_task_text(
+        team_new_name = _sanitize_nombre_propio(
             (request.POST.get("team_new_name") or "").strip(), multiline=False, max_len=150
         )
         workspace_notes = _sanitize_task_text(
@@ -14639,7 +14652,7 @@ def _platform_overview_post(request, *, active_tab, users_subtab, workspace_form
         external_competition_key = str(request.POST.get("external_competition_key") or "").strip()[:140]
         external_group_key = str(request.POST.get("external_group_key") or "").strip()[:140]
         external_team_key = str(request.POST.get("external_team_key") or "").strip()[:140]
-        external_team_name = _sanitize_task_text(
+        external_team_name = _sanitize_nombre_propio(
             (request.POST.get("external_team_name") or "").strip(), multiline=False, max_len=160
         )
         competition_auto_sync = str(request.POST.get("competition_auto_sync") or "").lower() in {
@@ -14813,7 +14826,7 @@ def _platform_overview_post(request, *, active_tab, users_subtab, workspace_form
     elif form_action == "platform_user_create":
         active_tab = "users"
         users_subtab = "create"
-        full_name = _sanitize_task_text((request.POST.get("full_name") or "").strip(), multiline=False, max_len=150)
+        full_name = _sanitize_nombre_propio((request.POST.get("full_name") or "").strip(), max_len=150)
         username = re.sub(r"\s+", "", str(request.POST.get("username") or "").strip()).lower()[:150]
         email = re.sub(r"\s+", "", str(request.POST.get("email") or "").strip()).lower()[:190]
         password = (request.POST.get("password") or "").strip()
@@ -14923,7 +14936,7 @@ def _platform_overview_post(request, *, active_tab, users_subtab, workspace_form
         active_tab = "users"
         users_subtab = "list"
         user_id = _parse_int(request.POST.get("user_id"))
-        full_name = _sanitize_task_text((request.POST.get("full_name") or "").strip(), multiline=False, max_len=150)
+        full_name = _sanitize_nombre_propio((request.POST.get("full_name") or "").strip(), max_len=150)
         email = re.sub(r"\s+", "", str(request.POST.get("email") or "").strip()).lower()[:190]
         password = (request.POST.get("password") or "").strip()
         role_value = str(request.POST.get("role") or AppUserRole.ROLE_PLAYER).strip()
@@ -15839,7 +15852,7 @@ def platform_workspace_detail_page(request, workspace_id):
                     game_format = str(request.POST.get("game_format") or Team.GAME_FORMAT_F11).strip().lower()
                     if game_format not in {Team.GAME_FORMAT_F7, Team.GAME_FORMAT_F11}:
                         game_format = Team.GAME_FORMAT_F11
-                    team_name = _sanitize_task_text(
+                    team_name = _sanitize_nombre_propio(
                         (request.POST.get("team_name") or "").strip(), multiline=False, max_len=150
                     )
                     if not team_name and workspace.primary_team_id:
@@ -15847,7 +15860,7 @@ def platform_workspace_detail_page(request, workspace_id):
                     if not team_name:
                         raise ValueError("Indica el nombre del equipo.")
 
-                    competition_name = _sanitize_task_text(
+                    competition_name = _sanitize_nombre_propio(
                         (request.POST.get("competition_name") or "").strip(), multiline=False, max_len=150
                     )
                     season_name = _sanitize_task_text(
@@ -16029,7 +16042,7 @@ def platform_workspace_detail_page(request, workspace_id):
                 try:
                     primary_team = workspace.primary_team
                     update_fields = []
-                    team_name = _sanitize_task_text(
+                    team_name = _sanitize_nombre_propio(
                         (request.POST.get("club_team_name") or "").strip(), multiline=False, max_len=150
                     )
                     short_name = _sanitize_task_text(
@@ -16206,7 +16219,7 @@ def platform_workspace_detail_page(request, workspace_id):
                 except Exception:
                     error = "No se pudo actualizar la identidad del club."
         elif form_action == "update_workspace_identity":
-            workspace_name = _sanitize_task_text(
+            workspace_name = _sanitize_nombre_propio(
                 (request.POST.get("workspace_name") or "").strip(), multiline=False, max_len=160
             )
             owner_username = _sanitize_username(request.POST.get("owner_username"), max_len=150)
@@ -16331,7 +16344,7 @@ def platform_workspace_detail_page(request, workspace_id):
                 external_competition_key = str(request.POST.get("external_competition_key") or "").strip()[:140]
                 external_group_key = str(request.POST.get("external_group_key") or "").strip()[:140]
                 external_team_key = str(request.POST.get("external_team_key") or "").strip()[:140]
-                external_team_name = _sanitize_task_text(
+                external_team_name = _sanitize_nombre_propio(
                     (request.POST.get("external_team_name") or "").strip(), multiline=False, max_len=160
                 )
                 auto_sync_enabled = str(request.POST.get("competition_auto_sync") or "").lower() in {
@@ -16430,7 +16443,7 @@ def platform_workspace_detail_page(request, workspace_id):
                 ]
                 external_group_key = str(request.POST.get("candidate_external_group_key") or "").strip()[:140]
                 external_team_key = str(request.POST.get("candidate_external_team_key") or "").strip()[:140]
-                external_team_name = _sanitize_task_text(
+                external_team_name = _sanitize_nombre_propio(
                     (request.POST.get("candidate_external_team_name") or "").strip(), multiline=False, max_len=160
                 )
                 if not candidate_team and provider == WorkspaceCompetitionContext.PROVIDER_UNIVERSO:
@@ -16489,7 +16502,7 @@ def platform_workspace_detail_page(request, workspace_id):
         elif form_action == "invite_member":
             # Invitación + alta opcional de usuario (para que pueda poner su contraseña).
             username = _sanitize_username(request.POST.get("invite_username"), max_len=150)
-            full_name = _sanitize_task_text(
+            full_name = _sanitize_nombre_propio(
                 (request.POST.get("invite_full_name") or "").strip(), multiline=False, max_len=150
             )
             email = re.sub(r"\s+", "", str(request.POST.get("invite_email") or "").strip()).lower()[:190]
@@ -18095,7 +18108,7 @@ def admin_page(request):
                         new_workspace_name = (
                             f'{str(getattr(workspace, "name", "") or "").strip()} · {category_label}'.strip(" ·")
                         )
-                        new_workspace_name = _sanitize_task_text(new_workspace_name, multiline=False, max_len=160)
+                        new_workspace_name = _sanitize_nombre_propio(new_workspace_name, max_len=160)
                         if not new_workspace_name:
                             new_workspace_name = f"Club {team_obj.id}"
                         new_slug = _unique_workspace_slug(new_workspace_name)
@@ -57389,7 +57402,7 @@ def task_studio_profile_page(request):
         profile.display_name = _sanitize_task_text(
             (request.POST.get("display_name") or "").strip(), multiline=False, max_len=140
         )
-        profile.club_name = _sanitize_task_text(
+        profile.club_name = _sanitize_nombre_propio(
             (request.POST.get("club_name") or "").strip(), multiline=False, max_len=140
         )
         profile.primary_color = _clean_color(request.POST.get("primary_color"), profile.primary_color)
