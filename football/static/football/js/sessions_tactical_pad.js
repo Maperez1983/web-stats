@@ -124,6 +124,7 @@
   const PITCH_FORMAT_BY_PRESET = {
     full_pitch: '11v11_full',
     half_pitch: '11v11_half',
+    half_pitch_def: '11v11_half',
     attacking_third: 'specific_zone',
     middle_third: 'specific_zone',
     defensive_third: 'specific_zone',
@@ -136,6 +137,7 @@
   const PRESET_LABEL = {
     full_pitch: 'campo completo',
     half_pitch: 'medio campo',
+    half_pitch_def: 'medio campo (otro lado)',
     attacking_third: 'último tercio',
     middle_third: 'tercio medio',
     defensive_third: 'primer tercio',
@@ -1531,7 +1533,7 @@
       drawAdvertisingBoards(x, y, width, height);
     };
 
-    if (preset === 'half_pitch') drawHalfPitch();
+    if (preset === 'half_pitch' || preset === 'half_pitch_def') drawHalfPitch();
     else if (preset === 'attacking_third') drawThirdZone('attacking');
     else if (preset === 'defensive_third') drawThirdZone('defensive');
     else if (preset === 'middle_third') drawMiddleThird();
@@ -9819,7 +9821,7 @@
 						    const pitchMetersForPreset = (preset, format = pitch3dFormat) => {
 						      const key = safeText(preset, 'full_pitch');
 						      const profile = getPitch3dFieldProfile(format);
-						      if (key === 'half_pitch') return { w: profile.w / 2, h: profile.h };
+						      if (key === 'half_pitch' || key === 'half_pitch_def') return { w: profile.w / 2, h: profile.h };
 						      if (key === 'attacking_third' || key === 'middle_third' || key === 'defensive_third') return { w: profile.w / 3, h: profile.h };
 						      if (key === 'seven_side_single') return { w: 65, h: 45 };
 						      if (key === 'futsal') return { w: 40, h: 20 };

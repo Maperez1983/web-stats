@@ -10,6 +10,10 @@
   const PRESET_METRICS = {
     full_pitch: { width: 105, height: 68, mode: 'full' },
     half_pitch: { width: 52.5, height: 68, mode: 'half' },
+    // Media cancha ESPEJADA: misma mitad, porteria al otro extremo. Existia para los
+    // tercios (attacking_/defensive_third) pero no para la media, y sin ella no se puede
+    // reproducir una tarea dibujada atacando hacia el otro lado.
+    half_pitch_def: { width: 52.5, height: 68, mode: 'half_def' },
     attacking_third: { width: 35, height: 68, mode: 'attacking_third' },
     middle_third: { width: 35, height: 68, mode: 'middle_third' },
     defensive_third: { width: 35, height: 68, mode: 'defensive_third' },
@@ -962,24 +966,30 @@
       `;
     }
 
-    if (mode === 'half') {
+    if (mode === 'half' || mode === 'half_def') {
+      // `half_def` es la MISMA media cancha con la porteria al otro extremo.
+      const leftSide = mode === 'half_def';
       const mx = pitch.w / 52.5;
       const my = pitch.h / 68;
       const penDepth = 16.5 * mx;
       const areaTop = pitch.y + ((pitch.h - (40.32 * my)) / 2);
       const goalTop = pitch.y + ((pitch.h - (18.32 * my)) / 2);
-      const spotX = pitch.x + pitch.w - (11 * mx);
-      const targetX = pitch.x + pitch.w - penDepth;
+      const goalDepth = 5.5 * mx;
+      const spotX = leftSide ? pitch.x + (11 * mx) : pitch.x + pitch.w - (11 * mx);
+      const targetX = leftSide ? pitch.x + penDepth : pitch.x + pitch.w - penDepth;
+      const areaX = leftSide ? pitch.x : pitch.x + pitch.w - penDepth;
+      const goalX = leftSide ? pitch.x : pitch.x + pitch.w - goalDepth;
+      const midX = leftSide ? pitch.x + pitch.w : pitch.x;   // linea de medio campo
       const dx = Math.abs(targetX - spotX);
       const arcDy = Math.sqrt(Math.max(0, (arcRadius * arcRadius) - (dx * dx)));
       return `
         ${buildRect(pitch.x, pitch.y, pitch.w, pitch.h, 0, 'none', `stroke="${stroke}" stroke-width="${strokeWidth}"`)}
-        ${buildRect(pitch.x + pitch.w - penDepth, areaTop, penDepth, 40.32 * my, 0, 'none', `stroke="${stroke}" stroke-width="${strokeWidth}"`)}
-        ${buildRect(pitch.x + pitch.w - (5.5 * mx), goalTop, 5.5 * mx, 18.32 * my, 0, 'none', `stroke="${stroke}" stroke-width="${strokeWidth}"`)}
+        ${buildRect(areaX, areaTop, penDepth, 40.32 * my, 0, 'none', `stroke="${stroke}" stroke-width="${strokeWidth}"`)}
+        ${buildRect(goalX, goalTop, goalDepth, 18.32 * my, 0, 'none', `stroke="${stroke}" stroke-width="${strokeWidth}"`)}
         ${buildCircle(spotX, centerY, spotRadius, 'none', 0, stroke)}
-        <path d="${buildArcPath(targetX, centerY - arcDy, targetX, centerY + arcDy, arcRadius, arcRadius, 0)}" fill="none" stroke="${stroke}" stroke-width="${strokeWidth}"/>
-        <path d="${buildArcPath(pitch.x, centerY - centerRadius, pitch.x, centerY + centerRadius, centerRadius, centerRadius, 1)}" fill="none" stroke="${stroke}" stroke-width="${strokeWidth}"/>
-        ${buildCircle(pitch.x, centerY, spotRadius, 'none', 0, stroke)}
+        <path d="${buildArcPath(targetX, centerY - arcDy, targetX, centerY + arcDy, arcRadius, arcRadius, leftSide ? 1 : 0)}" fill="none" stroke="${stroke}" stroke-width="${strokeWidth}"/>
+        <path d="${buildArcPath(midX, centerY - centerRadius, midX, centerY + centerRadius, centerRadius, centerRadius, leftSide ? 0 : 1)}" fill="none" stroke="${stroke}" stroke-width="${strokeWidth}"/>
+        ${buildCircle(midX, centerY, spotRadius, 'none', 0, stroke)}
       `;
     }
 
@@ -1144,7 +1154,7 @@
     const lineStroke = '#f8fbff';
     const lineUnderStroke = 'rgba(6,16,12,0.18)';
     const lineWidth = clamp(pitch.h / 135, 2.2, 5.2);
-    const leftGoalModes = new Set(['full', 'seven_side', 'seven_side_single', 'futsal', 'defensive_third']);
+    const leftGoalModes = new Set(['full', 'seven_side', 'seven_side_single', 'futsal', 'defensive_third', 'half_def']);
     const rightGoalModes = new Set(['full', 'seven_side', 'seven_side_single', 'futsal', 'half', 'attacking_third']);
     pitch.idPrefix = idPrefix;
     const pitchBox = `${pitch.x} ${pitch.y} ${pitch.w} ${pitch.h}`;
@@ -1389,7 +1399,7 @@
     else { pitchH = TARGET; pitchW = TARGET * aspect; }
     const sceneLandscape = { sceneW: Math.round(pitchW + MARGIN * 2), sceneH: Math.round(pitchH + MARGIN * 2) };
     // Media cancha y tercios son más altos que anchos: se giran 90° para verse apaisados y llenar el marco.
-    const tallMode = ['half', 'attacking_third', 'middle_third', 'defensive_third'].includes(metrics.mode);
+    const tallMode = ['half', 'half_def', 'attacking_third', 'middle_third', 'defensive_third'].includes(metrics.mode);
     const effectiveRotate = tallMode ? (orientation !== 'portrait') : (orientation === 'portrait');
     const sceneW = effectiveRotate ? sceneLandscape.sceneH : sceneLandscape.sceneW;
     const sceneH = effectiveRotate ? sceneLandscape.sceneW : sceneLandscape.sceneH;
@@ -1406,7 +1416,7 @@
     const lineStroke = '#fdfefe';
     const lineUnderStroke = 'rgba(9,18,28,0.12)';
     const lineWidth = clamp(pitch.h / 150, 2.7, 5.8);
-    const leftGoalModes = new Set(['full', 'seven_side', 'seven_side_single', 'futsal', 'defensive_third']);
+    const leftGoalModes = new Set(['full', 'seven_side', 'seven_side_single', 'futsal', 'defensive_third', 'half_def']);
     const rightGoalModes = new Set(['full', 'seven_side', 'seven_side_single', 'futsal', 'half', 'attacking_third']);
     const grassTextureSrc = resolveGrassTextureHref();
 
@@ -1471,7 +1481,7 @@
     const lineUnderStroke = normalizedGrass === 'whiteboard' ? 'rgba(255,255,255,0.42)' : 'rgba(9,18,28,0.11)';
     const lineWidth = clamp(pitch.h / 150, 2.7, 5.8);
     const renderContext = !['whiteboard', 'blackboard', 'coachboard', 'flat_export'].includes(normalizedGrass) && pitch.metrics.mode === 'full';
-    const leftGoalModes = new Set(['full', 'seven_side', 'seven_side_single', 'futsal', 'defensive_third']);
+    const leftGoalModes = new Set(['full', 'seven_side', 'seven_side_single', 'futsal', 'defensive_third', 'half_def']);
     const rightGoalModes = new Set(['full', 'seven_side', 'seven_side_single', 'futsal', 'half', 'attacking_third']);
     pitch.idPrefix = idPrefix;
 

@@ -44405,6 +44405,7 @@ def _initial_eleven_page_impl(request):
         allowed_presets = {
             "full_pitch",
             "half_pitch",
+            "half_pitch_def",
             "seven_side_single",
             "blank",
         }
@@ -51245,6 +51246,7 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
                 if pitch_preset not in {
                     "full_pitch",
                     "half_pitch",
+                    "half_pitch_def",
                     "attacking_third",
                     "middle_third",
                     "defensive_third",
@@ -54440,6 +54442,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     if pitch_preset not in {
         "full_pitch",
         "half_pitch",
+        "half_pitch_def",
         "attacking_third",
         "middle_third",
         "defensive_third",
@@ -55625,6 +55628,7 @@ def _save_task_studio_entry(request, owner, existing_task=None):
     if pitch_preset not in {
         "full_pitch",
         "half_pitch",
+        "half_pitch_def",
         "attacking_third",
         "middle_third",
         "defensive_third",
@@ -89036,6 +89040,7 @@ def tactical_playbook_task_save_api(request):
     if pitch_preset not in {
         "full_pitch",
         "half_pitch",
+        "half_pitch_def",
         "attacking_third",
         "middle_third",
         "defensive_third",

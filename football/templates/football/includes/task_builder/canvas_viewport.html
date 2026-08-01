@@ -181,6 +181,7 @@
                 <select name="draw_task_pitch_preset" id="draw-task-preset">
                   <option value="full_pitch" {% if initial.pitch_preset == 'full_pitch' %}selected{% endif %}>Campo completo</option>
                   <option value="half_pitch" {% if initial.pitch_preset == 'half_pitch' %}selected{% endif %}>Medio campo</option>
+                  <option value="half_pitch_def" {% if initial.pitch_preset == 'half_pitch_def' %}selected{% endif %}>Medio campo (portería al otro lado)</option>
                   <option value="attacking_third" {% if initial.pitch_preset == 'attacking_third' %}selected{% endif %}>Último tercio</option>
                   <option value="middle_third" {% if initial.pitch_preset == 'middle_third' %}selected{% endif %}>Tercio medio</option>
                   <option value="defensive_third" {% if initial.pitch_preset == 'defensive_third' %}selected{% endif %}>Primer tercio</option>
@@ -1903,6 +1904,13 @@
                                   </span>
                                 </button>
                                 <button type="button" class="surface-option" data-preset="half_pitch">
+                                  <span class="surface-option-thumb" data-surface-thumb="half_pitch"></span>
+                                  <span>
+                                    <strong>Fútbol 11 · Medio campo</strong>
+                                    <small>Para tareas analíticas, salidas de balón o trabajo por sectores.</small>
+                                  </span>
+                                </button>
+                                <button type="button" class="surface-option" data-preset="half_pitch_def">
                                   <span class="surface-option-thumb" data-surface-thumb="half_pitch"></span>
                                   <span>
                                     <strong>Fútbol 11 · Medio campo</strong>
