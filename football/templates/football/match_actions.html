@@ -3201,7 +3201,20 @@
 		                  setText('status-yellow-count', yellow);
 		                  setText('status-red-count', red);
 		                  setText('status-subs-used-count', subs);
-		                  setText('status-subs-left-count', Math.max(0, 5 - subs));
+		                  var subsLimit = null;
+		                  try {
+		                    if (window.matchActionsBoot && window.matchActionsBoot.substitutionLimit !== undefined) {
+		                      subsLimit = window.matchActionsBoot.substitutionLimit;
+		                    }
+		                  } catch (e) {}
+		                  if (subsLimit === null || subsLimit === undefined || subsLimit === false) {
+		                    setText('status-subs-left-count', 'Sin limite');
+		                    setText('persistent-subs-limit', 'Sin limite');
+		                  } else {
+		                    var leftSubs = Math.max(0, Number(subsLimit) - subs);
+		                    setText('status-subs-left-count', leftSubs);
+		                    setText('persistent-subs-limit', Number(subsLimit));
+		                  }
 		                  setText('status-corner-for-count', cornerFor);
 			                  setText('status-corner-against-count', cornerAgainst);
 			                  setText('status-goal-count', goals);
@@ -3767,7 +3780,7 @@
               <article class="status-card">
                 <h5>Sustituciones</h5>
 	                <p>Realizadas · <span class="status-value" id="status-subs-used-count">{{ initial_quick_counts.subs|default:0 }}</span></p>
-	                <p>Disponibles · <span class="status-value" id="status-subs-left-count">{{ initial_subs_left|default:5 }}</span></p>
+	                <p>Disponibles · <span class="status-value" id="status-subs-left-count">{{ initial_subs_left_label|default:"5" }}</span></p>
             </article>
             <article class="status-card">
               <h5>Córners</h5>
@@ -4464,7 +4477,7 @@
         </div>
         <div class="row">
           <span class="label">Sustituciones</span>
-          <span class="value"><span id="persistent-subs-used">0</span>/5</span>
+          <span class="value"><span id="persistent-subs-used">0</span>/<span id="persistent-subs-limit">{{ substitution_limit_label|default:"5" }}</span></span>
         </div>
 	        <div class="row">
 	          <span class="label">Stats live</span>
@@ -4548,6 +4561,7 @@
       window.matchActionsBoot = {
         playerAvatarFallback: '{{ avatar_url|escapejs }}',
         startersLimit: Number('{{ starters_limit|default:11 }}'),
+        substitutionLimit: {% if substitution_limit is None %}null{% else %}Number('{{ substitution_limit }}'){% endif %},
         teamName: '{{ team_name|escapejs }}',
         matchdayRoleKey: '{{ matchday_role_key|default:"" }}',
         canManageWorkspace: {% if can_manage_workspace %}true{% else %}false{% endif %},

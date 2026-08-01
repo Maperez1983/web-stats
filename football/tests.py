@@ -98,6 +98,7 @@ from football.query_helpers import (
     get_active_match,
     get_active_injury_player_ids,
     get_current_convocation_record,
+    get_next_open_calendar_match,
     is_injury_record_active,
     is_manual_sanction_active,
 )
@@ -10458,6 +10459,30 @@ class QueryHelperTests(TestCase):
 
         self.assertEqual(resolved.id, friendly.id)
 
+    def test_get_next_open_calendar_match_ignores_closed_matches(self):
+        Match.objects.create(
+            season=self.team.group.season,
+            group=self.team.group,
+            home_team=self.team,
+            away_team=self.rival,
+            round="Cerrado",
+            date=date(2026, 8, 1),
+            is_closed=True,
+        )
+        open_match = Match.objects.create(
+            season=self.team.group.season,
+            group=self.team.group,
+            home_team=self.team,
+            away_team=self.rival,
+            round="Abierto",
+            date=date(2026, 8, 12),
+            is_closed=False,
+        )
+
+        resolved = get_next_open_calendar_match(self.team)
+
+        self.assertEqual(resolved.id, open_match.id)
+
     def test_manual_sanction_helper_expires_after_until_date(self):
         player = Player.objects.create(
             team=self.team,
@@ -10777,6 +10802,89 @@ class ConvocationWorkflowTests(TestCase):
         self.assertEqual(response.context["match_info"]["opponent"], "Rival de Hoy")
         self.assertEqual(response.context["match_info"]["date"], today.isoformat())
         self.assertEqual(response.context["match_info"]["location"], "Campo Hoy")
+
+    def test_convocation_page_only_uses_open_calendar_matches_by_date(self):
+        self.client.force_login(self.user)
+        rival_closed = Team.objects.create(name="Rival Cerrado", slug="rival-cerrado", group=self.team.group)
+        rival_open = Team.objects.create(name="Rival Abierto", slug="rival-abierto", group=self.team.group)
+        Match.objects.create(
+            season=self.team.group.season,
+            group=self.team.group,
+            round="Amistoso cerrado",
+            date=date(2026, 8, 1),
+            location="Campo Cerrado",
+            home_team=self.team,
+            away_team=rival_closed,
+            context=Match.CONTEXT_FRIENDLY,
+            is_closed=True,
+        )
+        open_match = Match.objects.create(
+            season=self.team.group.season,
+            group=self.team.group,
+            round="Amistoso abierto",
+            date=date(2026, 8, 12),
+            location="Campo Abierto",
+            home_team=self.team,
+            away_team=rival_open,
+            context=Match.CONTEXT_FRIENDLY,
+            is_closed=False,
+        )
+
+        response = self.client.get(reverse("convocation"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["active_match_id"], open_match.id)
+        self.assertEqual(response.context["match_info"]["opponent"], "Rival Abierto")
+        self.assertEqual(response.context["match_info"]["date"], "2026-08-12")
+
+    def test_save_convocation_uses_first_open_calendar_match(self):
+        self.client.force_login(self.user)
+        rival_closed = Team.objects.create(name="Rival Guardado Cerrado", slug="rival-guardado-cerrado", group=self.team.group)
+        rival_open = Team.objects.create(name="Rival Guardado Abierto", slug="rival-guardado-abierto", group=self.team.group)
+        Match.objects.create(
+            season=self.team.group.season,
+            group=self.team.group,
+            round="Cerrado",
+            date=date(2026, 8, 1),
+            location="Campo Cerrado",
+            home_team=self.team,
+            away_team=rival_closed,
+            context=Match.CONTEXT_FRIENDLY,
+            is_closed=True,
+        )
+        open_match = Match.objects.create(
+            season=self.team.group.season,
+            group=self.team.group,
+            round="Abierto",
+            date=date(2026, 8, 12),
+            location="Campo Abierto",
+            home_team=self.team,
+            away_team=rival_open,
+            context=Match.CONTEXT_FRIENDLY,
+            is_closed=False,
+        )
+
+        response = self.client.post(
+            reverse("convocation-save"),
+            data=json.dumps(
+                {
+                    "players": [self.player.id],
+                    "match_info": {
+                        "opponent": "Rival Guardado Abierto",
+                        "round": "Abierto",
+                        "date": "2026-08-12",
+                        "time": "20:00",
+                        "location": "Campo Abierto",
+                        "context": Match.CONTEXT_FRIENDLY,
+                    },
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        record = ConvocationRecord.objects.get(team=self.team, is_current=True)
+        self.assertEqual(record.match_id, open_match.id)
 
     @patch('football.views._build_pdf_response_or_html_fallback')
     def test_convocation_pdf_accepts_team_param_without_active_workspace(self, mock_pdf):
@@ -13070,6 +13178,18 @@ class MatchActionWorkflowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context.get('selected_match_id'), self.match.id)
+
+    def test_match_actions_page_shows_unlimited_substitutions_for_friendlies(self):
+        self.match.context = Match.CONTEXT_FRIENDLY
+        self.match.save(update_fields=['context'])
+
+        response = self.client.get(reverse('match-action-page'), {'match_id': self.match.id})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.context.get('substitution_limit'))
+        self.assertEqual(response.context.get('substitution_limit_label'), 'Sin limite')
+        self.assertContains(response, 'id="status-subs-left-count">Sin limite<', html=False)
+        self.assertContains(response, 'id="persistent-subs-limit">Sin limite<', html=False)
 
     def test_match_actions_page_does_not_embed_css_inside_script(self):
         response = self.client.get(reverse('match-action-page'))

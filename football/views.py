@@ -467,6 +467,7 @@ from football.query_helpers import (
     get_current_convocation_record,
     get_latest_live_match,
     get_latest_pizarra_match,
+    get_next_open_calendar_match,
     get_previous_match,
     get_requested_match,
     get_sanctioned_player_ids_from_previous_round,
@@ -23753,6 +23754,16 @@ def _required_starters_for_team(team):
     return 11
 
 
+def _substitution_limit_for_match(match):
+    try:
+        context_value = str(getattr(match, "context", "") or "").strip().lower()
+    except Exception:
+        context_value = ""
+    if context_value == Match.CONTEXT_FRIENDLY:
+        return None
+    return 5
+
+
 def _regulation_minutes_for_team(team):
     """
     Minutos reglamentarios de partido (sin prórroga) para cálculos de participación e influencia.
@@ -24604,6 +24615,22 @@ def _set_match_stats_source(match, source):
         logger.debug("No se pudo fijar stats_source=%s en match=%s", source, getattr(match, "id", None), exc_info=True)
 
 
+def _set_match_closed_state(match, *, is_closed=True):
+    if not match:
+        return
+    try:
+        if bool(getattr(match, "is_closed", False)) != bool(is_closed):
+            match.is_closed = bool(is_closed)
+            match.save(update_fields=["is_closed"])
+    except Exception:
+        logger.debug(
+            "No se pudo fijar is_closed=%s en match=%s",
+            is_closed,
+            getattr(match, "id", None),
+            exc_info=True,
+        )
+
+
 def _ensure_matchday_convocation_record(primary_team, *, match=None, request=None):
     """
     Garantiza que exista una ConvocationRecord `is_current=True` para el flujo de partido.
@@ -25047,7 +25074,10 @@ def match_action_page(request):
         "goal": 0,
         "assist": 0,
     }
-    initial_subs_left = 5
+    substitution_limit = _substitution_limit_for_match(active_match)
+    substitution_limit_label = "Sin limite" if substitution_limit is None else str(int(substitution_limit))
+    initial_subs_left = substitution_limit
+    initial_subs_left_label = substitution_limit_label
     try:
         subs_in = 0
         subs_out = 0
@@ -25087,7 +25117,12 @@ def match_action_page(request):
         initial_quick_counts["subs"] = max(subs_in + subs_other, subs_out)
         initial_quick_counts["corner_for"] = corner_for
         initial_quick_counts["corner_against"] = corner_against
-        initial_subs_left = max(0, 5 - int(initial_quick_counts.get("subs") or 0))
+        if substitution_limit is None:
+            initial_subs_left = None
+            initial_subs_left_label = "Sin limite"
+        else:
+            initial_subs_left = max(0, int(substitution_limit) - int(initial_quick_counts.get("subs") or 0))
+            initial_subs_left_label = str(initial_subs_left)
     except Exception:
         pass
 
@@ -25130,6 +25165,9 @@ def match_action_page(request):
             "recent_events": recent_events,
             "initial_quick_counts": initial_quick_counts,
             "initial_subs_left": initial_subs_left,
+            "initial_subs_left_label": initial_subs_left_label,
+            "substitution_limit": substitution_limit,
+            "substitution_limit_label": substitution_limit_label,
             "match_info": match_info,
             "actions_total_count": actions_total_count,
             "actions_pending_count": actions_pending_count,
@@ -25358,7 +25396,7 @@ def register_match_action(request):
     player_id = request.POST.get("player")
     action_type = (request.POST.get("action_type") or "").strip()
     action_type_key = action_type.lower()
-    target_match = _resolve_active_match_for_flow(request, primary_team)
+    target_match = get_requested_match(request, primary_team) or get_next_open_calendar_match(primary_team)
     convocation_record = None
     if target_match:
         convocation_record = _get_convocation_record_for_match(primary_team, target_match)
@@ -25655,7 +25693,7 @@ def save_match_lineup(request):
     if not primary_team:
         return JsonResponse({"error": "Equipo principal no configurado"}, status=400)
     starters_limit = _required_starters_for_team(primary_team)
-    target_match = _resolve_active_match_for_flow(request, primary_team)
+    target_match = get_requested_match(request, primary_team) or get_next_open_calendar_match(primary_team)
     convocation_record = None
     if target_match:
         convocation_record = _get_convocation_record_for_match(primary_team, target_match)
@@ -25860,7 +25898,7 @@ def publish_initial_eleven(request):
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({"error": "Equipo principal no configurado"}, status=400)
-    target_match = _resolve_active_match_for_flow(request, primary_team)
+    target_match = get_requested_match(request, primary_team) or get_next_open_calendar_match(primary_team)
     if not target_match:
         return JsonResponse({"error": "No hay partido activo para publicar la alineación."}, status=400)
     convocation_record = _get_convocation_record_for_match(primary_team, target_match)
@@ -25939,7 +25977,7 @@ def get_match_lineup(request):
     if not primary_team:
         return JsonResponse({"error": "Equipo principal no configurado"}, status=400)
     starters_limit = _required_starters_for_team(primary_team)
-    target_match = _resolve_active_match_for_flow(request, primary_team)
+    target_match = get_requested_match(request, primary_team) or get_next_open_calendar_match(primary_team)
     convocation_record = None
     if target_match:
         convocation_record = _get_convocation_record_for_match(primary_team, target_match)
@@ -26287,6 +26325,7 @@ def _reset_matchday_after_finalize(request, primary_team, match):
                 record.save(update_fields=["is_current"])
             except Exception:
                 pass
+    _set_match_closed_state(match, is_closed=True)
 
 
 @authenticated_write
@@ -30914,7 +30953,7 @@ def convocation_page(request):
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404("Equipo principal no configurado")
-    active_match = _resolve_active_match_for_flow(request, primary_team)
+    active_match = get_requested_match(request, primary_team) or get_next_open_calendar_match(primary_team)
     requested_context = str(request.GET.get("context") or "").strip().lower()
     active_match_context = str(getattr(active_match, "context", "") or "").strip().lower()
     allowed_contexts = {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY}
@@ -31170,10 +31209,8 @@ def convocation_page(request):
     convocation_record = None
     if active_match:
         convocation_record = _get_convocation_record_for_match(primary_team, active_match)
-    if not convocation_record:
-        convocation_record = get_current_convocation_record(
-            primary_team, match=active_match, fallback_to_latest=False if active_match else True
-        )
+    if not convocation_record and not active_match:
+        convocation_record = get_current_convocation_record(primary_team, match=None, fallback_to_latest=True)
     selected_player_ids = []
     captain_id = None
     goalkeeper_id = None
@@ -31627,7 +31664,7 @@ def save_convocation(request):
             except ValueError:
                 continue
 
-    target_match = _resolve_active_match_for_flow(request, primary_team)
+    target_match = get_requested_match(request, primary_team) or get_next_open_calendar_match(primary_team)
     # B2: si el formulario declara un CONTEXTO distinto al del partido activo de sesión (p.ej. preparas
     # un amistoso pero el activo es el de Liga), NO reutilizamos ese Match: mutarlo corrompería el
     # partido de Liga. Lo descartamos para que el anti-duplicado busque/cree el correcto.
@@ -31643,6 +31680,7 @@ def save_convocation(request):
         if parsed_match_date:
             try:
                 qs = _team_match_queryset(primary_team).filter(date=parsed_match_date)
+                qs = qs.filter(is_closed=False)
                 if context_value:
                     qs = qs.filter(context=context_value)
                 if round_value:
@@ -83359,6 +83397,7 @@ def match_editor_page(request, match_id):
                     _persist_match_ratings(primary_team, match, request=request)
                 except Exception:
                     pass
+                _set_match_closed_state(match, is_closed=True)
                 try:
                     _msg = "Partido cerrado."
                     if attendance_marked:

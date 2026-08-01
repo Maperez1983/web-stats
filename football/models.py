@@ -2225,6 +2225,10 @@ class Match(models.Model):
     home_score = models.PositiveSmallIntegerField(null=True, blank=True)
     away_score = models.PositiveSmallIntegerField(null=True, blank=True)
     result = models.CharField(max_length=30, blank=True)
+    is_closed = models.BooleanField(
+        default=False,
+        help_text='Marca si el partido ya se cerró y no debe seguir apareciendo como pendiente en convocatoria.',
+    )
     stats_source = models.CharField(
         max_length=16,
         blank=True,

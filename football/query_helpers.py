@@ -229,6 +229,18 @@ def get_active_match(primary_team):
     return qs.order_by('-id').first()
 
 
+def get_next_open_calendar_match(primary_team):
+    if not primary_team:
+        return None
+    return (
+        _team_match_queryset(primary_team)
+        .filter(is_closed=False)
+        .exclude(date__isnull=True)
+        .order_by('date', 'id')
+        .first()
+    )
+
+
 def get_requested_match(request, primary_team):
     if not primary_team:
         return None
