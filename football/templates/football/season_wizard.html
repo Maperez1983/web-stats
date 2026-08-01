@@ -17,7 +17,11 @@
       <div class="topline">
         <div class="top-copy">
           <div class="top-kicker">Cierre y reinicio de ciclo</div>
-          <div class="title">Temporada · Cierre y configuración</div>
+          {% comment %}La barra de color del club, como en el resto de cabeceras.{% endcomment %}
+          <div class="title" style="display:flex;align-items:center;gap:.6rem;">
+            {% include 'football/includes/_kit_bar.html' %}
+            <span>Temporada · Cierre y configuración</span>
+          </div>
           <div class="subtitle">{{ workspace.name }}</div>
           <div class="top-pills">
             <span class="top-pill">Histórico</span>

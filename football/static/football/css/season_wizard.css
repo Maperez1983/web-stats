@@ -25,7 +25,8 @@
           linear-gradient(180deg, #03070f 0%, #081120 55%, #0a1427 100%);
         padding: 1rem;
       }
-      .page { max-width: 980px; margin: 0 auto; }
+      /* Mismo ancho que el resto del producto (Plantilla, Gobierno, Onboarding): iba a 980. */
+      .page { max-width: var(--fm-page, 1120px); margin: 0 auto; }
       .card {
         border: 1px solid var(--line);
         background: var(--panel);
@@ -50,7 +51,9 @@
       }
       .top-copy { display:flex; flex-direction:column; gap:0.35rem; max-width: 680px; }
       .top-kicker { color: rgba(125,211,252,0.92); font-size:0.72rem; font-weight:950; letter-spacing:0.18em; text-transform:uppercase; }
-      .title { font-size: clamp(1.35rem, 2.2vw, 2rem); font-weight: 800; line-height:1.02; letter-spacing: -0.03em; }
+      /* Titulo con el mismo aire que las demas pantallas: mayusculas y peso alto. */
+      .title { font-size: clamp(1.35rem, 2.2vw, 1.75rem); font-weight: 1000; line-height:1.02;
+        letter-spacing: 0.01em; text-transform: uppercase; }
       .subtitle { color: var(--muted); font-size: 0.95rem; }
       .top-pills { display:flex; flex-wrap:wrap; gap:0.45rem; }
       .top-pill { display:inline-flex; align-items:center; gap:0.35rem; padding:0.42rem 0.72rem; border-radius:999px; border:1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.05); color: var(--ink); font-size:0.72rem; font-weight:900; letter-spacing:0.05em; text-transform:uppercase; }
