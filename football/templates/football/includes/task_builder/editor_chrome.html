@@ -420,10 +420,28 @@
   }catch(e){}
   var edcZoom = function(id){ proxyClick(id); setTimeout(edcSyncZoomLabel, 30); };
   // Barra superior + acciones.
+  // El panel de Pasos vive dentro de #task-command-bar, y este chrome mete esa barra en una
+  // tarjeta con display:none. Resultado: al pulsar "Pasos" el panel se abria... invisible.
+  // Se saca a un contenedor flotante propio, igual que ya se hace con el inspector de seleccion.
+  var liberaPanelPasos = function(){
+    try{
+      var pop = document.getElementById('task-scenarios-popover');
+      if(!pop) return;
+      var host = document.getElementById('edc-steps-panel');
+      if(!host){
+        host = document.createElement('div');
+        host.className = 'edc-steps-panel';
+        host.id = 'edc-steps-panel';
+        document.body.appendChild(host);
+      }
+      if(pop.parentElement !== host) host.appendChild(pop);
+    }catch(e){}
+  };
+
   var actions = {
     fit: function(){ edcSize('pitch-size-fit'); },                                  // ajustar tamaño del campo a la ventana
     center: function(){ try{ if(window.__tpadCenterViewport) window.__tpadCenterViewport(); }catch(e){} }, // centrar contenido (reset paneo)
-    steps: function(){ proxyClick('task-scenarios-btn'); },                        // panel de Pasos (secuencia + movimiento)
+    steps: function(){ liberaPanelPasos(); proxyClick('task-scenarios-btn'); },      // panel de Pasos (secuencia + movimiento)
     zoom_in: function(){ edcZoom('pitch-zoom-in'); },                               // ZOOM real (viewport)
     zoom_out: function(){ edcZoom('pitch-zoom-out'); },
     zoom_reset: function(){ edcZoom('pitch-zoom-reset'); },                         // zoom al 100%

@@ -620,6 +620,12 @@ body.ed-chrome .edc-tool { font-size: 9.5px !important; letter-spacing: -.2px; }
 /* z-index alto: el <main> del editor es position:fixed z-index:120 y crea contexto de
    apilamiento; con z:46 el inspector de propiedades quedaba DETRÁS del campo (invisible),
    por lo que no había forma de ver la selección ni de cambiar color/grosor/tamaño. */
+/* Panel de Pasos, liberado del contenedor oculto (ver liberaPanelPasos). Mismo tratamiento
+   que el inspector: capa flotante propia para que pueda verse y usarse. */
+body.ed-chrome .edc-steps-panel { position: fixed; top: calc(var(--edc-top,56px) + 12px); left: 50%; transform: translateX(-50%); width: min(560px, calc(100vw - 24px)); z-index: 9994; }
+body.ed-chrome .edc-steps-panel #task-scenarios-popover { position: static !important; width: 100% !important; max-height: min(70vh, 620px); overflow: auto; box-sizing: border-box; }
+body.ed-chrome .edc-steps-panel #task-scenarios-popover[hidden] { display: none !important; }
+
 body.ed-chrome .edc-inspector { position: fixed; top: calc(var(--edc-top,56px) + 12px); right: 12px; width: 300px; z-index: 9993; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
 body.ed-chrome .edc-inspector > * { pointer-events: auto; }
 /* El contenido del inspector debe caber en el panel (si no, se corta por la derecha). */
