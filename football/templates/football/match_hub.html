@@ -303,6 +303,21 @@
         color:var(--prod-muted); background:rgba(148,163,184,.14); }
       .step-card.is-done .step-badge { color:var(--prod-success); background:rgba(34,197,94,.14); }
       .step-card.is-now  .step-badge { color:#0b1626; background:var(--prod-amber); }
+      .rival-picker-note {
+        margin: 0.35rem 0 0;
+        font-size: 0.82rem;
+        color: var(--prod-muted, rgba(15, 23, 42, 0.72));
+      }
+      .rival-picker-use {
+        border: 0;
+        background: none;
+        padding: 0;
+        font: inherit;
+        font-weight: 900;
+        text-decoration: underline;
+        cursor: pointer;
+        color: inherit;
+      }
     </style>
   </head>
   <body class="prod-commercial">
@@ -507,14 +522,7 @@
 	          <div class="form-grid">
 	            <div class="field" style="grid-column:1/-1;">
 	              <label for="opponentInput">Rival</label>
-	              <select id="opponentSelect" name="opponent_team_id">
-	                <option value="">Selecciona rival…</option>
-	                {% for opt in opponent_options %}
-	                  <option value="{{ opt.id }}" data-location="{{ opt.location|default:''|escape }}">{{ opt.label }}</option>
-	                {% endfor %}
-	              </select>
-	              <div style="height:0.45rem;"></div>
-	              <input id="opponentInput" name="opponent" required placeholder="Ej. TORREMOYA" />
+	              {% include 'football/includes/_match_rival_picker.html' with picker_id='opponentInput' %}
 	            </div>
             <div class="field">
               <label for="contextSelect">Competición</label>
@@ -569,7 +577,6 @@
         const modal = document.getElementById('createMatchModal');
 	        const cancel = document.getElementById('createMatchCancel');
 	        const contextSelect = document.getElementById('contextSelect');
-	        const opponentSelect = document.getElementById('opponentSelect');
 	        const homeAwaySelect = document.getElementById('homeAwaySelect');
 	        const tournamentName = document.getElementById('tournamentName');
 	        const tournamentStage = document.getElementById('tournamentStage');
@@ -596,23 +603,13 @@
 	        btn.addEventListener('click', open);
 	        cancel.addEventListener('click', close);
 	        contextSelect.addEventListener('change', setTournament);
-	        const syncOpponentFromSelect = () => {
-	          try {
-	            if (!opponentSelect) return;
-	            const value = String(opponentSelect.value || '').trim();
-	            if (!value) return;
-	            const opt = opponentSelect.options[opponentSelect.selectedIndex];
-	            const input = document.getElementById('opponentInput');
-	            const locationInput = document.getElementById('locationInput');
-	            if (input && opt) input.value = (opt.textContent || '').trim();
-	            if (locationInput && homeAwaySelect && String(homeAwaySelect.value || '') === 'away') {
-	              const rivalLocation = String(opt?.dataset?.location || '').trim();
-	              if (rivalLocation) locationInput.value = rivalLocation;
-	            }
-	          } catch (e) {}
-	        };
-	        if (opponentSelect) opponentSelect.addEventListener('change', syncOpponentFromSelect);
-	        if (homeAwaySelect) homeAwaySelect.addEventListener('change', syncOpponentFromSelect);
+	        /* El campo de rival lo gobierna ya match_rival_picker.js (pieza compartida con el
+	           Calendario): rellena el id del equipo y el campo de juego del rival. Aquí sólo
+	           queda pedirle que revise cuando se cambia local/visitante. */
+	        const rivalInput = document.getElementById('opponentInput');
+	        if (homeAwaySelect && rivalInput) {
+	          homeAwaySelect.addEventListener('change', () => rivalInput.dispatchEvent(new Event('change')));
+	        }
 	        modal.addEventListener('click', (event) => {
 	          if (event.target === modal) close();
 	        });
@@ -653,5 +650,6 @@
         } catch (e) {}
       })();
     </script>
+      <script src="{% static 'football/js/match_rival_picker.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
   </body>
 </html>

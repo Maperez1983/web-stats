@@ -1,0 +1,23 @@
+{% comment %}
+Selector de rival del alta de partido. UNA sola pieza para el Calendario y para el hub de
+Partido: antes eran dos listas distintas, con nombres distintos y mecanismos distintos
+(una mandaba id, la otra texto), y por eso los equipos existentes "no aparecían".
+
+Contrato: `rival_picker_options` (build_match_rival_picker_options) y un `input` llamado
+`opponent` + un hidden `opponent_team_id`. El endpoint da prioridad al id; el texto es el
+respaldo, y como el value es el nombre exacto guardado, ese respaldo tampoco duplica.
+{% endcomment %}
+<input type="hidden" name="opponent_team_id" id="{{ picker_id|default:'rivalPicker' }}-id" value="" />
+<input
+  id="{{ picker_id|default:'rivalPicker' }}"
+  name="opponent"
+  list="{{ picker_id|default:'rivalPicker' }}-list"
+  required
+  autocomplete="off"
+  placeholder="Escribe o elige — si no existe, se crea"
+  data-rival-picker
+/>
+<datalist id="{{ picker_id|default:'rivalPicker' }}-list">
+  {% for opt in rival_picker_options %}<option value="{{ opt.name }}" data-id="{{ opt.id }}" data-location="{{ opt.location }}">{{ opt.hint }}</option>{% endfor %}
+</datalist>
+<p class="rival-picker-note" id="{{ picker_id|default:'rivalPicker' }}-note" hidden></p>

@@ -11103,6 +11103,64 @@ _universo_snapshot_supports_team = standings_services.universo_snapshot_supports
 _resolve_standings_for_team = standings_services.resolve_standings_for_team
 
 
+def build_match_rival_picker_options(primary_team, *, limit=600):
+    """
+    Rivales para el alta de partido: TODOS los equipos que ya conoce la aplicación.
+
+    Antes cada pantalla armaba su lista y no coincidían: el Calendario filtraba por
+    `group_id` (sólo los del grupo de liga, así que ningún rival de amistoso aparecía nunca)
+    y el hub usaba la clasificación con el nombre corto. Mismos equipos, dos listas, dos
+    nombres — y de ahí la sensación de estar duplicando.
+
+    El `value` de cada opción es el NOMBRE EXACTO guardado: si el JS no llegara a rellenar
+    el id, el texto que viaja sigue casando con `resolve_or_create_team` y no se crea nada
+    nuevo. La pista de contexto va aparte, para distinguir homónimos de distinta categoría.
+    """
+    if not primary_team:
+        return []
+    grupo_id = getattr(primary_team, "group_id", None)
+    try:
+        rows = list(
+            Team.objects.exclude(id=primary_team.id)
+            .select_related("group", "club")
+            .only("id", "name", "short_name", "home_stadium", "group_id", "club_id")[: int(limit)]
+        )
+    except Exception:
+        logger.debug("No se pudieron listar los equipos para el selector de rival", exc_info=True)
+        return []
+
+    def _pista(team):
+        partes = []
+        grupo = getattr(team, "group", None)
+        if grupo is not None:
+            partes.append(str(getattr(grupo, "name", "") or "").strip())
+        club = getattr(team, "club", None)
+        if club is not None:
+            nombre_club = str(getattr(club, "name", "") or "").strip()
+            if nombre_club and nombre_club.casefold() != str(team.name or "").strip().casefold():
+                partes.append(nombre_club)
+        return " · ".join([p for p in partes if p])
+
+    opciones = []
+    for team in rows:
+        nombre = str(getattr(team, "name", "") or "").strip()
+        if not nombre:
+            continue
+        opciones.append(
+            {
+                "id": team.id,
+                "name": nombre,
+                "hint": _pista(team),
+                "location": str(getattr(team, "home_stadium", "") or "").strip(),
+                "same_group": bool(grupo_id and getattr(team, "group_id", None) == grupo_id),
+            }
+        )
+    # Los del grupo primero: son los habituales, y así el candidato preferido ante dos
+    # equipos con el mismo nombre es el de tu propia liga.
+    opciones.sort(key=lambda o: (not o["same_group"], o["name"].casefold()))
+    return opciones
+
+
 def _build_rival_options_for_team(primary_team, *, cache_days: int = 14, max_items: int = 60):
     """
     Opciones rápidas de rival para editor de tareas / táctica.
@@ -31293,6 +31351,7 @@ def convocation_page(request):
                 _build_convocation_whatsapp_text(convocation_record, primary_team) if convocation_record else ""
             ),
             "opponent_options_json": json.dumps(opponent_options, ensure_ascii=False),
+            "rival_picker_options": build_match_rival_picker_options(primary_team),
             "home_location_label": home_location,
         },
     )
@@ -43190,21 +43249,9 @@ def coach_matches_page(request):
         {"key": Match.CONTEXT_TOURNAMENT, "label": "Torneo"},
         {"key": Match.CONTEXT_FRIENDLY, "label": "Amistoso"},
     ]
-    # Nombres de rivales ya existentes (para autocompletar el alta de partido en el Calendario).
-    rival_name_options = []
-    try:
-        _rival_qs = Team.objects.exclude(id=primary_team.id)
-        if getattr(primary_team, "group_id", None):
-            _rival_qs = _rival_qs.filter(group_id=primary_team.group_id)
-        rival_name_options = sorted(
-            {
-                str(getattr(t, "name", "") or "").strip()
-                for t in _rival_qs.only("name", "group_id")
-                if str(getattr(t, "name", "") or "").strip()
-            }
-        )
-    except Exception:
-        rival_name_options = []
+    # Rivales para el alta: TODOS los que ya conoce la aplicación, no sólo los del grupo de
+    # liga. Filtrar por grupo dejaba fuera precisamente a los rivales de amistoso.
+    rival_picker_options = build_match_rival_picker_options(primary_team)
     return render(
         request,
         "football/coach_matches.html",
@@ -43222,7 +43269,7 @@ def coach_matches_page(request):
                 or (_get_active_workspace(request) and _can_manage_workspace(request.user, _get_active_workspace(request)))
             ),
             "rows": rows,
-            "rival_name_options": rival_name_options,
+            "rival_picker_options": rival_picker_options,
             "q": q,
             "dup_only": dup_only,
             "registered_only": registered_only,
@@ -87518,13 +87565,32 @@ def match_hub_create_match(request):
             match_time = None
 
     if not rival_team:
-        from football.models import resolve_or_create_team
+        from football.models import normalize_team_name_key, resolve_or_create_team
 
-        rival_team, _ = resolve_or_create_team(
-            name=opponent_name,
-            group=primary_team.group,
-            defaults={"short_name": opponent_name[:24]},
-        )
+        # Por NOMBRE, antes de crear nada: se busca en TODOS los equipos, no sólo en el grupo
+        # de tu liga. Pasar el grupo a ciegas hacía que un rival de amistoso que ya existía
+        # (normalmente fuera de tu grupo) no se encontrara y se creara otro igual.
+        clave = normalize_team_name_key(opponent_name)
+        candidatos = list(Team.objects.filter(name_key=clave)[:10]) if clave else []
+        if candidatos:
+            rival_team = next(
+                (
+                    t
+                    for t in candidatos
+                    if getattr(primary_team, "group_id", None)
+                    and getattr(t, "group_id", None) == primary_team.group_id
+                ),
+                candidatos[0],
+            )
+        else:
+            # Un rival de amistoso o de torneo NO entra en el grupo de tu liga: acabaría
+            # apareciendo en tu clasificación.
+            grupo_destino = primary_team.group if context_value == Match.CONTEXT_LEAGUE else None
+            rival_team, _ = resolve_or_create_team(
+                name=opponent_name,
+                group=grupo_destino,
+                defaults={"short_name": opponent_name[:24]},
+            )
     if not location_value:
         if home_away == "away":
             location_value = str(getattr(rival_team, "home_stadium", "") or "").strip()

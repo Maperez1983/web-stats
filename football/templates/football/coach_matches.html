@@ -80,6 +80,21 @@
         .match-crest { width:46px; height:46px; }
         .match-card-stats { grid-template-columns:repeat(2, minmax(0, 1fr)); }
       }
+      .rival-picker-note {
+        margin: 0.35rem 0 0;
+        font-size: 0.82rem;
+        color: var(--prod-muted, rgba(15, 23, 42, 0.72));
+      }
+      .rival-picker-use {
+        border: 0;
+        background: none;
+        padding: 0;
+        font: inherit;
+        font-weight: 900;
+        text-decoration: underline;
+        cursor: pointer;
+        color: inherit;
+      }
     </style>
   </head>
   <body class="prod-commercial">
@@ -146,11 +161,8 @@
           <input type="hidden" name="next" value="{% url 'coach-matches' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" />
           <div class="amf-grid">
             <div class="amf-field amf-wide">
-              <label for="amf-opponent">Rival <span class="amf-sub">(escribe el nombre; si no existe, se crea)</span></label>
-              <input id="amf-opponent" name="opponent" list="amf-rivals" required placeholder="Ej. Rincón de la Victoria — escribe aunque no esté en la lista" autocomplete="off" />
-              <datalist id="amf-rivals">
-                {% for name in rival_name_options %}<option value="{{ name }}"></option>{% endfor %}
-              </datalist>
+              <label for="amf-opponent">Rival <span class="amf-sub">(escribe o elige; si no existe, se crea)</span></label>
+              {% include 'football/includes/_match_rival_picker.html' with picker_id='amf-opponent' %}
             </div>
             <div class="amf-field">
               <label for="amf-date">Fecha</label>
@@ -340,5 +352,6 @@
         </div>
       </section>
     </main>
-	  </body>
+	      <script src="{% static 'football/js/match_rival_picker.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+  </body>
 	</html>
