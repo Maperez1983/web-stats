@@ -117,7 +117,7 @@
       .layout {
         margin-top: 1rem;
         display: grid;
-        grid-template-columns: minmax(310px, 350px) minmax(0, 1fr);
+        grid-template-columns: minmax(360px, 410px) minmax(0, 1fr);
         gap: clamp(0.8rem, 1.4vw, 1.2rem);
         align-items: start;
       }
@@ -191,9 +191,11 @@
       }
       .lineup-sidebar #player-list {
         flex: 0 0 auto;
-        height: clamp(280px, 42vh, 460px);
-        min-height: 280px;
-        max-height: 460px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-content: start;
+        height: clamp(300px, 46vh, 520px);
+        min-height: 300px;
+        max-height: 520px;
         padding: 0.2rem 0.35rem 0.2rem 0.1rem;
         border-top: 1px solid rgba(148, 163, 184, 0.18);
         border-bottom: 1px solid rgba(148, 163, 184, 0.18);
@@ -217,6 +219,76 @@
         color: var(--prod-muted);
         font-size: 0.72rem;
         line-height: 1.35;
+      }
+      .roster-dashboard {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.4rem;
+      }
+      .roster-stat {
+        display: grid;
+        gap: 0.08rem;
+        min-width: 0;
+        padding: 0.5rem 0.35rem;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 12px;
+        background: rgba(2, 6, 23, 0.48);
+        text-align: center;
+      }
+      .roster-stat strong {
+        color: #e0f2fe;
+        font-size: 1rem;
+        line-height: 1;
+      }
+      .roster-stat span {
+        color: var(--prod-muted);
+        font-size: 0.6rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .roster-search {
+        width: 100%;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        border-radius: 12px;
+        padding: 0.58rem 0.7rem;
+        background: rgba(2, 6, 23, 0.68);
+        color: var(--prod-text);
+        outline: none;
+      }
+      .roster-search:focus {
+        border-color: rgba(56, 189, 248, 0.78);
+        box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.13);
+      }
+      .roster-filters {
+        display: flex;
+        gap: 0.32rem;
+        overflow-x: auto;
+        padding-bottom: 0.1rem;
+      }
+      .roster-filter {
+        flex: 0 0 auto;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        border-radius: 999px;
+        padding: 0.36rem 0.52rem;
+        background: rgba(15, 23, 42, 0.72);
+        color: var(--prod-muted);
+        font-size: 0.63rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .roster-filter.is-active {
+        border-color: rgba(56, 189, 248, 0.78);
+        background: rgba(14, 116, 144, 0.26);
+        color: #e0f2fe;
+      }
+      .roster-empty {
+        grid-column: 1 / -1;
+        margin: 0;
+        padding: 1rem 0.5rem;
+        color: var(--prod-muted);
+        text-align: center;
       }
       .lineup-actions {
         position: sticky;
@@ -274,6 +346,94 @@
         border: 1px solid rgba(148, 163, 184, 0.3);
         padding: 0.45rem;
         background: rgba(2, 6, 23, 0.76);
+      }
+      #player-list .player-card {
+        position: relative;
+        grid-template-columns: 32px minmax(0, 1fr);
+        grid-template-areas:
+          "avatar name"
+          "avatar state";
+        gap: 0.16rem 0.42rem;
+        min-height: 54px;
+        padding: 0.4rem 0.42rem;
+        cursor: pointer;
+      }
+      #player-list .player-card > img,
+      #player-list .player-card > .avatar {
+        grid-area: avatar;
+        width: 32px;
+        height: 32px;
+        align-self: center;
+        border-radius: 9px;
+      }
+      #player-list .player-card > span:not(.avatar):not(.player-card-state) {
+        grid-area: name;
+        min-width: 0;
+      }
+      #player-list .player-name,
+      #player-list .player-meta {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      #player-list .player-name {
+        font-size: 0.68rem;
+      }
+      #player-list .player-meta {
+        font-size: 0.6rem;
+      }
+      #player-list .player-card input {
+        position: absolute;
+        top: 0.35rem;
+        right: 0.35rem;
+        width: 14px;
+        height: 14px;
+        margin: 0;
+      }
+      .player-card-state {
+        grid-area: state;
+        color: var(--prod-muted);
+        font-size: 0.58rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      #player-list .player-card.is-starter {
+        border-color: rgba(34, 197, 94, 0.62);
+        background: rgba(20, 83, 45, 0.3);
+      }
+      #player-list .player-card.is-starter .player-card-state { color: #86efac; }
+      #player-list .player-card.is-bench {
+        border-color: rgba(245, 158, 11, 0.55);
+        background: rgba(120, 53, 15, 0.24);
+      }
+      #player-list .player-card.is-bench .player-card-state { color: #fcd34d; }
+      #player-list .player-card[hidden] { display: none; }
+      .lineup-empty-slot {
+        position: absolute;
+        z-index: 2;
+        display: grid;
+        place-items: center;
+        width: 42px;
+        height: 42px;
+        transform: translate(-50%, -50%);
+        border: 1px dashed rgba(224, 242, 254, 0.78);
+        border-radius: 999px;
+        background: rgba(2, 6, 23, 0.42);
+        color: #e0f2fe;
+        font-size: 0.58rem;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        box-shadow: 0 8px 18px rgba(2, 6, 23, 0.34);
+        cursor: pointer;
+      }
+      .lineup-empty-slot:hover,
+      .lineup-empty-slot.is-active {
+        border-style: solid;
+        border-color: #38bdf8;
+        background: rgba(14, 116, 144, 0.7);
+        box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.16);
       }
       .player-card.is-active {
         border-color: rgba(56, 189, 248, 0.85);
@@ -1926,6 +2086,15 @@
         letter-spacing: 0.04em;
         text-transform: uppercase;
       }
+      .broadcast-sub-name {
+        display: block;
+        max-width: 72px;
+        overflow: hidden;
+        color: rgba(226, 232, 240, 0.78);
+        font-size: 0.5rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
       .broadcast-sub-chip img,
       .broadcast-sub-avatar {
         width: 38px;
@@ -2332,7 +2501,20 @@
           {% elif has_pending_lineup %}
           <p class="helper-note">Convocatoria cerrada, pero la alineación sigue pendiente. Puedes construirla manualmente o usar el autocompletado como base.</p>
           {% endif %}
-          <p class="player-list-summary">{{ convocation_players|length }} convocados · Desplaza la lista para verlos todos.</p>
+          <div class="roster-dashboard" aria-label="Estado de la alineación">
+            <div class="roster-stat"><strong id="roster-starters-count">0/11</strong><span>Titulares</span></div>
+            <div class="roster-stat"><strong id="roster-bench-count">0</strong><span>Banquillo</span></div>
+            <div class="roster-stat"><strong id="roster-available-count">{{ convocation_players|length }}</strong><span>Disponibles</span></div>
+          </div>
+          <input class="roster-search" id="roster-search" type="search" placeholder="Buscar por nombre, dorsal o posición" autocomplete="off" />
+          <div class="roster-filters" role="group" aria-label="Filtrar jugadores por línea">
+            <button class="roster-filter is-active" type="button" data-roster-filter="all">Todos</button>
+            <button class="roster-filter" type="button" data-roster-filter="gk">Porteros</button>
+            <button class="roster-filter" type="button" data-roster-filter="def">Defensas</button>
+            <button class="roster-filter" type="button" data-roster-filter="mid">Medios</button>
+            <button class="roster-filter" type="button" data-roster-filter="fwd">Ataque</button>
+          </div>
+          <p class="player-list-summary">Toca una posición vacía del campo y después el jugador que quieres colocar.</p>
           <div class="players" id="player-list">
             {% for player in convocation_players %}
             <label class="player-card" data-player-id="{{ player.id }}" data-player-name="{{ player.name|upper|escape }}" data-player-number="{{ player.number|default:'--' }}" data-player-position="{% if player.position %}{{ player.position|display_position|escape }}{% endif %}" data-player-photo="{{ player.photo_url|default:''|escape }}" data-player-avatar="{{ player.avatar_url|default:''|escape }}">
@@ -2347,11 +2529,13 @@
                 <span class="player-name">{{ player.name|upper }}</span>
                 <span class="player-meta">#{{ player.number|default:"--" }} · {% if player.position %}{{ player.position|display_position }}{% else %}Sin definir{% endif %}</span>
               </span>
+              <span class="player-card-state" data-player-state>Disponible</span>
               <input type="checkbox" />
             </label>
             {% empty %}
             <p>No hay jugadores convocados.</p>
             {% endfor %}
+            <p class="roster-empty" id="roster-empty" hidden>No hay jugadores con este filtro.</p>
           </div>
           <details class="lineup-rival-preview">
             <summary class="field-help">11 rival (preview)</summary>
@@ -2566,7 +2750,7 @@
                 </div>
               </div>
               <div class="broadcast-subs">
-                <div class="broadcast-subs-title">Suplentes clave</div>
+                <div class="broadcast-subs-title">Banquillo</div>
                 <div class="broadcast-subs-row" id="broadcast-subs-row">
                   <span class="field-help">Sin suplentes definidos</span>
                 </div>
@@ -2639,6 +2823,12 @@
       const clearBtn = document.getElementById('clear-btn');
       const autoFillBtn = document.getElementById('auto-fill-btn');
       const snapToggleBtn = document.getElementById('snap-toggle');
+      const rosterSearch = document.getElementById('roster-search');
+      const rosterFilterButtons = Array.from(document.querySelectorAll('[data-roster-filter]'));
+      const rosterEmpty = document.getElementById('roster-empty');
+      const rosterStartersCount = document.getElementById('roster-starters-count');
+      const rosterBenchCount = document.getElementById('roster-bench-count');
+      const rosterAvailableCount = document.getElementById('roster-available-count');
       const gkSelect = document.getElementById('lineup-gk-select');
       const formationSelect = document.getElementById('formation-select');
       const broadcastMainCard = document.getElementById('broadcast-main-card');
@@ -2963,6 +3153,9 @@
       });
       let manualMode = false;
       let activePlayerId = '';
+      let activeSlotIndex = null;
+      let rosterFilter = 'all';
+      let rosterQuery = '';
       const avatarFallback = '{% static "football/images/player-avatar.svg" %}';
       try {
         const seed = JSON.parse(document.getElementById('lineup-seed-data')?.textContent || '{}');
@@ -2980,6 +3173,7 @@
         const safeKey = String(key || '').trim();
         if (!safeKey || !formations[safeKey]) return;
         lineupState.formation = safeKey;
+        activeSlotIndex = null;
       };
 
       const recomputeBenchFromChecks = () => {
@@ -3095,21 +3289,17 @@
         if (bestD2 > (threshold * threshold)) return null;
         return best;
       };
-      const upsertStarterWithPosition = (playerPayload, { x, y } = {}) => {
+      const upsertStarterWithPosition = (playerPayload, { x, y, slotIndex = null } = {}) => {
         if (!playerPayload?.id) return;
         const pid = String(playerPayload.id);
-        const candNum = String(playerPayload?.number ?? '').trim();
         let next = (lineupState.starters || []).filter((row) => String(row?.id || '') !== pid);
-        if (candNum && candNum !== '--') {
-          // En algunas plantillas puede venir el mismo jugador duplicado con distinto ID; evitamos dobles por dorsal.
-          next = next.filter((row) => String(row?.number ?? '').trim() !== candNum);
-        }
         const candidate = {
           ...playerPayload,
           role: String(playerPayload.role || roleFromPosition(playerPayload.position) || "mid"),
           x_pct: Number.isFinite(x) ? clamp(x, 2, 98) : playerPayload.x_pct,
           y_pct: Number.isFinite(y) ? clamp(y, 2, 98) : playerPayload.y_pct,
         };
+        if (Number.isInteger(slotIndex) && slotIndex >= 0) candidate.slot_index = slotIndex;
         if (snapEnabled && Number.isFinite(Number(candidate.x_pct)) && Number.isFinite(Number(candidate.y_pct))) {
           const slot = nearestSnapSlot({ x: Number(candidate.x_pct), y: Number(candidate.y_pct) });
           if (slot) {
@@ -3335,7 +3525,7 @@
 
         if (broadcastSubsRow) {
           broadcastSubsRow.innerHTML = '';
-          const subs = bench.slice(0, 8);
+          const subs = bench;
           if (!subs.length) {
             const empty = document.createElement('span');
             empty.className = 'field-help';
@@ -3348,9 +3538,11 @@
               const photo = String(player.photo || '').trim() || String(player.avatar || '').trim();
               const name = String(player.name || 'Jugador').toUpperCase();
               const number = String(player.number || '--');
+              chip.title = name;
               chip.innerHTML = `
                 ${photo ? `<img src="${escapeHtml(photo)}" alt="${escapeHtml(name)}" loading="lazy" />` : `<span class="broadcast-sub-avatar">${escapeHtml(getInitials(name))}</span>`}
                 <span>${escapeHtml(number !== '--' ? `#${number}` : getInitials(name))}</span>
+                <span class="broadcast-sub-name">${escapeHtml(name)}</span>
               `;
               broadcastSubsRow.appendChild(chip);
             });
@@ -3417,6 +3609,47 @@
         field.appendChild(renderTacticalLayer());
         // Asegura posiciones iniciales si vienen de un seed antiguo o de autocompletado.
         ensureStarterPositionsFromTemplate({ force: false });
+
+        // Posiciones libres: toca una plaza y después el jugador que quieres colocar.
+        try {
+          if (!hasPendingConvocation) {
+            const slots = activeSlots();
+            const occupied = new Set();
+            (lineupState.starters || []).forEach((player, index) => {
+              const raw = Number(player?.slot_index);
+              occupied.add(Number.isInteger(raw) && raw >= 0 && raw < slots.length ? raw : index);
+            });
+            slots.slice(0, STARTERS_REQUIRED).forEach((slot, index) => {
+              if (!slot || occupied.has(index)) return;
+              const marker = document.createElement('button');
+              marker.type = 'button';
+              marker.className = 'lineup-empty-slot';
+              if (activeSlotIndex === index) marker.classList.add('is-active');
+              marker.dataset.slotIndex = String(index);
+              marker.style.left = `${Number(slot.x ?? 50)}%`;
+              marker.style.top = `${Number(slot.y ?? 50)}%`;
+              marker.textContent = String(slot.label || `P${index + 1}`).toUpperCase();
+              marker.setAttribute('aria-label', `Elegir jugador para ${marker.textContent}`);
+              marker.addEventListener('pointerdown', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              });
+              marker.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                activeSlotIndex = index;
+                setActivePlayer('', { rerender: false });
+                field.querySelectorAll('.lineup-empty-slot').forEach((el) => {
+                  el.classList.toggle('is-active', Number(el.dataset.slotIndex) === index);
+                });
+                statusMsg.textContent = `Posición ${marker.textContent} seleccionada. Elige un jugador de la lista.`;
+                statusMsg.classList.remove('ok');
+                statusMsg.classList.add('warn');
+              });
+              field.appendChild(marker);
+            });
+          }
+        } catch (_) {}
 
         // Rival overlay (solo lectura).
         try {
@@ -3564,6 +3797,7 @@
           statusMsg.classList.toggle('warn', missing > 0);
           statusMsg.classList.toggle('ok', missing === 0);
         }
+        syncRosterUI();
         renderBroadcastInfographic();
       };
 
@@ -3707,6 +3941,62 @@
         return { starters: dedupeById(starters).slice(0, STARTERS_REQUIRED), bench };
       };
 
+      const syncRosterUI = () => {
+        const starterIds = new Set((lineupState.starters || []).map((row) => String(row?.id || '')));
+        const benchIds = new Set((lineupState.bench || []).map((row) => String(row?.id || '')));
+        const normalizedQuery = rosterQuery.toLowerCase().trim();
+        let visibleCount = 0;
+        playerCards.forEach((card) => {
+          const id = String(card.dataset.playerId || '');
+          const role = isGoalkeeperPosition(card.dataset.playerPosition) ? 'gk' : roleFromPosition(card.dataset.playerPosition);
+          const haystack = [card.dataset.playerName, card.dataset.playerNumber, card.dataset.playerPosition]
+            .map((value) => String(value || '').toLowerCase())
+            .join(' ');
+          const matchesRole = rosterFilter === 'all' || rosterFilter === role;
+          const matchesQuery = !normalizedQuery || haystack.includes(normalizedQuery);
+          card.hidden = !(matchesRole && matchesQuery);
+          if (!card.hidden) visibleCount += 1;
+          const isStarter = starterIds.has(id);
+          const isBench = !isStarter && benchIds.has(id);
+          card.classList.toggle('is-starter', isStarter);
+          card.classList.toggle('is-bench', isBench);
+          const state = card.querySelector('[data-player-state]');
+          if (state) state.textContent = isStarter ? 'Titular' : (isBench ? 'Banquillo' : 'Disponible');
+        });
+        if (rosterStartersCount) rosterStartersCount.textContent = `${starterIds.size}/${STARTERS_REQUIRED}`;
+        if (rosterBenchCount) rosterBenchCount.textContent = String(benchIds.size);
+        if (rosterAvailableCount) rosterAvailableCount.textContent = String(Math.max(0, playerCards.length - starterIds.size - benchIds.size));
+        if (rosterEmpty) rosterEmpty.hidden = visibleCount > 0;
+      };
+
+      const assignCardToSlot = (card, slotIndex) => {
+        const slots = activeSlots();
+        const slot = slots[slotIndex];
+        const payload = parseCard(card);
+        if (!slot || !payload?.id) return;
+        const checkbox = card.querySelector('input[type="checkbox"]');
+        if (checkbox) checkbox.checked = true;
+        manualMode = true;
+        lineupState.starters = (lineupState.starters || []).filter((row) => {
+          const samePlayer = String(row?.id || '') === String(payload.id);
+          const sameSlot = Number(row?.slot_index) === slotIndex;
+          return !samePlayer && !sameSlot;
+        });
+        upsertStarterWithPosition(
+          { ...payload, role: String(slot.role || roleFromPosition(payload.position) || 'mid') },
+          { x: Number(slot.x ?? 50), y: Number(slot.y ?? 50), slotIndex },
+        );
+        activeSlotIndex = null;
+        setActivePlayer(String(payload.id), { rerender: false });
+        const selected = playerCards
+          .filter((row) => row.querySelector('input[type="checkbox"]')?.checked)
+          .map(parseCard);
+        syncGkSelectOptions(selected);
+        recomputeBenchFromChecks();
+        renderField();
+        markLineupDirty();
+      };
+
       const syncFromChecks = () => {
         const selected = playerCards
           .filter((card) => card.querySelector('input[type="checkbox"]')?.checked)
@@ -3742,12 +4032,33 @@
 
       playerCards.forEach((card) => {
         const input = card.querySelector('input[type="checkbox"]');
-        input?.addEventListener('change', syncFromChecks);
+        input?.addEventListener('change', () => {
+          activeSlotIndex = null;
+          syncFromChecks();
+        });
         card.addEventListener('click', (event) => {
           if (event.target && (event.target.tagName || '').toLowerCase() === 'input') return;
+          if (Number.isInteger(activeSlotIndex)) {
+            event.preventDefault();
+            event.stopPropagation();
+            assignCardToSlot(card, activeSlotIndex);
+            return;
+          }
           const nextId = String(card.dataset.playerId || '');
           if (!nextId) return;
           setActivePlayer(activePlayerId === nextId ? '' : nextId, { rerender: true });
+        });
+      });
+
+      rosterSearch?.addEventListener('input', () => {
+        rosterQuery = String(rosterSearch.value || '');
+        syncRosterUI();
+      });
+      rosterFilterButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          rosterFilter = String(button.dataset.rosterFilter || 'all');
+          rosterFilterButtons.forEach((item) => item.classList.toggle('is-active', item === button));
+          syncRosterUI();
         });
       });
 
@@ -3758,6 +4069,7 @@
         if (targetToken) return;
         const pid = String(activePlayerId || '').trim();
         if (!pid) return;
+        activeSlotIndex = null;
         const card = playerCards.find((c) => String(c.dataset.playerId || '') === pid);
         if (!card) return;
         const checkbox = card.querySelector('input[type="checkbox"]');
@@ -3843,6 +4155,7 @@
 
       clearBtn?.addEventListener('click', () => {
         manualMode = false;
+        activeSlotIndex = null;
         setActivePlayer('', { rerender: false });
         lineupState = { formation: lineupState.formation || defaultFormationKey, starters: [], bench: [] };
         playerCards.forEach((card) => {
@@ -3854,6 +4167,7 @@
 
       autoFillBtn?.addEventListener('click', () => {
         if (hasPendingConvocation) return;
+        activeSlotIndex = null;
         const all = playerCards.map(parseCard);
         syncGkSelectOptions(all);
         const ordered = orderPlayersByFormation(all, lineupState.formation, String(gkSelect?.value || ''));

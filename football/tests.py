@@ -10768,6 +10768,26 @@ class ConvocationWorkflowTests(TestCase):
         self.assertJSONEqual(response.context['lineup_seed_json'], {'starters': [], 'bench': []})
         self.assertIsInstance(response.context['lineup_seed'], dict)
 
+    def test_initial_eleven_page_renders_compact_roster_controls(self):
+        self.client.force_login(self.user)
+        record = ConvocationRecord.objects.create(
+            team=self.team,
+            round='J24',
+            opponent_name='Alhaurín de la Torre',
+            match_date=date(2026, 3, 29),
+            is_current=True,
+        )
+        record.players.add(self.player)
+
+        response = self.client.get(reverse('initial-eleven'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="roster-search"')
+        self.assertContains(response, 'id="roster-starters-count"')
+        self.assertContains(response, 'data-roster-filter="def"')
+        self.assertContains(response, 'Toca una posición vacía del campo')
+        self.assertContains(response, '<div class="broadcast-subs-title">Banquillo</div>', html=True)
+
     @patch('football.views.resolve_player_photo_url', side_effect=RuntimeError('storage unavailable'))
     def test_initial_eleven_page_tolerates_photo_resolution_errors(self, _mock_photo):
         self.client.force_login(self.user)
