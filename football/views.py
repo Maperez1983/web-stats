@@ -13425,6 +13425,210 @@ def public_signup_page(request):
 
 
 @login_required
+def _onboarding_guardar_identidad(request, *, workspace, primary_team, theme_form, teams):
+    """Colores del club (identidad corporativa). Estaba dentro de la vista, que tenia 1151 lineas."""
+    error = ""
+    success = ""
+    try:
+        if not workspace or not primary_team:
+            raise ValueError("Primero crea el club y selecciona un equipo.")
+
+        def _clean_hex(value, fallback):
+            raw = str(value or "").strip()
+            if not raw:
+                return fallback
+            if raw.startswith("#") and len(raw) == 7:
+                return raw.lower()
+            return fallback
+
+        primary = _clean_hex(request.POST.get("theme_primary"), theme_form.get("primary") or "#2f7d32")
+        secondary = _clean_hex(request.POST.get("theme_secondary"), theme_form.get("secondary") or "#f4b400")
+        bg = _clean_hex(request.POST.get("theme_bg"), theme_form.get("bg") or "#08111d")
+        text = _clean_hex(request.POST.get("theme_text"), theme_form.get("text") or "#f5f7fa")
+        button_text = _clean_hex(
+            request.POST.get("theme_button_text"), theme_form.get("button_text") or "#f5f7fa"
+        )
+        button_bg = _clean_hex(request.POST.get("theme_button_bg"), theme_form.get("button_bg") or "#0f172a")
+        panel_flat = _clean_hex(request.POST.get("theme_panel_flat"), theme_form.get("panel_flat") or "#0e1727")
+        line = _clean_hex(request.POST.get("theme_line"), theme_form.get("line") or "#90a1b9")
+        shadow = str(request.POST.get("theme_shadow") or theme_form.get("shadow") or "medium").strip().lower()
+        if shadow not in {"none", "soft", "medium", "strong"}:
+            shadow = "medium"
+        system_image_mode = (
+            str(request.POST.get("theme_system_image_mode") or theme_form.get("system_image_mode") or "home")
+            .strip()
+            .lower()
+        )
+        if system_image_mode not in {"home", "system", "both", "none"}:
+            system_image_mode = "home"
+        font = str(request.POST.get("theme_font") or theme_form.get("font") or "plex").strip().lower()
+        if font not in {"plex", "system", "avenir", "segoe", "roboto", "georgia", "condensed"}:
+            font = "plex"
+        font_weight = (
+            str(request.POST.get("theme_font_weight") or theme_form.get("font_weight") or "medium")
+            .strip()
+            .lower()
+        )
+        if font_weight not in {"regular", "medium", "semibold", "bold"}:
+            font_weight = "medium"
+        font_style = (
+            str(request.POST.get("theme_font_style") or theme_form.get("font_style") or "normal")
+            .strip()
+            .lower()
+        )
+        if font_style not in {"normal", "italic"}:
+            font_style = "normal"
+        font_decoration = (
+            str(request.POST.get("theme_font_decoration") or theme_form.get("font_decoration") or "none")
+            .strip()
+            .lower()
+        )
+        if font_decoration not in {"none", "underline"}:
+            font_decoration = "none"
+        font_size = (
+            str(request.POST.get("theme_font_size") or theme_form.get("font_size") or "normal").strip().lower()
+        )
+        if font_size not in {"compact", "normal", "large"}:
+            font_size = "normal"
+        ui = str(request.POST.get("theme_ui") or theme_form.get("ui") or "dark").strip().lower()
+        if ui not in {"dark", "light", "hc"}:
+            ui = "dark"
+        bg_light = _clean_hex(request.POST.get("theme_bg_light"), theme_form.get("bg_light") or "#f4f7fb")
+        text_light = _clean_hex(request.POST.get("theme_text_light"), theme_form.get("text_light") or "#0f172a")
+        use_as_default = str(request.POST.get("theme_use_as_default") or "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+            "si",
+        }
+
+        pref = WorkspacePreference.objects.filter(workspace=workspace, key="brand_theme:v1").first()
+        raw = pref.value if pref and isinstance(pref.value, dict) else {}
+        raw = dict(raw) if isinstance(raw, dict) else {}
+        default = raw.get("default") if isinstance(raw.get("default"), dict) else {}
+        teams = raw.get("teams") if isinstance(raw.get("teams"), dict) else {}
+        default = dict(default)
+        teams = dict(teams)
+        theme_payload = {
+            "primary": primary,
+            "secondary": secondary,
+            "bg": bg,
+            "text": text,
+            "button_text": button_text,
+            "button_bg": button_bg,
+            "panel_flat": panel_flat,
+            "line": line,
+            "shadow": shadow,
+            "system_image_mode": system_image_mode,
+            "font": font,
+            "font_weight": font_weight,
+            "font_style": font_style,
+            "font_decoration": font_decoration,
+            "font_size": font_size,
+            "ui": ui,
+            "bg_light": bg_light,
+            "text_light": text_light,
+        }
+        if use_as_default:
+            default.update(theme_payload)
+        teams[str(int(primary_team.id))] = theme_payload
+        raw["default"] = default
+        raw["teams"] = teams
+        WorkspacePreference.objects.update_or_create(
+            workspace=workspace,
+            key="brand_theme:v1",
+            defaults={"value": raw},
+        )
+        try:
+            cache.delete_many(
+                [
+                    f"ctx:brand_theme:v1:w{int(workspace.id)}:t0",
+                    f"ctx:brand_theme:v1:w{int(workspace.id)}:t{int(primary_team.id)}",
+                ]
+            )
+        except Exception:
+            pass
+        theme_form.update(theme_payload)
+        success = "Identidad corporativa guardada."
+    except Exception as exc:
+        error = str(exc) or "No se pudo guardar el tema."
+
+    return {"error": error, "success": success, "teams": teams}
+
+
+def _onboarding_guardar_imagenes(request, *, workspace, primary_team, cover_preview_url, crest_preview_url):
+    """Portada y escudo del club. Estaba dentro de la vista, que tenia 1151 lineas."""
+    error = ""
+    success = ""
+    try:
+        if not workspace or not primary_team:
+            raise ValueError("Primero crea el club y selecciona un equipo.")
+        uploaded_crest = request.FILES.get("crest_image")
+        uploaded_cover = request.FILES.get("cover_image")
+        clear_crest = str(request.POST.get("clear_crest") or "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+            "si",
+        }
+        clear_cover = str(request.POST.get("clear_cover") or "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+            "si",
+        }
+
+        update_fields = []
+        if clear_crest and not uploaded_crest:
+            primary_team.crest_image = None
+            update_fields.append("crest_image")
+        if uploaded_crest:
+            primary_team.crest_image = uploaded_crest
+            update_fields.append("crest_image")
+        if clear_cover and not uploaded_cover:
+            primary_team.cover_image = None
+            primary_team.cover_updated_at = timezone.now()
+            update_fields.extend(["cover_image", "cover_updated_at"])
+        if uploaded_cover:
+            primary_team.cover_image = uploaded_cover
+            primary_team.cover_updated_at = timezone.now()
+            update_fields.extend(["cover_image", "cover_updated_at"])
+        if update_fields:
+            primary_team.save(update_fields=list(dict.fromkeys(update_fields)))
+            try:
+                _invalidate_team_dashboard_caches(primary_team)
+            except Exception:
+                pass
+
+        # Refresca previews.
+        try:
+            crest_preview_url = (
+                resolve_team_crest_url(request, primary_team, sync=False) if primary_team else ""
+            )
+        except Exception:
+            crest_preview_url = ""
+        try:
+            if primary_team and getattr(primary_team, "cover_image", None):
+                updated_at = getattr(primary_team, "cover_updated_at", None) or timezone.now()
+                version = str(int(updated_at.timestamp()))
+                cover_preview_url = (
+                    f'{reverse("team-cover-image-file", args=[primary_team.id])}?v={version}&w=1600&h=900&q=72'
+                )
+            else:
+                cover_preview_url = ""
+        except Exception:
+            cover_preview_url = ""
+
+        success = "Branding guardado."
+    except Exception as exc:
+        error = str(exc) or "No se pudo guardar el branding."
+
+    return {"error": error, "success": success, "cover_preview_url": cover_preview_url, "crest_preview_url": crest_preview_url}
+
+
 def club_onboarding_page(request):
     redirect_response = _redirect_to_app_host_if_landing(request, path="/onboarding/")
     if redirect_response:
@@ -13740,197 +13944,29 @@ def club_onboarding_page(request):
     if request.method == "POST":
         action = str(request.POST.get("action") or "save_and_sync").strip().lower()
         if action == "brand_theme":
-            try:
-                if not workspace or not primary_team:
-                    raise ValueError("Primero crea el club y selecciona un equipo.")
-
-                def _clean_hex(value, fallback):
-                    raw = str(value or "").strip()
-                    if not raw:
-                        return fallback
-                    if raw.startswith("#") and len(raw) == 7:
-                        return raw.lower()
-                    return fallback
-
-                primary = _clean_hex(request.POST.get("theme_primary"), theme_form.get("primary") or "#2f7d32")
-                secondary = _clean_hex(request.POST.get("theme_secondary"), theme_form.get("secondary") or "#f4b400")
-                bg = _clean_hex(request.POST.get("theme_bg"), theme_form.get("bg") or "#08111d")
-                text = _clean_hex(request.POST.get("theme_text"), theme_form.get("text") or "#f5f7fa")
-                button_text = _clean_hex(
-                    request.POST.get("theme_button_text"), theme_form.get("button_text") or "#f5f7fa"
-                )
-                button_bg = _clean_hex(request.POST.get("theme_button_bg"), theme_form.get("button_bg") or "#0f172a")
-                panel_flat = _clean_hex(request.POST.get("theme_panel_flat"), theme_form.get("panel_flat") or "#0e1727")
-                line = _clean_hex(request.POST.get("theme_line"), theme_form.get("line") or "#90a1b9")
-                shadow = str(request.POST.get("theme_shadow") or theme_form.get("shadow") or "medium").strip().lower()
-                if shadow not in {"none", "soft", "medium", "strong"}:
-                    shadow = "medium"
-                system_image_mode = (
-                    str(request.POST.get("theme_system_image_mode") or theme_form.get("system_image_mode") or "home")
-                    .strip()
-                    .lower()
-                )
-                if system_image_mode not in {"home", "system", "both", "none"}:
-                    system_image_mode = "home"
-                font = str(request.POST.get("theme_font") or theme_form.get("font") or "plex").strip().lower()
-                if font not in {"plex", "system", "avenir", "segoe", "roboto", "georgia", "condensed"}:
-                    font = "plex"
-                font_weight = (
-                    str(request.POST.get("theme_font_weight") or theme_form.get("font_weight") or "medium")
-                    .strip()
-                    .lower()
-                )
-                if font_weight not in {"regular", "medium", "semibold", "bold"}:
-                    font_weight = "medium"
-                font_style = (
-                    str(request.POST.get("theme_font_style") or theme_form.get("font_style") or "normal")
-                    .strip()
-                    .lower()
-                )
-                if font_style not in {"normal", "italic"}:
-                    font_style = "normal"
-                font_decoration = (
-                    str(request.POST.get("theme_font_decoration") or theme_form.get("font_decoration") or "none")
-                    .strip()
-                    .lower()
-                )
-                if font_decoration not in {"none", "underline"}:
-                    font_decoration = "none"
-                font_size = (
-                    str(request.POST.get("theme_font_size") or theme_form.get("font_size") or "normal").strip().lower()
-                )
-                if font_size not in {"compact", "normal", "large"}:
-                    font_size = "normal"
-                ui = str(request.POST.get("theme_ui") or theme_form.get("ui") or "dark").strip().lower()
-                if ui not in {"dark", "light", "hc"}:
-                    ui = "dark"
-                bg_light = _clean_hex(request.POST.get("theme_bg_light"), theme_form.get("bg_light") or "#f4f7fb")
-                text_light = _clean_hex(request.POST.get("theme_text_light"), theme_form.get("text_light") or "#0f172a")
-                use_as_default = str(request.POST.get("theme_use_as_default") or "").strip().lower() in {
-                    "1",
-                    "true",
-                    "yes",
-                    "on",
-                    "si",
-                }
-
-                pref = WorkspacePreference.objects.filter(workspace=workspace, key="brand_theme:v1").first()
-                raw = pref.value if pref and isinstance(pref.value, dict) else {}
-                raw = dict(raw) if isinstance(raw, dict) else {}
-                default = raw.get("default") if isinstance(raw.get("default"), dict) else {}
-                teams = raw.get("teams") if isinstance(raw.get("teams"), dict) else {}
-                default = dict(default)
-                teams = dict(teams)
-                theme_payload = {
-                    "primary": primary,
-                    "secondary": secondary,
-                    "bg": bg,
-                    "text": text,
-                    "button_text": button_text,
-                    "button_bg": button_bg,
-                    "panel_flat": panel_flat,
-                    "line": line,
-                    "shadow": shadow,
-                    "system_image_mode": system_image_mode,
-                    "font": font,
-                    "font_weight": font_weight,
-                    "font_style": font_style,
-                    "font_decoration": font_decoration,
-                    "font_size": font_size,
-                    "ui": ui,
-                    "bg_light": bg_light,
-                    "text_light": text_light,
-                }
-                if use_as_default:
-                    default.update(theme_payload)
-                teams[str(int(primary_team.id))] = theme_payload
-                raw["default"] = default
-                raw["teams"] = teams
-                WorkspacePreference.objects.update_or_create(
-                    workspace=workspace,
-                    key="brand_theme:v1",
-                    defaults={"value": raw},
-                )
-                try:
-                    cache.delete_many(
-                        [
-                            f"ctx:brand_theme:v1:w{int(workspace.id)}:t0",
-                            f"ctx:brand_theme:v1:w{int(workspace.id)}:t{int(primary_team.id)}",
-                        ]
-                    )
-                except Exception:
-                    pass
-                theme_form.update(theme_payload)
-                success = "Identidad corporativa guardada."
-            except Exception as exc:
-                error = str(exc) or "No se pudo guardar el tema."
-
+            _r = _onboarding_guardar_identidad(
+                request,
+                workspace=workspace,
+                primary_team=primary_team,
+                theme_form=theme_form,
+                teams=teams,
+            )
+            error = _r["error"] or error
+            success = _r["success"] or success
+            teams = _r["teams"]
             return _render_onboarding_page(status=200)
         if action == "brand_assets":
-            try:
-                if not workspace or not primary_team:
-                    raise ValueError("Primero crea el club y selecciona un equipo.")
-                uploaded_crest = request.FILES.get("crest_image")
-                uploaded_cover = request.FILES.get("cover_image")
-                clear_crest = str(request.POST.get("clear_crest") or "").strip().lower() in {
-                    "1",
-                    "true",
-                    "yes",
-                    "on",
-                    "si",
-                }
-                clear_cover = str(request.POST.get("clear_cover") or "").strip().lower() in {
-                    "1",
-                    "true",
-                    "yes",
-                    "on",
-                    "si",
-                }
-
-                update_fields = []
-                if clear_crest and not uploaded_crest:
-                    primary_team.crest_image = None
-                    update_fields.append("crest_image")
-                if uploaded_crest:
-                    primary_team.crest_image = uploaded_crest
-                    update_fields.append("crest_image")
-                if clear_cover and not uploaded_cover:
-                    primary_team.cover_image = None
-                    primary_team.cover_updated_at = timezone.now()
-                    update_fields.extend(["cover_image", "cover_updated_at"])
-                if uploaded_cover:
-                    primary_team.cover_image = uploaded_cover
-                    primary_team.cover_updated_at = timezone.now()
-                    update_fields.extend(["cover_image", "cover_updated_at"])
-                if update_fields:
-                    primary_team.save(update_fields=list(dict.fromkeys(update_fields)))
-                    try:
-                        _invalidate_team_dashboard_caches(primary_team)
-                    except Exception:
-                        pass
-
-                # Refresca previews.
-                try:
-                    crest_preview_url = (
-                        resolve_team_crest_url(request, primary_team, sync=False) if primary_team else ""
-                    )
-                except Exception:
-                    crest_preview_url = ""
-                try:
-                    if primary_team and getattr(primary_team, "cover_image", None):
-                        updated_at = getattr(primary_team, "cover_updated_at", None) or timezone.now()
-                        version = str(int(updated_at.timestamp()))
-                        cover_preview_url = (
-                            f'{reverse("team-cover-image-file", args=[primary_team.id])}?v={version}&w=1600&h=900&q=72'
-                        )
-                    else:
-                        cover_preview_url = ""
-                except Exception:
-                    cover_preview_url = ""
-
-                success = "Branding guardado."
-            except Exception as exc:
-                error = str(exc) or "No se pudo guardar el branding."
+            _r = _onboarding_guardar_imagenes(
+                request,
+                workspace=workspace,
+                primary_team=primary_team,
+                cover_preview_url=cover_preview_url,
+                crest_preview_url=crest_preview_url,
+            )
+            error = _r["error"] or error
+            success = _r["success"] or success
+            cover_preview_url = _r["cover_preview_url"]
+            crest_preview_url = _r["crest_preview_url"]
             return _render_onboarding_page(status=200)
         if action == "kit_theme":
             try:
