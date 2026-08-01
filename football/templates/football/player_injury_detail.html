@@ -72,6 +72,21 @@ lo pone el molde común y aquí queda sólo lo suyo: cabecera, hitos, formulario
         border-color: rgba(248, 113, 113, 0.4);
         background: rgba(127, 29, 29, 0.18);
       }
+      .btn.reopen {
+        border-color: rgba(56, 189, 248, 0.5);
+        background: rgba(14, 116, 144, 0.2);
+      }
+      .status-help {
+        grid-column: 1 / -1;
+        margin: -0.25rem 0 0;
+        padding: 0.72rem 0.8rem;
+        border-radius: 14px;
+        border: 1px solid rgba(56, 189, 248, 0.25);
+        background: rgba(14, 116, 144, 0.1);
+        color: var(--prod-muted);
+        font-size: 0.82rem;
+        line-height: 1.45;
+      }
       .panel {
         margin-top: 1rem;
         padding: 1rem;
@@ -193,6 +208,13 @@ lo pone el molde común y aquí queda sólo lo suyo: cabecera, hitos, formulario
         <div class="actions">
           <a class="btn" href="{% url 'player-detail' player.id %}?tab=injuries">Volver</a>
           {% if can_edit %}
+          {% if record.is_recovered or not record.is_active %}
+          <form method="post" onsubmit="return confirm('¿Reabrir esta lesión? Se eliminará la fecha de alta real y el jugador volverá a figurar como lesionado.');">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="reopen-record" />
+            <button class="btn reopen" type="submit">Reabrir lesión</button>
+          </form>
+          {% endif %}
           <form method="post" onsubmit="return confirm('¿Eliminar esta lesión?');">
             {% csrf_token %}
             <input type="hidden" name="action" value="delete-record" />
@@ -254,6 +276,16 @@ lo pone el molde común y aquí queda sólo lo suyo: cabecera, hitos, formulario
                 <label>Fecha alta
                   <input type="date" name="return_date" value="{{ record.return_date|date:'Y-m-d' }}" />
                 </label>
+                <label>Estado de la lesión
+                  <select name="injury_status">
+                    <option value="active" {% if not record.is_recovered %}selected{% endif %}>En curso</option>
+                    <option value="recovered" {% if record.is_recovered %}selected{% endif %}>Recuperado</option>
+                  </select>
+                </label>
+                <p class="status-help">
+                  Si eliges <strong>En curso</strong>, se elimina la fecha de alta real y el jugador vuelve a figurar como lesionado.
+                  El alta estimada se conserva. Si eliges <strong>Recuperado</strong> sin fecha de alta, se usará la fecha de hoy.
+                </p>
                 <label>Vuelta a entrenar
                   <input type="date" name="return_to_train_on" value="{{ record.return_to_train_on|date:'Y-m-d' }}" />
                 </label>
@@ -263,10 +295,6 @@ lo pone el molde común y aquí queda sólo lo suyo: cabecera, hitos, formulario
                 <label>
                   <span>Bloquea entrenamiento</span>
                   <input type="checkbox" name="blocks_training" value="1" {% if record.blocks_training %}checked{% endif %} />
-                </label>
-                <label>
-                  <span>Recuperado</span>
-                  <input type="checkbox" name="is_recovered" value="1" {% if record.is_recovered %}checked{% endif %} />
                 </label>
                 <label style="grid-column:1 / -1;">Estado funcional
                   <input type="text" name="training_status" value="{{ record.training_status }}" maxlength="20" />

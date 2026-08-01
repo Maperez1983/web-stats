@@ -107,3 +107,78 @@ class PlayerInjuryDetailViewTests(TestCase):
         )
         self.assertEqual(milestone_response.status_code, 302)
         self.assertEqual(self.record.milestones.count(), 1)
+
+    def test_reopen_record_clears_actual_return_and_restores_player_injury(self):
+        self.record.is_recovered = True
+        self.record.return_date = date(2026, 7, 31)
+        self.record.save()
+        self.player.injury = ""
+        self.player.injury_type = ""
+        self.player.injury_zone = ""
+        self.player.injury_side = ""
+        self.player.injury_date = None
+        self.player.save()
+
+        response = self.client.post(
+            reverse('player-injury-detail', args=[self.player.id, self.record.id]),
+            data={'action': 'reopen-record'},
+            secure=True,
+        )
+
+        self.assertRedirects(
+            response,
+            reverse('player-injury-detail', args=[self.player.id, self.record.id]) + '?saved=reopened',
+            fetch_redirect_response=False,
+        )
+        self.record.refresh_from_db()
+        self.player.refresh_from_db()
+        self.assertFalse(self.record.is_recovered)
+        self.assertTrue(self.record.is_active)
+        self.assertIsNone(self.record.return_date)
+        self.assertEqual(self.player.injury, "Sobrecarga")
+        self.assertEqual(self.player.injury_date, date(2026, 7, 1))
+
+    def test_saving_active_status_clears_previous_actual_return(self):
+        self.record.is_recovered = True
+        self.record.return_date = date(2026, 7, 31)
+        self.record.save()
+
+        response = self.client.post(
+            reverse('player-injury-detail', args=[self.player.id, self.record.id]),
+            data={
+                'action': 'save-record',
+                'injury': 'Sobrecarga',
+                'injury_type': 'Muscular',
+                'injury_zone': 'Isquios',
+                'injury_side': 'izquierdo',
+                'injury_date': '2026-07-01',
+                'estimated_return_date': '2026-08-11',
+                'return_date': '2026-07-31',
+                'injury_status': 'active',
+                'blocks_training': '1',
+            },
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.record.refresh_from_db()
+        self.assertFalse(self.record.is_recovered)
+        self.assertTrue(self.record.is_active)
+        self.assertIsNone(self.record.return_date)
+        self.assertEqual(self.record.estimated_return_date, date(2026, 8, 11))
+
+    def test_closed_record_shows_reopen_action_and_explicit_status(self):
+        self.record.is_recovered = True
+        self.record.return_date = date(2026, 7, 31)
+        self.record.save()
+
+        response = self.client.get(
+            reverse('player-injury-detail', args=[self.player.id, self.record.id]),
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Reabrir lesión')
+        self.assertContains(response, 'name="injury_status"')
+        self.assertContains(response, 'value="active"')
+        self.assertContains(response, 'value="recovered"')

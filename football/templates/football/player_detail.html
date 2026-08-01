@@ -2703,7 +2703,7 @@
         </div>
         {% if not is_player_readonly %}
         <p style="margin:.6rem 0 1rem;">
-          <a class="btn alt" href="{% url 'player-form' player.id 'lesion' %}">✎ Registrar o actualizar lesión</a>
+          <a class="btn alt" href="{% url 'player-form' player.id 'lesion' %}">✎ Registrar lesión</a>
         </p>
         {% endif %}
         {% if not is_player_readonly and injury_records %}
@@ -2729,6 +2729,7 @@
               <td>
                 {% if item.detail_url %}
                   <a href="{{ item.detail_url }}" style="color:inherit;text-decoration:none;font-weight:900;">{{ item.injury }}</a>
+                  {% if not is_player_readonly %}<div style="margin-top:.35rem;"><a class="btn ghost sm" href="{{ item.detail_url }}">Editar lesión</a></div>{% endif %}
                 {% else %}
                   {{ item.injury }}
                 {% endif %}

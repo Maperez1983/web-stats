@@ -42529,7 +42529,11 @@ def player_injury_detail_page(request, player_id, record_id):
         or _is_admin_user(request.user)
         or _can_access_platform(request.user)
     )
-    message = ""
+    saved_state = str(request.GET.get("saved") or "").strip().lower()
+    message = {
+        "1": "Lesión actualizada correctamente.",
+        "reopened": "La lesión vuelve a estar en curso y el jugador figura de nuevo como lesionado.",
+    }.get(saved_state, "")
     error = ""
     today = timezone.localdate()
 
@@ -42567,6 +42571,14 @@ def player_injury_detail_page(request, player_id, record_id):
                 record.delete()
                 _sync_player_summary()
                 return redirect(reverse("player-detail", args=[player.id]) + "?tab=injuries")
+            if action == "reopen-record":
+                record.is_recovered = False
+                record.is_active = True
+                record.return_date = None
+                record.save(update_fields=["is_recovered", "is_active", "return_date", "updated_at"])
+                _sync_player_summary()
+                _invalidate_team_dashboard_caches(primary_team)
+                return redirect(f"{reverse('player-injury-detail', args=[player.id, record.id])}?saved=reopened")
             if action == "add-milestone":
                 title = str(request.POST.get("milestone_title") or "").strip()
                 if not title:
@@ -42610,11 +42622,17 @@ def player_injury_detail_page(request, player_id, record_id):
                 record.diagnosed_on = _parse_local_date(request.POST.get("diagnosed_on"))
                 record.rehab_started_on = _parse_local_date(request.POST.get("rehab_started_on"))
                 record.estimated_return_date = estimated_return_date
+                injury_status = str(request.POST.get("injury_status") or "").strip().lower()
+                if injury_status == "active":
+                    return_date = None
                 record.return_date = return_date
                 record.return_to_train_on = _parse_local_date(request.POST.get("return_to_train_on"))
                 record.return_to_play_on = _parse_local_date(request.POST.get("return_to_play_on"))
                 record.blocks_training = str(request.POST.get("blocks_training") or "").lower() in {"1", "true", "on", "yes"}
-                record.is_recovered = str(request.POST.get("is_recovered") or "").lower() in {"1", "true", "on", "yes"}
+                if injury_status in {"active", "recovered"}:
+                    record.is_recovered = injury_status == "recovered"
+                else:
+                    record.is_recovered = str(request.POST.get("is_recovered") or "").lower() in {"1", "true", "on", "yes"}
                 if record.is_recovered and not record.return_date:
                     record.return_date = today
                 record.training_status = str(request.POST.get("training_status") or "").strip()
@@ -42622,6 +42640,7 @@ def player_injury_detail_page(request, player_id, record_id):
                 record.is_active = not record.is_recovered and (not record.return_date or record.return_date > today)
                 record.save()
                 _sync_player_summary()
+                _invalidate_team_dashboard_caches(primary_team)
                 return redirect(f"{reverse('player-injury-detail', args=[player.id, record.id])}?saved=1")
             elif action == "toggle-milestone":
                 milestone_id = _parse_int(request.POST.get("milestone_id"))
