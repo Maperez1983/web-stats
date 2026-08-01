@@ -588,6 +588,11 @@
     <main class="page product-shell">
       {% include 'football/includes/dragon_nav.html' %}
       {% include 'football/includes/_zone_subnav.html' with zone='partido' %}
+      {% if has_saved_convocation %}
+        {% include 'football/includes/matchday_flow_bar.html' with matchday_match_id=active_match_id matchday_team_id=primary_team_id matchday_match_label=match_info.opponent matchday_step='convocation' matchday_convocation_state='Lista guardada' matchday_lineup_state='Definir titulares' matchday_actions_state='Registro en vivo' matchday_close_state='Resultado e informes' %}
+      {% else %}
+        {% include 'football/includes/matchday_flow_bar.html' with matchday_match_id=active_match_id matchday_team_id=primary_team_id matchday_match_label=match_info.opponent matchday_step='convocation' matchday_convocation_state='Preparar lista' matchday_lineup_state='Definir titulares' matchday_actions_state='Registro en vivo' matchday_close_state='Resultado e informes' %}
+      {% endif %}
       <section class="panel header">
         <div class="header-brand">
           <img src="{{ team_crest_url|default_if_none:'' }}" alt="Escudo {{ team_name }}" />
@@ -659,6 +664,7 @@
 	        </div>
         <div class="actions match-actions">
           <button id="save-convocation" class="button primary" type="button">Guardar convocatoria</button>
+          <button id="save-convocation-next" class="button" type="button">Guardar e ir al 11</button>
           <a href="{% url 'convocation-pdf' %}?team={{ primary_team_id }}{% if active_match_id %}&match_id={{ active_match_id }}{% endif %}" class="button {% if not can_generate_convocation_pdf %}is-disabled{% endif %}" id="pdf-convocation" onclick="return !this.classList.contains('is-disabled');">Generar PDF</a>
           <a href="{% url 'convocation-referee-pdf' %}?team={{ primary_team_id }}{% if active_match_id %}&match_id={{ active_match_id }}{% endif %}" class="button {% if not can_generate_convocation_pdf %}is-disabled{% endif %}" id="pdf-referee" onclick="return !this.classList.contains('is-disabled');">Ficha árbitro PDF</a>
           <button id="share-convocation-pdf" class="button {% if not can_generate_convocation_pdf %}is-disabled{% endif %}" type="button">Compartir PDF</button>
@@ -748,6 +754,7 @@
       const clearAllBtn = document.querySelector('#clear-all');
       const dropInjuredBtn = document.querySelector('#drop-injured');
       const saveButton = document.querySelector('#save-convocation');
+      const saveNextButton = document.querySelector('#save-convocation-next');
       const messageEl = document.querySelector('#convocation-message');
       const opponentOptions = {{ opponent_options_json|safe }};
       const parsedHomeLocation = "{{ home_location_label|default:''|escapejs }}";
@@ -1183,7 +1190,7 @@
         }
       });
 
-      const saveConvocation = async () => {
+      const saveConvocation = async ({ continueToLineup = false } = {}) => {
         normalizeRoles();
         const captainInt = captainId ? parseInt(String(captainId), 10) : null;
         const goalkeeperInt = goalkeeperId ? parseInt(String(goalkeeperId), 10) : null;
@@ -1214,7 +1221,7 @@
         const payload = await response.json();
         if (!response.ok) {
           showMessage(payload.error || 'No se pudo guardar la convocatoria.', 'error');
-          return;
+          return false;
         }
         if (whatsappText && typeof payload.whatsapp_text === 'string') {
           whatsappText.value = payload.whatsapp_text;
@@ -1222,16 +1229,24 @@
         updatePdfState();
         if (payload.pending_convocation) {
           showMessage('Próximo partido guardado. Convocatoria pendiente.', 'warn');
-          return;
+          return false;
         }
         if (payload.injury_warning_count) {
           showMessage(
             `Guardada (${payload.count}). Aviso lesión: ${payload.injury_warning_count}.`,
             'warn'
           );
-          return;
+        } else {
+          showMessage(`Convocatoria guardada (${payload.count} jugadores).`, 'ok');
         }
-        showMessage(`Convocatoria guardada (${payload.count} jugadores).`, 'ok');
+        if (continueToLineup) {
+          const savedMatchId = String(payload.match_id || '{{ active_match_id|default_if_none:"" }}').trim();
+          const nextUrl = new URL('{% url "initial-eleven" %}', window.location.origin);
+          if (savedMatchId) nextUrl.searchParams.set('match_id', savedMatchId);
+          nextUrl.searchParams.set('team', '{{ primary_team_id }}');
+          window.location.assign(nextUrl.toString());
+        }
+        return true;
       };
 
       cards.forEach((card) => {
@@ -1312,7 +1327,8 @@
         renderSelected();
       });
 
-      saveButton?.addEventListener('click', saveConvocation);
+      saveButton?.addEventListener('click', () => { void saveConvocation(); });
+      saveNextButton?.addEventListener('click', () => { void saveConvocation({ continueToLineup: true }); });
 
       sharePdfButton?.addEventListener('click', async () => {
         if (sharePdfButton.classList.contains('is-disabled')) {

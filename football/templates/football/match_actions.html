@@ -3057,6 +3057,7 @@
   </head>
   <body class="prod-commercial">
     <div class="page">
+      {% include 'football/includes/matchday_flow_bar.html' with matchday_match_id=selected_match_id matchday_team_id=primary_team_id matchday_match_label=match_info.opponent matchday_step='actions' matchday_convocation_state='Lista guardada' matchday_lineup_state='11 inicial' matchday_actions_state=actions_total_count|default:'Registro en vivo' matchday_close_state='Resultado e informes' %}
       <div class="action-screen">
         <section class="field-column">
           <div class="match-page-status" id="match-page-status" aria-live="polite"></div>

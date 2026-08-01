@@ -44849,6 +44849,7 @@ def _initial_eleven_page_impl(request):
         "football/coach_initial_eleven.html",
         {
             "team_name": primary_team.display_name,
+            "primary_team_id": int(primary_team.id),
             "starters_limit": starters_limit,
             "team_crest_url": team_crest_url,
             "rival_crest_url": rival_crest_url,

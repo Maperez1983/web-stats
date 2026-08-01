@@ -10787,6 +10787,18 @@ class ConvocationWorkflowTests(TestCase):
         self.assertContains(response, 'data-roster-filter="def"')
         self.assertContains(response, 'Toca una posición vacía del campo')
         self.assertContains(response, '<div class="broadcast-subs-title">Banquillo</div>', html=True)
+        self.assertContains(response, 'aria-label="Zona Partido"')
+        self.assertContains(response, 'id="save-next-btn"')
+        self.assertEqual(response.context['primary_team_id'], self.team.id)
+
+    def test_convocation_page_renders_matchday_flow_and_save_next(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('convocation'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'aria-label="Zona Partido"')
+        self.assertContains(response, 'id="save-convocation-next"')
 
     @patch('football.views.resolve_player_photo_url', side_effect=RuntimeError('storage unavailable'))
     def test_initial_eleven_page_tolerates_photo_resolution_errors(self, _mock_photo):
@@ -13342,6 +13354,7 @@ class MatchActionWorkflowTests(TestCase):
         self.assertContains(response, 'data-player-id="', html=False)
         self.assertContains(response, 'grid-template-columns: repeat(4, minmax(0, 1fr));', html=False)
         self.assertContains(response, '.actions-sidebar .roster-lineup-builder .lineup-drop-area', html=False)
+        self.assertContains(response, 'aria-label="Zona Partido"')
 
     def test_match_actions_page_does_not_embed_css_inside_script(self):
         response = self.client.get(reverse('match-action-page'))

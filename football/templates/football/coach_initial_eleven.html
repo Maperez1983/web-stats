@@ -2439,6 +2439,11 @@
     <main class="page">
       {% include 'football/includes/dragon_nav.html' %}
       {% include 'football/includes/_zone_subnav.html' with zone='partido' %}
+      {% if has_pending_lineup %}
+        {% include 'football/includes/matchday_flow_bar.html' with matchday_match_id=match_id matchday_team_id=primary_team_id matchday_match_label=rival_display_name matchday_step='lineup' matchday_convocation_state='Lista guardada' matchday_lineup_state='Completar el 11' matchday_actions_state='Registro en vivo' matchday_close_state='Resultado e informes' %}
+      {% else %}
+        {% include 'football/includes/matchday_flow_bar.html' with matchday_match_id=match_id matchday_team_id=primary_team_id matchday_match_label=rival_display_name matchday_step='lineup' matchday_convocation_state='Lista guardada' matchday_lineup_state='11 preparado' matchday_actions_state='Registro en vivo' matchday_close_state='Resultado e informes' %}
+      {% endif %}
       <header class="top">
         <div class="top-side is-home">
           <img src="{{ team_crest_url|default_if_none:'' }}" alt="Escudo {{ team_name }}" />
@@ -2456,8 +2461,8 @@
           <button type="button" class="bc-btn" id="presentation-toggle">Presentación</button>
           <button type="button" class="bc-btn" id="rival-toggle-btn">Rival: OFF</button>
           {% if match_id %}
-            <a class="bc-btn" href="{% url 'coach-rival' %}?match_id={{ match_id }}" title="Preparar convocatoria y 11 del rival">Preparar rival</a>
-            <a class="bc-btn" href="{% url 'match-action-page' %}?match_id={{ match_id }}" title="Abrir el registro de acciones en el mismo partido">Registro</a>
+            <a class="bc-btn" href="{% url 'coach-rival' %}?match_id={{ match_id }}&amp;team={{ primary_team_id }}" title="Preparar convocatoria y 11 del rival">Preparar rival</a>
+            <a class="bc-btn" href="{% url 'match-action-page' %}?match_id={{ match_id }}&amp;team={{ primary_team_id }}" title="Abrir el registro de acciones en el mismo partido">Registro</a>
           {% endif %}
           <a class="bc-btn primary" href="{% url 'coach-role-trainer' %}">Volver</a>
           </div>
@@ -2548,6 +2553,7 @@
 	            <button type="button" id="clear-btn">Limpiar</button>
               <button type="button" class="toggle {% if has_pending_convocation %}is-disabled{% endif %}" id="snap-toggle">Imán: ON</button>
 	            <button type="button" class="primary {% if has_pending_convocation %}is-disabled{% endif %}" id="save-btn">Guardar</button>
+              <button type="button" class="primary {% if has_pending_convocation %}is-disabled{% endif %}" id="save-next-btn">Guardar e ir a acciones</button>
               <button type="button" class="{% if has_pending_convocation %}is-disabled{% endif %}" id="publish-btn" title="Avisar a los jugadores convocados de si son titulares o suplentes">Publicar 11 y avisar</button>
 	          </div>
           <div class="lineup-publish-state" id="publish-state" data-published-at="{{ lineup_published_at_iso }}">
@@ -2820,6 +2826,7 @@
       const field = document.getElementById('lineup-field');
       const statusMsg = document.getElementById('status-msg');
       const saveBtn = document.getElementById('save-btn');
+      const saveNextBtn = document.getElementById('save-next-btn');
       const clearBtn = document.getElementById('clear-btn');
       const autoFillBtn = document.getElementById('auto-fill-btn');
       const snapToggleBtn = document.getElementById('snap-toggle');
@@ -4310,7 +4317,7 @@
         return { ok: response.ok, data };
       }
 
-      saveBtn?.addEventListener('click', async () => {
+      async function saveLineupAndUpdateStatus({ continueToActions = false } = {}) {
         if (hasPendingConvocation) return;
         try {
           const { ok, data } = await doSaveLineup();
@@ -4327,17 +4334,29 @@
             statusMsg.textContent = `Guardado. Faltan ${Math.max(0, STARTERS_REQUIRED - (data.starters || 0))} titulares (${data.starters}/${STARTERS_REQUIRED}). Suplentes: ${data.bench}.`;
             statusMsg.classList.add('warn');
             statusMsg.classList.remove('ok');
+            return false;
           } else {
             statusMsg.textContent = `Guardado (${data.starters}/${STARTERS_REQUIRED}). Pulsa "Publicar 11 y avisar" para notificar a los jugadores.`;
             statusMsg.classList.remove('warn');
             statusMsg.classList.add('ok');
           }
+          if (continueToActions) {
+            const nextUrl = new URL('{% url "match-action-page" %}', window.location.origin);
+            if (matchId) nextUrl.searchParams.set('match_id', matchId);
+            nextUrl.searchParams.set('team', '{{ primary_team_id }}');
+            window.location.assign(nextUrl.toString());
+          }
+          return true;
         } catch (err) {
           statusMsg.textContent = 'Error guardando la alineación inicial.';
           statusMsg.classList.add('warn');
           statusMsg.classList.remove('ok');
+          return false;
         }
-      });
+      }
+
+      saveBtn?.addEventListener('click', () => { void saveLineupAndUpdateStatus(); });
+      saveNextBtn?.addEventListener('click', () => { void saveLineupAndUpdateStatus({ continueToActions: true }); });
 
       const publishBtn = document.getElementById('publish-btn');
       publishBtn?.addEventListener('click', async () => {

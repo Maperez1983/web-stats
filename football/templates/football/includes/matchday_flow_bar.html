@@ -1,0 +1,146 @@
+<style>
+  :root { --matchday-rail-height: 78px; }
+  .matchday-rail {
+    position: sticky;
+    top: 0;
+    z-index: 1100;
+    width: 100%;
+    margin: 0.65rem 0 0.85rem;
+    padding: 0.55rem;
+    display: grid;
+    grid-template-columns: minmax(180px, 0.85fr) minmax(520px, 2.15fr);
+    gap: 0.55rem;
+    border: 1px solid rgba(244, 180, 0, 0.25);
+    border-radius: 18px;
+    background: rgba(4, 10, 22, 0.96);
+    box-shadow: 0 16px 42px rgba(0, 0, 0, 0.38);
+    backdrop-filter: blur(16px);
+    box-sizing: border-box;
+  }
+  .matchday-rail * { box-sizing: border-box; }
+  .matchday-rail__identity {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0.25rem 0.45rem;
+    color: var(--prod-text, #f5f7fa);
+    text-decoration: none;
+  }
+  .matchday-rail__eyebrow {
+    color: var(--prod-secondary, #f4b400);
+    font-size: 0.58rem;
+    font-weight: 950;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .matchday-rail__match {
+    margin-top: 0.16rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .matchday-rail__steps {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.4rem;
+  }
+  .matchday-rail__step {
+    min-width: 0;
+    min-height: 54px;
+    padding: 0.42rem 0.5rem;
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr);
+    align-items: center;
+    gap: 0.4rem;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 13px;
+    background: rgba(255, 255, 255, 0.045);
+    color: var(--prod-text, #f5f7fa);
+    text-decoration: none;
+  }
+  .matchday-rail__step:hover { border-color: rgba(244, 180, 0, 0.48); }
+  .matchday-rail__step.is-current {
+    border-color: rgba(244, 180, 0, 0.62);
+    background: linear-gradient(135deg, rgba(244, 180, 0, 0.2), rgba(47, 125, 50, 0.15));
+    box-shadow: inset 0 0 0 1px rgba(244, 180, 0, 0.08);
+  }
+  .matchday-rail__number {
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(148, 163, 184, 0.15);
+    color: var(--prod-muted, #aab5c8);
+    font-size: 0.66rem;
+    font-weight: 950;
+  }
+  .matchday-rail__step.is-current .matchday-rail__number {
+    background: var(--prod-secondary, #f4b400);
+    color: #101827;
+  }
+  .matchday-rail__copy { min-width: 0; }
+  .matchday-rail__label {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.65rem;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .matchday-rail__state {
+    display: block;
+    margin-top: 0.08rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--prod-muted, #aab5c8);
+    font-size: 0.56rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+  }
+  @media (min-width: 901px) {
+    .matchday-rail + .action-screen { min-height: calc(var(--app-vh, 100dvh) - var(--matchday-rail-height)); }
+    .matchday-rail + .action-screen .actions-sidebar {
+      top: var(--matchday-rail-height);
+      height: calc(var(--app-vh, 100vh) - var(--matchday-rail-height));
+      max-height: calc(var(--app-vh, 100vh) - var(--matchday-rail-height));
+    }
+  }
+  @media (max-width: 820px) {
+    :root { --matchday-rail-height: 132px; }
+    .matchday-rail { position: relative; grid-template-columns: 1fr; }
+    .matchday-rail__identity { padding-bottom: 0; }
+    .matchday-rail__steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .matchday-rail__step { min-height: 44px; }
+  }
+</style>
+
+<nav class="matchday-rail" aria-label="Zona Partido">
+  <a class="matchday-rail__identity" href="{% url 'match-hub' %}{% if matchday_match_id %}?match_id={{ matchday_match_id }}{% if matchday_team_id %}&amp;team={{ matchday_team_id }}{% endif %}{% elif matchday_team_id %}?team={{ matchday_team_id }}{% endif %}">
+    <span class="matchday-rail__eyebrow">Zona Partido</span>
+    <span class="matchday-rail__match">{{ matchday_match_label|default:"Partido activo" }}</span>
+  </a>
+  <div class="matchday-rail__steps">
+    <a class="matchday-rail__step{% if matchday_step == 'convocation' %} is-current{% endif %}" href="{% url 'convocation' %}{% if matchday_match_id %}?match_id={{ matchday_match_id }}{% if matchday_team_id %}&amp;team={{ matchday_team_id }}{% endif %}{% elif matchday_team_id %}?team={{ matchday_team_id }}{% endif %}">
+      <span class="matchday-rail__number">1</span><span class="matchday-rail__copy"><span class="matchday-rail__label">Convocatoria</span><span class="matchday-rail__state">{{ matchday_convocation_state|default:"Preparar lista" }}</span></span>
+    </a>
+    <a class="matchday-rail__step{% if matchday_step == 'lineup' %} is-current{% endif %}" href="{% url 'initial-eleven' %}{% if matchday_match_id %}?match_id={{ matchday_match_id }}{% if matchday_team_id %}&amp;team={{ matchday_team_id }}{% endif %}{% elif matchday_team_id %}?team={{ matchday_team_id }}{% endif %}">
+      <span class="matchday-rail__number">2</span><span class="matchday-rail__copy"><span class="matchday-rail__label">11 inicial</span><span class="matchday-rail__state">{{ matchday_lineup_state|default:"Definir titulares" }}</span></span>
+    </a>
+    <a class="matchday-rail__step{% if matchday_step == 'actions' %} is-current{% endif %}" href="{% url 'match-action-page' %}{% if matchday_match_id %}?match_id={{ matchday_match_id }}{% if matchday_team_id %}&amp;team={{ matchday_team_id }}{% endif %}{% elif matchday_team_id %}?team={{ matchday_team_id }}{% endif %}">
+      <span class="matchday-rail__number">3</span><span class="matchday-rail__copy"><span class="matchday-rail__label">Acciones</span><span class="matchday-rail__state">{{ matchday_actions_state|default:"Registro en vivo" }}</span></span>
+    </a>
+    <a class="matchday-rail__step{% if matchday_step == 'close' %} is-current{% endif %}" href="{% url 'match-hub' %}{% if matchday_match_id %}?match_id={{ matchday_match_id }}{% if matchday_team_id %}&amp;team={{ matchday_team_id }}{% endif %}&amp;stage=close{% elif matchday_team_id %}?team={{ matchday_team_id }}&amp;stage=close{% endif %}#matchday-close">
+      <span class="matchday-rail__number">4</span><span class="matchday-rail__copy"><span class="matchday-rail__label">Cierre</span><span class="matchday-rail__state">{{ matchday_close_state|default:"Resultado e informes" }}</span></span>
+    </a>
+  </div>
+</nav>

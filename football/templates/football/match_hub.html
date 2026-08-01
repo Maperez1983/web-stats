@@ -325,6 +325,12 @@
       {% include 'football/includes/dragon_nav.html' %}
       {% include 'football/includes/_zone_subnav.html' with zone='partido' %}
 
+      {% if request.GET.stage == 'close' %}
+        {% include 'football/includes/matchday_flow_bar.html' with matchday_match_id=active_match_id matchday_team_id=primary_team_id matchday_match_label=match_label matchday_step='close' matchday_convocation_state=convocation_players_count|default:'Pendiente' matchday_lineup_state='Once preparado' matchday_actions_state=actions_count|default:'Sin acciones' matchday_close_state='Resultado e informes' %}
+      {% else %}
+        {% include 'football/includes/matchday_flow_bar.html' with matchday_match_id=active_match_id matchday_team_id=primary_team_id matchday_match_label=match_label matchday_step='hub' matchday_convocation_state=convocation_players_count|default:'Pendiente' matchday_lineup_state='Once inicial' matchday_actions_state=actions_count|default:'Sin acciones' matchday_close_state='Resultado e informes' %}
+      {% endif %}
+
       <header class="header" style="margin-top: 0.9rem;">
         <div style="display:flex;gap:.85rem;align-items:flex-start;">
           {% include 'football/includes/_kit_bar.html' %}
@@ -403,12 +409,12 @@
             {% endif %}
           </div>
           <div class="actions">
-            <a class="btn primary" href="{% url 'match-action-page' %}{% if active_match_id %}?match_id={{ active_match_id }}{% endif %}">Abrir registro</a>
-            <a class="btn" href="{% url 'match-action-page' %}?live=1">Modo vivo</a>
+            <a class="btn primary" href="{% url 'match-action-page' %}{% if active_match_id %}?match_id={{ active_match_id }}&amp;team={{ primary_team_id }}{% endif %}">Abrir registro</a>
+            <a class="btn" href="{% url 'match-action-page' %}?live=1{% if active_match_id %}&amp;match_id={{ active_match_id }}{% endif %}&amp;team={{ primary_team_id }}">Modo vivo</a>
           </div>
         </article>
 
-        <article class="card step-card{% if hub_current_step > 4 %} is-done{% elif hub_current_step == 4 %} is-now{% else %} is-todo{% endif %}">
+        <article class="card step-card{% if hub_current_step > 4 %} is-done{% elif hub_current_step == 4 %} is-now{% else %} is-todo{% endif %}" id="matchday-close">
           <span class="step-badge">{% if hub_current_step > 4 %}Hecho{% elif hub_current_step == 4 %}Ahora{% else %}Después{% endif %}</span>
           <h2>4 · Cerrar &amp; PDFs</h2>
           <p>Genera acta, imprime la ficha y archiva el partido.</p>
