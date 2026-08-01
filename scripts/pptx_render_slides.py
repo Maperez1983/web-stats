@@ -167,11 +167,9 @@ def render(pptx_path, slide_no, out_path, width=1400):
                     if len(pts) > 1:
                         col = (stroke or (30, 30, 30))
                         dr.line(pts, fill=col + (255,), width=lw, joint="curve")
-                        if fill:
-                            try:
-                                dr.polygon(pts, fill=fill + (150,))
-                            except Exception:
-                                pass
+                        # OJO: no rellenamos. En este mazo las flechas y trazos van como
+                        # formas libres CON relleno (es el color de la punta), y pintarlas
+                        # como poligono inventaba bloques de color que no existen.
             elif prst is not None:
                 kind = prst.getAttribute("prst")
                 box = [min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)]

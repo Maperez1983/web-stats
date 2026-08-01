@@ -40,6 +40,32 @@ const pantalla = (fx, fy) => [info.box.x + info.box.w * fx, info.box.y + info.bo
 const cuenta = {};
 const suma = (k) => { cuenta[k] = (cuenta[k] || 0) + 1; };
 
+// 0) ESPACIOS DE INTERVENCION primero, para que queden DEBAJO de todo lo demas.
+for (const e of elementos.filter((x) => x.tipo === 'zona')) {
+  const antes = await page.evaluate(() => (window.__cv ? window.__cv.getObjects().length : -1));
+  await page.evaluate(() => window.__tpadActivateTool('zone'));
+  const [zx, zy] = pantalla(0.035, 0.035);
+  await page.mouse.click(zx, zy);
+  await page.waitForTimeout(180);
+  const ok = await page.evaluate(([x, y, w, h, color, antesN, W, H]) => {
+    const cv = window.__cv; if (!cv) return false;
+    const objs = cv.getObjects();
+    if (objs.length <= antesN) return false;
+    const o = objs[objs.length - 1];
+    const ancho = Math.max(24, w * W), alto = Math.max(24, h * H);
+    o.set({ left: x * W, top: y * H, originX: 'left', originY: 'top',
+            scaleX: 1, scaleY: 1, width: ancho, height: alto });
+    if (color) {
+      const r = parseInt(color.slice(1, 3), 16), g = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
+      o.set({ fill: `rgba(${r},${g},${b},0.30)`, stroke: color });
+    }
+    o.setCoords(); cv.sendToBack(o); cv.requestRenderAll();
+    return true;
+  }, [e.fx, e.fy, e.w, e.h, e.color || '', antes, info.W, info.H]);
+  await page.evaluate(() => { try { window.__cv && window.__cv.discardActiveObject() && window.__cv.requestRenderAll(); } catch (err) {} });
+  suma(ok ? 'zona' : 'zona_fallida');
+}
+
 // 1) FICHAS (coordenadas de mundo)
 for (const e of elementos.filter((x) => x.tipo === 'ficha')) {
   await page.evaluate(([kind, x, y]) => window.__webstatsTpadPlaceToken({ kind, style: 'disk', name: '', number: '', left: x, top: y }),
@@ -75,6 +101,7 @@ for (const e of elementos.filter((x) => x.tipo === 'material')) {
     o.setCoords(); cv.requestRenderAll();
     return true;
   }, [e.color || '', antes, e.fx, e.fy, info.W, info.H]);
+  await page.evaluate(() => { try { window.__cv && window.__cv.discardActiveObject() && window.__cv.requestRenderAll(); } catch (err) {} });
   suma(puesto ? e.kind : e.kind + '_fallido');
 }
 
@@ -89,7 +116,7 @@ for (const e of elementos.filter((x) => x.tipo === 'flecha')) {
   const [x, y] = pantalla(0.035, 0.035);
   await page.mouse.click(x, y);
   await page.waitForTimeout(150);
-  const ok = await page.evaluate(([x1, y1, x2, y2, W, H, antesN]) => {
+  const ok = await page.evaluate(([x1, y1, x2, y2, W, H, antesN, color]) => {
     const cv = window.__cv; if (!cv) return 'sin canvas';
     const objs = cv.getObjects();
     if (objs.length <= antesN) return 'no se colocó';
@@ -109,9 +136,19 @@ for (const e of elementos.filter((x) => x.tipo === 'flecha')) {
       });
       o.dirty = true;
     }
+    if (color) {
+      const pinta = (n) => {
+        if (!n) return;
+        if (n.stroke) n.set({ stroke: color });
+        if (n.type === 'triangle') n.set({ fill: color, stroke: color });
+        (n._objects || []).forEach(pinta);
+      };
+      pinta(o); o.dirty = true;
+    }
     o.setCoords(); cv.requestRenderAll();
     return 'ok';
-  }, [e.x1, e.y1, e.x2, e.y2, info.W, info.H, antes]);
+  }, [e.x1, e.y1, e.x2, e.y2, info.W, info.H, antes, e.color || '']);
+  await page.evaluate(() => { try { window.__cv && window.__cv.discardActiveObject() && window.__cv.requestRenderAll(); } catch (err) {} });
   if (ok === 'ok') suma('flecha'); else suma('flecha_fallida');
 }
 

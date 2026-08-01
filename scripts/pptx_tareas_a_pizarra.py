@@ -26,6 +26,46 @@ MEDIA_A_KIND = {
 }
 
 
+
+# --- Que es cada imagen del PPT ---------------------------------------------------
+# Mirando las 24 mas usadas (cubren la gran mayoria de apariciones) una por una.
+# Antes se decidia por TAMANO y cualquier imagen grande acababa siendo una porteria:
+# por eso los banderines de la tarea 143 salian como nueve porterias.
+IMAGEN_A_KIND = {
+    "image5.png": ("ball", ""),            "image24.png": ("ball", ""),
+    "image115.png": ("ball", ""),
+    "image9.png": ("cone", "#3ad12a"),     # seta verde
+    "image13.png": ("cone", "#e03127"),    # seta roja
+    "image154.png": ("cone", ""),          # cono naranja
+    "image146.png": ("cone", "#e8dcb0"),   # seta beige
+    "image143.png": ("cone_striped", ""),
+    "image3.png": ("goal", ""),            "image7.png": ("goal", ""),
+    "image23.png": ("goal", ""),           "image166.png": ("goal", ""),
+    "image38.png": ("goal_mini", ""),      "image30.png": ("goal_mini", ""),
+    "image28.png": ("pole_marker", ""),    "image56.png": ("pole_marker", ""),
+    "image152.png": ("pole_marker", ""),   "image33.png": ("pole_marker", ""),
+    "image34.GIF": ("pole_marker", ""),    "image19.png": ("pole_marker", ""),
+    "image27.jpeg": ("hurdle", ""),
+    "image4.png": ("goalkeeper_local", ""), "image215.png": ("goalkeeper_local", ""),
+}
+
+
+def _kind_por_imagen(nombre, ancho, alto, zonas):
+    """Devuelve (kind, color) de una imagen del PPT. `zonas` = manchas de color."""
+    if nombre in IMAGEN_A_KIND:
+        return IMAGEN_A_KIND[nombre]
+    if nombre in zonas:
+        return ("zone", zonas[nombre])
+    # Cola larga: por forma, nunca "porteria por ser grande".
+    if ancho < 26 and alto < 26:
+        return ("cone", "")
+    if alto > ancho * 2.2:
+        return ("pole_marker", "")
+    if ancho > alto * 2.2:
+        return ("goal_mini", "")
+    return ("mannequin", "")
+
+
 def _child(node, ns, name):
     for c in node.childNodes:
         if c.nodeType == 1 and c.localName == name and c.namespaceURI == ns:
@@ -82,7 +122,15 @@ def _equipo(rgb):
     return None
 
 
-def convertir(pptx_path, slide_no, canvas_w=1280, canvas_h=720):
+def convertir(pptx_path, slide_no, canvas_w=1280, canvas_h=720, zonas_medios=None):
+    import json as _json
+    import os as _os
+    if zonas_medios is None:
+        ruta = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "medios_zona.json")
+        try:
+            zonas_medios = _json.load(open(ruta))
+        except Exception:
+            zonas_medios = {}
     z = zipfile.ZipFile(pptx_path)
     rels_raw = z.read(f"ppt/slides/_rels/slide{slide_no}.xml.rels").decode("utf8", "ignore")
     rels = dict(re.findall(r'Id="([^"]+)"[^>]*Target="([^"]+)"', rels_raw))
@@ -109,11 +157,17 @@ def convertir(pptx_path, slide_no, canvas_w=1280, canvas_h=720):
     if not campo:
         return None, {"error": "sin imagen de campo"}
 
+    # Todo tiene que caer DENTRO de la superficie de juego: en el PPT hay elementos
+    # dibujados fuera del campo (en el margen blanco de la diapositiva) y alli no pintan nada.
+    _M = 0.015  # margen para que no se peguen a la linea
+
     def mx(v):
-        return round((v - campo["x"]) / campo["cx"] * canvas_w, 1)
+        f = (v - campo["x"]) / campo["cx"]
+        return round(min(max(f, _M), 1 - _M) * canvas_w, 1)
 
     def my(v):
-        return round((v - campo["y"]) / campo["cy"] * canvas_h, 1)
+        f = (v - campo["y"]) / campo["cy"]
+        return round(min(max(f, _M), 1 - _M) * canvas_h, 1)
 
     objetos = []
     cuenta = {"ficha": 0, "cono": 0, "flecha": 0, "trazo": 0, "material": 0, "zona": 0, "balon": 0}
@@ -158,8 +212,13 @@ def convertir(pptx_path, slide_no, canvas_w=1280, canvas_h=720):
                     y1, y2 = y2, y1
                 ln = _child(spPr, A, "ln")
                 punta = ln is not None and (_child(ln, A, "headEnd") is not None or _child(ln, A, "tailEnd") is not None)
+                # El PPT usa DOS colores de flecha con significado: negra (652) y ambar (362).
+                # Los arrastramos igual que el color de los conos.
+                trazo = _fill_rgb(ln) if ln is not None else None
+                hexl = "#%02x%02x%02x" % trazo if trazo else "#000000"
                 objetos.append({"type": "line", "left": x1, "top": y1, "x1": x1, "y1": y1, "x2": x2, "y2": y2,
                                 "data": {"kind": "arrow_run" if punta else "line_solid",
+                                         "color": hexl,
                                          "label": "Carrera" if punta else "Línea"}})
                 cuenta["flecha"] += 1
                 continue
@@ -215,10 +274,25 @@ def convertir(pptx_path, slide_no, canvas_w=1280, canvas_h=720):
         if cxE >= campo["cx"] * 0.5:  # es el campo de fondo
             continue
         ancho = cxE / campo["cx"] * canvas_w
+        alto = cyE / campo["cy"] * canvas_h
         cx = mx(int(off.getAttribute("x")) + cxE / 2)
         cy = my(int(off.getAttribute("y")) + cyE / 2)
-        kind = "cone" if ancho < 34 else "goal_mini"
-        objetos.append({"type": "group", "left": cx, "top": cy, "data": {"kind": kind, "label": kind}})
+        rid = ""
+        blip = pic.getElementsByTagNameNS(A, "blip")
+        if blip:
+            rid = blip[0].getAttributeNS(R, "embed")
+        nombre = rels.get(rid, "").split("/")[-1]
+        kind, color = _kind_por_imagen(nombre, cxE, cyE, zonas_medios)
+        if kind == "zone":
+            # ESPACIO DE INTERVENCION: se dibuja como imagen de color en el PPT.
+            objetos.append({"type": "rect",
+                            "left": mx(int(off.getAttribute("x"))), "top": my(int(off.getAttribute("y"))),
+                            "width": round(ancho, 1), "height": round(alto, 1),
+                            "data": {"kind": "zone", "label": "Espacio", "color": color}})
+            cuenta["zona"] += 1
+            continue
+        objetos.append({"type": "group", "left": cx, "top": cy,
+                        "data": {"kind": kind, "label": kind, "color": color}})
         cuenta["material"] += 1
 
     return objetos, cuenta
