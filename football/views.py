@@ -14617,6 +14617,38 @@ def _usuario_del_post(request, campo="user_id"):
     return user_obj
 
 
+def _enviar_invitacion_por_correo(user_obj, invite_url, expires_at):
+    """Manda el enlace de invitacion. Devuelve True solo si salio.
+
+    Antes la invitacion solo se pintaba en pantalla: quien invitaba tenia que copiar el enlace y
+    hacerselo llegar por su cuenta, y era facil creer que al usuario le habia llegado un correo.
+    """
+    from django.core.mail import send_mail
+
+    email = str(getattr(user_obj, "email", "") or "").strip()
+    if not email:
+        return False
+    asunto = "Tu acceso a Segunda Jugada"
+    cuerpo = (
+        f"Hola {user_obj.get_full_name() or user_obj.username}:\n\n"
+        f"Ya puedes entrar en Segunda Jugada con este enlace personal:\n\n{invite_url}\n\n"
+        f"El enlace caduca el {timezone.localtime(expires_at).strftime('%d/%m/%Y a las %H:%M')}.\n"
+        f"Si no esperabas este correo, ignoralo: sin usarlo, el enlace no hace nada.\n"
+    )
+    try:
+        enviados = send_mail(
+            asunto,
+            cuerpo,
+            getattr(settings, "DEFAULT_FROM_EMAIL", None) or None,
+            [email],
+            fail_silently=False,
+        )
+        return bool(enviados)
+    except Exception:
+        logger.warning("No se pudo enviar la invitacion a %s", email, exc_info=True)
+        return False
+
+
 def _platform_overview_post(request, *, active_tab, users_subtab, workspace_form, user_form):
     """Procesa los formularios de Gobierno y devuelve el estado que vera la pantalla.
 
@@ -14931,11 +14963,46 @@ def _platform_overview_post(request, *, active_tab, users_subtab, workspace_form
                     "expires_at": invitation.expires_at,
                 }
             )
-            user_message = f"Invitación generada en Plataforma para {user_obj.username}."
+            # El enlace ES el acceso: si el usuario tiene correo, se le manda; si no (o si el
+            # envio falla), se dice claramente para que quien invita lo copie a mano.
+            enviado = _enviar_invitacion_por_correo(user_obj, invite_url, invitation.expires_at)
+            if enviado:
+                user_message = (
+                    f"Invitación enviada a {user_obj.email} ({user_obj.username}). "
+                    f"El enlace también aparece abajo."
+                )
+            elif not (user_obj.email or "").strip():
+                user_message = (
+                    f"Invitación generada para {user_obj.username}. No tiene correo guardado: "
+                    f"cópiale el enlace de abajo."
+                )
+            else:
+                user_message = (
+                    f"Invitación generada para {user_obj.username}, pero NO se pudo enviar el correo: "
+                    f"cópiale el enlace de abajo."
+                )
         except ValueError as exc:
             user_error = str(exc)
         except Exception:
             user_error = "No se pudo generar la invitación global."
+    elif form_action == "platform_user_invite_revoke":
+        active_tab = "users"
+        users_subtab = "list"
+        try:
+            user_obj = _usuario_del_post(request)
+            anuladas = UserInvitation.objects.filter(
+                user=user_obj, is_active=True, accepted_at__isnull=True
+            ).update(is_active=False)
+            if anuladas:
+                user_message = (
+                    f"Invitación revocada para {user_obj.username}: el enlace deja de servir."
+                )
+            else:
+                user_message = f"{user_obj.username} no tenía ninguna invitación pendiente."
+        except ValueError as exc:
+            user_error = str(exc)
+        except Exception:
+            user_error = "No se pudo revocar la invitación."
     elif form_action == "platform_user_update":
         active_tab = "users"
         users_subtab = "list"

@@ -1326,7 +1326,16 @@ form.workspace-form {
                     <input type="hidden" name="form_action" value="platform_user_invite_create" />
                     <input type="hidden" name="user_id" value="{{ item.id }}" />
                     <input type="hidden" name="valid_days" value="7" />
-                    <button class="link-btn" type="submit">Invitar</button>
+                    <button class="link-btn" type="submit" title="Genera el enlace de acceso y, si tiene correo, se lo envía">Invitar</button>
+                  </form>
+                  {% comment %}Un enlace de invitación ES un acceso: hasta ahora, una vez generado
+                  solo se podia esperar a que caducara.{% endcomment %}
+                  <form method="post" class="compact-form" style="justify-content:flex-end;"
+                        onsubmit="return confirm('Se anulará la invitación pendiente de {{ item.username|escapejs }}. El enlace dejará de funcionar.');">
+                    {% csrf_token %}
+                    <input type="hidden" name="form_action" value="platform_user_invite_revoke" />
+                    <input type="hidden" name="user_id" value="{{ item.id }}" />
+                    <button class="link-btn" type="submit" title="Anula el enlace de invitación pendiente">Revocar</button>
                   </form>
                 </div>
               </header>
