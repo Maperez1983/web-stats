@@ -52,12 +52,15 @@ fichero es que ese arreglo, cuando toque, se hace UNA vez y en un sitio.
       {% block extra_style %}{% endblock %}
     </style>
   </head>
-  <body>
+  <body class="{% block body_class %}{% endblock %}">
     <div class="shell">
+      {% block nav %}{% endblock %}
       {% block content %}{% endblock %}
+      {% block back_link %}
       <div class="panel">
         <a class="btn" href="{% url 'player-detail' player.id %}{% block back_query %}{% endblock %}">Volver a la ficha</a>
       </div>
+      {% endblock %}
     </div>
   </body>
 </html>

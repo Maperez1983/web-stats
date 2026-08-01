@@ -1,29 +1,14 @@
+{% extends 'football/player_record_base.html' %}
 {% load static football_extras %}
-<!DOCTYPE html>
-<html lang="es">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-    <title>Lesión · {{ player.name }} · 2J</title>
-    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
-    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
-    {% include 'football/pwa_head.html' %}
-    <style>
-      body {
-        margin: 0;
-        min-height: 100vh;
-        color: var(--prod-button-text);
-        font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif);
-        background:
-          radial-gradient(circle at 10% -10%, rgba(56, 189, 248, 0.14), transparent 40%),
-          radial-gradient(circle at 92% 0%, rgba(244, 180, 0, 0.10), transparent 34%),
-          linear-gradient(180deg, #020617 0%, #07111f 52%, #091423 100%);
-      }
-      .shell {
-        width: min(100%, 1320px);
-        margin: 0 auto;
-        padding: clamp(0.85rem, 1.25vw, 1.2rem);
-      }
+
+{% comment %}Misma ficha de siempre; lo que cambia es que el chasis (head, fondo, .shell)
+lo pone el molde común y aquí queda sólo lo suyo: cabecera, hitos, formularios.{% endcomment %}
+
+{% block page_title %}Lesión · {{ player.name }} · 2J{% endblock %}
+{% block body_class %}prod-commercial{% endblock %}
+{% block shell_width %}1320px{% endblock %}
+
+{% block extra_style %}
       .header, .panel {
         border: 1px solid rgba(255,255,255,0.12);
         border-radius: 20px;
@@ -181,12 +166,16 @@
         .header { grid-template-columns: 1fr; }
         .actions { justify-content:flex-start; }
       }
-    </style>
-  </head>
-  <body class="prod-commercial">
-    <div class="shell">
+    
+{% endblock %}
+
+{% block nav %}
       {% include 'football/includes/dragon_nav.html' %}
       {% include 'football/includes/_zone_subnav.html' with zone='equipo' %}
+{% endblock %}
+
+{% block content %}
+
       <header class="header">
         <div>
           <p class="kicker">Ficha de lesión</p>
@@ -367,6 +356,7 @@
           </div>
         </div>
       </section>
-    </div>
-  </body>
-</html>
+{% endblock %}
+
+{% comment %}Ya trae su propio "Volver" en la cabecera: no se repite abajo.{% endcomment %}
+{% block back_link %}{% endblock %}
