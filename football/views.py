@@ -468,6 +468,7 @@ from football.query_helpers import (
     get_latest_live_match,
     get_latest_pizarra_match,
     get_next_open_calendar_match,
+    get_next_operational_calendar_match,
     get_previous_match,
     get_requested_match,
     get_sanctioned_player_ids_from_previous_round,
@@ -11740,7 +11741,29 @@ def _upsert_match_from_next_match_payload(primary_team, payload):
 def _prefer_local_operational_next_match(primary_team, preferred_payload):
     if not primary_team or not getattr(primary_team, "group", None):
         return preferred_payload
-    local_payload = get_next_match(primary_team, primary_team.group, allow_external_fetch=False)
+    local_payload = None
+    local_match = get_next_operational_calendar_match(primary_team)
+    if local_match:
+        try:
+            local_opponent = local_match.away_team if local_match.home_team_id == primary_team.id else local_match.home_team
+        except Exception:
+            local_opponent = None
+        local_payload = {
+            "status": "next",
+            "date": local_match.date.isoformat() if getattr(local_match, "date", None) else "",
+            "time": local_match.kickoff_time.strftime("%H:%M") if getattr(local_match, "kickoff_time", None) else "",
+            "round": str(getattr(local_match, "round", "") or "").strip(),
+            "location": str(getattr(local_match, "location", "") or "").strip(),
+            "context": str(getattr(local_match, "context", "") or "").strip().lower() or Match.CONTEXT_LEAGUE,
+            "opponent": {
+                "name": str(
+                    getattr(local_opponent, "display_name", "") or getattr(local_opponent, "name", "") or ""
+                ).strip()
+            },
+            "match_id": int(getattr(local_match, "id", 0) or 0),
+        }
+    if not _next_match_payload_is_reliable(local_payload):
+        local_payload = get_next_match(primary_team, primary_team.group, allow_external_fetch=False)
     if not _next_match_payload_is_reliable(local_payload):
         return preferred_payload
     if not _next_match_payload_is_reliable(preferred_payload):
@@ -25396,7 +25419,7 @@ def register_match_action(request):
     player_id = request.POST.get("player")
     action_type = (request.POST.get("action_type") or "").strip()
     action_type_key = action_type.lower()
-    target_match = get_requested_match(request, primary_team) or get_next_open_calendar_match(primary_team)
+    target_match = get_requested_match(request, primary_team) or get_next_operational_calendar_match(primary_team)
     convocation_record = None
     if target_match:
         convocation_record = _get_convocation_record_for_match(primary_team, target_match)
@@ -25693,7 +25716,7 @@ def save_match_lineup(request):
     if not primary_team:
         return JsonResponse({"error": "Equipo principal no configurado"}, status=400)
     starters_limit = _required_starters_for_team(primary_team)
-    target_match = get_requested_match(request, primary_team) or get_next_open_calendar_match(primary_team)
+    target_match = get_requested_match(request, primary_team) or get_next_operational_calendar_match(primary_team)
     convocation_record = None
     if target_match:
         convocation_record = _get_convocation_record_for_match(primary_team, target_match)
@@ -25898,7 +25921,7 @@ def publish_initial_eleven(request):
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({"error": "Equipo principal no configurado"}, status=400)
-    target_match = get_requested_match(request, primary_team) or get_next_open_calendar_match(primary_team)
+    target_match = get_requested_match(request, primary_team) or get_next_operational_calendar_match(primary_team)
     if not target_match:
         return JsonResponse({"error": "No hay partido activo para publicar la alineación."}, status=400)
     convocation_record = _get_convocation_record_for_match(primary_team, target_match)
@@ -25977,7 +26000,7 @@ def get_match_lineup(request):
     if not primary_team:
         return JsonResponse({"error": "Equipo principal no configurado"}, status=400)
     starters_limit = _required_starters_for_team(primary_team)
-    target_match = get_requested_match(request, primary_team) or get_next_open_calendar_match(primary_team)
+    target_match = get_requested_match(request, primary_team) or get_next_operational_calendar_match(primary_team)
     convocation_record = None
     if target_match:
         convocation_record = _get_convocation_record_for_match(primary_team, target_match)
@@ -30953,7 +30976,7 @@ def convocation_page(request):
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404("Equipo principal no configurado")
-    active_match = get_requested_match(request, primary_team) or get_next_open_calendar_match(primary_team)
+    active_match = get_requested_match(request, primary_team) or get_next_operational_calendar_match(primary_team)
     requested_context = str(request.GET.get("context") or "").strip().lower()
     active_match_context = str(getattr(active_match, "context", "") or "").strip().lower()
     allowed_contexts = {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY}
@@ -31664,7 +31687,7 @@ def save_convocation(request):
             except ValueError:
                 continue
 
-    target_match = get_requested_match(request, primary_team) or get_next_open_calendar_match(primary_team)
+    target_match = get_requested_match(request, primary_team) or get_next_operational_calendar_match(primary_team)
     # B2: si el formulario declara un CONTEXTO distinto al del partido activo de sesión (p.ej. preparas
     # un amistoso pero el activo es el de Liga), NO reutilizamos ese Match: mutarlo corrompería el
     # partido de Liga. Lo descartamos para que el anti-duplicado busque/cree el correcto.

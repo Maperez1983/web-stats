@@ -241,6 +241,20 @@ def get_next_open_calendar_match(primary_team):
     )
 
 
+def get_next_operational_calendar_match(primary_team):
+    if not primary_team:
+        return None
+    today = timezone.localdate()
+    qs = _team_match_queryset(primary_team).exclude(date__isnull=True)
+    open_upcoming = qs.filter(is_closed=False, date__gte=today).order_by('date', 'id').first()
+    if open_upcoming:
+        return open_upcoming
+    # Salvavidas operativo: si por datos algún partido futuro quedó marcado como cerrado,
+    # seguimos priorizando el siguiente del calendario para no bloquear home/convocatoria
+    # el mismo día de partido.
+    return qs.filter(date__gte=today).order_by('date', 'id').first()
+
+
 def get_requested_match(request, primary_team):
     if not primary_team:
         return None

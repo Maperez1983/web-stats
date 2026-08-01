@@ -99,6 +99,7 @@ from football.query_helpers import (
     get_active_injury_player_ids,
     get_current_convocation_record,
     get_next_open_calendar_match,
+    get_next_operational_calendar_match,
     is_injury_record_active,
     is_manual_sanction_active,
 )
@@ -10483,6 +10484,30 @@ class QueryHelperTests(TestCase):
 
         self.assertEqual(resolved.id, open_match.id)
 
+    def test_get_next_operational_calendar_match_falls_back_to_closed_upcoming(self):
+        closed_today = Match.objects.create(
+            season=self.team.group.season,
+            group=self.team.group,
+            home_team=self.team,
+            away_team=self.rival,
+            round="Hoy cerrado",
+            date=date(2026, 8, 1),
+            is_closed=True,
+        )
+        Match.objects.create(
+            season=self.team.group.season,
+            group=self.team.group,
+            home_team=self.team,
+            away_team=self.rival,
+            round="Lejano cerrado",
+            date=date(2035, 9, 14),
+            is_closed=True,
+        )
+
+        resolved = get_next_operational_calendar_match(self.team)
+
+        self.assertEqual(resolved.id, closed_today.id)
+
     def test_manual_sanction_helper_expires_after_until_date(self):
         player = Player.objects.create(
             team=self.team,
@@ -10836,6 +10861,39 @@ class ConvocationWorkflowTests(TestCase):
         self.assertEqual(response.context["active_match_id"], open_match.id)
         self.assertEqual(response.context["match_info"]["opponent"], "Rival Abierto")
         self.assertEqual(response.context["match_info"]["date"], "2026-08-12")
+
+    def test_convocation_page_falls_back_to_closed_upcoming_match_when_no_open_match_exists(self):
+        self.client.force_login(self.user)
+        rival_today = Team.objects.create(name="C.D. RINCON", slug="cd-rincon", group=self.team.group)
+        Match.objects.create(
+            season=self.team.group.season,
+            group=self.team.group,
+            round="Lejano cerrado",
+            date=date(2035, 9, 14),
+            location="Ciudad Deportiva",
+            home_team=rival_today,
+            away_team=self.team,
+            context=Match.CONTEXT_LEAGUE,
+            is_closed=True,
+        )
+        today_match = Match.objects.create(
+            season=self.team.group.season,
+            group=self.team.group,
+            round="Amistoso de hoy",
+            date=date(2026, 8, 1),
+            location="Rincon",
+            home_team=rival_today,
+            away_team=self.team,
+            context=Match.CONTEXT_FRIENDLY,
+            is_closed=True,
+        )
+
+        response = self.client.get(reverse("convocation"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["active_match_id"], today_match.id)
+        self.assertEqual(response.context["match_info"]["opponent"], "C.D. RINCON")
+        self.assertEqual(response.context["match_info"]["date"], "2026-08-01")
 
     def test_save_convocation_uses_first_open_calendar_match(self):
         self.client.force_login(self.user)
