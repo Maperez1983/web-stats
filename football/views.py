@@ -42691,14 +42691,20 @@ def coach_matches_sync_venues(request):
     if not (_can_access_platform(request.user) or (workspace and _can_manage_workspace(request.user, workspace))):
         return HttpResponse("Solo el administrador del club puede sincronizar.", status=403)
 
-    from football.universo_venue_services import sincronizar_campos_de_equipos
+    from football.universo_venue_services import (
+        limpiar_campos_de_equipos,
+        sincronizar_campos_de_equipos,
+    )
 
     sobrescribir = str(request.POST.get("overwrite") or "").strip().lower() in {"1", "true", "on", "yes"}
+    limpiar = str(request.POST.get("clear") or "").strip().lower() in {"1", "true", "on", "yes"}
     equipos = list(
         Team.objects.filter(group_id=primary_team.group_id).order_by("name")
         if primary_team.group_id
         else Team.objects.filter(id=primary_team.id)
     )
+    if limpiar:
+        return JsonResponse({"ok": True, "limpiados": limpiar_campos_de_equipos(equipos)})
     try:
         resumen = sincronizar_campos_de_equipos(equipos, sobrescribir=sobrescribir)
     except Exception:

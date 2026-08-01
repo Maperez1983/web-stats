@@ -51,18 +51,38 @@ def _normalizar_clave(clave):
     return re.sub(r'[^a-z0-9]+', '_', texto).strip('_')
 
 
-def _texto_util(valor):
-    if isinstance(valor, (int, float)):
+def _texto_util(valor, *, permitir_numerico=False):
+    """
+    Texto aprovechable. Descarta IDENTIFICADORES: `cod_instalacion` contiene la palabra
+    'instalacion' y su valor ('8615') pasaba el filtro, así que se guardaba el código del
+    campo como si fuera su nombre. Un campo de fútbol no se llama '2079760'.
+    """
+    if isinstance(valor, (int, float, bool)):
         return ''
     texto = str(valor or '').strip()
     if texto.lower() in VALORES_DESCARTABLES:
         return ''
     if len(texto) > 260:
         return ''
+    if not permitir_numerico and not re.search(r'[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]', texto):
+        return ''
     return texto
 
 
-def _buscar_por_claves(payload, claves, *, profundidad_max=6):
+# Claves que ACOMPAÑAN al dato pero son su identificador, no su nombre.
+PREFIJOS_DE_CODIGO = ('cod_', 'codigo_', 'id_', 'num_', 'nif_')
+
+
+def _es_clave_de_codigo(clave_norm):
+    # 'codigo_postal' empieza por 'codigo_' y NO es un identificador interno: es el dato.
+    if 'postal' in clave_norm:
+        return False
+    if clave_norm.endswith('_id') or clave_norm == 'id':
+        return True
+    return any(clave_norm.startswith(p) for p in PREFIJOS_DE_CODIGO)
+
+
+def _buscar_por_claves(payload, claves, *, profundidad_max=6, permitir_numerico=False):
     """Primer valor de texto útil cuya clave contenga alguna de las buscadas."""
     objetivo = {_normalizar_clave(c) for c in claves}
 
@@ -72,8 +92,10 @@ def _buscar_por_claves(payload, claves, *, profundidad_max=6):
         if isinstance(nodo, dict):
             for clave, valor in nodo.items():
                 clave_norm = _normalizar_clave(clave)
+                if _es_clave_de_codigo(clave_norm):
+                    continue
                 if any(o in clave_norm for o in objetivo):
-                    texto = _texto_util(valor)
+                    texto = _texto_util(valor, permitir_numerico=permitir_numerico)
                     if texto:
                         return texto
             for valor in list(nodo.values())[:120]:
@@ -104,7 +126,7 @@ def extraer_campo_de_juego(payload):
     nombre = _buscar_por_claves(payload, CLAVES_CAMPO)
     calle = _buscar_por_claves(payload, CLAVES_DIRECCION)
     localidad = _buscar_por_claves(payload, CLAVES_LOCALIDAD)
-    cp = _buscar_por_claves(payload, CLAVES_CP)
+    cp = _buscar_por_claves(payload, CLAVES_CP, permitir_numerico=True)
 
     partes = [p for p in (calle, cp, localidad) if p]
     direccion = ', '.join(partes)[:260]
@@ -182,3 +204,21 @@ def sincronizar_campos_de_equipos(teams, *, sobrescribir=False, fetch=None):
         else:
             resumen['sin_datos'].append(f'{team.name} (ya lo tenía)')
     return resumen
+
+
+def limpiar_campos_de_equipos(teams):
+    """
+    Deja en blanco campo, dirección y mapa. Existe porque una pasada mala se tiene que poder
+    deshacer sin entrar en la base de datos a mano.
+    """
+    limpiados = []
+    for team in teams:
+        cambios = []
+        for campo in ('home_stadium', 'home_stadium_address', 'home_stadium_maps_url'):
+            if str(getattr(team, campo, '') or '').strip():
+                setattr(team, campo, '')
+                cambios.append(campo)
+        if cambios:
+            team.save(update_fields=cambios)
+            limpiados.append(team.name)
+    return limpiados

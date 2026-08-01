@@ -4,6 +4,7 @@ from .models import Team
 from .universo_venue_services import (
     aplicar_campo_de_juego,
     extraer_campo_de_juego,
+    limpiar_campos_de_equipos,
     sincronizar_campos_de_equipos,
 )
 
@@ -82,3 +83,20 @@ class AplicarYSincronizarTests(TestCase):
         self.assertEqual(len(resumen["actualizados"]), 1)
         self.assertIn("Amistoso S.C.", resumen["sin_codigo"])
         self.assertTrue(any("Rompe F.C." in e for e in resumen["errores"]))
+
+
+class NoConfundirCodigosConNombresTests(SimpleTestCase):
+    """El fallo real: `cod_instalacion` colaba y se guardaba '8615' como nombre del campo."""
+
+    def test_el_codigo_de_instalacion_no_es_el_nombre(self):
+        payload = {"cod_instalacion": "8615", "instalacion": "CAMPO MUNICIPAL EL LIMONAR"}
+
+        self.assertEqual(extraer_campo_de_juego(payload)["name"], "CAMPO MUNICIPAL EL LIMONAR")
+
+    def test_si_solo_hay_codigo_no_se_inventa_nombre(self):
+        payload = {"cod_instalacion": "8615", "id_campo": 2079760}
+
+        self.assertEqual(extraer_campo_de_juego(payload)["name"], "")
+
+    def test_un_nombre_solo_numerico_se_descarta(self):
+        self.assertEqual(extraer_campo_de_juego({"instalacion": "2079760"})["name"], "")
