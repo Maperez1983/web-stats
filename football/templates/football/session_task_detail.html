@@ -545,10 +545,6 @@
 	        outline: 10px solid rgba(0,0,0,0.18);
 	        outline-offset: 0;
 	      }
-      .preview.is-contain {
-        object-fit: contain;
-        cursor: zoom-out;
-      }
       .chips {
         display: flex;
         flex-wrap: wrap;
@@ -1475,6 +1471,9 @@
       {% if error %}
       <div class="msg err">{{ error }}</div>
       {% endif %}
+      {# Avisos de las acciones de cabecera (hoy, «Favorita»): el editor ya no esta en esta pagina,
+         asi que su `#graphic-status` tampoco. #}
+      <div class="msg" id="task-header-status" role="status" aria-live="polite" hidden></div>
 
       <section class="panel task-detail-tab-panel{% if active_task_tab == 'presentation' %} is-active{% endif %}" id="task-presentation-board" data-task-tab-panel="presentation">
         <h2>Ficha táctica compartible</h2>
@@ -3186,37 +3185,10 @@
           }
         });
 
-        const bookmarkBtn = document.getElementById('bookmark-toggle');
-        bookmarkBtn?.addEventListener('click', async (event) => {
-          event.preventDefault();
-          const taskId = bookmarkBtn.getAttribute('data-task-id');
-          if (!taskId) return;
-          bookmarkBtn.disabled = true;
-          try {
-            const response = await fetch(`/coach/sesiones/tarea/${taskId}/bookmark/toggle/`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken'),
-              },
-              credentials: 'same-origin',
-              body: JSON.stringify({}),
-            });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok) throw new Error(data.error || 'No se pudo actualizar favorita.');
-            const bookmarked = !!data.bookmarked;
-            bookmarkBtn.textContent = bookmarked ? '★ Favorita' : '☆ Favorita';
-            bookmarkBtn.setAttribute('aria-pressed', bookmarked ? 'true' : 'false');
-            bookmarkBtn.title = bookmarked ? 'Quitar de favoritas' : 'Marcar como favorita';
-          } catch (err) {
-            setStatus(err.message || 'No se pudo actualizar favorita.', true);
-          } finally {
-            bookmarkBtn.disabled = false;
-          }
-        });
-        /* Las pestanas de la ficha (tab / edit_tab / format / configuracion) las gobierna un
-           unico controlador al final del documento, fuera de este IIFE: aqui no llegaria a
-           ejecutarse nada, porque el bloque entero sale por `if (!canvasEl) return;`. */
+        /* Lo que sigue vivo en la interfaz NO se ata aqui, sino al final del documento, fuera de
+           este IIFE: las pestanas (tab / edit_tab / format / configuracion) en el CONTROLADOR
+           UNICO, y el boton «Favorita» (#bookmark-toggle) de la cabecera en el bloque siguiente.
+           Aqui no llegarian a ejecutarse: todo esto sale por `if (!canvasEl) return;`. */
         let resizeTimer = null;
       window.addEventListener('resize', () => {
           clearTimeout(resizeTimer);
@@ -3227,12 +3199,9 @@
           }, 180);
       });
 
-      // Preview: por defecto recorta (cover) para evitar grandes barras en pantallas verticales.
-      // Click alterna a "contain" si necesitas ver todo el lienzo sin recorte.
-      const previewImg = document.getElementById('task-preview-image');
-      previewImg?.addEventListener('click', () => {
-        previewImg.classList.toggle('is-contain');
-      });
+        /* Ya no hay `#task-preview-image`: la miniatura de la ficha se amplia con la caja de luz
+           (#sheet-lightbox) que hay al final del documento, sobre `.club-panel-body img.preview`.
+           Aqui vivia un toggle `is-contain` sobre aquel id; se retiro con su CSS. */
 
         const animationCanvasEl = document.getElementById('task-animation-canvas');
         const animationStatusEl = document.getElementById('animation-status');
@@ -3727,6 +3696,74 @@
         syncTaskFormatTab(activeTaskFormatTab);
         syncTaskEditTab(activeTaskEditTab, false);
         syncTaskSettingsTab(activeTaskSettingsTab);
+      })();
+    </script>
+    <script>
+      /* Boton «Favorita» de la cabecera. Vive aqui, y no en el IIFE del editor Fabric, por la misma
+         razon que el controlador de pestanas: aquel sale por `if (!canvasEl) return;` y nada de lo
+         que hay dentro se ejecuta. Por eso lleva su propio `getCookie` y su propio aviso. */
+      (() => {
+        const bookmarkBtn = document.getElementById('bookmark-toggle');
+        if (!bookmarkBtn) return;
+
+        const getCookie = (name) => {
+          const target = `${name}=`;
+          const raw = document.cookie ? document.cookie.split(';') : [];
+          for (const chunk of raw) {
+            const cookie = chunk.trim();
+            if (cookie.startsWith(target)) return decodeURIComponent(cookie.slice(target.length));
+          }
+          return '';
+        };
+
+        const statusEl = document.getElementById('task-header-status');
+        let statusTimer = null;
+        const setStatus = (text, isError = false) => {
+          if (!statusEl) return;
+          window.clearTimeout(statusTimer);
+          statusEl.textContent = text;
+          statusEl.classList.toggle('err', !!isError);
+          statusEl.hidden = !text;
+          if (text) {
+            statusTimer = window.setTimeout(() => {
+              statusEl.hidden = true;
+              statusEl.textContent = '';
+            }, isError ? 6000 : 2500);
+          }
+        };
+
+        const paintBookmark = (bookmarked) => {
+          bookmarkBtn.textContent = bookmarked ? '★ Favorita' : '☆ Favorita';
+          bookmarkBtn.setAttribute('aria-pressed', bookmarked ? 'true' : 'false');
+          bookmarkBtn.title = bookmarked ? 'Quitar de favoritas' : 'Marcar como favorita';
+        };
+
+        bookmarkBtn.addEventListener('click', async (event) => {
+          event.preventDefault();
+          const taskId = bookmarkBtn.getAttribute('data-task-id');
+          if (!taskId) return;
+          bookmarkBtn.disabled = true;
+          try {
+            const response = await fetch(`/coach/sesiones/tarea/${encodeURIComponent(taskId)}/bookmark/toggle/`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+              },
+              credentials: 'same-origin',
+              body: JSON.stringify({}),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.error || 'No se pudo actualizar favorita.');
+            const bookmarked = !!data.bookmarked;
+            paintBookmark(bookmarked);
+            setStatus(bookmarked ? 'Tarea marcada como favorita.' : 'Tarea quitada de favoritas.');
+          } catch (err) {
+            setStatus(err.message || 'No se pudo actualizar favorita.', true);
+          } finally {
+            bookmarkBtn.disabled = false;
+          }
+        });
       })();
     </script>
     <script type="importmap">
