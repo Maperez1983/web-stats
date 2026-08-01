@@ -1,0 +1,33 @@
+{% extends 'football/player_record_base.html' %}
+
+{% block page_title %}Objetivo · {{ player.name }} · 2J{% endblock %}
+{% block back_query %}?tab=desarrollo{% endblock %}
+
+{% block content %}
+      <div class="panel">
+        <h1>{{ objetivo.text }}</h1>
+        <p class="sub">{{ player.name }}{% if player.team %} · {{ player.team.display_name|default:player.team.name }}{% endif %}</p>
+
+        <div class="facts">
+          <div class="fact"><div class="k">Estado</div><div class="v">{{ objetivo.get_status_display }}</div></div>
+          <div class="fact"><div class="k">Fecha objetivo</div><div class="v">{% if objetivo.target_date %}{{ objetivo.target_date|date:'d/m/Y' }}{% else %}sin fecha{% endif %}</div></div>
+          <div class="fact"><div class="k">Puesto el</div><div class="v">{{ objetivo.created_at|date:'d/m/Y' }}</div></div>
+          <div class="fact"><div class="k">Cumplido el</div><div class="v">{% if objetivo.done_at %}{{ objetivo.done_at|date:'d/m/Y' }}{% else %}—{% endif %}</div></div>
+        </div>
+        {% if objetivo.created_by %}<p class="sub" style="margin-top:0.8rem;">Lo puso {{ objetivo.created_by }}.</p>{% endif %}
+      </div>
+
+      {% if can_edit %}
+      <div class="panel">
+        <h1>Mover el objetivo</h1>
+        <p class="sub">El jugador ve sus objetivos en el portal, así que el estado que dejes aquí es el que lee él.</p>
+        <form method="post" class="row">
+          {% csrf_token %}
+          <input type="hidden" name="form_action" value="status" />
+          {% for value, label in estados %}
+          <button class="btn{% if value == objetivo.status %} primary{% endif %}" type="submit" name="status" value="{{ value }}">{{ label }}</button>
+          {% endfor %}
+        </form>
+      </div>
+      {% endif %}
+{% endblock %}

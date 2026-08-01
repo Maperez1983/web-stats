@@ -42119,6 +42119,92 @@ def coach_injuries_page(request):
 
 
 @login_required
+def player_objective_detail_page(request, player_id, objective_id):
+    """Ficha de un objetivo. El estado que se deja aquí es el que lee el jugador en su portal."""
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    workspace = _get_active_workspace(request)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404("Equipo principal no configurado")
+    player = Player.objects.filter(id=player_id, team=primary_team).first()
+    if not player:
+        raise Http404("Jugador no encontrado")
+    objetivo = PlayerObjective.objects.filter(id=objective_id, player=player).first()
+    if not objetivo:
+        raise Http404("Objetivo no encontrado")
+
+    can_edit = bool(
+        _can_manage_workspace(request.user, workspace)
+        or _is_admin_user(request.user)
+        or _can_access_platform(request.user)
+    )
+    if request.method == "POST" and can_edit and str(request.POST.get("form_action") or "") == "status":
+        _status = str(request.POST.get("status") or "").strip()
+        if _status in dict(PlayerObjective.STATUS_CHOICES):
+            objetivo.status = _status
+            objetivo.done_at = timezone.now() if _status == PlayerObjective.STATUS_DONE else None
+            objetivo.save(update_fields=["status", "done_at"])
+        return redirect("player-objective-detail", player_id=player.id, objective_id=objetivo.id)
+
+    return render(
+        request,
+        "football/player_objective_detail.html",
+        {
+            "player": player,
+            "objetivo": objetivo,
+            "estados": PlayerObjective.STATUS_CHOICES,
+            "can_edit": can_edit,
+        },
+    )
+
+
+@login_required
+def player_session_detail_page(request, player_id, session_id):
+    """
+    La sesión VISTA DESDE EL JUGADOR: si estuvo, en qué tareas trabajó y cuántos minutos.
+    La ficha de la sesión completa es otra pantalla; ésta responde por él.
+    """
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404("Equipo principal no configurado")
+    player = Player.objects.filter(id=player_id, team=primary_team).first()
+    if not player:
+        raise Http404("Jugador no encontrado")
+    sesion = TrainingSession.objects.filter(id=session_id, microcycle__team=primary_team).first()
+    if not sesion:
+        raise Http404("Sesión no encontrada")
+
+    asistencia = TrainingSessionAttendance.objects.filter(session=sesion, player=player).first()
+    participaciones = list(
+        SessionTaskParticipation.objects.filter(player=player, session_task__session=sesion)
+        .select_related("session_task")
+        .order_by("session_task__order", "session_task__id")
+    )
+    minutos = sum(int(getattr(p.session_task, "duration_minutes", 0) or 0) for p in participaciones)
+    # Sin registro de asistencia se asume presente, igual que en los contadores del portal:
+    # el club sólo marca las ausencias.
+    asistencia_label = asistencia.get_status_display() if asistencia else "Presente (sin marcar)"
+
+    return render(
+        request,
+        "football/player_session_detail.html",
+        {
+            "player": player,
+            "sesion": sesion,
+            "asistencia": asistencia,
+            "asistencia_label": asistencia_label,
+            "participaciones": participaciones,
+            "minutos": minutos,
+        },
+    )
+
+
+@login_required
 def player_communication_detail_page(request, player_id, comm_id):
     """
     Ficha de una comunicación. Existe sobre todo por la publicación: en la tabla sólo se ve

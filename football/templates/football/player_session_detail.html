@@ -1,0 +1,42 @@
+{% extends 'football/player_record_base.html' %}
+
+{% block page_title %}Sesión · {{ player.name }} · 2J{% endblock %}
+{% block back_query %}?tab=stats{% endblock %}
+
+{% block content %}
+      <div class="panel">
+        <h1>{{ sesion.title|default:"Sesión de entrenamiento" }}</h1>
+        <p class="sub">
+          {{ sesion.session_date|date:'d/m/Y' }}{% if player.team %} · {{ player.team.display_name|default:player.team.name }}{% endif %}
+        </p>
+
+        <div class="facts">
+          <div class="fact"><div class="k">Asistencia</div><div class="v">{{ asistencia_label }}</div></div>
+          <div class="fact"><div class="k">Tareas suyas</div><div class="v">{{ participaciones|length }}</div></div>
+          <div class="fact"><div class="k">Minutos</div><div class="v">{{ minutos }}</div></div>
+          <div class="fact"><div class="k">Estado sesión</div><div class="v">{{ sesion.get_status_display|default:'—' }}</div></div>
+        </div>
+        {% if asistencia and asistencia.notes %}<div class="msg">{{ asistencia.notes }}</div>{% endif %}
+      </div>
+
+      <div class="panel">
+        <h1>En qué trabajó</h1>
+        <p class="sub">Sólo las tareas en las que participó: es lo que explica sus minutos de esta sesión.</p>
+        <table>
+          <thead>
+            <tr><th>Tarea</th><th>Bloque</th><th>Duración</th></tr>
+          </thead>
+          <tbody>
+            {% for item in participaciones %}
+            <tr>
+              <td>{{ item.session_task.title|default:'Tarea' }}</td>
+              <td>{{ item.session_task.get_block_display|default:'—' }}</td>
+              <td>{{ item.session_task.duration_minutes|default:0 }} min</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="sub">No consta que participara en ninguna tarea de esta sesión.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+{% endblock %}

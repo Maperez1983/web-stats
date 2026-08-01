@@ -1601,7 +1601,7 @@
                   <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:0.75rem; flex-wrap:wrap; border:1px solid rgba(144,161,185,0.18); border-radius:0.85rem; padding:0.65rem 0.75rem; background:rgba(15,23,42,0.32);">
                     <div style="min-width:240px;">
                       <div style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase;">
-                        {{ s.date_label }}{% if s.time_label %} · {{ s.time_label }}{% endif %}
+                        <a href="{% url 'player-session-detail' player.id s.id %}" style="color:inherit;">{{ s.date_label }}{% if s.time_label %} · {{ s.time_label }}{% endif %}</a>
                       </div>
                       <div class="subtle" style="margin-top:0.2rem;">{{ s.focus }}</div>
                       <div class="subtle" style="margin-top:0.25rem;">
@@ -1920,7 +1920,7 @@
           {% for o in player_objectives %}
           <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;padding:0.42rem 0;border-top:1px solid rgba(148,163,184,0.18);">
             <span class="pill {% if o.status == 'done' %}ok{% elif o.status == 'in_progress' %}warn{% endif %}">{{ o.get_status_display }}</span>
-            <span style="flex:1 1 12rem;{% if o.status == 'done' %}text-decoration:line-through;opacity:0.65;{% endif %}">{{ o.text }}</span>
+            <span style="flex:1 1 12rem;{% if o.status == 'done' %}text-decoration:line-through;opacity:0.65;{% endif %}"><a href="{% url 'player-objective-detail' player.id o.id %}" style="color:inherit;">{{ o.text }}</a></span>
             {% if o.target_date %}<span class="subtle" style="font-size:0.72rem;white-space:nowrap;">🎯 {{ o.target_date|date:"d/m/Y" }}</span>{% endif %}
             {% if not is_player_readonly %}
             <span style="display:flex;gap:0.25rem;flex-wrap:wrap;">
