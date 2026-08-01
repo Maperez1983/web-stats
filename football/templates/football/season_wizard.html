@@ -216,6 +216,15 @@
         .rating-fields { grid-template-columns: 1fr; }
         .scoreline { grid-template-columns: 1fr; }
       }
+      /* La cabecera es un panel OSCURO fijo (degradado azul noche) en los dos temas: en claro,
+         las variables del producto le metian tinta oscura encima y no se leia ni el titulo del
+         club ni las pastillas. */
+      :root[data-theme="light"] .topline,
+      :root[data-theme="light"] .topline .title,
+      :root[data-theme="light"] .topline .subtitle,
+      :root[data-theme="light"] .top-pill { color: #eef4ff; }
+      :root[data-theme="light"] .top-kicker { color: #bae6fd; }
+      :root[data-theme="light"] .top-pill { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.22); }
     </style>
   </head>
   <body class="prod-commercial">

@@ -1,0 +1,24 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "anim-demo",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "DJANGO_SETTINGS_MODULE=webstats.settings",
+        "SECRET_KEY=local-demo",
+        "DEBUG=true",
+        "ALLOWED_HOSTS=localhost,127.0.0.1,testserver,igual-que-produccion",
+        "ALLOW_SQLITE_IN_PROD=true",
+        "DATABASE_URL=sqlite:////tmp/guion_demo.sqlite3",
+        "DISABLE_COLLECTSTATIC=1",
+        "python3",
+        "/private/tmp/claude-501/-Volumes-Mac-Satecchi-Mac-Web-stats-analysis-entry-clean/7a19684f-4f35-438b-95c5-267de93b78d4/scratchpad/wt-anim/manage.py",
+        "runserver",
+        "127.0.0.1:8732",
+        "--noreload"
+      ],
+      "port": 8732
+    }
+  ]
+}
