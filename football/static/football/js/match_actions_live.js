@@ -1934,7 +1934,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     }
   };
 
-  popupForm.addEventListener('submit', async (event) => {
+  const handlePopupSubmit = async (event) => {
     event.preventDefault();
     if (actionSubmitInFlight) return;
     const currentAction = String(actionInput?.value || '').trim();
@@ -1946,6 +1946,11 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     ensureResultSelected(currentAction);
     const payload = new FormData(popupForm);
     await submitPopupAction(payload, { isTeamOnlyAction, source: 'popup' });
+  };
+  popupForm.addEventListener('submit', handlePopupSubmit);
+  const popupSubmitButton = popupForm.querySelector('button[type="submit"]');
+  popupSubmitButton?.addEventListener('click', (event) => {
+    void handlePopupSubmit(event);
   });
   // Señal para que el HTML fallback (ES5) sepa que el submit ya está interceptado.
   // Evita que, por caching/orden de scripts, se quede activado el fallback y genere dobles envíos.

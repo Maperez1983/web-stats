@@ -53,3 +53,5 @@ class MatchActionsJavascriptContractTests(SimpleTestCase):
 
         self.assertIn("fieldPopup.setAttribute('aria-hidden', 'false');", live_source)
         self.assertIn("fieldPopup.setAttribute('aria-hidden', 'true');", live_source)
+        self.assertIn("popupForm.addEventListener('submit', handlePopupSubmit);", live_source)
+        self.assertIn("popupSubmitButton?.addEventListener('click'", live_source)
