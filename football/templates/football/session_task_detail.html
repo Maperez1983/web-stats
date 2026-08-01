@@ -1503,7 +1503,7 @@
           <h3 style="margin:0 0 2px; font-size:13px; text-transform:uppercase; letter-spacing:.06em;">Movimiento de la tarea</h3>
           <p class="meta" style="margin:0 0 10px;">{{ task_script.steps|length }} pasos · {{ task_script.actors|length }} jugadores. Pulsa play o arrastra la barra.</p>
           <div data-task-script-player data-script-id="task-script-json"
-               data-token-img-base="{% url 'session-task-token-image' task_obj.id 'UID' %}"></div>
+               data-token-img-base="{% url 'session-task-token-image' task.id 'UID' %}"></div>
         </section>
         {{ task_script|json_script:"task-script-json" }}
         {% comment %}El renderizador del césped va ANTES: es el mismo que pinta la pizarra, y así el movimiento se ve sobre el campo de verdad y no sobre uno dibujado aparte.{% endcomment %}
