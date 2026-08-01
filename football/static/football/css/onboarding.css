@@ -610,6 +610,9 @@
          "Opcional" conservaba fondo oscuro propio, y la etiqueta "Home" de la vista previa
          llevaba tinta clara sobre una superficie que ahora es clara. */
       :root[data-theme="light"] .step .badge { background: rgba(15, 23, 42, 0.06); }
+      /* Los "Abrir" del checklist son ENLACES con clase badge: al aclarar el fondo se quedaron
+         con tinta clara. Se apunta al enlace para no pisar los verdes/ambar de estado. */
+      :root[data-theme="light"] .step a.badge { color: rgba(15, 23, 42, 0.86); }
       :root[data-theme="light"] .page-preview-badge {
         color: rgba(15, 23, 42, 0.86);
         border-color: rgba(15, 23, 42, 0.14);
