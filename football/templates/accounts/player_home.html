@@ -303,6 +303,49 @@
           {% else %}
             <p class="empty">Sin lesiones activas.</p>
           {% endif %}
+
+          {% if not preview_of %}
+          <details style="margin-top:0.9rem;" {% if not wellness_today %}open{% endif %}>
+            <summary style="cursor:pointer;font-weight:800;font-size:.78rem;letter-spacing:.05em;text-transform:uppercase;padding:.55rem .85rem;border:1px solid rgba(255,255,255,.16);border-radius:999px;color:var(--prod-muted);list-style:none;">
+              {% if wellness_today %}Cambiar cómo estoy hoy{% else %}¿Cómo estás hoy?{% endif %}
+            </summary>
+            <form method="post" style="margin-top:0.9rem;">
+              {% csrf_token %}
+              <input type="hidden" name="form_action" value="wellness" />
+              <p class="empty" style="margin:0 0 0.7rem;">
+                Del 1 al 10. Lo que dejes en blanco no se guarda. Es un parte por día: si lo mandas
+                otra vez, se corrige el de hoy.
+              </p>
+              <label style="display:block;margin-bottom:0.6rem;">Cómo me encuentro en general
+                <input type="number" name="wellness" min="1" max="10" value="{{ wellness_today.wellness|default_if_none:'' }}" style="width:100%;" />
+              </label>
+              <label style="display:block;margin-bottom:0.6rem;">He dormido
+                <input type="number" name="wellness_sleep" min="1" max="10" value="{{ wellness_today.wellness_sleep|default_if_none:'' }}" style="width:100%;" />
+              </label>
+              <label style="display:block;margin-bottom:0.6rem;">Cansancio
+                <input type="number" name="wellness_fatigue" min="1" max="10" value="{{ wellness_today.wellness_fatigue|default_if_none:'' }}" style="width:100%;" />
+              </label>
+              <label style="display:block;margin-bottom:0.6rem;">Agujetas o dolor
+                <input type="number" name="wellness_soreness" min="1" max="10" value="{{ wellness_today.wellness_soreness|default_if_none:'' }}" style="width:100%;" />
+              </label>
+              <label style="display:block;margin-bottom:0.6rem;">Estrés
+                <input type="number" name="wellness_stress" min="1" max="10" value="{{ wellness_today.wellness_stress|default_if_none:'' }}" style="width:100%;" />
+              </label>
+              <label style="display:block;margin-bottom:0.6rem;">Ganas de entrenar
+                <input type="number" name="wellness_motivation" min="1" max="10" value="{{ wellness_today.wellness_motivation|default_if_none:'' }}" style="width:100%;" />
+              </label>
+              <label style="display:block;margin-bottom:0.6rem;">Esfuerzo del último entreno (RPE)
+                <input type="number" name="rpe" min="1" max="10" value="{{ wellness_today.rpe|default_if_none:'' }}" style="width:100%;" />
+              </label>
+              <button class="btn primary" type="submit">Guardar cómo estoy</button>
+              {% if is_guardian_account %}
+              <p class="empty" style="margin:0.6rem 0 0;">
+                Puedes rellenarlo tú: esto es cómo ha dormido o si le duele algo, no una opinión suya.
+              </p>
+              {% endif %}
+            </form>
+          </details>
+          {% endif %}
         </section>
         {% endif %}
 

@@ -162,6 +162,12 @@
           Sin cuenta no hay portal. Al invitar se elige a qué jugador pertenece: el vínculo
           viaja en la invitación, así que nadie acaba en la ficha de otro.
         </p>
+        <p class="lead">
+          Si el contacto es de un familiar o tutor, la cuenta queda marcada como
+          <strong>cuenta de familia</strong>: ve lo mismo que el jugador y puede rellenar cómo
+          está (sueño, dolor, cansancio), pero <strong>no puede valorarse por él</strong> — esa
+          nota sólo significa algo si la pone el jugador.
+        </p>
         {% comment %}Como en el resto de la app, la lista es del equipo activo. Las pastillas
         cambian de categoría con el mismo `?team=` que entiende toda la aplicación.{% endcomment %}
         {% if squad_team_options|length > 1 %}
@@ -187,6 +193,7 @@
             </div>
             <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
               <span class="tag">{{ item.account }}</span>
+              {% if item.is_guardian %}<span class="tag">cuenta de familia</span>{% endif %}
               <a class="btn alt" href="{% url 'player-home' %}?ver_como={{ item.player.id }}">Ver como él</a>
               {% if item.linked_label %}
                 <form method="post" style="margin:0;"

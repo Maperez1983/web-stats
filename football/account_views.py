@@ -627,6 +627,7 @@ def player_portal_settings_page(request):
                 "player": player,
                 "account": account,
                 "contact_email": str(getattr(player, "contact_email", "") or "").strip(),
+                "is_guardian": bool(getattr(player, "user_is_guardian", False)),
                 "linked_label": (
                     (linked.get_full_name() or linked.get_username()) if linked else ""
                 ),
@@ -756,6 +757,52 @@ def player_home_page(request):
 
     # Autovaloración: el jugador se puntúa a sí mismo. NO entra en la media del cuerpo
     # técnico (`author_kind='self'`); lo valioso es justo la distancia entre ambas.
+    # WELLNESS DEL DÍA. La política ya decía "buena parte la rellena él", pero el portal no
+    # tenía dónde: la sección sólo mostraba la lesión activa. Un parte por día — si lo manda
+    # dos veces, se corrige el del día, no se acumulan filas.
+    if request.method == "POST" and str(request.POST.get("form_action") or "") == "wellness":
+        if player is not None:
+            from .models import PlayerPhysicalMetric
+
+            def _scale(name):
+                raw = str(request.POST.get(name) or "").strip()
+                if not raw:
+                    return None
+                try:
+                    value = int(float(raw.replace(",", ".")))
+                except ValueError:
+                    return None
+                return max(1, min(10, value))
+
+            try:
+                hoy = timezone.localdate()
+                registro, _creado = PlayerPhysicalMetric.objects.get_or_create(
+                    player=player, recorded_on=hoy
+                )
+                registro.wellness = _scale("wellness")
+                registro.wellness_sleep = _scale("wellness_sleep")
+                registro.wellness_fatigue = _scale("wellness_fatigue")
+                registro.wellness_soreness = _scale("wellness_soreness")
+                registro.wellness_stress = _scale("wellness_stress")
+                registro.wellness_motivation = _scale("wellness_motivation")
+                registro.rpe = _scale("rpe")
+                registro.save(
+                    update_fields=[
+                        "wellness",
+                        "wellness_sleep",
+                        "wellness_fatigue",
+                        "wellness_soreness",
+                        "wellness_stress",
+                        "wellness_motivation",
+                        "rpe",
+                    ]
+                )
+            except Exception:
+                logger.exception("No se pudo guardar el wellness del jugador %s", player.id)
+        from django.shortcuts import redirect
+
+        return redirect(f"{reverse('player-home')}#cuerpo")
+
     if request.method == "POST" and str(request.POST.get("form_action") or "") == "self_assessment":
         # Valorarse es un acto del jugador. Si detrás de la cuenta está su familia, no se
         # guarda: una autovaloración firmada por otro ensucia justo el dato que la hace útil
@@ -950,6 +997,7 @@ def _player_home_zones(request, player, vis):
         "attendance_status_choices": TrainingSessionAttendance.STATUS_CHOICES,
         "match_notice": None,
         "active_injury": None,
+        "wellness_today": None,
         "inbox_items": [],
         "inbox_unread": 0,
         "fines": [],
@@ -1025,6 +1073,16 @@ def _player_home_zones(request, player, vis):
                 }
         except Exception:
             logger.debug("No se pudo cargar la lesión activa del jugador", exc_info=True)
+
+    if vis.physical:
+        try:
+            from .models import PlayerPhysicalMetric
+
+            zones["wellness_today"] = PlayerPhysicalMetric.objects.filter(
+                player=player, recorded_on=timezone.localdate()
+            ).first()
+        except Exception:
+            logger.debug("No se pudo cargar el wellness de hoy", exc_info=True)
 
     # MI VALORACIÓN ---------------------------------------------------------------------
     if vis.evaluation:
