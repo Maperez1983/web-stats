@@ -140,7 +140,10 @@
         flex-direction: column;
         gap: 0.62rem;
         max-height: calc(100vh - 7rem);
-        overflow: hidden;
+        overflow-x: hidden;
+        overflow-y: auto;
+        scrollbar-gutter: stable;
+        overscroll-behavior: contain;
       }
       .lineup-field-panel {
         min-width: 0;
@@ -187,10 +190,44 @@
         overflow: auto;
       }
       .lineup-sidebar #player-list {
-        flex: 1 1 auto;
-        min-height: 190px;
-        max-height: none;
-        padding-right: 0.15rem;
+        flex: 0 0 auto;
+        height: clamp(280px, 42vh, 460px);
+        min-height: 280px;
+        max-height: 460px;
+        padding: 0.2rem 0.35rem 0.2rem 0.1rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.18);
+        border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+        scrollbar-color: rgba(56, 189, 248, 0.72) rgba(15, 23, 42, 0.72);
+        scrollbar-width: auto;
+      }
+      .lineup-sidebar #player-list::-webkit-scrollbar {
+        width: 11px;
+      }
+      .lineup-sidebar #player-list::-webkit-scrollbar-track {
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.72);
+      }
+      .lineup-sidebar #player-list::-webkit-scrollbar-thumb {
+        border: 2px solid rgba(15, 23, 42, 0.72);
+        border-radius: 999px;
+        background: rgba(56, 189, 248, 0.72);
+      }
+      .player-list-summary {
+        margin: -0.25rem 0 0;
+        color: var(--prod-muted);
+        font-size: 0.72rem;
+        line-height: 1.35;
+      }
+      .lineup-actions {
+        position: sticky;
+        bottom: 0;
+        z-index: 12;
+        display: grid;
+        gap: 0.45rem;
+        margin: 0 -0.25rem;
+        padding: 0.55rem 0.25rem 0.35rem;
+        border-top: 1px solid rgba(56, 189, 248, 0.28);
+        background: linear-gradient(180deg, rgba(12, 22, 40, 0.9), rgba(12, 22, 40, 0.99) 28%);
       }
       .lineup-sidebar details {
         border: 1px solid rgba(148, 163, 184, 0.2);
@@ -1081,7 +1118,13 @@
           overflow: visible;
         }
         .lineup-sidebar #player-list {
+          height: auto;
+          min-height: 0;
           max-height: 380px;
+        }
+        .lineup-actions {
+          position: static;
+          margin-inline: 0;
         }
         .field { width: min(100%, 560px); }
         .xi-stadium { --tpad-stand: clamp(24px, 7vw, 42px); }
@@ -2289,6 +2332,7 @@
           {% elif has_pending_lineup %}
           <p class="helper-note">Convocatoria cerrada, pero la alineación sigue pendiente. Puedes construirla manualmente o usar el autocompletado como base.</p>
           {% endif %}
+          <p class="player-list-summary">{{ convocation_players|length }} convocados · Desplaza la lista para verlos todos.</p>
           <div class="players" id="player-list">
             {% for player in convocation_players %}
             <label class="player-card" data-player-id="{{ player.id }}" data-player-name="{{ player.name|upper|escape }}" data-player-number="{{ player.number|default:'--' }}" data-player-position="{% if player.position %}{{ player.position|display_position|escape }}{% endif %}" data-player-photo="{{ player.photo_url|default:''|escape }}" data-player-avatar="{{ player.avatar_url|default:''|escape }}">
@@ -2314,6 +2358,7 @@
             <div class="players" id="rival-lineup-list"></div>
             <p class="field-help">Se alimenta de “Preparar rival”. Activa “Rival: ON” para superponerlo en el campo.</p>
           </details>
+	        <div class="lineup-actions">
 	          <div class="toolbar">
 	            <button type="button" id="auto-fill-btn" {% if has_pending_convocation %}class="is-disabled"{% endif %}>Auto completar</button>
 	            <button type="button" id="clear-btn">Limpiar</button>
@@ -2326,8 +2371,9 @@
               <span class="pill pill-ok" id="publish-pill">✓ 11 confirmado · publicado {{ lineup_published_at|date:"d/m/Y H:i" }}</span>
             {% else %}
               <span class="pill pill-draft" id="publish-pill">Borrador · sin publicar</span>
-            {% endif %}
-          </div>
+	            {% endif %}
+	          </div>
+            </div>
           <div class="field-row">
             <label for="formation-select">Estructura</label>
             <select id="formation-select" {% if has_pending_convocation %}disabled{% endif %}></select>
