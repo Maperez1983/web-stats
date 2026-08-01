@@ -23433,6 +23433,7 @@ def coach_overview_page(request):
     if isinstance(weekly_brief, dict):
         weekly_brief["match"] = next_match
         next_match = weekly_brief.get("match") or {}
+    next_match = _prefer_local_operational_next_match(primary_team, next_match)
     # Guard de "próximo": no mostramos como próximo rival un partido que en realidad es el ÚLTIMO de
     # la temporada pasada. get_next_match, si no hay partido futuro, devuelve status="latest" con la
     # fecha vieja; _next_match_payload_is_reliable exige status="next" y fecha no pasada. Si no lo es,

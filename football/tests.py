@@ -15819,6 +15819,36 @@ class CoachOverviewTests(TestCase):
         self.assertContains(response, "Campo Hoy")
 
     @patch('football.views.load_preferred_next_match_payload', return_value=None)
+    def test_coach_overview_prioritizes_same_day_closed_match_over_future_convocation(self, _mock_next):
+        today = timezone.localdate()
+        Match.objects.create(
+            season=self.group.season,
+            group=self.group,
+            round='Amistoso hoy',
+            date=today,
+            location='Campo Hoy',
+            home_team=self.team,
+            away_team=self.rival_future,
+            context=Match.CONTEXT_FRIENDLY,
+            is_closed=True,
+        )
+        ConvocationRecord.objects.create(
+            team=self.team,
+            round='Amistoso futuro',
+            match_date=today + timedelta(days=11),
+            location='Campo Futuro',
+            opponent_name='Rival Manual Futuro',
+            is_current=True,
+        )
+
+        response = self.client.get(f"{reverse('coach-detail')}?view=overview")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Rival Futuro')
+        self.assertContains(response, 'Campo Hoy')
+        self.assertNotContains(response, 'Rival Manual Futuro')
+
+    @patch('football.views.load_preferred_next_match_payload', return_value=None)
     def test_coach_overview_ignores_current_convocation_without_match_date(self, _mock_next):
         Match.objects.create(
             season=self.group.season,
