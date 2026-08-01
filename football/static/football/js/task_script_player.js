@@ -200,6 +200,15 @@
     // no hace nada. La tarea ya tiene su foto de la pizarra encima.
     if (steps.length < 2 || !actors.length) return;
 
+    /* La chapa del editor va incrustada en el dibujo (~127 KB por jugador): no cabe en el guion,
+       asi que se pide a la tarea, que ya la tiene guardada. Es el MISMO byte que pinta la pizarra. */
+    const plantillaImg = String(host.dataset.tokenImgBase || '');
+    actors.forEach((a) => {
+      if (!a.img && a.img_embedded && plantillaImg && a.uid) {
+        a.img = plantillaImg.replace('UID', encodeURIComponent(a.uid));
+      }
+    });
+
     const actorById = new Map(actors.map((a) => [a.uid, a]));
     // Las figuras llegan por red: cuando cada una carga se repinta, para no dejar discos de color
     // en una tarea que si tiene chapas.

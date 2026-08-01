@@ -121,16 +121,23 @@ def _actor_image(obj):
     """
     Imagen de la ficha: la MISMA que ya usa la pizarra.
 
-    Se lee del propio dibujo (el hijo `image` del grupo de la chapa), no de la base de datos: asi
-    el reproductor no puede acabar pintando un asset distinto del que ve el entrenador. Si el
-    jugador no tiene figura, se cae a su foto.
+    La chapa del editor no es una URL: es un PNG **incrustado en el dibujo** (unos 127 KB por
+    jugador). En el guion no cabe -22 fichas serian 2,8 MB- asi que aqui solo se devuelve la URL
+    cuando la hay, y si la imagen esta incrustada se marca con `embedded` para que la ficha la
+    sirva desde la tarea (que ya la tiene guardada) en vez de duplicarla.
     """
+    incrustada = False
+
     def buscar(nodo, hondo=0):
+        nonlocal incrustada
         if hondo > 4 or not isinstance(nodo, dict):
             return ''
         src = _text(nodo.get('src'))
-        if src and not src.startswith('data:') and len(src) <= MAX_IMG_LEN:
-            return src
+        if src:
+            if src.startswith('data:'):
+                incrustada = True
+            elif len(src) <= MAX_IMG_LEN:
+                return src
         for hijo in (nodo.get('objects') if isinstance(nodo.get('objects'), list) else []):
             encontrado = buscar(hijo, hondo + 1)
             if encontrado:
@@ -139,12 +146,12 @@ def _actor_image(obj):
 
     url = buscar(obj)
     if url:
-        return url
+        return url, False
     data = obj.get('data') if isinstance(obj.get('data'), dict) else {}
     foto = _text(data.get('playerPhotoUrl'))
     if foto and not foto.startswith('data:') and len(foto) <= MAX_IMG_LEN:
-        return foto
-    return ''
+        return foto, False
+    return '', incrustada
 
 
 def _actor_from_object(obj, index):
@@ -153,6 +160,7 @@ def _actor_from_object(obj, index):
     if kind not in {'token', 'ball'}:
         return None
     color = _text(data.get('token_base_color')) or _text(obj.get('fill')) or '#2f6fd6'
+    _img = _actor_image(obj)
     return {
         'uid': _actor_uid(obj, index),
         'kind': kind,
@@ -163,7 +171,9 @@ def _actor_from_object(obj, index):
         # Identidad visual de la ficha, para que el movimiento se vea con las MISMAS chapas que la
         # pizarra. Dos juegos de assets para el mismo tablero es lo que hace que la aplicacion
         # parezca dos aplicaciones.
-        'img': _actor_image(obj),
+        'img': _img[0],
+        # La figura esta incrustada en el dibujo: la ficha la sirve desde la propia tarea.
+        'img_embedded': _img[1],
         'stripe': _text(data.get('token_stripe_color'))[:24],
         'style': _text(data.get('token_style'))[:24],
     }
@@ -326,6 +336,7 @@ def normalize_script(raw):
             'name': _text(item.get('name'))[:60],
             'color': _text(item.get('color'), '#2f6fd6')[:24],
             'img': img,
+            'img_embedded': bool(item.get('img_embedded')),
             'stripe': _text(item.get('stripe'))[:24],
             'style': _text(item.get('style'))[:24],
         })

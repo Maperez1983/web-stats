@@ -4,6 +4,7 @@ from . import academy_views, account_views, billing_views, kit2d_views
 from . import pwa as pwa_views
 from . import (
     season_diagnostics,
+    task_token_image,
     season_wizard_views,
     session_pdf,
     tactical_views,
@@ -707,6 +708,14 @@ urlpatterns = [
     path("coach/sesiones/diag-bibliotecas/", season_diagnostics.library_microcycles_audit_view, name="sessions-library-mc-debug"),
     # ¿El guion derivado dice lo mismo que los pasos guardados, y cuanto pesa?
     path("coach/sesiones/diag-guion/", season_diagnostics.task_script_audit_view, name="sessions-task-script-debug"),
+    # La figura de una ficha, servida desde la tarea que ya la tiene guardada (ver
+    # football/task_token_image.py): el reproductor pinta la MISMA chapa que la pizarra sin
+    # duplicar 127 KB por jugador dentro del guion.
+    path(
+        "coach/sesiones/tarea/<int:task_id>/ficha/<str:uid>.png",
+        task_token_image.session_task_token_image,
+        name="session-task-token-image",
+    ),
     # Pone al dia en lote las fotos HD de la biblioteca (?limit=, ?team=).
     path(
         "coach/sesiones/fotos-hd/",
