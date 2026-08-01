@@ -6,14 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('football', '0089_videoinboxitem_thread_key_videoinboxcomment'),
+        ("football", "0089_videoinboxitem_thread_key_videoinboxcomment"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='rivalvideo',
-            name='source_url',
-            field=models.URLField(blank=True, help_text='URL de origen (p.ej. YouTube) si aplica.', max_length=600),
+            model_name="rivalvideo",
+            name="source_url",
+            field=models.URLField(blank=True, help_text="URL de origen (p.ej. YouTube) si aplica.", max_length=600),
         ),
     ]
-

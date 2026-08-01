@@ -1,0 +1,24 @@
+{
+  "category": "grass",
+  "category_type": "surface",
+  "default_family": "grass_patterns",
+  "families": [
+    "grass_patterns",
+    "mowing_bands"
+  ],
+  "variants": [
+    "default",
+    "natural",
+    "broadcast",
+    "premium"
+  ],
+  "fallback_asset": "grass/grass_patterns/default",
+  "compatible_themes": [
+    "classic",
+    "broadcast",
+    "premium"
+  ],
+  "resolution_independent": true,
+  "theme_overrides_supported": true,
+  "assets": []
+}

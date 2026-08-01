@@ -12,8 +12,8 @@ from football.models import (
     AcademyLessonStep,
     AcademyQuizOption,
     AcademyQuizQuestion,
-    Team,
     TaskBlueprint,
+    Team,
     Workspace,
 )
 
@@ -340,7 +340,9 @@ def _mk_quick_card_body(item: SeedLesson) -> str:
         elif "lado_debil" in merged:
             reglas = "- Fija lado fuerte antes.\n- Lado débil alto y abierto.\n- Cambio tenso y a tiempo."
         elif "area" in merged:
-            reglas = "- 2 llegadas (1º palo + penalti/raso atrás).\n- Siempre 1 al rechazo.\n- Ataca balón (no esperes)."
+            reglas = (
+                "- 2 llegadas (1º palo + penalti/raso atrás).\n- Siempre 1 al rechazo.\n- Ataca balón (no esperes)."
+            )
         elif "porteros" in merged:
             reglas = "- Primero ángulo.\n- Luego equilibrio.\n- Último paso antes del tiro."
 
@@ -449,46 +451,109 @@ def _external_resources_for_seed_lesson(item: SeedLesson) -> list[tuple[str, str
     )
 
     # Defensa / presión / bloque.
-    if has("presion", "orientar", "bloque_alto", "bloque_medio", "bloque_bajo", "defensa", "basculacion", "lado_debil", "zona", "compacto"):
+    if has(
+        "presion",
+        "orientar",
+        "bloque_alto",
+        "bloque_medio",
+        "bloque_bajo",
+        "defensa",
+        "basculacion",
+        "lado_debil",
+        "zona",
+        "compacto",
+    ):
         resources.extend(
             [
-                ("FIFA Training Centre · Principios defensivos (Michael Johnson)", "https://www.fifatrainingcentre.com/es/practice/elite-sessions/out-of-possession/johnson-principios-defensivos.php"),
-                ("FIFA Training Centre · Transiciones (Boothroyd 2)", "https://www.fifatrainingcentre.com/es/practice/elite-sessions/transition-to-attacking/transiciones.php"),
-                ("FIFA Training Centre · Transición ofensiva (Jennings)", "https://www.fifatrainingcentre.com/es/practice/elite-sessions/transition-to-attacking/transicion-ofensiva-jennings.php"),
-                ("UEFA · Setting the press (performance insights)", "https://www.uefa.com/uefachampionsleague/news/028a-1a1bf5c2d303-4a5106d81f09-1000--champions-league-performance-insights-setting-the-press/"),
-                ("UEFA · Video: pressing trap (Europa League)", "https://www.uefa.com/uefaeuropaleague/video/028d-1adb46cedb92-ddb6c06004ab-1000--tactical-analysis-leverkusen-set-pressing-trap/"),
-                ("The FA · Defendiendo zonas centrales (Boot Room)", "https://www.thefa.com/bootroom/resources/coaching/out-of-possession-defending-central-areas"),
-                ("The FA · Pressing: delaying, denying (sesión)", "https://www.thefa.com/bootroom/resources/coaching/out-of-possession-pressing-delaying-denying"),
-                ("The FA · When and how to press (sesión)", "https://www.thefa.com/bootroom/resources/coaching/out-of-possession-when-and-how-to-press"),
-                ("RFEF · Contenido técnico entrenadores (tareas reales)", "https://rfef.es/index.php/es/noticias/contenido-tecnico-para-entrenadores-hoy-entrenamos-con-marcelino-garcia-toral"),
+                (
+                    "FIFA Training Centre · Principios defensivos (Michael Johnson)",
+                    "https://www.fifatrainingcentre.com/es/practice/elite-sessions/out-of-possession/johnson-principios-defensivos.php",
+                ),
+                (
+                    "FIFA Training Centre · Transiciones (Boothroyd 2)",
+                    "https://www.fifatrainingcentre.com/es/practice/elite-sessions/transition-to-attacking/transiciones.php",
+                ),
+                (
+                    "FIFA Training Centre · Transición ofensiva (Jennings)",
+                    "https://www.fifatrainingcentre.com/es/practice/elite-sessions/transition-to-attacking/transicion-ofensiva-jennings.php",
+                ),
+                (
+                    "UEFA · Setting the press (performance insights)",
+                    "https://www.uefa.com/uefachampionsleague/news/028a-1a1bf5c2d303-4a5106d81f09-1000--champions-league-performance-insights-setting-the-press/",
+                ),
+                (
+                    "UEFA · Video: pressing trap (Europa League)",
+                    "https://www.uefa.com/uefaeuropaleague/video/028d-1adb46cedb92-ddb6c06004ab-1000--tactical-analysis-leverkusen-set-pressing-trap/",
+                ),
+                (
+                    "The FA · Defendiendo zonas centrales (Boot Room)",
+                    "https://www.thefa.com/bootroom/resources/coaching/out-of-possession-defending-central-areas",
+                ),
+                (
+                    "The FA · Pressing: delaying, denying (sesión)",
+                    "https://www.thefa.com/bootroom/resources/coaching/out-of-possession-pressing-delaying-denying",
+                ),
+                (
+                    "The FA · When and how to press (sesión)",
+                    "https://www.thefa.com/bootroom/resources/coaching/out-of-possession-when-and-how-to-press",
+                ),
+                (
+                    "RFEF · Contenido técnico entrenadores (tareas reales)",
+                    "https://rfef.es/index.php/es/noticias/contenido-tecnico-para-entrenadores-hoy-entrenamos-con-marcelino-garcia-toral",
+                ),
             ]
         )
 
     # Línea defensiva / basculación (4 atrás).
     if has("linea", "basculacion", "centros", "area", "defensa_area", "defensa_de_cuatro"):
         resources.append(
-            ("FIFA Training Centre · Fundamentos defensa de cuatro (Jens Lehmann)", "https://www.fifatrainingcentre.com/es/practice/elite-sessions/out-of-possession/defensa-de-cuatro.php")
+            (
+                "FIFA Training Centre · Fundamentos defensa de cuatro (Jens Lehmann)",
+                "https://www.fifatrainingcentre.com/es/practice/elite-sessions/out-of-possession/defensa-de-cuatro.php",
+            )
         )
 
     # Transiciones.
     if has("transicion", "perdida", "recuperacion", "rest_defense", "5s", "5_segundos"):
         resources.extend(
             [
-                ("FIFA Training Centre · Transiciones (Boothroyd 2)", "https://www.fifatrainingcentre.com/es/practice/elite-sessions/transition-to-attacking/transiciones.php"),
-                ("FIFA Training Centre · Transición ofensiva (Jennings)", "https://www.fifatrainingcentre.com/es/practice/elite-sessions/transition-to-attacking/transicion-ofensiva-jennings.php"),
-                ("The FA · Out of possession: pressing (overview)", "https://www.thefa.com/bootroom/resources/england-dna/how-we-play/out-of-possession"),
+                (
+                    "FIFA Training Centre · Transiciones (Boothroyd 2)",
+                    "https://www.fifatrainingcentre.com/es/practice/elite-sessions/transition-to-attacking/transiciones.php",
+                ),
+                (
+                    "FIFA Training Centre · Transición ofensiva (Jennings)",
+                    "https://www.fifatrainingcentre.com/es/practice/elite-sessions/transition-to-attacking/transicion-ofensiva-jennings.php",
+                ),
+                (
+                    "The FA · Out of possession: pressing (overview)",
+                    "https://www.thefa.com/bootroom/resources/england-dna/how-we-play/out-of-possession",
+                ),
             ]
         )
 
     # Construcción y progresión (salida).
-    if has("salida", "build", "build-up", "progresion", "tercer_hombre", "3er_hombre", "juego_posicional", "ocupacion", "carriles"):
+    if has(
+        "salida",
+        "build",
+        "build-up",
+        "progresion",
+        "tercer_hombre",
+        "3er_hombre",
+        "juego_posicional",
+        "ocupacion",
+        "carriles",
+    ):
         resources.extend(
             [
                 (
                     "FIFA Training Centre · 8v8: elaborar por el centro (bajo presión)",
                     "https://www.fifatrainingcentre.com/es/practice/talent-coach-programme/build-and-progress/8v8-team-game-building-up-through-middle-areas.php",
                 ),
-                ("Spielverlagerung · Pressing traps (análisis)", "https://spielverlagerung.com/2020/04/08/pressing-traps-available-in-a-3-4-3/"),
+                (
+                    "Spielverlagerung · Pressing traps (análisis)",
+                    "https://spielverlagerung.com/2020/04/08/pressing-traps-available-in-a-3-4-3/",
+                ),
             ]
         )
 
@@ -505,8 +570,14 @@ def _external_resources_for_seed_lesson(item: SeedLesson) -> list[tuple[str, str
     if has("abp", "corner", "corners", "saque_porteria", "saque_banda", "faltas"):
         resources.extend(
             [
-                ("FIFA Training Centre · Set plays (análisis y rutinas)", "https://www.fifatrainingcentre.com/en/game/game-analysis/set-plays/set-play-routines/set-play-routines-home.php"),
-                ("FIFA Training Centre · Sesión: set pieces (France U17)", "https://www.fifatrainingcentre.com/en/practice/elite-sessions/youth-national-teams/france-u17-men/wednesday-session-set-pieces.php"),
+                (
+                    "FIFA Training Centre · Set plays (análisis y rutinas)",
+                    "https://www.fifatrainingcentre.com/en/game/game-analysis/set-plays/set-play-routines/set-play-routines-home.php",
+                ),
+                (
+                    "FIFA Training Centre · Sesión: set pieces (France U17)",
+                    "https://www.fifatrainingcentre.com/en/practice/elite-sessions/youth-national-teams/france-u17-men/wednesday-session-set-pieces.php",
+                ),
             ]
         )
 
@@ -514,9 +585,18 @@ def _external_resources_for_seed_lesson(item: SeedLesson) -> list[tuple[str, str
     if has("porteros", "portero", "gk", "goalkeeper", "1v1"):
         resources.extend(
             [
-                ("FIFA · Nuevas sesiones de porteros (ES)", "https://inside.fifa.com/es/news/tres-nuevas-sesiones-para-guardametas-disponibles-centro-entrenamiento-fifa"),
-                ("FIFA Training Centre · Sesión porteros (Schalke)", "https://www.fifatrainingcentre.com/en/practice/elite-sessions/clubs-and-academies/german-academies/individual-goalkeeper-training-for-counter-attacking-from-a-corner.php"),
-                ("UEFA · Goalkeeper Coaching (PDF)", "https://editorial.uefa.com/resources/0285-190a81f7e091-323e8bfbc968-1000/uefa_goalkeeper_coaching_en.pdf"),
+                (
+                    "FIFA · Nuevas sesiones de porteros (ES)",
+                    "https://inside.fifa.com/es/news/tres-nuevas-sesiones-para-guardametas-disponibles-centro-entrenamiento-fifa",
+                ),
+                (
+                    "FIFA Training Centre · Sesión porteros (Schalke)",
+                    "https://www.fifatrainingcentre.com/en/practice/elite-sessions/clubs-and-academies/german-academies/individual-goalkeeper-training-for-counter-attacking-from-a-corner.php",
+                ),
+                (
+                    "UEFA · Goalkeeper Coaching (PDF)",
+                    "https://editorial.uefa.com/resources/0285-190a81f7e091-323e8bfbc968-1000/uefa_goalkeeper_coaching_en.pdf",
+                ),
             ]
         )
 
@@ -524,10 +604,22 @@ def _external_resources_for_seed_lesson(item: SeedLesson) -> list[tuple[str, str
     if has("metodologia", "didactica", "ppp", "constraints", "constraints-led", "no_lineal", "nonlinear"):
         resources.extend(
             [
-                ("The FA · Cómo usar constraints en tu sesión", "https://www.thefa.com/bootroom/resources/coaching/how-to-use-constraints-in-your-coaching-session"),
-                ("US Soccer · PPP Methodology (PDF)", "https://www.nmysa.net/wp-content/uploads/sites/206/2023/08/Play-Practice-Play-Methodology1.pdf"),
-                ("US Soccer · Coaches session plans (resource hub)", "https://www.ussoccer.com/soccer-forward/resource-hub/coaches-session-plans"),
-                ("CONMEBOL · Manual orientador (ES, PDF)", "https://www.conmebol.com/wp-content/uploads/documents/manual-orientador-esp.pdf"),
+                (
+                    "The FA · Cómo usar constraints en tu sesión",
+                    "https://www.thefa.com/bootroom/resources/coaching/how-to-use-constraints-in-your-coaching-session",
+                ),
+                (
+                    "US Soccer · PPP Methodology (PDF)",
+                    "https://www.nmysa.net/wp-content/uploads/sites/206/2023/08/Play-Practice-Play-Methodology1.pdf",
+                ),
+                (
+                    "US Soccer · Coaches session plans (resource hub)",
+                    "https://www.ussoccer.com/soccer-forward/resource-hub/coaches-session-plans",
+                ),
+                (
+                    "CONMEBOL · Manual orientador (ES, PDF)",
+                    "https://www.conmebol.com/wp-content/uploads/documents/manual-orientador-esp.pdf",
+                ),
             ]
         )
 
@@ -541,8 +633,14 @@ def _external_resources_for_seed_lesson(item: SeedLesson) -> list[tuple[str, str
             [
                 ("YouTube · búsqueda del tema", f"https://www.youtube.com/results?search_query={yt_q}"),
                 ("Google · búsqueda del tema", f"https://www.google.com/search?q={yt_q}"),
-                ("Google · FIFA Training Centre (site)", f"https://www.google.com/search?q=site%3Afifatrainingcentre.com+{yt_q}"),
-                ("Google · The FA Boot Room (site)", f"https://www.google.com/search?q=site%3Athefa.com%2Fbootroom+{yt_q}"),
+                (
+                    "Google · FIFA Training Centre (site)",
+                    f"https://www.google.com/search?q=site%3Afifatrainingcentre.com+{yt_q}",
+                ),
+                (
+                    "Google · The FA Boot Room (site)",
+                    f"https://www.google.com/search?q=site%3Athefa.com%2Fbootroom+{yt_q}",
+                ),
                 ("Google · UEFA (site)", f"https://www.google.com/search?q=site%3Auefa.com+{yt_q}"),
             ]
         )
@@ -550,7 +648,10 @@ def _external_resources_for_seed_lesson(item: SeedLesson) -> list[tuple[str, str
     # Fallback mínimo (si nada encaja, pero siempre damos 1 puerta de entrada).
     if not resources:
         resources.append(
-            ("FIFA Training Centre · Principios defensivos (entrada recomendada)", "https://www.fifatrainingcentre.com/es/practice/elite-sessions/out-of-possession/johnson-principios-defensivos.php")
+            (
+                "FIFA Training Centre · Principios defensivos (entrada recomendada)",
+                "https://www.fifatrainingcentre.com/es/practice/elite-sessions/out-of-possession/johnson-principios-defensivos.php",
+            )
         )
 
     # Dedupe preservando orden.
@@ -619,13 +720,33 @@ def _mk_guide(
         {"type": AcademyLessonStep.TYPE_TEXT, "title": "3 reglas simples", "body": _bullets((rules or [])[:6]) or "—"},
     ]
     if roles:
-        steps.append({"type": AcademyLessonStep.TYPE_TEXT, "title": "Roles (quién hace qué)", "body": _bullets(roles) or "—"})
+        steps.append(
+            {"type": AcademyLessonStep.TYPE_TEXT, "title": "Roles (quién hace qué)", "body": _bullets(roles) or "—"}
+        )
     if triggers:
-        steps.append({"type": AcademyLessonStep.TYPE_TEXT, "title": "Triggers (cuándo sí/cuándo no)", "body": _bullets(triggers) or "—"})
+        steps.append(
+            {
+                "type": AcademyLessonStep.TYPE_TEXT,
+                "title": "Triggers (cuándo sí/cuándo no)",
+                "body": _bullets(triggers) or "—",
+            }
+        )
     if checklist:
-        steps.append({"type": AcademyLessonStep.TYPE_TEXT, "title": "Checklist (10 segundos)", "body": _bullets(checklist) or "—"})
+        steps.append(
+            {
+                "type": AcademyLessonStep.TYPE_TEXT,
+                "title": "Checklist (10 segundos)",
+                "body": _bullets(checklist) or "—",
+            }
+        )
     if errors:
-        steps.append({"type": AcademyLessonStep.TYPE_TEXT, "title": "Errores típicos + corrección", "body": _bullets(errors) or "—"})
+        steps.append(
+            {
+                "type": AcademyLessonStep.TYPE_TEXT,
+                "title": "Errores típicos + corrección",
+                "body": _bullets(errors) or "—",
+            }
+        )
     if scene_hint:
         steps.append(
             {
@@ -636,8 +757,16 @@ def _mk_guide(
             }
         )
     if measure:
-        steps.append({"type": AcademyLessonStep.TYPE_TEXT, "title": "Cómo medirlo (registro de acciones)", "body": _bullets(measure) or "—"})
-    return SeedLesson(title=title, summary=summary, min_category=min_category, max_category=max_category, tags=tags, steps=steps)
+        steps.append(
+            {
+                "type": AcademyLessonStep.TYPE_TEXT,
+                "title": "Cómo medirlo (registro de acciones)",
+                "body": _bullets(measure) or "—",
+            }
+        )
+    return SeedLesson(
+        title=title, summary=summary, min_category=min_category, max_category=max_category, tags=tags, steps=steps
+    )
 
 
 def _mk_game_encyclopedia_core() -> list[SeedLesson]:
@@ -670,7 +799,10 @@ def _mk_game_encyclopedia_core() -> list[SeedLesson]:
                 "Nadie de seguridad → “SIEMPRE UNO POR DETRÁS”.",
             ],
             scene_hint="Escena: balón por dentro. Marca 5 carriles. Muestra ocupación: extremo abierto, interior entre líneas, 9 amenaza espalda, pivote de seguridad.",
-            measure=["Pases progresivos tras ocupación correcta.", "Pérdidas en salida por falta de apoyos (deberían bajar)."],
+            measure=[
+                "Pases progresivos tras ocupación correcta.",
+                "Pérdidas en salida por falta de apoyos (deberían bajar).",
+            ],
         ),
         _mk_guide(
             title="Ataque · Superioridades (numérica, posicional, cualitativa)",
@@ -689,9 +821,15 @@ def _mk_game_encyclopedia_core() -> list[SeedLesson]:
                 "Si el interior recibe entre líneas y gira → acelerar.",
                 "Si el extremo está 1v1 con espacio → aislar y atacar.",
             ],
-            errors=["Correr sin ventaja → “PRIMERO VENTAJA, LUEGO VELOCIDAD”.", "Buscar 1v1 sin espacio → “AISLA ANTES”."],
+            errors=[
+                "Correr sin ventaja → “PRIMERO VENTAJA, LUEGO VELOCIDAD”.",
+                "Buscar 1v1 sin espacio → “AISLA ANTES”.",
+            ],
             scene_hint="Escena: overload en banda (3v2) para atraer; cambio al lado débil para 1v1 del extremo.",
-            measure=["Cambios de orientación que terminan en tiro/centro.", "Pérdidas por forzar 1v1 sin ventaja (deberían bajar)."],
+            measure=[
+                "Cambios de orientación que terminan en tiro/centro.",
+                "Pérdidas por forzar 1v1 sin ventaja (deberían bajar).",
+            ],
         ),
         _mk_guide(
             title="Defensa · Bloque bajo (proteger área y centro)",
@@ -700,10 +838,26 @@ def _mk_game_encyclopedia_core() -> list[SeedLesson]:
             max_category=L.CATEGORY_SENIOR,
             tags=["defensa", "bloque_bajo", "area", "centro"],
             objective="Negar remate limpio en zona caliente y controlar el rechace.",
-            rules=["Centro primero: pasillo interior protegido.", "Área: 1º palo + penalti + 2º palo (roles).", "Rechace: 1 jugador SIEMPRE."],
-            roles=["1º defensor: temporiza y orienta fuera.", "Defensas: ganan posición y atacan balón.", "Mediocentro: rechace + primer pase."],
-            checklist=["¿Estamos juntos (distancias cortas)?", "¿Quién protege el rechace?", "¿Defendemos el centro o perseguimos sombras?"],
-            errors=["Todos hundidos → “SAL UN PASO, PROTEGE ZONA CALIENTE”.", "Nadie al rechace → “RECHACE ES NUESTRO”.", "Salto sin cobertura → “TEMPORIZA”.",],
+            rules=[
+                "Centro primero: pasillo interior protegido.",
+                "Área: 1º palo + penalti + 2º palo (roles).",
+                "Rechace: 1 jugador SIEMPRE.",
+            ],
+            roles=[
+                "1º defensor: temporiza y orienta fuera.",
+                "Defensas: ganan posición y atacan balón.",
+                "Mediocentro: rechace + primer pase.",
+            ],
+            checklist=[
+                "¿Estamos juntos (distancias cortas)?",
+                "¿Quién protege el rechace?",
+                "¿Defendemos el centro o perseguimos sombras?",
+            ],
+            errors=[
+                "Todos hundidos → “SAL UN PASO, PROTEGE ZONA CALIENTE”.",
+                "Nadie al rechace → “RECHACE ES NUESTRO”.",
+                "Salto sin cobertura → “TEMPORIZA”.",
+            ],
             scene_hint="Escena: rival en banda para centrar. Dibuja 3 zonas y 1 jugador al rechace. Muestra salida tras despeje a banda.",
             measure=["Centros defendidos sin remate limpio.", "Segundas jugadas ganadas tras despeje."],
         ),
@@ -714,10 +868,21 @@ def _mk_game_encyclopedia_core() -> list[SeedLesson]:
             max_category=L.CATEGORY_SENIOR,
             tags=["defensa", "bloque_alto", "presion", "triggers"],
             objective="Robar arriba o forzar balón largo (y ganar la segunda jugada).",
-            rules=["Trigger: pase atrás al central/portero.", "1º orienta a banda; 2º cierra interior; 3º equilibra cambio.", "La línea acompaña (si no, temporiza)."],
+            rules=[
+                "Trigger: pase atrás al central/portero.",
+                "1º orienta a banda; 2º cierra interior; 3º equilibra cambio.",
+                "La línea acompaña (si no, temporiza).",
+            ],
             triggers=["Pase atrás lento.", "Portero perfil incómodo.", "Control largo del central."],
-            checklist=["¿Interior cerrado?", "¿Cobertura si me superan?", "¿Listos para segunda jugada si juegan largo?"],
-            errors=["Presión sin línea → “SI NO ACOMPAÑAS, TEMPORIZO”.", "Saltos descoordinados → “SOLO UNO SALTA; LOS DEMÁS CIERRAN”.",],
+            checklist=[
+                "¿Interior cerrado?",
+                "¿Cobertura si me superan?",
+                "¿Listos para segunda jugada si juegan largo?",
+            ],
+            errors=[
+                "Presión sin línea → “SI NO ACOMPAÑAS, TEMPORIZO”.",
+                "Saltos descoordinados → “SOLO UNO SALTA; LOS DEMÁS CIERRAN”.",
+            ],
             scene_hint="Escena: pase atrás al portero. 9 orienta a banda, extremo salta a lateral, interior tapa dentro, central acompaña línea.",
             measure=["Recuperaciones altas (tercio ataque).", "Balones largos forzados + segundas jugadas ganadas."],
         ),
@@ -728,10 +893,25 @@ def _mk_game_encyclopedia_core() -> list[SeedLesson]:
             max_category=L.CATEGORY_SENIOR,
             tags=["transicion", "rest_defense", "equilibrio"],
             objective="Reducir contraataques peligrosos sin quitar gente al ataque.",
-            rules=["Siempre 2–3 por detrás del balón (según riesgo).", "Cobertura diagonal: si lateral sube, alguien cubre su espalda.", "Lado débil cierra para interceptar cambios."],
-            roles=["Pivote: ancla.", "Central libre: cobertura + segunda jugada.", "Lateral lado débil: más conservador si el lado fuerte está muy alto."],
-            checklist=["¿Quién corta primera salida del rival?", "¿Quién protege espalda del lateral alto?", "¿Estamos preparados para pérdida en banda?"],
-            errors=["Todos por delante del balón → “DOS POR DETRÁS SIEMPRE”.", "Pivote se mete demasiado → “ANCLA”.",],
+            rules=[
+                "Siempre 2–3 por detrás del balón (según riesgo).",
+                "Cobertura diagonal: si lateral sube, alguien cubre su espalda.",
+                "Lado débil cierra para interceptar cambios.",
+            ],
+            roles=[
+                "Pivote: ancla.",
+                "Central libre: cobertura + segunda jugada.",
+                "Lateral lado débil: más conservador si el lado fuerte está muy alto.",
+            ],
+            checklist=[
+                "¿Quién corta primera salida del rival?",
+                "¿Quién protege espalda del lateral alto?",
+                "¿Estamos preparados para pérdida en banda?",
+            ],
+            errors=[
+                "Todos por delante del balón → “DOS POR DETRÁS SIEMPRE”.",
+                "Pivote se mete demasiado → “ANCLA”.",
+            ],
             scene_hint="Escena: ataque por banda. Marca 3 de seguridad (pivote+2) y cobertura del lateral opuesto.",
             measure=["Contraataques recibidos tras pérdida (bajan).", "Recuperaciones en 5–8s tras pérdida (suben)."],
         ),
@@ -936,9 +1116,16 @@ def _mk_game_encyclopedia_set_pieces_extra() -> list[SeedLesson]:
                 "Defensas: listos para rechace (sin invadir antes).",
                 "Tras rebote: despeje a banda/seguridad y reorganizar.",
             ],
-            roles=["Portero: decide timing.", "2 rechaces: uno frontal, uno a lado débil.", "1 seguridad: evita segunda jugada peligrosa."],
+            roles=[
+                "Portero: decide timing.",
+                "2 rechaces: uno frontal, uno a lado débil.",
+                "1 seguridad: evita segunda jugada peligrosa.",
+            ],
             checklist=["¿Quién rechaza?", "¿Dónde despejamos?", "¿Quién protege la transición?"],
-            errors=["Todos miran el balón y nadie al rechace → “RECHACE ES NUESTRO”.", "Despeje al centro → “A BANDA”."],
+            errors=[
+                "Todos miran el balón y nadie al rechace → “RECHACE ES NUESTRO”.",
+                "Despeje al centro → “A BANDA”.",
+            ],
             scene_hint="Escena: penalti en contra con rebote. Marca despeje a banda y salida del bloque.",
             measure=["Rechaces ganados tras penalti.", "Segundas jugadas concedidas tras penalti (bajan)."],
         ),
@@ -954,7 +1141,11 @@ def _mk_game_encyclopedia_set_pieces_extra() -> list[SeedLesson]:
                 "Si sales corto: perfiles orientados (no recibir de espaldas presionado).",
                 "Si vas largo: prepara la caída (2ª jugada) y rest defense.",
             ],
-            checklist=["¿Dónde está el hombre libre?", "¿Hay perfil para recibir?", "Si voy largo, ¿quién gana la caída?"],
+            checklist=[
+                "¿Dónde está el hombre libre?",
+                "¿Hay perfil para recibir?",
+                "Si voy largo, ¿quién gana la caída?",
+            ],
             errors=["Corto sin perfil → “NO A UN COMPAÑERO DE ESPALDAS”.", "Largo sin caída → “PREPARA LA CAÍDA”."],
             scene_hint="Escena: rival presiona 3‑2. Dibuja salida por pivote vs salida a lateral vs directo con 2ª jugada.",
             measure=["Pérdidas en salida (bajan).", "Progresiones tras saque de portería (suben)."],
@@ -973,7 +1164,10 @@ def _mk_game_encyclopedia_set_pieces_extra() -> list[SeedLesson]:
             ],
             triggers=["Portero con perfil incómodo.", "Central de espaldas.", "Pase flotado."],
             checklist=["¿Interior cerrado?", "¿Quién salta al lateral?", "¿Quién gana la 2ª jugada si van largo?"],
-            errors=["Presión sin segunda jugada → “SI VAN LARGO, LA CAÍDA ES NUESTRA”.", "Saltos sin cierres → “PRIMERO CIERRO, LUEGO SALTO”."],
+            errors=[
+                "Presión sin segunda jugada → “SI VAN LARGO, LA CAÍDA ES NUESTRA”.",
+                "Saltos sin cierres → “PRIMERO CIERRO, LUEGO SALTO”.",
+            ],
             scene_hint="Escena: saque rival. Dibuja 9 orienta, extremos saltan, interiores cierran pivote y centrales listos para duelo aéreo.",
             measure=["Recuperaciones altas tras saque rival.", "Segundas jugadas ganadas tras balón largo rival."],
         ),
@@ -989,8 +1183,15 @@ def _mk_game_encyclopedia_set_pieces_extra() -> list[SeedLesson]:
                 "Plan agresivo: directo a zona preparada + 2ª jugada.",
                 "Tras saque: rest defense (no partirse).",
             ],
-            checklist=["¿Qué plan hacemos (seguro/agresivo)?", "¿Quién fija? ¿Quién ataca 2ª jugada?", "¿Quién queda de seguridad?"],
-            errors=["Directo sin estructura → “SI VAMOS DIRECTO, HAY CAÍDA”.", "Todos corren hacia delante → “SEGURIDAD”."],
+            checklist=[
+                "¿Qué plan hacemos (seguro/agresivo)?",
+                "¿Quién fija? ¿Quién ataca 2ª jugada?",
+                "¿Quién queda de seguridad?",
+            ],
+            errors=[
+                "Directo sin estructura → “SI VAMOS DIRECTO, HAY CAÍDA”.",
+                "Todos corren hacia delante → “SEGURIDAD”.",
+            ],
             scene_hint="Escena: saque de centro. Variante A: atrás y salida por banda. Variante B: balón directo a zona con 2ª jugada.",
             measure=["Pérdidas tras saque de centro (bajan).", "Llegadas al último tercio tras saque (suben)."],
         ),
@@ -1048,7 +1249,11 @@ def _mk_game_encyclopedia_positions() -> list[SeedLesson]:
                 "Despejar al centro → “A BANDA/SEGURIDAD”.",
             ],
             scene_hint="Escena: central recibe con presión. Variante A: pase al pivote perfilado. Variante B: pared con portero y salida al lateral. En defensa: central salta al 9 con mediocentro cubriendo.",
-            measure=["Pérdidas en salida del central (bajan).", "Duelos defensivos ganados.", "Centros/remates evitados en zona caliente."],
+            measure=[
+                "Pérdidas en salida del central (bajan).",
+                "Duelos defensivos ganados.",
+                "Centros/remates evitados en zona caliente.",
+            ],
         ),
         _mk_guide(
             title="Posición · Lateral (altura, 1v1 y cierres)",
@@ -1062,11 +1267,25 @@ def _mk_game_encyclopedia_positions() -> list[SeedLesson]:
                 "Sin balón: primero proteger interior, luego orientar a banda.",
                 "Si el lateral contrario sube: el lado débil ajusta (rest defense).",
             ],
-            triggers=["Si el extremo rival recibe pegado a línea → presión orientada fuera.", "Si el balón va a tu espalda → gira y corre (no mires)."],
-            checklist=["¿Tengo cobertura (central/pivote)?", "¿Mi extremo me ayuda a cerrar dentro?", "¿Qué pasa si pierdo el balón arriba?"],
-            errors=["Subir los dos laterales a la vez sin seguridad → “UNO SE QUEDA”.", "Defender mirando balón → “BALÓN‑HOMBRE‑PORTERÍA”."],
+            triggers=[
+                "Si el extremo rival recibe pegado a línea → presión orientada fuera.",
+                "Si el balón va a tu espalda → gira y corre (no mires).",
+            ],
+            checklist=[
+                "¿Tengo cobertura (central/pivote)?",
+                "¿Mi extremo me ayuda a cerrar dentro?",
+                "¿Qué pasa si pierdo el balón arriba?",
+            ],
+            errors=[
+                "Subir los dos laterales a la vez sin seguridad → “UNO SE QUEDA”.",
+                "Defender mirando balón → “BALÓN‑HOMBRE‑PORTERÍA”.",
+            ],
             scene_hint="Escena: ataque por banda (lateral alto + extremo dentro). Luego pérdida y lateral debe replegar con cobertura del central/pivote.",
-            measure=["Centros generados y centros defendidos.", "1v1 defensivos ganados.", "Contraataques por tu banda (bajan)."],
+            measure=[
+                "Centros generados y centros defendidos.",
+                "1v1 defensivos ganados.",
+                "Contraataques por tu banda (bajan).",
+            ],
         ),
         _mk_guide(
             title="Posición · Pivote (ancla, perfil y primer pase)",
@@ -1080,11 +1299,21 @@ def _mk_game_encyclopedia_positions() -> list[SeedLesson]:
                 "Si estás presionado: juega a 1–2 toques (apoyo/3er hombre).",
                 "Tras pérdida: primera puerta que cierro es el pase interior/contraataque.",
             ],
-            triggers=["Si recibes entre dos rivales → apoyo inmediato (no girar).", "Si hay pérdida cerca → contra‑presión; si lejos → repliegue y temporiza."],
+            triggers=[
+                "Si recibes entre dos rivales → apoyo inmediato (no girar).",
+                "Si hay pérdida cerca → contra‑presión; si lejos → repliegue y temporiza.",
+            ],
             checklist=["¿Estoy perfilado?", "¿Dónde está el hombre libre?", "¿Quién protege mi espalda si salto?"],
-            errors=["Recibir de espaldas presionado → “PERFIL O APOYO”.", "Ir al área y dejar vacío el ancla → “QUÉDATE COMO SEGURIDAD”."],
+            errors=[
+                "Recibir de espaldas presionado → “PERFIL O APOYO”.",
+                "Ir al área y dejar vacío el ancla → “QUÉDATE COMO SEGURIDAD”.",
+            ],
             scene_hint="Escena: central→pivote bajo presión. Variante: descarga a central y 3er hombre a interior. Tras pérdida: pivote corta pase interior.",
-            measure=["Pases progresivos del pivote.", "Intercepciones/robos en transición.", "Pérdidas del pivote (bajan)."],
+            measure=[
+                "Pases progresivos del pivote.",
+                "Intercepciones/robos en transición.",
+                "Pérdidas del pivote (bajan).",
+            ],
         ),
         _mk_guide(
             title="Posición · Interior/8 (entre líneas, giro y último pase)",
@@ -1098,11 +1327,22 @@ def _mk_game_encyclopedia_positions() -> list[SeedLesson]:
                 "Si no hay giro: apoyo + 3er hombre.",
                 "En zona 14: primero asegurar ventaja, luego filtrar/tiro.",
             ],
-            triggers=["Si recibes de cara y el 6 rival está lejos → girar y conducir.", "Si el rival salta → jugar a la espalda (tercer hombre)."],
-            checklist=["¿Puedo girar?", "¿Dónde está el 9 y el extremo del lado débil?", "¿Hay pase a la espalda o mejor pausa?"],
+            triggers=[
+                "Si recibes de cara y el 6 rival está lejos → girar y conducir.",
+                "Si el rival salta → jugar a la espalda (tercer hombre).",
+            ],
+            checklist=[
+                "¿Puedo girar?",
+                "¿Dónde está el 9 y el extremo del lado débil?",
+                "¿Hay pase a la espalda o mejor pausa?",
+            ],
             errors=["Forzar pase imposible → “FIJA Y SUELTA, NO REGALAS”.", "Conducir hacia presión → “SAL DEL FOCO”."],
             scene_hint="Escena: interior recibe entre líneas. Variante A: gira y filtra. Variante B: 3er hombre al extremo/lateral profundo.",
-            measure=["Pases clave / asistencias.", "Pérdidas en zona central (bajan).", "Progresiones (a tercio ataque) creadas."],
+            measure=[
+                "Pases clave / asistencias.",
+                "Pérdidas en zona central (bajan).",
+                "Progresiones (a tercio ataque) creadas.",
+            ],
         ),
         _mk_guide(
             title="Posición · Extremo (1v1, amplitud y último gesto)",
@@ -1117,10 +1357,18 @@ def _mk_game_encyclopedia_positions() -> list[SeedLesson]:
                 "Sin balón: orientar presión para que el rival no juegue dentro.",
             ],
             triggers=["Si el lateral rival está solo → 1v1.", "Si llega el 2º defensor → descarga rápida."],
-            checklist=["¿Tengo ventaja real (espacio)?", "¿Dónde está el centro más peligroso (raso atrás/2º palo)?", "¿Quién llega al área?"],
+            checklist=[
+                "¿Tengo ventaja real (espacio)?",
+                "¿Dónde está el centro más peligroso (raso atrás/2º palo)?",
+                "¿Quién llega al área?",
+            ],
             errors=["Regate sin espacio → “AISLA ANTES”.", "Centro sin mirar → “MIRA 1 SEGUNDO: ¿1º/2º/ATRÁS?”."],
             scene_hint="Escena: extremo aislado en banda. Variante A: regate y centro raso atrás. Variante B: atrae y cambio al lado débil.",
-            measure=["Regates con éxito (en ventaja).", "Centros útiles (tiro/ocasión tras centro).", "Pérdidas del extremo (bajan)."],
+            measure=[
+                "Regates con éxito (en ventaja).",
+                "Centros útiles (tiro/ocasión tras centro).",
+                "Pérdidas del extremo (bajan).",
+            ],
         ),
         _mk_guide(
             title="Posición · Delantero/9 (fijar, desmarque y presión)",
@@ -1134,11 +1382,25 @@ def _mk_game_encyclopedia_positions() -> list[SeedLesson]:
                 "Si el balón está en banda: ataca primer palo o punto penalti según centro.",
                 "Sin balón: orientar presión para cerrar pase interior.",
             ],
-            triggers=["Central recibe de espaldas → saltar a presión.", "Si el lateral rival recibe abierto → orientar y guiar a banda."],
-            checklist=["¿Puedo fijar a dos centrales?", "¿Qué centro viene (raso atrás/primer/segundo palo)?", "¿Estoy activando presión con trigger o corriendo sin sentido?"],
-            errors=["Bajar siempre al balón → “FIJA Y ATACA ESPALDA”.", "Presión recta abriendo interior → “CARRERA CURVA, CIERRA DENTRO”.",],
+            triggers=[
+                "Central recibe de espaldas → saltar a presión.",
+                "Si el lateral rival recibe abierto → orientar y guiar a banda.",
+            ],
+            checklist=[
+                "¿Puedo fijar a dos centrales?",
+                "¿Qué centro viene (raso atrás/primer/segundo palo)?",
+                "¿Estoy activando presión con trigger o corriendo sin sentido?",
+            ],
+            errors=[
+                "Bajar siempre al balón → “FIJA Y ATACA ESPALDA”.",
+                "Presión recta abriendo interior → “CARRERA CURVA, CIERRA DENTRO”.",
+            ],
             scene_hint="Escena: 9 fija y descarga a interior, luego ataca área en centro lateral. En defensa: 9 orienta presión tras pase atrás.",
-            measure=["Tiros y remates del 9.", "Asistencias/descargas que acaban en progresión.", "Recuperaciones altas forzadas por presión."],
+            measure=[
+                "Tiros y remates del 9.",
+                "Asistencias/descargas que acaban en progresión.",
+                "Recuperaciones altas forzadas por presión.",
+            ],
         ),
     ]
 
@@ -1156,7 +1418,11 @@ def _mk_game_encyclopedia_formats() -> list[SeedLesson]:
             max_category=L.CATEGORY_PREBENJAMIN,
             tags=["formato", "5v5", "baby", "prebenjamin"],
             objective="Máxima participación: muchos contactos, muchos intentos y reglas muy simples.",
-            rules=["Campos pequeños y porterías cerca.", "Premiar 1v1 y conducción.", "Transición: si la pierdes, corre al balón (3 pasos)."],
+            rules=[
+                "Campos pequeños y porterías cerca.",
+                "Premiar 1v1 y conducción.",
+                "Transición: si la pierdes, corre al balón (3 pasos).",
+            ],
             checklist=["¿Hay colas? (si sí, mal)", "¿Muchos contactos por minuto?", "¿Goles/tiros frecuentes?"],
             errors=["Explicar mucho → “JUEGA Y CORRIGE 1 IDEA”.", "Campos enormes → “MÁS PEQUEÑO = MÁS ACCIONES”."],
             scene_hint="Escena: 2 mini‑porterías, 2v2+comodín. Mostrar regla de 3 pasos tras pérdida.",
@@ -1169,9 +1435,16 @@ def _mk_game_encyclopedia_formats() -> list[SeedLesson]:
             max_category=L.CATEGORY_ALEVIN,
             tags=["formato", "7v7", "benjamin", "alevin"],
             objective="Enseñar principios: ancho/profundidad, apoyo y presión con cobertura.",
-            rules=["Siempre 1 ancho + 1 profundidad.", "Tercer hombre simple para salir de presión.", "Presión orientada a banda (triángulo)."],
+            rules=[
+                "Siempre 1 ancho + 1 profundidad.",
+                "Tercer hombre simple para salir de presión.",
+                "Presión orientada a banda (triángulo).",
+            ],
             checklist=["¿Tenemos ancho real?", "¿Quién da seguridad por detrás?", "¿Saltamos con cobertura?"],
-            errors=["Todos por dentro → “ABRE PARA ENTRAR”.", "Presión 1v1 sin ayudas → “CUBRE DENTRO”.",],
+            errors=[
+                "Todos por dentro → “ABRE PARA ENTRAR”.",
+                "Presión 1v1 sin ayudas → “CUBRE DENTRO”.",
+            ],
             scene_hint="Escena: 7v7 con 3 carriles. Mostrar ancho (extremos) + profundidad (9) + pivote seguridad.",
             measure=["Pases progresivos.", "Recuperaciones tras presión orientada.", "Pérdidas en salida (bajan)."],
         ),
@@ -1182,7 +1455,11 @@ def _mk_game_encyclopedia_formats() -> list[SeedLesson]:
             max_category=L.CATEGORY_INFANTIL,
             tags=["formato", "8v8", "infantil"],
             objective="Consolidar: defender el centro, jugar entre líneas y ordenar transiciones.",
-            rules=["Distancias cortas sin balón (compactar).", "Bascular juntos al lado del balón.", "Rest defense: 2–3 por detrás al atacar."],
+            rules=[
+                "Distancias cortas sin balón (compactar).",
+                "Bascular juntos al lado del balón.",
+                "Rest defense: 2–3 por detrás al atacar.",
+            ],
             checklist=["¿Bloque partido? (malo)", "¿Rechace controlado?", "¿Quién corta la transición rival?"],
             errors=["Líneas separadas → “JUNTOS PARA DEFENDER”.", "Nadie al rechace → “RECHACE”."],
             scene_hint="Escena: 8v8 con 3 líneas. Mostrar basculación al lado del balón y el jugador de rechace.",
@@ -1195,11 +1472,23 @@ def _mk_game_encyclopedia_formats() -> list[SeedLesson]:
             max_category=L.CATEGORY_SENIOR,
             tags=["formato", "11v11", "cadete", "juvenil", "senior"],
             objective="Sostener un modelo de juego: atacar con estructura y defender con coordinación.",
-            rules=["Define altura de bloque (alto/medio/bajo) y triggers.", "Ocupación de carriles + lado débil preparado.", "ABP con roles + rechace + salida."],
-            checklist=["¿Bloque acompaña la presión?", "¿Tenemos 2–3 de seguridad al atacar?", "¿ABP organizado en ambos sentidos?"],
+            rules=[
+                "Define altura de bloque (alto/medio/bajo) y triggers.",
+                "Ocupación de carriles + lado débil preparado.",
+                "ABP con roles + rechace + salida.",
+            ],
+            checklist=[
+                "¿Bloque acompaña la presión?",
+                "¿Tenemos 2–3 de seguridad al atacar?",
+                "¿ABP organizado en ambos sentidos?",
+            ],
             errors=["Modelo cambia cada 5 minutos → “POCAS REGLAS, MUY CLARAS”.", "ABP improvisado → “ROLES SIEMPRE”."],
             scene_hint="Escena: 11v11, salida bajo presión + cambio al lado débil; luego pérdida y rest defense.",
-            measure=["Recuperaciones altas (si bloque alto).", "Contraataques recibidos (bajan con rest defense).", "Eficacia ABP."],
+            measure=[
+                "Recuperaciones altas (si bloque alto).",
+                "Contraataques recibidos (bajan con rest defense).",
+                "Eficacia ABP.",
+            ],
         ),
     ]
 
@@ -1238,7 +1527,11 @@ def _mk_game_encyclopedia_units() -> list[SeedLesson]:
                 "Central salta sin cobertura → “SI SALTAS, ALGUIEN CUBRE”.",
             ],
             scene_hint="Escena: rival en zona media. Variante A: hay presión → línea sube. Variante B: no hay presión → línea temporiza. Muestra salto de central y cobertura del otro + ajuste de lateral.",
-            measure=["Balones a la espalda concedidos (bajan).", "Fuera de juego forzados (suben si procede).", "Remates limpios concedidos (bajan)."],
+            measure=[
+                "Balones a la espalda concedidos (bajan).",
+                "Fuera de juego forzados (suben si procede).",
+                "Remates limpios concedidos (bajan).",
+            ],
         ),
         _mk_guide(
             title="Unidad · Línea media (cerrar dentro y ayudar a la presión)",
@@ -1252,11 +1545,26 @@ def _mk_game_encyclopedia_units() -> list[SeedLesson]:
                 "Si el balón va a banda: bascular y cerrar interior (no correr por correr).",
                 "Tras robo: primer pase seguro + amenaza (uno corre, uno apoya).",
             ],
-            triggers=["Receptor de espaldas → salto con cobertura.", "Pase interior tapado → orientar al rival a banda.", "Recuperación con rival desordenado → acelerar."],
-            checklist=["¿Está cerrado el pase interior?", "¿Tengo cobertura detrás?", "Tras robo: ¿primer pase seguro?"],
-            errors=["Ir todos al balón → “UNO PRESIONA, OTRO CIERRA”.", "Recuperar y regalarla → “PRIMER PASE SEGURO”."],
+            triggers=[
+                "Receptor de espaldas → salto con cobertura.",
+                "Pase interior tapado → orientar al rival a banda.",
+                "Recuperación con rival desordenado → acelerar.",
+            ],
+            checklist=[
+                "¿Está cerrado el pase interior?",
+                "¿Tengo cobertura detrás?",
+                "Tras robo: ¿primer pase seguro?",
+            ],
+            errors=[
+                "Ir todos al balón → “UNO PRESIONA, OTRO CIERRA”.",
+                "Recuperar y regalarla → “PRIMER PASE SEGURO”.",
+            ],
             scene_hint="Escena: rival intenta jugar a mediapunta. Mediocentro cierra línea de pase y el interior salta al receptor de espaldas. Tras robo: pase seguro y desmarque de ruptura.",
-            measure=["Pases interiores del rival interceptados.", "Recuperaciones en zona media.", "Progresiones tras recuperación (suben)."],
+            measure=[
+                "Pases interiores del rival interceptados.",
+                "Recuperaciones en zona media.",
+                "Progresiones tras recuperación (suben).",
+            ],
         ),
         _mk_guide(
             title="Unidad · Línea ofensiva (fijar, atacar área y primer defensor)",
@@ -1270,11 +1578,27 @@ def _mk_game_encyclopedia_units() -> list[SeedLesson]:
                 "En centros: primer palo + punto penalti + raso atrás (al menos 2 llegadas).",
                 "Sin balón: orientar la presión para que el rival no juegue dentro.",
             ],
-            triggers=["Centro lateral → carreras coordinadas.", "Pase atrás rival → presión orientada.", "Pérdida cerca → 3 pasos de contra‑presión."],
-            checklist=["¿Quién fija? ¿Quién ataca espacio?", "¿Quién llega al área? ¿Quién al rechace?", "¿Estamos cerrando el pase interior en presión?"],
-            errors=["Todos corren al mismo sitio → “ZONAS DISTINTAS”.", "Nadie al raso atrás → “ALGUIEN ATRÁS”.", "Presión recta → “CARRERA CURVA”."],
+            triggers=[
+                "Centro lateral → carreras coordinadas.",
+                "Pase atrás rival → presión orientada.",
+                "Pérdida cerca → 3 pasos de contra‑presión.",
+            ],
+            checklist=[
+                "¿Quién fija? ¿Quién ataca espacio?",
+                "¿Quién llega al área? ¿Quién al rechace?",
+                "¿Estamos cerrando el pase interior en presión?",
+            ],
+            errors=[
+                "Todos corren al mismo sitio → “ZONAS DISTINTAS”.",
+                "Nadie al raso atrás → “ALGUIEN ATRÁS”.",
+                "Presión recta → “CARRERA CURVA”.",
+            ],
             scene_hint="Escena: centro desde banda. Muestra 3 llegadas (1º palo, penalti, raso atrás) y 1 rechace. En defensa: presión del 9 orientando a banda y extremos saltando.",
-            measure=["Tiros generados por centros.", "Recuperaciones altas tras presión.", "Segundas jugadas ganadas en ataque."],
+            measure=[
+                "Tiros generados por centros.",
+                "Recuperaciones altas tras presión.",
+                "Segundas jugadas ganadas en ataque.",
+            ],
         ),
     ]
 
@@ -1292,8 +1616,15 @@ def _mk_game_encyclopedia_tech_in_context() -> list[SeedLesson]:
             max_category=L.CATEGORY_SENIOR,
             tags=["tecnica", "perfil", "recepcion", "decision"],
             objective="Recibir viendo el mayor número de opciones y reducir pérdidas por presión.",
-            rules=["Mira antes (escaneo).", "Cuerpo de lado: una cadera al balón, otra al campo.", "Primer toque hacia ventaja (no al rival)."],
-            triggers=["Si hay espacio → primer toque hacia delante.", "Si hay presión → primer toque de protección + apoyo."],
+            rules=[
+                "Mira antes (escaneo).",
+                "Cuerpo de lado: una cadera al balón, otra al campo.",
+                "Primer toque hacia ventaja (no al rival).",
+            ],
+            triggers=[
+                "Si hay espacio → primer toque hacia delante.",
+                "Si hay presión → primer toque de protección + apoyo.",
+            ],
             checklist=["¿He mirado antes?", "¿Estoy de lado?", "¿Mi primer toque me saca de la presión?"],
             errors=["Recibir cuadrado → “DE LADO”.", "Primer toque al rival → “TOQUE A VENTAJA”."],
             scene_hint="Escena: pase al mediocentro. Variante A: perfilado y gira. Variante B: de espaldas, descarga y 3er hombre.",
@@ -1306,9 +1637,20 @@ def _mk_game_encyclopedia_tech_in_context() -> list[SeedLesson]:
             max_category=L.CATEGORY_SENIOR,
             tags=["tecnica", "control_orientado", "salida_presion"],
             objective="Ganar tiempo/espacio con el primer toque sin perder la pelota.",
-            rules=["Control hacia espacio libre (no hacia presión).", "Si no hay espacio: controla para proteger y jugar de cara.", "El control orientado debe conectar con el siguiente pase/acción."],
-            triggers=["Rival lejos → control orientado para progresar.", "Rival cerca → control de seguridad y descarga."],
-            checklist=["¿Dónde está la presión?", "¿Tengo salida tras el control?", "¿Estoy equilibrado para el segundo toque?"],
+            rules=[
+                "Control hacia espacio libre (no hacia presión).",
+                "Si no hay espacio: controla para proteger y jugar de cara.",
+                "El control orientado debe conectar con el siguiente pase/acción.",
+            ],
+            triggers=[
+                "Rival lejos → control orientado para progresar.",
+                "Rival cerca → control de seguridad y descarga.",
+            ],
+            checklist=[
+                "¿Dónde está la presión?",
+                "¿Tengo salida tras el control?",
+                "¿Estoy equilibrado para el segundo toque?",
+            ],
             errors=["Control largo sin ventaja → “CORTO Y SEGURO”.", "Control hacia banda cerrada → “SAL DEL FOCO”."],
             scene_hint="Escena: recepción en banda. Mostrar control orientado hacia dentro si está libre, o hacia atrás si hay trampa.",
             measure=["Controles que terminan en progresión.", "Pérdidas tras control (bajan)."],
@@ -1320,9 +1662,20 @@ def _mk_game_encyclopedia_tech_in_context() -> list[SeedLesson]:
             max_category=L.CATEGORY_SENIOR,
             tags=["tecnica", "pase", "intencion"],
             objective="Mantener ventaja: pases que el compañero pueda jugar, no solo recibir.",
-            rules=["Pase al pie si quieres continuidad; pase al espacio si quieres acelerar.", "Peso del pase = tiempo del receptor.", "Si el pase no mejora, mejor asegurar y recolocar."],
-            triggers=["Hombre libre de cara → pase rápido y fuerte.", "Receptor de espaldas → pase seguro + apoyo cercano."],
-            checklist=["¿Mi pase mejora la situación?", "¿El receptor puede jugar de primeras?", "¿Hay riesgo de interceptación?"],
+            rules=[
+                "Pase al pie si quieres continuidad; pase al espacio si quieres acelerar.",
+                "Peso del pase = tiempo del receptor.",
+                "Si el pase no mejora, mejor asegurar y recolocar.",
+            ],
+            triggers=[
+                "Hombre libre de cara → pase rápido y fuerte.",
+                "Receptor de espaldas → pase seguro + apoyo cercano.",
+            ],
+            checklist=[
+                "¿Mi pase mejora la situación?",
+                "¿El receptor puede jugar de primeras?",
+                "¿Hay riesgo de interceptación?",
+            ],
             errors=["Pase flojo → “DA TIEMPO AL RIVAL”.", "Pase sin mirar → “MIRA ANTES”."],
             scene_hint="Escena: pared y 3er hombre. Mostrar diferencia de peso: pase tenso vs flojo y su efecto.",
             measure=["% pases OK (sube).", "Intercepciones del rival por pases flojos (bajan)."],
@@ -1334,7 +1687,11 @@ def _mk_game_encyclopedia_tech_in_context() -> list[SeedLesson]:
             max_category=L.CATEGORY_SENIOR,
             tags=["tecnica", "regate", "1v1"],
             objective="Ganar metros o crear superioridad sin regalar pérdidas.",
-            rules=["Regatea cuando hay espacio o 1v1 aislado.", "Primer movimiento: amenaza (cambio ritmo).", "Tras superar: cabeza arriba y decisión (pase/tiro/centro)."],
+            rules=[
+                "Regatea cuando hay espacio o 1v1 aislado.",
+                "Primer movimiento: amenaza (cambio ritmo).",
+                "Tras superar: cabeza arriba y decisión (pase/tiro/centro).",
+            ],
             triggers=["Si llega 2º defensor → descarga.", "Si el defensor está desequilibrado → atacar."],
             checklist=["¿Tengo espacio?", "¿Estoy aislado 1v1?", "¿Qué hago si lo supero?"],
             errors=["Regate rodeado → “AISLA ANTES”.", "Superar y seguir conduciendo sin mirar → “CABEZA ARRIBA”."],
@@ -1348,7 +1705,11 @@ def _mk_game_encyclopedia_tech_in_context() -> list[SeedLesson]:
             max_category=L.CATEGORY_SENIOR,
             tags=["tecnica", "tiro", "remate", "finalizacion"],
             objective="Aumentar tiros de calidad (no tiros por tirar) y atacar el área con intención.",
-            rules=["Tira si hay equilibrio y ángulo; si no, mejora y vuelve a tirar.", "En centros: atacar balón (no esperar).", "Tras tiro: 1 al rechace."],
+            rules=[
+                "Tira si hay equilibrio y ángulo; si no, mejora y vuelve a tirar.",
+                "En centros: atacar balón (no esperar).",
+                "Tras tiro: 1 al rechace.",
+            ],
             triggers=["Portero tapado → tiro fuerte a zona.", "Defensor cerca → tiro rápido (de primeras) o pase."],
             checklist=["¿Estoy equilibrado?", "¿Hay bloqueo/portero tapado?", "¿Quién va al rechace?"],
             errors=["Tirar sin equilibrio → “ASEGURA Y LUEGO”.", "Nadie al rechace → “RECHACE”."],
@@ -1362,7 +1723,11 @@ def _mk_game_encyclopedia_tech_in_context() -> list[SeedLesson]:
             max_category=L.CATEGORY_SENIOR,
             tags=["tecnica", "duelos", "segunda_jugada"],
             objective="Ganar el duelo o, como mínimo, que la caída sea nuestra.",
-            rules=["Primero posición (entre rival y balón).", "Luego timing (salto/entrada en el momento).", "Después: segunda jugada (caída) preparada."],
+            rules=[
+                "Primero posición (entre rival y balón).",
+                "Luego timing (salto/entrada en el momento).",
+                "Después: segunda jugada (caída) preparada.",
+            ],
             triggers=["Balón dividido → entrar fuerte y seguro.", "Sin ventaja → temporiza y espera apoyo."],
             checklist=["¿Estoy entre rival y balón?", "¿Tengo apoyo para la caída?", "¿Si no gano, dónde cae?"],
             errors=["Ir tarde → “POSICIÓN ANTES”.", "Ganar duelo y desconectar → “CAÍDA”."],
@@ -1395,8 +1760,15 @@ def _mk_game_encyclopedia_patterns_vs_blocks() -> list[SeedLesson]:
                 "Rival cierra interior → salida a banda y cambio.",
                 "Rival persigue marca → usar tercer hombre.",
             ],
-            checklist=["¿Dónde está el hombre libre?", "¿Mi receptor está perfilado?", "¿Tengo preparada la caída si voy directo?"],
-            errors=["Jugar interior a un compañero de espaldas presionado → “PERFIL O NO”.", "Conducir sin fijar → “FIJA Y SUELTA”."],
+            checklist=[
+                "¿Dónde está el hombre libre?",
+                "¿Mi receptor está perfilado?",
+                "¿Tengo preparada la caída si voy directo?",
+            ],
+            errors=[
+                "Jugar interior a un compañero de espaldas presionado → “PERFIL O NO”.",
+                "Conducir sin fijar → “FIJA Y SUELTA”.",
+            ],
             scene_hint="Escena: rival presiona 3‑1. Variante A: central→portero→pivote. Variante B: salida a lateral y cambio al lado débil.",
             measure=["Pérdidas en salida (bajan).", "Progresiones tras superar 1ª línea (suben)."],
         ),
@@ -1412,9 +1784,16 @@ def _mk_game_encyclopedia_patterns_vs_blocks() -> list[SeedLesson]:
                 "Entre líneas: recibir perfilado o jugar a 3er hombre.",
                 "Si no hay giro: pausa, reinicia y vuelve a fijar.",
             ],
-            triggers=["Interior libre entre líneas → buscarlo.", "Mediocentro rival salta → atacar su espalda.", "Rival bascula tarde → cambio."],
+            triggers=[
+                "Interior libre entre líneas → buscarlo.",
+                "Mediocentro rival salta → atacar su espalda.",
+                "Rival bascula tarde → cambio.",
+            ],
             checklist=["¿Tengo dentro?", "¿Mi receptor puede girar?", "¿Qué hago si me saltan?"],
-            errors=["Forzar pase interior sin ventaja → “PRIMERO FIJA”.", "Girar siempre aunque pierdas → “DEPENDE DEL ESPACIO”."],
+            errors=[
+                "Forzar pase interior sin ventaja → “PRIMERO FIJA”.",
+                "Girar siempre aunque pierdas → “DEPENDE DEL ESPACIO”.",
+            ],
             scene_hint="Escena: balón en banda, interior entre líneas. Variante: pase al interior y descarga a 3er hombre que rompe.",
             measure=["Recepciones entre líneas con giro.", "Pases clave/tiros tras recibir entre líneas."],
         ),
@@ -1430,7 +1809,11 @@ def _mk_game_encyclopedia_patterns_vs_blocks() -> list[SeedLesson]:
                 "Llega a zona de centro: raso atrás es oro.",
                 "Área: 2 llegadas + 1 rechace (siempre).",
             ],
-            triggers=["Si el rival hunde: atacar raso atrás.", "Si hay 1v1 con espacio: línea de fondo.", "Si zona 14 libre: pase atrás."],
+            triggers=[
+                "Si el rival hunde: atacar raso atrás.",
+                "Si hay 1v1 con espacio: línea de fondo.",
+                "Si zona 14 libre: pase atrás.",
+            ],
             checklist=["¿He movido al bloque antes de centrar?", "¿Quién 1º palo y penalti?", "¿Quién al rechace?"],
             errors=["Centro sin llegadas → “PRIMERO LLEGA, LUEGO CENTRA”.", "Tiro sin ángulo → “PACIENCIA”."],
             scene_hint="Escena: centro raso atrás. Marca 1º palo, penalti, raso atrás y rechace.",
@@ -1452,7 +1835,11 @@ def _mk_game_encyclopedia_area_and_crossing_advanced() -> list[SeedLesson]:
             max_category=L.CATEGORY_SENIOR,
             tags=["area", "centros", "ataque", "finalizacion"],
             objective="Generar remate limpio con carreras coordinadas y rechace asegurado.",
-            rules=["Una carrera fija 1º palo.", "Una carrera llega a penalti.", "Una carrera llega al raso atrás + 1 al rechace."],
+            rules=[
+                "Una carrera fija 1º palo.",
+                "Una carrera llega a penalti.",
+                "Una carrera llega al raso atrás + 1 al rechace.",
+            ],
             roles=["1º palo: fija/arrastre.", "Penalti: remate.", "Raso atrás: pase/tiro.", "Rechace: 2ª jugada."],
             checklist=["¿Hay 2 llegadas mínimas?", "¿Alguien al raso atrás?", "¿Quién rechace?"],
             errors=["Todos al 1º palo → “ZONAS DISTINTAS”.", "Nadie al raso atrás → “RASO ATRÁS”."],
@@ -1501,7 +1888,11 @@ def _mk_game_encyclopedia_rules_applied() -> list[SeedLesson]:
             max_category=L.CATEGORY_SENIOR,
             tags=["reglamento", "fuera_de_juego", "defensa", "ataque"],
             objective="Evitar offsides tontos y, en defensa, proteger espalda con coordinación.",
-            rules=["Ataque: desmarque cuando el pasador está listo.", "Ataque: curva + mirar línea si se puede.", "Defensa: subir solo con presión al balón."],
+            rules=[
+                "Ataque: desmarque cuando el pasador está listo.",
+                "Ataque: curva + mirar línea si se puede.",
+                "Defensa: subir solo con presión al balón.",
+            ],
             checklist=["¿El pasador está listo?", "¿Gano ventaja o solo corro?", "En defensa: ¿hay presión al balón?"],
             errors=["Desmarque temprano → “ESPERA LA SEÑAL”.", "Línea sin presión → “NO SUBAS SIN PRESIÓN”."],
             scene_hint="Escena: pase filtrado (desmarque tarde vs temprano). En defensa: línea sube con presión vs temporiza sin presión.",
@@ -1519,12 +1910,18 @@ def _mk_game_encyclopedia_rules_applied() -> list[SeedLesson]:
                 "Si hay cobertura/rest defense: temporiza y orienta (no falta tonta).",
                 "Evita faltas cerca del área: riesgo doble.",
             ],
-            checklist=["¿Hay cobertura detrás?", "¿Es contra clara o la puedo temporizar?", "¿Dónde hago la falta (zona segura)?"],
+            checklist=[
+                "¿Hay cobertura detrás?",
+                "¿Es contra clara o la puedo temporizar?",
+                "¿Dónde hago la falta (zona segura)?",
+            ],
             errors=["Falta por frustración → “DECIDE, NO REACCIONES”.", "Tarjeta por llegar tarde → “POSICIÓN ANTES”."],
             scene_hint="Escena: pérdida en medio campo. Variante A: sin cobertura → falta táctica. Variante B: con cobertura → temporizar y replegar.",
             measure=["Tarjetas innecesarias (bajan).", "Contraataques concedidos (bajan)."],
         ),
     ]
+
+
 def _mk_seed_pack() -> list[SeedLesson]:
     """
     Pack inicial (MVP) de una guía “top” reutilizable para todos los entrenadores.
@@ -1569,18 +1966,42 @@ def _mk_seed_pack() -> list[SeedLesson]:
                             "prompt": "En fútbol base, una corrección eficaz suele ser…",
                             "explanation": "Buscamos impacto rápido sin cortar el ritmo.",
                             "options": [
-                                {"label": "Corta, concreta y vuelve al juego", "correct": True, "feedback": "Bien: 1 idea + volver a jugar."},
-                                {"label": "Larga y con muchos detalles para que no haya dudas", "correct": False, "feedback": "Demasiado: baja intensidad y atención."},
-                                {"label": "Solo dar órdenes sin preguntas", "correct": False, "feedback": "Mejor combinar guía y descubrimiento."},
+                                {
+                                    "label": "Corta, concreta y vuelve al juego",
+                                    "correct": True,
+                                    "feedback": "Bien: 1 idea + volver a jugar.",
+                                },
+                                {
+                                    "label": "Larga y con muchos detalles para que no haya dudas",
+                                    "correct": False,
+                                    "feedback": "Demasiado: baja intensidad y atención.",
+                                },
+                                {
+                                    "label": "Solo dar órdenes sin preguntas",
+                                    "correct": False,
+                                    "feedback": "Mejor combinar guía y descubrimiento.",
+                                },
                             ],
                         },
                         {
                             "prompt": "Para Baby/Prebenjamín, lo más importante es…",
                             "explanation": "A esas edades prima el disfrute + hábitos motores básicos.",
                             "options": [
-                                {"label": "Muchos contactos y juegos sencillos", "correct": True, "feedback": "Correcto: repetición sin estrés."},
-                                {"label": "Táctica avanzada y automatismos", "correct": False, "feedback": "Aún no: les falta base y atención sostenida."},
-                                {"label": "Vídeo y pizarra largos", "correct": False, "feedback": "Mejor visual corto y jugar."},
+                                {
+                                    "label": "Muchos contactos y juegos sencillos",
+                                    "correct": True,
+                                    "feedback": "Correcto: repetición sin estrés.",
+                                },
+                                {
+                                    "label": "Táctica avanzada y automatismos",
+                                    "correct": False,
+                                    "feedback": "Aún no: les falta base y atención sostenida.",
+                                },
+                                {
+                                    "label": "Vídeo y pizarra largos",
+                                    "correct": False,
+                                    "feedback": "Mejor visual corto y jugar.",
+                                },
                             ],
                         },
                     ],
@@ -1687,9 +2108,21 @@ def _mk_seed_pack() -> list[SeedLesson]:
                             "prompt": "Si un jugador “no pasa” cuando debe, ¿qué es lo primero que miras?",
                             "explanation": "La decisión suele tener varias causas; buscamos el cuello de botella.",
                             "options": [
-                                {"label": "Si ha visto opciones (escaneo) y está orientado", "correct": True, "feedback": "Bien: percepción + orientación antes que ejecución."},
-                                {"label": "Si su pase es técnicamente perfecto", "correct": False, "feedback": "Importa, pero sin información previa no decide."},
-                                {"label": "Si corre mucho", "correct": False, "feedback": "La intensidad ayuda, pero no sustituye la lectura."},
+                                {
+                                    "label": "Si ha visto opciones (escaneo) y está orientado",
+                                    "correct": True,
+                                    "feedback": "Bien: percepción + orientación antes que ejecución.",
+                                },
+                                {
+                                    "label": "Si su pase es técnicamente perfecto",
+                                    "correct": False,
+                                    "feedback": "Importa, pero sin información previa no decide.",
+                                },
+                                {
+                                    "label": "Si corre mucho",
+                                    "correct": False,
+                                    "feedback": "La intensidad ayuda, pero no sustituye la lectura.",
+                                },
                             ],
                         }
                     ],
@@ -1848,7 +2281,9 @@ def _mk_seed_pack() -> list[SeedLesson]:
                     "type": AcademyLessonStep.TYPE_REPLAY_2D,
                     "title": "Pizarra 2D: basculación + cobertura",
                     "body": "Úsalo como escena tipo: balón en banda, 1º defensor orienta, 2º cubre dentro, 3º equilibra.",
-                    "payload": {"hint": "Dibuja 3 líneas (defensa/medio/ataque) y muestra 2 basculaciones: a derecha y a izquierda."},
+                    "payload": {
+                        "hint": "Dibuja 3 líneas (defensa/medio/ataque) y muestra 2 basculaciones: a derecha y a izquierda."
+                    },
                 },
                 {
                     "type": AcademyLessonStep.TYPE_QUIZ,
@@ -1858,9 +2293,21 @@ def _mk_seed_pack() -> list[SeedLesson]:
                             "prompt": "En defensa en zona, ¿qué priorizas cuando el balón entra a banda?",
                             "explanation": "La trampa es correr “a lo loco”; buscamos proteger dentro y llegar juntos.",
                             "options": [
-                                {"label": "Bascular y proteger el pase interior", "correct": True, "feedback": "Sí: llegar juntos y tapar dentro."},
-                                {"label": "Perseguir marcas sin mirar el balón", "correct": False, "feedback": "Sin referencias se abren huecos."},
-                                {"label": "Quedarse en la posición inicial", "correct": False, "feedback": "Zona requiere ajuste constante."},
+                                {
+                                    "label": "Bascular y proteger el pase interior",
+                                    "correct": True,
+                                    "feedback": "Sí: llegar juntos y tapar dentro.",
+                                },
+                                {
+                                    "label": "Perseguir marcas sin mirar el balón",
+                                    "correct": False,
+                                    "feedback": "Sin referencias se abren huecos.",
+                                },
+                                {
+                                    "label": "Quedarse en la posición inicial",
+                                    "correct": False,
+                                    "feedback": "Zona requiere ajuste constante.",
+                                },
                             ],
                         }
                     ],
@@ -1928,9 +2375,21 @@ def _mk_seed_pack() -> list[SeedLesson]:
                             "prompt": "Si el 1º defensor presiona pero su línea NO acompaña, ¿qué hace?",
                             "explanation": "La presión sin bloque es un 1v1 perdido.",
                             "options": [
-                                {"label": "Temporiza y orienta sin lanzarse", "correct": True, "feedback": "Correcto: guiar y esperar apoyo."},
-                                {"label": "Se tira igual para robar", "correct": False, "feedback": "Normalmente te superan y rompes equipo."},
-                                {"label": "Se para y deja jugar", "correct": False, "feedback": "Puedes temporizar y orientar, no regalar."},
+                                {
+                                    "label": "Temporiza y orienta sin lanzarse",
+                                    "correct": True,
+                                    "feedback": "Correcto: guiar y esperar apoyo.",
+                                },
+                                {
+                                    "label": "Se tira igual para robar",
+                                    "correct": False,
+                                    "feedback": "Normalmente te superan y rompes equipo.",
+                                },
+                                {
+                                    "label": "Se para y deja jugar",
+                                    "correct": False,
+                                    "feedback": "Puedes temporizar y orientar, no regalar.",
+                                },
                             ],
                         }
                     ],
@@ -1982,7 +2441,9 @@ def _mk_seed_pack() -> list[SeedLesson]:
                     "type": AcademyLessonStep.TYPE_REPLAY_2D,
                     "title": "Pizarra 2D: córner en contra",
                     "body": "Dibuja zonas (1º, centro, 2º palo) y 2 marcas al hombre. Marca a quién sale al rechace.",
-                    "payload": {"hint": "Incluye 2 variantes: cerrado y abierto. Señala quién ataca balón en cada una."},
+                    "payload": {
+                        "hint": "Incluye 2 variantes: cerrado y abierto. Señala quién ataca balón en cada una."
+                    },
                 },
             ],
         ),
@@ -2093,9 +2554,21 @@ def _mk_seed_pack() -> list[SeedLesson]:
                             "prompt": "¿Qué es lo más importante tras un saque de banda en contra?",
                             "explanation": "Muchas jugadas se deciden por el rechace.",
                             "options": [
-                                {"label": "Ganar la segunda jugada (rechace)", "correct": True, "feedback": "Correcto: asegura continuidad defensiva."},
-                                {"label": "Correr todos al balón", "correct": False, "feedback": "Eso abre interior y espalda."},
-                                {"label": "Quedarse esperando para no romperse", "correct": False, "feedback": "Hay que ajustar con roles."},
+                                {
+                                    "label": "Ganar la segunda jugada (rechace)",
+                                    "correct": True,
+                                    "feedback": "Correcto: asegura continuidad defensiva.",
+                                },
+                                {
+                                    "label": "Correr todos al balón",
+                                    "correct": False,
+                                    "feedback": "Eso abre interior y espalda.",
+                                },
+                                {
+                                    "label": "Quedarse esperando para no romperse",
+                                    "correct": False,
+                                    "feedback": "Hay que ajustar con roles.",
+                                },
                             ],
                         }
                     ],
@@ -2153,7 +2626,9 @@ def _mk_seed_pack() -> list[SeedLesson]:
                     "type": AcademyLessonStep.TYPE_REPLAY_2D,
                     "title": "Pizarra 2D: falta lateral a favor",
                     "body": "Dibuja primer palo, punto penalti/segundo palo, 1 bloqueo y 2 jugadores fuera (rechace + seguridad).",
-                    "payload": {"hint": "Marca 2 rutas de remate y 1 ruta de bloqueo/pantalla; deja 2 fuera bien colocados."},
+                    "payload": {
+                        "hint": "Marca 2 rutas de remate y 1 ruta de bloqueo/pantalla; deja 2 fuera bien colocados."
+                    },
                 },
             ],
         ),
@@ -2198,7 +2673,9 @@ def _mk_seed_pack() -> list[SeedLesson]:
                     "type": AcademyLessonStep.TYPE_REPLAY_2D,
                     "title": "Pizarra 2D: falta lateral en contra",
                     "body": "Dibuja zonas + 2 marcas al hombre + 1 jugador de rechace. Marca dirección de despeje (a banda).",
-                    "payload": {"hint": "Incluye 2 variantes: centro rápido (zonas) vs centro lento (línea coordinada)."},
+                    "payload": {
+                        "hint": "Incluye 2 variantes: centro rápido (zonas) vs centro lento (línea coordinada)."
+                    },
                 },
             ],
         ),
@@ -2242,7 +2719,9 @@ def _mk_seed_pack() -> list[SeedLesson]:
                     "type": AcademyLessonStep.TYPE_REPLAY_2D,
                     "title": "Pizarra 2D: bloque medio (salto por trigger)",
                     "body": "Escena tipo: rival intenta jugar dentro; interior cerrado; salto cuando el receptor recibe de espaldas.",
-                    "payload": {"hint": "Dibuja dos momentos: (1) temporizar sin trigger (2) salto con cobertura cuando aparece el trigger."},
+                    "payload": {
+                        "hint": "Dibuja dos momentos: (1) temporizar sin trigger (2) salto con cobertura cuando aparece el trigger."
+                    },
                 },
             ],
         ),
@@ -2277,7 +2756,9 @@ def _mk_seed_pack() -> list[SeedLesson]:
                     "type": AcademyLessonStep.TYPE_REPLAY_2D,
                     "title": "Pizarra 2D: defensa de centro",
                     "body": "Dibuja zonas (1º palo, penalti, 2º palo) y quién ataca el balón + quién va al rechace.",
-                    "payload": {"hint": "Incluye 2 centros: raso atrás y bombeado. Marca el jugador de rechace en ambos."},
+                    "payload": {
+                        "hint": "Incluye 2 centros: raso atrás y bombeado. Marca el jugador de rechace en ambos."
+                    },
                 },
             ],
         ),
@@ -2347,7 +2828,9 @@ def _mk_seed_pack() -> list[SeedLesson]:
                     "type": AcademyLessonStep.TYPE_REPLAY_2D,
                     "title": "Pizarra 2D: fijar y cambiar",
                     "body": "Escena tipo: lado fuerte atrae; pivote/central cambia al extremo del lado débil.",
-                    "payload": {"hint": "Marca ‘lado fuerte’ y ‘lado débil’ y el timing del cambio (cuando rival bascula)."},
+                    "payload": {
+                        "hint": "Marca ‘lado fuerte’ y ‘lado débil’ y el timing del cambio (cuando rival bascula)."
+                    },
                 },
             ],
         ),
@@ -2383,7 +2866,9 @@ def _mk_seed_pack() -> list[SeedLesson]:
                     "type": AcademyLessonStep.TYPE_REPLAY_2D,
                     "title": "Pizarra 2D: pérdida y contra-presión",
                     "body": "Escena tipo: pérdida en carril central; 1 presiona, 2 corta pase, 3 equilibra.",
-                    "payload": {"hint": "Dibuja dos variantes: pérdida cerca (contra-presión) y pérdida lejos (repliegue)."},
+                    "payload": {
+                        "hint": "Dibuja dos variantes: pérdida cerca (contra-presión) y pérdida lejos (repliegue)."
+                    },
                 },
             ],
         ),
@@ -2450,9 +2935,21 @@ def _mk_seed_pack() -> list[SeedLesson]:
                             "prompt": "Si quieres mejorar “mirar antes de recibir”, ¿qué constraint ayuda más?",
                             "explanation": "Forzamos percepción sin sermón.",
                             "options": [
-                                {"label": "Obligar a orientar el cuerpo antes de recibir (punto extra)", "correct": True, "feedback": "Bien: premia el hábito."},
-                                {"label": "Pedirlo en una charla de 3 minutos", "correct": False, "feedback": "Mejor dentro del juego."},
-                                {"label": "Reducir el campo al máximo siempre", "correct": False, "feedback": "A veces ayuda, pero puede generar caos si es demasiado."},
+                                {
+                                    "label": "Obligar a orientar el cuerpo antes de recibir (punto extra)",
+                                    "correct": True,
+                                    "feedback": "Bien: premia el hábito.",
+                                },
+                                {
+                                    "label": "Pedirlo en una charla de 3 minutos",
+                                    "correct": False,
+                                    "feedback": "Mejor dentro del juego.",
+                                },
+                                {
+                                    "label": "Reducir el campo al máximo siempre",
+                                    "correct": False,
+                                    "feedback": "A veces ayuda, pero puede generar caos si es demasiado.",
+                                },
                             ],
                         }
                     ],
@@ -2505,9 +3002,21 @@ def _mk_seed_pack() -> list[SeedLesson]:
                             "prompt": "Si el jugador que recibe está de espaldas y presionado, ¿qué priorizas?",
                             "explanation": "Seguridad y continuidad para volver a progresar.",
                             "options": [
-                                {"label": "Asegurar con apoyo cercano y salida", "correct": True, "feedback": "Bien: 2º toque para “salir”. "},
-                                {"label": "Girar siempre aunque pierda el balón", "correct": False, "feedback": "No siempre: depende de espacio/ventaja."},
-                                {"label": "Balón largo sin mirar", "correct": False, "feedback": "Solo si es parte del plan y hay ventaja."},
+                                {
+                                    "label": "Asegurar con apoyo cercano y salida",
+                                    "correct": True,
+                                    "feedback": "Bien: 2º toque para “salir”. ",
+                                },
+                                {
+                                    "label": "Girar siempre aunque pierda el balón",
+                                    "correct": False,
+                                    "feedback": "No siempre: depende de espacio/ventaja.",
+                                },
+                                {
+                                    "label": "Balón largo sin mirar",
+                                    "correct": False,
+                                    "feedback": "Solo si es parte del plan y hay ventaja.",
+                                },
                             ],
                         }
                     ],
@@ -2588,9 +3097,21 @@ def _mk_seed_pack() -> list[SeedLesson]:
                             "prompt": "Si el rival cambia de lado rápido, ¿qué prioriza el bloque?",
                             "explanation": "Llegar juntos y proteger dentro.",
                             "options": [
-                                {"label": "Proteger el pasillo interior y llegar con ayudas", "correct": True, "feedback": "Sí: dentro primero."},
-                                {"label": "Saltar todos al balón sin orden", "correct": False, "feedback": "Eso rompe líneas."},
-                                {"label": "Quedarse quietos para no desordenarse", "correct": False, "feedback": "Hay que bascular con timing."},
+                                {
+                                    "label": "Proteger el pasillo interior y llegar con ayudas",
+                                    "correct": True,
+                                    "feedback": "Sí: dentro primero.",
+                                },
+                                {
+                                    "label": "Saltar todos al balón sin orden",
+                                    "correct": False,
+                                    "feedback": "Eso rompe líneas.",
+                                },
+                                {
+                                    "label": "Quedarse quietos para no desordenarse",
+                                    "correct": False,
+                                    "feedback": "Hay que bascular con timing.",
+                                },
                             ],
                         }
                     ],
@@ -2621,9 +3142,21 @@ def _mk_seed_pack() -> list[SeedLesson]:
                             "prompt": "Tras pérdida, ¿cuándo NO presiono directo?",
                             "explanation": "Si presionas sin opciones, rompes equipo.",
                             "options": [
-                                {"label": "Si estoy solo y mi línea no acompaña", "correct": True, "feedback": "Bien: temporiza y vuelve."},
-                                {"label": "Siempre hay que ir al balón", "correct": False, "feedback": "Depende de apoyo/cobertura."},
-                                {"label": "Si el rival está en su área", "correct": False, "feedback": "Puede haber presión alta útil."},
+                                {
+                                    "label": "Si estoy solo y mi línea no acompaña",
+                                    "correct": True,
+                                    "feedback": "Bien: temporiza y vuelve.",
+                                },
+                                {
+                                    "label": "Siempre hay que ir al balón",
+                                    "correct": False,
+                                    "feedback": "Depende de apoyo/cobertura.",
+                                },
+                                {
+                                    "label": "Si el rival está en su área",
+                                    "correct": False,
+                                    "feedback": "Puede haber presión alta útil.",
+                                },
                             ],
                         }
                     ],
@@ -2767,7 +3300,10 @@ def _mk_game_encyclopedia_inner_game_and_gameplans() -> list[SeedLesson]:
             checklist=["¿Estoy en lado ciego?", "¿Puedo jugar a 1 toque si me presionan?", "¿Qué hago tras recibir?"],
             errors=["Quedarse quieto entre líneas → “APARECE Y DESAPARECE”.", "Recibir sin perfil → “PERFIL O APOYO”."],
             scene_hint="Escena: 7v7/11v11. Interior se mueve al lado ciego del pivote rival para recibir. Tras recibir, descarga y ataca espacio.",
-            measure=["Recepciones entre líneas con progresión.", "Pérdidas por recibir de espaldas presionado (bajan)."],
+            measure=[
+                "Recepciones entre líneas con progresión.",
+                "Pérdidas por recibir de espaldas presionado (bajan).",
+            ],
         ),
         _mk_guide(
             title="Patrones · Atacar por fuera (overlap/underlap + centro útil)",
@@ -2781,11 +3317,23 @@ def _mk_game_encyclopedia_inner_game_and_gameplans() -> list[SeedLesson]:
                 "Centro con intención: raso atrás / 2º palo según llegadas.",
                 "Rest defense: 2–3 por detrás para evitar contra.",
             ],
-            triggers=["Si el lateral rival salta al extremo → overlap.", "Si el lateral rival se queda → underlap interior.", "Si llega 2º defensor → descarga y cambio."],
+            triggers=[
+                "Si el lateral rival salta al extremo → overlap.",
+                "Si el lateral rival se queda → underlap interior.",
+                "Si llega 2º defensor → descarga y cambio.",
+            ],
             checklist=["¿Tengo 2v1 real?", "¿Quién llega al área?", "¿Quién se queda de seguridad?"],
-            errors=["Centrar sin llegadas → “PRIMERO LLEGA”.", "Overlaps sin fijar → “FIJA ANTES”.", "Pérdida arriba sin seguridad → “REST DEFENSE”."],
+            errors=[
+                "Centrar sin llegadas → “PRIMERO LLEGA”.",
+                "Overlaps sin fijar → “FIJA ANTES”.",
+                "Pérdida arriba sin seguridad → “REST DEFENSE”.",
+            ],
             scene_hint="Escena: banda derecha. Variante A: overlap del lateral y centro raso atrás. Variante B: underlap del interior y pase a zona 14.",
-            measure=["Centros útiles (tiro/ocasión).", "Pérdidas en banda (bajan).", "Contraataques tras pérdida en banda (bajan)."],
+            measure=[
+                "Centros útiles (tiro/ocasión).",
+                "Pérdidas en banda (bajan).",
+                "Contraataques tras pérdida en banda (bajan).",
+            ],
         ),
         _mk_guide(
             title="Patrones · Atacar por dentro (tercer hombre + ruptura)",
@@ -2799,11 +3347,22 @@ def _mk_game_encyclopedia_inner_game_and_gameplans() -> list[SeedLesson]:
                 "El 3er hombre ataca espacio (no se queda al pie).",
                 "Si no hay ventaja: reinicia y vuelve a fijar.",
             ],
-            triggers=["Rival salta al pivote → interior rompe a su espalda.", "Central rival sale a cortar → pase a la espalda (9 o extremo)."],
-            checklist=["¿Quién es el 3er hombre?", "¿Hay espacio a la espalda del medio?", "¿Tengo seguridad si pierdo?"],
+            triggers=[
+                "Rival salta al pivote → interior rompe a su espalda.",
+                "Central rival sale a cortar → pase a la espalda (9 o extremo).",
+            ],
+            checklist=[
+                "¿Quién es el 3er hombre?",
+                "¿Hay espacio a la espalda del medio?",
+                "¿Tengo seguridad si pierdo?",
+            ],
             errors=["Forzar giro de espaldas → “3ER HOMBRE”.", "Jugar dentro sin apoyos → “APOYO CERCA”."],
             scene_hint="Escena: central→pivote (de espaldas)→descarga→interior rompe. Marca el timing de la ruptura.",
-            measure=["Progresiones por carril central.", "Pases clave/tiros tras 3er hombre.", "Pérdidas en carril central (bajan)."],
+            measure=[
+                "Progresiones por carril central.",
+                "Pases clave/tiros tras 3er hombre.",
+                "Pérdidas en carril central (bajan).",
+            ],
         ),
         _mk_guide(
             title="Defensa · Negar juego interior (cierre de líneas y sombras)",
@@ -2817,7 +3376,11 @@ def _mk_game_encyclopedia_inner_game_and_gameplans() -> list[SeedLesson]:
                 "Sombras de pase: cuerpo orientado para tapar al mediapunta/pivote rival.",
                 "Si el balón va a banda: bascula y compacta, sin abrir interior.",
             ],
-            roles=["Pivote: pantalla al 10.", "Interiores: saltan con cobertura.", "Defensas: protegen espalda y zona caliente."],
+            roles=[
+                "Pivote: pantalla al 10.",
+                "Interiores: saltan con cobertura.",
+                "Defensas: protegen espalda y zona caliente.",
+            ],
             checklist=["¿Está tapado el 10 rival?", "¿Bloque compacto (distancias cortas)?", "¿Quién cubre si salto?"],
             errors=["Perseguir balón y abrir interior → “DENTRO CERRADO”.", "Saltar sin cobertura → “TEMPORIZA”."],
             scene_hint="Escena: rival intenta jugar al 10. Pivote tapa línea, interior salta al receptor de espaldas y central protege espalda.",
@@ -2866,7 +3429,10 @@ def _mk_game_encyclopedia_inner_game_and_gameplans() -> list[SeedLesson]:
                 "Transición: ¿dónde hacen daño?",
                 "ABP: ¿zona o al hombre? ¿quién remata?",
             ],
-            errors=["Scouting de “opiniones” → “HECHOS Y CONSECUENCIAS”.", "Plan sin traducción al campo → “1 REGLA POR IDEA”."],
+            errors=[
+                "Scouting de “opiniones” → “HECHOS Y CONSECUENCIAS”.",
+                "Plan sin traducción al campo → “1 REGLA POR IDEA”.",
+            ],
             scene_hint="Escena: hoja simple con 6 preguntas y debajo ‘Reglas del plan’.",
             measure=["Cumplimiento del plan (acciones objetivo).", "Errores repetidos del rival forzados."],
         ),
@@ -2896,7 +3462,11 @@ def _mk_game_encyclopedia_weakside_and_in_game_coaching() -> list[SeedLesson]:
                 "Lado débil: amplitud lista + interior perfilado + amenaza de espalda.",
                 "Seguridad: 1–2 por detrás por si se pierde en el cambio.",
             ],
-            checklist=["¿El lado débil está colocado?", "¿He fijado antes?", "¿El cambio llega con tensión y a tiempo?"],
+            checklist=[
+                "¿El lado débil está colocado?",
+                "¿He fijado antes?",
+                "¿El cambio llega con tensión y a tiempo?",
+            ],
             errors=[
                 "Cambiar sin fijar → “FIJA Y LUEGO CAMBIA”.",
                 "Lado débil ‘apagado’ (todos por dentro) → “UNO ABIERTO SIEMPRE”.",
@@ -2917,9 +3487,19 @@ def _mk_game_encyclopedia_weakside_and_in_game_coaching() -> list[SeedLesson]:
                 "Aislamiento: extremo lado débil alto y abierto (no viene al balón).",
                 "Tras el cambio: 1 conduce para fijar y 2 atacan área (primer palo + penalti/raso atrás).",
             ],
-            triggers=["Si el rival bascula demasiado al balón → cambio inmediato.", "Si el lateral rival queda 1v1 → ataca."],
-            checklist=["¿Extremo aislado y con espacio?", "¿Llegadas al área preparadas?", "¿Quién asegura la pérdida?"],
-            errors=["Extremo se mete dentro y pierde espacio → “ABRE PARA ATACAR”.", "Cambio y nadie llega → “PRIMERO LLEGA”.",],
+            triggers=[
+                "Si el rival bascula demasiado al balón → cambio inmediato.",
+                "Si el lateral rival queda 1v1 → ataca.",
+            ],
+            checklist=[
+                "¿Extremo aislado y con espacio?",
+                "¿Llegadas al área preparadas?",
+                "¿Quién asegura la pérdida?",
+            ],
+            errors=[
+                "Extremo se mete dentro y pierde espacio → “ABRE PARA ATACAR”.",
+                "Cambio y nadie llega → “PRIMERO LLEGA”.",
+            ],
             scene_hint="Escena: sobrecarga 4v3 en derecha, cambio a extremo izquierdo aislado, conducción y centro raso atrás con 2 llegadas + rechazo.",
             measure=["1v1 generados en lado débil.", "Centros útiles/ocasiones tras aislamiento."],
         ),
@@ -2935,8 +3515,15 @@ def _mk_game_encyclopedia_weakside_and_in_game_coaching() -> list[SeedLesson]:
                 "Si el balón está ‘sin presión’, no subimos línea: temporizamos.",
                 "Comunicación: ‘solo’, ‘gira’, ‘cambio’ (3 palabras).",
             ],
-            checklist=["¿El rival está ‘solo’ en lado débil?", "¿Hay presión al balón?", "¿Estoy a distancia de correr hacia mi portería?"],
-            errors=["Todos mirando el balón → “UNO VIGILA”.", "Línea sube sin presión → “TEMPORIZA”.",],
+            checklist=[
+                "¿El rival está ‘solo’ en lado débil?",
+                "¿Hay presión al balón?",
+                "¿Estoy a distancia de correr hacia mi portería?",
+            ],
+            errors=[
+                "Todos mirando el balón → “UNO VIGILA”.",
+                "Línea sube sin presión → “TEMPORIZA”.",
+            ],
             scene_hint="Escena: rival cambia de banda. Marca al vigilante del lado débil y al lateral que protege la espalda, ajustando altura.",
             measure=["Cambios del rival que acaban en centro (bajan).", "Centros concedidos con tiempo (bajan)."],
         ),
@@ -2952,11 +3539,21 @@ def _mk_game_encyclopedia_weakside_and_in_game_coaching() -> list[SeedLesson]:
                 "Orientación: forzar a banda o proteger dentro (decisión).",
                 "Roles: cambia 1 rol (quién fija/quién llega/quién asegura).",
             ],
-            triggers=["Te superan por dentro → protege interior y orienta fuera.", "Te ganan espalda → baja 5–10m o aumenta presión al balón.", "No generas ocasiones → prepara lado débil y llegadas."],
+            triggers=[
+                "Te superan por dentro → protege interior y orienta fuera.",
+                "Te ganan espalda → baja 5–10m o aumenta presión al balón.",
+                "No generas ocasiones → prepara lado débil y llegadas.",
+            ],
             checklist=["¿Cuál es el problema 1 (no 3)?", "¿Qué cambio mínimo lo toca?", "¿Quién lo ejecuta?"],
-            errors=["Cambiar 5 cosas → “UNA PALANCA”.", "Mensaje largo → “1 FRASE + 1 CUE”.",],
+            errors=[
+                "Cambiar 5 cosas → “UNA PALANCA”.",
+                "Mensaje largo → “1 FRASE + 1 CUE”.",
+            ],
             scene_hint="Escena: pizarra de banquillo con 3 palancas (altura/orientación/roles) y 1 ajuste aplicado.",
-            measure=["Acciones del ajuste (ej.: presiones orientadas) suben.", "Concesiones del problema (ej.: pases interiores) bajan."],
+            measure=[
+                "Acciones del ajuste (ej.: presiones orientadas) suben.",
+                "Concesiones del problema (ej.: pases interiores) bajan.",
+            ],
         ),
         _mk_guide(
             title="Coaching en partido · Descanso: 3 mensajes (qué, cómo, por qué)",
@@ -2971,7 +3568,10 @@ def _mk_game_encyclopedia_weakside_and_in_game_coaching() -> list[SeedLesson]:
                 "3) Por qué (beneficio): 1 frase corta.",
             ],
             checklist=["¿He dicho 1 cosa clave?", "¿Está claro el trigger?", "¿Podemos medirlo en 5 minutos?"],
-            errors=["Hablar de todo → “SOLO 1–2 IDEAS”.", "Sin acción → “REGLA + TRIGGER”.",],
+            errors=[
+                "Hablar de todo → “SOLO 1–2 IDEAS”.",
+                "Sin acción → “REGLA + TRIGGER”.",
+            ],
             scene_hint="Escena: descanso con pizarra simple: problema (hecho) + regla + trigger + beneficio.",
             measure=["Acciones objetivo en los primeros 5’ (suben).", "Errores repetidos (bajan)."],
         ),
@@ -3026,20 +3626,37 @@ def _mk_category_curriculum() -> list[SeedLesson]:
             max_category=C.CATEGORY_SENIOR,
             tags=["constraints", "tareas", "metodologia"],
             steps=[
-                {"type": AcademyLessonStep.TYPE_TEXT, "title": "Las 5 palancas", "body": (
-                    "1) Espacio (ancho/profundidad) · 2) Tiempo (toques/segundos) · 3) Reglas (orientar)\n"
-                    "4) Puntuación (doble si…) · 5) Superioridades (comodín dentro/fuera).\n\n"
-                    "Cambia 1 palanca cada vez y observa el comportamiento."
-                )},
-                {"type": AcademyLessonStep.TYPE_TASK, "title": "Reto rápido", "body": (
-                    "En tu tarea principal, añade un punto extra por *perfil corporal* o *3º hombre*.\n"
-                    "Comprueba si aumenta la calidad de decisión."
-                )},
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Las 5 palancas",
+                    "body": (
+                        "1) Espacio (ancho/profundidad) · 2) Tiempo (toques/segundos) · 3) Reglas (orientar)\n"
+                        "4) Puntuación (doble si…) · 5) Superioridades (comodín dentro/fuera).\n\n"
+                        "Cambia 1 palanca cada vez y observa el comportamiento."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TASK,
+                    "title": "Reto rápido",
+                    "body": (
+                        "En tu tarea principal, añade un punto extra por *perfil corporal* o *3º hombre*.\n"
+                        "Comprueba si aumenta la calidad de decisión."
+                    ),
+                },
             ],
         ),
     ]
 
-    def route_overview(cat_key: str, cat_label: str, *, focus: str, session_minutes: str, cues: str, must_have: list[str], avoid: list[str]) -> SeedLesson:
+    def route_overview(
+        cat_key: str,
+        cat_label: str,
+        *,
+        focus: str,
+        session_minutes: str,
+        cues: str,
+        must_have: list[str],
+        avoid: list[str],
+    ) -> SeedLesson:
         return SeedLesson(
             title=f"Ruta {cat_label} · Prioridades",
             summary=f"Qué priorizar en {cat_label}: {focus}",
@@ -3048,13 +3665,21 @@ def _mk_category_curriculum() -> list[SeedLesson]:
             tags=["ruta", cat_key],
             steps=[
                 {"type": AcademyLessonStep.TYPE_TEXT, "title": "Objetivo de la categoría", "body": focus},
-                {"type": AcademyLessonStep.TYPE_TEXT, "title": "Sesión tipo", "body": (
-                    f"Duración orientativa: {session_minutes}.\n"
-                    "Estructura recomendada: Play (5–10') → Practice (20–35') → Play (15–25').\n"
-                    "En pequeños: más mini-juegos y menos explicación."
-                )},
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Sesión tipo",
+                    "body": (
+                        f"Duración orientativa: {session_minutes}.\n"
+                        "Estructura recomendada: Play (5–10') → Practice (20–35') → Play (15–25').\n"
+                        "En pequeños: más mini-juegos y menos explicación."
+                    ),
+                },
                 {"type": AcademyLessonStep.TYPE_TEXT, "title": "Lenguaje del entrenador", "body": cues},
-                {"type": AcademyLessonStep.TYPE_TEXT, "title": "Imprescindibles", "body": "- " + "\n- ".join(must_have)},
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Imprescindibles",
+                    "body": "- " + "\n- ".join(must_have),
+                },
                 {"type": AcademyLessonStep.TYPE_TEXT, "title": "Evitar", "body": "- " + "\n- ".join(avoid)},
             ],
         )
@@ -3102,7 +3727,11 @@ def _mk_category_curriculum() -> list[SeedLesson]:
             focus="Juego por líneas: temporizar, fijar/saltar, compactar y orientar según el rival.",
             session_minutes="70–90 min",
             cues="‘Cuándo sí/cuándo no’, ‘temporiza’, ‘equilibrio’.",
-            must_have=["Partidos condicionados por carriles", "Basculación y coberturas", "Salida (tercer hombre / giro)"],
+            must_have=[
+                "Partidos condicionados por carriles",
+                "Basculación y coberturas",
+                "Salida (tercer hombre / giro)",
+            ],
             avoid=["Correcciones en público humillantes", "Exceso de táctica sin jugar", "Ignorar contexto emocional"],
         ),
         route_overview(
@@ -3111,7 +3740,11 @@ def _mk_category_curriculum() -> list[SeedLesson]:
             focus="Modelo: automatismos + lectura; mejorar velocidad de juego y toma de decisión.",
             session_minutes="75–95 min",
             cues="‘Escanea’, ‘orienta’, ‘juega a 2 toques si hay ventaja’.",
-            must_have=["Juegos con superioridad/inferioridad", "Presión tras pérdida organizada", "ABP simples con roles claros"],
+            must_have=[
+                "Juegos con superioridad/inferioridad",
+                "Presión tras pérdida organizada",
+                "ABP simples con roles claros",
+            ],
             avoid=["Solo correr", "Repetir sin feedback", "No conectar tarea con partido"],
         ),
         route_overview(
@@ -3164,7 +3797,8 @@ def _mk_category_curriculum() -> list[SeedLesson]:
         modules.extend(
             [
                 category_module(
-                    cat_key, cat_label,
+                    cat_key,
+                    cat_label,
                     name="Técnica aplicada",
                     body=(
                         "Objetivo: técnica *para decidir*, no técnica aislada.\n\n"
@@ -3173,26 +3807,44 @@ def _mk_category_curriculum() -> list[SeedLesson]:
                     ),
                 ),
                 category_module(
-                    cat_key, cat_label,
+                    cat_key,
+                    cat_label,
                     name="Ataque (principio 1): avanzar con apoyo",
                     body=(
                         "Señal: si no puedes girar, usa apoyo y crea 3er hombre.\n"
                         "Constraint: apoyo a 2 toques, punto extra por jugar hacia delante tras devolución."
                     ),
-                    quiz=[
-                        {
-                            "prompt": "Si recibes presionado de espaldas, lo primero es…",
-                            "explanation": "Asegurar continuidad para poder progresar después.",
-                            "options": [
-                                {"label": "Asegurar con apoyo cercano", "correct": True, "feedback": "Bien: juego simple."},
-                                {"label": "Girar siempre", "correct": False, "feedback": "Depende del espacio/ventaja."},
-                                {"label": "Balón largo sin mirar", "correct": False, "feedback": "Solo si es parte del plan y hay ventaja."},
-                            ],
-                        }
-                    ] if cat_key != C.CATEGORY_BABY else None,
+                    quiz=(
+                        [
+                            {
+                                "prompt": "Si recibes presionado de espaldas, lo primero es…",
+                                "explanation": "Asegurar continuidad para poder progresar después.",
+                                "options": [
+                                    {
+                                        "label": "Asegurar con apoyo cercano",
+                                        "correct": True,
+                                        "feedback": "Bien: juego simple.",
+                                    },
+                                    {
+                                        "label": "Girar siempre",
+                                        "correct": False,
+                                        "feedback": "Depende del espacio/ventaja.",
+                                    },
+                                    {
+                                        "label": "Balón largo sin mirar",
+                                        "correct": False,
+                                        "feedback": "Solo si es parte del plan y hay ventaja.",
+                                    },
+                                ],
+                            }
+                        ]
+                        if cat_key != C.CATEGORY_BABY
+                        else None
+                    ),
                 ),
                 category_module(
-                    cat_key, cat_label,
+                    cat_key,
+                    cat_label,
                     name="Defensa (principio 1): orientar con cobertura",
                     body=(
                         "1º defensor orienta; 2º defensor cubre; 3º equilibra.\n"
@@ -3200,7 +3852,8 @@ def _mk_category_curriculum() -> list[SeedLesson]:
                     ),
                 ),
                 category_module(
-                    cat_key, cat_label,
+                    cat_key,
+                    cat_label,
                     name="Transición: 3 pasos / 5 segundos",
                     body=(
                         "Tras pérdida: 3 pasos agresivos → decide presionar o replegar.\n"
@@ -3208,7 +3861,8 @@ def _mk_category_curriculum() -> list[SeedLesson]:
                     ),
                 ),
                 category_module(
-                    cat_key, cat_label,
+                    cat_key,
+                    cat_label,
                     name="Finalización: atacar área",
                     body=(
                         "Centros: primer palo + punto de penalti + rechazo.\n"
@@ -3216,7 +3870,8 @@ def _mk_category_curriculum() -> list[SeedLesson]:
                     ),
                 ),
                 category_module(
-                    cat_key, cat_label,
+                    cat_key,
+                    cat_label,
                     name="ABP: corner simple",
                     body=(
                         "Roles mínimos: saque · primer palo · segundo palo · rechazo · seguridad.\n"
@@ -3330,13 +3985,21 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--workspace", type=int, default=0, help="Workspace (club) al que asignar las lecciones.")
-        parser.add_argument("--workspace-slug", type=str, default="", help="Slug de Workspace (alternativa a --workspace).")
+        parser.add_argument(
+            "--workspace-slug", type=str, default="", help="Slug de Workspace (alternativa a --workspace)."
+        )
         parser.add_argument("--team", type=int, default=0, help="Team (categoría) al que asignar las lecciones.")
         parser.add_argument("--team-slug", type=str, default="", help="Slug de Team (alternativa a --team).")
         parser.add_argument("--publish", action="store_true", help="Publica las lecciones creadas.")
         parser.add_argument("--assign", action="store_true", help="Crea asignaciones en el workspace/team indicados.")
-        parser.add_argument("--seed-blueprints", action="store_true", help="Crea plantillas del sistema (TaskBlueprint) en el team 'pizarra'.")
-        parser.add_argument("--full", action="store_true", help="Genera el currículo completo por categoría (además del pack base).")
+        parser.add_argument(
+            "--seed-blueprints",
+            action="store_true",
+            help="Crea plantillas del sistema (TaskBlueprint) en el team 'pizarra'.",
+        )
+        parser.add_argument(
+            "--full", action="store_true", help="Genera el currículo completo por categoría (además del pack base)."
+        )
         parser.add_argument("--reset", action="store_true", help="Borra y recrea (solo lecciones con tag 'seed_v1').")
 
     def handle(self, *args, **options):
@@ -3405,7 +4068,18 @@ class Command(BaseCommand):
                 obj.is_published = publish or bool(getattr(obj, "is_published", False))
                 if not str(getattr(obj, "created_by", "") or "").strip():
                     obj.created_by = "seed"
-                obj.save(update_fields=["title", "summary", "min_category", "max_category", "tags", "is_published", "created_by", "updated_at"])
+                obj.save(
+                    update_fields=[
+                        "title",
+                        "summary",
+                        "min_category",
+                        "max_category",
+                        "tags",
+                        "is_published",
+                        "created_by",
+                        "updated_at",
+                    ]
+                )
             if was_created:
                 created += 1
             else:
@@ -3468,7 +4142,9 @@ class Command(BaseCommand):
                     bp_created += 1
                 else:
                     bp_updated += 1
-            self.stdout.write(self.style.SUCCESS(f"Blueprints (system): {bp_created} creadas, {bp_updated} actualizadas."))
+            self.stdout.write(
+                self.style.SUCCESS(f"Blueprints (system): {bp_created} creadas, {bp_updated} actualizadas.")
+            )
 
         if assign:
             if not workspace_id and workspace_slug:

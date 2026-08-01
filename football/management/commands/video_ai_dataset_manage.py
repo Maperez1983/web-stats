@@ -15,7 +15,9 @@ class Command(BaseCommand):
         parser.add_argument("--src", required=True, help="Dataset origen con manifest.json.")
         parser.add_argument("--out", required=True, help="Dataset salida train/val.")
         parser.add_argument("--val-ratio", type=float, default=0.2, help="Proporción validación.")
-        parser.add_argument("--min-confidence", type=float, default=0.0, help="Filtra manifest rows con confidence menor.")
+        parser.add_argument(
+            "--min-confidence", type=float, default=0.0, help="Filtra manifest rows con confidence menor."
+        )
         parser.add_argument("--seed", type=int, default=13)
 
     def handle(self, *args, **options):
@@ -68,15 +70,19 @@ class Command(BaseCommand):
                 row["split"] = split
 
         (out / "data.yaml").write_text(
-            "\n".join([
-                f"path: {out}",
-                "train: images/train",
-                "val: images/val" if val_rows else "val: images/train",
-                "names:",
-                "  0: player",
-                "",
-            ]),
+            "\n".join(
+                [
+                    f"path: {out}",
+                    "train: images/train",
+                    "val: images/val" if val_rows else "val: images/train",
+                    "names:",
+                    "  0: player",
+                    "",
+                ]
+            ),
             encoding="utf-8",
         )
-        (out / "manifest.json").write_text(json.dumps(train_rows + val_rows, ensure_ascii=False, indent=2), encoding="utf-8")
+        (out / "manifest.json").write_text(
+            json.dumps(train_rows + val_rows, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
         self.stdout.write(self.style.SUCCESS(f"Dataset listo: train={len(train_rows)} val={len(val_rows)} out={out}"))

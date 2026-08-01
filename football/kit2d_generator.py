@@ -91,7 +91,9 @@ def _ffmpeg_decode_image(data: bytes):
                 timeout=12,
             )
         except Exception as exc:
-            raise RuntimeError("No se pudo decodificar la imagen (HEIC). Convierte a JPG/PNG e inténtalo de nuevo.") from exc
+            raise RuntimeError(
+                "No se pudo decodificar la imagen (HEIC). Convierte a JPG/PNG e inténtalo de nuevo."
+            ) from exc
         img = Image.open(dst)
         if ImageOps is not None:
             try:
@@ -168,7 +170,7 @@ def _trim_bottom(mask_full: np.ndarray) -> np.ndarray:
 
     maxw = max(s[3] for s in spans)
     cutoff = ymax
-    for (y, _xmin, _xmax, ww) in spans:
+    for y, _xmin, _xmax, ww in spans:
         if y > ymin + (ymax - ymin) * 0.70 and ww < maxw * 0.72:
             cutoff = y
             break
@@ -210,7 +212,7 @@ def _quantize_bgr(bgr: np.ndarray, mask: np.ndarray, k: int = 24) -> np.ndarray:
     k = int(k or 24)
     k = max(6, min(k, 48))
     flat = bgr.reshape((-1, 3)).astype(np.float32)
-    m = (mask.reshape((-1,)) > 0)
+    m = mask.reshape((-1,)) > 0
     if int(m.sum()) < 200:
         return bgr
     # Muestreo para no hacer kmeans gigante.
@@ -251,7 +253,7 @@ def _fm2d_stylize(bgra_crop: np.ndarray) -> np.ndarray:
     base = bgr.astype(np.float32)
     # Ratio hacia la media del objeto.
     mean_illum = float(np.mean(illum[mask > 0])) if int(np.sum(mask > 0)) else 128.0
-    scale = (mean_illum / illum)
+    scale = mean_illum / illum
     scale = np.clip(scale, 0.80, 1.25)
     base[:, :, 0] *= scale
     base[:, :, 1] *= scale
@@ -327,9 +329,15 @@ def _apply_fm_finish(bgra: np.ndarray) -> np.ndarray:
         shadow = cv2.warpAffine(shadow, M, (w, h), flags=cv2.INTER_LINEAR, borderValue=0)
         shadow = cv2.bitwise_and(shadow, cv2.bitwise_not(mask))
         strength = 0.33
-        out[:, :, 0] = np.clip(out[:, :, 0].astype(np.float32) * (1.0 - strength * (shadow.astype(np.float32) / 255.0)), 0, 255).astype(np.uint8)
-        out[:, :, 1] = np.clip(out[:, :, 1].astype(np.float32) * (1.0 - strength * (shadow.astype(np.float32) / 255.0)), 0, 255).astype(np.uint8)
-        out[:, :, 2] = np.clip(out[:, :, 2].astype(np.float32) * (1.0 - strength * (shadow.astype(np.float32) / 255.0)), 0, 255).astype(np.uint8)
+        out[:, :, 0] = np.clip(
+            out[:, :, 0].astype(np.float32) * (1.0 - strength * (shadow.astype(np.float32) / 255.0)), 0, 255
+        ).astype(np.uint8)
+        out[:, :, 1] = np.clip(
+            out[:, :, 1].astype(np.float32) * (1.0 - strength * (shadow.astype(np.float32) / 255.0)), 0, 255
+        ).astype(np.uint8)
+        out[:, :, 2] = np.clip(
+            out[:, :, 2].astype(np.float32) * (1.0 - strength * (shadow.astype(np.float32) / 255.0)), 0, 255
+        ).astype(np.uint8)
         out[:, :, 3] = np.maximum(out[:, :, 3], (shadow.astype(np.float32) * 0.55).astype(np.uint8))
     except Exception:
         pass
@@ -493,7 +501,9 @@ def _overlay_patch(
     pa = patch_a_r[py0:py1, px0:px1].astype(np.float32) / 255.0
     pa = pa[:, :, None]
     # alpha blend sobre base (solo color, alpha se mantiene como max)
-    roi[:, :, 0:3] = np.clip((roi[:, :, 0:3].astype(np.float32) * (1.0 - pa)) + (pb.astype(np.float32) * pa), 0, 255).astype(np.uint8)
+    roi[:, :, 0:3] = np.clip(
+        (roi[:, :, 0:3].astype(np.float32) * (1.0 - pa)) + (pb.astype(np.float32) * pa), 0, 255
+    ).astype(np.uint8)
     roi[:, :, 3] = np.maximum(roi[:, :, 3], (pa[:, :, 0] * 255).astype(np.uint8))
     base_bgra[by0:by1, bx0:bx1] = roi
     return base_bgra
@@ -713,7 +723,9 @@ def _render_fm_template(
         edge = cv2.Canny(mask, 40, 120)
         edge = cv2.dilate(edge, np.ones((2, 2), np.uint8), iterations=1)
         for c in range(3):
-            canvas[:, :, c] = np.where(edge > 0, (canvas[:, :, c].astype(np.float32) * 0.55).astype(np.uint8), canvas[:, :, c])
+            canvas[:, :, c] = np.where(
+                edge > 0, (canvas[:, :, c].astype(np.float32) * 0.55).astype(np.uint8), canvas[:, :, c]
+            )
     except Exception:
         pass
     return canvas
@@ -794,7 +806,9 @@ def _warp_cutout_to_jersey_template(*, bgra_crop: np.ndarray, alpha: np.ndarray,
     )
 
     # 4) silueta final (clip).
-    poly = np.array([[int(round(ox + (x - minx) * scale)), int(round(oy + (y - miny) * scale))] for (x, y) in pts], dtype=np.int32)
+    poly = np.array(
+        [[int(round(ox + (x - minx) * scale)), int(round(oy + (y - miny) * scale))] for (x, y) in pts], dtype=np.int32
+    )
     jersey_mask = np.zeros((sz, sz), dtype=np.uint8)
     cv2.fillPoly(jersey_mask, [poly], 255)
     warped_a = cv2.bitwise_and(warped_a, jersey_mask)
@@ -802,7 +816,7 @@ def _warp_cutout_to_jersey_template(*, bgra_crop: np.ndarray, alpha: np.ndarray,
     # 5) unpremultiply
     out = np.zeros((sz, sz, 4), dtype=np.uint8)
     out[:, :, 3] = warped_a
-    wa = (warped_a.astype(np.float32) / 255.0)
+    wa = warped_a.astype(np.float32) / 255.0
     with np.errstate(divide="ignore", invalid="ignore"):
         for c in range(3):
             ch = warped_p[:, :, c].astype(np.float32)
@@ -831,7 +845,7 @@ def _infer_template_colors(bgr_crop: np.ndarray, alpha: np.ndarray) -> tuple:
     h, w = bgr_crop.shape[:2]
     if h < 8 or w < 8:
         return ("solid", (248, 250, 252), (15, 122, 53))
-    m = (alpha > 0)
+    m = alpha > 0
     if int(m.sum()) < 200:
         return ("solid", (248, 250, 252), (15, 122, 53))
     # ROI central para evitar mangas/fondo.
@@ -972,6 +986,7 @@ def generate_kit2d_tokens(
         if style not in {"striped", "solid", "half", "sash"}:
             style = "striped"
         master = _render_fm_template(size=1024, style=style, base_bgr=base_bgr, stripe_bgr=stripe_bgr)
+
         # Logos: o bien desde assets (logo_preset) o best-effort desde la propia foto.
         def _load_logo_asset(rel_path: str):
             try:
@@ -1008,11 +1023,17 @@ def generate_kit2d_tokens(
         # Posiciones aproximadas en el kit FM.
         try:
             if "crest" in logos:
-                master = _overlay_patch(master, logos["crest"][0], logos["crest"][1], cx=0.66, cy=0.29, target_w_ratio=0.14)
+                master = _overlay_patch(
+                    master, logos["crest"][0], logos["crest"][1], cx=0.66, cy=0.29, target_w_ratio=0.14
+                )
             if "brand" in logos:
-                master = _overlay_patch(master, logos["brand"][0], logos["brand"][1], cx=0.34, cy=0.29, target_w_ratio=0.12)
+                master = _overlay_patch(
+                    master, logos["brand"][0], logos["brand"][1], cx=0.34, cy=0.29, target_w_ratio=0.12
+                )
             if "sponsor" in logos:
-                master = _overlay_patch(master, logos["sponsor"][0], logos["sponsor"][1], cx=0.50, cy=0.53, target_w_ratio=0.36)
+                master = _overlay_patch(
+                    master, logos["sponsor"][0], logos["sponsor"][1], cx=0.50, cy=0.53, target_w_ratio=0.36
+                )
         except Exception:
             pass
 

@@ -187,8 +187,7 @@ export function LeftToolRail() {
         <div className="te-callout">
           <strong>Editor legacy protegido</strong>
           <span>
-            Abre la URL con <code>?editor2d=1</code> para activar la base Konva sin sustituir el
-            editor actual.
+            El motor Konva está activo por defecto en el editor profesional.
           </span>
         </div>
       ) : null}
@@ -218,6 +217,7 @@ export function LeftToolRail() {
               <button
                 key={item.id}
                 type="button"
+                data-testid={item.id === 'select' ? 'editor-tool-select' : undefined}
                 className={`te-tool-btn ${activeTool === item.id ? 'is-active' : ''}`}
                 onClick={() => {
                   setTool(item.id);

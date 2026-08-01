@@ -6,13 +6,15 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('football', '0112_analysisvideoreportitem_tactical_video'),
+        ("football", "0112_analysisvideoreportitem_tactical_video"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='group',
-            name='external_id',
-            field=models.CharField(blank=True, help_text='ID externo del grupo (Universo RFAF / LaPreferente)', max_length=80),
+            model_name="group",
+            name="external_id",
+            field=models.CharField(
+                blank=True, help_text="ID externo del grupo (Universo RFAF / LaPreferente)", max_length=80
+            ),
         ),
     ]

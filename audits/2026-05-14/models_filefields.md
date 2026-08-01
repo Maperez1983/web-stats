@@ -1,6 +1,6 @@
 # Inventario de datos — campos (generado)
 
-Total campos (subset): 275  
+Total campos (subset): 275
 File/Image: 26
 
 | model | field | type | upload_to | line |

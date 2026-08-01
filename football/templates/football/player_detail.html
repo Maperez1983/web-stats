@@ -849,27 +849,49 @@
             </div>
           </div>
 
-          {% if upcoming_sessions %}
+          {% if player_agenda_rows|default:upcoming_sessions %}
             <div style="margin-top:0.85rem; border-top:1px solid rgba(144,161,185,0.16); padding-top:0.75rem;">
-              <strong style="letter-spacing:0.12em; text-transform:uppercase; font-size:0.82rem;">Próximas sesiones (14 días)</strong>
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
+                <strong style="letter-spacing:0.12em; text-transform:uppercase; font-size:0.82rem;">Agenda próxima (14 días)</strong>
+                {% if not is_player_readonly %}
+                  <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+                    <a class="product-chip" href="{{ player_agenda_citation_url }}" style="text-decoration:none; {% if player_agenda_view_mode != 'detail' %}border-color:rgba(104,189,94,0.45); color:#d9f5d3;{% endif %}">Cita</a>
+                    <a class="product-chip" href="{{ player_agenda_detail_url }}" style="text-decoration:none; {% if player_agenda_view_mode == 'detail' %}border-color:rgba(104,189,94,0.45); color:#d9f5d3;{% endif %}">Detalle</a>
+                  </div>
+                {% endif %}
+              </div>
               <div style="margin-top:0.55rem; display:grid; gap:0.55rem;">
-                {% for s in upcoming_sessions %}
+                {% for s in player_agenda_rows|default:upcoming_sessions %}
                   <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:0.75rem; flex-wrap:wrap; border:1px solid rgba(144,161,185,0.18); border-radius:0.85rem; padding:0.65rem 0.75rem; background:rgba(15,23,42,0.32);">
                     <div style="min-width:240px;">
                       <div style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase;">
                         {{ s.date_label }}{% if s.time_label %} · {{ s.time_label }}{% endif %}
                       </div>
-                      <div class="subtle" style="margin-top:0.2rem;">{{ s.focus }}</div>
-                      <div class="subtle" style="margin-top:0.25rem;">
-                        {% if s.status_label %}
-                          Estado: <strong>{{ s.status_label }}</strong>
-                        {% else %}
-                          Estado: <strong>Sin confirmar</strong>
-                        {% endif %}
-                        {% if s.notes %} · {{ s.notes }}{% endif %}
+                      <div class="subtle" style="margin-top:0.2rem;">
+                        {{ s.title|default:s.focus }}
                       </div>
+                      {% if player_agenda_view_mode == 'detail' %}
+                        {% if s.meta %}
+                          <div class="subtle" style="margin-top:0.25rem;">{{ s.meta }}</div>
+                        {% endif %}
+                        {% if s.detail and s.detail != s.title and s.detail != s.focus %}
+                          <div class="subtle" style="margin-top:0.25rem;">{{ s.detail|truncatechars:220 }}</div>
+                        {% endif %}
+                      {% elif s.meta %}
+                        <div class="subtle" style="margin-top:0.25rem;">{{ s.meta }}</div>
+                      {% endif %}
+                      {% if s.kind == 'session' %}
+                        <div class="subtle" style="margin-top:0.25rem;">
+                          {% if s.status_label %}
+                            Estado: <strong>{{ s.status_label }}</strong>
+                          {% else %}
+                            Estado: <strong>Sin confirmar</strong>
+                          {% endif %}
+                          {% if s.notes %} · {{ s.notes }}{% endif %}
+                        </div>
+                      {% endif %}
                     </div>
-                    {% if can_self_mark_attendance %}
+                    {% if s.kind == 'session' and can_self_mark_attendance %}
                       <form method="post" action="{% url 'player-attendance-mark' %}" style="display:flex; gap:0.4rem; align-items:flex-end; flex-wrap:wrap;">
                         {% csrf_token %}
                         <input type="hidden" name="session_id" value="{{ s.id }}" />
@@ -889,6 +911,10 @@
                         </label>
                         <button class="btn" type="submit">Guardar</button>
                       </form>
+                    {% elif s.kind == 'match' and player_agenda_view_mode == 'detail' and s.url %}
+                      <a class="btn" href="{{ s.url }}">Abrir partido</a>
+                    {% elif s.kind == 'session' and player_agenda_view_mode == 'detail' and s.url %}
+                      <a class="btn" href="{{ s.url }}">Abrir sesión</a>
                     {% endif %}
                   </div>
                 {% endfor %}
@@ -2140,7 +2166,7 @@
               const labelHaloWidth = isLightTheme ? '0' : '3.25';
               const polygonStroke = isLightTheme ? 'rgba(15,23,42,0.22)' : 'rgba(226,232,240,0.22)';
               const dotStroke = isLightTheme ? 'rgba(15,23,42,0.18)' : 'rgba(2,6,23,0.65)';
-	
+
 		          const cx = 180;
 		          const cy = 180;
 		          const R = 120;

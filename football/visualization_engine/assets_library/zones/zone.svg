@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80">
+  <defs>
+    <linearGradient id="zoneAssetGradient" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="var(--asset-zone, rgba(183,255,94,.24))"/>
+      <stop offset="100%" stop-color="var(--asset-zone, rgba(183,255,94,.10))"/>
+    </linearGradient>
+  </defs>
+  <rect x="6" y="6" width="108" height="68" rx="14" fill="url(#zoneAssetGradient)" stroke="var(--asset-zone-stroke, #b7ff5e)" stroke-width="2.4" stroke-dasharray="10 10"/>
+</svg>

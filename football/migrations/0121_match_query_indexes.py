@@ -23,4 +23,3 @@ class Migration(migrations.Migration):
             index=models.Index(fields=["season", "date"], name="match_season_date_idx"),
         ),
     ]
-

@@ -6,18 +6,18 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('football', '0074_imported_session_document'),
+        ("football", "0074_imported_session_document"),
     ]
 
     operations = [
         migrations.RenameIndex(
-            model_name='importedsessiondocument',
-            new_name='football_im_team_id_e33841_idx',
-            old_name='football_imp_team_r_7fc531_idx',
+            model_name="importedsessiondocument",
+            new_name="football_im_team_id_e33841_idx",
+            old_name="football_imp_team_r_7fc531_idx",
         ),
         migrations.RenameIndex(
-            model_name='importedsessiondocument',
-            new_name='football_im_team_id_7e44c5_idx',
-            old_name='football_imp_team_r_a6aa9f_idx',
+            model_name="importedsessiondocument",
+            new_name="football_im_team_id_7e44c5_idx",
+            old_name="football_imp_team_r_a6aa9f_idx",
         ),
     ]

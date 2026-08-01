@@ -1,0 +1,23 @@
+{
+  "category": "flags",
+  "category_type": "equipment",
+  "default_family": "corner_flags",
+  "families": [
+    "corner_flags",
+    "assistant_flags"
+  ],
+  "variants": [
+    "default",
+    "club",
+    "premium"
+  ],
+  "fallback_asset": "flags/corner_flags/default",
+  "compatible_themes": [
+    "classic",
+    "broadcast",
+    "premium"
+  ],
+  "resolution_independent": true,
+  "theme_overrides_supported": true,
+  "assets": []
+}

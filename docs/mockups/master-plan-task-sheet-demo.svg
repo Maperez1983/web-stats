@@ -1,0 +1,80 @@
+<svg width="1600" height="1100" viewBox="0 0 1600 1100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="page" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#F6FBF8"/>
+      <stop offset="1" stop-color="#E9F5EF"/>
+    </linearGradient>
+    <linearGradient id="club" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#18A957"/>
+      <stop offset="1" stop-color="#0F7B42"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F6FAFC"/>
+    </linearGradient>
+    <filter id="drop" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#0F172A" flood-opacity="0.14"/>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="1100" fill="url(#page)"/>
+  <rect x="36" y="34" width="1528" height="1032" rx="34" fill="#F8FCFA" stroke="#D5E5DD" filter="url(#drop)"/>
+
+  <rect x="70" y="72" width="1460" height="170" rx="30" fill="url(#club)"/>
+  <circle cx="136" cy="157" r="42" fill="#F8FAFC" fill-opacity="0.94"/>
+  <path d="M123 139H149V177H123Z" fill="#18A957"/>
+  <text x="198" y="136" fill="#D6F7E4" font-size="20" font-family="Arial" font-weight="700">PLANIFICACIÓN DE TAREA</text>
+  <text x="198" y="188" fill="#FFFFFF" font-size="52" font-family="Arial" font-weight="700">Salida de balón ante presión alta</text>
+  <text x="198" y="220" fill="#DDF7E9" font-size="24" font-family="Arial">Benjamín B · Entrenador principal · 15/07/2026</text>
+  <rect x="1274" y="102" width="212" height="54" rx="27" fill="#F8FAFC" fill-opacity="0.94"/>
+  <text x="1321" y="136" fill="#0F7B42" font-size="24" font-family="Arial" font-weight="700">Formato Club</text>
+  <rect x="1274" y="170" width="212" height="38" rx="19" fill="#0D3E2A" fill-opacity="0.28"/>
+  <text x="1339" y="194" fill="#F8FAFC" font-size="18" font-family="Arial">Pizarra + IA</text>
+
+  <rect x="70" y="276" width="925" height="744" rx="28" fill="url(#card)" stroke="#D8E6DF"/>
+  <text x="102" y="326" fill="#11924C" font-size="20" font-family="Arial" font-weight="700">REPRESENTACIÓN GRÁFICA</text>
+  <text x="102" y="360" fill="#4A6476" font-size="18" font-family="Arial">Preview profesional generada desde el mismo documento táctico y recursos reales del sistema.</text>
+
+  <rect x="102" y="390" width="860" height="506" rx="30" fill="#0A1322"/>
+  <rect x="164" y="446" width="736" height="394" rx="24" fill="#2C8C48" stroke="#F8FAFC" stroke-opacity="0.35" stroke-width="3"/>
+  <rect x="216" y="490" width="132" height="130" fill="none" stroke="#F8FAFC" stroke-width="4"/>
+  <rect x="716" y="490" width="132" height="130" fill="none" stroke="#F8FAFC" stroke-width="4"/>
+  <circle cx="532" cy="643" r="62" stroke="#F8FAFC" stroke-width="4"/>
+  <line x1="532" y1="446" x2="532" y2="840" stroke="#F8FAFC" stroke-width="4"/>
+  <circle cx="435" cy="634" r="13" fill="#22C55E"/>
+  <circle cx="482" cy="591" r="13" fill="#22C55E"/>
+  <circle cx="514" cy="679" r="13" fill="#22C55E"/>
+  <circle cx="600" cy="599" r="13" fill="#EF4444"/>
+  <circle cx="644" cy="650" r="13" fill="#EF4444"/>
+  <circle cx="580" cy="709" r="13" fill="#EF4444"/>
+  <path d="M454 626C483 610 511 601 560 598" stroke="#38BDF8" stroke-width="6" stroke-linecap="round" stroke-dasharray="14 12"/>
+  <path d="M560 598C612 603 643 624 668 656" stroke="#F97316" stroke-width="6" stroke-linecap="round" stroke-dasharray="14 12"/>
+  <rect x="628" y="528" width="140" height="40" rx="20" fill="#0E2A25" stroke="#1CA37E"/>
+  <text x="650" y="554" fill="#E5FFF6" font-size="18" font-family="Arial" font-weight="700">Línea de presión</text>
+
+  <rect x="102" y="920" width="860" height="76" rx="24" fill="#EFF7F2" stroke="#D8E6DF"/>
+  <text x="130" y="964" fill="#0F172A" font-size="24" font-family="Arial" font-weight="700">Preview IA editorial</text>
+  <text x="372" y="964" fill="#526577" font-size="20" font-family="Arial">Compatible con PNG, PDF, PowerPoint y ficha Club/UEFA.</text>
+
+  <rect x="1026" y="276" width="504" height="350" rx="28" fill="url(#card)" stroke="#D8E6DF"/>
+  <text x="1058" y="326" fill="#11924C" font-size="20" font-family="Arial" font-weight="700">OBJETIVO PRINCIPAL</text>
+  <text x="1058" y="372" fill="#0F172A" font-size="36" font-family="Arial" font-weight="700">Atraer y superar la primera línea rival</text>
+  <text x="1058" y="426" fill="#516779" font-size="22" font-family="Arial">Progresar desde iniciación con tercer hombre y fijación del punta rival.</text>
+  <text x="1058" y="474" fill="#516779" font-size="22" font-family="Arial">Priorizar perfil corporal, apoyos diagonales y orientación del control.</text>
+
+  <rect x="1026" y="650" width="504" height="370" rx="28" fill="url(#card)" stroke="#D8E6DF"/>
+  <text x="1058" y="700" fill="#11924C" font-size="20" font-family="Arial" font-weight="700">FICHA TÉCNICA</text>
+  <text x="1058" y="748" fill="#0F172A" font-size="24" font-family="Arial" font-weight="700">Bloque</text>
+  <text x="1224" y="748" fill="#334155" font-size="24" font-family="Arial">Principal 1</text>
+  <text x="1058" y="790" fill="#0F172A" font-size="24" font-family="Arial" font-weight="700">Jugadores</text>
+  <text x="1224" y="790" fill="#334155" font-size="24" font-family="Arial">6v4 + 1 portero</text>
+  <text x="1058" y="832" fill="#0F172A" font-size="24" font-family="Arial" font-weight="700">Espacio</text>
+  <text x="1224" y="832" fill="#334155" font-size="24" font-family="Arial">40 x 32 m</text>
+  <text x="1058" y="874" fill="#0F172A" font-size="24" font-family="Arial" font-weight="700">Material</text>
+  <text x="1224" y="874" fill="#334155" font-size="24" font-family="Arial">8 conos · 2 porterías · 1 balón</text>
+  <text x="1058" y="916" fill="#0F172A" font-size="24" font-family="Arial" font-weight="700">Consigna</text>
+  <text x="1224" y="916" fill="#334155" font-size="24" font-family="Arial">Fijar, atraer, soltar y progresar</text>
+  <text x="1058" y="970" fill="#11924C" font-size="20" font-family="Arial" font-weight="700">VARIANTES IA</text>
+  <text x="1058" y="1006" fill="#516779" font-size="20" font-family="Arial">- Añadir comodín interior</text>
+  <text x="1318" y="1006" fill="#516779" font-size="20" font-family="Arial">- Limitar toques</text>
+</svg>

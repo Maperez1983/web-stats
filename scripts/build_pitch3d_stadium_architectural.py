@@ -3,7 +3,6 @@ from pathlib import Path
 
 import bpy
 
-
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "football/static/football/models/pitch3d/stadium_architectural_complete.glb"
 
@@ -130,14 +129,26 @@ def sloped_box(name, xmin, xmax, ymin, ymax, z0, z1, material, axis="y"):
         elif ymax < 0:
             top = (z1, z0)
         verts = [
-            (xmin, ymin, 0.0), (xmax, ymin, 0.0), (xmax, ymax, 0.0), (xmin, ymax, 0.0),
-            (xmin, ymin, top[0]), (xmax, ymin, top[0]), (xmax, ymax, top[1]), (xmin, ymax, top[1]),
+            (xmin, ymin, 0.0),
+            (xmax, ymin, 0.0),
+            (xmax, ymax, 0.0),
+            (xmin, ymax, 0.0),
+            (xmin, ymin, top[0]),
+            (xmax, ymin, top[0]),
+            (xmax, ymax, top[1]),
+            (xmin, ymax, top[1]),
         ]
     else:
         top = (z0, z1) if xmin > 0 else (z1, z0)
         verts = [
-            (xmin, ymin, 0.0), (xmax, ymin, 0.0), (xmax, ymax, 0.0), (xmin, ymax, 0.0),
-            (xmin, ymin, top[0]), (xmax, ymin, top[1]), (xmax, ymax, top[1]), (xmin, ymax, top[0]),
+            (xmin, ymin, 0.0),
+            (xmax, ymin, 0.0),
+            (xmax, ymax, 0.0),
+            (xmin, ymax, 0.0),
+            (xmin, ymin, top[0]),
+            (xmax, ymin, top[1]),
+            (xmax, ymax, top[1]),
+            (xmin, ymax, top[0]),
         ]
     faces = (
         (0, 1, 2, 3),
@@ -190,9 +201,29 @@ def add_seat_rows(prefix, ix, iy, radius, start, end, z0, rise, seat_mat, step_m
     for row in range(rows):
         d = start + row * step
         z = z0 + row * rise
-        flat_ring(f"{prefix}_seat_row_{row:02d}_TEAM_PRIMARY", ix + d, iy + d, ix + d + step * 0.78, iy + d + step * 0.78, radius + d, radius + d + step * 0.78, z + 0.06, seat_mat)
+        flat_ring(
+            f"{prefix}_seat_row_{row:02d}_TEAM_PRIMARY",
+            ix + d,
+            iy + d,
+            ix + d + step * 0.78,
+            iy + d + step * 0.78,
+            radius + d,
+            radius + d + step * 0.78,
+            z + 0.06,
+            seat_mat,
+        )
         if row % 5 == 0:
-            flat_ring(f"{prefix}_thin_concrete_nosing_{row:02d}", ix + d + step * 0.82, iy + d + step * 0.82, ix + d + step * 0.91, iy + d + step * 0.91, radius + d + step * 0.82, radius + d + step * 0.91, z + 0.02, step_mat)
+            flat_ring(
+                f"{prefix}_thin_concrete_nosing_{row:02d}",
+                ix + d + step * 0.82,
+                iy + d + step * 0.82,
+                ix + d + step * 0.91,
+                iy + d + step * 0.91,
+                radius + d + step * 0.82,
+                radius + d + step * 0.91,
+                z + 0.02,
+                step_mat,
+            )
 
 
 def add_architectural_stadium():
@@ -227,13 +258,33 @@ def add_architectural_stadium():
     cube("arch_east_lower_backfill_plinth", (86.5, 0, 4.1), (20.0, 105.0, 8.0), dark_concrete, bevel=0.03)
     cube("arch_west_lower_backfill_plinth", (-86.5, 0, 4.1), (20.0, 105.0, 8.0), dark_concrete, bevel=0.03)
     sloped_box("arch_north_visible_grandstand_solid_bowl", -82.0, 82.0, 37.0, 82.0, 1.2, 18.4, dark_concrete, axis="y")
-    sloped_box("arch_south_visible_grandstand_solid_bowl", -82.0, 82.0, -82.0, -37.0, 1.2, 18.4, dark_concrete, axis="y")
+    sloped_box(
+        "arch_south_visible_grandstand_solid_bowl", -82.0, 82.0, -82.0, -37.0, 1.2, 18.4, dark_concrete, axis="y"
+    )
     sloped_box("arch_east_visible_grandstand_solid_bowl", 57.0, 101.0, -53.0, 53.0, 1.2, 18.2, dark_concrete, axis="x")
-    sloped_box("arch_west_visible_grandstand_solid_bowl", -101.0, -57.0, -53.0, 53.0, 1.2, 18.2, dark_concrete, axis="x")
-    sloped_panel("arch_north_completed_green_seating_field_TEAM_PRIMARY", -74.0, 74.0, 40.0, 78.0, 2.2, 18.65, primary, axis="y")
-    sloped_panel("arch_south_completed_green_seating_field_TEAM_PRIMARY", -74.0, 74.0, -78.0, -40.0, 2.2, 18.65, primary, axis="y")
-    sloped_panel("arch_east_completed_green_seating_field_TEAM_PRIMARY", 60.0, 97.0, -45.0, 45.0, 2.2, 18.45, primary, axis="x")
-    sloped_panel("arch_west_completed_green_seating_field_TEAM_PRIMARY", -97.0, -60.0, -45.0, 45.0, 2.2, 18.45, primary, axis="x")
+    sloped_box(
+        "arch_west_visible_grandstand_solid_bowl", -101.0, -57.0, -53.0, 53.0, 1.2, 18.2, dark_concrete, axis="x"
+    )
+    sloped_panel(
+        "arch_north_completed_green_seating_field_TEAM_PRIMARY", -74.0, 74.0, 40.0, 78.0, 2.2, 18.65, primary, axis="y"
+    )
+    sloped_panel(
+        "arch_south_completed_green_seating_field_TEAM_PRIMARY",
+        -74.0,
+        74.0,
+        -78.0,
+        -40.0,
+        2.2,
+        18.65,
+        primary,
+        axis="y",
+    )
+    sloped_panel(
+        "arch_east_completed_green_seating_field_TEAM_PRIMARY", 60.0, 97.0, -45.0, 45.0, 2.2, 18.45, primary, axis="x"
+    )
+    sloped_panel(
+        "arch_west_completed_green_seating_field_TEAM_PRIMARY", -97.0, -60.0, -45.0, 45.0, 2.2, 18.45, primary, axis="x"
+    )
     for x in (-54, -30, -6, 18, 42, 66):
         sloped_panel(f"arch_north_concrete_aisle_cut_{x}", x, x + 4.2, 40.0, 78.0, 2.35, 18.78, concrete, axis="y")
         sloped_panel(f"arch_south_concrete_aisle_cut_{x}", x, x + 4.2, -78.0, -40.0, 2.35, 18.78, concrete, axis="y")
@@ -261,29 +312,109 @@ def add_architectural_stadium():
     # Extra green fields at corners and over the tunnel to read as a closed bowl from the tactical camera.
     for sx in (-1, 1):
         for sy in (-1, 1):
-            cube(f"arch_corner_lower_mass_{sx}_{sy}", (sx * 75.0, sy * 56.0, 4.2), (30.0, 30.0, 8.2), dark_concrete, bevel=0.04)
-            cube(f"arch_corner_deep_foundation_block_{sx}_{sy}", (sx * 88.0, sy * 70.0, 7.2), (27.0, 27.0, 14.0), dark_concrete, bevel=0.035)
-            cube(f"arch_corner_rear_facade_wrap_x_{sx}_{sy}_TEAM_ACCENT", (sx * 94.5, sy * 70.0, 12.5), (4.0, 30.0, 15.5), accent, bevel=0.025)
-            cube(f"arch_corner_rear_facade_wrap_y_{sx}_{sy}_TEAM_ACCENT", (sx * 82.0, sy * 80.5, 12.5), (30.0, 4.0, 15.5), accent, bevel=0.025)
-            cube(f"arch_corner_lower_concourse_slab_{sx}_{sy}", (sx * 76.5, sy * 59.0, 8.4), (39.0, 35.0, 0.85), concrete, bevel=0.018)
-            cube(f"arch_corner_upper_concourse_slab_{sx}_{sy}", (sx * 86.5, sy * 69.5, 17.2), (34.0, 31.0, 0.85), concrete, bevel=0.018)
-            cube(f"arch_corner_lower_seat_plate_TEAM_PRIMARY_{sx}_{sy}", (sx * 68.5, sy * 50.5, 7.9), (29.0, 23.0, 0.48), primary, (-0.13 * sy, 0.12 * sx, 0), bevel=0.015)
-            cube(f"arch_corner_upper_seat_plate_TEAM_PRIMARY_{sx}_{sy}", (sx * 84.0, sy * 66.0, 17.9), (25.0, 23.0, 0.50), primary, (-0.18 * sy, 0.14 * sx, 0), bevel=0.015)
-            cube(f"arch_corner_outer_wall_TEAM_ACCENT_{sx}_{sy}", (sx * 91.0, sy * 72.0, 12.0), (12.0, 1.0, 11.0), accent, bevel=0.02)
-            cube(f"arch_corner_side_wall_TEAM_ACCENT_{sx}_{sy}", (sx * 96.0, sy * 62.0, 12.0), (1.0, 18.0, 11.0), accent, bevel=0.02)
+            cube(
+                f"arch_corner_lower_mass_{sx}_{sy}",
+                (sx * 75.0, sy * 56.0, 4.2),
+                (30.0, 30.0, 8.2),
+                dark_concrete,
+                bevel=0.04,
+            )
+            cube(
+                f"arch_corner_deep_foundation_block_{sx}_{sy}",
+                (sx * 88.0, sy * 70.0, 7.2),
+                (27.0, 27.0, 14.0),
+                dark_concrete,
+                bevel=0.035,
+            )
+            cube(
+                f"arch_corner_rear_facade_wrap_x_{sx}_{sy}_TEAM_ACCENT",
+                (sx * 94.5, sy * 70.0, 12.5),
+                (4.0, 30.0, 15.5),
+                accent,
+                bevel=0.025,
+            )
+            cube(
+                f"arch_corner_rear_facade_wrap_y_{sx}_{sy}_TEAM_ACCENT",
+                (sx * 82.0, sy * 80.5, 12.5),
+                (30.0, 4.0, 15.5),
+                accent,
+                bevel=0.025,
+            )
+            cube(
+                f"arch_corner_lower_concourse_slab_{sx}_{sy}",
+                (sx * 76.5, sy * 59.0, 8.4),
+                (39.0, 35.0, 0.85),
+                concrete,
+                bevel=0.018,
+            )
+            cube(
+                f"arch_corner_upper_concourse_slab_{sx}_{sy}",
+                (sx * 86.5, sy * 69.5, 17.2),
+                (34.0, 31.0, 0.85),
+                concrete,
+                bevel=0.018,
+            )
+            cube(
+                f"arch_corner_lower_seat_plate_TEAM_PRIMARY_{sx}_{sy}",
+                (sx * 68.5, sy * 50.5, 7.9),
+                (29.0, 23.0, 0.48),
+                primary,
+                (-0.13 * sy, 0.12 * sx, 0),
+                bevel=0.015,
+            )
+            cube(
+                f"arch_corner_upper_seat_plate_TEAM_PRIMARY_{sx}_{sy}",
+                (sx * 84.0, sy * 66.0, 17.9),
+                (25.0, 23.0, 0.50),
+                primary,
+                (-0.18 * sy, 0.14 * sx, 0),
+                bevel=0.015,
+            )
+            cube(
+                f"arch_corner_outer_wall_TEAM_ACCENT_{sx}_{sy}",
+                (sx * 91.0, sy * 72.0, 12.0),
+                (12.0, 1.0, 11.0),
+                accent,
+                bevel=0.02,
+            )
+            cube(
+                f"arch_corner_side_wall_TEAM_ACCENT_{sx}_{sy}",
+                (sx * 96.0, sy * 62.0, 12.0),
+                (1.0, 18.0, 11.0),
+                accent,
+                bevel=0.02,
+            )
 
     # Main stand tunnel rebuilt as a compact rounded mouth with stepped seating around it.
     cube("arch_players_tunnel_entry_plaza", (0, -39.9, 0.20), (18.0, 2.8, 0.24), concrete, bevel=0.012)
     cube("arch_players_tunnel_ramp_floor", (0, -43.8, 0.32), (6.6, 7.4, 0.22), black, bevel=0.008)
-    cube("arch_players_tunnel_left_wall", (-3.45, -43.8, 1.30), (0.34, 7.2, 2.10), dark_concrete, (0.10, 0, 0), bevel=0.012)
-    cube("arch_players_tunnel_right_wall", (3.45, -43.8, 1.30), (0.34, 7.2, 2.10), dark_concrete, (0.10, 0, 0), bevel=0.012)
+    cube(
+        "arch_players_tunnel_left_wall",
+        (-3.45, -43.8, 1.30),
+        (0.34, 7.2, 2.10),
+        dark_concrete,
+        (0.10, 0, 0),
+        bevel=0.012,
+    )
+    cube(
+        "arch_players_tunnel_right_wall",
+        (3.45, -43.8, 1.30),
+        (0.34, 7.2, 2.10),
+        dark_concrete,
+        (0.10, 0, 0),
+        bevel=0.012,
+    )
     cube("arch_players_tunnel_void", (0, -40.0, 2.05), (6.0, 1.0, 3.2), black, bevel=0.02)
-    bpy.ops.mesh.primitive_cylinder_add(vertices=48, radius=3.55, depth=6.8, location=(0, -40.55, 3.45), rotation=(0, math.pi / 2, 0))
+    bpy.ops.mesh.primitive_cylinder_add(
+        vertices=48, radius=3.55, depth=6.8, location=(0, -40.55, 3.45), rotation=(0, math.pi / 2, 0)
+    )
     tunnel_shell = bpy.context.object
     tunnel_shell.name = "arch_players_tunnel_rounded_shell"
     tunnel_shell.data.materials.append(concrete)
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-    bpy.ops.mesh.primitive_cylinder_add(vertices=48, radius=3.18, depth=6.0, location=(0, -40.75, 3.28), rotation=(0, math.pi / 2, 0))
+    bpy.ops.mesh.primitive_cylinder_add(
+        vertices=48, radius=3.18, depth=6.0, location=(0, -40.75, 3.28), rotation=(0, math.pi / 2, 0)
+    )
     tunnel_inner = bpy.context.object
     tunnel_inner.name = "arch_players_tunnel_rounded_inner_void"
     tunnel_inner.data.materials.append(black)
@@ -291,13 +422,27 @@ def add_architectural_stadium():
     cube("arch_players_tunnel_rounded_trim_TEAM_ACCENT", (0, -39.55, 6.20), (8.0, 0.52, 0.18), accent, bevel=0.012)
     cube("arch_players_tunnel_rounded_led", (0, -39.48, 5.92), (6.6, 0.14, 0.08), led, bevel=0.004)
     for sx in (-1, 1):
-        cube(f"arch_players_tunnel_side_wing_{sx}", (sx * 5.3, -41.9, 1.22), (3.0, 4.8, 2.0), concrete, (0.10, -0.22 * sx, 0), bevel=0.015)
+        cube(
+            f"arch_players_tunnel_side_wing_{sx}",
+            (sx * 5.3, -41.9, 1.22),
+            (3.0, 4.8, 2.0),
+            concrete,
+            (0.10, -0.22 * sx, 0),
+            bevel=0.015,
+        )
     for row in range(8):
         z = 1.1 + row * 0.68
         y = -41.2 - row * 1.20
         width = 17.6 + row * 2.1
         depth = 1.18
-        cube(f"arch_tunnel_lower_step_{row:02d}", (0, y, z), (width, depth, 0.22), concrete, (0.11 + row * 0.012, 0, 0), bevel=0.008)
+        cube(
+            f"arch_tunnel_lower_step_{row:02d}",
+            (0, y, z),
+            (width, depth, 0.22),
+            concrete,
+            (0.11 + row * 0.012, 0, 0),
+            bevel=0.008,
+        )
         for side in (-1, 1):
             x_positions = [4.8, 6.1, 7.4, 8.7]
             if row >= 3:
@@ -325,7 +470,14 @@ def add_architectural_stadium():
     for row in range(5):
         z = 7.2 + row * 0.96
         y = -52.4 - row * 1.44
-        cube(f"arch_tunnel_upper_step_{row:02d}", (0, y, z), (28.0 + row * 4.0, 1.40, 0.24), concrete, (0.20 + row * 0.014, 0, 0), bevel=0.008)
+        cube(
+            f"arch_tunnel_upper_step_{row:02d}",
+            (0, y, z),
+            (28.0 + row * 4.0, 1.40, 0.24),
+            concrete,
+            (0.20 + row * 0.014, 0, 0),
+            bevel=0.008,
+        )
         for side in (-1, 1):
             for idx, base_x in enumerate((5.8, 7.2, 8.6, 10.0, 11.4, 12.8, 14.2)):
                 sx = side * base_x
@@ -350,13 +502,41 @@ def add_architectural_stadium():
     for x in (-54, -36, -18, 0, 18, 36, 54):
         for side, y, sign in (("north", 40.1, 1), ("south", -40.1, -1)):
             cube(f"arch_{side}_lower_vomitory_{x}", (x, y, 3.8), (4.2, 0.70, 2.7), black, bevel=0.015)
-            cube(f"arch_{side}_upper_stair_aisle_{x}", (x, y + sign * 15.0, 10.5), (1.28, 28.0, 0.30), concrete, (-0.10 * sign, 0, 0), bevel=0.008)
-            cube(f"arch_{side}_aisle_handrail_l_{x}", (x - 0.82, y + sign * 15.0, 11.0), (0.07, 26.0, 0.72), metal, (-0.10 * sign, 0, 0), bevel=0.004)
-            cube(f"arch_{side}_aisle_handrail_r_{x}", (x + 0.82, y + sign * 15.0, 11.0), (0.07, 26.0, 0.72), metal, (-0.10 * sign, 0, 0), bevel=0.004)
+            cube(
+                f"arch_{side}_upper_stair_aisle_{x}",
+                (x, y + sign * 15.0, 10.5),
+                (1.28, 28.0, 0.30),
+                concrete,
+                (-0.10 * sign, 0, 0),
+                bevel=0.008,
+            )
+            cube(
+                f"arch_{side}_aisle_handrail_l_{x}",
+                (x - 0.82, y + sign * 15.0, 11.0),
+                (0.07, 26.0, 0.72),
+                metal,
+                (-0.10 * sign, 0, 0),
+                bevel=0.004,
+            )
+            cube(
+                f"arch_{side}_aisle_handrail_r_{x}",
+                (x + 0.82, y + sign * 15.0, 11.0),
+                (0.07, 26.0, 0.72),
+                metal,
+                (-0.10 * sign, 0, 0),
+                bevel=0.004,
+            )
     for y in (-36, -18, 0, 18, 36):
         for side, x, sign in (("east", 58.1, 1), ("west", -58.1, -1)):
             cube(f"arch_{side}_lower_vomitory_{y}", (x, y, 3.8), (0.70, 4.2, 2.7), black, bevel=0.015)
-            cube(f"arch_{side}_upper_stair_aisle_{y}", (x + sign * 15.0, y, 10.5), (28.0, 1.28, 0.30), concrete, (0, -0.10 * sign, 0), bevel=0.008)
+            cube(
+                f"arch_{side}_upper_stair_aisle_{y}",
+                (x + sign * 15.0, y, 10.5),
+                (28.0, 1.28, 0.30),
+                concrete,
+                (0, -0.10 * sign, 0),
+                bevel=0.008,
+            )
 
     # Pitchside wall and crisp LED advertising ribbon.
     flat_ring("arch_black_pitch_retaining_wall", 54.5, 36.5, 56.1, 38.1, 4.5, 6.1, 1.10, black)
@@ -395,7 +575,9 @@ def add_architectural_stadium():
     # Simple scoreboard and crest placeholder, both recolorable from the app palette.
     cube("arch_main_scoreboard_frame", (0, 58.0, 15.8), (17.0, 0.45, 5.4), black, bevel=0.03)
     cube("arch_main_scoreboard_face_FACE_TEAM_ACCENT", (0, 57.7, 15.8), (15.3, 0.08, 4.3), led, bevel=0.01)
-    bpy.ops.mesh.primitive_cylinder_add(vertices=96, radius=3.5, depth=0.18, location=(0, 57.5, 19.7), rotation=(math.pi / 2, 0, 0))
+    bpy.ops.mesh.primitive_cylinder_add(
+        vertices=96, radius=3.5, depth=0.18, location=(0, 57.5, 19.7), rotation=(math.pi / 2, 0, 0)
+    )
     crest = bpy.context.object
     crest.name = "arch_round_roof_crest_TEAM_PRIMARY"
     crest.data.materials.append(primary_alt)

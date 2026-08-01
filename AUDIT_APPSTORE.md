@@ -168,4 +168,3 @@ Esto es importante porque en la app real **no debe existir ningún botón** que 
 - Tareas interactivas desde vídeo: extracción asistida (semi-automática) de fases + generación de animación de chapas.
 - Analítica avanzada: constructor de KPIs a partir de “acciones registrables” (cualquier evento → KPI).
 - Video analysis Pro: plantillas por rival, paquetes para staff, y librería compartida por partido.
-

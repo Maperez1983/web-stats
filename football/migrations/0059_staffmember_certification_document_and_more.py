@@ -6,38 +6,43 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('football', '0058_staffmember'),
+        ("football", "0058_staffmember"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='staffmember',
-            name='certification_document',
-            field=models.FileField(blank=True, help_text='PDF/JPG/PNG de titulación (opcional).', null=True, upload_to='staff/certifications/'),
+            model_name="staffmember",
+            name="certification_document",
+            field=models.FileField(
+                blank=True,
+                help_text="PDF/JPG/PNG de titulación (opcional).",
+                null=True,
+                upload_to="staff/certifications/",
+            ),
         ),
         migrations.AddField(
-            model_name='staffmember',
-            name='certification_expires_at',
-            field=models.DateField(blank=True, help_text='Caducidad titulación (opcional).', null=True),
+            model_name="staffmember",
+            name="certification_expires_at",
+            field=models.DateField(blank=True, help_text="Caducidad titulación (opcional).", null=True),
         ),
         migrations.AddField(
-            model_name='staffmember',
-            name='certification_updated_at',
+            model_name="staffmember",
+            name="certification_updated_at",
             field=models.DateTimeField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='staffmember',
-            name='dni',
-            field=models.CharField(blank=True, help_text='Documento de identidad (opcional).', max_length=24),
+            model_name="staffmember",
+            name="dni",
+            field=models.CharField(blank=True, help_text="Documento de identidad (opcional).", max_length=24),
         ),
         migrations.AddField(
-            model_name='staffmember',
-            name='federation_license_expires_at',
-            field=models.DateField(blank=True, help_text='Caducidad licencia federativa (opcional).', null=True),
+            model_name="staffmember",
+            name="federation_license_expires_at",
+            field=models.DateField(blank=True, help_text="Caducidad licencia federativa (opcional).", null=True),
         ),
         migrations.AddField(
-            model_name='staffmember',
-            name='federation_license_number',
-            field=models.CharField(blank=True, help_text='Nº licencia federativa (opcional).', max_length=80),
+            model_name="staffmember",
+            name="federation_license_number",
+            field=models.CharField(blank=True, help_text="Nº licencia federativa (opcional).", max_length=80),
         ),
     ]

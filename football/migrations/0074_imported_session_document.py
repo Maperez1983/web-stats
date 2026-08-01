@@ -1,6 +1,6 @@
+import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models
-import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
@@ -14,7 +14,14 @@ class Migration(migrations.Migration):
             name="ImportedSessionDocument",
             fields=[
                 ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
-                ("repository", models.CharField(choices=[("traditional", "Clásicas"), ("interactive", "Interactivas")], default="traditional", max_length=20)),
+                (
+                    "repository",
+                    models.CharField(
+                        choices=[("traditional", "Clásicas"), ("interactive", "Interactivas")],
+                        default="traditional",
+                        max_length=20,
+                    ),
+                ),
                 ("title", models.CharField(max_length=180)),
                 ("session_date", models.DateField(blank=True, null=True)),
                 ("pdf", models.FileField(upload_to="imported-sessions-pdf/")),

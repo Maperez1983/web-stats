@@ -68,7 +68,7 @@ export function BottomTimeline() {
     }
     lastRecreationTokenRef.current = recreationToken;
     setTimelineTime(0);
-    setPlayback((state) => ({ ...state, playing: true, loop: true }));
+    setPlayback((state) => ({ ...state, playing: false, loop: false }));
   }, [recreationToken, setTimelineTime]);
 
   useEffect(() => {

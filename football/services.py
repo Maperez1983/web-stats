@@ -10,58 +10,64 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import parse_qs, quote_plus, urljoin, urlparse
 
-from PIL import Image
 import pytesseract
 import requests
 from bs4 import BeautifulSoup
 from django.conf import settings
 from django.template.defaultfilters import slugify
-from openpyxl import load_workbook
 from django.utils import timezone
+from openpyxl import load_workbook
+from PIL import Image
 
 from football.models import Competition, Group, Season, Team, TeamStanding
 
-
-USER_AGENT = 'webstats-crm/1.0'
-DOWNLOAD_TEXT_PATTERN = re.compile(r'descarg', re.IGNORECASE)
-DOWNLOAD_EXTENSIONS = ('.csv', '.xls', '.xlsx', '.png')
-PLAYER_ROSTER_PATH = Path(settings.BASE_DIR) / 'data' / 'input' / 'player-roster.html'
-MATCH_LISTS_PATH = Path(settings.BASE_DIR) / 'data' / 'excel' / 'FICHA_PARTIDO.xlsx'
+USER_AGENT = "webstats-crm/1.0"
+DOWNLOAD_TEXT_PATTERN = re.compile(r"descarg", re.IGNORECASE)
+DOWNLOAD_EXTENSIONS = (".csv", ".xls", ".xlsx", ".png")
+PLAYER_ROSTER_PATH = Path(settings.BASE_DIR) / "data" / "input" / "player-roster.html"
+MATCH_LISTS_PATH = Path(settings.BASE_DIR) / "data" / "excel" / "FICHA_PARTIDO.xlsx"
 PREFERENTE_USER_AGENT = (
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
-    'AppleWebKit/537.36 (KHTML, like Gecko) '
-    'Chrome/123.0.0.0 Safari/537.36'
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/123.0.0.0 Safari/537.36"
 )
-PREFERENTE_BASE_URL = 'https://www.lapreferente.com/'
-ROSTER_REFRESH_SECONDS = int(getattr(settings, 'PREFERENTE_ROSTER_REFRESH_SECONDS', 6 * 3600))
+PREFERENTE_BASE_URL = "https://www.lapreferente.com/"
+ROSTER_REFRESH_SECONDS = int(getattr(settings, "PREFERENTE_ROSTER_REFRESH_SECONDS", 6 * 3600))
 _PREFERENTE_SESSION: Optional[requests.Session] = None
 
 
 def _validate_external_fetch_url(url: str, *, allowed_hosts: Optional[set[str]] = None) -> str:
-    raw = str(url or '').strip()
+    raw = str(url or "").strip()
     parsed = urlparse(raw)
-    if parsed.scheme not in {'http', 'https'}:
-        raise ValueError('URL externa no permitida: esquema inválido.')
-    host = str(parsed.hostname or '').strip().lower()
+    if parsed.scheme not in {"http", "https"}:
+        raise ValueError("URL externa no permitida: esquema inválido.")
+    host = str(parsed.hostname or "").strip().lower()
     if not host:
-        raise ValueError('URL externa no permitida: host vacío.')
+        raise ValueError("URL externa no permitida: host vacío.")
     if allowed_hosts and host not in allowed_hosts:
-        raise ValueError('URL externa no permitida: host fuera de allowlist.')
+        raise ValueError("URL externa no permitida: host fuera de allowlist.")
 
     def _reject_ip(value: str) -> None:
         try:
             ip = ipaddress.ip_address(value)
         except ValueError:
             return
-        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved or ip.is_unspecified:
-            raise ValueError('URL externa no permitida: IP privada o reservada.')
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_multicast
+            or ip.is_reserved
+            or ip.is_unspecified
+        ):
+            raise ValueError("URL externa no permitida: IP privada o reservada.")
 
     _reject_ip(host)
     if not allowed_hosts:
         try:
             infos = socket.getaddrinfo(host, None, proto=socket.IPPROTO_TCP)
         except socket.gaierror as exc:
-            raise ValueError('URL externa no permitida: host no resoluble.') from exc
+            raise ValueError("URL externa no permitida: host no resoluble.") from exc
         for info in infos:
             try:
                 _reject_ip(str(info[4][0]))
@@ -79,19 +85,19 @@ def _get_preferente_session() -> requests.Session:
 
 def normalize_header(value):
     if value is None:
-        return ''
+        return ""
     text = str(value).strip().lower()
-    return text.replace(' ', '_')
+    return text.replace(" ", "_")
 
 
 def _preferente_headers(referer: str = PREFERENTE_BASE_URL) -> dict:
     return {
-        'User-Agent': PREFERENTE_USER_AGENT,
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-        'Referer': referer,
+        "User-Agent": PREFERENTE_USER_AGENT,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+        "Referer": referer,
     }
 
 
@@ -101,7 +107,7 @@ def _fetch_preferente_response(team_url: str, timeout: int = 25) -> requests.Res
     """
     team_url = _validate_external_fetch_url(
         team_url,
-        allowed_hosts={'lapreferente.com', 'www.lapreferente.com'},
+        allowed_hosts={"lapreferente.com", "www.lapreferente.com"},
     )
     session = _get_preferente_session()
 
@@ -126,17 +132,17 @@ def _fetch_preferente_response(team_url: str, timeout: int = 25) -> requests.Res
 
 def _extract_preferente_team_id(team_url: str) -> str:
     if not team_url:
-        return ''
+        return ""
     parsed = urlparse(team_url)
-    query = parse_qs(parsed.query or '')
-    team_id = (query.get('IDequipo') or query.get('idequipo') or [''])[0]
-    team_id = str(team_id or '').strip()
+    query = parse_qs(parsed.query or "")
+    team_id = (query.get("IDequipo") or query.get("idequipo") or [""])[0]
+    team_id = str(team_id or "").strip()
     if team_id.isdigit():
         return team_id
-    match = re.search(r'\bE(\d+)C\d+\b', parsed.path or '', flags=re.IGNORECASE)
+    match = re.search(r"\bE(\d+)C\d+\b", parsed.path or "", flags=re.IGNORECASE)
     if match:
-        return str(match.group(1) or '').strip()
-    return ''
+        return str(match.group(1) or "").strip()
+    return ""
 
 
 def _fetch_preferente_team_roster_via_json(team_id: str, timeout: int = 20) -> list[dict]:
@@ -156,7 +162,7 @@ def _fetch_preferente_team_roster_via_json(team_id: str, timeout: int = 20) -> l
 
     results_by_id: dict[str, dict] = {}
     # Con vocales es suficiente para nombres en español y minimiza peticiones.
-    queries = ['a', 'e', 'i', 'o', 'u']
+    queries = ["a", "e", "i", "o", "u"]
     for q in queries:
         response = None
         page = 1
@@ -164,8 +170,8 @@ def _fetch_preferente_team_roster_via_json(team_id: str, timeout: int = 20) -> l
         while more and page <= 8:  # guardrail
             try:
                 response = session.get(
-                    urljoin(PREFERENTE_BASE_URL, 'json/buscaJugador.php'),
-                    params={'q': q, 'IDequipo': str(team_id), 'page': str(page)},
+                    urljoin(PREFERENTE_BASE_URL, "json/buscaJugador.php"),
+                    params={"q": q, "IDequipo": str(team_id), "page": str(page)},
                     headers=_preferente_headers(PREFERENTE_BASE_URL),
                     timeout=timeout,
                 )
@@ -180,8 +186,8 @@ def _fetch_preferente_team_roster_via_json(team_id: str, timeout: int = 20) -> l
                     pass
                 try:
                     response = session.get(
-                        urljoin(PREFERENTE_BASE_URL, 'json/buscaJugador.php'),
-                        params={'q': q, 'IDequipo': str(team_id), 'page': str(page)},
+                        urljoin(PREFERENTE_BASE_URL, "json/buscaJugador.php"),
+                        params={"q": q, "IDequipo": str(team_id), "page": str(page)},
                         headers=_preferente_headers(PREFERENTE_BASE_URL),
                         timeout=timeout,
                     )
@@ -195,32 +201,32 @@ def _fetch_preferente_team_roster_via_json(team_id: str, timeout: int = 20) -> l
                 payload = response.json()
             except Exception:
                 break
-            items = payload.get('results') if isinstance(payload, dict) else None
+            items = payload.get("results") if isinstance(payload, dict) else None
             if not isinstance(items, list) or not items:
                 break
             for item in items:
                 if not isinstance(item, dict):
                     continue
-                player_id = str(item.get('id') or '').strip()
-                name = str(item.get('jugador') or '').strip()
+                player_id = str(item.get("id") or "").strip()
+                name = str(item.get("jugador") or "").strip()
                 if not player_id or not name:
                     continue
                 results_by_id[player_id] = {
-                    'name': name,
-                    'position': '',
-                    'age': 0,
-                    'pc': 0,
-                    'pj': 0,
-                    'pt': 0,
-                    'minutes': 0,
-                    'goals': 0,
-                    'yellow_cards': 0,
-                    'red_cards': 0,
+                    "name": name,
+                    "position": "",
+                    "age": 0,
+                    "pc": 0,
+                    "pj": 0,
+                    "pt": 0,
+                    "minutes": 0,
+                    "goals": 0,
+                    "yellow_cards": 0,
+                    "red_cards": 0,
                 }
-            pagination = payload.get('pagination') if isinstance(payload, dict) else None
-            more = bool((pagination or {}).get('more')) if isinstance(pagination, dict) else False
+            pagination = payload.get("pagination") if isinstance(payload, dict) else None
+            more = bool((pagination or {}).get("more")) if isinstance(pagination, dict) else False
             page += 1
-        if getattr(response, 'status_code', None) in {403, 429}:
+        if getattr(response, "status_code", None) in {403, 429}:
             # si nos bloquean aquí, no insistimos con más queries
             break
     return list(results_by_id.values())
@@ -229,32 +235,40 @@ def _fetch_preferente_team_roster_via_json(team_id: str, timeout: int = 20) -> l
 def ensure_league_structure(competition_name, season_name, group_name):
     competition, _ = Competition.objects.get_or_create(
         name=competition_name,
-        defaults={'slug': slugify(competition_name), 'region': 'Andalucía', 'level': 5},
+        defaults={"slug": slugify(competition_name), "region": "Andalucía", "level": 5},
     )
     season, _ = Season.objects.get_or_create(
         competition=competition,
         name=season_name,
-        defaults={'is_current': True},
+        defaults={"is_current": True},
     )
     group_slug = slugify(group_name)
     group = Group.objects.filter(season=season, slug=group_slug).first()
     if not group:
-        group = (
-            Group.objects.filter(season=season, name__iexact=group_name)
-            .order_by('id')
-            .first()
-        )
+        group = Group.objects.filter(season=season, name__iexact=group_name).order_by("id").first()
     if not group:
         group = Group.objects.create(season=season, slug=group_slug, name=group_name)
     return competition, season, group
 
 
-def update_team_standings(rows, source_label, source_url, competition_name='División de Honor Andaluza', season_name='2025/2026', group_name='Grupo 2'):
-    allow_single_club_fallback = str(os.getenv('ALLOW_SINGLE_CLUB_FALLBACK', '0') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+def update_team_standings(
+    rows,
+    source_label,
+    source_url,
+    competition_name="División de Honor Andaluza",
+    season_name="2025/2026",
+    group_name="Grupo 2",
+):
+    allow_single_club_fallback = str(os.getenv("ALLOW_SINGLE_CLUB_FALLBACK", "0") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
     _, season, group = ensure_league_structure(competition_name, season_name, group_name)
     updated_slugs = set()
     for idx, row in enumerate(rows, start=1):
-        team_name = row.get('team') or row.get('equipo')
+        team_name = row.get("team") or row.get("equipo")
         if not team_name:
             continue
         team = _resolve_team_for_standings(team_name, group)
@@ -262,55 +276,55 @@ def update_team_standings(rows, source_label, source_url, competition_name='Divi
         update_fields = []
         if team.name != team_name:
             team.name = team_name
-            update_fields.append('name')
+            update_fields.append("name")
         if team.group != group:
             team.group = group
-            update_fields.append('group')
+            update_fields.append("group")
         # Legacy monoclub: auto-detectar el equipo principal por nombre.
         # En modo comercial multi-equipo esto mezcla categorías (Senior vs Prebenjamín).
-        if allow_single_club_fallback and 'benagalbon' in _normalize_team_key(team.name):
+        if allow_single_club_fallback and "benagalbon" in _normalize_team_key(team.name):
             if team.is_primary:
                 Team.objects.exclude(id=team.id).filter(is_primary=True).update(is_primary=False)
             if not team.is_primary:
                 team.is_primary = True
-                update_fields.append('is_primary')
+                update_fields.append("is_primary")
         if update_fields:
             team.save(update_fields=update_fields)
 
-        position_value = _int_or(row.get('position'), default=idx)
-        played_value = _int_or(row.get('played') or row.get('pj'))
-        wins_value = _int_or(row.get('wins') or row.get('pg'))
-        draws_value = _int_or(row.get('draws') or row.get('pe'))
-        losses_value = _int_or(row.get('losses') or row.get('pp'))
-        goals_for_value = _int_or(row.get('goals_for') or row.get('gf'))
-        goals_against_value = _int_or(row.get('goals_against') or row.get('gc'))
-        goal_difference_value = _int_or(row.get('goal_difference') or row.get('dg'))
-        points_value = _int_or(row.get('points') or row.get('pt') or row.get('pts'))
+        position_value = _int_or(row.get("position"), default=idx)
+        played_value = _int_or(row.get("played") or row.get("pj"))
+        wins_value = _int_or(row.get("wins") or row.get("pg"))
+        draws_value = _int_or(row.get("draws") or row.get("pe"))
+        losses_value = _int_or(row.get("losses") or row.get("pp"))
+        goals_for_value = _int_or(row.get("goals_for") or row.get("gf"))
+        goals_against_value = _int_or(row.get("goals_against") or row.get("gc"))
+        goal_difference_value = _int_or(row.get("goal_difference") or row.get("dg"))
+        points_value = _int_or(row.get("points") or row.get("pt") or row.get("pts"))
         standing, _ = TeamStanding.objects.update_or_create(
             season=season,
             group=group,
             team=team,
             defaults={
-                'position': position_value,
-                'played': played_value,
-                'wins': wins_value,
-                'draws': draws_value,
-                'losses': losses_value,
-                'goals_for': goals_for_value,
-                'goals_against': goals_against_value,
-                'goal_difference': goal_difference_value,
-                'points': points_value,
-                'last_updated': timezone.now(),
+                "position": position_value,
+                "played": played_value,
+                "wins": wins_value,
+                "draws": draws_value,
+                "losses": losses_value,
+                "goals_for": goals_for_value,
+                "goals_against": goals_against_value,
+                "goal_difference": goal_difference_value,
+                "points": points_value,
+                "last_updated": timezone.now(),
             },
         )
         if standing.points is None:
             wins = standing.wins or 0
             draws = standing.draws or 0
             standing.points = wins * 3 + draws
-            standing.save(update_fields=['points'])
+            standing.save(update_fields=["points"])
         if standing.position is None:
             standing.position = TeamStanding.objects.filter(group=group).count()
-            standing.save(update_fields=['position'])
+            standing.save(update_fields=["position"])
     if updated_slugs:
         TeamStanding.objects.filter(group=group).exclude(team__slug__in=updated_slugs).delete()
 
@@ -318,9 +332,14 @@ def update_team_standings(rows, source_label, source_url, competition_name='Divi
 def _resolve_team_for_standings(team_name: str, group: Group) -> Team:
     team_slug = slugify(team_name)
     normalized_name = _normalize_team_key(team_name)
-    allow_single_club_fallback = str(os.getenv('ALLOW_SINGLE_CLUB_FALLBACK', '0') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
-    if allow_single_club_fallback and 'benagalbon' in normalized_name:
-        primary_team = Team.objects.filter(is_primary=True).order_by('id').first()
+    allow_single_club_fallback = str(os.getenv("ALLOW_SINGLE_CLUB_FALLBACK", "0") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    if allow_single_club_fallback and "benagalbon" in normalized_name:
+        primary_team = Team.objects.filter(is_primary=True).order_by("id").first()
         if primary_team:
             return primary_team
     by_slug = Team.objects.filter(slug=team_slug).first()
@@ -333,13 +352,13 @@ def _resolve_team_for_standings(team_name: str, group: Group) -> Team:
 
 
 def _normalize_team_key(value: str) -> str:
-    normalized = unicodedata.normalize('NFD', value or '')
-    without_accents = ''.join(ch for ch in normalized if unicodedata.category(ch) != 'Mn')
-    return re.sub(r'[^a-z0-9]+', '', without_accents.lower())
+    normalized = unicodedata.normalize("NFD", value or "")
+    without_accents = "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
+    return re.sub(r"[^a-z0-9]+", "", without_accents.lower())
 
 
 def _parse_csv_rows(content):
-    text = content.decode('utf-8', errors='ignore')
+    text = content.decode("utf-8", errors="ignore")
     reader = csv.DictReader(StringIO(text))
     return [dict(row) for row in reader]
 
@@ -368,25 +387,22 @@ def _parse_excel_rows(content):
 
 def _normalize_header_text(value):
     if value is None:
-        return ''
-    return re.sub(r'[^a-z0-9]+', '_', str(value).lower()).strip('_')
+        return ""
+    return re.sub(r"[^a-z0-9]+", "_", str(value).lower()).strip("_")
 
 
 def _parse_html_table(soup):
-    tables = soup.find_all('table')
+    tables = soup.find_all("table")
     for table in tables:
-        header_row = table.find('tr')
+        header_row = table.find("tr")
         if not header_row:
             continue
-        headers = [
-            _normalize_header_text(cell.get_text())
-            for cell in header_row.find_all(['th', 'td'])
-        ]
-        if not headers or not any('equipo' in h or 'team' in h for h in headers):
+        headers = [_normalize_header_text(cell.get_text()) for cell in header_row.find_all(["th", "td"])]
+        if not headers or not any("equipo" in h or "team" in h for h in headers):
             continue
         rows = []
-        for row in table.find_all('tr')[1:]:
-            cells = row.find_all(['td', 'th'])
+        for row in table.find_all("tr")[1:]:
+            cells = row.find_all(["td", "th"])
             if not cells:
                 continue
             record = {}
@@ -405,19 +421,19 @@ def _parse_html_table(soup):
 
 
 def _find_download_link(soup):
-    for link in soup.find_all('a', href=True):
-        text = link.get_text(' ', strip=True)
-        href = link['href']
+    for link in soup.find_all("a", href=True):
+        text = link.get_text(" ", strip=True)
+        href = link["href"]
         if DOWNLOAD_TEXT_PATTERN.search(text) or any(href.lower().endswith(ext) for ext in DOWNLOAD_EXTENSIONS):
             return href
     return None
 
 
 def _parse_png_rows(content):
-    text = pytesseract.image_to_string(Image.open(BytesIO(content)), lang='spa')
+    text = pytesseract.image_to_string(Image.open(BytesIO(content)), lang="spa")
     rows = []
     pattern = re.compile(
-        r'^\s*(\d+)\s+(.+?)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+([+-]?\d+)',
+        r"^\s*(\d+)\s+(.+?)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+([+-]?\d+)",
         re.UNICODE,
     )
     for line in text.splitlines():
@@ -430,16 +446,16 @@ def _parse_png_rows(content):
         position, team, points, played, wins, draws, losses, gf, gc, dg = match.groups()
         rows.append(
             {
-                'position': position,
-                'team': team,
-                'points': points,
-                'played': played,
-                'wins': wins,
-                'draws': draws,
-                'losses': losses,
-                'goals_for': gf,
-                'goals_against': gc,
-                'goal_difference': dg,
+                "position": position,
+                "team": team,
+                "points": points,
+                "played": played,
+                "wins": wins,
+                "draws": draws,
+                "losses": losses,
+                "goals_for": gf,
+                "goals_against": gc,
+                "goal_difference": dg,
             }
         )
     return rows
@@ -447,32 +463,32 @@ def _parse_png_rows(content):
 
 def fetch_official_rows(url):
     url = _validate_external_fetch_url(url)
-    response = requests.get(url, headers={'User-Agent': USER_AGENT}, timeout=15)
+    response = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=15)
     response.raise_for_status()
-    soup = BeautifulSoup(response.text, 'html.parser')
+    soup = BeautifulSoup(response.text, "html.parser")
     download_href = _find_download_link(soup)
     if download_href:
         file_url = urljoin(url, download_href)
         file_url = _validate_external_fetch_url(file_url)
-        file_response = requests.get(file_url, headers={'User-Agent': USER_AGENT}, timeout=15)
+        file_response = requests.get(file_url, headers={"User-Agent": USER_AGENT}, timeout=15)
         file_response.raise_for_status()
         ext = urlparse(file_url).path.lower()
-        if ext.endswith('.csv'):
+        if ext.endswith(".csv"):
             rows = _parse_csv_rows(file_response.content)
             if rows:
-                return rows, f'Descarga CSV desde {file_url}'
-        elif ext.endswith(('.xls', '.xlsx')):
+                return rows, f"Descarga CSV desde {file_url}"
+        elif ext.endswith((".xls", ".xlsx")):
             rows = _parse_excel_rows(file_response.content)
             if rows:
-                return rows, f'Descarga Excel desde {file_url}'
-        elif ext.endswith('.png'):
+                return rows, f"Descarga Excel desde {file_url}"
+        elif ext.endswith(".png"):
             rows = _parse_png_rows(file_response.content)
             if rows:
-                return rows, f'Descarga PNG desde {file_url}'
+                return rows, f"Descarga PNG desde {file_url}"
     # fallback: parse classification table directly if download link missing
     html_rows = _parse_html_table(soup)
     if html_rows:
-        return html_rows, 'Clasificación extraída desde la tabla HTML'
+        return html_rows, "Clasificación extraída desde la tabla HTML"
     return None, None
 
 
@@ -493,20 +509,20 @@ def _parse_int(value):
 
 
 def normalize_player_name(value: str) -> str:
-    return slugify(value or '')
+    return slugify(value or "")
 
 
 def _normalize_table_header(value: str) -> str:
     if not value:
-        return ''
-    return re.sub(r'[^a-z0-9]+', '', value.lower())
+        return ""
+    return re.sub(r"[^a-z0-9]+", "", value.lower())
 
 
 def _parse_int_cell(value):
     if value is None:
         return 0
-    text = str(value).strip().replace('.', '').replace(',', '')
-    if not text or text == '-':
+    text = str(value).strip().replace(".", "").replace(",", "")
+    if not text or text == "-":
         return 0
     try:
         return int(float(text))
@@ -515,12 +531,12 @@ def _parse_int_cell(value):
 
 
 def _extract_name_cell(cell):
-    spans = cell.find_all('span')
+    spans = cell.find_all("span")
     if spans:
-        text = spans[-1].get_text(' ', strip=True) or spans[0].get_text(' ', strip=True)
+        text = spans[-1].get_text(" ", strip=True) or spans[0].get_text(" ", strip=True)
         if text:
             return text
-    return cell.get_text(' ', strip=True)
+    return cell.get_text(" ", strip=True)
 
 
 def _safe_cell(cells, idx):
@@ -538,36 +554,36 @@ def _safe_cell(cells, idx):
 def parse_preferente_roster(html: str) -> list[dict]:
     if not html:
         return []
-    soup = BeautifulSoup(html, 'html.parser')
+    soup = BeautifulSoup(html, "html.parser")
     tables = []
-    direct = soup.find('table', id='tablePlantilla')
+    direct = soup.find("table", id="tablePlantilla")
     if direct is not None:
         tables = [direct]
     else:
-        for candidate in soup.find_all('table'):
-            header = candidate.find('tr')
+        for candidate in soup.find_all("table"):
+            header = candidate.find("tr")
             if not header:
                 continue
-            header_text = ' '.join(
-                cell.get_text(' ', strip=True).lower() for cell in header.find_all(['th', 'td'])
-            )
-            if 'jugador' in header_text and 'min' in header_text:
+            header_text = " ".join(cell.get_text(" ", strip=True).lower() for cell in header.find_all(["th", "td"]))
+            if "jugador" in header_text and "min" in header_text:
                 tables.append(candidate)
     if not tables:
         return parse_preferente_roster_text(html)
     roster = []
     for table in tables:
-        header_row = table.find('tr')
+        header_row = table.find("tr")
         if not header_row:
             continue
-        headers = [_normalize_table_header(cell.get_text(' ', strip=True)) for cell in header_row.find_all(['th', 'td'])]
+        headers = [
+            _normalize_table_header(cell.get_text(" ", strip=True)) for cell in header_row.find_all(["th", "td"])
+        ]
         index = {key: idx for idx, key in enumerate(headers) if key}
-        for row in table.find_all('tr')[1:]:
-            cells = row.find_all('td')
+        for row in table.find_all("tr")[1:]:
+            cells = row.find_all("td")
             if len(cells) < 6:
                 continue
-            name_idx = index.get('jugador', 0)
-            pos_idx = index.get('demarcacion', 1)
+            name_idx = index.get("jugador", 0)
+            pos_idx = index.get("demarcacion", 1)
             name_cell = _safe_cell(cells, name_idx) or (cells[0] if cells else None)
             position_cell = _safe_cell(cells, pos_idx) or (cells[1] if len(cells) > 1 else None)
             if not name_cell:
@@ -575,27 +591,27 @@ def parse_preferente_roster(html: str) -> list[dict]:
             name = _extract_name_cell(name_cell)
             if not name:
                 continue
-            position = position_cell.get_text(' ', strip=True) if position_cell else ''
-            age_cell = _safe_cell(cells, index.get('edad'))
-            pc_cell = _safe_cell(cells, index.get('pc'))
-            pj_cell = _safe_cell(cells, index.get('pj'))
-            pt_cell = _safe_cell(cells, index.get('pt'))
-            min_cell = _safe_cell(cells, index.get('min'))
-            goals_cell = _safe_cell(cells, index.get('goles'))
-            ta_cell = _safe_cell(cells, index.get('ta'))
-            tr_cell = _safe_cell(cells, index.get('tr'))
+            position = position_cell.get_text(" ", strip=True) if position_cell else ""
+            age_cell = _safe_cell(cells, index.get("edad"))
+            pc_cell = _safe_cell(cells, index.get("pc"))
+            pj_cell = _safe_cell(cells, index.get("pj"))
+            pt_cell = _safe_cell(cells, index.get("pt"))
+            min_cell = _safe_cell(cells, index.get("min"))
+            goals_cell = _safe_cell(cells, index.get("goles"))
+            ta_cell = _safe_cell(cells, index.get("ta"))
+            tr_cell = _safe_cell(cells, index.get("tr"))
             roster.append(
                 {
-                    'name': name,
-                    'position': position,
-                    'age': _parse_int_cell(age_cell.get_text(' ', strip=True) if age_cell else None),
-                    'pc': _parse_int_cell(pc_cell.get_text(' ', strip=True) if pc_cell else None),
-                    'pj': _parse_int_cell(pj_cell.get_text(' ', strip=True) if pj_cell else None),
-                    'pt': _parse_int_cell(pt_cell.get_text(' ', strip=True) if pt_cell else None),
-                    'minutes': _parse_int_cell(min_cell.get_text(' ', strip=True) if min_cell else None),
-                    'goals': _parse_int_cell(goals_cell.get_text(' ', strip=True) if goals_cell else None),
-                    'yellow_cards': _parse_int_cell(ta_cell.get_text(' ', strip=True) if ta_cell else None),
-                    'red_cards': _parse_int_cell(tr_cell.get_text(' ', strip=True) if tr_cell else None),
+                    "name": name,
+                    "position": position,
+                    "age": _parse_int_cell(age_cell.get_text(" ", strip=True) if age_cell else None),
+                    "pc": _parse_int_cell(pc_cell.get_text(" ", strip=True) if pc_cell else None),
+                    "pj": _parse_int_cell(pj_cell.get_text(" ", strip=True) if pj_cell else None),
+                    "pt": _parse_int_cell(pt_cell.get_text(" ", strip=True) if pt_cell else None),
+                    "minutes": _parse_int_cell(min_cell.get_text(" ", strip=True) if min_cell else None),
+                    "goals": _parse_int_cell(goals_cell.get_text(" ", strip=True) if goals_cell else None),
+                    "yellow_cards": _parse_int_cell(ta_cell.get_text(" ", strip=True) if ta_cell else None),
+                    "red_cards": _parse_int_cell(tr_cell.get_text(" ", strip=True) if tr_cell else None),
                 }
             )
     return roster
@@ -607,27 +623,27 @@ def parse_preferente_roster_text(raw: str) -> list[dict]:
     lines = [line.strip() for line in raw.splitlines()]
     lines = [line for line in lines if line]
     status_markers = (
-        'Renovado',
-        'Nuevo Fichaje',
-        'Jugador',
-        'Cuerpo Técnico',
-        'COMPETICIONES',
-        'Ex-Jugadores',
-        'Total de Jugadores',
+        "Renovado",
+        "Nuevo Fichaje",
+        "Jugador",
+        "Cuerpo Técnico",
+        "COMPETICIONES",
+        "Ex-Jugadores",
+        "Total de Jugadores",
     )
     position_keywords = (
-        'Portero',
-        'Lateral',
-        'Central',
-        'Medio',
-        'Interior',
-        'Media',
-        'Extremo',
-        'Delantero',
-        'Pivote',
+        "Portero",
+        "Lateral",
+        "Central",
+        "Medio",
+        "Interior",
+        "Media",
+        "Extremo",
+        "Delantero",
+        "Pivote",
     )
     roster = []
-    last_name = ''
+    last_name = ""
     for line in lines:
         if any(marker in line for marker in status_markers):
             continue
@@ -637,17 +653,17 @@ def parse_preferente_roster_text(raw: str) -> list[dict]:
         if not tokens:
             continue
         has_position = any(keyword in line for keyword in position_keywords)
-        has_numbers = any(token.replace('(', '').replace(')', '').isdigit() for token in tokens)
+        has_numbers = any(token.replace("(", "").replace(")", "").isdigit() for token in tokens)
         if has_position and has_numbers:
             position_parts = []
             stat_tokens = []
             for token in tokens:
-                cleaned = token.replace('(', '').replace(')', '')
-                if cleaned.replace('-', '').isdigit() or cleaned == '-':
+                cleaned = token.replace("(", "").replace(")", "")
+                if cleaned.replace("-", "").isdigit() or cleaned == "-":
                     stat_tokens.append(cleaned)
                 else:
                     position_parts.append(token)
-            position = ' '.join(position_parts).strip()
+            position = " ".join(position_parts).strip()
             numbers = [int(t) for t in stat_tokens if t.isdigit()]
             while len(numbers) < 8:
                 numbers.append(0)
@@ -655,16 +671,16 @@ def parse_preferente_roster_text(raw: str) -> list[dict]:
             if last_name:
                 roster.append(
                     {
-                        'name': last_name,
-                        'position': position,
-                        'age': age,
-                        'pc': pc,
-                        'pj': pj,
-                        'pt': pt,
-                        'minutes': minutes,
-                        'goals': goals,
-                        'yellow_cards': yellow,
-                        'red_cards': red,
+                        "name": last_name,
+                        "position": position,
+                        "age": age,
+                        "pc": pc,
+                        "pj": pj,
+                        "pt": pt,
+                        "minutes": minutes,
+                        "goals": goals,
+                        "yellow_cards": yellow,
+                        "red_cards": red,
                     }
                 )
             continue
@@ -677,18 +693,18 @@ def fetch_preferente_team_roster(team_url: str) -> list[dict]:
         return []
     try:
         response = _fetch_preferente_response(team_url, timeout=20)
-        if getattr(response, 'status_code', None) == 403:
+        if getattr(response, "status_code", None) == 403:
             team_id = _extract_preferente_team_id(team_url)
             fallback = _fetch_preferente_team_roster_via_json(team_id)
             if fallback:
                 return fallback
             raise ValueError(
-                'LaPreferente ha bloqueado la petición (403). '
-                'Prueba de nuevo en unos minutos o pega el HTML/texto en el campo de abajo.'
+                "LaPreferente ha bloqueado la petición (403). "
+                "Prueba de nuevo en unos minutos o pega el HTML/texto en el campo de abajo."
             )
         response.raise_for_status()
     except requests.RequestException as exc:
-        raise ValueError(f'Error al consultar LaPreferente: {exc}') from exc
+        raise ValueError(f"Error al consultar LaPreferente: {exc}") from exc
     roster = parse_preferente_roster(response.text)
     if not roster:
         # si por algún motivo no hay tabla (HTML parcial), intentamos el fallback JSON igualmente
@@ -706,26 +722,26 @@ def find_preferente_team_url(team_name: str) -> str:
     - Valida candidatos abriendo la página y comprobando que existe `tablePlantilla`.
     """
     if not team_name or requests is None:
-        return ''
-    query = str(team_name or '').strip()
+        return ""
+    query = str(team_name or "").strip()
     if not query:
-        return ''
+        return ""
 
     # Alias puntuales cuando el nombre externo no coincide con LaPreferente.
     # Ej: "C.P. ALMERIA" suele ser "Poli Almería" en LaPreferente.
     def _alias_queries(original: str) -> list[str]:
         normalized = _norm(original)
-        if normalized == 'cpalmeria':
-            return ['Poli Almería', 'Poli Almeria', 'Polideportivo Almeria']
+        if normalized == "cpalmeria":
+            return ["Poli Almería", "Poli Almeria", "Polideportivo Almeria"]
         # "ATCO" suele aparecer como "Atlético" en La Preferente.
-        if 'atco' in normalized and 'marbella' in normalized:
+        if "atco" in normalized and "marbella" in normalized:
             return [
-                'Atlético de Marbella',
-                'Atletico de Marbella',
-                'Atlético Marbella',
-                'Atletico Marbella',
-                'Marbella Balompié',
-                'Marbella Balompie',
+                "Atlético de Marbella",
+                "Atletico de Marbella",
+                "Atlético Marbella",
+                "Atletico Marbella",
+                "Marbella Balompié",
+                "Marbella Balompie",
             ]
         return []
 
@@ -736,43 +752,43 @@ def find_preferente_team_url(team_name: str) -> str:
         - prefijos/sufijos (C.D., C.F., S.A.D., etc.)
         - signos/puntuación
         """
-        base = re.sub(r'\s+', ' ', str(original or '').strip())
+        base = re.sub(r"\s+", " ", str(original or "").strip())
         if not base:
             return []
         variants = [base]
         # Quita contenido entre paréntesis.
-        no_parens = re.sub(r'\([^)]*\)', ' ', base)
-        no_parens = re.sub(r'\s+', ' ', no_parens).strip()
+        no_parens = re.sub(r"\([^)]*\)", " ", base)
+        no_parens = re.sub(r"\s+", " ", no_parens).strip()
         if no_parens and no_parens not in variants:
             variants.append(no_parens)
         # Normaliza separadores comunes.
-        punct = re.sub(r'[·•,;:/_\\-]+', ' ', no_parens or base)
-        punct = re.sub(r'\s+', ' ', punct).strip()
+        punct = re.sub(r"[·•,;:/_\\-]+", " ", no_parens or base)
+        punct = re.sub(r"\s+", " ", punct).strip()
         if punct and punct not in variants:
             variants.append(punct)
         # Elimina tokens "formales" frecuentes que no ayudan a buscar.
         without = re.sub(
-            r'\b(C\.?\s*D\.?|C\.?\s*F\.?|A\.?\s*D\.?|U\.?\s*D\.?|S\.?\s*A\.?\s*D\.?|SAD|S\.A\.D\.)\b',
-            ' ',
+            r"\b(C\.?\s*D\.?|C\.?\s*F\.?|A\.?\s*D\.?|U\.?\s*D\.?|S\.?\s*A\.?\s*D\.?|SAD|S\.A\.D\.)\b",
+            " ",
             punct or base,
             flags=re.IGNORECASE,
         )
-        without = re.sub(r'\s+', ' ', without).strip()
+        without = re.sub(r"\s+", " ", without).strip()
         if without and without not in variants:
             variants.append(without)
         # Expande abreviaturas típicas.
         expanded = without or punct or base
-        expanded = re.sub(r'\bATCO\.?\b', 'Atlético', expanded, flags=re.IGNORECASE)
-        expanded = re.sub(r'\bATCO\.?\b', 'Atletico', expanded, flags=re.IGNORECASE)
-        expanded = re.sub(r'\s+', ' ', expanded).strip()
+        expanded = re.sub(r"\bATCO\.?\b", "Atlético", expanded, flags=re.IGNORECASE)
+        expanded = re.sub(r"\bATCO\.?\b", "Atletico", expanded, flags=re.IGNORECASE)
+        expanded = re.sub(r"\s+", " ", expanded).strip()
         if expanded and expanded not in variants:
             variants.append(expanded)
         # Variante corta con palabras clave (sin "de/del/la/el").
-        tokens = [t for t in re.split(r'\s+', expanded or without or base) if t]
-        stop = {'de', 'del', 'la', 'el', 'los', 'las', 'club', 'cd', 'cf', 'sad'}
+        tokens = [t for t in re.split(r"\s+", expanded or without or base) if t]
+        stop = {"de", "del", "la", "el", "los", "las", "club", "cd", "cf", "sad"}
         compact_tokens = [t for t in tokens if t.lower() not in stop]
         if len(compact_tokens) >= 2:
-            short = ' '.join(compact_tokens[:4]).strip()
+            short = " ".join(compact_tokens[:4]).strip()
             if short and short not in variants:
                 variants.append(short)
         # Dedup conservando orden.
@@ -787,12 +803,12 @@ def find_preferente_team_url(team_name: str) -> str:
         return out
 
     def _norm(text: str) -> str:
-        return re.sub(r'[^a-z0-9]+', '', normalize_player_name(text or ''))
+        return re.sub(r"[^a-z0-9]+", "", normalize_player_name(text or ""))
 
     def _try_json_search(search_text: str) -> str:
         local_target = _norm(search_text)
         if not local_target:
-            return ''
+            return ""
         session = _get_preferente_session()
         if not session.cookies:
             try:
@@ -801,39 +817,39 @@ def find_preferente_team_url(team_name: str) -> str:
                 pass
         try:
             response = session.get(
-                urljoin(PREFERENTE_BASE_URL, 'json/buscaEquipos.php'),
-                params={'q': search_text},
+                urljoin(PREFERENTE_BASE_URL, "json/buscaEquipos.php"),
+                params={"q": search_text},
                 headers=_preferente_headers(PREFERENTE_BASE_URL),
                 timeout=18,
             )
             data = response.json() if response.ok else {}
-            results = data.get('results') if isinstance(data, dict) else None
+            results = data.get("results") if isinstance(data, dict) else None
             if not isinstance(results, list):
-                return ''
+                return ""
             scored = []
             for item in results[:20]:
                 if not isinstance(item, dict):
                     continue
-                team_id = str(item.get('id') or '').strip()
+                team_id = str(item.get("id") or "").strip()
                 if not team_id.isdigit():
                     continue
-                label = (item.get('nombre') or item.get('text') or '').strip()
+                label = (item.get("nombre") or item.get("text") or "").strip()
                 # Reutilizamos el scoring existente, pero con el target del texto buscado.
                 score = _score_candidate(label, team_id)
                 if score < 20:
                     continue
-                candidate_url = f'{PREFERENTE_BASE_URL}?IDequipo={team_id}'
+                candidate_url = f"{PREFERENTE_BASE_URL}?IDequipo={team_id}"
                 scored.append((score, candidate_url))
             scored.sort(key=lambda row: row[0], reverse=True)
             # No validamos abriendo la página del equipo: reduce peticiones y evita bloqueos 403.
-            return scored[0][1] if scored else ''
+            return scored[0][1] if scored else ""
         except Exception:
-            return ''
-        return ''
+            return ""
+        return ""
 
     target = _norm(query)
     if not target:
-        return ''
+        return ""
 
     def _score_candidate(label: str, href: str) -> int:
         label_key = _norm(label)
@@ -851,19 +867,19 @@ def find_preferente_team_url(team_name: str) -> str:
         return score
 
     def _extract_candidates(html: str) -> list[str]:
-        soup = BeautifulSoup(html or '', 'html.parser')
+        soup = BeautifulSoup(html or "", "html.parser")
         candidates = []
-        for a in soup.find_all('a', href=True):
-            href = str(a.get('href') or '').strip()
+        for a in soup.find_all("a", href=True):
+            href = str(a.get("href") or "").strip()
             if not href:
                 continue
             lowered = href.lower()
-            if 'equipo' not in lowered:
+            if "equipo" not in lowered:
                 continue
             # Filtra enlaces irrelevantes (assets, anchors, etc.)
-            if lowered.startswith('javascript:') or lowered.startswith('#'):
+            if lowered.startswith("javascript:") or lowered.startswith("#"):
                 continue
-            label = a.get_text(' ', strip=True)
+            label = a.get_text(" ", strip=True)
             score = _score_candidate(label, href)
             if score < 20:
                 continue
@@ -875,7 +891,7 @@ def find_preferente_team_url(team_name: str) -> str:
     # 1) Buscador oficial (select2) vía JSON: json/buscaEquipos.php?q=...
     # Es la forma más estable de localizar el IDequipo y construir /?IDequipo=...
     if len(query) >= 3:
-        for candidate in (_query_variants(query) + _alias_queries(query)):
+        for candidate in _query_variants(query) + _alias_queries(query):
             direct = _try_json_search(candidate)
             if direct:
                 return direct
@@ -884,8 +900,8 @@ def find_preferente_team_url(team_name: str) -> str:
     # (Mantiene compatibilidad si LaPreferente cambia el buscador.)
     q = quote_plus(query)
     search_urls = [
-        f'{PREFERENTE_BASE_URL}?buscar={q}',
-        f'{PREFERENTE_BASE_URL}buscador.html?buscar={q}',
+        f"{PREFERENTE_BASE_URL}?buscar={q}",
+        f"{PREFERENTE_BASE_URL}buscador.html?buscar={q}",
     ]
     session = _get_preferente_session()
     if not session.cookies:
@@ -898,39 +914,39 @@ def find_preferente_team_url(team_name: str) -> str:
             response = session.get(url, headers=_preferente_headers(PREFERENTE_BASE_URL), timeout=18)
         except Exception:
             continue
-        html = getattr(response, 'text', '') or ''
+        html = getattr(response, "text", "") or ""
         if not html:
             continue
         for candidate in _extract_candidates(html):
             return candidate
 
     # 2) Fallback: si el equipo ya viene con enlace incrustado en el nombre (p.ej. pegado).
-    maybe_url = str(team_name or '').strip()
-    if maybe_url.startswith('http://') or maybe_url.startswith('https://'):
+    maybe_url = str(team_name or "").strip()
+    if maybe_url.startswith("http://") or maybe_url.startswith("https://"):
         return maybe_url
-    return ''
+    return ""
 
 
 def infer_roster_role(position: str) -> str:
-    pos = (position or '').lower().replace('.', ' ').replace('-', ' ')
-    compact = re.sub(r'\s+', ' ', pos).strip()
+    pos = (position or "").lower().replace(".", " ").replace("-", " ")
+    compact = re.sub(r"\s+", " ", pos).strip()
     if not compact:
-        return 'MID'
-    if any(token in compact for token in ('portero', 'por', 'gk')):
-        return 'GK'
-    if any(token in compact for token in ('defensa', 'lateral', 'central', 'carrilero', 'li', 'ld', 'ci', 'cd')):
-        return 'DEF'
-    if any(token in compact for token in ('delantero', 'punta', 'extremo', 'dc', 'ei', 'ed', '9')):
-        return 'ATT'
-    return 'MID'
+        return "MID"
+    if any(token in compact for token in ("portero", "por", "gk")):
+        return "GK"
+    if any(token in compact for token in ("defensa", "lateral", "central", "carrilero", "li", "ld", "ci", "cd")):
+        return "DEF"
+    if any(token in compact for token in ("delantero", "punta", "extremo", "dc", "ei", "ed", "9")):
+        return "ATT"
+    return "MID"
 
 
 def compute_probable_eleven(players: list[dict]) -> list[dict]:
     if not players:
         return []
-    eligible = [p for p in players if p.get('minutes', 0) > 0]
-    eligible.sort(key=lambda p: (p.get('minutes', 0), p.get('pt', 0), p.get('pj', 0)), reverse=True)
-    gks = [p for p in eligible if infer_roster_role(p.get('position') or '') == 'GK']
+    eligible = [p for p in players if p.get("minutes", 0) > 0]
+    eligible.sort(key=lambda p: (p.get("minutes", 0), p.get("pt", 0), p.get("pj", 0)), reverse=True)
+    gks = [p for p in eligible if infer_roster_role(p.get("position") or "") == "GK"]
     lineup = []
     if gks:
         lineup.append(gks[0])
@@ -945,51 +961,56 @@ def compute_probable_eleven(players: list[dict]) -> list[dict]:
 
 def build_rival_insights(players: list[dict]) -> dict:
     if not players:
-        return {'top_scorers': [], 'most_minutes': [], 'most_cards': [], 'role_breakdown': {'GK': 0, 'DEF': 0, 'MID': 0, 'ATT': 0}}
+        return {
+            "top_scorers": [],
+            "most_minutes": [],
+            "most_cards": [],
+            "role_breakdown": {"GK": 0, "DEF": 0, "MID": 0, "ATT": 0},
+        }
 
     normalized_players = []
-    role_breakdown = {'GK': 0, 'DEF': 0, 'MID': 0, 'ATT': 0}
+    role_breakdown = {"GK": 0, "DEF": 0, "MID": 0, "ATT": 0}
     for player in players:
         item = dict(player)
-        item['goals'] = max(0, int(item.get('goals', 0) or 0))
-        item['minutes'] = max(0, int(item.get('minutes', 0) or 0))
-        item['pj'] = max(0, int(item.get('pj', 0) or 0))
-        item['yellow_cards'] = max(0, int(item.get('yellow_cards', 0) or 0))
-        item['red_cards'] = max(0, int(item.get('red_cards', 0) or 0))
-        item['_role'] = infer_roster_role(item.get('position') or '')
-        if item['_role'] in role_breakdown:
-            role_breakdown[item['_role']] += 1
+        item["goals"] = max(0, int(item.get("goals", 0) or 0))
+        item["minutes"] = max(0, int(item.get("minutes", 0) or 0))
+        item["pj"] = max(0, int(item.get("pj", 0) or 0))
+        item["yellow_cards"] = max(0, int(item.get("yellow_cards", 0) or 0))
+        item["red_cards"] = max(0, int(item.get("red_cards", 0) or 0))
+        item["_role"] = infer_roster_role(item.get("position") or "")
+        if item["_role"] in role_breakdown:
+            role_breakdown[item["_role"]] += 1
         # Guardrails: un portero como máximo goleador suele indicar parseo roto.
-        if item['_role'] == 'GK' and item['goals'] > 3:
-            item['goals'] = 0
+        if item["_role"] == "GK" and item["goals"] > 3:
+            item["goals"] = 0
         normalized_players.append(item)
 
-    scorer_pool = [p for p in normalized_players if p['_role'] != 'GK']
+    scorer_pool = [p for p in normalized_players if p["_role"] != "GK"]
     if not scorer_pool:
         scorer_pool = normalized_players
 
     top_scorers = sorted(
         scorer_pool,
         key=lambda p: (
-            p.get('goals', 0),
-            (p.get('goals', 0) / max(1, p.get('pj', 0))),
-            p.get('minutes', 0),
+            p.get("goals", 0),
+            (p.get("goals", 0) / max(1, p.get("pj", 0))),
+            p.get("minutes", 0),
         ),
         reverse=True,
     )[:3]
-    most_minutes = sorted(normalized_players, key=lambda p: p.get('minutes', 0), reverse=True)[:3]
+    most_minutes = sorted(normalized_players, key=lambda p: p.get("minutes", 0), reverse=True)[:3]
     most_cards = sorted(
         normalized_players,
-        key=lambda p: (p.get('red_cards', 0) * 2 + p.get('yellow_cards', 0)),
+        key=lambda p: (p.get("red_cards", 0) * 2 + p.get("yellow_cards", 0)),
         reverse=True,
     )[:3]
     for row in top_scorers + most_minutes + most_cards:
-        row.pop('_role', None)
+        row.pop("_role", None)
     return {
-        'top_scorers': top_scorers,
-        'most_minutes': most_minutes,
-        'most_cards': most_cards,
-        'role_breakdown': role_breakdown,
+        "top_scorers": top_scorers,
+        "most_minutes": most_minutes,
+        "most_cards": most_cards,
+        "role_breakdown": role_breakdown,
     }
 
 
@@ -997,60 +1018,60 @@ def assign_lineup_slots(players: list[dict], formation: Optional[str] = None) ->
     assigned = []
 
     def role_from_position(position: str) -> str:
-        pos = (position or '').lower()
-        compact = pos.replace('.', '').replace('-', ' ').strip()
-        if any(token in compact for token in ('portero', 'por', 'gk')):
-            return 'GK'
-        if 'lateral izquierdo' in compact or compact in {'li', 'dfi'}:
-            return 'LI'
-        if 'lateral derecho' in compact or compact in {'ld', 'dfd'}:
-            return 'LD'
-        if 'central izquierdo' in compact or compact in {'ci'}:
-            return 'CI'
-        if 'central derecho' in compact or compact in {'cd'}:
-            return 'CD'
-        if 'central' in compact or compact in {'c', 'dfc'}:
-            return 'C'
-        if 'interior izquierdo' in compact or compact in {'mi'}:
-            return 'MI'
-        if 'interior derecho' in compact or compact in {'md'}:
-            return 'MD'
-        if 'media punta' in compact or compact in {'mp', 'mco'}:
-            return 'MP'
-        if 'extremo izquierdo' in compact or compact in {'ei'}:
-            return 'EI'
-        if 'extremo derecho' in compact or compact in {'ed'}:
-            return 'ED'
-        if 'pivote' in compact or 'medio centro' in compact or compact in {'mc', 'mcd', 'mci'}:
-            return 'MC'
-        if any(token in compact for token in ('delantero', 'punta', '9', 'dc')):
-            return 'DC'
-        if any(token in compact for token in ('medio', 'interior', 'volante', 'media')):
-            return 'MC'
-        if any(token in compact for token in ('defensa', 'lateral', 'central')):
-            return 'C'
-        return '?'
+        pos = (position or "").lower()
+        compact = pos.replace(".", "").replace("-", " ").strip()
+        if any(token in compact for token in ("portero", "por", "gk")):
+            return "GK"
+        if "lateral izquierdo" in compact or compact in {"li", "dfi"}:
+            return "LI"
+        if "lateral derecho" in compact or compact in {"ld", "dfd"}:
+            return "LD"
+        if "central izquierdo" in compact or compact in {"ci"}:
+            return "CI"
+        if "central derecho" in compact or compact in {"cd"}:
+            return "CD"
+        if "central" in compact or compact in {"c", "dfc"}:
+            return "C"
+        if "interior izquierdo" in compact or compact in {"mi"}:
+            return "MI"
+        if "interior derecho" in compact or compact in {"md"}:
+            return "MD"
+        if "media punta" in compact or compact in {"mp", "mco"}:
+            return "MP"
+        if "extremo izquierdo" in compact or compact in {"ei"}:
+            return "EI"
+        if "extremo derecho" in compact or compact in {"ed"}:
+            return "ED"
+        if "pivote" in compact or "medio centro" in compact or compact in {"mc", "mcd", "mci"}:
+            return "MC"
+        if any(token in compact for token in ("delantero", "punta", "9", "dc")):
+            return "DC"
+        if any(token in compact for token in ("medio", "interior", "volante", "media")):
+            return "MC"
+        if any(token in compact for token in ("defensa", "lateral", "central")):
+            return "C"
+        return "?"
 
     def classify(position: str) -> str:
         role = role_from_position(position)
-        if role == 'GK':
-            return 'gk'
-        if role in {'LI', 'LD', 'CI', 'CD', 'C'}:
-            return 'def'
-        if role in {'MI', 'MD', 'MC', 'MP'}:
-            return 'mid'
-        if role in {'EI', 'ED', 'DC'}:
-            return 'att'
-        return 'mid'
+        if role == "GK":
+            return "gk"
+        if role in {"LI", "LD", "CI", "CD", "C"}:
+            return "def"
+        if role in {"MI", "MD", "MC", "MP"}:
+            return "mid"
+        if role in {"EI", "ED", "DC"}:
+            return "att"
+        return "mid"
 
-    groups = {'gk': [], 'def': [], 'mid': [], 'att': []}
+    groups = {"gk": [], "def": [], "mid": [], "att": []}
     for player in players:
-        groups[classify(player.get('position') or '')].append(player)
+        groups[classify(player.get("position") or "")].append(player)
 
     def parse_counts(value: Optional[str]) -> tuple[int, int, int]:
         if not value:
             return (4, 4, 2)
-        parts = [p for p in str(value).split('-') if p.isdigit()]
+        parts = [p for p in str(value).split("-") if p.isdigit()]
         if len(parts) != 3:
             return (4, 4, 2)
         return (int(parts[0]), int(parts[1]), int(parts[2]))
@@ -1059,50 +1080,50 @@ def assign_lineup_slots(players: list[dict], formation: Optional[str] = None) ->
     gk_cap = 1
 
     def line_slots(line_key: str, count: int) -> list[str]:
-        if line_key == 'def':
+        if line_key == "def":
             presets = {
-                1: ['C'],
-                2: ['LI', 'LD'],
-                3: ['LI', 'C', 'LD'],
-                4: ['LI', 'CI', 'CD', 'LD'],
-                5: ['LI', 'CI', 'C', 'CD', 'LD'],
+                1: ["C"],
+                2: ["LI", "LD"],
+                3: ["LI", "C", "LD"],
+                4: ["LI", "CI", "CD", "LD"],
+                5: ["LI", "CI", "C", "CD", "LD"],
             }
-        elif line_key == 'mid':
+        elif line_key == "mid":
             presets = {
-                1: ['MC'],
-                2: ['MC', 'MC'],
-                3: ['MI', 'MC', 'MD'],
-                4: ['MI', 'MC', 'MC', 'MD'],
-                5: ['EI', 'MC', 'MC', 'MD', 'ED'],
+                1: ["MC"],
+                2: ["MC", "MC"],
+                3: ["MI", "MC", "MD"],
+                4: ["MI", "MC", "MC", "MD"],
+                5: ["EI", "MC", "MC", "MD", "ED"],
             }
         else:  # att
             presets = {
-                1: ['DC'],
-                2: ['DC', 'DC'],
-                3: ['EI', 'DC', 'ED'],
-                4: ['EI', 'DC', 'DC', 'ED'],
-                5: ['EI', 'DC', 'DC', 'DC', 'ED'],
+                1: ["DC"],
+                2: ["DC", "DC"],
+                3: ["EI", "DC", "ED"],
+                4: ["EI", "DC", "DC", "ED"],
+                5: ["EI", "DC", "DC", "DC", "ED"],
             }
-        return presets.get(count, ['MC'] * count)
+        return presets.get(count, ["MC"] * count)
 
     def score_role_to_slot(role: str, slot: str) -> int:
         if role == slot:
             return 10
         compatible = {
-            'C': {'CI', 'CD', 'C'},
-            'CI': {'CI', 'C'},
-            'CD': {'CD', 'C'},
-            'LI': {'LI', 'MI'},
-            'LD': {'LD', 'MD'},
-            'MC': {'MC', 'MP', 'MI', 'MD'},
-            'MP': {'MP', 'MC', 'DC'},
-            'MI': {'MI', 'EI', 'MC'},
-            'MD': {'MD', 'ED', 'MC'},
-            'EI': {'EI', 'MI', 'DC'},
-            'ED': {'ED', 'MD', 'DC'},
-            'DC': {'DC', 'MP', 'EI', 'ED'},
-            'GK': {'GK'},
-            '?': {'MC', 'C', 'DC'},
+            "C": {"CI", "CD", "C"},
+            "CI": {"CI", "C"},
+            "CD": {"CD", "C"},
+            "LI": {"LI", "MI"},
+            "LD": {"LD", "MD"},
+            "MC": {"MC", "MP", "MI", "MD"},
+            "MP": {"MP", "MC", "DC"},
+            "MI": {"MI", "EI", "MC"},
+            "MD": {"MD", "ED", "MC"},
+            "EI": {"EI", "MI", "DC"},
+            "ED": {"ED", "MD", "DC"},
+            "DC": {"DC", "MP", "EI", "ED"},
+            "GK": {"GK"},
+            "?": {"MC", "C", "DC"},
         }
         if slot in compatible.get(role, set()):
             return 6
@@ -1111,7 +1132,7 @@ def assign_lineup_slots(players: list[dict], formation: Optional[str] = None) ->
     def best_assign(line_players: list[dict], slots: list[str]) -> list[tuple[dict, str]]:
         if not line_players or not slots:
             return []
-        players_with_role = [(player, role_from_position(player.get('position') or '')) for player in line_players]
+        players_with_role = [(player, role_from_position(player.get("position") or "")) for player in line_players]
         best_score = -1
         best_pick = []
 
@@ -1126,7 +1147,7 @@ def assign_lineup_slots(players: list[dict], formation: Optional[str] = None) ->
             for idx, pair in enumerate(remaining):
                 player, role = pair
                 pair_score = score_role_to_slot(role, slot)
-                next_remaining = remaining[:idx] + remaining[idx + 1:]
+                next_remaining = remaining[:idx] + remaining[idx + 1 :]
                 acc.append((player, slot))
                 walk(slot_idx + 1, next_remaining, acc, score + pair_score)
                 acc.pop()
@@ -1141,20 +1162,20 @@ def assign_lineup_slots(players: list[dict], formation: Optional[str] = None) ->
         return picked
 
     remaining = []
-    for key in ('def', 'mid', 'att'):
+    for key in ("def", "mid", "att"):
         remaining.extend(groups[key])
 
     lineup = []
-    lineup.extend(take_from('gk', gk_cap))
-    def_line = take_from('def', def_cap)
-    mid_line = take_from('mid', mid_cap)
-    att_line = take_from('att', att_cap)
+    lineup.extend(take_from("gk", gk_cap))
+    def_line = take_from("def", def_cap)
+    mid_line = take_from("mid", mid_cap)
+    att_line = take_from("att", att_cap)
 
     for line, cap in ((def_line, def_cap), (mid_line, mid_cap), (att_line, att_cap)):
         while len(line) < cap and remaining:
             line.append(remaining.pop(0))
 
-    for (line_key, line, top) in (('def', def_line, 70), ('mid', mid_line, 52), ('att', att_line, 32)):
+    for line_key, line, top in (("def", def_line, 70), ("mid", mid_line, 52), ("att", att_line, 32)):
         slots = line_slots(line_key, len(line))
         assignment = best_assign(line, slots)
         ordered = [player for player, _ in assignment]
@@ -1168,19 +1189,21 @@ def assign_lineup_slots(players: list[dict], formation: Optional[str] = None) ->
         }.get(len(ordered), [50])
         for idx, player in enumerate(ordered):
             enriched = dict(player)
-            enriched['left'] = xs[idx]
-            enriched['top'] = top
-            enriched['badge'] = slot_labels[idx] if idx < len(slot_labels) else role_from_position(player.get('position') or '')
+            enriched["left"] = xs[idx]
+            enriched["top"] = top
+            enriched["badge"] = (
+                slot_labels[idx] if idx < len(slot_labels) else role_from_position(player.get("position") or "")
+            )
             assigned.append(enriched)
 
-    gk = (groups['gk'][0] if groups['gk'] else (lineup[0] if lineup else None))
+    gk = groups["gk"][0] if groups["gk"] else (lineup[0] if lineup else None)
     if gk:
         assigned.append(
             {
                 **gk,
-                'left': 50,
-                'top': 88,
-                'badge': 'GK',
+                "left": 50,
+                "top": 88,
+                "badge": "GK",
             }
         )
 
@@ -1189,81 +1212,75 @@ def assign_lineup_slots(players: list[dict], formation: Optional[str] = None) ->
 
 def compute_formation(players: list[dict]) -> str:
     if not players:
-        return 'Auto'
+        return "Auto"
     def_count = 0
     mid_count = 0
     att_count = 0
     for player in players:
-        pos = (player.get('position') or '').lower()
-        if 'portero' in pos:
+        pos = (player.get("position") or "").lower()
+        if "portero" in pos:
             continue
-        if 'lateral' in pos or 'central' in pos or 'defensa' in pos:
+        if "lateral" in pos or "central" in pos or "defensa" in pos:
             def_count += 1
             continue
-        if (
-            'medio' in pos
-            or 'interior' in pos
-            or 'pivote' in pos
-            or 'media punta' in pos
-            or 'mediapunta' in pos
-        ):
+        if "medio" in pos or "interior" in pos or "pivote" in pos or "media punta" in pos or "mediapunta" in pos:
             mid_count += 1
             continue
-        if 'delantero' in pos or 'extremo' in pos:
+        if "delantero" in pos or "extremo" in pos:
             att_count += 1
             continue
         mid_count += 1
     total = def_count + mid_count + att_count
     if total == 0:
-        return 'Auto'
+        return "Auto"
     if def_count == 0:
         def_count = 4
     if att_count == 0:
         att_count = 2
     mid_count = max(0, total - def_count - att_count)
-    return f'{def_count}-{mid_count}-{att_count}'
+    return f"{def_count}-{mid_count}-{att_count}"
 
 
 def load_player_roster_stats() -> dict:
     if not PLAYER_ROSTER_PATH.exists():
         return {}
     try:
-        html = PLAYER_ROSTER_PATH.read_text(encoding='utf-8')
+        html = PLAYER_ROSTER_PATH.read_text(encoding="utf-8")
     except Exception:
         try:
-            html = PLAYER_ROSTER_PATH.read_text(encoding='latin-1', errors='ignore')
+            html = PLAYER_ROSTER_PATH.read_text(encoding="latin-1", errors="ignore")
         except Exception:
             return {}
-    soup = BeautifulSoup(html, 'html.parser')
-    table = soup.find('table', id='tablePlantilla')
+    soup = BeautifulSoup(html, "html.parser")
+    table = soup.find("table", id="tablePlantilla")
     if not table:
         return {}
     roster = {}
-    for row in table.find_all('tr'):
-        cells = row.find_all('td')
+    for row in table.find_all("tr"):
+        cells = row.find_all("td")
         if len(cells) < 11:
             continue
         name_cell = cells[2]
-        spans = name_cell.find_all('span')
+        spans = name_cell.find_all("span")
         if not spans:
             continue
-        full_name = spans[-1].get_text(' ', strip=True) or spans[0].get_text(' ', strip=True)
+        full_name = spans[-1].get_text(" ", strip=True) or spans[0].get_text(" ", strip=True)
         if not full_name:
             continue
-        position = cells[3].get_text(' ', strip=True)
+        position = cells[3].get_text(" ", strip=True)
         normalized_name = normalize_player_name(full_name)
         roster[normalized_name] = {
-            'name': full_name,
-            'position': position,
-            'age': _parse_int(cells[5].get_text(' ', strip=True)) or 0,
-            'pc': _parse_int(cells[6].get_text(' ', strip=True)) or 0,
-            'pj': _parse_int(cells[7].get_text(' ', strip=True)) or 0,
-            'pt': _parse_int(cells[8].get_text(' ', strip=True)) or 0,
-            'minutes': _parse_int(cells[9].get_text(' ', strip=True)) or 0,
-            'goals': _parse_int(cells[10].get_text(' ', strip=True)) or 0,
-            'yellow_cards': _parse_int(cells[11].get_text(' ', strip=True)) or 0,
-            'red_cards': _parse_int(cells[12].get_text(' ', strip=True)) or 0,
-            'assists': 0,
+            "name": full_name,
+            "position": position,
+            "age": _parse_int(cells[5].get_text(" ", strip=True)) or 0,
+            "pc": _parse_int(cells[6].get_text(" ", strip=True)) or 0,
+            "pj": _parse_int(cells[7].get_text(" ", strip=True)) or 0,
+            "pt": _parse_int(cells[8].get_text(" ", strip=True)) or 0,
+            "minutes": _parse_int(cells[9].get_text(" ", strip=True)) or 0,
+            "goals": _parse_int(cells[10].get_text(" ", strip=True)) or 0,
+            "yellow_cards": _parse_int(cells[11].get_text(" ", strip=True)) or 0,
+            "red_cards": _parse_int(cells[12].get_text(" ", strip=True)) or 0,
+            "assists": 0,
         }
     return roster
 
@@ -1274,15 +1291,15 @@ _ROSTER_CACHE_MTIME = None
 
 def refresh_primary_roster_cache(primary_team, force: bool = False):
     if not primary_team:
-        return False, 'Equipo principal no configurado'
-    team_url = (primary_team.preferente_url or '').strip()
+        return False, "Equipo principal no configurado"
+    team_url = (primary_team.preferente_url or "").strip()
     if not team_url:
-        return False, 'Sin URL de La Preferente en equipo principal'
+        return False, "Sin URL de La Preferente en equipo principal"
     if not force and PLAYER_ROSTER_PATH.exists():
         try:
             age_seconds = time.time() - PLAYER_ROSTER_PATH.stat().st_mtime
             if age_seconds < ROSTER_REFRESH_SECONDS:
-                return False, f'Cache reciente ({int(age_seconds // 60)} min)'
+                return False, f"Cache reciente ({int(age_seconds // 60)} min)"
         except OSError:
             pass
     try:
@@ -1290,19 +1307,19 @@ def refresh_primary_roster_cache(primary_team, force: bool = False):
         response.raise_for_status()
     except requests.RequestException as exc:
         if PLAYER_ROSTER_PATH.exists():
-            return False, f'La Preferente no respondió ({exc}); se mantiene la última plantilla en caché.'
-        return False, f'Error consultando La Preferente: {exc}'
-    html = response.text or ''
-    if 'tablePlantilla' not in html:
+            return False, f"La Preferente no respondió ({exc}); se mantiene la última plantilla en caché."
+        return False, f"Error consultando La Preferente: {exc}"
+    html = response.text or ""
+    if "tablePlantilla" not in html:
         if PLAYER_ROSTER_PATH.exists():
-            return False, 'La respuesta no incluyó la tabla de plantilla; se mantiene la última caché.'
-        return False, 'HTML sin tabla de plantilla (tablePlantilla)'
+            return False, "La respuesta no incluyó la tabla de plantilla; se mantiene la última caché."
+        return False, "HTML sin tabla de plantilla (tablePlantilla)"
     PLAYER_ROSTER_PATH.parent.mkdir(parents=True, exist_ok=True)
-    PLAYER_ROSTER_PATH.write_text(html, encoding='utf-8')
+    PLAYER_ROSTER_PATH.write_text(html, encoding="utf-8")
     global _ROSTER_CACHE, _ROSTER_CACHE_MTIME
     _ROSTER_CACHE = None
     _ROSTER_CACHE_MTIME = None
-    return True, f'Plantilla actualizada desde {team_url}'
+    return True, f"Plantilla actualizada desde {team_url}"
 
 
 def get_roster_stats_cache() -> dict:
@@ -1318,25 +1335,25 @@ def get_roster_stats_cache() -> dict:
 
 
 ALIAS_MAP = {
-    'antonio': 'antonio-gamez-paniagua',
-    'andrew': 'andrew-brayce-gonzales-ticona',
-    'andrews': 'andrew-brayce-gonzales-ticona',
-    'andrew-brayce-gonzales-ticona': 'andrew-brayce-gonzales-ticona',
-    'manu': 'manuel-torres-palenzuela',
-    'lolo': 'manuel-fernandez-canete',
-    'jaime': 'javier-gutierrez-palma',
-    'javi': 'javier-gutierrez-palma',
-    'martinez': 'antonio-martinez-campens',
-    'nico': 'nicolas-villalba-alcaide',
-    'nicolas': 'nicolas-villalba-alcaide',
-    'nacho': 'ignacio-dorado-morales',
-    'ivan': 'ivan-fernandez-reina',
-    'yaco': 'yaco-uriel-campoamor',
-    'acosta': 'jose-garcia-acosta',
-    'francis': 'francisco-javier-ruiz-perez',
-    'juanmi': 'juan-miguel-anaya-bustamante',
-    'victor': 'victor-ruiz-postigo',
-    'antonio-ruiz': 'antonio-vilches',
+    "antonio": "antonio-gamez-paniagua",
+    "andrew": "andrew-brayce-gonzales-ticona",
+    "andrews": "andrew-brayce-gonzales-ticona",
+    "andrew-brayce-gonzales-ticona": "andrew-brayce-gonzales-ticona",
+    "manu": "manuel-torres-palenzuela",
+    "lolo": "manuel-fernandez-canete",
+    "jaime": "javier-gutierrez-palma",
+    "javi": "javier-gutierrez-palma",
+    "martinez": "antonio-martinez-campens",
+    "nico": "nicolas-villalba-alcaide",
+    "nicolas": "nicolas-villalba-alcaide",
+    "nacho": "ignacio-dorado-morales",
+    "ivan": "ivan-fernandez-reina",
+    "yaco": "yaco-uriel-campoamor",
+    "acosta": "jose-garcia-acosta",
+    "francis": "francisco-javier-ruiz-perez",
+    "juanmi": "juan-miguel-anaya-bustamante",
+    "victor": "victor-ruiz-postigo",
+    "antonio-ruiz": "antonio-vilches",
 }
 
 
@@ -1359,7 +1376,7 @@ def find_roster_entry(player_name: str, roster: dict) -> Optional[dict]:
     for entry in roster.values():
         if not isinstance(entry, dict):
             continue
-        entry_name = str(entry.get('name') or '').lower()
+        entry_name = str(entry.get("name") or "").lower()
         if not entry_name:
             continue
         if target in entry_name or entry_name in target:
@@ -1385,13 +1402,13 @@ def _read_match_list_sheet():
         return actions, results
     try:
         workbook = load_workbook(filename=MATCH_LISTS_PATH, read_only=True, data_only=True)
-        if 'LISTAS' in workbook.sheetnames:
-            sheet = workbook['LISTAS']
+        if "LISTAS" in workbook.sheetnames:
+            sheet = workbook["LISTAS"]
             for row in sheet.iter_rows(values_only=True):
                 if not row:
                     continue
-                action_label = (row[0] or '').strip()
-                result_label = (row[1] or '').strip()
+                action_label = (row[0] or "").strip()
+                result_label = (row[1] or "").strip()
                 if action_label:
                     key = action_label.upper()
                     if key not in seen_actions:
@@ -1410,31 +1427,32 @@ def _read_match_list_sheet():
 
 
 DEFAULT_QUICK_ACTIONS = [
-    'Disparo',
-    'Pase',
-    'Pase clave',
-    'Pase a la espalda',
-    'Robo',
-    'Falta',
-    'Cambio',
-    'Duelo aéreo',
-    'Regate',
-    'Parada',
-    'Saque de esquina a favor',
-    'Saque de esquina en contra',
+    "Disparo",
+    "Pase",
+    "Pase clave",
+    "Pase a la espalda",
+    "Robo",
+    "Falta",
+    "Cambio",
+    "Duelo aéreo",
+    "Regate",
+    "Parada",
+    "Saque de esquina a favor",
+    "Saque de esquina en contra",
 ]
 DEFAULT_MATCH_RESULTS = [
-    'GANADO',
-    'PERDIDO',
-    'NEUTRAL',
-    'OK',
-    'MAL',
-    'AP',
-    'GOL',
-    'FALLADO',
-    'A FAVOR',
-    'EN CONTRA',
+    "GANADO",
+    "PERDIDO",
+    "NEUTRAL",
+    "OK",
+    "MAL",
+    "AP",
+    "GOL",
+    "FALLADO",
+    "A FAVOR",
+    "EN CONTRA",
 ]
+
 
 def load_match_quick_actions():
     """
@@ -1442,6 +1460,7 @@ def load_match_quick_actions():
     Mantener corto y estable para no saturar iPad/webview.
     """
     return DEFAULT_QUICK_ACTIONS.copy()
+
 
 def load_match_actions():
     actions, _ = _read_match_list_sheet()
@@ -1468,7 +1487,7 @@ def load_match_results():
     ordered = []
     seen = set()
     for result in [*(results or []), *DEFAULT_MATCH_RESULTS]:
-        normalized = str(result or '').strip().lower()
+        normalized = str(result or "").strip().lower()
         if not normalized or normalized in seen:
             continue
         seen.add(normalized)

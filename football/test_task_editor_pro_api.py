@@ -1,3 +1,4 @@
+import json
 from datetime import date
 import base64
 import io
@@ -16,6 +17,7 @@ except Exception:  # pragma: no cover
 from football.models import (
     AppUserRole,
     SessionTask,
+    SessionTaskBackup,
     SessionTaskExportJob,
     Team,
     TrainingMicrocycle,
@@ -135,6 +137,12 @@ class SessionTaskEditorProApiTests(TestCase):
         self.assertEqual(document.get('graphic', {}).get('canvas_height'), 720)
         self.assertEqual(len(document.get('graphic', {}).get('canvas_state', {}).get('objects', [])), 1)
         self.assertIn('graphic_save', document.get('urls', {}))
+        self.assertIn('save_as', document.get('urls', {}))
+        self.assertIn('duplicate', document.get('urls', {}))
+        self.assertIn('rename', document.get('urls', {}))
+        self.assertIn('delete', document.get('urls', {}))
+        self.assertIn('versions', document.get('urls', {}))
+        self.assertIn('restore_version', document.get('urls', {}))
 
     def test_editor_pro_page_includes_built_bundle_reference(self):
         response = self.client.get(reverse('session-task-editor-pro', args=[self.task.id]))
@@ -175,6 +183,133 @@ class SessionTaskEditorProApiTests(TestCase):
         ai_preview_response = self.client.get(reverse('session-task-ai-preview-file', args=[self.task.id]))
         self.assertEqual(ai_preview_response.status_code, 200)
         self.assertIn(ai_preview_response['Content-Type'], ['image/jpeg', 'image/png', 'image/webp'])
+
+    def test_save_as_api_clones_current_task_with_canvas_state(self):
+        self.task.tactical_layout = {
+            'meta': {
+                'graphic_editor': {
+                    'canvas_state': {
+                        'version': '5.3.0',
+                        'objects': [{'id': 'player-1', 'type': 'circle'}],
+                    },
+                    'canvas_width': 1440,
+                    'canvas_height': 900,
+                }
+            }
+        }
+        self.task.save(update_fields=['tactical_layout'])
+        response = self.client.post(
+            reverse('session-task-editor-save-as-api', args=[self.task.id]),
+            data=json.dumps(
+                {
+                    'title': 'Tarea editor pro (copia)',
+                    'canvas_state': {
+                        'version': '5.3.0',
+                        'objects': [{'id': 'player-1', 'type': 'circle'}],
+                    },
+                    'canvas_width': 1440,
+                    'canvas_height': 900,
+                }
+            ),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload.get('ok'))
+        clone = SessionTask.objects.exclude(id=self.task.id).get(title='Tarea editor pro (copia)')
+        self.assertEqual(clone.session_id, self.task.session_id)
+        self.assertEqual(clone.tactical_layout.get('meta', {}).get('graphic_editor', {}).get('canvas_width'), 1440)
+        self.assertEqual(clone.tactical_layout.get('meta', {}).get('graphic_editor', {}).get('canvas_height'), 900)
+        self.assertEqual(
+            len(clone.tactical_layout.get('meta', {}).get('graphic_editor', {}).get('canvas_state', {}).get('objects', [])),
+            1,
+        )
+
+    def test_rename_api_updates_title_and_returns_document_payload(self):
+        response = self.client.post(
+            reverse('session-task-editor-rename-api', args=[self.task.id]),
+            data=json.dumps({'title': 'Tarea renombrada'}),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload.get('ok'))
+        self.assertEqual(payload.get('task', {}).get('title'), 'Tarea renombrada')
+        self.assertIn('document', payload)
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.title, 'Tarea renombrada')
+        backups = SessionTaskBackup.objects.filter(task_id=self.task.id, reason='rename')
+        self.assertTrue(backups.exists())
+
+    def test_delete_api_soft_deletes_task_and_writes_backup(self):
+        response = self.client.post(
+            reverse('session-task-editor-delete-api', args=[self.task.id]),
+            data='{}',
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload.get('ok'))
+        self.assertIn('redirect_url', payload)
+        self.task.refresh_from_db()
+        self.assertIsNotNone(self.task.deleted_at)
+        backups = SessionTaskBackup.objects.filter(task_id=self.task.id, reason='delete')
+        self.assertTrue(backups.exists())
+
+    def test_versions_api_lists_backups_and_restore_applies_snapshot(self):
+        backup = SessionTaskBackup.objects.create(
+            team=self.team,
+            task_id=self.task.id,
+            kind='session_task',
+            reason='save',
+            actor_username=self.user.username,
+            payload={
+                'task': {
+                    'title': 'Tarea restaurada',
+                    'block': SessionTask.BLOCK_MAIN_2,
+                    'duration_minutes': 21,
+                    'objective': 'Objetivo restaurado',
+                    'coaching_points': 'Punto 1',
+                    'confrontation_rules': 'Regla 1',
+                    'notes': 'Nota restaurada',
+                    'tactical_layout': {
+                        'meta': {
+                            'graphic_editor': {
+                                'canvas_state': {
+                                    'version': '5.3.0',
+                                    'objects': [{'id': 'cone-1', 'type': 'circle'}],
+                                },
+                                'canvas_width': 1280,
+                                'canvas_height': 720,
+                            }
+                        }
+                    },
+                }
+            },
+        )
+        versions_response = self.client.get(reverse('session-task-editor-versions-api', args=[self.task.id]))
+        self.assertEqual(versions_response.status_code, 200)
+        versions = versions_response.json().get('versions') or []
+        self.assertGreaterEqual(len(versions), 1)
+        self.assertEqual(versions[0]['id'], backup.id)
+
+        restore_response = self.client.post(
+            reverse('session-task-editor-restore-version-api', args=[self.task.id]),
+            data=json.dumps({'backup_id': backup.id}),
+            content_type='application/json',
+        )
+        self.assertEqual(restore_response.status_code, 200)
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.title, 'Tarea restaurada')
+        self.assertEqual(self.task.block, SessionTask.BLOCK_MAIN_2)
+        self.assertEqual(self.task.duration_minutes, 21)
+        restored_objects = (
+            self.task.tactical_layout.get('meta', {})
+            .get('graphic_editor', {})
+            .get('canvas_state', {})
+            .get('objects', [])
+        )
+        self.assertEqual(len(restored_objects), 1)
 
     @patch.dict('os.environ', {'OPENAI_API_KEY': 'test-openai-key', 'OPENAI_IMAGE_MODEL': 'gpt-image-1'}, clear=False)
     @patch('football.views.requests.post')

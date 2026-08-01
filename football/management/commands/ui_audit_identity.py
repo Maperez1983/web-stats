@@ -6,7 +6,6 @@ from collections import Counter, defaultdict
 
 from django.core.management.base import BaseCommand
 
-
 RE_HEX = re.compile(r"#[0-9a-fA-F]{3,8}")
 
 
@@ -51,9 +50,7 @@ class Command(BaseCommand):
                 file_colors[name][hx] += 1
 
         if non_pdf_missing_commercial:
-            issues.append(
-                f"Templates sin `body.prod-commercial` (no-PDF): {len(non_pdf_missing_commercial)}"
-            )
+            issues.append(f"Templates sin `body.prod-commercial` (no-PDF): {len(non_pdf_missing_commercial)}")
 
         top_files = sorted(
             ((fn, sum(cnt.values())) for fn, cnt in file_colors.items()),
@@ -88,4 +85,3 @@ class Command(BaseCommand):
 
         if issues and fail_on_issues:
             raise SystemExit(1)
-

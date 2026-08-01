@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-30 -30 60 60">
+  <ellipse cx="0" cy="18" rx="17" ry="6" fill="var(--asset-shadow, rgba(0,0,0,.22))"/>
+  <path d="M0 -24 L24 0 L0 24 L-24 0 Z" fill="var(--asset-ring, #eef6ff)"/>
+  <path d="M0 -19 L19 0 L0 19 L-19 0 Z" fill="var(--asset-player-fill, #f5c84c)"/>
+  <path d="M0 0 L0 -12" stroke="var(--asset-contrast, #06111d)" stroke-width="4.2" stroke-linecap="round"/>
+  <circle cx="0" cy="-12" r="2.8" fill="var(--asset-contrast, #06111d)"/>
+</svg>

@@ -44,20 +44,24 @@ def _normalize_series(values: list[float]) -> list[float]:
 
 
 def _get_duration_seconds(video_path: str) -> float:
-    ffprobe = shutil.which('ffprobe')
+    ffprobe = shutil.which("ffprobe")
     if ffprobe:
         try:
             cmd = [
                 ffprobe,
-                '-v',
-                'error',
-                '-show_entries',
-                'format=duration',
-                '-of',
-                'default=noprint_wrappers=1:nokey=1',
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
                 str(video_path),
             ]
-            out = subprocess.check_output(cmd, stderr=subprocess.DEVNULL, timeout=6).decode('utf-8', errors='ignore').strip()
+            out = (
+                subprocess.check_output(cmd, stderr=subprocess.DEVNULL, timeout=6)
+                .decode("utf-8", errors="ignore")
+                .strip()
+            )
             val = float(out or 0.0)
             if math.isfinite(val) and val > 0:
                 return float(val)
@@ -91,7 +95,7 @@ def extract_audio_dbfs_series(
 
     Devuelve: [(time_s, dbfs)] donde dbfs es negativo y valores mayores (menos negativos) = más volumen.
     """
-    ffmpeg = shutil.which('ffmpeg')
+    ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
         return []
     sr = int(sample_rate or 8000)
@@ -101,26 +105,26 @@ def extract_audio_dbfs_series(
 
     cmd = [
         ffmpeg,
-        '-nostdin',
-        '-hide_banner',
-        '-loglevel',
-        'error',
-        '-i',
+        "-nostdin",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-i",
         str(video_path),
         # Si solo necesitamos los primeros X segundos, pedimos a FFmpeg que corte (evita CPU extra).
-        *(['-t', str(float(max_seconds) + 0.5)] if max_seconds is not None else []),
-        '-vn',
-        '-ac',
-        '1',
-        '-ar',
+        *(["-t", str(float(max_seconds) + 0.5)] if max_seconds is not None else []),
+        "-vn",
+        "-ac",
+        "1",
+        "-ar",
         str(sr),
-        '-f',
-        's16le',
-        'pipe:1',
+        "-f",
+        "s16le",
+        "pipe:1",
     ]
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)  # noqa: S603
     out: list[tuple[float, float]] = []
-    buf = b''
+    buf = b""
     idx = 0
     started = time.monotonic()
     try:
@@ -164,34 +168,34 @@ def extract_motion_series(
     Serie temporal de movimiento basada en diferencia frame-to-frame (media abs diff).
     """
     # Fast path: usa FFmpeg para muestrear frames (mucho más rápido que decodificar frame-a-frame en Python).
-    ffmpeg = shutil.which('ffmpeg')
+    ffmpeg = shutil.which("ffmpeg")
     if ffmpeg:
         fps = max(0.25, float(sample_fps or 2.0))
         w = int(resize_w or 160)
         h = int(resize_h or 90)
         frame_size = max(1, w * h)
-        vf = f'fps={fps},scale={w}:{h}:flags=fast_bilinear,format=gray'
+        vf = f"fps={fps},scale={w}:{h}:flags=fast_bilinear,format=gray"
         cmd = [
             ffmpeg,
-            '-nostdin',
-            '-hide_banner',
-            '-loglevel',
-            'error',
+            "-nostdin",
+            "-hide_banner",
+            "-loglevel",
+            "error",
             # Decodifica solo keyframes cuando sea posible (acelera mucho en partidos largos).
-            '-skip_frame',
-            'nokey',
-            '-i',
+            "-skip_frame",
+            "nokey",
+            "-i",
             str(video_path),
-            *(['-t', str(float(max_seconds) + 0.5)] if max_seconds is not None else []),
-            '-an',
-            '-sn',
-            '-vf',
+            *(["-t", str(float(max_seconds) + 0.5)] if max_seconds is not None else []),
+            "-an",
+            "-sn",
+            "-vf",
             vf,
-            '-f',
-            'rawvideo',
-            '-pix_fmt',
-            'gray',
-            'pipe:1',
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "gray",
+            "pipe:1",
         ]
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)  # noqa: S603
         out: list[tuple[float, float]] = []
@@ -281,32 +285,32 @@ def extract_field_context_series(
 
     Devuelve: [(time_s, green_ratio, cut_score)].
     """
-    ffmpeg = shutil.which('ffmpeg')
+    ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
         return []
     fps = max(0.25, float(sample_fps or 1.0))
     w = int(resize_w or 160)
     h = int(resize_h or 90)
     frame_size = max(1, w * h * 3)  # rgb24
-    vf = f'fps={fps},scale={w}:{h}:flags=fast_bilinear,format=rgb24'
+    vf = f"fps={fps},scale={w}:{h}:flags=fast_bilinear,format=rgb24"
     cmd = [
         ffmpeg,
-        '-nostdin',
-        '-hide_banner',
-        '-loglevel',
-        'error',
-        '-i',
+        "-nostdin",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-i",
         str(video_path),
-        *(['-t', str(float(max_seconds) + 0.5)] if max_seconds is not None else []),
-        '-an',
-        '-sn',
-        '-vf',
+        *(["-t", str(float(max_seconds) + 0.5)] if max_seconds is not None else []),
+        "-an",
+        "-sn",
+        "-vf",
         vf,
-        '-f',
-        'rawvideo',
-        '-pix_fmt',
-        'rgb24',
-        'pipe:1',
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "rgb24",
+        "pipe:1",
     ]
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)  # noqa: S603
     out: list[tuple[float, float, float]] = []
@@ -408,27 +412,27 @@ def _refine_clip_bounds(
     """
     Refina IN/OUT para que el clip represente acción real (no post-gol / paseos / replay).
     """
-    k = str(kind or 'tag').strip().lower()
+    k = str(kind or "tag").strip().lower()
     tp = float(max(0.0, t_peak))
     start0 = float(max(0.0, clip_in_s))
     end0 = float(max(start0 + 0.2, clip_out_s))
 
     # Ventanas por tipo.
-    if k == 'goal':
+    if k == "goal":
         # Para goles el "pico" suele venir tarde (celebración). Forzamos buscar IN más atrás
         # y evitar quedarse con el saque de centro.
         in_a, in_b = tp - 55.0, tp - 12.0
         out_a, out_b = tp + 1.0, tp + 12.0
         min_dur = 10.0
-    elif k == 'shot':
+    elif k == "shot":
         in_a, in_b = tp - 20.0, tp - 5.0
         out_a, out_b = tp + 0.6, tp + 10.0
         min_dur = 8.0
-    elif k == 'abp':
+    elif k == "abp":
         in_a, in_b = tp - 22.0, tp - 6.0
         out_a, out_b = tp + 2.0, tp + 20.0
         min_dur = 12.0
-    elif k == 'press' or k == 'turnover':
+    elif k == "press" or k == "turnover":
         in_a, in_b = tp - 20.0, tp - 5.0
         out_a, out_b = tp + 1.0, tp + 14.0
         min_dur = 10.0
@@ -441,7 +445,7 @@ def _refine_clip_bounds(
     times = [float(t) for (t, _s) in in_play]
     scores = [float(s) for (_t, s) in in_play]
     if not times or len(times) != len(scores):
-        return (start0, end0, {'refined': False, 'reason': 'no_series'})
+        return (start0, end0, {"refined": False, "reason": "no_series"})
 
     def _idx_for_time(t: float) -> int:
         # Aproximación: series uniformes.
@@ -481,34 +485,34 @@ def _refine_clip_bounds(
         return None
 
     # IN: último run estable de bola en juego.
-    in_thr = 0.60 if k == 'goal' else 0.62
-    run_len = 6.0 if k == 'goal' else (5.0 if k == 'abp' else 4.0)
+    in_thr = 0.60 if k == "goal" else 0.62
+    run_len = 6.0 if k == "goal" else (5.0 if k == "abp" else 4.0)
     in_run = _find_run_start_latest(in_a, in_b, thr=in_thr, run_len_s=run_len)
     refined_in = start0
-    in_reason = 'keep'
+    in_reason = "keep"
     if in_run is not None:
         refined_in = max(0.0, float(in_run))
-        in_reason = 'ball_in_play_run'
+        in_reason = "ball_in_play_run"
 
     # OUT: primer corte fuerte o caída de bola en juego, con guardrail de tiempo.
     refined_out = end0
-    out_reason = 'keep'
+    out_reason = "keep"
     # Si es gol y encontramos un corte fuerte cercano al pico, evitamos el post-evento:
     # - si hay corte en (tp-3 .. tp+10), asumimos que el juego se rompe ahí (replay/celebración)
     #   y hacemos OUT antes de ese corte.
-    if k == 'goal':
+    if k == "goal":
         near_cut = _first_cut_after(tp - 3.0, tp + 10.0)
         if near_cut is not None:
             refined_out = min(refined_out, float(near_cut))
-            out_reason = f'{out_reason}|goal_near_cut'
+            out_reason = f"{out_reason}|goal_near_cut"
     cut_t = _first_cut_after(out_a, out_b)
     if cut_t is not None:
-        if k == 'goal' and refined_out < end0:
+        if k == "goal" and refined_out < end0:
             refined_out = min(refined_out, float(cut_t))
-            out_reason = f'{out_reason}|scene_cut'
+            out_reason = f"{out_reason}|scene_cut"
         else:
             refined_out = float(cut_t)
-            out_reason = 'scene_cut'
+            out_reason = "scene_cut"
     else:
         # caída de in_play sostenida tras out_a
         ia = _idx_for_time(out_a)
@@ -526,28 +530,28 @@ def _refine_clip_bounds(
                     break
             if ok_low:
                 refined_out = float(times[i])
-                out_reason = 'ball_out_play'
+                out_reason = "ball_out_play"
                 break
 
     # Guardrails.
     if refined_out <= refined_in + 4.0:
         refined_out = max(refined_in + float(min_dur), refined_out, end0)
-        out_reason = f'{out_reason}|min_dur'
+        out_reason = f"{out_reason}|min_dur"
     # Recorta para no irse a paseos.
-    max_len = 65.0 if k == 'abp' else 50.0
+    max_len = 65.0 if k == "abp" else 50.0
     if refined_out - refined_in > max_len:
         refined_out = refined_in + max_len
-        out_reason = f'{out_reason}|cap'
+        out_reason = f"{out_reason}|cap"
 
     return (
         float(refined_in),
         float(max(refined_in + 0.2, refined_out)),
         {
-            'refined': True,
-            'in_reason': in_reason,
-            'out_reason': out_reason,
-            'in_play_thr': 0.62,
-            'out_low_thr': 0.35,
+            "refined": True,
+            "in_reason": in_reason,
+            "out_reason": out_reason,
+            "in_play_thr": 0.62,
+            "out_low_thr": 0.35,
         },
     )
 
@@ -576,7 +580,7 @@ def _refine_abp_bounds(
     dur = float(duration_s or 0.0)
 
     if not combined:
-        return start0, end0, {'refined': False, 'reason': 'no_activity_series', 'abp': True}
+        return start0, end0, {"refined": False, "reason": "no_activity_series", "abp": True}
 
     def _nearest_in_play(tt: float) -> float:
         if not in_play:
@@ -585,90 +589,96 @@ def _refine_abp_bounds(
         return float(s_hit) if abs(float(t_hit) - float(tt)) <= 2.0 else 0.0
 
     rows = [
-        {'t': float(t), 'score': float(s), 'audio': float(a), 'motion': float(m), 'play': _nearest_in_play(float(t))}
+        {"t": float(t), "score": float(s), "audio": float(a), "motion": float(m), "play": _nearest_in_play(float(t))}
         for t, s, a, m in combined
         if float(t) >= max(0.0, tp - 16.0) and float(t) <= min(dur or 10**9, tp + 46.0)
     ]
     if not rows:
-        return start0, end0, {'refined': False, 'reason': 'no_abp_window_rows', 'abp': True}
+        return start0, end0, {"refined": False, "reason": "no_abp_window_rows", "abp": True}
 
     # IN: no queremos empezar en el golpeo, sino en la organización previa.
-    pre_rows = [r for r in rows if tp - 12.0 <= r['t'] <= tp - 2.0]
+    pre_rows = [r for r in rows if tp - 12.0 <= r["t"] <= tp - 2.0]
     if pre_rows:
         # El inicio útil es el primer tramo con juego visible antes del saque.
-        candidates = [r for r in pre_rows if r['play'] >= 0.45 or r['motion'] <= 0.55]
-        start = float((candidates[0] if candidates else pre_rows[0])['t'])
+        candidates = [r for r in pre_rows if r["play"] >= 0.45 or r["motion"] <= 0.55]
+        start = float((candidates[0] if candidates else pre_rows[0])["t"])
     else:
         start = max(0.0, tp - 8.0)
     start = max(0.0, min(start, tp - 3.0 if tp >= 4.0 else start))
 
-    after = [r for r in rows if r['t'] >= tp + 1.0]
+    after = [r for r in rows if r["t"] >= tp + 1.0]
     first_contact_t = None
     second_phase_t = None
     if after:
         # Primera disputa/contacto: primer pico relevante de movimiento o actividad tras el golpeo.
         for r in after:
-            if r['motion'] >= 0.62 or r['score'] >= 0.62 or r['audio'] >= 0.70:
-                first_contact_t = float(r['t'])
+            if r["motion"] >= 0.62 or r["score"] >= 0.62 or r["audio"] >= 0.70:
+                first_contact_t = float(r["t"])
                 break
         if first_contact_t is not None:
             for r in after:
-                if r['t'] <= first_contact_t + 2.0:
+                if r["t"] <= first_contact_t + 2.0:
                     continue
-                if r['motion'] >= 0.58 or r['score'] >= 0.58:
-                    second_phase_t = float(r['t'])
+                if r["motion"] >= 0.58 or r["score"] >= 0.58:
+                    second_phase_t = float(r["t"])
                     break
 
     min_keep_until = max(tp + 8.0, (first_contact_t or tp) + 4.0, (second_phase_t or tp) + 3.0)
     max_end = min(dur if dur > 0 else tp + 42.0, tp + 42.0)
 
     end = None
-    end_reason = 'fallback'
+    end_reason = "fallback"
     for ct in sorted(float(x) for x in cut_times):
         if ct >= min_keep_until and ct <= max_end:
             end = ct
-            end_reason = 'scene_cut_after_abp'
+            end_reason = "scene_cut_after_abp"
             break
     if end is None:
         low_run = 0
         for r in after:
-            if r['t'] < min_keep_until:
+            if r["t"] < min_keep_until:
                 continue
-            quiet = (r['motion'] <= 0.30 and r['score'] <= 0.38 and r['audio'] <= 0.58) or r['play'] <= 0.25
+            quiet = (r["motion"] <= 0.30 and r["score"] <= 0.38 and r["audio"] <= 0.58) or r["play"] <= 0.25
             if quiet:
                 low_run += 1
             else:
                 low_run = 0
             if low_run >= 3:
-                end = float(r['t'])
-                end_reason = 'activity_drops_after_second_phase'
+                end = float(r["t"])
+                end_reason = "activity_drops_after_second_phase"
                 break
     if end is None:
         end = min(max_end, max(end0, min_keep_until + 4.0))
-        end_reason = 'max_abp_window'
+        end_reason = "max_abp_window"
 
     if end <= start + 10.0:
         end = min(max_end, start + 14.0)
-        end_reason = f'{end_reason}|min_abp_duration'
+        end_reason = f"{end_reason}|min_abp_duration"
     if end - start > 52.0:
         end = start + 52.0
-        end_reason = f'{end_reason}|cap'
+        end_reason = f"{end_reason}|cap"
 
     return (
         float(start),
         float(max(start + 0.2, end)),
         {
-            'refined': True,
-            'abp': True,
-            'method': 'abp_restart_to_second_phase_end',
-            'window_policy': 'organizacion_previa_golpeo_primera_disputa_segunda_jugada_fin',
-            'supported_subtypes': ['corner', 'falta_lateral', 'falta_frontal', 'saque_banda_largo', 'reinicio_largo'],
-            'restart_s': round(tp, 3),
-            'first_contact_s': round(float(first_contact_t), 3) if first_contact_t is not None else None,
-            'second_phase_s': round(float(second_phase_t), 3) if second_phase_t is not None else None,
-            'in_reason': 'pre_kick_organization',
-            'out_reason': end_reason,
-            'capture_must_show': ['organizacion previa', 'golpeo/reinicio', 'primera disputa', 'segunda jugada', 'final de accion'],
+            "refined": True,
+            "abp": True,
+            "method": "abp_restart_to_second_phase_end",
+            "window_policy": "organizacion_previa_golpeo_primera_disputa_segunda_jugada_fin",
+            "supported_subtypes": ["corner", "falta_lateral", "falta_frontal", "saque_banda_largo", "reinicio_largo"],
+            "restart_s": round(tp, 3),
+            "first_contact_s": round(float(first_contact_t), 3) if first_contact_t is not None else None,
+            "second_phase_s": round(float(second_phase_t), 3) if second_phase_t is not None else None,
+            "in_reason": "pre_kick_organization",
+            "out_reason": end_reason,
+            "capture_must_show": [
+                "organizacion previa",
+                "golpeo/reinicio",
+                "primera disputa",
+                "segunda jugada",
+                "final de accion",
+            ],
         },
     )
 
@@ -691,18 +701,18 @@ def _find_attack_origin(
     - busca disparadores tempranos: subida brusca de ritmo, paneo/carrera o pase largo;
     - no cruza cortes de plano fuertes salvo que no haya alternativa.
     """
-    k = str(kind or 'tag').strip().lower()
+    k = str(kind or "tag").strip().lower()
     tp = float(max(0.0, t_peak))
     cur = float(max(0.0, current_start))
-    if k == 'goal':
+    if k == "goal":
         lookback = 72.0
         min_before = 8.0
         max_len = 62.0
-    elif k == 'shot':
+    elif k == "shot":
         lookback = 52.0
         min_before = 6.0
         max_len = 46.0
-    elif k in {'press', 'turnover'}:
+    elif k in {"press", "turnover"}:
         lookback = 36.0
         min_before = 4.0
         max_len = 34.0
@@ -712,7 +722,7 @@ def _find_attack_origin(
         max_len = 38.0
 
     if not combined:
-        return cur, {'origin_refined': False, 'reason': 'no_activity_series'}
+        return cur, {"origin_refined": False, "reason": "no_activity_series"}
 
     a = max(0.0, tp - lookback)
     b = max(a, tp - min_before)
@@ -754,7 +764,7 @@ def _find_attack_origin(
         long_pass_proxy = float(motion) >= 0.70 and float(audio) <= 0.74
         tempo_jump = ds >= 0.18 or dm >= 0.22
         if long_pass_proxy or tempo_jump:
-            reason = 'long_pass_or_run_proxy' if long_pass_proxy else 'tempo_jump'
+            reason = "long_pass_or_run_proxy" if long_pass_proxy else "tempo_jump"
             weight = (0.58 * float(motion)) + (0.22 * max(0.0, ds)) + (0.20 * play)
             # Preferimos disparadores tempranos que permitan ver el origen.
             early_bonus = _clamp((b - tt) / max(1.0, b - hard_floor), 0.0, 1.0) * 0.12
@@ -771,8 +781,13 @@ def _find_attack_origin(
                 origin = max(0.0, min(origin, tp - min_before))
                 if tp - origin > max_len:
                     origin = max(0.0, tp - max_len)
-                return origin, {'origin_refined': True, 'reason': 'continuous_in_play', 'from_s': round(cur, 3), 'to_s': round(origin, 3)}
-        return cur, {'origin_refined': False, 'reason': 'no_origin_trigger'}
+                return origin, {
+                    "origin_refined": True,
+                    "reason": "continuous_in_play",
+                    "from_s": round(cur, 3),
+                    "to_s": round(origin, 3),
+                }
+        return cur, {"origin_refined": False, "reason": "no_origin_trigger"}
 
     # Escogemos el primer candidato fuerte, no el más cercano al gol.
     candidates.sort(key=lambda row: (float(row[0]), -float(row[1])))
@@ -781,18 +796,20 @@ def _find_attack_origin(
     if tp - origin > max_len:
         origin = max(0.0, tp - max_len)
     if cur - origin < 4.0:
-        return cur, {'origin_refined': False, 'reason': 'origin_too_close', 'candidate_s': round(origin, 3)}
+        return cur, {"origin_refined": False, "reason": "origin_too_close", "candidate_s": round(origin, 3)}
     return origin, {
-        'origin_refined': True,
-        'reason': reason,
-        'strength': round(float(strength), 4),
-        'from_s': round(cur, 3),
-        'to_s': round(origin, 3),
-        'lookback_s': round(float(lookback), 1),
+        "origin_refined": True,
+        "reason": reason,
+        "strength": round(float(strength), 4),
+        "from_s": round(cur, 3),
+        "to_s": round(origin, 3),
+        "lookback_s": round(float(lookback), 1),
     }
 
 
-def _pick_top_times(points: list[tuple[float, float]], *, top_n: int, min_gap_s: float, min_score: float) -> list[tuple[float, float]]:
+def _pick_top_times(
+    points: list[tuple[float, float]], *, top_n: int, min_gap_s: float, min_score: float
+) -> list[tuple[float, float]]:
     """
     Selección greedy por score, respetando separación temporal.
     """
@@ -914,7 +931,7 @@ def _segments_from_series(
 def suggest_autocuts(
     video_path: str,
     *,
-    profile: str = 'balanced',
+    profile: str = "balanced",
     include_kinds: Iterable[str] | None = None,
     seed_events: Iterable[dict] | None = None,
     max_moments: int = 18,
@@ -938,20 +955,20 @@ def suggest_autocuts(
             for raw in seed_events:
                 if not isinstance(raw, dict):
                     continue
-                t = float(raw.get('time_s') or 0.0)
+                t = float(raw.get("time_s") or 0.0)
                 if not math.isfinite(t) or t < 0:
                     continue
-                label = str(raw.get('label') or '').strip()
-                kind = str(raw.get('kind') or '').strip().lower()
-                principle = str(raw.get('principle') or '').strip()
+                label = str(raw.get("label") or "").strip()
+                kind = str(raw.get("kind") or "").strip().lower()
+                principle = str(raw.get("principle") or "").strip()
                 if not label and not kind and not principle:
                     continue
                 seeds.append(
                     {
-                        'time_s': float(t),
-                        'label': label[:160],
-                        'kind': kind[:40],
-                        'principle': principle[:80],
+                        "time_s": float(t),
+                        "label": label[:160],
+                        "kind": kind[:40],
+                        "principle": principle[:80],
                     }
                 )
         except Exception:
@@ -1009,15 +1026,15 @@ def suggest_autocuts(
                 set_pieces.append((float(t), float(0.7 + 0.3 * m)))
             idle_count = 0
 
-    prof = str(profile or 'balanced').strip().lower()
-    if prof not in {'balanced', 'highlights', 'tactical'}:
-        prof = 'balanced'
-    if prof == 'highlights':
+    prof = str(profile or "balanced").strip().lower()
+    if prof not in {"balanced", "highlights", "tactical"}:
+        prof = "balanced"
+    if prof == "highlights":
         p_hi = 92.0
         min_score = 0.62
         seg_min_len = 3.0
         merge_gap = 4.0
-    elif prof == 'tactical':
+    elif prof == "tactical":
         p_hi = 80.0
         min_score = 0.50
         seg_min_len = 4.0
@@ -1040,7 +1057,7 @@ def suggest_autocuts(
         thr_high=float(thr_high),
         thr_low=float(thr_low),
         min_len_s=float(seg_min_len),
-        max_len_s=80.0 if prof != 'highlights' else 55.0,
+        max_len_s=80.0 if prof != "highlights" else 55.0,
         merge_gap_s=float(merge_gap),
     )
     seg_peaks = [(pt, ps) for (_a, _b, pt, ps) in segments]
@@ -1067,13 +1084,13 @@ def suggest_autocuts(
         # Nota: el pico suele estar DESPUÉS del desenlace (celebración / reacción).
         # 'goal' se usa como hipótesis para activar reglas de recorte fino.
         if a >= 0.93 and s >= 0.84:
-            return ('goal', 'Auto · Gol (posible)')
+            return ("goal", "Auto · Gol (posible)")
         if m >= 0.84 and s >= 0.70:
-            return ('shot', 'Auto · Finalización (posible)')
+            return ("shot", "Auto · Finalización (posible)")
         # Turnover/press (ritmo alto pero sin explosión de audio).
         if m >= 0.90 and a <= 0.62 and s >= 0.68:
-            return ('press', 'Auto · Presión / transición (posible)')
-        return ('tag', 'Auto · Acción (revisar)')
+            return ("press", "Auto · Presión / transición (posible)")
+        return ("tag", "Auto · Acción (revisar)")
 
     moments: list[AutoCutMoment] = []
     for t, s in chosen:
@@ -1085,17 +1102,24 @@ def suggest_autocuts(
                 kind=str(kind),
                 score=float(s),
                 label=str(label),
-                meta={'source': 'segment_peak', 'pre_s': float(pre_s), 'post_s': float(post_s), 'a': float(a), 'm': float(m), 'profile': prof},
+                meta={
+                    "source": "segment_peak",
+                    "pre_s": float(pre_s),
+                    "post_s": float(post_s),
+                    "a": float(a),
+                    "m": float(m),
+                    "profile": prof,
+                },
             )
         )
     for t, s in chosen_set:
         moments.append(
             AutoCutMoment(
                 time_s=float(t),
-                kind='abp',
+                kind="abp",
                 score=float(s),
-                label='Auto · ABP / reinicio (posible)',
-                meta={'source': 'motion_transition', 'pre_s': float(pre_s), 'post_s': float(post_s), 'profile': prof},
+                label="Auto · ABP / reinicio (posible)",
+                meta={"source": "motion_transition", "pre_s": float(pre_s), "post_s": float(post_s), "profile": prof},
             )
         )
 
@@ -1110,11 +1134,11 @@ def suggest_autocuts(
             break
     dedup.sort(key=lambda m: float(m.time_s))
 
-    allowed = {'tag', 'abp', 'goal', 'shot', 'press', 'turnover', 'note'}
+    allowed = {"tag", "abp", "goal", "shot", "press", "turnover", "note"}
     include_set = None
     if include_kinds is not None:
         try:
-            include_set = {str(x or '').strip().lower() for x in include_kinds if str(x or '').strip()}
+            include_set = {str(x or "").strip().lower() for x in include_kinds if str(x or "").strip()}
             include_set = {k for k in include_set if k in allowed}
         except Exception:
             include_set = None
@@ -1127,7 +1151,7 @@ def suggest_autocuts(
         if include_set is not None and str(m.kind).lower() not in include_set:
             continue
         t = float(m.time_s)
-        seg = seg_by_peak.get(float(m.time_s)) if 'seg_by_peak' in locals() else None
+        seg = seg_by_peak.get(float(m.time_s)) if "seg_by_peak" in locals() else None
         if seg:
             seg_a, seg_b, _pt, _ps = seg
             start = max(0.0, float(seg_a) - float(pre_s))
@@ -1138,10 +1162,10 @@ def suggest_autocuts(
         if scan_limit and scan_limit > 0:
             end = min(float(scan_limit), end)
 
-        refine_meta = {'refined': False}
+        refine_meta = {"refined": False}
         if refine and in_play:
             try:
-                if str(m.kind).lower() == 'abp':
+                if str(m.kind).lower() == "abp":
                     r_in, r_out, refine_meta = _refine_abp_bounds(
                         t_restart=float(t),
                         clip_in_s=float(start),
@@ -1163,8 +1187,8 @@ def suggest_autocuts(
                     )
                 start, end = float(r_in), float(r_out)
             except Exception:
-                refine_meta = {'refined': False, 'reason': 'refine_error'}
-            if str(m.kind).lower() != 'abp':
+                refine_meta = {"refined": False, "reason": "refine_error"}
+            if str(m.kind).lower() != "abp":
                 try:
                     origin_in, origin_meta = _find_attack_origin(
                         kind=str(m.kind),
@@ -1174,66 +1198,69 @@ def suggest_autocuts(
                         in_play=in_play,
                         cut_times=cut_times,
                     )
-                    if origin_meta.get('origin_refined'):
+                    if origin_meta.get("origin_refined"):
                         start = float(origin_in)
-                    refine_meta = dict(refine_meta or {}) | {'origin': origin_meta}
+                    refine_meta = dict(refine_meta or {}) | {"origin": origin_meta}
                 except Exception:
-                    refine_meta = dict(refine_meta or {}) | {'origin': {'origin_refined': False, 'reason': 'origin_error'}}
+                    refine_meta = dict(refine_meta or {}) | {
+                        "origin": {"origin_refined": False, "reason": "origin_error"}
+                    }
 
         # Confianza simple (v1): score + refinamiento.
         try:
             conf = float(_clamp(0.35 + (0.65 * float(m.score)), 0.0, 1.0))
-            if refine_meta.get('refined'):
+            if refine_meta.get("refined"):
                 conf = float(_clamp(conf + 0.08, 0.0, 1.0))
         except Exception:
             conf = 0.5
 
-        meta = dict(m.meta or {}) | {'refine': refine_meta, 'confidence': float(conf)}
+        meta = dict(m.meta or {}) | {"refine": refine_meta, "confidence": float(conf)}
         label = str(m.label)
         kind = str(m.kind)
         if seeds:
             try:
-                nearest = min(seeds, key=lambda x: abs(float(x.get('time_s') or 0.0) - float(t)))
-                distance = abs(float(nearest.get('time_s') or 0.0) - float(t))
+                nearest = min(seeds, key=lambda x: abs(float(x.get("time_s") or 0.0) - float(t)))
+                distance = abs(float(nearest.get("time_s") or 0.0) - float(t))
                 if distance <= max(12.0, float(min_gap_s)):
-                    seed_kind = str(nearest.get('kind') or '').strip().lower()
-                    seed_label = str(nearest.get('label') or '').strip()
-                    seed_principle = str(nearest.get('principle') or '').strip()
-                    meta['seed'] = {
-                        'time_s': float(nearest.get('time_s') or 0.0),
-                        'distance_s': float(distance),
-                        'label': seed_label,
-                        'kind': seed_kind,
-                        'principle': seed_principle,
+                    seed_kind = str(nearest.get("kind") or "").strip().lower()
+                    seed_label = str(nearest.get("label") or "").strip()
+                    seed_principle = str(nearest.get("principle") or "").strip()
+                    meta["seed"] = {
+                        "time_s": float(nearest.get("time_s") or 0.0),
+                        "distance_s": float(distance),
+                        "label": seed_label,
+                        "kind": seed_kind,
+                        "principle": seed_principle,
                     }
                     if seed_principle:
-                        meta['principle'] = seed_principle
-                    if seed_kind in allowed and kind in {'tag', 'note'}:
+                        meta["principle"] = seed_principle
+                    if seed_kind in allowed and kind in {"tag", "note"}:
                         kind = seed_kind
-                    if seed_label and label in {'Auto · Acción (revisar)', 'Auto · Momento'}:
-                        label = f'Auto · {seed_label}'[:160]
+                    if seed_label and label in {"Auto · Acción (revisar)", "Auto · Momento"}:
+                        label = f"Auto · {seed_label}"[:160]
             except Exception:
                 pass
 
         out_moments.append(
             {
-                'time_s': float(t),
-                'kind': kind,
-                'score': float(m.score),
-                'label': label,
-                'clip_in_s': float(start),
-                'clip_out_s': float(max(start + 0.2, end)),
-                'meta': meta,
+                "time_s": float(t),
+                "kind": kind,
+                "score": float(m.score),
+                "label": label,
+                "clip_in_s": float(start),
+                "clip_out_s": float(max(start + 0.2, end)),
+                "meta": meta,
             }
         )
 
     if out_moments:
+
         def _overlap_ratio(a: dict, b: dict) -> float:
             try:
-                a0 = float(a.get('clip_in_s') or 0.0)
-                a1 = float(a.get('clip_out_s') or 0.0)
-                b0 = float(b.get('clip_in_s') or 0.0)
-                b1 = float(b.get('clip_out_s') or 0.0)
+                a0 = float(a.get("clip_in_s") or 0.0)
+                a1 = float(a.get("clip_out_s") or 0.0)
+                b0 = float(b.get("clip_in_s") or 0.0)
+                b1 = float(b.get("clip_out_s") or 0.0)
                 inter = max(0.0, min(a1, b1) - max(a0, b0))
                 shorter = max(0.001, min(max(0.0, a1 - a0), max(0.0, b1 - b0)))
                 return float(inter / shorter)
@@ -1241,27 +1268,29 @@ def suggest_autocuts(
                 return 0.0
 
         kept: list[dict] = []
-        for item in sorted(out_moments, key=lambda x: (-float(x.get('score') or 0.0), float(x.get('time_s') or 0.0))):
+        for item in sorted(out_moments, key=lambda x: (-float(x.get("score") or 0.0), float(x.get("time_s") or 0.0))):
             try:
-                item_start = float(item.get('clip_in_s') or 0.0)
+                item_start = float(item.get("clip_in_s") or 0.0)
             except Exception:
                 item_start = 0.0
             duplicate = False
             for other in kept:
                 try:
-                    other_start = float(other.get('clip_in_s') or 0.0)
+                    other_start = float(other.get("clip_in_s") or 0.0)
                 except Exception:
                     other_start = 0.0
-                if _overlap_ratio(item, other) >= 0.72 or (abs(item_start - other_start) <= 1.0 and _overlap_ratio(item, other) >= 0.55):
+                if _overlap_ratio(item, other) >= 0.72 or (
+                    abs(item_start - other_start) <= 1.0 and _overlap_ratio(item, other) >= 0.55
+                ):
                     duplicate = True
                     break
             if not duplicate:
                 kept.append(item)
-        out_moments = sorted(kept, key=lambda x: float(x.get('time_s') or 0.0))
+        out_moments = sorted(kept, key=lambda x: float(x.get("time_s") or 0.0))
 
     return {
-        'ok': True,
-        'duration_s': float(dur or 0.0),
-        'scan_limit_s': float(scan_limit or 0.0) if scan_limit else 0.0,
-        'moments': out_moments,
+        "ok": True,
+        "duration_s": float(dur or 0.0),
+        "scan_limit_s": float(scan_limit or 0.0) if scan_limit else 0.0,
+        "moments": out_moments,
     }

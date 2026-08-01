@@ -1,0 +1,1073 @@
+<!doctype html>
+<html lang='es'>
+<head>
+<meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<title>Tactical Board Assets Audit</title>
+<style>
+  body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; margin: 0; background:#0b1220; color:#e5edf7; }
+  header { padding:24px 28px; background:linear-gradient(135deg,#0f172a,#153a66); position:sticky; top:0; z-index:10; border-bottom:1px solid rgba(255,255,255,.08); }
+  h1 { margin:0 0 8px; font-size:28px; }
+  p.lead { margin:0; color:#bfd2ea; max-width:1100px; line-height:1.5; }
+  main { padding:24px 28px 48px; }
+  section { margin-bottom:32px; }
+  h2 { margin:0 0 12px; font-size:22px; }
+  .panel { background:#101a2e; border:1px solid rgba(255,255,255,.08); border-radius:16px; overflow:hidden; box-shadow:0 12px 32px rgba(0,0,0,.22); }
+  table { width:100%; border-collapse:collapse; }
+  th,td { border-bottom:1px solid rgba(255,255,255,.08); vertical-align:top; padding:12px 10px; font-size:13px; text-align:left; }
+  th { background:#13213b; color:#dbe7f5; position:sticky; top:92px; z-index:3; }
+  tr:hover td { background:rgba(255,255,255,.02); }
+  .preview img { width:120px; max-height:88px; object-fit:contain; background:#fff; border-radius:10px; display:block; }
+  .emoji-preview { width:88px; height:88px; display:grid; place-items:center; font-size:42px; background:#0f172a; border:1px solid rgba(255,255,255,.1); border-radius:12px; }
+  .file-pill { width:88px; height:88px; display:grid; place-items:center; background:#12233f; border-radius:12px; color:#fff; font-weight:800; border:1px solid rgba(255,255,255,.1); }
+  .file-pill.model { background:#28456f; }
+  .file-pill.procedural { background:#4b2d6b; }
+  .name { font-weight:700; }
+  .sub { color:#9fb3cc; font-size:12px; margin-top:4px; word-break:break-all; }
+  .badge { display:inline-block; padding:4px 8px; border-radius:999px; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.03em; }
+  .badge.good { background:#113a27; color:#8df0b3; }
+  .badge.maybe { background:#3b2f12; color:#f7da78; }
+  .badge.bad { background:#4b1d24; color:#ff9fb0; }
+  ul { margin:8px 0 0 18px; color:#c9d6e4; }
+  .grid { display:grid; gap:16px; grid-template-columns:1fr 1fr; }
+  .small { color:#9fb3cc; font-size:13px; }
+  @media (max-width: 1100px) { .grid { grid-template-columns:1fr; } th { top:132px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Auditoría de assets de la Pizarra / Editor táctico actual</h1>
+  <p class='lead'>Inventario específico de los recursos gráficos que consume hoy la pizarra de tareas: mezcla de <strong>Fabric.js + dibujo procedural</strong>, <strong>emojis</strong>, <strong>texturas/campos/estadios</strong>, <strong>sprites de tokens</strong>, <strong>logos</strong> y <strong>modelos 3D</strong>. Este documento no copia ni modifica assets: solo audita qué existe, cómo se pinta y si conviene reutilizarlo.</p>
+</header>
+<main>
+  <section>
+    <h2>1. Archivos donde se define la pizarra</h2>
+    <div class='panel'>
+      <table>
+        <thead><tr><th>Archivo</th><th>Rol</th><th>Cómo interviene</th></tr></thead>
+        <tbody><tr><td>football/templates/football/task_builder.html</td><td>Template principal del editor táctico / task builder</td><td>Monta la UI de la pizarra, toolbar 2D/3D/interactiva, y expone por data-* todas las URLs de modelos, texturas, overlays y scripts.</td></tr><tr><td>football/static/football/js/sessions_tactical_pad.js</td><td>Runtime principal de la pizarra con Fabric.js</td><td>Inserta jugadores, balones, conos, flechas, porterías, zonas y recursos importados; genera canvas_state y timeline.</td></tr><tr><td>football/static/football/js/pitch_surface.js</td><td>Semántica de recursos y superficie 2D/flat</td><td>Define librería de emojis, labels, familias de recursos y fallback SVG del campo.</td></tr><tr><td>football/static/football/js/pitch_surface_25d.js</td><td>Renderer 2.5D / cenital realista del estadio</td><td>Construye el campo-estadio premium con SVG + texturas + overlays.</td></tr><tr><td>football/static/football/js/pitch_surface_preview.js</td><td>Renderer de previews de superficie</td><td>Versión compacta para miniaturas/previas del campo.</td></tr><tr><td>football/static/football/js/session_task_detail_3d.js</td><td>Renderer 3D del detalle de tarea</td><td>Carga el estadio/modelos 3D y proyecta objetos del estado gráfico.</td></tr><tr><td>football/templates/football/coach_abp_board.html</td><td>Plantilla del tablero ABP simplificado</td><td>Otra pizarra menor, útil como referencia de glyph-based board.</td></tr><tr><td>football/static/football/js/abp_board.js</td><td>Tablero ABP DOM/glyph</td><td>Usa caracteres como △ ▭ ➜ ● para material simple, no imágenes.</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class='grid'>
+    <div class='panel' style='padding:18px;'>
+      <h2>2. Diagnóstico del sistema actual</h2>
+      <ul>
+        <li><strong>Jugadores/porteros/fichas</strong>: se pintan sobre Fabric como grupos, camisetas SVG embebidas y, en ciertos casos, sprites PNG o recortes fotográficos.</li>
+        <li><strong>Balón, conos, picas, porterías, flechas, líneas, zonas</strong>: en su mayoría se dibujan de forma procedural con <code>fabric.Rect</code>, <code>fabric.Circle</code>, <code>fabric.Line</code>, <code>fabric.Path</code>, <code>fabric.Triangle</code> y <code>fabric.Group</code>.</li>
+        <li><strong>Emojis</strong>: se insertan como <code>fabric.Text</code> usando Unicode, no como imagen.</li>
+        <li><strong>Campo 2D/2.5D</strong>: se genera como SVG y se enriquece con tiles y overlays de estadio.</li>
+        <li><strong>Campo/estadio 3D</strong>: se apoya en Three.js + GLTF/OBJ + texturas físicas.</li>
+      </ul>
+    </div>
+    <div class='panel' style='padding:18px;'>
+      <h2>3. Criterio recomendado</h2>
+      <ul>
+        <li><strong>Reutilizar</strong>: texturas de césped, overlays/top views de estadio, logos/vallas, goal model 3D, token sprites premium, avatars y recortes si se quiere una family “photo/cutout”.</li>
+        <li><strong>Crear desde cero</strong>: flechas, líneas, zonas, conos/picas/material premium 2D, porterías 2D premium, family de balones 2D premium.</li>
+        <li><strong>Descartar</strong>: campos legacy genéricos que no siguen el lenguaje visual actual.</li>
+        <li><strong>Enlazar</strong>: materiales PBR/ambientCG y modelos 3D auxiliares como recursos de pipeline, no como assets UI finales.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>4. Assets reales usados o referenciados por la pizarra</h2>
+    <div class='panel'>
+      <table>
+        <thead>
+          <tr>
+            <th>Categoría</th>
+            <th>Preview</th>
+            <th>Asset</th>
+            <th>Origen en código</th>
+            <th>Tipo</th>
+            <th>Cómo se pinta</th>
+            <th>Formato</th>
+            <th>Resolución</th>
+            <th>Transp.</th>
+            <th>Utilidad</th>
+            <th>Recomendación</th>
+            <th>Notas</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+    <tr>
+      <td class='cat'>Players</td>
+      <td class='preview'><div class="file-pill model">3D</div></td>
+      <td><div class='name'>player_humanoid.glb</div><div class='sub'>football/static/football/models/avatar/player_humanoid.glb</div></td>
+      <td>football/templates/football/task_builder.html</td>
+      <td>3d-model</td>
+      <td>Modelo humanoide 3D de jugador</td>
+      <td>glb</td>
+      <td></td>
+      <td>n/a</td>
+      <td>Útil para 3D pero todavía base técnica</td>
+      <td><span class='badge maybe'> enlazar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Players</td>
+      <td class='preview'><img src="../static/football/images/player-avatar.svg" alt="player-avatar.svg"></td>
+      <td><div class='name'>player-avatar.svg</div><div class='sub'>static/football/images/player-avatar.svg</div></td>
+      <td>football/static/football/js/sessions_tactical_pad.js</td>
+      <td>svg</td>
+      <td>Avatar genérico de jugador</td>
+      <td>svg</td>
+      <td></td>
+      <td>sí</td>
+      <td>Útil como fallback</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Players</td>
+      <td class='preview'><img src="../static/football/images/players/aitor-n10-cut.png" alt="aitor-n10-cut.png"></td>
+      <td><div class='name'>aitor-n10-cut.png</div><div class='sub'>static/football/images/players/aitor-n10-cut.png</div></td>
+      <td>football/static/football/js/sessions_tactical_pad.js</td>
+      <td>image</td>
+      <td>Recorte fotográfico de jugador importable</td>
+      <td>png</td>
+      <td>616x1081</td>
+      <td>sí</td>
+      <td>Útil como family aparte de recortes reales</td>
+      <td><span class='badge maybe'> enlazar </span></td>
+      <td>Hay muchos equivalentes en static/football/images/players/.</td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Players</td>
+      <td class='preview'><img src="../static/football/images/token-sprites/premium-local-figure.png" alt="premium-local-figure.png"></td>
+      <td><div class='name'>premium-local-figure.png</div><div class='sub'>static/football/images/token-sprites/premium-local-figure.png</div></td>
+      <td>football/static/football/js/sessions_tactical_pad.js</td>
+      <td>image</td>
+      <td>Figura/token local por defecto</td>
+      <td>png</td>
+      <td>384x512</td>
+      <td>sí</td>
+      <td>Útil</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Players</td>
+      <td class='preview'><img src="../static/football/images/token-sprites/premium-local-idle.png" alt="premium-local-idle.png"></td>
+      <td><div class='name'>premium-local-idle.png</div><div class='sub'>static/football/images/token-sprites/premium-local-idle.png</div></td>
+      <td>football/static/football/js/sessions_tactical_pad.js</td>
+      <td>image</td>
+      <td>Sprite/token de jugador local</td>
+      <td>png</td>
+      <td>384x512</td>
+      <td>sí</td>
+      <td>Útil para biblioteca 2D si se acepta estilo token</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Players</td>
+      <td class='preview'><img src="../static/football/images/token-sprites/premium-local-pass.png" alt="premium-local-pass.png"></td>
+      <td><div class='name'>premium-local-pass.png</div><div class='sub'>static/football/images/token-sprites/premium-local-pass.png</div></td>
+      <td>football/static/football/js/sessions_tactical_pad.js</td>
+      <td>image</td>
+      <td>Sprite/token de jugador local pase</td>
+      <td>png</td>
+      <td>384x512</td>
+      <td>sí</td>
+      <td>Útil para animación 2D</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Players</td>
+      <td class='preview'><img src="../static/football/images/token-sprites/premium-local-run.png" alt="premium-local-run.png"></td>
+      <td><div class='name'>premium-local-run.png</div><div class='sub'>static/football/images/token-sprites/premium-local-run.png</div></td>
+      <td>football/static/football/js/sessions_tactical_pad.js</td>
+      <td>image</td>
+      <td>Sprite/token de jugador local corriendo</td>
+      <td>png</td>
+      <td>384x512</td>
+      <td>sí</td>
+      <td>Útil para animación 2D</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Players</td>
+      <td class='preview'><img src="../static/football/images/token-sprites/premium-local-shoot.png" alt="premium-local-shoot.png"></td>
+      <td><div class='name'>premium-local-shoot.png</div><div class='sub'>static/football/images/token-sprites/premium-local-shoot.png</div></td>
+      <td>football/static/football/js/sessions_tactical_pad.js</td>
+      <td>image</td>
+      <td>Sprite/token de jugador local disparo</td>
+      <td>png</td>
+      <td>384x512</td>
+      <td>sí</td>
+      <td>Útil para animación 2D</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Players</td>
+      <td class='preview'><img src="../static/football/images/token-sprites/premium-rival-figure.png" alt="premium-rival-figure.png"></td>
+      <td><div class='name'>premium-rival-figure.png</div><div class='sub'>static/football/images/token-sprites/premium-rival-figure.png</div></td>
+      <td>football/static/football/js/sessions_tactical_pad.js</td>
+      <td>image</td>
+      <td>Figura/token rival</td>
+      <td>png</td>
+      <td>384x512</td>
+      <td>sí</td>
+      <td>Útil</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Players</td>
+      <td class='preview'><img src="../static/football/images/token-sprites/premium-rival-idle.png" alt="premium-rival-idle.png"></td>
+      <td><div class='name'>premium-rival-idle.png</div><div class='sub'>static/football/images/token-sprites/premium-rival-idle.png</div></td>
+      <td>football/static/football/js/sessions_tactical_pad.js</td>
+      <td>image</td>
+      <td>Sprite/token rival</td>
+      <td>png</td>
+      <td>384x512</td>
+      <td>sí</td>
+      <td>Útil</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Players</td>
+      <td class='preview'><img src="../static/football/images/token-sprites/premium-rival-pass.png" alt="premium-rival-pass.png"></td>
+      <td><div class='name'>premium-rival-pass.png</div><div class='sub'>static/football/images/token-sprites/premium-rival-pass.png</div></td>
+      <td>football/static/football/js/sessions_tactical_pad.js</td>
+      <td>image</td>
+      <td>Sprite/token rival pass</td>
+      <td>png</td>
+      <td>384x512</td>
+      <td>sí</td>
+      <td>Útil</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Players</td>
+      <td class='preview'><img src="../static/football/images/token-sprites/premium-rival-run.png" alt="premium-rival-run.png"></td>
+      <td><div class='name'>premium-rival-run.png</div><div class='sub'>static/football/images/token-sprites/premium-rival-run.png</div></td>
+      <td>football/static/football/js/sessions_tactical_pad.js</td>
+      <td>image</td>
+      <td>Sprite/token rival run</td>
+      <td>png</td>
+      <td>384x512</td>
+      <td>sí</td>
+      <td>Útil</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Players</td>
+      <td class='preview'><img src="../static/football/images/token-sprites/premium-rival-shoot.png" alt="premium-rival-shoot.png"></td>
+      <td><div class='name'>premium-rival-shoot.png</div><div class='sub'>static/football/images/token-sprites/premium-rival-shoot.png</div></td>
+      <td>football/static/football/js/sessions_tactical_pad.js</td>
+      <td>image</td>
+      <td>Sprite/token rival shoot</td>
+      <td>png</td>
+      <td>384x512</td>
+      <td>sí</td>
+      <td>Útil</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Goalkeepers</td>
+      <td class='preview'><img src="../static/football/images/token-sprites/premium-goalkeeper-figure.png" alt="premium-goalkeeper-figure.png"></td>
+      <td><div class='name'>premium-goalkeeper-figure.png</div><div class='sub'>static/football/images/token-sprites/premium-goalkeeper-figure.png</div></td>
+      <td>football/static/football/js/sessions_tactical_pad.js</td>
+      <td>image</td>
+      <td>Figura/token portero</td>
+      <td>png</td>
+      <td>384x512</td>
+      <td>sí</td>
+      <td>Útil</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Goalkeepers</td>
+      <td class='preview'><img src="../static/football/images/token-sprites/premium-goalkeeper-idle.png" alt="premium-goalkeeper-idle.png"></td>
+      <td><div class='name'>premium-goalkeeper-idle.png</div><div class='sub'>static/football/images/token-sprites/premium-goalkeeper-idle.png</div></td>
+      <td>football/static/football/js/sessions_tactical_pad.js</td>
+      <td>image</td>
+      <td>Sprite/token portero idle</td>
+      <td>png</td>
+      <td>384x512</td>
+      <td>sí</td>
+      <td>Útil</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Goalkeepers</td>
+      <td class='preview'><img src="../static/football/images/token-sprites/premium-goalkeeper-pass.png" alt="premium-goalkeeper-pass.png"></td>
+      <td><div class='name'>premium-goalkeeper-pass.png</div><div class='sub'>static/football/images/token-sprites/premium-goalkeeper-pass.png</div></td>
+      <td>football/static/football/js/sessions_tactical_pad.js</td>
+      <td>image</td>
+      <td>Sprite/token portero pass</td>
+      <td>png</td>
+      <td>384x512</td>
+      <td>sí</td>
+      <td>Útil</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Goalkeepers</td>
+      <td class='preview'><img src="../static/football/images/token-sprites/premium-goalkeeper-run.png" alt="premium-goalkeeper-run.png"></td>
+      <td><div class='name'>premium-goalkeeper-run.png</div><div class='sub'>static/football/images/token-sprites/premium-goalkeeper-run.png</div></td>
+      <td>football/static/football/js/sessions_tactical_pad.js</td>
+      <td>image</td>
+      <td>Sprite/token portero run</td>
+      <td>png</td>
+      <td>384x512</td>
+      <td>sí</td>
+      <td>Útil</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Goalkeepers</td>
+      <td class='preview'><img src="../static/football/images/token-sprites/premium-goalkeeper-shoot.png" alt="premium-goalkeeper-shoot.png"></td>
+      <td><div class='name'>premium-goalkeeper-shoot.png</div><div class='sub'>static/football/images/token-sprites/premium-goalkeeper-shoot.png</div></td>
+      <td>football/static/football/js/sessions_tactical_pad.js</td>
+      <td>image</td>
+      <td>Sprite/token portero shoot</td>
+      <td>png</td>
+      <td>384x512</td>
+      <td>sí</td>
+      <td>Útil</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Cones</td>
+      <td class='preview'><div class="file-pill procedural">PROC</div></td>
+      <td><div class='name'> wall</div><div class='sub'>cone / cone_striped / pole_marker / gate / hurdle / tape / barrier / rebounder / mannequin / wall</div></td>
+      <td>football/static/football/js/sessions_tactical_pad.js</td>
+      <td>canvas drawing</td>
+      <td>fabric shapes agrupadas</td>
+      <td>canvas drawing</td>
+      <td>vector/procedural</td>
+      <td>sí</td>
+      <td>La mayoría no son assets fichero, sino geometría dibujada.</td>
+      <td><span class='badge maybe'> crear desde cero </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Goals</td>
+      <td class='preview'><div class="file-pill model">3D</div></td>
+      <td><div class='name'>goal_premium.glb</div><div class='sub'>football/static/football/models/pitch3d/goal_premium.glb</div></td>
+      <td>football/templates/football/task_builder.html</td>
+      <td>3d-model</td>
+      <td>Modelo GLB de portería premium para 3D</td>
+      <td>glb</td>
+      <td></td>
+      <td>n/a</td>
+      <td>Muy útil</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Goals</td>
+      <td class='preview'><div class="file-pill procedural">PROC</div></td>
+      <td><div class='name'> goal_futsal</div><div class='sub'>goal / goal_posts / goal_mini / goal_target / goal_popup / goal_futsal</div></td>
+      <td>football/static/football/js/sessions_tactical_pad.js</td>
+      <td>canvas drawing</td>
+      <td>fabric.Rect / fabric.Line / fabric.Group</td>
+      <td>canvas drawing</td>
+      <td>vector/procedural</td>
+      <td>sí</td>
+      <td>Hoy se pintan proceduralmente; conviene redefinir como family premium.</td>
+      <td><span class='badge maybe'> crear desde cero </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Arrows</td>
+      <td class='preview'><div class="file-pill procedural">PROC</div></td>
+      <td><div class='name'> arrow_curve_left</div><div class='sub'>arrow_solid / arrow_dash / arrow_curve / arrow_curve_left</div></td>
+      <td>football/static/football/js/sessions_tactical_pad.js</td>
+      <td>canvas drawing</td>
+      <td>fabric.Line / fabric.Path / fabric.Triangle agrupados</td>
+      <td>canvas drawing</td>
+      <td>vector/procedural</td>
+      <td>sí</td>
+      <td>Conviene rehacer con librería vectorial propia, no reutilizar como asset binario.</td>
+      <td><span class='badge maybe'> crear desde cero </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Grass</td>
+      <td class='preview'><img src="../football/static/football/images/pitch3d/grass_premium_albedo.png" alt="grass_premium_albedo.png"></td>
+      <td><div class='name'>grass_premium_albedo.png</div><div class='sub'>football/static/football/images/pitch3d/grass_premium_albedo.png</div></td>
+      <td>football/static/football/js/pitch_surface_25d.js</td>
+      <td>image</td>
+      <td>Textura principal del césped cenital realista</td>
+      <td>png</td>
+      <td>4096x2652</td>
+      <td>no</td>
+      <td>Asset clave del campo premium</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td>Usado también por task builder vía data attribute.</td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Grass</td>
+      <td class='preview'><img src="../football/static/football/images/pitch3d/grass_premium_bump.png" alt="grass_premium_bump.png"></td>
+      <td><div class='name'>grass_premium_bump.png</div><div class='sub'>football/static/football/images/pitch3d/grass_premium_bump.png</div></td>
+      <td>football/templates/football/task_builder.html</td>
+      <td>image</td>
+      <td>Mapa de bump para 3D</td>
+      <td>png</td>
+      <td>1024x663</td>
+      <td>no</td>
+      <td>Útil solo en pipeline 3D</td>
+      <td><span class='badge maybe'> enlazar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Grass</td>
+      <td class='preview'><img src="../football/static/football/images/pitch3d/grass_premium_normal.png" alt="grass_premium_normal.png"></td>
+      <td><div class='name'>grass_premium_normal.png</div><div class='sub'>football/static/football/images/pitch3d/grass_premium_normal.png</div></td>
+      <td>football/templates/football/task_builder.html</td>
+      <td>image</td>
+      <td>Mapa normal para 3D</td>
+      <td>png</td>
+      <td>1024x663</td>
+      <td>no</td>
+      <td>Útil solo en pipeline 3D</td>
+      <td><span class='badge maybe'> enlazar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Grass</td>
+      <td class='preview'><img src="../football/static/football/images/pitch3d/grass_premium_roughness.png" alt="grass_premium_roughness.png"></td>
+      <td><div class='name'>grass_premium_roughness.png</div><div class='sub'>football/static/football/images/pitch3d/grass_premium_roughness.png</div></td>
+      <td>football/templates/football/task_builder.html</td>
+      <td>image</td>
+      <td>Mapa roughness para 3D</td>
+      <td>png</td>
+      <td>1024x663</td>
+      <td>no</td>
+      <td>Útil solo en pipeline 3D</td>
+      <td><span class='badge maybe'> enlazar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Grass</td>
+      <td class='preview'><img src="../football/static/football/images/surfaces/grass_uefa_b_tile.png" alt="grass_uefa_b_tile.png"></td>
+      <td><div class='name'>grass_uefa_b_tile.png</div><div class='sub'>football/static/football/images/surfaces/grass_uefa_b_tile.png</div></td>
+      <td>football/static/football/js/pitch_surface.js</td>
+      <td>image</td>
+      <td>SVG &lt;image&gt; pattern / textura de césped del flat preview</td>
+      <td>png</td>
+      <td>139x139</td>
+      <td>sí</td>
+      <td>Muy útil para campo flat/preview</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td>Usado como tile UEFA_B.</td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Fields</td>
+      <td class='preview'><img src="../static/football/campo-futbol-fallback.jpg" alt="campo-futbol-fallback.jpg"></td>
+      <td><div class='name'>campo-futbol-fallback.jpg</div><div class='sub'>static/football/campo-futbol-fallback.jpg</div></td>
+      <td>legacy/static</td>
+      <td>image</td>
+      <td>Fallback legacy de campo</td>
+      <td>jpg</td>
+      <td>931x602</td>
+      <td>no</td>
+      <td>Obsoleto frente al pipeline nuevo</td>
+      <td><span class='badge bad'> descartar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Fields</td>
+      <td class='preview'><img src="../static/football/campo-futbol.jpg" alt="campo-futbol.jpg"></td>
+      <td><div class='name'>campo-futbol.jpg</div><div class='sub'>static/football/campo-futbol.jpg</div></td>
+      <td>legacy/static</td>
+      <td>image</td>
+      <td>Campo legacy genérico</td>
+      <td>jpg</td>
+      <td>740x475</td>
+      <td>no</td>
+      <td>No coherente con el nuevo editor premium</td>
+      <td><span class='badge bad'> descartar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Stadiums</td>
+      <td class='preview'><img src="../football/static/football/images/pitch3d/stadium_rosaleda_top_h.png" alt="stadium_rosaleda_top_h.png"></td>
+      <td><div class='name'>stadium_rosaleda_top_h.png</div><div class='sub'>football/static/football/images/pitch3d/stadium_rosaleda_top_h.png</div></td>
+      <td>football/static/football/js/pitch_surface_25d.js</td>
+      <td>image</td>
+      <td>Top image fallback horizontal del estadio</td>
+      <td>png</td>
+      <td>5272x2636</td>
+      <td>sí</td>
+      <td>Útil como base visual cenital</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Stadiums</td>
+      <td class='preview'><img src="../football/static/football/images/pitch3d/stadium_rosaleda_top_v.png" alt="stadium_rosaleda_top_v.png"></td>
+      <td><div class='name'>stadium_rosaleda_top_v.png</div><div class='sub'>football/static/football/images/pitch3d/stadium_rosaleda_top_v.png</div></td>
+      <td>football/static/football/js/pitch_surface_25d.js</td>
+      <td>image</td>
+      <td>Top image fallback vertical del estadio</td>
+      <td>png</td>
+      <td>5272x2636</td>
+      <td>sí</td>
+      <td>Útil como base visual cenital</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Stadiums</td>
+      <td class='preview'><img src="../football/static/football/images/pitch3d/stadium_taskboard_overlay_h.png" alt="stadium_taskboard_overlay_h.png"></td>
+      <td><div class='name'>stadium_taskboard_overlay_h.png</div><div class='sub'>football/static/football/images/pitch3d/stadium_taskboard_overlay_h.png</div></td>
+      <td>football/static/football/js/pitch_surface.js</td>
+      <td>image</td>
+      <td>Overlay superior del estadio en horizontal</td>
+      <td>png</td>
+      <td>2636x1318</td>
+      <td>sí</td>
+      <td>Muy útil para superficie 2.5D</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Stadiums</td>
+      <td class='preview'><img src="../football/static/football/images/pitch3d/stadium_taskboard_overlay_v.png" alt="stadium_taskboard_overlay_v.png"></td>
+      <td><div class='name'>stadium_taskboard_overlay_v.png</div><div class='sub'>football/static/football/images/pitch3d/stadium_taskboard_overlay_v.png</div></td>
+      <td>football/static/football/js/pitch_surface.js</td>
+      <td>image</td>
+      <td>Overlay superior del estadio en vertical</td>
+      <td>png</td>
+      <td>2636x1318</td>
+      <td>sí</td>
+      <td>Muy útil para superficie 2.5D</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Stadiums</td>
+      <td class='preview'><img src="../football/static/football/images/pitch3d/stadium_taskboard_top_h.png" alt="stadium_taskboard_top_h.png"></td>
+      <td><div class='name'>stadium_taskboard_top_h.png</div><div class='sub'>football/static/football/images/pitch3d/stadium_taskboard_top_h.png</div></td>
+      <td>football/templates/football/task_builder.html</td>
+      <td>image</td>
+      <td>Top image horizontal inyectada al task builder</td>
+      <td>png</td>
+      <td>2636x1318</td>
+      <td>sí</td>
+      <td>Útil</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Stadiums</td>
+      <td class='preview'><img src="../football/static/football/images/pitch3d/stadium_taskboard_top_v.png" alt="stadium_taskboard_top_v.png"></td>
+      <td><div class='name'>stadium_taskboard_top_v.png</div><div class='sub'>football/static/football/images/pitch3d/stadium_taskboard_top_v.png</div></td>
+      <td>football/templates/football/task_builder.html</td>
+      <td>image</td>
+      <td>Top image vertical inyectada al task builder</td>
+      <td>png</td>
+      <td>2636x1318</td>
+      <td>sí</td>
+      <td>Útil</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Stadiums</td>
+      <td class='preview'><div class="file-pill model">3D</div></td>
+      <td><div class='name'>stadium_architectural_complete.glb</div><div class='sub'>football/static/football/models/pitch3d/stadium_architectural_complete.glb</div></td>
+      <td>football/static/football/js/session_task_detail_3d.js</td>
+      <td>3d-model</td>
+      <td>Carga GLTF/Three.js como estadio principal de la vista 3D</td>
+      <td>glb</td>
+      <td></td>
+      <td>n/a</td>
+      <td>Muy útil para librería 3D</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Stadiums</td>
+      <td class='preview'><div class="file-pill model">3D</div></td>
+      <td><div class='name'>stadium_benagalbon_reference.glb</div><div class='sub'>football/static/football/models/pitch3d/stadium_benagalbon_reference.glb</div></td>
+      <td>football/static/football/js/session_task_detail_3d.js</td>
+      <td>3d-model</td>
+      <td>Referencia/escena alternativa</td>
+      <td>glb</td>
+      <td></td>
+      <td>n/a</td>
+      <td>Útil como referencia, no principal</td>
+      <td><span class='badge maybe'> enlazar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Stadiums</td>
+      <td class='preview'><div class="file-pill model">3D</div></td>
+      <td><div class='name'>stadium_bowl_premium.glb</div><div class='sub'>football/static/football/models/pitch3d/stadium_bowl_premium.glb</div></td>
+      <td>football/templates/football/task_builder.html</td>
+      <td>3d-model</td>
+      <td>Variante de bowl premium del estadio</td>
+      <td>glb</td>
+      <td></td>
+      <td>n/a</td>
+      <td>Útil como variante</td>
+      <td><span class='badge maybe'> enlazar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Zones</td>
+      <td class='preview'><div class="file-pill procedural">PROC</div></td>
+      <td><div class='name'> shape_band_*</div><div class='sub'>zone / shape_circle / shape_square / shape_rect / shape_lane_* / shape_grid_120 / shape_band_*</div></td>
+      <td>football/static/football/js/sessions_tactical_pad.js</td>
+      <td>canvas drawing</td>
+      <td>fabric.Rect / Circle / Path / hatch groups</td>
+      <td>canvas drawing</td>
+      <td>vector/procedural</td>
+      <td>sí</td>
+      <td>Deben convertirse en primitives del nuevo motor.</td>
+      <td><span class='badge maybe'> crear desde cero </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Lines</td>
+      <td class='preview'><div class="file-pill procedural">PROC</div></td>
+      <td><div class='name'> measure</div><div class='sub'>line_solid / line_dash / line_dot / line_pressure / line_defensive / line_offside / measure</div></td>
+      <td>football/static/football/js/sessions_tactical_pad.js</td>
+      <td>canvas drawing</td>
+      <td>fabric.Line + labels</td>
+      <td>canvas drawing</td>
+      <td>vector/procedural</td>
+      <td>sí</td>
+      <td>Son reglas visuales, no assets.</td>
+      <td><span class='badge maybe'> crear desde cero </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Textures</td>
+      <td class='preview'><img src="../football/static/football/materials/pitch3d/ambientcg/Concrete048/Concrete048_1K-JPG_Color.jpg" alt="Concrete048_1K-JPG_Color.jpg"></td>
+      <td><div class='name'>Concrete048_1K-JPG_Color.jpg</div><div class='sub'>football/static/football/materials/pitch3d/ambientcg/Concrete048/Concrete048_1K-JPG_Color.jpg</div></td>
+      <td>football/templates/football/task_builder.html</td>
+      <td>image</td>
+      <td>Textura de hormigón para estadio 3D</td>
+      <td>jpg</td>
+      <td>1024x1024</td>
+      <td>no</td>
+      <td>Útil a medio plazo</td>
+      <td><span class='badge maybe'> enlazar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Textures</td>
+      <td class='preview'><img src="../football/static/football/materials/pitch3d/ambientcg/Grass005/Grass005_1K-JPG_Color.jpg" alt="Grass005_1K-JPG_Color.jpg"></td>
+      <td><div class='name'>Grass005_1K-JPG_Color.jpg</div><div class='sub'>football/static/football/materials/pitch3d/ambientcg/Grass005/Grass005_1K-JPG_Color.jpg</div></td>
+      <td>football/static/football/js/session_task_detail_3d.js</td>
+      <td>image</td>
+      <td>Textura de material 3D reutilizable</td>
+      <td>jpg</td>
+      <td>1024x1024</td>
+      <td>no</td>
+      <td>Útil a medio plazo</td>
+      <td><span class='badge maybe'> enlazar </span></td>
+      <td>Material bruto, no asset UI directo.</td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Icons</td>
+      <td class='preview'><img src="../football/static/football/images/2j-mark.svg" alt="2j-mark.svg"></td>
+      <td><div class='name'>2j-mark.svg</div><div class='sub'>football/static/football/images/2j-mark.svg</div></td>
+      <td>football/static/football/js/pitch_surface_25d.js</td>
+      <td>svg</td>
+      <td>Marca de la plataforma en overlays/vallas</td>
+      <td>svg</td>
+      <td></td>
+      <td>sí</td>
+      <td>Útil</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Icons</td>
+      <td class='preview'><img src="../football/static/football/images/uefa-badge.svg" alt="uefa-badge.svg"></td>
+      <td><div class='name'>uefa-badge.svg</div><div class='sub'>football/static/football/images/uefa-badge.svg</div></td>
+      <td>football/static/football/js/pitch_surface_25d.js</td>
+      <td>svg</td>
+      <td>Badge UEFA usado en overlays/vallas</td>
+      <td>svg</td>
+      <td></td>
+      <td>sí</td>
+      <td>Útil</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Logos</td>
+      <td class='preview'><img src="../football/static/football/images/kit_logos/benagalbon_crest_alpha.png" alt="benagalbon_crest_alpha.png"></td>
+      <td><div class='name'>benagalbon_crest_alpha.png</div><div class='sub'>football/static/football/images/kit_logos/benagalbon_crest_alpha.png</div></td>
+      <td>football/static/football/js/pitch_surface_25d.js</td>
+      <td>image</td>
+      <td>Escudo aplicado en estadio/paneles</td>
+      <td>png</td>
+      <td>110x120</td>
+      <td>sí</td>
+      <td>Útil</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Logos</td>
+      <td class='preview'><img src="../football/static/football/images/kit_logos/grupo_modernia_black_alpha.png" alt="grupo_modernia_black_alpha.png"></td>
+      <td><div class='name'>grupo_modernia_black_alpha.png</div><div class='sub'>football/static/football/images/kit_logos/grupo_modernia_black_alpha.png</div></td>
+      <td>football/static/football/js/pitch_surface_25d.js</td>
+      <td>image</td>
+      <td>Variante de logo para vallas/oscuros</td>
+      <td>png</td>
+      <td>500x163</td>
+      <td>sí</td>
+      <td>Útil</td>
+      <td><span class='badge maybe'> enlazar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Logos</td>
+      <td class='preview'><img src="../football/static/football/images/kit_logos/grupo_modernia_white.png" alt="grupo_modernia_white.png"></td>
+      <td><div class='name'>grupo_modernia_white.png</div><div class='sub'>football/static/football/images/kit_logos/grupo_modernia_white.png</div></td>
+      <td>football/static/football/js/pitch_surface_25d.js</td>
+      <td>image</td>
+      <td>Publicidad / branding en vallas superiores</td>
+      <td>png</td>
+      <td>500x163</td>
+      <td>sí</td>
+      <td>Útil en composición de estadio</td>
+      <td><span class='badge good'> reutilizar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Logos</td>
+      <td class='preview'><img src="../football/static/football/images/kit_logos/nike_swoosh.png" alt="nike_swoosh.png"></td>
+      <td><div class='name'>nike_swoosh.png</div><div class='sub'>football/static/football/images/kit_logos/nike_swoosh.png</div></td>
+      <td>football/static/football/js/pitch_surface_25d.js</td>
+      <td>image</td>
+      <td>Logo de patrocinio/valla</td>
+      <td>png</td>
+      <td>960x343</td>
+      <td>sí</td>
+      <td>Útil si sigue licenciado internamente</td>
+      <td><span class='badge maybe'> enlazar </span></td>
+      <td></td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Emojis</td>
+      <td class='preview'><div class="emoji-preview">⚽</div></td>
+      <td><div class='name'>emoji_ball</div><div class='sub'>emoji_ball</div></td>
+      <td>football/static/football/js/pitch_surface.js / sessions_tactical_pad.js</td>
+      <td>emoji</td>
+      <td>fabric.Text con glyph ⚽</td>
+      <td>emoji</td>
+      <td>font-dependent</td>
+      <td>sí</td>
+      <td>Recurso rápido para balón</td>
+      <td><span class='badge maybe'> crear desde cero </span></td>
+      <td>Se pinta como texto/emoji, no como imagen. Glyph: ⚽</td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Emojis</td>
+      <td class='preview'><div class="emoji-preview">🦺</div></td>
+      <td><div class='name'>emoji_bib</div><div class='sub'>emoji_bib</div></td>
+      <td>football/static/football/js/pitch_surface.js / sessions_tactical_pad.js</td>
+      <td>emoji</td>
+      <td>fabric.Text con glyph 🦺</td>
+      <td>emoji</td>
+      <td>font-dependent</td>
+      <td>sí</td>
+      <td>Recurso rápido para peto</td>
+      <td><span class='badge maybe'> crear desde cero </span></td>
+      <td>Se pinta como texto/emoji, no como imagen. Glyph: 🦺</td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Emojis</td>
+      <td class='preview'><div class="emoji-preview">🧑‍🏫</div></td>
+      <td><div class='name'>emoji_coach</div><div class='sub'>emoji_coach</div></td>
+      <td>football/static/football/js/pitch_surface.js / sessions_tactical_pad.js</td>
+      <td>emoji</td>
+      <td>fabric.Text con glyph 🧑‍🏫</td>
+      <td>emoji</td>
+      <td>font-dependent</td>
+      <td>sí</td>
+      <td>Recurso rápido para entrenador</td>
+      <td><span class='badge maybe'> crear desde cero </span></td>
+      <td>Se pinta como texto/emoji, no como imagen. Glyph: 🧑‍🏫</td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Emojis</td>
+      <td class='preview'><div class="emoji-preview">🔺</div></td>
+      <td><div class='name'>emoji_cone</div><div class='sub'>emoji_cone</div></td>
+      <td>football/static/football/js/pitch_surface.js / sessions_tactical_pad.js</td>
+      <td>emoji</td>
+      <td>fabric.Text con glyph 🔺</td>
+      <td>emoji</td>
+      <td>font-dependent</td>
+      <td>sí</td>
+      <td>Recurso rápido para cono</td>
+      <td><span class='badge maybe'> crear desde cero </span></td>
+      <td>Se pinta como texto/emoji, no como imagen. Glyph: 🔺</td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Emojis</td>
+      <td class='preview'><div class="emoji-preview">🥅</div></td>
+      <td><div class='name'>emoji_goal</div><div class='sub'>emoji_goal</div></td>
+      <td>football/static/football/js/pitch_surface.js / sessions_tactical_pad.js</td>
+      <td>emoji</td>
+      <td>fabric.Text con glyph 🥅</td>
+      <td>emoji</td>
+      <td>font-dependent</td>
+      <td>sí</td>
+      <td>Recurso rápido para portería</td>
+      <td><span class='badge maybe'> crear desde cero </span></td>
+      <td>Se pinta como texto/emoji, no como imagen. Glyph: 🥅</td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Emojis</td>
+      <td class='preview'><div class="emoji-preview">🚧</div></td>
+      <td><div class='name'>emoji_hurdle</div><div class='sub'>emoji_hurdle</div></td>
+      <td>football/static/football/js/pitch_surface.js / sessions_tactical_pad.js</td>
+      <td>emoji</td>
+      <td>fabric.Text con glyph 🚧</td>
+      <td>emoji</td>
+      <td>font-dependent</td>
+      <td>sí</td>
+      <td>Recurso rápido para valla</td>
+      <td><span class='badge maybe'> crear desde cero </span></td>
+      <td>Se pinta como texto/emoji, no como imagen. Glyph: 🚧</td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Emojis</td>
+      <td class='preview'><div class="emoji-preview">🪜</div></td>
+      <td><div class='name'>emoji_ladder</div><div class='sub'>emoji_ladder</div></td>
+      <td>football/static/football/js/pitch_surface.js / sessions_tactical_pad.js</td>
+      <td>emoji</td>
+      <td>fabric.Text con glyph 🪜</td>
+      <td>emoji</td>
+      <td>font-dependent</td>
+      <td>sí</td>
+      <td>Recurso rápido para escalera</td>
+      <td><span class='badge maybe'> crear desde cero </span></td>
+      <td>Se pinta como texto/emoji, no como imagen. Glyph: 🪜</td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Emojis</td>
+      <td class='preview'><div class="emoji-preview">🧍</div></td>
+      <td><div class='name'>emoji_mannequin</div><div class='sub'>emoji_mannequin</div></td>
+      <td>football/static/football/js/pitch_surface.js / sessions_tactical_pad.js</td>
+      <td>emoji</td>
+      <td>fabric.Text con glyph 🧍</td>
+      <td>emoji</td>
+      <td>font-dependent</td>
+      <td>sí</td>
+      <td>Recurso rápido para maniquí</td>
+      <td><span class='badge maybe'> crear desde cero </span></td>
+      <td>Se pinta como texto/emoji, no como imagen. Glyph: 🧍</td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Emojis</td>
+      <td class='preview'><div class="emoji-preview">🥅</div></td>
+      <td><div class='name'>emoji_mini_goal</div><div class='sub'>emoji_mini_goal</div></td>
+      <td>football/static/football/js/pitch_surface.js / sessions_tactical_pad.js</td>
+      <td>emoji</td>
+      <td>fabric.Text con glyph 🥅</td>
+      <td>emoji</td>
+      <td>font-dependent</td>
+      <td>sí</td>
+      <td>Recurso rápido para mini portería</td>
+      <td><span class='badge maybe'> crear desde cero </span></td>
+      <td>Se pinta como texto/emoji, no como imagen. Glyph: 🥅</td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Emojis</td>
+      <td class='preview'><div class="emoji-preview">📍</div></td>
+      <td><div class='name'>emoji_pole</div><div class='sub'>emoji_pole</div></td>
+      <td>football/static/football/js/pitch_surface.js / sessions_tactical_pad.js</td>
+      <td>emoji</td>
+      <td>fabric.Text con glyph 📍</td>
+      <td>emoji</td>
+      <td>font-dependent</td>
+      <td>sí</td>
+      <td>Recurso rápido para pica</td>
+      <td><span class='badge maybe'> crear desde cero </span></td>
+      <td>Se pinta como texto/emoji, no como imagen. Glyph: 📍</td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Emojis</td>
+      <td class='preview'><div class="emoji-preview">⭕</div></td>
+      <td><div class='name'>emoji_ring</div><div class='sub'>emoji_ring</div></td>
+      <td>football/static/football/js/pitch_surface.js / sessions_tactical_pad.js</td>
+      <td>emoji</td>
+      <td>fabric.Text con glyph ⭕</td>
+      <td>emoji</td>
+      <td>font-dependent</td>
+      <td>sí</td>
+      <td>Recurso rápido para aro</td>
+      <td><span class='badge maybe'> crear desde cero </span></td>
+      <td>Se pinta como texto/emoji, no como imagen. Glyph: ⭕</td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Emojis</td>
+      <td class='preview'><div class="emoji-preview">👥</div></td>
+      <td><div class='name'>emoji_staff</div><div class='sub'>emoji_staff</div></td>
+      <td>football/static/football/js/pitch_surface.js / sessions_tactical_pad.js</td>
+      <td>emoji</td>
+      <td>fabric.Text con glyph 👥</td>
+      <td>emoji</td>
+      <td>font-dependent</td>
+      <td>sí</td>
+      <td>Recurso rápido para staff</td>
+      <td><span class='badge maybe'> crear desde cero </span></td>
+      <td>Se pinta como texto/emoji, no como imagen. Glyph: 👥</td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Emojis</td>
+      <td class='preview'><div class="emoji-preview">⏱️</div></td>
+      <td><div class='name'>emoji_stopwatch</div><div class='sub'>emoji_stopwatch</div></td>
+      <td>football/static/football/js/pitch_surface.js / sessions_tactical_pad.js</td>
+      <td>emoji</td>
+      <td>fabric.Text con glyph ⏱️</td>
+      <td>emoji</td>
+      <td>font-dependent</td>
+      <td>sí</td>
+      <td>Recurso rápido para cronómetro</td>
+      <td><span class='badge maybe'> crear desde cero </span></td>
+      <td>Se pinta como texto/emoji, no como imagen. Glyph: ⏱️</td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Emojis</td>
+      <td class='preview'><div class="emoji-preview">🧱</div></td>
+      <td><div class='name'>emoji_wall</div><div class='sub'>emoji_wall</div></td>
+      <td>football/static/football/js/pitch_surface.js / sessions_tactical_pad.js</td>
+      <td>emoji</td>
+      <td>fabric.Text con glyph 🧱</td>
+      <td>emoji</td>
+      <td>font-dependent</td>
+      <td>sí</td>
+      <td>Recurso rápido para muro</td>
+      <td><span class='badge maybe'> crear desde cero </span></td>
+      <td>Se pinta como texto/emoji, no como imagen. Glyph: 🧱</td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Emojis</td>
+      <td class='preview'><div class="emoji-preview">📣</div></td>
+      <td><div class='name'>emoji_whistle</div><div class='sub'>emoji_whistle</div></td>
+      <td>football/static/football/js/pitch_surface.js / sessions_tactical_pad.js</td>
+      <td>emoji</td>
+      <td>fabric.Text con glyph 📣</td>
+      <td>emoji</td>
+      <td>font-dependent</td>
+      <td>sí</td>
+      <td>Recurso rápido para silbato</td>
+      <td><span class='badge maybe'> crear desde cero </span></td>
+      <td>Se pinta como texto/emoji, no como imagen. Glyph: 📣</td>
+    </tr>
+    
+    <tr>
+      <td class='cat'>Tokens/Jerseys</td>
+      <td class='preview'><div class="file-pill">canvas drawing + optional image</div></td>
+      <td><div class='name'> goalkeeper_rival</div><div class='sub'>player_local / player_rival / player_away / goalkeeper_local / goalkeeper_rival</div></td>
+      <td>football/static/football/js/sessions_tactical_pad.js</td>
+      <td>canvas drawing + optional image</td>
+      <td>fabric.Group con anillos, jersey SVG embebida, textos y opcional badge image</td>
+      <td>canvas drawing + optional image</td>
+      <td>vector/procedural</td>
+      <td>sí</td>
+      <td>Reutilizable la lógica semántica; visual final conviene rehacer.</td>
+      <td><span class='badge maybe'> reutilizar parcialmente </span></td>
+      <td></td>
+    </tr>
+    
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>5. Propuesta inicial de biblioteca desde cero</h2>
+    <div class='panel'>
+      <table>
+        <thead><tr><th>Familia</th><th>Base actual</th><th>Decisión</th></tr></thead>
+        <tbody><tr><td>Campos</td><td>Base desde grass_premium_* + stadium_taskboard_overlay_* + stadium_rosaleda_top_*</td><td>Reutilizar + versionar en assets_library/fields y stadiums</td></tr><tr><td>Porterías</td><td>goal_premium.glb para 3D; family SVG nueva para 2D</td><td>Rehacer 2D premium, reutilizar 3D</td></tr><tr><td>Jugadores</td><td>token-sprites premium-* + player-avatar.svg + players/* recortados</td><td>Separar en families: token, cutout, future premium</td></tr><tr><td>Porteros</td><td>premium-goalkeeper-*</td><td>Reutilizar como base inmediata</td></tr><tr><td>Balones</td><td>procedural actual + emoji_ball</td><td>Crear family nueva y dejar emoji como fallback</td></tr><tr><td>Conos/Picas</td><td>procedural actual + emoji_cone/pole</td><td>Crear family vectorial nueva</td></tr><tr><td>Flechas/Líneas</td><td>procedural actual</td><td>Redibujar como family vectorial premium</td></tr><tr><td>Chapas/Camisetas</td><td>jersey SVG embebida en JS + token groups</td><td>Extraer a family dedicada</td></tr><tr><td>Logos/Vallas</td><td>kit_logos/* + 2j-mark + uefa-badge</td><td>Reutilizar en stadium ads/presentation</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+</body>
+</html>

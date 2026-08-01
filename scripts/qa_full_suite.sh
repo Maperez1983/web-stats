@@ -28,4 +28,3 @@ echo "[qa] unit tests (football)"
 python3 manage.py test football
 
 echo "[qa] OK"
-

@@ -18,4 +18,3 @@ class Migration(migrations.Migration):
             field=models.DateTimeField(blank=True, null=True),
         ),
     ]
-

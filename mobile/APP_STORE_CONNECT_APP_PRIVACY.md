@@ -66,4 +66,3 @@ Salvo que tú lo añadas explícitamente:
 
 - URLs públicas obligatorias: `mobile/APPSTORE_SUBMISSION.md`
 - Eliminación de cuenta (in‑app): `MARKET_RELEASE.md`
-

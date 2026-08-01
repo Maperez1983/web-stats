@@ -19,13 +19,13 @@ logger = logging.getLogger(__name__)
 def player_license_storage_candidates(player):
     if not player:
         return []
-    base_name = f'player-licenses/player-{player.id}'
+    base_name = f"player-licenses/player-{player.id}"
     return [
-        f'{base_name}.pdf',
-        f'{base_name}.jpg',
-        f'{base_name}.jpeg',
-        f'{base_name}.png',
-        f'{base_name}.webp',
+        f"{base_name}.pdf",
+        f"{base_name}.jpg",
+        f"{base_name}.jpeg",
+        f"{base_name}.png",
+        f"{base_name}.webp",
     ]
 
 
@@ -34,31 +34,33 @@ def save_player_license(player, uploaded_license):
     Guarda una licencia federativa del jugador (PDF o imagen).
     """
     if not player or not uploaded_license:
-        return ''
+        return ""
     try:
-        storage = storages['default']
+        storage = storages["default"]
         if isinstance(storage, FileSystemStorage):
-            storage = FileSystemStorage(location=getattr(settings, 'MEDIA_ROOT', None), base_url=getattr(settings, 'MEDIA_URL', '/media/'))
+            storage = FileSystemStorage(
+                location=getattr(settings, "MEDIA_ROOT", None), base_url=getattr(settings, "MEDIA_URL", "/media/")
+            )
 
-        raw_name = str(getattr(uploaded_license, 'name', '') or '')
+        raw_name = str(getattr(uploaded_license, "name", "") or "")
         extension = Path(raw_name).suffix.lower()
-        content_type = str(getattr(uploaded_license, 'content_type', '') or '').lower()
-        is_pdf = extension == '.pdf' or content_type == 'application/pdf'
+        content_type = str(getattr(uploaded_license, "content_type", "") or "").lower()
+        is_pdf = extension == ".pdf" or content_type == "application/pdf"
 
-        if hasattr(uploaded_license, 'seek'):
+        if hasattr(uploaded_license, "seek"):
             uploaded_license.seek(0)
         raw_bytes = uploaded_license.read()
         if not raw_bytes:
-            return ''
+            return ""
 
-        target_ext = '.pdf' if is_pdf else (extension if extension in {'.jpg', '.jpeg', '.png', '.webp'} else '.jpg')
+        target_ext = ".pdf" if is_pdf else (extension if extension in {".jpg", ".jpeg", ".png", ".webp"} else ".jpg")
         if is_pdf:
             content = ContentFile(raw_bytes)
-            target_ext = '.pdf'
+            target_ext = ".pdf"
         else:
             if Image is None:
-                if target_ext not in {'.jpg', '.jpeg', '.png', '.webp'}:
-                    return ''
+                if target_ext not in {".jpg", ".jpeg", ".png", ".webp"}:
+                    return ""
                 content = ContentFile(raw_bytes)
             else:
                 try:
@@ -67,30 +69,36 @@ def save_player_license(player, uploaded_license):
                             try:
                                 img = ImageOps.exif_transpose(img)
                             except Exception:
-                                logger.debug('No se pudo aplicar EXIF transpose a la licencia del jugador %s', getattr(player, 'id', None), exc_info=True)
-                        if img.mode in ('RGBA', 'LA', 'P'):
-                            converted = img.convert('RGBA')
-                            background = Image.new('RGBA', converted.size, (255, 255, 255, 255))
+                                logger.debug(
+                                    "No se pudo aplicar EXIF transpose a la licencia del jugador %s",
+                                    getattr(player, "id", None),
+                                    exc_info=True,
+                                )
+                        if img.mode in ("RGBA", "LA", "P"):
+                            converted = img.convert("RGBA")
+                            background = Image.new("RGBA", converted.size, (255, 255, 255, 255))
                             background.alpha_composite(converted)
-                            normalized = background.convert('RGB')
+                            normalized = background.convert("RGB")
                         else:
-                            normalized = img.convert('RGB')
+                            normalized = img.convert("RGB")
                         buffer = io.BytesIO()
-                        normalized.save(buffer, format='JPEG', optimize=True, quality=82)
+                        normalized.save(buffer, format="JPEG", optimize=True, quality=82)
                         content = ContentFile(buffer.getvalue())
-                        target_ext = '.jpg'
+                        target_ext = ".jpg"
                 except Exception:
-                    logger.exception('No se pudo normalizar la imagen de licencia del jugador %s', getattr(player, 'id', None))
-                    return ''
+                    logger.exception(
+                        "No se pudo normalizar la imagen de licencia del jugador %s", getattr(player, "id", None)
+                    )
+                    return ""
 
-        target_name = f'player-licenses/player-{player.id}{target_ext}'
+        target_name = f"player-licenses/player-{player.id}{target_ext}"
         for candidate in player_license_storage_candidates(player):
             try:
                 if storage.exists(candidate):
                     storage.delete(candidate)
             except Exception:
-                logger.exception('No se pudo limpiar una licencia previa del jugador %s', player.id)
+                logger.exception("No se pudo limpiar una licencia previa del jugador %s", player.id)
         return storage.save(target_name, content)
     except Exception:
-        logger.exception('No se pudo guardar la licencia del jugador %s', getattr(player, 'id', None))
-        return ''
+        logger.exception("No se pudo guardar la licencia del jugador %s", getattr(player, "id", None))
+        return ""

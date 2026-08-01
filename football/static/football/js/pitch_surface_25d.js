@@ -43,15 +43,15 @@
       shadow: 'rgba(18,36,15,0.17)',
     },
     pro: {
-      outer: '#557d3c',
-      frame: '#85aa56',
-      frameEdge: '#628845',
-      base: '#6f9b49',
-      stripeA: '#80ab57',
-      stripeB: '#5f8d3d',
-      textureLight: 'rgba(255,255,255,0.026)',
-      textureDark: 'rgba(15,42,19,0.085)',
-      shadow: 'rgba(10,28,13,0.18)',
+      outer: '#5c7d38',
+      frame: '#89aa55',
+      frameEdge: '#678542',
+      base: '#7f9f4b',
+      stripeA: '#95b95b',
+      stripeB: '#6d8841',
+      textureLight: 'rgba(255,255,255,0.022)',
+      textureDark: 'rgba(16,44,16,0.11)',
+      shadow: 'rgba(6,16,9,0.18)',
     },
     broadcast: {
       outer: '#346d3f',
@@ -87,15 +87,15 @@
       shadow: 'rgba(4,12,8,0.24)',
     },
     natural: {
-      outer: '#708c42',
-      frame: '#a3bd62',
-      frameEdge: '#7f9948',
-      base: '#8fb158',
-      stripeA: '#a4c168',
-      stripeB: '#7ea34c',
-      textureLight: 'rgba(255,255,255,0.028)',
-      textureDark: 'rgba(29,58,18,0.066)',
-      shadow: 'rgba(18,36,14,0.16)',
+      outer: '#4d682e',
+      frame: '#778f43',
+      frameEdge: '#5d7234',
+      base: '#5f7d39',
+      stripeA: '#6c8740',
+      stripeB: '#526d2e',
+      textureLight: 'rgba(255,255,255,0.017)',
+      textureDark: 'rgba(14,31,12,0.072)',
+      shadow: 'rgba(7,16,10,0.16)',
     },
     artificial: {
       outer: '#20825a',
@@ -174,6 +174,136 @@
       textureDark: 'rgba(0,0,0,0.1)',
       shadow: 'rgba(0,0,0,0.26)',
     },
+  };
+
+  const SURFACE_THEMES = {
+    default: {
+      apron: '#6f9341',
+      floorTop: 'rgba(237,241,244,0.97)',
+      floorBottom: 'rgba(207,214,222,0.97)',
+      floorShadowTop: 'rgba(255,255,255,0.10)',
+      floorShadowBottom: 'rgba(55,65,81,0.10)',
+      frameTop: 'rgba(244,247,250,0.94)',
+      frameBottom: 'rgba(210,217,224,0.94)',
+      frameSheen: 'rgba(255,255,255,0.16)',
+      rimTop: 'rgba(255,255,255,0.13)',
+      rimBottom: 'rgba(0,0,0,0.05)',
+      standShellTop: 'rgba(222,228,234,0.94)',
+      standShellBottom: 'rgba(172,181,191,0.90)',
+      standSeatsTop: 'rgba(78,87,98,0.94)',
+      standSeatsBottom: 'rgba(45,53,64,0.94)',
+      vignetteOuter: 'rgba(22,34,20,0.10)',
+      adShellTop: 'rgba(34,39,46,0.84)',
+      adShellBottom: 'rgba(15,18,22,0.96)',
+      adGlow: 'rgba(180,216,255,0.11)',
+      grassNoiseOpacity: 0.28,
+      grassFiberOpacity: 0.12,
+      grassStripeEven: 0.72,
+      grassStripeOdd: 0.62,
+      mowLineOpacity: 0.018,
+      focusOpacity: 0.08,
+      topLightOpacity: 0.015,
+      bottomShadeOpacity: 0.015,
+      fieldSheenOpacity: 0.16,
+      fieldEdgeVignetteOpacity: 0.16,
+    },
+    premium: {
+      apron: '#617f38',
+      floorTop: 'rgba(242,245,248,0.98)',
+      floorBottom: 'rgba(212,219,226,0.98)',
+      floorShadowTop: 'rgba(255,255,255,0.11)',
+      floorShadowBottom: 'rgba(31,41,55,0.08)',
+      frameTop: 'rgba(247,249,251,0.95)',
+      frameBottom: 'rgba(214,220,226,0.95)',
+      frameSheen: 'rgba(255,255,255,0.18)',
+      rimTop: 'rgba(255,255,255,0.15)',
+      rimBottom: 'rgba(0,0,0,0.04)',
+      standShellTop: 'rgba(226,232,238,0.95)',
+      standShellBottom: 'rgba(176,186,196,0.92)',
+      standSeatsTop: 'rgba(70,79,91,0.96)',
+      standSeatsBottom: 'rgba(40,48,58,0.96)',
+      vignetteOuter: 'rgba(15,23,42,0.08)',
+      adShellTop: 'rgba(28,33,39,0.90)',
+      adShellBottom: 'rgba(9,12,16,0.98)',
+      adGlow: 'rgba(172,220,255,0.09)',
+      grassNoiseOpacity: 0.18,
+      grassFiberOpacity: 0.08,
+      grassStripeEven: 0.62,
+      grassStripeOdd: 0.54,
+      mowLineOpacity: 0.012,
+      focusOpacity: 0.045,
+      topLightOpacity: 0.010,
+      bottomShadeOpacity: 0.012,
+      fieldSheenOpacity: 0.12,
+      fieldEdgeVignetteOpacity: 0.20,
+    },
+    whiteboard: {
+      apron: '#dde5ea',
+      floorTop: 'rgba(250,252,253,0.99)',
+      floorBottom: 'rgba(229,235,240,0.99)',
+      floorShadowTop: 'rgba(255,255,255,0.05)',
+      floorShadowBottom: 'rgba(148,163,184,0.08)',
+      frameTop: 'rgba(247,250,252,0.94)',
+      frameBottom: 'rgba(229,235,240,0.94)',
+      frameSheen: 'rgba(255,255,255,0.10)',
+      rimTop: 'rgba(255,255,255,0.08)',
+      rimBottom: 'rgba(15,23,42,0.03)',
+      standShellTop: 'rgba(236,240,244,0.94)',
+      standShellBottom: 'rgba(210,217,224,0.94)',
+      standSeatsTop: 'rgba(203,213,225,0.85)',
+      standSeatsBottom: 'rgba(181,191,203,0.90)',
+      vignetteOuter: 'rgba(148,163,184,0.06)',
+      adShellTop: 'rgba(220,226,232,0.90)',
+      adShellBottom: 'rgba(198,206,214,0.95)',
+      adGlow: 'rgba(148,163,184,0.05)',
+      grassNoiseOpacity: 0.10,
+      grassFiberOpacity: 0.04,
+      grassStripeEven: 0.35,
+      grassStripeOdd: 0.28,
+      mowLineOpacity: 0.010,
+      focusOpacity: 0.020,
+      topLightOpacity: 0.008,
+      bottomShadeOpacity: 0.008,
+      fieldSheenOpacity: 0.08,
+      fieldEdgeVignetteOpacity: 0.10,
+    },
+    blackboard: {
+      apron: '#0f1724',
+      floorTop: 'rgba(26,35,49,0.98)',
+      floorBottom: 'rgba(15,23,36,0.98)',
+      floorShadowTop: 'rgba(255,255,255,0.03)',
+      floorShadowBottom: 'rgba(0,0,0,0.10)',
+      frameTop: 'rgba(25,35,50,0.94)',
+      frameBottom: 'rgba(14,20,31,0.96)',
+      frameSheen: 'rgba(255,255,255,0.06)',
+      rimTop: 'rgba(255,255,255,0.06)',
+      rimBottom: 'rgba(0,0,0,0.08)',
+      standShellTop: 'rgba(35,45,60,0.94)',
+      standShellBottom: 'rgba(18,25,36,0.94)',
+      standSeatsTop: 'rgba(25,34,46,0.96)',
+      standSeatsBottom: 'rgba(9,14,22,0.96)',
+      vignetteOuter: 'rgba(0,0,0,0.18)',
+      adShellTop: 'rgba(32,39,48,0.92)',
+      adShellBottom: 'rgba(11,16,22,0.98)',
+      adGlow: 'rgba(148,163,184,0.05)',
+      grassNoiseOpacity: 0.14,
+      grassFiberOpacity: 0.05,
+      grassStripeEven: 0.42,
+      grassStripeOdd: 0.34,
+      mowLineOpacity: 0.012,
+      focusOpacity: 0.030,
+      topLightOpacity: 0.008,
+      bottomShadeOpacity: 0.010,
+      fieldSheenOpacity: 0.07,
+      fieldEdgeVignetteOpacity: 0.12,
+    },
+  };
+
+  const resolveSurfaceTheme = (grassKey) => {
+    if (grassKey === 'broadcast_premium') return SURFACE_THEMES.premium;
+    if (grassKey === 'whiteboard') return SURFACE_THEMES.whiteboard;
+    if (grassKey === 'blackboard' || grassKey === 'coachboard') return SURFACE_THEMES.blackboard;
+    return SURFACE_THEMES.default;
   };
 
   const buildRect = (x, y, width, height, radius, fill, extra = '') =>
@@ -346,44 +476,60 @@
   };
 
   const resolveGrassTextureHref = () => {
+    const isCompactLab = typeof document !== 'undefined' && document.body && document.body.classList.contains('editor-lab-compact');
     try {
       const form = document.getElementById('task-builder-form');
       const custom = safeText(form?.dataset?.pitch3dGrassPremiumAlbedoSrc);
-      if (custom) return custom;
+      if (custom) return isCompactLab
+        ? custom.replace('grass_premium_albedo.png', 'grass_reference_tile_clean.png')
+        : custom;
     } catch (e) { /* ignore */ }
-    return '/static/football/images/pitch3d/grass_premium_albedo.png';
+    return isCompactLab
+      ? '/static/football/images/pitch3d/grass_reference_tile_clean.png'
+      : '/static/football/images/pitch3d/grass_premium_albedo.png';
   };
 
-  const buildDefs = (idPrefix, pitch, grass) => `
+  const resolveGrassGrainHref = () => {
+    const isCompactLab = typeof document !== 'undefined' && document.body && document.body.classList.contains('editor-lab-compact');
+    if (!isCompactLab) return '';
+    try {
+      const form = document.getElementById('task-builder-form');
+      const custom = safeText(form?.dataset?.pitch3dGrassPremiumAlbedoSrc);
+      if (custom) return custom.replace('grass_premium_albedo.png', '');
+    } catch (e) { /* ignore */ }
+    return '';
+  };
+
+  const buildDefs = (idPrefix, pitch, grass, theme) => `
     <defs>
       <linearGradient id="${idPrefix}-backdrop" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stop-color="${grass.outer}"/>
-        <stop offset="100%" stop-color="${grass.frameEdge}"/>
+        <stop offset="0%" stop-color="${theme.floorTop}"/>
+        <stop offset="100%" stop-color="${theme.floorBottom}"/>
       </linearGradient>
       <linearGradient id="${idPrefix}-frame" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stop-color="${grass.frame}"/>
-        <stop offset="100%" stop-color="${grass.frameEdge}"/>
+        <stop offset="0%" stop-color="${theme.frameTop}"/>
+        <stop offset="100%" stop-color="${theme.frameBottom}"/>
       </linearGradient>
       <linearGradient id="${idPrefix}-frame-sheen" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stop-color="rgba(255,255,255,0.18)"/>
+        <stop offset="0%" stop-color="${theme.frameSheen}"/>
         <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
       </linearGradient>
       <radialGradient id="${idPrefix}-scene-vignette" cx="50%" cy="48%" r="72%">
         <stop offset="0%" stop-color="rgba(255,255,255,0.04)"/>
         <stop offset="62%" stop-color="rgba(255,255,255,0.015)"/>
-        <stop offset="100%" stop-color="rgba(36,72,19,0.08)"/>
+        <stop offset="100%" stop-color="${theme.vignetteOuter}"/>
       </radialGradient>
       <linearGradient id="${idPrefix}-stadium-floor" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stop-color="rgba(233,238,241,0.96)"/>
-        <stop offset="100%" stop-color="rgba(201,209,216,0.96)"/>
+        <stop offset="0%" stop-color="${theme.floorTop}"/>
+        <stop offset="100%" stop-color="${theme.floorBottom}"/>
       </linearGradient>
       <linearGradient id="${idPrefix}-stadium-floor-shadow" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stop-color="rgba(255,255,255,0.10)"/>
-        <stop offset="100%" stop-color="rgba(55,65,81,0.10)"/>
+        <stop offset="0%" stop-color="${theme.floorShadowTop}"/>
+        <stop offset="100%" stop-color="${theme.floorShadowBottom}"/>
       </linearGradient>
       <linearGradient id="${idPrefix}-pitch-rim" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stop-color="rgba(255,255,255,0.14)"/>
-        <stop offset="100%" stop-color="rgba(0,0,0,0.04)"/>
+        <stop offset="0%" stop-color="${theme.rimTop}"/>
+        <stop offset="100%" stop-color="${theme.rimBottom}"/>
       </linearGradient>
       <clipPath id="${idPrefix}-pitch-clip">
         <rect x="${pitch.x}" y="${pitch.y}" width="${pitch.w}" height="${pitch.h}" rx="18" ry="18"/>
@@ -415,6 +561,10 @@
         <stop offset="0%" stop-color="rgba(255,255,255,0.045)"/>
         <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
       </radialGradient>
+      <radialGradient id="${idPrefix}-field-edge-vignette" cx="50%" cy="50%" r="74%">
+        <stop offset="56%" stop-color="rgba(0,0,0,0)"/>
+        <stop offset="100%" stop-color="rgba(6,16,12,0.16)"/>
+      </radialGradient>
       <linearGradient id="${idPrefix}-pitch-sheen" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stop-color="rgba(255,255,255,0.012)"/>
         <stop offset="35%" stop-color="rgba(255,255,255,0)"/>
@@ -440,32 +590,46 @@
         <path d="M 0 0 L 28 0 M 0 14 L 28 14 M 0 28 L 28 28 M 0 0 L 0 28 M 14 0 L 14 28 M 28 0 L 28 28" stroke="rgba(255,255,255,0.08)" stroke-width="0.7"/>
       </pattern>
       <linearGradient id="${idPrefix}-stand-shell" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stop-color="rgba(219,225,231,0.94)"/>
-        <stop offset="100%" stop-color="rgba(164,174,184,0.9)"/>
+        <stop offset="0%" stop-color="${theme.standShellTop}"/>
+        <stop offset="100%" stop-color="${theme.standShellBottom}"/>
       </linearGradient>
       <linearGradient id="${idPrefix}-stand-seats" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stop-color="rgba(70,80,92,0.94)"/>
-        <stop offset="100%" stop-color="rgba(42,50,60,0.94)"/>
+        <stop offset="0%" stop-color="${theme.standSeatsTop}"/>
+        <stop offset="100%" stop-color="${theme.standSeatsBottom}"/>
       </linearGradient>
       <linearGradient id="${idPrefix}-ad-shell-h" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stop-color="rgba(32,37,44,0.82)"/>
-        <stop offset="100%" stop-color="rgba(17,20,24,0.96)"/>
+        <stop offset="0%" stop-color="${theme.adShellTop}"/>
+        <stop offset="100%" stop-color="${theme.adShellBottom}"/>
       </linearGradient>
       <linearGradient id="${idPrefix}-ad-shell-v" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stop-color="rgba(32,37,44,0.82)"/>
-        <stop offset="100%" stop-color="rgba(17,20,24,0.96)"/>
+        <stop offset="0%" stop-color="${theme.adShellTop}"/>
+        <stop offset="100%" stop-color="${theme.adShellBottom}"/>
       </linearGradient>
       <filter id="${idPrefix}-ad-glow" x="-20%" y="-80%" width="140%" height="260%">
-        <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="rgba(190,220,255,0.15)"/>
+        <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="${theme.adGlow}"/>
       </filter>
     </defs>
   `;
 
-  const buildBackdrop = (scene, pitch, grass) => {
+  const buildBackdrop = (scene, pitch, theme) => {
     const frameInset = 12;
+    const isPresentationSurface = (() => {
+      try { return !!document.body?.classList?.contains?.('focus-mode'); } catch (e) { return false; }
+    })();
+    if (!isPresentationSurface) {
+      return `
+        <g id="surface-base">
+          <rect x="0" y="0" width="${scene.sceneW}" height="${scene.sceneH}" fill="${theme.apron}"/>
+          <rect x="${pitch.x - 26}" y="${pitch.y - 26}" width="${pitch.w + 52}" height="${pitch.h + 52}" rx="34" ry="34" fill="rgba(255,255,255,0.03)"/>
+          <rect x="${pitch.x - 14}" y="${pitch.y - 14}" width="${pitch.w + 28}" height="${pitch.h + 28}" rx="24" ry="24" fill="rgba(8,18,12,0.22)"/>
+          <rect x="0" y="0" width="${scene.sceneW}" height="${scene.sceneH}" fill="url(#${pitch.idPrefix}-scene-vignette)"/>
+          <rect x="${pitch.x - 2}" y="${pitch.y - 2}" width="${pitch.w + 4}" height="${pitch.h + 4}" rx="18" ry="18" fill="url(#${pitch.idPrefix}-pitch-rim)" opacity="0.10"/>
+        </g>
+      `;
+    }
     return `
       <g id="surface-base">
-        <rect x="0" y="0" width="${scene.sceneW}" height="${scene.sceneH}" fill="#7a9a45"/>
+        <rect x="0" y="0" width="${scene.sceneW}" height="${scene.sceneH}" fill="${theme.apron}"/>
         <rect x="34" y="26" width="${scene.sceneW - 68}" height="${scene.sceneH - 52}" rx="86" ry="86" fill="url(#${pitch.idPrefix}-stadium-floor)"/>
         <rect x="34" y="26" width="${scene.sceneW - 68}" height="${scene.sceneH - 52}" rx="86" ry="86" fill="url(#${pitch.idPrefix}-stadium-floor-shadow)"/>
         <path d="M 52 90 L 220 90 L 120 190 L 52 258 Z" fill="rgba(255,255,255,0.10)"/>
@@ -482,7 +646,7 @@
     `;
   };
 
-  const buildAdBoards = (pitch, idPrefix) => {
+  const buildAdBoards = (pitch, idPrefix, theme) => {
     const adGap = 14;
     const thickness = 24;
     const sideThickness = 28;
@@ -538,12 +702,12 @@
         <rect x="${leftX}" y="${bottomSegmentY - 1.35}" width="${sideThickness}" height="${sideSegmentH + 2.7}" rx="6" ry="6" fill="url(#${idPrefix}-ad-shell-v)"/>
         <rect x="${rightX}" y="${topSegmentY - 1.35}" width="${sideThickness}" height="${sideSegmentH + 2.7}" rx="6" ry="6" fill="url(#${idPrefix}-ad-shell-v)"/>
         <rect x="${rightX}" y="${bottomSegmentY - 1.35}" width="${sideThickness}" height="${sideSegmentH + 2.7}" rx="6" ry="6" fill="url(#${idPrefix}-ad-shell-v)"/>
-        <rect x="${pitch.x + 4}" y="${topY + 2.2}" width="${pitch.w - 8}" height="1.4" rx="1" ry="1" fill="rgba(164,210,255,0.24)" filter="url(#${idPrefix}-ad-glow)"/>
-        <rect x="${pitch.x + 4}" y="${bottomY + 2.2}" width="${pitch.w - 8}" height="1.4" rx="1" ry="1" fill="rgba(164,210,255,0.18)" filter="url(#${idPrefix}-ad-glow)"/>
-        <rect x="${leftX + 2.2}" y="${topSegmentY + 4}" width="1.2" height="${sideSegmentH - 8}" rx="1" ry="1" fill="rgba(164,210,255,0.18)" filter="url(#${idPrefix}-ad-glow)"/>
-        <rect x="${leftX + 2.2}" y="${bottomSegmentY + 4}" width="1.2" height="${sideSegmentH - 8}" rx="1" ry="1" fill="rgba(164,210,255,0.18)" filter="url(#${idPrefix}-ad-glow)"/>
-        <rect x="${rightX + sideThickness - 3.4}" y="${topSegmentY + 4}" width="1.2" height="${sideSegmentH - 8}" rx="1" ry="1" fill="rgba(164,210,255,0.14)" filter="url(#${idPrefix}-ad-glow)"/>
-        <rect x="${rightX + sideThickness - 3.4}" y="${bottomSegmentY + 4}" width="1.2" height="${sideSegmentH - 8}" rx="1" ry="1" fill="rgba(164,210,255,0.14)" filter="url(#${idPrefix}-ad-glow)"/>
+        <rect x="${pitch.x + 4}" y="${topY + 2.2}" width="${pitch.w - 8}" height="1.1" rx="1" ry="1" fill="${theme.adGlow}" filter="url(#${idPrefix}-ad-glow)"/>
+        <rect x="${pitch.x + 4}" y="${bottomY + 2.2}" width="${pitch.w - 8}" height="1.1" rx="1" ry="1" fill="${theme.adGlow}" filter="url(#${idPrefix}-ad-glow)"/>
+        <rect x="${leftX + 2.2}" y="${topSegmentY + 4}" width="1" height="${sideSegmentH - 8}" rx="1" ry="1" fill="${theme.adGlow}" filter="url(#${idPrefix}-ad-glow)"/>
+        <rect x="${leftX + 2.2}" y="${bottomSegmentY + 4}" width="1" height="${sideSegmentH - 8}" rx="1" ry="1" fill="${theme.adGlow}" filter="url(#${idPrefix}-ad-glow)"/>
+        <rect x="${rightX + sideThickness - 3.4}" y="${topSegmentY + 4}" width="1" height="${sideSegmentH - 8}" rx="1" ry="1" fill="${theme.adGlow}" filter="url(#${idPrefix}-ad-glow)"/>
+        <rect x="${rightX + sideThickness - 3.4}" y="${bottomSegmentY + 4}" width="1" height="${sideSegmentH - 8}" rx="1" ry="1" fill="${theme.adGlow}" filter="url(#${idPrefix}-ad-glow)"/>
         <rect x="${pitch.x}" y="${topY}" width="${pitch.w}" height="1.05" fill="rgba(255,255,255,0.2)"/>
         <rect x="${pitch.x}" y="${bottomY + thickness - 1.05}" width="${pitch.w}" height="1.05" fill="rgba(255,255,255,0.08)"/>
         <rect x="${leftX}" y="${topSegmentY - 1.35}" width="1.05" height="${sideSegmentH + 2.7}" fill="rgba(255,255,255,0.16)"/>
@@ -750,37 +914,70 @@
     `;
   };
 
-  const buildGrassLayer = (pitch, grass) => {
+  const buildGrassLayer = (pitch, grass, theme, grassTextureSrc = '') => {
     const stripes = [];
-    const stripeCount = 10;
+    const blades = [];
+    const compactBlades = [];
+    const compactGrainSrc = resolveGrassGrainHref();
+    const stripeCount = 8;
     const stripeWidth = pitch.w / stripeCount;
-    for (let i = 0; i < stripeCount; i += 1) {
-      stripes.push(buildRect(
-        pitch.x + (i * stripeWidth),
-        pitch.y,
-        stripeWidth + 1,
-        pitch.h,
-        0,
-        i % 2 === 0 ? grass.stripeA : grass.stripeB,
-        `opacity="${i % 2 === 0 ? '0.98' : '0.93'}"`
-      ));
+    const isCompactLab = typeof document !== 'undefined' && document.body && document.body.classList.contains('editor-lab-compact');
+    const useSyntheticBands = !isCompactLab;
+    const grassNoiseOpacity = isCompactLab ? 0.0 : theme.grassNoiseOpacity;
+    const grassFiberOpacity = isCompactLab ? 0.0 : theme.grassFiberOpacity;
+    const grassTextureOpacity = isCompactLab ? 1.0 : 0.88;
+    let seed = Math.round((pitch.x + pitch.y + pitch.w + pitch.h) * 1000) >>> 0;
+    const rand = () => {
+      seed = (1664525 * seed + 1013904223) >>> 0;
+      return seed / 4294967296;
+    };
+    if (useSyntheticBands) {
+      for (let i = 0; i < stripeCount; i += 1) {
+        stripes.push(buildRect(
+          pitch.x + (i * stripeWidth),
+          pitch.y,
+          stripeWidth + 1,
+          pitch.h,
+          0,
+          i % 2 === 0 ? grass.stripeA : grass.stripeB,
+          `opacity="${i % 2 === 0 ? Math.min(0.022, theme.grassStripeEven) : Math.min(0.016, theme.grassStripeOdd)}"`
+        ));
+      }
+      for (let i = 0; i < 220; i += 1) {
+        const x = pitch.x + (rand() * pitch.w);
+        const y = pitch.y + (rand() * pitch.h);
+        const len = 4.8 + (rand() * 8.2);
+        const slant = ((rand() - 0.5) * 2.4);
+        const hue = rand();
+        const opacity = 0.05 + (rand() * 0.06);
+        const green = hue > 0.55 ? 'rgba(220,255,220,' : 'rgba(7,33,13,';
+        blades.push(`<line x1="${x.toFixed(2)}" y1="${y.toFixed(2)}" x2="${(x + slant).toFixed(2)}" y2="${(y + len).toFixed(2)}" stroke="${green}${opacity.toFixed(3)})" stroke-linecap="round" stroke-width="${(0.5 + rand() * 0.55).toFixed(2)}"/>`);
+      }
     }
     const mowLines = [];
-    for (let i = 1; i < 9; i += 1) {
-      const y = pitch.y + ((pitch.h / 9) * i);
-      mowLines.push(buildLine(pitch.x + 10, y, pitch.x + pitch.w - 10, y, 'rgba(255,255,255,0.024)', 0.9));
+    if (useSyntheticBands) {
+      for (let i = 1; i < 6; i += 1) {
+        const y = pitch.y + ((pitch.h / 7) * i);
+        mowLines.push(buildLine(pitch.x + 12, y, pitch.x + pitch.w - 12, y, `rgba(255,255,255,${Math.min(theme.mowLineOpacity * 0.8, 0.016)})`, 0.7));
+      }
     }
     return `
       <g clip-path="url(#${pitch.idPrefix}-pitch-clip)">
-        <rect x="${pitch.x}" y="${pitch.y}" width="${pitch.w}" height="${pitch.h}" rx="18" ry="18" fill="${grass.base}" filter="url(#${pitch.idPrefix}-field-shadow)"/>
+        <rect x="${pitch.x}" y="${pitch.y}" width="${pitch.w}" height="${pitch.h}" rx="18" ry="18" fill="${grass.outer}" filter="url(#${pitch.idPrefix}-field-shadow)"/>
+        ${grassTextureSrc ? `<image href="${grassTextureSrc}" x="${pitch.x}" y="${pitch.y}" width="${pitch.w}" height="${pitch.h}" preserveAspectRatio="xMidYMid slice" opacity="${grassTextureOpacity}" style="mix-blend-mode:normal; filter: saturate(1.01) brightness(1.01) contrast(0.97);"/>` : `<rect x="${pitch.x}" y="${pitch.y}" width="${pitch.w}" height="${pitch.h}" rx="18" ry="18" fill="${grass.base}" opacity="0.97"/>`}
         ${stripes.join('')}
+        ${blades.join('')}
+        ${compactBlades.join('')}
         ${mowLines.join('')}
-        <rect x="${pitch.x}" y="${pitch.y}" width="${pitch.w}" height="${pitch.h}" rx="18" ry="18" fill="url(#${pitch.idPrefix}-grass-noise)"/>
-        <rect x="${pitch.x}" y="${pitch.y}" width="${pitch.w}" height="${pitch.h}" rx="18" ry="18" fill="url(#${pitch.idPrefix}-grass-fibers)"/>
+        ${grassTextureSrc ? `<image href="${grassTextureSrc}" x="${pitch.x}" y="${pitch.y}" width="${pitch.w}" height="${pitch.h}" preserveAspectRatio="xMidYMid slice" opacity="${Math.max(0.02, Math.min(0.045, theme.grassNoiseOpacity * 0.24))}" style="mix-blend-mode:normal; filter: saturate(1.04) brightness(1.02) contrast(0.98);"/>` : ''}
+        ${compactGrainSrc ? `<image href="${compactGrainSrc}" x="${pitch.x}" y="${pitch.y}" width="${pitch.w}" height="${pitch.h}" preserveAspectRatio="xMidYMid slice" opacity="0" style="mix-blend-mode:multiply; filter: blur(0.08px) saturate(1.0) contrast(1.0);"/>` : ''}
+        <rect x="${pitch.x}" y="${pitch.y}" width="${pitch.w}" height="${pitch.h}" rx="18" ry="18" fill="url(#${pitch.idPrefix}-grass-noise)" opacity="${grassNoiseOpacity}"/>
+        <rect x="${pitch.x}" y="${pitch.y}" width="${pitch.w}" height="${pitch.h}" rx="18" ry="18" fill="url(#${pitch.idPrefix}-grass-fibers)" opacity="${Math.min(grassFiberOpacity * 0.82, 0.08)}"/>
         <ellipse cx="${pitch.x + pitch.w * 0.5}" cy="${pitch.y + pitch.h * 0.5}" rx="${pitch.w * 0.43}" ry="${pitch.h * 0.34}" fill="url(#${pitch.idPrefix}-pitch-light)"/>
-        <ellipse cx="${pitch.x + pitch.w * 0.5}" cy="${pitch.y + pitch.h * 0.18}" rx="${pitch.w * 0.44}" ry="${pitch.h * 0.15}" fill="rgba(255,255,255,0.018)"/>
-        <ellipse cx="${pitch.x + pitch.w * 0.5}" cy="${pitch.y + pitch.h * 0.82}" rx="${pitch.w * 0.44}" ry="${pitch.h * 0.15}" fill="rgba(0,0,0,0.018)"/>
-        <rect x="${pitch.x}" y="${pitch.y}" width="${pitch.w}" height="${pitch.h}" rx="18" ry="18" fill="url(#${pitch.idPrefix}-pitch-sheen)"/>
+        <ellipse cx="${pitch.x + pitch.w * 0.5}" cy="${pitch.y + pitch.h * 0.18}" rx="${pitch.w * 0.44}" ry="${pitch.h * 0.15}" fill="rgba(255,255,255,${Math.min(theme.topLightOpacity * 0.75, 0.012)})"/>
+        <ellipse cx="${pitch.x + pitch.w * 0.5}" cy="${pitch.y + pitch.h * 0.82}" rx="${pitch.w * 0.44}" ry="${pitch.h * 0.15}" fill="rgba(0,0,0,${Math.min(theme.bottomShadeOpacity * 1.1, 0.024)})"/>
+        <rect x="${pitch.x}" y="${pitch.y}" width="${pitch.w}" height="${pitch.h}" rx="18" ry="18" fill="url(#${pitch.idPrefix}-pitch-sheen)" opacity="${Math.min(theme.fieldSheenOpacity * 0.62, 0.1)}"/>
+        <rect x="${pitch.x}" y="${pitch.y}" width="${pitch.w}" height="${pitch.h}" rx="18" ry="18" fill="url(#${pitch.idPrefix}-field-edge-vignette)" opacity="${Math.min(theme.fieldEdgeVignetteOpacity * 0.78, 0.12)}"/>
       </g>
     `;
   };
@@ -812,7 +1009,7 @@
         ${fiberLines.join('')}
         <image href="${grassTextureSrc}" x="${pitch.x}" y="${pitch.y}" width="${pitch.w}" height="${pitch.h}" preserveAspectRatio="xMidYMid slice" opacity="0.34"/>
         <rect x="${pitch.x}" y="${pitch.y}" width="${pitch.w}" height="${pitch.h}" fill="url(#${idPrefix}-grass-fibers)" opacity="0.12"/>
-        <rect x="${pitch.x}" y="${pitch.y}" width="${pitch.w}" height="${pitch.h}" fill="url(#${idPrefix}-field-sheen)" opacity="0.12"/>
+        <rect x="${pitch.x}" y="${pitch.y}" width="${pitch.w}" height="${pitch.h}" fill="url(#${idPrefix}-pitch-sheen)" opacity="0.12"/>
         <rect x="${pitch.x}" y="${pitch.y}" width="${pitch.w}" height="${pitch.h}" fill="url(#${idPrefix}-native-grass-sheen)" opacity="0.28"/>
         <ellipse cx="${pitch.x + (pitch.w / 2)}" cy="${pitch.y + (pitch.h * 0.13)}" rx="${pitch.w * 0.47}" ry="${pitch.h * 0.10}" fill="rgba(255,255,255,0.022)"/>
         <ellipse cx="${pitch.x + (pitch.w / 2)}" cy="${pitch.y + (pitch.h * 0.87)}" rx="${pitch.w * 0.47}" ry="${pitch.h * 0.10}" fill="rgba(0,0,0,0.02)"/>
@@ -820,14 +1017,14 @@
     `;
   };
 
-  const buildFocusZones = (pitch) => {
+  const buildFocusZones = (pitch, theme) => {
     const leftCx = pitch.x + (pitch.w * 0.16);
     const rightCx = pitch.x + (pitch.w * 0.84);
     const cy = pitch.y + (pitch.h * 0.5);
     const rx = pitch.w * 0.26;
     const ry = pitch.h * 0.34;
     return `
-      <g opacity="0.18">
+      <g opacity="${theme.focusOpacity}">
         <ellipse cx="${leftCx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="rgba(255,255,255,0.028)"/>
         <ellipse cx="${rightCx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="rgba(255,255,255,0.028)"/>
       </g>
@@ -835,29 +1032,29 @@
   };
 
   const buildGoal = (side, pitch, lineWidth, idPrefix) => {
-    const mouth = pitch.h * 0.146;
-    const depth = Math.max(24, pitch.w * 0.034);
+    const mouth = pitch.h * 0.154;
+    const depth = Math.max(22, pitch.w * 0.034);
     const y = pitch.y + ((pitch.h - mouth) / 2);
-    const post = Math.max(2.6, lineWidth * 0.72);
-    const backInset = Math.max(5, post * 1.25);
-    const shadowRx = depth * 1.04;
-    const shadowRy = mouth * 0.5;
-    const lip = Math.max(1.6, post * 0.48);
+    const post = Math.max(3.4, lineWidth * 0.88);
+    const backInset = Math.max(4, post * 0.95);
+    const shadowRx = depth * 0.92;
+    const shadowRy = mouth * 0.49;
+    const lip = Math.max(1.2, post * 0.38);
     if (side === 'left') {
       const front = pitch.x;
       const back = pitch.x - depth;
       return `
         <g class="goal-left" filter="url(#${idPrefix}-goal-shadow)">
-          <ellipse cx="${front - (depth * 0.58)}" cy="${y + mouth / 2}" rx="${shadowRx}" ry="${shadowRy}" fill="rgba(9,18,28,0.15)"/>
-          <polygon points="${front},${y} ${back},${y + backInset} ${back},${y + mouth - backInset} ${front},${y + mouth}" fill="url(#${idPrefix}-goal-net)" opacity="0.96"/>
-          <polygon points="${front},${y} ${back},${y + backInset} ${back},${y + mouth - backInset} ${front},${y + mouth}" fill="url(#${idPrefix}-goal-net-shade)" opacity="0.32"/>
-          <polygon points="${front},${y} ${front - post},${y + post * 0.45} ${front - post},${y + mouth + post * 0.45} ${front},${y + mouth}" fill="url(#${idPrefix}-goal-post)" opacity="0.99"/>
-          <polygon points="${front - post},${y + post * 0.45} ${back - post * 0.45},${y + backInset} ${back - post * 0.45},${y + mouth - backInset} ${front - post},${y + mouth + post * 0.45}" fill="url(#${idPrefix}-goal-side)" opacity="0.54"/>
-          ${buildLine(front, y, front, y + mouth, '#ffffff', post)}
-          ${buildLine(back, y + backInset, back, y + mouth - backInset, 'rgba(226,232,240,0.86)', post * 0.52)}
-          ${buildLine(front, y, back, y + backInset, 'rgba(255,255,255,0.78)', post * 0.48)}
-          ${buildLine(front, y + mouth, back, y + mouth - backInset, 'rgba(255,255,255,0.78)', post * 0.48)}
-          ${buildLine(front - lip, y + (post * 0.5), front - lip, y + mouth + (post * 0.5), 'rgba(208,218,228,0.7)', 0.9)}
+          <ellipse cx="${front - (depth * 0.56)}" cy="${y + mouth / 2}" rx="${shadowRx}" ry="${shadowRy}" fill="rgba(9,18,28,0.16)"/>
+          <polygon points="${front},${y} ${back},${y + backInset} ${back},${y + mouth - backInset} ${front},${y + mouth}" fill="url(#${idPrefix}-goal-net)" opacity="0.95"/>
+          <polygon points="${front},${y} ${back},${y + backInset} ${back},${y + mouth - backInset} ${front},${y + mouth}" fill="url(#${idPrefix}-goal-net-shade)" opacity="0.28"/>
+          <polygon points="${front},${y} ${front - post},${y + post * 0.42} ${front - post},${y + mouth + post * 0.42} ${front},${y + mouth}" fill="url(#${idPrefix}-goal-post)" opacity="0.99"/>
+          <polygon points="${front - post},${y + post * 0.42} ${back - post * 0.42},${y + backInset} ${back - post * 0.42},${y + mouth - backInset} ${front - post},${y + mouth + post * 0.42}" fill="url(#${idPrefix}-goal-side)" opacity="0.54"/>
+          ${buildLine(front, y, front, y + mouth, '#ffffff', post * 1.04)}
+          ${buildLine(back, y + backInset, back, y + mouth - backInset, 'rgba(229,236,242,0.92)', post * 0.5)}
+          ${buildLine(front, y, back, y + backInset, 'rgba(255,255,255,0.84)', post * 0.42)}
+          ${buildLine(front, y + mouth, back, y + mouth - backInset, 'rgba(255,255,255,0.84)', post * 0.42)}
+          ${buildLine(front - lip, y + (post * 0.5), front - lip, y + mouth + (post * 0.5), 'rgba(208,218,228,0.62)', 0.8)}
         </g>
       `;
     }
@@ -865,16 +1062,16 @@
     const back = pitch.x + pitch.w + depth;
     return `
       <g class="goal-right" filter="url(#${idPrefix}-goal-shadow)">
-          <ellipse cx="${front + (depth * 0.58)}" cy="${y + mouth / 2}" rx="${shadowRx}" ry="${shadowRy}" fill="rgba(9,18,28,0.15)"/>
-          <polygon points="${front},${y} ${back},${y + backInset} ${back},${y + mouth - backInset} ${front},${y + mouth}" fill="url(#${idPrefix}-goal-net)" opacity="0.96"/>
-          <polygon points="${front},${y} ${back},${y + backInset} ${back},${y + mouth - backInset} ${front},${y + mouth}" fill="url(#${idPrefix}-goal-net-shade)" opacity="0.32"/>
-        <polygon points="${front},${y} ${front + post},${y + post * 0.45} ${front + post},${y + mouth + post * 0.45} ${front},${y + mouth}" fill="url(#${idPrefix}-goal-post)" opacity="0.99"/>
-        <polygon points="${front + post},${y + post * 0.45} ${back + post * 0.45},${y + backInset} ${back + post * 0.45},${y + mouth - backInset} ${front + post},${y + mouth + post * 0.45}" fill="url(#${idPrefix}-goal-side)" opacity="0.54"/>
-        ${buildLine(front, y, front, y + mouth, '#ffffff', post)}
-        ${buildLine(back, y + backInset, back, y + mouth - backInset, 'rgba(226,232,240,0.86)', post * 0.52)}
-        ${buildLine(front, y, back, y + backInset, 'rgba(255,255,255,0.78)', post * 0.48)}
-        ${buildLine(front, y + mouth, back, y + mouth - backInset, 'rgba(255,255,255,0.78)', post * 0.48)}
-        ${buildLine(front + lip, y + (post * 0.5), front + lip, y + mouth + (post * 0.5), 'rgba(208,218,228,0.7)', 0.9)}
+          <ellipse cx="${front + (depth * 0.56)}" cy="${y + mouth / 2}" rx="${shadowRx}" ry="${shadowRy}" fill="rgba(9,18,28,0.16)"/>
+          <polygon points="${front},${y} ${back},${y + backInset} ${back},${y + mouth - backInset} ${front},${y + mouth}" fill="url(#${idPrefix}-goal-net)" opacity="0.95"/>
+          <polygon points="${front},${y} ${back},${y + backInset} ${back},${y + mouth - backInset} ${front},${y + mouth}" fill="url(#${idPrefix}-goal-net-shade)" opacity="0.28"/>
+        <polygon points="${front},${y} ${front + post},${y + post * 0.42} ${front + post},${y + mouth + post * 0.42} ${front},${y + mouth}" fill="url(#${idPrefix}-goal-post)" opacity="0.99"/>
+        <polygon points="${front + post},${y + post * 0.42} ${back + post * 0.42},${y + backInset} ${back + post * 0.42},${y + mouth - backInset} ${front + post},${y + mouth + post * 0.42}" fill="url(#${idPrefix}-goal-side)" opacity="0.54"/>
+        ${buildLine(front, y, front, y + mouth, '#ffffff', post * 1.04)}
+        ${buildLine(back, y + backInset, back, y + mouth - backInset, 'rgba(229,236,242,0.92)', post * 0.5)}
+        ${buildLine(front, y, back, y + backInset, 'rgba(255,255,255,0.84)', post * 0.42)}
+        ${buildLine(front, y + mouth, back, y + mouth - backInset, 'rgba(255,255,255,0.84)', post * 0.42)}
+        ${buildLine(front + lip, y + (post * 0.5), front + lip, y + mouth + (post * 0.5), 'rgba(208,218,228,0.62)', 0.8)}
       </g>
     `;
   };
@@ -1106,7 +1303,8 @@
     const rightGoalModes = new Set(['full', 'seven_side', 'seven_side_single', 'futsal', 'half', 'attacking_third']);
     pitch.idPrefix = idPrefix;
     const pitchBox = `${pitch.x} ${pitch.y} ${pitch.w} ${pitch.h}`;
-    const nativeOnlyFull = preset.mode === 'full';
+    const nativeHasPermanentGoals = preset.mode === 'full' || preset.mode === 'blank';
+    const nativeFullFieldLook = nativeHasPermanentGoals;
     const activeDiffers = (
       Math.abs(pitch.x - nativeField.x) > 0.5 ||
       Math.abs(pitch.y - nativeField.y) > 0.5 ||
@@ -1115,7 +1313,7 @@
     );
     const pitchCenterX = pitch.x + (pitch.w / 2);
     const pitchCenterY = pitch.y + (pitch.h / 2);
-    const rotatedPortraitPitch = nativeOnlyFull && orientation === 'portrait'
+    const rotatedPortraitPitch = nativeHasPermanentGoals && orientation === 'portrait'
       ? {
           x: pitchCenterX - (pitch.h / 2),
           y: pitchCenterY - (pitch.w / 2),
@@ -1129,7 +1327,7 @@
       ? `rotate(90 ${pitchCenterX} ${pitchCenterY})`
       : '';
     const useEndlineGoals = false;
-    const useTouchlineGoals = nativeOnlyFull && orientation !== 'portrait';
+    const useTouchlineGoals = nativeHasPermanentGoals && orientation !== 'portrait';
     const nativeAxis = 'horizontal';
 
     return `
@@ -1182,22 +1380,22 @@
             <stop offset="100%" stop-color="rgba(5,8,13,1)"/>
           </linearGradient>
           <pattern id="${idPrefix}-goal-net" width="14" height="14" patternUnits="userSpaceOnUse">
-            <path d="M 0 0 L 14 14 M 14 0 L 0 14" stroke="rgba(236,242,247,0.7)" stroke-width="0.9"/>
+            <path d="M 0 0 L 14 14 M 14 0 L 0 14" stroke="rgba(247,250,252,0.82)" stroke-width="0.85"/>
           </pattern>
           <linearGradient id="${idPrefix}-goal-post" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stop-color="#ffffff"/>
-            <stop offset="100%" stop-color="#dee6ed"/>
+            <stop offset="100%" stop-color="#e4ebf1"/>
           </linearGradient>
           <linearGradient id="${idPrefix}-goal-side" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#dfe7ee"/>
-            <stop offset="100%" stop-color="#a9b8c6"/>
+            <stop offset="0%" stop-color="#eef4f8"/>
+            <stop offset="100%" stop-color="#ccd8e2"/>
           </linearGradient>
           <linearGradient id="${idPrefix}-goal-net-shade" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="rgba(255,255,255,0.28)"/>
-            <stop offset="100%" stop-color="rgba(148,163,184,0.08)"/>
+            <stop offset="0%" stop-color="rgba(255,255,255,0.16)"/>
+            <stop offset="100%" stop-color="rgba(148,163,184,0.03)"/>
           </linearGradient>
           <filter id="${idPrefix}-goal-shadow" x="-40%" y="-40%" width="180%" height="180%">
-            <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="rgba(11,20,33,0.16)"/>
+            <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(11,20,33,0.10)"/>
           </filter>
           <filter id="${idPrefix}-field-drop" x="-10%" y="-10%" width="120%" height="120%">
             <feDropShadow dx="0" dy="4" stdDeviation="10" flood-color="rgba(6,16,12,0.18)"/>
@@ -1213,37 +1411,25 @@
         <image href="${stadiumSrc}" x="0" y="0" width="${scene.sceneW}" height="${scene.sceneH}" preserveAspectRatio="xMidYMid slice"/>
         ${buildNativeAdBoards(pitch, idPrefix, orientation)}
         ${buildNativeIdentity(scene, nativeField, identity, orientation)}
-        ${!nativeOnlyFull && activeDiffers ? `<rect x="${nativeField.x}" y="${nativeField.y}" width="${nativeField.w}" height="${nativeField.h}" rx="18" ry="18" fill="rgba(7,20,13,0.12)"/>` : ''}
+        ${!nativeFullFieldLook && activeDiffers ? `<rect x="${nativeField.x}" y="${nativeField.y}" width="${nativeField.w}" height="${nativeField.h}" rx="18" ry="18" fill="rgba(7,20,13,0.12)"/>` : ''}
         <g id="pitch-native">
           <g clip-path="url(#${idPrefix}-pitch-clip)" filter="url(#${idPrefix}-field-drop)">
-            ${nativeOnlyFull ? buildEliteGrassLayer(pitch, idPrefix, grassTextureSrc) : `
-              <rect x="${pitch.x}" y="${pitch.y}" width="${pitch.w}" height="${pitch.h}" rx="14" ry="14" fill="rgba(18,62,39,0.18)"/>
-              ${Array.from({ length: 10 }, (_, index) => {
-                const stripeW = pitch.w / 10;
-                const x = pitch.x + (index * stripeW);
-                const fill = index % 2 === 0 ? `url(#${idPrefix}-stripe-a)` : `url(#${idPrefix}-stripe-b)`;
-                return `<rect x="${x}" y="${pitch.y}" width="${stripeW + 0.6}" height="${pitch.h}" fill="${fill}" opacity="${index % 2 === 0 ? '0.34' : '0.22'}"/>`;
-              }).join('')}
-              <image href="${grassTextureSrc}" x="${pitch.x}" y="${pitch.y}" width="${pitch.w}" height="${pitch.h}" preserveAspectRatio="xMidYMid slice" opacity="0.16"/>
-              <rect x="${pitch.x}" y="${pitch.y}" width="${pitch.w}" height="${pitch.h}" fill="url(#${idPrefix}-grass-fibers)" opacity="0.10"/>
-              <ellipse cx="${pitch.x + (pitch.w / 2)}" cy="${pitch.y + (pitch.h * 0.22)}" rx="${pitch.w * 0.44}" ry="${pitch.h * 0.14}" fill="rgba(255,255,255,0.04)"/>
-              <ellipse cx="${pitch.x + (pitch.w / 2)}" cy="${pitch.y + (pitch.h * 0.80)}" rx="${pitch.w * 0.48}" ry="${pitch.h * 0.16}" fill="rgba(0,0,0,0.02)"/>
-              <rect x="${pitch.x}" y="${pitch.y}" width="${pitch.w}" height="${pitch.h}" fill="url(#${idPrefix}-field-sheen)" opacity="0.25"/>
-              <rect x="${pitch.x}" y="${pitch.y}" width="${pitch.w}" height="${pitch.h}" fill="url(#${idPrefix}-field-shadow)" opacity="0.22"/>
-            `}
+            ${buildEliteGrassLayer(pitch, idPrefix, grassTextureSrc)}
           </g>
           <rect x="${pitch.x + 1.4}" y="${pitch.y + 1.4}" width="${pitch.w - 2.8}" height="${pitch.h - 2.8}" rx="13" ry="13" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
-          ${nativeOnlyFull && rotatedPortraitPitch
+          ${nativeHasPermanentGoals && rotatedPortraitPitch
             ? `<g transform="${portraitFieldRotation}">${buildPitchLines(rotatedPortraitPitch, rotatedPortraitPitch.metrics.mode, 'rgba(8,20,14,0.14)', Math.max(1.8, lineWidth * 0.86), false, nativeAxis)}</g>`
-            : (nativeOnlyFull
+            : (nativeFullFieldLook
               ? buildPitchLines(pitch, pitch.metrics.mode, 'rgba(8,20,14,0.14)', Math.max(1.8, lineWidth * 0.86), false, nativeAxis)
               : buildPitchLines(pitch, pitch.metrics.mode, lineUnderStroke, lineWidth + 1.2))}
-          ${nativeOnlyFull && rotatedPortraitPitch ? `<g transform="${portraitFieldRotation}">${buildGoal('left', rotatedPortraitPitch, lineWidth + 0.4, idPrefix)}${buildGoal('right', rotatedPortraitPitch, lineWidth + 0.4, idPrefix)}</g>` : ''}
-          ${(useTouchlineGoals || (!nativeOnlyFull && leftGoalModes.has(pitch.metrics.mode))) ? buildGoal('left', pitch, lineWidth + 0.4, idPrefix) : ''}
-          ${(useTouchlineGoals || (!nativeOnlyFull && rightGoalModes.has(pitch.metrics.mode))) ? buildGoal('right', pitch, lineWidth + 0.4, idPrefix) : ''}
-          ${nativeOnlyFull && rotatedPortraitPitch
+          ${nativeHasPermanentGoals && rotatedPortraitPitch
+            ? `<g>${buildGoalTopBottom('top', pitch, lineWidth + 0.4, idPrefix)}${buildGoalTopBottom('bottom', pitch, lineWidth + 0.4, idPrefix)}</g>`
+            : ''}
+          ${(useTouchlineGoals || (!nativeFullFieldLook && leftGoalModes.has(pitch.metrics.mode))) ? buildGoal('left', pitch, lineWidth + 0.4, idPrefix) : ''}
+          ${(useTouchlineGoals || (!nativeFullFieldLook && rightGoalModes.has(pitch.metrics.mode))) ? buildGoal('right', pitch, lineWidth + 0.4, idPrefix) : ''}
+          ${nativeHasPermanentGoals && rotatedPortraitPitch
             ? `<g transform="${portraitFieldRotation}">${buildPitchLines(rotatedPortraitPitch, rotatedPortraitPitch.metrics.mode, '#f6fbff', Math.max(1.35, lineWidth * 0.7), true, nativeAxis)}</g>`
-            : (nativeOnlyFull
+            : (nativeFullFieldLook
               ? buildPitchLines(pitch, pitch.metrics.mode, '#f6fbff', Math.max(1.35, lineWidth * 0.7), true, nativeAxis)
               : buildPitchLines(pitch, pitch.metrics.mode, lineStroke, lineWidth, true))}
           ${buildCornerFlags(pitch)}
@@ -1252,36 +1438,115 @@
     `.trim();
   };
 
+  const buildCompactSevenPitchSvg = (presetKey, orientation, grass, theme) => {
+    const sceneLandscape = { sceneW: 1536, sceneH: 1024 };
+    const sceneW = orientation === 'portrait' ? sceneLandscape.sceneH : sceneLandscape.sceneW;
+    const sceneH = orientation === 'portrait' ? sceneLandscape.sceneW : sceneLandscape.sceneH;
+    const pitch = computePitchRect(presetKey, sceneLandscape.sceneW, sceneLandscape.sceneH);
+    const idPrefix = `pitch25d-compact-${presetKey}-${orientation}`.replace(/[^a-z0-9_-]/gi, '-');
+    const grassTextureSrc = resolveGrassTextureHref();
+    const lineStroke = '#f6fbff';
+    const lineUnderStroke = 'rgba(8,20,14,0.14)';
+    const lineWidth = clamp(pitch.h / 132, 2.2, 5.0);
+    pitch.idPrefix = idPrefix;
+    const needsPortraitRotation = orientation === 'portrait';
+    const sceneBody = `
+      ${buildDefs(idPrefix, pitch, grass, theme)}
+      <rect x="0" y="0" width="${sceneLandscape.sceneW}" height="${sceneLandscape.sceneH}" fill="rgba(8,24,13,0.22)"/>
+      <g id="pitch-compact-seven">
+        ${buildEliteGrassLayer(pitch, idPrefix, grassTextureSrc)}
+        ${buildPitchLines(pitch, pitch.metrics.mode, lineUnderStroke, Math.max(1.8, lineWidth * 0.86), false, 'horizontal')}
+        ${buildGoal('left', pitch, lineWidth + 0.4, idPrefix)}
+        ${buildGoal('right', pitch, lineWidth + 0.4, idPrefix)}
+        ${buildPitchLines(pitch, pitch.metrics.mode, lineStroke, Math.max(1.35, lineWidth * 0.72), true, 'horizontal')}
+        ${buildCornerFlags(pitch)}
+      </g>
+    `;
+    return `
+      <svg xmlns="http://www.w3.org/2000/svg"
+           viewBox="0 0 ${sceneW} ${sceneH}"
+           preserveAspectRatio="xMidYMid meet"
+           shape-rendering="geometricPrecision"
+           data-pitch-box="${pitch.x} ${pitch.y} ${pitch.w} ${pitch.h}">
+        ${needsPortraitRotation
+          ? `<g transform="translate(${sceneLandscape.sceneH} 0) rotate(90)">${sceneBody}</g>`
+          : sceneBody}
+      </svg>
+    `.trim();
+  };
+
   const buildPitchSvg = (presetKey, orientationKey = 'landscape', grassStyleKey = 'classic') => {
     const preset = PRESET_METRICS[safeText(presetKey, 'full_pitch')] ? safeText(presetKey, 'full_pitch') : 'full_pitch';
     const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
     const normalizedGrass = safeText(grassStyleKey, 'classic').toLowerCase();
-    const grass = GRASS_PRESETS[normalizedGrass] || GRASS_PRESETS.classic;
-    if (normalizedGrass === 'stadium_native') {
+    const isCompactLab = (() => {
+      try {
+        return !!document.body?.classList?.contains?.('editor-lab-compact');
+      } catch (e) {
+        return false;
+      }
+    })();
+    const isPresentationSurface = (() => {
+      try { return !!document.body?.classList?.contains?.('focus-mode'); } catch (e) { return false; }
+    })();
+    if (isCompactLab) {
+      if (preset === 'seven_side' || preset === 'seven_side_single') {
+        const compactGrass = GRASS_PRESETS.pro || GRASS_PRESETS.classic;
+        const compactTheme = resolveSurfaceTheme('pro');
+        return buildCompactSevenPitchSvg(preset, orientation, compactGrass, compactTheme);
+      }
+      const sceneLandscape = { sceneW: 1536, sceneH: 1024 };
+      const sceneW = orientation === 'portrait' ? sceneLandscape.sceneH : sceneLandscape.sceneW;
+      const sceneH = orientation === 'portrait' ? sceneLandscape.sceneW : sceneLandscape.sceneH;
+      const referencePitchSrc = '/static/football/images/pitch3d/tactical_pitch_reference_local.png';
+      const transform = orientation === 'portrait'
+        ? `transform="translate(${sceneLandscape.sceneH} 0) rotate(90)"`
+        : '';
+      const content = `
+        <svg xmlns="http://www.w3.org/2000/svg"
+             viewBox="0 0 ${sceneW} ${sceneH}"
+             preserveAspectRatio="xMidYMid meet"
+             shape-rendering="geometricPrecision">
+          ${orientation === 'portrait' ? `<g ${transform}>` : ''}
+            <image href="${referencePitchSrc}"
+                   x="0"
+                   y="0"
+                   width="${sceneLandscape.sceneW}"
+                   height="${sceneLandscape.sceneH}"
+                   preserveAspectRatio="xMidYMid slice"/>
+          ${orientation === 'portrait' ? '</g>' : ''}
+        </svg>
+      `;
+      return content.trim();
+    }
+    const effectiveGrass = (normalizedGrass === 'stadium_native' && !isPresentationSurface) ? 'pro' : normalizedGrass;
+    const grass = GRASS_PRESETS[effectiveGrass] || GRASS_PRESETS.classic;
+    const theme = resolveSurfaceTheme(effectiveGrass);
+    if (effectiveGrass === 'stadium_native') {
       return buildNativePitchSvg(preset, orientation, grass);
     }
     const sceneLandscape = { sceneW: 1200, sceneH: 820 };
     const sceneW = orientation === 'portrait' ? sceneLandscape.sceneH : sceneLandscape.sceneW;
     const sceneH = orientation === 'portrait' ? sceneLandscape.sceneW : sceneLandscape.sceneH;
     const pitch = computePitchRect(preset, sceneLandscape.sceneW, sceneLandscape.sceneH);
-    const idPrefix = `pitch25d-${preset}-${orientation}-${normalizedGrass}`.replace(/[^a-z0-9_-]/gi, '-');
-    const lineStroke = normalizedGrass === 'whiteboard' ? 'rgba(15,23,42,0.88)' : '#fdfefe';
-    const lineUnderStroke = normalizedGrass === 'whiteboard' ? 'rgba(255,255,255,0.42)' : 'rgba(9,18,28,0.11)';
+    const idPrefix = `pitch25d-${preset}-${orientation}-${effectiveGrass}`.replace(/[^a-z0-9_-]/gi, '-');
+    const lineStroke = effectiveGrass === 'whiteboard' ? 'rgba(15,23,42,0.88)' : '#fdfefe';
+    const lineUnderStroke = effectiveGrass === 'whiteboard' ? 'rgba(255,255,255,0.42)' : 'rgba(9,18,28,0.11)';
     const lineWidth = clamp(pitch.h / 150, 2.7, 5.8);
-    const renderContext = !['whiteboard', 'blackboard', 'coachboard'].includes(normalizedGrass) && pitch.metrics.mode === 'full';
+    const renderContext = isPresentationSurface && !['whiteboard', 'blackboard', 'coachboard'].includes(effectiveGrass) && pitch.metrics.mode === 'full';
     const leftGoalModes = new Set(['full', 'seven_side', 'seven_side_single', 'futsal', 'defensive_third']);
     const rightGoalModes = new Set(['full', 'seven_side', 'seven_side_single', 'futsal', 'half', 'attacking_third']);
     pitch.idPrefix = idPrefix;
 
     const sceneBody = `
-      ${buildDefs(idPrefix, pitch, grass)}
-      ${buildBackdrop(sceneLandscape, pitch, grass)}
+      ${buildDefs(idPrefix, pitch, grass, theme)}
+      ${buildBackdrop(sceneLandscape, pitch, theme)}
       ${renderContext ? buildStands(pitch, idPrefix) : ''}
-      ${renderContext ? buildAdBoards(pitch, idPrefix) : ''}
+      ${renderContext ? buildAdBoards(pitch, idPrefix, theme) : ''}
       ${renderContext ? buildBenches(pitch) : ''}
       <g id="pitch">
-        ${buildGrassLayer(pitch, grass)}
-        ${buildFocusZones(pitch)}
+          ${buildGrassLayer(pitch, grass, theme, grassTextureSrc)}
+        ${buildFocusZones(pitch, theme)}
         <rect x="${pitch.x + 5}" y="${pitch.y + 5}" width="${pitch.w - 10}" height="${pitch.h - 10}" rx="14" ry="14" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1.1"/>
         ${buildPitchLines(pitch, pitch.metrics.mode, lineUnderStroke, lineWidth + 1.15)}
         ${leftGoalModes.has(pitch.metrics.mode) ? buildGoal('left', pitch, lineWidth + 0.55, idPrefix) : ''}

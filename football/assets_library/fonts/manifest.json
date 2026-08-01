@@ -1,0 +1,25 @@
+{
+  "category": "fonts",
+  "category_type": "typography",
+  "default_family": "ui_fonts",
+  "families": [
+    "ui_fonts",
+    "scoreboard_fonts",
+    "annotation_fonts"
+  ],
+  "variants": [
+    "default",
+    "compact",
+    "premium"
+  ],
+  "fallback_asset": "",
+  "compatible_themes": [
+    "classic",
+    "academy",
+    "broadcast",
+    "premium"
+  ],
+  "resolution_independent": true,
+  "theme_overrides_supported": true,
+  "assets": []
+}

@@ -1,0 +1,25 @@
+{
+  "category": "goalkeepers",
+  "category_type": "entity",
+  "default_family": "goalkeeper_tokens",
+  "families": [
+    "goalkeeper_tokens",
+    "goalkeeper_premium"
+  ],
+  "variants": [
+    "default",
+    "academy",
+    "broadcast",
+    "premium"
+  ],
+  "fallback_asset": "goalkeepers/goalkeeper_tokens/default",
+  "compatible_themes": [
+    "classic",
+    "academy",
+    "broadcast",
+    "premium"
+  ],
+  "resolution_independent": true,
+  "theme_overrides_supported": true,
+  "assets": []
+}

@@ -3095,7 +3095,7 @@
 		                  if (typeof window.__matchActionsFallbackRefresh === 'function') window.__matchActionsFallbackRefresh();
 		                } catch (e3) {}
 		              };
-		
+
 		              var parseClockSeconds = function () {
 		                try {
 		                  var el = document.getElementById('match-clock-display');
@@ -3112,7 +3112,7 @@
 		                } catch (e) {}
 		                return 0;
 		              };
-		
+
 		              var safeLower = function (v) { try { return String(v || '').toLowerCase(); } catch (e) { return ''; } };
 		              var parseHistoryRow = function (article) {
 		                if (!article) return null;
@@ -3143,13 +3143,13 @@
 		                } catch (e2) { required = 11; }
 		                return { starters: starters, required: required };
 		              };
-		
+
 		              window.__matchActionsFallbackRefresh = function () {
 		                try {
 		                  var list = document.getElementById('history-list');
 		                  var items = list ? list.querySelectorAll('[data-event-id]') : [];
 		                  var totalActions = items ? items.length : 0;
-		
+
 			                  var yellow = 0, red = 0, subs = 0, cornerFor = 0, cornerAgainst = 0, goals = 0, assists = 0;
 			                  var shots = 0, shotsTarget = 0, passes = 0, passesOk = 0;
 			                  // Sustituciones: contamos entradas para aproximar "realizadas".
@@ -3180,14 +3180,14 @@
 		                    if (a.indexOf('saque de esquina a favor') >= 0) cornerFor += 1;
 		                    if (a.indexOf('saque de esquina en contra') >= 0) cornerAgainst += 1;
 		                  }
-		
+
 		                  var setText = function (id, value) {
 		                    try {
 		                      var el = document.getElementById(id);
 		                      if (el) el.textContent = String(value);
 		                    } catch (e) {}
 		                  };
-		
+
 		                  // Contadores superiores + cards.
 		                  setText('yellow-count', yellow);
 		                  setText('red-count', red);
@@ -3210,7 +3210,7 @@
 			                  setText('close-summary-passes', String(passesOk) + '/' + String(passes) + ' pases OK · ' + String(passAcc) + '%');
 			                  setText('close-summary-possession', 'Posesión aprox: 50%');
 			                  setText('persistent-possession', '50%');
-		
+
 		                  // HUD fijo.
 		                  setText('persistent-yellow', yellow);
 		                  setText('persistent-red', red);
@@ -3222,7 +3222,7 @@
 		                    var pclock = document.getElementById('persistent-clock');
 		                    if (clock && pclock) pclock.textContent = String(clock.textContent || '').trim() || '00:00';
 		                  } catch (e2) {}
-		
+
 		                  // Resumen Cierre.
 		                  try {
 		                    var closeActions = document.getElementById('close-summary-actions');

@@ -6,13 +6,15 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('football', '0031_match_kickoff_time'),
+        ("football", "0031_match_kickoff_time"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='matchevent',
-            name='period',
-            field=models.PositiveSmallIntegerField(blank=True, help_text='Parte del partido o periodo (1, 2, etc.)', null=True),
+            model_name="matchevent",
+            name="period",
+            field=models.PositiveSmallIntegerField(
+                blank=True, help_text="Parte del partido o periodo (1, 2, etc.)", null=True
+            ),
         ),
     ]

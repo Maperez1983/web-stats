@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40">
+  <path d="M6 28 C30 4, 66 4, 96 16" fill="none" stroke="var(--asset-arrow-glow, rgba(255,255,255,.22))" stroke-width="9" stroke-linecap="round"/>
+  <path d="M6 28 C30 4, 66 4, 96 16" fill="none" stroke="var(--asset-arrow, #f4fbff)" stroke-width="5" stroke-linecap="round"/>
+  <path d="M90 7 L114 16 L92 29 Q98 16 90 7 Z" fill="var(--asset-arrow, #f4fbff)"/>
+</svg>

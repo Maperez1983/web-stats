@@ -4,18 +4,18 @@ from django.db import migrations
 
 
 def bootstrap_workspace_teams(apps, schema_editor):
-    Workspace = apps.get_model('football', 'Workspace')
-    WorkspaceTeam = apps.get_model('football', 'WorkspaceTeam')
+    Workspace = apps.get_model("football", "Workspace")
+    WorkspaceTeam = apps.get_model("football", "WorkspaceTeam")
 
-    for workspace in Workspace.objects.filter(kind='club').exclude(primary_team_id__isnull=True):
+    for workspace in Workspace.objects.filter(kind="club").exclude(primary_team_id__isnull=True):
         WorkspaceTeam.objects.get_or_create(
             workspace_id=workspace.id,
             team_id=workspace.primary_team_id,
-            defaults={'is_default': True},
+            defaults={"is_default": True},
         )
         # Asegura que exista un default (sin borrar nada existente).
         if not WorkspaceTeam.objects.filter(workspace_id=workspace.id, is_default=True).exists():
-            first_link = WorkspaceTeam.objects.filter(workspace_id=workspace.id).order_by('id').first()
+            first_link = WorkspaceTeam.objects.filter(workspace_id=workspace.id).order_by("id").first()
             if first_link:
                 WorkspaceTeam.objects.filter(id=first_link.id).update(is_default=True)
 
@@ -27,7 +27,7 @@ def reverse_noop(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('football', '0049_team_category_team_game_format_workspaceteam'),
+        ("football", "0049_team_category_team_game_format_workspaceteam"),
     ]
 
     operations = [

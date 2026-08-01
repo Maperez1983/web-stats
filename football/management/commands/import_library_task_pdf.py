@@ -139,7 +139,7 @@ class Command(BaseCommand):
                     task_title = (title or file_stem).strip()
                     if title and len(resolved_paths) > 1:
                         task_title = f"{title} · {file_stem}"
-                    task_title = (task_title[:160] or f"Tarea PDF {idx}")
+                    task_title = task_title[:160] or f"Tarea PDF {idx}"
 
                     with open(p, "rb") as fh:
                         pdf_file = File(fh, name=p.name)

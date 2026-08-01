@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-50 -18 100 36">
+  <rect x="-42" y="-10" width="84" height="20" rx="2" fill="none" stroke="var(--asset-goal, #dce7f2)" stroke-width="3"/>
+  <path d="M-42 -10 L-42 10 M-26 -10 L-26 10 M-10 -10 L-10 10 M6 -10 L6 10 M22 -10 L22 10 M38 -10 L38 10" stroke="var(--asset-net, #f4f8fc)" stroke-opacity=".46" stroke-width="1"/>
+  <path d="M-42 -10 L42 10 M-42 10 L42 -10" stroke="var(--asset-net, #f4f8fc)" stroke-opacity=".28" stroke-width="1"/>
+</svg>

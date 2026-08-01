@@ -133,7 +133,7 @@ async function main() {
       await saveBoard(page);
       await page.reload({ waitUntil: 'domcontentloaded' });
       await page.locator('#tactical-editor-root').waitFor({ state: 'visible', timeout: 30_000 });
-      await page.locator('text=Motor 2D Konva').waitFor({ state: 'visible', timeout: 30_000 });
+      await page.locator('text=Motor Konva').waitFor({ state: 'visible', timeout: 30_000 });
 
       const reloadedObjectButton = page.getByTestId(`scene-object-${insertedId}`);
       await selectSceneObjectById(page, insertedId);

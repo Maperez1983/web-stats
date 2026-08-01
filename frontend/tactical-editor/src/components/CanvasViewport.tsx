@@ -11,9 +11,11 @@ import {
   selectableObjects,
 } from '../editor/core/editorOperations';
 import { createKonvaNode } from '../editor/objects/ObjectRenderer';
+import { createLegacyCanvasAdapter } from '../editor/canvas/LegacyCanvasAdapter';
+import { createKonvaCanvasAdapter } from '../editor/canvas/KonvaCanvasAdapter';
 import { useEditorStore } from '../store/editorStore';
 import type { CanvasApi, EditorTool } from '../store/editorStore';
-import type { SceneLayerId, SceneObject } from '../editor/core/sceneSchema';
+import type { SceneLayerId, SceneObject, SceneObjectType } from '../editor/core/sceneSchema';
 import type { TacticalCanvasObject } from '../domain/taskDocument';
 import { sceneToLegacyCanvasState } from '../editor/serialization/SceneSerializer';
 
@@ -66,11 +68,13 @@ function layerOrder(sceneLayers: Array<{ id: SceneLayerId; order: number }>): Sc
 function computeFitViewport(scene: {
   canvas: { width: number; height: number };
   viewport: { zoom: number; x: number; y: number };
-} | null, width: number, height: number) {
+} | null, width: number, height: number, surfaceMode: 'edition' | 'presentation' = 'edition') {
   if (!scene || !width || !height) {
     return null;
   }
-  const padding = Math.max(32, Math.round(Math.min(width, height) * 0.05));
+  const densityFactor = surfaceMode === 'presentation' ? 0.045 : 0.03;
+  const minimumPadding = surfaceMode === 'presentation' ? 28 : 20;
+  const padding = Math.max(minimumPadding, Math.round(Math.min(width, height) * densityFactor));
   const availableWidth = Math.max(1, width - padding * 2);
   const availableHeight = Math.max(1, height - padding * 2);
   const scale = Math.min(availableWidth / scene.canvas.width, availableHeight / scene.canvas.height);
@@ -293,6 +297,7 @@ function renderCanvasObject(object: TacticalCanvasObject, index: number, selecte
 function LegacyCanvasViewport() {
   const document = useEditorStore((state) => state.document);
   const activeViewport = useEditorStore((state) => state.activeViewport);
+  const editorSurfaceMode = useEditorStore((state) => state.editorSurfaceMode);
   const selectedIds = useEditorStore((state) => state.selectedIds);
   const selectSingle = useEditorStore((state) => state.selectSingle);
   const scene = useEditorStore((state) => state.scene);
@@ -434,8 +439,8 @@ function LegacyCanvasViewport() {
           <img src={previewImageUrl} alt="Preview tactica" className="te-canvas-image" />
         ) : null}
         <div className="te-canvas-overlay">
-          <strong>Modo legacy</strong>
-          <span>Activa `?editor2d=1` para usar el motor Konva de la nueva base profesional.</span>
+          <strong>Motor legacy</strong>
+          <span>El motor Konva ya está integrado y activo por defecto en el editor profesional.</span>
           {error ? <span className="te-error-text">{error}</span> : null}
         </div>
       </div>
@@ -467,6 +472,7 @@ function sceneObjectFromNode(object: SceneObject, node: Konva.Node): SceneObject
 
 export function CanvasViewport() {
   const featureEnabled = useEditorStore((state) => state.featureEnabled);
+  const editorSurfaceMode = useEditorStore((state) => state.editorSurfaceMode);
   const document = useEditorStore((state) => state.document);
   const activeViewport = useEditorStore((state) => state.activeViewport);
   const activeTool = useEditorStore((state) => state.activeTool);
@@ -523,6 +529,77 @@ export function CanvasViewport() {
   const renderScene = useMemo(
     () => (scene ? projectSceneAtTime(scene, scene.timeline?.currentTime || 0) : null),
     [scene]
+  );
+  const fitToScene = useCallback(() => {
+    const currentScene = useEditorStore.getState().scene;
+    if (!currentScene || !containerSize.width || !containerSize.height) {
+      return;
+    }
+    const viewport = computeFitViewport(
+      currentScene,
+      containerSize.width,
+      containerSize.height,
+      editorSurfaceMode
+    );
+    if (!viewport) {
+      return;
+    }
+    setSceneViewport(viewport);
+  }, [containerSize.width, containerSize.height, editorSurfaceMode, setSceneViewport]);
+  const canvasAdapter = useMemo(
+    () =>
+      featureEnabled
+        ? createKonvaCanvasAdapter({
+            getScene: () => useEditorStore.getState().scene,
+            addSceneObject,
+            removeSelectedObjects,
+            duplicateSelectedObjects,
+            undo: () => useEditorStore.getState().undo(),
+            redo: () => useEditorStore.getState().redo(),
+            fitToScene,
+            exportPngDataUrl: (options) => {
+              const stage = stageRef.current;
+              const transformer = transformerRef.current;
+              const selectionRect = selectionRectRef.current;
+              const snapGuideGroup = snapGuideGroupRef.current;
+              if (!stage) return null;
+              const previousTransformerVisible = transformer?.visible() ?? false;
+              const previousSelectionVisible = selectionRect?.visible() ?? false;
+              const previousGuidesVisible = snapGuideGroup?.visible() ?? false;
+              if (!options?.includeUi) {
+                transformer?.hide();
+                selectionRect?.hide();
+                snapGuideGroup?.hide();
+              }
+              const dataUrl = stage.toDataURL({
+                pixelRatio: options?.pixelRatio || 2,
+                mimeType: 'image/png',
+              });
+              if (!options?.includeUi) {
+                if (previousTransformerVisible) transformer?.show();
+                if (previousSelectionVisible) selectionRect?.show();
+                if (previousGuidesVisible) snapGuideGroup?.show();
+                layersRef.current.ui?.batchDraw();
+              }
+              return dataUrl;
+            },
+          })
+        : createLegacyCanvasAdapter({
+            getScene: () => useEditorStore.getState().scene,
+            addSceneObject,
+            removeSelectedObjects,
+            duplicateSelectedObjects,
+            undo: () => useEditorStore.getState().undo(),
+            redo: () => useEditorStore.getState().redo(),
+            fitToScene,
+          }),
+    [
+      addSceneObject,
+      duplicateSelectedObjects,
+      featureEnabled,
+      fitToScene,
+      removeSelectedObjects,
+    ]
   );
 
   useEffect(() => {
@@ -669,73 +746,38 @@ export function CanvasViewport() {
     }
   }, [featureEnabled, containerSize, scene]);
 
-  const fitToScene = useCallback(() => {
-    const currentScene = useEditorStore.getState().scene;
-    if (!currentScene || !containerSize.width || !containerSize.height) {
-      return;
-    }
-    const viewport = computeFitViewport(currentScene, containerSize.width, containerSize.height);
-    if (!viewport) {
-      return;
-    }
-    setSceneViewport(viewport);
-  }, [containerSize.width, containerSize.height, setSceneViewport]);
-
   useEffect(() => {
     if (!featureEnabled) {
       return;
     }
     const canvasApi: CanvasApi = {
-      exportPngDataUrl: (options) => {
-        const stage = stageRef.current;
-        const transformer = transformerRef.current;
-        const selectionRect = selectionRectRef.current;
-        const snapGuideGroup = snapGuideGroupRef.current;
-        if (!stage) return null;
-        const previousTransformerVisible = transformer?.visible() ?? false;
-        const previousSelectionVisible = selectionRect?.visible() ?? false;
-        const previousGuidesVisible = snapGuideGroup?.visible() ?? false;
-        if (!options?.includeUi) {
-          transformer?.hide();
-          selectionRect?.hide();
-          snapGuideGroup?.hide();
-        }
-        const dataUrl = stage.toDataURL({
-          pixelRatio: options?.pixelRatio || 2,
-          mimeType: 'image/png',
-        });
-        if (!options?.includeUi) {
-          if (previousTransformerVisible) transformer?.show();
-          if (previousSelectionVisible) selectionRect?.show();
-          if (previousGuidesVisible) snapGuideGroup?.show();
-          layersRef.current.ui?.batchDraw();
-        }
-        return dataUrl;
-      },
-      fitToScene,
+      exportPngDataUrl: canvasAdapter.exportPNG,
+      fitToScene: canvasAdapter.fitToScene,
     };
     setCanvasApi(canvasApi);
     return () => {
       setCanvasApi(null);
     };
-  }, [featureEnabled, fitToScene, setCanvasApi]);
+  }, [canvasAdapter, featureEnabled, setCanvasApi]);
 
   useEffect(() => {
     if (!featureEnabled || !scene || !containerSize.width || !containerSize.height) {
       return;
     }
+    canvasAdapter.load(scene);
     const signature = `${scene.documentId}:${scene.canvas.width}x${scene.canvas.height}:${containerSize.width}x${containerSize.height}`;
     if (lastAutoFitSignatureRef.current === signature) {
       return;
     }
     lastAutoFitSignatureRef.current = signature;
     fitToScene();
-  }, [featureEnabled, scene?.documentId, scene?.canvas.width, scene?.canvas.height, containerSize.width, containerSize.height, fitToScene]);
+  }, [canvasAdapter, featureEnabled, scene, containerSize.width, containerSize.height, fitToScene]);
 
   useEffect(() => {
     if (!featureEnabled || !renderScene || !stageRef.current) {
       return;
     }
+    canvasAdapter.render(renderScene);
     if (stageModeRef.current === 'dragging' && nodeDragRef.current) {
       return;
     }
@@ -895,6 +937,7 @@ export function CanvasViewport() {
     });
     layersRef.current.ui?.batchDraw();
   }, [
+    canvasAdapter,
     featureEnabled,
     renderScene,
     toggleObjectSelection,
@@ -1041,7 +1084,7 @@ export function CanvasViewport() {
           x: (pointer.x - store.scene.viewport.x) / store.scene.viewport.zoom,
           y: (pointer.y - store.scene.viewport.y) / store.scene.viewport.zoom,
         };
-        store.addSceneObject(store.activeTool as SceneObject['type'], {
+        canvasAdapter.createObject(store.activeTool as SceneObjectType, {
           x: scenePoint.x,
           y: scenePoint.y,
           assetId: store.activeAssetId || undefined,
@@ -1282,7 +1325,7 @@ export function CanvasViewport() {
     };
     store.setTool(asset.type as EditorTool);
     store.setActiveAssetId(asset.assetId);
-    store.addSceneObject(asset.type as SceneObject['type'], {
+    canvasAdapter.createObject(asset.type as SceneObjectType, {
       x: scenePoint.x,
       y: scenePoint.y,
       assetId: asset.assetId,
@@ -1408,7 +1451,7 @@ export function CanvasViewport() {
           <button
             type="button"
             onClick={() => {
-              duplicateSelectedObjects();
+              canvasAdapter.duplicate();
               setContextMenu(null);
             }}
           >
@@ -1417,7 +1460,7 @@ export function CanvasViewport() {
           <button
             type="button"
             onClick={() => {
-              removeSelectedObjects();
+              canvasAdapter.delete();
               setContextMenu(null);
             }}
           >

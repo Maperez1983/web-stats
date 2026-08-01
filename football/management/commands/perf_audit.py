@@ -138,7 +138,9 @@ class Command(BaseCommand):
             user=user,
             defaults={"role": WorkspaceMembership.ROLE_ADMIN},
         )
-        WorkspaceTeamAccess.objects.get_or_create(workspace=workspace, team=team, user=user, defaults={"is_default": True})
+        WorkspaceTeamAccess.objects.get_or_create(
+            workspace=workspace, team=team, user=user, defaults={"is_default": True}
+        )
 
         c = Client()
         c.force_login(user)
@@ -218,7 +220,9 @@ class Command(BaseCommand):
             warm = rs[1:] if len(rs) > 1 else rs
             best = sorted(warm, key=lambda x: (x.total_ms, x.queries))[0]
             per_url_best.append(best)
-            self.stdout.write(f"{best.total_ms:>5} ms · {best.queries:>4} q · db {best.db_ms:>5} ms · {best.status} · {url}")
+            self.stdout.write(
+                f"{best.total_ms:>5} ms · {best.queries:>4} q · db {best.db_ms:>5} ms · {best.status} · {url}"
+            )
 
         if want_sql and per_url_best:
             target = sorted(per_url_best, key=lambda x: (x.total_ms, x.queries), reverse=True)[0]

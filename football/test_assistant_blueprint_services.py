@@ -18,30 +18,30 @@ class AssistantBlueprintServicesTests(SimpleTestCase):
         self.assertEqual(
             bullets,
             [
-                'Presionar tras pérdida durante cinco segundos.',
-                'Objetivo: atacar espacio tras recuperación.',
+                "Presionar tras pérdida durante cinco segundos.",
+                "Objetivo: atacar espacio tras recuperación.",
             ],
         )
 
     def test_pick_assistant_bullets_for_goal_requires_three_matches(self):
         bullets = [
-            'Presión coordinada sobre receptor.',
-            'Orientar presión hacia banda.',
-            'Saltos tras pase atrás.',
-            'Circular balón con paciencia.',
+            "Presión coordinada sobre receptor.",
+            "Orientar presión hacia banda.",
+            "Saltos tras pase atrás.",
+            "Circular balón con paciencia.",
         ]
 
         picked = assistant_blueprint_services.pick_assistant_bullets_for_goal(
             bullets,
-            ['presión', 'salt'],
+            ["presión", "salt"],
         )
 
         self.assertEqual(picked, bullets[:3])
 
     def test_assistant_html_list_escapes_items(self):
-        html = assistant_blueprint_services.assistant_html_list(['Presionar <alto>', ''])
+        html = assistant_blueprint_services.assistant_html_list(["Presionar <alto>", ""])
 
-        self.assertEqual(html, '<ul><li>Presionar &lt;alto&gt;</li></ul>')
+        self.assertEqual(html, "<ul><li>Presionar &lt;alto&gt;</li></ul>")
 
     def test_extract_task_sheet_sections_derives_title_and_sections(self):
         text = """
@@ -57,28 +57,28 @@ class AssistantBlueprintServicesTests(SimpleTestCase):
 
         sections = assistant_blueprint_services.extract_task_sheet_sections(text)
 
-        self.assertEqual(sections['title'], '3 c 3+porteros')
-        self.assertEqual(sections['desc'], ['Jugar en espacio reducido y finalizar tras pase atrás.'])
-        self.assertEqual(sections['behaviors'], ['Atacar área con ventaja.'])
+        self.assertEqual(sections["title"], "3 c 3+porteros")
+        self.assertEqual(sections["desc"], ["Jugar en espacio reducido y finalizar tras pase atrás."])
+        self.assertEqual(sections["behaviors"], ["Atacar área con ventaja."])
 
     def test_infer_goal_key_uses_category_fallback(self):
         goal_key = assistant_blueprint_services.infer_goal_key_from_text(
-            'Circular y fijar al rival.',
-            category_hint='build_up',
+            "Circular y fijar al rival.",
+            category_hint="build_up",
         )
 
-        self.assertEqual(goal_key, 'build_up')
+        self.assertEqual(goal_key, "build_up")
 
 
 class AssistantBlueprintCreationTests(TestCase):
     def test_create_idea_blueprints_from_document_creates_matching_blueprint(self):
-        team = Team.objects.create(name='Test Team', slug='test-team')
+        team = Team.objects.create(name="Test Team", slug="test-team")
         doc = AssistantKnowledgeDocument.objects.create(
             team=team,
-            title='Manual presión',
-            file='assistant-knowledge/manual.txt',
-            sha256='abc123',
-            mime_type='text/plain',
+            title="Manual presión",
+            file="assistant-knowledge/manual.txt",
+            sha256="abc123",
+            mime_type="text/plain",
             extracted_text="""
             - Presión coordinada sobre receptor.
             - Orientar presión hacia banda.
@@ -89,20 +89,20 @@ class AssistantBlueprintCreationTests(TestCase):
 
         result = assistant_blueprint_services.create_idea_blueprints_from_document(team, doc)
 
-        self.assertEqual(result, {'created': 1, 'updated': 0, 'skipped': 0})
+        self.assertEqual(result, {"created": 1, "updated": 0, "skipped": 0})
         blueprint = TaskBlueprint.objects.get(team=team)
         self.assertEqual(blueprint.category, TaskBlueprint.CATEGORY_PRESS)
-        self.assertEqual(blueprint.created_by, 'assistant_docs')
-        self.assertEqual(blueprint.payload['meta']['goal'], 'pressing')
+        self.assertEqual(blueprint.created_by, "assistant_docs")
+        self.assertEqual(blueprint.payload["meta"]["goal"], "pressing")
 
     def test_create_task_sheet_blueprint_from_document_creates_ocr_blueprint(self):
-        team = Team.objects.create(name='OCR Team', slug='ocr-team')
+        team = Team.objects.create(name="OCR Team", slug="ocr-team")
         doc = AssistantKnowledgeDocument.objects.create(
             team=team,
-            title='ficha-finalizacion.png',
-            file='assistant-knowledge/ficha-finalizacion.png',
-            sha256='sheet123',
-            mime_type='image/png',
+            title="ficha-finalizacion.png",
+            file="assistant-knowledge/ficha-finalizacion.png",
+            sha256="sheet123",
+            mime_type="image/png",
             extracted_text="""
             3c3 + porteros
             Descripción
@@ -120,19 +120,19 @@ class AssistantBlueprintCreationTests(TestCase):
             doc.extracted_text,
         )
 
-        self.assertEqual(result, {'created': 1, 'updated': 0})
+        self.assertEqual(result, {"created": 1, "updated": 0})
         blueprint = TaskBlueprint.objects.get(team=team)
-        self.assertEqual(blueprint.created_by, 'assistant_docs_ocr')
-        self.assertEqual(blueprint.payload['meta']['kind'], 'task_sheet')
+        self.assertEqual(blueprint.created_by, "assistant_docs_ocr")
+        self.assertEqual(blueprint.payload["meta"]["kind"], "task_sheet")
 
     def test_create_blueprints_from_document_treats_heif_as_image(self):
-        team = Team.objects.create(name='HEIF Team', slug='heif-team')
+        team = Team.objects.create(name="HEIF Team", slug="heif-team")
         doc = AssistantKnowledgeDocument.objects.create(
             team=team,
-            title='ficha-finalizacion.heif',
-            file='assistant-knowledge/ficha-finalizacion.heif',
-            sha256='sheet-heif',
-            mime_type='',
+            title="ficha-finalizacion.heif",
+            file="assistant-knowledge/ficha-finalizacion.heif",
+            sha256="sheet-heif",
+            mime_type="",
             extracted_text="""
             3c3 + porteros
             Descripción
@@ -144,5 +144,5 @@ class AssistantBlueprintCreationTests(TestCase):
 
         result = assistant_blueprint_services.create_blueprints_from_document(team, doc)
 
-        self.assertEqual(result, {'created': 1, 'updated': 0, 'skipped': 0})
-        self.assertEqual(TaskBlueprint.objects.get(team=team).created_by, 'assistant_docs_ocr')
+        self.assertEqual(result, {"created": 1, "updated": 0, "skipped": 0})
+        self.assertEqual(TaskBlueprint.objects.get(team=team).created_by, "assistant_docs_ocr")

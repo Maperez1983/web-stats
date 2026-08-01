@@ -36,6 +36,7 @@ def _pick_team_id() -> int:
     team = Team.objects.filter(is_primary=True).order_by("id").first() or Team.objects.order_by("id").first()
     return int(getattr(team, "id", 0) or 0)
 
+
 def _pick_workspace():
     from football.models import Workspace  # noqa: WPS433
 
@@ -112,10 +113,7 @@ def main() -> int:
         from football.models import TrainingSession  # noqa: WPS433
 
         session = (
-            TrainingSession.objects
-            .filter(microcycle__team_id=int(team_id))
-            .order_by("-session_date", "-id")
-            .first()
+            TrainingSession.objects.filter(microcycle__team_id=int(team_id)).order_by("-session_date", "-id").first()
         )
         if session and getattr(session, "id", None):
             url = f"/coach/sesiones/sesion/{int(session.id)}/?team={int(team_id)}"

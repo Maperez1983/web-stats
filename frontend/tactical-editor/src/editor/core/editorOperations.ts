@@ -1,5 +1,6 @@
 import { getPitchRect } from '../pitch/pitchGeometry';
 import { createUuid, deepClone, type EditorPreferences, type SceneLayer, type SceneObject, type SceneObjectType, type TacticalScene, type SceneTimelineKeyframe } from './sceneSchema';
+import { projectAnimationScene } from '../animation/AnimationEngine';
 
 type ObjectRect = {
   x: number;
@@ -394,83 +395,7 @@ function lerp(left: number, right: number, ratio: number): number {
 }
 
 export function projectSceneAtTime(scene: TacticalScene, time: number): TacticalScene {
-  const keyframes = [...scene.timeline.keyframes].sort((left, right) => left.time - right.time);
-  if (!keyframes.length) {
-    return scene;
-  }
-  const previousFrames = keyframes.filter((frame) => frame.time <= time);
-  const previous = previousFrames[previousFrames.length - 1] || keyframes[0];
-  const next = keyframes.find((frame) => frame.time >= time) || previous;
-  if (!previous || !next || previous.id === next.id) {
-    const matched = previous || next;
-    if (!matched) {
-      return scene;
-    }
-    const objectMap = new Map<string, SceneTimelineKeyframe['objects'][number]>(
-      matched.objects.map((object) => [object.id, object])
-    );
-    return {
-      ...scene,
-      objects: scene.objects.map((object) => {
-        const frameObject = objectMap.get(object.id);
-        return frameObject
-          ? {
-              ...object,
-              x: frameObject.x,
-              y: frameObject.y,
-              width: frameObject.width,
-              height: frameObject.height,
-              rotation: frameObject.rotation,
-              scaleX: frameObject.scaleX,
-              scaleY: frameObject.scaleY,
-              style: deepClone(frameObject.style),
-              data: deepClone(frameObject.data),
-              visible: frameObject.visible,
-              locked: frameObject.locked,
-              zIndex: frameObject.zIndex,
-            }
-          : object;
-      }),
-    };
-  }
-  const ratio = Math.min(1, Math.max(0, (time - previous.time) / Math.max(next.time - previous.time, 1)));
-  const previousMap = new Map<string, SceneTimelineKeyframe['objects'][number]>(
-    previous.objects.map((object) => [object.id, object])
-  );
-  const nextMap = new Map<string, SceneTimelineKeyframe['objects'][number]>(
-    next.objects.map((object) => [object.id, object])
-  );
-  return {
-    ...scene,
-    objects: scene.objects.map((object) => {
-      const left = previousMap.get(object.id);
-      const right = nextMap.get(object.id);
-      if (!left || !right) {
-        return object;
-      }
-      return {
-        ...object,
-        x: lerp(left.x, right.x, ratio),
-        y: lerp(left.y, right.y, ratio),
-        width: lerp(left.width, right.width, ratio),
-        height: lerp(left.height, right.height, ratio),
-        rotation: lerp(left.rotation, right.rotation, ratio),
-        scaleX: lerp(left.scaleX, right.scaleX, ratio),
-        scaleY: lerp(left.scaleY, right.scaleY, ratio),
-        style: {
-          ...deepClone(left.style),
-          ...deepClone(right.style),
-        },
-        data: {
-          ...deepClone(left.data),
-          ...deepClone(right.data),
-        },
-        visible: right.visible,
-        locked: right.locked,
-        zIndex: right.zIndex,
-      };
-    }),
-  };
+  return projectAnimationScene(scene, time);
 }
 
 export function snapObjectPosition(

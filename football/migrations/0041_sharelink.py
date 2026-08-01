@@ -6,26 +6,26 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('football', '0040_workspacemembership_module_access'),
+        ("football", "0040_workspacemembership_module_access"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='ShareLink',
+            name="ShareLink",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('token', models.CharField(db_index=True, max_length=120, unique=True)),
-                ('kind', models.CharField(choices=[('task_pdf', 'PDF de tarea')], default='task_pdf', max_length=40)),
-                ('payload', models.JSONField(blank=True, default=dict)),
-                ('expires_at', models.DateTimeField(blank=True, null=True)),
-                ('created_by', models.CharField(blank=True, max_length=80)),
-                ('is_active', models.BooleanField(default=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("token", models.CharField(db_index=True, max_length=120, unique=True)),
+                ("kind", models.CharField(choices=[("task_pdf", "PDF de tarea")], default="task_pdf", max_length=40)),
+                ("payload", models.JSONField(blank=True, default=dict)),
+                ("expires_at", models.DateTimeField(blank=True, null=True)),
+                ("created_by", models.CharField(blank=True, max_length=80)),
+                ("is_active", models.BooleanField(default=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': 'Enlace compartido',
-                'verbose_name_plural': 'Enlaces compartidos',
-                'ordering': ['-created_at', '-id'],
+                "verbose_name": "Enlace compartido",
+                "verbose_name_plural": "Enlaces compartidos",
+                "ordering": ["-created_at", "-id"],
             },
         ),
     ]

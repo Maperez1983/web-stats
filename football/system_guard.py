@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import base64
 import contextlib
-import json
 import hashlib
+import json
 import os
 import re
 import socket
 import subprocess
-import time
 import tempfile
+import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -23,14 +23,15 @@ try:
 except Exception:  # pragma: no cover - optional dependency fallback
     requests = None
 
-from django.contrib.auth import BACKEND_SESSION_KEY, HASH_SESSION_KEY, SESSION_KEY, get_user_model
 from django.conf import settings
+from django.contrib.auth import BACKEND_SESSION_KEY, HASH_SESSION_KEY, SESSION_KEY, get_user_model
 from django.core.management import call_command
 from django.db import transaction
 from django.test import Client
 from django.urls import NoReverseMatch, reverse
 from django.utils.text import slugify
 
+from football.database_inspector import inspect_database_readonly
 from football.healthchecks import run_system_healthcheck
 from football.library_repositories import (
     LIBRARY_REPOSITORY_AI_TRAINER,
@@ -39,16 +40,38 @@ from football.library_repositories import (
     normalize_library_repository,
 )
 from football.local_llm import call_ollama_json, call_ollama_vision_json, local_llm_config, local_vision_models
-from football.database_inspector import inspect_database_readonly
+from football.models import (
+    Competition,
+    ConvocationRecord,
+    Group,
+    Match,
+    Player,
+    RivalAnalysisReport,
+    SessionTask,
+    Team,
+    TrainingMicrocycle,
+    TrainingSession,
+    WorkspaceCompetitionContext,
+    WorkspacePreference,
+    WorkspaceSeason,
+    WorkspaceTeam,
+)
 from football.render_api import inspect_render_service, list_render_services, render_api_key
-from football.web_research import MAX_URLS, compact_web_research, fetch_web_research_with_browser, parse_research_urls, search_web_research
-from football.models import Competition, ConvocationRecord, Group, Match, Player, RivalAnalysisReport, SessionTask, Team, TrainingMicrocycle, TrainingSession, WorkspaceCompetitionContext, WorkspacePreference, WorkspaceSeason, WorkspaceTeam
-from football.task_backups import write_task_backup
-from football.session_import_services import get_or_create_inbox_microcycle, get_or_create_library_session_with_repository
-from football.session_plan_fields import serialize_session_plan_fields
 from football.season_history_services import ensure_player_season_membership, ensure_workspace_player
+from football.session_import_services import (
+    get_or_create_inbox_microcycle,
+    get_or_create_library_session_with_repository,
+)
+from football.session_plan_fields import serialize_session_plan_fields
+from football.task_backups import write_task_backup
+from football.web_research import (
+    MAX_URLS,
+    compact_web_research,
+    fetch_web_research_with_browser,
+    parse_research_urls,
+    search_web_research,
+)
 from webstats import settings as app_settings
-
 
 MODULE_SMOKE_MAP = {
     "task_builder": {
@@ -330,16 +353,25 @@ CODE_INTERVENTION_CATALOG = {
         "match_terms": ["disallowedhost", "testserver", "allowed hosts", "allowed_hosts", "host header"],
         "auto_apply": True,
         "files": ["webstats/settings.py"],
-        "patches": [{
-            "path": "webstats/settings.py",
-            "search": "for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')",
-            "replace": "for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver').split(',')",
-        }],
+        "patches": [
+            {
+                "path": "webstats/settings.py",
+                "search": "for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')",
+                "replace": "for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver').split(',')",
+            }
+        ],
     },
     "widget_library_ai_navigation_keywords": {
         "title": "Afinar navegación del widget hacia biblioteca IA Trainer",
         "summary": "Refuerza las keywords del widget para que órdenes como `abre biblioteca ia trainer` resuelvan antes a biblioteca que a la portada de IA Trainer.",
-        "match_terms": ["biblioteca ia trainer", "biblioteca ai trainer", "widget ollana biblioteca", "navegacion widget biblioteca", "widget lleve al usuario a biblioteca", "widget biblioteca de tareas"],
+        "match_terms": [
+            "biblioteca ia trainer",
+            "biblioteca ai trainer",
+            "widget ollana biblioteca",
+            "navegacion widget biblioteca",
+            "widget lleve al usuario a biblioteca",
+            "widget biblioteca de tareas",
+        ],
         "auto_apply": True,
         "files": ["football/templates/football/includes/global_guard_widget.html"],
         "patches": [
@@ -358,7 +390,13 @@ CODE_INTERVENTION_CATALOG = {
     "widget_visibility_and_mount": {
         "title": "Verificar visibilidad y montaje global del widget Ollana",
         "summary": "Restaurar el include del widget en IA Trainer y revisar que el shell se monte en `body`, conserve `z-index` alto y no quede oculto por layouts o shell PWA.",
-        "match_terms": ["widget ollana no aparece", "widget no se ve", "chat abajo derecha", "montaje widget", "visibilidad ollana"],
+        "match_terms": [
+            "widget ollana no aparece",
+            "widget no se ve",
+            "chat abajo derecha",
+            "montaje widget",
+            "visibilidad ollana",
+        ],
         "auto_apply": True,
         "files": [
             "football/templates/football/ai_trainer.html",
@@ -366,11 +404,13 @@ CODE_INTERVENTION_CATALOG = {
             "football/templates/football/pwa_head.html",
             "football/templates/football/includes/dragon_nav.html",
         ],
-        "patches": [{
-            "path": "football/templates/football/ai_trainer.html",
-            "search": "  <body>\n    {% include 'football/includes/dragon_nav.html' with hide_global_guard_widget=True %}\n    <main class=\"page\">",
-            "replace": "  <body>\n    {% include 'football/includes/dragon_nav.html' with hide_global_guard_widget=True %}\n    {% include 'football/includes/global_guard_widget.html' %}\n    <main class=\"page\">",
-        }],
+        "patches": [
+            {
+                "path": "football/templates/football/ai_trainer.html",
+                "search": "  <body>\n    {% include 'football/includes/dragon_nav.html' with hide_global_guard_widget=True %}\n    <main class=\"page\">",
+                "replace": "  <body>\n    {% include 'football/includes/dragon_nav.html' with hide_global_guard_widget=True %}\n    {% include 'football/includes/global_guard_widget.html' %}\n    <main class=\"page\">",
+            }
+        ],
     },
     "pitch3d_trigger_and_modal_flow": {
         "title": "Revisar disparadores y modal de pitch 3D",
@@ -664,21 +704,61 @@ OLLANA_CAPABILITIES = {
         "continuous_operator": True,
     },
     "skills": [
-        {"key": "inspect_system", "label": "Inspección del sistema", "scope": "system", "requires_code_operator": False},
+        {
+            "key": "inspect_system",
+            "label": "Inspección del sistema",
+            "scope": "system",
+            "requires_code_operator": False,
+        },
         {"key": "guide_user", "label": "Guía de usuario", "scope": "user", "requires_code_operator": False},
-        {"key": "navigate_modules", "label": "Navegación por módulos", "scope": "user", "requires_code_operator": False},
+        {
+            "key": "navigate_modules",
+            "label": "Navegación por módulos",
+            "scope": "user",
+            "requires_code_operator": False,
+        },
         {"key": "create_player", "label": "Alta de jugador", "scope": "business", "requires_code_operator": False},
         {"key": "create_session", "label": "Crear sesión", "scope": "business", "requires_code_operator": False},
         {"key": "create_task", "label": "Crear tarea", "scope": "business", "requires_code_operator": False},
         {"key": "create_microcycle", "label": "Crear microciclo", "scope": "business", "requires_code_operator": False},
         {"key": "create_match", "label": "Crear partido", "scope": "business", "requires_code_operator": False},
-        {"key": "create_convocation", "label": "Crear convocatoria", "scope": "business", "requires_code_operator": False},
-        {"key": "create_rival_analysis", "label": "Preparar análisis rival", "scope": "business", "requires_code_operator": False},
-        {"key": "create_session_bundle", "label": "Crear sesión con tareas", "scope": "business", "requires_code_operator": False},
-        {"key": "create_matchday_bundle", "label": "Preparar plan de partido", "scope": "business", "requires_code_operator": False},
+        {
+            "key": "create_convocation",
+            "label": "Crear convocatoria",
+            "scope": "business",
+            "requires_code_operator": False,
+        },
+        {
+            "key": "create_rival_analysis",
+            "label": "Preparar análisis rival",
+            "scope": "business",
+            "requires_code_operator": False,
+        },
+        {
+            "key": "create_session_bundle",
+            "label": "Crear sesión con tareas",
+            "scope": "business",
+            "requires_code_operator": False,
+        },
+        {
+            "key": "create_matchday_bundle",
+            "label": "Preparar plan de partido",
+            "scope": "business",
+            "requires_code_operator": False,
+        },
         {"key": "update_session", "label": "Editar sesión", "scope": "business", "requires_code_operator": False},
-        {"key": "update_convocation", "label": "Editar convocatoria", "scope": "business", "requires_code_operator": False},
-        {"key": "monitor_incidents", "label": "Memoria de incidencias", "scope": "system", "requires_code_operator": False},
+        {
+            "key": "update_convocation",
+            "label": "Editar convocatoria",
+            "scope": "business",
+            "requires_code_operator": False,
+        },
+        {
+            "key": "monitor_incidents",
+            "label": "Memoria de incidencias",
+            "scope": "system",
+            "requires_code_operator": False,
+        },
         {"key": "inspect_repo", "label": "Inspección de repositorio", "scope": "code", "requires_code_operator": True},
         {"key": "validate_changes", "label": "Validación técnica", "scope": "code", "requires_code_operator": True},
         {"key": "repair_code", "label": "Reparación técnica", "scope": "code", "requires_code_operator": True},
@@ -687,7 +767,19 @@ OLLANA_CAPABILITIES = {
 }
 OLLANA_ACTION_SURFACES = {
     "conversation": ["guide_user", "navigate_modules"],
-    "business": ["create_player", "create_session", "create_task", "create_microcycle", "create_match", "create_convocation", "create_rival_analysis", "create_session_bundle", "create_matchday_bundle", "update_session", "update_convocation"],
+    "business": [
+        "create_player",
+        "create_session",
+        "create_task",
+        "create_microcycle",
+        "create_match",
+        "create_convocation",
+        "create_rival_analysis",
+        "create_session_bundle",
+        "create_matchday_bundle",
+        "update_session",
+        "update_convocation",
+    ],
     "system": ["inspect_system", "monitor_incidents"],
     "code": ["inspect_repo", "validate_changes", "repair_code", "publish_changes"],
 }
@@ -1117,14 +1209,18 @@ def _guard_route_catalog(page_context=None) -> list[dict]:
             base_url = reverse(str(row.get("url_name") or "").strip())
         except NoReverseMatch:
             continue
-        rows.append({
-            "key": str(row.get("key") or ""),
-            "label": str(row.get("label") or ""),
-            "url_name": str(row.get("url_name") or ""),
-            "url": f"{base_url}{_compact_query(row.get('query') or {})}",
-            "keywords": [str(item or "") for item in (row.get("keywords") or []) if str(item or "").strip()],
-            "expected_modules": [str(item or "")[:64] for item in (row.get("expected_modules") or []) if str(item or "").strip()][:6],
-        })
+        rows.append(
+            {
+                "key": str(row.get("key") or ""),
+                "label": str(row.get("label") or ""),
+                "url_name": str(row.get("url_name") or ""),
+                "url": f"{base_url}{_compact_query(row.get('query') or {})}",
+                "keywords": [str(item or "") for item in (row.get("keywords") or []) if str(item or "").strip()],
+                "expected_modules": [
+                    str(item or "")[:64] for item in (row.get("expected_modules") or []) if str(item or "").strip()
+                ][:6],
+            }
+        )
     return rows
 
 
@@ -1137,14 +1233,24 @@ def _route_health_snapshot(*, page_context=None) -> dict:
     runtime_snapshot = context.get("runtime_snapshot") if isinstance(context.get("runtime_snapshot"), dict) else {}
     visual_snapshot = context.get("visual_snapshot") if isinstance(context.get("visual_snapshot"), dict) else {}
     route_rows = _guard_route_catalog(page_context)
-    active_route = next((
-        row for row in route_rows
-        if str(row.get("url_name") or "").strip().lower() == active_page
-        or f"/{str(row.get('key') or '').strip().lower()}" in active_path
-    ), None)
+    active_route = next(
+        (
+            row
+            for row in route_rows
+            if str(row.get("url_name") or "").strip().lower() == active_page
+            or f"/{str(row.get('key') or '').strip().lower()}" in active_path
+        ),
+        None,
+    )
     module_rows = [row for row in (module_snapshot.get("modules") or []) if isinstance(row, dict)]
-    visible_labels = [str(row.get("label") or "").strip().lower() for row in module_rows if str(row.get("label") or "").strip()]
-    expected_modules = [str(item or "").strip().lower() for item in (active_route or {}).get("expected_modules") or [] if str(item or "").strip()]
+    visible_labels = [
+        str(row.get("label") or "").strip().lower() for row in module_rows if str(row.get("label") or "").strip()
+    ]
+    expected_modules = [
+        str(item or "").strip().lower()
+        for item in (active_route or {}).get("expected_modules") or []
+        if str(item or "").strip()
+    ]
     matched_modules = []
     missing_modules = []
     if visible_labels:
@@ -1163,7 +1269,11 @@ def _route_health_snapshot(*, page_context=None) -> dict:
     if runtime_signals.get("three_import_failure"):
         alerts.append("Visor 3D bloqueado: import de three sin resolver")
     alerts = list(dict.fromkeys(alerts))
-    failed_requests = _safe_int(((runtime_snapshot.get("request_totals") or {}).get("failed")), 0) if isinstance(runtime_snapshot.get("request_totals"), dict) else 0
+    failed_requests = (
+        _safe_int(((runtime_snapshot.get("request_totals") or {}).get("failed")), 0)
+        if isinstance(runtime_snapshot.get("request_totals"), dict)
+        else 0
+    )
     js_error_count = len([row for row in (runtime_snapshot.get("js_errors") or []) if isinstance(row, dict)])
     status = "unknown"
     if active_route:
@@ -1199,14 +1309,17 @@ def _runtime_js_error_signals(runtime_snapshot=None) -> dict:
     return {
         "messages": messages[:6],
         "three_import_failure": any(
-            "failed to resolve module specifier" in msg and "three" in msg
-            for msg in normalized
+            "failed to resolve module specifier" in msg and "three" in msg for msg in normalized
         ),
     }
 
 
 def _internal_audit_host() -> str:
-    allowed_hosts = [str(item or "").strip() for item in list(getattr(app_settings, "ALLOWED_HOSTS", []) or []) if str(item or "").strip()]
+    allowed_hosts = [
+        str(item or "").strip()
+        for item in list(getattr(app_settings, "ALLOWED_HOSTS", []) or [])
+        if str(item or "").strip()
+    ]
     for host in allowed_hosts:
         token = host.lower()
         if token in {"*", "testserver"}:
@@ -1249,22 +1362,36 @@ def _browser_audit_target_rows(page_context=None) -> list[dict]:
         if not key or not url or key in seen:
             return
         seen.add(key)
-        rows.append({
-            "key": key[:64],
-            "label": str(label or key)[:120],
-            "url": url[:220],
-            "expected_modules": [str(item or "")[:64] for item in (expected_modules or []) if str(item or "").strip()][:6],
-        })
+        rows.append(
+            {
+                "key": key[:64],
+                "label": str(label or key)[:120],
+                "url": url[:220],
+                "expected_modules": [
+                    str(item or "")[:64] for item in (expected_modules or []) if str(item or "").strip()
+                ][:6],
+            }
+        )
 
     base_url = _browser_audit_base_url(context)
     browser_target_url = str(context.get("browser_target_url") or "").strip()
     if browser_target_url:
-        target_url = browser_target_url if browser_target_url.startswith(("http://", "https://")) else urljoin(f"{base_url}/", browser_target_url.lstrip("/"))
-        _add_row("browser_target", "Destino de navegador", target_url, expected_modules=["tarea", "editor", "pizarra", "3d"])
+        target_url = (
+            browser_target_url
+            if browser_target_url.startswith(("http://", "https://"))
+            else urljoin(f"{base_url}/", browser_target_url.lstrip("/"))
+        )
+        _add_row(
+            "browser_target", "Destino de navegador", target_url, expected_modules=["tarea", "editor", "pizarra", "3d"]
+        )
 
     task_id = _safe_int(context.get("task_id"), 0)
     if task_id:
-        task = SessionTask.objects.select_related("session", "session__microcycle", "session__microcycle__team").filter(id=task_id).first()
+        task = (
+            SessionTask.objects.select_related("session", "session__microcycle", "session__microcycle__team")
+            .filter(id=task_id)
+            .first()
+        )
         if task:
             _add_row(
                 f"task_{int(task.id)}",
@@ -1278,7 +1405,11 @@ def _browser_audit_target_rows(page_context=None) -> list[dict]:
         _add_row(
             f"session_{session_id}",
             f"Sesión {session_id}",
-            urljoin(f"{base_url}/", reverse("session-detail", args=[session_id]).lstrip("/")) if "session-detail" in getattr(__import__('django.urls', fromlist=['reverse']), 'reverse').__name__ else "",
+            (
+                urljoin(f"{base_url}/", reverse("session-detail", args=[session_id]).lstrip("/"))
+                if "session-detail" in getattr(__import__("django.urls", fromlist=["reverse"]), "reverse").__name__
+                else ""
+            ),
             expected_modules=["sesion", "microciclo", "entrenamiento"],
         )
 
@@ -1292,22 +1423,24 @@ def _prioritized_guard_routes(page_context=None, limit: int = 4) -> list[dict]:
     active_key = str(((route_health.get("active_route") or {}).get("key")) or "").strip()
     if active_key:
         prioritized_keys.append(active_key)
-    prioritized_keys.extend([
-        "dashboard",
-        "library",
-        "task_builder",
-        "sessions",
-        "match",
-        "convocation",
-        "rival_analysis",
-        "players",
-        "agenda",
-        "staff",
-        "tactics",
-        "reports",
-        "ai_trainer",
-        "analysis",
-    ])
+    prioritized_keys.extend(
+        [
+            "dashboard",
+            "library",
+            "task_builder",
+            "sessions",
+            "match",
+            "convocation",
+            "rival_analysis",
+            "players",
+            "agenda",
+            "staff",
+            "tactics",
+            "reports",
+            "ai_trainer",
+            "analysis",
+        ]
+    )
     selected_rows = []
     seen = set()
     for key in prioritized_keys:
@@ -1340,7 +1473,9 @@ def _local_navigation_audit_snapshot(workspace, *, actor_id=None, page_context=N
     audit_host = _internal_audit_host()
     audited_rows = []
     for row in route_rows:
-        expected_modules = [str(item or "").strip().lower() for item in (row.get("expected_modules") or []) if str(item or "").strip()]
+        expected_modules = [
+            str(item or "").strip().lower() for item in (row.get("expected_modules") or []) if str(item or "").strip()
+        ]
         try:
             response = client.get(str(row.get("url") or ""), HTTP_HOST=audit_host, follow=True)
             status_code = int(getattr(response, "status_code", 0) or 0)
@@ -1357,28 +1492,32 @@ def _local_navigation_audit_snapshot(workspace, *, actor_id=None, page_context=N
                 route_status = "degraded"
             else:
                 route_status = "healthy"
-            audited_rows.append({
-                "key": str(row.get("key") or "")[:64],
-                "label": str(row.get("label") or "")[:120],
-                "url": str(row.get("url") or "")[:220],
-                "status_code": status_code,
-                "status": route_status,
-                "matched_modules": matched_modules[:6],
-                "missing_modules": missing_modules[:6],
-                "redirect_count": len(list(getattr(response, "redirect_chain", []) or [])),
-            })
+            audited_rows.append(
+                {
+                    "key": str(row.get("key") or "")[:64],
+                    "label": str(row.get("label") or "")[:120],
+                    "url": str(row.get("url") or "")[:220],
+                    "status_code": status_code,
+                    "status": route_status,
+                    "matched_modules": matched_modules[:6],
+                    "missing_modules": missing_modules[:6],
+                    "redirect_count": len(list(getattr(response, "redirect_chain", []) or [])),
+                }
+            )
         except Exception as exc:
-            audited_rows.append({
-                "key": str(row.get("key") or "")[:64],
-                "label": str(row.get("label") or "")[:120],
-                "url": str(row.get("url") or "")[:220],
-                "status_code": 0,
-                "status": "blocked",
-                "matched_modules": [],
-                "missing_modules": expected_modules[:6],
-                "redirect_count": 0,
-                "error": str(exc)[:180],
-            })
+            audited_rows.append(
+                {
+                    "key": str(row.get("key") or "")[:64],
+                    "label": str(row.get("label") or "")[:120],
+                    "url": str(row.get("url") or "")[:220],
+                    "status_code": 0,
+                    "status": "blocked",
+                    "matched_modules": [],
+                    "missing_modules": expected_modules[:6],
+                    "redirect_count": 0,
+                    "error": str(exc)[:180],
+                }
+            )
     healthy = len([row for row in audited_rows if str(row.get("status") or "") == "healthy"])
     degraded = len([row for row in audited_rows if str(row.get("status") or "") == "degraded"])
     blocked = len([row for row in audited_rows if str(row.get("status") or "") == "blocked"])
@@ -1452,10 +1591,29 @@ def _browser_navigation_audit_snapshot(workspace, *, actor_id=None, page_context
                     console_rows = []
                     page_errors = []
                     request_failed_rows = []
-                    page.on("console", lambda msg, bucket=console_rows: bucket.append({"type": str(msg.type() or "")[:24], "text": str(msg.text() or "")[:180]}) if str(msg.type() or "") in {"error", "warning"} else None)
+                    page.on(
+                        "console",
+                        lambda msg, bucket=console_rows: (
+                            bucket.append({"type": str(msg.type() or "")[:24], "text": str(msg.text() or "")[:180]})
+                            if str(msg.type() or "") in {"error", "warning"}
+                            else None
+                        ),
+                    )
                     page.on("pageerror", lambda err, bucket=page_errors: bucket.append(str(err)[:180]))
-                    page.on("requestfailed", lambda req, bucket=request_failed_rows: bucket.append({"url": str(req.url or "")[:220], "error": str((req.failure() or {}).get("errorText") or "")[:160]}))
-                    expected_modules = [str(item or "").strip().lower() for item in (row.get("expected_modules") or []) if str(item or "").strip()]
+                    page.on(
+                        "requestfailed",
+                        lambda req, bucket=request_failed_rows: bucket.append(
+                            {
+                                "url": str(req.url or "")[:220],
+                                "error": str((req.failure() or {}).get("errorText") or "")[:160],
+                            }
+                        ),
+                    )
+                    expected_modules = [
+                        str(item or "").strip().lower()
+                        for item in (row.get("expected_modules") or [])
+                        if str(item or "").strip()
+                    ]
                     target_url = urljoin(f"{base_url}/", str(row.get("url") or "").lstrip("/"))
                     result_row = {
                         "key": str(row.get("key") or "")[:64],
@@ -1478,8 +1636,9 @@ def _browser_navigation_audit_snapshot(workspace, *, actor_id=None, page_context
                         except Exception:
                             pass
                         final_url = str(page.url or "")[:220]
-                        payload = page.evaluate(
-                            """() => {
+                        payload = (
+                            page.evaluate(
+                                """() => {
                               const h1 = document.querySelector('h1');
                               const top = document.querySelector('.top, header, main header');
                               const h1Style = h1 ? getComputedStyle(h1) : null;
@@ -1509,39 +1668,61 @@ def _browser_navigation_audit_snapshot(workspace, *, actor_id=None, page_context
                                 render_surfaces: render.render_surfaces && typeof render.render_surfaces === 'object' ? Object.keys(render.render_surfaces).length : 0,
                               };
                             }"""
-                        ) or {}
+                            )
+                            or {}
+                        )
                         body_text = str(payload.get("body_text") or "").lower()
-                        module_labels = [str(item or "").strip().lower() for item in (payload.get("modules") or []) if str(item or "").strip()]
-                        matched_modules = [token for token in expected_modules if token in body_text or any(token in label for label in module_labels)]
+                        module_labels = [
+                            str(item or "").strip().lower()
+                            for item in (payload.get("modules") or [])
+                            if str(item or "").strip()
+                        ]
+                        matched_modules = [
+                            token
+                            for token in expected_modules
+                            if token in body_text or any(token in label for label in module_labels)
+                        ]
                         missing_modules = [token for token in expected_modules if token not in matched_modules]
                         status_code = int(getattr(response, "status", 0) or 0) if response is not None else 0
                         route_status = "healthy"
                         if status_code >= 400 or "/login" in final_url.lower():
                             route_status = "blocked"
-                        elif page_errors or request_failed_rows or _safe_int(payload.get("js_errors"), 0) > 0 or _safe_int(payload.get("failed_requests"), 0) > 0 or missing_modules:
+                        elif (
+                            page_errors
+                            or request_failed_rows
+                            or _safe_int(payload.get("js_errors"), 0) > 0
+                            or _safe_int(payload.get("failed_requests"), 0) > 0
+                            or missing_modules
+                        ):
                             route_status = "degraded"
-                        result_row.update({
-                            "status_code": status_code,
-                            "status": route_status,
-                            "matched_modules": matched_modules[:6],
-                            "missing_modules": missing_modules[:6],
-                            "redirect_count": 1 if final_url and final_url.rstrip("/") != target_url.rstrip("/") else 0,
-                            "final_url": final_url,
-                            "h1_text": str(payload.get("h1_text") or "")[:160],
-                            "h1_color": str(payload.get("h1_color") or "")[:40],
-                            "body_classes": str(payload.get("body_classes") or "")[:120],
-                            "top_bg": str(payload.get("top_bg") or "")[:160],
-                            "console_count": len(console_rows),
-                            "page_error_count": len(page_errors),
-                            "request_failed_count": len(request_failed_rows),
-                            "js_error_count": _safe_int(payload.get("js_errors"), 0),
-                            "render_surface_count": _safe_int(payload.get("render_surfaces"), 0),
-                        })
+                        result_row.update(
+                            {
+                                "status_code": status_code,
+                                "status": route_status,
+                                "matched_modules": matched_modules[:6],
+                                "missing_modules": missing_modules[:6],
+                                "redirect_count": (
+                                    1 if final_url and final_url.rstrip("/") != target_url.rstrip("/") else 0
+                                ),
+                                "final_url": final_url,
+                                "h1_text": str(payload.get("h1_text") or "")[:160],
+                                "h1_color": str(payload.get("h1_color") or "")[:40],
+                                "body_classes": str(payload.get("body_classes") or "")[:120],
+                                "top_bg": str(payload.get("top_bg") or "")[:160],
+                                "console_count": len(console_rows),
+                                "page_error_count": len(page_errors),
+                                "request_failed_count": len(request_failed_rows),
+                                "js_error_count": _safe_int(payload.get("js_errors"), 0),
+                                "render_surface_count": _safe_int(payload.get("render_surfaces"), 0),
+                            }
+                        )
                     except Exception as exc:
-                        result_row.update({
-                            "status": "blocked",
-                            "error": str(exc)[:180],
-                        })
+                        result_row.update(
+                            {
+                                "status": "blocked",
+                                "error": str(exc)[:180],
+                            }
+                        )
                     finally:
                         audited_rows.append(result_row)
                         try:
@@ -1588,7 +1769,11 @@ def _browser_visual_page_snapshot(workspace, *, actor_id=None, page_context=None
     if not target_url and path:
         target_url = urljoin(f"{base_url}/", path.lstrip("/"))
     if not target_url:
-        fallback_path = reverse("session-task-detail", args=[_safe_int(context.get("task_id"), 0)]) if _safe_int(context.get("task_id"), 0) else "/"
+        fallback_path = (
+            reverse("session-task-detail", args=[_safe_int(context.get("task_id"), 0)])
+            if _safe_int(context.get("task_id"), 0)
+            else "/"
+        )
         target_url = urljoin(f"{base_url}/", fallback_path.lstrip("/"))
     parsed = urlparse(base_url)
     try:
@@ -1610,28 +1795,24 @@ def _browser_visual_page_snapshot(workspace, *, actor_id=None, page_context=None
         "sameSite": "Lax",
     }
     service_token = str(
-        context.get("service_token")
-        or os.getenv("OLLANA_SERVICE_TOKEN")
-        or os.getenv("SERVICE_TOKEN")
-        or ""
+        context.get("service_token") or os.getenv("OLLANA_SERVICE_TOKEN") or os.getenv("SERVICE_TOKEN") or ""
     ).strip()
     login_username = str(
-        context.get("login_username")
-        or os.getenv("OLLANA_LOGIN_USERNAME")
-        or os.getenv("LOGIN_USERNAME")
-        or ""
+        context.get("login_username") or os.getenv("OLLANA_LOGIN_USERNAME") or os.getenv("LOGIN_USERNAME") or ""
     ).strip()
     login_password = str(
-        context.get("login_password")
-        or os.getenv("OLLANA_LOGIN_PASSWORD")
-        or os.getenv("LOGIN_PASSWORD")
-        or ""
+        context.get("login_password") or os.getenv("OLLANA_LOGIN_PASSWORD") or os.getenv("LOGIN_PASSWORD") or ""
     ).strip()
     try:
         with _guard_playwright_browser() as (_pw, browser):
             if browser is None:
                 return {"enabled": False, "reason": "browser_unavailable"}
-            browser_context = browser.new_context(ignore_https_errors=True, java_script_enabled=True, viewport={"width": 1440, "height": 1200}, device_scale_factor=1.5)
+            browser_context = browser.new_context(
+                ignore_https_errors=True,
+                java_script_enabled=True,
+                viewport={"width": 1440, "height": 1200},
+                device_scale_factor=1.5,
+            )
             try:
                 page = browser_context.new_page()
                 try:
@@ -1654,15 +1835,19 @@ def _browser_visual_page_snapshot(workspace, *, actor_id=None, page_context=None
                             except Exception:
                                 pass
                     elif service_token:
-                        browser_context.add_cookies([{
-                            "name": str(getattr(settings, "SESSION_COOKIE_NAME", "sessionid")),
-                            "value": "",
-                            "domain": str(parsed.hostname or ""),
-                            "path": "/",
-                            "httpOnly": True,
-                            "secure": str(parsed.scheme or "").lower() == "https",
-                            "sameSite": "Lax",
-                        }])
+                        browser_context.add_cookies(
+                            [
+                                {
+                                    "name": str(getattr(settings, "SESSION_COOKIE_NAME", "sessionid")),
+                                    "value": "",
+                                    "domain": str(parsed.hostname or ""),
+                                    "path": "/",
+                                    "httpOnly": True,
+                                    "secure": str(parsed.scheme or "").lower() == "https",
+                                    "sameSite": "Lax",
+                                }
+                            ]
+                        )
                         login_url = urljoin(f"{base_url}/", "service-login/")
                         page.goto(login_url, wait_until="domcontentloaded", timeout=20000)
                         token_input = page.locator('input[name="service_token"]')
@@ -1688,13 +1873,16 @@ def _browser_visual_page_snapshot(workspace, *, actor_id=None, page_context=None
                     screenshot_bytes = page.screenshot(type="png", full_page=False)
                     screenshot_path = ""
                     try:
-                        with tempfile.NamedTemporaryFile(prefix="ollana_visual_", suffix=".png", delete=False) as handle:
+                        with tempfile.NamedTemporaryFile(
+                            prefix="ollana_visual_", suffix=".png", delete=False
+                        ) as handle:
                             handle.write(screenshot_bytes)
                             screenshot_path = handle.name
                     except Exception:
                         screenshot_path = ""
-                    payload = page.evaluate(
-                        """() => {
+                    payload = (
+                        page.evaluate(
+                            """() => {
                           const h1 = document.querySelector('h1');
                           const top = document.querySelector('.top, header, main header');
                           const candidates = Array.from(document.querySelectorAll('main h1, main h2, main .button, main .task-detail-tab, main .top-pill, main a'))
@@ -1747,7 +1935,9 @@ def _browser_visual_page_snapshot(workspace, *, actor_id=None, page_context=None
                             low_contrast: lowContrast.slice(0, 8),
                           };
                         }"""
-                    ) or {}
+                        )
+                        or {}
+                    )
                     return {
                         "enabled": True,
                         "reason": "captured",
@@ -1758,14 +1948,20 @@ def _browser_visual_page_snapshot(workspace, *, actor_id=None, page_context=None
                         "h1_color": str(payload.get("h1_color") or "")[:40],
                         "top_bg": str(payload.get("top_bg") or "")[:80],
                         "body_classes": str(payload.get("body_classes") or "")[:120],
-                        "buttons": [str(item)[:80] for item in (payload.get("buttons") or []) if str(item or "").strip()][:12],
-                        "low_contrast": [{
-                            "tag": str((row or {}).get("tag") or "")[:24],
-                            "text": str((row or {}).get("text") or "")[:80],
-                            "ratio": max(0, float((row or {}).get("ratio") or 0)),
-                            "fg": str((row or {}).get("fg") or "")[:40],
-                            "bg": str((row or {}).get("bg") or "")[:40],
-                        } for row in (payload.get("low_contrast") or []) if isinstance(row, dict)][:8],
+                        "buttons": [
+                            str(item)[:80] for item in (payload.get("buttons") or []) if str(item or "").strip()
+                        ][:12],
+                        "low_contrast": [
+                            {
+                                "tag": str((row or {}).get("tag") or "")[:24],
+                                "text": str((row or {}).get("text") or "")[:80],
+                                "ratio": max(0, float((row or {}).get("ratio") or 0)),
+                                "fg": str((row or {}).get("fg") or "")[:40],
+                                "bg": str((row or {}).get("bg") or "")[:40],
+                            }
+                            for row in (payload.get("low_contrast") or [])
+                            if isinstance(row, dict)
+                        ][:8],
                     }
                 finally:
                     try:
@@ -1791,11 +1987,15 @@ def _browser_visual_analysis_payload(snapshot: dict) -> dict:
         "top_bg": str(snapshot.get("top_bg") or "")[:80],
         "body_classes": str(snapshot.get("body_classes") or "")[:120],
         "buttons": [str(item).strip()[:80] for item in (snapshot.get("buttons") or []) if str(item or "").strip()][:12],
-        "low_contrast": [{
-            "tag": str((row or {}).get("tag") or "")[:24],
-            "text": str((row or {}).get("text") or "")[:80],
-            "ratio": max(0, float((row or {}).get("ratio") or 0)),
-        } for row in (snapshot.get("low_contrast") or []) if isinstance(row, dict)][:8],
+        "low_contrast": [
+            {
+                "tag": str((row or {}).get("tag") or "")[:24],
+                "text": str((row or {}).get("text") or "")[:80],
+                "ratio": max(0, float((row or {}).get("ratio") or 0)),
+            }
+            for row in (snapshot.get("low_contrast") or [])
+            if isinstance(row, dict)
+        ][:8],
         "instruction": (
             "Analiza la captura como un auditor visual. "
             "Responde SOLO JSON válido con estas claves: summary, title_visibility, button_visibility, render_surfaces, contrast_issues, issues, caveats. "
@@ -1810,7 +2010,9 @@ def _browser_visual_analysis_payload(snapshot: dict) -> dict:
 
 def _browser_visual_openai_analysis(*, page_context=None) -> dict:
     context = page_context if isinstance(page_context, dict) else {}
-    snapshot = context.get("browser_visual_snapshot") if isinstance(context.get("browser_visual_snapshot"), dict) else {}
+    snapshot = (
+        context.get("browser_visual_snapshot") if isinstance(context.get("browser_visual_snapshot"), dict) else {}
+    )
     if not snapshot:
         return {"enabled": False, "reason": "snapshot_unavailable"}
     if str(os.getenv("OPENAI_IMAGE_ANALYSIS_ENABLED") or "").strip().lower() not in {"1", "true", "yes", "on"}:
@@ -1897,7 +2099,11 @@ def _browser_visual_openai_analysis(*, page_context=None) -> dict:
                         content = item.get("content")
                         if isinstance(content, list):
                             for c in content:
-                                if isinstance(c, dict) and c.get("type") == "output_text" and isinstance(c.get("text"), str):
+                                if (
+                                    isinstance(c, dict)
+                                    and c.get("type") == "output_text"
+                                    and isinstance(c.get("text"), str)
+                                ):
                                     txt = c.get("text", "").strip()
                                     if txt:
                                         return txt
@@ -1932,7 +2138,9 @@ def _browser_visual_openai_analysis(*, page_context=None) -> dict:
 
 def _browser_visual_ollama_analysis(*, page_context=None) -> dict:
     context = page_context if isinstance(page_context, dict) else {}
-    snapshot = context.get("browser_visual_snapshot") if isinstance(context.get("browser_visual_snapshot"), dict) else {}
+    snapshot = (
+        context.get("browser_visual_snapshot") if isinstance(context.get("browser_visual_snapshot"), dict) else {}
+    )
     if not snapshot:
         return {"enabled": False, "reason": "snapshot_unavailable"}
     screenshot_path = str(snapshot.get("screenshot_path") or "").strip()
@@ -1985,7 +2193,9 @@ def _browser_visual_ai_analysis(*, page_context=None) -> dict:
 def _ollana_assessment_snapshot(*, page_context=None, evidence=None) -> dict:
     context = page_context if isinstance(page_context, dict) else {}
     evidence = evidence if isinstance(evidence, dict) else {}
-    browser_visual_snapshot = context.get("browser_visual_snapshot") if isinstance(context.get("browser_visual_snapshot"), dict) else {}
+    browser_visual_snapshot = (
+        context.get("browser_visual_snapshot") if isinstance(context.get("browser_visual_snapshot"), dict) else {}
+    )
     browser_visual_ai = evidence.get("browser_visual_ai") if isinstance(evidence.get("browser_visual_ai"), dict) else {}
     title_state = "unknown"
     title_detail = ""
@@ -1998,13 +2208,15 @@ def _ollana_assessment_snapshot(*, page_context=None, evidence=None) -> dict:
         source = str(browser_visual_ai.get("provider") or "openai")[:20]
         title_state = str((browser_visual_ai.get("title_visibility") or {}).get("state") or "unknown").strip().lower()
         title_detail = str((browser_visual_ai.get("title_visibility") or {}).get("detail") or "").strip()[:220]
-        buttons_state = str((browser_visual_ai.get("button_visibility") or {}).get("state") or "unknown").strip().lower()
+        buttons_state = (
+            str((browser_visual_ai.get("button_visibility") or {}).get("state") or "unknown").strip().lower()
+        )
         buttons_detail = str((browser_visual_ai.get("button_visibility") or {}).get("detail") or "").strip()[:220]
         render_state = str((browser_visual_ai.get("render_surfaces") or {}).get("state") or "unknown").strip().lower()
         render_detail = str((browser_visual_ai.get("render_surfaces") or {}).get("detail") or "").strip()[:220]
     else:
         low_contrast_rows = []
-        for row in (browser_visual_snapshot.get("low_contrast") or []):
+        for row in browser_visual_snapshot.get("low_contrast") or []:
             if not isinstance(row, dict):
                 continue
             try:
@@ -2013,9 +2225,15 @@ def _ollana_assessment_snapshot(*, page_context=None, evidence=None) -> dict:
                 ratio = 0.0
             low_contrast_rows.append(ratio)
         title_state = "unreadable" if any(ratio < 2.7 for ratio in low_contrast_rows if ratio > 0) else "visible"
-        title_detail = str(browser_visual_snapshot.get("h1") or browser_visual_snapshot.get("title") or "").strip()[:220]
+        title_detail = str(browser_visual_snapshot.get("h1") or browser_visual_snapshot.get("title") or "").strip()[
+            :220
+        ]
         buttons_state = "visible" if (browser_visual_snapshot.get("buttons") or []) else "unknown"
-        buttons_detail = ", ".join([str(item).strip() for item in (browser_visual_snapshot.get("buttons") or []) if str(item or "").strip()][:8])[:220]
+        buttons_detail = ", ".join(
+            [str(item).strip() for item in (browser_visual_snapshot.get("buttons") or []) if str(item or "").strip()][
+                :8
+            ]
+        )[:220]
         render_state = "complete" if browser_visual_snapshot.get("enabled") else "unknown"
         render_detail = str(browser_visual_snapshot.get("reason") or "").strip()[:220]
 
@@ -2080,7 +2298,9 @@ def _match_route_target(question: str, page_context=None) -> dict | None:
             token = str(keyword or "").strip().lower()
             if token and token in text:
                 score += max(2, len(token.split()) * 2)
-        if str(route.get("key") or "") == "library" and any(token in text for token in ["biblioteca", "tareas", "ejercicios", "task library"]):
+        if str(route.get("key") or "") == "library" and any(
+            token in text for token in ["biblioteca", "tareas", "ejercicios", "task library"]
+        ):
             score += 5
         if score > 0 and (best is None or score > best.get("score", 0)):
             route_copy = dict(route)
@@ -2095,7 +2315,9 @@ def _match_route_target(question: str, page_context=None) -> dict | None:
                             continue
                         left, right = chunk.split("=", 1)
                         current_query[left] = right
-                current_query.update({str(key): value for key, value in extra_filters.items() if value not in (None, "", 0, "0")})
+                current_query.update(
+                    {str(key): value for key, value in extra_filters.items() if value not in (None, "", 0, "0")}
+                )
                 route_copy["url"] = f"{base_url}{_compact_query(current_query)}"
                 route_copy["filters"] = extra_filters
             best = {"score": score, **route_copy}
@@ -2110,16 +2332,46 @@ def _build_task_profile(question: str, *, intent: str, maintenance_action: str =
     runbook_key = "silent_diagnostics"
     lower_question = str(question or "").lower()
     code_markers = [
-        "codigo", "código", "repo", "repositorio", "git", "commit", "push", "tests", "check",
-        "3d", "pitch3d", "estadio", "stadium", "render", "visualiza", "visualiza", "canvas", "glb",
+        "codigo",
+        "código",
+        "repo",
+        "repositorio",
+        "git",
+        "commit",
+        "push",
+        "tests",
+        "check",
+        "3d",
+        "pitch3d",
+        "estadio",
+        "stadium",
+        "render",
+        "visualiza",
+        "visualiza",
+        "canvas",
+        "glb",
     ]
     code_related = any(token in lower_question for token in code_markers)
-    if route_target and re.search(r"\b(abre|abrir|ll[ée]vame|llevame|ve a|ir a|quiero ir|quiero abrir|quiero ver)\b", str(question or "").lower()):
+    if route_target and re.search(
+        r"\b(abre|abrir|ll[ée]vame|llevame|ve a|ir a|quiero ir|quiero abrir|quiero ver)\b", str(question or "").lower()
+    ):
         kind = "navigate"
         scope = "user"
         silent_mode = False
         runbook_key = "user_navigation"
-    elif intent in {"create_player", "create_session", "create_task", "create_microcycle", "create_match", "create_convocation", "create_rival_analysis", "create_session_bundle", "create_matchday_bundle", "update_session", "update_convocation"}:
+    elif intent in {
+        "create_player",
+        "create_session",
+        "create_task",
+        "create_microcycle",
+        "create_match",
+        "create_convocation",
+        "create_rival_analysis",
+        "create_session_bundle",
+        "create_matchday_bundle",
+        "update_session",
+        "update_convocation",
+    }:
         kind = "execute"
         scope = "user"
         silent_mode = False
@@ -2129,7 +2381,11 @@ def _build_task_profile(question: str, *, intent: str, maintenance_action: str =
         scope = "user"
         silent_mode = False
         runbook_key = "user_guidance"
-    elif intent in {"publish_commit_push", "publish_commit", "publish_push"} or maintenance_action in {"git_commit_push", "git_commit", "git_push"}:
+    elif intent in {"publish_commit_push", "publish_commit", "publish_push"} or maintenance_action in {
+        "git_commit_push",
+        "git_commit",
+        "git_push",
+    }:
         kind = "publish"
         scope = "code"
         silent_mode = True
@@ -2148,13 +2404,27 @@ def _build_task_profile(question: str, *, intent: str, maintenance_action: str =
         kind = "repair" if intent == "repair" else "maintenance"
         scope = "code" if (kind == "repair" and code_related) else ("system" if kind == "repair" else "maintenance")
         silent_mode = True
-        runbook_key = "code_execution" if (kind == "repair" and code_related) else ("safe_repair" if kind == "repair" else "maintenance_runbook")
+        runbook_key = (
+            "code_execution"
+            if (kind == "repair" and code_related)
+            else ("safe_repair" if kind == "repair" else "maintenance_runbook")
+        )
     elif intent in {"inspect_repo", "operator_validate"} or code_related:
         kind = "code_workflow"
         scope = "code"
         silent_mode = True
         runbook_key = "code_diagnostics"
-    elif intent in {"inspect_repo", "operator_validate", "inspect_errors", "inspect_routes", "inspect_config", "inspect_paths", "inspect_history", "diagnose_smoke", "diagnose_status"}:
+    elif intent in {
+        "inspect_repo",
+        "operator_validate",
+        "inspect_errors",
+        "inspect_routes",
+        "inspect_config",
+        "inspect_paths",
+        "inspect_history",
+        "diagnose_smoke",
+        "diagnose_status",
+    }:
         kind = "diagnose"
         scope = "system"
         silent_mode = True
@@ -2166,7 +2436,9 @@ def _build_task_profile(question: str, *, intent: str, maintenance_action: str =
         "route_target": route_target or {},
         "runbook_key": runbook_key,
         "target_summary": _truncate(question, 220),
-        "current_page": str((page_context or {}).get("page") or "").strip()[:120] if isinstance(page_context, dict) else "",
+        "current_page": (
+            str((page_context or {}).get("page") or "").strip()[:120] if isinstance(page_context, dict) else ""
+        ),
     }
 
 
@@ -2186,13 +2458,15 @@ def _domain_playbook_snapshot(question: str, *, page_context=None) -> dict:
             score = 1
         if score <= 0:
             continue
-        rows.append({
-            "key": key,
-            "label": str(meta.get("label") or key)[:120],
-            "score": score,
-            "files": [str(item)[:180] for item in (meta.get("files") or [])[:4]],
-            "checks": [str(item)[:64] for item in (meta.get("checks") or [])[:4]],
-        })
+        rows.append(
+            {
+                "key": key,
+                "label": str(meta.get("label") or key)[:120],
+                "score": score,
+                "files": [str(item)[:180] for item in (meta.get("files") or [])[:4]],
+                "checks": [str(item)[:64] for item in (meta.get("checks") or [])[:4]],
+            }
+        )
     rows.sort(key=lambda item: (-_safe_int(item.get("score"), 0), str(item.get("key") or "")))
     return {
         "embedded": True,
@@ -2230,54 +2504,68 @@ def _contextual_flow_actions(page_context=None) -> list[dict]:
     actions = []
     if page == "sessions":
         if session_id:
-            actions.append({
-                "type": "prompt",
-                "label": "Optimizar sesión actual",
-                "prompt": "Analiza la sesión abierta y dime el siguiente ajuste útil de carga, foco o tareas.",
-                "reason": "Trabajar sobre la sesión que ya está abierta.",
-            })
+            actions.append(
+                {
+                    "type": "prompt",
+                    "label": "Optimizar sesión actual",
+                    "prompt": "Analiza la sesión abierta y dime el siguiente ajuste útil de carga, foco o tareas.",
+                    "reason": "Trabajar sobre la sesión que ya está abierta.",
+                }
+            )
         if task_id:
-            actions.append({
-                "type": "prompt",
-                "label": "Revisar tarea actual",
-                "prompt": "Revisa la tarea abierta y propón una mejora táctica, metodológica o visual.",
-                "reason": "Profundizar sobre la tarea en foco.",
-            })
+            actions.append(
+                {
+                    "type": "prompt",
+                    "label": "Revisar tarea actual",
+                    "prompt": "Revisa la tarea abierta y propón una mejora táctica, metodológica o visual.",
+                    "reason": "Profundizar sobre la tarea en foco.",
+                }
+            )
         if microcycle_id:
-            actions.append({
-                "type": "prompt",
-                "label": "Revisar microciclo",
-                "prompt": "Resume el microciclo abierto y dime la siguiente decisión útil.",
-                "reason": "Ayuda contextual sobre el microciclo activo.",
-            })
+            actions.append(
+                {
+                    "type": "prompt",
+                    "label": "Revisar microciclo",
+                    "prompt": "Resume el microciclo abierto y dime la siguiente decisión útil.",
+                    "reason": "Ayuda contextual sobre el microciclo activo.",
+                }
+            )
         if tab == "library":
-            actions.append({
-                "type": "prompt",
-                "label": "Curar biblioteca",
-                "prompt": "Analiza la biblioteca actual y dime qué tarea falta o qué contenido conviene mejorar.",
-                "reason": "Aprovechar el contexto de biblioteca abierta.",
-            })
+            actions.append(
+                {
+                    "type": "prompt",
+                    "label": "Curar biblioteca",
+                    "prompt": "Analiza la biblioteca actual y dime qué tarea falta o qué contenido conviene mejorar.",
+                    "reason": "Aprovechar el contexto de biblioteca abierta.",
+                }
+            )
     if page == "coach-roster":
-        actions.append({
-            "type": "prompt",
-            "label": "Revisar plantilla",
-            "prompt": "Analiza la plantilla actual y dime qué información falta o qué acción operativa conviene hacer ahora.",
-            "reason": "Contexto natural de gestión de plantilla.",
-        })
+        actions.append(
+            {
+                "type": "prompt",
+                "label": "Revisar plantilla",
+                "prompt": "Analiza la plantilla actual y dime qué información falta o qué acción operativa conviene hacer ahora.",
+                "reason": "Contexto natural de gestión de plantilla.",
+            }
+        )
     if page in {"match-hub", "match-action-page"} or match_id:
-        actions.append({
-            "type": "prompt",
-            "label": "Analizar partido activo",
-            "prompt": "Explica el partido activo, el rival y la siguiente decisión útil para el staff.",
-            "reason": "Contexto directo del flujo de partido.",
-        })
+        actions.append(
+            {
+                "type": "prompt",
+                "label": "Analizar partido activo",
+                "prompt": "Explica el partido activo, el rival y la siguiente decisión útil para el staff.",
+                "reason": "Contexto directo del flujo de partido.",
+            }
+        )
     if page == "ai-trainer":
-        actions.append({
-            "type": "prompt",
-            "label": "Trabajar en IA Trainer",
-            "prompt": "Dime qué flujo de IA Trainer está más alineado con esta pantalla y qué debería hacer ahora.",
-            "reason": "Ayuda nativa sobre el módulo IA Trainer.",
-        })
+        actions.append(
+            {
+                "type": "prompt",
+                "label": "Trabajar en IA Trainer",
+                "prompt": "Dime qué flujo de IA Trainer está más alineado con esta pantalla y qué debería hacer ahora.",
+                "reason": "Ayuda nativa sobre el módulo IA Trainer.",
+            }
+        )
     seen = set()
     deduped = []
     for row in actions:
@@ -2293,70 +2581,88 @@ def _followup_actions(task: dict, planner: dict, *, page_context=None) -> list[d
     actions = list(_contextual_flow_actions(page_context))
     route_target = task.get("route_target") if isinstance(task, dict) else {}
     if isinstance(route_target, dict) and route_target.get("url"):
-        actions.append({
-            "type": "navigate",
-            "label": f"Abrir {route_target.get('label')}",
-            "url": str(route_target.get("url") or ""),
-            "reason": "Navegación directa a la zona solicitada.",
-        })
+        actions.append(
+            {
+                "type": "navigate",
+                "label": f"Abrir {route_target.get('label')}",
+                "url": str(route_target.get("url") or ""),
+                "reason": "Navegación directa a la zona solicitada.",
+            }
+        )
     if task.get("kind") == "guide":
         for route in _guard_route_catalog(page_context)[:3]:
-            actions.append({
-                "type": "navigate",
-                "label": f"Ir a {route.get('label')}",
-            "url": str(route.get("url") or ""),
-            "reason": "Acceso rápido sugerido por Ollana.",
-        })
+            actions.append(
+                {
+                    "type": "navigate",
+                    "label": f"Ir a {route.get('label')}",
+                    "url": str(route.get("url") or ""),
+                    "reason": "Acceso rápido sugerido por Ollana.",
+                }
+            )
     if task.get("kind") == "execute":
         player_route = next((row for row in _guard_route_catalog(page_context) if row.get("key") == "players"), None)
         if player_route and player_route.get("url"):
-            actions.append({
-                "type": "navigate",
-                "label": "Abrir plantilla",
-                "url": str(player_route.get("url") or ""),
-                "reason": "Acceso directo a la gestión de jugadores.",
-            })
+            actions.append(
+                {
+                    "type": "navigate",
+                    "label": "Abrir plantilla",
+                    "url": str(player_route.get("url") or ""),
+                    "reason": "Acceso directo a la gestión de jugadores.",
+                }
+            )
         sessions_route = next((row for row in _guard_route_catalog(page_context) if row.get("key") == "sessions"), None)
         if sessions_route and sessions_route.get("url"):
-            actions.append({
-                "type": "navigate",
-                "label": "Abrir entrenamiento",
-                "url": str(sessions_route.get("url") or ""),
-                "reason": "Acceso directo a sesiones y microciclos.",
-            })
+            actions.append(
+                {
+                    "type": "navigate",
+                    "label": "Abrir entrenamiento",
+                    "url": str(sessions_route.get("url") or ""),
+                    "reason": "Acceso directo a sesiones y microciclos.",
+                }
+            )
     if planner.get("confirm_required"):
-        actions.append({
-            "type": "confirm_execution",
-            "label": "Confirmar ejecución",
-            "reason": str(planner.get("confirmation_text") or "Acción sensible pendiente."),
-        })
+        actions.append(
+            {
+                "type": "confirm_execution",
+                "label": "Confirmar ejecución",
+                "reason": str(planner.get("confirmation_text") or "Acción sensible pendiente."),
+            }
+        )
     if task.get("kind") in {"support", "diagnose", "repair"}:
-        actions.append({
-            "type": "prompt",
-            "label": "Explicar incidencia",
-            "prompt": "Explícame la causa raíz y el siguiente paso recomendado.",
-            "reason": "Pedir una guía más concreta al guard.",
-        })
+        actions.append(
+            {
+                "type": "prompt",
+                "label": "Explicar incidencia",
+                "prompt": "Explícame la causa raíz y el siguiente paso recomendado.",
+                "reason": "Pedir una guía más concreta al guard.",
+            }
+        )
     if str(task.get("scope") or "") == "code":
-        actions.append({
-            "type": "prompt",
-            "label": "Inspeccionar repo",
-            "prompt": "Revisa el repositorio, el diff y el riesgo técnico antes de tocar código.",
-            "reason": "Iniciar diagnóstico técnico sobre código.",
-        })
-        actions.append({
-            "type": "prompt",
-            "label": "Validar cambios",
-            "prompt": "Ejecuta validación técnica y dime si el cambio está listo para publicarse.",
-            "reason": "Forzar un paso de validación antes de publicar.",
-        })
+        actions.append(
+            {
+                "type": "prompt",
+                "label": "Inspeccionar repo",
+                "prompt": "Revisa el repositorio, el diff y el riesgo técnico antes de tocar código.",
+                "reason": "Iniciar diagnóstico técnico sobre código.",
+            }
+        )
+        actions.append(
+            {
+                "type": "prompt",
+                "label": "Validar cambios",
+                "prompt": "Ejecuta validación técnica y dime si el cambio está listo para publicarse.",
+                "reason": "Forzar un paso de validación antes de publicar.",
+            }
+        )
     if task.get("kind") == "build":
-        actions.append({
-            "type": "prompt",
-            "label": "Diseñar cambio",
-            "prompt": "Desglosa la funcionalidad en archivos, impacto y validación mínima.",
-            "reason": "Convertir la petición abierta en un cambio implementable.",
-        })
+        actions.append(
+            {
+                "type": "prompt",
+                "label": "Diseñar cambio",
+                "prompt": "Desglosa la funcionalidad en archivos, impacto y validación mínima.",
+                "reason": "Convertir la petición abierta en un cambio implementable.",
+            }
+        )
     seen = set()
     deduped = []
     for row in actions:
@@ -2448,11 +2754,13 @@ def _check_critical_routes() -> dict:
         if isinstance(row, dict) and row.get("ok"):
             ok_count += 1
         elif isinstance(row, dict):
-            failing.append({
-                "key": key,
-                "name": str(row.get("name") or ""),
-                "error": str(row.get("error") or ""),
-            })
+            failing.append(
+                {
+                    "key": key,
+                    "name": str(row.get("name") or ""),
+                    "error": str(row.get("error") or ""),
+                }
+            )
     return {
         "ok": not failing,
         "action": "check_critical_routes",
@@ -2463,7 +2771,9 @@ def _check_critical_routes() -> dict:
 
 def _inspect_runtime_config() -> dict:
     allowed_hosts = [str(x) for x in list(getattr(app_settings, "ALLOWED_HOSTS", []) or []) if str(x or "").strip()]
-    csrf_origins = [str(x) for x in list(getattr(app_settings, "CSRF_TRUSTED_ORIGINS", []) or []) if str(x or "").strip()]
+    csrf_origins = [
+        str(x) for x in list(getattr(app_settings, "CSRF_TRUSTED_ORIGINS", []) or []) if str(x or "").strip()
+    ]
     app_public = str(os.getenv("APP_PUBLIC_BASE_URL") or "").strip()
     render_host = str(os.getenv("RENDER_EXTERNAL_HOSTNAME") or "").strip()
     landing_hosts = str(os.getenv("LANDING_HOSTS") or "").strip()
@@ -2472,7 +2782,9 @@ def _inspect_runtime_config() -> dict:
         warnings.append("testserver_no_esta_en_allowed_hosts")
     if any("0.0.0.0" in host for host in allowed_hosts):
         warnings.append("allowed_hosts_contiene_0_0_0_0")
-    if app_public and not any(app_public.split("://")[-1].split("/")[0].split(":")[0] in host for host in allowed_hosts):
+    if app_public and not any(
+        app_public.split("://")[-1].split("/")[0].split(":")[0] in host for host in allowed_hosts
+    ):
         warnings.append("app_public_base_url_no_reflejado_en_allowed_hosts")
     return {
         "ok": True,
@@ -2508,7 +2820,14 @@ def _inspect_public_deployment() -> dict:
                 status_code = int(getattr(resp, "status", 200) or 200)
                 checks.append({"url": target, "ok": 200 <= status_code < 400, "status_code": status_code})
         except urllib.error.HTTPError as exc:
-            checks.append({"url": target, "ok": False, "status_code": _safe_int(getattr(exc, "code", 0), 0), "error": str(exc)[:180]})
+            checks.append(
+                {
+                    "url": target,
+                    "ok": False,
+                    "status_code": _safe_int(getattr(exc, "code", 0), 0),
+                    "error": str(exc)[:180],
+                }
+            )
         except Exception as exc:
             checks.append({"url": target, "ok": False, "status_code": 0, "error": str(exc)[:180]})
     primary = checks[0] if checks else {}
@@ -2529,7 +2848,9 @@ def _connector_endpoint(name: str) -> tuple[str, str]:
     )
 
 
-def _connector_http_request(url: str, *, token: str = "", method: str = "GET", payload: dict | None = None, timeout: int = 12) -> dict:
+def _connector_http_request(
+    url: str, *, token: str = "", method: str = "GET", payload: dict | None = None, timeout: int = 12
+) -> dict:
     target = str(url or "").strip()
     if not target:
         return {"ok": False, "error": "missing_url"}
@@ -2565,7 +2886,12 @@ def _connector_http_request(url: str, *, token: str = "", method: str = "GET", p
             detail = exc.read().decode("utf-8", errors="replace")[:2000]
         except Exception:
             detail = str(exc)[:2000]
-        return {"ok": False, "status_code": _safe_int(getattr(exc, "code", 0), 0), "url": target, "error": detail or str(exc)}
+        return {
+            "ok": False,
+            "status_code": _safe_int(getattr(exc, "code", 0), 0),
+            "url": target,
+            "error": detail or str(exc),
+        }
     except Exception as exc:
         return {"ok": False, "status_code": 0, "url": target, "error": f"{exc.__class__.__name__}: {exc}"}
 
@@ -2584,9 +2910,13 @@ def _inspect_release_pipeline() -> dict:
         "ok": bool(result.get("ok")),
         "action": "inspect_release_pipeline",
         "status_code": _safe_int(result.get("status_code"), 0),
-        "pipeline_state": str(payload.get("status") or payload.get("state") or payload.get("pipeline_state") or "")[:64],
+        "pipeline_state": str(payload.get("status") or payload.get("state") or payload.get("pipeline_state") or "")[
+            :64
+        ],
         "release_id": str(payload.get("release_id") or payload.get("deploy_id") or payload.get("id") or "")[:120],
-        "updated_at": str(payload.get("updated_at") or payload.get("finished_at") or payload.get("created_at") or "")[:64],
+        "updated_at": str(payload.get("updated_at") or payload.get("finished_at") or payload.get("created_at") or "")[
+            :64
+        ],
         "detail": payload if payload else {"text": str(result.get("text") or "")[:400]},
         "error": str(result.get("error") or "")[:240],
     }
@@ -2611,7 +2941,10 @@ def _inspect_remote_logs() -> dict:
                 continue
             level = str(row.get("level") or row.get("severity") or "info").strip().lower()[:24]
             counters[level] = counters.get(level, 0) + 1
-        patterns = [{"name": key, "count": value} for key, value in sorted(counters.items(), key=lambda item: (-item[1], item[0]))]
+        patterns = [
+            {"name": key, "count": value}
+            for key, value in sorted(counters.items(), key=lambda item: (-item[1], item[0]))
+        ]
     return {
         "ok": bool(result.get("ok")),
         "action": "inspect_remote_logs",
@@ -2857,14 +3190,16 @@ def _catalog_candidates_for_question(question: str) -> list[dict]:
         score = sum(1 for term in terms if term in text)
         if score <= 0:
             continue
-        rows.append({
-            "key": str(key),
-            "score": score,
-            "title": str(item.get("title") or key),
-            "summary": str(item.get("summary") or ""),
-            "auto_apply": bool(item.get("auto_apply")),
-            "files": [str(path or "") for path in (item.get("files") or []) if str(path or "").strip()][:6],
-        })
+        rows.append(
+            {
+                "key": str(key),
+                "score": score,
+                "title": str(item.get("title") or key),
+                "summary": str(item.get("summary") or ""),
+                "auto_apply": bool(item.get("auto_apply")),
+                "files": [str(path or "") for path in (item.get("files") or []) if str(path or "").strip()][:6],
+            }
+        )
     rows.sort(key=lambda row: (-int(row.get("score") or 0), str(row.get("key") or "")))
     return rows[:3]
 
@@ -2942,7 +3277,7 @@ def _snapshot_payload(report: dict, response: dict, executions: list[dict]) -> d
     issue_summary = report.get("issue_summary") if isinstance(report.get("issue_summary"), dict) else {}
     issues = report.get("issues") if isinstance(report.get("issues"), list) else []
     issue_ids = [str(row.get("id") or "") for row in issues[:20] if isinstance(row, dict)]
-    availability = ((((report.get("evidence") or {}).get("local_llm") or {}).get("availability")) or {})
+    availability = (((report.get("evidence") or {}).get("local_llm") or {}).get("availability")) or {}
     return {
         "created_at": _now_iso(),
         "status": str(response.get("status") or "").strip()[:32],
@@ -3047,8 +3382,12 @@ def _observability_summary(workspace) -> dict:
     memory = _load_memory(workspace) if workspace else {}
     audit_rows = _load_audit_log(workspace) if workspace else []
     incident_ledger = _load_incident_ledger(workspace) if workspace else []
-    priority_state = _refresh_operator_priorities(workspace, page_context={}) if workspace else {"tasks": [], "objectives": []}
-    strategy = _autonomous_priority_strategy(workspace, page_context={}, priority_state=priority_state) if workspace else {}
+    priority_state = (
+        _refresh_operator_priorities(workspace, page_context={}) if workspace else {"tasks": [], "objectives": []}
+    )
+    strategy = (
+        _autonomous_priority_strategy(workspace, page_context={}, priority_state=priority_state) if workspace else {}
+    )
     queue_rows = priority_state.get("tasks") or []
     objective_rows = priority_state.get("objectives") or []
     history = _inspect_guard_history(workspace)
@@ -3064,12 +3403,16 @@ def _observability_summary(workspace) -> dict:
     turns = _safe_int(metrics.get("turns"), len(rows))
     degraded_rate = int(round((degraded_turns / turns) * 100)) if turns > 0 else 0
     top_state = llm_states[0]["state"] if llm_states else "unknown"
-    latest_diff = _compare_snapshots(rows[0], rows[1] if len(rows) > 1 else None) if rows else {
-        "has_baseline": False,
-        "regressions": [],
-        "improvements": [],
-        "repeated_issues": [],
-    }
+    latest_diff = (
+        _compare_snapshots(rows[0], rows[1] if len(rows) > 1 else None)
+        if rows
+        else {
+            "has_baseline": False,
+            "regressions": [],
+            "improvements": [],
+            "repeated_issues": [],
+        }
+    )
     if top_state == "up" and degraded_rate <= 10:
         llm_stability = "estable"
     elif top_state in {"degraded", "down"} or degraded_rate >= 40:
@@ -3092,75 +3435,89 @@ def _observability_summary(workspace) -> dict:
         alerts.append({"level": "improvement", "text": str(item)})
     repeated_items = history.get("top_repeated_issues") if isinstance(history.get("top_repeated_issues"), list) else []
     if repeated_items:
-        alerts.append({
-            "level": "repeat",
-            "text": f"Incidencia repetida: {repeated_items[0].get('issue_id')} x{repeated_items[0].get('count')}",
-        })
+        alerts.append(
+            {
+                "level": "repeat",
+                "text": f"Incidencia repetida: {repeated_items[0].get('issue_id')} x{repeated_items[0].get('count')}",
+            }
+        )
     timeline = []
     for row in audit_rows[:4]:
         if not isinstance(row, dict):
             continue
-        timeline.append({
-            "kind": "audit",
-            "title": str(row.get("runbook") or row.get("task_kind") or "guard")[:80],
-            "detail": str(row.get("question") or row.get("status") or "")[:180],
-            "created_at": str(row.get("created_at") or "")[:64],
-        })
+        timeline.append(
+            {
+                "kind": "audit",
+                "title": str(row.get("runbook") or row.get("task_kind") or "guard")[:80],
+                "detail": str(row.get("question") or row.get("status") or "")[:180],
+                "created_at": str(row.get("created_at") or "")[:64],
+            }
+        )
     for row in incident_ledger[:4]:
         if not isinstance(row, dict):
             continue
-        timeline.append({
-            "kind": "incident",
-            "title": str(row.get("summary") or row.get("issue_id") or "incident")[:80],
-            "detail": f"{str(row.get('status') or '')[:32]} · {str(row.get('runbook') or '')[:64]}",
-            "created_at": str(row.get("created_at") or "")[:64],
-        })
+        timeline.append(
+            {
+                "kind": "incident",
+                "title": str(row.get("summary") or row.get("issue_id") or "incident")[:80],
+                "detail": f"{str(row.get('status') or '')[:32]} · {str(row.get('runbook') or '')[:64]}",
+                "created_at": str(row.get("created_at") or "")[:64],
+            }
+        )
     task_memory = []
     for row in queue_rows[:5]:
         if not isinstance(row, dict):
             continue
-        task_memory.append({
-            "title": str(row.get("title") or "Tarea del guard")[:120],
-            "status": str(row.get("status") or "pending")[:24],
-            "summary": str(row.get("result_summary") or row.get("summary") or "")[:180],
-            "priority_band": str(row.get("priority_band") or "")[:24],
-        })
+        task_memory.append(
+            {
+                "title": str(row.get("title") or "Tarea del guard")[:120],
+                "status": str(row.get("status") or "pending")[:24],
+                "summary": str(row.get("result_summary") or row.get("summary") or "")[:180],
+                "priority_band": str(row.get("priority_band") or "")[:24],
+            }
+        )
     objective_memory = []
     for row in objective_rows[:5]:
         if not isinstance(row, dict):
             continue
-        objective_memory.append({
-            "title": str(row.get("title") or "Objetivo técnico")[:120],
-            "status": str(row.get("status") or "running")[:24],
-            "progress_percent": _safe_int(row.get("progress_percent"), 0),
-            "next_step": str(row.get("next_step") or "")[:180],
-            "priority_band": str(row.get("priority_band") or "")[:24],
-        })
+        objective_memory.append(
+            {
+                "title": str(row.get("title") or "Objetivo técnico")[:120],
+                "status": str(row.get("status") or "running")[:24],
+                "progress_percent": _safe_int(row.get("progress_percent"), 0),
+                "next_step": str(row.get("next_step") or "")[:180],
+                "priority_band": str(row.get("priority_band") or "")[:24],
+            }
+        )
     priority_queue = []
     for row in queue_rows[:4]:
         if not isinstance(row, dict):
             continue
-        priority_queue.append({
-            "kind": "task",
-            "title": str(row.get("title") or "Tarea del guard")[:120],
-            "status": str(row.get("status") or "pending")[:24],
-            "priority_band": str(row.get("priority_band") or "next")[:24],
-            "priority_score": _safe_int(row.get("priority_score"), 0),
-            "priority_reason": str(row.get("priority_reason") or "")[:180],
-            "result_summary": str(row.get("result_summary") or row.get("summary") or "")[:180],
-        })
+        priority_queue.append(
+            {
+                "kind": "task",
+                "title": str(row.get("title") or "Tarea del guard")[:120],
+                "status": str(row.get("status") or "pending")[:24],
+                "priority_band": str(row.get("priority_band") or "next")[:24],
+                "priority_score": _safe_int(row.get("priority_score"), 0),
+                "priority_reason": str(row.get("priority_reason") or "")[:180],
+                "result_summary": str(row.get("result_summary") or row.get("summary") or "")[:180],
+            }
+        )
     for row in objective_rows[:2]:
         if not isinstance(row, dict):
             continue
-        priority_queue.append({
-            "kind": "objective",
-            "title": str(row.get("title") or "Objetivo técnico")[:120],
-            "status": str(row.get("goal_status") or row.get("status") or "running")[:24],
-            "priority_band": str(row.get("priority_band") or "next")[:24],
-            "priority_score": _safe_int(row.get("priority_score"), 0),
-            "priority_reason": str(row.get("priority_reason") or "")[:180],
-            "result_summary": str(row.get("next_step") or row.get("result_summary") or "")[:180],
-        })
+        priority_queue.append(
+            {
+                "kind": "objective",
+                "title": str(row.get("title") or "Objetivo técnico")[:120],
+                "status": str(row.get("goal_status") or row.get("status") or "running")[:24],
+                "priority_band": str(row.get("priority_band") or "next")[:24],
+                "priority_score": _safe_int(row.get("priority_score"), 0),
+                "priority_reason": str(row.get("priority_reason") or "")[:180],
+                "result_summary": str(row.get("next_step") or row.get("result_summary") or "")[:180],
+            }
+        )
     priority_queue.sort(key=lambda row: (-_safe_int(row.get("priority_score"), 0), str(row.get("title") or "")))
     top_priority = priority_queue[0] if priority_queue else {}
     operator_runtime = _load_operator_runtime_state(workspace) if workspace else {}
@@ -3194,7 +3551,9 @@ def _observability_summary(workspace) -> dict:
         "recent_audits": audit_rows[:3],
         "incident_ledger_count": len(incident_ledger),
         "incident_ledger_preview": incident_ledger[:3],
-        "task_queue": _task_state_counts(queue_rows) if workspace else {"pending": 0, "running": 0, "completed": 0, "blocked": 0},
+        "task_queue": (
+            _task_state_counts(queue_rows) if workspace else {"pending": 0, "running": 0, "completed": 0, "blocked": 0}
+        ),
         "task_queue_preview": queue_rows[:3] if workspace else [],
         "priority_queue_preview": priority_queue[:5],
         "top_priority": top_priority if isinstance(top_priority, dict) else {},
@@ -3341,7 +3700,14 @@ def _autonomous_closure_snapshot(
         "monitor": bool(deployment_guard.get("verification_window") or observability_mesh.get("monitoring_ready")),
     }
     connector_items = _external_connectors_snapshot(page_context={}).get("items") or []
-    rollback_connector = next((row for row in connector_items if isinstance(row, dict) and str(row.get("key") or "") == "rollback_trigger_api"), {})
+    rollback_connector = next(
+        (
+            row
+            for row in connector_items
+            if isinstance(row, dict) and str(row.get("key") or "") == "rollback_trigger_api"
+        ),
+        {},
+    )
     rollback_ready = bool(
         str(deployment_guard.get("status") or "") == "deployment_risk"
         and str((rollback_connector or {}).get("status") or "") == "armed"
@@ -3355,8 +3721,14 @@ def _autonomous_closure_snapshot(
         blockers.append("validation_pending")
     if not phases["publish"]:
         blockers.append("publish_pending_or_restricted")
-    autonomous = phases["detect"] and phases["diagnose"] and phases["repair"] and phases["validate"] and phases["monitor"]
-    if bool((planner.get("task") or {}).get("silent_mode")) and blockers and "publish_pending_or_restricted" not in blockers:
+    autonomous = (
+        phases["detect"] and phases["diagnose"] and phases["repair"] and phases["validate"] and phases["monitor"]
+    )
+    if (
+        bool((planner.get("task") or {}).get("silent_mode"))
+        and blockers
+        and "publish_pending_or_restricted" not in blockers
+    ):
         autonomous = autonomous and True
     return {
         "embedded": True,
@@ -3392,76 +3764,96 @@ def _detect_proactive_incidents(report: dict, *, workspace=None) -> list[dict]:
         meta = PROACTIVE_DETECTORS.get(issue_id)
         if not meta:
             continue
-        detections.append({
-            "detector": issue_id,
-            "severity": str(meta.get("severity") or "warning"),
-            "runbook": str(meta.get("runbook") or "silent_diagnostics"),
-            "task_kind": str(meta.get("task_kind") or "diagnose"),
-            "title": str(meta.get("summary") or issue_id).strip(),
-            "summary": str(meta.get("summary") or issue_id).strip(),
-            "tools": [str(x) for x in (meta.get("tools") or []) if str(x or "").strip()],
-            "auto_execute": bool(meta.get("auto_execute")),
-        })
-    if _safe_int(summary.get("blockers"), 0) > 0 and not any(row.get("detector") == "runtime_blockers" for row in detections):
+        detections.append(
+            {
+                "detector": issue_id,
+                "severity": str(meta.get("severity") or "warning"),
+                "runbook": str(meta.get("runbook") or "silent_diagnostics"),
+                "task_kind": str(meta.get("task_kind") or "diagnose"),
+                "title": str(meta.get("summary") or issue_id).strip(),
+                "summary": str(meta.get("summary") or issue_id).strip(),
+                "tools": [str(x) for x in (meta.get("tools") or []) if str(x or "").strip()],
+                "auto_execute": bool(meta.get("auto_execute")),
+            }
+        )
+    if _safe_int(summary.get("blockers"), 0) > 0 and not any(
+        row.get("detector") == "runtime_blockers" for row in detections
+    ):
         meta = PROACTIVE_DETECTORS["runtime_blockers"]
-        detections.append({
-            "detector": "runtime_blockers",
-            "severity": meta["severity"],
-            "runbook": meta["runbook"],
-            "task_kind": meta["task_kind"],
-            "title": f"Blockers activos: {_safe_int(summary.get('blockers'), 0)}",
-            "summary": meta["summary"],
-            "tools": meta["tools"],
-            "auto_execute": bool(meta["auto_execute"]),
-        })
+        detections.append(
+            {
+                "detector": "runtime_blockers",
+                "severity": meta["severity"],
+                "runbook": meta["runbook"],
+                "task_kind": meta["task_kind"],
+                "title": f"Blockers activos: {_safe_int(summary.get('blockers'), 0)}",
+                "summary": meta["summary"],
+                "tools": meta["tools"],
+                "auto_execute": bool(meta["auto_execute"]),
+            }
+        )
     history = _inspect_guard_history(workspace) if workspace else {}
     repeated = history.get("top_repeated_issues") if isinstance(history.get("top_repeated_issues"), list) else []
     if repeated:
         meta = PROACTIVE_DETECTORS["repeated_regression"]
-        detections.append({
-            "detector": "repeated_regression",
-            "severity": meta["severity"],
-            "runbook": meta["runbook"],
-            "task_kind": meta["task_kind"],
-            "title": f"Incidencia repetida: {repeated[0].get('issue_id')}",
-            "summary": meta["summary"],
-            "tools": meta["tools"],
-            "auto_execute": bool(meta["auto_execute"]),
-        })
+        detections.append(
+            {
+                "detector": "repeated_regression",
+                "severity": meta["severity"],
+                "runbook": meta["runbook"],
+                "task_kind": meta["task_kind"],
+                "title": f"Incidencia repetida: {repeated[0].get('issue_id')}",
+                "summary": meta["summary"],
+                "tools": meta["tools"],
+                "auto_execute": bool(meta["auto_execute"]),
+            }
+        )
     return detections[:8]
 
 
 def _detect_proactive_improvements(report: dict, *, workspace=None, actor_id=None) -> list[dict]:
     summary = report.get("issue_summary") if isinstance(report.get("issue_summary"), dict) else {}
-    queue_counts = _task_state_counts(_load_task_queue(workspace)) if workspace else {"pending": 0, "running": 0, "completed": 0, "blocked": 0}
+    queue_counts = (
+        _task_state_counts(_load_task_queue(workspace))
+        if workspace
+        else {"pending": 0, "running": 0, "completed": 0, "blocked": 0}
+    )
     profile = _load_operator_profile(workspace, actor_id=actor_id) if workspace else {}
     improvements = []
-    if _safe_int(summary.get("blockers"), 0) == 0 and _safe_int(summary.get("warnings"), 0) == 0 and queue_counts.get("pending", 0) == 0:
+    if (
+        _safe_int(summary.get("blockers"), 0) == 0
+        and _safe_int(summary.get("warnings"), 0) == 0
+        and queue_counts.get("pending", 0) == 0
+    ):
         meta = PROACTIVE_IMPROVEMENT_CATALOG["stability_hardening"]
-        improvements.append({
-            "detector": "stability_hardening",
-            "severity": meta["severity"],
-            "runbook": meta["runbook"],
-            "task_kind": meta["task_kind"],
-            "title": "Consolidar estabilidad actual",
-            "summary": meta["summary"],
-            "tools": meta["tools"],
-            "auto_execute": False,
-        })
+        improvements.append(
+            {
+                "detector": "stability_hardening",
+                "severity": meta["severity"],
+                "runbook": meta["runbook"],
+                "task_kind": meta["task_kind"],
+                "title": "Consolidar estabilidad actual",
+                "summary": meta["summary"],
+                "tools": meta["tools"],
+                "auto_execute": False,
+            }
+        )
     recurring = [row for row in (profile.get("recurring_intents") or []) if isinstance(row, dict)]
     top_intent = next((row for row in recurring if _safe_int(row.get("count"), 0) >= 2), None)
     if profile.get("preferred_route_key") and top_intent:
         meta = PROACTIVE_IMPROVEMENT_CATALOG["operator_memory_refresh"]
-        improvements.append({
-            "detector": "operator_memory_refresh",
-            "severity": meta["severity"],
-            "runbook": meta["runbook"],
-            "task_kind": meta["task_kind"],
-            "title": f"Optimizar flujo frecuente: {top_intent.get('intent')}",
-            "summary": meta["summary"],
-            "tools": meta["tools"],
-            "auto_execute": False,
-        })
+        improvements.append(
+            {
+                "detector": "operator_memory_refresh",
+                "severity": meta["severity"],
+                "runbook": meta["runbook"],
+                "task_kind": meta["task_kind"],
+                "title": f"Optimizar flujo frecuente: {top_intent.get('intent')}",
+                "summary": meta["summary"],
+                "tools": meta["tools"],
+                "auto_execute": False,
+            }
+        )
     return improvements[:4]
 
 
@@ -3470,7 +3862,14 @@ def _task_result_summary(executions: list[dict]) -> str:
         return ""
     ok_count = sum(1 for row in executions if isinstance(row, dict) and row.get("ok"))
     total = len([row for row in executions if isinstance(row, dict)])
-    first_error = next((str(row.get("detail") or row.get("tool") or "") for row in executions if isinstance(row, dict) and not row.get("ok")), "")
+    first_error = next(
+        (
+            str(row.get("detail") or row.get("tool") or "")
+            for row in executions
+            if isinstance(row, dict) and not row.get("ok")
+        ),
+        "",
+    )
     if first_error:
         return _truncate(f"{ok_count}/{total} herramientas correctas. Error: {first_error}", 220)
     return _truncate(f"{ok_count}/{total} herramientas completadas correctamente.", 220)
@@ -3519,7 +3918,9 @@ def _priority_sort_key(row: dict) -> tuple:
         "warning": 2,
         "info": 1,
     }.get(str(row.get("severity") or row.get("priority_band") or "").strip().lower(), 0)
-    updated = _parse_iso_datetime(str(row.get("updated_at") or row.get("created_at") or "")) or datetime.now(timezone.utc)
+    updated = _parse_iso_datetime(str(row.get("updated_at") or row.get("created_at") or "")) or datetime.now(
+        timezone.utc
+    )
     return (
         -_safe_int(row.get("priority_score"), 0),
         -severity_rank,
@@ -3530,7 +3931,7 @@ def _priority_sort_key(row: dict) -> tuple:
 
 def _priority_inputs_snapshot(*, workspace=None, page_context=None) -> dict:
     page_context = page_context if isinstance(page_context, dict) else {}
-    latest = (_load_snapshots(workspace)[:1] if workspace else [])
+    latest = _load_snapshots(workspace)[:1] if workspace else []
     latest = latest[0] if latest else {}
     history = _inspect_guard_history(workspace) if workspace else {}
     repeated = history.get("top_repeated_issues") if isinstance(history.get("top_repeated_issues"), list) else []
@@ -3546,7 +3947,11 @@ def _priority_inputs_snapshot(*, workspace=None, page_context=None) -> dict:
 
 def _task_priority_profile(task: dict, *, workspace=None, page_context=None, inputs=None) -> dict:
     task = task if isinstance(task, dict) else {}
-    inputs = inputs if isinstance(inputs, dict) else _priority_inputs_snapshot(workspace=workspace, page_context=page_context)
+    inputs = (
+        inputs
+        if isinstance(inputs, dict)
+        else _priority_inputs_snapshot(workspace=workspace, page_context=page_context)
+    )
     reasons = []
     score = 0
     status = str(task.get("status") or "").strip().lower()
@@ -3581,7 +3986,9 @@ def _task_priority_profile(task: dict, *, workspace=None, page_context=None, inp
     if status == "running":
         score += 18
         reasons.append("tarea ya en curso")
-    if _safe_int(task.get("retry_count"), 0) > 0 and _safe_int(task.get("retry_count"), 0) < int(OBJECTIVE_AUTONOMY_RETRY_LIMIT):
+    if _safe_int(task.get("retry_count"), 0) > 0 and _safe_int(task.get("retry_count"), 0) < int(
+        OBJECTIVE_AUTONOMY_RETRY_LIMIT
+    ):
         score += 22
         reasons.append("reintento disponible")
     if str(task.get("escalation_level") or "").strip() == "operator_intervention":
@@ -3621,7 +4028,11 @@ def _task_priority_profile(task: dict, *, workspace=None, page_context=None, inp
 
 def _objective_priority_profile(row: dict, *, workspace=None, page_context=None, inputs=None) -> dict:
     row = row if isinstance(row, dict) else {}
-    inputs = inputs if isinstance(inputs, dict) else _priority_inputs_snapshot(workspace=workspace, page_context=page_context)
+    inputs = (
+        inputs
+        if isinstance(inputs, dict)
+        else _priority_inputs_snapshot(workspace=workspace, page_context=page_context)
+    )
     reasons = []
     score = 0
     status = str(row.get("status") or "").strip().lower()
@@ -3634,7 +4045,9 @@ def _objective_priority_profile(row: dict, *, workspace=None, page_context=None,
     if bool(row.get("confirmation_pending")):
         score += 34
         reasons.append("espera confirmación")
-    if _safe_int(row.get("retry_count"), 0) > 0 and _safe_int(row.get("retry_count"), 0) < int(OBJECTIVE_AUTONOMY_RETRY_LIMIT):
+    if _safe_int(row.get("retry_count"), 0) > 0 and _safe_int(row.get("retry_count"), 0) < int(
+        OBJECTIVE_AUTONOMY_RETRY_LIMIT
+    ):
         score += 24
         reasons.append("reintento disponible")
     if escalation in {"operator_intervention", "operator_confirmation"}:
@@ -3684,7 +4097,9 @@ def _refresh_operator_priorities(workspace, *, page_context=None) -> dict:
         if not isinstance(row, dict):
             continue
         merged = dict(row)
-        merged.update(_objective_priority_profile(merged, workspace=workspace, page_context=page_context, inputs=inputs))
+        merged.update(
+            _objective_priority_profile(merged, workspace=workspace, page_context=page_context, inputs=inputs)
+        )
         prioritized_objectives.append(merged)
     prioritized_objectives.sort(key=_priority_sort_key)
     _store_objective_memory(workspace, prioritized_objectives)
@@ -3700,37 +4115,45 @@ def _priority_top_entry(priority_state: dict) -> dict:
     for row in priority_state.get("tasks") or []:
         if not isinstance(row, dict):
             continue
-        combined.append({
-            "kind": "task",
-            "title": str(row.get("title") or "Tarea del guard")[:160],
-            "status": str(row.get("status") or "pending")[:24],
-            "task_kind": str(row.get("task_kind") or "")[:32],
-            "runbook": str(row.get("runbook") or "")[:64],
-            "priority_band": str(row.get("priority_band") or "next")[:24],
-            "priority_score": _safe_int(row.get("priority_score"), 0),
-            "priority_reason": str(row.get("priority_reason") or "")[:220],
-            "tools": [str(item) for item in (row.get("tools") or []) if str(item or "").strip()][:6],
-        })
+        combined.append(
+            {
+                "kind": "task",
+                "title": str(row.get("title") or "Tarea del guard")[:160],
+                "status": str(row.get("status") or "pending")[:24],
+                "task_kind": str(row.get("task_kind") or "")[:32],
+                "runbook": str(row.get("runbook") or "")[:64],
+                "priority_band": str(row.get("priority_band") or "next")[:24],
+                "priority_score": _safe_int(row.get("priority_score"), 0),
+                "priority_reason": str(row.get("priority_reason") or "")[:220],
+                "tools": [str(item) for item in (row.get("tools") or []) if str(item or "").strip()][:6],
+            }
+        )
     for row in priority_state.get("objectives") or []:
         if not isinstance(row, dict):
             continue
-        combined.append({
-            "kind": "objective",
-            "title": str(row.get("title") or "Objetivo técnico")[:160],
-            "status": str(row.get("goal_status") or row.get("status") or "running")[:24],
-            "task_kind": str(row.get("task_kind") or "")[:32],
-            "runbook": str(row.get("runbook") or "")[:64],
-            "priority_band": str(row.get("priority_band") or "next")[:24],
-            "priority_score": _safe_int(row.get("priority_score"), 0),
-            "priority_reason": str(row.get("priority_reason") or "")[:220],
-            "tools": [],
-        })
+        combined.append(
+            {
+                "kind": "objective",
+                "title": str(row.get("title") or "Objetivo técnico")[:160],
+                "status": str(row.get("goal_status") or row.get("status") or "running")[:24],
+                "task_kind": str(row.get("task_kind") or "")[:32],
+                "runbook": str(row.get("runbook") or "")[:64],
+                "priority_band": str(row.get("priority_band") or "next")[:24],
+                "priority_score": _safe_int(row.get("priority_score"), 0),
+                "priority_reason": str(row.get("priority_reason") or "")[:220],
+                "tools": [],
+            }
+        )
     combined.sort(key=lambda row: (-_safe_int(row.get("priority_score"), 0), str(row.get("title") or "")))
     return combined[0] if combined else {}
 
 
 def _autonomous_priority_strategy(workspace, *, page_context=None, priority_state=None, deployment_guard=None) -> dict:
-    priority_state = priority_state if isinstance(priority_state, dict) else _refresh_operator_priorities(workspace, page_context=page_context)
+    priority_state = (
+        priority_state
+        if isinstance(priority_state, dict)
+        else _refresh_operator_priorities(workspace, page_context=page_context)
+    )
     deployment_guard = deployment_guard if isinstance(deployment_guard, dict) else {}
     top = _priority_top_entry(priority_state)
     band = str(top.get("priority_band") or "next").strip().lower()
@@ -3740,7 +4163,11 @@ def _autonomous_priority_strategy(workspace, *, page_context=None, priority_stat
     rollback_bias = bool(
         task_kind == "rollback"
         or "trigger_remote_rollback" in tools
-        or (band == "critical" and rollback_ready and str(top.get("runbook") or "").strip() in {"automatic_rollback", "deployment_recovery"})
+        or (
+            band == "critical"
+            and rollback_ready
+            and str(top.get("runbook") or "").strip() in {"automatic_rollback", "deployment_recovery"}
+        )
     )
     mode = "preventive_planning"
     focus = "monitor"
@@ -3755,7 +4182,11 @@ def _autonomous_priority_strategy(workspace, *, page_context=None, priority_stat
         focus = "stability"
         max_tasks = 2
         execute_task_kinds = ["repair", "rollback", "diagnose", "maintenance", "technical_operation"]
-        preferred_runbooks = ["automatic_rollback", "safe_repair", "silent_diagnostics"] if rollback_bias else ["safe_repair", "silent_diagnostics", "automatic_rollback"]
+        preferred_runbooks = (
+            ["automatic_rollback", "safe_repair", "silent_diagnostics"]
+            if rollback_bias
+            else ["safe_repair", "silent_diagnostics", "automatic_rollback"]
+        )
         next_actions.append("Atacar primero la estabilidad del sistema antes de nuevas mejoras.")
         if rollback_bias:
             next_actions.append("Preparar rollback gobernado y vigilar rutas críticas y logs remotos.")
@@ -3794,7 +4225,11 @@ def _autonomous_priority_strategy(workspace, *, page_context=None, priority_stat
         "monitor_first": monitor_first,
         "rollback_ready": rollback_ready,
         "top_priority": top if isinstance(top, dict) else {},
-        "summary": _truncate(str(top.get("priority_reason") or "Sin prioridad operativa dominante."), 220) if top else "Sin prioridad operativa dominante.",
+        "summary": (
+            _truncate(str(top.get("priority_reason") or "Sin prioridad operativa dominante."), 220)
+            if top
+            else "Sin prioridad operativa dominante."
+        ),
         "next_actions": next_actions[:3],
     }
 
@@ -3805,9 +4240,19 @@ def _task_matches_autonomous_strategy(task: dict, strategy: dict) -> bool:
     task_kind = str(task.get("task_kind") or "").strip().lower()
     runbook = str(task.get("runbook") or "").strip()
     tools = {str(item) for item in (task.get("tools") or []) if str(item or "").strip()}
-    allowed_kinds = {str(item).strip().lower() for item in (strategy.get("execute_task_kinds") or []) if str(item or "").strip()}
-    preferred_runbooks = {str(item).strip() for item in (strategy.get("preferred_runbooks") or []) if str(item or "").strip()}
-    monitor_tools = {"check_status", "inspect_recent_errors", "check_critical_routes", "inspect_public_deployment", "inspect_runtime_config"}
+    allowed_kinds = {
+        str(item).strip().lower() for item in (strategy.get("execute_task_kinds") or []) if str(item or "").strip()
+    }
+    preferred_runbooks = {
+        str(item).strip() for item in (strategy.get("preferred_runbooks") or []) if str(item or "").strip()
+    }
+    monitor_tools = {
+        "check_status",
+        "inspect_recent_errors",
+        "check_critical_routes",
+        "inspect_public_deployment",
+        "inspect_runtime_config",
+    }
     rollback_tools = {"trigger_remote_rollback"}
     if task_kind in allowed_kinds:
         return True
@@ -3828,11 +4273,20 @@ def _execute_queued_task(workspace, task: dict) -> dict:
         return task
     next_attempt_count = _safe_int(task.get("attempt_count"), 0) + 1
     _update_task_entry(workspace, task_id, status="running", attempt_count=next_attempt_count)
-    executions = _execute_tools(task.get("tools") or [], workspace=workspace, question=str(task.get("question") or task.get("title") or ""))
+    executions = _execute_tools(
+        task.get("tools") or [], workspace=workspace, question=str(task.get("question") or task.get("title") or "")
+    )
     evaluator = _task_execution_evaluator(task, executions)
     retry_outcome = _task_retry_outcome(dict(task, attempt_count=next_attempt_count), evaluator=evaluator)
     ok = str(evaluator.get("goal_status") or "") == "completed"
-    last_error = next((str(row.get("detail") or row.get("tool") or "") for row in executions if isinstance(row, dict) and not row.get("ok")), "")
+    last_error = next(
+        (
+            str(row.get("detail") or row.get("tool") or "")
+            for row in executions
+            if isinstance(row, dict) and not row.get("ok")
+        ),
+        "",
+    )
     updated = _update_task_entry(
         workspace,
         task_id,
@@ -3867,7 +4321,11 @@ def _autonomous_task_is_allowed(task: dict, *, page_context=None) -> bool:
     tools = [str(item) for item in (task.get("tools") or []) if str(item or "").strip()]
     if not tools:
         return False
-    if str(task.get("escalation_level") or "").strip() in {"operator_intervention", "operator_confirmation", "user_input"}:
+    if str(task.get("escalation_level") or "").strip() in {
+        "operator_intervention",
+        "operator_confirmation",
+        "user_input",
+    }:
         return False
     if _safe_int(task.get("retry_count"), 0) >= int(OBJECTIVE_AUTONOMY_RETRY_LIMIT) and status == "blocked":
         return False
@@ -3876,14 +4334,26 @@ def _autonomous_task_is_allowed(task: dict, *, page_context=None) -> bool:
     return True
 
 
-def _run_autonomous_backlog_cycle(*, workspace, page_context=None, max_tasks: int = AUTONOMOUS_BACKLOG_MAX_TASKS, strategy=None) -> dict:
+def _run_autonomous_backlog_cycle(
+    *, workspace, page_context=None, max_tasks: int = AUTONOMOUS_BACKLOG_MAX_TASKS, strategy=None
+) -> dict:
     if not workspace:
         return {"enabled": False, "executed": []}
     refreshed = _refresh_operator_priorities(workspace, page_context=page_context)
-    strategy = strategy if isinstance(strategy, dict) else _autonomous_priority_strategy(workspace, page_context=page_context, priority_state=refreshed)
+    strategy = (
+        strategy
+        if isinstance(strategy, dict)
+        else _autonomous_priority_strategy(workspace, page_context=page_context, priority_state=refreshed)
+    )
     rows = [row for row in (refreshed.get("tasks") or []) if isinstance(row, dict)]
     executed = []
-    effective_max_tasks = max(1, min(int(max_tasks or AUTONOMOUS_BACKLOG_MAX_TASKS), _safe_int(strategy.get("max_tasks"), AUTONOMOUS_BACKLOG_MAX_TASKS)))
+    effective_max_tasks = max(
+        1,
+        min(
+            int(max_tasks or AUTONOMOUS_BACKLOG_MAX_TASKS),
+            _safe_int(strategy.get("max_tasks"), AUTONOMOUS_BACKLOG_MAX_TASKS),
+        ),
+    )
     for row in rows:
         if len(executed) >= effective_max_tasks:
             break
@@ -3898,27 +4368,35 @@ def _run_autonomous_backlog_cycle(*, workspace, page_context=None, max_tasks: in
     for row in final_rows[:5]:
         if not isinstance(row, dict):
             continue
-        priority_queue.append({
-            "id": str(row.get("id") or "")[:120],
-            "title": str(row.get("title") or "")[:160],
-            "status": str(row.get("status") or "")[:24],
-            "priority_score": _safe_int(row.get("priority_score"), 0),
-            "priority_band": str(row.get("priority_band") or "")[:24],
-            "priority_reason": str(row.get("priority_reason") or "")[:180],
-        })
+        priority_queue.append(
+            {
+                "id": str(row.get("id") or "")[:120],
+                "title": str(row.get("title") or "")[:160],
+                "status": str(row.get("status") or "")[:24],
+                "priority_score": _safe_int(row.get("priority_score"), 0),
+                "priority_band": str(row.get("priority_band") or "")[:24],
+                "priority_reason": str(row.get("priority_reason") or "")[:180],
+            }
+        )
     return {
-        "enabled": bool((_permission_profile(page_context=page_context).get("roles") or {}).get("admin_total_operator")),
+        "enabled": bool(
+            (_permission_profile(page_context=page_context).get("roles") or {}).get("admin_total_operator")
+        ),
         "executed_count": len(executed),
         "executed": executed[:6],
         "strategy": strategy,
         "priority_queue": priority_queue,
-        "top_task": {
-            "id": str(top_task.get("id") or "")[:120],
-            "title": str(top_task.get("title") or "")[:160],
-            "priority_score": _safe_int(top_task.get("priority_score"), 0),
-            "priority_band": str(top_task.get("priority_band") or "")[:24],
-            "priority_reason": str(top_task.get("priority_reason") or "")[:220],
-        } if isinstance(top_task, dict) and top_task else {},
+        "top_task": (
+            {
+                "id": str(top_task.get("id") or "")[:120],
+                "title": str(top_task.get("title") or "")[:160],
+                "priority_score": _safe_int(top_task.get("priority_score"), 0),
+                "priority_band": str(top_task.get("priority_band") or "")[:24],
+                "priority_reason": str(top_task.get("priority_reason") or "")[:220],
+            }
+            if isinstance(top_task, dict) and top_task
+            else {}
+        ),
     }
 
 
@@ -3976,17 +4454,20 @@ def run_proactive_guard_cycle(*, workspace, actor_id=None, allow_safe_repairs: b
     backlog_cycle = _run_autonomous_backlog_cycle(workspace=workspace, page_context=page_context, strategy=strategy)
     state_payload["last_backlog_executed_count"] = _safe_int(backlog_cycle.get("executed_count"), 0)
     _store_proactive_state(workspace, state_payload)
-    _append_audit_log(workspace, {
-        "created_at": _now_iso(),
-        "actor_id": int(actor_id or 0),
-        "question": "Ciclo proactivo del guard",
-        "status": "ok" if report.get("ok") else "watch",
-        "task_kind": "proactive_cycle",
-        "runbook": "silent_diagnostics",
-        "confirmed": False,
-        "executed_tools": [str(row.get("tool") or "") for row in executed if isinstance(row, dict)],
-        "silent_mode": True,
-    })
+    _append_audit_log(
+        workspace,
+        {
+            "created_at": _now_iso(),
+            "actor_id": int(actor_id or 0),
+            "question": "Ciclo proactivo del guard",
+            "status": "ok" if report.get("ok") else "watch",
+            "task_kind": "proactive_cycle",
+            "runbook": "silent_diagnostics",
+            "confirmed": False,
+            "executed_tools": [str(row.get("tool") or "") for row in executed if isinstance(row, dict)],
+            "silent_mode": True,
+        },
+    )
     queue_rows = _load_task_queue(workspace)
     return {
         "ok": True,
@@ -4027,11 +4508,13 @@ def _env_flag(name: str, default: bool = False) -> bool:
 def _queue_signature(task: dict) -> str:
     if not isinstance(task, dict):
         return ""
-    return "|".join([
-        str(task.get("detector") or "").strip(),
-        str(task.get("runbook") or "").strip(),
-        str(task.get("title") or "").strip(),
-    ])[:240]
+    return "|".join(
+        [
+            str(task.get("detector") or "").strip(),
+            str(task.get("runbook") or "").strip(),
+            str(task.get("title") or "").strip(),
+        ]
+    )[:240]
 
 
 def _task_state_counts(rows: list[dict]) -> dict:
@@ -4075,15 +4558,20 @@ def _record_task_queue_event(
     if isinstance(metadata, dict) and metadata:
         task["metadata"] = _json_safe_payload(metadata)
     saved = _enqueue_task(workspace, task)
-    return _update_task_entry(
-        workspace,
-        str(saved.get("id") or ""),
-        status=status,
-        executions=list(executions or []),
-        result_summary=result_summary,
-        metadata=_json_safe_payload(metadata) if isinstance(metadata, dict) and metadata else saved.get("metadata", {}),
-        finished_at=_now_iso() if status in {"completed", "blocked"} else "",
-    ) or saved
+    return (
+        _update_task_entry(
+            workspace,
+            str(saved.get("id") or ""),
+            status=status,
+            executions=list(executions or []),
+            result_summary=result_summary,
+            metadata=(
+                _json_safe_payload(metadata) if isinstance(metadata, dict) and metadata else saved.get("metadata", {})
+            ),
+            finished_at=_now_iso() if status in {"completed", "blocked"} else "",
+        )
+        or saved
+    )
 
 
 def _scheduled_guard_state(workspace) -> dict:
@@ -4188,7 +4676,9 @@ def _objective_retry_policy(row: dict | None) -> dict:
     blocked_count = _safe_int(row.get("blocked_count"), 0)
     attempt_count = _safe_int(row.get("attempt_count"), 0)
     confirmation_pending = bool(row.get("confirmation_pending"))
-    retry_allowed = goal_status == "blocked" and retry_count < int(OBJECTIVE_AUTONOMY_RETRY_LIMIT) and not confirmation_pending
+    retry_allowed = (
+        goal_status == "blocked" and retry_count < int(OBJECTIVE_AUTONOMY_RETRY_LIMIT) and not confirmation_pending
+    )
     escalation_level = "none"
     if confirmation_pending:
         escalation_level = "operator_confirmation"
@@ -4220,16 +4710,20 @@ def _objective_memory_row_from_task(task: dict, *, evaluator=None, result_summar
     )
     retry_count = _safe_int(task.get("retry_count"), 0)
     blocked_count = _safe_int(task.get("blocked_count"), 0)
-    goal_status = str(evaluator.get("goal_status") or task.get("goal_status") or task.get("status") or "running").strip()[:32]
+    goal_status = str(
+        evaluator.get("goal_status") or task.get("goal_status") or task.get("status") or "running"
+    ).strip()[:32]
     confirmation_pending = goal_status == "pending_confirmation"
     escalation_level = str(task.get("escalation_level") or "")[:32]
-    policy = _objective_retry_policy({
-        "goal_status": goal_status,
-        "retry_count": retry_count,
-        "blocked_count": blocked_count,
-        "attempt_count": _safe_int(task.get("attempt_count"), 0),
-        "confirmation_pending": confirmation_pending,
-    })
+    policy = _objective_retry_policy(
+        {
+            "goal_status": goal_status,
+            "retry_count": retry_count,
+            "blocked_count": blocked_count,
+            "attempt_count": _safe_int(task.get("attempt_count"), 0),
+            "confirmation_pending": confirmation_pending,
+        }
+    )
     if not escalation_level:
         escalation_level = str(policy.get("escalation_level") or "none")
     return {
@@ -4241,7 +4735,14 @@ def _objective_memory_row_from_task(task: dict, *, evaluator=None, result_summar
         "runbook": str(task.get("runbook") or "guard")[:64],
         "status": "running" if goal_status in {"in_progress", "needs_input"} else goal_status,
         "goal_status": goal_status,
-        "progress_percent": max(5, min(100, _safe_int(evaluator.get("score_percent"), 0) or (90 if goal_status == "completed" else 35 if goal_status == "blocked" else 20))),
+        "progress_percent": max(
+            5,
+            min(
+                100,
+                _safe_int(evaluator.get("score_percent"), 0)
+                or (90 if goal_status == "completed" else 35 if goal_status == "blocked" else 20),
+            ),
+        ),
         "completed_phases": [],
         "next_step": str(evaluator.get("next_step") or result_summary or task.get("result_summary") or "")[:220],
         "result_summary": str(result_summary or task.get("result_summary") or "")[:240],
@@ -4294,7 +4795,9 @@ def _update_objective_memory(
     actor_id=None,
     evaluator=None,
 ) -> dict:
-    if not workspace or not _should_track_objective(planner=planner, technical_operation=technical_operation, assistant_action=assistant_action):
+    if not workspace or not _should_track_objective(
+        planner=planner, technical_operation=technical_operation, assistant_action=assistant_action
+    ):
         return {}
     planner = planner if isinstance(planner, dict) else {}
     technical_operation = technical_operation if isinstance(technical_operation, dict) else {}
@@ -4318,23 +4821,33 @@ def _update_objective_memory(
         technical_execution.get("next_step")
         or evaluator.get("next_step")
         or response.get("next_step")
-        or ((response.get("request_contract") or {}).get("next_step") if isinstance(response.get("request_contract"), dict) else "")
+        or (
+            (response.get("request_contract") or {}).get("next_step")
+            if isinstance(response.get("request_contract"), dict)
+            else ""
+        )
         or ""
     )[:220]
     previous_rows = _load_objective_memory(workspace)
     previous_row = next((row for row in previous_rows if str(row.get("id") or "") == key), {})
-    goal_status = str(evaluator.get("goal_status") or technical_execution.get("status") or response.get("status") or "running").strip()[:32]
-    confirmation_pending = bool(evaluator.get("goal_status") == "pending_confirmation" or response.get("needs_confirmation"))
+    goal_status = str(
+        evaluator.get("goal_status") or technical_execution.get("status") or response.get("status") or "running"
+    ).strip()[:32]
+    confirmation_pending = bool(
+        evaluator.get("goal_status") == "pending_confirmation" or response.get("needs_confirmation")
+    )
     blocked_count = _safe_int(previous_row.get("blocked_count"), 0) + (1 if goal_status == "blocked" else 0)
     retry_count = max(_safe_int(previous_row.get("retry_count"), 0), _safe_int(evaluator.get("failed_tools"), 0))
     attempt_count = max(_safe_int(previous_row.get("attempt_count"), 0), 1 if evaluator else 0)
-    retry_policy = _objective_retry_policy({
-        "goal_status": goal_status,
-        "retry_count": retry_count,
-        "blocked_count": blocked_count,
-        "attempt_count": attempt_count,
-        "confirmation_pending": confirmation_pending,
-    })
+    retry_policy = _objective_retry_policy(
+        {
+            "goal_status": goal_status,
+            "retry_count": retry_count,
+            "blocked_count": blocked_count,
+            "attempt_count": attempt_count,
+            "confirmation_pending": confirmation_pending,
+        }
+    )
     if evaluator.get("score_percent"):
         progress = max(progress, min(100, _safe_int(evaluator.get("score_percent"), 0)))
     objective_row = {
@@ -4425,17 +4938,31 @@ def _maybe_run_scheduled_guard_cycle(*, workspace, actor_id=None, page_context=N
         allow_safe_repairs=True,
         page_context=page_context or {"page": "scheduled-guard-cycle"},
     )
-    next_state.update({
-        "last_finished_ts": int(time.time()),
-        "last_finished_at": _now_iso(),
-        "last_queue_counts": result.get("queue_counts") or {},
-        "last_detection_count": len(result.get("detections") or []),
-    })
+    next_state.update(
+        {
+            "last_finished_ts": int(time.time()),
+            "last_finished_at": _now_iso(),
+            "last_queue_counts": result.get("queue_counts") or {},
+            "last_detection_count": len(result.get("detections") or []),
+        }
+    )
     _store_scheduled_guard_state(workspace, next_state)
     return {"ran": True, "result": result, "state": next_state}
 
 
-def _new_task_entry(*, detector: str, title: str, summary: str, severity: str, runbook: str, task_kind: str, tools: list[str], source: str, question: str = "", auto_execute: bool = False) -> dict:
+def _new_task_entry(
+    *,
+    detector: str,
+    title: str,
+    summary: str,
+    severity: str,
+    runbook: str,
+    task_kind: str,
+    tools: list[str],
+    source: str,
+    question: str = "",
+    auto_execute: bool = False,
+) -> dict:
     task_id = f"guard-task-{int(time.time() * 1000)}-{abs(hash((detector, title, summary))) % 100000}"
     row = {
         "id": task_id,
@@ -4483,14 +5010,20 @@ def _task_execution_evaluator(task: dict, executions: list[dict]) -> dict:
     score = 100 if goal_status == "completed" else (25 if goal_status == "blocked" else 60)
     next_step = ""
     if failed_tools:
-        next_step = _truncate(str((failed_tools[0].get("detail") or failed_tools[0].get("tool") or "Resolver fallo del backlog")), 220)
+        next_step = _truncate(
+            str((failed_tools[0].get("detail") or failed_tools[0].get("tool") or "Resolver fallo del backlog")), 220
+        )
     elif requested_tools:
         next_step = "Continuar con la siguiente fase del objetivo."
     checks = [
         {
             "name": "tool_execution",
             "status": "pass" if goal_status == "completed" else ("fail" if failed_tools else "pending"),
-            "detail": f"{len(ok_tools)}/{len(requested_tools)} herramientas correctas" if requested_tools else "Sin herramientas requeridas",
+            "detail": (
+                f"{len(ok_tools)}/{len(requested_tools)} herramientas correctas"
+                if requested_tools
+                else "Sin herramientas requeridas"
+            ),
         },
     ]
     return {
@@ -4518,13 +5051,15 @@ def _task_retry_outcome(task: dict, *, evaluator=None) -> dict:
         blocked_count += 1
         if retry_count < int(OBJECTIVE_AUTONOMY_RETRY_LIMIT):
             retry_count += 1
-    policy = _objective_retry_policy({
-        "goal_status": goal_status,
-        "retry_count": retry_count,
-        "blocked_count": blocked_count,
-        "attempt_count": _safe_int(task.get("attempt_count"), 0),
-        "confirmation_pending": goal_status == "pending_confirmation",
-    })
+    policy = _objective_retry_policy(
+        {
+            "goal_status": goal_status,
+            "retry_count": retry_count,
+            "blocked_count": blocked_count,
+            "attempt_count": _safe_int(task.get("attempt_count"), 0),
+            "confirmation_pending": goal_status == "pending_confirmation",
+        }
+    )
     return {
         "retry_count": retry_count,
         "blocked_count": blocked_count,
@@ -4587,13 +5122,15 @@ def _permission_profile(page_context=None) -> dict:
         requires_manage = bool(policy.get("requires_manage_guard"))
         requires_code = bool(policy.get("requires_code_operator"))
         allowed = (not requires_manage or can_manage) and (not requires_code or can_code)
-        policies.append({
-            "action": str(action_key),
-            "scope": str(policy.get("scope") or ""),
-            "requires_manage_guard": requires_manage,
-            "requires_code_operator": requires_code,
-            "allowed": bool(allowed),
-        })
+        policies.append(
+            {
+                "action": str(action_key),
+                "scope": str(policy.get("scope") or ""),
+                "requires_manage_guard": requires_manage,
+                "requires_code_operator": requires_code,
+                "allowed": bool(allowed),
+            }
+        )
     return {
         "roles": {
             "can_manage_guard": can_manage,
@@ -4608,129 +5145,429 @@ def _permission_profile(page_context=None) -> dict:
 ROLE_KNOWLEDGE_PACKS = {
     "core_operative": {
         "domains": ["reasoning", "tool_selection", "verification", "root_cause_analysis", "safety", "communication"],
-        "visual_signals": ["ambiguous failure", "missing evidence", "unverified change", "tool mismatch", "unclear scope"],
-        "knowledge_targets": ["diagnose before acting", "verify after changes", "choose the right tool", "state assumptions explicitly"],
-        "guidance": ["Usa un ciclo operativo consistente: entender, inspeccionar, intervenir con el mínimo cambio y verificar el resultado."],
+        "visual_signals": [
+            "ambiguous failure",
+            "missing evidence",
+            "unverified change",
+            "tool mismatch",
+            "unclear scope",
+        ],
+        "knowledge_targets": [
+            "diagnose before acting",
+            "verify after changes",
+            "choose the right tool",
+            "state assumptions explicitly",
+        ],
+        "guidance": [
+            "Usa un ciclo operativo consistente: entender, inspeccionar, intervenir con el mínimo cambio y verificar el resultado."
+        ],
     },
     "informatician_senior": {
-        "domains": ["architecture", "debugging", "databases", "deployments", "apis", "testing", "security", "observability"],
-        "visual_signals": ["broken flow", "regression", "unexpected duplication", "slow response", "configuration mismatch"],
+        "domains": [
+            "architecture",
+            "debugging",
+            "databases",
+            "deployments",
+            "apis",
+            "testing",
+            "security",
+            "observability",
+        ],
+        "visual_signals": [
+            "broken flow",
+            "regression",
+            "unexpected duplication",
+            "slow response",
+            "configuration mismatch",
+        ],
         "knowledge_targets": ["system diagnostics", "root cause analysis", "safe remediation", "service boundaries"],
-        "guidance": ["Piensa como un informático senior: diagnostica primero, verifica después y cambia lo mínimo necesario."],
+        "guidance": [
+            "Piensa como un informático senior: diagnostica primero, verifica después y cambia lo mínimo necesario."
+        ],
     },
     "programador_senior": {
-        "domains": ["software_design", "code_quality", "refactoring", "api_design", "testing", "performance", "debugging", "data_modeling"],
+        "domains": [
+            "software_design",
+            "code_quality",
+            "refactoring",
+            "api_design",
+            "testing",
+            "performance",
+            "debugging",
+            "data_modeling",
+        ],
         "visual_signals": ["tight coupling", "duplication", "missing tests", "slow paths", "fragile interfaces"],
-        "knowledge_targets": ["clean code", "safe refactor", "test coverage", "contract clarity", "performance-aware design"],
-        "guidance": ["Piensa como programador senior: aísla el problema, reduce el cambio y valida con pruebas antes de cerrar."],
+        "knowledge_targets": [
+            "clean code",
+            "safe refactor",
+            "test coverage",
+            "contract clarity",
+            "performance-aware design",
+        ],
+        "guidance": [
+            "Piensa como programador senior: aísla el problema, reduce el cambio y valida con pruebas antes de cerrar."
+        ],
     },
     "cybersecurity_senior": {
-        "domains": ["threat_modeling", "access_control", "authentication", "authorization", "secrets_management", "secure_coding", "incident_response", "network_security"],
-        "visual_signals": ["unexpected access", "token exposure", "weak permissions", "suspicious redirects", "insecure defaults"],
-        "knowledge_targets": ["least privilege", "secure-by-default", "attack surface reduction", "incident triage", "secret hygiene"],
-        "guidance": ["Piensa como experto senior en ciberseguridad: minimiza superficie de ataque, revisa permisos y trata credenciales como material sensible."],
+        "domains": [
+            "threat_modeling",
+            "access_control",
+            "authentication",
+            "authorization",
+            "secrets_management",
+            "secure_coding",
+            "incident_response",
+            "network_security",
+        ],
+        "visual_signals": [
+            "unexpected access",
+            "token exposure",
+            "weak permissions",
+            "suspicious redirects",
+            "insecure defaults",
+        ],
+        "knowledge_targets": [
+            "least privilege",
+            "secure-by-default",
+            "attack surface reduction",
+            "incident triage",
+            "secret hygiene",
+        ],
+        "guidance": [
+            "Piensa como experto senior en ciberseguridad: minimiza superficie de ataque, revisa permisos y trata credenciales como material sensible."
+        ],
     },
     "system_auditor": {
-        "domains": ["system_health", "regression_detection", "ui_audit", "route_audit", "data_consistency", "log_analysis", "workflow_validation"],
-        "visual_signals": ["broken screens", "duplicate records", "missing controls", "render mismatch", "unexpected error"],
-        "knowledge_targets": ["detect regressions", "compare expected vs actual", "find root cause", "validate fixes", "surface risks"],
-        "guidance": ["Audita el sistema con mentalidad de inspección continua: observa, compara, detecta y confirma antes de proponer cambios."],
+        "domains": [
+            "system_health",
+            "regression_detection",
+            "ui_audit",
+            "route_audit",
+            "data_consistency",
+            "log_analysis",
+            "workflow_validation",
+        ],
+        "visual_signals": [
+            "broken screens",
+            "duplicate records",
+            "missing controls",
+            "render mismatch",
+            "unexpected error",
+        ],
+        "knowledge_targets": [
+            "detect regressions",
+            "compare expected vs actual",
+            "find root cause",
+            "validate fixes",
+            "surface risks",
+        ],
+        "guidance": [
+            "Audita el sistema con mentalidad de inspección continua: observa, compara, detecta y confirma antes de proponer cambios."
+        ],
     },
     "maintenance_engineer": {
-        "domains": ["safe_maintenance", "refinement", "operational_improvement", "cleanup", "verification", "rollback_readiness"],
-        "visual_signals": ["technical debt", "redundant flows", "brittle logic", "performance drag", "maintenance friction"],
-        "knowledge_targets": ["safe improvements", "small reversible changes", "cleanup without breakage", "verification loops", "cleanup"],
-        "guidance": ["Mejora el sistema con cambios pequeños, reversibles y comprobados; no conviertas mantenimiento en reescritura."],
+        "domains": [
+            "safe_maintenance",
+            "refinement",
+            "operational_improvement",
+            "cleanup",
+            "verification",
+            "rollback_readiness",
+        ],
+        "visual_signals": [
+            "technical debt",
+            "redundant flows",
+            "brittle logic",
+            "performance drag",
+            "maintenance friction",
+        ],
+        "knowledge_targets": [
+            "safe improvements",
+            "small reversible changes",
+            "cleanup without breakage",
+            "verification loops",
+            "cleanup",
+        ],
+        "guidance": [
+            "Mejora el sistema con cambios pequeños, reversibles y comprobados; no conviertas mantenimiento en reescritura."
+        ],
     },
     "performance_engineer": {
-        "domains": ["profiling", "latency", "throughput", "query_optimization", "render_performance", "caching", "resource_usage"],
+        "domains": [
+            "profiling",
+            "latency",
+            "throughput",
+            "query_optimization",
+            "render_performance",
+            "caching",
+            "resource_usage",
+        ],
         "visual_signals": ["slow screen", "expensive query", "janky render", "high cpu", "heavy payload"],
-        "knowledge_targets": ["find bottlenecks", "reduce latency", "optimize expensive paths", "measure before and after"],
-        "guidance": ["Piensa como performance engineer: mide, localiza el cuello de botella y optimiza solo lo que mueve la aguja."],
+        "knowledge_targets": [
+            "find bottlenecks",
+            "reduce latency",
+            "optimize expensive paths",
+            "measure before and after",
+        ],
+        "guidance": [
+            "Piensa como performance engineer: mide, localiza el cuello de botella y optimiza solo lo que mueve la aguja."
+        ],
     },
     "qa_engineer": {
-        "domains": ["test_strategy", "regression_testing", "edge_cases", "acceptance_criteria", "workflow_validation", "smoke_testing"],
+        "domains": [
+            "test_strategy",
+            "regression_testing",
+            "edge_cases",
+            "acceptance_criteria",
+            "workflow_validation",
+            "smoke_testing",
+        ],
         "visual_signals": ["broken flow", "missing assertion", "uncovered edge case", "inconsistent behavior"],
-        "knowledge_targets": ["validate end-to-end flows", "cover edge cases", "prevent regressions", "assert expected outcomes"],
-        "guidance": ["Piensa como QA engineer: define criterios, recorre el flujo completo y confirma que el cambio no rompe nada."],
+        "knowledge_targets": [
+            "validate end-to-end flows",
+            "cover edge cases",
+            "prevent regressions",
+            "assert expected outcomes",
+        ],
+        "guidance": [
+            "Piensa como QA engineer: define criterios, recorre el flujo completo y confirma que el cambio no rompe nada."
+        ],
     },
     "data_quality_auditor": {
-        "domains": ["duplicate_detection", "consistency_checks", "referential_integrity", "schema_validation", "orphan_records", "normalization"],
+        "domains": [
+            "duplicate_detection",
+            "consistency_checks",
+            "referential_integrity",
+            "schema_validation",
+            "orphan_records",
+            "normalization",
+        ],
         "visual_signals": ["duplicate records", "missing foreign key", "orphan row", "mismatched counts", "dirty data"],
-        "knowledge_targets": ["detect duplicates", "validate consistency", "find orphan records", "measure data health"],
-        "guidance": ["Piensa como auditor de calidad de datos: detecta duplicados, incoherencias y relaciones rotas antes de tocar la información."],
+        "knowledge_targets": [
+            "detect duplicates",
+            "validate consistency",
+            "find orphan records",
+            "measure data health",
+        ],
+        "guidance": [
+            "Piensa como auditor de calidad de datos: detecta duplicados, incoherencias y relaciones rotas antes de tocar la información."
+        ],
     },
     "deployment_engineer": {
-        "domains": ["release_management", "env_vars", "healthchecks", "rollback", "configuration_drift", "runtime_parity"],
+        "domains": [
+            "release_management",
+            "env_vars",
+            "healthchecks",
+            "rollback",
+            "configuration_drift",
+            "runtime_parity",
+        ],
         "visual_signals": ["deployment drift", "missing env var", "broken healthcheck", "runtime mismatch"],
         "knowledge_targets": ["deployment readiness", "environment parity", "safe rollback", "health verification"],
-        "guidance": ["Piensa como deployment engineer: verifica entorno, release y salud del servicio antes y después de desplegar."],
+        "guidance": [
+            "Piensa como deployment engineer: verifica entorno, release y salud del servicio antes y después de desplegar."
+        ],
     },
     "ux_technical_reviewer": {
         "domains": ["usability", "accessibility", "contrast", "hierarchy", "navigation_friction", "interaction_design"],
         "visual_signals": ["low contrast", "unclear button", "crowded layout", "hidden affordance"],
         "knowledge_targets": ["readability", "interface clarity", "reduce friction", "accessible interactions"],
-        "guidance": ["Piensa como revisor UX técnico: simplifica, clarifica y elimina fricción sin romper el lenguaje visual."],
+        "guidance": [
+            "Piensa como revisor UX técnico: simplifica, clarifica y elimina fricción sin romper el lenguaje visual."
+        ],
     },
     "ui_designer": {
-        "domains": ["visual_design", "layout_systems", "typography", "spacing", "component_consistency", "design_hierarchy"],
-        "visual_signals": ["misaligned blocks", "visual noise", "weak hierarchy", "inconsistent spacing", "uneven rhythm"],
-        "knowledge_targets": ["clean composition", "clear hierarchy", "consistent spacing", "strong readability", "interface polish"],
-        "guidance": ["Piensa como UI designer: ordena la pantalla, establece jerarquía clara y reduce ruido visual sin perder identidad."],
+        "domains": [
+            "visual_design",
+            "layout_systems",
+            "typography",
+            "spacing",
+            "component_consistency",
+            "design_hierarchy",
+        ],
+        "visual_signals": [
+            "misaligned blocks",
+            "visual noise",
+            "weak hierarchy",
+            "inconsistent spacing",
+            "uneven rhythm",
+        ],
+        "knowledge_targets": [
+            "clean composition",
+            "clear hierarchy",
+            "consistent spacing",
+            "strong readability",
+            "interface polish",
+        ],
+        "guidance": [
+            "Piensa como UI designer: ordena la pantalla, establece jerarquía clara y reduce ruido visual sin perder identidad."
+        ],
     },
     "accessibility_reviewer": {
-        "domains": ["wcag", "keyboard_navigation", "screen_reader_support", "contrast", "focus_states", "semantic_controls"],
-        "visual_signals": ["poor contrast", "missing focus", "ambiguous controls", "unlabeled actions", "keyboard traps"],
-        "knowledge_targets": ["accessible interactions", "visible focus", "sufficient contrast", "semantic clarity", "keyboard support"],
-        "guidance": ["Piensa como revisor de accesibilidad: comprueba contraste, foco, semántica y navegación sin ratón."],
+        "domains": [
+            "wcag",
+            "keyboard_navigation",
+            "screen_reader_support",
+            "contrast",
+            "focus_states",
+            "semantic_controls",
+        ],
+        "visual_signals": [
+            "poor contrast",
+            "missing focus",
+            "ambiguous controls",
+            "unlabeled actions",
+            "keyboard traps",
+        ],
+        "knowledge_targets": [
+            "accessible interactions",
+            "visible focus",
+            "sufficient contrast",
+            "semantic clarity",
+            "keyboard support",
+        ],
+        "guidance": [
+            "Piensa como revisor de accesibilidad: comprueba contraste, foco, semántica y navegación sin ratón."
+        ],
     },
     "head_coach": {
-        "domains": ["game_model", "session_design", "methodology", "decision_making", "feedback_loop", "training_progression"],
-        "visual_signals": ["unclear objective", "disconnected tasks", "poor sequencing", "weak progression", "mixed message"],
-        "knowledge_targets": ["align sessions to game model", "translate principles into tasks", "make objectives explicit", "organize progression"],
-        "guidance": ["Piensa como entrenador principal: convierte la idea de juego en sesiones claras, progresivas y coherentes."],
+        "domains": [
+            "game_model",
+            "session_design",
+            "methodology",
+            "decision_making",
+            "feedback_loop",
+            "training_progression",
+        ],
+        "visual_signals": [
+            "unclear objective",
+            "disconnected tasks",
+            "poor sequencing",
+            "weak progression",
+            "mixed message",
+        ],
+        "knowledge_targets": [
+            "align sessions to game model",
+            "translate principles into tasks",
+            "make objectives explicit",
+            "organize progression",
+        ],
+        "guidance": [
+            "Piensa como entrenador principal: convierte la idea de juego en sesiones claras, progresivas y coherentes."
+        ],
     },
     "physical_preparator": {
-        "domains": ["conditioning", "periodization", "recovery", "injury_prevention", "warmup", "intensity_control", "monitoring"],
+        "domains": [
+            "conditioning",
+            "periodization",
+            "recovery",
+            "injury_prevention",
+            "warmup",
+            "intensity_control",
+            "monitoring",
+        ],
         "visual_signals": ["fatigue build-up", "load spike", "poor recovery", "insufficient warmup", "overexertion"],
         "knowledge_targets": ["control load", "protect players", "optimize recovery", "match intensity to objective"],
-        "guidance": ["Piensa como preparador físico: mide carga, controla fatiga y ajusta intensidad y recuperación a cada sesión."],
+        "guidance": [
+            "Piensa como preparador físico: mide carga, controla fatiga y ajusta intensidad y recuperación a cada sesión."
+        ],
     },
     "load_manager": {
-        "domains": ["workload_monitoring", "acute_chronic_load", "session_balance", "player_fatigue", "readiness", "recovery_optimization"],
+        "domains": [
+            "workload_monitoring",
+            "acute_chronic_load",
+            "session_balance",
+            "player_fatigue",
+            "readiness",
+            "recovery_optimization",
+        ],
         "visual_signals": ["load imbalance", "training spikes", "monotony", "insufficient rest", "readiness drop"],
-        "knowledge_targets": ["balance the microcycle", "detect fatigue early", "avoid spikes", "keep sessions sustainable"],
-        "guidance": ["Piensa como gestor de carga: distribuye el estímulo en la semana para rendir sin romper al jugador."],
+        "knowledge_targets": [
+            "balance the microcycle",
+            "detect fatigue early",
+            "avoid spikes",
+            "keep sessions sustainable",
+        ],
+        "guidance": [
+            "Piensa como gestor de carga: distribuye el estímulo en la semana para rendir sin romper al jugador."
+        ],
     },
     "tactical_model_specialist": {
-        "domains": ["game_model", "principles", "subprinciples", "collective_behaviors", "contextual_coherence", "football_logic"],
+        "domains": [
+            "game_model",
+            "principles",
+            "subprinciples",
+            "collective_behaviors",
+            "contextual_coherence",
+            "football_logic",
+        ],
         "visual_signals": ["tactical mismatch", "principle drift", "incoherent task", "mixed message"],
         "knowledge_targets": ["align tasks to game model", "keep principles coherent", "translate idea into behavior"],
-        "guidance": ["Piensa como especialista en modelo de juego: cada tarea debe reforzar una idea colectiva concreta."],
+        "guidance": [
+            "Piensa como especialista en modelo de juego: cada tarea debe reforzar una idea colectiva concreta."
+        ],
     },
     "game_analysis_specialist": {
         "domains": ["opponent_analysis", "pattern_detection", "strengths", "weaknesses", "match_plan", "scouting"],
         "visual_signals": ["unread opponent pattern", "late adjustment", "missing advantage", "repeated threat"],
-        "knowledge_targets": ["identify opponent patterns", "exploit weaknesses", "prepare match plan", "anticipate threats"],
-        "guidance": ["Piensa como analista de partido: detecta patrones del rival y tradúcelos en decisiones útiles para el staff."],
+        "knowledge_targets": [
+            "identify opponent patterns",
+            "exploit weaknesses",
+            "prepare match plan",
+            "anticipate threats",
+        ],
+        "guidance": [
+            "Piensa como analista de partido: detecta patrones del rival y tradúcelos en decisiones útiles para el staff."
+        ],
     },
     "training_methodologist": {
         "domains": ["task_design", "progression", "transfer", "constraints", "methodology", "session_sequence"],
         "visual_signals": ["poor exercise design", "weak transfer", "disconnected blocks", "flat progression"],
-        "knowledge_targets": ["design effective tasks", "increase transfer", "sequence methodology", "keep objectives clear"],
-        "guidance": ["Piensa como metodólogo del entrenamiento: diseña tareas que conecten objetivo, contexto y transferencia al juego."],
+        "knowledge_targets": [
+            "design effective tasks",
+            "increase transfer",
+            "sequence methodology",
+            "keep objectives clear",
+        ],
+        "guidance": [
+            "Piensa como metodólogo del entrenamiento: diseña tareas que conecten objetivo, contexto y transferencia al juego."
+        ],
     },
     "microcycle_planner": {
-        "domains": ["weekly_planning", "microcycle_architecture", "load_distribution", "matchday_context", "recovery_windows"],
+        "domains": [
+            "weekly_planning",
+            "microcycle_architecture",
+            "load_distribution",
+            "matchday_context",
+            "recovery_windows",
+        ],
         "visual_signals": ["bad weekly balance", "load stacking", "missing recovery", "poor day logic"],
-        "knowledge_targets": ["plan weekly structure", "balance loads", "respect match context", "build recovery windows"],
+        "knowledge_targets": [
+            "plan weekly structure",
+            "balance loads",
+            "respect match context",
+            "build recovery windows",
+        ],
         "guidance": ["Piensa como planificador de microciclo: organiza la semana según partido, carga y recuperación."],
     },
     "player_development_specialist": {
-        "domains": ["individual_progression", "profiles", "position_specific_development", "learning_curve", "talent_context"],
+        "domains": [
+            "individual_progression",
+            "profiles",
+            "position_specific_development",
+            "learning_curve",
+            "talent_context",
+        ],
         "visual_signals": ["stalled growth", "generic coaching", "misfit role", "ignored potential"],
-        "knowledge_targets": ["track individual growth", "adapt to profile", "support position-specific development", "identify next step"],
-        "guidance": ["Piensa como especialista en desarrollo: cada jugador necesita ajustes según perfil, posición y momento."],
+        "knowledge_targets": [
+            "track individual growth",
+            "adapt to profile",
+            "support position-specific development",
+            "identify next step",
+        ],
+        "guidance": [
+            "Piensa como especialista en desarrollo: cada jugador necesita ajustes según perfil, posición y momento."
+        ],
     },
     "set_piece_specialist": {
         "domains": ["abp_offense", "abp_defense", "blocks", "runs", "second_ball", "set_piece_plans"],
@@ -4739,34 +5576,71 @@ ROLE_KNOWLEDGE_PACKS = {
         "guidance": ["Piensa como especialista en ABP: ordena roles, trayectorias y segundas jugadas con precisión."],
     },
     "positional_play_specialist": {
-        "domains": ["possession_structure", "third_man", "occupy_space", "overloads", "side_switch", "ball_progression"],
+        "domains": [
+            "possession_structure",
+            "third_man",
+            "occupy_space",
+            "overloads",
+            "side_switch",
+            "ball_progression",
+        ],
         "visual_signals": ["isolated player", "empty space", "stalled build-up", "late switch"],
         "knowledge_targets": ["occupy spaces well", "create overloads", "use third man", "progress with purpose"],
-        "guidance": ["Piensa como especialista en juego de posición: crea superioridades y ocupa los espacios con intención."],
+        "guidance": [
+            "Piensa como especialista en juego de posición: crea superioridades y ocupa los espacios con intención."
+        ],
     },
     "transition_specialist": {
         "domains": ["press_after_loss", "counterattack", "rest_defense", "recovery_sprint", "transition_triggers"],
         "visual_signals": ["slow reaction", "broken rest defense", "open counter lane", "late recovery"],
-        "knowledge_targets": ["react after loss", "attack on recovery", "stabilize rest defense", "read transition triggers"],
-        "guidance": ["Piensa como especialista en transiciones: cada pérdida y recuperación debe activar una respuesta clara."],
+        "knowledge_targets": [
+            "react after loss",
+            "attack on recovery",
+            "stabilize rest defense",
+            "read transition triggers",
+        ],
+        "guidance": [
+            "Piensa como especialista en transiciones: cada pérdida y recuperación debe activar una respuesta clara."
+        ],
     },
     "goalkeeper_coach": {
-        "domains": ["goalkeeper_play", "decision_making", "sweeper_actions", "distribution", "positioning", "coordination"],
+        "domains": [
+            "goalkeeper_play",
+            "decision_making",
+            "sweeper_actions",
+            "distribution",
+            "positioning",
+            "coordination",
+        ],
         "visual_signals": ["poor starting position", "late decision", "weak distribution", "disconnect with line"],
-        "knowledge_targets": ["improve goalkeeper decisions", "coordinate with back line", "optimize distribution", "manage depth"],
+        "knowledge_targets": [
+            "improve goalkeeper decisions",
+            "coordinate with back line",
+            "optimize distribution",
+            "manage depth",
+        ],
         "guidance": ["Piensa como entrenador de porteros: el portero es parte activa del plan, no un actor aislado."],
     },
     "injury_prevention_fitness_specialist": {
         "domains": ["injury_prevention", "load_control", "mobility", "strength_balance", "readiness", "return_to_play"],
         "visual_signals": ["risky load", "poor mobility", "asymmetry", "repeated overload", "return-to-play gap"],
-        "knowledge_targets": ["prevent injury", "balance physical loads", "monitor readiness", "support return to play"],
-        "guidance": ["Piensa como especialista en prevención: la salud del jugador define cuánto y cómo se puede entrenar."],
+        "knowledge_targets": [
+            "prevent injury",
+            "balance physical loads",
+            "monitor readiness",
+            "support return to play",
+        ],
+        "guidance": [
+            "Piensa como especialista en prevención: la salud del jugador define cuánto y cómo se puede entrenar."
+        ],
     },
     "incident_responder": {
         "domains": ["triage", "containment", "impact_analysis", "communication", "recovery", "postmortem"],
         "visual_signals": ["active incident", "widespread failure", "repeated error", "service degradation"],
         "knowledge_targets": ["triage fast", "contain impact", "restore service", "document the cause"],
-        "guidance": ["Piensa como incident responder: prioriza impacto, contención, recuperación y evidencia para el postmortem."],
+        "guidance": [
+            "Piensa como incident responder: prioriza impacto, contención, recuperación y evidencia para el postmortem."
+        ],
     },
     "supervisor": {
         "domains": ["governance", "traceability", "release_safety", "workspace_overview"],
@@ -4839,7 +5713,9 @@ def _merge_role_knowledge(active_roles: list[str], operator_profile=None) -> dic
         guidance.extend([str(x) for x in (pack.get("guidance") or []) if str(x or "").strip()])
     domains.extend([str(x) for x in (knowledge.get("domains") or []) if str(x or "").strip()])
     visual_signals.extend([str(x) for x in (knowledge.get("visual_signals") or []) if str(x or "").strip()])
-    targets.extend([str(x) for x in (knowledge.get("knowledge_targets") or knowledge.get("targets") or []) if str(x or "").strip()])
+    targets.extend(
+        [str(x) for x in (knowledge.get("knowledge_targets") or knowledge.get("targets") or []) if str(x or "").strip()]
+    )
     guidance.extend([str(x) for x in (knowledge.get("guidance") or []) if str(x or "").strip()])
     return {
         "domains": list(dict.fromkeys(domains))[:192],
@@ -4855,7 +5731,9 @@ def _authorize_guard_action(action_key: str, *, page_context=None) -> dict:
     roles = profile.get("roles") if isinstance(profile.get("roles"), dict) else {}
     requires_manage = bool(policy.get("requires_manage_guard"))
     requires_code = bool(policy.get("requires_code_operator"))
-    allowed = (not requires_manage or bool(roles.get("can_manage_guard"))) and (not requires_code or bool(roles.get("can_operate_guard_code")))
+    allowed = (not requires_manage or bool(roles.get("can_manage_guard"))) and (
+        not requires_code or bool(roles.get("can_operate_guard_code"))
+    )
     reasons = []
     if requires_manage and not bool(roles.get("can_manage_guard")):
         reasons.append("requires_manage_guard")
@@ -4907,7 +5785,7 @@ def _operator_profile_pref_key(actor_id=None) -> str:
 def _operator_role_context(*, page_context=None, operator_profile=None) -> dict:
     context = page_context if isinstance(page_context, dict) else {}
     operator_profile = operator_profile if isinstance(operator_profile, dict) else {}
-    permission_roles = (_permission_profile(page_context=context).get("roles") or {})
+    permission_roles = _permission_profile(page_context=context).get("roles") or {}
     page = str(context.get("page") or "").strip().lower()
     route = str(context.get("route") or page or "").strip().lower()
     task_id = _safe_int(context.get("task_id") or context.get("selected_task_id"), 0)
@@ -4964,26 +5842,32 @@ def _operator_role_context(*, page_context=None, operator_profile=None) -> dict:
         "can_open_browser": True,
         "can_read_rendered_ui": True,
         "can_detect_visual_regressions": True,
-        "can_detect_route_failures": bool(permission_roles.get("can_manage_guard") or permission_roles.get("is_admin_user")),
-        "can_repair_code": bool(permission_roles.get("can_operate_guard_code") or permission_roles.get("admin_total_operator")),
+        "can_detect_route_failures": bool(
+            permission_roles.get("can_manage_guard") or permission_roles.get("is_admin_user")
+        ),
+        "can_repair_code": bool(
+            permission_roles.get("can_operate_guard_code") or permission_roles.get("admin_total_operator")
+        ),
         "can_manage_training_content": bool(permission_roles.get("can_manage_guard")),
     }
     role_knowledge = _merge_role_knowledge(active_roles, operator_profile=operator_profile)
     knowledge_targets = list(role_knowledge.get("knowledge_targets") or [])
     if str(operator_profile.get("preferred_route_key") or "").strip():
         knowledge_targets.insert(0, str(operator_profile.get("preferred_route_key") or "").strip())
-    knowledge_targets.extend([
-        "dashboard",
-        "task_library",
-        "task_detail",
-        "sessions",
-        "tactics",
-        "players",
-        "reports",
-        "ai_trainer",
-        "browser_audit",
-        "contrast_checks",
-    ])
+    knowledge_targets.extend(
+        [
+            "dashboard",
+            "task_library",
+            "task_detail",
+            "sessions",
+            "tactics",
+            "players",
+            "reports",
+            "ai_trainer",
+            "browser_audit",
+            "contrast_checks",
+        ]
+    )
     return {
         "active_roles": active_roles,
         "capabilities": role_capabilities,
@@ -5002,10 +5886,12 @@ def _normalize_operator_profile(payload) -> dict:
     for row in (payload.get("recurring_intents") or [])[:6]:
         if not isinstance(row, dict):
             continue
-        recurring.append({
-            "intent": str(row.get("intent") or "").strip()[:64],
-            "count": _safe_int(row.get("count"), 0),
-        })
+        recurring.append(
+            {
+                "intent": str(row.get("intent") or "").strip()[:64],
+                "count": _safe_int(row.get("count"), 0),
+            }
+        )
     roles = payload.get("roles") if isinstance(payload.get("roles"), dict) else {}
     knowledge = payload.get("knowledge") if isinstance(payload.get("knowledge"), dict) else {}
     return {
@@ -5022,10 +5908,14 @@ def _normalize_operator_profile(payload) -> dict:
                 "can_observe_system": bool((roles.get("capabilities") or {}).get("can_observe_system")),
                 "can_open_browser": bool((roles.get("capabilities") or {}).get("can_open_browser")),
                 "can_read_rendered_ui": bool((roles.get("capabilities") or {}).get("can_read_rendered_ui")),
-                "can_detect_visual_regressions": bool((roles.get("capabilities") or {}).get("can_detect_visual_regressions")),
+                "can_detect_visual_regressions": bool(
+                    (roles.get("capabilities") or {}).get("can_detect_visual_regressions")
+                ),
                 "can_detect_route_failures": bool((roles.get("capabilities") or {}).get("can_detect_route_failures")),
                 "can_repair_code": bool((roles.get("capabilities") or {}).get("can_repair_code")),
-                "can_manage_training_content": bool((roles.get("capabilities") or {}).get("can_manage_training_content")),
+                "can_manage_training_content": bool(
+                    (roles.get("capabilities") or {}).get("can_manage_training_content")
+                ),
             },
             "knowledge_targets": [str(x) for x in (roles.get("knowledge_targets") or []) if str(x or "").strip()][:64],
             "knowledge_domains": [str(x) for x in (roles.get("knowledge_domains") or []) if str(x or "").strip()][:64],
@@ -5036,7 +5926,11 @@ def _normalize_operator_profile(payload) -> dict:
         "knowledge": {
             "domains": [str(x) for x in (knowledge.get("domains") or []) if str(x or "").strip()][:64],
             "visual_signals": [str(x) for x in (knowledge.get("visual_signals") or []) if str(x or "").strip()][:64],
-            "knowledge_targets": [str(x) for x in (knowledge.get("knowledge_targets") or knowledge.get("targets") or []) if str(x or "").strip()][:64],
+            "knowledge_targets": [
+                str(x)
+                for x in (knowledge.get("knowledge_targets") or knowledge.get("targets") or [])
+                if str(x or "").strip()
+            ][:64],
             "guidance": [str(x) for x in (knowledge.get("guidance") or []) if str(x or "").strip()][:64],
         },
         "last_updated": str(payload.get("last_updated") or "").strip()[:64],
@@ -5067,7 +5961,9 @@ def _bump_intent_counter(rows: list[dict], intent: str) -> list[dict]:
     return counters[:6]
 
 
-def _store_operator_profile(workspace, *, actor_id=None, planner=None, assistant_action=None, question: str = "", page_context=None):
+def _store_operator_profile(
+    workspace, *, actor_id=None, planner=None, assistant_action=None, question: str = "", page_context=None
+):
     if not workspace:
         return
     planner = planner if isinstance(planner, dict) else {}
@@ -5089,23 +5985,43 @@ def _store_operator_profile(workspace, *, actor_id=None, planner=None, assistant
             code_focus.append(_truncate(area, 140))
     payload = {
         "preferred_route_key": str(candidate_route.get("key") or current.get("preferred_route_key") or "").strip()[:64],
-        "preferred_route_label": str(candidate_route.get("label") or current.get("preferred_route_label") or "").strip()[:120],
-        "last_requested_module": str(candidate_route.get("label") or (page_context or {}).get("title") or (page_context or {}).get("page") or current.get("last_requested_module") or "").strip()[:120],
-        "recent_destinations": ([str(candidate_route.get("label") or "").strip()] if candidate_route.get("label") else []) + current.get("recent_destinations", []),
+        "preferred_route_label": str(
+            candidate_route.get("label") or current.get("preferred_route_label") or ""
+        ).strip()[:120],
+        "last_requested_module": str(
+            candidate_route.get("label")
+            or (page_context or {}).get("title")
+            or (page_context or {}).get("page")
+            or current.get("last_requested_module")
+            or ""
+        ).strip()[:120],
+        "recent_destinations": (
+            [str(candidate_route.get("label") or "").strip()] if candidate_route.get("label") else []
+        )
+        + current.get("recent_destinations", []),
         "successful_actions": successful + current.get("successful_actions", []),
         "code_focus_areas": code_focus + current.get("code_focus_areas", []),
-        "recurring_intents": _bump_intent_counter(current.get("recurring_intents", []), str(planner.get("intent") or "")),
+        "recurring_intents": _bump_intent_counter(
+            current.get("recurring_intents", []), str(planner.get("intent") or "")
+        ),
         "roles": {
             "active_roles": role_context.get("active_roles") or current.get("roles", {}).get("active_roles") or [],
             "capabilities": role_context.get("capabilities") or current.get("roles", {}).get("capabilities") or {},
-            "knowledge_targets": role_context.get("knowledge_targets") or current.get("roles", {}).get("knowledge_targets") or [],
-            "knowledge_domains": role_context.get("knowledge_domains") or current.get("roles", {}).get("knowledge_domains") or [],
-            "visual_signals": role_context.get("visual_signals") or current.get("roles", {}).get("visual_signals") or [],
+            "knowledge_targets": role_context.get("knowledge_targets")
+            or current.get("roles", {}).get("knowledge_targets")
+            or [],
+            "knowledge_domains": role_context.get("knowledge_domains")
+            or current.get("roles", {}).get("knowledge_domains")
+            or [],
+            "visual_signals": role_context.get("visual_signals")
+            or current.get("roles", {}).get("visual_signals")
+            or [],
             "guidance": role_context.get("guidance") or current.get("roles", {}).get("guidance") or [],
             "observer_mode": bool((role_context.get("observer_mode") if role_context else None) is not False),
         },
         "knowledge": {
-            "domains": role_context.get("knowledge_domains") or [
+            "domains": role_context.get("knowledge_domains")
+            or [
                 "football_platform",
                 "training_sessions",
                 "task_library",
@@ -5114,7 +6030,8 @@ def _store_operator_profile(workspace, *, actor_id=None, planner=None, assistant
                 "visual_regression_detection",
                 "repair_and_publish",
             ],
-            "visual_signals": role_context.get("visual_signals") or [
+            "visual_signals": role_context.get("visual_signals")
+            or [
                 "contrast",
                 "layout_breaks",
                 "hidden_buttons",
@@ -5141,8 +6058,19 @@ def _merge_memory(global_memory: dict, actor_memory: dict) -> dict:
     for key in ("summary", "last_status", "last_error", "last_updated"):
         if actor_memory.get(key):
             merged[key] = actor_memory.get(key)
-    merged["turn_count"] = max(_safe_int(global_memory.get("turn_count") if isinstance(global_memory, dict) else 0, 0), _safe_int(actor_memory.get("turn_count"), 0))
-    for key, limit in (("recent_issues", 12), ("recent_actions", 12), ("recent_successes", 12), ("recent_fixes", 12), ("recent_runbooks", 12), ("recent_questions", 10), ("recent_pages", 8)):
+    merged["turn_count"] = max(
+        _safe_int(global_memory.get("turn_count") if isinstance(global_memory, dict) else 0, 0),
+        _safe_int(actor_memory.get("turn_count"), 0),
+    )
+    for key, limit in (
+        ("recent_issues", 12),
+        ("recent_actions", 12),
+        ("recent_successes", 12),
+        ("recent_fixes", 12),
+        ("recent_runbooks", 12),
+        ("recent_questions", 10),
+        ("recent_pages", 8),
+    ):
         values = []
         seen = set()
         for source in (actor_memory.get(key) or [], global_memory.get(key) if isinstance(global_memory, dict) else []):
@@ -5176,18 +6104,28 @@ def _append_incident_ledger(workspace, entry: dict):
     if not workspace or not isinstance(entry, dict):
         return
     rows = _load_incident_ledger(workspace)
-    rows.insert(0, {
-        "created_at": str(entry.get("created_at") or _now_iso())[:64],
-        "issue_id": str(entry.get("issue_id") or "").strip()[:120],
-        "status": str(entry.get("status") or "").strip()[:32],
-        "runbook": str(entry.get("runbook") or "").strip()[:64],
-        "summary": _truncate(entry.get("summary"), 240),
-        "kind": str(entry.get("kind") or "").strip()[:32],
-    })
+    rows.insert(
+        0,
+        {
+            "created_at": str(entry.get("created_at") or _now_iso())[:64],
+            "issue_id": str(entry.get("issue_id") or "").strip()[:120],
+            "status": str(entry.get("status") or "").strip()[:32],
+            "runbook": str(entry.get("runbook") or "").strip()[:64],
+            "summary": _truncate(entry.get("summary"), 240),
+            "kind": str(entry.get("kind") or "").strip()[:32],
+        },
+    )
     _store_pref_value(workspace, INCIDENT_LEDGER_PREF_KEY, rows[:60])
 
 
-def _runbook_execution_summary(runbook: dict | None, *, executed_tools=None, assistant_action=None, status: str = "", needs_confirmation: bool = False) -> dict:
+def _runbook_execution_summary(
+    runbook: dict | None,
+    *,
+    executed_tools=None,
+    assistant_action=None,
+    status: str = "",
+    needs_confirmation: bool = False,
+) -> dict:
     meta = dict(runbook or {})
     stages = [dict(row) for row in (meta.get("stages") or []) if isinstance(row, dict)]
     executions = [row for row in (executed_tools or []) if isinstance(row, dict)]
@@ -5195,7 +6133,9 @@ def _runbook_execution_summary(runbook: dict | None, *, executed_tools=None, ass
         stages[0]["done"] = True
     if len(stages) > 1 and (assistant_action or executions):
         stages[1]["done"] = True
-    if len(stages) > 2 and ((assistant_action and assistant_action.get("success")) or any(bool(row.get("ok")) for row in executions)):
+    if len(stages) > 2 and (
+        (assistant_action and assistant_action.get("success")) or any(bool(row.get("ok")) for row in executions)
+    ):
         stages[2]["done"] = True
     if stages and needs_confirmation:
         stages[-1]["done"] = False
@@ -5207,25 +6147,50 @@ def _runbook_execution_summary(runbook: dict | None, *, executed_tools=None, ass
             summary.append(str(row.get("tool") or "tool"))
     meta["stages"] = stages[:6]
     meta["execution_summary"] = summary[:6]
-    meta["completed"] = not needs_confirmation and status in {"ok", "watch"} and any(stage.get("done") for stage in stages)
+    meta["completed"] = (
+        not needs_confirmation and status in {"ok", "watch"} and any(stage.get("done") for stage in stages)
+    )
     return meta
 
 
-def _store_memory(workspace, *, report: dict, response: dict, executed_tools: list[dict], question: str = "", page_context: dict | None = None, actor_id=None):
+def _store_memory(
+    workspace,
+    *,
+    report: dict,
+    response: dict,
+    executed_tools: list[dict],
+    question: str = "",
+    page_context: dict | None = None,
+    actor_id=None,
+):
     if not workspace:
         return
     issues = report.get("issues") if isinstance(report.get("issues"), list) else []
     summary = report.get("issue_summary") if isinstance(report.get("issue_summary"), dict) else {}
     current = _load_memory_for_actor(workspace, actor_id=actor_id)
-    action_labels = [str(row.get("label") or row.get("tool") or "").strip() for row in executed_tools if isinstance(row, dict)]
+    action_labels = [
+        str(row.get("label") or row.get("tool") or "").strip() for row in executed_tools if isinstance(row, dict)
+    ]
     issue_labels = [str(row.get("id") or "").strip() for row in issues[:8] if isinstance(row, dict)]
-    success_labels = [str(row.get("tool") or "").strip() for row in executed_tools if isinstance(row, dict) and row.get("ok")]
-    fix_labels = [str(row.get("tool") or "").strip() for row in executed_tools if isinstance(row, dict) and row.get("ok") and str(row.get("kind") or "") in {"repair", "publish", "maintenance"}]
-    runbook_label = str(((response.get("runbook") or {}).get("key") if isinstance(response.get("runbook"), dict) else "") or "").strip()
+    success_labels = [
+        str(row.get("tool") or "").strip() for row in executed_tools if isinstance(row, dict) and row.get("ok")
+    ]
+    fix_labels = [
+        str(row.get("tool") or "").strip()
+        for row in executed_tools
+        if isinstance(row, dict)
+        and row.get("ok")
+        and str(row.get("kind") or "") in {"repair", "publish", "maintenance"}
+    ]
+    runbook_label = str(
+        ((response.get("runbook") or {}).get("key") if isinstance(response.get("runbook"), dict) else "") or ""
+    ).strip()
     message = _truncate(response.get("message"), 280)
     page_label = ""
     if isinstance(page_context, dict):
-        page_label = str(page_context.get("title") or page_context.get("page") or page_context.get("path") or "").strip()[:160]
+        page_label = str(
+            page_context.get("title") or page_context.get("page") or page_context.get("path") or ""
+        ).strip()[:160]
     payload = {
         "summary": _truncate(
             f"{message} Blockers {summary.get('blockers', 0)} · warnings {summary.get('warnings', 0)}.",
@@ -5236,7 +6201,8 @@ def _store_memory(workspace, *, report: dict, response: dict, executed_tools: li
         "recent_successes": ([x for x in success_labels if x] + current.get("recent_successes", []))[:12],
         "recent_fixes": ([x for x in fix_labels if x] + current.get("recent_fixes", []))[:12],
         "recent_runbooks": ([runbook_label] if runbook_label else []) + current.get("recent_runbooks", []),
-        "recent_questions": ([str(question).strip()[:220]] if str(question or "").strip() else []) + current.get("recent_questions", []),
+        "recent_questions": ([str(question).strip()[:220]] if str(question or "").strip() else [])
+        + current.get("recent_questions", []),
         "recent_pages": ([page_label] if page_label else []) + current.get("recent_pages", []),
         "last_status": str(response.get("status") or "").strip()[:32],
         "last_error": str(response.get("degraded_reason") or response.get("confirmation_text") or "")[:200],
@@ -5264,7 +6230,16 @@ def _store_memory(workspace, *, report: dict, response: dict, executed_tools: li
         _store_pref_value(workspace, MEMORY_PREF_KEY, _normalize_memory_payload(global_payload))
 
 
-def _update_metrics(workspace, *, report: dict, response: dict, llm_used: bool, llm_ok: bool, executed_tools: list[dict], latency_ms: int):
+def _update_metrics(
+    workspace,
+    *,
+    report: dict,
+    response: dict,
+    llm_used: bool,
+    llm_ok: bool,
+    executed_tools: list[dict],
+    latency_ms: int,
+):
     if not workspace:
         return
     payload = _pref_value(workspace, METRICS_PREF_KEY, {})
@@ -5521,9 +6496,7 @@ def _resolve_dedupe_target_teams(*, workspace=None, page_context=None):
     if isinstance(page_context, dict):
         team_id = _safe_int(page_context.get("team_id"), 0)
         scan_all = bool(
-            page_context.get("scan_all_teams")
-            or page_context.get("workspace_wide")
-            or page_context.get("all_teams")
+            page_context.get("scan_all_teams") or page_context.get("workspace_wide") or page_context.get("all_teams")
         )
     if team_id and not scan_all:
         try:
@@ -5566,8 +6539,7 @@ def _autofix_dedupe_session_tasks(*, workspace=None, page_context=None) -> dict:
     team_ids = [int(getattr(team, "id", 0) or 0) for team in teams if getattr(team, "id", None)]
     try:
         tasks = list(
-            SessionTask.objects
-            .select_related("session__microcycle")
+            SessionTask.objects.select_related("session__microcycle")
             .filter(session__microcycle__team_id__in=team_ids, deleted_at__isnull=True)
             .order_by("session__microcycle__team_id", "session_id", "block", "duration_minutes", "id")
         )
@@ -5608,7 +6580,11 @@ def _autofix_dedupe_session_tasks(*, workspace=None, page_context=None) -> dict:
 
             def _rank(row):
                 task, profile = row
-                meta = task.tactical_layout.get("meta") if isinstance(task.tactical_layout, dict) and isinstance(task.tactical_layout.get("meta"), dict) else {}
+                meta = (
+                    task.tactical_layout.get("meta")
+                    if isinstance(task.tactical_layout, dict) and isinstance(task.tactical_layout.get("meta"), dict)
+                    else {}
+                )
                 score = 0
                 if getattr(task, "task_pdf", None):
                     score += 4
@@ -5629,12 +6605,14 @@ def _autofix_dedupe_session_tasks(*, workspace=None, page_context=None) -> dict:
 
             rows_sorted = sorted(rows, key=_rank, reverse=True)
             keep_task, keep_profile = rows_sorted[0]
-            team_survivors.append({
-                "team_id": team_id,
-                "id": int(getattr(keep_task, "id", 0) or 0),
-                "title": str(getattr(keep_task, "title", "") or "")[:160],
-                "group_size": len(rows),
-            })
+            team_survivors.append(
+                {
+                    "team_id": team_id,
+                    "id": int(getattr(keep_task, "id", 0) or 0),
+                    "title": str(getattr(keep_task, "title", "") or "")[:160],
+                    "group_size": len(rows),
+                }
+            )
             for task, profile in rows_sorted[1:]:
                 try:
                     write_task_backup(
@@ -5662,14 +6640,16 @@ def _autofix_dedupe_session_tasks(*, workspace=None, page_context=None) -> dict:
                     continue
 
         survivors.extend(team_survivors)
-        team_results.append({
-            "team_id": team_id,
-            "team_name": str(getattr(team, "display_name", None) or getattr(team, "name", "") or "")[:160],
-            "deleted_count": len(team_deleted),
-            "groups_collapsed": len(team_survivors),
-            "survivors": team_survivors[:100],
-            "deleted": team_deleted[:100],
-        })
+        team_results.append(
+            {
+                "team_id": team_id,
+                "team_name": str(getattr(team, "display_name", None) or getattr(team, "name", "") or "")[:160],
+                "deleted_count": len(team_deleted),
+                "groups_collapsed": len(team_survivors),
+                "survivors": team_survivors[:100],
+                "deleted": team_deleted[:100],
+            }
+        )
 
     for session_id in sorted(touched_sessions):
         try:
@@ -5718,7 +6698,9 @@ def _autofix_ollama_pull(model_name: str) -> dict:
         return {"ok": False, "action": "ollama_pull", "model": model, "error": f"{exc.__class__.__name__}: {exc}"}
 
 
-def collect_system_guard_evidence(*, run_smoke: bool = False, smoke_verbosity: int = 1, page_context=None, memory=None) -> dict:
+def collect_system_guard_evidence(
+    *, run_smoke: bool = False, smoke_verbosity: int = 1, page_context=None, memory=None
+) -> dict:
     health = run_system_healthcheck()
     inventory = _module_inventory()
     route_inventory = _route_inventory()
@@ -5762,7 +6744,17 @@ def collect_system_guard_evidence(*, run_smoke: bool = False, smoke_verbosity: i
     return evidence
 
 
-def _issue(issue_id: str, *, severity: str, area: str, message: str, detail=None, autofix=False, autofix_key: str = "", repairable=False) -> dict:
+def _issue(
+    issue_id: str,
+    *,
+    severity: str,
+    area: str,
+    message: str,
+    detail=None,
+    autofix=False,
+    autofix_key: str = "",
+    repairable=False,
+) -> dict:
     return {
         "id": issue_id,
         "severity": severity,
@@ -5780,7 +6772,15 @@ def _derive_issues(evidence: dict) -> list[dict]:
     health = evidence.get("healthcheck") if isinstance(evidence.get("healthcheck"), dict) else {}
     db = health.get("database") if isinstance(health.get("database"), dict) else {}
     if not db.get("ok"):
-        issues.append(_issue("database_unhealthy", severity="blocker", area="database", message="La base de datos no responde correctamente.", detail=db.get("detail")))
+        issues.append(
+            _issue(
+                "database_unhealthy",
+                severity="blocker",
+                area="database",
+                message="La base de datos no responde correctamente.",
+                detail=db.get("detail"),
+            )
+        )
     for key, item in (health.get("paths") or {}).items():
         if isinstance(item, dict) and not item.get("ok"):
             path_value = str(item.get("detail") or item.get("path") or "")
@@ -5797,21 +6797,61 @@ def _derive_issues(evidence: dict) -> list[dict]:
             )
     for key, item in (health.get("dependencies") or {}).items():
         if isinstance(item, dict) and not item.get("ok"):
-            issues.append(_issue(f"dependency_{key}", severity="warning", area="dependencies", message=f"La dependencia {key} no está operativa.", detail=item.get("detail")))
+            issues.append(
+                _issue(
+                    f"dependency_{key}",
+                    severity="warning",
+                    area="dependencies",
+                    message=f"La dependencia {key} no está operativa.",
+                    detail=item.get("detail"),
+                )
+            )
     for key, item in (evidence.get("module_inventory") or {}).items():
         if isinstance(item, dict) and item.get("kind") == "script" and not item.get("exists"):
-            issues.append(_issue(f"missing_script_{key}", severity="warning", area="coverage", message=f"Falta el smoke script del módulo {key}.", detail=item.get("path")))
+            issues.append(
+                _issue(
+                    f"missing_script_{key}",
+                    severity="warning",
+                    area="coverage",
+                    message=f"Falta el smoke script del módulo {key}.",
+                    detail=item.get("path"),
+                )
+            )
     for key, item in (evidence.get("route_inventory") or {}).items():
         if isinstance(item, dict) and not item.get("ok"):
-            issues.append(_issue(f"missing_route_{key}", severity="blocker", area="routing", message=f"Falta o no resuelve la ruta crítica {key}.", detail=item.get("error") or item.get("name")))
+            issues.append(
+                _issue(
+                    f"missing_route_{key}",
+                    severity="blocker",
+                    area="routing",
+                    message=f"Falta o no resuelve la ruta crítica {key}.",
+                    detail=item.get("error") or item.get("name"),
+                )
+            )
     for key, item in (evidence.get("asset_inventory") or {}).items():
         if isinstance(item, dict) and not item.get("ok"):
-            issues.append(_issue(f"missing_asset_{key}", severity="blocker", area="assets", message=f"Falta el asset crítico {key}.", detail=item.get("path")))
+            issues.append(
+                _issue(
+                    f"missing_asset_{key}",
+                    severity="blocker",
+                    area="assets",
+                    message=f"Falta el asset crítico {key}.",
+                    detail=item.get("path"),
+                )
+            )
     llm = evidence.get("local_llm") if isinstance(evidence.get("local_llm"), dict) else {}
     availability = llm.get("availability") if isinstance(llm.get("availability"), dict) else {}
     probe = llm.get("probe") if isinstance(llm.get("probe"), dict) else {}
     if llm.get("enabled") and availability.get("state") == "down":
-        issues.append(_issue("ollama_unreachable", severity="warning", area="local_llm", message="Ollama está configurado pero no responde.", detail=probe.get("error")))
+        issues.append(
+            _issue(
+                "ollama_unreachable",
+                severity="warning",
+                area="local_llm",
+                message="Ollama está configurado pero no responde.",
+                detail=probe.get("error"),
+            )
+        )
     elif llm.get("enabled") and availability.get("state") == "degraded":
         issues.append(
             _issue(
@@ -5827,12 +6867,28 @@ def _derive_issues(evidence: dict) -> list[dict]:
     smoke = evidence.get("smoke") if isinstance(evidence.get("smoke"), dict) else {}
     for key, item in (smoke.get("results") or {}).items():
         if isinstance(item, dict) and not item.get("ok"):
-            issues.append(_issue(f"smoke_failed_{key}", severity="blocker", area="smoke", message=f"Ha fallado el smoke {key}.", detail=item.get("error") or item.get("exit_code") or item.get("stderr") or item.get("stdout")))
+            issues.append(
+                _issue(
+                    f"smoke_failed_{key}",
+                    severity="blocker",
+                    area="smoke",
+                    message=f"Ha fallado el smoke {key}.",
+                    detail=item.get("error") or item.get("exit_code") or item.get("stderr") or item.get("stdout"),
+                )
+            )
     page_context = evidence.get("page_context") if isinstance(evidence.get("page_context"), dict) else {}
-    visual_snapshot = page_context.get("visual_snapshot") if isinstance(page_context.get("visual_snapshot"), dict) else {}
-    browser_visual_snapshot = page_context.get("browser_visual_snapshot") if isinstance(page_context.get("browser_visual_snapshot"), dict) else {}
+    visual_snapshot = (
+        page_context.get("visual_snapshot") if isinstance(page_context.get("visual_snapshot"), dict) else {}
+    )
+    browser_visual_snapshot = (
+        page_context.get("browser_visual_snapshot")
+        if isinstance(page_context.get("browser_visual_snapshot"), dict)
+        else {}
+    )
     browser_visual_ai = evidence.get("browser_visual_ai") if isinstance(evidence.get("browser_visual_ai"), dict) else {}
-    render_alerts = [str(item).strip() for item in (visual_snapshot.get("render_alerts") or []) if str(item or "").strip()]
+    render_alerts = [
+        str(item).strip() for item in (visual_snapshot.get("render_alerts") or []) if str(item or "").strip()
+    ]
     render_surfaces = [row for row in (visual_snapshot.get("render_surfaces") or []) if isinstance(row, dict)]
     visual_issue_signatures = set()
     for alert in render_alerts:
@@ -5872,7 +6928,7 @@ def _derive_issues(evidence: dict) -> list[dict]:
             )
         )
     if browser_visual_ai.get("enabled"):
-        for row in (browser_visual_ai.get("issues") or []):
+        for row in browser_visual_ai.get("issues") or []:
             if not isinstance(row, dict):
                 continue
             severity = str(row.get("severity") or "warning").strip().lower()
@@ -5889,36 +6945,54 @@ def _derive_issues(evidence: dict) -> list[dict]:
                     repairable=severity not in {"blocker", "critical"},
                 )
             )
-        title_visibility = browser_visual_ai.get("title_visibility") if isinstance(browser_visual_ai.get("title_visibility"), dict) else {}
-        button_visibility = browser_visual_ai.get("button_visibility") if isinstance(browser_visual_ai.get("button_visibility"), dict) else {}
-        render_surfaces_ai = browser_visual_ai.get("render_surfaces") if isinstance(browser_visual_ai.get("render_surfaces"), dict) else {}
+        title_visibility = (
+            browser_visual_ai.get("title_visibility")
+            if isinstance(browser_visual_ai.get("title_visibility"), dict)
+            else {}
+        )
+        button_visibility = (
+            browser_visual_ai.get("button_visibility")
+            if isinstance(browser_visual_ai.get("button_visibility"), dict)
+            else {}
+        )
+        render_surfaces_ai = (
+            browser_visual_ai.get("render_surfaces")
+            if isinstance(browser_visual_ai.get("render_surfaces"), dict)
+            else {}
+        )
         if str(title_visibility.get("state") or "").lower() in {"missing", "unreadable"}:
-            issues.append(_issue(
-                "browser_visual_title_issue",
-                severity="warning",
-                area="visual_render",
-                message="La visión nativa detecta que el título no es legible o no se aprecia.",
-                detail=str(title_visibility.get("detail") or "")[:220],
-                repairable=True,
-            ))
+            issues.append(
+                _issue(
+                    "browser_visual_title_issue",
+                    severity="warning",
+                    area="visual_render",
+                    message="La visión nativa detecta que el título no es legible o no se aprecia.",
+                    detail=str(title_visibility.get("detail") or "")[:220],
+                    repairable=True,
+                )
+            )
         if str(button_visibility.get("state") or "").lower() in {"missing", "unreadable"}:
-            issues.append(_issue(
-                "browser_visual_buttons_issue",
-                severity="warning",
-                area="visual_render",
-                message="La visión nativa detecta controles o botones invisibles o poco legibles.",
-                detail=str(button_visibility.get("detail") or "")[:220],
-                repairable=True,
-            ))
+            issues.append(
+                _issue(
+                    "browser_visual_buttons_issue",
+                    severity="warning",
+                    area="visual_render",
+                    message="La visión nativa detecta controles o botones invisibles o poco legibles.",
+                    detail=str(button_visibility.get("detail") or "")[:220],
+                    repairable=True,
+                )
+            )
         if str(render_surfaces_ai.get("state") or "").lower() in {"blank", "black", "empty", "partial"}:
-            issues.append(_issue(
-                "browser_visual_surface_issue",
-                severity="warning",
-                area="visual_render",
-                message="La visión nativa detecta una superficie de render degradada o vacía.",
-                detail=str(render_surfaces_ai.get("detail") or "")[:220],
-                repairable=True,
-            ))
+            issues.append(
+                _issue(
+                    "browser_visual_surface_issue",
+                    severity="warning",
+                    area="visual_render",
+                    message="La visión nativa detecta una superficie de render degradada o vacía.",
+                    detail=str(render_surfaces_ai.get("detail") or "")[:220],
+                    repairable=True,
+                )
+            )
     return issues
 
 
@@ -5985,69 +7059,131 @@ def _compact_evidence_for_llm(evidence: dict, issues: list[dict], memory: dict |
     health = evidence.get("healthcheck") if isinstance(evidence.get("healthcheck"), dict) else {}
     smoke = evidence.get("smoke") if isinstance(evidence.get("smoke"), dict) else {}
     page_context = evidence.get("page_context") if isinstance(evidence.get("page_context"), dict) else {}
-    browser_visual_snapshot = page_context.get("browser_visual_snapshot") if isinstance(page_context.get("browser_visual_snapshot"), dict) else {}
+    browser_visual_snapshot = (
+        page_context.get("browser_visual_snapshot")
+        if isinstance(page_context.get("browser_visual_snapshot"), dict)
+        else {}
+    )
     browser_visual_ai = evidence.get("browser_visual_ai") if isinstance(evidence.get("browser_visual_ai"), dict) else {}
     ollana_assessment = _ollana_assessment_snapshot(page_context=page_context, evidence=evidence)
     return {
         "environment": evidence.get("environment"),
         "page_context": page_context,
         "ollana_assessment": ollana_assessment,
-        "browser_visual_snapshot": {
-            "enabled": bool(browser_visual_snapshot.get("enabled")),
-            "reason": str(browser_visual_snapshot.get("reason") or "")[:80],
-            "target_url": str(browser_visual_snapshot.get("target_url") or "")[:220],
-            "screenshot_path": str(browser_visual_snapshot.get("screenshot_path") or "")[:240],
-            "title": str(browser_visual_snapshot.get("title") or "")[:140],
-            "h1": str(browser_visual_snapshot.get("h1") or "")[:140],
-            "h1_color": str(browser_visual_snapshot.get("h1_color") or "")[:40],
-            "top_bg": str(browser_visual_snapshot.get("top_bg") or "")[:80],
-            "buttons": [str(item).strip()[:80] for item in (browser_visual_snapshot.get("buttons") or []) if str(item or "").strip()][:8],
-            "low_contrast": [{
-                "tag": str((row or {}).get("tag") or "")[:24],
-                "text": str((row or {}).get("text") or "")[:80],
-                "ratio": max(0, float((row or {}).get("ratio") or 0)),
-            } for row in (browser_visual_snapshot.get("low_contrast") or []) if isinstance(row, dict)][:6],
-        } if browser_visual_snapshot else {},
-        "browser_visual_ai": {
-            "enabled": bool(browser_visual_ai.get("enabled")),
-            "provider": str(browser_visual_ai.get("provider") or "")[:20],
-            "model": str(browser_visual_ai.get("model") or "")[:60],
-            "models_tried": [str(item).strip()[:40] for item in (browser_visual_ai.get("models_tried") or []) if str(item or "").strip()][:4],
-            "summary": str(browser_visual_ai.get("summary") or "")[:300],
-            "title_visibility": {
-                "state": str((browser_visual_ai.get("title_visibility") or {}).get("state") or "")[:20] if isinstance(browser_visual_ai.get("title_visibility"), dict) else "",
-                "detail": str((browser_visual_ai.get("title_visibility") or {}).get("detail") or "")[:220] if isinstance(browser_visual_ai.get("title_visibility"), dict) else "",
-            },
-            "button_visibility": {
-                "state": str((browser_visual_ai.get("button_visibility") or {}).get("state") or "")[:20] if isinstance(browser_visual_ai.get("button_visibility"), dict) else "",
-                "detail": str((browser_visual_ai.get("button_visibility") or {}).get("detail") or "")[:220] if isinstance(browser_visual_ai.get("button_visibility"), dict) else "",
-            },
-            "render_surfaces": {
-                "state": str((browser_visual_ai.get("render_surfaces") or {}).get("state") or "")[:20] if isinstance(browser_visual_ai.get("render_surfaces"), dict) else "",
-                "detail": str((browser_visual_ai.get("render_surfaces") or {}).get("detail") or "")[:220] if isinstance(browser_visual_ai.get("render_surfaces"), dict) else "",
-            },
-            "caveats": [str(item).strip()[:160] for item in (browser_visual_ai.get("caveats") or []) if str(item or "").strip()][:6],
-        } if browser_visual_ai else {},
+        "browser_visual_snapshot": (
+            {
+                "enabled": bool(browser_visual_snapshot.get("enabled")),
+                "reason": str(browser_visual_snapshot.get("reason") or "")[:80],
+                "target_url": str(browser_visual_snapshot.get("target_url") or "")[:220],
+                "screenshot_path": str(browser_visual_snapshot.get("screenshot_path") or "")[:240],
+                "title": str(browser_visual_snapshot.get("title") or "")[:140],
+                "h1": str(browser_visual_snapshot.get("h1") or "")[:140],
+                "h1_color": str(browser_visual_snapshot.get("h1_color") or "")[:40],
+                "top_bg": str(browser_visual_snapshot.get("top_bg") or "")[:80],
+                "buttons": [
+                    str(item).strip()[:80]
+                    for item in (browser_visual_snapshot.get("buttons") or [])
+                    if str(item or "").strip()
+                ][:8],
+                "low_contrast": [
+                    {
+                        "tag": str((row or {}).get("tag") or "")[:24],
+                        "text": str((row or {}).get("text") or "")[:80],
+                        "ratio": max(0, float((row or {}).get("ratio") or 0)),
+                    }
+                    for row in (browser_visual_snapshot.get("low_contrast") or [])
+                    if isinstance(row, dict)
+                ][:6],
+            }
+            if browser_visual_snapshot
+            else {}
+        ),
+        "browser_visual_ai": (
+            {
+                "enabled": bool(browser_visual_ai.get("enabled")),
+                "provider": str(browser_visual_ai.get("provider") or "")[:20],
+                "model": str(browser_visual_ai.get("model") or "")[:60],
+                "models_tried": [
+                    str(item).strip()[:40]
+                    for item in (browser_visual_ai.get("models_tried") or [])
+                    if str(item or "").strip()
+                ][:4],
+                "summary": str(browser_visual_ai.get("summary") or "")[:300],
+                "title_visibility": {
+                    "state": (
+                        str((browser_visual_ai.get("title_visibility") or {}).get("state") or "")[:20]
+                        if isinstance(browser_visual_ai.get("title_visibility"), dict)
+                        else ""
+                    ),
+                    "detail": (
+                        str((browser_visual_ai.get("title_visibility") or {}).get("detail") or "")[:220]
+                        if isinstance(browser_visual_ai.get("title_visibility"), dict)
+                        else ""
+                    ),
+                },
+                "button_visibility": {
+                    "state": (
+                        str((browser_visual_ai.get("button_visibility") or {}).get("state") or "")[:20]
+                        if isinstance(browser_visual_ai.get("button_visibility"), dict)
+                        else ""
+                    ),
+                    "detail": (
+                        str((browser_visual_ai.get("button_visibility") or {}).get("detail") or "")[:220]
+                        if isinstance(browser_visual_ai.get("button_visibility"), dict)
+                        else ""
+                    ),
+                },
+                "render_surfaces": {
+                    "state": (
+                        str((browser_visual_ai.get("render_surfaces") or {}).get("state") or "")[:20]
+                        if isinstance(browser_visual_ai.get("render_surfaces"), dict)
+                        else ""
+                    ),
+                    "detail": (
+                        str((browser_visual_ai.get("render_surfaces") or {}).get("detail") or "")[:220]
+                        if isinstance(browser_visual_ai.get("render_surfaces"), dict)
+                        else ""
+                    ),
+                },
+                "caveats": [
+                    str(item).strip()[:160]
+                    for item in (browser_visual_ai.get("caveats") or [])
+                    if str(item or "").strip()
+                ][:6],
+            }
+            if browser_visual_ai
+            else {}
+        ),
         "memory": memory or evidence.get("memory"),
         "healthcheck": {
             "database": health.get("database"),
             "paths": {k: v for k, v in (health.get("paths") or {}).items() if isinstance(v, dict) and not v.get("ok")},
-            "dependencies": {k: v for k, v in (health.get("dependencies") or {}).items() if isinstance(v, dict) and not v.get("ok")},
+            "dependencies": {
+                k: v for k, v in (health.get("dependencies") or {}).items() if isinstance(v, dict) and not v.get("ok")
+            },
         },
-        "route_inventory": {k: v for k, v in (evidence.get("route_inventory") or {}).items() if isinstance(v, dict) and not v.get("ok")},
-        "asset_inventory": {k: v for k, v in (evidence.get("asset_inventory") or {}).items() if isinstance(v, dict) and not v.get("ok")},
+        "route_inventory": {
+            k: v for k, v in (evidence.get("route_inventory") or {}).items() if isinstance(v, dict) and not v.get("ok")
+        },
+        "asset_inventory": {
+            k: v for k, v in (evidence.get("asset_inventory") or {}).items() if isinstance(v, dict) and not v.get("ok")
+        },
         "database_readonly": evidence.get("database_readonly"),
         "local_llm": evidence.get("local_llm"),
         "external_web_research": _operator_web_research_snapshot(page_context=page_context),
         "external_connectors": evidence.get("external_connectors"),
         "tool_catalog": evidence.get("tool_catalog"),
-        "smoke_failures": {k: v for k, v in (smoke.get("results") or {}).items() if isinstance(v, dict) and not v.get("ok")},
+        "smoke_failures": {
+            k: v for k, v in (smoke.get("results") or {}).items() if isinstance(v, dict) and not v.get("ok")
+        },
         "issues": issues or [],
     }
 
 
 def build_system_guard_prompt(evidence: dict, issues: list[dict], memory: dict | None = None) -> str:
-    payload = json.dumps(_compact_evidence_for_llm(evidence, issues, memory=memory), ensure_ascii=False, separators=(",", ":"))
+    payload = json.dumps(
+        _compact_evidence_for_llm(evidence, issues, memory=memory), ensure_ascii=False, separators=(",", ":")
+    )
     return (
         "Eres un revisor senior de fiabilidad para una plataforma SaaS de fútbol. "
         "Analiza solo el JSON recibido y devuelve solo JSON válido con estas claves exactas: "
@@ -6058,7 +7194,9 @@ def build_system_guard_prompt(evidence: dict, issues: list[dict], memory: dict |
     )
 
 
-def build_system_guard_chat_prompt(report: dict, question: str, history=None, planner=None, memory=None, audience: str = "technical") -> str:
+def build_system_guard_chat_prompt(
+    report: dict, question: str, history=None, planner=None, memory=None, audience: str = "technical"
+) -> str:
     payload = json.dumps(
         {
             "question": _truncate(question, 3000),
@@ -6128,7 +7266,9 @@ def _parse_player_request(question: str) -> dict:
         name = str(free_name.group(1) if free_name else "").strip(" .")
     number_raw = _extract_labeled_value(text, ["dorsal", "numero", "número", "nº", "num"])
     position = _extract_labeled_value(text, ["posicion", "posición", "puesto"])
-    preferred_position = _extract_labeled_value(text, ["posicion preferida", "posición preferida", "preferred_position"])
+    preferred_position = _extract_labeled_value(
+        text, ["posicion preferida", "posición preferida", "preferred_position"]
+    )
     dominant_foot = _extract_labeled_value(text, ["pie", "pie dominante", "dominant_foot"])
     height_raw = _extract_labeled_value(text, ["altura", "height"])
     weight_raw = _extract_labeled_value(text, ["peso", "weight"])
@@ -6293,7 +7433,9 @@ def _parse_task_request(question: str) -> dict:
             re.IGNORECASE,
         )
         title = str(free_title.group(1) if free_title else "").strip(" .")
-    title = re.sub(r"^(?:t[ií]tulo|titulo|nombre|tarea|task)\s*[:=]?\s*", "", str(title or ""), flags=re.IGNORECASE).strip(" .")
+    title = re.sub(
+        r"^(?:t[ií]tulo|titulo|nombre|tarea|task)\s*[:=]?\s*", "", str(title or ""), flags=re.IGNORECASE
+    ).strip(" .")
     objective = _extract_labeled_value(text, ["objetivo", "objetivos"])
     block = _extract_labeled_value(text, ["bloque", "fase", "block"])
     minutes_raw = _extract_labeled_value(text, ["duracion", "duración", "minutos", "minutes"])
@@ -6433,12 +7575,24 @@ def _parse_convocation_request(question: str) -> dict:
     text = str(question or "").strip()
     lower = text.lower()
     payload = _parse_match_request(question)
-    include_full_roster = any(token in lower for token in ["plantilla completa", "toda la plantilla", "todos", "completa"])
-    players_match = re.search(r"(?:jugadores|convocados|lista)\s*[:=]\s*(.+?)(?=\s+(?:titulares|once|alineacion|alineación|capitan|capitán|portero)\s*:|$)", text, re.IGNORECASE)
-    starters_match = re.search(r"(?:titulares|once|alineacion|alineación)\s*[:=]\s*(.+?)(?=\s+(?:capitan|capitán|portero)\s*:|$)", text, re.IGNORECASE)
+    include_full_roster = any(
+        token in lower for token in ["plantilla completa", "toda la plantilla", "todos", "completa"]
+    )
+    players_match = re.search(
+        r"(?:jugadores|convocados|lista)\s*[:=]\s*(.+?)(?=\s+(?:titulares|once|alineacion|alineación|capitan|capitán|portero)\s*:|$)",
+        text,
+        re.IGNORECASE,
+    )
+    starters_match = re.search(
+        r"(?:titulares|once|alineacion|alineación)\s*[:=]\s*(.+?)(?=\s+(?:capitan|capitán|portero)\s*:|$)",
+        text,
+        re.IGNORECASE,
+    )
     players_raw = str(players_match.group(1) if players_match else "").strip()
     starters_raw = str(starters_match.group(1) if starters_match else "").strip()
-    captain_match = re.search(r"(?:capitan|capitán)\s*[:=]\s*(.+?)(?=\s+(?:portero|goalkeeper)\s*:|$)", text, re.IGNORECASE)
+    captain_match = re.search(
+        r"(?:capitan|capitán)\s*[:=]\s*(.+?)(?=\s+(?:portero|goalkeeper)\s*:|$)", text, re.IGNORECASE
+    )
     goalkeeper_match = re.search(r"(?:portero|goalkeeper)\s*[:=]\s*(.+?)$", text, re.IGNORECASE)
     captain_raw = str(captain_match.group(1) if captain_match else "").strip()
     goalkeeper_raw = str(goalkeeper_match.group(1) if goalkeeper_match else "").strip()
@@ -6465,7 +7619,9 @@ def _parse_rival_analysis_request(question: str) -> dict:
     rival_name = str(payload.get("rival") or "").strip()
     if rival_name:
         rival_name = re.sub(r"^(?:contra|vs\.?|frente a)\s+", "", rival_name, flags=re.IGNORECASE).strip()
-        rival_name = re.split(r"\s+(?:el\s+20\d{2}-\d{2}-\d{2}|sistema|plan|objetivo)\b", rival_name, maxsplit=1, flags=re.IGNORECASE)[0].strip(" ,.")
+        rival_name = re.split(
+            r"\s+(?:el\s+20\d{2}-\d{2}-\d{2}|sistema|plan|objetivo)\b", rival_name, maxsplit=1, flags=re.IGNORECASE
+        )[0].strip(" ,.")
     system = _extract_labeled_value(text, ["sistema", "estructura", "dibujo"])
     weaknesses = _extract_labeled_value(text, ["debilidades", "weaknesses", "alertas"])
     match_plan = _extract_labeled_value(text, ["plan", "plan partido", "match plan"])
@@ -6516,7 +7672,11 @@ def _parse_matchday_bundle_request(question: str) -> dict:
         default_tasks = []
         for seed in (
             {"title": "Activación partido", "duration_minutes": 12, "objective": "Activar y orientar al equipo"},
-            {"title": "Plan rival aplicado", "duration_minutes": 18, "objective": "Trasladar ajustes del plan de partido"},
+            {
+                "title": "Plan rival aplicado",
+                "duration_minutes": 18,
+                "objective": "Trasladar ajustes del plan de partido",
+            },
             {"title": "ABP partido", "duration_minutes": 15, "objective": "Ensayar acciones a balón parado"},
         ):
             default_tasks.append(seed)
@@ -6537,7 +7697,20 @@ def _parse_matchday_bundle_request(question: str) -> dict:
     }
 
 
-def _ollana_maturity_snapshot(*, page_context=None, assistant_action=None, technical_execution=None, operator_profile=None, silent_operator=None, repair_commander=None, repository_operator=None, release_guard=None, deployment_guard=None, self_healing=None, real_code_operator=None) -> dict:
+def _ollana_maturity_snapshot(
+    *,
+    page_context=None,
+    assistant_action=None,
+    technical_execution=None,
+    operator_profile=None,
+    silent_operator=None,
+    repair_commander=None,
+    repository_operator=None,
+    release_guard=None,
+    deployment_guard=None,
+    self_healing=None,
+    real_code_operator=None,
+) -> dict:
     page_context = page_context if isinstance(page_context, dict) else {}
     assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
     technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
@@ -6566,15 +7739,27 @@ def _ollana_maturity_snapshot(*, page_context=None, assistant_action=None, techn
         "autofix": 9 if bool(technical_execution.get("publish_ready") or technical_execution.get("status")) else 5,
         "incident_commander": 8 if bool(assistant_action.get("kind") or technical_execution.get("status")) else 4,
         "autonomy_controller": 8 if bool(silent_operator.get("continuous_enabled")) else 4,
-        "repair_commander": 8 if bool(repair_commander.get("embedded")) and bool(repair_commander.get("confidence_percent")) else 4,
-        "repository_operator": 8 if bool(repository_operator.get("embedded")) and bool(repository_operator.get("execution_ready")) else 4,
-        "release_guard": 8 if bool(release_guard.get("embedded")) and bool(release_guard.get("verification_ready")) else 4,
-        "deployment_guard": 8 if bool(deployment_guard.get("embedded")) and bool(deployment_guard.get("verification_window")) else 4,
+        "repair_commander": (
+            8 if bool(repair_commander.get("embedded")) and bool(repair_commander.get("confidence_percent")) else 4
+        ),
+        "repository_operator": (
+            8 if bool(repository_operator.get("embedded")) and bool(repository_operator.get("execution_ready")) else 4
+        ),
+        "release_guard": (
+            8 if bool(release_guard.get("embedded")) and bool(release_guard.get("verification_ready")) else 4
+        ),
+        "deployment_guard": (
+            8 if bool(deployment_guard.get("embedded")) and bool(deployment_guard.get("verification_window")) else 4
+        ),
         "self_healing": 8 if bool(self_healing.get("embedded")) and bool(self_healing.get("ready")) else 4,
         "external_connectors": 8 if bool(connectors.get("ready")) else 4,
         "safe_command_executor": 8 if _safe_int(command_executor.get("allowed_count"), 0) >= 4 else 4,
-        "autonomy_policy": 8 if bool(autonomy_policy.get("embedded")) and not autonomy_policy.get("requires_confirmation") else 5,
-        "real_code_operator": 8 if bool(real_code_operator.get("embedded")) and bool(real_code_operator.get("can_modify_code_now")) else 4,
+        "autonomy_policy": (
+            8 if bool(autonomy_policy.get("embedded")) and not autonomy_policy.get("requires_confirmation") else 5
+        ),
+        "real_code_operator": (
+            8 if bool(real_code_operator.get("embedded")) and bool(real_code_operator.get("can_modify_code_now")) else 4
+        ),
     }
     achieved = sum(scores.values())
     percent = max(1, min(100, achieved))
@@ -6593,7 +7778,9 @@ def _ollana_maturity_snapshot(*, page_context=None, assistant_action=None, techn
     }
 
 
-def _incident_commander_snapshot(*, page_context=None, assistant_action=None, technical_execution=None, snapshot_diff=None) -> dict:
+def _incident_commander_snapshot(
+    *, page_context=None, assistant_action=None, technical_execution=None, snapshot_diff=None
+) -> dict:
     page_context = page_context if isinstance(page_context, dict) else {}
     assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
     technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
@@ -6626,7 +7813,15 @@ def _incident_commander_snapshot(*, page_context=None, assistant_action=None, te
     }
 
 
-def _autonomy_controller_snapshot(*, page_context=None, planner=None, assistant_action=None, technical_execution=None, autofix_runner=None, silent_operator=None) -> dict:
+def _autonomy_controller_snapshot(
+    *,
+    page_context=None,
+    planner=None,
+    assistant_action=None,
+    technical_execution=None,
+    autofix_runner=None,
+    silent_operator=None,
+) -> dict:
     planner = planner if isinstance(planner, dict) else {}
     assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
     technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
@@ -6681,15 +7876,24 @@ def _ensure_team_competition_context(team, *, workspace=None):
     season = getattr(group, "season", None) if group else None
     if season:
         return season, group
-    season_label = str(getattr(getattr(workspace, "active_season", None), "label", "") or "").strip() or f"{datetime.now(timezone.utc).year}/{datetime.now(timezone.utc).year + 1}"
-    competition_slug = slugify(f"{team.display_name or team.name or 'competicion'}-{season_label}")[:150] or f"competition-{int(team.id)}"
+    season_label = (
+        str(getattr(getattr(workspace, "active_season", None), "label", "") or "").strip()
+        or f"{datetime.now(timezone.utc).year}/{datetime.now(timezone.utc).year + 1}"
+    )
+    competition_slug = (
+        slugify(f"{team.display_name or team.name or 'competicion'}-{season_label}")[:150]
+        or f"competition-{int(team.id)}"
+    )
     competition, _ = Competition.objects.get_or_create(
         slug=competition_slug,
         defaults={"name": f"Competición {team.display_name or team.name}", "region": "Sistema"},
     )
     season, _ = competition.seasons.get_or_create(
         name=season_label,
-        defaults={"start_date": getattr(getattr(workspace, "active_season", None), "start_date", None), "is_current": True},
+        defaults={
+            "start_date": getattr(getattr(workspace, "active_season", None), "start_date", None),
+            "is_current": True,
+        },
     )
     group_slug = slugify(f"{team.display_name or team.name}-grupo")[:80] or f"group-{int(team.id)}"
     group, _ = Group.objects.get_or_create(
@@ -6726,7 +7930,9 @@ def _resolve_players_from_tokens(team, tokens: list[str]) -> list[Player]:
         player = None
         digits = re.sub(r"[^\d]", "", text)
         if digits:
-            player = Player.objects.filter(team=team, number=_safe_int(digits, 0), is_active=True).order_by("id").first()
+            player = (
+                Player.objects.filter(team=team, number=_safe_int(digits, 0), is_active=True).order_by("id").first()
+            )
         if player is None:
             compact = re.sub(r"\s+", " ", text).strip()
             player = Player.objects.filter(team=team, name__icontains=compact, is_active=True).order_by("id").first()
@@ -6776,7 +7982,12 @@ def _resolve_active_session(workspace, *, page_context=None):
     team = _resolve_workspace_team(workspace, page_context=page_context) if workspace else None
     if not team:
         return None
-    return TrainingSession.objects.select_related("microcycle", "microcycle__team").filter(microcycle__team=team).order_by("-session_date", "-id").first()
+    return (
+        TrainingSession.objects.select_related("microcycle", "microcycle__team")
+        .filter(microcycle__team=team)
+        .order_by("-session_date", "-id")
+        .first()
+    )
 
 
 def _resolve_active_convocation(workspace, *, page_context=None):
@@ -6818,12 +8029,16 @@ def _ensure_match_from_payload(payload: dict, *, workspace=None, team=None) -> t
     away_team = rival if is_home or not is_away else team
     if not home_team or not away_team or not payload.get("date"):
         return None, False
-    match = Match.objects.filter(
-        season=season,
-        date=payload.get("date"),
-        home_team=home_team,
-        away_team=away_team,
-    ).order_by("-id").first()
+    match = (
+        Match.objects.filter(
+            season=season,
+            date=payload.get("date"),
+            home_team=home_team,
+            away_team=away_team,
+        )
+        .order_by("-id")
+        .first()
+    )
     created = match is None
     if created:
         match = Match.objects.create(
@@ -6910,21 +8125,30 @@ def _execute_create_session_action(question: str, *, workspace=None, page_contex
             "message": "No pude preparar el microciclo base para guardar la sesión.",
             "payload": payload,
         }
-    content = serialize_session_plan_fields({
-        "notes": payload.get("notes") or "",
-        "agenda_hidden": "",
-    })
+    content = serialize_session_plan_fields(
+        {
+            "notes": payload.get("notes") or "",
+            "agenda_hidden": "",
+        }
+    )
     with transaction.atomic():
         session = (
-            TrainingSession.objects
-            .filter(microcycle=microcycle, session_date=payload.get("session_date"), focus__iexact=str(payload.get("focus") or ""))
+            TrainingSession.objects.filter(
+                microcycle=microcycle,
+                session_date=payload.get("session_date"),
+                focus__iexact=str(payload.get("focus") or ""),
+            )
             .order_by("-id")
             .first()
         )
         created = session is None
         if created:
             next_order = (
-                TrainingSession.objects.filter(microcycle=microcycle).order_by("-order").values_list("order", flat=True).first() or 0
+                TrainingSession.objects.filter(microcycle=microcycle)
+                .order_by("-order")
+                .values_list("order", flat=True)
+                .first()
+                or 0
             ) + 1
             session = TrainingSession.objects.create(
                 microcycle=microcycle,
@@ -6957,10 +8181,7 @@ def _execute_create_session_action(question: str, *, workspace=None, page_contex
         "executed": True,
         "success": True,
         "needs_input": False,
-        "message": (
-            f"Sesión creada: {session.focus}."
-            if created else f"Sesión actualizada: {session.focus}."
-        ),
+        "message": (f"Sesión creada: {session.focus}." if created else f"Sesión actualizada: {session.focus}."),
         "session": {
             "id": int(getattr(session, "id", 0) or 0),
             "focus": str(getattr(session, "focus", "") or ""),
@@ -7032,7 +8253,9 @@ def _execute_create_microcycle_action(question: str, *, workspace=None, page_con
             "payload": payload,
         }
     with transaction.atomic():
-        microcycle = TrainingMicrocycle.objects.filter(team=team, week_start=payload.get("week_start")).order_by("-id").first()
+        microcycle = (
+            TrainingMicrocycle.objects.filter(team=team, week_start=payload.get("week_start")).order_by("-id").first()
+        )
         created = microcycle is None
         if created:
             microcycle = TrainingMicrocycle.objects.create(
@@ -7059,8 +8282,7 @@ def _execute_create_microcycle_action(question: str, *, workspace=None, page_con
         "success": True,
         "needs_input": False,
         "message": (
-            f"Microciclo creado: {microcycle.title}."
-            if created else f"Microciclo actualizado: {microcycle.title}."
+            f"Microciclo creado: {microcycle.title}." if created else f"Microciclo actualizado: {microcycle.title}."
         ),
         "microcycle": {
             "id": int(getattr(microcycle, "id", 0) or 0),
@@ -7136,14 +8358,17 @@ def _execute_create_task_action(question: str, *, workspace=None, page_context=N
         }
     with transaction.atomic():
         task = (
-            SessionTask.objects
-            .filter(session=library_session, title__iexact=str(payload.get("title") or ""))
+            SessionTask.objects.filter(session=library_session, title__iexact=str(payload.get("title") or ""))
             .order_by("-id")
             .first()
         )
         created = task is None
         next_order = (
-            SessionTask.objects.filter(session=library_session).order_by("-order").values_list("order", flat=True).first() or 0
+            SessionTask.objects.filter(session=library_session)
+            .order_by("-order")
+            .values_list("order", flat=True)
+            .first()
+            or 0
         ) + 1
         meta = {
             "scope": str(payload.get("scope_key") or "coach"),
@@ -7190,7 +8415,8 @@ def _execute_create_task_action(question: str, *, workspace=None, page_context=N
         "needs_input": False,
         "message": (
             f"Tarea creada en biblioteca: {task.title}."
-            if created else f"Tarea actualizada en biblioteca: {task.title}."
+            if created
+            else f"Tarea actualizada en biblioteca: {task.title}."
         ),
         "task": {
             "id": int(getattr(task, "id", 0) or 0),
@@ -7266,7 +8492,8 @@ def _execute_create_match_action(question: str, *, workspace=None, page_context=
         "needs_input": False,
         "message": (
             f"Partido creado: {home_team.display_name} vs {away_team.display_name}."
-            if created else f"Partido actualizado: {home_team.display_name} vs {away_team.display_name}."
+            if created
+            else f"Partido actualizado: {home_team.display_name} vs {away_team.display_name}."
         ),
         "match": {
             "id": int(getattr(match, "id", 0) or 0),
@@ -7354,7 +8581,9 @@ def _execute_create_convocation_action(question: str, *, workspace=None, page_co
     roster_qs = Player.objects.filter(team=team, is_active=True).order_by("number", "name")
     if active_season:
         season_ids = list(
-            active_season.season_players.filter(team=team, status__in=["confirmed", "pending"]).values_list("player_id", flat=True)
+            active_season.season_players.filter(team=team, status__in=["confirmed", "pending"]).values_list(
+                "player_id", flat=True
+            )
         )
         if season_ids:
             roster_qs = roster_qs.filter(id__in=season_ids)
@@ -7366,7 +8595,11 @@ def _execute_create_convocation_action(question: str, *, workspace=None, page_co
         roster = full_roster if payload.get("include_full_roster") else []
     starter_players = _resolve_players_from_tokens(team, payload.get("starter_tokens") or [])
     starters_limit = 7 if str(getattr(team, "game_format", "") or "").lower() == Team.GAME_FORMAT_F7 else 11
-    lineup_payload = _build_lineup_payload(roster, starter_players, starters_limit=starters_limit) if roster else {"starters": [], "bench": []}
+    lineup_payload = (
+        _build_lineup_payload(roster, starter_players, starters_limit=starters_limit)
+        if roster
+        else {"starters": [], "bench": []}
+    )
     captain_player = _resolve_players_from_tokens(team, [payload.get("captain_token") or ""])
     goalkeeper_player = _resolve_players_from_tokens(team, [payload.get("goalkeeper_token") or ""])
     captain = captain_player[0] if captain_player else (starter_players[0] if starter_players else None)
@@ -7405,7 +8638,19 @@ def _execute_create_convocation_action(question: str, *, workspace=None, page_co
             record.captain = captain
             record.goalkeeper = goalkeeper
             record.is_current = True
-            record.save(update_fields=["round", "match_date", "match_time", "location", "opponent_name", "lineup_data", "captain", "goalkeeper", "is_current"])
+            record.save(
+                update_fields=[
+                    "round",
+                    "match_date",
+                    "match_time",
+                    "location",
+                    "opponent_name",
+                    "lineup_data",
+                    "captain",
+                    "goalkeeper",
+                    "is_current",
+                ]
+            )
         if roster:
             record.players.set(roster)
     return {
@@ -7415,7 +8660,8 @@ def _execute_create_convocation_action(question: str, *, workspace=None, page_co
         "needs_input": False,
         "message": (
             f"Convocatoria creada para {payload.get('rival')}."
-            if created else f"Convocatoria actualizada para {payload.get('rival')}."
+            if created
+            else f"Convocatoria actualizada para {payload.get('rival')}."
         ),
         "convocation": {
             "id": int(getattr(record, "id", 0) or 0),
@@ -7481,11 +8727,15 @@ def _execute_create_rival_analysis_action(question: str, *, workspace=None, page
         match, _ = _ensure_match_from_payload(payload, workspace=workspace, team=team)
     rival_team = Team.objects.filter(name__iexact=str(payload.get("rival") or "")).order_by("id").first()
     with transaction.atomic():
-        report = RivalAnalysisReport.objects.filter(
-            team=team,
-            rival_name__iexact=str(payload.get("rival") or ""),
-            club_season=_active_workspace_season(workspace),
-        ).order_by("-id").first()
+        report = (
+            RivalAnalysisReport.objects.filter(
+                team=team,
+                rival_name__iexact=str(payload.get("rival") or ""),
+                club_season=_active_workspace_season(workspace),
+            )
+            .order_by("-id")
+            .first()
+        )
         created = report is None
         if created:
             report = RivalAnalysisReport.objects.create(
@@ -7530,7 +8780,8 @@ def _execute_create_rival_analysis_action(question: str, *, workspace=None, page
         "needs_input": False,
         "message": (
             f"Análisis rival preparado para {payload.get('rival')}."
-            if created else f"Análisis rival actualizado para {payload.get('rival')}."
+            if created
+            else f"Análisis rival actualizado para {payload.get('rival')}."
         ),
         "rival_analysis": {
             "id": int(getattr(report, "id", 0) or 0),
@@ -7569,12 +8820,18 @@ def _execute_create_session_bundle_action(question: str, *, workspace=None, page
         }
     created_tasks = []
     with transaction.atomic():
-        next_order = (SessionTask.objects.filter(session=session).order_by("-order").values_list("order", flat=True).first() or 0)
+        next_order = (
+            SessionTask.objects.filter(session=session).order_by("-order").values_list("order", flat=True).first() or 0
+        )
         for index, task_payload in enumerate(tasks_payload, start=1):
             title = str(task_payload.get("title") or "").strip()
             if not title:
                 continue
-            task = SessionTask.objects.filter(session=session, title__iexact=title, deleted_at__isnull=True).order_by("-id").first()
+            task = (
+                SessionTask.objects.filter(session=session, title__iexact=title, deleted_at__isnull=True)
+                .order_by("-id")
+                .first()
+            )
             created = task is None
             if created:
                 next_order += 1
@@ -7599,12 +8856,14 @@ def _execute_create_session_bundle_action(question: str, *, workspace=None, page
                     updates.append("objective")
                 if updates:
                     task.save(update_fields=sorted(set(updates)))
-            created_tasks.append({
-                "id": int(getattr(task, "id", 0) or 0),
-                "title": str(getattr(task, "title", "") or ""),
-                "duration_minutes": int(getattr(task, "duration_minutes", 0) or 0),
-                "created": created,
-            })
+            created_tasks.append(
+                {
+                    "id": int(getattr(task, "id", 0) or 0),
+                    "title": str(getattr(task, "title", "") or ""),
+                    "duration_minutes": int(getattr(task, "duration_minutes", 0) or 0),
+                    "created": created,
+                }
+            )
     return {
         "kind": "create_session_bundle",
         "executed": True,
@@ -7644,7 +8903,9 @@ def _execute_create_matchday_bundle_action(question: str, *, workspace=None, pag
             if str(row.get("title") or "").strip()
         )
         session_question_parts.append(f"con tareas: {task_text}")
-    session_result = _execute_create_session_bundle_action(" ".join(session_question_parts).strip(), workspace=workspace, page_context=page_context)
+    session_result = _execute_create_session_bundle_action(
+        " ".join(session_question_parts).strip(), workspace=workspace, page_context=page_context
+    )
     if not session_result.get("success"):
         failed = dict(session_result)
         failed["kind"] = "create_matchday_bundle"
@@ -7770,7 +9031,11 @@ def _execute_update_convocation_action(question: str, *, workspace=None, page_co
         record.players.set(roster)
     starter_players = _resolve_players_from_tokens(team, payload.get("starter_tokens") or [])
     starters_limit = 7 if str(getattr(team, "game_format", "") or "").lower() == Team.GAME_FORMAT_F7 else 11
-    lineup_payload = _build_lineup_payload(roster, starter_players, starters_limit=starters_limit) if roster else {"starters": [], "bench": []}
+    lineup_payload = (
+        _build_lineup_payload(roster, starter_players, starters_limit=starters_limit)
+        if roster
+        else {"starters": [], "bench": []}
+    )
     captain_rows = _resolve_players_from_tokens(team, [payload.get("captain_token") or ""])
     goalkeeper_rows = _resolve_players_from_tokens(team, [payload.get("goalkeeper_token") or ""])
     updates = []
@@ -7863,11 +9128,13 @@ def _capability_snapshot(*, page_context=None) -> dict:
     for row in OLLANA_CAPABILITIES.get("skills") or []:
         if bool(row.get("requires_code_operator")) and not can_code:
             continue
-        visible.append({
-            "key": str(row.get("key") or ""),
-            "label": str(row.get("label") or ""),
-            "scope": str(row.get("scope") or ""),
-        })
+        visible.append(
+            {
+                "key": str(row.get("key") or ""),
+                "label": str(row.get("label") or ""),
+                "scope": str(row.get("scope") or ""),
+            }
+        )
     permission_profile = _permission_profile(page_context=page_context)
     return {
         "identity": dict(OLLANA_CAPABILITIES.get("identity") or {}),
@@ -7884,11 +9151,13 @@ def _execution_surface_snapshot(*, page_context=None) -> dict:
     visible_skills = _capability_snapshot(page_context=page_context).get("skills") or []
     visible_keys = {str(row.get("key") or "") for row in visible_skills if isinstance(row, dict)}
     for surface, skill_keys in OLLANA_ACTION_SURFACES.items():
-        rows.append({
-            "surface": str(surface),
-            "skills": [key for key in skill_keys if key in visible_keys],
-            "count": len([key for key in skill_keys if key in visible_keys]),
-        })
+        rows.append(
+            {
+                "surface": str(surface),
+                "skills": [key for key in skill_keys if key in visible_keys],
+                "count": len([key for key in skill_keys if key in visible_keys]),
+            }
+        )
     return {
         "surfaces": rows,
         "permissions": permissions,
@@ -7899,13 +9168,15 @@ def _action_catalog_snapshot(*, page_context=None) -> dict:
     rows = []
     for action_key, policy in ACTION_PERMISSION_MATRIX.items():
         auth = _authorize_guard_action(action_key, page_context=page_context)
-        rows.append({
-            "key": str(action_key),
-            "scope": str((auth.get("policy") or {}).get("scope") or ""),
-            "allowed": bool(auth.get("allowed")),
-            "requires_manage_guard": bool((auth.get("policy") or {}).get("requires_manage_guard")),
-            "requires_code_operator": bool((auth.get("policy") or {}).get("requires_code_operator")),
-        })
+        rows.append(
+            {
+                "key": str(action_key),
+                "scope": str((auth.get("policy") or {}).get("scope") or ""),
+                "allowed": bool(auth.get("allowed")),
+                "requires_manage_guard": bool((auth.get("policy") or {}).get("requires_manage_guard")),
+                "requires_code_operator": bool((auth.get("policy") or {}).get("requires_code_operator")),
+            }
+        )
     grouped = {}
     for row in rows:
         grouped.setdefault(str(row.get("scope") or "other"), []).append(row)
@@ -7983,10 +9254,12 @@ def _external_connectors_snapshot(*, page_context=None) -> dict:
             enabled = True
             status = "available"
             web_urls = parse_research_urls(
-                "\n".join([
-                    str(context.get("web_urls") or "").strip(),
-                    str(context.get("web_research_urls") or "").strip(),
-                ]),
+                "\n".join(
+                    [
+                        str(context.get("web_urls") or "").strip(),
+                        str(context.get("web_research_urls") or "").strip(),
+                    ]
+                ),
                 limit=MAX_URLS,
             )
             detail = f"urls:{len(web_urls)} browser:http".strip()[:180]
@@ -8029,16 +9302,20 @@ def _external_connectors_snapshot(*, page_context=None) -> dict:
         elif key == "workspace_context":
             enabled = bool(workspace_id or team_id or str(context.get("page") or "").strip())
             status = "bound" if enabled else "context_missing"
-            detail = f"workspace:{workspace_id or '-'} team:{team_id or '-'} page:{str(context.get('page') or '-')[:80]}"
-        items.append({
-            "key": key,
-            "label": str(meta.get("label") or ""),
-            "kind": str(meta.get("kind") or ""),
-            "enabled": bool(enabled),
-            "status": status[:32],
-            "detail": detail,
-            **(item_extra if isinstance(item_extra, dict) else {}),
-        })
+            detail = (
+                f"workspace:{workspace_id or '-'} team:{team_id or '-'} page:{str(context.get('page') or '-')[:80]}"
+            )
+        items.append(
+            {
+                "key": key,
+                "label": str(meta.get("label") or ""),
+                "kind": str(meta.get("kind") or ""),
+                "enabled": bool(enabled),
+                "status": status[:32],
+                "detail": detail,
+                **(item_extra if isinstance(item_extra, dict) else {}),
+            }
+        )
     connected = len([row for row in items if bool(row.get("enabled"))])
     return {
         "items": items,
@@ -8050,14 +9327,20 @@ def _external_connectors_snapshot(*, page_context=None) -> dict:
 
 def _operator_web_research_snapshot(*, page_context=None) -> dict:
     context = page_context if isinstance(page_context, dict) else {}
-    raw_urls = "\n".join([
-        str(context.get("web_urls") or "").strip(),
-        str(context.get("web_research_urls") or "").strip(),
-        str(context.get("web_url") or "").strip(),
-    ]).strip()
-    web_query = str(context.get("web_search_query") or context.get("web_query") or context.get("search_query") or "").strip()
+    raw_urls = "\n".join(
+        [
+            str(context.get("web_urls") or "").strip(),
+            str(context.get("web_research_urls") or "").strip(),
+            str(context.get("web_url") or "").strip(),
+        ]
+    ).strip()
+    web_query = str(
+        context.get("web_search_query") or context.get("web_query") or context.get("search_query") or ""
+    ).strip()
     web_search_domains = str(context.get("web_search_domains") or context.get("web_domains") or "").strip()
-    web_search_blocked_domains = str(context.get("web_search_blocked_domains") or context.get("web_blocked_domains") or "").strip()
+    web_search_blocked_domains = str(
+        context.get("web_search_blocked_domains") or context.get("web_blocked_domains") or ""
+    ).strip()
     if not raw_urls and not web_query:
         return {
             "enabled": False,
@@ -8074,7 +9357,9 @@ def _operator_web_research_snapshot(*, page_context=None) -> dict:
                 blocked_domains=web_search_blocked_domains,
             )
             rows.extend(search_rows)
-            search_urls = "\n".join([str(row.get("url") or "") for row in search_rows if isinstance(row, dict) and row.get("ok")])
+            search_urls = "\n".join(
+                [str(row.get("url") or "") for row in search_rows if isinstance(row, dict) and row.get("ok")]
+            )
             if search_urls:
                 rows.extend(fetch_web_research_with_browser(search_urls, prefer_browser=True))
         if raw_urls:
@@ -8102,7 +9387,9 @@ def _safe_command_executor_snapshot(*, page_context=None) -> dict:
     allowed_count = 0
     silent_count = 0
     for key, meta in SAFE_COMMAND_CATALOG.items():
-        auth = _authorize_guard_action(str(meta.get("permission_action") or "inspect_system"), page_context=page_context)
+        auth = _authorize_guard_action(
+            str(meta.get("permission_action") or "inspect_system"), page_context=page_context
+        )
         tool = str(meta.get("tool") or "")
         tool_meta = TOOL_SCHEMAS.get(tool) or {}
         allowed = bool(auth.get("allowed"))
@@ -8110,16 +9397,18 @@ def _safe_command_executor_snapshot(*, page_context=None) -> dict:
             allowed_count += 1
         if allowed and bool(meta.get("silent_allowed")):
             silent_count += 1
-        commands.append({
-            "key": key,
-            "label": str(meta.get("label") or ""),
-            "tool": tool,
-            "scope": str(meta.get("scope") or ""),
-            "allowed": allowed,
-            "silent_allowed": bool(meta.get("silent_allowed")) and allowed,
-            "confirmation_required": bool(tool_meta.get("confirmation_required")),
-            "risk": str(tool_meta.get("risk") or ""),
-        })
+        commands.append(
+            {
+                "key": key,
+                "label": str(meta.get("label") or ""),
+                "tool": tool,
+                "scope": str(meta.get("scope") or ""),
+                "allowed": allowed,
+                "silent_allowed": bool(meta.get("silent_allowed")) and allowed,
+                "confirmation_required": bool(tool_meta.get("confirmation_required")),
+                "risk": str(tool_meta.get("risk") or ""),
+            }
+        )
     return {
         "enabled": True,
         "allowed_count": allowed_count,
@@ -8129,7 +9418,9 @@ def _safe_command_executor_snapshot(*, page_context=None) -> dict:
     }
 
 
-def _autonomy_policy_snapshot(*, page_context=None, planner=None, assistant_action=None, technical_operation=None, technical_execution=None) -> dict:
+def _autonomy_policy_snapshot(
+    *, page_context=None, planner=None, assistant_action=None, technical_operation=None, technical_execution=None
+) -> dict:
     planner = planner if isinstance(planner, dict) else {}
     assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
     technical_operation = technical_operation if isinstance(technical_operation, dict) else {}
@@ -8144,7 +9435,7 @@ def _autonomy_policy_snapshot(*, page_context=None, planner=None, assistant_acti
         confirmation_actions.extend(["git_commit", "git_push"])
     if bool(technical_operation.get("authorized_for_publish")):
         confirmation_actions.extend(["publish_changes"])
-    roles = (_permission_profile(page_context=page_context).get("roles") or {})
+    roles = _permission_profile(page_context=page_context).get("roles") or {}
     admin_total_operator = bool(roles.get("admin_total_operator"))
     reserved_actions = []
     for action_key in ("repair_code", "publish_changes", "inspect_repo", "validate_changes"):
@@ -8152,9 +9443,15 @@ def _autonomy_policy_snapshot(*, page_context=None, planner=None, assistant_acti
         if not auth.get("allowed"):
             reserved_actions.append(action_key)
     mode = "silent_guard"
-    if admin_total_operator and (assistant_action.get("kind") == "code_intervention_request" or str((planner.get("task") or {}).get("scope") or "") in {"code", "system"}):
+    if admin_total_operator and (
+        assistant_action.get("kind") == "code_intervention_request"
+        or str((planner.get("task") or {}).get("scope") or "") in {"code", "system"}
+    ):
         mode = "owner_code_operator"
-    elif assistant_action.get("kind") == "code_intervention_request" or str((planner.get("task") or {}).get("scope") or "") == "code":
+    elif (
+        assistant_action.get("kind") == "code_intervention_request"
+        or str((planner.get("task") or {}).get("scope") or "") == "code"
+    ):
         mode = "technical_operator"
     elif assistant_action.get("kind") in {"navigate_module", "guide_user"}:
         mode = "guided_assistant"
@@ -8192,7 +9489,9 @@ def _governance_snapshot(*, page_context=None, planner=None, technical_operation
     }
 
 
-def _policy_decisions_snapshot(*, page_context=None, planner=None, assistant_action=None, technical_operation=None) -> dict:
+def _policy_decisions_snapshot(
+    *, page_context=None, planner=None, assistant_action=None, technical_operation=None
+) -> dict:
     planner = planner if isinstance(planner, dict) else {}
     assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
     technical_operation = technical_operation if isinstance(technical_operation, dict) else {}
@@ -8305,11 +9604,15 @@ def _orchestration_snapshot(question: str, *, planner=None, assistant_action=Non
         "target_summary": _truncate(question, 220),
         "assistant_action_kind": str(assistant_action.get("kind") or ""),
         "code_mode": str(code_operator_mode.get("mode") or ""),
-        "requested_tools": [str(item) for item in (planner.get("requested_tools") or []) if str(item or "").strip()][:8],
+        "requested_tools": [str(item) for item in (planner.get("requested_tools") or []) if str(item or "").strip()][
+            :8
+        ],
     }
 
 
-def _execution_plan_snapshot(*, planner=None, assistant_action=None, technical_operation=None, technical_execution=None, change_blueprint=None) -> dict:
+def _execution_plan_snapshot(
+    *, planner=None, assistant_action=None, technical_operation=None, technical_execution=None, change_blueprint=None
+) -> dict:
     planner = planner if isinstance(planner, dict) else {}
     assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
     technical_operation = technical_operation if isinstance(technical_operation, dict) else {}
@@ -8319,22 +9622,29 @@ def _execution_plan_snapshot(*, planner=None, assistant_action=None, technical_o
     for row in (planner.get("steps") or [])[:6]:
         if not isinstance(row, dict):
             continue
-        stages.append({
-            "step": str(row.get("step") or ""),
-            "done": bool(row.get("done")),
-        })
+        stages.append(
+            {
+                "step": str(row.get("step") or ""),
+                "done": bool(row.get("done")),
+            }
+        )
     if str(technical_operation.get("kind") or "") == "technical_operation":
         for phase in (technical_operation.get("phases") or [])[:5]:
             if not isinstance(phase, dict):
                 continue
-            stages.append({
-                "step": str(phase.get("label") or phase.get("key") or ""),
-                "done": str(phase.get("key") or "") in {str(item) for item in (technical_execution.get("completed_phases") or [])},
-            })
+            stages.append(
+                {
+                    "step": str(phase.get("label") or phase.get("key") or ""),
+                    "done": str(phase.get("key") or "")
+                    in {str(item) for item in (technical_execution.get("completed_phases") or [])},
+                }
+            )
     return {
         "target": str((change_blueprint.get("target") or assistant_action.get("message") or "") or "")[:220],
         "assistant_action_kind": str(assistant_action.get("kind") or ""),
-        "status": str(technical_execution.get("status") or ("completed" if assistant_action.get("success") else "pending")),
+        "status": str(
+            technical_execution.get("status") or ("completed" if assistant_action.get("success") else "pending")
+        ),
         "publish_ready": bool(technical_execution.get("publish_ready")),
         "stages": stages[:10],
     }
@@ -8380,7 +9690,11 @@ def _build_request_contract(
     elif planner.get("requested_tools"):
         execution_mode = "runbook_assistance"
     executable_now = bool(
-        (assistant_action.get("success") and not assistant_action.get("needs_input") and not assistant_action.get("permission_required"))
+        (
+            assistant_action.get("success")
+            and not assistant_action.get("needs_input")
+            and not assistant_action.get("permission_required")
+        )
         or technical_execution.get("publish_ready")
         or repair_commander.get("can_execute_now")
     )
@@ -8449,7 +9763,9 @@ def _build_request_contract(
     }
 
 
-def _build_publish_commander(*, planner=None, assistant_action=None, technical_execution=None, executed_tools=None, page_context=None) -> dict:
+def _build_publish_commander(
+    *, planner=None, assistant_action=None, technical_execution=None, executed_tools=None, page_context=None
+) -> dict:
     planner = planner if isinstance(planner, dict) else {}
     assistant_action = assistant_action if isinstance(assistant_action, dict) else {}
     technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
@@ -8461,7 +9777,11 @@ def _build_publish_commander(*, planner=None, assistant_action=None, technical_e
         action_kind.startswith("publish_")
         or "git_commit" in requested_tools
         or "git_push" in requested_tools
-        or any(str((row.get("action") or {}).get("kind") or "").startswith("publish_") for row in (assistant_action.get("steps") or []) if isinstance(row, dict))
+        or any(
+            str((row.get("action") or {}).get("kind") or "").startswith("publish_")
+            for row in (assistant_action.get("steps") or [])
+            if isinstance(row, dict)
+        )
     )
     publish_auth = _authorize_guard_action("publish_changes", page_context=page_context)
     commit_done = any(str(row.get("tool") or "") == "git_commit" and bool(row.get("ok")) for row in executed_tools)
@@ -8475,7 +9795,9 @@ def _build_publish_commander(*, planner=None, assistant_action=None, technical_e
         status = "pushed"
     elif commit_done:
         status = "committed"
-    elif planner.get("confirm_required") and ("git_commit" in requested_tools or "git_push" in requested_tools or action_kind.startswith("publish_")):
+    elif planner.get("confirm_required") and (
+        "git_commit" in requested_tools or "git_push" in requested_tools or action_kind.startswith("publish_")
+    ):
         status = "awaiting_confirmation"
     elif technical_execution.get("publish_ready") or publish_requested:
         status = "ready_for_publish"
@@ -8497,7 +9819,9 @@ def _build_publish_commander(*, planner=None, assistant_action=None, technical_e
         "status": status,
         "requested_tools": requested_tools[:4],
         "confirmation_required": bool(planner.get("confirm_required")) and publish_requested,
-        "publish_ready": bool(technical_execution.get("publish_ready") or status in {"ready_for_publish", "committed", "pushed"}),
+        "publish_ready": bool(
+            technical_execution.get("publish_ready") or status in {"ready_for_publish", "committed", "pushed"}
+        ),
         "commit_done": commit_done,
         "push_done": push_done,
         "next_step": next_step,
@@ -8526,11 +9850,13 @@ def _recent_fix_memory_snapshot(workspace, *, catalog_candidates=None) -> dict:
         if not summary:
             continue
         if any(token.lower() in summary.lower() for token in similar_candidates):
-            related_ledger.append({
-                "kind": str(row.get("kind") or "")[:32],
-                "status": str(row.get("status") or "")[:32],
-                "summary": summary[:180],
-            })
+            related_ledger.append(
+                {
+                    "kind": str(row.get("kind") or "")[:32],
+                    "status": str(row.get("status") or "")[:32],
+                    "summary": summary[:180],
+                }
+            )
     return {
         "recent_fixes": recent_fixes[:6],
         "related_ledger": related_ledger[:4],
@@ -8565,27 +9891,45 @@ def _build_repository_operator(
     if technical_execution.get("publish_ready"):
         execution_lane = "validated_change"
     command_plan = []
-    command_plan.append({"key": "inspect_repo", "command": "git status --short", "purpose": "Verificar el estado previo del repositorio."})
-    command_plan.append({"key": "validate", "command": ".venv/bin/python manage.py check", "purpose": "Asegurar que el proyecto valida antes y después del cambio."})
+    command_plan.append(
+        {
+            "key": "inspect_repo",
+            "command": "git status --short",
+            "purpose": "Verificar el estado previo del repositorio.",
+        }
+    )
+    command_plan.append(
+        {
+            "key": "validate",
+            "command": ".venv/bin/python manage.py check",
+            "purpose": "Asegurar que el proyecto valida antes y después del cambio.",
+        }
+    )
     if technical_execution.get("publish_ready") or publish_commander.get("requested"):
-        command_plan.append({"key": "commit", "command": "git commit -m \"<mensaje técnico>\"", "purpose": "Consolidar el diff validado."})
+        command_plan.append(
+            {"key": "commit", "command": 'git commit -m "<mensaje técnico>"', "purpose": "Consolidar el diff validado."}
+        )
         command_plan.append({"key": "push", "command": "git push", "purpose": "Publicar el cambio autorizado."})
     edit_targets = []
     for row in file_changes[:6]:
-        edit_targets.append({
-            "path": str(row.get("path") or "")[:220],
-            "change_type": str(row.get("change_type") or "")[:40],
-            "risk": str(row.get("risk") or "")[:16],
-            "objective": str(row.get("objective") or "")[:220],
-        })
+        edit_targets.append(
+            {
+                "path": str(row.get("path") or "")[:220],
+                "change_type": str(row.get("change_type") or "")[:40],
+                "risk": str(row.get("risk") or "")[:16],
+                "objective": str(row.get("objective") or "")[:220],
+            }
+        )
     patch_bundle = []
     for row in patch_drafts[:4]:
-        patch_bundle.append({
-            "path": str(row.get("path") or "")[:220],
-            "strategy": str(row.get("strategy") or "exact_text_patch")[:40],
-            "search": str(row.get("search") or "")[:180],
-            "replace_preview": str(row.get("replace_preview") or "")[:180],
-        })
+        patch_bundle.append(
+            {
+                "path": str(row.get("path") or "")[:220],
+                "strategy": str(row.get("strategy") or "exact_text_patch")[:40],
+                "search": str(row.get("search") or "")[:180],
+                "replace_preview": str(row.get("replace_preview") or "")[:180],
+            }
+        )
     autonomous_steps = [
         "Inspeccionar targets y verificar si existe fix catalogado reutilizable.",
         "Aplicar el menor cambio seguro posible sobre los archivos objetivo.",
@@ -8656,17 +10000,23 @@ def _build_real_code_operator(
     completion += 10 if bool(publish_commander.get("push_done")) else 0
     execution_log = []
     for phase in completed[:6]:
-        execution_log.append({
-            "phase": phase,
-            "status": "done",
-        })
+        execution_log.append(
+            {
+                "phase": phase,
+                "status": "done",
+            }
+        )
     if self_applied:
         first_fix = next((row for row in applied if bool(row.get("ok"))), applied[0] if applied else {})
-        execution_log.append({
-            "phase": "repair",
-            "status": "done",
-            "detail": str(first_fix.get("title") or first_fix.get("candidate_key") or "fix catalogado aplicado")[:180],
-        })
+        execution_log.append(
+            {
+                "phase": "repair",
+                "status": "done",
+                "detail": str(first_fix.get("title") or first_fix.get("candidate_key") or "fix catalogado aplicado")[
+                    :180
+                ],
+            }
+        )
     if publish_commander.get("commit_done"):
         execution_log.append({"phase": "commit", "status": "done"})
     if publish_commander.get("push_done"):
@@ -8677,7 +10027,11 @@ def _build_real_code_operator(
         "active": True,
         "execution_scope": execution_scope,
         "can_modify_code_now": can_code and bool(repository_operator.get("execution_ready")),
-        "can_self_publish_now": bool(can_publish and publish_commander.get("publish_ready") and not publish_commander.get("confirmation_required")),
+        "can_self_publish_now": bool(
+            can_publish
+            and publish_commander.get("publish_ready")
+            and not publish_commander.get("confirmation_required")
+        ),
         "self_applied_fix": self_applied,
         "validated": validated,
         "status": str(technical_execution.get("status") or "running")[:32],
@@ -8685,20 +10039,29 @@ def _build_real_code_operator(
         "completion_percent": max(5, min(100, completion)),
         "remaining_gates": remaining_gates[:4],
         "autonomy_mode": str(autonomy_policy.get("mode") or "")[:32],
-        "autonomous_reach": [
-            "triage",
-            "inspect_repo",
-            "validate",
-            "repair",
-        ] if can_code else ["triage", "inspect_repo"],
-        "execution_modes": [
-            "catalog_autofix",
-            "patch_bundle",
-            "repo_wide_manual_edit",
-            "validation_publish",
-        ] if can_code else ["guided_diagnostics"],
+        "autonomous_reach": (
+            [
+                "triage",
+                "inspect_repo",
+                "validate",
+                "repair",
+            ]
+            if can_code
+            else ["triage", "inspect_repo"]
+        ),
+        "execution_modes": (
+            [
+                "catalog_autofix",
+                "patch_bundle",
+                "repo_wide_manual_edit",
+                "validation_publish",
+            ]
+            if can_code
+            else ["guided_diagnostics"]
+        ),
         "execution_log": execution_log[:8],
-        "owner_restricted": bool(page_context.get("can_manage_guard")) and not bool(page_context.get("can_operate_guard_code")),
+        "owner_restricted": bool(page_context.get("can_manage_guard"))
+        and not bool(page_context.get("can_operate_guard_code")),
         "publish_status": str(publish_commander.get("status") or "")[:32],
         "continuous_handoff_ready": bool(repository_operator.get("execution_ready")),
     }
@@ -8722,7 +10085,9 @@ def _build_release_guard(
     warnings = _safe_int(issue_summary.get("warnings"), 0)
     push_done = any(str(row.get("tool") or "") == "git_push" and bool(row.get("ok")) for row in executions)
     commit_done = any(str(row.get("tool") or "") == "git_commit" and bool(row.get("ok")) for row in executions)
-    validation_done = any(str(row.get("tool") or "") == "run_operator_validation" and bool(row.get("ok")) for row in executions)
+    validation_done = any(
+        str(row.get("tool") or "") == "run_operator_validation" and bool(row.get("ok")) for row in executions
+    )
     regressions = [str(item) for item in (snapshot_diff.get("regressions") or []) if str(item or "").strip()]
     status = "monitoring"
     if regressions or blockers > 0:
@@ -8768,16 +10133,47 @@ def _build_deployment_guard(
     release_guard = release_guard if isinstance(release_guard, dict) else {}
     publish_commander = publish_commander if isinstance(publish_commander, dict) else {}
     report = report if isinstance(report, dict) else {}
-    route_result = next((row.get("result") for row in executions if str(row.get("tool") or "") == "check_critical_routes" and isinstance(row.get("result"), dict)), {})
-    recent_errors = next((row.get("result") for row in executions if str(row.get("tool") or "") == "inspect_recent_errors" and isinstance(row.get("result"), dict)), {})
-    public_deployment = next((row.get("result") for row in executions if str(row.get("tool") or "") == "inspect_public_deployment" and isinstance(row.get("result"), dict)), {})
+    route_result = next(
+        (
+            row.get("result")
+            for row in executions
+            if str(row.get("tool") or "") == "check_critical_routes" and isinstance(row.get("result"), dict)
+        ),
+        {},
+    )
+    recent_errors = next(
+        (
+            row.get("result")
+            for row in executions
+            if str(row.get("tool") or "") == "inspect_recent_errors" and isinstance(row.get("result"), dict)
+        ),
+        {},
+    )
+    public_deployment = next(
+        (
+            row.get("result")
+            for row in executions
+            if str(row.get("tool") or "") == "inspect_public_deployment" and isinstance(row.get("result"), dict)
+        ),
+        {},
+    )
     issue_summary = report.get("issue_summary") if isinstance(report.get("issue_summary"), dict) else {}
     blockers = _safe_int(issue_summary.get("blockers"), 0)
     push_done = any(str(row.get("tool") or "") == "git_push" and bool(row.get("ok")) for row in executions)
     route_ok = bool(route_result.get("ok")) if isinstance(route_result, dict) and route_result else False
-    public_ok = bool(public_deployment.get("ok")) if isinstance(public_deployment, dict) and public_deployment else False
-    failing_routes = [row for row in (route_result.get("failing") or []) if isinstance(row, dict)] if isinstance(route_result, dict) else []
-    error_patterns = [row for row in (recent_errors.get("patterns") or []) if isinstance(row, dict)] if isinstance(recent_errors, dict) else []
+    public_ok = (
+        bool(public_deployment.get("ok")) if isinstance(public_deployment, dict) and public_deployment else False
+    )
+    failing_routes = (
+        [row for row in (route_result.get("failing") or []) if isinstance(row, dict)]
+        if isinstance(route_result, dict)
+        else []
+    )
+    error_patterns = (
+        [row for row in (recent_errors.get("patterns") or []) if isinstance(row, dict)]
+        if isinstance(recent_errors, dict)
+        else []
+    )
     status = "pending_release_window"
     if blockers > 0 or failing_routes or (public_deployment and not public_ok):
         status = "deployment_risk"
@@ -8787,7 +10183,9 @@ def _build_deployment_guard(
         status = "release_window_open"
     elif publish_commander.get("publish_ready") or release_guard.get("verification_ready"):
         status = "pre_deploy_check"
-    verification_window = bool(push_done or publish_commander.get("publish_ready") or release_guard.get("verification_ready"))
+    verification_window = bool(
+        push_done or publish_commander.get("publish_ready") or release_guard.get("verification_ready")
+    )
     next_checks = []
     if failing_routes:
         next_checks.append(f"Corregir rutas críticas fallidas: {len(failing_routes)}")
@@ -8805,7 +10203,14 @@ def _build_deployment_guard(
     if not next_checks:
         next_checks.append("Esperar el siguiente cambio validado para abrir ventana de despliegue.")
     connector_items = _external_connectors_snapshot(page_context={}).get("items") or []
-    rollback_connector = next((row for row in connector_items if isinstance(row, dict) and str(row.get("key") or "") == "rollback_trigger_api"), {})
+    rollback_connector = next(
+        (
+            row
+            for row in connector_items
+            if isinstance(row, dict) and str(row.get("key") or "") == "rollback_trigger_api"
+        ),
+        {},
+    )
     auto_rollback_eligible = bool(
         _env_flag("OLLANA_AUTO_ROLLBACK_ENABLED")
         and status == "deployment_risk"
@@ -8833,7 +10238,9 @@ def _build_deployment_guard(
     }
 
 
-def _build_infrastructure_operator(*, external_connectors=None, deployment_guard=None, observability_mesh=None, autonomy_policy=None) -> dict:
+def _build_infrastructure_operator(
+    *, external_connectors=None, deployment_guard=None, observability_mesh=None, autonomy_policy=None
+) -> dict:
     external_connectors = external_connectors if isinstance(external_connectors, dict) else {}
     deployment_guard = deployment_guard if isinstance(deployment_guard, dict) else {}
     observability_mesh = observability_mesh if isinstance(observability_mesh, dict) else {}
@@ -8864,7 +10271,7 @@ def _build_admin_operator_console(
     domain_playbook=None,
     autonomous_backlog=None,
 ) -> dict:
-    roles = (_permission_profile(page_context=page_context).get("roles") or {})
+    roles = _permission_profile(page_context=page_context).get("roles") or {}
     autonomy_policy = autonomy_policy if isinstance(autonomy_policy, dict) else {}
     objective_orchestrator = objective_orchestrator if isinstance(objective_orchestrator, dict) else {}
     infrastructure_operator = infrastructure_operator if isinstance(infrastructure_operator, dict) else {}
@@ -8880,7 +10287,9 @@ def _build_admin_operator_console(
         "armed_connectors": list(infrastructure_operator.get("armed_connectors") or [])[:6],
         "objective_count": _safe_int(objective_orchestrator.get("active_count"), 0),
         "backlog_executed_count": _safe_int(autonomous_backlog.get("executed_count"), 0),
-        "priority_queue": list((autonomous_backlog.get("priority_queue") or objective_orchestrator.get("objectives") or [])[:5]),
+        "priority_queue": list(
+            (autonomous_backlog.get("priority_queue") or objective_orchestrator.get("objectives") or [])[:5]
+        ),
     }
 
 
@@ -8890,7 +10299,9 @@ def _continuous_operator_snapshot(workspace, *, actor_id=None) -> dict:
     control = _load_operator_control(workspace) if workspace else {}
     objectives = _objective_orchestrator_snapshot(workspace, actor_id=actor_id) if workspace else {}
     priority_state = _refresh_operator_priorities(workspace, page_context={}) if workspace else {}
-    strategy = _autonomous_priority_strategy(workspace, page_context={}, priority_state=priority_state) if workspace else {}
+    strategy = (
+        _autonomous_priority_strategy(workspace, page_context={}, priority_state=priority_state) if workspace else {}
+    )
     tasks = [row for row in (priority_state.get("tasks") or []) if isinstance(row, dict)]
     top_task = tasks[0] if tasks else {}
     return {
@@ -8902,13 +10313,17 @@ def _continuous_operator_snapshot(workspace, *, actor_id=None) -> dict:
         "resumable_objectives": _safe_int(objectives.get("resumable_count"), 0),
         "retryable_objectives": _safe_int(objectives.get("retryable_count"), 0),
         "escalated_objectives": _safe_int(objectives.get("escalated_count"), 0),
-        "top_priority_task": {
-            "id": str(top_task.get("id") or "")[:120],
-            "title": str(top_task.get("title") or "")[:160],
-            "priority_score": _safe_int(top_task.get("priority_score"), 0),
-            "priority_band": str(top_task.get("priority_band") or "")[:24],
-            "priority_reason": str(top_task.get("priority_reason") or "")[:220],
-        } if isinstance(top_task, dict) and top_task else {},
+        "top_priority_task": (
+            {
+                "id": str(top_task.get("id") or "")[:120],
+                "title": str(top_task.get("title") or "")[:160],
+                "priority_score": _safe_int(top_task.get("priority_score"), 0),
+                "priority_band": str(top_task.get("priority_band") or "")[:24],
+                "priority_reason": str(top_task.get("priority_reason") or "")[:220],
+            }
+            if isinstance(top_task, dict) and top_task
+            else {}
+        ),
         "top_priority_objective": (objectives.get("objectives") or [{}])[0] if objectives.get("objectives") else {},
         "strategy": strategy,
         "running": bool(runtime.get("running")),
@@ -8928,16 +10343,22 @@ def run_continuous_operator_cycle(
     control = _load_operator_control(workspace)
     if bool(control.get("stop_requested")) and not force:
         runtime = _load_operator_runtime_state(workspace)
-        runtime.update({
-            "running": False,
-            "last_status": "stopped",
-            "last_finished_at": _now_iso(),
-        })
+        runtime.update(
+            {
+                "running": False,
+                "last_status": "stopped",
+                "last_finished_at": _now_iso(),
+            }
+        )
         _store_operator_runtime_state(workspace, runtime)
         return {"ok": False, "reason": "stop_requested", "runtime": runtime, "control": control}
     lease_result = _acquire_operator_lease(workspace, actor_id=actor_id, holder=holder, force=force)
     if not lease_result.get("ok"):
-        return {"ok": False, "reason": str(lease_result.get("reason") or "lease_busy"), "lease": lease_result.get("lease") or {}}
+        return {
+            "ok": False,
+            "reason": str(lease_result.get("reason") or "lease_busy"),
+            "lease": lease_result.get("lease") or {},
+        }
     started_at = _now_iso()
     runtime = {
         "running": True,
@@ -8957,20 +10378,26 @@ def run_continuous_operator_cycle(
         )
         queue_counts = proactive.get("queue_counts") or {}
         objective_state = _objective_orchestrator_snapshot(workspace, actor_id=actor_id)
-        strategy = proactive.get("strategy") if isinstance(proactive.get("strategy"), dict) else _autonomous_priority_strategy(workspace, page_context=page_context)
-        runtime.update({
-            "running": False,
-            "last_finished_at": _now_iso(),
-            "last_status": "ok" if proactive.get("ok") else "watch",
-            "last_queue_counts": queue_counts,
-            "last_detection_count": len(proactive.get("detections") or []),
-            "last_executed_tasks": _safe_int((proactive.get("autonomous_backlog") or {}).get("executed_count"), 0),
-            "last_retryable_objectives": _safe_int(objective_state.get("retryable_count"), 0),
-            "last_escalated_objectives": _safe_int(objective_state.get("escalated_count"), 0),
-            "last_strategy_mode": str(strategy.get("mode") or "")[:64],
-            "last_strategy_band": str(strategy.get("band") or "")[:24],
-            "heartbeat_at": _now_iso(),
-        })
+        strategy = (
+            proactive.get("strategy")
+            if isinstance(proactive.get("strategy"), dict)
+            else _autonomous_priority_strategy(workspace, page_context=page_context)
+        )
+        runtime.update(
+            {
+                "running": False,
+                "last_finished_at": _now_iso(),
+                "last_status": "ok" if proactive.get("ok") else "watch",
+                "last_queue_counts": queue_counts,
+                "last_detection_count": len(proactive.get("detections") or []),
+                "last_executed_tasks": _safe_int((proactive.get("autonomous_backlog") or {}).get("executed_count"), 0),
+                "last_retryable_objectives": _safe_int(objective_state.get("retryable_count"), 0),
+                "last_escalated_objectives": _safe_int(objective_state.get("escalated_count"), 0),
+                "last_strategy_mode": str(strategy.get("mode") or "")[:64],
+                "last_strategy_band": str(strategy.get("band") or "")[:24],
+                "heartbeat_at": _now_iso(),
+            }
+        )
         _store_operator_runtime_state(workspace, runtime)
         return {
             "ok": True,
@@ -9014,14 +10441,17 @@ def _maybe_trigger_automatic_rollback(
         result_summary=summary,
         executions=[{"tool": "trigger_remote_rollback", "ok": True, "result": result, "kind": "maintenance"}],
     )
-    _append_incident_ledger(workspace, {
-        "created_at": _now_iso(),
-        "issue_id": "trigger_remote_rollback",
-        "status": "resolved",
-        "runbook": "automatic_rollback",
-        "summary": summary,
-        "kind": "maintenance",
-    })
+    _append_incident_ledger(
+        workspace,
+        {
+            "created_at": _now_iso(),
+            "issue_id": "trigger_remote_rollback",
+            "status": "resolved",
+            "runbook": "automatic_rollback",
+            "summary": summary,
+            "kind": "maintenance",
+        },
+    )
     return {
         "triggered": True,
         "mode": "automatic_rollback",
@@ -9048,11 +10478,18 @@ def _build_self_healing_operator(
         return {}
     memory_snapshot = _recent_fix_memory_snapshot(
         workspace,
-        catalog_candidates=technical_operation.get("catalog_candidates") if isinstance(technical_operation.get("catalog_candidates"), list) else [],
+        catalog_candidates=(
+            technical_operation.get("catalog_candidates")
+            if isinstance(technical_operation.get("catalog_candidates"), list)
+            else []
+        ),
     )
     repeated = [str(item) for item in (snapshot_diff.get("repeated_issues") or []) if str(item or "").strip()]
     catalog_candidates = [row for row in (technical_operation.get("catalog_candidates") or []) if isinstance(row, dict)]
-    recommended = next((row for row in catalog_candidates if bool(row.get("auto_apply"))), catalog_candidates[0] if catalog_candidates else {})
+    recommended = next(
+        (row for row in catalog_candidates if bool(row.get("auto_apply"))),
+        catalog_candidates[0] if catalog_candidates else {},
+    )
     strategy = "memory_guided_repair"
     strategy_mode = str(autonomous_strategy.get("mode") or "").strip()
     if recommended and bool(recommended.get("auto_apply")):
@@ -9074,13 +10511,18 @@ def _build_self_healing_operator(
         next_actions.append("Seguir recopilando memoria técnica antes de activar autocuración.")
     return {
         "embedded": True,
-        "ready": bool(repository_operator.get("execution_ready")) and bool(memory_snapshot.get("has_history") or recommended),
+        "ready": bool(repository_operator.get("execution_ready"))
+        and bool(memory_snapshot.get("has_history") or recommended),
         "strategy": strategy,
-        "recommended_fix": {
-            "key": str(recommended.get("key") or "")[:80],
-            "title": str(recommended.get("title") or recommended.get("key") or "")[:180],
-            "auto_apply": bool(recommended.get("auto_apply")),
-        } if recommended else {},
+        "recommended_fix": (
+            {
+                "key": str(recommended.get("key") or "")[:80],
+                "title": str(recommended.get("title") or recommended.get("key") or "")[:180],
+                "auto_apply": bool(recommended.get("auto_apply")),
+            }
+            if recommended
+            else {}
+        ),
         "repeated_issues": repeated[:4],
         "memory_hits": len(memory_snapshot.get("related_ledger") or []),
         "recent_fixes": [str(item) for item in (memory_snapshot.get("recent_fixes") or [])[:4]],
@@ -9091,13 +10533,19 @@ def _build_self_healing_operator(
     }
 
 
-def _run_post_publish_verification_loop(executed_tools, *, workspace=None, question: str = "", smoke_verbosity: int = 1) -> list[dict]:
+def _run_post_publish_verification_loop(
+    executed_tools, *, workspace=None, question: str = "", smoke_verbosity: int = 1
+) -> list[dict]:
     executed_tools = [row for row in (executed_tools or []) if isinstance(row, dict)]
     pushed = any(str(row.get("tool") or "") == "git_push" and bool(row.get("ok")) for row in executed_tools)
     if not pushed:
         return []
     existing = {str(row.get("tool") or "") for row in executed_tools}
-    post_tools = [tool for tool in ["check_critical_routes", "inspect_recent_errors", "inspect_public_deployment"] if tool not in existing]
+    post_tools = [
+        tool
+        for tool in ["check_critical_routes", "inspect_recent_errors", "inspect_public_deployment"]
+        if tool not in existing
+    ]
     if not post_tools:
         return []
     return _execute_tools(post_tools, smoke_verbosity=smoke_verbosity, workspace=workspace, question=question)
@@ -9113,33 +10561,39 @@ def _system_knowledge_snapshot(*, page_context=None) -> dict:
     for key, row in modules.items():
         if not isinstance(row, dict):
             continue
-        module_rows.append({
-            "key": str(key),
-            "label": str(row.get("label") or key),
-            "kind": str(row.get("kind") or ""),
-            "available": bool(row.get("available", row.get("exists", False))),
-        })
+        module_rows.append(
+            {
+                "key": str(key),
+                "label": str(row.get("label") or key),
+                "kind": str(row.get("kind") or ""),
+                "available": bool(row.get("available", row.get("exists", False))),
+            }
+        )
     route_rows = []
     for key, row in routes.items():
         if not isinstance(row, dict):
             continue
-        route_rows.append({
-            "key": str(key),
-            "label": str(row.get("label") or key),
-            "name": str(row.get("name") or ""),
-            "ok": bool(row.get("ok")),
-            "url": str(row.get("url") or "")[:220],
-        })
+        route_rows.append(
+            {
+                "key": str(key),
+                "label": str(row.get("label") or key),
+                "name": str(row.get("name") or ""),
+                "ok": bool(row.get("ok")),
+                "url": str(row.get("url") or "")[:220],
+            }
+        )
     asset_rows = []
     for key, row in assets.items():
         if not isinstance(row, dict):
             continue
-        asset_rows.append({
-            "key": str(key),
-            "label": str(row.get("label") or key),
-            "ok": bool(row.get("ok")),
-            "size": _safe_int(row.get("size"), 0),
-        })
+        asset_rows.append(
+            {
+                "key": str(key),
+                "label": str(row.get("label") or key),
+                "ok": bool(row.get("ok")),
+                "size": _safe_int(row.get("size"), 0),
+            }
+        )
     return {
         "workspace_page": str((page_context or {}).get("page") or "")[:120],
         "environment": {
@@ -9188,11 +10642,13 @@ def _presence_snapshot(*, page_context=None, planner=None, assistant_action=None
     for row in route_rows[:5]:
         if not isinstance(row, dict):
             continue
-        nearby.append({
-            "key": str(row.get("key") or ""),
-            "label": str(row.get("label") or "")[:120],
-            "url": str(row.get("url") or "")[:220],
-        })
+        nearby.append(
+            {
+                "key": str(row.get("key") or ""),
+                "label": str(row.get("label") or "")[:120],
+                "url": str(row.get("url") or "")[:220],
+            }
+        )
     return {
         "active_page": active_page,
         "active_path": active_path,
@@ -9215,7 +10671,11 @@ def _presence_snapshot(*, page_context=None, planner=None, assistant_action=None
         "visible_media_count": _safe_int(visual_snapshot.get("media_count"), 0),
         "render_alerts": [str(item)[:140] for item in (visual_snapshot.get("render_alerts") or [])[:3]],
         "runtime_alerts": [str(item)[:140] for item in (runtime_snapshot.get("alerts") or [])[:3]],
-        "failed_request_count": _safe_int(((runtime_snapshot.get("request_totals") or {}).get("failed")), 0) if isinstance(runtime_snapshot.get("request_totals"), dict) else 0,
+        "failed_request_count": (
+            _safe_int(((runtime_snapshot.get("request_totals") or {}).get("failed")), 0)
+            if isinstance(runtime_snapshot.get("request_totals"), dict)
+            else 0
+        ),
         "js_error_count": len([row for row in (runtime_snapshot.get("js_errors") or []) if isinstance(row, dict)]),
         "health_status": str(health_snapshot.get("status") or "")[:24],
         "health_alerts": [str(item)[:140] for item in (health_snapshot.get("alerts") or [])[:4]],
@@ -9241,7 +10701,9 @@ def _domain_context_snapshot(workspace, *, page_context=None) -> dict:
             team_link = team_link_qs.filter(is_default=True).first() or team_link_qs.first()
         active_team = getattr(team_link, "team", None) if team_link else getattr(workspace, "primary_team", None)
         if active_team:
-            competition_context = WorkspaceCompetitionContext.objects.filter(workspace=workspace, team=active_team).first()
+            competition_context = WorkspaceCompetitionContext.objects.filter(
+                workspace=workspace, team=active_team
+            ).first()
     team_group = getattr(active_team, "group", None) if active_team else None
     team_season = getattr(team_group, "season", None) if team_group else None
     team_competition = getattr(team_season, "competition", None) if team_season else None
@@ -9253,7 +10715,11 @@ def _domain_context_snapshot(workspace, *, page_context=None) -> dict:
         session_count = TrainingSession.objects.filter(microcycle__team=active_team).count()
         task_count = SessionTask.objects.filter(session__microcycle__team=active_team, deleted_at__isnull=True).count()
     workspace_team_count = workspace.teams.count() if workspace else 0
-    workspace_player_count = workspace.players.filter(is_active=True).count() if workspace and getattr(workspace, "players", None) is not None else 0
+    workspace_player_count = (
+        workspace.players.filter(is_active=True).count()
+        if workspace and getattr(workspace, "players", None) is not None
+        else 0
+    )
     return {
         "workspace": {
             "id": int(getattr(workspace, "id", 0) or workspace_id or 0),
@@ -9289,7 +10755,9 @@ def _domain_context_snapshot(workspace, *, page_context=None) -> dict:
 def _runtime_business_snapshot(workspace, *, page_context=None) -> dict:
     context = page_context if isinstance(page_context, dict) else {}
     team_id = _safe_int(context.get("team_id"), 0)
-    library_repo = normalize_library_repository(str(context.get("library_repo") or context.get("repository") or "").strip())
+    library_repo = normalize_library_repository(
+        str(context.get("library_repo") or context.get("repository") or "").strip()
+    )
     active_team = None
     if workspace:
         team_link_qs = workspace.teams.select_related("team")
@@ -9305,21 +10773,18 @@ def _runtime_business_snapshot(workspace, *, page_context=None) -> dict:
     library_task_count = 0
     if active_team:
         current_microcycle = (
-            active_team.microcycles
-            .filter(week_start__lte=today, week_end__gte=today)
+            active_team.microcycles.filter(week_start__lte=today, week_end__gte=today)
             .order_by("-week_start", "-id")
             .first()
         )
         next_session = (
-            TrainingSession.objects
-            .select_related("microcycle")
+            TrainingSession.objects.select_related("microcycle")
             .filter(microcycle__team=active_team, session_date__gte=today)
             .order_by("session_date", "start_time", "order", "id")
             .first()
         )
         latest_session = (
-            TrainingSession.objects
-            .select_related("microcycle")
+            TrainingSession.objects.select_related("microcycle")
             .filter(microcycle__team=active_team)
             .order_by("-session_date", "-start_time", "-order", "-id")
             .first()
@@ -9366,9 +10831,15 @@ def _live_workflow_snapshot(workspace, *, page_context=None, actor_id=None) -> d
     active_match = None
     selected_microcycle = None
     if session_id:
-        selected_session = TrainingSession.objects.select_related("microcycle", "microcycle__team").filter(id=session_id).first()
+        selected_session = (
+            TrainingSession.objects.select_related("microcycle", "microcycle__team").filter(id=session_id).first()
+        )
     if task_id:
-        selected_task = SessionTask.objects.select_related("session", "session__microcycle", "session__microcycle__team").filter(id=task_id).first()
+        selected_task = (
+            SessionTask.objects.select_related("session", "session__microcycle", "session__microcycle__team")
+            .filter(id=task_id)
+            .first()
+        )
     if match_id:
         active_match = Match.objects.select_related("home_team", "away_team").filter(id=match_id).first()
     if microcycle_id:
@@ -9414,105 +10885,165 @@ def _live_workflow_snapshot(workspace, *, page_context=None, actor_id=None) -> d
             "notices": [str(item)[:140] for item in (ui_snapshot.get("notices") or [])[:6]],
             "panels": [str(item)[:100] for item in (ui_snapshot.get("panels") or [])[:8]],
             "body_excerpt": [str(item)[:140] for item in (ui_snapshot.get("body_excerpt") or [])[:8]],
-            "visible_forms": [{
-                "tag": str((row or {}).get("tag") or "")[:24],
-                "type": str((row or {}).get("type") or "")[:24],
-                "label": str((row or {}).get("label") or "")[:80],
-            } for row in (ui_snapshot.get("visible_forms") or []) if isinstance(row, dict)][:10],
+            "visible_forms": [
+                {
+                    "tag": str((row or {}).get("tag") or "")[:24],
+                    "type": str((row or {}).get("type") or "")[:24],
+                    "label": str((row or {}).get("label") or "")[:80],
+                }
+                for row in (ui_snapshot.get("visible_forms") or [])
+                if isinstance(row, dict)
+            ][:10],
             "viewport": {
-                "width": _safe_int(((ui_snapshot.get("viewport") or {}).get("width")), 0) if isinstance(ui_snapshot.get("viewport"), dict) else 0,
-                "height": _safe_int(((ui_snapshot.get("viewport") or {}).get("height")), 0) if isinstance(ui_snapshot.get("viewport"), dict) else 0,
+                "width": (
+                    _safe_int(((ui_snapshot.get("viewport") or {}).get("width")), 0)
+                    if isinstance(ui_snapshot.get("viewport"), dict)
+                    else 0
+                ),
+                "height": (
+                    _safe_int(((ui_snapshot.get("viewport") or {}).get("height")), 0)
+                    if isinstance(ui_snapshot.get("viewport"), dict)
+                    else 0
+                ),
             },
         },
         "visual_snapshot": {
-            "blocks": [{
-                "tag": str((row or {}).get("tag") or "")[:24],
-                "text": str((row or {}).get("text") or "")[:90],
-                "x": _safe_int((row or {}).get("x"), 0),
-                "y": _safe_int((row or {}).get("y"), 0),
-                "w": _safe_int((row or {}).get("w"), 0),
-                "h": _safe_int((row or {}).get("h"), 0),
-                "emphasis": str((row or {}).get("emphasis") or "")[:24],
-            } for row in (visual_snapshot.get("blocks") or []) if isinstance(row, dict)][:12],
+            "blocks": [
+                {
+                    "tag": str((row or {}).get("tag") or "")[:24],
+                    "text": str((row or {}).get("text") or "")[:90],
+                    "x": _safe_int((row or {}).get("x"), 0),
+                    "y": _safe_int((row or {}).get("y"), 0),
+                    "w": _safe_int((row or {}).get("w"), 0),
+                    "h": _safe_int((row or {}).get("h"), 0),
+                    "emphasis": str((row or {}).get("emphasis") or "")[:24],
+                }
+                for row in (visual_snapshot.get("blocks") or [])
+                if isinstance(row, dict)
+            ][:12],
             "palette": [str(item)[:40] for item in (visual_snapshot.get("palette") or [])[:8]],
             "text_density": _safe_int(visual_snapshot.get("text_density"), 0),
             "visual_density": _safe_int(visual_snapshot.get("visual_density"), 0),
             "media_count": _safe_int(visual_snapshot.get("media_count"), 0),
             "interactive_count": _safe_int(visual_snapshot.get("interactive_count"), 0),
-            "render_surfaces": [{
-                "id": str((row or {}).get("id") or "")[:60],
-                "tag": str((row or {}).get("tag") or "")[:24],
-                "kind": str((row or {}).get("kind") or "")[:40],
-                "label": str((row or {}).get("label") or "")[:90],
-                "visible": bool((row or {}).get("visible")),
-                "modal_open": bool((row or {}).get("modal_open")),
-                "draw_state": str((row or {}).get("draw_state") or "")[:32],
-                "webgl_context": str((row or {}).get("webgl_context") or "")[:20],
-                "scene_status": str((row or {}).get("scene_status") or "")[:40],
-                "issue": str((row or {}).get("issue") or "")[:60],
-                "object_count": _safe_int((row or {}).get("object_count"), 0),
-                "player_count": _safe_int((row or {}).get("player_count"), 0),
-                "ball_count": _safe_int((row or {}).get("ball_count"), 0),
-                "path_count": _safe_int((row or {}).get("path_count"), 0),
-                "step_index": _safe_int((row or {}).get("step_index"), 0),
-                "step_count": _safe_int((row or {}).get("step_count"), 0),
-                "render_calls": _safe_int((row or {}).get("render_calls"), 0),
-                "rendered_frames": _safe_int((row or {}).get("rendered_frames"), 0),
-                "w": _safe_int((row or {}).get("w"), 0),
-                "h": _safe_int((row or {}).get("h"), 0),
-            } for row in (visual_snapshot.get("render_surfaces") or []) if isinstance(row, dict)][:6],
+            "render_surfaces": [
+                {
+                    "id": str((row or {}).get("id") or "")[:60],
+                    "tag": str((row or {}).get("tag") or "")[:24],
+                    "kind": str((row or {}).get("kind") or "")[:40],
+                    "label": str((row or {}).get("label") or "")[:90],
+                    "visible": bool((row or {}).get("visible")),
+                    "modal_open": bool((row or {}).get("modal_open")),
+                    "draw_state": str((row or {}).get("draw_state") or "")[:32],
+                    "webgl_context": str((row or {}).get("webgl_context") or "")[:20],
+                    "scene_status": str((row or {}).get("scene_status") or "")[:40],
+                    "issue": str((row or {}).get("issue") or "")[:60],
+                    "object_count": _safe_int((row or {}).get("object_count"), 0),
+                    "player_count": _safe_int((row or {}).get("player_count"), 0),
+                    "ball_count": _safe_int((row or {}).get("ball_count"), 0),
+                    "path_count": _safe_int((row or {}).get("path_count"), 0),
+                    "step_index": _safe_int((row or {}).get("step_index"), 0),
+                    "step_count": _safe_int((row or {}).get("step_count"), 0),
+                    "render_calls": _safe_int((row or {}).get("render_calls"), 0),
+                    "rendered_frames": _safe_int((row or {}).get("rendered_frames"), 0),
+                    "w": _safe_int((row or {}).get("w"), 0),
+                    "h": _safe_int((row or {}).get("h"), 0),
+                }
+                for row in (visual_snapshot.get("render_surfaces") or [])
+                if isinstance(row, dict)
+            ][:6],
             "render_alerts": [str(item)[:140] for item in (visual_snapshot.get("render_alerts") or [])[:4]],
             "scroll": {
-                "y": _safe_int(((visual_snapshot.get("scroll") or {}).get("y")), 0) if isinstance(visual_snapshot.get("scroll"), dict) else 0,
-                "max_y": _safe_int(((visual_snapshot.get("scroll") or {}).get("max_y")), 0) if isinstance(visual_snapshot.get("scroll"), dict) else 0,
+                "y": (
+                    _safe_int(((visual_snapshot.get("scroll") or {}).get("y")), 0)
+                    if isinstance(visual_snapshot.get("scroll"), dict)
+                    else 0
+                ),
+                "max_y": (
+                    _safe_int(((visual_snapshot.get("scroll") or {}).get("max_y")), 0)
+                    if isinstance(visual_snapshot.get("scroll"), dict)
+                    else 0
+                ),
             },
         },
         "runtime_snapshot": {
             "ready_state": str(runtime_snapshot.get("ready_state") or "")[:20],
             "request_totals": {
-                "total": _safe_int(((runtime_snapshot.get("request_totals") or {}).get("total")), 0) if isinstance(runtime_snapshot.get("request_totals"), dict) else 0,
-                "failed": _safe_int(((runtime_snapshot.get("request_totals") or {}).get("failed")), 0) if isinstance(runtime_snapshot.get("request_totals"), dict) else 0,
+                "total": (
+                    _safe_int(((runtime_snapshot.get("request_totals") or {}).get("total")), 0)
+                    if isinstance(runtime_snapshot.get("request_totals"), dict)
+                    else 0
+                ),
+                "failed": (
+                    _safe_int(((runtime_snapshot.get("request_totals") or {}).get("failed")), 0)
+                    if isinstance(runtime_snapshot.get("request_totals"), dict)
+                    else 0
+                ),
             },
-            "js_errors": [{
-                "message": str((row or {}).get("message") or "")[:180],
-                "source": str((row or {}).get("source") or "")[:220],
-                "line": _safe_int((row or {}).get("line"), 0),
-                "column": _safe_int((row or {}).get("column"), 0),
-            } for row in (runtime_snapshot.get("js_errors") or []) if isinstance(row, dict)][:4],
-            "promise_rejections": [{
-                "message": str((row or {}).get("message") or "")[:180],
-            } for row in (runtime_snapshot.get("promise_rejections") or []) if isinstance(row, dict)][:4],
-            "resource_errors": [{
-                "tag": str((row or {}).get("tag") or "")[:24],
-                "source": str((row or {}).get("source") or "")[:220],
-                "message": str((row or {}).get("message") or "")[:160],
-            } for row in (runtime_snapshot.get("resource_errors") or []) if isinstance(row, dict)][:4],
-            "failed_requests": [{
-                "method": str((row or {}).get("method") or "")[:12],
-                "url": str((row or {}).get("url") or "")[:220],
-                "status": _safe_int((row or {}).get("status"), 0),
-                "kind": str((row or {}).get("kind") or "")[:32],
-                "message": str((row or {}).get("message") or "")[:160],
-            } for row in (runtime_snapshot.get("failed_requests") or []) if isinstance(row, dict)][:5],
-            "section_states": [{
-                "label": str((row or {}).get("label") or "")[:90],
-                "visible": bool((row or {}).get("visible")),
-                "text_density": _safe_int((row or {}).get("text_density"), 0),
-            } for row in (runtime_snapshot.get("section_states") or []) if isinstance(row, dict)][:8],
+            "js_errors": [
+                {
+                    "message": str((row or {}).get("message") or "")[:180],
+                    "source": str((row or {}).get("source") or "")[:220],
+                    "line": _safe_int((row or {}).get("line"), 0),
+                    "column": _safe_int((row or {}).get("column"), 0),
+                }
+                for row in (runtime_snapshot.get("js_errors") or [])
+                if isinstance(row, dict)
+            ][:4],
+            "promise_rejections": [
+                {
+                    "message": str((row or {}).get("message") or "")[:180],
+                }
+                for row in (runtime_snapshot.get("promise_rejections") or [])
+                if isinstance(row, dict)
+            ][:4],
+            "resource_errors": [
+                {
+                    "tag": str((row or {}).get("tag") or "")[:24],
+                    "source": str((row or {}).get("source") or "")[:220],
+                    "message": str((row or {}).get("message") or "")[:160],
+                }
+                for row in (runtime_snapshot.get("resource_errors") or [])
+                if isinstance(row, dict)
+            ][:4],
+            "failed_requests": [
+                {
+                    "method": str((row or {}).get("method") or "")[:12],
+                    "url": str((row or {}).get("url") or "")[:220],
+                    "status": _safe_int((row or {}).get("status"), 0),
+                    "kind": str((row or {}).get("kind") or "")[:32],
+                    "message": str((row or {}).get("message") or "")[:160],
+                }
+                for row in (runtime_snapshot.get("failed_requests") or [])
+                if isinstance(row, dict)
+            ][:5],
+            "section_states": [
+                {
+                    "label": str((row or {}).get("label") or "")[:90],
+                    "visible": bool((row or {}).get("visible")),
+                    "text_density": _safe_int((row or {}).get("text_density"), 0),
+                }
+                for row in (runtime_snapshot.get("section_states") or [])
+                if isinstance(row, dict)
+            ][:8],
             "alerts": [str(item)[:140] for item in (runtime_snapshot.get("alerts") or [])[:4]],
         },
         "module_snapshot": {
-            "modules": [{
-                "label": str((row or {}).get("label") or "")[:90],
-                "kind": str((row or {}).get("kind") or "")[:24],
-                "action_count": _safe_int((row or {}).get("action_count"), 0),
-                "form_count": _safe_int((row or {}).get("form_count"), 0),
-                "media_count": _safe_int((row or {}).get("media_count"), 0),
-                "notice_count": _safe_int((row or {}).get("notice_count"), 0),
-                "text_density": _safe_int((row or {}).get("text_density"), 0),
-                "w": _safe_int((row or {}).get("w"), 0),
-                "h": _safe_int((row or {}).get("h"), 0),
-            } for row in (module_snapshot.get("modules") or []) if isinstance(row, dict)][:10],
+            "modules": [
+                {
+                    "label": str((row or {}).get("label") or "")[:90],
+                    "kind": str((row or {}).get("kind") or "")[:24],
+                    "action_count": _safe_int((row or {}).get("action_count"), 0),
+                    "form_count": _safe_int((row or {}).get("form_count"), 0),
+                    "media_count": _safe_int((row or {}).get("media_count"), 0),
+                    "notice_count": _safe_int((row or {}).get("notice_count"), 0),
+                    "text_density": _safe_int((row or {}).get("text_density"), 0),
+                    "w": _safe_int((row or {}).get("w"), 0),
+                    "h": _safe_int((row or {}).get("h"), 0),
+                }
+                for row in (module_snapshot.get("modules") or [])
+                if isinstance(row, dict)
+            ][:10],
         },
         "health_snapshot": {
             "status": str(health_snapshot.get("status") or "")[:24],
@@ -9521,23 +11052,47 @@ def _live_workflow_snapshot(workspace, *, page_context=None, actor_id=None) -> d
             "empty_hints": [str(item)[:140] for item in (health_snapshot.get("empty_hints") or [])[:6]],
             "disabled_controls": [str(item)[:80] for item in (health_snapshot.get("disabled_controls") or [])[:8]],
             "module_counts": {
-                "total": _safe_int(((health_snapshot.get("module_counts") or {}).get("total")), 0) if isinstance(health_snapshot.get("module_counts"), dict) else 0,
-                "healthy": _safe_int(((health_snapshot.get("module_counts") or {}).get("healthy")), 0) if isinstance(health_snapshot.get("module_counts"), dict) else 0,
-                "degraded": _safe_int(((health_snapshot.get("module_counts") or {}).get("degraded")), 0) if isinstance(health_snapshot.get("module_counts"), dict) else 0,
-                "blocked": _safe_int(((health_snapshot.get("module_counts") or {}).get("blocked")), 0) if isinstance(health_snapshot.get("module_counts"), dict) else 0,
+                "total": (
+                    _safe_int(((health_snapshot.get("module_counts") or {}).get("total")), 0)
+                    if isinstance(health_snapshot.get("module_counts"), dict)
+                    else 0
+                ),
+                "healthy": (
+                    _safe_int(((health_snapshot.get("module_counts") or {}).get("healthy")), 0)
+                    if isinstance(health_snapshot.get("module_counts"), dict)
+                    else 0
+                ),
+                "degraded": (
+                    _safe_int(((health_snapshot.get("module_counts") or {}).get("degraded")), 0)
+                    if isinstance(health_snapshot.get("module_counts"), dict)
+                    else 0
+                ),
+                "blocked": (
+                    _safe_int(((health_snapshot.get("module_counts") or {}).get("blocked")), 0)
+                    if isinstance(health_snapshot.get("module_counts"), dict)
+                    else 0
+                ),
             },
-            "degraded_modules": [{
-                "label": str((row or {}).get("label") or "")[:90],
-                "notice_count": _safe_int((row or {}).get("notice_count"), 0),
-                "media_count": _safe_int((row or {}).get("media_count"), 0),
-                "text_density": _safe_int((row or {}).get("text_density"), 0),
-            } for row in (health_snapshot.get("degraded_modules") or []) if isinstance(row, dict)][:6],
-            "blocked_modules": [{
-                "label": str((row or {}).get("label") or "")[:90],
-                "action_count": _safe_int((row or {}).get("action_count"), 0),
-                "form_count": _safe_int((row or {}).get("form_count"), 0),
-                "text_density": _safe_int((row or {}).get("text_density"), 0),
-            } for row in (health_snapshot.get("blocked_modules") or []) if isinstance(row, dict)][:6],
+            "degraded_modules": [
+                {
+                    "label": str((row or {}).get("label") or "")[:90],
+                    "notice_count": _safe_int((row or {}).get("notice_count"), 0),
+                    "media_count": _safe_int((row or {}).get("media_count"), 0),
+                    "text_density": _safe_int((row or {}).get("text_density"), 0),
+                }
+                for row in (health_snapshot.get("degraded_modules") or [])
+                if isinstance(row, dict)
+            ][:6],
+            "blocked_modules": [
+                {
+                    "label": str((row or {}).get("label") or "")[:90],
+                    "action_count": _safe_int((row or {}).get("action_count"), 0),
+                    "form_count": _safe_int((row or {}).get("form_count"), 0),
+                    "text_density": _safe_int((row or {}).get("text_density"), 0),
+                }
+                for row in (health_snapshot.get("blocked_modules") or [])
+                if isinstance(row, dict)
+            ][:6],
             "alerts": [str(item)[:140] for item in (health_snapshot.get("alerts") or [])[:6]],
         },
         "route_health": {
@@ -9564,17 +11119,21 @@ def _live_workflow_snapshot(workspace, *, page_context=None, actor_id=None) -> d
             "healthy_count": _safe_int(route_audit.get("healthy_count"), 0),
             "degraded_count": _safe_int(route_audit.get("degraded_count"), 0),
             "blocked_count": _safe_int(route_audit.get("blocked_count"), 0),
-            "routes": [{
-                "key": str((row or {}).get("key") or "")[:64],
-                "label": str((row or {}).get("label") or "")[:120],
-                "url": str((row or {}).get("url") or "")[:220],
-                "status_code": _safe_int((row or {}).get("status_code"), 0),
-                "status": str((row or {}).get("status") or "")[:24],
-                "matched_modules": [str(item)[:64] for item in ((row or {}).get("matched_modules") or [])[:6]],
-                "missing_modules": [str(item)[:64] for item in ((row or {}).get("missing_modules") or [])[:6]],
-                "redirect_count": _safe_int((row or {}).get("redirect_count"), 0),
-                "error": str((row or {}).get("error") or "")[:180],
-            } for row in (route_audit.get("routes") or []) if isinstance(row, dict)][:4],
+            "routes": [
+                {
+                    "key": str((row or {}).get("key") or "")[:64],
+                    "label": str((row or {}).get("label") or "")[:120],
+                    "url": str((row or {}).get("url") or "")[:220],
+                    "status_code": _safe_int((row or {}).get("status_code"), 0),
+                    "status": str((row or {}).get("status") or "")[:24],
+                    "matched_modules": [str(item)[:64] for item in ((row or {}).get("matched_modules") or [])[:6]],
+                    "missing_modules": [str(item)[:64] for item in ((row or {}).get("missing_modules") or [])[:6]],
+                    "redirect_count": _safe_int((row or {}).get("redirect_count"), 0),
+                    "error": str((row or {}).get("error") or "")[:180],
+                }
+                for row in (route_audit.get("routes") or [])
+                if isinstance(row, dict)
+            ][:4],
         },
         "browser_audit": {
             "enabled": bool(browser_audit.get("enabled")),
@@ -9584,23 +11143,27 @@ def _live_workflow_snapshot(workspace, *, page_context=None, actor_id=None) -> d
             "healthy_count": _safe_int(browser_audit.get("healthy_count"), 0),
             "degraded_count": _safe_int(browser_audit.get("degraded_count"), 0),
             "blocked_count": _safe_int(browser_audit.get("blocked_count"), 0),
-            "routes": [{
-                "key": str((row or {}).get("key") or "")[:64],
-                "label": str((row or {}).get("label") or "")[:120],
-                "url": str((row or {}).get("url") or "")[:220],
-                "final_url": str((row or {}).get("final_url") or "")[:220],
-                "status_code": _safe_int((row or {}).get("status_code"), 0),
-                "status": str((row or {}).get("status") or "")[:24],
-                "matched_modules": [str(item)[:64] for item in ((row or {}).get("matched_modules") or [])[:6]],
-                "missing_modules": [str(item)[:64] for item in ((row or {}).get("missing_modules") or [])[:6]],
-                "redirect_count": _safe_int((row or {}).get("redirect_count"), 0),
-                "console_count": _safe_int((row or {}).get("console_count"), 0),
-                "page_error_count": _safe_int((row or {}).get("page_error_count"), 0),
-                "request_failed_count": _safe_int((row or {}).get("request_failed_count"), 0),
-                "js_error_count": _safe_int((row or {}).get("js_error_count"), 0),
-                "render_surface_count": _safe_int((row or {}).get("render_surface_count"), 0),
-                "error": str((row or {}).get("error") or "")[:180],
-            } for row in (browser_audit.get("routes") or []) if isinstance(row, dict)][:3],
+            "routes": [
+                {
+                    "key": str((row or {}).get("key") or "")[:64],
+                    "label": str((row or {}).get("label") or "")[:120],
+                    "url": str((row or {}).get("url") or "")[:220],
+                    "final_url": str((row or {}).get("final_url") or "")[:220],
+                    "status_code": _safe_int((row or {}).get("status_code"), 0),
+                    "status": str((row or {}).get("status") or "")[:24],
+                    "matched_modules": [str(item)[:64] for item in ((row or {}).get("matched_modules") or [])[:6]],
+                    "missing_modules": [str(item)[:64] for item in ((row or {}).get("missing_modules") or [])[:6]],
+                    "redirect_count": _safe_int((row or {}).get("redirect_count"), 0),
+                    "console_count": _safe_int((row or {}).get("console_count"), 0),
+                    "page_error_count": _safe_int((row or {}).get("page_error_count"), 0),
+                    "request_failed_count": _safe_int((row or {}).get("request_failed_count"), 0),
+                    "js_error_count": _safe_int((row or {}).get("js_error_count"), 0),
+                    "render_surface_count": _safe_int((row or {}).get("render_surface_count"), 0),
+                    "error": str((row or {}).get("error") or "")[:180],
+                }
+                for row in (browser_audit.get("routes") or [])
+                if isinstance(row, dict)
+            ][:3],
         },
         "is_focused_context": bool(selected_session or selected_task or active_match or selected_microcycle),
     }
@@ -9670,20 +11233,19 @@ def _mission_control_snapshot(
             alerts.append(f"Regresión: {label}"[:180])
     if assistant_action.get("permission_required"):
         alerts.append("Hay una acción bloqueada por permisos.")
-    priority_queue = [
-        row for row in (observability.get("priority_queue_preview") or [])[:5]
-        if isinstance(row, dict)
-    ]
+    priority_queue = [row for row in (observability.get("priority_queue_preview") or [])[:5] if isinstance(row, dict)]
     if not priority_queue:
         for row in improvement_proposals[:4]:
             if not isinstance(row, dict):
                 continue
-            priority_queue.append({
-                "title": str(row.get("title") or "")[:140],
-                "priority_band": str(row.get("priority") or "next")[:24],
-                "kind": str(row.get("kind") or "assistant")[:32],
-                "priority_reason": str(row.get("reason") or "")[:180],
-            })
+            priority_queue.append(
+                {
+                    "title": str(row.get("title") or "")[:140],
+                    "priority_band": str(row.get("priority") or "next")[:24],
+                    "kind": str(row.get("kind") or "assistant")[:32],
+                    "priority_reason": str(row.get("reason") or "")[:180],
+                }
+            )
     recommended = []
     for row in (silent_operator.get("suggested_actions") or [])[:2]:
         label = str(row or "").strip()
@@ -9775,7 +11337,9 @@ def _system_brain_snapshot(
         "similarity_percent": _safe_int(maturity.get("percent"), 0),
         "incident_memory": {
             "count": _safe_int(observability.get("incident_ledger_count"), 0),
-            "preview": [row for row in (observability.get("incident_ledger_preview") or [])[:3] if isinstance(row, dict)],
+            "preview": [
+                row for row in (observability.get("incident_ledger_preview") or [])[:3] if isinstance(row, dict)
+            ],
         },
     }
 
@@ -9793,8 +11357,16 @@ def _silent_operator_snapshot(
     queue_counts = silent_operator.get("queue_counts") if isinstance(silent_operator.get("queue_counts"), dict) else {}
     proactive = _load_proactive_state(workspace) if workspace else {}
     observability = _observability_summary(workspace) if workspace else {}
-    priority_state = _refresh_operator_priorities(workspace, page_context=page_context) if workspace else {"tasks": [], "objectives": []}
-    strategy = _autonomous_priority_strategy(workspace, page_context=page_context, priority_state=priority_state) if workspace else {}
+    priority_state = (
+        _refresh_operator_priorities(workspace, page_context=page_context)
+        if workspace
+        else {"tasks": [], "objectives": []}
+    )
+    strategy = (
+        _autonomous_priority_strategy(workspace, page_context=page_context, priority_state=priority_state)
+        if workspace
+        else {}
+    )
     detections = [row for row in (proactive.get("last_detections") or []) if isinstance(row, dict)]
     return {
         "embedded": True,
@@ -9820,10 +11392,11 @@ def _silent_operator_snapshot(
         ],
         "suggested_actions": [str(item) for item in (silent_operator.get("suggested_actions") or [])[:4]],
         "priority_queue": [
-            row for row in (observability.get("priority_queue_preview") or [])[:5]
-            if isinstance(row, dict)
+            row for row in (observability.get("priority_queue_preview") or [])[:5] if isinstance(row, dict)
         ],
-        "top_priority": observability.get("top_priority") if isinstance(observability.get("top_priority"), dict) else {},
+        "top_priority": (
+            observability.get("top_priority") if isinstance(observability.get("top_priority"), dict) else {}
+        ),
         "strategy": strategy,
     }
 
@@ -9833,7 +11406,9 @@ def _action_executor_snapshot(*, assistant_action=None, planner=None, page_conte
     planner = planner if isinstance(planner, dict) else {}
     task = planner.get("task") if isinstance(planner.get("task"), dict) else {}
     visible_skills = _capability_snapshot(page_context=page_context).get("skills") or []
-    business_skills = [row for row in visible_skills if isinstance(row, dict) and str(row.get("scope") or "") in {"business", "user"}]
+    business_skills = [
+        row for row in visible_skills if isinstance(row, dict) and str(row.get("scope") or "") in {"business", "user"}
+    ]
     return {
         "embedded": True,
         "functional_executor": True,
@@ -9857,7 +11432,11 @@ def _tool_permission_action(tool_key: str) -> str:
     if tool_name in {"git_commit", "git_push", "trigger_remote_deploy", "trigger_remote_rollback"}:
         return "publish_changes"
     if tool_name in {"inspect_repo_status", "run_operator_validation", "auto_fix"}:
-        return "repair_code" if tool_name == "auto_fix" else ("validate_changes" if tool_name == "run_operator_validation" else "inspect_repo")
+        return (
+            "repair_code"
+            if tool_name == "auto_fix"
+            else ("validate_changes" if tool_name == "run_operator_validation" else "inspect_repo")
+        )
     return "inspect_system"
 
 
@@ -9884,22 +11463,24 @@ def _agent_tool_registry_snapshot(*, page_context=None, planner=None, executed_t
             status = "executed_ok" if bool(execution.get("ok")) else "executed_error"
         elif tool_key in requested:
             status = "planned" if bool(auth.get("allowed")) else "blocked"
-        rows.append({
-            "key": str(tool_key),
-            "label": str(schema.get("label") or tool_key),
-            "kind": str(schema.get("kind") or ""),
-            "risk": str(schema.get("risk") or ""),
-            "runner": str(schema.get("runner") or ""),
-            "permission_action": permission_action,
-            "allowed": bool(auth.get("allowed")),
-            "requested": tool_key in requested,
-            "executed": bool(execution),
-            "ok": bool(execution.get("ok")) if execution else None,
-            "status": status,
-            "confirmation_required": bool(schema.get("confirmation_required")),
-            "silent_allowed": bool(auth.get("allowed")) and _tool_silent_allowed(tool_key),
-            "maintenance_action": str(schema.get("maintenance_action") or ""),
-        })
+        rows.append(
+            {
+                "key": str(tool_key),
+                "label": str(schema.get("label") or tool_key),
+                "kind": str(schema.get("kind") or ""),
+                "risk": str(schema.get("risk") or ""),
+                "runner": str(schema.get("runner") or ""),
+                "permission_action": permission_action,
+                "allowed": bool(auth.get("allowed")),
+                "requested": tool_key in requested,
+                "executed": bool(execution),
+                "ok": bool(execution.get("ok")) if execution else None,
+                "status": status,
+                "confirmation_required": bool(schema.get("confirmation_required")),
+                "silent_allowed": bool(auth.get("allowed")) and _tool_silent_allowed(tool_key),
+                "maintenance_action": str(schema.get("maintenance_action") or ""),
+            }
+        )
     return {
         "embedded": True,
         "requested_count": len(requested),
@@ -9928,22 +11509,30 @@ def _agent_planner_snapshot(
     for row in (planner.get("steps") or [])[:6]:
         if not isinstance(row, dict):
             continue
-        checkpoints.append({
-            "label": str(row.get("step") or "")[:180],
-            "done": bool(row.get("done")),
-        })
+        checkpoints.append(
+            {
+                "label": str(row.get("step") or "")[:180],
+                "done": bool(row.get("done")),
+            }
+        )
     for row in (technical_operation.get("phases") or [])[:4]:
         if not isinstance(row, dict):
             continue
         phase_key = str(row.get("key") or "")
-        checkpoints.append({
-            "label": str(row.get("label") or phase_key)[:180],
-            "done": phase_key in {str(item) for item in (technical_execution.get("completed_phases") or [])},
-        })
+        checkpoints.append(
+            {
+                "label": str(row.get("label") or phase_key)[:180],
+                "done": phase_key in {str(item) for item in (technical_execution.get("completed_phases") or [])},
+            }
+        )
     next_step = str(
         technical_execution.get("next_step")
         or planner.get("confirmation_text")
-        or ((planner.get("followup_actions") or [{}])[0].get("reason") if isinstance((planner.get("followup_actions") or [{}])[0], dict) else "")
+        or (
+            (planner.get("followup_actions") or [{}])[0].get("reason")
+            if isinstance((planner.get("followup_actions") or [{}])[0], dict)
+            else ""
+        )
         or ""
     )[:220]
     return {
@@ -9954,7 +11543,9 @@ def _agent_planner_snapshot(
         "task_scope": str(task.get("scope") or "")[:32],
         "silent_mode": bool(task.get("silent_mode")),
         "runbook_key": str((planner.get("runbook") or {}).get("key") or task.get("runbook_key") or "")[:64],
-        "requested_tools": [str(item) for item in (planner.get("requested_tools") or []) if str(item or "").strip()][:8],
+        "requested_tools": [str(item) for item in (planner.get("requested_tools") or []) if str(item or "").strip()][
+            :8
+        ],
         "assistant_action_kind": str(assistant_action.get("kind") or "")[:64],
         "technical_operation_kind": str(technical_operation.get("kind") or "")[:64],
         "technical_status": str(technical_execution.get("status") or "")[:32],
@@ -9986,12 +11577,28 @@ def _agent_evaluator_snapshot(
     checks = [
         {
             "name": "tool_execution",
-            "status": "pass" if requested_tools and len(ok_tools) == len(requested_tools) and not failed_tools else ("fail" if failed_tools else ("pending" if requested_tools else "n/a")),
-            "detail": f"{len(ok_tools)}/{len(requested_tools)} herramientas correctas" if requested_tools else "Sin herramientas requeridas",
+            "status": (
+                "pass"
+                if requested_tools and len(ok_tools) == len(requested_tools) and not failed_tools
+                else ("fail" if failed_tools else ("pending" if requested_tools else "n/a"))
+            ),
+            "detail": (
+                f"{len(ok_tools)}/{len(requested_tools)} herramientas correctas"
+                if requested_tools
+                else "Sin herramientas requeridas"
+            ),
         },
         {
             "name": "assistant_action",
-            "status": "pass" if bool(assistant_action.get("success")) else ("blocked" if bool(assistant_action.get("permission_required")) else ("pending" if bool(assistant_action.get("needs_input")) else "n/a")),
+            "status": (
+                "pass"
+                if bool(assistant_action.get("success"))
+                else (
+                    "blocked"
+                    if bool(assistant_action.get("permission_required"))
+                    else ("pending" if bool(assistant_action.get("needs_input")) else "n/a")
+                )
+            ),
             "detail": str(assistant_action.get("message") or "")[:220],
         },
         {
@@ -10001,18 +11608,35 @@ def _agent_evaluator_snapshot(
         },
         {
             "name": "technical_validation",
-            "status": "pass" if bool(technical_execution.get("ok")) else ("blocked" if str(technical_execution.get("status") or "") == "blocked" else ("pending" if technical_execution else "n/a")),
+            "status": (
+                "pass"
+                if bool(technical_execution.get("ok"))
+                else (
+                    "blocked"
+                    if str(technical_execution.get("status") or "") == "blocked"
+                    else ("pending" if technical_execution else "n/a")
+                )
+            ),
             "detail": str(technical_execution.get("next_step") or technical_execution.get("status") or "")[:220],
         },
     ]
     goal_status = "in_progress"
     if bool(planner.get("confirm_required")):
         goal_status = "pending_confirmation"
-    elif bool(assistant_action.get("permission_required")) or failed_tools or _safe_int(summary.get("blockers"), 0) > 0 or str(technical_execution.get("status") or "") == "blocked":
+    elif (
+        bool(assistant_action.get("permission_required"))
+        or failed_tools
+        or _safe_int(summary.get("blockers"), 0) > 0
+        or str(technical_execution.get("status") or "") == "blocked"
+    ):
         goal_status = "blocked"
     elif bool(assistant_action.get("needs_input")):
         goal_status = "needs_input"
-    elif bool(assistant_action.get("success")) or (requested_tools and len(ok_tools) == len(requested_tools) and not failed_tools) or bool(technical_execution.get("ok")):
+    elif (
+        bool(assistant_action.get("success"))
+        or (requested_tools and len(ok_tools) == len(requested_tools) and not failed_tools)
+        or bool(technical_execution.get("ok"))
+    ):
         goal_status = "completed"
     pass_count = len([row for row in checks if str(row.get("status") or "") == "pass"])
     score = int(round((pass_count / max(1, len(checks))) * 100))
@@ -10059,7 +11683,12 @@ def _code_operator_snapshot(
         "mode": str(code_operator_mode.get("mode") or "")[:32],
         "authorized_for_code": bool(auth.get("allowed")),
         "authorized_for_publish": bool(publish_auth.get("allowed")),
-        "candidate_files": [str(item) for item in (technical_operation.get("candidate_files") or code_operator_mode.get("candidate_files") or [])[:6]],
+        "candidate_files": [
+            str(item)
+            for item in (technical_operation.get("candidate_files") or code_operator_mode.get("candidate_files") or [])[
+                :6
+            ]
+        ],
         "suggested_checks": [str(item) for item in (technical_operation.get("suggested_checks") or [])[:4]],
         "execution_status": str(technical_execution.get("status") or "")[:32],
         "publish_ready": bool(technical_execution.get("publish_ready")),
@@ -10231,7 +11860,9 @@ def _build_intelligence_os_snapshot(
                 "tool_registry": _agent_tool_registry_snapshot(
                     page_context=page_context,
                     planner=planner,
-                    executed_tools=(technical_execution or {}).get("executions") if isinstance(technical_execution, dict) else [],
+                    executed_tools=(
+                        (technical_execution or {}).get("executions") if isinstance(technical_execution, dict) else []
+                    ),
                 ),
                 "external_connectors": external_connectors,
                 "safe_command_executor": safe_command_executor,
@@ -10313,7 +11944,9 @@ def _build_intelligence_os_snapshot(
                 "tool_registry": _agent_tool_registry_snapshot(
                     page_context=page_context,
                     planner=planner,
-                    executed_tools=(technical_execution or {}).get("executions") if isinstance(technical_execution, dict) else [],
+                    executed_tools=(
+                        (technical_execution or {}).get("executions") if isinstance(technical_execution, dict) else []
+                    ),
                 ),
             },
             "policy_decisions": _policy_decisions_snapshot(
@@ -10409,7 +12042,17 @@ def _execute_create_player_action(question: str, *, workspace=None, page_context
             )
         else:
             updated_fields = []
-            for field in ("full_name", "nickname", "birth_date", "height_cm", "origin_team", "dominant_foot", "preferred_position", "number", "position"):
+            for field in (
+                "full_name",
+                "nickname",
+                "birth_date",
+                "height_cm",
+                "origin_team",
+                "dominant_foot",
+                "preferred_position",
+                "number",
+                "position",
+            ):
                 value = payload.get(field)
                 if value in ("", None) and field not in {"number", "birth_date", "height_cm"}:
                     continue
@@ -10445,7 +12088,8 @@ def _execute_create_player_action(question: str, *, workspace=None, page_context
         "needs_input": False,
         "message": (
             f"Jugador añadido a la plantilla: {player.name}."
-            if created else f"Jugador actualizado en plantilla: {player.name}."
+            if created
+            else f"Jugador actualizado en plantilla: {player.name}."
         ),
         "player": {
             "id": int(getattr(player, "id", 0) or 0),
@@ -10463,42 +12107,56 @@ def _build_improvement_proposals(report: dict, *, page_context=None, workspace=N
     blockers = _safe_int(summary.get("blockers"), 0)
     warnings = _safe_int(summary.get("warnings"), 0)
     page = str((page_context or {}).get("page") or "").strip()
-    queue_counts = _task_state_counts(_load_task_queue(workspace)) if workspace else {"pending": 0, "running": 0, "completed": 0, "blocked": 0}
+    queue_counts = (
+        _task_state_counts(_load_task_queue(workspace))
+        if workspace
+        else {"pending": 0, "running": 0, "completed": 0, "blocked": 0}
+    )
     proposals = []
     if blockers > 0:
-        proposals.append({
-            "title": "Cerrar blockers antes de ampliar funcionalidad",
-            "reason": f"Hay {blockers} blocker(s) activos; conviene priorizar estabilidad del sistema.",
-            "priority": "high",
-            "kind": "stability",
-        })
+        proposals.append(
+            {
+                "title": "Cerrar blockers antes de ampliar funcionalidad",
+                "reason": f"Hay {blockers} blocker(s) activos; conviene priorizar estabilidad del sistema.",
+                "priority": "high",
+                "kind": "stability",
+            }
+        )
     if warnings > 0:
-        proposals.append({
-            "title": "Reducir warnings recurrentes",
-            "reason": f"Se mantienen {warnings} warning(s); Ollana puede vigilar regresiones y consolidar remediaciones.",
-            "priority": "medium",
-            "kind": "observability",
-        })
+        proposals.append(
+            {
+                "title": "Reducir warnings recurrentes",
+                "reason": f"Se mantienen {warnings} warning(s); Ollana puede vigilar regresiones y consolidar remediaciones.",
+                "priority": "medium",
+                "kind": "observability",
+            }
+        )
     if queue_counts.get("pending", 0) == 0 and queue_counts.get("running", 0) == 0:
-        proposals.append({
-            "title": "Programar ciclo proactivo continuo",
-            "reason": "No hay tareas silenciosas en cola; conviene mantener inspección continua con runbooks proactivos.",
-            "priority": "medium",
-            "kind": "automation",
-        })
+        proposals.append(
+            {
+                "title": "Programar ciclo proactivo continuo",
+                "reason": "No hay tareas silenciosas en cola; conviene mantener inspección continua con runbooks proactivos.",
+                "priority": "medium",
+                "kind": "automation",
+            }
+        )
     if page in {"dashboard-home", "coach-role-trainer"}:
-        proposals.append({
-            "title": "Añadir accesos guiados por lenguaje natural",
-            "reason": "La portada es el mejor punto para comandos rápidos tipo “llévame a vídeo análisis” o “abre biblioteca de tareas”.",
-            "priority": "medium",
-            "kind": "ux",
-        })
-    proposals.append({
-        "title": "Ampliar acciones asistidas con formularios mínimos",
-        "reason": "El siguiente salto es cubrir altas de jugadores, creación de sesiones y apertura de módulos desde una sola caja conversacional.",
-        "priority": "next",
-        "kind": "assistant",
-    })
+        proposals.append(
+            {
+                "title": "Añadir accesos guiados por lenguaje natural",
+                "reason": "La portada es el mejor punto para comandos rápidos tipo “llévame a vídeo análisis” o “abre biblioteca de tareas”.",
+                "priority": "medium",
+                "kind": "ux",
+            }
+        )
+    proposals.append(
+        {
+            "title": "Ampliar acciones asistidas con formularios mínimos",
+            "reason": "El siguiente salto es cubrir altas de jugadores, creación de sesiones y apertura de módulos desde una sola caja conversacional.",
+            "priority": "next",
+            "kind": "assistant",
+        }
+    )
     return proposals[:4]
 
 
@@ -10570,8 +12228,8 @@ def _build_code_intervention_request(question: str, *, workspace=None, page_cont
     check_list = [str(item) for item in (detail.get("suggested_checks") or []) if str(item or "").strip()]
     message = (
         f"He preparado una intervención técnica sobre {area.lower()}."
-        if allowed else
-        f"He preparado la intervención técnica para {area.lower()}, pero este usuario no tiene permiso para tocar código."
+        if allowed
+        else f"He preparado la intervención técnica para {area.lower()}, pero este usuario no tiene permiso para tocar código."
     )
     if file_list:
         message += f" Empezaría por {', '.join(file_list[:2])}."
@@ -10613,7 +12271,11 @@ def _build_code_operator_mode(question: str, planner: dict, *, page_context=None
     auth = _authorize_guard_action("repair_code", page_context=page_context)
     publish_auth = _authorize_guard_action("publish_changes", page_context=page_context)
     requested_tools = [str(item) for item in (planner.get("requested_tools") or []) if str(item or "").strip()]
-    mode = "repair" if str(planner.get("intent") or "") == "repair" else ("build" if str(planner.get("intent") or "") == "feature_request" else "code_workflow")
+    mode = (
+        "repair"
+        if str(planner.get("intent") or "") == "repair"
+        else ("build" if str(planner.get("intent") or "") == "feature_request" else "code_workflow")
+    )
     objectives = []
     if mode == "build":
         objectives.append(f"Implementar: {_truncate(question_text, 180)}")
@@ -10647,14 +12309,18 @@ def _build_code_operator_mode(question: str, planner: dict, *, page_context=None
         "target": _truncate(question_text, 220),
         "area": str(detail.get("area") or ""),
         "candidate_files": [str(item) for item in (detail.get("candidate_files") or []) if str(item or "").strip()][:8],
-        "suggested_checks": [str(item) for item in (detail.get("suggested_checks") or []) if str(item or "").strip()][:4],
+        "suggested_checks": [str(item) for item in (detail.get("suggested_checks") or []) if str(item or "").strip()][
+            :4
+        ],
         "requested_tools": requested_tools[:8],
         "objectives": objectives[:4],
         "constraints": constraints[:5],
         "change_plan": change_plan,
         "authorized_for_code": bool(auth.get("allowed")),
         "authorized_for_publish": bool(publish_auth.get("allowed")),
-        "catalog_candidates": [row for row in (_catalog_candidates_for_question(question) or []) if isinstance(row, dict)][:3],
+        "catalog_candidates": [
+            row for row in (_catalog_candidates_for_question(question) or []) if isinstance(row, dict)
+        ][:3],
     }
 
 
@@ -10689,33 +12355,41 @@ def _file_change_role(path: str, question: str) -> dict:
     }
 
 
-def _build_change_blueprint(question: str, code_operator_mode: dict, *, planner: dict, technical_execution=None) -> dict:
+def _build_change_blueprint(
+    question: str, code_operator_mode: dict, *, planner: dict, technical_execution=None
+) -> dict:
     if not isinstance(code_operator_mode, dict) or not code_operator_mode.get("enabled"):
         return {}
     files = [str(item) for item in (code_operator_mode.get("candidate_files") or []) if str(item or "").strip()]
     catalog_candidates = [row for row in (code_operator_mode.get("catalog_candidates") or []) if isinstance(row, dict)]
-    requested_tools = [str(item) for item in (code_operator_mode.get("requested_tools") or []) if str(item or "").strip()]
+    requested_tools = [
+        str(item) for item in (code_operator_mode.get("requested_tools") or []) if str(item or "").strip()
+    ]
     patch_drafts = []
     for candidate in catalog_candidates[:2]:
         item = CODE_INTERVENTION_CATALOG.get(str(candidate.get("key") or "").strip()) or {}
         for patch in (item.get("patches") or [])[:3]:
             if not isinstance(patch, dict):
                 continue
-            patch_drafts.append({
-                "path": str(patch.get("path") or ""),
-                "strategy": "exact_text_patch",
-                "search": _truncate(str(patch.get("search") or ""), 180),
-                "replace_preview": _truncate(str(patch.get("replace") or ""), 180),
-            })
+            patch_drafts.append(
+                {
+                    "path": str(patch.get("path") or ""),
+                    "strategy": "exact_text_patch",
+                    "search": _truncate(str(patch.get("search") or ""), 180),
+                    "replace_preview": _truncate(str(patch.get("replace") or ""), 180),
+                }
+            )
     file_changes = []
     for path in files[:6]:
         role = _file_change_role(path, question)
-        file_changes.append({
-            "path": path,
-            "change_type": role["change_type"],
-            "objective": role["objective"],
-            "risk": role["risk"],
-        })
+        file_changes.append(
+            {
+                "path": path,
+                "change_type": role["change_type"],
+                "objective": role["objective"],
+                "risk": role["risk"],
+            }
+        )
     validation_plan = []
     if "inspect_repo_status" in requested_tools:
         validation_plan.append("Revisar diff y archivos modificados en el repositorio.")
@@ -10744,7 +12418,9 @@ def _build_change_blueprint(question: str, code_operator_mode: dict, *, planner:
     }
 
 
-def _build_autofix_runner(question: str, *, technical_operation=None, technical_execution=None, change_blueprint=None) -> dict:
+def _build_autofix_runner(
+    question: str, *, technical_operation=None, technical_execution=None, change_blueprint=None
+) -> dict:
     technical_operation = technical_operation if isinstance(technical_operation, dict) else {}
     technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
     change_blueprint = change_blueprint if isinstance(change_blueprint, dict) else {}
@@ -10779,7 +12455,9 @@ def _build_autofix_runner(question: str, *, technical_operation=None, technical_
             for row in applied[:3]
         ],
         "pending_patch_drafts": pending_patches[:4],
-        "validation_plan": [str(item) for item in (change_blueprint.get("validation_plan") or []) if str(item or "").strip()][:4],
+        "validation_plan": [
+            str(item) for item in (change_blueprint.get("validation_plan") or []) if str(item or "").strip()
+        ][:4],
         "publish_ready": bool(technical_execution.get("publish_ready")),
         "next_actions": next_actions[:3],
     }
@@ -10799,20 +12477,32 @@ def _build_technical_diagnosis(
     change_blueprint = change_blueprint if isinstance(change_blueprint, dict) else {}
     question_text = str(question or "").strip()
     lower_question = question_text.lower()
-    candidate_files = [str(item) for item in (technical_operation.get("candidate_files") or code_operator_mode.get("candidate_files") or []) if str(item or "").strip()]
-    suggested_checks = [str(item) for item in (technical_operation.get("suggested_checks") or code_operator_mode.get("suggested_checks") or []) if str(item or "").strip()]
-    completed_phases = [str(item) for item in (technical_execution.get("completed_phases") or []) if str(item or "").strip()]
+    candidate_files = [
+        str(item)
+        for item in (technical_operation.get("candidate_files") or code_operator_mode.get("candidate_files") or [])
+        if str(item or "").strip()
+    ]
+    suggested_checks = [
+        str(item)
+        for item in (technical_operation.get("suggested_checks") or code_operator_mode.get("suggested_checks") or [])
+        if str(item or "").strip()
+    ]
+    completed_phases = [
+        str(item) for item in (technical_execution.get("completed_phases") or []) if str(item or "").strip()
+    ]
     blueprint_targets = [row for row in (change_blueprint.get("file_changes") or []) if isinstance(row, dict)]
     hypotheses = []
 
     def add_hypothesis(key: str, label: str, confidence: int, evidence=None):
         evidence = [str(item) for item in (evidence or []) if str(item or "").strip()]
-        hypotheses.append({
-            "key": key,
-            "label": label,
-            "confidence": max(1, min(100, _safe_int(confidence, 0))),
-            "evidence": evidence[:3],
-        })
+        hypotheses.append(
+            {
+                "key": key,
+                "label": label,
+                "confidence": max(1, min(100, _safe_int(confidence, 0))),
+                "evidence": evidence[:3],
+            }
+        )
 
     if any(token in lower_question for token in ["3d", "pitch3d", "estadio", "stadium", "glb", "render", "canvas"]):
         add_hypothesis(
@@ -10838,14 +12528,20 @@ def _build_technical_diagnosis(
             "widget_runtime_flow",
             "La UI abre el chat, pero el fetch o el render pendiente interrumpe la conversación visible.",
             74,
-            [suggested_checks[1] if len(suggested_checks) > 1 else "", "Comprobar ciclo abrir/cerrar y respuesta del endpoint."],
+            [
+                suggested_checks[1] if len(suggested_checks) > 1 else "",
+                "Comprobar ciclo abrir/cerrar y respuesta del endpoint.",
+            ],
         )
     if any(path.endswith(".py") for path in candidate_files):
         add_hypothesis(
             "backend_context",
             "La vista o el contexto de servidor puede estar entregando datos incompletos al flujo afectado.",
             66,
-            [next((path for path in candidate_files if path.endswith(".py")), ""), "Revisar contexto, routing y flags activos."],
+            [
+                next((path for path in candidate_files if path.endswith(".py")), ""),
+                "Revisar contexto, routing y flags activos.",
+            ],
         )
     if not hypotheses:
         add_hypothesis(
@@ -10902,7 +12598,9 @@ def _build_repair_commander(
         code_operator_mode=code_operator_mode,
         change_blueprint=change_blueprint,
     )
-    completed_phases = [str(item) for item in (technical_execution.get("completed_phases") or []) if str(item or "").strip()]
+    completed_phases = [
+        str(item) for item in (technical_execution.get("completed_phases") or []) if str(item or "").strip()
+    ]
     pending_phase_keys = [
         str(row.get("key") or "")
         for row in (technical_operation.get("phases") or [])
@@ -10956,12 +12654,32 @@ def _build_technical_operation(assistant_action: dict, planner: dict, *, page_co
     if str((assistant_action or {}).get("kind") or "") != "code_intervention_request":
         return {}
     payload = assistant_action.get("payload") if isinstance(assistant_action.get("payload"), dict) else {}
-    files = [str(item) for item in (assistant_action.get("candidate_files") or payload.get("candidate_files") or []) if str(item or "").strip()]
-    checks = [str(item) for item in (assistant_action.get("suggested_checks") or payload.get("suggested_checks") or []) if str(item or "").strip()]
-    catalog_candidates = [row for row in (assistant_action.get("catalog_candidates") or payload.get("catalog_candidates") or []) if isinstance(row, dict)]
+    files = [
+        str(item)
+        for item in (assistant_action.get("candidate_files") or payload.get("candidate_files") or [])
+        if str(item or "").strip()
+    ]
+    checks = [
+        str(item)
+        for item in (assistant_action.get("suggested_checks") or payload.get("suggested_checks") or [])
+        if str(item or "").strip()
+    ]
+    catalog_candidates = [
+        row
+        for row in (assistant_action.get("catalog_candidates") or payload.get("catalog_candidates") or [])
+        if isinstance(row, dict)
+    ]
     requested_tools = [str(item) for item in (planner.get("requested_tools") or []) if str(item or "").strip()]
-    auth = assistant_action.get("authorization") if isinstance(assistant_action.get("authorization"), dict) else _authorize_guard_action("repair_code", page_context=page_context)
-    publish_auth = assistant_action.get("publish_authorization") if isinstance(assistant_action.get("publish_authorization"), dict) else _authorize_guard_action("publish_changes", page_context=page_context)
+    auth = (
+        assistant_action.get("authorization")
+        if isinstance(assistant_action.get("authorization"), dict)
+        else _authorize_guard_action("repair_code", page_context=page_context)
+    )
+    publish_auth = (
+        assistant_action.get("publish_authorization")
+        if isinstance(assistant_action.get("publish_authorization"), dict)
+        else _authorize_guard_action("publish_changes", page_context=page_context)
+    )
     phases = [
         {
             "key": "triage",
@@ -11045,13 +12763,13 @@ def _execute_controlled_technical_operation(
     existing = [row for row in (executed_tools or []) if isinstance(row, dict)]
     existing_keys = {str(row.get("tool") or "") for row in existing}
     missing = [tool for tool in safe_tools if tool not in existing_keys]
-    new_executions = _execute_tools(missing, smoke_verbosity=smoke_verbosity, workspace=workspace, question=question) if missing else []
+    new_executions = (
+        _execute_tools(missing, smoke_verbosity=smoke_verbosity, workspace=workspace, question=question)
+        if missing
+        else []
+    )
     combined = existing + new_executions
-    tool_ok = {
-        str(row.get("tool") or ""): bool(row.get("ok"))
-        for row in combined
-        if isinstance(row, dict)
-    }
+    tool_ok = {str(row.get("tool") or ""): bool(row.get("ok")) for row in combined if isinstance(row, dict)}
     applied_interventions = []
     completed_phases = []
     if tool_ok.get("check_status"):
@@ -11063,10 +12781,15 @@ def _execute_controlled_technical_operation(
     repo_ok = bool(tool_ok.get("inspect_repo_status"))
     validate_ok = bool(tool_ok.get("run_operator_validation"))
     catalog_candidates = [row for row in (operation.get("catalog_candidates") or []) if isinstance(row, dict)]
-    auto_apply_candidate = next((
-        row for row in catalog_candidates
-        if bool(row.get("auto_apply")) or bool((CODE_INTERVENTION_CATALOG.get(str(row.get("key") or "").strip()) or {}).get("auto_apply"))
-    ), None)
+    auto_apply_candidate = next(
+        (
+            row
+            for row in catalog_candidates
+            if bool(row.get("auto_apply"))
+            or bool((CODE_INTERVENTION_CATALOG.get(str(row.get("key") or "").strip()) or {}).get("auto_apply"))
+        ),
+        None,
+    )
     if validate_ok and auto_apply_candidate:
         catalog_result = _execute_catalog_code_intervention(str(auto_apply_candidate.get("key") or ""))
         applied_interventions.append(catalog_result)
@@ -11089,7 +12812,9 @@ def _execute_controlled_technical_operation(
     publish_ready = bool(repo_ok and validate_ok and operation.get("authorized_for_publish"))
     next_step = "Revisar el repositorio y la validación antes de tocar código."
     if validate_ok:
-        next_step = "La operación está lista para intervención manual de código y, si procede, para preparar publicación."
+        next_step = (
+            "La operación está lista para intervención manual de código y, si procede, para preparar publicación."
+        )
     if publish_ready and bool(operation.get("publish_requires_confirmation")):
         next_step = "La validación está correcta; falta confirmación para commit y push."
     if any(bool(row.get("ok")) for row in applied_interventions):
@@ -11125,11 +12850,19 @@ def _build_publish_assisted_action(question: str, *, page_context=None) -> dict:
     intent = _infer_intent(question)
     auth = _authorize_guard_action("publish_changes", page_context=page_context)
     kinds = {
-        "publish_commit_push": ("publish_commit_push", "He preparado commit y push gobernados; falta confirmación antes de ejecutarlos."),
-        "publish_commit": ("publish_commit", "He preparado el commit gobernado; falta confirmación antes de ejecutarlo."),
+        "publish_commit_push": (
+            "publish_commit_push",
+            "He preparado commit y push gobernados; falta confirmación antes de ejecutarlos.",
+        ),
+        "publish_commit": (
+            "publish_commit",
+            "He preparado el commit gobernado; falta confirmación antes de ejecutarlo.",
+        ),
         "publish_push": ("publish_push", "He preparado el push gobernado; falta confirmación antes de ejecutarlo."),
     }
-    kind, message = kinds.get(intent, ("publish_request", "He preparado la publicación gobernada; falta confirmación antes de ejecutarla."))
+    kind, message = kinds.get(
+        intent, ("publish_request", "He preparado la publicación gobernada; falta confirmación antes de ejecutarla.")
+    )
     if not auth.get("allowed"):
         message = "He detectado una petición de publicación, pero este usuario no tiene permiso para publicar cambios."
     requested_tools = []
@@ -11201,25 +12934,56 @@ def _build_action_chain(question: str, *, workspace=None, page_context=None) -> 
         action = _resolve_single_assisted_action(part, workspace=workspace, page_context=page_context)
         if not isinstance(action, dict) or not action.get("kind"):
             continue
-        steps.append({
-            "index": index,
-            "question": _truncate(part, 220),
-            "kind": str(action.get("kind") or "")[:64],
-            "executed": bool(action.get("executed")),
-            "success": bool(action.get("success")),
-            "needs_input": bool(action.get("needs_input")),
-            "permission_required": bool(action.get("permission_required")),
-            "action": action,
-        })
+        steps.append(
+            {
+                "index": index,
+                "question": _truncate(part, 220),
+                "kind": str(action.get("kind") or "")[:64],
+                "executed": bool(action.get("executed")),
+                "success": bool(action.get("success")),
+                "needs_input": bool(action.get("needs_input")),
+                "permission_required": bool(action.get("permission_required")),
+                "action": action,
+            }
+        )
     if len(steps) < 2:
         return {}
-    success = all(bool((row.get("action") or {}).get("success") or (row.get("action") or {}).get("executed") or str((row.get("action") or {}).get("kind") or "").startswith("publish_")) for row in steps)
+    success = all(
+        bool(
+            (row.get("action") or {}).get("success")
+            or (row.get("action") or {}).get("executed")
+            or str((row.get("action") or {}).get("kind") or "").startswith("publish_")
+        )
+        for row in steps
+    )
     needs_input = any(bool((row.get("action") or {}).get("needs_input")) for row in steps)
     permission_required = any(bool((row.get("action") or {}).get("permission_required")) for row in steps)
     publish_steps = [row for row in steps if str(row.get("kind") or "").startswith("publish_")]
     navigation_step = next((row for row in steps if str(row.get("kind") or "") == "navigate_module"), None)
-    created_step = next((row for row in steps if str(row.get("kind") or "") in {"create_session", "create_task", "create_player", "create_microcycle", "create_match", "create_convocation", "create_rival_analysis", "create_session_bundle", "create_matchday_bundle"}), None)
-    messages = [str((row.get("action") or {}).get("message") or "").strip() for row in steps if str((row.get("action") or {}).get("message") or "").strip()]
+    created_step = next(
+        (
+            row
+            for row in steps
+            if str(row.get("kind") or "")
+            in {
+                "create_session",
+                "create_task",
+                "create_player",
+                "create_microcycle",
+                "create_match",
+                "create_convocation",
+                "create_rival_analysis",
+                "create_session_bundle",
+                "create_matchday_bundle",
+            }
+        ),
+        None,
+    )
+    messages = [
+        str((row.get("action") or {}).get("message") or "").strip()
+        for row in steps
+        if str((row.get("action") or {}).get("message") or "").strip()
+    ]
     summary = "He encadenado la petición en varios pasos operativos."
     if publish_steps:
         summary = "He preparado una cadena operativa con publicación gobernada al final."
@@ -11234,7 +12998,9 @@ def _build_action_chain(question: str, *, workspace=None, page_context=None) -> 
         "message": summary,
         "steps": steps,
         "navigate_to": (navigation_step or {}).get("action", {}).get("navigate_to") if navigation_step else {},
-        "requested_tools": [tool for row in publish_steps for tool in ((row.get("action") or {}).get("requested_tools") or [])][:4],
+        "requested_tools": [
+            tool for row in publish_steps for tool in ((row.get("action") or {}).get("requested_tools") or [])
+        ][:4],
         "payload": {
             "step_count": len(steps),
             "messages": messages[:4],
@@ -11263,7 +13029,10 @@ def _infer_intent(question: str) -> str:
         return "create_task"
     if re.search(r"\b(crea|crear|prepara|monta)\b.*\b(convocatoria|convocados)\b", text):
         return "create_convocation"
-    if re.search(r"\b(crea|crear|prepara|abre|monta)\b.*\b(analisis rival|análisis rival|informe rival|scouting rival|preparar rival)\b", text):
+    if re.search(
+        r"\b(crea|crear|prepara|abre|monta)\b.*\b(analisis rival|análisis rival|informe rival|scouting rival|preparar rival)\b",
+        text,
+    ):
         return "create_rival_analysis"
     if re.search(r"\b(crea|crear|prepara|monta)\b.*\b(plan de partido|matchday|partido)\b.*\b(sesion|sesión)\b", text):
         return "create_matchday_bundle"
@@ -11277,9 +13046,13 @@ def _infer_intent(question: str) -> str:
         return "create_match"
     if re.search(r"\b(introduce|añade|agrega|crea|alta|incorpora)\b.*\b(jugador|player|plantilla|roster)\b", text):
         return "create_player"
-    if re.search(r"\b(añade|agrega|implementa|crea|construye|desarrolla|modifica|extiende)\b", text) and re.search(r"\b(funcionalidad|feature|modulo|módulo|flujo|pantalla|widget|sistema|codigo|código)\b", text):
+    if re.search(r"\b(añade|agrega|implementa|crea|construye|desarrolla|modifica|extiende)\b", text) and re.search(
+        r"\b(funcionalidad|feature|modulo|módulo|flujo|pantalla|widget|sistema|codigo|código)\b", text
+    ):
         return "feature_request"
-    if re.search(r"\b(commit\s+y\s+push|haz\s+commit\s+y\s+push|publica\s+los?\s+cambios?|sube\s+los?\s+cambios?)\b", text):
+    if re.search(
+        r"\b(commit\s+y\s+push|haz\s+commit\s+y\s+push|publica\s+los?\s+cambios?|sube\s+los?\s+cambios?)\b", text
+    ):
         return "publish_commit_push"
     if re.search(r"\b(rollback|revertir|revierte|reversiona|reversi[oó]n)\b", text):
         return "trigger_remote_rollback"
@@ -11358,12 +13131,14 @@ def _operator_blueprint(question: str, *, planner: dict, page_context=None, resp
         {
             "key": "inspect",
             "label": "Inspección técnica",
-            "done": "inspect_repo_status" in requested_tools or any(str(row.get("tool") or "") == "inspect_repo_status" for row in executed_tools),
+            "done": "inspect_repo_status" in requested_tools
+            or any(str(row.get("tool") or "") == "inspect_repo_status" for row in executed_tools),
         },
         {
             "key": "validate",
             "label": "Validación",
-            "done": "run_operator_validation" in requested_tools or any(str(row.get("tool") or "") == "run_operator_validation" for row in executed_tools),
+            "done": "run_operator_validation" in requested_tools
+            or any(str(row.get("tool") or "") == "run_operator_validation" for row in executed_tools),
         },
         {
             "key": "repair",
@@ -11395,14 +13170,20 @@ def _operator_blueprint(question: str, *, planner: dict, page_context=None, resp
         "needs_confirmation": bool(planner.get("confirm_required")),
         "runbook_key": str((planner.get("runbook") or {}).get("key") or ""),
         "phases": phases,
-        "publish_ready": bool(publish_auth.get("allowed")) and any(phase.get("key") == "validate" and phase.get("done") for phase in phases) and not bool(planner.get("confirm_required")),
+        "publish_ready": bool(publish_auth.get("allowed"))
+        and any(phase.get("key") == "validate" and phase.get("done") for phase in phases)
+        and not bool(planner.get("confirm_required")),
         "next_step": next_step,
     }
 
 
-def _plan_tools(question: str, *, run_smoke: bool, auto_fix: bool, maintenance_action: str, autonomy_mode: str, page_context=None) -> dict:
+def _plan_tools(
+    question: str, *, run_smoke: bool, auto_fix: bool, maintenance_action: str, autonomy_mode: str, page_context=None
+) -> dict:
     intent = _infer_intent(question)
-    task = _build_task_profile(question, intent=intent, maintenance_action=maintenance_action, page_context=page_context)
+    task = _build_task_profile(
+        question, intent=intent, maintenance_action=maintenance_action, page_context=page_context
+    )
     requested_tools = []
     steps = [{"step": "Diagnosticar estado base", "done": True}]
     question_lower = str(question or "").lower()
@@ -11464,21 +13245,28 @@ def _plan_tools(question: str, *, run_smoke: bool, auto_fix: bool, maintenance_a
     elif intent == "inspect_config":
         requested_tools.extend(["check_status", "inspect_runtime_config"])
     elif intent == "inspect_deployment":
-        requested_tools.extend(["check_status", "inspect_public_deployment", "inspect_release_pipeline", "inspect_remote_logs"])
+        requested_tools.extend(
+            ["check_status", "inspect_public_deployment", "inspect_release_pipeline", "inspect_remote_logs"]
+        )
     elif intent == "inspect_database":
         requested_tools.extend(["check_status", "inspect_database_readonly"])
     elif intent == "inspect_paths":
         requested_tools.extend(["check_status", "inspect_critical_paths"])
     elif intent == "inspect_history":
         requested_tools.extend(["check_status", "inspect_guard_history"])
-    elif intent in {"guide_user", "diagnose_status"} and re.search(r"\b(titulo|título|legible|leer|se vea|ficha|pantalla|color|contraste)\b", question_lower):
+    elif intent in {"guide_user", "diagnose_status"} and re.search(
+        r"\b(titulo|título|legible|leer|se vea|ficha|pantalla|color|contraste)\b", question_lower
+    ):
         requested_tools.extend(["check_status", "inspect_page_visual"])
     elif intent == "diagnose_status":
         requested_tools.append("check_status")
     if str(task.get("kind") or "") == "code_workflow":
         if "inspect_repo_status" not in requested_tools:
             requested_tools.insert(0, "inspect_repo_status")
-        if re.search(r"\b(test|tests|check|valida|validacion|validación)\b", question_lower) and "run_operator_validation" not in requested_tools:
+        if (
+            re.search(r"\b(test|tests|check|valida|validacion|validación)\b", question_lower)
+            and "run_operator_validation" not in requested_tools
+        ):
             requested_tools.append("run_operator_validation")
     if intent == "guide_user" and "check_status" not in requested_tools:
         requested_tools.insert(0, "check_status")
@@ -11516,7 +13304,9 @@ def _plan_tools(question: str, *, run_smoke: bool, auto_fix: bool, maintenance_a
         requested_tools=requested_tools,
         confirm_required=confirm_required,
     )
-    followup_actions = _followup_actions(task, {"confirm_required": confirm_required, "confirmation_text": confirm_text}, page_context=page_context)
+    followup_actions = _followup_actions(
+        task, {"confirm_required": confirm_required, "confirmation_text": confirm_text}, page_context=page_context
+    )
     return {
         "intent": intent,
         "task": task,
@@ -11536,12 +13326,16 @@ def _serialize_execution(tool_key: str, result: dict) -> dict:
         "label": str(TOOL_SCHEMAS.get(tool_key, {}).get("label") or tool_key),
         "ok": bool(result.get("ok")),
         "kind": str(TOOL_SCHEMAS.get(tool_key, {}).get("kind") or ""),
-        "detail": _truncate(result.get("error") or result.get("stderr") or result.get("stdout") or result.get("detail") or "", 320),
+        "detail": _truncate(
+            result.get("error") or result.get("stderr") or result.get("stdout") or result.get("detail") or "", 320
+        ),
         "result": result,
     }
 
 
-def _execute_tools(requested_tools: list[str], *, smoke_verbosity: int = 1, workspace=None, question: str = "", page_context=None) -> list[dict]:
+def _execute_tools(
+    requested_tools: list[str], *, smoke_verbosity: int = 1, workspace=None, question: str = "", page_context=None
+) -> list[dict]:
     executions = []
     for tool_key in requested_tools or []:
         if tool_key == "check_status":
@@ -11596,7 +13390,15 @@ def _execute_tools(requested_tools: list[str], *, smoke_verbosity: int = 1, work
     return executions
 
 
-def run_system_guard(*, run_smoke: bool = False, smoke_verbosity: int = 1, run_llm: bool = True, auto_fix: bool = False, page_context=None, memory=None) -> dict:
+def run_system_guard(
+    *,
+    run_smoke: bool = False,
+    smoke_verbosity: int = 1,
+    run_llm: bool = True,
+    auto_fix: bool = False,
+    page_context=None,
+    memory=None,
+) -> dict:
     initial_evidence = collect_system_guard_evidence(
         run_smoke=run_smoke,
         smoke_verbosity=smoke_verbosity,
@@ -11672,7 +13474,12 @@ def _fallback_actions(report: dict, executions: list[dict], planner: dict) -> li
             actions.append({"label": row.get("label"), "reason": "Acción ejecutada en esta conversación."})
     if planner.get("requested_tools") and not executions:
         for tool in planner.get("requested_tools")[:3]:
-            actions.append({"label": str(TOOL_SCHEMAS.get(tool, {}).get("label") or tool), "reason": "Acción detectada como siguiente paso lógico."})
+            actions.append(
+                {
+                    "label": str(TOOL_SCHEMAS.get(tool, {}).get("label") or tool),
+                    "reason": "Acción detectada como siguiente paso lógico.",
+                }
+            )
     return actions[:6]
 
 
@@ -11692,37 +13499,63 @@ def _build_patch_proposals(report: dict, executions: list[dict]) -> list[dict]:
     issue_ids = {str(row.get("id") or "") for row in issues if isinstance(row, dict)}
     proposals = []
     if "path_missing_static_root" in issue_ids:
-        proposals.append({
-            "title": "Crear guardia para `static_root`",
-            "files": ["webstats/settings.py", "render.yaml"],
-            "summary": "Añadir verificación o creación segura de `STATIC_ROOT` en entornos locales/efímeros.",
-            "dry_run": "Comprobar si `STATIC_ROOT` existe antes de dependencias que la usen y documentar el mount/creación en despliegue.",
-        })
+        proposals.append(
+            {
+                "title": "Crear guardia para `static_root`",
+                "files": ["webstats/settings.py", "render.yaml"],
+                "summary": "Añadir verificación o creación segura de `STATIC_ROOT` en entornos locales/efímeros.",
+                "dry_run": "Comprobar si `STATIC_ROOT` existe antes de dependencias que la usen y documentar el mount/creación en despliegue.",
+            }
+        )
     if "ollama_unreachable" in issue_ids:
-        proposals.append({
-            "title": "Degradación explícita cuando Ollama cae",
-            "files": ["football/system_guard.py", "football/local_llm.py"],
-            "summary": "Reforzar el fallback y las señales de disponibilidad para no bloquear al usuario.",
-            "dry_run": "Mantener respuesta útil sin `chat.response = null` y registrar latencia/caída de proveedor local.",
-        })
-    recent_errors = next((row.get("result") for row in executions if isinstance(row, dict) and row.get("tool") == "inspect_recent_errors"), {})
-    patterns = recent_errors.get("patterns") if isinstance(recent_errors, dict) and isinstance(recent_errors.get("patterns"), list) else []
+        proposals.append(
+            {
+                "title": "Degradación explícita cuando Ollama cae",
+                "files": ["football/system_guard.py", "football/local_llm.py"],
+                "summary": "Reforzar el fallback y las señales de disponibilidad para no bloquear al usuario.",
+                "dry_run": "Mantener respuesta útil sin `chat.response = null` y registrar latencia/caída de proveedor local.",
+            }
+        )
+    recent_errors = next(
+        (
+            row.get("result")
+            for row in executions
+            if isinstance(row, dict) and row.get("tool") == "inspect_recent_errors"
+        ),
+        {},
+    )
+    patterns = (
+        recent_errors.get("patterns")
+        if isinstance(recent_errors, dict) and isinstance(recent_errors.get("patterns"), list)
+        else []
+    )
     pattern_names = {str(row.get("name") or "") for row in patterns if isinstance(row, dict)}
     if "DisallowedHost" in pattern_names:
-        proposals.append({
-            "title": "Normalizar hosts de desarrollo y despliegue",
-            "files": ["webstats/settings.py"],
-            "summary": "Blindar normalización de `ALLOWED_HOSTS`/`CSRF_TRUSTED_ORIGINS` para hosts controlados.",
-            "dry_run": "Añadir cobertura para `testserver`, host público canónico y hosts de landing sin relajar producción.",
-        })
-    failing_routes = next((row.get("result", {}).get("failing") for row in executions if isinstance(row, dict) and row.get("tool") == "check_critical_routes"), [])
+        proposals.append(
+            {
+                "title": "Normalizar hosts de desarrollo y despliegue",
+                "files": ["webstats/settings.py"],
+                "summary": "Blindar normalización de `ALLOWED_HOSTS`/`CSRF_TRUSTED_ORIGINS` para hosts controlados.",
+                "dry_run": "Añadir cobertura para `testserver`, host público canónico y hosts de landing sin relajar producción.",
+            }
+        )
+    failing_routes = next(
+        (
+            row.get("result", {}).get("failing")
+            for row in executions
+            if isinstance(row, dict) and row.get("tool") == "check_critical_routes"
+        ),
+        [],
+    )
     if failing_routes:
-        proposals.append({
-            "title": "Reconstruir rutas críticas fallidas",
-            "files": ["football/urls.py", "football/views.py"],
-            "summary": "Alinear nombres de rutas y vistas para restaurar navegación crítica.",
-            "dry_run": f"Revisar {len(failing_routes)} rutas marcadas por el guard y corregir `reverse`/imports asociados.",
-        })
+        proposals.append(
+            {
+                "title": "Reconstruir rutas críticas fallidas",
+                "files": ["football/urls.py", "football/views.py"],
+                "summary": "Alinear nombres de rutas y vistas para restaurar navegación crítica.",
+                "dry_run": f"Revisar {len(failing_routes)} rutas marcadas por el guard y corregir `reverse`/imports asociados.",
+            }
+        )
     return proposals[:6]
 
 
@@ -11735,95 +13568,134 @@ def _build_remediation_plan(report: dict, executions: list[dict], snapshot_diff:
     execution_map = {str(row.get("tool") or ""): row.get("result") for row in executions if isinstance(row, dict)}
 
     if "ollama_unreachable" in issue_ids:
-        suggestions.append({
-            "kind": "runtime",
-            "title": "Recuperar Ollama local",
-            "steps": [
-                "Verifica que `ollama serve` esté levantado en `127.0.0.1:11434`.",
-                "Comprueba que el modelo configurado exista con `ollama list`.",
-                "Si sigue caído, mantén el guard en modo degradado y reintenta.",
-            ],
-        })
-        user_guidance.append("Si el guard no responde con IA local, puedes seguir usando diagnóstico y acciones seguras mientras se recupera Ollama.")
+        suggestions.append(
+            {
+                "kind": "runtime",
+                "title": "Recuperar Ollama local",
+                "steps": [
+                    "Verifica que `ollama serve` esté levantado en `127.0.0.1:11434`.",
+                    "Comprueba que el modelo configurado exista con `ollama list`.",
+                    "Si sigue caído, mantén el guard en modo degradado y reintenta.",
+                ],
+            }
+        )
+        user_guidance.append(
+            "Si el guard no responde con IA local, puedes seguir usando diagnóstico y acciones seguras mientras se recupera Ollama."
+        )
         code_changes.append(KNOWN_FIXES["ollama_unreachable"])
 
     if "path_missing_static_root" in issue_ids:
-        suggestions.append({
-            "kind": "filesystem",
-            "title": "Crear `static_root` faltante",
-            "steps": [
-                "Crea el directorio indicado por `STATIC_ROOT`.",
-                "Repite el healthcheck para confirmar que el warning desaparece.",
-            ],
-        })
+        suggestions.append(
+            {
+                "kind": "filesystem",
+                "title": "Crear `static_root` faltante",
+                "steps": [
+                    "Crea el directorio indicado por `STATIC_ROOT`.",
+                    "Repite el healthcheck para confirmar que el warning desaparece.",
+                ],
+            }
+        )
         code_changes.append(KNOWN_FIXES["path_missing_static_root"])
 
-    recent_errors = execution_map.get("inspect_recent_errors") if isinstance(execution_map.get("inspect_recent_errors"), dict) else {}
+    recent_errors = (
+        execution_map.get("inspect_recent_errors")
+        if isinstance(execution_map.get("inspect_recent_errors"), dict)
+        else {}
+    )
     patterns = recent_errors.get("patterns") if isinstance(recent_errors.get("patterns"), list) else []
     pattern_names = {str(row.get("name") or "") for row in patterns if isinstance(row, dict)}
-    runtime_cfg = execution_map.get("inspect_runtime_config") if isinstance(execution_map.get("inspect_runtime_config"), dict) else {}
+    runtime_cfg = (
+        execution_map.get("inspect_runtime_config")
+        if isinstance(execution_map.get("inspect_runtime_config"), dict)
+        else {}
+    )
     runtime_warnings = {str(x) for x in (runtime_cfg.get("warnings") or []) if str(x or "").strip()}
 
     if "DisallowedHost" in pattern_names or "testserver_no_esta_en_allowed_hosts" in runtime_warnings:
-        suggestions.append({
-            "kind": "config",
-            "title": "Ajustar hosts permitidos",
-            "steps": [
-                "Añade el host real al env `ALLOWED_HOSTS` o al host público canónico.",
-                "Si el origen también hace POST, revisa `CSRF_TRUSTED_ORIGINS`.",
-            ],
-        })
-        code_changes.append({
-            "title": "Blindar `ALLOWED_HOSTS` en local/test",
-            "files": ["webstats/settings.py"],
-            "reason": "Los logs muestran `DisallowedHost` y el runtime no incluye todos los hosts esperados.",
-            "proposal": "Añadir normalización o defaults seguros para hosts de desarrollo/controlados sin abrir producción.",
-        })
-        user_guidance.append("Si ves un error de host inválido, abre la app con un dominio incluido en `ALLOWED_HOSTS` o ajusta la configuración del entorno.")
+        suggestions.append(
+            {
+                "kind": "config",
+                "title": "Ajustar hosts permitidos",
+                "steps": [
+                    "Añade el host real al env `ALLOWED_HOSTS` o al host público canónico.",
+                    "Si el origen también hace POST, revisa `CSRF_TRUSTED_ORIGINS`.",
+                ],
+            }
+        )
+        code_changes.append(
+            {
+                "title": "Blindar `ALLOWED_HOSTS` en local/test",
+                "files": ["webstats/settings.py"],
+                "reason": "Los logs muestran `DisallowedHost` y el runtime no incluye todos los hosts esperados.",
+                "proposal": "Añadir normalización o defaults seguros para hosts de desarrollo/controlados sin abrir producción.",
+            }
+        )
+        user_guidance.append(
+            "Si ves un error de host inválido, abre la app con un dominio incluido en `ALLOWED_HOSTS` o ajusta la configuración del entorno."
+        )
 
     if "HTTPS_on_HTTP_devserver" in pattern_names:
-        suggestions.append({
-            "kind": "runtime",
-            "title": "Evitar HTTPS contra `runserver`",
-            "steps": [
-                "Usa `http://` al probar `runserver` local.",
-                "Si necesitas HTTPS, colócalo detrás de un proxy que termine TLS.",
-            ],
-        })
-        user_guidance.append("En local, `runserver` solo sirve HTTP. Si abres la URL con HTTPS, el sistema marcará error aunque la app esté bien.")
+        suggestions.append(
+            {
+                "kind": "runtime",
+                "title": "Evitar HTTPS contra `runserver`",
+                "steps": [
+                    "Usa `http://` al probar `runserver` local.",
+                    "Si necesitas HTTPS, colócalo detrás de un proxy que termine TLS.",
+                ],
+            }
+        )
+        user_guidance.append(
+            "En local, `runserver` solo sirve HTTP. Si abres la URL con HTTPS, el sistema marcará error aunque la app esté bien."
+        )
 
-    route_result = execution_map.get("check_critical_routes") if isinstance(execution_map.get("check_critical_routes"), dict) else {}
+    route_result = (
+        execution_map.get("check_critical_routes")
+        if isinstance(execution_map.get("check_critical_routes"), dict)
+        else {}
+    )
     failing_routes = route_result.get("failing") if isinstance(route_result.get("failing"), list) else []
     if failing_routes:
-        code_changes.append({
-            "title": "Reparar rutas críticas no resueltas",
-            "files": ["football/urls.py", "football/views.py"],
-            "reason": f"Hay {len(failing_routes)} rutas críticas que no resuelven correctamente.",
-            "proposal": "Revisar nombres `reverse`, imports y vistas enlazadas para restaurar las rutas críticas del producto.",
-        })
+        code_changes.append(
+            {
+                "title": "Reparar rutas críticas no resueltas",
+                "files": ["football/urls.py", "football/views.py"],
+                "reason": f"Hay {len(failing_routes)} rutas críticas que no resuelven correctamente.",
+                "proposal": "Revisar nombres `reverse`, imports y vistas enlazadas para restaurar las rutas críticas del producto.",
+            }
+        )
 
-    path_result = execution_map.get("inspect_critical_paths") if isinstance(execution_map.get("inspect_critical_paths"), dict) else {}
-    missing_paths = [
-        row for row in (path_result.get("paths") or [])
-        if isinstance(row, dict) and not row.get("exists")
-    ]
+    path_result = (
+        execution_map.get("inspect_critical_paths")
+        if isinstance(execution_map.get("inspect_critical_paths"), dict)
+        else {}
+    )
+    missing_paths = [row for row in (path_result.get("paths") or []) if isinstance(row, dict) and not row.get("exists")]
     if missing_paths:
-        suggestions.append({
-            "kind": "filesystem",
-            "title": "Restaurar directorios críticos",
-            "steps": [f"Crear o montar `{row.get('path')}`." for row in missing_paths[:4]],
-        })
+        suggestions.append(
+            {
+                "kind": "filesystem",
+                "title": "Restaurar directorios críticos",
+                "steps": [f"Crear o montar `{row.get('path')}`." for row in missing_paths[:4]],
+            }
+        )
 
     if snapshot_diff and isinstance(snapshot_diff, dict):
         for item in (snapshot_diff.get("regressions") or [])[:3]:
-            suggestions.append({
-                "kind": "regression",
-                "title": "Atajar regresión detectada",
-                "steps": [str(item)],
-            })
-        repeated = snapshot_diff.get("repeated_issues") if isinstance(snapshot_diff.get("repeated_issues"), list) else []
+            suggestions.append(
+                {
+                    "kind": "regression",
+                    "title": "Atajar regresión detectada",
+                    "steps": [str(item)],
+                }
+            )
+        repeated = (
+            snapshot_diff.get("repeated_issues") if isinstance(snapshot_diff.get("repeated_issues"), list) else []
+        )
         if repeated:
-            user_guidance.append("Se repiten incidencias entre ejecuciones; conviene resolver la causa raíz antes de seguir operando.")
+            user_guidance.append(
+                "Se repiten incidencias entre ejecuciones; conviene resolver la causa raíz antes de seguir operando."
+            )
 
     for row in _known_fix_for_patterns(pattern_names, failing_routes):
         if row not in code_changes:
@@ -11846,7 +13718,9 @@ def _adapt_response_to_live_workflow(response: dict, *, page_context=None) -> di
         return response
     selected_session = workflow.get("selected_session") if isinstance(workflow.get("selected_session"), dict) else {}
     selected_task = workflow.get("selected_task") if isinstance(workflow.get("selected_task"), dict) else {}
-    selected_microcycle = workflow.get("selected_microcycle") if isinstance(workflow.get("selected_microcycle"), dict) else {}
+    selected_microcycle = (
+        workflow.get("selected_microcycle") if isinstance(workflow.get("selected_microcycle"), dict) else {}
+    )
     active_match = workflow.get("active_match") if isinstance(workflow.get("active_match"), dict) else {}
     page_tab = str(workflow.get("page_tab") or "")[:64]
     route_health = workflow.get("route_health") if isinstance(workflow.get("route_health"), dict) else {}
@@ -11858,33 +13732,42 @@ def _adapt_response_to_live_workflow(response: dict, *, page_context=None) -> di
 
     if selected_session.get("id"):
         highlights.append(f"Sesión activa: {selected_session.get('focus') or 'sesión'}")
-        ui_actions.insert(0, {
-            "type": "prompt",
-            "label": "Analizar sesión abierta",
-            "prompt": f"Analiza la sesión abierta {selected_session.get('focus') or ''} y dime el siguiente ajuste útil.",
-            "reason": "Trabajar sobre la sesión que el usuario tiene en foco.",
-        })
+        ui_actions.insert(
+            0,
+            {
+                "type": "prompt",
+                "label": "Analizar sesión abierta",
+                "prompt": f"Analiza la sesión abierta {selected_session.get('focus') or ''} y dime el siguiente ajuste útil.",
+                "reason": "Trabajar sobre la sesión que el usuario tiene en foco.",
+            },
+        )
         if "sesión" not in message.lower() and "session" not in message.lower():
             message += f" Estoy situado sobre la sesión {selected_session.get('focus') or ''}."
     if selected_task.get("id"):
         highlights.append(f"Tarea activa: {selected_task.get('title') or 'tarea'}")
-        ui_actions.insert(0, {
-            "type": "prompt",
-            "label": "Revisar tarea abierta",
-            "prompt": f"Revisa la tarea abierta {selected_task.get('title') or ''} y propón mejora o corrección.",
-            "reason": "Trabajar sobre la tarea que está abierta ahora mismo.",
-        })
+        ui_actions.insert(
+            0,
+            {
+                "type": "prompt",
+                "label": "Revisar tarea abierta",
+                "prompt": f"Revisa la tarea abierta {selected_task.get('title') or ''} y propón mejora o corrección.",
+                "reason": "Trabajar sobre la tarea que está abierta ahora mismo.",
+            },
+        )
     if selected_microcycle.get("id"):
         highlights.append(f"Microciclo activo: {selected_microcycle.get('title') or 'microciclo'}")
     if active_match.get("id"):
         rival = str(active_match.get("away_team") or active_match.get("home_team") or "").strip()
         highlights.append(f"Partido activo: {rival or active_match.get('id')}")
-        ui_actions.insert(0, {
-            "type": "prompt",
-            "label": "Trabajar sobre partido",
-            "prompt": "Explícame el partido activo, el contexto rival y la siguiente decisión útil.",
-            "reason": "Adaptar la ayuda al partido actualmente seleccionado.",
-        })
+        ui_actions.insert(
+            0,
+            {
+                "type": "prompt",
+                "label": "Trabajar sobre partido",
+                "prompt": "Explícame el partido activo, el contexto rival y la siguiente decisión útil.",
+                "reason": "Adaptar la ayuda al partido actualmente seleccionado.",
+            },
+        )
     if page_tab:
         highlights.append(f"Tab activa: {page_tab}")
     if route_health.get("active_route", {}).get("label"):
@@ -11893,40 +13776,55 @@ def _adapt_response_to_live_workflow(response: dict, *, page_context=None) -> di
         missing = [str(item) for item in (route_health.get("missing_modules") or []) if str(item or "").strip()]
         if missing:
             highlights.append(f"Módulos ausentes: {', '.join(missing[:3])}")
-        ui_actions.insert(0, {
-            "type": "prompt",
-            "label": "Diagnosticar ruta activa",
-            "prompt": "Revisa la ruta activa, identifica qué módulo falta o falla y propón la corrección técnica concreta.",
-            "reason": "Actuar sobre la pantalla degradada que el usuario tiene abierta.",
-        })
+        ui_actions.insert(
+            0,
+            {
+                "type": "prompt",
+                "label": "Diagnosticar ruta activa",
+                "prompt": "Revisa la ruta activa, identifica qué módulo falta o falla y propón la corrección técnica concreta.",
+                "reason": "Actuar sobre la pantalla degradada que el usuario tiene abierta.",
+            },
+        )
     audited_routes = [row for row in (route_audit.get("routes") or []) if isinstance(row, dict)]
     if audited_routes and bool(route_audit.get("enabled")):
         failing_routes = [row for row in audited_routes if str(row.get("status") or "") in {"degraded", "blocked"}]
-        highlights.append(f"Auditoría rutas: {int(route_audit.get('healthy_count') or 0)}/{int(route_audit.get('audited_count') or 0)} sanas")
+        highlights.append(
+            f"Auditoría rutas: {int(route_audit.get('healthy_count') or 0)}/{int(route_audit.get('audited_count') or 0)} sanas"
+        )
         if failing_routes:
             first = failing_routes[0]
             if first.get("label"):
                 highlights.append(f"Ruta auditada con fallo: {first.get('label')}")
-            ui_actions.insert(0, {
-                "type": "prompt",
-                "label": "Auditar rutas críticas",
-                "prompt": "Resume la auditoría de rutas críticas, prioriza la pantalla con fallo y propone la corrección concreta.",
-                "reason": "Extender el diagnóstico más allá de la pantalla actual.",
-            })
+            ui_actions.insert(
+                0,
+                {
+                    "type": "prompt",
+                    "label": "Auditar rutas críticas",
+                    "prompt": "Resume la auditoría de rutas críticas, prioriza la pantalla con fallo y propone la corrección concreta.",
+                    "reason": "Extender el diagnóstico más allá de la pantalla actual.",
+                },
+            )
     browser_routes = [row for row in (browser_audit.get("routes") or []) if isinstance(row, dict)]
     if browser_routes and bool(browser_audit.get("enabled")):
-        failing_browser_routes = [row for row in browser_routes if str(row.get("status") or "") in {"degraded", "blocked"}]
-        highlights.append(f"Auditoría browser: {int(browser_audit.get('healthy_count') or 0)}/{int(browser_audit.get('audited_count') or 0)} sanas")
+        failing_browser_routes = [
+            row for row in browser_routes if str(row.get("status") or "") in {"degraded", "blocked"}
+        ]
+        highlights.append(
+            f"Auditoría browser: {int(browser_audit.get('healthy_count') or 0)}/{int(browser_audit.get('audited_count') or 0)} sanas"
+        )
         if failing_browser_routes:
             first = failing_browser_routes[0]
             if first.get("label"):
                 highlights.append(f"Browser detecta fallo en: {first.get('label')}")
-            ui_actions.insert(0, {
-                "type": "prompt",
-                "label": "Revisar auditoría visual",
-                "prompt": "Resume la auditoría visual/browser de rutas críticas y prioriza el módulo roto por JavaScript o render.",
-                "reason": "Diagnóstico post-JS y post-render sobre varias rutas del sistema.",
-            })
+            ui_actions.insert(
+                0,
+                {
+                    "type": "prompt",
+                    "label": "Revisar auditoría visual",
+                    "prompt": "Resume la auditoría visual/browser de rutas críticas y prioriza el módulo roto por JavaScript o render.",
+                    "reason": "Diagnóstico post-JS y post-render sobre varias rutas del sistema.",
+                },
+            )
 
     response["message"] = _truncate(message.strip(), 1800)
     response["highlights"] = highlights[:10]
@@ -11934,7 +13832,17 @@ def _adapt_response_to_live_workflow(response: dict, *, page_context=None) -> di
     return response
 
 
-def _fallback_response(report: dict, *, question: str, planner: dict, audience: str, autonomy_mode: str, degraded_reason: str = "", executions=None, snapshot_diff=None) -> dict:
+def _fallback_response(
+    report: dict,
+    *,
+    question: str,
+    planner: dict,
+    audience: str,
+    autonomy_mode: str,
+    degraded_reason: str = "",
+    executions=None,
+    snapshot_diff=None,
+) -> dict:
     issues = report.get("issues") if isinstance(report.get("issues"), list) else []
     summary = report.get("issue_summary") if isinstance(report.get("issue_summary"), dict) else {}
     status = _base_status_from_issues(issues)
@@ -11943,13 +13851,15 @@ def _fallback_response(report: dict, *, question: str, planner: dict, audience: 
         highlights.append(f"Blockers: {summary.get('blockers')}")
     if summary.get("warnings"):
         highlights.append(f"Warnings: {summary.get('warnings')}")
-    availability = (((report.get("evidence") or {}).get("local_llm") or {}).get("availability") or {})
+    availability = ((report.get("evidence") or {}).get("local_llm") or {}).get("availability") or {}
     if availability.get("state") != "up":
         highlights.append(f"LLM local: {availability.get('state')}")
     if planner.get("requested_tools"):
         highlights.append("Acciones detectadas: " + ", ".join(planner.get("requested_tools")[:4]))
     if planner.get("tool_reasons"):
-        highlights.extend([_truncate(row.get("reason"), 90) for row in planner.get("tool_reasons")[:2] if isinstance(row, dict)])
+        highlights.extend(
+            [_truncate(row.get("reason"), 90) for row in planner.get("tool_reasons")[:2] if isinstance(row, dict)]
+        )
     for row in (executions or [])[:2]:
         if not isinstance(row, dict):
             continue
@@ -11974,9 +13884,13 @@ def _fallback_response(report: dict, *, question: str, planner: dict, audience: 
         message = "He revisado el estado del sistema y te lo resumo en pasos simples."
     else:
         message = "He revisado el sistema con modo operativo y resumo el estado actual."
-    if any(str((row or {}).get("tool") or "") == "git_push" and bool((row or {}).get("ok")) for row in (executions or [])):
+    if any(
+        str((row or {}).get("tool") or "") == "git_push" and bool((row or {}).get("ok")) for row in (executions or [])
+    ):
         message = "He publicado los cambios solicitados y resumo el resultado."
-    elif any(str((row or {}).get("tool") or "") == "git_commit" and bool((row or {}).get("ok")) for row in (executions or [])):
+    elif any(
+        str((row or {}).get("tool") or "") == "git_commit" and bool((row or {}).get("ok")) for row in (executions or [])
+    ):
         message = "He creado el commit solicitado y resumo el resultado."
     if status == "fail":
         message += " Hay incidencias bloqueantes."
@@ -11998,7 +13912,12 @@ def _fallback_response(report: dict, *, question: str, planner: dict, audience: 
         "actions": actions[:6],
         "plan": [
             *planner.get("steps", [])[:5],
-            {"step": "Ejecutar herramientas seguras" if planner.get("requested_tools") else "Esperar nueva instrucción", "done": bool(executions)},
+            {
+                "step": (
+                    "Ejecutar herramientas seguras" if planner.get("requested_tools") else "Esperar nueva instrucción"
+                ),
+                "done": bool(executions),
+            },
         ][:6],
         "executions": executions or [],
         "needs_confirmation": bool(planner.get("confirm_required")),
@@ -12036,27 +13955,29 @@ def _normalize_llm_response(parsed, fallback: dict) -> dict:
         if isinstance(row, dict):
             actions.append({"label": _truncate(row.get("label"), 120), "reason": _truncate(row.get("reason"), 240)})
     merged = dict(fallback)
-    merged.update({
-        "status": status,
-        "message": message,
-        "highlights": highlights or fallback.get("highlights") or [],
-        "actions": actions or fallback.get("actions") or [],
-        "degraded_reason": str(fallback.get("degraded_reason") or ""),
-        "task": fallback.get("task") or {},
-        "runbook": fallback.get("runbook") or {},
-        "silent_mode": bool(fallback.get("silent_mode")),
-        "ui_actions": fallback.get("ui_actions") or [],
-        "remediation": fallback.get("remediation") or {},
-        "snapshot_diff": fallback.get("snapshot_diff") or {},
-        "assistant_action": fallback.get("assistant_action") or {},
-        "improvement_proposals": fallback.get("improvement_proposals") or [],
-        "capabilities": fallback.get("capabilities") or {},
-        "operator_plan": fallback.get("operator_plan") or {},
-        "autofix_runner": fallback.get("autofix_runner") or {},
-        "silent_operator": fallback.get("silent_operator") or {},
-        "operator_profile": fallback.get("operator_profile") or {},
-        "intelligence_os": fallback.get("intelligence_os") or {},
-    })
+    merged.update(
+        {
+            "status": status,
+            "message": message,
+            "highlights": highlights or fallback.get("highlights") or [],
+            "actions": actions or fallback.get("actions") or [],
+            "degraded_reason": str(fallback.get("degraded_reason") or ""),
+            "task": fallback.get("task") or {},
+            "runbook": fallback.get("runbook") or {},
+            "silent_mode": bool(fallback.get("silent_mode")),
+            "ui_actions": fallback.get("ui_actions") or [],
+            "remediation": fallback.get("remediation") or {},
+            "snapshot_diff": fallback.get("snapshot_diff") or {},
+            "assistant_action": fallback.get("assistant_action") or {},
+            "improvement_proposals": fallback.get("improvement_proposals") or [],
+            "capabilities": fallback.get("capabilities") or {},
+            "operator_plan": fallback.get("operator_plan") or {},
+            "autofix_runner": fallback.get("autofix_runner") or {},
+            "silent_operator": fallback.get("silent_operator") or {},
+            "operator_profile": fallback.get("operator_profile") or {},
+            "intelligence_os": fallback.get("intelligence_os") or {},
+        }
+    )
     return merged
 
 
@@ -12064,26 +13985,32 @@ def _build_silent_operator_state(workspace, *, response=None, actor_id=None) -> 
     priority_state = _refresh_operator_priorities(workspace, page_context={}) if workspace else {}
     queue_rows = [row for row in (priority_state.get("tasks") or []) if isinstance(row, dict)]
     objective_rows = [row for row in (priority_state.get("objectives") or []) if isinstance(row, dict)]
-    strategy = _autonomous_priority_strategy(workspace, page_context={}, priority_state=priority_state) if workspace else {}
+    strategy = (
+        _autonomous_priority_strategy(workspace, page_context={}, priority_state=priority_state) if workspace else {}
+    )
     combined_priority = []
     for row in queue_rows[:3]:
-        combined_priority.append({
-            "kind": "task",
-            "title": row.get("title"),
-            "status": row.get("status"),
-            "priority_band": row.get("priority_band"),
-            "priority_score": row.get("priority_score"),
-            "priority_reason": row.get("priority_reason"),
-        })
+        combined_priority.append(
+            {
+                "kind": "task",
+                "title": row.get("title"),
+                "status": row.get("status"),
+                "priority_band": row.get("priority_band"),
+                "priority_score": row.get("priority_score"),
+                "priority_reason": row.get("priority_reason"),
+            }
+        )
     for row in objective_rows[:2]:
-        combined_priority.append({
-            "kind": "objective",
-            "title": row.get("title"),
-            "status": row.get("goal_status") or row.get("status"),
-            "priority_band": row.get("priority_band"),
-            "priority_score": row.get("priority_score"),
-            "priority_reason": row.get("priority_reason"),
-        })
+        combined_priority.append(
+            {
+                "kind": "objective",
+                "title": row.get("title"),
+                "status": row.get("goal_status") or row.get("status"),
+                "priority_band": row.get("priority_band"),
+                "priority_score": row.get("priority_score"),
+                "priority_reason": row.get("priority_reason"),
+            }
+        )
     combined_priority.sort(key=lambda row: (-_safe_int(row.get("priority_score"), 0), str(row.get("title") or "")))
     proactive = _load_proactive_state(workspace)
     scheduled = _scheduled_guard_state(workspace)
@@ -12111,9 +14038,21 @@ def _build_silent_operator_state(workspace, *, response=None, actor_id=None) -> 
     autonomy_policy = _autonomy_policy_snapshot(
         page_context={},
         planner=(response or {}).get("planner") if isinstance((response or {}).get("planner"), dict) else {},
-        assistant_action=(response or {}).get("assistant_action") if isinstance((response or {}).get("assistant_action"), dict) else {},
-        technical_operation=(response or {}).get("technical_operation") if isinstance((response or {}).get("technical_operation"), dict) else {},
-        technical_execution=(response or {}).get("technical_operation_execution") if isinstance((response or {}).get("technical_operation_execution"), dict) else {},
+        assistant_action=(
+            (response or {}).get("assistant_action")
+            if isinstance((response or {}).get("assistant_action"), dict)
+            else {}
+        ),
+        technical_operation=(
+            (response or {}).get("technical_operation")
+            if isinstance((response or {}).get("technical_operation"), dict)
+            else {}
+        ),
+        technical_execution=(
+            (response or {}).get("technical_operation_execution")
+            if isinstance((response or {}).get("technical_operation_execution"), dict)
+            else {}
+        ),
     )
     return {
         "enabled": True,
@@ -12138,13 +14077,17 @@ def _build_silent_operator_state(workspace, *, response=None, actor_id=None) -> 
             for row in combined_priority[:5]
             if isinstance(row, dict)
         ],
-        "top_priority": {
-            "title": str((combined_priority[0] or {}).get("title") or "")[:160],
-            "status": str((combined_priority[0] or {}).get("status") or "")[:24],
-            "priority_band": str((combined_priority[0] or {}).get("priority_band") or "next")[:24],
-            "priority_score": _safe_int((combined_priority[0] or {}).get("priority_score"), 0),
-            "priority_reason": str((combined_priority[0] or {}).get("priority_reason") or "")[:220],
-        } if combined_priority else {},
+        "top_priority": (
+            {
+                "title": str((combined_priority[0] or {}).get("title") or "")[:160],
+                "status": str((combined_priority[0] or {}).get("status") or "")[:24],
+                "priority_band": str((combined_priority[0] or {}).get("priority_band") or "next")[:24],
+                "priority_score": _safe_int((combined_priority[0] or {}).get("priority_score"), 0),
+                "priority_reason": str((combined_priority[0] or {}).get("priority_reason") or "")[:220],
+            }
+            if combined_priority
+            else {}
+        ),
         "strategy": strategy,
         "publish_ready": bool(((response or {}).get("technical_operation_execution") or {}).get("publish_ready")),
         "silent_actions": list(autonomy_policy.get("silent_actions") or [])[:5],
@@ -12180,14 +14123,18 @@ def run_system_guard_chat(
     )
     assistant_action = _resolve_assisted_action(question, workspace=workspace, page_context=page_context)
     code_operator_mode = _build_code_operator_mode(question, planner, page_context=page_context)
-    technical_operation = _build_technical_operation(assistant_action if isinstance(assistant_action, dict) else {}, planner, page_context=page_context)
+    technical_operation = _build_technical_operation(
+        assistant_action if isinstance(assistant_action, dict) else {}, planner, page_context=page_context
+    )
     maintenance_result = None
     executed_tools = []
     if planner.get("confirm_required") and execute_confirmed:
         planner["confirm_required"] = False
         planner["confirmation_text"] = ""
     if maintenance_action and not planner.get("confirm_required"):
-        maintenance_result = _run_named_maintenance_action(maintenance_action, workspace=workspace, page_context=page_context)
+        maintenance_result = _run_named_maintenance_action(
+            maintenance_action, workspace=workspace, page_context=page_context
+        )
         executed_tools.append(_serialize_execution(maintenance_action, maintenance_result))
     elif planner.get("requested_tools") and not planner.get("confirm_required"):
         executed_tools = _execute_tools(
@@ -12272,7 +14219,11 @@ def run_system_guard_chat(
     runbook_meta = planner.get("runbook") if isinstance(planner.get("runbook"), dict) else {}
     queue_title = str(task_meta.get("title") or "").strip() or _truncate(question, 120)
     if assistant_action and workspace:
-        queue_status = "completed" if assistant_action.get("success") else ("blocked" if assistant_action.get("permission_required") else "pending")
+        queue_status = (
+            "completed"
+            if assistant_action.get("success")
+            else ("blocked" if assistant_action.get("permission_required") else "pending")
+        )
         queue_event = _record_task_queue_event(
             workspace,
             title=queue_title,
@@ -12285,10 +14236,28 @@ def run_system_guard_chat(
             question=question,
             result_summary=str(assistant_action.get("message") or "")[:280],
             executions=[],
-            metadata={"assistant_action": assistant_action, "technical_operation": technical_operation, "technical_execution": technical_execution, "code_operator_mode": code_operator_mode, "change_blueprint": change_blueprint} if technical_operation else {"assistant_action": assistant_action, "code_operator_mode": code_operator_mode, "change_blueprint": change_blueprint},
+            metadata=(
+                {
+                    "assistant_action": assistant_action,
+                    "technical_operation": technical_operation,
+                    "technical_execution": technical_execution,
+                    "code_operator_mode": code_operator_mode,
+                    "change_blueprint": change_blueprint,
+                }
+                if technical_operation
+                else {
+                    "assistant_action": assistant_action,
+                    "code_operator_mode": code_operator_mode,
+                    "change_blueprint": change_blueprint,
+                }
+            ),
         )
     elif planner.get("requested_tools") and workspace:
-        queue_status = "pending" if planner.get("confirm_required") else ("completed" if all(bool(row.get("ok")) for row in executed_tools or []) else "blocked")
+        queue_status = (
+            "pending"
+            if planner.get("confirm_required")
+            else ("completed" if all(bool(row.get("ok")) for row in executed_tools or []) else "blocked")
+        )
         queue_event = _record_task_queue_event(
             workspace,
             title=queue_title,
@@ -12299,7 +14268,11 @@ def run_system_guard_chat(
             source="manual_runbook",
             status=queue_status,
             question=question,
-            result_summary="Acciones completadas." if queue_status == "completed" else ("Pendiente de confirmación." if queue_status == "pending" else "Una o más acciones fallaron."),
+            result_summary=(
+                "Acciones completadas."
+                if queue_status == "completed"
+                else ("Pendiente de confirmación." if queue_status == "pending" else "Una o más acciones fallaron.")
+            ),
             executions=executed_tools,
         )
     report = run_system_guard(
@@ -12385,7 +14358,9 @@ def run_system_guard_chat(
     )
     objective_orchestrator = _objective_orchestrator_snapshot(workspace, actor_id=actor_id)
     domain_playbook = _domain_playbook_snapshot(question, page_context=page_context)
-    autonomous_backlog = _run_autonomous_backlog_cycle(workspace=workspace, page_context=page_context, strategy=autonomous_strategy)
+    autonomous_backlog = _run_autonomous_backlog_cycle(
+        workspace=workspace, page_context=page_context, strategy=autonomous_strategy
+    )
     continuous_operator = _continuous_operator_snapshot(workspace, actor_id=actor_id)
     admin_operator_console = _build_admin_operator_console(
         page_context=page_context,
@@ -12407,9 +14382,13 @@ def run_system_guard_chat(
     fallback["snapshot_diff"] = snapshot_diff
     fallback["remediation"] = _build_remediation_plan(report, executed_tools or [], snapshot_diff=snapshot_diff)
     fallback["assistant_action"] = assistant_action if isinstance(assistant_action, dict) else {}
-    fallback["improvement_proposals"] = _build_improvement_proposals(report, page_context=page_context, workspace=workspace)
+    fallback["improvement_proposals"] = _build_improvement_proposals(
+        report, page_context=page_context, workspace=workspace
+    )
     fallback["capabilities"] = _capability_snapshot(page_context=page_context)
-    fallback["operator_plan"] = _operator_blueprint(question, planner=planner, page_context=page_context, response=fallback)
+    fallback["operator_plan"] = _operator_blueprint(
+        question, planner=planner, page_context=page_context, response=fallback
+    )
     fallback["code_operator_mode"] = code_operator_mode if isinstance(code_operator_mode, dict) else {}
     fallback["change_blueprint"] = change_blueprint if isinstance(change_blueprint, dict) else {}
     fallback["technical_operation"] = technical_operation if isinstance(technical_operation, dict) else {}
@@ -12479,87 +14458,142 @@ def run_system_guard_chat(
             fallback["status"] = "risk" if fallback.get("status") != "fail" else fallback.get("status")
         if assistant_action.get("kind") == "code_intervention_request":
             target_area = str(assistant_action.get("target_area") or "").strip()
-            candidate_files = [str(item) for item in (assistant_action.get("candidate_files") or []) if str(item or "").strip()]
-            suggested_checks = [str(item) for item in (assistant_action.get("suggested_checks") or []) if str(item or "").strip()]
-            catalog_candidates = [row for row in (assistant_action.get("catalog_candidates") or []) if isinstance(row, dict)]
+            candidate_files = [
+                str(item) for item in (assistant_action.get("candidate_files") or []) if str(item or "").strip()
+            ]
+            suggested_checks = [
+                str(item) for item in (assistant_action.get("suggested_checks") or []) if str(item or "").strip()
+            ]
+            catalog_candidates = [
+                row for row in (assistant_action.get("catalog_candidates") or []) if isinstance(row, dict)
+            ]
             if target_area:
                 fallback["highlights"] = (fallback.get("highlights") or []) + [f"Intervención técnica: {target_area}"]
             if candidate_files:
-                fallback["highlights"] = (fallback.get("highlights") or []) + [f"Ficheros candidatos: {', '.join(candidate_files[:3])}"]
+                fallback["highlights"] = (fallback.get("highlights") or []) + [
+                    f"Ficheros candidatos: {', '.join(candidate_files[:3])}"
+                ]
             if catalog_candidates:
-                fallback["highlights"] = (fallback.get("highlights") or []) + [f"Fix catalogado candidato: {catalog_candidates[0].get('title') or catalog_candidates[0].get('key')}"]
+                fallback["highlights"] = (fallback.get("highlights") or []) + [
+                    f"Fix catalogado candidato: {catalog_candidates[0].get('title') or catalog_candidates[0].get('key')}"
+                ]
             if suggested_checks:
-                fallback["actions"] = [{
-                    "type": "prompt",
-                    "label": "Inspección técnica guiada",
-                    "prompt": f"Revisa {', '.join(candidate_files[:2]) or 'el área afectada'} y valida: {suggested_checks[0]}",
-                    "reason": "Arrancar una intervención concreta sobre código.",
-                }, {
-                    "type": "prompt",
-                    "label": "Preparar publicación",
-                    "prompt": "Cuando el cambio esté validado, prepara commit y push con un mensaje técnico claro.",
-                    "reason": "Cerrar el flujo técnico hasta publicación.",
-                }] + (fallback.get("actions") or [])
+                fallback["actions"] = [
+                    {
+                        "type": "prompt",
+                        "label": "Inspección técnica guiada",
+                        "prompt": f"Revisa {', '.join(candidate_files[:2]) or 'el área afectada'} y valida: {suggested_checks[0]}",
+                        "reason": "Arrancar una intervención concreta sobre código.",
+                    },
+                    {
+                        "type": "prompt",
+                        "label": "Preparar publicación",
+                        "prompt": "Cuando el cambio esté validado, prepara commit y push con un mensaje técnico claro.",
+                        "reason": "Cerrar el flujo técnico hasta publicación.",
+                    },
+                ] + (fallback.get("actions") or [])
             if isinstance(technical_execution, dict) and technical_execution.get("completed_phases"):
-                fallback["highlights"] = (fallback.get("highlights") or []) + [f"Fases completadas: {', '.join(technical_execution.get('completed_phases')[:4])}"]
-            applied_interventions = [row for row in (technical_execution.get("applied_interventions") or []) if isinstance(row, dict)] if isinstance(technical_execution, dict) else []
+                fallback["highlights"] = (fallback.get("highlights") or []) + [
+                    f"Fases completadas: {', '.join(technical_execution.get('completed_phases')[:4])}"
+                ]
+            applied_interventions = (
+                [row for row in (technical_execution.get("applied_interventions") or []) if isinstance(row, dict)]
+                if isinstance(technical_execution, dict)
+                else []
+            )
             if any(bool(row.get("ok")) for row in applied_interventions):
-                fallback["highlights"] = (fallback.get("highlights") or []) + [f"Fix aplicado: {applied_interventions[0].get('title') or applied_interventions[0].get('candidate_key')}"]
+                fallback["highlights"] = (fallback.get("highlights") or []) + [
+                    f"Fix aplicado: {applied_interventions[0].get('title') or applied_interventions[0].get('candidate_key')}"
+                ]
         if isinstance(code_operator_mode, dict) and code_operator_mode.get("enabled"):
-            fallback["highlights"] = (fallback.get("highlights") or []) + [f"Modo operador: {code_operator_mode.get('mode')}"]
+            fallback["highlights"] = (fallback.get("highlights") or []) + [
+                f"Modo operador: {code_operator_mode.get('mode')}"
+            ]
         if isinstance(change_blueprint, dict) and change_blueprint.get("file_changes"):
-            fallback["highlights"] = (fallback.get("highlights") or []) + [f"Blueprint de cambio: {len(change_blueprint.get('file_changes') or [])} archivos objetivo"]
+            fallback["highlights"] = (fallback.get("highlights") or []) + [
+                f"Blueprint de cambio: {len(change_blueprint.get('file_changes') or [])} archivos objetivo"
+            ]
         if isinstance(repair_commander, dict) and repair_commander.get("diagnosis"):
             diagnosis = repair_commander.get("diagnosis") if isinstance(repair_commander.get("diagnosis"), dict) else {}
-            primary = diagnosis.get("primary_hypothesis") if isinstance(diagnosis.get("primary_hypothesis"), dict) else {}
+            primary = (
+                diagnosis.get("primary_hypothesis") if isinstance(diagnosis.get("primary_hypothesis"), dict) else {}
+            )
             if primary.get("label"):
-                fallback["highlights"] = (fallback.get("highlights") or []) + [f"Hipótesis técnica: {primary.get('label')}"]
+                fallback["highlights"] = (fallback.get("highlights") or []) + [
+                    f"Hipótesis técnica: {primary.get('label')}"
+                ]
             if repair_commander.get("confidence_percent"):
-                fallback["highlights"] = (fallback.get("highlights") or []) + [f"Confianza de reparación: {repair_commander.get('confidence_percent')}%"]
+                fallback["highlights"] = (fallback.get("highlights") or []) + [
+                    f"Confianza de reparación: {repair_commander.get('confidence_percent')}%"
+                ]
         if isinstance(publish_commander, dict) and publish_commander.get("requested"):
-            fallback["highlights"] = (fallback.get("highlights") or []) + [f"Publicación gobernada: {publish_commander.get('status')}"]
+            fallback["highlights"] = (fallback.get("highlights") or []) + [
+                f"Publicación gobernada: {publish_commander.get('status')}"
+            ]
         if assistant_action.get("kind") == "action_chain":
             steps = [row for row in (assistant_action.get("steps") or []) if isinstance(row, dict)]
             if steps:
                 fallback["highlights"] = (fallback.get("highlights") or []) + [f"Cadena operativa: {len(steps)} pasos"]
-                fallback["actions"] = [{
-                    "type": "prompt",
-                    "label": "Revisar secuencia completa",
-                    "prompt": "Valida la secuencia completa y confirma la publicación solo si todos los pasos han quedado correctos.",
-                    "reason": "Cerrar la petición compuesta con trazabilidad.",
-                }] + (fallback.get("actions") or [])
+                fallback["actions"] = [
+                    {
+                        "type": "prompt",
+                        "label": "Revisar secuencia completa",
+                        "prompt": "Valida la secuencia completa y confirma la publicación solo si todos los pasos han quedado correctos.",
+                        "reason": "Cerrar la petición compuesta con trazabilidad.",
+                    }
+                ] + (fallback.get("actions") or [])
         if isinstance(repository_operator, dict) and repository_operator.get("execution_ready"):
-            fallback["highlights"] = (fallback.get("highlights") or []) + [f"Repositorio listo: {repository_operator.get('execution_lane')}"]
+            fallback["highlights"] = (fallback.get("highlights") or []) + [
+                f"Repositorio listo: {repository_operator.get('execution_lane')}"
+            ]
             if (repository_operator.get("memory") or {}).get("has_history"):
                 fallback["highlights"] = (fallback.get("highlights") or []) + ["Memoria técnica reutilizable detectada"]
         if isinstance(real_code_operator, dict) and real_code_operator.get("active"):
-            fallback["highlights"] = (fallback.get("highlights") or []) + [f"Ejecución real: {real_code_operator.get('execution_scope')}"]
+            fallback["highlights"] = (fallback.get("highlights") or []) + [
+                f"Ejecución real: {real_code_operator.get('execution_scope')}"
+            ]
             if real_code_operator.get("self_applied_fix"):
-                fallback["highlights"] = (fallback.get("highlights") or []) + ["Ollana ya ha aplicado un fix sobre código"]
+                fallback["highlights"] = (fallback.get("highlights") or []) + [
+                    "Ollana ya ha aplicado un fix sobre código"
+                ]
         if isinstance(infrastructure_operator, dict) and infrastructure_operator.get("connector_count"):
-            fallback["highlights"] = (fallback.get("highlights") or []) + [f"Infra operable: {infrastructure_operator.get('connector_count')} conectores"]
+            fallback["highlights"] = (fallback.get("highlights") or []) + [
+                f"Infra operable: {infrastructure_operator.get('connector_count')} conectores"
+            ]
         if isinstance(admin_operator_console, dict) and admin_operator_console.get("enabled"):
             fallback["highlights"] = (fallback.get("highlights") or []) + ["Modo admin total activo para Ollana"]
         if isinstance(observability_mesh, dict) and observability_mesh.get("active_signals"):
-            fallback["highlights"] = (fallback.get("highlights") or []) + [f"Observabilidad: {observability_mesh.get('active_signals')[0]}"]
+            fallback["highlights"] = (fallback.get("highlights") or []) + [
+                f"Observabilidad: {observability_mesh.get('active_signals')[0]}"
+            ]
         if isinstance(autonomous_closure, dict) and autonomous_closure.get("autonomous_resolution_ready"):
             fallback["highlights"] = (fallback.get("highlights") or []) + ["Cierre autónomo listo para operar"]
         if isinstance(release_guard, dict) and release_guard.get("verification_ready"):
-            fallback["highlights"] = (fallback.get("highlights") or []) + [f"Verificación post-cambio: {release_guard.get('status')}"]
+            fallback["highlights"] = (fallback.get("highlights") or []) + [
+                f"Verificación post-cambio: {release_guard.get('status')}"
+            ]
         if isinstance(deployment_guard, dict) and deployment_guard.get("verification_window"):
-            fallback["highlights"] = (fallback.get("highlights") or []) + [f"Despliegue: {deployment_guard.get('status')}"]
+            fallback["highlights"] = (fallback.get("highlights") or []) + [
+                f"Despliegue: {deployment_guard.get('status')}"
+            ]
             if deployment_guard.get("auto_rollback_triggered"):
-                fallback["highlights"] = (fallback.get("highlights") or []) + ["Rollback automático disparado por riesgo de producción"]
+                fallback["highlights"] = (fallback.get("highlights") or []) + [
+                    "Rollback automático disparado por riesgo de producción"
+                ]
         if isinstance(self_healing, dict) and self_healing.get("ready"):
-            fallback["highlights"] = (fallback.get("highlights") or []) + [f"Autocuración: {self_healing.get('strategy')}"]
+            fallback["highlights"] = (fallback.get("highlights") or []) + [
+                f"Autocuración: {self_healing.get('strategy')}"
+            ]
         if assistant_action.get("navigate_to") and isinstance(assistant_action.get("navigate_to"), dict):
             route = assistant_action.get("navigate_to") or {}
-            fallback["ui_actions"] = [{
-                "type": "navigate",
-                "label": f"Abrir {route.get('label') or 'destino'}",
-                "url": str(route.get("url") or ""),
-                "reason": "Navegación resuelta por Ollana.",
-            }] + (fallback.get("ui_actions") or [])
+            fallback["ui_actions"] = [
+                {
+                    "type": "navigate",
+                    "label": f"Abrir {route.get('label') or 'destino'}",
+                    "url": str(route.get("url") or ""),
+                    "reason": "Navegación resuelta por Ollana.",
+                }
+            ] + (fallback.get("ui_actions") or [])
         payload = assistant_action.get("payload") if isinstance(assistant_action.get("payload"), dict) else {}
         if payload:
             collected = []
@@ -12568,14 +14602,20 @@ def run_system_guard_chat(
                 if value not in ("", None):
                     collected.append(f"{key}:{value}")
             if collected:
-                fallback["highlights"] = (fallback.get("highlights") or []) + [f"Datos capturados: {', '.join(collected[:4])}"]
+                fallback["highlights"] = (fallback.get("highlights") or []) + [
+                    f"Datos capturados: {', '.join(collected[:4])}"
+                ]
         if assistant_action.get("missing_fields"):
-            fallback["actions"] = [{
-                "label": "Completar datos para ejecutar",
-                "reason": "Faltan campos mínimos para ejecutar la petición.",
-            }] + (fallback.get("actions") or [])
+            fallback["actions"] = [
+                {
+                    "label": "Completar datos para ejecutar",
+                    "reason": "Faltan campos mínimos para ejecutar la petición.",
+                }
+            ] + (fallback.get("actions") or [])
         if queue_event:
-            fallback["highlights"] = (fallback.get("highlights") or []) + [f"Cola: {queue_event.get('status') or 'registrada'}"]
+            fallback["highlights"] = (fallback.get("highlights") or []) + [
+                f"Cola: {queue_event.get('status') or 'registrada'}"
+            ]
     operator_profile = _load_operator_profile(workspace, actor_id=actor_id)
     fallback["operator_profile"] = operator_profile
     fallback["silent_operator"] = _build_silent_operator_state(workspace, response=fallback, actor_id=actor_id)
@@ -12600,7 +14640,9 @@ def run_system_guard_chat(
         self_healing=self_healing if isinstance(self_healing, dict) else {},
         operator_profile=operator_profile,
         silent_operator=fallback.get("silent_operator") if isinstance(fallback.get("silent_operator"), dict) else {},
-        improvement_proposals=fallback.get("improvement_proposals") if isinstance(fallback.get("improvement_proposals"), list) else [],
+        improvement_proposals=(
+            fallback.get("improvement_proposals") if isinstance(fallback.get("improvement_proposals"), list) else []
+        ),
         snapshot_diff=fallback.get("snapshot_diff") if isinstance(fallback.get("snapshot_diff"), dict) else {},
     )
     fallback = _adapt_response_to_live_workflow(fallback, page_context=page_context)
@@ -12616,7 +14658,9 @@ def run_system_guard_chat(
     llm_used = bool(cfg.get("enabled") and str(cfg.get("provider") or "").lower() == "ollama")
     if llm_used and not planner.get("confirm_required"):
         parsed, error = call_ollama_json(
-            build_system_guard_chat_prompt(report, question, _history_tail(history), planner=planner, memory=memory, audience=audience),
+            build_system_guard_chat_prompt(
+                report, question, _history_tail(history), planner=planner, memory=memory, audience=audience
+            ),
             model=cfg.get("model"),
             base_url=cfg.get("base_url"),
             timeout=min(max(_safe_int(cfg.get("timeout"), 8), 2), 20),
@@ -12627,7 +14671,9 @@ def run_system_guard_chat(
     else:
         error = "local_llm_disabled_or_unsupported"
         fallback["degraded_reason"] = error
-    response = _normalize_llm_response(parsed, fallback if not error else dict(fallback, degraded_reason=fallback.get("degraded_reason") or error))
+    response = _normalize_llm_response(
+        parsed, fallback if not error else dict(fallback, degraded_reason=fallback.get("degraded_reason") or error)
+    )
     latency_ms = int((time.monotonic() - started_at) * 1000)
     response["metrics"] = {
         "latency_ms": latency_ms,
@@ -12636,7 +14682,9 @@ def run_system_guard_chat(
         "executed_tools": len(executed_tools),
     }
     response["capabilities"] = response.get("capabilities") or _capability_snapshot(page_context=page_context)
-    response["operator_plan"] = _operator_blueprint(question, planner=planner, page_context=page_context, response=response)
+    response["operator_plan"] = _operator_blueprint(
+        question, planner=planner, page_context=page_context, response=response
+    )
     response["code_operator_mode"] = response.get("code_operator_mode") or code_operator_mode
     response["change_blueprint"] = response.get("change_blueprint") or change_blueprint
     response["technical_operation"] = response.get("technical_operation") or technical_operation
@@ -12661,17 +14709,33 @@ def run_system_guard_chat(
     response["continuous_operator"] = response.get("continuous_operator") or continuous_operator
     response["admin_operator_console"] = response.get("admin_operator_console") or admin_operator_console
     response["autonomous_closure"] = response.get("autonomous_closure") or autonomous_closure
-    response["request_contract"] = response.get("request_contract") or fallback.get("request_contract") or _build_request_contract(
-        question,
-        planner=planner,
-        assistant_action=response.get("assistant_action") if isinstance(response.get("assistant_action"), dict) else {},
-        technical_operation=response.get("technical_operation") if isinstance(response.get("technical_operation"), dict) else {},
-        technical_execution=response.get("technical_operation_execution") if isinstance(response.get("technical_operation_execution"), dict) else {},
-        repair_commander=response.get("repair_commander") if isinstance(response.get("repair_commander"), dict) else {},
-        real_code_operator=response.get("real_code_operator") if isinstance(response.get("real_code_operator"), dict) else {},
-        page_context=page_context,
-        autonomy_mode=autonomy_mode,
-        audience=audience,
+    response["request_contract"] = (
+        response.get("request_contract")
+        or fallback.get("request_contract")
+        or _build_request_contract(
+            question,
+            planner=planner,
+            assistant_action=(
+                response.get("assistant_action") if isinstance(response.get("assistant_action"), dict) else {}
+            ),
+            technical_operation=(
+                response.get("technical_operation") if isinstance(response.get("technical_operation"), dict) else {}
+            ),
+            technical_execution=(
+                response.get("technical_operation_execution")
+                if isinstance(response.get("technical_operation_execution"), dict)
+                else {}
+            ),
+            repair_commander=(
+                response.get("repair_commander") if isinstance(response.get("repair_commander"), dict) else {}
+            ),
+            real_code_operator=(
+                response.get("real_code_operator") if isinstance(response.get("real_code_operator"), dict) else {}
+            ),
+            page_context=page_context,
+            autonomy_mode=autonomy_mode,
+            audience=audience,
+        )
     )
     response["agent_tool_registry"] = response.get("agent_tool_registry") or _agent_tool_registry_snapshot(
         page_context=page_context,
@@ -12682,8 +14746,14 @@ def run_system_guard_chat(
         question,
         planner=planner,
         assistant_action=response.get("assistant_action") if isinstance(response.get("assistant_action"), dict) else {},
-        technical_operation=response.get("technical_operation") if isinstance(response.get("technical_operation"), dict) else {},
-        technical_execution=response.get("technical_operation_execution") if isinstance(response.get("technical_operation_execution"), dict) else {},
+        technical_operation=(
+            response.get("technical_operation") if isinstance(response.get("technical_operation"), dict) else {}
+        ),
+        technical_execution=(
+            response.get("technical_operation_execution")
+            if isinstance(response.get("technical_operation_execution"), dict)
+            else {}
+        ),
     )
     response["memory_hint"] = _truncate(memory.get("summary"), 220)
     response["runbook"] = _runbook_execution_summary(
@@ -12699,7 +14769,11 @@ def run_system_guard_chat(
         planner=planner,
         executed_tools=executed_tools,
         assistant_action=response.get("assistant_action") if isinstance(response.get("assistant_action"), dict) else {},
-        technical_execution=response.get("technical_operation_execution") if isinstance(response.get("technical_operation_execution"), dict) else {},
+        technical_execution=(
+            response.get("technical_operation_execution")
+            if isinstance(response.get("technical_operation_execution"), dict)
+            else {}
+        ),
         response_status=str(response.get("status") or ""),
     )
     response["ollana_assessment"] = _ollana_assessment_snapshot(
@@ -12707,15 +14781,25 @@ def run_system_guard_chat(
         evidence=report.get("evidence") if isinstance(report.get("evidence"), dict) else {},
     )
     if snapshot_diff.get("regressions"):
-        response["highlights"] = (response.get("highlights") or []) + [f"Regresión: {item}" for item in snapshot_diff.get("regressions", [])[:2]]
+        response["highlights"] = (response.get("highlights") or []) + [
+            f"Regresión: {item}" for item in snapshot_diff.get("regressions", [])[:2]
+        ]
     elif snapshot_diff.get("improvements"):
-        response["highlights"] = (response.get("highlights") or []) + [f"Mejora: {item}" for item in snapshot_diff.get("improvements", [])[:2]]
+        response["highlights"] = (response.get("highlights") or []) + [
+            f"Mejora: {item}" for item in snapshot_diff.get("improvements", [])[:2]
+        ]
     objective_entry = _update_objective_memory(
         workspace,
         question=question,
         planner=planner,
-        technical_operation=response.get("technical_operation") if isinstance(response.get("technical_operation"), dict) else {},
-        technical_execution=response.get("technical_operation_execution") if isinstance(response.get("technical_operation_execution"), dict) else {},
+        technical_operation=(
+            response.get("technical_operation") if isinstance(response.get("technical_operation"), dict) else {}
+        ),
+        technical_execution=(
+            response.get("technical_operation_execution")
+            if isinstance(response.get("technical_operation_execution"), dict)
+            else {}
+        ),
         response=response,
         assistant_action=response.get("assistant_action") if isinstance(response.get("assistant_action"), dict) else {},
         actor_id=actor_id,
@@ -12724,8 +14808,17 @@ def run_system_guard_chat(
     if objective_entry:
         _refresh_operator_priorities(workspace, page_context=page_context if isinstance(page_context, dict) else {})
         response["objective_orchestrator"] = _objective_orchestrator_snapshot(workspace, actor_id=actor_id)
-        response["highlights"] = [f"Objetivo persistido: {objective_entry.get('status')}"] + [str(item) for item in (response.get("highlights") or []) if str(item or "").strip()]
-    _store_operator_profile(workspace, actor_id=actor_id, planner=planner, assistant_action=response.get("assistant_action"), question=question, page_context=page_context)
+        response["highlights"] = [f"Objetivo persistido: {objective_entry.get('status')}"] + [
+            str(item) for item in (response.get("highlights") or []) if str(item or "").strip()
+        ]
+    _store_operator_profile(
+        workspace,
+        actor_id=actor_id,
+        planner=planner,
+        assistant_action=response.get("assistant_action"),
+        question=question,
+        page_context=page_context,
+    )
     response["operator_profile"] = _load_operator_profile(workspace, actor_id=actor_id)
     response["silent_operator"] = _build_silent_operator_state(workspace, response=response, actor_id=actor_id)
     response["intelligence_os"] = _build_intelligence_os_snapshot(
@@ -12735,21 +14828,37 @@ def run_system_guard_chat(
         page_context=page_context,
         planner=planner,
         assistant_action=response.get("assistant_action") if isinstance(response.get("assistant_action"), dict) else {},
-        technical_operation=response.get("technical_operation") if isinstance(response.get("technical_operation"), dict) else {},
-        technical_execution=response.get("technical_operation_execution") if isinstance(response.get("technical_operation_execution"), dict) else {},
-        code_operator_mode=response.get("code_operator_mode") if isinstance(response.get("code_operator_mode"), dict) else {},
+        technical_operation=(
+            response.get("technical_operation") if isinstance(response.get("technical_operation"), dict) else {}
+        ),
+        technical_execution=(
+            response.get("technical_operation_execution")
+            if isinstance(response.get("technical_operation_execution"), dict)
+            else {}
+        ),
+        code_operator_mode=(
+            response.get("code_operator_mode") if isinstance(response.get("code_operator_mode"), dict) else {}
+        ),
         change_blueprint=response.get("change_blueprint") if isinstance(response.get("change_blueprint"), dict) else {},
         autofix_runner=response.get("autofix_runner") if isinstance(response.get("autofix_runner"), dict) else {},
         repair_commander=response.get("repair_commander") if isinstance(response.get("repair_commander"), dict) else {},
-        publish_commander=response.get("publish_commander") if isinstance(response.get("publish_commander"), dict) else {},
-        repository_operator=response.get("repository_operator") if isinstance(response.get("repository_operator"), dict) else {},
-        real_code_operator=response.get("real_code_operator") if isinstance(response.get("real_code_operator"), dict) else {},
+        publish_commander=(
+            response.get("publish_commander") if isinstance(response.get("publish_commander"), dict) else {}
+        ),
+        repository_operator=(
+            response.get("repository_operator") if isinstance(response.get("repository_operator"), dict) else {}
+        ),
+        real_code_operator=(
+            response.get("real_code_operator") if isinstance(response.get("real_code_operator"), dict) else {}
+        ),
         release_guard=response.get("release_guard") if isinstance(response.get("release_guard"), dict) else {},
         deployment_guard=response.get("deployment_guard") if isinstance(response.get("deployment_guard"), dict) else {},
         self_healing=response.get("self_healing") if isinstance(response.get("self_healing"), dict) else {},
         operator_profile=response.get("operator_profile") if isinstance(response.get("operator_profile"), dict) else {},
         silent_operator=response.get("silent_operator") if isinstance(response.get("silent_operator"), dict) else {},
-        improvement_proposals=response.get("improvement_proposals") if isinstance(response.get("improvement_proposals"), list) else [],
+        improvement_proposals=(
+            response.get("improvement_proposals") if isinstance(response.get("improvement_proposals"), list) else []
+        ),
         snapshot_diff=response.get("snapshot_diff") if isinstance(response.get("snapshot_diff"), dict) else {},
     )
     response = _adapt_response_to_live_workflow(response, page_context=page_context)
@@ -12774,47 +14883,67 @@ def run_system_guard_chat(
     for issue in (report.get("issues") or [])[:6]:
         if not isinstance(issue, dict):
             continue
-        _append_incident_ledger(workspace, {
-            "created_at": _now_iso(),
-            "issue_id": str(issue.get("id") or ""),
-            "status": str(response.get("status") or ""),
-            "runbook": str((response.get("runbook") or {}).get("key") or ""),
-            "summary": str(issue.get("detail") or issue.get("message") or issue.get("id") or ""),
-            "kind": "issue",
-        })
+        _append_incident_ledger(
+            workspace,
+            {
+                "created_at": _now_iso(),
+                "issue_id": str(issue.get("id") or ""),
+                "status": str(response.get("status") or ""),
+                "runbook": str((response.get("runbook") or {}).get("key") or ""),
+                "summary": str(issue.get("detail") or issue.get("message") or issue.get("id") or ""),
+                "kind": "issue",
+            },
+        )
     if assistant_action and assistant_action.get("success"):
-        _append_incident_ledger(workspace, {
-            "created_at": _now_iso(),
-            "issue_id": str(assistant_action.get("kind") or "assistant_action"),
-            "status": "resolved",
-            "runbook": str((response.get("runbook") or {}).get("key") or ""),
-            "summary": str(assistant_action.get("message") or ""),
-            "kind": "assistant_action",
-        })
+        _append_incident_ledger(
+            workspace,
+            {
+                "created_at": _now_iso(),
+                "issue_id": str(assistant_action.get("kind") or "assistant_action"),
+                "status": "resolved",
+                "runbook": str((response.get("runbook") or {}).get("key") or ""),
+                "summary": str(assistant_action.get("message") or ""),
+                "kind": "assistant_action",
+            },
+        )
     elif assistant_action and str(assistant_action.get("kind") or "") == "code_intervention_request":
-        _append_incident_ledger(workspace, {
-            "created_at": _now_iso(),
-            "issue_id": "code_intervention_request",
-            "status": "pending" if not assistant_action.get("permission_required") else "blocked",
-            "runbook": str((response.get("runbook") or {}).get("key") or ""),
-            "summary": str(assistant_action.get("message") or ""),
-            "kind": "assistant_action",
-        })
+        _append_incident_ledger(
+            workspace,
+            {
+                "created_at": _now_iso(),
+                "issue_id": "code_intervention_request",
+                "status": "pending" if not assistant_action.get("permission_required") else "blocked",
+                "runbook": str((response.get("runbook") or {}).get("key") or ""),
+                "summary": str(assistant_action.get("message") or ""),
+                "kind": "assistant_action",
+            },
+        )
     for row in executed_tools:
         if not isinstance(row, dict) or not row.get("ok"):
             continue
         kind = str(row.get("kind") or "")
         if kind not in {"repair", "publish", "maintenance"}:
             continue
-        _append_incident_ledger(workspace, {
-            "created_at": _now_iso(),
-            "issue_id": str(row.get("tool") or ""),
-            "status": "resolved",
-            "runbook": str((response.get("runbook") or {}).get("key") or ""),
-            "summary": str(row.get("label") or row.get("tool") or ""),
-            "kind": kind,
-        })
-    _store_memory(workspace, report=report, response=response, executed_tools=executed_tools, question=question, page_context=page_context, actor_id=actor_id)
+        _append_incident_ledger(
+            workspace,
+            {
+                "created_at": _now_iso(),
+                "issue_id": str(row.get("tool") or ""),
+                "status": "resolved",
+                "runbook": str((response.get("runbook") or {}).get("key") or ""),
+                "summary": str(row.get("label") or row.get("tool") or ""),
+                "kind": kind,
+            },
+        )
+    _store_memory(
+        workspace,
+        report=report,
+        response=response,
+        executed_tools=executed_tools,
+        question=question,
+        page_context=page_context,
+        actor_id=actor_id,
+    )
     _update_metrics(
         workspace,
         report=report,
@@ -12829,8 +14958,12 @@ def run_system_guard_chat(
         "actor_id": int(actor_id or 0),
         "question": _truncate(question, 220),
         "status": str(response.get("status") or "").strip()[:32],
-        "task_kind": str((response.get("task") or {}).get("kind") or (planner.get("task") or {}).get("kind") or "").strip()[:32],
-        "runbook": str((response.get("runbook") or {}).get("key") or (planner.get("runbook") or {}).get("key") or "").strip()[:64],
+        "task_kind": str(
+            (response.get("task") or {}).get("kind") or (planner.get("task") or {}).get("kind") or ""
+        ).strip()[:32],
+        "runbook": str(
+            (response.get("runbook") or {}).get("key") or (planner.get("runbook") or {}).get("key") or ""
+        ).strip()[:64],
         "confirmed": bool(execute_confirmed),
         "executed_tools": [str(row.get("tool") or "") for row in executed_tools if isinstance(row, dict)][:8],
         "silent_mode": bool(response.get("silent_mode")),

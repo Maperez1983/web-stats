@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RGS_Dev CC0 Modular Characters Audit</title>
+<style>
+  :root { color-scheme: light dark; --bg:#0b1020; --panel:#121a2f; --card:#18233d; --text:#eaf0ff; --muted:#9fb0d1; --ok:#5fd08b; --warn:#f4c95d; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.45 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif; background:linear-gradient(180deg,#0b1020,#10192d); color:var(--text); }
+  .wrap { max-width:1280px; margin:0 auto; padding:32px; }
+  h1 { margin:0 0 8px; font-size:32px; }
+  h2 { margin:28px 0 12px; font-size:22px; }
+  .summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin:24px 0; }
+  .panel { background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:18px; box-shadow:0 16px 40px rgba(0,0,0,.24); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; }
+  .card { background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); border-radius:16px; overflow:hidden; display:flex; flex-direction:column; min-height:100%; }
+  .thumb { background:radial-gradient(circle at top,#243457,#10192d); padding:18px; display:flex; justify-content:center; align-items:center; min-height:220px; }
+  .thumb img { max-width:100%; max-height:180px; image-rendering:auto; }
+  .meta { padding:14px 16px 18px; }
+  .meta h3 { margin:0 0 8px; font-size:18px; }
+  .meta p { margin:6px 0; color:var(--muted); word-break:break-word; }
+  code, pre { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  pre { white-space:pre-wrap; background:rgba(255,255,255,.04); padding:16px; border-radius:12px; border:1px solid rgba(255,255,255,.08); }
+  .badge { display:inline-block; padding:4px 10px; border-radius:999px; font-size:12px; font-weight:700; margin-right:8px; }
+  .ok { background:rgba(95,208,139,.18); color:#9df0b7; }
+  .warn { background:rgba(244,201,93,.18); color:#ffe08b; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Free CC0 Modular Animated Vector Characters 2D</h1>
+  <p>Auditoría técnica de referencia externa para Segunda Jugada. Autor: <strong>RGS_Dev</strong>. Fuente: itch.io.</p>
+  <div class="summary">
+    <section class="panel"><span class="badge ok">Licencia</span><strong>CC0 / Public Domain</strong><p>Verificada tanto en la página oficial como en el archivo License.txt del ZIP.</p></section>
+    <section class="panel"><span class="badge warn">Formato real</span><strong>PNG raster</strong><p>No contiene SVG ni fuentes vectoriales separadas, pese al naming comercial.</p></section>
+    <section class="panel"><span class="badge ok">Modularidad</span><strong>Alta</strong><p>Incluye cuerpo, cabeza, ojos, pelo, manos, pies y secuencias animadas por pieza.</p></section>
+    <section class="panel"><span class="badge warn">Adecuación SJ</span><strong>Media-baja</strong><p>Útil como referencia organizativa y legal. Poco adecuado como base visual directa para fútbol premium.</p></section>
+  </div>
+  <section class="panel">
+    <h2>Conclusión rápida</h2>
+    <ul>
+      <li><strong>Sí sirve legalmente</strong>: la licencia es CC0 y permite uso comercial sin atribución.</li>
+      <li><strong>Sí sirve técnicamente como referencia modular</strong>: la separación por partes y animaciones es aprovechable como modelo de pipeline.</li>
+      <li><strong>No sirve como base visual final</strong> para Segunda Jugada: es un pack fantasy/top-down en PNG, no un kit vectorial premium orientado a fútbol.</li>
+      <li><strong>No sirve como base SVG directa</strong>: habría que reinterpretarlo o redibujarlo; no aporta piezas vectoriales reutilizables.</li>
+    </ul>
+  </section>
+  <section class="panel">
+    <h2>Licencia extraída del paquete</h2>
+    <pre>Assets created by Raphael Gonçalves (Rgsdev)
+twitter: @rgs_dev
+instagram: @rgs_dev
+email: rgsdev83@gmail.com
+patreon: https://www.patreon.com/rgsdev
+
+This asset is under CC0 License
+
+Public domain and free to use on any project, even commercial.
+
+Credit is not required.
+
+If you want to see more free assets like this, please, consider supporting me on Patreon.
+</pre>
+  </section>
+  <h2>Piezas y muestras</h2>
+  <div class="grid"><article class="card">
+      <div class="thumb"><img src="extracted/Free 2D Animated Vector Game Character Sprites/Animated body parts/Bodies/body1/idle_0.png" alt="Bodies"></div>
+      <div class="meta">
+        <h3>Bodies</h3>
+        <p><strong>Ruta:</strong> Animated body parts/Bodies/body1/idle_0.png</p>
+        <p><strong>Formato:</strong> PNG</p>
+        <p><strong>Tamaño:</strong> 2048x2048</p>
+        <p><strong>Tipo:</strong> Modular part PNG sequence</p>
+      </div>
+    </article><article class="card">
+      <div class="thumb"><img src="extracted/Free 2D Animated Vector Game Character Sprites/Animated body parts/Heads/head1/idle_0.png" alt="Heads"></div>
+      <div class="meta">
+        <h3>Heads</h3>
+        <p><strong>Ruta:</strong> Animated body parts/Heads/head1/idle_0.png</p>
+        <p><strong>Formato:</strong> PNG</p>
+        <p><strong>Tamaño:</strong> 2048x2048</p>
+        <p><strong>Tipo:</strong> Modular part PNG sequence</p>
+      </div>
+    </article><article class="card">
+      <div class="thumb"><img src="extracted/Free 2D Animated Vector Game Character Sprites/Animated body parts/Heads/head2/idle_0.png" alt="Heads alt"></div>
+      <div class="meta">
+        <h3>Heads alt</h3>
+        <p><strong>Ruta:</strong> Animated body parts/Heads/head2/idle_0.png</p>
+        <p><strong>Formato:</strong> PNG</p>
+        <p><strong>Tamaño:</strong> 2048x2048</p>
+        <p><strong>Tipo:</strong> Modular part PNG sequence</p>
+      </div>
+    </article><article class="card">
+      <div class="thumb"><img src="extracted/Free 2D Animated Vector Game Character Sprites/Animated body parts/Eyes/eyes1/idle_0.png" alt="Eyes"></div>
+      <div class="meta">
+        <h3>Eyes</h3>
+        <p><strong>Ruta:</strong> Animated body parts/Eyes/eyes1/idle_0.png</p>
+        <p><strong>Formato:</strong> PNG</p>
+        <p><strong>Tamaño:</strong> 2048x2048</p>
+        <p><strong>Tipo:</strong> Modular part PNG sequence</p>
+      </div>
+    </article><article class="card">
+      <div class="thumb"><img src="extracted/Free 2D Animated Vector Game Character Sprites/Animated body parts/Hairs/hair1/idle_0.png" alt="Hairs"></div>
+      <div class="meta">
+        <h3>Hairs</h3>
+        <p><strong>Ruta:</strong> Animated body parts/Hairs/hair1/idle_0.png</p>
+        <p><strong>Formato:</strong> PNG</p>
+        <p><strong>Tamaño:</strong> 2048x2048</p>
+        <p><strong>Tipo:</strong> Modular part PNG sequence</p>
+      </div>
+    </article><article class="card">
+      <div class="thumb"><img src="extracted/Free 2D Animated Vector Game Character Sprites/Animated body parts/Mouths/mouth1/idle_0.png" alt="Mouths"></div>
+      <div class="meta">
+        <h3>Mouths</h3>
+        <p><strong>Ruta:</strong> Animated body parts/Mouths/mouth1/idle_0.png</p>
+        <p><strong>Formato:</strong> PNG</p>
+        <p><strong>Tamaño:</strong> 2048x2048</p>
+        <p><strong>Tipo:</strong> Modular part PNG sequence</p>
+      </div>
+    </article><article class="card">
+      <div class="thumb"><img src="extracted/Free 2D Animated Vector Game Character Sprites/Animated body parts/Left hands/handL1/idle_0.png" alt="Left hand"></div>
+      <div class="meta">
+        <h3>Left hand</h3>
+        <p><strong>Ruta:</strong> Animated body parts/Left hands/handL1/idle_0.png</p>
+        <p><strong>Formato:</strong> PNG</p>
+        <p><strong>Tamaño:</strong> 2048x2048</p>
+        <p><strong>Tipo:</strong> Modular part PNG sequence</p>
+      </div>
+    </article><article class="card">
+      <div class="thumb"><img src="extracted/Free 2D Animated Vector Game Character Sprites/Animated body parts/Right hands/handR1/idle_0.png" alt="Right hand"></div>
+      <div class="meta">
+        <h3>Right hand</h3>
+        <p><strong>Ruta:</strong> Animated body parts/Right hands/handR1/idle_0.png</p>
+        <p><strong>Formato:</strong> PNG</p>
+        <p><strong>Tamaño:</strong> 2048x2048</p>
+        <p><strong>Tipo:</strong> Modular part PNG sequence</p>
+      </div>
+    </article><article class="card">
+      <div class="thumb"><img src="extracted/Free 2D Animated Vector Game Character Sprites/Animated body parts/Left feet/footL1/idle_0.png" alt="Left foot"></div>
+      <div class="meta">
+        <h3>Left foot</h3>
+        <p><strong>Ruta:</strong> Animated body parts/Left feet/footL1/idle_0.png</p>
+        <p><strong>Formato:</strong> PNG</p>
+        <p><strong>Tamaño:</strong> 2048x2048</p>
+        <p><strong>Tipo:</strong> Modular part PNG sequence</p>
+      </div>
+    </article><article class="card">
+      <div class="thumb"><img src="extracted/Free 2D Animated Vector Game Character Sprites/Animated body parts/Right feet/footR1/idle_0.png" alt="Right foot"></div>
+      <div class="meta">
+        <h3>Right foot</h3>
+        <p><strong>Ruta:</strong> Animated body parts/Right feet/footR1/idle_0.png</p>
+        <p><strong>Formato:</strong> PNG</p>
+        <p><strong>Tamaño:</strong> 2048x2048</p>
+        <p><strong>Tipo:</strong> Modular part PNG sequence</p>
+      </div>
+    </article><article class="card">
+      <div class="thumb"><img src="extracted/Free 2D Animated Vector Game Character Sprites/Animated body parts/Right weapons/weaponR1/idle_0.png" alt="Weapon"></div>
+      <div class="meta">
+        <h3>Weapon</h3>
+        <p><strong>Ruta:</strong> Animated body parts/Right weapons/weaponR1/idle_0.png</p>
+        <p><strong>Formato:</strong> PNG</p>
+        <p><strong>Tamaño:</strong> 2048x2048</p>
+        <p><strong>Tipo:</strong> Modular part PNG sequence</p>
+      </div>
+    </article><article class="card">
+      <div class="thumb"><img src="extracted/Free 2D Animated Vector Game Character Sprites/Full body animated characters/Char 1/with hands/idle_0.png" alt="Char 1 with hands"></div>
+      <div class="meta">
+        <h3>Char 1 with hands</h3>
+        <p><strong>Ruta:</strong> Full body animated characters/Char 1/with hands/idle_0.png</p>
+        <p><strong>Formato:</strong> PNG</p>
+        <p><strong>Tamaño:</strong> 2048x2048</p>
+        <p><strong>Tipo:</strong> Full body animated PNG</p>
+      </div>
+    </article><article class="card">
+      <div class="thumb"><img src="extracted/Free 2D Animated Vector Game Character Sprites/Full body animated characters/Char 2/with hands/idle_0.png" alt="Char 2 with hands"></div>
+      <div class="meta">
+        <h3>Char 2 with hands</h3>
+        <p><strong>Ruta:</strong> Full body animated characters/Char 2/with hands/idle_0.png</p>
+        <p><strong>Formato:</strong> PNG</p>
+        <p><strong>Tamaño:</strong> 2048x2048</p>
+        <p><strong>Tipo:</strong> Full body animated PNG</p>
+      </div>
+    </article><article class="card">
+      <div class="thumb"><img src="extracted/Free 2D Animated Vector Game Character Sprites/Full body animated characters/Enemies/Enemy 1/idle_0.png" alt="Enemy 1"></div>
+      <div class="meta">
+        <h3>Enemy 1</h3>
+        <p><strong>Ruta:</strong> Full body animated characters/Enemies/Enemy 1/idle_0.png</p>
+        <p><strong>Formato:</strong> PNG</p>
+        <p><strong>Tamaño:</strong> 2048x2048</p>
+        <p><strong>Tipo:</strong> Full body animated PNG</p>
+      </div>
+    </article><article class="card">
+      <div class="thumb"><img src="extracted/Free 2D Animated Vector Game Character Sprites/Environment/ground_white.png" alt="Ground"></div>
+      <div class="meta">
+        <h3>Ground</h3>
+        <p><strong>Ruta:</strong> Environment/ground_white.png</p>
+        <p><strong>Formato:</strong> PNG</p>
+        <p><strong>Tamaño:</strong> 2048x2048</p>
+        <p><strong>Tipo:</strong> Auxiliary PNG asset</p>
+      </div>
+    </article><article class="card">
+      <div class="thumb"><img src="extracted/Free 2D Animated Vector Game Character Sprites/Environment/rock1.png" alt="Rock"></div>
+      <div class="meta">
+        <h3>Rock</h3>
+        <p><strong>Ruta:</strong> Environment/rock1.png</p>
+        <p><strong>Formato:</strong> PNG</p>
+        <p><strong>Tamaño:</strong> 2048x2048</p>
+        <p><strong>Tipo:</strong> Auxiliary PNG asset</p>
+      </div>
+    </article><article class="card">
+      <div class="thumb"><img src="extracted/Free 2D Animated Vector Game Character Sprites/Extras/bullet.png" alt="Bullet"></div>
+      <div class="meta">
+        <h3>Bullet</h3>
+        <p><strong>Ruta:</strong> Extras/bullet.png</p>
+        <p><strong>Formato:</strong> PNG</p>
+        <p><strong>Tamaño:</strong> 2048x2048</p>
+        <p><strong>Tipo:</strong> Auxiliary PNG asset</p>
+      </div>
+    </article><article class="card">
+      <div class="thumb"><img src="extracted/Free 2D Animated Vector Game Character Sprites/Extras/crosshair.png" alt="Crosshair"></div>
+      <div class="meta">
+        <h3>Crosshair</h3>
+        <p><strong>Ruta:</strong> Extras/crosshair.png</p>
+        <p><strong>Formato:</strong> PNG</p>
+        <p><strong>Tamaño:</strong> 64x64</p>
+        <p><strong>Tipo:</strong> Auxiliary PNG asset</p>
+      </div>
+    </article><article class="card">
+      <div class="thumb"><img src="extracted/Free 2D Animated Vector Game Character Sprites/Weapons/weaponR1.png" alt="Weapon static"></div>
+      <div class="meta">
+        <h3>Weapon static</h3>
+        <p><strong>Ruta:</strong> Weapons/weaponR1.png</p>
+        <p><strong>Formato:</strong> PNG</p>
+        <p><strong>Tamaño:</strong> 2048x2048</p>
+        <p><strong>Tipo:</strong> Auxiliary PNG asset</p>
+      </div>
+    </article></div>
+</div>
+</body>
+</html>

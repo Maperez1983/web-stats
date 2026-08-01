@@ -1,14 +1,13 @@
 from __future__ import annotations
 
+import logging
 import os
 import time
-import logging
 from urllib.parse import urlparse
 
 from django.conf import settings
 from django.shortcuts import redirect
 from django.utils.deprecation import MiddlewareMixin
-
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +52,10 @@ class CanonicalHostMiddleware(MiddlewareMixin):
 
         landing_hosts = [
             h.strip().lower()
-            for h in (os.getenv("LANDING_HOSTS") or "segundajugada.es,www.segundajugada.es,segundajugada.com,www.segundajugada.com").split(",")
+            for h in (
+                os.getenv("LANDING_HOSTS")
+                or "segundajugada.es,www.segundajugada.es,segundajugada.com,www.segundajugada.com"
+            ).split(",")
             if h.strip()
         ]
         if req_host in landing_hosts and not req_host.startswith("app."):
@@ -287,7 +289,12 @@ class ServerTimingMiddleware:
         self.get_response = get_response
         self.logger = logging.getLogger("webstats.perf")
         self.enabled = str(os.getenv("PERF_SERVER_TIMING", "0") or "").strip().lower() in {"1", "true", "yes", "on"}
-        self.db_enabled = str(os.getenv("PERF_SERVER_TIMING_DB", "0") or "").strip().lower() in {"1", "true", "yes", "on"}
+        self.db_enabled = str(os.getenv("PERF_SERVER_TIMING_DB", "0") or "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
 
     def __call__(self, request):
         if not self.enabled:
@@ -341,7 +348,7 @@ class ServerTimingMiddleware:
             parts = [f"total;dur={total_ms}"]
             if self.db_enabled:
                 parts.append(f"db;dur={int(db_ms)}")
-                parts.append(f"dbq;desc=\\\"db queries: {int(db_queries)}\\\";dur=0")
+                parts.append(f'dbq;desc=\\"db queries: {int(db_queries)}\\";dur=0')
             response["Server-Timing"] = ", ".join(parts)
         except Exception:
             try:

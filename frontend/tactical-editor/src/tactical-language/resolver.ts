@@ -16,7 +16,12 @@ import type {
 
 function buildNode(statement: TacticalStatement): ExecutionNode {
   const isPhase = statement.verb === 'BUILD_UP' || statement.verb === 'PROGRESSION';
-  const isBallEvent = statement.verb === 'PASS' || statement.verb === 'RECEIVE' || statement.verb === 'CARRY';
+  const isBallEvent =
+    statement.verb === 'PASS' ||
+    statement.verb === 'RETURN_PASS' ||
+    statement.verb === 'RECEIVE' ||
+    statement.verb === 'CARRY' ||
+    statement.verb === 'SHOOT';
   const isSupport = statement.verb === 'RUN' || statement.verb === 'SUPPORT' || statement.verb === 'HOLD' || statement.verb === 'CREATE_SPACE' || statement.verb === 'OCCUPY_SPACE';
   return {
     id: `node-${statement.id}`,
@@ -148,6 +153,16 @@ function buildBarriers(statements: TacticalStatement[]): ExecutionBarrier[] {
         kind: 'receive_completion',
         subjectIds: [statement.id],
         condition: 'receiving actor controls the ball',
+        strict: true,
+        confidence: statement.confidence,
+      });
+    }
+    if (statement.verb === 'SHOOT') {
+      barriers.push({
+        id: `barrier-${statement.id}-shot`,
+        kind: 'transition_complete',
+        subjectIds: [statement.id],
+        condition: 'shot leaves the foot toward the target',
         strict: true,
         confidence: statement.confidence,
       });

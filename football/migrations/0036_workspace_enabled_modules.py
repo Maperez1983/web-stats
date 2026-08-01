@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('football', '0035_workspace_taskstudioprofile_workspace_and_more'),
+        ("football", "0035_workspace_taskstudioprofile_workspace_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='workspace',
-            name='enabled_modules',
+            model_name="workspace",
+            name="enabled_modules",
             field=models.JSONField(blank=True, default=dict),
         ),
     ]

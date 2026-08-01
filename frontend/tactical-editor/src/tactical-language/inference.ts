@@ -16,6 +16,7 @@ import {
   normalizeTacticalScene,
   type NormalizedTacticalScene,
 } from './normalizer';
+import { buildTacticalLanguageDocument } from './scenarioInference';
 
 function arrowMatches(arrow: TacticalArrowRef, kinds: TacticalArrowRef['kind'][]): boolean {
   return kinds.includes(arrow.kind);
@@ -363,47 +364,5 @@ function buildStatements(context: NormalizedTacticalScene) {
 
 export function inferTacticalLanguage(scene: TacticalScene): TacticalLanguageDocument {
   const context = normalizeTacticalScene(scene);
-  const inference = buildStatements(context);
-  return {
-    schemaVersion: 1,
-    language: 'tactical-language',
-    documentId: context.scene.documentId,
-    metadata: {
-      title: context.scene.metadata.title || 'Salida de balón',
-      sport: 'football',
-      createdAt: context.scene.metadata.createdAt,
-      updatedAt: context.scene.metadata.updatedAt,
-    },
-    actors: context.actors,
-    zones: context.zones,
-    arrows: context.arrows,
-    statements: inference.statements,
-    phases: inference.phases,
-    objectives: inference.phases.map((phase) => ({
-      id: `${phase.id}-objective`,
-      label: phase.label,
-      kind: phase.kind,
-      targetZoneId: phase.objectiveId,
-      confidence: phase.confidence,
-    })),
-    dependencies: [
-      { id: 'dep-pass-1-receive-1', fromStatementId: 'stmt-pass-1', toStatementId: 'stmt-receive-1', relation: 'after' },
-      { id: 'dep-receive-1-carry-1', fromStatementId: 'stmt-receive-1', toStatementId: 'stmt-carry-1', relation: 'after' },
-      { id: 'dep-carry-1-pass-2', fromStatementId: 'stmt-carry-1', toStatementId: 'stmt-pass-2', relation: 'after' },
-      { id: 'dep-pass-2-receive-2', fromStatementId: 'stmt-pass-2', toStatementId: 'stmt-receive-2', relation: 'after' },
-      { id: 'dep-receive-2-progression', fromStatementId: 'stmt-receive-2', toStatementId: 'stmt-progression', relation: 'after' },
-      { id: 'dep-support-parallel', fromStatementId: 'stmt-pass-1', toStatementId: 'stmt-support-1', relation: 'parallel' },
-      { id: 'dep-hold-parallel', fromStatementId: 'stmt-pass-1', toStatementId: 'stmt-hold-1', relation: 'parallel' },
-    ],
-    possession: {
-      state: 'controlled',
-      carrierId: inference.goalkeeper?.id || context.ballId || undefined,
-      sourceStatementId: 'stmt-build-up',
-      targetStatementId: 'stmt-pass-1',
-      releaseTime: 0,
-      receiveTime: 0.8,
-    },
-    confidence: 0.96,
-    validationIssues: [],
-  };
+  return buildTacticalLanguageDocument(context);
 }

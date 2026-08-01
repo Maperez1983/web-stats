@@ -57,9 +57,7 @@ class Command(BaseCommand):
         except re.error as exc:
             raise CommandError(f"Regex inválida en --keep-regex: {exc}") from exc
 
-        docs = list(
-            AssistantKnowledgeDocument.objects.filter(team=team).order_by("-created_at", "-id")[:max_docs]
-        )
+        docs = list(AssistantKnowledgeDocument.objects.filter(team=team).order_by("-created_at", "-id")[:max_docs])
         if not docs:
             raise CommandError("No hay documentos para este equipo.")
 
@@ -120,9 +118,7 @@ class Command(BaseCommand):
                         deactivated += 1
 
         self.stdout.write(
-            self.style.SUCCESS(
-                f"OK · blueprints_deleted={bp_deleted} deactivated={deactivated} deleted={deleted}"
-            )
+            self.style.SUCCESS(f"OK · blueprints_deleted={bp_deleted} deactivated={deactivated} deleted={deleted}")
         )
 
     def _resolve_team(self, options):
@@ -137,4 +133,3 @@ class Command(BaseCommand):
         if not team:
             raise CommandError("No se encontró el equipo indicado.")
         return team
-

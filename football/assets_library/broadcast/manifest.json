@@ -1,0 +1,22 @@
+{
+  "category": "broadcast",
+  "category_type": "theme_pack",
+  "default_family": "broadcast_overrides",
+  "families": [
+    "broadcast_overrides"
+  ],
+  "variants": [
+    "default",
+    "tv",
+    "clean"
+  ],
+  "fallback_asset": "",
+  "compatible_themes": [
+    "broadcast",
+    "premium",
+    "classic"
+  ],
+  "resolution_independent": true,
+  "theme_overrides_supported": true,
+  "assets": []
+}

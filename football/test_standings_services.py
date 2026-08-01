@@ -5,28 +5,21 @@ from django.test import TestCase
 from django.utils import timezone
 
 from football import standings_services
-from football.models import (
-    Competition,
-    Group,
-    Season,
-    Team,
-    TeamStanding,
-    WorkspaceCompetitionContext,
-)
+from football.models import Competition, Group, Season, Team, TeamStanding, WorkspaceCompetitionContext
 
 
 class StandingsServicesTests(TestCase):
     def setUp(self):
-        competition = Competition.objects.create(name='Liga Standings', slug='liga-standings')
-        self.season = Season.objects.create(competition=competition, name='2026/2027')
-        self.group = Group.objects.create(season=self.season, name='Grupo Standings', slug='grupo-standings')
+        competition = Competition.objects.create(name="Liga Standings", slug="liga-standings")
+        self.season = Season.objects.create(competition=competition, name="2026/2027")
+        self.group = Group.objects.create(season=self.season, name="Grupo Standings", slug="grupo-standings")
         self.team = Team.objects.create(
-            name='Equipo Standings',
-            slug='equipo-standings',
+            name="Equipo Standings",
+            slug="equipo-standings",
             group=self.group,
             is_primary=True,
         )
-        self.rival = Team.objects.create(name='Rival Standings', slug='rival-standings', group=self.group)
+        self.rival = Team.objects.create(name="Rival Standings", slug="rival-standings", group=self.group)
 
     def test_serialize_standings_orders_database_rows(self):
         TeamStanding.objects.create(
@@ -60,12 +53,12 @@ class StandingsServicesTests(TestCase):
 
         rows = standings_services.serialize_standings(self.group)
 
-        self.assertEqual([row['team'] for row in rows], ['EQUIPO STANDINGS', 'RIVAL STANDINGS'])
-        self.assertEqual(rows[0]['points'], 10)
+        self.assertEqual([row["team"] for row in rows], ["EQUIPO STANDINGS", "RIVAL STANDINGS"])
+        self.assertEqual(rows[0]["points"], 10)
 
     def test_resolve_standings_for_universo_non_primary_uses_database(self):
         self.team.is_primary = False
-        self.team.save(update_fields=['is_primary'])
+        self.team.save(update_fields=["is_primary"])
         TeamStanding.objects.create(
             season=self.season,
             group=self.group,
@@ -74,8 +67,8 @@ class StandingsServicesTests(TestCase):
             points=12,
         )
         snapshot = {
-            'standings': [
-                {'position': 1, 'team': 'OTRO EQUIPO', 'points': 99},
+            "standings": [
+                {"position": 1, "team": "OTRO EQUIPO", "points": 99},
             ]
         }
 
@@ -85,14 +78,14 @@ class StandingsServicesTests(TestCase):
             provider=WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
         )
 
-        self.assertEqual(rows[0]['team'], 'EQUIPO STANDINGS')
-        self.assertEqual(rows[0]['points'], 12)
+        self.assertEqual(rows[0]["team"], "EQUIPO STANDINGS")
+        self.assertEqual(rows[0]["points"], 12)
 
     def test_latest_standings_group_prefers_recent_team_standing(self):
         other_group = Group.objects.create(
             season=self.season,
-            name='Grupo Standings',
-            slug='grupo-standings-2',
+            name="Grupo Standings",
+            slug="grupo-standings-2",
         )
         old_time = timezone.now() - timedelta(days=2)
         new_time = timezone.now()
@@ -118,12 +111,12 @@ class StandingsServicesTests(TestCase):
         self.assertEqual(group, other_group)
 
     def test_universo_snapshot_support_requires_legacy_primary_match(self):
-        snapshot = {'standings': [{'team': 'Equipo Standings'}]}
+        snapshot = {"standings": [{"team": "Equipo Standings"}]}
 
-        with patch('football.standings_services.single_club_fallback_enabled', return_value=True):
+        with patch("football.standings_services.single_club_fallback_enabled", return_value=True):
             self.assertTrue(standings_services.universo_snapshot_supports_team(snapshot, self.team))
 
         self.team.is_primary = False
-        self.team.save(update_fields=['is_primary'])
-        with patch('football.standings_services.single_club_fallback_enabled', return_value=True):
+        self.team.save(update_fields=["is_primary"])
+        with patch("football.standings_services.single_club_fallback_enabled", return_value=True):
             self.assertFalse(standings_services.universo_snapshot_supports_team(snapshot, self.team))

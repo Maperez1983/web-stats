@@ -70,4 +70,3 @@ Orden sugerido (máximo impacto / mínimo riesgo):
 3) Calendario semanal (microciclo + partidos) con vista “agenda”.
 4) Video: recortes + telestración + compartir (staff) + plantillas de presentación.
 5) IA (si hay presupuesto): ayuda a etiquetar, sugerir KPIs y detectar eventos.
-

@@ -3,13 +3,13 @@ from __future__ import annotations
 import base64
 import io
 import json
-import zipfile
 import os
+import zipfile
 
-from django.http import HttpResponse, JsonResponse
-from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
+from django.views.decorators.http import require_POST
 
 
 @login_required
@@ -92,7 +92,9 @@ def kit2d_generate_api(request):
                 "editor_size": editor_size,
                 "kit_club_png_b64": base64.b64encode(payload.club_png).decode("ascii"),
                 "kit_editor_png_b64": base64.b64encode(payload.editor_png).decode("ascii"),
-                "mask_png_b64": (base64.b64encode(payload.debug_mask_png).decode("ascii") if payload.debug_mask_png else ""),
+                "mask_png_b64": (
+                    base64.b64encode(payload.debug_mask_png).decode("ascii") if payload.debug_mask_png else ""
+                ),
             }
         )
 

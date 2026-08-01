@@ -736,6 +736,16 @@
             <textarea name="objective" rows="2" maxlength="1200" placeholder="Ej: atraer y progresar por dentro para atacar zona 14 con 3er hombre.">{{ plan_fields.objective }}</textarea>
           </label>
           <div class="form-grid full" style="margin:0;">
+            <label class="full">
+              Objetivo táctico
+              <textarea name="objective_tactical" rows="2" maxlength="2000" placeholder="Qué comportamiento colectivo quieres fijar.">{{ plan_fields.objective_tactical }}</textarea>
+            </label>
+            <label class="full">
+              Objetivo físico
+              <textarea name="objective_physical" rows="2" maxlength="2000" placeholder="Qué demanda física persigue la sesión.">{{ plan_fields.objective_physical }}</textarea>
+            </label>
+          </div>
+          <div class="form-grid full" style="margin:0;">
             <label>
               RPE objetivo (1-10)
               <input type="number" name="rpe_target" min="1" max="10" value="{{ plan_fields.rpe_target }}" placeholder="7" />
@@ -743,6 +753,20 @@
             <label class="full">
               Criterios de éxito (qué observar)
               <textarea name="success_criteria" rows="2" maxlength="2000" placeholder="Ej: 8+ recepciones entre líneas / 5+ 3er hombre / 3+ finalizaciones tras pase atrás.">{{ plan_fields.success_criteria }}</textarea>
+            </label>
+          </div>
+          <label class="full">
+            Regla principal
+            <textarea name="main_rule" rows="2" maxlength="2000" placeholder="Norma clave que gobierna la tarea o la sesión.">{{ plan_fields.main_rule }}</textarea>
+          </label>
+          <div class="form-grid full" style="margin:0;">
+            <label class="full">
+              Coaching keys
+              <textarea name="coaching_keys" rows="3" maxlength="3000" placeholder="Mensajes clave de intervención.">{{ plan_fields.coaching_keys }}</textarea>
+            </label>
+            <label class="full">
+              Principios clave
+              <textarea name="key_principles" rows="3" maxlength="3000" placeholder="Principios que quieres reforzar durante la sesión.">{{ plan_fields.key_principles }}</textarea>
             </label>
           </div>
           <label class="full">
@@ -769,6 +793,24 @@
             Materiales (opcional)
             <input type="text" name="materials" maxlength="220" value="{{ plan_fields.materials }}" />
           </label>
+          <label class="full">
+            Indicadores de éxito
+            <textarea name="indicators" rows="3" maxlength="3000" placeholder="Qué indicadores usarás para valorar la sesión.">{{ plan_fields.indicators }}</textarea>
+          </label>
+          <label class="full">
+            Variantes / progresiones
+            <textarea name="variations" rows="3" maxlength="3000" placeholder="Variaciones o adaptaciones previstas.">{{ plan_fields.variations }}</textarea>
+          </label>
+          <div class="form-grid full" style="margin:0;">
+            <label class="full">
+              Planificación semanal
+              <textarea name="weekly_plan" rows="2" maxlength="2000" placeholder="Ubicación de esta sesión dentro de la semana o microciclo.">{{ plan_fields.weekly_plan }}</textarea>
+            </label>
+            <label class="full">
+              Duración recomendada / pausas
+              <textarea name="recommended_duration" rows="2" maxlength="2000" placeholder="Bloques, pausas, tiempos recomendados.">{{ plan_fields.recommended_duration }}</textarea>
+            </label>
+          </div>
           <label class="full">
             Ausencias / incidencias
             <textarea name="absences" rows="3" maxlength="4000">{{ plan_fields.absences }}</textarea>

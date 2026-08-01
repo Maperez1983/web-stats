@@ -5,7 +5,6 @@ import re
 from django.apps import apps
 from django.db import connections
 
-
 DEFAULT_TIMEOUT = 12
 DEFAULT_MAX_TABLES = 6
 DEFAULT_DUPLICATE_COLUMNS = ("title", "name", "slug")
@@ -98,7 +97,7 @@ def _table_columns(cursor, connection, table_name: str, *, limit: int = 8) -> li
     except Exception:
         return []
     columns = []
-    for column in description[:max(1, int(limit or 8))]:
+    for column in description[: max(1, int(limit or 8))]:
         name = str(getattr(column, "name", "") or "")
         if name:
             columns.append(name)
@@ -139,7 +138,9 @@ def _duplicate_summary(cursor, connection, table_name: str, columns: list[str], 
     return duplicates
 
 
-def inspect_database_readonly(*, page_context=None, max_tables: int = DEFAULT_MAX_TABLES, column_limit: int = 8, duplicate_limit: int = 3) -> dict:
+def inspect_database_readonly(
+    *, page_context=None, max_tables: int = DEFAULT_MAX_TABLES, column_limit: int = 8, duplicate_limit: int = 3
+) -> dict:
     alias = "default"
     try:
         connection = connections[alias]
@@ -193,12 +194,14 @@ def inspect_database_readonly(*, page_context=None, max_tables: int = DEFAULT_MA
                 row_count = 0
             columns = _table_columns(cursor, connection, table_name, limit=column_limit)
             duplicates = _duplicate_summary(cursor, connection, table_name, columns, limit=duplicate_limit)
-            tables.append({
-                "name": table_name,
-                "row_count": row_count,
-                "columns": columns,
-                "duplicate_values": duplicates,
-            })
+            tables.append(
+                {
+                    "name": table_name,
+                    "row_count": row_count,
+                    "columns": columns,
+                    "duplicate_values": duplicates,
+                }
+            )
 
     tables_sorted = sorted(tables, key=lambda row: (-int(row.get("row_count") or 0), str(row.get("name") or "")))
     return {

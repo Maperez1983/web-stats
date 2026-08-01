@@ -257,7 +257,7 @@ async function readSceneState(page) {
   });
 }
 
-async function openEditor(page, baseUrl, taskId, username, password, query = '?editor2d=1') {
+async function openEditor(page, baseUrl, taskId, username, password, query = '') {
   await page.goto(`${baseUrl}/login/`, { waitUntil: 'domcontentloaded' });
   await page.fill('input[name="username"]', username);
   await page.fill('input[name="password"]', password);
@@ -269,7 +269,7 @@ async function openEditor(page, baseUrl, taskId, username, password, query = '?e
     waitUntil: 'domcontentloaded',
   });
   await page.locator('#tactical-editor-root').waitFor({ state: 'visible', timeout: 30_000 });
-  await page.locator('text=Motor 2D Konva').waitFor({ state: 'visible', timeout: 30_000 });
+  await page.locator('text=Motor Konva').waitFor({ state: 'visible', timeout: 30_000 });
 }
 
 async function selectTool(page, name) {

@@ -15,11 +15,17 @@ class Command(BaseCommand):
         parser.add_argument("--workspace-id", type=int, required=True, help="Workspace.id objetivo.")
         parser.add_argument("--actor-id", type=int, default=0, help="User.id que figura como actor del operador.")
         parser.add_argument("--team-id", type=int, default=0, help="Team.id activo para priorizar rutas concretas.")
-        parser.add_argument("--task-id", type=int, default=0, help="SessionTask.id activo para priorizar la ficha visual.")
-        parser.add_argument("--browser-target-url", type=str, default="", help="URL absoluta o relativa que Ollana debe mirar primero.")
+        parser.add_argument(
+            "--task-id", type=int, default=0, help="SessionTask.id activo para priorizar la ficha visual."
+        )
+        parser.add_argument(
+            "--browser-target-url", type=str, default="", help="URL absoluta o relativa que Ollana debe mirar primero."
+        )
         parser.add_argument("--iterations", type=int, default=1, help="Número de ciclos a ejecutar.")
         parser.add_argument("--sleep-seconds", type=int, default=0, help="Espera entre ciclos.")
-        parser.add_argument("--daemon", action="store_true", help="Mantiene el operador corriendo hasta stop flag o max runtime.")
+        parser.add_argument(
+            "--daemon", action="store_true", help="Mantiene el operador corriendo hasta stop flag o max runtime."
+        )
         parser.add_argument("--max-runtime-seconds", type=int, default=0, help="Límite total del modo daemon.")
         parser.add_argument("--force", action="store_true", help="Fuerza lease del operador.")
         parser.add_argument("--holder", type=str, default="ollana-operator", help="Identificador del proceso operador.")

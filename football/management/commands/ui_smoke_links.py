@@ -62,7 +62,9 @@ class Command(BaseCommand):
         parser.add_argument("--max-pages", type=int, default=140, help="Máximo de URLs a visitar.")
         parser.add_argument("--max-links-per-page", type=int, default=120, help="Máximo enlaces extraídos por página.")
         parser.add_argument("--print-ok", action="store_true", help="Imprime también OKs.")
-        parser.add_argument("--as-superuser", action="store_true", help="Ejecuta como superuser (por defecto crea/usa un coach).")
+        parser.add_argument(
+            "--as-superuser", action="store_true", help="Ejecuta como superuser (por defecto crea/usa un coach)."
+        )
 
     def handle(self, *args, **options):
         User = get_user_model()
@@ -74,7 +76,9 @@ class Command(BaseCommand):
         else:
             user = User.objects.filter(username="smoke.coach", is_active=True).first()
             if not user:
-                user = User.objects.create_user(username="smoke.coach", email="smoke.coach@example.com", password="smoke1234")
+                user = User.objects.create_user(
+                    username="smoke.coach", email="smoke.coach@example.com", password="smoke1234"
+                )
             AppUserRole.objects.update_or_create(user=user, defaults={"role": AppUserRole.ROLE_COACH})
 
         team_id = int(options["team_id"] or 0)
@@ -102,8 +106,12 @@ class Command(BaseCommand):
             workspace.primary_team = team
             workspace.save(update_fields=["primary_team"])
         WorkspaceTeam.objects.get_or_create(workspace=workspace, team=team, defaults={"is_default": True})
-        WorkspaceMembership.objects.get_or_create(workspace=workspace, user=user, defaults={"role": WorkspaceMembership.ROLE_ADMIN})
-        WorkspaceTeamAccess.objects.get_or_create(workspace=workspace, team=team, user=user, defaults={"is_default": True})
+        WorkspaceMembership.objects.get_or_create(
+            workspace=workspace, user=user, defaults={"role": WorkspaceMembership.ROLE_ADMIN}
+        )
+        WorkspaceTeamAccess.objects.get_or_create(
+            workspace=workspace, team=team, user=user, defaults={"is_default": True}
+        )
 
         host = str(options["host"] or "localhost").strip() or "localhost"
         max_pages = max(10, int(options["max_pages"] or 140))

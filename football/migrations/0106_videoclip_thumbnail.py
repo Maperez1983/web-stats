@@ -6,13 +6,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('football', '0105_workspaceseason_workspace_active_season_and_more'),
+        ("football", "0105_workspaceseason_workspace_active_season_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='videoclip',
-            name='thumbnail',
-            field=models.ImageField(blank=True, help_text='Carátula del clip (snapshot del primer frame en IN).', null=True, upload_to='video-clips/thumbs/'),
+            model_name="videoclip",
+            name="thumbnail",
+            field=models.ImageField(
+                blank=True,
+                help_text="Carátula del clip (snapshot del primer frame en IN).",
+                null=True,
+                upload_to="video-clips/thumbs/",
+            ),
         ),
     ]

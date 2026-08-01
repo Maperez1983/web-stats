@@ -21,41 +21,248 @@ except Exception:  # pragma: no cover
 TASK_PDF_PARSE_VERSION = 4
 
 TASK_JOINED_WORD_VOCAB = [
-    'TAREA', 'EJERCICIO', 'SESION', 'BLOQUE', 'BLOQUES', 'PARTE', 'PRINCIPAL',
-    'DESCRIPCION', 'OBJETIVO', 'CONSIGNAS', 'REGLAS', 'DOSIFICACION',
-    'TIEMPO', 'TOTAL', 'TRABAJO', 'PAUSA', 'SERIE', 'SERIES', 'REPETICIONES',
-    'JUGADORES', 'COMODIN', 'COMODINES', 'MATERIAL', 'MATERIALES',
-    'PETO', 'PETOS', 'ROJO', 'ROJOS', 'AMARILLO', 'AMARILLOS', 'AZUL', 'AZULES',
-    'VERDE', 'VERDES', 'BANDA', 'BANDAS', 'FIT', 'VALLA', 'VALLAS', 'PICA',
-    'PICAS', 'ARO', 'AROS', 'ESCALERA', 'ESCALERAS', 'MINIPORTERIA',
-    'MINIPORTERIAS', 'PESA', 'PESAS', 'PORTERIA', 'PORTERIAS', 'PORTERO',
-    'PORTEROS', 'MOVIL', 'BALON', 'CONO', 'ARCO', 'PRECISION', 'FINALIZACION',
-    'DUELO', 'DUELOS', 'AEREOS', 'AEREO', 'TRANSICION', 'DEFENSA', 'ATAQUE',
-    'OFENSIVA', 'DEFENSIVA', 'CAMPO', 'MEDIO', 'ZONA', 'ESPACIO', 'MEDIDAS',
-    'FRENTE', 'ORIENTADOS', 'TRABAJAMOS', 'TRABAJAR', 'GENERA', 'GENERAMOS',
-    'HACEMOS', 'DONDE', 'CUANDO', 'CON', 'SIN', 'PARA', 'POR', 'DEL', 'AL',
-    'LA', 'EL', 'LOS', 'LAS', 'UN', 'UNA', 'UNO', 'Y', 'DE', 'EN', 'SALIR',
-    'SALE', 'SE', 'QUE', 'YA', 'VEZ', 'MAS', 'CAIDA', 'DESPEJE', 'ORIENTADO',
-    'INFERIORIDAD', 'SUPERIORIDAD', 'REACCION', 'PRESION', 'RECUPERACION',
-    'PASE', 'APOYO', 'PAREDES', 'RAPIDO', 'JUEGO', 'DIRECTO', 'CAIDAS',
-    'DESMARQUE', 'RUPTURA', 'DELIMITADA', 'HIDRATACION', 'ENTRENAMIENTO',
-    'MOVILIDAD', 'ACTIVACION', 'DEFENDER', 'INCIDIMOS', 'PERDIDA',
-    'TRABAJADOS', 'EQUIPOS', 'PREMISAS', 'FOMENTAR', 'FUERA',
+    "TAREA",
+    "EJERCICIO",
+    "SESION",
+    "BLOQUE",
+    "BLOQUES",
+    "PARTE",
+    "PRINCIPAL",
+    "DESCRIPCION",
+    "OBJETIVO",
+    "CONSIGNAS",
+    "REGLAS",
+    "DOSIFICACION",
+    "TIEMPO",
+    "TOTAL",
+    "TRABAJO",
+    "PAUSA",
+    "SERIE",
+    "SERIES",
+    "REPETICIONES",
+    "JUGADORES",
+    "COMODIN",
+    "COMODINES",
+    "MATERIAL",
+    "MATERIALES",
+    "PETO",
+    "PETOS",
+    "ROJO",
+    "ROJOS",
+    "AMARILLO",
+    "AMARILLOS",
+    "AZUL",
+    "AZULES",
+    "VERDE",
+    "VERDES",
+    "BANDA",
+    "BANDAS",
+    "FIT",
+    "VALLA",
+    "VALLAS",
+    "PICA",
+    "PICAS",
+    "ARO",
+    "AROS",
+    "ESCALERA",
+    "ESCALERAS",
+    "MINIPORTERIA",
+    "MINIPORTERIAS",
+    "PESA",
+    "PESAS",
+    "PORTERIA",
+    "PORTERIAS",
+    "PORTERO",
+    "PORTEROS",
+    "MOVIL",
+    "BALON",
+    "CONO",
+    "ARCO",
+    "PRECISION",
+    "FINALIZACION",
+    "DUELO",
+    "DUELOS",
+    "AEREOS",
+    "AEREO",
+    "TRANSICION",
+    "DEFENSA",
+    "ATAQUE",
+    "OFENSIVA",
+    "DEFENSIVA",
+    "CAMPO",
+    "MEDIO",
+    "ZONA",
+    "ESPACIO",
+    "MEDIDAS",
+    "FRENTE",
+    "ORIENTADOS",
+    "TRABAJAMOS",
+    "TRABAJAR",
+    "GENERA",
+    "GENERAMOS",
+    "HACEMOS",
+    "DONDE",
+    "CUANDO",
+    "CON",
+    "SIN",
+    "PARA",
+    "POR",
+    "DEL",
+    "AL",
+    "LA",
+    "EL",
+    "LOS",
+    "LAS",
+    "UN",
+    "UNA",
+    "UNO",
+    "Y",
+    "DE",
+    "EN",
+    "SALIR",
+    "SALE",
+    "SE",
+    "QUE",
+    "YA",
+    "VEZ",
+    "MAS",
+    "CAIDA",
+    "DESPEJE",
+    "ORIENTADO",
+    "INFERIORIDAD",
+    "SUPERIORIDAD",
+    "REACCION",
+    "PRESION",
+    "RECUPERACION",
+    "PASE",
+    "APOYO",
+    "PAREDES",
+    "RAPIDO",
+    "JUEGO",
+    "DIRECTO",
+    "CAIDAS",
+    "DESMARQUE",
+    "RUPTURA",
+    "DELIMITADA",
+    "HIDRATACION",
+    "ENTRENAMIENTO",
+    "MOVILIDAD",
+    "ACTIVACION",
+    "DEFENDER",
+    "INCIDIMOS",
+    "PERDIDA",
+    "TRABAJADOS",
+    "EQUIPOS",
+    "PREMISAS",
+    "FOMENTAR",
+    "FUERA",
 ]
 
 TASK_JOINED_WORD_VOCAB_ES = [
-    'a', 'al', 'algo', 'algunos', 'ante', 'antes', 'asi', 'aun', 'bajo',
-    'bien', 'cada', 'cambio', 'casi', 'como', 'con', 'contra', 'cuando',
-    'de', 'del', 'desde', 'donde', 'dos', 'durante', 'e', 'el', 'ella',
-    'ellas', 'ellos', 'en', 'entre', 'era', 'es', 'esa', 'ese', 'eso',
-    'esta', 'estaba', 'estado', 'estan', 'estar', 'este', 'esto', 'final',
-    'frente', 'fue', 'ha', 'hacia', 'hasta', 'hay', 'hacer', 'hacemos',
-    'igual', 'la', 'las', 'le', 'les', 'lo', 'los', 'mas', 'media', 'medio',
-    'mientras', 'misma', 'mismo', 'muy', 'nada', 'ni', 'no', 'nos',
-    'nosotros', 'o', 'otra', 'otro', 'para', 'pero', 'poca', 'poco', 'por',
-    'porque', 'primera', 'primero', 'puede', 'que', 'quien', 'rapido', 'se',
-    'segun', 'si', 'sin', 'sobre', 'solo', 'su', 'sus', 'te', 'todo',
-    'trabajo', 'tras', 'tu', 'un', 'una', 'uno', 'unos', 'ya', 'y',
+    "a",
+    "al",
+    "algo",
+    "algunos",
+    "ante",
+    "antes",
+    "asi",
+    "aun",
+    "bajo",
+    "bien",
+    "cada",
+    "cambio",
+    "casi",
+    "como",
+    "con",
+    "contra",
+    "cuando",
+    "de",
+    "del",
+    "desde",
+    "donde",
+    "dos",
+    "durante",
+    "e",
+    "el",
+    "ella",
+    "ellas",
+    "ellos",
+    "en",
+    "entre",
+    "era",
+    "es",
+    "esa",
+    "ese",
+    "eso",
+    "esta",
+    "estaba",
+    "estado",
+    "estan",
+    "estar",
+    "este",
+    "esto",
+    "final",
+    "frente",
+    "fue",
+    "ha",
+    "hacia",
+    "hasta",
+    "hay",
+    "hacer",
+    "hacemos",
+    "igual",
+    "la",
+    "las",
+    "le",
+    "les",
+    "lo",
+    "los",
+    "mas",
+    "media",
+    "medio",
+    "mientras",
+    "misma",
+    "mismo",
+    "muy",
+    "nada",
+    "ni",
+    "no",
+    "nos",
+    "nosotros",
+    "o",
+    "otra",
+    "otro",
+    "para",
+    "pero",
+    "poca",
+    "poco",
+    "por",
+    "porque",
+    "primera",
+    "primero",
+    "puede",
+    "que",
+    "quien",
+    "rapido",
+    "se",
+    "segun",
+    "si",
+    "sin",
+    "sobre",
+    "solo",
+    "su",
+    "sus",
+    "te",
+    "todo",
+    "trabajo",
+    "tras",
+    "tu",
+    "un",
+    "una",
+    "uno",
+    "unos",
+    "ya",
+    "y",
 ]
 
 from .library_repositories import (
@@ -70,21 +277,21 @@ from .library_repositories import (
 
 
 def _normalize_upper_compact(value):
-    raw = str(value or '').strip().upper()
+    raw = str(value or "").strip().upper()
     if not raw:
-        return ''
-    normalized = unicodedata.normalize('NFKD', raw)
-    stripped = ''.join(ch for ch in normalized if not unicodedata.combining(ch))
-    return re.sub(r'[^A-Z]+', '', stripped)
+        return ""
+    normalized = unicodedata.normalize("NFKD", raw)
+    stripped = "".join(ch for ch in normalized if not unicodedata.combining(ch))
+    return re.sub(r"[^A-Z]+", "", stripped)
 
 
 def _normalize_lower_compact(value):
-    raw = str(value or '').strip().lower()
+    raw = str(value or "").strip().lower()
     if not raw:
-        return ''
-    normalized = unicodedata.normalize('NFKD', raw)
-    stripped = ''.join(ch for ch in normalized if not unicodedata.combining(ch))
-    return re.sub(r'[^a-z]+', '', stripped)
+        return ""
+    normalized = unicodedata.normalize("NFKD", raw)
+    stripped = "".join(ch for ch in normalized if not unicodedata.combining(ch))
+    return re.sub(r"[^a-z]+", "", stripped)
 
 
 JOINED_WORD_MAP = {
@@ -94,7 +301,7 @@ JOINED_WORD_MAP = {
 }
 
 JOINED_WORD_MAP_LOWER = {}
-for _word in (TASK_JOINED_WORD_VOCAB + TASK_JOINED_WORD_VOCAB_ES):
+for _word in TASK_JOINED_WORD_VOCAB + TASK_JOINED_WORD_VOCAB_ES:
     _compact = _normalize_lower_compact(_word)
     if _compact:
         JOINED_WORD_MAP_LOWER[_compact] = _compact
@@ -128,7 +335,7 @@ def _split_joined_upper_token(token):
     words = best[n][1]
     if len(words) >= 7 and (len(compact) / max(1, len(words))) < 2.2:
         return token
-    return ' '.join(words).strip() or token
+    return " ".join(words).strip() or token
 
 
 def _split_joined_alpha_token(token):
@@ -163,90 +370,105 @@ def _split_joined_alpha_token(token):
     if avg_len < 2.5 and len(words) > 5:
         return token
     if str(token).isupper():
-        return ' '.join(word.upper() for word in words).strip()
+        return " ".join(word.upper() for word in words).strip()
     if str(token)[:1].isupper():
-        joined = ' '.join(words).strip()
+        joined = " ".join(words).strip()
         return joined[:1].upper() + joined[1:]
-    return ' '.join(words).strip()
+    return " ".join(words).strip()
 
 
 def repair_joined_words_text(value):
-    text = str(value or '')
+    text = str(value or "")
     if not text:
-        return ''
-    cleaned = text.replace('\r\n', '\n').replace('\r', '\n')
+        return ""
+    cleaned = text.replace("\r\n", "\n").replace("\r", "\n")
     try:
-        raw_lines = cleaned.split('\n')
+        raw_lines = cleaned.split("\n")
         repaired_lines = []
-        short_piece = re.compile(r'^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{1,3}$')
+        short_piece = re.compile(r"^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{1,3}$")
         for raw in raw_lines:
-            piece = str(raw or '').strip()
+            piece = str(raw or "").strip()
             if repaired_lines and piece and short_piece.match(piece):
-                prev_stripped = str(repaired_lines[-1] or '').rstrip()
+                prev_stripped = str(repaired_lines[-1] or "").rstrip()
                 allow_join = False
                 if prev_stripped and prev_stripped[-1:].isalpha():
                     if len(piece) == 1:
                         allow_join = True
-                    elif (' ' not in prev_stripped) and (len(prev_stripped) <= 14):
+                    elif (" " not in prev_stripped) and (len(prev_stripped) <= 14):
                         allow_join = True
                     else:
-                        tail = prev_stripped.split()[-1] if prev_stripped.split() else ''
+                        tail = prev_stripped.split()[-1] if prev_stripped.split() else ""
                         if tail and tail.isalpha() and len(tail) <= 6:
                             allow_join = True
                 if allow_join:
                     repaired_lines[-1] = prev_stripped + piece
                     continue
             repaired_lines.append(raw)
-        cleaned = '\n'.join(repaired_lines)
+        cleaned = "\n".join(repaired_lines)
     except Exception:
         pass
     cleaned = re.sub(
-        r'(?<=[a-záéíóúüñ])([A-ZÁÉÍÓÚÜÑ])(?=[a-záéíóúüñ])',
+        r"(?<=[a-záéíóúüñ])([A-ZÁÉÍÓÚÜÑ])(?=[a-záéíóúüñ])",
         lambda m: m.group(1).lower(),
         cleaned,
     )
-    cleaned = re.sub(r'(?<=\d)(?=[A-Za-zÁÉÍÓÚÜÑ])', ' ', cleaned)
-    cleaned = re.sub(r'(?<=[A-Za-zÁÉÍÓÚÜÑ])(?=\d)', ' ', cleaned)
-    cleaned = re.sub(r'(?<=\d)\s*[xX×]\s*(?=\d)', ' x ', cleaned)
-    cleaned = re.sub(r'([,:;])(?=\S)', r'\1 ', cleaned)
-    cleaned = re.sub(r'[ \t]{2,}', ' ', cleaned)
-    cleaned = re.sub(r' *\n *', '\n', cleaned)
-    cleaned = re.sub(r'\b[A-ZÁÉÍÓÚÜÑ]{10,}\b', lambda m: _split_joined_upper_token(m.group(0)), cleaned)
-    cleaned = re.sub(r'\b[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{8,}\b', lambda m: _split_joined_alpha_token(m.group(0)), cleaned)
-    cleaned = re.sub(r'([\.!?])(?=[A-Za-zÁÉÍÓÚÜÑáéíóúüñ])', r'\1 ', cleaned)
-    cleaned = re.sub(r'[ \t]{2,}', ' ', cleaned)
-    cleaned = re.sub(r' *\n *', '\n', cleaned)
+    cleaned = re.sub(r"(?<=\d)(?=[A-Za-zÁÉÍÓÚÜÑ])", " ", cleaned)
+    cleaned = re.sub(r"(?<=[A-Za-zÁÉÍÓÚÜÑ])(?=\d)", " ", cleaned)
+    cleaned = re.sub(r"(?<=\d)\s*[xX×]\s*(?=\d)", " x ", cleaned)
+    cleaned = re.sub(r"([,:;])(?=\S)", r"\1 ", cleaned)
+    cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
+    cleaned = re.sub(r" *\n *", "\n", cleaned)
+    cleaned = re.sub(r"\b[A-ZÁÉÍÓÚÜÑ]{10,}\b", lambda m: _split_joined_upper_token(m.group(0)), cleaned)
+    cleaned = re.sub(r"\b[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{8,}\b", lambda m: _split_joined_alpha_token(m.group(0)), cleaned)
+    cleaned = re.sub(r"([\.!?])(?=[A-Za-zÁÉÍÓÚÜÑáéíóúüñ])", r"\1 ", cleaned)
+    cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
+    cleaned = re.sub(r" *\n *", "\n", cleaned)
     return cleaned.strip()
 
 
 def polish_spanish_text(value, multiline=True, max_len=None):
-    text = str(value or '')
+    text = str(value or "")
     if not text:
-        return ''
-    text = text.replace('\r\n', '\n').replace('\r', '\n')
-    text = text.replace('’', "'").replace('`', "'")
-    text = re.sub(r'[ \t]+', ' ', text)
-    text = re.sub(r'\s+([,.;:!?])', r'\1', text)
-    text = re.sub(r'([,.;:!?])(?=[^\s\n])', r'\1 ', text)
-    text = re.sub(r'\(\s+', '(', text)
-    text = re.sub(r'\s+\)', ')', text)
-    text = re.sub(r'[ \t]{2,}', ' ', text)
-    text = re.sub(r' *\n *', '\n', text)
+        return ""
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    text = text.replace("’", "'").replace("`", "'")
+    text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r"\s+([,.;:!?])", r"\1", text)
+    text = re.sub(r"([,.;:!?])(?=[^\s\n])", r"\1 ", text)
+    text = re.sub(r"\(\s+", "(", text)
+    text = re.sub(r"\s+\)", ")", text)
+    text = re.sub(r"[ \t]{2,}", " ", text)
+    text = re.sub(r" *\n *", "\n", text)
     if not multiline:
-        text = text.replace('\n', ' ')
+        text = text.replace("\n", " ")
     acronym_words = {
-        'ABP', 'RPE', 'GPS', 'TRX', 'MD', 'SSG', 'UEFA',
-        '1V1', '2V2', '3V3', '4V4', '5V5', '6V6', '7V7', '8V8', '9V9', '11V11',
+        "ABP",
+        "RPE",
+        "GPS",
+        "TRX",
+        "MD",
+        "SSG",
+        "UEFA",
+        "1V1",
+        "2V2",
+        "3V3",
+        "4V4",
+        "5V5",
+        "6V6",
+        "7V7",
+        "8V8",
+        "9V9",
+        "11V11",
     }
     polished_lines = []
-    for line in [ln.strip() for ln in text.split('\n')]:
+    for line in [ln.strip() for ln in text.split("\n")]:
         if not line:
             continue
-        bullet_prefix = ''
-        bullet_match = re.match(r'^([\-•\*]\s+)', line)
+        bullet_prefix = ""
+        bullet_match = re.match(r"^([\-•\*]\s+)", line)
         if bullet_match:
             bullet_prefix = bullet_match.group(1)
-            line = line[len(bullet_prefix):].strip()
+            line = line[len(bullet_prefix) :].strip()
         if len(line) >= 10 and line.isupper():
             fixed = []
             for idx, token in enumerate(line.lower().split()):
@@ -257,13 +479,13 @@ def polish_spanish_text(value, multiline=True, max_len=None):
                     fixed.append(token.capitalize())
                 else:
                     fixed.append(token)
-            line = ' '.join(fixed)
-        line = re.sub(r'([.!?])([A-Za-zÁÉÍÓÚÜÑáéíóúüñ])', r'\1 \2', line)
+            line = " ".join(fixed)
+        line = re.sub(r"([.!?])([A-Za-zÁÉÍÓÚÜÑáéíóúüñ])", r"\1 \2", line)
         line = line[:1].upper() + line[1:] if line else line
-        polished_lines.append(f'{bullet_prefix}{line}'.strip())
-    result = '\n'.join(polished_lines).strip()
+        polished_lines.append(f"{bullet_prefix}{line}".strip())
+    result = "\n".join(polished_lines).strip()
     if max_len:
-        result = result[:int(max_len)]
+        result = result[: int(max_len)]
     return result
 
 
@@ -276,16 +498,16 @@ def sanitize_task_text(value, multiline=True, max_len=None):
 
 
 def task_scope_for_item(task):
-    layout = task.tactical_layout if isinstance(getattr(task, 'tactical_layout', None), dict) else {}
-    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
-    scope = str(meta.get('scope') or '').strip()
-    return scope or 'coach'
+    layout = task.tactical_layout if isinstance(getattr(task, "tactical_layout", None), dict) else {}
+    meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
+    scope = str(meta.get("scope") or "").strip()
+    return scope or "coach"
 
 
 def task_preview_needs_refresh(task):
     if not task:
         return False
-    preview_name = str(getattr(task, 'task_preview_image', '') or '').strip()
+    preview_name = str(getattr(task, "task_preview_image", "") or "").strip()
     if not preview_name:
         return True
     try:
@@ -293,12 +515,12 @@ def task_preview_needs_refresh(task):
             return True
     except Exception:
         return True
-    cache_key = f'football:preview-quality:{preview_name}'
+    cache_key = f"football:preview-quality:{preview_name}"
     cached = cache.get(cache_key)
     if cached is not None:
         return bool(cached)
     try:
-        with default_storage.open(preview_name, 'rb') as handle:
+        with default_storage.open(preview_name, "rb") as handle:
             raw = handle.read()
         needs_refresh = is_preview_quality_low(raw)
     except Exception:
@@ -311,10 +533,10 @@ def is_preview_quality_low(raw_bytes):
     metrics = analyze_preview_image_bytes(raw_bytes)
     if not metrics:
         return False
-    score = float(metrics.get('score') or 0.0)
-    area = int(metrics.get('area') or 0)
-    white_ratio = float(metrics.get('white_ratio') or 0.0)
-    green_ratio = float(metrics.get('green_ratio') or 0.0)
+    score = float(metrics.get("score") or 0.0)
+    area = int(metrics.get("area") or 0)
+    white_ratio = float(metrics.get("white_ratio") or 0.0)
+    green_ratio = float(metrics.get("green_ratio") or 0.0)
     if area < 260 * 170:
         return True
     if score < 10.0:
@@ -325,33 +547,33 @@ def is_preview_quality_low(raw_bytes):
 
 
 def task_analysis_needs_refresh(task):
-    if not task or not getattr(task, 'task_pdf', None):
+    if not task or not getattr(task, "task_pdf", None):
         return False
-    layout = task.tactical_layout if isinstance(getattr(task, 'tactical_layout', None), dict) else {}
-    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
-    analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
-    parser_version = _parse_int(analysis_meta.get('parser_version')) or 0
+    layout = task.tactical_layout if isinstance(getattr(task, "tactical_layout", None), dict) else {}
+    meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
+    analysis_meta = meta.get("analysis") if isinstance(meta.get("analysis"), dict) else {}
+    parser_version = _parse_int(analysis_meta.get("parser_version")) or 0
     if parser_version < TASK_PDF_PARSE_VERSION:
         return True
-    summary = str(analysis_meta.get('summary') or '')
+    summary = str(analysis_meta.get("summary") or "")
     if text_has_quality_issues(summary):
         return True
-    if text_has_quality_issues(str(getattr(task, 'title', '') or '')):
+    if text_has_quality_issues(str(getattr(task, "title", "") or "")):
         return True
-    if text_has_quality_issues(str(getattr(task, 'objective', '') or '')):
+    if text_has_quality_issues(str(getattr(task, "objective", "") or "")):
         return True
     return False
 
 
 def text_has_quality_issues(value):
-    text = str(value or '').strip()
+    text = str(value or "").strip()
     if not text:
         return False
-    if re.search(r'\b[A-ZÁÉÍÓÚÜÑ]{12,}\b', text):
+    if re.search(r"\b[A-ZÁÉÍÓÚÜÑ]{12,}\b", text):
         return True
-    if re.search(r'[,;:](\S)', text):
+    if re.search(r"[,;:](\S)", text):
         return True
-    if re.search(r'\s{2,}', text):
+    if re.search(r"\s{2,}", text):
         return True
     if len(text) >= 8 and text.isupper():
         return True
@@ -361,8 +583,8 @@ def text_has_quality_issues(value):
 def ensure_library_task_preview(task, force=False, prefer_render=False):
     if not task:
         return False
-    current_name = str(getattr(task, 'task_preview_image', '') or '').strip()
-    if current_name and not getattr(task, 'task_pdf', None):
+    current_name = str(getattr(task, "task_preview_image", "") or "").strip()
+    if current_name and not getattr(task, "task_pdf", None):
         try:
             if default_storage.exists(current_name):
                 return True
@@ -374,7 +596,7 @@ def ensure_library_task_preview(task, force=False, prefer_render=False):
                 return True
         except Exception:
             pass
-    if getattr(task, 'task_pdf', None):
+    if getattr(task, "task_pdf", None):
         if ensure_task_preview_image(task, prefer_render=prefer_render):
             return True
     try:
@@ -396,7 +618,7 @@ def ensure_library_task_preview(task, force=False, prefer_render=False):
 
 
 def ensure_task_preview_image(task, prefer_render=False):
-    if not task or not getattr(task, 'task_pdf', None):
+    if not task or not getattr(task, "task_pdf", None):
         return False
     from . import session_import_services
 
@@ -442,7 +664,18 @@ def maybe_render_task_preview_server_side(task, *, force=False):
     pitch_preset = str(meta.get("pitch_preset") or "full_pitch").strip() or "full_pitch"
     pitch_orientation = str(meta.get("pitch_orientation") or "landscape").strip().lower()
     pitch_grass_style = str(meta.get("pitch_grass_style") or "classic").strip().lower()
-    if pitch_grass_style not in {"classic", "broadcast", "realistic", "pro", "artificial", "dry", "wet", "uefa_b", "whiteboard", "blackboard"}:
+    if pitch_grass_style not in {
+        "classic",
+        "broadcast",
+        "realistic",
+        "pro",
+        "artificial",
+        "dry",
+        "wet",
+        "uefa_b",
+        "whiteboard",
+        "blackboard",
+    }:
         pitch_grass_style = "classic"
     pitch_zoom = meta.get("pitch_zoom") or 1.0
     try:
@@ -492,17 +725,17 @@ def maybe_render_task_preview_server_side(task, *, force=False):
 
 def build_embedded_preview_data_url(raw_bytes: bytes, *, max_w: int = 1280, max_h: int = 800) -> str:
     if Image is None or not raw_bytes:
-        return ''
+        return ""
     try:
         with Image.open(io.BytesIO(raw_bytes)) as img:
-            rgb = img.convert('RGB')
+            rgb = img.convert("RGB")
             rgb.thumbnail((max(320, int(max_w)), max(180, int(max_h))))
             out = io.BytesIO()
-            rgb.save(out, format='JPEG', quality=82, optimize=True, progressive=True)
-            payload = base64.b64encode(out.getvalue()).decode('ascii')
-            return 'data:image/jpeg;base64,' + payload
+            rgb.save(out, format="JPEG", quality=82, optimize=True, progressive=True)
+            payload = base64.b64encode(out.getvalue()).decode("ascii")
+            return "data:image/jpeg;base64," + payload
     except Exception:
-        return ''
+        return ""
 
 
 def coerce_json_dict(value):
@@ -542,7 +775,11 @@ def extract_canvas_state_for_preview(task):
         if not isinstance(frame, dict):
             continue
         frame_state = coerce_json_dict(frame.get("canvas_state"))
-        if not (isinstance(frame_state, dict) and isinstance(frame_state.get("objects"), list) and frame_state.get("objects")):
+        if not (
+            isinstance(frame_state, dict)
+            and isinstance(frame_state.get("objects"), list)
+            and frame_state.get("objects")
+        ):
             continue
         fw = _parse_int(frame.get("canvas_width")) or 0
         fh = _parse_int(frame.get("canvas_height")) or 0
@@ -556,7 +793,7 @@ def analyze_preview_image_bytes(raw_bytes):
         return None
     try:
         with Image.open(io.BytesIO(raw_bytes)) as img:
-            rgb = img.convert('RGB')
+            rgb = img.convert("RGB")
             width, height = rgb.size
             if width <= 0 or height <= 0:
                 return None
@@ -601,14 +838,14 @@ def analyze_preview_image_bytes(raw_bytes):
                 score -= 20.0
 
             return {
-                'width': int(width),
-                'height': int(height),
-                'area': int(area),
-                'aspect': float(aspect),
-                'green_ratio': float(green_ratio),
-                'white_ratio': float(white_ratio),
-                'dark_ratio': float(dark_ratio),
-                'score': float(score),
+                "width": int(width),
+                "height": int(height),
+                "area": int(area),
+                "aspect": float(aspect),
+                "green_ratio": float(green_ratio),
+                "white_ratio": float(white_ratio),
+                "dark_ratio": float(dark_ratio),
+                "score": float(score),
             }
     except Exception:
         return None
@@ -621,10 +858,10 @@ def cleanup_task_joined_text_fields(task):
 
     def _clean_attr(attr_name, max_len=None):
         nonlocal changed
-        current = str(getattr(task, attr_name, '') or '')
+        current = str(getattr(task, attr_name, "") or "")
         cleaned = polish_spanish_text(
             repair_joined_words_text(current),
-            multiline=(attr_name in {'coaching_points', 'confrontation_rules'}),
+            multiline=(attr_name in {"coaching_points", "confrontation_rules"}),
         )
         if max_len:
             cleaned = cleaned[:max_len]
@@ -632,38 +869,38 @@ def cleanup_task_joined_text_fields(task):
             setattr(task, attr_name, cleaned)
             changed = True
 
-    _clean_attr('title', 160)
-    _clean_attr('objective', 180)
-    _clean_attr('coaching_points')
-    _clean_attr('confrontation_rules')
+    _clean_attr("title", 160)
+    _clean_attr("objective", 180)
+    _clean_attr("coaching_points")
+    _clean_attr("confrontation_rules")
 
-    layout = task.tactical_layout if isinstance(getattr(task, 'tactical_layout', None), dict) else {}
+    layout = task.tactical_layout if isinstance(getattr(task, "tactical_layout", None), dict) else {}
     if layout:
         layout_copy = dict(layout)
-        meta = layout_copy.get('meta') if isinstance(layout_copy.get('meta'), dict) else {}
+        meta = layout_copy.get("meta") if isinstance(layout_copy.get("meta"), dict) else {}
         meta = dict(meta)
-        analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
+        analysis_meta = meta.get("analysis") if isinstance(meta.get("analysis"), dict) else {}
         analysis_meta = dict(analysis_meta)
-        summary_raw = str(analysis_meta.get('summary') or '')
+        summary_raw = str(analysis_meta.get("summary") or "")
         summary_clean = polish_spanish_text(repair_joined_words_text(summary_raw), multiline=True, max_len=900)
         if summary_clean != summary_raw:
-            analysis_meta['summary'] = summary_clean
+            analysis_meta["summary"] = summary_clean
             changed = True
-        task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
+        task_sheet = analysis_meta.get("task_sheet") if isinstance(analysis_meta.get("task_sheet"), dict) else {}
         if task_sheet:
             task_sheet_copy = dict(task_sheet)
-            for key in ('description', 'players', 'space', 'dimensions', 'materials'):
-                raw_val = str(task_sheet_copy.get(key) or '')
+            for key in ("description", "players", "space", "dimensions", "materials"):
+                raw_val = str(task_sheet_copy.get(key) or "")
                 clean_val = polish_spanish_text(
                     repair_joined_words_text(raw_val),
-                    multiline=(key == 'description'),
+                    multiline=(key == "description"),
                 )
                 if clean_val != raw_val:
                     task_sheet_copy[key] = clean_val
                     changed = True
-            analysis_meta['task_sheet'] = task_sheet_copy
-        meta['analysis'] = analysis_meta
-        layout_copy['meta'] = meta
+            analysis_meta["task_sheet"] = task_sheet_copy
+        meta["analysis"] = analysis_meta
+        layout_copy["meta"] = meta
         if layout_copy != layout:
             task.tactical_layout = layout_copy
             changed = True
@@ -671,18 +908,18 @@ def cleanup_task_joined_text_fields(task):
     if changed:
         task.save(
             update_fields=[
-                'title',
-                'objective',
-                'coaching_points',
-                'confrontation_rules',
-                'tactical_layout',
+                "title",
+                "objective",
+                "coaching_points",
+                "confrontation_rules",
+                "tactical_layout",
             ]
         )
     return changed
 
 
 def refresh_task_from_pdf_analysis(task):
-    if not task or not getattr(task, 'task_pdf', None):
+    if not task or not getattr(task, "task_pdf", None):
         return False
     try:
         from . import session_import_services
@@ -691,53 +928,53 @@ def refresh_task_from_pdf_analysis(task):
         extracted_text = session_import_services.extract_pdf_text(task.task_pdf, max_chars=60000)
         parsed_tasks = session_import_services.extract_tasks_from_pdf_text(
             extracted_text,
-            fallback_title=task.title or 'Tarea desde PDF',
+            fallback_title=task.title or "Tarea desde PDF",
         )
         selected = None
         if parsed_tasks:
-            meta = task.tactical_layout.get('meta') if isinstance(task.tactical_layout, dict) else {}
-            segment_index = _parse_int(meta.get('pdf_segment_index')) or 1
+            meta = task.tactical_layout.get("meta") if isinstance(task.tactical_layout, dict) else {}
+            segment_index = _parse_int(meta.get("pdf_segment_index")) or 1
             segment_index = max(1, min(segment_index, len(parsed_tasks)))
             selected = parsed_tasks[segment_index - 1]
         if not selected:
-            selected = {'analysis': _suggest_task_from_pdf(extracted_text), 'raw_text': extracted_text[:2500]}
-        analysis = selected.get('analysis') or {}
+            selected = {"analysis": _suggest_task_from_pdf(extracted_text), "raw_text": extracted_text[:2500]}
+        analysis = selected.get("analysis") or {}
         task.title = sanitize_task_text(
-            str(analysis.get('title') or task.title or 'Tarea desde PDF'),
+            str(analysis.get("title") or task.title or "Tarea desde PDF"),
             multiline=False,
             max_len=160,
         )
-        task.duration_minutes = max(5, min((_parse_int(analysis.get('minutes')) or task.duration_minutes or 15), 90))
+        task.duration_minutes = max(5, min((_parse_int(analysis.get("minutes")) or task.duration_minutes or 15), 90))
         task.objective = sanitize_task_text(
-            str(analysis.get('objective') or task.objective or ''),
+            str(analysis.get("objective") or task.objective or ""),
             multiline=True,
             max_len=8000,
         )
         task.coaching_points = sanitize_task_text(
-            str(analysis.get('coaching_points') or task.coaching_points or ''),
+            str(analysis.get("coaching_points") or task.coaching_points or ""),
             multiline=True,
         )
         task.confrontation_rules = sanitize_task_text(
-            str(analysis.get('confrontation_rules') or task.confrontation_rules or ''),
+            str(analysis.get("confrontation_rules") or task.confrontation_rules or ""),
             multiline=True,
         )
         layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
         layout = dict(layout)
-        meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+        meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
         meta = dict(meta)
-        raw_excerpt = str(selected.get('raw_text') or extracted_text or '')[:1200]
+        raw_excerpt = str(selected.get("raw_text") or extracted_text or "")[:1200]
         if raw_excerpt:
-            meta['pdf_segment_excerpt'] = raw_excerpt
-        layout['meta'] = meta
+            meta["pdf_segment_excerpt"] = raw_excerpt
+        layout["meta"] = meta
         task.tactical_layout = layout
         task.save(
             update_fields=[
-                'title',
-                'duration_minutes',
-                'objective',
-                'coaching_points',
-                'confrontation_rules',
-                'tactical_layout',
+                "title",
+                "duration_minutes",
+                "objective",
+                "coaching_points",
+                "confrontation_rules",
+                "tactical_layout",
             ]
         )
         session_import_services.apply_analysis_to_task(task, analysis)
@@ -748,17 +985,17 @@ def refresh_task_from_pdf_analysis(task):
         return False
 
 
-def learn_task_blueprint_from_task(*, team, task, scope_key: str = '', actor_username: str = ''):
-    layout = task.tactical_layout if task and isinstance(getattr(task, 'tactical_layout', None), dict) else {}
-    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
-    analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
-    task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
+def learn_task_blueprint_from_task(*, team, task, scope_key: str = "", actor_username: str = ""):
+    layout = task.tactical_layout if task and isinstance(getattr(task, "tactical_layout", None), dict) else {}
+    meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
+    analysis_meta = meta.get("analysis") if isinstance(meta.get("analysis"), dict) else {}
+    task_sheet = analysis_meta.get("task_sheet") if isinstance(analysis_meta.get("task_sheet"), dict) else {}
     analysis = {
-        'title': str(getattr(task, 'title', '') or '').strip(),
-        'objective': str(getattr(task, 'objective', '') or '').strip(),
-        'minutes': int(getattr(task, 'duration_minutes', 15) or 15),
-        'summary': str(analysis_meta.get('summary') or '').strip(),
-        'task_sheet': task_sheet,
+        "title": str(getattr(task, "title", "") or "").strip(),
+        "objective": str(getattr(task, "objective", "") or "").strip(),
+        "minutes": int(getattr(task, "duration_minutes", 15) or 15),
+        "summary": str(analysis_meta.get("summary") or "").strip(),
+        "task_sheet": task_sheet,
     }
     return learn_task_blueprint_from_pdf_import(
         team=team,
@@ -773,18 +1010,18 @@ def _infer_blueprint_goal_from_pdf_analysis(task, analysis) -> str:
     from .models import SessionTask
 
     try:
-        block = str(getattr(task, 'block', '') or '').strip()
+        block = str(getattr(task, "block", "") or "").strip()
     except Exception:
-        block = ''
+        block = ""
     if block in {SessionTask.BLOCK_ACTIVATION, SessionTask.BLOCK_RECOVERY}:
-        return 'warmup'
+        return "warmup"
     if block == SessionTask.BLOCK_SET_PIECES:
-        return 'set_pieces'
+        return "set_pieces"
     if block == SessionTask.BLOCK_CONDITIONING:
-        return 'warmup'
+        return "warmup"
 
-    contexts = analysis.get('work_contexts') if isinstance(analysis, dict) else []
-    phase_tags = analysis.get('phase_tags') if isinstance(analysis, dict) else []
+    contexts = analysis.get("work_contexts") if isinstance(analysis, dict) else []
+    phase_tags = analysis.get("phase_tags") if isinstance(analysis, dict) else []
     try:
         contexts_set = {str(x).strip().lower() for x in (contexts or []) if str(x).strip()}
     except Exception:
@@ -794,38 +1031,38 @@ def _infer_blueprint_goal_from_pdf_analysis(task, analysis) -> str:
     except Exception:
         phase_set = set()
 
-    if 'salida_balon' in contexts_set:
-        return 'build_up'
-    if 'finalizacion' in contexts_set:
-        return 'final_third'
-    if 'presion_alta' in contexts_set:
-        return 'pressing'
-    if 'transicion_ofensiva' in contexts_set:
-        return 'transition_dta'
-    if 'transicion_defensiva' in contexts_set:
-        return 'transition_atd'
-    if 'abp' in contexts_set or 'abp' in phase_set:
-        return 'set_pieces'
-    if 'defensa' in phase_set:
-        return 'defending'
-    if 'transicion' in phase_set:
-        return 'transition_atd'
-    return 'progression'
+    if "salida_balon" in contexts_set:
+        return "build_up"
+    if "finalizacion" in contexts_set:
+        return "final_third"
+    if "presion_alta" in contexts_set:
+        return "pressing"
+    if "transicion_ofensiva" in contexts_set:
+        return "transition_dta"
+    if "transicion_defensiva" in contexts_set:
+        return "transition_atd"
+    if "abp" in contexts_set or "abp" in phase_set:
+        return "set_pieces"
+    if "defensa" in phase_set:
+        return "defending"
+    if "transicion" in phase_set:
+        return "transition_atd"
+    return "progression"
 
 
-def _infer_blueprint_category_for_task(task, scope_key: str = '') -> str:
+def _infer_blueprint_category_for_task(task, scope_key: str = "") -> str:
     from .models import SessionTask, TaskBlueprint
 
     try:
-        scope = str(scope_key or '').strip().lower()
+        scope = str(scope_key or "").strip().lower()
     except Exception:
-        scope = ''
-    if scope == 'goalkeeper':
+        scope = ""
+    if scope == "goalkeeper":
         return TaskBlueprint.CATEGORY_GK
     try:
-        block = str(getattr(task, 'block', '') or '').strip()
+        block = str(getattr(task, "block", "") or "").strip()
     except Exception:
-        block = ''
+        block = ""
     if block == SessionTask.BLOCK_SET_PIECES:
         return TaskBlueprint.CATEGORY_ABP
     if block == SessionTask.BLOCK_CONDITIONING:
@@ -833,52 +1070,58 @@ def _infer_blueprint_category_for_task(task, scope_key: str = '') -> str:
     return TaskBlueprint.CATEGORY_OTHER
 
 
-def learn_task_blueprint_from_pdf_import(*, team, task, analysis, scope_key: str = '', actor_username: str = '') -> bool:
+def learn_task_blueprint_from_pdf_import(
+    *, team, task, analysis, scope_key: str = "", actor_username: str = ""
+) -> bool:
     from .models import SessionTask, TaskBlueprint
 
     if not team or not task or not isinstance(analysis, dict):
         return False
     try:
-        name = sanitize_task_text(str(analysis.get('title') or getattr(task, 'title', '') or '').strip(), multiline=False, max_len=160)
+        name = sanitize_task_text(
+            str(analysis.get("title") or getattr(task, "title", "") or "").strip(), multiline=False, max_len=160
+        )
     except Exception:
-        name = ''
+        name = ""
     if not name:
         return False
 
-    sheet = analysis.get('task_sheet') if isinstance(analysis.get('task_sheet'), dict) else {}
+    sheet = analysis.get("task_sheet") if isinstance(analysis.get("task_sheet"), dict) else {}
     tpl = {
-        'title': name,
-        'objective': sanitize_task_text(str(analysis.get('objective') or getattr(task, 'objective', '') or '').strip(), multiline=True, max_len=8000),
-        'minutes': int(analysis.get('minutes') or getattr(task, 'duration_minutes', 15) or 15),
-        'block': str(getattr(task, 'block', '') or SessionTask.BLOCK_MAIN_1),
-        'player_count': sanitize_task_text(str(sheet.get('players') or '').strip(), multiline=False, max_len=120),
-        'dimensions': sanitize_task_text(str(sheet.get('dimensions') or '').strip(), multiline=False, max_len=120),
-        'materials': sanitize_task_text(str(sheet.get('materials') or '').strip(), multiline=False, max_len=180),
-        'space': sanitize_task_text(str(sheet.get('space') or '').strip(), multiline=False, max_len=120),
-        'training_type': '',
-        'strategy': '',
-        'dynamics': '',
-        'structure': '',
-        'coordination': '',
-        'coordination_skills': '',
-        'tactical_intent': '',
-        'organization_html': '',
-        'description_html': str(sheet.get('description_html') or ''),
-        'coaching_html': str(sheet.get('coaching_html') or ''),
-        'rules_html': str(sheet.get('rules_html') or ''),
-        'progression_html': '',
-        'regression_html': '',
-        'success_criteria_html': '',
-        'drills': [],
-        'canvas_state': {},
-        'canvas_width': 0,
-        'canvas_height': 0,
-        'source_name': 'PDF importado (OCR)',
+        "title": name,
+        "objective": sanitize_task_text(
+            str(analysis.get("objective") or getattr(task, "objective", "") or "").strip(), multiline=True, max_len=8000
+        ),
+        "minutes": int(analysis.get("minutes") or getattr(task, "duration_minutes", 15) or 15),
+        "block": str(getattr(task, "block", "") or SessionTask.BLOCK_MAIN_1),
+        "player_count": sanitize_task_text(str(sheet.get("players") or "").strip(), multiline=False, max_len=120),
+        "dimensions": sanitize_task_text(str(sheet.get("dimensions") or "").strip(), multiline=False, max_len=120),
+        "materials": sanitize_task_text(str(sheet.get("materials") or "").strip(), multiline=False, max_len=180),
+        "space": sanitize_task_text(str(sheet.get("space") or "").strip(), multiline=False, max_len=120),
+        "training_type": "",
+        "strategy": "",
+        "dynamics": "",
+        "structure": "",
+        "coordination": "",
+        "coordination_skills": "",
+        "tactical_intent": "",
+        "organization_html": "",
+        "description_html": str(sheet.get("description_html") or ""),
+        "coaching_html": str(sheet.get("coaching_html") or ""),
+        "rules_html": str(sheet.get("rules_html") or ""),
+        "progression_html": "",
+        "regression_html": "",
+        "success_criteria_html": "",
+        "drills": [],
+        "canvas_state": {},
+        "canvas_width": 0,
+        "canvas_height": 0,
+        "source_name": "PDF importado (OCR)",
     }
     meta = {
-        'goal': _infer_blueprint_goal_from_pdf_analysis(task, analysis),
-        'subphase': 'pdf_import',
-        'approach': 'auto',
+        "goal": _infer_blueprint_goal_from_pdf_analysis(task, analysis),
+        "subphase": "pdf_import",
+        "approach": "auto",
     }
 
     try:
@@ -886,10 +1129,12 @@ def learn_task_blueprint_from_pdf_import(*, team, task, analysis, scope_key: str
             team=team,
             name=name[:160],
             defaults={
-                'category': _infer_blueprint_category_for_task(task, scope_key=scope_key),
-                'description': sanitize_task_text(str(tpl.get('objective') or '').strip(), multiline=False, max_len=220),
-                'payload': {'meta': meta, 'tpl': tpl},
-                'created_by': str(actor_username or '').strip()[:80],
+                "category": _infer_blueprint_category_for_task(task, scope_key=scope_key),
+                "description": sanitize_task_text(
+                    str(tpl.get("objective") or "").strip(), multiline=False, max_len=220
+                ),
+                "payload": {"meta": meta, "tpl": tpl},
+                "created_by": str(actor_username or "").strip()[:80],
             },
         )
         return True

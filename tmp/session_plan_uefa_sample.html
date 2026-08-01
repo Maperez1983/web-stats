@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Sesión · x</title>
+    
+<style>
+  :root {
+    --print-paper: #ffffff;
+    --print-ink: #0b1220;
+    --print-muted: #475569;
+    --print-line: #d1d5db;
+    --print-accent: #2f7d32;
+    --print-accent-2: #f4b400;
+    --print-danger: #b91c1c;
+    --print-font: "Inter", "Avenir Next", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  }
+</style>
+
+
+	    <style>
+      :root {
+        --border: #6b7280;
+        --border-soft: #e2e8f0;
+        --muted: #64748b;
+      }
+      @page {
+        size: A4;
+        margin: 12mm;
+      }
+      body {
+        font-family: var(--print-font, "Segoe UI", Arial, sans-serif);
+        font-size: 10.5px;
+        color: var(--print-ink, #111827);
+        background: var(--print-paper, #ffffff);
+      }
+      .sheet {
+        border: 1px solid #d5dde7;
+        background: #ffffff;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+      }
+      .table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+      .table td,
+      .table th {
+        border: 1px solid var(--border);
+        padding: 7px 9px;
+        vertical-align: top;
+      }
+      .k {
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+      }
+      .v {
+        margin-top: 3px;
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.35;
+      }
+      .uefa-head,
+      .club-head {
+        color: #ffffff;
+      }
+      .uefa-head {
+        background: #d92b30;
+        border-bottom: 1px solid #b8c0cc;
+        padding: 10px 14px;
+      }
+      .club-head {
+        background: linear-gradient(135deg, #0e7490, #102734);
+        border-bottom: 1px solid #b8c0cc;
+        padding: 14px 16px;
+      }
+      .crest-badge {
+        width: 62px;
+        height: 62px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.92);
+        padding: 4px;
+        border: 1px solid rgba(255,255,255,0.55);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+        overflow: hidden;
+        line-height: 0;
+      }
+      .crest-badge img {
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-fit: contain;
+      }
+      .section-title {
+        padding: 7px 12px;
+        font-size: 13px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        page-break-after: avoid;
+        break-after: avoid;
+      }
+      .section-title.uefa {
+        background: #d92b30;
+        color: #ffffff;
+        border: 1px solid #d92b30;
+        border-bottom: none;
+      }
+      .section-title.club {
+        background: linear-gradient(90deg, #0e7490, #102734);
+        color: #ffffff;
+        border: 1px solid #0e7490;
+        border-bottom: none;
+      }
+      .empty-copy {
+        color: #94a3b8;
+        font-style: italic;
+      }
+      .box {
+        border: 1px solid var(--border);
+        padding: 12px;
+        background: #ffffff;
+      }
+      .uefa-sheet {
+        border: 1.5px solid #b8c0cc;
+      }
+      .uefa-table td {
+        font-size: 10px;
+      }
+      .uefa-copy {
+        line-height: 1.55;
+        white-space: pre-line;
+      }
+      .session-task-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+      .session-task-table td,
+      .session-task-table th {
+        border: 1px solid var(--border);
+        padding: 7px 9px;
+        vertical-align: top;
+      }
+      .session-task-table th {
+        text-align: left;
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #475569;
+        background: #f8fafc;
+      }
+      .task-sheet-card {
+        border: 1px solid var(--border);
+        background: #fff;
+        padding: 11px;
+        margin-bottom: 8px;
+        border-radius: 14px;
+        page-break-inside: auto;
+        break-inside: auto;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+      }
+      .pdf-club .task-sheet-card {
+        border-radius: 18px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.99), rgba(248,250,252,0.98));
+        border-color: rgba(148,163,184,0.22);
+      }
+      .task-sheet-card:last-child {
+        margin-bottom: 0;
+      }
+      .session-task-separator {
+        height: 8px;
+      }
+      .task-sheet-grid {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        margin-top: 6px;
+      }
+      .task-sheet-grid td {
+        border: 1px solid var(--border-soft);
+        padding: 6px 7px;
+        vertical-align: top;
+      }
+      .task-sheet-grid strong {
+        display: block;
+        margin-bottom: 3px;
+        font-size: 8px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #64748b;
+        font-weight: 800;
+      }
+      .task-title {
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.01em;
+        color: #0f172a;
+      }
+      .task-preview-grid {
+        display: table;
+        width: 100%;
+        table-layout: fixed;
+        border-collapse: separate;
+        border-spacing: 8px 0;
+      }
+      .task-preview-cell {
+        display: table-cell;
+        vertical-align: top;
+      }
+      .task-preview-label {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 8px;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #64748b;
+      }
+      .task-preview-box {
+        border: 1px solid #d5dde7;
+        border-radius: 12px;
+        overflow: hidden;
+        background: #fff;
+        min-height: 146px;
+      }
+      .task-preview-box img {
+        width: 100%;
+        display: block;
+      }
+      .task-reproduction-strip {
+        display: table;
+        width: 100%;
+        table-layout: fixed;
+        border-collapse: separate;
+        border-spacing: 6px 0;
+        margin: 8px 0 10px;
+      }
+      .task-reproduction-frame {
+        display: table-cell;
+        vertical-align: top;
+      }
+      .task-reproduction-frame img {
+        width: 100%;
+        display: block;
+        border: 1px solid #d5dde7;
+        border-radius: 10px;
+        background: #fff;
+      }
+      .session-summary-grid {
+        display: table;
+        width: 100%;
+        table-layout: fixed;
+        border-collapse: separate;
+        border-spacing: 8px;
+        margin: 0 0 12px;
+      }
+      .session-summary-row {
+        display: table-row;
+      }
+      .session-summary-card {
+        display: table-cell;
+        border: 1px solid var(--border-soft);
+        border-radius: 14px;
+        padding: 10px 11px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.96));
+        vertical-align: top;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+        position: relative;
+      }
+      .session-summary-card::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        height: 4px;
+        border-radius: 14px 14px 0 0;
+        background: linear-gradient(90deg, #d92b30, #9f1239);
+      }
+      .session-summary-card .label {
+        font-size: 8px;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #64748b;
+        margin-bottom: 5px;
+      }
+      .session-summary-card .value {
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.35;
+        color: #0f172a;
+      }
+      .session-editorial-grid {
+        display: table;
+        width: 100%;
+        table-layout: fixed;
+        border-collapse: separate;
+        border-spacing: 10px;
+        margin-bottom: 12px;
+      }
+      .session-editorial-row {
+        display: table-row;
+      }
+      .session-editorial-card {
+        display: table-cell;
+        width: 50%;
+        vertical-align: top;
+        border: 1px solid var(--border-soft);
+        border-radius: 14px;
+        padding: 11px 12px;
+        background: #ffffff;
+        box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+      }
+      .session-editorial-card h4 {
+        margin: 0 0 7px;
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #64748b;
+      }
+      .session-editorial-card p {
+        margin: 0;
+        line-height: 1.5;
+      }
+      .session-chip-row {
+        margin-top: 8px;
+        line-height: 1.7;
+      }
+      .session-chip {
+        display: inline-block;
+        margin: 0 5px 5px 0;
+        padding: 3px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--border-soft);
+        background: #f8fafc;
+        font-size: 8.5px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        color: #0f172a;
+      }
+      .task-meta {
+        margin-top: 5px;
+        color: #475569;
+        font-size: 10px;
+      }
+      .task-sheet-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 8px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+      }
+      .task-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: #f8fafc;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        color: #334155;
+        font-size: 8px;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+	      .footer {
+	        padding: 8px 12px;
+	        border-top: 1px solid #d5dde7;
+	        font-size: 9px;
+	        color: #64748b;
+          background: #f8fafc;
+	      }
+
+	      .task-graphic {
+	        width: 100%;
+	        border: none;
+	        border-radius: 0;
+	        background: transparent;
+	        overflow: visible;
+	        line-height: 0;
+	      }
+	      .task-graphic img {
+	        width: 100%;
+	        height: auto;
+	        display: block;
+	      }
+	      .task-graphic {
+	        page-break-inside: avoid;
+	        break-inside: avoid;
+	      }
+
+	      /* UEFA (RFEF) layout, inspirado en plantilla oficial */
+	      .uefa-red { background: #e10613; color:#fff; }
+	      .uefa-bar {
+	        padding: 9px 14px;
+	        font-weight: 800;
+	        letter-spacing: 0.04em;
+	        text-transform: uppercase;
+	      }
+	      .uefa-logo-wrap {
+	        width: 36px;
+	        height: 36px;
+	        border-radius: 50%;
+	        display: flex;
+	        align-items: center;
+	        justify-content: center;
+	        background: rgba(0,0,0,0.18);
+	        border: 1px solid rgba(255,255,255,0.35);
+	        line-height: 0;
+	      }
+	      .uefa-logo-wrap img {
+	        width: 28px;
+	        height: 28px;
+	        object-fit: contain;
+	        display: block;
+	        object-position: center;
+	        margin: 0 auto;
+	        filter: drop-shadow(0 1px 0 rgba(0,0,0,0.2));
+	      }
+	      .uefa-section-head {
+	        margin-top: 10px;
+	        padding: 6px 10px;
+	        font-size: 10.5px;
+	        font-weight: 800;
+	        letter-spacing: 0.06em;
+	        text-transform: uppercase;
+	        background: #e10613;
+	        color: #fff;
+	        page-break-after: avoid;
+	        break-after: avoid;
+	      }
+	      .uefa-task-card {
+	        page-break-inside: avoid;
+	        break-inside: avoid;
+	      }
+	      .uefa-bar,
+	      .uefa-box,
+	      .task-graphic,
+	      .uefa-grid {
+	        page-break-inside: avoid;
+	        break-inside: avoid;
+	      }
+	      .uefa-grid {
+	        width: 100%;
+	        border-collapse: collapse;
+	        table-layout: fixed;
+	      }
+	      .uefa-grid td, .uefa-grid th {
+	        border: 1px solid #1f2937;
+	        padding: 6px 8px;
+	        vertical-align: top;
+	      }
+	      .uefa-grid td.kcell {
+	        background: #f3f4f6;
+	        font-weight: 700;
+	      }
+		      .uefa-box {
+		        border: 1px solid #1f2937;
+		        min-height: 34px;
+		        padding: 8px;
+		      }
+		      .drills-row {
+		        display: flex;
+		        flex-wrap: wrap;
+		        gap: 6px;
+		        margin: 8px 0 10px;
+		      }
+		      .drill-chip {
+		        display: inline-flex;
+		        align-items: center;
+		        gap: 6px;
+		        padding: 4px 8px;
+		        border-radius: 999px;
+		        border: 1px solid #cbd5e1;
+		        background: #ffffff;
+		        font-size: 9px;
+		        font-weight: 800;
+		        letter-spacing: 0.04em;
+		        text-transform: uppercase;
+		        color: #0f172a;
+		      }
+		      .drill-chip img {
+		        width: 18px;
+		        height: 18px;
+		        object-fit: contain;
+		        display: block;
+		        background: #ffffff;
+		        border: 1px solid #e2e8f0;
+		        border-radius: 6px;
+		        padding: 2px;
+		      }
+	      .uefa-page-break { page-break-before: always; }
+	      .page-break { page-break-before: always; }
+
+	      /* UEFA (RFEF) estilo "ejemplo de sesión" (react-pdf) */
+		      
+	      .rfef-header {
+	        background: #e10613;
+	        color: #ffffff;
+	        margin: -12mm -12mm 10px;
+	        padding: 10px 14px;
+	      }
+		      .rfef-header table { width: 100%; border-collapse: collapse; }
+		      .rfef-title {
+		        font-size: 20px;
+		        font-weight: 900;
+	        letter-spacing: 0.04em;
+	        text-transform: uppercase;
+	      }
+		      .rfef-page {
+		        background: #ffffff;
+		        break-inside: auto;
+		        page-break-inside: auto;
+		      }
+		      .rfef-section {
+		        margin-top: 8px;
+		        break-inside: auto;
+		        page-break-inside: auto;
+		      }
+		      .rfef-section-title {
+		        background: #e10613;
+		        color: #ffffff;
+		        font-size: 9.6px;
+		        font-weight: 900;
+		        letter-spacing: 0.06em;
+		        text-transform: uppercase;
+		        padding: 5px 9px;
+		        border: 1px solid #1f2937;
+		        border-bottom: none;
+		        border-radius: 4px 4px 0 0;
+		        page-break-after: avoid;
+	        break-after: avoid;
+	      }
+	      .rfef-table {
+	        width: 100%;
+	        border-collapse: collapse;
+	        table-layout: fixed;
+	        border: 1px solid #1f2937;
+	      }
+		      .rfef-table td, .rfef-table th {
+		        border: 1px solid #1f2937;
+		        padding: 5px 7px;
+		        vertical-align: top;
+		        font-size: 9.6px;
+		        break-inside: auto;
+		        page-break-inside: auto;
+		      }
+		      .rfef-label {
+		        width: 22%;
+		        background: #f3f4f6;
+		        font-weight: 800;
+	      }
+		      .rfef-box {
+		        border: 1px solid #1f2937;
+		        padding: 6px 7px;
+		        min-height: 26px;
+		        line-height: 1.4;
+		        white-space: pre-line;
+		        break-inside: auto;
+		        page-break-inside: auto;
+		      }
+		      .rfef-box.rfef-graphic {
+		        padding: 0;
+		      }
+		      .rfef-graphic {
+			        height: 70mm;
+			        overflow: hidden;
+			        line-height: 0;
+			        text-align: center;
+			        break-inside: avoid;
+			        page-break-inside: avoid;
+              position: relative;
+              box-sizing: border-box;
+              padding: 6mm;
+              background-color: rgba(2, 6, 23, 0.96);
+              background-image:
+                radial-gradient(120% 85% at 50% 0%, rgba(255,255,255,0.20), rgba(255,255,255,0.00) 55%),
+                radial-gradient(120% 85% at 50% 100%, rgba(0,0,0,0.42), rgba(0,0,0,0.00) 60%),
+                linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(2, 6, 23, 0.96)),
+                repeating-linear-gradient(0deg, rgba(255,255,255,0.070) 0 1px, rgba(255,255,255,0) 1px 12px),
+                repeating-linear-gradient(90deg, rgba(255,255,255,0.055) 0 1px, rgba(255,255,255,0) 1px 14px);
+		      }
+          .rfef-graphic::before {
+            content: "";
+            position: absolute;
+            inset: 5mm;
+            border-radius: 6mm;
+            pointer-events: none;
+            background:
+              linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.0) 35%),
+              linear-gradient(0deg, rgba(0,0,0,0.22), rgba(0,0,0,0.0) 45%);
+            opacity: 0.75;
+          }
+	      .rfef-graphic table {
+	        width: 100%;
+	        height: 100%;
+	        border-collapse: collapse;
+	      }
+	      .rfef-graphic td {
+	        padding: 0;
+	        text-align: center;
+	        vertical-align: middle;
+	      }
+		      .rfef-graphic.rfef-graphic-compact { height: 54mm; }
+		      .rfef-graphic img {
+			        max-width: 100%;
+			        max-height: 58mm;
+			        width: auto;
+			        height: auto;
+			        display: inline-block;
+			        margin: 0 auto;
+              position: relative;
+              z-index: 1;
+              border-radius: 4mm;
+              border: 1px solid rgba(255,255,255,0.18);
+              background: rgba(255,255,255,0.02);
+		      }
+		      .rfef-graphic.rfef-graphic-compact img {
+			        max-height: 42mm;
+		      }
+		      .rfef-muted { color: #6b7280; }
+		    </style>
+	  </head>
+	    <body>
+	    
+	      
+	        
+	          
+	        <section class="rfef-page">
+	          <div class="rfef-header">
+	            <table>
+	              <tr>
+	                <td style="width:56px; vertical-align:middle;">
+	                  <div class="uefa-logo-wrap" style="background: rgba(0,0,0,0.16);">
+	                    <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNDAgMTQwIiByb2xlPSJpbWciIGFyaWEtbGFiZWxsZWRieT0idGl0bGUgZGVzYyI+CiAgPHRpdGxlIGlkPSJ0aXRsZSI+UkZFRiBiYWRnZTwvdGl0bGU+CiAgPGRlc2MgaWQ9ImRlc2MiPlNpbXBsaWZpZWQgd2hpdGUgUkZFRi1zdHlsZSBiYWRnZSBmb3IgVUVGQS1mb3JtYXQgdHJhaW5pbmcgc2hlZXRzLjwvZGVzYz4KICA8Y2lyY2xlIGN4PSI3MCIgY3k9IjcwIiByPSI2MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmZmZmIiBzdHJva2Utd2lkdGg9IjYiIC8+CiAgPGxpbmUgeDE9IjQyIiB5MT0iNzAiIHgyPSI5OCIgeTI9IjcwIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBvcGFjaXR5PSIwLjk1IiAvPgogIDx0ZXh0IHg9IjU1IiB5PSI1OCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsLCBIZWx2ZXRpY2EsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMzEiIGZvbnQtd2VpZ2h0PSI5MDAiIGZpbGw9IiNmZmZmZmYiPlI8L3RleHQ+CiAgPHRleHQgeD0iODUiIHk9IjU4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQXJpYWwsIEhlbHZldGljYSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIzMSIgZm9udC13ZWlnaHQ9IjkwMCIgZmlsbD0iI2ZmZmZmZiI+RjwvdGV4dD4KICA8dGV4dCB4PSI1NSIgeT0iMTA0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQXJpYWwsIEhlbHZldGljYSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIzMSIgZm9udC13ZWlnaHQ9IjkwMCIgZmlsbD0iI2ZmZmZmZiI+RTwvdGV4dD4KICA8dGV4dCB4PSI4NSIgeT0iMTA0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQXJpYWwsIEhlbHZldGljYSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIzMSIgZm9udC13ZWlnaHQ9IjkwMCIgZmlsbD0iI2ZmZmZmZiI+RjwvdGV4dD4KPC9zdmc+Cg==" alt="RFEF" />
+	                  </div>
+	                </td>
+	                <td style="vertical-align:middle;">
+		                  <div class="rfef-title">Entrega Sesión</div>
+	                </td>
+	              </tr>
+	            </table>
+	          </div>
+
+	          
+	          <div class="rfef-section">
+		            <div class="rfef-section-title">Detalles de la sesión</div>
+	            <table class="rfef-table">
+	              <tr>
+	                <td class="rfef-label">Título</td>
+	                <td colspan="3">x</td>
+	              </tr>
+	              <tr>
+	                <td class="rfef-label">Tiempo</td>
+	                <td>90'</td>
+	                <td class="rfef-label">N Jugadores</td>
+	                <td>-</td>
+	              </tr>
+	            </table>
+
+	            <div style="margin-top:6px;">
+	              <table class="rfef-table" style="margin-bottom:6px;">
+	                <tr>
+	                  <td class="rfef-label">Materiales</td>
+	                  <td></td>
+	                </tr>
+	              </table>
+	              <table class="rfef-table" style="margin-bottom:6px;">
+	                <tr>
+	                  <td class="rfef-label">Objetivos</td>
+	                  <td>x</td>
+	                </tr>
+	              </table>
+	              <table class="rfef-table">
+	                <tr>
+	                  <td class="rfef-label">Lesionados / Ausencias</td>
+	                  <td></td>
+	                </tr>
+	              </table>
+	            </div>
+	          </div>
+	          
+
+	          <div class="rfef-section">
+		            <div class="rfef-section-title">Detalles de la sección</div>
+	            <table class="rfef-table">
+	              <tr>
+	                <td class="rfef-label">Nombre</td>
+	                <td colspan="3">Principal 1</td>
+	              </tr>
+	              <tr>
+	                <td class="rfef-label">Equipos</td>
+	                <td>-</td>
+	                <td class="rfef-label">Otros</td>
+	                <td>-</td>
+	              </tr>
+	            </table>
+	          </div>
+
+	          <div class="rfef-section">
+		            <div class="rfef-section-title">Descripción gráfica</div>
+	            <div class="rfef-box rfef-graphic rfef-graphic-compact">
+	              <table>
+	                <tr>
+	                  <td>
+	                    
+	                      <div class="rfef-muted">(Sin representación gráfica)</div>
+	                    
+	                  </td>
+	                </tr>
+	              </table>
+	            </div>
+	          </div>
+
+	          <div class="rfef-section">
+		            <div class="rfef-section-title">Consigna / explicación</div>
+	            <div class="rfef-box">
+	              {% with has_frames=pc.animation_frames|default:False has_2d=task_obj.task_preview_image|default:task.task_preview_image has_pdf=task_obj.task_pdf|default:task.task_pdf %}
+	            </div>
+	          </div>
+
+	          <div class="rfef-section">
+		            <div class="rfef-section-title">Detalles del ejercicio</div>
+	            <table class="rfef-table">
+	              <tr>
+	                <td class="rfef-label">Título</td>
+	                <td colspan="3">T</td>
+	              </tr>
+	              <tr>
+	                <td class="rfef-label">Estrategia</td>
+	                <td colspan="3"></td>
+	              </tr>
+	              <tr>
+	                <td class="rfef-label">Objetivos</td>
+	                <td colspan="3">-</td>
+	              </tr>
+	              <tr>
+	                <td class="rfef-label" style="text-align:center;">Espacio</td>
+	                <td class="rfef-label" style="text-align:center;">Tiempo</td>
+	                <td class="rfef-label" style="text-align:center;">Situación de Juego</td>
+	                <td class="rfef-label" style="text-align:center;">Coordinación</td>
+	              </tr>
+	              <tr>
+	                <td>-</td>
+	                <td>12'</td>
+	                <td>-</td>
+	                <td>-</td>
+	              </tr>
+	              <tr>
+	                <td class="rfef-label" colspan="2" style="text-align:center;">Habilidades Coordinativas</td>
+	                <td class="rfef-label" colspan="2" style="text-align:center;">Intención / Acción Táctica</td>
+	              </tr>
+	              <tr>
+	                <td colspan="2">-</td>
+	                <td colspan="2">-</td>
+	              </tr>
+	              
+	            </table>
+	          </div>
+	        </section>
+	          
+	        
+	      
+	    
+	  </body>
+	</html>

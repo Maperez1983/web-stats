@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('football', '0005_add_team_preferente_url'),
+        ("football", "0005_add_team_preferente_url"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='matchevent',
-            name='period',
+            model_name="matchevent",
+            name="period",
             field=models.PositiveSmallIntegerField(blank=True, null=True),
         ),
     ]

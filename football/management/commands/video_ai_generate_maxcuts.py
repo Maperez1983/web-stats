@@ -33,8 +33,12 @@ class Command(BaseCommand):
         parser.add_argument("--out-dir", type=str, default="/Volumes/Mac Satecchi/Mac/Downloads/IA_MaxCuts_video_7")
         parser.add_argument("--export-mp4", type=int, default=24)
         parser.add_argument("--replace", action="store_true")
-        parser.add_argument("--deep-tactics", action="store_true", help="Ejecuta YOLO para estimar balón, equipos, posesión y patrones.")
-        parser.add_argument("--annotated-mp4", action="store_true", help="Exporta además MP4 con explicación táctica quemada.")
+        parser.add_argument(
+            "--deep-tactics", action="store_true", help="Ejecuta YOLO para estimar balón, equipos, posesión y patrones."
+        )
+        parser.add_argument(
+            "--annotated-mp4", action="store_true", help="Exporta además MP4 con explicación táctica quemada."
+        )
 
     def handle(self, *args, **options):
         video_id = int(options["video_id"])
@@ -86,7 +90,10 @@ class Command(BaseCommand):
             try:
                 start = max(0.0, float(moment.get("clip_in_s") or 0.0))
                 end = max(start + 0.5, float(moment.get("clip_out_s") or start + 7.0))
-                kind = str(moment.get("kind") or VideoTimelineEvent.KIND_TAG).strip().lower() or VideoTimelineEvent.KIND_TAG
+                kind = (
+                    str(moment.get("kind") or VideoTimelineEvent.KIND_TAG).strip().lower()
+                    or VideoTimelineEvent.KIND_TAG
+                )
                 label = str(moment.get("label") or "Auto - Accion").strip()[:130]
                 score = float(moment.get("score") or 0.0)
             except Exception:
@@ -116,7 +123,9 @@ class Command(BaseCommand):
                 payload={"ai_maxcuts": True, "autocut": True, "score": score, "rank": idx, "moment": moment},
                 created_by="codex",
             )
-            deep_item = self._analyze_deep_clip(deep_payload, start=start, end=end, rank=idx, fallback_kind=kind, calibration=calibration)
+            deep_item = self._analyze_deep_clip(
+                deep_payload, start=start, end=end, rank=idx, fallback_kind=kind, calibration=calibration
+            )
             senior = self._build_senior_read(
                 deep_item,
                 start=start,
@@ -127,14 +136,20 @@ class Command(BaseCommand):
             if senior:
                 deep_item["senior"] = senior
                 if senior.get("action"):
-                    deep_item["actions"] = self._merge_actions([senior["action"]], deep_item.get("actions") or [], include_old=True)
+                    deep_item["actions"] = self._merge_actions(
+                        [senior["action"]], deep_item.get("actions") or [], include_old=True
+                    )
                 if senior.get("explanation"):
                     deep_item["explanation"] = senior["explanation"]
             try:
                 detected = _video_studio_ai_detect_actions_for_clip(team=team, video=video, clip=clip)
             except Exception as exc:
                 detected = {"error": str(exc), "actions": []}
-            actions = detected.get("actions") if isinstance(detected, dict) and isinstance(detected.get("actions"), list) else []
+            actions = (
+                detected.get("actions")
+                if isinstance(detected, dict) and isinstance(detected.get("actions"), list)
+                else []
+            )
             if deep_item.get("actions"):
                 detected["deep_tactics"] = deep_item
                 detected["actions"] = self._merge_actions(deep_item.get("actions") or [], actions)
@@ -162,7 +177,9 @@ class Command(BaseCommand):
                     f"{top_action.get('label') or action_key} ({float(top_action.get('confidence') or 0):.2f})."
                 )
                 if (deep_item.get("senior") or {}).get("coach_question"):
-                    clip.notes = f"{clip.notes} Pregunta entrenador: {(deep_item.get('senior') or {}).get('coach_question')}"
+                    clip.notes = (
+                        f"{clip.notes} Pregunta entrenador: {(deep_item.get('senior') or {}).get('coach_question')}"
+                    )
             if explanation:
                 clip.notes = f"{clip.notes} {explanation}".strip()
             clip.save(update_fields=["overlay", "tags", "notes", "updated_at"])
@@ -244,7 +261,12 @@ class Command(BaseCommand):
             return {"ok": False, "error": str(exc), "frames": []}
         frames = payload.get("frames") if isinstance(payload, dict) and isinstance(payload.get("frames"), list) else []
         teams = self._infer_team_clusters(frames)
-        return {"ok": True, "frames": frames, "teams": teams, "raw_meta": {"model": payload.get("model"), "frames": len(frames)}}
+        return {
+            "ok": True,
+            "frames": frames,
+            "teams": teams,
+            "raw_meta": {"model": payload.get("model"), "frames": len(frames)},
+        }
 
     def _infer_team_clusters(self, frames: list[dict]) -> dict:
         hues = []
@@ -288,13 +310,26 @@ class Command(BaseCommand):
         d = abs(float(a) - float(b))
         return min(d, 180.0 - d)
 
-    def _analyze_deep_clip(self, payload: dict | None, *, start: float, end: float, rank: int, fallback_kind: str, calibration: dict | None = None) -> dict:
+    def _analyze_deep_clip(
+        self,
+        payload: dict | None,
+        *,
+        start: float,
+        end: float,
+        rank: int,
+        fallback_kind: str,
+        calibration: dict | None = None,
+    ) -> dict:
         if not payload or not payload.get("ok"):
             return {"available": False, "error": (payload or {}).get("error", ""), "actions": [], "explanation": ""}
-        frames = [f for f in (payload.get("frames") or []) if float(f.get("t") or 0.0) >= start and float(f.get("t") or 0.0) <= end]
+        frames = [
+            f
+            for f in (payload.get("frames") or [])
+            if float(f.get("t") or 0.0) >= start and float(f.get("t") or 0.0) <= end
+        ]
         if not frames:
             return {"available": False, "actions": [], "explanation": ""}
-        track_team = ((payload.get("teams") or {}).get("track_team") or {})
+        track_team = (payload.get("teams") or {}).get("track_team") or {}
         samples = []
         possessions = []
         ball_pts = []
@@ -304,8 +339,16 @@ class Command(BaseCommand):
         pressure_vals = []
         unique_player_ids = set()
         for frame in frames:
-            people = [d for d in (frame.get("detections") or []) if int(d.get("class_id") or 0) == 0 and float(d.get("conf") or 0.0) >= 0.18]
-            balls = [d for d in (frame.get("detections") or []) if int(d.get("class_id") or 0) == 32 and float(d.get("conf") or 0.0) >= 0.10]
+            people = [
+                d
+                for d in (frame.get("detections") or [])
+                if int(d.get("class_id") or 0) == 0 and float(d.get("conf") or 0.0) >= 0.18
+            ]
+            balls = [
+                d
+                for d in (frame.get("detections") or [])
+                if int(d.get("class_id") or 0) == 32 and float(d.get("conf") or 0.0) >= 0.10
+            ]
             for p in people:
                 if p.get("track_id") is not None:
                     unique_player_ids.add(str(p.get("track_id")))
@@ -365,7 +408,14 @@ class Command(BaseCommand):
                     opp.append(math.hypot((float(p.get("x_rel") or 0.0) - px) * 1.6, float(p.get("y_rel") or 0.0) - py))
                 if opp:
                     pressure_vals.append(min(opp))
-            samples.append({"t": float(frame.get("t") or 0.0), "people": len(people), "ball": bool(ball), "possessor": bool(possessor)})
+            samples.append(
+                {
+                    "t": float(frame.get("t") or 0.0),
+                    "people": len(people),
+                    "ball": bool(ball),
+                    "possessor": bool(possessor),
+                }
+            )
 
         ball_start = ball_pts[0] if ball_pts else {}
         ball_end = ball_pts[-1] if ball_pts else {}
@@ -374,10 +424,14 @@ class Command(BaseCommand):
         attack_progression = _video_studio_ai_attack_progression(dx, calibration or {})
         progression = abs(dx)
         lateral = abs(dy)
-        last_third = bool(ball_pts and (float(ball_end.get("x") or 0.0) >= 0.67 or float(ball_end.get("x") or 0.0) <= 0.33))
+        last_third = bool(
+            ball_pts and (float(ball_end.get("x") or 0.0) >= 0.67 or float(ball_end.get("x") or 0.0) <= 0.33)
+        )
         wide = bool(ball_pts and (float(ball_end.get("y") or 0.0) <= 0.27 or float(ball_end.get("y") or 0.0) >= 0.73))
         central = bool(ball_pts and 0.36 <= float(ball_end.get("y") or 0.0) <= 0.64)
-        team_changes = sum(1 for a, b in zip(possessions, possessions[1:]) if a != b and a != "unknown" and b != "unknown")
+        team_changes = sum(
+            1 for a, b in zip(possessions, possessions[1:]) if a != b and a != "unknown" and b != "unknown"
+        )
         avg_pressure = sum(pressure_vals) / len(pressure_vals) if pressure_vals else None
         avg_people = sum(s["people"] for s in samples) / len(samples) if samples else 0.0
         avg_width = sum(w[0] for w in widths) / len(widths) if widths else 0.0
@@ -386,8 +440,13 @@ class Command(BaseCommand):
         lane_density = {}
         if lane_samples:
             lane_keys = list(lane_samples[0].keys())
-            lane_density = {key: round(sum(sample.get(key, 0) for sample in lane_samples) / len(lane_samples), 3) for key in lane_keys}
-        occupied_lane_avg = sum(1 for value in lane_density.values() if float(value or 0.0) >= 0.75) if lane_density else 0
+            lane_density = {
+                key: round(sum(sample.get(key, 0) for sample in lane_samples) / len(lane_samples), 3)
+                for key in lane_keys
+            }
+        occupied_lane_avg = (
+            sum(1 for value in lane_density.values() if float(value or 0.0) >= 0.75) if lane_density else 0
+        )
         compactness = (avg_people / max(0.08, avg_width * avg_depth)) if avg_people and avg_width and avg_depth else 0.0
         ball_jumps = [
             math.hypot(float(b.get("x", 0.0)) - float(a.get("x", 0.0)), float(b.get("y", 0.0)) - float(a.get("y", 0.0)))
@@ -422,42 +481,116 @@ class Command(BaseCommand):
                 block_height_hint = "bloque_medio"
             else:
                 block_height_hint = "bloque_alto"
-            block_evidence_level = "supported" if field_calibrated and direction_known and avg_people >= 8 else "hypothesis"
+            block_evidence_level = (
+                "supported" if field_calibrated and direction_known and avg_people >= 8 else "hypothesis"
+            )
         actions = []
         reasons = []
         if str(fallback_kind) == "abp":
-            actions.append({"key": "posible_reinicio", "label": "Posible reinicio / ABP", "confidence": 0.46, "reasons": ["autocut_reinicio", "requiere_revision"]})
+            actions.append(
+                {
+                    "key": "posible_reinicio",
+                    "label": "Posible reinicio / ABP",
+                    "confidence": 0.46,
+                    "reasons": ["autocut_reinicio", "requiere_revision"],
+                }
+            )
             reasons.append("el patrón temporal sugiere reinicio, no confirma ABP")
         if ball_reliable and (progression >= 0.16 or lateral >= 0.22):
             # Sin dirección de ataque calibrada no afirmamos progresión ni cambio de orientación.
             label = "Desplazamiento del balón"
             key = "desplazamiento_balon"
             conf = min(0.58, 0.34 + max(progression, lateral) * 0.55)
-            actions.append({"key": key, "label": label, "confidence": conf, "reasons": ["balon_detectado", "direccion_no_calibrada"]})
+            actions.append(
+                {
+                    "key": key,
+                    "label": label,
+                    "confidence": conf,
+                    "reasons": ["balon_detectado", "direccion_no_calibrada"],
+                }
+            )
             reasons.append("movimiento del balón detectado sin dirección de ataque calibrada")
         elif not ball_reliable:
             reasons.append("balón no fiable para clasificar la acción")
         if field_calibrated and direction_known and ball_reliable and attack_progression >= 0.16:
-            actions.append({"key": "progresion", "label": "Progresión", "confidence": min(0.78, 0.52 + attack_progression), "reasons": ["campo_calibrado", "direccion_ataque", "balon_avanza"]})
+            actions.append(
+                {
+                    "key": "progresion",
+                    "label": "Progresión",
+                    "confidence": min(0.78, 0.52 + attack_progression),
+                    "reasons": ["campo_calibrado", "direccion_ataque", "balon_avanza"],
+                }
+            )
         if field_calibrated and direction_known and ball_reliable and wide and last_third:
-            actions.append({"key": "centro_lateral", "label": "Centro / ataque exterior", "confidence": 0.62, "reasons": ["campo_calibrado", "banda", "ultimo_tercio"]})
+            actions.append(
+                {
+                    "key": "centro_lateral",
+                    "label": "Centro / ataque exterior",
+                    "confidence": 0.62,
+                    "reasons": ["campo_calibrado", "banda", "ultimo_tercio"],
+                }
+            )
         if field_calibrated and direction_known and ball_reliable and last_third and central:
-            actions.append({"key": "finalizacion_probable", "label": "Finalización probable", "confidence": 0.58, "reasons": ["campo_calibrado", "zona_central_finalizacion"]})
+            actions.append(
+                {
+                    "key": "finalizacion_probable",
+                    "label": "Finalización probable",
+                    "confidence": 0.58,
+                    "reasons": ["campo_calibrado", "zona_central_finalizacion"],
+                }
+            )
         if team_changes and possession_reliable:
-            actions.append({"key": "posible_cambio_posesion", "label": "Posible cambio de posesión", "confidence": min(0.56, 0.38 + team_changes * 0.04), "reasons": ["posesion_aproximada", "requiere_revision"]})
+            actions.append(
+                {
+                    "key": "posible_cambio_posesion",
+                    "label": "Posible cambio de posesión",
+                    "confidence": min(0.56, 0.38 + team_changes * 0.04),
+                    "reasons": ["posesion_aproximada", "requiere_revision"],
+                }
+            )
             reasons.append("posible cambio de posesión, no confirmado como transición")
         elif team_changes:
             reasons.append("cambios de equipo descartados por tracking inestable")
         if avg_pressure is not None and avg_pressure <= 0.075 and possession_reliable:
-            actions.append({"key": "posible_presion", "label": "Posible presión cercana", "confidence": 0.50, "reasons": ["oponente_cerca_poseedor", "posesion_aproximada"]})
+            actions.append(
+                {
+                    "key": "posible_presion",
+                    "label": "Posible presión cercana",
+                    "confidence": 0.50,
+                    "reasons": ["oponente_cerca_poseedor", "posesion_aproximada"],
+                }
+            )
             reasons.append("oponente cercano al poseedor estimado")
         if avg_people >= 8 and avg_width >= 0.45 and not actions:
-            actions.append({"key": "candidato_estructura", "label": "Candidato de estructura colectiva", "confidence": 0.40, "reasons": ["ocupacion_ancha", "sin_evento_confirmado"]})
+            actions.append(
+                {
+                    "key": "candidato_estructura",
+                    "label": "Candidato de estructura colectiva",
+                    "confidence": 0.40,
+                    "reasons": ["ocupacion_ancha", "sin_evento_confirmado"],
+                }
+            )
             reasons.append("ocupación colectiva visible, acción no clasificada")
         if block_height_hint and avg_people >= 8:
-            actions.append({"key": f"posible_{block_height_hint}" if block_evidence_level == "hypothesis" else block_height_hint, "label": block_height_hint.replace("_", " ").title(), "confidence": 0.42 if block_evidence_level == "supported" else 0.34, "reasons": ["altura_media_jugadores", block_evidence_level]})
+            actions.append(
+                {
+                    "key": (
+                        f"posible_{block_height_hint}" if block_evidence_level == "hypothesis" else block_height_hint
+                    ),
+                    "label": block_height_hint.replace("_", " ").title(),
+                    "confidence": 0.42 if block_evidence_level == "supported" else 0.34,
+                    "reasons": ["altura_media_jugadores", block_evidence_level],
+                }
+            )
         if not actions:
-            actions.append({"key": "candidato_revisar", "label": "Candidato para revisar", "confidence": 0.30, "reasons": ["senales_insuficientes", "sin_afirmacion_tactica"]})
+            actions.append(
+                {
+                    "key": "candidato_revisar",
+                    "label": "Candidato para revisar",
+                    "confidence": 0.30,
+                    "reasons": ["senales_insuficientes", "sin_afirmacion_tactica"],
+                }
+            )
         actions.sort(key=lambda row: float(row.get("confidence") or 0.0), reverse=True)
         label = actions[0].get("label") or "Acción"
         explanation = f"{label}: " + (", ".join(reasons[:3]) if reasons else "candidato por actividad del juego")
@@ -477,8 +610,20 @@ class Command(BaseCommand):
                 "direction_known": bool(direction_known),
                 "calibration_confidence": round(float((calibration or {}).get("confidence") or 0.0), 4),
             },
-            "ball": {"start": ball_start, "end": ball_end, "points": len(ball_pts), "progression": round(progression, 4), "attack_progression": round(attack_progression, 4), "lateral": round(lateral, 4)},
-            "possession": {"samples": len(possessions), "team_changes": team_changes if possession_reliable else 0, "raw_team_changes": team_changes, "dominant": self._most_common(possessions)},
+            "ball": {
+                "start": ball_start,
+                "end": ball_end,
+                "points": len(ball_pts),
+                "progression": round(progression, 4),
+                "attack_progression": round(attack_progression, 4),
+                "lateral": round(lateral, 4),
+            },
+            "possession": {
+                "samples": len(possessions),
+                "team_changes": team_changes if possession_reliable else 0,
+                "raw_team_changes": team_changes,
+                "dominant": self._most_common(possessions),
+            },
             "pressure": {"avg_nearest_opponent": round(avg_pressure, 4) if avg_pressure is not None else None},
             "shape": {
                 "avg_players": round(avg_people, 2),
@@ -495,7 +640,9 @@ class Command(BaseCommand):
             "teams": self._compact_team_payload(payload.get("teams") if isinstance(payload.get("teams"), dict) else {}),
         }
 
-    def _build_senior_read(self, deep_item: dict, *, start: float, end: float, fallback_kind: str, knowledge: list[dict]) -> dict:
+    def _build_senior_read(
+        self, deep_item: dict, *, start: float, end: float, fallback_kind: str, knowledge: list[dict]
+    ) -> dict:
         if not deep_item or not deep_item.get("available"):
             return {}
         reliability = deep_item.get("reliability") if isinstance(deep_item.get("reliability"), dict) else {}
@@ -522,7 +669,11 @@ class Command(BaseCommand):
                 "key": "lectura_bloque",
                 "concept": "coach_defensa_distancias_bloque",
                 "title": "Bloque: altura y distancias",
-                "score": 0.42 + min(0.14, avg_players / 80.0) + min(0.10, avg_depth * 0.35) + min(0.08, compactness / 220.0) + (0.06 if block_evidence_level == "supported" else 0.0),
+                "score": 0.42
+                + min(0.14, avg_players / 80.0)
+                + min(0.10, avg_depth * 0.35)
+                + min(0.08, compactness / 220.0)
+                + (0.06 if block_evidence_level == "supported" else 0.0),
                 "when": avg_players >= 8 and bool(block_height_hint),
                 "roles": ["linea defensiva", "linea media", "intervalos", "espacio a espalda"],
                 "why": f"La IA estima {block_height_hint.replace('_', ' ')} desde la altura media del bloque; debe revisarse con líneas y distancias visibles.",
@@ -531,7 +682,10 @@ class Command(BaseCommand):
                 "key": "ocupacion_5_carriles",
                 "concept": "espacio_5_carriles",
                 "title": "Ocupación de 5 carriles",
-                "score": 0.40 + min(0.18, avg_width * 0.32) + min(0.10, avg_players / 90.0) + min(0.08, occupied_lane_avg / 30.0),
+                "score": 0.40
+                + min(0.18, avg_width * 0.32)
+                + min(0.10, avg_players / 90.0)
+                + min(0.08, occupied_lane_avg / 30.0),
                 "when": avg_players >= 8 and (avg_width >= 0.42 or occupied_lane_avg >= 3),
                 "roles": ["carril exterior", "carril interior", "carril central", "lado débil"],
                 "why": "La ocupación ancha permite revisar si exteriores, interiores y carril central están complementados o se pisan zonas.",
@@ -540,9 +694,17 @@ class Command(BaseCommand):
                 "key": "salida_3_hombres",
                 "concept": "coach_salida_hombre_libre",
                 "title": "Salida: poseedor, apoyo y tercer hombre",
-                "score": 0.42 + min(0.16, avg_players / 70.0) + min(0.14, avg_width / 5.0) + (0.08 if ball_reliable else 0.0),
+                "score": 0.42
+                + min(0.16, avg_players / 70.0)
+                + min(0.14, avg_width / 5.0)
+                + (0.08 if ball_reliable else 0.0),
                 "when": avg_players >= 7 and avg_width >= 0.34 and fallback_kind != "abp",
-                "roles": ["poseedor probable", "apoyo cercano", "tercer hombre / hombre libre", "primer rival que condiciona"],
+                "roles": [
+                    "poseedor probable",
+                    "apoyo cercano",
+                    "tercer hombre / hombre libre",
+                    "primer rival que condiciona",
+                ],
                 "why": "La IA busca si la estructura ofrece poseedor, apoyo y hombre libre; no marca a todos, sólo los participantes de la posible salida.",
             },
             {
@@ -567,7 +729,9 @@ class Command(BaseCommand):
                 "key": "presion_y_cobertura",
                 "concept": "coach_defensa_saltar_o_temporizar",
                 "title": "Presión: salto y cobertura",
-                "score": 0.43 + (0.12 if possession_reliable else 0.0) + (0.12 if avg_pressure is not None and float(avg_pressure) <= 0.09 else 0.0),
+                "score": 0.43
+                + (0.12 if possession_reliable else 0.0)
+                + (0.12 if avg_pressure is not None and float(avg_pressure) <= 0.09 else 0.0),
                 "when": avg_pressure is not None and float(avg_pressure) <= 0.11,
                 "roles": ["poseedor presionado", "defensor que salta", "cobertura", "línea de pase que debe cerrarse"],
                 "why": "Aparece presión cercana; el corte debe enseñar si el salto mejora la situación o rompe la estructura.",
@@ -602,7 +766,9 @@ class Command(BaseCommand):
         coach_question = str(payload.get("coach_question") or self._default_coach_question(str(best["key"]))).strip()
         capture_must_show = best.get("capture_must_show") if isinstance(best.get("capture_must_show"), list) else []
         if not capture_must_show:
-            capture_must_show = payload.get("capture_must_show") if isinstance(payload.get("capture_must_show"), list) else []
+            capture_must_show = (
+                payload.get("capture_must_show") if isinstance(payload.get("capture_must_show"), list) else []
+            )
         if not capture_must_show:
             capture_must_show = ["origen", "accion principal", "consecuencia"]
         training_transfer = str(payload.get("training_transfer") or "").strip()
@@ -665,16 +831,40 @@ class Command(BaseCommand):
             return {
                 "type": abp_type,
                 "title": "Falta lateral: línea, carga y segunda jugada",
-                "roles": ["golpeador", "línea defensiva", "atacante que carga zona", "marcador directo", "jugador de segunda jugada"],
-                "capture_must_show": ["organización previa", "golpeador", "línea defensiva", "zona de caída", "segunda jugada"],
+                "roles": [
+                    "golpeador",
+                    "línea defensiva",
+                    "atacante que carga zona",
+                    "marcador directo",
+                    "jugador de segunda jugada",
+                ],
+                "capture_must_show": [
+                    "organización previa",
+                    "golpeador",
+                    "línea defensiva",
+                    "zona de caída",
+                    "segunda jugada",
+                ],
                 "why": "El patrón se parece a una falta lateral: el corte debe enseñar altura de la línea, carrera de atacantes, zona de caída y respuesta al rechace.",
             }
         if abp_type == "corner_probable":
             return {
                 "type": abp_type,
                 "title": "Córner: bloqueos, zona de caída y rechace",
-                "roles": ["sacador", "bloqueador o pantalla", "rematador objetivo", "marcador directo", "jugador de segunda jugada"],
-                "capture_must_show": ["organización previa", "bloqueos/carreras", "primer contacto", "rechace", "segunda jugada"],
+                "roles": [
+                    "sacador",
+                    "bloqueador o pantalla",
+                    "rematador objetivo",
+                    "marcador directo",
+                    "jugador de segunda jugada",
+                ],
+                "capture_must_show": [
+                    "organización previa",
+                    "bloqueos/carreras",
+                    "primer contacto",
+                    "rechace",
+                    "segunda jugada",
+                ],
                 "why": "El patrón se parece a un córner: el corte debe mostrar rutina previa, carreras/bloqueos, primer contacto y segunda jugada.",
             }
         if abp_type == "saque_banda_largo":
@@ -689,7 +879,13 @@ class Command(BaseCommand):
             "type": abp_type,
             "title": "ABP: roles y segunda jugada",
             "roles": ["sacador/golpeador", "bloqueador o marcador", "zona de caída", "jugador de segunda jugada"],
-            "capture_must_show": ["organización previa", "golpeo/reinicio", "primera disputa", "segunda jugada", "final de acción"],
+            "capture_must_show": [
+                "organización previa",
+                "golpeo/reinicio",
+                "primera disputa",
+                "segunda jugada",
+                "final de acción",
+            ],
             "why": "El patrón sugiere reinicio; un corte útil debe mostrar organización previa, disputa y respuesta al rechace.",
         }
 
@@ -733,7 +929,9 @@ class Command(BaseCommand):
             "note": "Asignacion aproximada por color; no se usa para afirmar transiciones si el tracking es inestable.",
         }
 
-    def _merge_actions(self, deep_actions: list[dict], old_actions: list[dict], *, include_old: bool = False) -> list[dict]:
+    def _merge_actions(
+        self, deep_actions: list[dict], old_actions: list[dict], *, include_old: bool = False
+    ) -> list[dict]:
         out = []
         seen = set()
         source = list(deep_actions or []) + (list(old_actions or []) if include_old or not deep_actions else [])
@@ -756,39 +954,127 @@ class Command(BaseCommand):
         b1 = ball.get("end") if isinstance(ball.get("end"), dict) else {}
         w, h = 1280, 720
         objects = []
+
         def data(kind):
-            return {"uid": f"ai-{kind}-{int(start*1000)}", "kind": kind, "t_in_s": float(start), "t_out_s": float(end), "fade_in_ms": 150, "fade_out_ms": 180, "anim": "none"}
-        objects.append({"type": "rect", "version": "5.3.0", "left": 42, "top": h - 142, "width": 830, "height": 96, "fill": "rgba(2,6,23,0.72)", "stroke": "rgba(34,211,238,0.75)", "strokeWidth": 2, "rx": 8, "ry": 8, "data": data("ai_explanation_box")})
-        objects.append({"type": "textbox", "version": "5.3.0", "left": 66, "top": h - 126, "width": 790, "height": 36, "fill": "#f8fafc", "fontSize": 24, "fontWeight": "800", "fontFamily": "Arial", "text": (title[:70] or "Corte IA"), "data": data("ai_title")})
+            return {
+                "uid": f"ai-{kind}-{int(start*1000)}",
+                "kind": kind,
+                "t_in_s": float(start),
+                "t_out_s": float(end),
+                "fade_in_ms": 150,
+                "fade_out_ms": 180,
+                "anim": "none",
+            }
+
+        objects.append(
+            {
+                "type": "rect",
+                "version": "5.3.0",
+                "left": 42,
+                "top": h - 142,
+                "width": 830,
+                "height": 96,
+                "fill": "rgba(2,6,23,0.72)",
+                "stroke": "rgba(34,211,238,0.75)",
+                "strokeWidth": 2,
+                "rx": 8,
+                "ry": 8,
+                "data": data("ai_explanation_box"),
+            }
+        )
+        objects.append(
+            {
+                "type": "textbox",
+                "version": "5.3.0",
+                "left": 66,
+                "top": h - 126,
+                "width": 790,
+                "height": 36,
+                "fill": "#f8fafc",
+                "fontSize": 24,
+                "fontWeight": "800",
+                "fontFamily": "Arial",
+                "text": (title[:70] or "Corte IA"),
+                "data": data("ai_title"),
+            }
+        )
         overlay_text = explanation[:170] or "Candidato IA para revisar."
         if coach_question:
             overlay_text = f"{coach_question} Roles: {', '.join(str(x) for x in roles[:3])}"[:190]
-        objects.append({"type": "textbox", "version": "5.3.0", "left": 66, "top": h - 88, "width": 790, "height": 52, "fill": "#cbd5e1", "fontSize": 20, "fontFamily": "Arial", "text": overlay_text, "data": data("ai_explanation")})
+        objects.append(
+            {
+                "type": "textbox",
+                "version": "5.3.0",
+                "left": 66,
+                "top": h - 88,
+                "width": 790,
+                "height": 52,
+                "fill": "#cbd5e1",
+                "fontSize": 20,
+                "fontFamily": "Arial",
+                "text": overlay_text,
+                "data": data("ai_explanation"),
+            }
+        )
         if b0 and b1:
             x0 = float(b0.get("x") or 0.0) * w
             y0 = float(b0.get("y") or 0.0) * h
             x1 = float(b1.get("x") or 0.0) * w
             y1 = float(b1.get("y") or 0.0) * h
             if x0 or y0 or x1 or y1:
-                objects.append({"type": "line", "version": "5.3.0", "x1": x0, "y1": y0, "x2": x1, "y2": y1, "left": min(x0, x1), "top": min(y0, y1), "stroke": "#22d3ee", "strokeWidth": 7, "strokeLineCap": "round", "data": data("movement_line")})
-                objects.append({"type": "circle", "version": "5.3.0", "left": x1 - 18, "top": y1 - 18, "radius": 18, "fill": "rgba(34,211,238,0.20)", "stroke": "#22d3ee", "strokeWidth": 4, "data": data("ai_ball_target")})
+                objects.append(
+                    {
+                        "type": "line",
+                        "version": "5.3.0",
+                        "x1": x0,
+                        "y1": y0,
+                        "x2": x1,
+                        "y2": y1,
+                        "left": min(x0, x1),
+                        "top": min(y0, y1),
+                        "stroke": "#22d3ee",
+                        "strokeWidth": 7,
+                        "strokeLineCap": "round",
+                        "data": data("movement_line"),
+                    }
+                )
+                objects.append(
+                    {
+                        "type": "circle",
+                        "version": "5.3.0",
+                        "left": x1 - 18,
+                        "top": y1 - 18,
+                        "radius": 18,
+                        "fill": "rgba(34,211,238,0.20)",
+                        "stroke": "#22d3ee",
+                        "strokeWidth": 4,
+                        "data": data("ai_ball_target"),
+                    }
+                )
         return {"version": "5.3.0", "objects": objects, "ai_overlay": True}
 
     def _escape_drawtext(self, value: str) -> str:
         text = str(value or "").replace("\\", "\\\\").replace(":", "\\:").replace("'", "\\'")
         return text.replace("\n", " ")[:180]
 
-    def _export_mp4(self, video_path: str, created: list[dict], out_dir: Path, limit: int, *, annotated: bool = False) -> list[str]:
+    def _export_mp4(
+        self, video_path: str, created: list[dict], out_dir: Path, limit: int, *, annotated: bool = False
+    ) -> list[str]:
         ffmpeg = shutil.which("ffmpeg")
         if not ffmpeg or limit <= 0:
             return []
         exported = []
         for item in created[: min(limit, len(created))]:
             prefix = "annotated_" if annotated else ""
-            out_path = out_dir / f"{prefix}cut_{int(item['rank']):02d}_{float(item['start_s']):.1f}_{float(item['end_s']):.1f}.mp4"
+            out_path = (
+                out_dir
+                / f"{prefix}cut_{int(item['rank']):02d}_{float(item['start_s']):.1f}_{float(item['end_s']):.1f}.mp4"
+            )
             if annotated:
                 explanation = self._escape_drawtext(item.get("explanation") or item.get("label") or "Corte IA")
-                label = self._escape_drawtext((item.get("actions") or [{}])[0].get("label") if item.get("actions") else item.get("label"))
+                label = self._escape_drawtext(
+                    (item.get("actions") or [{}])[0].get("label") if item.get("actions") else item.get("label")
+                )
                 vf = (
                     "drawbox=x=30:y=ih-145:w=iw-60:h=112:color=black@0.58:t=fill,"
                     "drawbox=x=30:y=ih-145:w=iw-60:h=112:color=0x22d3ee@0.85:t=3,"

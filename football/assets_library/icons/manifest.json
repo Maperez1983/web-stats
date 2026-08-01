@@ -1,0 +1,26 @@
+{
+  "category": "icons",
+  "category_type": "ui",
+  "default_family": "ui_icons",
+  "families": [
+    "ui_icons",
+    "coaching_icons",
+    "event_icons"
+  ],
+  "variants": [
+    "default",
+    "outline",
+    "filled",
+    "premium"
+  ],
+  "fallback_asset": "icons/ui_icons/default",
+  "compatible_themes": [
+    "classic",
+    "academy",
+    "broadcast",
+    "premium"
+  ],
+  "resolution_independent": true,
+  "theme_overrides_supported": true,
+  "assets": []
+}

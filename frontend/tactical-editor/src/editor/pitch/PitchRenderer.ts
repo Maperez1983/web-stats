@@ -1,23 +1,6 @@
 import Konva from 'konva';
 import type { TacticalScene } from '../core/sceneSchema';
-
-export type PitchRect = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
-
-export function getPitchRect(scene: TacticalScene): PitchRect {
-  const { width, height, padding } = scene.canvas;
-  if (scene.pitch.type === 'half') {
-    return { x: padding, y: padding, width: width - padding * 2, height: height - padding * 2 };
-  }
-  if (scene.pitch.type === 'attacking-third') {
-    return { x: padding, y: padding, width: width - padding * 2, height: height - padding * 2 };
-  }
-  return { x: padding, y: padding, width: width - padding * 2, height: height - padding * 2 };
-}
+import { getPitchRect, type PitchRect } from './pitchGeometry';
 
 function addGoal(layer: Konva.Layer, rect: PitchRect, side: 'left' | 'right') {
   const goalDepth = 14;
@@ -239,6 +222,30 @@ export function drawPitchLayer(layer: Konva.Layer, scene: TacticalScene) {
         listening: false,
       })
     );
+  }
+
+  if (scene.metadata.preferences.gridVisible) {
+    const gridSize = Math.max(4, scene.metadata.preferences.gridSize);
+    for (let x = rect.x; x <= rect.x + rect.width; x += gridSize) {
+      layer.add(
+        new Konva.Line({
+          points: [x, rect.y, x, rect.y + rect.height],
+          stroke: 'rgba(255,255,255,0.08)',
+          strokeWidth: 1,
+          listening: false,
+        })
+      );
+    }
+    for (let y = rect.y; y <= rect.y + rect.height; y += gridSize) {
+      layer.add(
+        new Konva.Line({
+          points: [rect.x, y, rect.x + rect.width, y],
+          stroke: 'rgba(255,255,255,0.08)',
+          strokeWidth: 1,
+          listening: false,
+        })
+      );
+    }
   }
 
   layer.add(

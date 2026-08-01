@@ -164,4 +164,3 @@ if __name__ == "__main__":
     out = repo / "artifacts" / "ejemplo_guia_practica_presion_orientada.pptx"
     build(out)
     print(str(out))
-

@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('football', '0114_player_season_report'),
+        ("football", "0114_player_season_report"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='playerseasonreport',
-            name='ring_kpis',
-            field=models.JSONField(blank=True, default=list, help_text='Listado (max 4) de KPIs en anillos (0-100).'),
+            model_name="playerseasonreport",
+            name="ring_kpis",
+            field=models.JSONField(blank=True, default=list, help_text="Listado (max 4) de KPIs en anillos (0-100)."),
         ),
     ]

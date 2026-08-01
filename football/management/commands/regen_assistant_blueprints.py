@@ -43,7 +43,9 @@ class Command(BaseCommand):
 
         try:
             docs = list(
-                AssistantKnowledgeDocument.objects.filter(team=team, is_active=True).order_by("-created_at", "-id")[:max_docs]
+                AssistantKnowledgeDocument.objects.filter(team=team, is_active=True).order_by("-created_at", "-id")[
+                    :max_docs
+                ]
             )
         except OperationalError as exc:
             raise CommandError(
@@ -118,7 +120,9 @@ class Command(BaseCommand):
                 errors += 1
                 continue
 
-        self.stdout.write(self.style.SUCCESS(f"OK · created={created} updated={updated} deleted={deleted} errors={errors}"))
+        self.stdout.write(
+            self.style.SUCCESS(f"OK · created={created} updated={updated} deleted={deleted} errors={errors}")
+        )
 
     def _resolve_team(self, options):
         team_id = options.get("team_id")

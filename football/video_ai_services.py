@@ -7,7 +7,6 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-
 COCO_PERSON_CLASS_ID = 0
 COCO_SPORTS_BALL_CLASS_ID = 32
 
@@ -37,7 +36,7 @@ def color_signature_from_bgr(frame, det: dict) -> dict:
             return {}
         # Zona central/torso: más estable que piernas/fondo.
         ch, cw = crop.shape[:2]
-        torso = crop[int(ch * 0.18): int(ch * 0.62), int(cw * 0.20): int(cw * 0.80)]
+        torso = crop[int(ch * 0.18) : int(ch * 0.62), int(cw * 0.20) : int(cw * 0.80)]
         if torso.size <= 0:
             torso = crop
         hsv = cv2.cvtColor(torso, cv2.COLOR_BGR2HSV)
@@ -97,7 +96,9 @@ def appearance_distance(a: dict, b: dict) -> float:
     return max(0.0, min(2.0, (base * 0.48) + (hist_d * 0.38) + (aspect_d * 0.08) + (area_d * 0.06)))
 
 
-def ffmpeg_cut_to_proxy(*, src: Path, out: Path, start_s: float, end_s: float, fps: int = 30, height: int = 720) -> None:
+def ffmpeg_cut_to_proxy(
+    *, src: Path, out: Path, start_s: float, end_s: float, fps: int = 30, height: int = 720
+) -> None:
     ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
         raise RuntimeError("FFmpeg no disponible.")

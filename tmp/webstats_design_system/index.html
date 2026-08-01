@@ -1,0 +1,1149 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Web-stats Design System</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --panel-2: #eef3f8;
+      --text: #0f172a;
+      --muted: #607086;
+      --border: #d7e0ea;
+      --accent: #2f855a;
+      --accent-2: #c6e377;
+      --accent-3: #2563eb;
+      --danger: #dc2626;
+      --warning: #f59e0b;
+      --shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+      --field-a: #8cbf53;
+      --field-b: #a7cc61;
+      --field-c: #5f8f3b;
+      --header-grad: linear-gradient(135deg, #1c8f20 0%, #6d2748 100%);
+    }
+
+    [data-theme="academy"] {
+      --bg: #f8faf8;
+      --panel: #ffffff;
+      --panel-2: #eef7ef;
+      --text: #152214;
+      --muted: #5d6f5d;
+      --border: #dce8db;
+      --accent: #1f8f35;
+      --accent-2: #d4eb77;
+      --accent-3: #2f7ef7;
+      --header-grad: linear-gradient(135deg, #1c8f20 0%, #52753d 100%);
+    }
+
+    [data-theme="broadcast"] {
+      --bg: #09111b;
+      --panel: #0f1926;
+      --panel-2: #132133;
+      --text: #ebf2ff;
+      --muted: #9cb1cc;
+      --border: #26374d;
+      --accent: #7ce12f;
+      --accent-2: #b1f35f;
+      --accent-3: #27a7ff;
+      --shadow: 0 24px 50px rgba(0, 0, 0, 0.35);
+      --header-grad: linear-gradient(135deg, #0d1724 0%, #12354a 70%, #1d4d38 100%);
+    }
+
+    [data-theme="premium"] {
+      --bg: #eff2f4;
+      --panel: #fdfefe;
+      --panel-2: #edf3f5;
+      --text: #0e1725;
+      --muted: #5b6980;
+      --border: #d1dbe5;
+      --accent: #2f855a;
+      --accent-2: #d0e87f;
+      --accent-3: #3478f6;
+      --header-grad: linear-gradient(135deg, #0e1c32 0%, #315270 45%, #2e6f48 100%);
+    }
+
+    [data-theme="dark"] {
+      --bg: #090c11;
+      --panel: #121824;
+      --panel-2: #1b2535;
+      --text: #f6f8fc;
+      --muted: #95a3bb;
+      --border: #283448;
+      --accent: #66d13d;
+      --accent-2: #bbec6b;
+      --accent-3: #4d96ff;
+      --shadow: 0 24px 50px rgba(0, 0, 0, 0.35);
+      --header-grad: linear-gradient(135deg, #0f1520 0%, #1b2433 50%, #2d4138 100%);
+    }
+
+    [data-theme="uefa"] {
+      --bg: #f4f7fa;
+      --panel: #ffffff;
+      --panel-2: #eff4f7;
+      --text: #102339;
+      --muted: #5f7489;
+      --border: #d7e2eb;
+      --accent: #0057b8;
+      --accent-2: #e6f13f;
+      --accent-3: #0085ff;
+      --header-grad: linear-gradient(135deg, #0c2d63 0%, #1453af 60%, #0e7f84 100%);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 290px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+      padding: 24px 18px;
+      background: var(--header-grad);
+      color: #fff;
+      border-right: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .brand {
+      margin-bottom: 18px;
+      padding: 18px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      border-radius: 20px;
+      backdrop-filter: blur(12px);
+    }
+
+    .brand h1 {
+      margin: 0 0 8px;
+      font-size: 26px;
+      line-height: 1;
+      letter-spacing: -0.04em;
+    }
+
+    .brand p {
+      margin: 0;
+      color: rgba(255,255,255,0.74);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .theme-switcher {
+      margin: 18px 0 22px;
+    }
+
+    .theme-switcher label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.72);
+    }
+
+    .theme-switcher select {
+      width: 100%;
+      appearance: none;
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 14px;
+      padding: 12px 14px;
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+      font-size: 14px;
+    }
+
+    .nav-section-title {
+      margin: 18px 8px 10px;
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.55);
+    }
+
+    .nav {
+      display: grid;
+      gap: 6px;
+    }
+
+    .nav a {
+      text-decoration: none;
+      color: #fff;
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 14px;
+      transition: background .2s ease, transform .2s ease;
+      background: transparent;
+    }
+
+    .nav a:hover,
+    .nav a.active {
+      background: rgba(255,255,255,0.11);
+      transform: translateX(2px);
+    }
+
+    .main {
+      padding: 28px;
+    }
+
+    .hero {
+      background: var(--header-grad);
+      color: #fff;
+      border-radius: 28px;
+      padding: 30px 34px;
+      box-shadow: var(--shadow);
+      margin-bottom: 24px;
+    }
+
+    .hero h2 {
+      margin: 0 0 10px;
+      font-size: clamp(34px, 5vw, 56px);
+      line-height: .95;
+      letter-spacing: -0.05em;
+    }
+
+    .hero p {
+      max-width: 780px;
+      margin: 0;
+      color: rgba(255,255,255,0.82);
+      font-size: 16px;
+      line-height: 1.55;
+    }
+
+    .layout-note {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 22px;
+    }
+
+    .layout-note .chip {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 18px;
+      padding: 12px 14px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.86);
+    }
+
+    .section {
+      margin-top: 28px;
+      scroll-margin-top: 18px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 14px;
+    }
+
+    .section-header h3 {
+      margin: 0;
+      font-size: 28px;
+      letter-spacing: -0.04em;
+    }
+
+    .section-header p {
+      margin: 0;
+      max-width: 720px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .component {
+      display: grid;
+      grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+      gap: 0;
+    }
+
+    .preview-pane {
+      padding: 24px;
+      background:
+        radial-gradient(circle at 30% 20%, rgba(255,255,255,0.35), transparent 38%),
+        linear-gradient(180deg, color-mix(in srgb, var(--panel-2) 85%, transparent), transparent 70%);
+      border-right: 1px solid var(--border);
+    }
+
+    .preview-frame {
+      aspect-ratio: 1 / 1;
+      width: 100%;
+      border-radius: 24px;
+      overflow: hidden;
+      background: linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0.1));
+      border: 1px solid var(--border);
+      display: grid;
+      place-items: center;
+    }
+
+    .preview-frame svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .preview-meta {
+      margin-top: 12px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .preview-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 12px;
+      width: fit-content;
+    }
+
+    .details-pane {
+      padding: 24px 26px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 14px;
+    }
+
+    .detail {
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+    }
+
+    .detail b {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .detail span {
+      display: block;
+      font-size: 14px;
+      line-height: 1.4;
+      color: var(--text);
+    }
+
+    .tokens, .examples, .assets-list, .rules-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .subsection-title {
+      margin: 0 0 6px;
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .token-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .token {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 10px;
+      min-height: 36px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .rules-list ul,
+    .assets-list ul,
+    .examples ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .themes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+
+    .theme-card {
+      border-radius: 22px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .theme-swatch {
+      height: 130px;
+      background: var(--theme-grad, linear-gradient(135deg,#1f2937,#334155));
+      position: relative;
+    }
+
+    .theme-swatch::after {
+      content: "";
+      position: absolute;
+      inset: auto 14px 14px 14px;
+      height: 24px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.18);
+    }
+
+    .theme-card .body {
+      padding: 16px;
+    }
+
+    .theme-card h4 {
+      margin: 0 0 6px;
+      font-size: 18px;
+    }
+
+    .theme-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .palette-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+    }
+
+    .color-card {
+      border-radius: 18px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--panel);
+    }
+
+    .color-card .swatch {
+      height: 88px;
+      background: var(--swatch);
+    }
+
+    .color-card .body {
+      padding: 12px 14px;
+    }
+
+    .color-card strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .color-card code {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .foot {
+      margin-top: 34px;
+      padding: 18px 20px;
+      border-radius: 18px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 1080px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar {
+        position: relative;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+      }
+      .component { grid-template-columns: 1fr; }
+      .preview-pane { border-right: 0; border-bottom: 1px solid var(--border); }
+      .layout-note { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 680px) {
+      .main { padding: 16px; }
+      .hero { padding: 20px; border-radius: 22px; }
+      .section-header { display: block; }
+      .detail-grid { grid-template-columns: 1fr; }
+      .preview-pane, .details-pane { padding: 18px; }
+    }
+  </style>
+</head>
+<body data-theme="premium">
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <h1>Web-stats DS</h1>
+        <p>Documentación oficial del Design System para pizarra, presentación, exportación y fichas tácticas.</p>
+      </div>
+      <div class="theme-switcher">
+        <label for="themeSelect">Theme switcher</label>
+        <select id="themeSelect">
+          <option value="academy">Academy</option>
+          <option value="broadcast">Broadcast</option>
+          <option value="premium" selected>Premium</option>
+          <option value="dark">Dark</option>
+          <option value="uefa">UEFA</option>
+        </select>
+      </div>
+      <div class="nav-section-title">Componentes</div>
+      <nav class="nav" id="nav"></nav>
+    </aside>
+    <main class="main">
+      <section class="hero">
+        <h2>Web-stats Design System</h2>
+        <p>Base visual congelada para todos los recursos tácticos del ecosistema Web-stats. Define proporción, jerarquía, composición y lenguaje visual antes de la producción de assets definitivos.</p>
+        <div class="layout-note">
+          <div class="chip">Sistema modular de 8 px con submódulo de 4 px para microdetalles.</div>
+          <div class="chip">Mismo criterio de anchor, pivot y z-index en 2D, 3D, PDF y presentación.</div>
+          <div class="chip">El Theme gobierna color, contraste, césped, sombras y tono editorial.</div>
+        </div>
+      </section>
+      <div id="content"></div>
+      <section class="section" id="themes">
+        <div class="section-header">
+          <div>
+            <h3>Themes</h3>
+            <p>Los temas alteran la atmósfera visual sin romper la semántica ni la geometría de los componentes.</p>
+          </div>
+        </div>
+        <div class="themes-grid" id="themesGrid"></div>
+      </section>
+      <div class="foot">Documento estático autónomo. No modifica la aplicación, no depende del Visualization Engine y actúa como referencia editorial y técnica para la futura assets library.</div>
+    </main>
+  </div>
+
+  <script>
+    const components = [
+      {
+        id: "player",
+        name: "Player",
+        preview: "player",
+        description: "Unidad principal de representación del futbolista de campo para editor, render cenital, perspectiva y presentación premium.",
+        measures: "48×48 token · 72×72 premium",
+        anchor: "center-center",
+        pivot: "centro del torso",
+        grid: "8 px · subgrid 4 px",
+        variants: ["local", "rival", "neutral", "captain", "highlighted"],
+        states: ["default", "selected", "has-ball", "moving", "ghost"],
+        rules: [
+          "El dorsal siempre se lee en menos de 1 segundo.",
+          "La orientación corporal se marca con un indicador corto y limpio.",
+          "La sombra no puede invadir áreas adyacentes ni tapar líneas del campo."
+        ],
+        examples: [
+          "Ficha estándar sobre césped premium.",
+          "Variante rival con color alternativo y mismo peso visual.",
+          "Versión miniatura para timeline y reproducciones."
+        ],
+        assets: ["token/player/home.svg", "token/player/away.svg", "shadow/player-soft.svg"]
+      },
+      {
+        id: "goalkeeper",
+        name: "Goalkeeper",
+        preview: "goalkeeper",
+        description: "Variante especializada del jugador con identidad visual inmediata y prioridad semántica en salidas, paradas y distribución.",
+        measures: "48×48 token · 72×72 premium",
+        anchor: "center-center",
+        pivot: "centro del cuerpo",
+        grid: "8 px",
+        variants: ["home", "away", "training", "neutral"],
+        states: ["default", "selected", "distribution", "save-ready"],
+        rules: [
+          "Nunca compartir paleta con jugadores de campo del mismo equipo.",
+          "La etiqueta GK o la silueta deben permitir detección instantánea.",
+          "La lectura debe mantenerse clara en 32 px."
+        ],
+        examples: [
+          "Portero en inicio de juego.",
+          "Portero en acción de parada.",
+          "Portero como apoyo en salida."
+        ],
+        assets: ["token/goalkeeper/home.svg", "token/goalkeeper/alt.svg", "shadow/player-soft.svg"]
+      },
+      {
+        id: "ball",
+        name: "Ball",
+        preview: "ball",
+        description: "Elemento focal de posesión y trayectoria. Debe poder convivir con tokens y recorridos sin perder lectura.",
+        measures: "16×16 estándar · 20×20 premium",
+        anchor: "center-center",
+        pivot: "centro geométrico",
+        grid: "4 px",
+        variants: ["idle", "owned", "moving", "highlighted"],
+        states: ["free", "owned", "selected", "trajectory"],
+        rules: [
+          "La posesión se resuelve por proximidad, glow o línea de relación.",
+          "En timeline el balón no puede perderse frente a las flechas.",
+          "La escala debe mantenerse constante salvo zoom editorial."
+        ],
+        examples: [
+          "Balón libre en transición.",
+          "Balón ligado a jugador con glow.",
+          "Balón en trayectoria de pase."
+        ],
+        assets: ["objects/ball/base.svg", "objects/ball/highlight.svg"]
+      },
+      {
+        id: "cone",
+        name: "Cone",
+        preview: "cone",
+        description: "Material básico para delimitar espacios, estaciones y circuitos. Debe ser muy legible en grupos pequeños.",
+        measures: "18×18 base · 24×24 premium",
+        anchor: "bottom-center",
+        pivot: "base central",
+        grid: "4 px",
+        variants: ["orange", "yellow", "blue", "red", "striped"],
+        states: ["default", "selected", "faded"],
+        rules: [
+          "La base debe apoyar sobre el césped sin sensación de flotación.",
+          "Las variantes por color no pueden perder contraste sobre green_mid.",
+          "En grupos, el cono debe leerse antes que la sombra."
+        ],
+        examples: [
+          "Conos delimitando carril.",
+          "Cono rayado para punto de activación.",
+          "Cono mini para tareas reducidas."
+        ],
+        assets: ["objects/cone/orange.svg", "objects/cone/striped.svg", "shadow/material-soft.svg"]
+      },
+      {
+        id: "pole",
+        name: "Pole",
+        preview: "pole",
+        description: "Pica táctica para slalom, referencias verticales y carriles. Más ligera que un mannequin y más severa que un cono.",
+        measures: "8×32 base · 10×40 premium",
+        anchor: "bottom-center",
+        pivot: "base central",
+        grid: "4 px",
+        variants: ["red", "yellow", "blue", "white"],
+        states: ["default", "selected"],
+        rules: [
+          "Debe mantenerse completamente vertical en vista cenital.",
+          "No rotar salvo escenas especiales de presentación.",
+          "Su z-index debe quedar por debajo de labels pero por encima del césped."
+        ],
+        examples: [
+          "Picas en slalom técnico.",
+          "Picas delimitando mitad de carril.",
+          "Pica como referencia de posición."
+        ],
+        assets: ["objects/pole/red.svg", "shadow/material-soft.svg"]
+      },
+      {
+        id: "goal",
+        name: "Goal",
+        preview: "goal",
+        description: "Portería cenital o isométrica para objetivos de finalización, juegos reducidos y referencias estructurales del campo.",
+        measures: "64×24 cenital · 80×40 premium",
+        anchor: "center-bottom",
+        pivot: "eje del larguero",
+        grid: "8 px",
+        variants: ["11v11", "futsal", "mini-goal", "popup"],
+        states: ["default", "selected", "active-target"],
+        rules: [
+          "La red debe ser visible sin invadir el área de lectura de jugadores.",
+          "La línea de gol es sagrada; el asset no puede desplazarla.",
+          "Las miniporterías tienen familia propia."
+        ],
+        examples: [
+          "Portería 11v11 completa.",
+          "Mini-goal para rondo o finalización corta.",
+          "Popup goal en entrenamiento técnico."
+        ],
+        assets: ["objects/goal/full-top.svg", "objects/goal/mini.svg", "shadow/goal-soft.svg"]
+      },
+      {
+        id: "arrow",
+        name: "Arrow",
+        preview: "arrow",
+        description: "Sistema visual de acciones: pase, carrera, presión, cobertura y apoyos. Debe transmitir dirección sin ensuciar el campo.",
+        measures: "Stroke 2–5 px · punta 1.8× stroke",
+        anchor: "path-start",
+        pivot: "geométrico por path",
+        grid: "8 px puntos de control",
+        variants: ["run", "pass", "curved", "dashed", "pressure", "support"],
+        states: ["default", "selected", "ghost", "animated"],
+        rules: [
+          "Curvas suaves siempre que la táctica lo permita.",
+          "Nunca cortar un dorsal si existe alternativa de path.",
+          "La punta debe ser más clara y legible que el cuerpo."
+        ],
+        examples: [
+          "Pase corto en verde.",
+          "Movimiento en blanco discontinuo.",
+          "Curva de apoyo con grosor premium."
+        ],
+        assets: ["actions/arrow/pass.svg", "actions/arrow/run.svg", "actions/arrow/pressure.svg"]
+      },
+      {
+        id: "zone",
+        name: "Zone",
+        preview: "zone",
+        description: "Superficie táctica para ocupación, presión, construcción o finalización. Vive bajo las entidades pero con presencia editorial.",
+        measures: "Flexible · normalizada al campo",
+        anchor: "shape-center",
+        pivot: "centro del bounding box",
+        grid: "8 px vértices y bordes",
+        variants: ["occupation", "pressing", "finishing", "build-up"],
+        states: ["default", "highlighted", "muted"],
+        rules: [
+          "Opacidad entre 10% y 22%.",
+          "El borde siempre más oscuro que el relleno.",
+          "No puede hacer desaparecer las líneas reglamentarias."
+        ],
+        examples: [
+          "Zona de desarrollo rectangular.",
+          "Zona de presión en polígono libre.",
+          "Zona de ocupación con trama suave."
+        ],
+        assets: ["zones/occupation-gradient.svg", "zones/pressing-grid.svg"]
+      },
+      {
+        id: "field",
+        name: "Field",
+        preview: "field",
+        description: "Superficie base del sistema: césped, bandas, geometría reglamentaria y panel premium del estadio.",
+        measures: "16:9 · 4:3 · 9:16",
+        anchor: "center-center",
+        pivot: "centro del campo",
+        grid: "8 px + referencia métrica reglamentaria",
+        variants: ["flat", "realistic top", "broadcast top", "premium stadium top"],
+        states: ["default", "dimmed", "highlighted", "print-safe"],
+        rules: [
+          "La métrica del campo nunca se deforma por estética.",
+          "Las bandas deben ser suaves, no agresivas.",
+          "El marco premium no debe competir con la acción táctica."
+        ],
+        examples: [
+          "Campo realista cenital para ficha.",
+          "Campo broadcast para presentación.",
+          "Campo vertical para móvil o PDF."
+        ],
+        assets: ["field/grass/albedo.png", "field/overlay/stadium-top-h.png", "field/overlay/stadium-top-v.png"]
+      },
+      {
+        id: "typography",
+        name: "Typography",
+        preview: "typography",
+        description: "Sistema tipográfico para labels, fichas, coaching, títulos y tablas de presentación táctica.",
+        measures: "Escala 10/12/14/18/24/32",
+        anchor: "según contenedor",
+        pivot: "no aplica",
+        grid: "baseline 4 px",
+        variants: ["caption", "body", "label", "section", "title"],
+        states: ["default", "inverse", "subtle", "warning"],
+        rules: [
+          "Mayúsculas solo en tags o headings cortos.",
+          "Tracking abierto en etiquetas tácticas.",
+          "El cuerpo nunca por debajo de 12 px en documentación."
+        ],
+        examples: [
+          "Label de zona.",
+          "Título de tarea.",
+          "Ficha técnica con jerarquía clara."
+        ],
+        assets: ["font/primary", "font/display", "icon/inline-label"]
+      },
+      {
+        id: "palette",
+        name: "Color Palette",
+        preview: "palette",
+        description: "Paleta funcional para campo, acciones, equipos, estados y superficie editorial.",
+        measures: "tokens de color",
+        anchor: "no aplica",
+        pivot: "no aplica",
+        grid: "no aplica",
+        variants: ["core", "field", "team", "action", "support"],
+        states: ["base", "hover", "selected", "muted", "inverse"],
+        rules: [
+          "Un color protagonista por escena.",
+          "El rojo queda reservado para alerta o rivalidad fuerte.",
+          "Los tonos de campo nunca deben saturar la lectura."
+        ],
+        examples: [
+          "Paleta premium para ficha de tarea.",
+          "Paleta UEFA con azules institucionales.",
+          "Paleta broadcast con contraste alto."
+        ],
+        assets: ["theme/palette/premium.json", "theme/palette/uefa.json"]
+      },
+      {
+        id: "spacing",
+        name: "Spacing",
+        preview: "spacing",
+        description: "Sistema de espaciado y respiración visual para paneles, fichas, overlays y componentes tácticos.",
+        measures: "4/8/12/16/24/32/48",
+        anchor: "no aplica",
+        pivot: "no aplica",
+        grid: "base 8 px",
+        variants: ["micro", "component", "panel", "section"],
+        states: ["n/a"],
+        rules: [
+          "No usar saltos arbitrarios fuera de la escala.",
+          "Las tarjetas tácticas respiran con múltiplos de 8.",
+          "Los paneles premium usan padding 24+."
+        ],
+        examples: [
+          "Separación entre cards.",
+          "Padding interno de ficha.",
+          "Gaps entre tokens y reglas."
+        ],
+        assets: ["layout/spacing-scale", "layout/panel-margins"]
+      },
+      {
+        id: "shadows",
+        name: "Shadows",
+        preview: "shadows",
+        description: "Sistema de profundidad para tokens, material, campo y paneles editoriales.",
+        measures: "blur 2/4/8/14 px",
+        anchor: "hereda del objeto",
+        pivot: "hereda del objeto",
+        grid: "no aplica",
+        variants: ["token-soft", "object-soft", "panel-lift", "ambient-field"],
+        states: ["default", "selected-glow", "muted"],
+        rules: [
+          "Nunca usar negro puro.",
+          "La dirección de luz es consistente en todo el sistema.",
+          "La sombra de panel y la sombra de token no compiten."
+        ],
+        examples: [
+          "Sombra de jugador premium.",
+          "Sombra de cono sobre césped.",
+          "Sombra de panel en documentación."
+        ],
+        assets: ["shadow/player-soft.svg", "shadow/cone-soft.svg", "shadow/panel-elevation.css"]
+      }
+    ];
+
+    const themeCards = [
+      { name: "Academy", key: "academy", desc: "Verde limpio, didáctico y directo. Pensado para cantera y formación.", grad: "linear-gradient(135deg,#1c8f20,#5b7e49,#b6d86c)" },
+      { name: "Broadcast", key: "broadcast", desc: "Contraste alto y sensación de TV táctica. Ideal para presentaciones y pantallas.", grad: "linear-gradient(135deg,#09111b,#173552,#0c5f46)" },
+      { name: "Premium", key: "premium", desc: "Equilibrio entre limpieza editorial y profundidad visual.", grad: "linear-gradient(135deg,#10223d,#42637d,#7faa5b)" },
+      { name: "Dark", key: "dark", desc: "Modo oscuro de enfoque, más técnico y sobrio.", grad: "linear-gradient(135deg,#0f1520,#2d3442,#283d33)" },
+      { name: "UEFA", key: "uefa", desc: "Orientado a documentos institucionales y claridad formal.", grad: "linear-gradient(135deg,#0c2d63,#1453af,#0e7f84)" }
+    ];
+
+    const palette = [
+      { name: "Ink", hex: "#0F172A" },
+      { name: "Green Dark", hex: "#14532D" },
+      { name: "Green Mid", hex: "#2F855A" },
+      { name: "Green Light", hex: "#C6E377" },
+      { name: "Blue", hex: "#2563EB" },
+      { name: "Orange", hex: "#F59E0B" },
+      { name: "Red", hex: "#DC2626" },
+      { name: "Gray 100", hex: "#E5E7EB" }
+    ];
+
+    function svgPreview(kind) {
+      const fieldBase = `
+        <defs>
+          <linearGradient id="grass" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stop-color="var(--field-b)"/>
+            <stop offset="100%" stop-color="var(--field-a)"/>
+          </linearGradient>
+          <radialGradient id="light" cx="30%" cy="20%">
+            <stop offset="0%" stop-color="rgba(255,255,255,.42)"/>
+            <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+          </radialGradient>
+        </defs>
+      `;
+      if (kind === "player") {
+        return `<svg viewBox="0 0 220 220">${fieldBase}
+          <rect width="220" height="220" fill="url(#light)"/>
+          <ellipse cx="110" cy="156" rx="44" ry="18" fill="rgba(15,23,42,.16)"/>
+          <circle cx="110" cy="106" r="56" fill="var(--accent-3)" stroke="white" stroke-width="8"/>
+          <circle cx="110" cy="106" r="64" fill="none" stroke="var(--text)" stroke-width="4"/>
+          <text x="110" y="120" text-anchor="middle" fill="white" font-size="52" font-family="Arial" font-weight="700">8</text>
+          <line x1="110" y1="162" x2="144" y2="184" stroke="var(--text)" stroke-width="10" stroke-linecap="round"/>
+        </svg>`;
+      }
+      if (kind === "goalkeeper") {
+        return `<svg viewBox="0 0 220 220">${fieldBase}
+          <ellipse cx="110" cy="156" rx="44" ry="18" fill="rgba(15,23,42,.16)"/>
+          <circle cx="110" cy="106" r="56" fill="var(--warning)" stroke="white" stroke-width="8"/>
+          <circle cx="110" cy="106" r="64" fill="none" stroke="var(--text)" stroke-width="4"/>
+          <text x="110" y="116" text-anchor="middle" fill="var(--text)" font-size="28" font-family="Arial" font-weight="700">GK</text>
+          <line x1="110" y1="162" x2="80" y2="186" stroke="var(--text)" stroke-width="10" stroke-linecap="round"/>
+        </svg>`;
+      }
+      if (kind === "ball") {
+        return `<svg viewBox="0 0 220 220">${fieldBase}
+          <ellipse cx="110" cy="132" rx="28" ry="10" fill="rgba(15,23,42,.12)"/>
+          <circle cx="110" cy="108" r="34" fill="#fff" stroke="var(--text)" stroke-width="6"/>
+          <circle cx="110" cy="108" r="10" fill="var(--text)"/>
+          <path d="M95 89 L110 98 L126 89" fill="none" stroke="var(--text)" stroke-width="4"/>
+          <path d="M94 128 L108 117 L125 127" fill="none" stroke="var(--text)" stroke-width="4"/>
+        </svg>`;
+      }
+      if (kind === "cone") {
+        return `<svg viewBox="0 0 220 220">${fieldBase}
+          <ellipse cx="110" cy="148" rx="30" ry="12" fill="rgba(15,23,42,.14)"/>
+          <polygon points="110,58 72,148 148,148" fill="var(--warning)" stroke="#b45309" stroke-width="5"/>
+          <path d="M88 108 H132" stroke="#fff7ed" stroke-width="5"/>
+          <path d="M98 128 H122" stroke="#fff7ed" stroke-width="5"/>
+        </svg>`;
+      }
+      if (kind === "pole") {
+        return `<svg viewBox="0 0 220 220">${fieldBase}
+          <ellipse cx="110" cy="166" rx="20" ry="10" fill="rgba(15,23,42,.14)"/>
+          <rect x="98" y="38" width="24" height="128" rx="8" fill="var(--danger)" stroke="#7f1d1d" stroke-width="4"/>
+          <rect x="98" y="38" width="24" height="38" rx="8" fill="#fca5a5" opacity=".55"/>
+        </svg>`;
+      }
+      if (kind === "goal") {
+        return `<svg viewBox="0 0 220 220">${fieldBase}
+          <ellipse cx="110" cy="152" rx="58" ry="14" fill="rgba(15,23,42,.1)"/>
+          <rect x="56" y="82" width="108" height="54" rx="2" fill="none" stroke="#cbd5e1" stroke-width="8"/>
+          <line x1="56" y1="136" x2="40" y2="158" stroke="#94a3b8" stroke-width="5"/>
+          <line x1="164" y1="136" x2="180" y2="158" stroke="#94a3b8" stroke-width="5"/>
+          <line x1="40" y1="158" x2="180" y2="158" stroke="#94a3b8" stroke-width="4"/>
+        </svg>`;
+      }
+      if (kind === "arrow") {
+        return `<svg viewBox="0 0 220 220">${fieldBase}
+          <path d="M42 146 C78 144, 102 98, 138 98 C162 98, 176 114, 186 130" fill="none" stroke="var(--accent)" stroke-width="12" stroke-linecap="round"/>
+          <polygon points="186,130 157,124 170,102" fill="var(--accent)" stroke="#5a931b" stroke-width="3"/>
+        </svg>`;
+      }
+      if (kind === "zone") {
+        return `<svg viewBox="0 0 220 220">${fieldBase}
+          <rect width="220" height="220" fill="url(#light)"/>
+          <rect x="42" y="56" width="136" height="108" rx="18" fill="rgba(132,204,22,.18)" stroke="var(--accent)" stroke-width="5"/>
+          <path d="M52 148 C96 132, 128 164, 170 134" fill="none" stroke="rgba(132,204,22,.38)" stroke-width="9"/>
+        </svg>`;
+      }
+      if (kind === "field") {
+        return `<svg viewBox="0 0 340 220">
+          <rect width="340" height="220" rx="18" fill="#d8e5ce"/>
+          <rect x="18" y="18" width="304" height="184" rx="18" fill="url(#grass)"/>
+          <rect x="18" y="18" width="304" height="184" rx="18" fill="url(#light)"/>
+          <g opacity=".92">
+            <rect x="18" y="18" width="38" height="184" fill="var(--field-b)"/>
+            <rect x="56" y="18" width="38" height="184" fill="var(--field-a)"/>
+            <rect x="94" y="18" width="38" height="184" fill="var(--field-b)"/>
+            <rect x="132" y="18" width="38" height="184" fill="var(--field-a)"/>
+            <rect x="170" y="18" width="38" height="184" fill="var(--field-b)"/>
+            <rect x="208" y="18" width="38" height="184" fill="var(--field-a)"/>
+            <rect x="246" y="18" width="38" height="184" fill="var(--field-b)"/>
+            <rect x="284" y="18" width="38" height="184" fill="var(--field-a)"/>
+          </g>
+          <rect x="18" y="18" width="304" height="184" rx="18" fill="none" stroke="#fff" stroke-width="3"/>
+          <line x1="170" y1="18" x2="170" y2="202" stroke="#fff" stroke-width="2.5"/>
+          <circle cx="170" cy="110" r="30" fill="none" stroke="#fff" stroke-width="2.5"/>
+          <rect x="18" y="58" width="42" height="104" fill="none" stroke="#fff" stroke-width="2.5"/>
+          <rect x="280" y="58" width="42" height="104" fill="none" stroke="#fff" stroke-width="2.5"/>
+          <rect x="18" y="90" width="16" height="40" fill="none" stroke="#fff" stroke-width="2.5"/>
+          <rect x="306" y="90" width="16" height="40" fill="none" stroke="#fff" stroke-width="2.5"/>
+        </svg>`;
+      }
+      if (kind === "typography") {
+        return `<svg viewBox="0 0 220 220">
+          <rect width="220" height="220" fill="var(--panel-2)"/>
+          <text x="24" y="52" fill="var(--text)" font-size="28" font-weight="700" font-family="Arial">Headline</text>
+          <text x="24" y="86" fill="var(--muted)" font-size="15" font-family="Arial">Cuerpo táctico con jerarquía clara</text>
+          <text x="24" y="124" fill="var(--accent)" font-size="13" font-weight="700" letter-spacing="2" font-family="Arial">TACTICAL TAG</text>
+          <text x="24" y="158" fill="var(--text)" font-size="18" font-weight="700" font-family="Arial">Jugador 8</text>
+          <text x="24" y="184" fill="var(--muted)" font-size="12" font-family="Arial">Caption · Label · Body · Section</text>
+        </svg>`;
+      }
+      if (kind === "palette") {
+        return `<svg viewBox="0 0 220 220">
+          <rect width="220" height="220" fill="var(--panel-2)"/>
+          <rect x="22" y="22" width="52" height="52" rx="12" fill="#0F172A"/>
+          <rect x="84" y="22" width="52" height="52" rx="12" fill="#14532D"/>
+          <rect x="146" y="22" width="52" height="52" rx="12" fill="#C6E377"/>
+          <rect x="22" y="86" width="52" height="52" rx="12" fill="#2563EB"/>
+          <rect x="84" y="86" width="52" height="52" rx="12" fill="#F59E0B"/>
+          <rect x="146" y="86" width="52" height="52" rx="12" fill="#DC2626"/>
+          <rect x="22" y="150" width="176" height="24" rx="12" fill="url(#grad)"/>
+          <defs><linearGradient id="grad" x1="0" x2="1"><stop offset="0%" stop-color="#14532D"/><stop offset="50%" stop-color="#2F855A"/><stop offset="100%" stop-color="#C6E377"/></linearGradient></defs>
+        </svg>`;
+      }
+      if (kind === "spacing") {
+        return `<svg viewBox="0 0 220 220">
+          <rect width="220" height="220" fill="var(--panel-2)"/>
+          <rect x="26" y="34" width="22" height="22" fill="var(--accent)"/>
+          <rect x="60" y="34" width="30" height="30" fill="var(--accent)"/>
+          <rect x="102" y="34" width="38" height="38" fill="var(--accent)"/>
+          <rect x="152" y="34" width="54" height="54" fill="var(--accent)"/>
+          <line x1="26" y1="116" x2="196" y2="116" stroke="var(--muted)" stroke-width="2" stroke-dasharray="4 4"/>
+          <text x="26" y="140" fill="var(--text)" font-size="14" font-family="Arial">4 · 8 · 12 · 16 · 24 · 32 · 48</text>
+          <rect x="26" y="156" width="168" height="34" rx="10" fill="var(--panel)" stroke="var(--border)"/>
+          <rect x="42" y="168" width="136" height="10" rx="5" fill="var(--accent-2)"/>
+        </svg>`;
+      }
+      if (kind === "shadows") {
+        return `<svg viewBox="0 0 220 220">
+          <defs>
+            <filter id="blur" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="6"/>
+            </filter>
+          </defs>
+          <rect width="220" height="220" fill="var(--panel-2)"/>
+          <ellipse cx="74" cy="154" rx="30" ry="12" fill="rgba(15,23,42,.22)" filter="url(#blur)"/>
+          <circle cx="74" cy="108" r="28" fill="var(--accent-3)" stroke="white" stroke-width="5"/>
+          <ellipse cx="156" cy="154" rx="42" ry="14" fill="rgba(15,23,42,.14)" filter="url(#blur)"/>
+          <polygon points="156,74 130,150 182,150" fill="var(--warning)" stroke="#b45309" stroke-width="4"/>
+        </svg>`;
+      }
+      return `<svg viewBox="0 0 220 220"><rect width="220" height="220" fill="var(--panel-2)"/></svg>`;
+    }
+
+    function componentMarkup(c) {
+      const variants = c.variants.map(v => `<span class="token">${v}</span>`).join("");
+      const states = c.states.map(v => `<span class="token">${v}</span>`).join("");
+      const rules = c.rules.map(v => `<li>${v}</li>`).join("");
+      const examples = c.examples.map(v => `<li>${v}</li>`).join("");
+      const assets = c.assets.map(v => `<li><code>${v}</code></li>`).join("");
+      return `
+        <section class="section" id="${c.id}">
+          <div class="section-header">
+            <div>
+              <h3>${c.name}</h3>
+              <p>${c.description}</p>
+            </div>
+          </div>
+          <article class="card component">
+            <div class="preview-pane">
+              <div class="preview-frame">${svgPreview(c.preview)}</div>
+              <div class="preview-meta">
+                <div class="preview-pill">Preview</div>
+                <div class="preview-pill">Anchor: ${c.anchor}</div>
+                <div class="preview-pill">Pivot: ${c.pivot}</div>
+              </div>
+            </div>
+            <div class="details-pane">
+              <div class="detail-grid">
+                <div class="detail"><b>Medidas</b><span>${c.measures}</span></div>
+                <div class="detail"><b>Grid</b><span>${c.grid}</span></div>
+                <div class="detail"><b>Anchor</b><span>${c.anchor}</span></div>
+                <div class="detail"><b>Pivot</b><span>${c.pivot}</span></div>
+              </div>
+              <div class="tokens">
+                <h4 class="subsection-title">Variantes</h4>
+                <div class="token-row">${variants}</div>
+              </div>
+              <div class="tokens">
+                <h4 class="subsection-title">Estados</h4>
+                <div class="token-row">${states}</div>
+              </div>
+              <div class="rules-list">
+                <h4 class="subsection-title">Reglas</h4>
+                <ul>${rules}</ul>
+              </div>
+              <div class="examples">
+                <h4 class="subsection-title">Ejemplos</h4>
+                <ul>${examples}</ul>
+              </div>
+              <div class="assets-list">
+                <h4 class="subsection-title">Assets relacionados</h4>
+                <ul>${assets}</ul>
+              </div>
+            </div>
+          </article>
+        </section>
+      `;
+    }
+
+    function renderThemes() {
+      const grid = document.getElementById("themesGrid");
+      grid.innerHTML = themeCards.map(t => `
+        <article class="theme-card">
+          <div class="theme-swatch" style="--theme-grad:${t.grad}"></div>
+          <div class="body">
+            <h4>${t.name}</h4>
+            <p>${t.desc}</p>
+          </div>
+        </article>
+      `).join("") + `
+        <article class="theme-card">
+          <div class="body">
+            <h4>Color Palette</h4>
+            <div class="palette-grid">
+              ${palette.map(c => `
+                <div class="color-card">
+                  <div class="swatch" style="--swatch:${c.hex}"></div>
+                  <div class="body">
+                    <strong>${c.name}</strong>
+                    <code>${c.hex}</code>
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        </article>
+      `;
+    }
+
+    function renderContent() {
+      document.getElementById("content").innerHTML = components.map(componentMarkup).join("");
+      document.getElementById("nav").innerHTML = components.map(c => `<a href="#${c.id}">${c.name}</a>`).join("") + `<a href="#themes">Themes</a>`;
+      renderThemes();
+      setActiveOnScroll();
+    }
+
+    function setActiveOnScroll() {
+      const links = [...document.querySelectorAll('.nav a')];
+      const map = new Map(links.map(link => [link.getAttribute('href').slice(1), link]));
+      const targets = [...document.querySelectorAll('.section')];
+      const observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            links.forEach(l => l.classList.remove('active'));
+            const link = map.get(entry.target.id);
+            if (link) link.classList.add('active');
+          }
+        });
+      }, { rootMargin: '-20% 0px -65% 0px', threshold: 0.01 });
+      targets.forEach(t => observer.observe(t));
+    }
+
+    document.getElementById('themeSelect').addEventListener('change', (e) => {
+      document.body.setAttribute('data-theme', e.target.value);
+    });
+
+    renderContent();
+  </script>
+</body>
+</html>

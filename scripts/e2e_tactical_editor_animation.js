@@ -203,10 +203,9 @@ async function openEditor(page, baseUrl, taskId, username, password) {
     page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
     page.click('button[type="submit"], input[type="submit"]'),
   ]);
-  await page.goto(`${baseUrl}/coach/sesiones/tarea/${taskId}/editor-pro/?editor2d=1`, {
+  await page.goto(`${baseUrl}/coach/sesiones/tarea/${taskId}/editor-pro/`, {
     waitUntil: 'domcontentloaded',
   });
-  assert.equal(page.url().includes('editor2d=1'), true, `Expected editor2d=1 in URL, got ${page.url()}`);
   await page.locator('#tactical-editor-root').waitFor({ state: 'visible', timeout: 30_000 });
   const viewport2d = page.getByTestId('viewport-board2d');
   await viewport2d.waitFor({ state: 'visible', timeout: 30_000 });

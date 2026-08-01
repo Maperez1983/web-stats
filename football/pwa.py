@@ -3,14 +3,13 @@ from __future__ import annotations
 import json
 import logging
 import os
-from pathlib import Path
 from datetime import timedelta
+from pathlib import Path
 
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.urls import reverse
 from django.utils.cache import add_never_cache_headers
 from django.utils.timezone import now
-
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +43,7 @@ def _build_id() -> str:
             # Tactical Pad: muy sensible a cache en iOS/Safari. Si no hay env de commit, el SW debe cambiar
             # cuando cambie el editor para evitar que se quede pegado a assets viejos.
             base_dir / "football" / "static" / "football" / "js" / "sessions_tactical_pad.js",
+            base_dir / "football" / "static" / "football" / "js" / "pitch_surface_25d.js",
             base_dir / "football" / "static" / "football" / "js" / "pitch_surface_preview.js",
             base_dir / "static" / "football" / "css" / "product_system.css",
             base_dir / "static" / "football" / "css" / "commercial.css",
@@ -54,12 +54,12 @@ def _build_id() -> str:
                 if path.exists():
                     mtimes.append(int(path.stat().st_mtime))
             except Exception:
-                logger.debug('No se pudo leer mtime para el asset PWA %s', path, exc_info=True)
+                logger.debug("No se pudo leer mtime para el asset PWA %s", path, exc_info=True)
                 continue
         if mtimes:
             return str(max(mtimes))
     except Exception:
-        logger.debug('No se pudo calcular build id local para PWA', exc_info=True)
+        logger.debug("No se pudo calcular build id local para PWA", exc_info=True)
     return "dev"
 
 

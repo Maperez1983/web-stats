@@ -1489,3 +1489,76 @@
       }
       /* Táctica: por defecto, cabecera compacta para ganar altura de campo.
          Mostramos solo lo imprescindible; el resto vive en Recursos/Playbook/Simulador. */
+      body.editor-lab-compact .pitch-layout {
+        grid-template-columns: clamp(320px, 28vw, 420px) minmax(0, 1fr) !important;
+        grid-template-areas: "side main" !important;
+        gap: 0.9rem !important;
+        align-items: start !important;
+      }
+      body.editor-lab-compact .pitch-main {
+        grid-area: main !important;
+      }
+      body.editor-lab-compact .pitch-side {
+        grid-area: side !important;
+        align-self: start !important;
+        width: 100% !important;
+      }
+      body.editor-lab-compact .pitch-side .resource-details {
+        gap: 0.6rem !important;
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        gap: 0.5rem !important;
+        align-items: stretch !important;
+        overflow-x: auto !important;
+        overflow-y: visible !important;
+        padding-bottom: 0.2rem !important;
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail {
+        padding: 0.54rem 0.46rem 0.58rem !important;
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail details.sidebar-dropdown {
+        flex: 0 0 clamp(98px, 10vw, 132px) !important;
+        width: clamp(98px, 10vw, 132px) !important;
+        min-width: 98px !important;
+        position: relative !important;
+        display: flex !important;
+        flex-direction: column !important;
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail details.sidebar-dropdown > summary {
+        min-height: 72px !important;
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail .sidebar-flyout {
+        position: absolute !important;
+        top: calc(100% + 0.45rem) !important;
+        left: 0 !important;
+        right: auto !important;
+        width: max-content !important;
+        min-width: clamp(240px, 26vw, 380px) !important;
+        max-width: min(72vw, 560px) !important;
+        grid-column: auto !important;
+        grid-row: auto !important;
+        z-index: 300 !important;
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail .sidebar-flyout.sidebar-flyout-medium,
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail .sidebar-flyout.sidebar-flyout-large,
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail .sidebar-flyout.sidebar-flyout-wide,
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail .sidebar-flyout.sidebar-flyout-xwide {
+        grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)) !important;
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail details.sidebar-dropdown[open] > .sidebar-flyout {
+        display: grid !important;
+      }
+      body.editor-lab-compact .pitch-side .resource-strip.resource-strip-primary.sidebar-rail .sidebar-option {
+        min-height: 60px !important;
+        width: 100% !important;
+      }
+      body.editor-lab-compact .pitch-side .player-bank,
+      body.editor-lab-compact .pitch-main .player-bank {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        gap: 0.45rem !important;
+      }

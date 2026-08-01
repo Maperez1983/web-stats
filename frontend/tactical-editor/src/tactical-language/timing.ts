@@ -64,6 +64,10 @@ export function planTacticalTiming(
       start = cursor;
       end = cursor + verbMeta.defaultDuration;
       cursor = end;
+    } else if (statement.verb === 'RETURN_PASS') {
+      start = cursor;
+      end = cursor + verbMeta.defaultDuration;
+      cursor = end;
     } else if (statement.verb === 'RUN') {
       start = Math.max(0.4, cursor - 0.7);
       end = Math.max(start + verbMeta.defaultDuration, 5.5);
@@ -73,12 +77,21 @@ export function planTacticalTiming(
     } else if (statement.verb === 'HOLD') {
       start = 0;
       end = 3;
+    } else if (statement.verb === 'PRESS') {
+      start = Math.max(0.5, cursor - 0.4);
+      end = Math.max(start + verbMeta.defaultDuration, start + 1.5);
+    } else if (statement.verb === 'SHOOT') {
+      start = Math.max(cursor, durationTarget - verbMeta.defaultDuration - 0.3);
+      end = durationTarget;
     } else if (statement.verb === 'CREATE_SPACE' || statement.verb === 'OCCUPY_SPACE') {
       start = Math.max(0.5, cursor - 0.3);
       end = Math.max(start + verbMeta.defaultDuration, 4.5);
     } else if (statement.verb === 'PROGRESSION') {
       start = Math.max(cursor, 3);
       end = durationTarget;
+    } else if (statement.verb === 'SEQUENCE') {
+      start = 0;
+      end = Math.max(cursor, durationTarget);
     }
 
     const window = clampWindow(start, end, durationTarget);

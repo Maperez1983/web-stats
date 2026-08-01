@@ -39,7 +39,7 @@ export function resolvePossession(document: TacticalLanguageDocument, plan: Reso
   let receiveTime = document.possession.receiveTime ?? 0;
 
   statements.forEach((statement) => {
-    if (statement.verb === 'PASS') {
+    if (statement.verb === 'PASS' || statement.verb === 'RETURN_PASS') {
       const nextCarrier = carrierForStatement(statement);
       if (nextCarrier) {
         steps.push({
@@ -68,6 +68,17 @@ export function resolvePossession(document: TacticalLanguageDocument, plan: Reso
         state: 'controlled',
         carrierId,
       });
+    } else if (statement.verb === 'SHOOT') {
+      steps.push({
+        statementId: statement.id,
+        state: 'free',
+        carrierId: undefined,
+        releaseTime,
+        receiveTime: releaseTime + 1.1,
+      });
+      carrierId = undefined;
+      releaseTime += 1.1;
+      receiveTime = releaseTime;
     }
   });
 

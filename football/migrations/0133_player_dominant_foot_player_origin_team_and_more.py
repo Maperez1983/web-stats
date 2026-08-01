@@ -6,28 +6,28 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('football', '0132_backfill_club_season_explicit_links'),
+        ("football", "0132_backfill_club_season_explicit_links"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='player',
-            name='dominant_foot',
+            model_name="player",
+            name="dominant_foot",
             field=models.CharField(blank=True, max_length=16),
         ),
         migrations.AddField(
-            model_name='player',
-            name='origin_team',
+            model_name="player",
+            name="origin_team",
             field=models.CharField(blank=True, max_length=160),
         ),
         migrations.AddField(
-            model_name='player',
-            name='preferred_position',
+            model_name="player",
+            name="preferred_position",
             field=models.CharField(blank=True, max_length=60),
         ),
         migrations.AddField(
-            model_name='player',
-            name='previous_season_position',
+            model_name="player",
+            name="previous_season_position",
             field=models.CharField(blank=True, max_length=60),
         ),
     ]

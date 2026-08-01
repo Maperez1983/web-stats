@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-28 -28 56 56">
+  <defs>
+    <radialGradient id="playerTokenFill" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="var(--asset-player-fill-light, #4da6ff)"/>
+      <stop offset="100%" stop-color="var(--asset-player-fill, #1f8fff)"/>
+    </radialGradient>
+  </defs>
+  <ellipse cx="0" cy="18" rx="16" ry="6" fill="var(--asset-shadow, rgba(0,0,0,.22))"/>
+  <circle cx="0" cy="0" r="20" fill="var(--asset-ring, #eef6ff)"/>
+  <circle cx="0" cy="0" r="16.5" fill="url(#playerTokenFill)"/>
+  <path d="M0 0 L0 -12" stroke="var(--asset-accent, #ffffff)" stroke-width="3.8" stroke-linecap="round"/>
+  <circle cx="0" cy="-12" r="2.6" fill="var(--asset-accent, #ffffff)"/>
+  <circle cx="-4.6" cy="-5.2" r="5.2" fill="var(--asset-accent, #ffffff)" opacity=".10"/>
+</svg>

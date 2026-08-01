@@ -1,0 +1,21 @@
+{
+  "category": "premium",
+  "category_type": "theme_pack",
+  "default_family": "premium_overrides",
+  "families": [
+    "premium_overrides"
+  ],
+  "variants": [
+    "default",
+    "dark",
+    "light"
+  ],
+  "fallback_asset": "",
+  "compatible_themes": [
+    "premium",
+    "broadcast"
+  ],
+  "resolution_independent": true,
+  "theme_overrides_supported": true,
+  "assets": []
+}

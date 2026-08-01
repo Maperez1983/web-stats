@@ -35,11 +35,18 @@ class Command(BaseCommand):
             raise CommandError(f"No es PDF: {pdf_path}")
 
         team_id = int(options.get("team_id") or 0)
-        repository = str(options.get("repo") or ImportedSessionDocument.REPO_TRADITIONAL).strip() or ImportedSessionDocument.REPO_TRADITIONAL
+        repository = (
+            str(options.get("repo") or ImportedSessionDocument.REPO_TRADITIONAL).strip()
+            or ImportedSessionDocument.REPO_TRADITIONAL
+        )
         title = str(options.get("title") or "").strip()
         dry_run = bool(options.get("dry_run"))
 
-        team = Team.objects.filter(id=team_id).first() if team_id else Team.objects.filter(is_primary=True).order_by("id").first()
+        team = (
+            Team.objects.filter(id=team_id).first()
+            if team_id
+            else Team.objects.filter(is_primary=True).order_by("id").first()
+        )
         if not team:
             raise CommandError("No se encontró equipo. Usa --team-id.")
 
@@ -98,8 +105,7 @@ class Command(BaseCommand):
                     duration_minutes = min(240, total)
 
             microcycle = (
-                TrainingMicrocycle.objects
-                .filter(team=team, week_start__lte=session_date, week_end__gte=session_date)
+                TrainingMicrocycle.objects.filter(team=team, week_start__lte=session_date, week_end__gte=session_date)
                 .exclude(week_start=INBOX_MICROCYCLE_WEEK_START)
                 .order_by("-week_start", "-id")
                 .first()
@@ -112,13 +118,19 @@ class Command(BaseCommand):
                     mc_num = 0
                 if mc_num:
                     title_hint = f"Microciclo Nº{mc_num}"
-                microcycle = get_or_create_week_microcycle(team, session_date, title_hint=title_hint) or get_or_create_inbox_microcycle(team)
+                microcycle = get_or_create_week_microcycle(
+                    team, session_date, title_hint=title_hint
+                ) or get_or_create_inbox_microcycle(team)
             if not microcycle:
                 raise CommandError("No se pudo preparar el microciclo destino.")
 
             if dry_run:
                 self.stdout.write(self.style.WARNING("dry-run: no se guardará nada."))
-                self.stdout.write(self.style.SUCCESS(f"OK parseo: date={session_date} focus={focus} duration={duration_minutes}m tasks={len(parsed_tasks)}"))
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"OK parseo: date={session_date} focus={focus} duration={duration_minutes}m tasks={len(parsed_tasks)}"
+                    )
+                )
                 return
 
             with transaction.atomic():
@@ -130,7 +142,9 @@ class Command(BaseCommand):
                     pdf=upload,
                 )
 
-                next_order = (TrainingSession.objects.filter(microcycle=microcycle).aggregate(Max("order")).get("order__max") or 0) + 1
+                next_order = (
+                    TrainingSession.objects.filter(microcycle=microcycle).aggregate(Max("order")).get("order__max") or 0
+                ) + 1
                 session = TrainingSession.objects.create(
                     microcycle=microcycle,
                     session_date=session_date,
@@ -171,18 +185,26 @@ class Command(BaseCommand):
                 except Exception:
                     pass
 
-                preview_payloads = extract_preview_images_from_pdf(doc.pdf, max_images=max(1, len(parsed_tasks)), prefer_render=True)
+                preview_payloads = extract_preview_images_from_pdf(
+                    doc.pdf, max_images=max(1, len(parsed_tasks)), prefer_render=True
+                )
                 segment_blocks = suggest_blocks_for_session_pdf_segments(parsed_tasks, SessionTask.BLOCK_MAIN_1)
                 base_order = next_session_task_order(session) - 1
                 shared_pdf_name = str(getattr(doc.pdf, "name", "") or "").strip()
 
                 for idx, segment in enumerate(parsed_tasks, start=1):
                     analysis = segment.get("analysis") or {}
-                    seg_title = str(analysis.get("title") or f"{focus} · Tarea {idx}").strip()[:160] or f"{focus} · Tarea {idx}"
+                    seg_title = (
+                        str(analysis.get("title") or f"{focus} · Tarea {idx}").strip()[:160] or f"{focus} · Tarea {idx}"
+                    )
                     minutes = max(5, min(int(analysis.get("minutes") or 15), 90))
                     segment_index = max(1, int(segment.get("segment_index") or idx))
                     segment_total = max(1, int(segment.get("segment_total") or len(parsed_tasks)))
-                    block = segment_blocks[min(idx - 1, len(segment_blocks) - 1)] if segment_blocks else SessionTask.BLOCK_MAIN_1
+                    block = (
+                        segment_blocks[min(idx - 1, len(segment_blocks) - 1)]
+                        if segment_blocks
+                        else SessionTask.BLOCK_MAIN_1
+                    )
 
                     extra_layout = {
                         "meta": {
@@ -218,7 +240,9 @@ class Command(BaseCommand):
                         except Exception:
                             pass
                         try:
-                            learn_task_blueprint_from_pdf_import(team=team, task=task, analysis=analysis, scope_key="coach", actor_username="")
+                            learn_task_blueprint_from_pdf_import(
+                                team=team, task=task, analysis=analysis, scope_key="coach", actor_username=""
+                            )
                         except Exception:
                             pass
 

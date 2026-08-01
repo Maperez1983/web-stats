@@ -36,7 +36,9 @@ class Command(BaseCommand):
         project = Path(str(options.get("project") or "data/video_ai/train_runs")).resolve()
         name = str(options.get("name") or "football_player_mvp").strip() or "football_player_mvp"
 
-        self.stdout.write(f"YOLO train: model={model_path} data={data_path} epochs={epochs} imgsz={imgsz} batch={batch}")
+        self.stdout.write(
+            f"YOLO train: model={model_path} data={data_path} epochs={epochs} imgsz={imgsz} batch={batch}"
+        )
         if bool(options.get("dry_run")):
             self.stdout.write(self.style.WARNING("dry-run: no se entrena."))
             return

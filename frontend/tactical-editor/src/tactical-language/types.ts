@@ -16,10 +16,14 @@ export type TacticalVerb =
   | 'RUN'
   | 'SUPPORT'
   | 'HOLD'
+  | 'SHOOT'
+  | 'PRESS'
+  | 'RETURN_PASS'
   | 'CREATE_SPACE'
   | 'OCCUPY_SPACE'
   | 'BUILD_UP'
-  | 'PROGRESSION';
+  | 'PROGRESSION'
+  | 'SEQUENCE';
 
 export type TacticalPhaseKind = 'BUILD_UP' | 'PROGRESSION';
 
@@ -124,6 +128,7 @@ export interface TacticalStatement {
   result: TacticalResult;
   priority: number;
   confidence: number;
+  duration?: number;
   phaseId?: string;
   parallelGroupId?: string;
   originObjectIds: string[];

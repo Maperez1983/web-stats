@@ -22,75 +22,75 @@ from football.models import (
 
 class NextMatchServicesTests(TestCase):
     def setUp(self):
-        competition = Competition.objects.create(name='Liga Next', slug='liga-next')
-        self.season = Season.objects.create(competition=competition, name='2026/2027')
-        self.group = Group.objects.create(season=self.season, name='Grupo Next', slug='grupo-next')
-        self.team = Team.objects.create(name='Equipo Next', slug='equipo-next', group=self.group)
-        self.rival = Team.objects.create(name='Rival Next', slug='rival-next', group=self.group)
+        competition = Competition.objects.create(name="Liga Next", slug="liga-next")
+        self.season = Season.objects.create(competition=competition, name="2026/2027")
+        self.group = Group.objects.create(season=self.season, name="Grupo Next", slug="grupo-next")
+        self.team = Team.objects.create(name="Equipo Next", slug="equipo-next", group=self.group)
+        self.rival = Team.objects.create(name="Rival Next", slug="rival-next", group=self.group)
 
     def test_build_universo_standings_lookup_normalizes_keys(self):
         lookup = next_match_services.build_universo_standings_lookup(
             {
-                'standings': [
+                "standings": [
                     {
-                        'team': 'Rival Next',
-                        'full_name': 'Rival Next C.F.',
-                        'crest_url': '/crest.png',
-                        'team_code': '222',
+                        "team": "Rival Next",
+                        "full_name": "Rival Next C.F.",
+                        "crest_url": "/crest.png",
+                        "team_code": "222",
                     }
                 ]
             }
         )
 
-        self.assertEqual(lookup['rivalnext']['full_name'], 'Rival Next C.F.')
-        self.assertEqual(lookup['rivalnext']['team_code'], '222')
+        self.assertEqual(lookup["rivalnext"]["full_name"], "Rival Next C.F.")
+        self.assertEqual(lookup["rivalnext"]["team_code"], "222")
 
     def test_resolve_rival_identity_prefers_matching_snapshot_metadata(self):
         with patch(
-            'football.next_match_services.load_universo_snapshot',
-            return_value={'standings': [{'team': 'Rival Next', 'full_name': 'Rival Next C.F.'}]},
+            "football.next_match_services.load_universo_snapshot",
+            return_value={"standings": [{"team": "Rival Next", "full_name": "Rival Next C.F."}]},
         ):
-            full_name, _crest = next_match_services.resolve_rival_identity('Rival Next')
+            full_name, _crest = next_match_services.resolve_rival_identity("Rival Next")
 
-        self.assertEqual(full_name, 'Rival Next C.F.')
+        self.assertEqual(full_name, "Rival Next C.F.")
 
     def test_build_next_match_from_convocation_normalizes_future_record(self):
         match_date = timezone.localdate() + timedelta(days=5)
         match = Match.objects.create(
             season=self.season,
             group=self.group,
-            round='J12',
+            round="J12",
             date=match_date,
-            location='Campo Next',
+            location="Campo Next",
             home_team=self.rival,
             away_team=self.team,
         )
         ConvocationRecord.objects.create(
             team=self.team,
             match=match,
-            round='J12',
+            round="J12",
             match_date=match_date,
             match_time=time(17, 30),
-            location='Campo Next',
-            opponent_name='Rival Next',
+            location="Campo Next",
+            opponent_name="Rival Next",
             is_current=True,
         )
 
         payload = next_match_services.build_next_match_from_convocation(self.team)
 
-        self.assertEqual(payload['round'], 'J12')
-        self.assertEqual(payload['date'], match_date.isoformat())
-        self.assertEqual(payload['time'], '17:30')
-        self.assertEqual(payload['opponent']['name'], 'Rival Next')
-        self.assertFalse(payload['home'])
-        self.assertEqual(payload['source'], 'convocation-manual')
+        self.assertEqual(payload["round"], "J12")
+        self.assertEqual(payload["date"], match_date.isoformat())
+        self.assertEqual(payload["time"], "17:30")
+        self.assertEqual(payload["opponent"]["name"], "Rival Next")
+        self.assertFalse(payload["home"])
+        self.assertEqual(payload["source"], "convocation-manual")
 
     def test_build_next_match_from_convocation_ignores_past_record(self):
         ConvocationRecord.objects.create(
             team=self.team,
-            round='J1',
+            round="J1",
             match_date=timezone.localdate() - timedelta(days=1),
-            opponent_name='Rival Next',
+            opponent_name="Rival Next",
             is_current=True,
         )
 
@@ -100,8 +100,8 @@ class NextMatchServicesTests(TestCase):
 
     def test_find_universo_next_match_for_context_returns_future_live_match(self):
         workspace = Workspace.objects.create(
-            name='Cliente Next Live',
-            slug='cliente-next-live',
+            name="Cliente Next Live",
+            slug="cliente-next-live",
             kind=Workspace.KIND_CLUB,
             primary_team=self.team,
         )
@@ -109,42 +109,42 @@ class NextMatchServicesTests(TestCase):
             workspace=workspace,
             team=self.team,
             provider=WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
-            external_group_key='45030656',
-            external_team_name='Equipo Next',
-            external_team_key='111',
+            external_group_key="45030656",
+            external_team_name="Equipo Next",
+            external_team_key="111",
         )
-        future_date = (timezone.localdate() + timedelta(days=7)).strftime('%d/%m/%Y')
+        future_date = (timezone.localdate() + timedelta(days=7)).strftime("%d/%m/%Y")
         payload = {
-            'jornada': '12',
-            'fecha_jornada': future_date,
-            'nombre_jornada': 'Jornada 12',
-            'listado_jornadas': [{'jornadas': [{'codjornada': '12'}]}],
-            'partidos': [
+            "jornada": "12",
+            "fecha_jornada": future_date,
+            "nombre_jornada": "Jornada 12",
+            "listado_jornadas": [{"jornadas": [{"codjornada": "12"}]}],
+            "partidos": [
                 {
-                    'Nombre_equipo_local': 'Equipo Next',
-                    'Nombre_equipo_visitante': 'Rival Next',
-                    'CodEquipo_local': '111',
-                    'CodEquipo_visitante': '222',
-                    'fecha': future_date,
-                    'hora': '18:00',
-                    'campojuego': 'Campo Universo',
+                    "Nombre_equipo_local": "Equipo Next",
+                    "Nombre_equipo_visitante": "Rival Next",
+                    "CodEquipo_local": "111",
+                    "CodEquipo_visitante": "222",
+                    "fecha": future_date,
+                    "hora": "18:00",
+                    "campojuego": "Campo Universo",
                 }
             ],
         }
 
-        with patch('football.next_match_services.fetch_universo_live_results', return_value=payload):
+        with patch("football.next_match_services.fetch_universo_live_results", return_value=payload):
             result = next_match_services.find_universo_next_match_for_context(context, self.team)
 
-        self.assertEqual(result['round'], 'Jornada 12')
-        self.assertEqual(result['opponent']['name'], 'Rival Next')
-        self.assertEqual(result['opponent']['team_code'], '222')
-        self.assertTrue(result['home'])
-        self.assertEqual(result['source'], 'universo-live')
+        self.assertEqual(result["round"], "Jornada 12")
+        self.assertEqual(result["opponent"]["name"], "Rival Next")
+        self.assertEqual(result["opponent"]["team_code"], "222")
+        self.assertTrue(result["home"])
+        self.assertEqual(result["source"], "universo-live")
 
     def test_find_universo_next_match_for_context_ignores_past_live_match(self):
         workspace = Workspace.objects.create(
-            name='Cliente Next Past',
-            slug='cliente-next-past',
+            name="Cliente Next Past",
+            slug="cliente-next-past",
             kind=Workspace.KIND_CLUB,
             primary_team=self.team,
         )
@@ -152,41 +152,41 @@ class NextMatchServicesTests(TestCase):
             workspace=workspace,
             team=self.team,
             provider=WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
-            external_group_key='45030656',
-            external_team_name='Equipo Next',
+            external_group_key="45030656",
+            external_team_name="Equipo Next",
         )
-        past_date = (timezone.localdate() - timedelta(days=1)).strftime('%d/%m/%Y')
+        past_date = (timezone.localdate() - timedelta(days=1)).strftime("%d/%m/%Y")
         payload = {
-            'jornada': '1',
-            'fecha_jornada': past_date,
-            'listado_jornadas': [{'jornadas': [{'codjornada': '1'}]}],
-            'partidos': [
+            "jornada": "1",
+            "fecha_jornada": past_date,
+            "listado_jornadas": [{"jornadas": [{"codjornada": "1"}]}],
+            "partidos": [
                 {
-                    'Nombre_equipo_local': 'Equipo Next',
-                    'Nombre_equipo_visitante': 'Rival Next',
-                    'fecha': past_date,
+                    "Nombre_equipo_local": "Equipo Next",
+                    "Nombre_equipo_visitante": "Rival Next",
+                    "fecha": past_date,
                 }
             ],
         }
 
-        with patch('football.next_match_services.fetch_universo_live_results', return_value=payload):
+        with patch("football.next_match_services.fetch_universo_live_results", return_value=payload):
             result = next_match_services.find_universo_next_match_for_context(context, self.team)
 
         self.assertEqual(result, {})
 
     def test_load_cached_next_match_rejects_stale_next_match(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            cache_path = Path(tmpdir) / 'next.json'
+            cache_path = Path(tmpdir) / "next.json"
             cache_path.write_text(
                 json.dumps(
                     {
-                        'round': 'J1',
-                        'date': (timezone.localdate() - timedelta(days=1)).isoformat(),
-                        'opponent': {'name': 'Rival Next'},
-                        'status': 'next',
+                        "round": "J1",
+                        "date": (timezone.localdate() - timedelta(days=1)).isoformat(),
+                        "opponent": {"name": "Rival Next"},
+                        "status": "next",
                     }
                 ),
-                encoding='utf-8',
+                encoding="utf-8",
             )
 
             payload = next_match_services.load_cached_next_match(cache_path)
@@ -195,8 +195,8 @@ class NextMatchServicesTests(TestCase):
 
     def test_load_preferred_next_match_payload_uses_provider_first(self):
         workspace = Workspace.objects.create(
-            name='Cliente Preferred',
-            slug='cliente-preferred',
+            name="Cliente Preferred",
+            slug="cliente-preferred",
             kind=Workspace.KIND_CLUB,
             primary_team=self.team,
         )
@@ -204,8 +204,8 @@ class NextMatchServicesTests(TestCase):
             workspace=workspace,
             team=self.team,
             provider=WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
-            external_group_key='45030656',
-            external_team_name='Equipo Next',
+            external_group_key="45030656",
+            external_team_name="Equipo Next",
         )
         future_date = (timezone.localdate() + timedelta(days=5)).isoformat()
 
@@ -214,23 +214,23 @@ class NextMatchServicesTests(TestCase):
             competition_context=context,
             bind_context=False,
             find_provider_func=lambda _context, _team: {
-                'round': 'J20',
-                'date': future_date,
-                'opponent': {'name': 'Rival Preferred'},
-                'status': 'next',
-                'source': 'universo-live',
+                "round": "J20",
+                "date": future_date,
+                "opponent": {"name": "Rival Preferred"},
+                "status": "next",
+                "source": "universo-live",
             },
         )
 
-        self.assertEqual(payload['opponent']['name'], 'Rival Preferred')
-        self.assertEqual(payload['source'], 'universo-live')
+        self.assertEqual(payload["opponent"]["name"], "Rival Preferred")
+        self.assertEqual(payload["source"], "universo-live")
 
     def test_next_match_payload_is_reliable_rejects_placeholder(self):
         payload = {
-            'round': 'J1',
-            'date': (timezone.localdate() + timedelta(days=5)).isoformat(),
-            'opponent': {'name': 'Rival por confirmar'},
-            'status': 'next',
+            "round": "J1",
+            "date": (timezone.localdate() + timedelta(days=5)).isoformat(),
+            "opponent": {"name": "Rival por confirmar"},
+            "status": "next",
         }
 
         self.assertFalse(next_match_services.next_match_payload_is_reliable(payload))

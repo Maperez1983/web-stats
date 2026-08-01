@@ -27,7 +27,9 @@ class Command(BaseCommand):
     help = "Exporta tracks corregidos del Video Studio a dataset YOLO local para entrenar detección/reidentificación."
 
     def add_arguments(self, parser):
-        parser.add_argument("--clip-id", type=int, action="append", default=[], help="VideoClip.id a exportar. Repetible.")
+        parser.add_argument(
+            "--clip-id", type=int, action="append", default=[], help="VideoClip.id a exportar. Repetible."
+        )
         parser.add_argument("--video-id", type=int, default=0, help="Exporta clips de un RivalVideo.")
         parser.add_argument("--out", type=str, default="data/video_ai/yolo_mvp", help="Directorio dataset.")
         parser.add_argument("--class-name", type=str, default="player", help="Nombre de clase YOLO.")
@@ -201,7 +203,9 @@ class Command(BaseCommand):
             ),
             encoding="utf-8",
         )
-        (out_dir / "manifest.json").write_text(json.dumps(manifest_rows, ensure_ascii=False, indent=2), encoding="utf-8")
+        (out_dir / "manifest.json").write_text(
+            json.dumps(manifest_rows, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
         (out_dir / "README.md").write_text(
             "\n".join(
                 [
@@ -222,7 +226,5 @@ class Command(BaseCommand):
         )
 
         self.stdout.write(
-            self.style.SUCCESS(
-                f"Video AI dataset exportado: images={exported} skipped={skipped} out={out_dir}"
-            )
+            self.style.SUCCESS(f"Video AI dataset exportado: images={exported} skipped={skipped} out={out_dir}")
         )

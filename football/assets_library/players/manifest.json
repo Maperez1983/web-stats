@@ -1,0 +1,27 @@
+{
+  "category": "players",
+  "category_type": "entity",
+  "default_family": "player_tokens",
+  "families": [
+    "player_tokens",
+    "player_photographic",
+    "player_premium"
+  ],
+  "variants": [
+    "default",
+    "academy",
+    "broadcast",
+    "premium",
+    "outline"
+  ],
+  "fallback_asset": "players/player_tokens/default",
+  "compatible_themes": [
+    "classic",
+    "academy",
+    "broadcast",
+    "premium"
+  ],
+  "resolution_independent": true,
+  "theme_overrides_supported": true,
+  "assets": []
+}

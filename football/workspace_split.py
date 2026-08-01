@@ -43,9 +43,7 @@ class SplitWorkspacePlanRow:
 def build_split_workspace_plan(workspace: Workspace, *, include_primary: bool = False) -> list[SplitWorkspacePlanRow]:
     if not workspace or workspace.kind != Workspace.KIND_CLUB:
         return []
-    links = list(
-        WorkspaceTeam.objects.filter(workspace=workspace).select_related("team").order_by("-is_default", "id")
-    )
+    links = list(WorkspaceTeam.objects.filter(workspace=workspace).select_related("team").order_by("-is_default", "id"))
     if len(links) <= 1:
         return []
 
@@ -90,7 +88,9 @@ def build_split_workspace_plan(workspace: Workspace, *, include_primary: bool = 
 
         team_access_user_ids = {
             int(uid)
-            for uid in WorkspaceTeamAccess.objects.filter(workspace=workspace, team=team).values_list("user_id", flat=True)
+            for uid in WorkspaceTeamAccess.objects.filter(workspace=workspace, team=team).values_list(
+                "user_id", flat=True
+            )
         }
         selected_user_ids = set(owner_ids) | set(team_access_user_ids)
         if getattr(workspace, "owner_user_id", None):
@@ -100,9 +100,7 @@ def build_split_workspace_plan(workspace: Workspace, *, include_primary: bool = 
         # Staff: global + específico del equipo
         try:
             staff_count = int(
-                StaffMember.objects.filter(workspace=workspace)
-                .filter(team__isnull=True)
-                .count()
+                StaffMember.objects.filter(workspace=workspace).filter(team__isnull=True).count()
                 + StaffMember.objects.filter(workspace=workspace, team=team).count()
             )
         except Exception:

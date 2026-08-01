@@ -300,7 +300,7 @@ async function openEditor(page, baseUrl, taskId, username, password) {
     page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
     page.click('button[type="submit"], input[type="submit"]'),
   ]);
-  await page.goto(`${baseUrl}/coach/sesiones/tarea/${taskId}/editor-pro/?editor2d=1`, {
+  await page.goto(`${baseUrl}/coach/sesiones/tarea/${taskId}/editor-pro/`, {
     waitUntil: 'domcontentloaded',
   });
   await page.locator('#tactical-editor-root').waitFor({ state: 'visible', timeout: 30_000 });

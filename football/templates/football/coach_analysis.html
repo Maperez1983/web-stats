@@ -700,7 +700,7 @@
 		          </div>
 		        </section>
 		        {% endif %}
-	
+
 	        <div data-tab="reports">
 	        <form class="form" method="post">
 	          {% csrf_token %}
@@ -923,7 +923,7 @@
 			            <div class="meta" style="margin-top:0.75rem;">
 			              Los informes (PPTX/PDF) se gestionan en la pestaña <strong>Informes</strong>.
 			            </div>
-		
+
 		            <details class="collapsible" style="margin-top:0.75rem;" {% if video_message or video_error %}open{% endif %}>
 		              <summary>Añadir vídeo (archivo / YouTube)</summary>
 		              <div class="collapsible-body">
@@ -1587,7 +1587,7 @@
 		          });
 		        }
 		      })();
-	
+
 	      (function () {
 	        const form = document.getElementById('video-upload-form');
 	        if (!form) return;
@@ -1692,7 +1692,7 @@
 	          if (!finResp.ok || !finData?.ok) throw new Error(finData?.error || 'finish');
             return Number(finData.video_id || 0) || 0;
 	        };
-	
+
 	        form.addEventListener('submit', (ev) => {
 	          if (!fileInput || !fileInput.files || !fileInput.files.length) return;
 	          const file = fileInput.files[0];
@@ -1701,7 +1701,7 @@
 	            alert(`El vídeo supera el límite de ${maxMb}MB.`);
 	            return;
 	          }
-	
+
 	          ev.preventDefault();
 	          // Chunk upload para vídeos grandes (mejor en redes móviles / iPad).
 	          if (file && file.size && file.size > chunkThresholdBytes && chunkInitUrl && chunkPutUrl && chunkFinishUrl) {
@@ -1725,13 +1725,13 @@
 	          setProgress(0);
 	          if (wrap) wrap.classList.add('is-visible');
 	          if (submit) submit.disabled = true;
-	
+
 	          xhr.upload.addEventListener('progress', (e) => {
 	            if (!e.lengthComputable) return;
 	            const pct = Math.max(0, Math.min(100, Math.round((e.loaded / e.total) * 100)));
 	            setProgress(pct);
 	          });
-	
+
 	          xhr.addEventListener('load', () => {
 	            if (xhr.status >= 200 && xhr.status < 300) {
                 let data = {};
@@ -1747,13 +1747,13 @@
 	            if (submit) submit.disabled = false;
 	            alert('No se pudo subir el vídeo. Revisa el tamaño o inténtalo de nuevo.');
 	          });
-	
+
 	          xhr.addEventListener('error', () => {
 	            if (wrap) wrap.classList.remove('is-visible');
 	            if (submit) submit.disabled = false;
 	            alert('Error de red al subir el vídeo.');
 	          });
-	
+
 	          const fd = new FormData(form);
 	          xhr.send(fd);
 	        });

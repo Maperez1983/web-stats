@@ -6,24 +6,23 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('football', '0090_rivalvideo_source_url'),
+        ("football", "0090_rivalvideo_source_url"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='rivalvideo',
-            name='source',
+            model_name="rivalvideo",
+            name="source",
             field=models.CharField(
                 choices=[
-                    ('universo', 'Universo RFAF'),
-                    ('rfaf', 'RFAF'),
-                    ('preferente', 'La Preferente'),
-                    ('youtube', 'YouTube'),
-                    ('manual', 'Manual'),
+                    ("universo", "Universo RFAF"),
+                    ("rfaf", "RFAF"),
+                    ("preferente", "La Preferente"),
+                    ("youtube", "YouTube"),
+                    ("manual", "Manual"),
                 ],
-                default='manual',
+                default="manual",
                 max_length=20,
             ),
         ),
     ]
-

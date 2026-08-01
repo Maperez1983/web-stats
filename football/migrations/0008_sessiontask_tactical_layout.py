@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('football', '0007_training_planner_models'),
+        ("football", "0007_training_planner_models"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='sessiontask',
-            name='tactical_layout',
+            model_name="sessiontask",
+            name="tactical_layout",
             field=models.JSONField(blank=True, default=dict),
         ),
     ]

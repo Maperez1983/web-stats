@@ -6,7 +6,6 @@ from pathlib import Path
 
 from PIL import Image
 
-
 SPECS: list[tuple[str, int]] = [
     ("Icon-20@1x.png", 20),
     ("Icon-20@2x.png", 40),
@@ -78,4 +77,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

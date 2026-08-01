@@ -5,7 +5,6 @@ import ast
 import json
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 OUT_DIR = ROOT / "audits" / "2026-05-14"
 MODELS = ROOT / "football" / "models.py"
@@ -79,7 +78,9 @@ def main() -> None:
         "field_count": len(fields),
         "fields": fields,
     }
-    (OUT_DIR / "models_data_inventory.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    (OUT_DIR / "models_data_inventory.json").write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
     # Basic markdown focused on file uploads
     file_fields = [f for f in fields if f["type"] in {"FileField", "ImageField"}]

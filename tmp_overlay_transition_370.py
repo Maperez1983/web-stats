@@ -5,9 +5,10 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-
 SOURCE = Path("/Volumes/Mac Satecchi/Mac/Web-stats/media/rival-videos/video-youtube-analisis-proxy.mp4")
-OUT = Path("/Volumes/Mac Satecchi/Mac/Downloads/IA_MaxCuts_SeniorCoach108_video_7/annotated_cv/annotated_cv_370_CORREGIDO_presion_orientada_pase_espalda.mp4")
+OUT = Path(
+    "/Volumes/Mac Satecchi/Mac/Downloads/IA_MaxCuts_SeniorCoach108_video_7/annotated_cv/annotated_cv_370_CORREGIDO_presion_orientada_pase_espalda.mp4"
+)
 START_S = 2.0
 END_S = 48.0
 

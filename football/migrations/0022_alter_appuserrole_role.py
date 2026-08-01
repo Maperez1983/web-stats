@@ -6,13 +6,25 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('football', '0021_taskblueprint'),
+        ("football", "0021_taskblueprint"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='appuserrole',
-            name='role',
-            field=models.CharField(choices=[('jugador', 'Jugador'), ('invitado', 'Invitado'), ('entrenador', 'Entrenador'), ('preparador_fisico', 'Preparador físico'), ('preparador_portero', 'Preparador portero'), ('analista', 'Analista'), ('administrador', 'Administrador')], default='jugador', max_length=32),
+            model_name="appuserrole",
+            name="role",
+            field=models.CharField(
+                choices=[
+                    ("jugador", "Jugador"),
+                    ("invitado", "Invitado"),
+                    ("entrenador", "Entrenador"),
+                    ("preparador_fisico", "Preparador físico"),
+                    ("preparador_portero", "Preparador portero"),
+                    ("analista", "Analista"),
+                    ("administrador", "Administrador"),
+                ],
+                default="jugador",
+                max_length=32,
+            ),
         ),
     ]

@@ -1,4 +1,5 @@
 from pathlib import Path
+
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
@@ -31,9 +32,7 @@ class Command(BaseCommand):
             if primary_team and primary_team.preferente_url:
                 url = primary_team.preferente_url.strip()
             else:
-                raise CommandError(
-                    "No hay URL disponible. Pasa --url o guarda preferente_url en el equipo principal."
-                )
+                raise CommandError("No hay URL disponible. Pasa --url o guarda preferente_url en el equipo principal.")
 
         try:
             response = _fetch_preferente_response(url, timeout=timeout)

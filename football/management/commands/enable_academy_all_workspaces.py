@@ -33,4 +33,3 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING(f"Dry-run: activar academia en {changed}/{total} workspaces (club)."))
         else:
             self.stdout.write(self.style.SUCCESS(f"OK: academia activada en {changed}/{total} workspaces (club)."))
-

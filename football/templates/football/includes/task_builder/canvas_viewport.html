@@ -2083,20 +2083,6 @@
                       <button type="button" class="button secondary" id="tpad-reinit" title="Reinicia el motor de pizarra (si el canvas se quedó en blanco)">Reiniciar pizarra</button>
 		                    </div>
                       {% endif %}
-                      {% if tactics_mode %}
-                      <div class="resource-panel resource-panel-plantilla is-visible" data-panel="plantilla">
-                        <h3 class="tool-group-title">Plantilla de jugadores</h3>
-                        <div class="library-head library-head-inline library-head-plantilla">
-                          <div class="library-copy">
-                            <div class="library-title">Plantilla del equipo</div>
-                          </div>
-                          <input type="search" class="library-filter" id="task-library-filter" placeholder="Filtra recursos…" aria-label="Filtrar recursos" />
-                        </div>
-                        <div class="roster-bank-slot roster-bank-slot-main" id="task-roster-bank-slot-main">
-                          {% include 'football/_tpad_roster_bank.html' with roster_bank_compact=1 %}
-                        </div>
-                      </div>
-                      {% endif %}
 		              <div class="simple-hint" id="task-simple-hint" hidden>
 		                <strong>Guía rápida:</strong>
 		                {% if tactics_mode %}
@@ -2117,6 +2103,19 @@
 		              </div>
 
 	              </div>
+	              {% if tactics_mode %}
+	                <div class="task-player-bank-dock resource-panel resource-panel-plantilla is-visible" data-panel="plantilla">
+	                  <h3 class="tool-group-title">Plantilla de jugadores</h3>
+	                  <div class="library-head library-head-inline library-head-plantilla">
+	                    <div class="library-copy">
+	                      <div class="library-title">Plantilla del equipo</div>
+	                    </div>
+	                  </div>
+	                  <div class="roster-bank-slot roster-bank-slot-main" id="task-roster-bank-slot-main">
+	                    {% include 'football/_tpad_roster_bank.html' with roster_bank_compact=1 %}
+	                  </div>
+	                </div>
+	              {% endif %}
 	              {% if not tactics_mode %}
 	                <div class="roster-bank-slot roster-bank-slot-main" id="task-roster-bank-slot-main">
 	                  {% include 'football/_tpad_roster_bank.html' %}

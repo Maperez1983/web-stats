@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-
 ROOT = Path(__file__).resolve().parents[2]
 OUT_DIR = ROOT / "audits" / "2026-05-14"
 
@@ -74,7 +73,13 @@ def extract_urlpatterns(py_path: Path) -> list[UrlPattern]:
             # Filter out docstring references: they appear as `path('', views.home...)` in comments/docstring.
             # Our AST parser won't catch comments, but it WILL catch module-level constants if present.
             pass
-        if p.route == "" or "/" in p.route or p.route.startswith(".well-known/") or p.route.endswith(".js") or p.route.endswith(".webmanifest"):
+        if (
+            p.route == ""
+            or "/" in p.route
+            or p.route.startswith(".well-known/")
+            or p.route.endswith(".js")
+            or p.route.endswith(".webmanifest")
+        ):
             real.append(p)
     return real
 
@@ -140,7 +145,9 @@ def main() -> None:
         "pattern_count": len(all_patterns),
         "patterns": all_patterns,
     }
-    (OUT_DIR / "surface_urlpatterns.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    (OUT_DIR / "surface_urlpatterns.json").write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
     # CSRF-exempt summary (from decorators).
     csrf_rows = []
@@ -170,6 +177,5 @@ def main() -> None:
     print(f"wrote {OUT_DIR/'csrf_exempt_endpoints.md'}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
-

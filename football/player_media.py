@@ -8,93 +8,93 @@ from .event_taxonomy import normalize_label
 
 def resolve_player_photo_static_path(player):
     if not player:
-        return ''
-    players_dir = Path(settings.BASE_DIR) / 'static' / 'football' / 'images' / 'players'
+        return ""
+    players_dir = Path(settings.BASE_DIR) / "static" / "football" / "images" / "players"
     if not players_dir.exists():
-        return ''
+        return ""
 
-    team_obj = getattr(player, 'team', None)
-    team_id = getattr(team_obj, 'id', None)
-    team_slug = str(getattr(team_obj, 'slug', '') or '').strip()
+    team_obj = getattr(player, "team", None)
+    team_id = getattr(team_obj, "id", None)
+    team_slug = str(getattr(team_obj, "slug", "") or "").strip()
     try:
-        team_category = normalize_label(getattr(team_obj, 'category', '') or '')
+        team_category = normalize_label(getattr(team_obj, "category", "") or "")
     except Exception:
-        team_category = ''
+        team_category = ""
     try:
-        is_primary_team = bool(getattr(team_obj, 'is_primary', False))
+        is_primary_team = bool(getattr(team_obj, "is_primary", False))
     except Exception:
         is_primary_team = False
     youth_tokens = {
-        'prebenjamin',
-        'pre benjamin',
-        'benjamin',
-        'alevin',
-        'infantil',
-        'cadete',
-        'juvenil',
+        "prebenjamin",
+        "pre benjamin",
+        "benjamin",
+        "alevin",
+        "infantil",
+        "cadete",
+        "juvenil",
     }
     is_youth_category = any(token in team_category for token in youth_tokens) if team_category else False
 
     team_dirs = []
     try:
         if team_id:
-            team_dirs.append(players_dir / f'team-{int(team_id)}')
+            team_dirs.append(players_dir / f"team-{int(team_id)}")
         if team_slug:
             team_dirs.append(players_dir / team_slug)
     except Exception:
         team_dirs = []
     team_dirs = [path for path in team_dirs if path and path.exists()]
 
-    name_slug = slugify(player.name or '')
-    number_value = player.number if player.number is not None else ''
+    name_slug = slugify(player.name or "")
+    number_value = player.number if player.number is not None else ""
     id_candidates = [
-        f'player-{player.id}.png',
-        f'player-{player.id}.jpg',
-        f'player-{player.id}.jpeg',
-        f'player-{player.id}.webp',
+        f"player-{player.id}.png",
+        f"player-{player.id}.jpg",
+        f"player-{player.id}.jpeg",
+        f"player-{player.id}.webp",
     ]
     candidates = []
-    if name_slug and number_value != '':
+    if name_slug and number_value != "":
         candidates.extend(
             [
-                f'{name_slug}-n{number_value}-final.png',
-                f'{name_slug}-n{number_value}.png',
-                f'{name_slug}-{number_value}.png',
+                f"{name_slug}-n{number_value}-final.png",
+                f"{name_slug}-n{number_value}.png",
+                f"{name_slug}-{number_value}.png",
             ]
         )
     if name_slug:
         candidates.extend(
             [
-                f'{name_slug}-final.png',
-                f'{name_slug}.png',
-                f'{name_slug}.jpg',
-                f'{name_slug}.jpeg',
+                f"{name_slug}-final.png",
+                f"{name_slug}.png",
+                f"{name_slug}.jpg",
+                f"{name_slug}.jpeg",
             ]
         )
-    if number_value != '':
+    if number_value != "":
         candidates.extend(
             [
-                f'n{number_value}-{name_slug}.png',
-                f'{name_slug}-n{number_value}-cut.png',
-                f'{name_slug}-n{number_value}-crop.png',
+                f"n{number_value}-{name_slug}.png",
+                f"{name_slug}-n{number_value}-cut.png",
+                f"{name_slug}-n{number_value}-crop.png",
             ]
         )
 
     def _relative_static_path(file_path):
         try:
             rel_dir = file_path.parent.relative_to(players_dir)
-            if str(rel_dir) == '.':
-                return f'football/images/players/{file_path.name}'
-            return f'football/images/players/{rel_dir.as_posix()}/{file_path.name}'
+            if str(rel_dir) == ".":
+                return f"football/images/players/{file_path.name}"
+            return f"football/images/players/{rel_dir.as_posix()}/{file_path.name}"
         except Exception:
-            return f'football/images/players/{file_path.name}'
+            return f"football/images/players/{file_path.name}"
 
     def _resolve_in_dirs(filename, dirs):
         for base_dir in dirs:
             file_path = base_dir / filename
             if file_path.exists():
                 return _relative_static_path(file_path)
-        return ''
+        return ""
 
     for filename in id_candidates:
         resolved = _resolve_in_dirs(filename, team_dirs + [players_dir])
@@ -112,13 +112,13 @@ def resolve_player_photo_static_path(player):
         if resolved:
             return resolved
 
-    if number_value == '':
-        return ''
+    if number_value == "":
+        return ""
     wildcard_patterns = [
-        f'*-n{number_value}-final.*',
-        f'*-n{number_value}-cut.*',
-        f'*-n{number_value}-crop.*',
-        f'*-n{number_value}.*',
+        f"*-n{number_value}-final.*",
+        f"*-n{number_value}-cut.*",
+        f"*-n{number_value}-crop.*",
+        f"*-n{number_value}.*",
     ]
     wildcard_dirs = team_dirs + ([players_dir] if allow_global_dir else [])
     wildcard_matches = []
@@ -129,7 +129,7 @@ def resolve_player_photo_static_path(player):
                 for file_path in base_dir.glob(pattern):
                     if not file_path.is_file():
                         continue
-                    signature = f'{base_dir}:{file_path.name}'
+                    signature = f"{base_dir}:{file_path.name}"
                     if signature in seen_matches:
                         continue
                     seen_matches.add(signature)
@@ -138,32 +138,41 @@ def resolve_player_photo_static_path(player):
         wildcard_matches = []
     if wildcard_matches:
         try:
-            tokens = [token for token in str(name_slug or '').split('-') if token]
+            tokens = [token for token in str(name_slug or "").split("-") if token]
 
             def _has_name_affinity(path_obj):
-                fname_tokens = [token for token in str(path_obj.stem or '').lower().split('-') if token and not token.startswith('n')]
+                fname_tokens = [
+                    token
+                    for token in str(path_obj.stem or "").lower().split("-")
+                    if token and not token.startswith("n")
+                ]
                 for token in tokens:
                     if not token:
                         continue
-                    token_stem = token[:-1] if len(token) > 4 and token.endswith('s') else token
+                    token_stem = token[:-1] if len(token) > 4 and token.endswith("s") else token
                     for fname_token in fname_tokens:
-                        fname_stem = fname_token[:-1] if len(fname_token) > 4 and fname_token.endswith('s') else fname_token
+                        fname_stem = (
+                            fname_token[:-1] if len(fname_token) > 4 and fname_token.endswith("s") else fname_token
+                        )
                         if token_stem and fname_stem and (token_stem in fname_stem or fname_stem in token_stem):
                             return True
                 return False
 
             def _score(path_obj):
-                fname = str(path_obj.name or '').lower()
+                fname = str(path_obj.name or "").lower()
                 return sum(1 for token in tokens if token and token in fname)
 
-            scored = sorted(((int(_score(path_obj)), path_obj) for path_obj in wildcard_matches), key=lambda item: (-item[0], item[1].name))
+            scored = sorted(
+                ((int(_score(path_obj)), path_obj) for path_obj in wildcard_matches),
+                key=lambda item: (-item[0], item[1].name),
+            )
             best_score, best_path = scored[0]
             if best_score > 0 or _has_name_affinity(best_path):
                 return _relative_static_path(best_path)
         except Exception:
-            return ''
+            return ""
     if allow_global_dir:
-        return ''
+        return ""
 
     # Fallback para jugadores movidos de categoría: las fotos históricas del club
     # pueden vivir en la carpeta global aunque el jugador ya pertenezca a un equipo filial.
@@ -171,7 +180,7 @@ def resolve_player_photo_static_path(player):
         resolved = _resolve_in_dirs(filename, [players_dir])
         if resolved:
             return resolved
-    if number_value != '':
+    if number_value != "":
         global_matches = []
         try:
             seen_global = set()
@@ -186,20 +195,26 @@ def resolve_player_photo_static_path(player):
         except Exception:
             global_matches = []
         if global_matches:
-            tokens = [token for token in str(name_slug or '').split('-') if token]
+            tokens = [token for token in str(name_slug or "").split("-") if token]
 
             def _global_score(path_obj):
-                fname = str(path_obj.name or '').lower()
+                fname = str(path_obj.name or "").lower()
                 return sum(1 for token in tokens if token and token in fname)
 
             def _has_global_name_affinity(path_obj):
-                fname_tokens = [token for token in str(path_obj.stem or '').lower().split('-') if token and not token.startswith('n')]
+                fname_tokens = [
+                    token
+                    for token in str(path_obj.stem or "").lower().split("-")
+                    if token and not token.startswith("n")
+                ]
                 for token in tokens:
                     if not token:
                         continue
-                    token_stem = token[:-1] if len(token) > 4 and token.endswith('s') else token
+                    token_stem = token[:-1] if len(token) > 4 and token.endswith("s") else token
                     for fname_token in fname_tokens:
-                        fname_stem = fname_token[:-1] if len(fname_token) > 4 and fname_token.endswith('s') else fname_token
+                        fname_stem = (
+                            fname_token[:-1] if len(fname_token) > 4 and fname_token.endswith("s") else fname_token
+                        )
                         if token_stem and fname_stem and (token_stem in fname_stem or fname_stem in token_stem):
                             return True
                 return False
@@ -211,4 +226,4 @@ def resolve_player_photo_static_path(player):
             best_score, best_path = scored[0]
             if best_score > 0 or (len(scored) == 1 and _has_global_name_affinity(best_path)):
                 return _relative_static_path(best_path)
-    return ''
+    return ""

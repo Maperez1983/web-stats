@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import json
 import mimetypes
 import os
-import contextlib
 import shutil
+import tempfile
 from pathlib import Path
 from urllib.parse import urlparse
 
 from django.conf import settings
-
 
 # Render: ensure Playwright browsers are looked up from the "hermetic" install location (bundled with
 # the app) instead of a per-user cache that may not persist between build/runtime or across instances.
@@ -129,6 +129,69 @@ def _rewrite_urls_to_data_urls(payload):
     return payload
 
 
+def _local_file_url_for_asset(url: str) -> str:
+    raw = str(url or "").strip()
+    if not raw:
+        return ""
+    if raw.startswith("data:"):
+        return raw
+    if raw.startswith("file://"):
+        return raw
+
+    path_hint = raw
+    if raw.startswith("http://") or raw.startswith("https://"):
+        try:
+            parsed = urlparse(raw)
+            path_hint = str(parsed.path or "").strip() or raw
+        except Exception:
+            path_hint = raw
+    else:
+        try:
+            parsed = urlparse(raw)
+            if parsed.scheme and parsed.path:
+                path_hint = str(parsed.path or "").strip() or raw
+        except Exception:
+            path_hint = raw
+
+    if "?" in path_hint:
+        path_hint = path_hint.split("?", 1)[0]
+    if "#" in path_hint:
+        path_hint = path_hint.split("#", 1)[0]
+
+    direct_path = Path(path_hint)
+    if direct_path.exists() and direct_path.is_file():
+        return direct_path.resolve().as_uri()
+
+    candidates: list[Path] = []
+    if "/static/" in path_hint or path_hint.startswith("/static/") or path_hint.startswith("static/"):
+        candidates.extend(_static_candidates_for_url(path_hint))
+    if "/media/" in path_hint or path_hint.startswith("/media/") or path_hint.startswith("media/"):
+        candidates.extend(_media_candidates_for_url(path_hint))
+
+    for candidate in candidates:
+        try:
+            if candidate.exists() and candidate.is_file():
+                return candidate.resolve().as_uri()
+        except Exception:
+            continue
+    return ""
+
+
+def _rewrite_payload_asset_urls_to_file_urls(payload):
+    if isinstance(payload, dict):
+        rewritten = {}
+        for key, value in payload.items():
+            lower_key = str(key or "").strip().lower()
+            if isinstance(value, str) and lower_key in {"src", "url", "href", "stadiummodelurl", "playermodelurl"}:
+                rewritten[key] = _local_file_url_for_asset(value) or value
+            else:
+                rewritten[key] = _rewrite_payload_asset_urls_to_file_urls(value)
+        return rewritten
+    if isinstance(payload, list):
+        return [_rewrite_payload_asset_urls_to_file_urls(item) for item in payload]
+    return payload
+
+
 def _browser_executable_candidates(browser_type=None) -> list[str]:
     candidates: list[str] = []
     browser_name = str(getattr(browser_type, "name", "") or "").strip().lower()
@@ -168,6 +231,13 @@ def _browser_executable_candidates(browser_type=None) -> list[str]:
                 shutil.which("chrome") if browser_name == "chromium" else None,
                 shutil.which("msedge") if browser_name == "chromium" else None,
                 shutil.which("microsoft-edge") if browser_name == "chromium" else None,
+                "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" if browser_name == "chromium" else None,
+                (
+                    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"
+                    if browser_name == "chromium"
+                    else None
+                ),
+                "/Applications/Chromium.app/Contents/MacOS/Chromium" if browser_name == "chromium" else None,
                 "/Applications/Firefox.app/Contents/MacOS/firefox" if browser_name == "firefox" else None,
                 shutil.which("chromium"),
                 shutil.which("chromium-browser"),
@@ -176,6 +246,9 @@ def _browser_executable_candidates(browser_type=None) -> list[str]:
                 shutil.which("chrome"),
                 shutil.which("msedge"),
                 shutil.which("microsoft-edge"),
+                "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+                "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+                "/Applications/Chromium.app/Contents/MacOS/Chromium",
                 "/usr/bin/chromium",
                 "/usr/bin/chromium-browser",
                 "/usr/bin/google-chrome",
@@ -225,23 +298,31 @@ def _browser_executable_candidates(browser_type=None) -> list[str]:
     if cache_roots:
         if browser_name == "chromium":
             for root in cache_roots:
-                _add_existing_paths([
-                    *root.glob("chromium_headless_shell-*/chrome-headless-shell"),
-                    *root.glob("chromium_headless_shell-*/chrome-headless-shell-mac-*/chrome-headless-shell"),
-                    *root.glob("chromium-*/chrome-mac/Chromium.app/Contents/MacOS/Chromium"),
-                    *root.glob("chromium-*/chrome-mac/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"),
-                ])
+                _add_existing_paths(
+                    [
+                        *root.glob("chromium_headless_shell-*/chrome-headless-shell"),
+                        *root.glob("chromium_headless_shell-*/chrome-headless-shell-mac-*/chrome-headless-shell"),
+                        *root.glob("chromium-*/chrome-mac/Chromium.app/Contents/MacOS/Chromium"),
+                        *root.glob(
+                            "chromium-*/chrome-mac/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
+                        ),
+                    ]
+                )
         elif browser_name == "firefox":
             for root in cache_roots:
-                _add_existing_paths([
-                    *root.glob("firefox-*/firefox/Nightly.app/Contents/MacOS/firefox"),
-                    *root.glob("firefox-*/firefox/firefox"),
-                ])
+                _add_existing_paths(
+                    [
+                        *root.glob("firefox-*/firefox/Nightly.app/Contents/MacOS/firefox"),
+                        *root.glob("firefox-*/firefox/firefox"),
+                    ]
+                )
         elif browser_name == "webkit":
             for root in cache_roots:
-                _add_existing_paths([
-                    *root.glob("webkit-*/Playwright.app/Contents/MacOS/Playwright"),
-                ])
+                _add_existing_paths(
+                    [
+                        *root.glob("webkit-*/Playwright.app/Contents/MacOS/Playwright"),
+                    ]
+                )
 
     deduped: list[str] = []
     seen = set()
@@ -275,7 +356,7 @@ def _launch_browser_with_fallbacks(browser_type, *, launch_kwargs=None):
 
 
 @contextlib.contextmanager
-def _acquire_playwright_browser():
+def _acquire_playwright_browser(browser_names: tuple[str, ...] | None = None):
     """
     Crea un browser de Playwright y lo cierra al salir.
 
@@ -293,10 +374,18 @@ def _acquire_playwright_browser():
     browser = None
     try:
         pw = sync_playwright().start()
-        browser_specs = [
-            (pw.chromium, {"args": ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]}),
-            (pw.firefox, {}),
-            (pw.webkit, {}),
+        requested_names = tuple(
+            str(name or "").strip().lower()
+            for name in (browser_names or ("chromium", "firefox", "webkit"))
+            if str(name or "").strip()
+        ) or ("chromium",)
+        browser_registry = {
+            "chromium": (pw.chromium, {"args": ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]}),
+            "firefox": (pw.firefox, {}),
+            "webkit": (pw.webkit, {}),
+        }
+        browser_specs = [browser_registry[name] for name in requested_names if name in browser_registry] or [
+            browser_registry["chromium"]
         ]
         last_error = None
         for browser_type, launch_kwargs in browser_specs:
@@ -346,9 +435,23 @@ def render_task_preview_png(
 
     orientation = "portrait" if str(pitch_orientation).strip().lower() == "portrait" else "landscape"
     preset = str(pitch_preset or "full_pitch").strip() or "full_pitch"
-    grass_style = str(pitch_grass_style or "stadium_top").strip().lower()
-    if grass_style not in {"classic", "broadcast", "broadcast_premium", "stadium_top", "realistic", "pro", "artificial", "dry", "wet", "uefa_b", "whiteboard", "blackboard"}:
-        grass_style = "stadium_top"
+    grass_style = str(pitch_grass_style or "broadcast_premium").strip().lower()
+    if grass_style in {"stadium_top", "stadium_top_h", "stadium_top_v", "stadium_native"}:
+        grass_style = "broadcast_premium"
+    if grass_style not in {
+        "classic",
+        "broadcast",
+        "broadcast_premium",
+        "realistic",
+        "pro",
+        "artificial",
+        "dry",
+        "wet",
+        "uefa_b",
+        "whiteboard",
+        "blackboard",
+    }:
+        grass_style = "broadcast_premium"
     try:
         zoom = float(pitch_zoom or 1.0)
     except Exception:
@@ -440,24 +543,22 @@ def render_task_preview_png(
     grass_tiles = {}
     if grass_style == "uefa_b":
         try:
-            tile_path = Path(settings.BASE_DIR) / "football" / "static" / "football" / "images" / "surfaces" / "grass_uefa_b_tile.png"
+            tile_path = (
+                Path(settings.BASE_DIR)
+                / "football"
+                / "static"
+                / "football"
+                / "images"
+                / "surfaces"
+                / "grass_uefa_b_tile.png"
+            )
             if tile_path.exists():
-                grass_tiles["uefa_b"] = "data:image/png;base64," + base64.b64encode(tile_path.read_bytes()).decode("ascii")
+                grass_tiles["uefa_b"] = "data:image/png;base64," + base64.b64encode(tile_path.read_bytes()).decode(
+                    "ascii"
+                )
         except Exception:
             grass_tiles = {}
     pitch3d_top_images = {}
-    if grass_style == "stadium_top":
-        try:
-            base_path = Path(settings.BASE_DIR) / "football" / "static" / "football" / "images" / "pitch3d"
-            top_h = base_path / "stadium_rosaleda_top_h.png"
-            top_v = base_path / "stadium_rosaleda_top_v.png"
-            if top_h.exists():
-                pitch3d_top_images["h"] = "data:image/png;base64," + base64.b64encode(top_h.read_bytes()).decode("ascii")
-            if top_v.exists():
-                pitch3d_top_images["v"] = "data:image/png;base64," + base64.b64encode(top_v.read_bytes()).decode("ascii")
-        except Exception:
-            pitch3d_top_images = {}
-
     html = f"""<!doctype html>
 <html lang="es">
 <head>
@@ -527,6 +628,7 @@ def render_task_preview_png(
 
     # JS snippet: pitch SVG builder extracted from sessions_tactical_pad.js
     js_path = Path(settings.BASE_DIR) / "football" / "static" / "football" / "js" / "sessions_tactical_pad.js"
+    pitch25d_path = Path(settings.BASE_DIR) / "football" / "static" / "football" / "js" / "pitch_surface_25d.js"
     pitch_snippet = ""
     try:
         lines = js_path.read_text(encoding="utf-8").splitlines()
@@ -554,7 +656,7 @@ def render_task_preview_png(
         # Fallback: static directory might be collected.
         fabric_path = Path(settings.STATIC_ROOT) / "vendor" / "fabric.min.js"
 
-    with _acquire_playwright_browser() as (pw, browser):
+    with _acquire_playwright_browser(browser_names=("chromium",)) as (pw, browser):
         if not pw or not browser:
             return None
 
@@ -571,9 +673,9 @@ def render_task_preview_png(
             try:
                 page.route(
                     "**/*",
-                    lambda route: route.abort()
-                    if route.request.url.startswith(("http://", "https://"))
-                    else route.continue_(),
+                    lambda route: (
+                        route.abort() if route.request.url.startswith(("http://", "https://")) else route.continue_()
+                    ),
                 )
             except Exception:
                 pass
@@ -581,6 +683,8 @@ def render_task_preview_png(
 
             if fabric_path.exists():
                 page.add_script_tag(path=str(fabric_path))
+            if pitch25d_path.exists():
+                page.add_script_tag(path=str(pitch25d_path))
             if pitch_snippet:
                 page.add_script_tag(content=f"(function(){{\n{pitch_snippet}\n}})();")
 
@@ -591,7 +695,7 @@ def render_task_preview_png(
 	                const preset = String(cfg.preset || 'full_pitch');
 	                const orientation = String(cfg.orientation || 'landscape') === 'portrait' ? 'portrait' : 'landscape';
 		                const rawGrass = String(cfg.grass_style || 'classic').trim().toLowerCase();
-		                const grassStyle = ['classic', 'broadcast', 'broadcast_premium', 'stadium_top', 'realistic', 'pro', 'artificial', 'dry', 'wet', 'uefa_b', 'whiteboard', 'blackboard'].includes(rawGrass) ? rawGrass : 'stadium_top';
+		                const grassStyle = ['classic', 'broadcast', 'broadcast_premium', 'realistic', 'pro', 'artificial', 'dry', 'wet', 'uefa_b', 'whiteboard', 'blackboard'].includes(rawGrass) ? rawGrass : 'broadcast_premium';
 	                const zoom = Number(cfg.zoom || 1);
 	                const world = cfg.world || {};
 	                const state = cfg.state || {};
@@ -693,6 +797,191 @@ def render_html_selector_png(
     with _acquire_playwright_browser() as (pw, browser):
         if not pw or not browser:
             return None
+
+
+def render_task_detail_3d_scene_png(
+    *,
+    task_title: str = "",
+    stadium_model_url: str = "",
+    stadium_top_h_url: str = "",
+    stadium_top_v_url: str = "",
+    stadium_overlay_h_url: str = "",
+    stadium_overlay_v_url: str = "",
+    player_model_url: str = "",
+    pitch3d_context: dict | None = None,
+    graphic_editor_state: dict | None = None,
+    animation_frames: list | None = None,
+    pitch_orientation: str = "landscape",
+    camera_preset: str | None = None,
+    viewport_width: int | None = None,
+    viewport_height: int | None = None,
+    device_scale_factor: float = 2.0,
+    timeout_ms: int = 30000,
+) -> bytes | None:
+    module_path = Path(settings.BASE_DIR) / "football" / "static" / "football" / "js" / "session_task_detail_3d.js"
+    if not module_path.exists():
+        return None
+
+    normalized_orientation = "portrait" if str(pitch_orientation or "").strip().lower() == "portrait" else "landscape"
+    default_camera = "top_v" if normalized_orientation == "portrait" else "top_h"
+    target_camera = str(camera_preset or default_camera).strip() or default_camera
+
+    if viewport_width is None or viewport_height is None:
+        if normalized_orientation == "portrait":
+            viewport_width = 980
+            viewport_height = 1560
+        else:
+            viewport_width = 1560
+            viewport_height = 980
+    viewport_width = max(640, min(int(viewport_width or 1560), 2200))
+    viewport_height = max(480, min(int(viewport_height or 980), 2200))
+    timeout_ms = max(4000, min(int(timeout_ms or 30000), 60000))
+
+    payload = {
+        "taskTitle": str(task_title or "").strip(),
+        "stadiumModelUrl": _local_file_url_for_asset(stadium_model_url) or str(stadium_model_url or "").strip(),
+        "stadiumTopHSrc": _local_file_url_for_asset(stadium_top_h_url) or str(stadium_top_h_url or "").strip(),
+        "stadiumTopVSrc": _local_file_url_for_asset(stadium_top_v_url) or str(stadium_top_v_url or "").strip(),
+        "stadiumOverlayHSrc": _local_file_url_for_asset(stadium_overlay_h_url)
+        or str(stadium_overlay_h_url or "").strip(),
+        "stadiumOverlayVSrc": _local_file_url_for_asset(stadium_overlay_v_url)
+        or str(stadium_overlay_v_url or "").strip(),
+        "playerModelUrl": _local_file_url_for_asset(player_model_url) or str(player_model_url or "").strip(),
+        "pitch3dContext": pitch3d_context if isinstance(pitch3d_context, dict) else {},
+        "graphicEditorState": graphic_editor_state if isinstance(graphic_editor_state, dict) else {},
+        "animationFrames": animation_frames if isinstance(animation_frames, list) else [],
+    }
+    payload = _rewrite_payload_asset_urls_to_file_urls(payload)
+    payload_json = json.dumps(payload, ensure_ascii=False)
+    module_uri = module_path.resolve().as_uri()
+
+    html = f"""<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    html, body {{
+      margin: 0;
+      background: transparent;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }}
+    body {{
+      display: flex;
+      align-items: stretch;
+      justify-content: stretch;
+      font-family: Arial, sans-serif;
+    }}
+    #task-detail-3d-inline {{
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }}
+    #task-detail-3d-canvas {{
+      width: 100%;
+      height: 100%;
+      display: block;
+    }}
+    #task-detail-3d-camera {{
+      position: absolute;
+      left: -9999px;
+      top: -9999px;
+    }}
+  </style>
+</head>
+<body>
+  <div id="task-detail-3d-inline">
+    <canvas id="task-detail-3d-canvas"></canvas>
+    <select id="task-detail-3d-camera">
+      <option value="broadcast">Broadcast</option>
+      <option value="tactic">Táctica</option>
+      <option value="top_h">Cenital H</option>
+      <option value="top_v">Cenital V</option>
+      <option value="corner">Esquina</option>
+      <option value="goal">Portería</option>
+      <option value="drone">Drone</option>
+      <option value="tunnel">Túnel</option>
+      <option value="analyst">Analista</option>
+      <option value="coach">Entrenador</option>
+      <option value="rosaleda">Estadio</option>
+    </select>
+    <script id="task-detail-3d-payload" type="application/json">{payload_json}</script>
+    <script type="module" src="{module_uri}"></script>
+  </div>
+</body>
+</html>
+"""
+
+    with _acquire_playwright_browser() as (pw, browser):
+        if not pw or not browser:
+            return None
+        context = None
+        tmp_dir_obj = None
+        try:
+            context = browser.new_context(
+                viewport={"width": int(viewport_width), "height": int(viewport_height)},
+                device_scale_factor=max(1.0, min(float(device_scale_factor or 2.0), 3.0)),
+            )
+            page = context.new_page()
+            tmp_dir_obj = tempfile.TemporaryDirectory(prefix="task3d-preview-")
+            html_path = Path(tmp_dir_obj.name) / "index.html"
+            html_path.write_text(html, encoding="utf-8")
+            page.goto(html_path.resolve().as_uri(), wait_until="load")
+            page.wait_for_function(
+                """
+                () => {
+                  const surfaces = window.__ollanaDiagnostics && window.__ollanaDiagnostics.render_surfaces;
+                  const surface = surfaces && surfaces['task-detail-3d-canvas'];
+                  return !!(surface && surface.webgl_context && surface.rendered_frames >= 2);
+                }
+                """,
+                timeout=timeout_ms,
+            )
+            page.evaluate(
+                f"""
+                () => {{
+                  const cameraSelect = document.getElementById('task-detail-3d-camera');
+                  if (!cameraSelect) return;
+                  cameraSelect.value = {json.dumps(target_camera)};
+                  cameraSelect.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                }}
+                """
+            )
+            page.wait_for_timeout(900)
+            page.wait_for_function(
+                """
+                () => {
+                  const surfaces = window.__ollanaDiagnostics && window.__ollanaDiagnostics.render_surfaces;
+                  const surface = surfaces && surfaces['task-detail-3d-canvas'];
+                  return !!(surface && surface.rendered_frames >= 3);
+                }
+                """,
+                timeout=timeout_ms,
+            )
+            png_bytes = page.locator("#task-detail-3d-canvas").screenshot(type="png")
+            try:
+                context.close()
+            except Exception:
+                pass
+            try:
+                tmp_dir_obj.cleanup()
+            except Exception:
+                pass
+            return png_bytes
+        except Exception:
+            try:
+                if context:
+                    context.close()
+            except Exception:
+                pass
+            try:
+                if tmp_dir_obj:
+                    tmp_dir_obj.cleanup()
+            except Exception:
+                pass
+            return None
         context = None
         try:
             context = browser.new_context(
@@ -702,7 +991,12 @@ def render_html_selector_png(
             page = context.new_page()
             # No external network from snapshot renders.
             try:
-                page.route("**/*", lambda route: route.abort() if route.request.url.startswith(("http://", "https://")) else route.continue_())
+                page.route(
+                    "**/*",
+                    lambda route: (
+                        route.abort() if route.request.url.startswith(("http://", "https://")) else route.continue_()
+                    ),
+                )
             except Exception:
                 pass
             page.set_content(str(html), wait_until="load")

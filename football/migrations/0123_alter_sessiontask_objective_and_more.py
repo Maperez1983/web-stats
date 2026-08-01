@@ -6,18 +6,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('football', '0122_season_player_questionnaire'),
+        ("football", "0122_season_player_questionnaire"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='sessiontask',
-            name='objective',
+            model_name="sessiontask",
+            name="objective",
             field=models.TextField(blank=True),
         ),
         migrations.AlterField(
-            model_name='taskstudiotask',
-            name='objective',
+            model_name="taskstudiotask",
+            name="objective",
             field=models.TextField(blank=True),
         ),
     ]

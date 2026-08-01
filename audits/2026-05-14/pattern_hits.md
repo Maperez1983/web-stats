@@ -1,6 +1,6 @@
 # Hallazgos por patrones (generado)
 
-Archivos analizados: 344  
+Archivos analizados: 344
 Hits totales: 192
 
 ## `csrf_exempt` (63)

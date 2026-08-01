@@ -19,7 +19,6 @@ import re
 import sys
 from pathlib import Path
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -99,8 +98,17 @@ def _validate_pdf(pdf_path: Path) -> tuple[bool, list[str]]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--session-id", type=int, default=0)
-    parser.add_argument("--import-pdf", type=str, default="", help="Ruta a un PDF para importar a una sesión temporal y verificar el PDF resultante.")
-    parser.add_argument("--cleanup", action="store_true", help="Borra la sesión temporal creada con --import-pdf al terminar (recomendado).")
+    parser.add_argument(
+        "--import-pdf",
+        type=str,
+        default="",
+        help="Ruta a un PDF para importar a una sesión temporal y verificar el PDF resultante.",
+    )
+    parser.add_argument(
+        "--cleanup",
+        action="store_true",
+        help="Borra la sesión temporal creada con --import-pdf al terminar (recomendado).",
+    )
     parser.add_argument("--out", type=str, default="")
     args = parser.parse_args()
 
@@ -122,23 +130,25 @@ def main() -> int:
 
     django.setup()
 
+    from datetime import timedelta
+
     from django.contrib.auth import get_user_model
     from django.contrib.sessions.middleware import SessionMiddleware
     from django.core.files.base import ContentFile
     from django.template.loader import render_to_string
     from django.test.client import RequestFactory
+    from django.utils import timezone
 
-    from football.models import Team, TrainingMicrocycle, TrainingSession, SessionTask
-    from football.views import _build_session_pdf_context, _render_pdf_bytes_with_error
+    from football.models import SessionTask, Team, TrainingMicrocycle, TrainingSession
     from football.views import (
-        _extract_pdf_text,
-        _extract_tasks_from_pdf_text,
-        _extract_preview_images_from_pdf,
         _apply_analysis_to_task,
+        _build_session_pdf_context,
+        _extract_pdf_text,
+        _extract_preview_images_from_pdf,
+        _extract_tasks_from_pdf_text,
+        _render_pdf_bytes_with_error,
         _suggest_blocks_for_session_pdf_segments,
     )
-    from django.utils import timezone
-    from datetime import timedelta
 
     created_session = None
     created_task_ids: list[int] = []
@@ -153,17 +163,16 @@ def main() -> int:
             print("ERROR: no hay equipos en BD.", file=sys.stderr)
             return 2
         today = timezone.localdate()
-        micro = (
-            TrainingMicrocycle.objects.filter(team=team).order_by("-week_start", "-id").first()
-            or TrainingMicrocycle.objects.create(
-                team=team,
-                week_start=today,
-                week_end=today + timedelta(days=6),
-                title="TMP PDF import",
-                objective="",
-                status=getattr(TrainingMicrocycle, "STATUS_DRAFT", "draft"),
-                notes="",
-            )
+        micro = TrainingMicrocycle.objects.filter(team=team).order_by(
+            "-week_start", "-id"
+        ).first() or TrainingMicrocycle.objects.create(
+            team=team,
+            week_start=today,
+            week_end=today + timedelta(days=6),
+            title="TMP PDF import",
+            objective="",
+            status=getattr(TrainingMicrocycle, "STATUS_DRAFT", "draft"),
+            notes="",
         )
         created_session = TrainingSession.objects.create(
             microcycle=micro,
@@ -184,7 +193,13 @@ def main() -> int:
         if not parsed_tasks:
             parsed_tasks = [
                 {
-                    "analysis": {"title": pdf_path.stem[:160], "objective": "", "minutes": 15, "coaching_points": "", "confrontation_rules": ""},
+                    "analysis": {
+                        "title": pdf_path.stem[:160],
+                        "objective": "",
+                        "minutes": 15,
+                        "coaching_points": "",
+                        "confrontation_rules": "",
+                    },
                     "raw_text": extracted_text[:2500],
                     "segment_index": 1,
                     "segment_total": 1,

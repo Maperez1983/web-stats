@@ -81,7 +81,9 @@ class Command(BaseCommand):
 
         paths = []
         if root.is_file():
-            paths = [root] if session_import_services.is_supported_assistant_document(root, images_only=images_only) else []
+            paths = (
+                [root] if session_import_services.is_supported_assistant_document(root, images_only=images_only) else []
+            )
         else:
             iterator = root.rglob("*") if recursive else root.glob("*")
             for p in iterator:

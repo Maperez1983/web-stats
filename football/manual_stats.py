@@ -3,17 +3,16 @@ from __future__ import annotations
 from football.models import PlayerStatistic, Season
 from football.services import _parse_int
 
-
 MANUAL_BASE_STAT_NAMES = (
-    'manual_pj',
-    'manual_pt',
-    'manual_minutes',
-    'manual_goals',
-    'manual_assists',
-    'manual_yellow_cards',
-    'manual_red_cards',
+    "manual_pj",
+    "manual_pt",
+    "manual_minutes",
+    "manual_goals",
+    "manual_assists",
+    "manual_yellow_cards",
+    "manual_red_cards",
 )
-MANUAL_BASE_LOCK_NAME = 'manual_totals_lock'
+MANUAL_BASE_LOCK_NAME = "manual_totals_lock"
 
 
 def resolve_stats_season(primary_team):
@@ -21,21 +20,21 @@ def resolve_stats_season(primary_team):
         return None
     if primary_team.group and primary_team.group.season:
         return primary_team.group.season
-    return Season.objects.filter(is_current=True).order_by('-start_date', '-id').first()
+    return Season.objects.filter(is_current=True).order_by("-start_date", "-id").first()
 
 
 def season_display_name(season):
     if not season:
-        return 'Temporada actual'
-    if getattr(season, 'name', None):
+        return "Temporada actual"
+    if getattr(season, "name", None):
         return season.name
-    start_date = getattr(season, 'start_date', None)
-    end_date = getattr(season, 'end_date', None)
+    start_date = getattr(season, "start_date", None)
+    end_date = getattr(season, "end_date", None)
     if start_date and end_date:
-        return f'{start_date.year}/{end_date.year}'
+        return f"{start_date.year}/{end_date.year}"
     if start_date:
         return str(start_date.year)
-    return 'Temporada actual'
+    return "Temporada actual"
 
 
 def get_manual_player_base_overrides(primary_team, season=None):
@@ -44,36 +43,33 @@ def get_manual_player_base_overrides(primary_team, season=None):
     season = season or resolve_stats_season(primary_team)
     if season is None:
         return {}
-    stats = (
-        PlayerStatistic.objects.filter(
-            player__team=primary_team,
-            season=season,
-            match__isnull=True,
-            context='manual-base',
-            name__in=(*MANUAL_BASE_STAT_NAMES, MANUAL_BASE_LOCK_NAME),
-        )
-        .select_related('player')
-    )
+    stats = PlayerStatistic.objects.filter(
+        player__team=primary_team,
+        season=season,
+        match__isnull=True,
+        context="manual-base",
+        name__in=(*MANUAL_BASE_STAT_NAMES, MANUAL_BASE_LOCK_NAME),
+    ).select_related("player")
     overrides = {}
     for stat in stats:
         player_data = overrides.setdefault(stat.player_id, {})
         value = _parse_int(stat.value) or 0
-        if stat.name == 'manual_pj':
-            player_data['pj'] = value
-        elif stat.name == 'manual_pt':
-            player_data['pt'] = value
-        elif stat.name == 'manual_minutes':
-            player_data['minutes'] = value
-        elif stat.name == 'manual_goals':
-            player_data['goals'] = value
-        elif stat.name == 'manual_assists':
-            player_data['assists'] = value
-        elif stat.name == 'manual_yellow_cards':
-            player_data['yellow_cards'] = value
-        elif stat.name == 'manual_red_cards':
-            player_data['red_cards'] = value
+        if stat.name == "manual_pj":
+            player_data["pj"] = value
+        elif stat.name == "manual_pt":
+            player_data["pt"] = value
+        elif stat.name == "manual_minutes":
+            player_data["minutes"] = value
+        elif stat.name == "manual_goals":
+            player_data["goals"] = value
+        elif stat.name == "manual_assists":
+            player_data["assists"] = value
+        elif stat.name == "manual_yellow_cards":
+            player_data["yellow_cards"] = value
+        elif stat.name == "manual_red_cards":
+            player_data["red_cards"] = value
         elif stat.name == MANUAL_BASE_LOCK_NAME:
-            player_data['_locked'] = value > 0
+            player_data["_locked"] = value > 0
     return overrides
 
 
@@ -87,10 +83,10 @@ def save_manual_player_base_overrides(*, player, season, values):
             season=season,
             match=None,
             name=stat_name,
-            context='manual-base',
+            context="manual-base",
         )
         parsed = _parse_int(stat_value)
-        stat = queryset.order_by('-id').first()
+        stat = queryset.order_by("-id").first()
         if parsed is None:
             # Campo vacío => no bloquear el cálculo automático.
             if stat:
@@ -104,14 +100,14 @@ def save_manual_player_base_overrides(*, player, season, values):
                 duplicates.delete()
             if stat.value != normalized_value:
                 stat.value = normalized_value
-                stat.save(update_fields=['value'])
+                stat.save(update_fields=["value"])
         else:
             PlayerStatistic.objects.create(
                 player=player,
                 season=season,
                 match=None,
                 name=stat_name,
-                context='manual-base',
+                context="manual-base",
                 value=normalized_value,
             )
     lock_qs = PlayerStatistic.objects.filter(
@@ -119,9 +115,9 @@ def save_manual_player_base_overrides(*, player, season, values):
         season=season,
         match=None,
         name=MANUAL_BASE_LOCK_NAME,
-        context='manual-base',
+        context="manual-base",
     )
-    lock_stat = lock_qs.order_by('-id').first()
+    lock_stat = lock_qs.order_by("-id").first()
     if has_manual_value:
         if lock_stat:
             duplicates = lock_qs.exclude(id=lock_stat.id)
@@ -129,14 +125,14 @@ def save_manual_player_base_overrides(*, player, season, values):
                 duplicates.delete()
             if lock_stat.value != 1:
                 lock_stat.value = 1
-                lock_stat.save(update_fields=['value'])
+                lock_stat.save(update_fields=["value"])
         else:
             PlayerStatistic.objects.create(
                 player=player,
                 season=season,
                 match=None,
                 name=MANUAL_BASE_LOCK_NAME,
-                context='manual-base',
+                context="manual-base",
                 value=1,
             )
     elif lock_stat:

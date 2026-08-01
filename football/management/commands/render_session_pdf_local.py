@@ -28,12 +28,7 @@ class Command(BaseCommand):
         out_raw = str(options["out"] or "").strip()
         username = str(options["user"] or "admin").strip() or "admin"
 
-        session = (
-            TrainingSession.objects
-            .select_related("microcycle__team")
-            .filter(id=session_id)
-            .first()
-        )
+        session = TrainingSession.objects.select_related("microcycle__team").filter(id=session_id).first()
         if not session:
             raise CommandError("Sesión no encontrada.")
 
@@ -62,7 +57,9 @@ class Command(BaseCommand):
         content_type = str(getattr(response, "get", lambda *_: "")("Content-Type") or "")
         body = getattr(response, "content", b"") or b""
         if "application/pdf" not in content_type:
-            raise CommandError(f"No devolvió PDF (Content-Type={content_type}). ¿WeasyPrint disponible? bytes={len(body)}")
+            raise CommandError(
+                f"No devolvió PDF (Content-Type={content_type}). ¿WeasyPrint disponible? bytes={len(body)}"
+            )
 
         if out_raw:
             out_path = Path(out_raw).expanduser()

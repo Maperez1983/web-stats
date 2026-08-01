@@ -1,0 +1,28 @@
+{
+  "href": "http://127.0.0.1:8000/coach/sesiones/tarea/376/pdf-3d-embed/?camera=coach&cb=1783848930096",
+  "stadiumVersion": "",
+  "presentationMode": "",
+  "payloadCameraPreset": "coach",
+  "payloadStadiumModelUrl": "/static/football/models/pitch3d/stadium_benagalbon_reference.glb?v=1783790732",
+  "canvasSize": {
+    "cssW": 1600,
+    "cssH": 1000,
+    "w": 300,
+    "h": 150
+  },
+  "diagnostics": null,
+  "webgl": "",
+  "bodyText": "",
+  "scriptCount": 2,
+  "consoleLogs": [
+    "[error] Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "pageErrors": [],
+  "failedRequests": [
+    {
+      "url": "http://127.0.0.1:8000/static/vendor/three/examples/build/three.module.js",
+      "method": "GET",
+      "failure": "net::ERR_ABORTED"
+    }
+  ]
+}

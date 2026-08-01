@@ -36,8 +36,7 @@ class Command(BaseCommand):
             return
 
         tasks = list(
-            SessionTask.objects
-            .select_related("session__microcycle")
+            SessionTask.objects.select_related("session__microcycle")
             .filter(session__microcycle__team=team, task_pdf__isnull=False)
             .order_by("-id")[:limit]
         )

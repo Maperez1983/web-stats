@@ -1,0 +1,2709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Page not found at /coach/sesiones/tarea/97/pdf-3d-embed/</title>
+  <meta name="robots" content="NONE,NOARCHIVE">
+  <style type="text/css">
+    html * { padding:0; margin:0; }
+    body * { padding:10px 20px; }
+    body * * { padding:0; }
+    body { font:small sans-serif; background:#eee; color:#000; }
+    body>div { border-bottom:1px solid #ddd; }
+    h1 { font-weight:normal; margin-bottom:.4em; }
+    h1 span { font-size:60%; color:#666; font-weight:normal; }
+    table { border:none; border-collapse: collapse; width:100%; }
+    td, th { vertical-align:top; padding:2px 3px; }
+    th { width:12em; text-align:right; color:#666; padding-right:.5em; }
+    #info { background:#f6f6f6; }
+    #info ol { margin: 0.5em 4em; }
+    #info ol li { font-family: monospace; }
+    #summary { background: #ffc; }
+    #explanation { background:#eee; border-bottom: 0px none; }
+    pre.exception_value { font-family: sans-serif; color: #575757; font-size: 1.5em; margin: 10px 0 10px 0; }
+  </style>
+</head>
+<body>
+  <div id="summary">
+    <h1>Page not found <span>(404)</span></h1>
+    <pre class="exception_value">Tarea no encontrada</pre>
+    <table class="meta">
+      <tr>
+        <th>Request Method:</th>
+        <td>GET</td>
+      </tr>
+      <tr>
+        <th>Request URL:</th>
+        <td>http://127.0.0.1/coach/sesiones/tarea/97/pdf-3d-embed/?camera=analyst</td>
+      </tr>
+      
+      <tr>
+        <th>Raised by:</th>
+        <td>football.views.session_task_pdf_3d_embed</td>
+      </tr>
+      
+    </table>
+  </div>
+  <div id="info">
+    
+      <p>
+      Using the URLconf defined in <code>webstats.urls</code>,
+      Django tried these URL patterns, in this order:
+      </p>
+      <ol>
+        
+          <li>
+            
+                healthz
+                [name='healthz']
+            
+          </li>
+        
+          <li>
+            
+                healthz/
+                [name='healthz-slash']
+            
+          </li>
+        
+          <li>
+            
+                .well-known/apple-app-site-association
+                [name='apple-app-site-association']
+            
+          </li>
+        
+          <li>
+            
+                apple-app-site-association
+                [name='apple-app-site-association-root']
+            
+          </li>
+        
+          <li>
+            
+                login/
+                [name='login']
+            
+          </li>
+        
+          <li>
+            
+                service-login/
+                [name='service-login']
+            
+          </li>
+        
+          <li>
+            
+                logout/
+                [name='logout']
+            
+          </li>
+        
+          <li>
+            
+                admin/
+                
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                manifest.webmanifest
+                [name='pwa-manifest']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                sw.js
+                [name='pwa-sw']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                offline/
+                [name='pwa-offline']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                2j/
+                [name='product-landing']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                signup/
+                [name='signup']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                onboarding/
+                [name='club-onboarding']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                onboarding/season/
+                [name='club-season-wizard']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                team/&lt;int:team_id&gt;/crest.svg
+                [name='team-crest-svg']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                
+                [name='dashboard-home']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                partido/
+                [name='match-hub']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                partido/crear/
+                [name='match-hub-create']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                partido/guardar/
+                [name='match-hub-finalize']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                buscar/
+                [name='search-page']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                calendario/club.ics
+                [name='team-calendar-ics']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/session/keepalive/
+                [name='session-keepalive']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/build/
+                [name='public-build-info']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                build/
+                [name='public-build-info-short']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/search/
+                [name='search-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/rivals/roster/
+                [name='rival-roster-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                billing/
+                [name='billing']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/billing/checkout/
+                [name='billing-checkout-session']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/billing/portal/
+                [name='billing-portal-session']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/billing/apple/receipt/
+                [name='billing-apple-receipt']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                stripe/webhook/
+                [name='stripe-webhook']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/workspace/active/
+                [name='workspace-active']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/workspace/active-team/
+                [name='workspace-active-team']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/workspace/preferences/get/
+                [name='workspace-pref-get']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/workspace/preferences/set/
+                [name='workspace-pref-set']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/kits/2d/generate/
+                [name='kit2d-generate-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                tools/kit2d/
+                [name='kit2d-generator']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                academia/
+                [name='academy-home']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                academia/leccion/&lt;int:lesson_id&gt;/
+                [name='academy-lesson']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/academy/today/
+                [name='academy-today-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/academy/answer/
+                [name='academy-answer-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/academy/complete/
+                [name='academy-complete-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/workspace/sync/
+                [name='workspace-sync-competition']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                team/&lt;int:team_id&gt;/cover/
+                [name='team-cover-image-file']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                platform/
+                [name='platform-overview']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                platform/asistente/
+                [name='platform-assistant']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                platform/clear/
+                [name='platform-workspace-clear']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                platform/workspaces/&lt;int:workspace_id&gt;/
+                [name='platform-workspace-detail']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                platform/workspaces/&lt;int:workspace_id&gt;/teams/&lt;int:team_id&gt;/
+                [name='platform-workspace-team-detail']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                platform/workspaces/&lt;int:workspace_id&gt;/delete/
+                [name='platform-workspace-delete']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                platform/workspaces/&lt;int:workspace_id&gt;/enter/
+                [name='platform-workspace-enter']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                task-studio/
+                [name='task-studio-home']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                task-studio/profile/
+                [name='task-studio-profile']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                task-studio/roster/
+                [name='task-studio-roster']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                task-studio/task/create/
+                [name='task-studio-task-create']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                task-studio/task/&lt;int:task_id&gt;/delete/
+                [name='task-studio-task-delete']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                task-studio/task/&lt;int:task_id&gt;/duplicate/
+                [name='task-studio-task-duplicate']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                task-studio/task/pdf-preview/
+                [name='task-studio-task-pdf-preview']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/dashboard/
+                [name='dashboard-data']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/dashboard/refresh/
+                [name='dashboard-refresh']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                media/home-carousel/&lt;int:image_id&gt;/
+                [name='home-carousel-image-file']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                media/pdf-assets/&lt;int:asset_id&gt;/
+                [name='pdf-graphic-asset-file']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                players/
+                [name='player-dashboard']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                players/attendance/mark/
+                [name='player-attendance-mark']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                players/videos/
+                [name='player-video-library']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                players/videos/view/&lt;int:video_id&gt;/
+                [name='player-video-view']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                players/videos/clip/view/&lt;int:clip_id&gt;/
+                [name='player-video-clip-view']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                players/videos/inbox/
+                [name='player-video-inbox']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                players/videos/inbox/open/&lt;int:item_id&gt;/
+                [name='player-video-inbox-open']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                players/videos/clip/&lt;int:item_id&gt;/
+                [name='player-video-inbox-clip-view']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                players/videos/export/&lt;int:item_id&gt;/
+                [name='player-video-inbox-export-view']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                players/videos/export/&lt;int:item_id&gt;/stream/
+                [name='player-video-inbox-export-stream']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                players/videos/playlist/&lt;int:item_id&gt;/
+                [name='player-video-inbox-playlist-view']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                players/videos/report/&lt;int:item_id&gt;/
+                [name='player-video-inbox-report']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/agenda/
+                [name='team-agenda']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/informes/
+                [name='reports-hub']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/informes/jugadores/zip/
+                [name='player-reports-zip']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/dashboard/
+                [name='kpi-dashboard']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/informes/equipo/pdf/
+                [name='team-season-report-pdf']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/informes/partido/
+                [name='match-staff-report']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/informes/partido/pdf/
+                [name='match-staff-report-pdf']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/match/postmatch/to-blueprints/
+                [name='match-postmatch-pro-to-blueprints-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                admin-tools/
+                [name='admin-page']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                invitation/&lt;str:token&gt;/
+                [name='user-invite-accept']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                share/task-pdf/&lt;str:token&gt;/
+                [name='share-task-pdf']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/share/task-pdf/create/
+                [name='share-task-pdf-create']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                share/task-simulation/&lt;str:token&gt;/
+                [name='share-task-simulation']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/share/task-simulation/create/
+                [name='share-task-simulation-create']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                share/tactical-playbook/&lt;str:token&gt;/
+                [name='share-tactical-playbook-clip']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/share/tactical-playbook/create/
+                [name='share-tactical-playbook-clip-create']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                share/convocation-pdf/&lt;str:token&gt;/
+                [name='share-convocation-pdf']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                share/video-clip/&lt;str:token&gt;/
+                [name='share-video-clip']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                share/video-clip/&lt;str:token&gt;/stream/
+                [name='share-video-clip-stream']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                share/video-report/&lt;str:token&gt;/
+                [name='share-video-report']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                share/video-report/&lt;str:token&gt;/pdf/
+                [name='share-video-report-pdf']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                share/video-playlist/&lt;str:token&gt;/
+                [name='share-video-playlist']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                share/video-playlist/&lt;str:token&gt;/stream/
+                [name='share-video-playlist-stream']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                share/video-export/&lt;str:token&gt;/
+                [name='share-video-export']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                share/video-export/&lt;str:token&gt;/stream/
+                [name='share-video-export-stream']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/share/convocation-pdf/create/
+                [name='share-convocation-pdf-create']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/share/video-clip/create/
+                [name='share-video-clip-create']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/share/video-report/create/
+                [name='share-video-report-create']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/share/video-playlist/create/
+                [name='share-video-playlist-create']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/share/revoke/&lt;str:token&gt;/
+                [name='share-link-revoke']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/system/diagnostics/
+                [name='system-diagnostics']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/system/healthcheck/
+                [name='system-healthcheck-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/system/settings/set/
+                [name='system-setting-set-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                legal/privacidad/
+                [name='privacy-policy']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                legal/terminos/
+                [name='terms-page']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                support/
+                [name='support-page']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                account/
+                [name='account-page']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                account/delete/
+                [name='account-delete']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/system/kpi-audit/
+                [name='kpi-audit']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/rival-form/
+                [name='analysis-rival-form-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/rival-report/to-blueprints/
+                [name='analysis-rival-report-to-blueprints-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                analysis/video/&lt;int:video_id&gt;/
+                [name='analysis-video-studio']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                analysis/video/clip/&lt;int:clip_id&gt;/
+                [name='analysis-video-clip-view']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                analysis/video/export/&lt;int:export_id&gt;/
+                [name='analysis-video-export-view']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                analysis/video/export/&lt;int:export_id&gt;/stream/
+                [name='analysis-video-export-stream']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                analysis/video/playlist/inbox/&lt;int:item_id&gt;/
+                [name='analysis-video-inbox-playlist-view']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                analysis/video/report/inbox/&lt;int:item_id&gt;/
+                [name='analysis-video-inbox-report']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/kpis/
+                [name='kpi-explorer']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/projects/
+                [name='analysis-video-studio-projects-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/projects/save/
+                [name='analysis-video-studio-project-save-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/projects/delete/
+                [name='analysis-video-studio-project-delete-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/clips/
+                [name='analysis-video-studio-clips-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/clips/save/
+                [name='analysis-video-studio-clip-save-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/clips/delete/
+                [name='analysis-video-studio-clip-delete-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/voiceovers/
+                [name='analysis-video-studio-voiceovers-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/voiceovers/upload/
+                [name='analysis-video-studio-voiceover-upload-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/voiceovers/delete/
+                [name='analysis-video-studio-voiceover-delete-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/music/
+                [name='analysis-video-studio-music-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/music/upload/
+                [name='analysis-video-studio-music-upload-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/music/delete/
+                [name='analysis-video-studio-music-delete-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/assign/
+                [name='analysis-video-studio-assign-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/video/trim/
+                [name='analysis-video-studio-video-trim-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/timeline/
+                [name='analysis-video-studio-timeline-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/timeline/save/
+                [name='analysis-video-studio-timeline-save-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/timeline/delete/
+                [name='analysis-video-studio-timeline-delete-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/timeline/export/
+                [name='analysis-video-studio-timeline-export-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/timeline/import/
+                [name='analysis-video-studio-timeline-import-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/timeline/clear/
+                [name='analysis-video-studio-timeline-clear-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/review/
+                [name='analysis-video-studio-review-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/ocr/dorsal/
+                [name='analysis-video-studio-ocr-dorsal-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/kpi-explorer/options/
+                [name='kpi-explorer-options-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/kpi-explorer/query/
+                [name='kpi-explorer-query-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/kpi-explorer/sources/
+                [name='kpi-explorer-sources-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/kpi-explorer/pdf/
+                [name='kpi-explorer-pdf-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/export/pdf/
+                [name='analysis-video-studio-export-pdf-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/export/package/
+                [name='analysis-video-studio-export-package-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/export/upload/
+                [name='analysis-video-studio-export-upload-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/export/server/
+                [name='analysis-video-studio-export-server-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/export/server-playlist/
+                [name='analysis-video-studio-export-server-playlist-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/export/jobs/create/
+                [name='analysis-video-studio-export-job-create-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/export/jobs/status/
+                [name='analysis-video-studio-export-job-status-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/export/jobs/cancel/
+                [name='analysis-video-studio-export-job-cancel-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/report/pdf/
+                [name='analysis-video-studio-report-pdf-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/ai/
+                [name='analysis-video-studio-ai-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/ai/track/
+                [name='analysis-video-studio-ai-track-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/ai/pro/
+                [name='analysis-video-studio-ai-pro-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/autocut/
+                [name='analysis-video-studio-autocut-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/share-links/
+                [name='analysis-video-studio-share-links-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/frame-capture/
+                [name='analysis-video-studio-frame-capture-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-studio/track/players/
+                [name='analysis-video-studio-track-players-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-inbox/recipients/
+                [name='analysis-video-inbox-recipients-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-inbox/send/
+                [name='analysis-video-inbox-send-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/video-inbox/comments/
+                [name='analysis-video-inbox-comments-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/rival-videos/chunk/init/
+                [name='analysis-rival-video-chunk-init-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/rival-videos/chunk/put/
+                [name='analysis-rival-video-chunk-put-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/rival-videos/chunk/finish/
+                [name='analysis-rival-video-chunk-finish-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/analysis/rival-videos/import-youtube/
+                [name='analysis-rival-video-import-youtube-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/pdf-assets/upload/
+                [name='pdf-graphic-asset-upload']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/pdf-assets/delete/
+                [name='pdf-graphic-asset-delete-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/task-resource-library/visibility/
+                [name='task-resource-library-visibility-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/task-assistant/blueprints/
+                [name='task-assistant-blueprints-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/task-assistant/blueprints/save/
+                [name='task-assistant-blueprint-save-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/task-assistant/knowledge/
+                [name='task-assistant-knowledge-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/task-assistant/knowledge/upload/
+                [name='task-assistant-knowledge-upload-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/tactical-playbook/clips/
+                [name='tactical-playbook-clips-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/tactical-playbook/clips/save/
+                [name='tactical-playbook-clip-save-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/tactical-playbook/tasks/save/
+                [name='tactical-playbook-task-save-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/tactical-playbook/clips/delete/
+                [name='tactical-playbook-clip-delete-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/tactical-playbook/clips/favorite/
+                [name='tactical-playbook-clip-favorite-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/tactical-playbook/clips/clone/
+                [name='tactical-playbook-clip-clone-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/tactical-playbook/teams/
+                [name='tactical-playbook-teams-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/tactical-playbook/versions/
+                [name='tactical-playbook-versions-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/
+                [name='coach-detail']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                player/&lt;int:player_id&gt;/
+                [name='player-detail']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                player/&lt;int:player_id&gt;/photo/
+                [name='player-photo-file']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                player/&lt;int:player_id&gt;/license/
+                [name='player-license-file']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                player/&lt;int:player_id&gt;/pdf/
+                [name='player-pdf']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                player/&lt;int:player_id&gt;/informe/editar/
+                [name='player-season-report-edit']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                player/&lt;int:player_id&gt;/evaluacion/&lt;int:evaluation_id&gt;/informe/
+                [name='player-evaluation-report']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                player/&lt;int:player_id&gt;/presentacion/
+                [name='player-presentation']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                player/&lt;int:player_id&gt;/match/&lt;int:match_id&gt;/
+                [name='player-match-stats']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                match/&lt;int:match_id&gt;/
+                [name='match-stats']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/partidos/&lt;int:match_id&gt;/editar/
+                [name='match-editor']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                incidencias/
+                [name='incident-page']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                registro-acciones/
+                [name='match-action-page']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                registro-acciones/quick-buttons/
+                [name='matchday-quick-buttons-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                registro-acciones/guardar/
+                [name='match-action-record']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                registro-acciones/bulk-add/
+                [name='match-action-bulk-add']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                registro-acciones/lineup/save/
+                [name='match-lineup-save']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                registro-acciones/lineup/get/
+                [name='match-lineup-get']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                registro-acciones/rival-lineup/save/
+                [name='match-rival-lineup-save']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                registro-acciones/rival-lineup/get/
+                [name='match-rival-lineup-get']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                registro-acciones/video/links/
+                [name='match-video-links-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                registro-acciones/video/marker/
+                [name='match-video-marker-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                registro-acciones/eliminar/
+                [name='match-action-delete']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                registro-acciones/actualizar/
+                [name='match-action-update']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                registro-acciones/eventos/
+                [name='match-actions-events-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                registro-acciones/partido/guardar/
+                [name='match-info-save']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                registro-acciones/finalizar/
+                [name='match-action-finalize']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                registro-acciones/reiniciar/
+                [name='match-action-reset']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                registro-acciones/acta/
+                [name='match-report-pdf']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                convocatoria/
+                [name='convocation']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                convocatoria/save/
+                [name='convocation-save']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                convocatoria/pdf/
+                [name='convocation-pdf']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                convocatoria/arbitro/pdf/
+                [name='convocation-referee-pdf']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                pdf/viewer/
+                [name='pdf-viewer']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/system/guard-chat/
+                [name='system-guard-chat-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                api/system/guard-operator/
+                [name='system-guard-operator-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/cards/
+                [name='coach-cards']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/staff/
+                [name='staff-directory']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/staff/nuevo/
+                [name='staff-member-create']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/staff/&lt;int:staff_id&gt;/
+                [name='staff-member-detail']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/staff/&lt;int:staff_id&gt;/photo/
+                [name='staff-member-photo-file']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/staff/&lt;int:staff_id&gt;/license/
+                [name='staff-member-license-file']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/staff/&lt;int:staff_id&gt;/cert/
+                [name='staff-member-cert-file']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/staff/&lt;int:staff_id&gt;/pdf/
+                [name='staff-member-pdf']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/rival/
+                [name='coach-rival']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/rivales/
+                [name='coach-rivals']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/rivales/&lt;int:rival_id&gt;/
+                [name='coach-rival-profile']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/plantilla/
+                [name='coach-roster']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/torneos/
+                [name='coach-tournaments']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/partidos/
+                [name='coach-matches']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/lesiones/
+                [name='coach-injuries']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/carga/
+                [name='coach-load']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/roles/entrenador/
+                [name='coach-role-trainer']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/roles/porteros/
+                [name='coach-role-goalkeeper']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/roles/preparacion-fisica/
+                [name='coach-role-fitness']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/roles/abp/
+                [name='coach-role-abp']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/system/guard/
+                [name='system-guard-page']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/abp/pizarra/
+                [name='coach-abp-board']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/tactica/
+                [name='coach-tactics']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/11-inicial/
+                [name='initial-eleven']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/sesiones/
+                [name='sessions']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/sesiones/api/confirmed-players/
+                [name='sessions-confirmed-players-api']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/sesiones/tareas/nueva/
+                [name='sessions-task-create']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/sesiones/tareas/recursos/
+                [name='sessions-task-library']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/sesiones/ia-trainer/
+                [name='ai-trainer']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/sesiones/modelo-juego/
+                [name='coach-model-of-play']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/sesiones/tareas/pdf-preview/
+                [name='sessions-task-pdf-preview']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/sesiones/tareas/video-import/
+                [name='sessions-task-video-import']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/sesiones/tareas/&lt;int:task_id&gt;/editar/
+                [name='sessions-task-edit']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/sesiones/porteros/
+                [name='sessions-goalkeeper']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/sesiones/porteros/tareas/nueva/
+                [name='sessions-goalkeeper-task-create']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/sesiones/porteros/tareas/recursos/
+                [name='sessions-goalkeeper-task-library']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/sesiones/porteros/tareas/&lt;int:task_id&gt;/editar/
+                [name='sessions-goalkeeper-task-edit']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/sesiones/preparacion-fisica/
+                [name='sessions-fitness']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/sesiones/preparacion-fisica/tareas/nueva/
+                [name='sessions-fitness-task-create']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/sesiones/preparacion-fisica/tareas/recursos/
+                [name='sessions-fitness-task-library']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/sesiones/preparacion-fisica/tareas/&lt;int:task_id&gt;/editar/
+                [name='sessions-fitness-task-edit']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/sesiones/tarea/&lt;int:task_id&gt;/
+                [name='session-task-detail']
+            
+          </li>
+        
+          <li>
+            
+                
+                
+            
+                coach/sesiones/tarea/&lt;int:task_id&gt;/pdf-3d-embed/
+                [name='session-task-pdf-3d-embed']
+            
+          </li>
+        
+      </ol>
+      <p>
+        
+          The current path, <code>coach/sesiones/tarea/97/pdf-3d-embed/</code>,
+        
+        matched the last one.
+      </p>
+    
+  </div>
+
+  <div id="explanation">
+    <p>
+      You’re seeing this error because you have <code>DEBUG = True</code> in
+      your Django settings file. Change that to <code>False</code>, and Django
+      will display a standard 404 page.
+    </p>
+  </div>
+</body>
+</html>

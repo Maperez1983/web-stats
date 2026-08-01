@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('football', '0004_convocationrecord'),
+        ("football", "0004_convocationrecord"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='team',
-            name='preferente_url',
-            field=models.URLField(blank=True, help_text='URL del equipo en LaPreferente'),
+            model_name="team",
+            name="preferente_url",
+            field=models.URLField(blank=True, help_text="URL del equipo en LaPreferente"),
         ),
     ]

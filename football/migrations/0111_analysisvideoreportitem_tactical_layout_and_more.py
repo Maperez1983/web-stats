@@ -6,18 +6,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('football', '0110_analysisvideoreport_analysisvideoreportitem_and_more'),
+        ("football", "0110_analysisvideoreport_analysisvideoreportitem_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='analysisvideoreportitem',
-            name='tactical_layout',
+            model_name="analysisvideoreportitem",
+            name="tactical_layout",
             field=models.JSONField(blank=True, default=dict),
         ),
         migrations.AddField(
-            model_name='analysisvideoreportitem',
-            name='tactical_preview_image',
-            field=models.ImageField(blank=True, null=True, upload_to='analysis-reports/tactics/'),
+            model_name="analysisvideoreportitem",
+            name="tactical_preview_image",
+            field=models.ImageField(blank=True, null=True, upload_to="analysis-reports/tactics/"),
         ),
     ]

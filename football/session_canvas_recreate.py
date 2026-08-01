@@ -21,9 +21,9 @@ def recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054,
     try:
         img = Image.open(io.BytesIO(raw_bytes))
         img.load()
-        img = img.convert('RGB')
+        img = img.convert("RGB")
     except Exception:
-        logger.debug('No se pudo abrir la imagen para recrear canvas.', exc_info=True)
+        logger.debug("No se pudo abrir la imagen para recrear canvas.", exc_info=True)
         return None
 
     # Auto-crop al área del campo (dominante en verde) para mejorar el reconocimiento.
@@ -87,7 +87,7 @@ def recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054,
                     if crop_box[2] > crop_box[0] + 20 and crop_box[3] > crop_box[1] + 20:
                         img = img.crop(crop_box)
     except Exception:
-        logger.debug('No se pudo recortar automáticamente el campo de la preview.', exc_info=True)
+        logger.debug("No se pudo recortar automáticamente el campo de la preview.", exc_info=True)
 
     try:
         world_w = max(320, int(canvas_width or 1054))
@@ -196,17 +196,17 @@ def recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054,
                     continue
                 components.append(
                     {
-                        'minx': minx,
-                        'maxx': maxx,
-                        'miny': miny,
-                        'maxy': maxy,
-                        'count': count,
-                        'sumx': sumx,
-                        'sumy': sumy,
-                        'sumr': sumr,
-                        'sumg': sumg,
-                        'sumb': sumb,
-                        'points': points,
+                        "minx": minx,
+                        "maxx": maxx,
+                        "miny": miny,
+                        "maxy": maxy,
+                        "count": count,
+                        "sumx": sumx,
+                        "sumy": sumy,
+                        "sumr": sumr,
+                        "sumg": sumg,
+                        "sumb": sumb,
+                        "points": points,
                     }
                 )
         return components
@@ -276,14 +276,14 @@ def recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054,
                     continue
                 components.append(
                     {
-                        'minx': minx,
-                        'maxx': maxx,
-                        'miny': miny,
-                        'maxy': maxy,
-                        'count': count,
-                        'sumx': sumx,
-                        'sumy': sumy,
-                        'points': points,
+                        "minx": minx,
+                        "maxx": maxx,
+                        "miny": miny,
+                        "maxy": maxy,
+                        "count": count,
+                        "sumx": sumx,
+                        "sumy": sumy,
+                        "points": points,
                     }
                 )
         return components
@@ -295,19 +295,19 @@ def recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054,
         return float(y) / max(1, h) * float(world_h)
 
     def _avg_rgb(comp):
-        n = max(1, int(comp.get('count') or 1))
+        n = max(1, int(comp.get("count") or 1))
         return (
-            int((comp.get('sumr') or 0) / n),
-            int((comp.get('sumg') or 0) / n),
-            int((comp.get('sumb') or 0) / n),
+            int((comp.get("sumr") or 0) / n),
+            int((comp.get("sumg") or 0) / n),
+            int((comp.get("sumb") or 0) / n),
         )
 
     def _bbox(comp):
         return (
-            int(comp.get('minx') or 0),
-            int(comp.get('miny') or 0),
-            int(comp.get('maxx') or 0),
-            int(comp.get('maxy') or 0),
+            int(comp.get("minx") or 0),
+            int(comp.get("miny") or 0),
+            int(comp.get("maxx") or 0),
+            int(comp.get("maxy") or 0),
         )
 
     def _is_zone_color(r, g, b):
@@ -355,7 +355,7 @@ def recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054,
     markers = _iter_components(_is_marker_color, min_pixels=18, max_pixels=6000)
     ink_lines = []
     try:
-        mask = Image.new('L', (w, h), 0)
+        mask = Image.new("L", (w, h), 0)
         mp = mask.load()
         for yy in range(h):
             for xx in range(w):
@@ -368,11 +368,11 @@ def recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054,
                 mask = mask.filter(ImageFilter.MaxFilter(3))
                 mp = mask.load()
             except Exception:
-                logger.debug('No se pudo conectar trazos de máscara en preview.', exc_info=True)
+                logger.debug("No se pudo conectar trazos de máscara en preview.", exc_info=True)
         ink_lines = _iter_components_mask(mp, min_pixels=28, max_pixels=22000)
     except Exception:
         # Fallback sin máscara: no reconstruye flechas, pero no rompe el import.
-        logger.debug('No se pudo construir máscara de trazos en preview.', exc_info=True)
+        logger.debug("No se pudo construir máscara de trazos en preview.", exc_info=True)
         ink_lines = []
 
     objects = []
@@ -389,20 +389,20 @@ def recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054,
         cy = (y1 + y2) / 2.0
         objects.append(
             {
-                'type': 'rect',
-                'left': _map_x(cx),
-                'top': _map_y(cy),
-                'originX': 'center',
-                'originY': 'center',
-                'width': _map_x(bw) - _map_x(0),
-                'height': _map_y(bh) - _map_y(0),
-                'rx': 12,
-                'ry': 12,
-                'fill': 'rgba(34,211,238,0.16)',
-                'stroke': '#22d3ee',
-                'strokeWidth': 3,
-                'data': {'kind': 'zone', 'color': '#22d3ee'},
-                'objectCaching': False,
+                "type": "rect",
+                "left": _map_x(cx),
+                "top": _map_y(cy),
+                "originX": "center",
+                "originY": "center",
+                "width": _map_x(bw) - _map_x(0),
+                "height": _map_y(bh) - _map_y(0),
+                "rx": 12,
+                "ry": 12,
+                "fill": "rgba(34,211,238,0.16)",
+                "stroke": "#22d3ee",
+                "strokeWidth": 3,
+                "data": {"kind": "zone", "color": "#22d3ee"},
+                "objectCaching": False,
             }
         )
 
@@ -410,7 +410,7 @@ def recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054,
         x1, y1, x2, y2 = _bbox(comp)
         bw = max(1, x2 - x1 + 1)
         bh = max(1, y2 - y1 + 1)
-        area = int(comp.get('count') or 0)
+        area = int(comp.get("count") or 0)
         if bw > 46 or bh > 46:
             continue
         if area > 2600:
@@ -426,18 +426,18 @@ def recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054,
         if (is_red or is_orange) and area <= 520:
             objects.append(
                 {
-                    'type': 'triangle',
-                    'left': _map_x(cx),
-                    'top': _map_y(cy),
-                    'originX': 'center',
-                    'originY': 'center',
-                    'width': 24,
-                    'height': 24,
-                    'fill': '#f97316',
-                    'stroke': '#7c2d12',
-                    'strokeWidth': 1.6,
-                    'data': {'kind': 'cone', 'color': '#f97316'},
-                    'objectCaching': False,
+                    "type": "triangle",
+                    "left": _map_x(cx),
+                    "top": _map_y(cy),
+                    "originX": "center",
+                    "originY": "center",
+                    "width": 24,
+                    "height": 24,
+                    "fill": "#f97316",
+                    "stroke": "#7c2d12",
+                    "strokeWidth": 1.6,
+                    "data": {"kind": "cone", "color": "#f97316"},
+                    "objectCaching": False,
                 }
             )
             continue
@@ -447,30 +447,30 @@ def recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054,
                 {
                     # Importante: usamos un grupo "token" mínimo para que el editor JS
                     # lo convierta automáticamente a la chapa oficial (player_local).
-                    'type': 'group',
-                    'left': _map_x(cx),
-                    'top': _map_y(cy),
-                    'originX': 'center',
-                    'originY': 'center',
-                    'objectCaching': False,
-                    'data': {
-                        'kind': 'token',
-                        'token_kind': 'player_local',
-                        'playerName': 'Jugador',
-                        'playerNumber': '',
+                    "type": "group",
+                    "left": _map_x(cx),
+                    "top": _map_y(cy),
+                    "originX": "center",
+                    "originY": "center",
+                    "objectCaching": False,
+                    "data": {
+                        "kind": "token",
+                        "token_kind": "player_local",
+                        "playerName": "Jugador",
+                        "playerNumber": "",
                     },
-                    'objects': [
+                    "objects": [
                         {
-                            'type': 'circle',
-                            'left': 0,
-                            'top': 0,
-                            'originX': 'center',
-                            'originY': 'center',
-                            'radius': 16,
-                            'fill': '#1d4ed8',
-                            'stroke': '#eff6ff',
-                            'strokeWidth': 2,
-                            'objectCaching': False,
+                            "type": "circle",
+                            "left": 0,
+                            "top": 0,
+                            "originX": "center",
+                            "originY": "center",
+                            "radius": 16,
+                            "fill": "#1d4ed8",
+                            "stroke": "#eff6ff",
+                            "strokeWidth": 2,
+                            "objectCaching": False,
                         }
                     ],
                 }
@@ -481,30 +481,30 @@ def recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054,
             objects.append(
                 {
                     # Token rival mínimo => conversión a chapa oficial (player_rival).
-                    'type': 'group',
-                    'left': _map_x(cx),
-                    'top': _map_y(cy),
-                    'originX': 'center',
-                    'originY': 'center',
-                    'objectCaching': False,
-                    'data': {
-                        'kind': 'token',
-                        'token_kind': 'player_rival',
-                        'playerName': 'Rival',
-                        'playerNumber': '',
+                    "type": "group",
+                    "left": _map_x(cx),
+                    "top": _map_y(cy),
+                    "originX": "center",
+                    "originY": "center",
+                    "objectCaching": False,
+                    "data": {
+                        "kind": "token",
+                        "token_kind": "player_rival",
+                        "playerName": "Rival",
+                        "playerNumber": "",
                     },
-                    'objects': [
+                    "objects": [
                         {
-                            'type': 'circle',
-                            'left': 0,
-                            'top': 0,
-                            'originX': 'center',
-                            'originY': 'center',
-                            'radius': 16,
-                            'fill': '#dc2626',
-                            'stroke': '#fff7ed',
-                            'strokeWidth': 2,
-                            'objectCaching': False,
+                            "type": "circle",
+                            "left": 0,
+                            "top": 0,
+                            "originX": "center",
+                            "originY": "center",
+                            "radius": 16,
+                            "fill": "#dc2626",
+                            "stroke": "#fff7ed",
+                            "strokeWidth": 2,
+                            "objectCaching": False,
                         }
                     ],
                 }
@@ -516,7 +516,7 @@ def recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054,
         bw = max(1, x2 - x1 + 1)
         bh = max(1, y2 - y1 + 1)
         bbox_area = int(bw * bh)
-        count = int(comp.get('count') or 0)
+        count = int(comp.get("count") or 0)
         if bw < 22 and bh < 22:
             continue
         if bbox_area < 260:
@@ -525,7 +525,7 @@ def recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054,
         density = float(count) / float(max(1, bbox_area))
         if density > 0.62 and bbox_area > 520:
             continue
-        points = comp.get('points') or []
+        points = comp.get("points") or []
         if len(points) < 12:
             continue
 
@@ -533,7 +533,7 @@ def recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054,
         # Intentamos detectar rectángulos/círculos para convertirlos a "shape-*" editable.
         def _edge_hit_counts(_points, tol=4):
             left = right = top = bottom = 0
-            for (pxx, pyy) in _points:
+            for pxx, pyy in _points:
                 if abs(pxx - x1) <= tol:
                     left += 1
                 if abs(pxx - x2) <= tol:
@@ -578,7 +578,7 @@ def recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054,
             cy0 = (y1 + y2) / 2.0
             stride = max(1, int(len(_points) / 220))
             dists = []
-            for (pxx, pyy) in _points[::stride]:
+            for pxx, pyy in _points[::stride]:
                 dx0 = float(pxx) - cx0
                 dy0 = float(pyy) - cy0
                 dists.append((dx0 * dx0 + dy0 * dy0) ** 0.5)
@@ -588,7 +588,7 @@ def recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054,
             if mean < 18:
                 return False
             var = sum((d - mean) ** 2 for d in dists) / float(len(dists))
-            stdev = var ** 0.5
+            stdev = var**0.5
             return stdev <= mean * 0.18
 
         if _looks_like_rect_outline(points):
@@ -596,25 +596,25 @@ def recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054,
             cy0 = (y1 + y2) / 2.0
             world_wd = _map_x(bw) - _map_x(0)
             world_ht = _map_y(bh) - _map_y(0)
-            kind = 'shape-rect'
+            kind = "shape-rect"
             if 0.92 <= (float(bw) / float(max(1, bh))) <= 1.08:
-                kind = 'shape-square'
+                kind = "shape-square"
             objects.append(
                 {
-                    'type': 'rect',
-                    'left': _map_x(cx0),
-                    'top': _map_y(cy0),
-                    'originX': 'center',
-                    'originY': 'center',
-                    'width': world_wd,
-                    'height': world_ht,
-                    'rx': 10,
-                    'ry': 10,
-                    'fill': 'rgba(34,211,238,0.12)',
-                    'stroke': '#22d3ee',
-                    'strokeWidth': 3,
-                    'data': {'kind': kind},
-                    'objectCaching': False,
+                    "type": "rect",
+                    "left": _map_x(cx0),
+                    "top": _map_y(cy0),
+                    "originX": "center",
+                    "originY": "center",
+                    "width": world_wd,
+                    "height": world_ht,
+                    "rx": 10,
+                    "ry": 10,
+                    "fill": "rgba(34,211,238,0.12)",
+                    "stroke": "#22d3ee",
+                    "strokeWidth": 3,
+                    "data": {"kind": kind},
+                    "objectCaching": False,
                 }
             )
             continue
@@ -627,17 +627,17 @@ def recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054,
             radius = max(12.0, min(world_wd, world_ht) / 2.0)
             objects.append(
                 {
-                    'type': 'circle',
-                    'left': _map_x(cx0),
-                    'top': _map_y(cy0),
-                    'originX': 'center',
-                    'originY': 'center',
-                    'radius': radius,
-                    'fill': 'rgba(34,211,238,0.12)',
-                    'stroke': '#22d3ee',
-                    'strokeWidth': 3,
-                    'data': {'kind': 'shape-circle'},
-                    'objectCaching': False,
+                    "type": "circle",
+                    "left": _map_x(cx0),
+                    "top": _map_y(cy0),
+                    "originX": "center",
+                    "originY": "center",
+                    "radius": radius,
+                    "fill": "rgba(34,211,238,0.12)",
+                    "stroke": "#22d3ee",
+                    "strokeWidth": 3,
+                    "data": {"kind": "shape-circle"},
+                    "objectCaching": False,
                 }
             )
             continue
@@ -647,7 +647,7 @@ def recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054,
         min_d = 1e9
         max_d = -1e9
         p_min_s = p_max_s = p_min_d = p_max_d = points[0]
-        for (pxx, pyy) in points:
+        for pxx, pyy in points:
             s = pxx + pyy
             d = pxx - pyy
             if s < min_s:
@@ -689,40 +689,40 @@ def recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054,
         scale_x = max(0.55, min(6.2, float(length) / base_len))
         objects.append(
             {
-                'type': 'group',
-                'left': cx,
-                'top': cy,
-                'originX': 'center',
-                'originY': 'center',
-                'angle': angle,
-                'scaleX': scale_x,
-                'scaleY': 1.0,
-                'data': {'kind': 'arrow'},
-                'objectCaching': False,
-                'objects': [
+                "type": "group",
+                "left": cx,
+                "top": cy,
+                "originX": "center",
+                "originY": "center",
+                "angle": angle,
+                "scaleX": scale_x,
+                "scaleY": 1.0,
+                "data": {"kind": "arrow"},
+                "objectCaching": False,
+                "objects": [
                     {
-                        'type': 'line',
-                        'x1': -50,
-                        'y1': 0,
-                        'x2': 40,
-                        'y2': 0,
-                        'originX': 'center',
-                        'originY': 'center',
-                        'stroke': '#22d3ee',
-                        'strokeWidth': 4,
-                        'objectCaching': False,
+                        "type": "line",
+                        "x1": -50,
+                        "y1": 0,
+                        "x2": 40,
+                        "y2": 0,
+                        "originX": "center",
+                        "originY": "center",
+                        "stroke": "#22d3ee",
+                        "strokeWidth": 4,
+                        "objectCaching": False,
                     },
                     {
-                        'type': 'triangle',
-                        'left': 52,
-                        'top': 0,
-                        'width': 18,
-                        'height': 18,
-                        'angle': 90,
-                        'fill': '#22d3ee',
-                        'originX': 'center',
-                        'originY': 'center',
-                        'objectCaching': False,
+                        "type": "triangle",
+                        "left": 52,
+                        "top": 0,
+                        "width": 18,
+                        "height": 18,
+                        "angle": 90,
+                        "fill": "#22d3ee",
+                        "originX": "center",
+                        "originY": "center",
+                        "objectCaching": False,
                     },
                 ],
             }
@@ -731,7 +731,6 @@ def recreate_canvas_state_from_preview_image_bytes(raw_bytes, canvas_width=1054,
     if not objects:
         return None
     objects_sorted = []
-    objects_sorted.extend([obj for obj in objects if str(obj.get('type')) == 'rect'])
-    objects_sorted.extend([obj for obj in objects if str(obj.get('type')) != 'rect'])
-    return {'version': '5.3.0', 'objects': objects_sorted}
-
+    objects_sorted.extend([obj for obj in objects if str(obj.get("type")) == "rect"])
+    objects_sorted.extend([obj for obj in objects if str(obj.get("type")) != "rect"])
+    return {"version": "5.3.0", "objects": objects_sorted}

@@ -1,9 +1,8 @@
-from pathlib import Path
 import math
+from pathlib import Path
 
 import bpy
 from mathutils import Vector
-
 
 ROOT = Path(__file__).resolve().parents[1]
 MODEL_PATH = ROOT / "football" / "static" / "football" / "models" / "pitch3d" / "stadium_benagalbon_reference.glb"

@@ -1,0 +1,25 @@
+{
+  "category": "textures",
+  "category_type": "surface",
+  "default_family": "surface_textures",
+  "families": [
+    "surface_textures",
+    "overlays",
+    "noise"
+  ],
+  "variants": [
+    "default",
+    "broadcast",
+    "premium",
+    "subtle"
+  ],
+  "fallback_asset": "textures/surface_textures/default",
+  "compatible_themes": [
+    "classic",
+    "broadcast",
+    "premium"
+  ],
+  "resolution_independent": true,
+  "theme_overrides_supported": true,
+  "assets": []
+}

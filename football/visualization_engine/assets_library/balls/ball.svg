@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-16 -16 32 32">
+  <ellipse cx="0" cy="11" rx="8" ry="3.2" fill="var(--asset-shadow, rgba(0,0,0,.18))"/>
+  <circle cx="0" cy="0" r="10" fill="var(--asset-ball, #ffffff)" stroke="var(--asset-contrast, #06111d)" stroke-width="1.6"/>
+  <path d="M0 -7 L6 -2 L4 5 L-4 5 L-6 -2 Z" fill="var(--asset-contrast, #06111d)"/>
+  <circle cx="-2.6" cy="-3.2" r="3.4" fill="var(--asset-accent, #ffffff)" opacity=".15"/>
+</svg>

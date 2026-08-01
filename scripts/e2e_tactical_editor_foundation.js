@@ -263,7 +263,7 @@ async function main() {
       page.click('button[type="submit"], input[type="submit"]'),
     ]);
 
-    const editorUrl = `${baseUrl}/coach/sesiones/tarea/${taskId}/editor-pro/?editor2d=1`;
+    const editorUrl = `${baseUrl}/coach/sesiones/tarea/${taskId}/editor-pro/`;
     await page.goto(editorUrl, { waitUntil: 'domcontentloaded' });
     await page.locator('#tactical-editor-root').waitFor({ state: 'visible', timeout: 30_000 });
     await page.getByRole('button', { name: 'Jugador' }).click();

@@ -361,9 +361,7 @@ def _find_next_match(captures: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]
                         "name": str(opponent or "").strip() or "Rival por confirmar",
                         "full_name": str(opponent or "").strip() or "Rival por confirmar",
                         "crest_url": _absolute_url(
-                            _safe_get(match, "url_img_visitante")
-                            if bena_home
-                            else _safe_get(match, "url_img_local")
+                            _safe_get(match, "url_img_visitante") if bena_home else _safe_get(match, "url_img_local")
                         ),
                     },
                     "home": bool(bena_home),
@@ -440,9 +438,7 @@ def _find_next_match(captures: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]
                         "name": str(opponent_name or "").strip() or "Rival por confirmar",
                         "full_name": str(opponent_name or "").strip() or "Rival por confirmar",
                         "crest_url": _absolute_url(
-                            _safe_get(node, "url_img_visitante")
-                            if bena_home
-                            else _safe_get(node, "url_img_local")
+                            _safe_get(node, "url_img_visitante") if bena_home else _safe_get(node, "url_img_local")
                         ),
                     },
                     "home": bool(bena_home) if (bena_home or bena_away) else None,
@@ -611,8 +607,9 @@ class Command(BaseCommand):
                     page.goto(team_url, wait_until="domcontentloaded", timeout=30000)
                     page.wait_for_timeout(wait_ms)
                     try:
-                        dom_ids = page.evaluate(
-                            """() => {
+                        dom_ids = (
+                            page.evaluate(
+                                """() => {
                                 const ids = new Set();
                                 const fromHref = (value) => {
                                     const m = String(value || '').match(/\\/player\\/(\\d+)/);
@@ -625,7 +622,9 @@ class Command(BaseCommand):
                                 });
                                 return Array.from(ids);
                             }"""
-                        ) or []
+                            )
+                            or []
+                        )
                     except Exception:
                         dom_ids = []
 
@@ -668,18 +667,14 @@ class Command(BaseCommand):
                             continue
                     page.wait_for_timeout(1200)
                 if manual_browse_ms > 0:
-                    self.stdout.write(
-                        f"Modo interacción manual activo: {manual_browse_ms}ms en {results_url}"
-                    )
+                    self.stdout.write(f"Modo interacción manual activo: {manual_browse_ms}ms en {results_url}")
                     page.wait_for_timeout(manual_browse_ms)
             finally:
                 context.close()
                 browser.close()
 
         if not captures:
-            raise CommandError(
-                "No se capturaron respuestas API. Revisa si la sesión expiró y regenera storage_state."
-            )
+            raise CommandError("No se capturaron respuestas API. Revisa si la sesión expiró y regenera storage_state.")
 
         capture_out.parent.mkdir(parents=True, exist_ok=True)
         capture_out.write_text(

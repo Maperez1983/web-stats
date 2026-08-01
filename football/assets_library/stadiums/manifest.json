@@ -1,0 +1,25 @@
+{
+  "category": "stadiums",
+  "category_type": "environment",
+  "default_family": "stadium_shells",
+  "families": [
+    "stadium_shells",
+    "stands",
+    "advertising_boards"
+  ],
+  "variants": [
+    "default",
+    "academy",
+    "broadcast",
+    "premium"
+  ],
+  "fallback_asset": "stadiums/stadium_shells/default",
+  "compatible_themes": [
+    "academy",
+    "broadcast",
+    "premium"
+  ],
+  "resolution_independent": true,
+  "theme_overrides_supported": true,
+  "assets": []
+}

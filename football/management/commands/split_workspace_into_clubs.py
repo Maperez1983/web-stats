@@ -3,10 +3,7 @@ from __future__ import annotations
 from django.core.management.base import BaseCommand
 
 from football.models import Workspace
-from football.workspace_split import (
-    apply_split_workspace_plan,
-    build_split_workspace_plan,
-)
+from football.workspace_split import apply_split_workspace_plan, build_split_workspace_plan
 
 
 class Command(BaseCommand):
@@ -52,7 +49,9 @@ class Command(BaseCommand):
             return
 
         self.stdout.write("")
-        self.stdout.write(self.style.MIGRATE_HEADING(f"Plan de separación · Workspace: {workspace.name} (id={workspace.id})"))
+        self.stdout.write(
+            self.style.MIGRATE_HEADING(f"Plan de separación · Workspace: {workspace.name} (id={workspace.id})")
+        )
         for row in plan:
             context_label = "sí" if row.has_context else "no"
             self.stdout.write(
@@ -75,4 +74,3 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("No se crearon clubs (nada que aplicar)."))
             return
         self.stdout.write(self.style.SUCCESS("Separación completada. Revisa Platform: ahora verás clubs separados."))
-

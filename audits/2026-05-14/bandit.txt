@@ -31,7 +31,7 @@ Test results:
 227	                self.request.session.set_expiry(days * 86400)
 228	        except Exception:
 229	            pass
-230	
+230
 
 --------------------------------------------------
 >> Issue: [B112:try_except_continue] Try, Except, Continue detected.
@@ -185,7 +185,7 @@ Test results:
 186	                        bp_updated += int(res.get("updated", 0) or 0)
 187	                    except Exception:
 188	                        pass
-189	
+189
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -227,7 +227,7 @@ Test results:
    Location: football/management/commands/import_player_licenses_pdf.py:97:11
 96	def _run(cmd: list[str], *, check: bool = True) -> subprocess.CompletedProcess:
 97	    return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=check)
-98	
+98
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -323,7 +323,7 @@ Test results:
    Location: football/management/commands/import_rival_video_mp4.py:113:4
 112	    cmd.append(out_path)
 113	    subprocess.check_call(cmd)  # noqa: S603
-114	
+114
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -334,7 +334,7 @@ Test results:
 265	                    tmp_out_path.unlink(missing_ok=True)
 266	                except Exception:
 267	                    pass
-268	
+268
 
 --------------------------------------------------
 >> Issue: [B112:try_except_continue] Try, Except, Continue detected.
@@ -367,7 +367,7 @@ Test results:
 171	                        doc.pdf.seek(0)
 172	                except Exception:
 173	                    pass
-174	
+174
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -389,7 +389,7 @@ Test results:
 222	                            _learn_task_blueprint_from_pdf_import(team=team, task=task, analysis=analysis, scope_key="coach", actor_username="")
 223	                        except Exception:
 224	                            pass
-225	
+225
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -411,7 +411,7 @@ Test results:
 234	                            task.task_preview_image.save(preview_name, preview_content, save=True)
 235	                        except Exception:
 236	                            pass
-237	
+237
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -526,7 +526,7 @@ Test results:
 50	            settings.ALLOWED_HOSTS = hosts
 51	        except Exception:
 52	            pass
-53	
+53
 
 --------------------------------------------------
 >> Issue: [B108:hardcoded_tmp_directory] Probable insecure usage of temp file/directory.
@@ -569,7 +569,7 @@ Test results:
 272	                    break
 273	                except Exception:
 274	                    continue
-275	
+275
 
 --------------------------------------------------
 >> Issue: [B404:blacklist] Consider possible security implications associated with the subprocess module.
@@ -589,7 +589,7 @@ Test results:
    Location: football/management/commands/seed_video_ocr.py:19:4
 18	def _run(cmd: list[str]) -> None:
 19	    subprocess.check_call(cmd)
-20	
+20
 
 --------------------------------------------------
 >> Issue: [B603:subprocess_without_shell_equals_true] subprocess call - check for execution of untrusted input.
@@ -696,7 +696,7 @@ Test results:
 333	                    )
 334	                except Exception:
 335	                    pass
-336	
+336
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -707,7 +707,7 @@ Test results:
 366	                    )
 367	                except Exception:
 368	                    pass
-369	
+369
 
 --------------------------------------------------
 >> Issue: [B105:hardcoded_password_string] Possible hardcoded password: ''
@@ -739,7 +739,7 @@ Test results:
 395	                        self.stdout.write(f'Campos aún inválidos antes de submit: {validity_message}')
 396	                except Exception:
 397	                    pass
-398	
+398
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -750,7 +750,7 @@ Test results:
 425	                        )
 426	                    except Exception:
 427	                        pass
-428	
+428
 
 --------------------------------------------------
 >> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'smoke1234'
@@ -771,7 +771,7 @@ Test results:
 119	            sess.save()
 120	        except Exception:
 121	            pass
-122	
+122
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -782,7 +782,7 @@ Test results:
 132	                        morsel["domain"] = ""
 133	                    except Exception:
 134	                        pass
-135	
+135
 
 --------------------------------------------------
 >> Issue: [B112:try_except_continue] Try, Except, Continue detected.
@@ -848,7 +848,7 @@ Test results:
 314	                        managers.append(conn.execute_wrapper(_sql_wrapper))
 315	                    except Exception:
 316	                        continue
-317	
+317
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -870,7 +870,7 @@ Test results:
 328	                    m.__exit__(None, None, None)
 329	                except Exception:
 330	                    pass
-331	
+331
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -892,7 +892,7 @@ Test results:
 42	                RivalVideo.objects.filter(id=vid, team_id__isnull=True).update(team_id=team_id)
 43	            except Exception:
 44	                continue
-45	
+45
 
 --------------------------------------------------
 >> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
@@ -1028,7 +1028,7 @@ Test results:
 160	                pw.stop()
 161	        except Exception:
 162	            pass
-163	
+163
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -1138,7 +1138,7 @@ Test results:
 67	            default_storage.delete(f'{prefix}/{name}'.strip('/'))
 68	        except Exception:
 69	            pass
-70	
+70
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -1185,7 +1185,7 @@ Test results:
 54	            email='coach@example.com',
 55	            password='pass-1234',
 56	        )
-57	
+57
 
 --------------------------------------------------
 >> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'pass-1234'
@@ -1274,7 +1274,7 @@ Test results:
 349	            self.client.logout()
 350	        except Exception:
 351	            pass
-352	
+352
 
 --------------------------------------------------
 >> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'pass-1234'
@@ -1521,7 +1521,7 @@ Test results:
    CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
    More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b106_hardcoded_password_funcarg.html
    Location: football/tests.py:1822:13
-1821	
+1821
 1822	        u1 = get_user_model().objects.create_user(username='angel.ayala', password='pass-1234', first_name='Angel', last_name='Ayala')
 1823	        u2 = get_user_model().objects.create_user(username='angel.sanchez', password='pass-1234', first_name='Angel', last_name='Sanchez')
 
@@ -1564,7 +1564,7 @@ Test results:
 1869	            expires_at=timezone.now() + timedelta(days=2),
 1870	            is_active=True,
 1871	        )
-1872	
+1872
 
 --------------------------------------------------
 >> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'pass-1234'
@@ -1805,7 +1805,7 @@ Test results:
 4148	            password='old-pass',
 4149	            is_active=True,
 4150	        )
-4151	
+4151
 
 --------------------------------------------------
 >> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'pass-1234'
@@ -2376,7 +2376,7 @@ Test results:
 80	            register_heif_opener()
 81	        except Exception:
 82	            pass
-83	
+83
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -2431,7 +2431,7 @@ Test results:
 1078	            obj.save(update_fields=['event_type', 'workspace', 'ok', 'payload'])
 1079	    except Exception:
 1080	        pass
-1081	
+1081
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -2464,7 +2464,7 @@ Test results:
 1744	                pass
 1745	    except Exception:
 1746	        pass
-1747	
+1747
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -2530,7 +2530,7 @@ Test results:
 2043	                    chunks.append(txt)
 2044	        except Exception:
 2045	            continue
-2046	
+2046
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -2662,7 +2662,7 @@ Test results:
 3148	            new_username = f'deleted-{user_id}-{uuid.uuid4().hex[:10]}'
 3149	    except Exception:
 3150	        pass
-3151	
+3151
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -2761,7 +2761,7 @@ Test results:
 3393	                payload['debug_dayplan_error'] = str(exc.__class__.__name__) + ': ' + str(exc)
 3394	        except Exception:
 3395	            pass
-3396	
+3396
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -2861,7 +2861,7 @@ Test results:
 3980	            except Exception:
 3981	                # Fallback a fichero original.
 3982	                pass
-3983	
+3983
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -2982,7 +2982,7 @@ Test results:
 5024	                    return preferred
 5025	            except Exception:
 5026	                pass
-5027	
+5027
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -3048,7 +3048,7 @@ Test results:
 5232	                    return team_lookup[int(preferred_team_id)]
 5233	        except Exception:
 5234	            pass
-5235	
+5235
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -3125,7 +3125,7 @@ Test results:
 5382	            return True
 5383	    except Exception:
 5384	        pass
-5385	
+5385
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -3158,7 +3158,7 @@ Test results:
 5585	            primary_team = None
 5586	    except Exception:
 5587	        pass
-5588	
+5588
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -3202,7 +3202,7 @@ Test results:
 6346	                    )
 6347	            except Exception:
 6348	                pass
-6349	
+6349
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -3465,7 +3465,7 @@ Test results:
    Location: football/views.py:10793:10
 10792	    seed = f"demo:{user_id}:{today.isoformat()}"
 10793	    rng = random.Random(seed)
-10794	
+10794
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -3487,7 +3487,7 @@ Test results:
 10934	                        primary_team = _get_primary_team_for_request(request)
 10935	            except Exception:
 10936	                pass
-10937	
+10937
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -3520,7 +3520,7 @@ Test results:
 11097	                return _json(payload)
 11098	    except Exception:
 11099	        pass
-11100	
+11100
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -3575,7 +3575,7 @@ Test results:
 11263	            refresh_primary_roster_cache(primary_team, force=False)
 11264	        except Exception:
 11265	            pass
-11266	
+11266
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -3630,7 +3630,7 @@ Test results:
 11494	                )
 11495	        except Exception:
 11496	            pass
-11497	
+11497
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -3752,7 +3752,7 @@ Test results:
 12079	            theme_form['text_light'] = str(override.get('text_light') or default.get('text_light') or theme_form['text_light']).strip() or theme_form['text_light']
 12080	    except Exception:
 12081	        pass
-12082	
+12082
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -3763,7 +3763,7 @@ Test results:
 12116	                kit_form[key] = str(override.get(key) or default.get(key) or kit_form.get(key) or '').strip() or kit_form[key]
 12117	    except Exception:
 12118	        pass
-12119	
+12119
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -3807,7 +3807,7 @@ Test results:
 12458	                        auto_notice_parts.append('Código de equipo de Universo detectado automáticamente.')
 12459	            except Exception:
 12460	                pass
-12461	
+12461
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -3829,7 +3829,7 @@ Test results:
 12858	                    )
 12859	            except Exception:
 12860	                continue
-12861	
+12861
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -3961,7 +3961,7 @@ Test results:
 14685	                            restored_task_ids.append(int(new_task.id))
 14686	                except Exception:
 14687	                    pass
-14688	
+14688
 
 --------------------------------------------------
 >> Issue: [B112:try_except_continue] Try, Except, Continue detected.
@@ -4126,7 +4126,7 @@ Test results:
 15189	                                        group_name = resolved_group[:80]
 15190	                            except Exception:
 15191	                                pass
-15192	
+15192
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -4214,7 +4214,7 @@ Test results:
 15984	        )
 15985	    except Exception:
 15986	        pass
-15987	
+15987
 
 --------------------------------------------------
 >> Issue: [B112:try_except_continue] Try, Except, Continue detected.
@@ -4325,7 +4325,7 @@ Test results:
 16670	                pass
 16671	    except Exception:
 16672	        pass
-16673	
+16673
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -4358,7 +4358,7 @@ Test results:
 17038	                os.unlink(p)
 17039	            except Exception:
 17040	                pass
-17041	
+17041
 
 --------------------------------------------------
 >> Issue: [B112:try_except_continue] Try, Except, Continue detected.
@@ -4567,7 +4567,7 @@ Test results:
 18359	            row['y_pct'] = round(y, 2)
 18360	    except Exception:
 18361	        pass
-18362	
+18362
 
 --------------------------------------------------
 >> Issue: [B112:try_except_continue] Try, Except, Continue detected.
@@ -4754,7 +4754,7 @@ Test results:
 20031	                record.save(update_fields=update_fields)
 20032	        except Exception:
 20033	            pass
-20034	
+20034
 
 --------------------------------------------------
 >> Issue: [B112:try_except_continue] Try, Except, Continue detected.
@@ -4908,7 +4908,7 @@ Test results:
 20883	                season_label = season.name
 20884	    except Exception:
 20885	        pass
-20886	
+20886
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -4963,7 +4963,7 @@ Test results:
 22257	            items.append({'id': int(obj.id), 'name': str(obj.name or ''), 'category': str(obj.category or '')})
 22258	        except Exception:
 22259	            continue
-22260	
+22260
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -4974,7 +4974,7 @@ Test results:
 22784	                player_label = p.name
 22785	    except Exception:
 22786	        pass
-22787	
+22787
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -5051,7 +5051,7 @@ Test results:
 23722	                    return _image_bytes_as_small_data_uri(raw_bytes=raw, mime_type=mime, max_width=220, max_height=220, quality=72)
 23723	            except Exception:
 23724	                pass
-23725	
+23725
 
 --------------------------------------------------
 >> Issue: [B112:try_except_continue] Try, Except, Continue detected.
@@ -5095,7 +5095,7 @@ Test results:
 23972	                    return best_data
 23973	        except Exception:
 23974	            pass
-23975	
+23975
 
 --------------------------------------------------
 >> Issue: [B112:try_except_continue] Try, Except, Continue detected.
@@ -5139,7 +5139,7 @@ Test results:
 24044	                                pass
 24045	            except Exception:
 24046	                continue
-24047	
+24047
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -5194,7 +5194,7 @@ Test results:
 24185	                    home_team_name = home_team_name if is_home else opponent_label
 24186	        except Exception:
 24187	            pass
-24188	
+24188
 
 --------------------------------------------------
 >> Issue: [B105:hardcoded_password_string] Possible hardcoded password: ''
@@ -5355,7 +5355,7 @@ Test results:
 26375	                                updated_tasks += 1
 26376	                    except Exception:
 26377	                        pass
-26378	
+26378
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -5366,7 +5366,7 @@ Test results:
 26386	                    plan_fields = next_fields
 26387	                except Exception:
 26388	                    pass
-26389	
+26389
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -5388,7 +5388,7 @@ Test results:
 26449	                        plan_fields = next_fields
 26450	                    except Exception:
 26451	                        pass
-26452	
+26452
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -5465,7 +5465,7 @@ Test results:
 28197	                initial['surface'] = default_surface
 28198	    except Exception:
 28199	        pass
-28200	
+28200
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -5633,7 +5633,7 @@ Test results:
 30103	                        img = img.crop(crop_box)
 30104	    except Exception:
 30105	        pass
-30106	
+30106
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -5802,7 +5802,7 @@ Test results:
 33914	            )
 33915	        except Exception:
 33916	            pass
-33917	
+33917
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -5957,7 +5957,7 @@ Test results:
 34649	            main_tab, active_tab = 'library', 'sessions'
 34650	    except Exception:
 34651	        pass
-34652	
+34652
 
 --------------------------------------------------
 >> Issue: [B112:try_except_continue] Try, Except, Continue detected.
@@ -6230,7 +6230,7 @@ Test results:
 35380	                        created_task.task_preview_image.save(filename, ContentFile(preview_bytes), save=True)
 35381	                    except Exception:
 35382	                        pass
-35383	
+35383
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -6252,7 +6252,7 @@ Test results:
 35904	                        request.session[CREATE_SESSION_TASK_PICKS_SESSION_KEY] = picks_map
 35905	                except Exception:
 35906	                    pass
-35907	
+35907
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -6274,7 +6274,7 @@ Test results:
 36207	                                )
 36208	                except Exception:
 36209	                    pass
-36210	
+36210
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -6439,7 +6439,7 @@ Test results:
 37293	                            _apply_analysis_to_task(item, first_analysis)
 37294	                        except Exception:
 37295	                            pass
-37296	
+37296
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -6516,7 +6516,7 @@ Test results:
 37608	                params['library_repo'] = str(library_repository or LIBRARY_REPOSITORY_TRADITIONAL)
 37609	            except Exception:
 37610	                pass
-37611	
+37611
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -6527,7 +6527,7 @@ Test results:
 37615	                params['tab'] = tab_value
 37616	            except Exception:
 37617	                pass
-37618	
+37618
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -6538,7 +6538,7 @@ Test results:
 37624	                    params.pop('pick_for', None)
 37625	                except Exception:
 37626	                    pass
-37627	
+37627
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -6549,7 +6549,7 @@ Test results:
 37638	                    params['session_id'] = str(int(session_hint))
 37639	                except Exception:
 37640	                    pass
-37641	
+37641
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -6692,7 +6692,7 @@ Test results:
 39553	                task.save(update_fields=['tactical_layout'])
 39554	    except Exception:
 39555	        pass
-39556	
+39556
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -6836,7 +6836,7 @@ Test results:
 40305	                initial['surface'] = default_surface
 40306	    except Exception:
 40307	        pass
-40308	
+40308
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -6997,7 +6997,7 @@ Test results:
 41428	            chunks.append(summary)
 41429	    except Exception:
 41430	        pass
-41431	
+41431
 
 --------------------------------------------------
 >> Issue: [B112:try_except_continue] Try, Except, Continue detected.
@@ -7030,7 +7030,7 @@ Test results:
 41770	            scored.append((score, int(getattr(task, 'id', 0) or 0), task, repo))
 41771	        except Exception:
 41772	            continue
-41773	
+41773
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7052,7 +7052,7 @@ Test results:
 41995	                }
 41996	            except Exception:
 41997	                pass
-41998	
+41998
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7085,7 +7085,7 @@ Test results:
 42703	                        update_fields.append('tactical_layout')
 42704	            except Exception:
 42705	                pass
-42706	
+42706
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7327,7 +7327,7 @@ Test results:
 43801	                                    updated += 1
 43802	                                except Exception:
 43803	                                    pass
-43804	
+43804
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7349,7 +7349,7 @@ Test results:
 43822	                                _time.sleep(0.25)
 43823	                            except Exception:
 43824	                                pass
-43825	
+43825
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7415,7 +7415,7 @@ Test results:
 44155	            )
 44156	        except Exception:
 44157	            pass
-44158	
+44158
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7426,7 +7426,7 @@ Test results:
 44164	                selected_team.save(update_fields=['external_id'])
 44165	        except Exception:
 44166	            pass
-44167	
+44167
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7437,7 +7437,7 @@ Test results:
 44184	                        error = ''
 44185	        except Exception:
 44186	            pass
-44187	
+44187
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7492,7 +7492,7 @@ Test results:
 44826	        _video_studio_seed_autoclip_workspace_prefs(request, scope_team=resolved_team)
 44827	    except Exception:
 44828	        pass
-44829	
+44829
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7514,7 +7514,7 @@ Test results:
 45106	            VideoInboxItem.objects.filter(id=item.id).update(is_read=True, read_at=timezone.now())
 45107	        except Exception:
 45108	            pass
-45109	
+45109
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7525,7 +7525,7 @@ Test results:
 45260	                items.sort(key=lambda x: (0 if getattr(x, 'is_base', False) else 1, -int(getattr(x, 'id', 0) or 0)))
 45261	    except Exception:
 45262	        pass
-45263	
+45263
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7536,7 +7536,7 @@ Test results:
 45301	            group['reports'] = reports_by_folder.get(fid, [])
 45302	    except Exception:
 45303	        pass
-45304	
+45304
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7558,7 +7558,7 @@ Test results:
 45801	            return bool(primary_team and int(primary_team.id) == int(folder_team_id))
 45802	    except Exception:
 45803	        pass
-45804	
+45804
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7569,7 +7569,7 @@ Test results:
 45865	        prs.slide_height = Inches(7.5)
 45866	    except Exception:
 45867	        pass
-45868	
+45868
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7580,7 +7580,7 @@ Test results:
 45873	            fill.fore_color.rgb = C_SHEET
 45874	        except Exception:
 45875	            pass
-45876	
+45876
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7635,7 +7635,7 @@ Test results:
 45942	            bar.line.fill.background()
 45943	        except Exception:
 45944	            pass
-45945	
+45945
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7646,7 +7646,7 @@ Test results:
 45948	                slide.shapes.add_picture(app_logo_path, left_pad, Inches(0.215), width=app_size, height=app_size)
 45949	            except Exception:
 45950	                pass
-45951	
+45951
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7668,7 +7668,7 @@ Test results:
 45988	                run2.font.color.rgb = C_SECONDARY
 45989	            except Exception:
 45990	                pass
-45991	
+45991
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7679,7 +7679,7 @@ Test results:
 46002	            run.font.color.rgb = C_ACCENT
 46003	        except Exception:
 46004	            pass
-46005	
+46005
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7690,7 +7690,7 @@ Test results:
 46044	            r.font.color.rgb = C_INK
 46045	    except Exception:
 46046	        pass
-46047	
+46047
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7701,7 +7701,7 @@ Test results:
 46079	            frame.line.width = Pt(1)
 46080	        except Exception:
 46081	            pass
-46082	
+46082
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7712,7 +7712,7 @@ Test results:
 46089	            panel.line.width = Pt(1)
 46090	        except Exception:
 46091	            pass
-46092	
+46092
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7723,7 +7723,7 @@ Test results:
 46106	            run.font.color.rgb = C_INK
 46107	        except Exception:
 46108	            pass
-46109	
+46109
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7734,7 +7734,7 @@ Test results:
 46169	                    img_y += 1.33
 46170	        except Exception:
 46171	            pass
-46172	
+46172
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7745,7 +7745,7 @@ Test results:
 46222	                tf.text = 'Sin export MP4 para este clip.\nExporta el clip desde Video Studio y vuelve a exportar el informe.'
 46223	            except Exception:
 46224	                pass
-46225	
+46225
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7767,7 +7767,7 @@ Test results:
 46412	            setattr(it, 'available_exports', exports_by_clip.get(cid, []))
 46413	    except Exception:
 46414	        pass
-46415	
+46415
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7778,7 +7778,7 @@ Test results:
 46422	        back_url = f'{back_url}?{urlencode(params)}'
 46423	    except Exception:
 46424	        pass
-46425	
+46425
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7789,7 +7789,7 @@ Test results:
 46518	                    tactical_layout['meta'] = meta
 46519	            except Exception:
 46520	                pass
-46521	
+46521
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7811,7 +7811,7 @@ Test results:
 46529	                item.tactical_preview_image.save(filename, ContentFile(raw_bytes), save=False)
 46530	            except Exception:
 46531	                pass
-46532	
+46532
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7822,7 +7822,7 @@ Test results:
 46724	            return JsonResponse({'ok': False, 'error': f'El vídeo supera {max_mb}MB.'}, status=400)
 46725	    except Exception:
 46726	        pass
-46727	
+46727
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7833,7 +7833,7 @@ Test results:
 46739	            item.tactical_video.delete(save=False)
 46740	    except Exception:
 46741	        pass
-46742	
+46742
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -7874,7 +7874,7 @@ Test results:
 46897	                    share_urls_by_clip_id[int(cid)] = request.build_absolute_uri(reverse('share-video-clip', args=[link.token]))
 46898	                except Exception:
 46899	                    continue
-46900	
+46900
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -8017,7 +8017,7 @@ Test results:
 47936	            )
 47937	        except Exception:
 47938	            continue
-47939	
+47939
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -8098,7 +8098,7 @@ Test results:
 48214	            stderr=subprocess.DEVNULL,
 48215	            timeout=12,
 48216	        )
-48217	
+48217
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -8109,7 +8109,7 @@ Test results:
 48228	            variants.append(g)
 48229	        except Exception:
 48230	            pass
-48231	
+48231
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -8120,7 +8120,7 @@ Test results:
 48238	            variants.append(green)
 48239	        except Exception:
 48240	            pass
-48241	
+48241
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -8131,7 +8131,7 @@ Test results:
 48254	            variants.append(mask)
 48255	        except Exception:
 48256	            pass
-48257	
+48257
 
 --------------------------------------------------
 >> Issue: [B112:try_except_continue] Try, Except, Continue detected.
@@ -8164,7 +8164,7 @@ Test results:
 48306	                                            break
 48307	            except Exception:
 48308	                continue
-48309	
+48309
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -8186,7 +8186,7 @@ Test results:
 48420	                    allow_numbers.add(ni)
 48421	        except Exception:
 48422	            pass
-48423	
+48423
 
 --------------------------------------------------
 >> Issue: [B603:subprocess_without_shell_equals_true] subprocess call - check for execution of untrusted input.
@@ -8303,7 +8303,7 @@ Test results:
 48811	            proc.kill()
 48812	        except Exception:
 48813	            pass
-48814	
+48814
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -8347,7 +8347,7 @@ Test results:
 49291	                obj.thumbnail.save(filename, ContentFile(raw_bytes), save=True)
 49292	            except Exception:
 49293	                pass
-49294	
+49294
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -8380,7 +8380,7 @@ Test results:
 50451	            payload['context'] = context_hint
 50452	        except Exception:
 50453	            pass
-50454	
+50454
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -8392,7 +8392,7 @@ Test results:
 50483	    except Exception:
 50484	        # No bloquea al usuario: devolvemos aunque no se pueda persistir.
 50485	        pass
-50486	
+50486
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -8435,7 +8435,7 @@ Test results:
    Location: football/views.py:51072:8
 51071	        ]
 51072	        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
-51073	
+51073
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -8456,7 +8456,7 @@ Test results:
    Location: football/views.py:51142:8
 51141	        ]
 51142	        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
-51143	
+51143
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -8498,7 +8498,7 @@ Test results:
    Location: football/views.py:51281:8
 51280	        ]
 51281	        subprocess.run(cmd_concat, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
-51282	
+51282
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -8552,7 +8552,7 @@ Test results:
    CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
    More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b603_subprocess_without_shell_equals_true.html
    Location: football/views.py:51507:16
-51506	
+51506
 51507	                subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
 51508	                part_paths.append(part_path)
 
@@ -8574,7 +8574,7 @@ Test results:
    Location: football/views.py:51624:12
 51623	            ]
 51624	            subprocess.run(cmd_concat, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
-51625	
+51625
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -8674,7 +8674,7 @@ Test results:
 51994	                os.unlink(p)
 51995	            except Exception:
 51996	                pass
-51997	
+51997
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -8696,7 +8696,7 @@ Test results:
 52137	            ).delete()
 52138	        except Exception:
 52139	            pass
-52140	
+52140
 
 --------------------------------------------------
 >> Issue: [B112:try_except_continue] Try, Except, Continue detected.
@@ -8729,7 +8729,7 @@ Test results:
 52208	                created_clips += 1
 52209	            except Exception:
 52210	                pass
-52211	
+52211
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -8751,7 +8751,7 @@ Test results:
 52335	            t.start()
 52336	        except Exception:
 52337	            pass
-52338	
+52338
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -8773,7 +8773,7 @@ Test results:
 52491	                        c.delete()
 52492	            except Exception:
 52493	                pass
-52494	
+52494
 
 --------------------------------------------------
 >> Issue: [B112:try_except_continue] Try, Except, Continue detected.
@@ -8806,7 +8806,7 @@ Test results:
 52566	                created_clips += 1
 52567	            except Exception:
 52568	                pass
-52569	
+52569
 
 --------------------------------------------------
 >> Issue: [B112:try_except_continue] Try, Except, Continue detected.
@@ -8861,7 +8861,7 @@ Test results:
 52876	                os.unlink(p)
 52877	            except Exception:
 52878	                pass
-52879	
+52879
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -8872,7 +8872,7 @@ Test results:
 52943	        VideoStudioExportJob.objects.filter(id=int(job_id)).update(**payload)
 52944	    except Exception:
 52945	        pass
-52946	
+52946
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -8916,7 +8916,7 @@ Test results:
 53218	                    os.unlink(p)
 53219	                except Exception:
 53220	                    pass
-53221	
+53221
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -8949,7 +8949,7 @@ Test results:
 53520	                os.unlink(p)
 53521	            except Exception:
 53522	                pass
-53523	
+53523
 
 --------------------------------------------------
 >> Issue: [B112:try_except_continue] Try, Except, Continue detected.
@@ -8960,7 +8960,7 @@ Test results:
 53953	            saved.append({'id': int(obj.id), 'name': str(obj.name or ''), 'category': str(obj.category or '')})
 53954	        except Exception:
 53955	            continue
-53956	
+53956
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -9004,7 +9004,7 @@ Test results:
 54813	                season_label = season.name
 54814	    except Exception:
 54815	        pass
-54816	
+54816
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -9015,7 +9015,7 @@ Test results:
 55129	            windows['last5'] = _metrics_for_rows([e for e in timeline_rows if e.created_at and e.created_at >= cut5])
 55130	        except Exception:
 55131	            pass
-55132	
+55132
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -9081,7 +9081,7 @@ Test results:
 56128	                context.save(update_fields=ctx_updates + ['updated_at'])
 56129	    except Exception:
 56130	        pass
-56131	
+56131
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -9092,7 +9092,7 @@ Test results:
 56684	            match.save(update_fields=list(dict.fromkeys(changed_fields)))
 56685	        except Exception:
 56686	            pass
-56687	
+56687
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -9147,7 +9147,7 @@ Test results:
 57349	            allowed_match_ids.update(int(mid) for mid in lineup_by_match.keys() if mid)
 57350	        except Exception:
 57351	            pass
-57352	
+57352
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -9279,7 +9279,7 @@ Test results:
 58813	            )
 58814	    except Exception:
 58815	        pass
-58816	
+58816
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -9324,7 +9324,7 @@ Test results:
 59456	            except Exception:
 59457	                # SQLite JSONField puede no soportar contains; filtraremos en memoria más abajo.
 59458	                pass
-59459	
+59459
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -9489,7 +9489,7 @@ Test results:
 60363	                pass
 60364	    except Exception:
 60365	        pass
-60366	
+60366
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -9633,7 +9633,7 @@ Test results:
 60548	            img = img.resize((int(img.size[0] * scale), int(img.size[1] * scale)))
 60549	        except Exception:
 60550	            pass
-60551	
+60551
 
 --------------------------------------------------
 >> Issue: [B112:try_except_continue] Try, Except, Continue detected.
@@ -9732,7 +9732,7 @@ Test results:
 61722	                    blueprints[key] = int(blueprints.get(key, 0) or 0) + int(result.get(key, 0) or 0)
 61723	            except Exception:
 61724	                pass
-61725	
+61725
 
 --------------------------------------------------
 >> Issue: [B404:blacklist] Consider possible security implications associated with the subprocess module.
@@ -9772,7 +9772,7 @@ Test results:
    Location: scripts/ig_video_to_clip.py:365:21
 364	        stroke = "#eff6ff"
 365	        token_kind = "player_local"
-366	
+366
 
 --------------------------------------------------
 >> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'player_local'
@@ -9838,7 +9838,7 @@ Test results:
 489	        check=True,
 490	        timeout=120,
 491	    )
-492	
+492
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -9860,7 +9860,7 @@ Test results:
 117	        configure_native_runtime()
 118	    except Exception:
 119	        pass
-120	
+120
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -9912,7 +9912,7 @@ Test results:
    CWE: CWE-377 (https://cwe.mitre.org/data/definitions/377.html)
    More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b108_hardcoded_tmp_directory.html
    Location: scripts/verify_session_plan_pdf.py:282:52
-281	
+281
 282	    out_path = Path(args.out) if args.out else Path("/tmp") / f"session-{session.id}-uefa.pdf"
 283	    out_path.write_bytes(pdf_bytes)
 
@@ -9989,7 +9989,7 @@ Test results:
 232	            MIDDLEWARE.insert(1, 'django.middleware.gzip.GZipMiddleware')
 233	    except Exception:
 234	        pass
-235	
+235
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -10000,7 +10000,7 @@ Test results:
 351	        tmpl0['APP_DIRS'] = False
 352	    except Exception:
 353	        pass
-354	
+354
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -10011,7 +10011,7 @@ Test results:
 384	            SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'
 385	    except Exception:
 386	        pass
-387	
+387
 
 --------------------------------------------------
 >> Issue: [B108:hardcoded_tmp_directory] Probable insecure usage of temp file/directory.
@@ -10032,7 +10032,7 @@ Test results:
 442	    os.makedirs(str(MEDIA_ROOT), exist_ok=True)
 443	except Exception:
 444	    pass
-445	
+445
 
 --------------------------------------------------
 >> Issue: [B108:hardcoded_tmp_directory] Probable insecure usage of temp file/directory.

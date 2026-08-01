@@ -215,4 +215,3 @@ class Migration(migrations.Migration):
     operations = [
         migrations.RunPython(seed_injury_catalog_more, reverse_code=unseed_injury_catalog_more),
     ]
-

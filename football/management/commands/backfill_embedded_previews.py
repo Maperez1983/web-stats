@@ -1,8 +1,8 @@
 import io
 from typing import Iterable, Tuple
 
-from django.core.management.base import BaseCommand
 from django.core.files.storage import default_storage
+from django.core.management.base import BaseCommand
 
 from football.models import SessionTask, TaskStudioTask
 
@@ -133,4 +133,3 @@ class Command(BaseCommand):
                 f"Backfill embedded previews: updated={updated} scanned={scanned} skipped={skipped} missing={missing} dry_run={dry_run}"
             )
         )
-

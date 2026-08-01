@@ -6,23 +6,27 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('football', '0103_videostudioexportjob_videomusicasset'),
+        ("football", "0103_videostudioexportjob_videomusicasset"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='rivalvideo',
-            name='trim_enabled',
-            field=models.BooleanField(default=False, help_text='Si está activo, Video Studio limita la reproducción al rango IN/OUT definido.'),
+            model_name="rivalvideo",
+            name="trim_enabled",
+            field=models.BooleanField(
+                default=False, help_text="Si está activo, Video Studio limita la reproducción al rango IN/OUT definido."
+            ),
         ),
         migrations.AddField(
-            model_name='rivalvideo',
-            name='trim_in_ms',
-            field=models.PositiveIntegerField(default=0, help_text='IN del corte base (ms) para trabajar sin relleno (anuncios, esperas, etc.).'),
+            model_name="rivalvideo",
+            name="trim_in_ms",
+            field=models.PositiveIntegerField(
+                default=0, help_text="IN del corte base (ms) para trabajar sin relleno (anuncios, esperas, etc.)."
+            ),
         ),
         migrations.AddField(
-            model_name='rivalvideo',
-            name='trim_out_ms',
-            field=models.PositiveIntegerField(default=0, help_text='OUT del corte base (ms). 0 significa sin OUT.'),
+            model_name="rivalvideo",
+            name="trim_out_ms",
+            field=models.PositiveIntegerField(default=0, help_text="OUT del corte base (ms). 0 significa sin OUT."),
         ),
     ]

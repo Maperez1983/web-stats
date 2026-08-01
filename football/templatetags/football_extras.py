@@ -15,8 +15,8 @@ def qs_replace(context, /, **kwargs):
     # el contexto dos veces (posicional + kwarg). Con `context` como posicional-only (`/`)
     # evitamos el TypeError y simplemente ignoramos ese kwarg.
     try:
-        if isinstance(kwargs, dict) and 'context' in kwargs:
-            kwargs.pop('context', None)
+        if isinstance(kwargs, dict) and "context" in kwargs:
+            kwargs.pop("context", None)
     except Exception:
         pass
     request = context.get("request")
@@ -24,7 +24,7 @@ def qs_replace(context, /, **kwargs):
         return ""
     query = request.GET.copy()
     for key, value in (kwargs or {}).items():
-        actual_key = 'context' if str(key) == 'context_' else str(key)
+        actual_key = "context" if str(key) == "context_" else str(key)
         if value is None:
             try:
                 query.pop(actual_key)

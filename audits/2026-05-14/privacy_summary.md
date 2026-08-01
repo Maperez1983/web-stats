@@ -65,4 +65,3 @@ Recomendaciones:
   - documentos importados,
   - logs/artefactos de IA.
 - Implementar borrado “seguro” (soft-delete + purge) donde aplique.
-

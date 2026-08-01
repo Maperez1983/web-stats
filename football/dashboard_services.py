@@ -1,13 +1,12 @@
 from . import stats_services
 from .view_delegates import install_view_delegates
 
-
 SCRAPE_LOCK_KEY = "football:refresh_scraping_running"
 DASHBOARD_DELEGATED_VIEW_NAMES = (
-    'compute_player_dashboard',
-    'kpi_audit',
-    'player_dashboard_page',
-    'player_detail_page',
+    "compute_player_dashboard",
+    "kpi_audit",
+    "player_dashboard_page",
+    "player_detail_page",
 )
 
 

@@ -37,4 +37,3 @@ Generación:
 
 Generación:
 - `gen_models_inventory.py`
-

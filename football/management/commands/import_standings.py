@@ -9,69 +9,65 @@ from football.services import update_team_standings
 
 
 class Command(BaseCommand):
-    help = 'Importa una clasificación oficial desde CSV/Excel y actualiza TeamStanding.'
+    help = "Importa una clasificación oficial desde CSV/Excel y actualiza TeamStanding."
 
     def add_arguments(self, parser):
         parser.add_argument(
-            'path',
+            "path",
             type=Path,
-            nargs='?',
-            default=Path('data/input/rfaf-standings.csv'),
-            help='Ruta al CSV que contiene la tabla.',
+            nargs="?",
+            default=Path("data/input/rfaf-standings.csv"),
+            help="Ruta al CSV que contiene la tabla.",
         )
         parser.add_argument(
-            '--competition',
-            default='División de Honor Andaluza',
-            help='Nombre de la competición (se usará para crear la estructura si no existe).',
+            "--competition",
+            default="División de Honor Andaluza",
+            help="Nombre de la competición (se usará para crear la estructura si no existe).",
         )
         parser.add_argument(
-            '--season',
-            default='2025/2026',
-            help='Temporada a la que pertenecen los datos.',
+            "--season",
+            default="2025/2026",
+            help="Temporada a la que pertenecen los datos.",
         )
         parser.add_argument(
-            '--group',
-            default='Grupo 2',
-            help='Nombre del grupo al que pertenece la clasificación.',
+            "--group",
+            default="Grupo 2",
+            help="Nombre del grupo al que pertenece la clasificación.",
         )
         parser.add_argument(
-            '--source-name',
-            default='Importación manual',
-            help='Nombre que se guardará en el historial del botón.',
+            "--source-name",
+            default="Importación manual",
+            help="Nombre que se guardará en el historial del botón.",
         )
 
     def handle(self, *_, **options):
-        path: Path = options['path']
+        path: Path = options["path"]
         if not path.exists():
-            self.stderr.write(f'No existe el archivo {path}')
+            self.stderr.write(f"No existe el archivo {path}")
             return
 
         source_url = path.resolve().as_uri() if path.is_absolute() else path.as_posix()
         source, _ = ScrapeSource.objects.get_or_create(
-            name=options['source_name'],
-            defaults={'url': source_url, 'is_active': False},
+            name=options["source_name"],
+            defaults={"url": source_url, "is_active": False},
         )
 
-        with path.open(newline='', encoding='utf-8') as handle:
+        with path.open(newline="", encoding="utf-8") as handle:
             rows = list(csv.DictReader(handle))
             update_team_standings(
                 rows,
                 source.name,
                 source.url,
-                competition_name=options['competition'],
-                season_name=options['season'],
-                group_name=options['group'],
+                competition_name=options["competition"],
+                season_name=options["season"],
+                group_name=options["group"],
             )
 
         run = ScrapeRun.objects.create(
             source=source,
             status=ScrapeRun.Status.SUCCESS,
-            message=f'Manual · {path.name}',
+            message=f"Manual · {path.name}",
             completed_at=timezone.now(),
         )
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f'Importados {len(rows)} registros desde {path.name} (run {run.id}).'
-            )
-        )
+        self.stdout.write(self.style.SUCCESS(f"Importados {len(rows)} registros desde {path.name} (run {run.id})."))

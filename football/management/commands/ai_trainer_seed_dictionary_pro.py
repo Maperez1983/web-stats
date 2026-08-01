@@ -44,7 +44,15 @@ class Command(BaseCommand):
             },
             "progression": {
                 "label": "Progresión",
-                "keywords": ["progresión", "progresion", "avanzar", "superar línea", "superar linea", "entre líneas", "entre lineas"],
+                "keywords": [
+                    "progresión",
+                    "progresion",
+                    "avanzar",
+                    "superar línea",
+                    "superar linea",
+                    "entre líneas",
+                    "entre lineas",
+                ],
                 "coaching_points": [
                     "Fija/atrae antes de jugar vertical.",
                     "Busca al hombre libre o tercer hombre para romper línea.",
@@ -52,7 +60,16 @@ class Command(BaseCommand):
             },
             "finishing": {
                 "label": "Finalización",
-                "keywords": ["finalización", "finalizacion", "remate", "último pase", "ultimo pase", "centro", "tiro", "zona 14"],
+                "keywords": [
+                    "finalización",
+                    "finalizacion",
+                    "remate",
+                    "último pase",
+                    "ultimo pase",
+                    "centro",
+                    "tiro",
+                    "zona 14",
+                ],
                 "coaching_points": [
                     "Ocupa área (2+1) y frontal para segunda jugada.",
                     "Ataca con ventaja: decide rápido (tiro, pase, centro).",
@@ -60,7 +77,16 @@ class Command(BaseCommand):
             },
             "transition_a2d": {
                 "label": "Transición ataque→defensa (pérdida)",
-                "keywords": ["pérdida", "perdida", "tras pérdida", "tras perdida", "presión tras pérdida", "repliegue", "pre-pérdida", "pre perdida"],
+                "keywords": [
+                    "pérdida",
+                    "perdida",
+                    "tras pérdida",
+                    "tras perdida",
+                    "presión tras pérdida",
+                    "repliegue",
+                    "pre-pérdida",
+                    "pre perdida",
+                ],
                 "coaching_points": [
                     "5–8s de reacción: o robo rápido o repliegue ordenado.",
                     "Protege el carril central y la profundidad.",
@@ -145,7 +171,15 @@ class Command(BaseCommand):
             },
             "lane_priority": {
                 "label": "Prioridad de carriles (balón y cercanos a portería)",
-                "keywords": ["carriles", "carril", "carril del balón", "carril del balon", "carriles cercanos", "portería", "porteria"],
+                "keywords": [
+                    "carriles",
+                    "carril",
+                    "carril del balón",
+                    "carril del balon",
+                    "carriles cercanos",
+                    "portería",
+                    "porteria",
+                ],
                 "coaching_points": [
                     "Prioriza carril del balón + carriles cercanos a portería (central/interiores).",
                     "Si no hay ventaja: atrae y cambia de orientación para atacar lado débil.",
@@ -153,7 +187,16 @@ class Command(BaseCommand):
             },
             "strong_weak_side": {
                 "label": "Zona fuerte / zona débil",
-                "keywords": ["zona fuerte", "zona débil", "zona debil", "lado fuerte", "lado débil", "lado debil", "basculación", "basculacion"],
+                "keywords": [
+                    "zona fuerte",
+                    "zona débil",
+                    "zona debil",
+                    "lado fuerte",
+                    "lado débil",
+                    "lado debil",
+                    "basculación",
+                    "basculacion",
+                ],
                 "coaching_points": [
                     "Atrae en zona fuerte para liberar zona débil.",
                     "Ocupa zona débil antes del cambio (no llegar tarde).",
@@ -235,7 +278,14 @@ class Command(BaseCommand):
             },
             "switch_play": {
                 "label": "Cambio de orientación / girar el juego",
-                "keywords": ["cambio de orientación", "cambio de orientacion", "girar el juego", "lado débil", "lado debil", "invertir"],
+                "keywords": [
+                    "cambio de orientación",
+                    "cambio de orientacion",
+                    "girar el juego",
+                    "lado débil",
+                    "lado debil",
+                    "invertir",
+                ],
                 "coaching_points": [
                     "Atrae en un lado para atacar el lado débil con ventaja.",
                     "Pase tenso y receptor perfilado para acelerar tras el cambio.",
@@ -260,7 +310,14 @@ class Command(BaseCommand):
             },
             "indirect_play_zonal": {
                 "label": "Juego indirecto / ataque zonal (ubicación)",
-                "keywords": ["juego indirecto", "ataque zonal", "ubicación", "ubicacion", "juego de ubicación", "juego de ubicacion"],
+                "keywords": [
+                    "juego indirecto",
+                    "ataque zonal",
+                    "ubicación",
+                    "ubicacion",
+                    "juego de ubicación",
+                    "juego de ubicacion",
+                ],
                 "coaching_points": [
                     "Ocupación racional (carril/altura) para sostener circulación.",
                     "Progresar generando hombres libres: amplitud, profundidad y tercer hombre.",
@@ -326,7 +383,15 @@ class Command(BaseCommand):
             # Transiciones
             "counterpress": {
                 "label": "Presión tras pérdida (5–8s)",
-                "keywords": ["presión tras pérdida", "presion tras perdida", "tras pérdida", "tras perdida", "counterpress", "reacción", "reaccion"],
+                "keywords": [
+                    "presión tras pérdida",
+                    "presion tras perdida",
+                    "tras pérdida",
+                    "tras perdida",
+                    "counterpress",
+                    "reacción",
+                    "reaccion",
+                ],
                 "coaching_points": [
                     "Reacción inmediata del más cercano: cerrar pase interior y saltar.",
                     "Si no puedes robar: repliegue ordenado y compacto.",
@@ -367,9 +432,21 @@ class Command(BaseCommand):
         }
 
         figures = {
-            "third_man": {"label": "Tercer hombre (figura)", "keywords": ["tercer hombre", "descarga", "de cara", "pared"], "coaching_points": []},
-            "switch": {"label": "Cambio de orientación (figura)", "keywords": ["cambio de orientación", "cambio de orientacion", "invertir", "girar el juego"], "coaching_points": []},
-            "cutback": {"label": "Pase atrás (figura)", "keywords": ["pase atrás", "pase atras", "cutback"], "coaching_points": []},
+            "third_man": {
+                "label": "Tercer hombre (figura)",
+                "keywords": ["tercer hombre", "descarga", "de cara", "pared"],
+                "coaching_points": [],
+            },
+            "switch": {
+                "label": "Cambio de orientación (figura)",
+                "keywords": ["cambio de orientación", "cambio de orientacion", "invertir", "girar el juego"],
+                "coaching_points": [],
+            },
+            "cutback": {
+                "label": "Pase atrás (figura)",
+                "keywords": ["pase atrás", "pase atras", "cutback"],
+                "coaching_points": [],
+            },
         }
 
         total = len(phases) + len(principles) + len(figures)
@@ -396,7 +473,9 @@ class Command(BaseCommand):
                 defaults = {
                     "label": str(payload.get("label") or "")[:160],
                     "keywords": payload.get("keywords") if isinstance(payload.get("keywords"), list) else [],
-                    "coaching_points": payload.get("coaching_points") if isinstance(payload.get("coaching_points"), list) else [],
+                    "coaching_points": (
+                        payload.get("coaching_points") if isinstance(payload.get("coaching_points"), list) else []
+                    ),
                     "created_by": None,
                 }
                 _, was_created = AiTrainerDictionaryEntry.objects.update_or_create(

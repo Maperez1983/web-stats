@@ -40,4 +40,3 @@ Este repo empaqueta una web (`app.segundajugada.es`) dentro de una app (Capacito
 - Tests: `python manage.py test football`
 - Smoke HTTP: `python scripts/smoke_http_pages.py`
 - E2E Playwright (si hay credenciales/IDs): `node scripts/e2e_audit_playwright.js`
-

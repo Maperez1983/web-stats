@@ -14,7 +14,7 @@ def view_delegate(name):
 
     _wrapped.__name__ = name
     _wrapped.__qualname__ = name
-    _wrapped.__doc__ = f'Delegates to football.views.{name}.'
+    _wrapped.__doc__ = f"Delegates to football.views.{name}."
     return _wrapped
 
 

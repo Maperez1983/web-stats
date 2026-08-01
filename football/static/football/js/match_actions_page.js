@@ -875,7 +875,7 @@
 	        score_for: matchInfoCard?.querySelector('[data-field="score_for"] [data-input]')?.value || '',
 	        score_against: matchInfoCard?.querySelector('[data-field="score_against"] [data-input]')?.value || '',
 	      };
-      
+
   const urls = (boot.urls || {});
   const deleteUrl = String(urls.deleteUrl || "");
   const matchInfoSaveUrl = String(urls.matchInfoSaveUrl || "");

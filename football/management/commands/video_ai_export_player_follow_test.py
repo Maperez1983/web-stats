@@ -18,14 +18,26 @@ class Command(BaseCommand):
         parser.add_argument("--video-id", type=int, required=True)
         parser.add_argument("--start", type=float, required=True)
         parser.add_argument("--end", type=float, required=True)
-        parser.add_argument("--out", type=str, default="/Volumes/Mac Satecchi/Mac/Downloads/prueba_seguimiento_jugador.mp4")
+        parser.add_argument(
+            "--out", type=str, default="/Volumes/Mac Satecchi/Mac/Downloads/prueba_seguimiento_jugador.mp4"
+        )
         parser.add_argument("--report", type=str, default="")
         parser.add_argument("--model", type=str, default="data/video_ai/models/yolo11n.pt")
         parser.add_argument("--track-id", type=int, default=0)
         parser.add_argument("--clip-id", type=int, default=0)
         parser.add_argument("--marker-uid", type=str, default="")
-        parser.add_argument("--anchor-x", type=float, default=-1.0, help="x normalizada 0..1 para escoger jugador en el primer frame util.")
-        parser.add_argument("--anchor-y", type=float, default=-1.0, help="y normalizada 0..1 para escoger jugador en el primer frame util.")
+        parser.add_argument(
+            "--anchor-x",
+            type=float,
+            default=-1.0,
+            help="x normalizada 0..1 para escoger jugador en el primer frame util.",
+        )
+        parser.add_argument(
+            "--anchor-y",
+            type=float,
+            default=-1.0,
+            help="y normalizada 0..1 para escoger jugador en el primer frame util.",
+        )
         parser.add_argument("--conf", type=float, default=0.18)
         parser.add_argument("--imgsz", type=int, default=960)
         parser.add_argument("--visual-tracker", action="store_true", default=True)
@@ -75,7 +87,12 @@ class Command(BaseCommand):
         )
         if manual_anchors and not int(options.get("track_id") or 0):
             first_anchor = manual_anchors[0]
-            target_id = self._choose_target_id(frames, anchor_x=float(first_anchor["x_rel"]), anchor_y=float(first_anchor["y_rel"])) or target_id
+            target_id = (
+                self._choose_target_id(
+                    frames, anchor_x=float(first_anchor["x_rel"]), anchor_y=float(first_anchor["y_rel"])
+                )
+                or target_id
+            )
 
         track_points = self._track_points(frames, target_id)
         if manual_anchors:
@@ -116,12 +133,17 @@ class Command(BaseCommand):
 
     def _person_detections(self, frame: dict) -> list[dict]:
         return [
-            d for d in (frame.get("detections") or [])
+            d
+            for d in (frame.get("detections") or [])
             if int(d.get("class_id") or 0) == COCO_PERSON_CLASS_ID and d.get("track_id") is not None
         ]
 
-    def _manual_anchors(self, *, video: RivalVideo, clip_id: int, marker_uid: str, start: float, end: float) -> list[dict]:
-        qs = VideoAiCorrectionExample.objects.filter(video=video, time_ms__gte=int(round(start * 1000)), time_ms__lte=int(round(end * 1000)))
+    def _manual_anchors(
+        self, *, video: RivalVideo, clip_id: int, marker_uid: str, start: float, end: float
+    ) -> list[dict]:
+        qs = VideoAiCorrectionExample.objects.filter(
+            video=video, time_ms__gte=int(round(start * 1000)), time_ms__lte=int(round(end * 1000))
+        )
         if clip_id:
             clip = VideoClip.objects.filter(id=int(clip_id), video=video).first()
             if clip:
@@ -180,7 +202,12 @@ class Command(BaseCommand):
                 people = self._person_detections(frame)
                 if not people:
                     continue
-                best = min(people, key=lambda d: math.hypot(float(d.get("x_rel") or 0.0) - anchor_x, float(d.get("y_rel") or 0.0) - anchor_y))
+                best = min(
+                    people,
+                    key=lambda d: math.hypot(
+                        float(d.get("x_rel") or 0.0) - anchor_x, float(d.get("y_rel") or 0.0) - anchor_y
+                    ),
+                )
                 return int(best.get("track_id") or 0)
 
         by_id: dict[int, list[dict]] = {}
@@ -196,7 +223,9 @@ class Command(BaseCommand):
             xs = [float(r.get("x_rel") or 0.0) for r in rows]
             ys = [float(r.get("y_rel") or 0.0) for r in rows]
             movement = math.hypot(max(xs) - min(xs), max(ys) - min(ys))
-            avg_area = sum(float(r.get("w_rel") or 0.0) * float(r.get("h_rel") or 0.0) for r in rows) / max(1, len(rows))
+            avg_area = sum(float(r.get("w_rel") or 0.0) * float(r.get("h_rel") or 0.0) for r in rows) / max(
+                1, len(rows)
+            )
             return (len(rows) * 1.0) + (movement * 28.0) + (avg_area * 80.0)
 
         return int(max(by_id.items(), key=lambda item: _score(item[1]))[0])
@@ -257,11 +286,20 @@ class Command(BaseCommand):
             if chosen is None and last is not None:
                 candidates = []
                 for det in people:
-                    geom = math.hypot(float(det.get("x_rel") or 0.0) - predicted["x_rel"], float(det.get("y_rel") or 0.0) - predicted["y_rel"])
+                    geom = math.hypot(
+                        float(det.get("x_rel") or 0.0) - predicted["x_rel"],
+                        float(det.get("y_rel") or 0.0) - predicted["y_rel"],
+                    )
                     max_geom = 0.14 if prediction_streak <= 6 else 0.24
                     if geom > max_geom:
                         continue
-                    app = appearance_distance(identity_ref, det.get("color") if isinstance(det.get("color"), dict) else {}) if identity_ref else 0.45
+                    app = (
+                        appearance_distance(
+                            identity_ref, det.get("color") if isinstance(det.get("color"), dict) else {}
+                        )
+                        if identity_ref
+                        else 0.45
+                    )
                     conf = float(det.get("conf") or 0.0)
                     if prediction_streak > 12 and app > 0.62:
                         continue
@@ -285,7 +323,10 @@ class Command(BaseCommand):
                 else:
                     continue
             if last is not None and chosen is not None:
-                jump = math.hypot(float(chosen.get("x_rel") or 0.0) - float(last.get("x_rel") or 0.0), float(chosen.get("y_rel") or 0.0) - float(last.get("y_rel") or 0.0))
+                jump = math.hypot(
+                    float(chosen.get("x_rel") or 0.0) - float(last.get("x_rel") or 0.0),
+                    float(chosen.get("y_rel") or 0.0) - float(last.get("y_rel") or 0.0),
+                )
                 if jump > 0.075 and predicted is not None:
                     chosen = {
                         "x_rel": predicted["x_rel"],
@@ -371,12 +412,18 @@ class Command(BaseCommand):
             prev = points[idx - 1]
             nxt = points[idx + 1]
             row = dict(point)
-            row["x_rel"] = (float(point["x_rel"]) * 0.72) + (((float(prev["x_rel"]) + float(nxt["x_rel"])) / 2.0) * 0.28)
-            row["y_rel"] = (float(point["y_rel"]) * 0.72) + (((float(prev["y_rel"]) + float(nxt["y_rel"])) / 2.0) * 0.28)
+            row["x_rel"] = (float(point["x_rel"]) * 0.72) + (
+                ((float(prev["x_rel"]) + float(nxt["x_rel"])) / 2.0) * 0.28
+            )
+            row["y_rel"] = (float(point["y_rel"]) * 0.72) + (
+                ((float(prev["y_rel"]) + float(nxt["y_rel"])) / 2.0) * 0.28
+            )
             out.append(row)
         return out
 
-    def _visual_tracker_points(self, *, source: Path, start: float, end: float, frames: list[dict], seed_points: list[dict], target_id: int) -> list[dict]:
+    def _visual_tracker_points(
+        self, *, source: Path, start: float, end: float, frames: list[dict], seed_points: list[dict], target_id: int
+    ) -> list[dict]:
         if not seed_points or not hasattr(cv2, "TrackerMIL_create"):
             return seed_points
         seed_by_frame = {int(p["frame"]): p for p in seed_points}
@@ -415,7 +462,11 @@ class Command(BaseCommand):
                 ok, image = cap.read()
                 if not ok:
                     break
-                frame_meta = frames[local_idx] if local_idx < len(frames) else {"frame": local_idx, "t": start + (local_idx / 30.0), "detections": []}
+                frame_meta = (
+                    frames[local_idx]
+                    if local_idx < len(frames)
+                    else {"frame": local_idx, "t": start + (local_idx / 30.0), "detections": []}
+                )
                 seed = seed_by_frame.get(local_idx)
                 if seed is not None and seed.get("source") == "manual_anchor" and initialized:
                     box = _bbox_from_point(seed)
@@ -461,7 +512,9 @@ class Command(BaseCommand):
                         cy = (cy * 0.35) + (det_cy * 0.65)
                         bw = int(round(float(candidate.get("w_rel") or (bw / width)) * width))
                         bh = int(round(float(candidate.get("h_rel") or (bh / height)) * height))
-                        box = _bbox_from_point({"x_rel": cx, "y_rel": cy, "w_rel": bw / max(1, width), "h_rel": bh / max(1, height)})
+                        box = _bbox_from_point(
+                            {"x_rel": cx, "y_rel": cy, "w_rel": bw / max(1, width), "h_rel": bh / max(1, height)}
+                        )
                         tracker = cv2.TrackerMIL_create()
                         try:
                             tracker.init(image, box)
@@ -469,7 +522,9 @@ class Command(BaseCommand):
                         except Exception:
                             pass
                         if isinstance(candidate.get("color"), dict):
-                            identity_ref = self._blend_identity(identity_ref or candidate.get("color"), candidate.get("color"), alpha=0.08)
+                            identity_ref = self._blend_identity(
+                                identity_ref or candidate.get("color"), candidate.get("color"), alpha=0.08
+                            )
                         source_label = "visual_yolo_corrected"
                         follow_conf = min(0.88, 0.62 + float(candidate.get("conf") or 0.0) * 0.22)
                 out.append(
@@ -483,7 +538,11 @@ class Command(BaseCommand):
                         "conf": round(float(follow_conf), 4),
                         "follow_conf": round(float(follow_conf), 4),
                         "source": source_label,
-                        "track_id": int(candidate.get("track_id")) if candidate and candidate.get("track_id") is not None else None,
+                        "track_id": (
+                            int(candidate.get("track_id"))
+                            if candidate and candidate.get("track_id") is not None
+                            else None
+                        ),
                     }
                 )
                 local_idx += 1
@@ -508,7 +567,11 @@ class Command(BaseCommand):
             geom = math.hypot(dx, dy)
             if geom > 0.18:
                 continue
-            app = appearance_distance(identity_ref, det.get("color") if isinstance(det.get("color"), dict) else {}) if identity_ref else 0.4
+            app = (
+                appearance_distance(identity_ref, det.get("color") if isinstance(det.get("color"), dict) else {})
+                if identity_ref
+                else 0.4
+            )
             score = (geom * 0.72) + (app * 0.20) - (float(det.get("conf") or 0.0) * 0.03)
             candidates.append((score, det))
         if not candidates:
@@ -550,7 +613,9 @@ class Command(BaseCommand):
                 )
         return out
 
-    def _quality_report(self, frames: list[dict], raw: list[dict], interp: list[dict], *, target_id: int, start: float, end: float) -> dict:
+    def _quality_report(
+        self, frames: list[dict], raw: list[dict], interp: list[dict], *, target_id: int, start: float, end: float
+    ) -> dict:
         total = max(1, len(frames))
         raw_by_frame = {int(p["frame"]) for p in raw}
         interp_by_frame = {int(p["frame"]) for p in interp}
@@ -599,10 +664,24 @@ class Command(BaseCommand):
             "source_counts": source_counts,
             "gaps": gaps[:20],
             "large_jumps": jumps[:20],
-            "quality": "high" if confirmed_cov >= 0.82 and low_conf_ratio <= 0.12 and not jumps else ("medium" if confirmed_cov >= 0.55 and drawn_cov >= 0.85 else "low"),
+            "quality": (
+                "high"
+                if confirmed_cov >= 0.82 and low_conf_ratio <= 0.12 and not jumps
+                else ("medium" if confirmed_cov >= 0.55 and drawn_cov >= 0.85 else "low")
+            ),
         }
 
-    def _render_video(self, *, source: Path, out_path: Path, start: float, end: float, target_id: int, points_by_frame: dict[int, dict], raw_frames: list[dict]) -> None:
+    def _render_video(
+        self,
+        *,
+        source: Path,
+        out_path: Path,
+        start: float,
+        end: float,
+        target_id: int,
+        points_by_frame: dict[int, dict],
+        raw_frames: list[dict],
+    ) -> None:
         cap = cv2.VideoCapture(str(source))
         if not cap or not cap.isOpened():
             raise CommandError("No se pudo abrir el video.")
@@ -632,8 +711,12 @@ class Command(BaseCommand):
                     trail.append((x, y))
                     if len(trail) > 180:
                         trail = trail[-180:]
-                    follow_conf = float(point.get("follow_conf") if point.get("follow_conf") is not None else point.get("conf") or 0.0)
-                    confirmed = str(point.get("source") or "").startswith("detection") or str(point.get("source") or "") in {"stitched_motion_appearance", "visual_yolo_corrected", "manual_anchor"}
+                    follow_conf = float(
+                        point.get("follow_conf") if point.get("follow_conf") is not None else point.get("conf") or 0.0
+                    )
+                    confirmed = str(point.get("source") or "").startswith("detection") or str(
+                        point.get("source") or ""
+                    ) in {"stitched_motion_appearance", "visual_yolo_corrected", "manual_anchor"}
                     for i in range(1, len(trail)):
                         alpha = i / max(1, len(trail))
                         color = (0, int(130 + 110 * alpha), 255) if confirmed else (180, 180, 180)
@@ -649,13 +732,51 @@ class Command(BaseCommand):
                     cv2.circle(frame, (x, y), max(16, int(bh * 0.22)), ring_color, 5 if confirmed else 3, cv2.LINE_AA)
                     cv2.circle(frame, (x, y), max(7, int(bh * 0.08)), (255, 255, 255), -1, cv2.LINE_AA)
                     if is_manual:
-                        cv2.putText(frame, "ANCLAJE", (x0, min(height - 12, y1 + 28)), cv2.FONT_HERSHEY_SIMPLEX, 0.78, (0, 0, 0), 5, cv2.LINE_AA)
-                        cv2.putText(frame, "ANCLAJE", (x0, min(height - 12, y1 + 28)), cv2.FONT_HERSHEY_SIMPLEX, 0.78, (80, 255, 80), 2, cv2.LINE_AA)
+                        cv2.putText(
+                            frame,
+                            "ANCLAJE",
+                            (x0, min(height - 12, y1 + 28)),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.78,
+                            (0, 0, 0),
+                            5,
+                            cv2.LINE_AA,
+                        )
+                        cv2.putText(
+                            frame,
+                            "ANCLAJE",
+                            (x0, min(height - 12, y1 + 28)),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.78,
+                            (80, 255, 80),
+                            2,
+                            cv2.LINE_AA,
+                        )
                     label = f"Jugador seguido ID {target_id} · {point.get('source')} · {int(follow_conf * 100)}%"
-                    cv2.putText(frame, label, (max(20, x0), max(36, y0 - 12)), cv2.FONT_HERSHEY_SIMPLEX, 0.82, (0, 0, 0), 5, cv2.LINE_AA)
-                    cv2.putText(frame, label, (max(20, x0), max(36, y0 - 12)), cv2.FONT_HERSHEY_SIMPLEX, 0.82, (255, 255, 255), 2, cv2.LINE_AA)
+                    cv2.putText(
+                        frame,
+                        label,
+                        (max(20, x0), max(36, y0 - 12)),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.82,
+                        (0, 0, 0),
+                        5,
+                        cv2.LINE_AA,
+                    )
+                    cv2.putText(
+                        frame,
+                        label,
+                        (max(20, x0), max(36, y0 - 12)),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.82,
+                        (255, 255, 255),
+                        2,
+                        cv2.LINE_AA,
+                    )
                 cv2.putText(frame, f"{pos_s:.2f}s", (30, 44), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), 5, cv2.LINE_AA)
-                cv2.putText(frame, f"{pos_s:.2f}s", (30, 44), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2, cv2.LINE_AA)
+                cv2.putText(
+                    frame, f"{pos_s:.2f}s", (30, 44), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2, cv2.LINE_AA
+                )
                 writer.write(frame)
                 local_idx += 1
         finally:

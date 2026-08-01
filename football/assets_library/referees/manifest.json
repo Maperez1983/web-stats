@@ -1,0 +1,24 @@
+{
+  "category": "referees",
+  "category_type": "entity",
+  "default_family": "referee_tokens",
+  "families": [
+    "referee_tokens",
+    "assistant_referees"
+  ],
+  "variants": [
+    "default",
+    "yellow",
+    "black",
+    "premium"
+  ],
+  "fallback_asset": "referees/referee_tokens/default",
+  "compatible_themes": [
+    "classic",
+    "broadcast",
+    "premium"
+  ],
+  "resolution_independent": true,
+  "theme_overrides_supported": true,
+  "assets": []
+}

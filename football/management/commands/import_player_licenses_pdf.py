@@ -191,7 +191,9 @@ class Command(BaseCommand):
         parser.add_argument("--min-score", type=float, default=0.55, help="Score mínimo para asignar automáticamente.")
         parser.add_argument("--dry-run", action="store_true", help="No guarda nada, solo muestra el mapeo.")
         parser.add_argument("--out-json", default="", help="Ruta para guardar el mapping en JSON.")
-        parser.add_argument("--export-dir", default="", help="Directorio para exportar JPGs normalizados (por página/nombre).")
+        parser.add_argument(
+            "--export-dir", default="", help="Directorio para exportar JPGs normalizados (por página/nombre)."
+        )
         parser.add_argument("--dpi", type=int, default=220, help="DPI para rasterizar el PDF.")
         parser.add_argument(
             "--split",
@@ -312,8 +314,12 @@ class Command(BaseCommand):
             }
             for item in results
         ]
-        assigned = sum(1 for item in results if item.player_id and item.score >= min_score and (dry_run or item.saved_as))
-        self.stdout.write(self.style.SUCCESS(f"Procesadas {len(results)} páginas. Asignadas: {assigned}. Dry-run={dry_run}"))
+        assigned = sum(
+            1 for item in results if item.player_id and item.score >= min_score and (dry_run or item.saved_as)
+        )
+        self.stdout.write(
+            self.style.SUCCESS(f"Procesadas {len(results)} páginas. Asignadas: {assigned}. Dry-run={dry_run}")
+        )
         for item in results:
             self.stdout.write(
                 f"- p{item.page:02d}/c{item.card:02d} score={item.score:.2f} player={item.player_name or '-'} name='{item.extracted_name or '-'}' {('saved='+item.saved_as) if item.saved_as else ''} {('ERR='+item.error) if item.error else ''}"

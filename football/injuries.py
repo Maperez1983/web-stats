@@ -5,7 +5,6 @@ from datetime import date, timedelta
 
 from django.utils import timezone
 
-
 TIME_LOSS_MINIMAL_MAX = 3
 TIME_LOSS_MILD_MAX = 7
 TIME_LOSS_MODERATE_MAX = 28
@@ -22,12 +21,12 @@ def categorize_time_loss(days: int) -> str:
     """
     value = int(days or 0)
     if value <= TIME_LOSS_MINIMAL_MAX:
-        return 'minima'
+        return "minima"
     if value <= TIME_LOSS_MILD_MAX:
-        return 'leve'
+        return "leve"
     if value <= TIME_LOSS_MODERATE_MAX:
-        return 'moderada'
-    return 'grave'
+        return "moderada"
+    return "grave"
 
 
 def time_loss_days(injury_date: date | None, return_date: date | None, today: date | None = None) -> int:
@@ -83,4 +82,3 @@ class InjuryMetrics:
     active_records: int = 0
     total_days_lost: int = 0
     active_days_lost: int = 0
-

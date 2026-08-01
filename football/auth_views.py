@@ -12,16 +12,15 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect
 from django.urls import Resolver404, resolve, reverse
-from django.utils.html import escape
 from django.utils import timezone
+from django.utils.html import escape
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from .models import AppUserRole, ServiceAccessToken
-from .workspace_context import can_access_platform as workspace_can_access_platform
 from .workspace_context import available_workspaces_for_user as workspace_available_workspaces_for_user
+from .workspace_context import can_access_platform as workspace_can_access_platform
 from .workspace_context import get_user_role as workspace_get_user_role
-
 
 logger = logging.getLogger(__name__)
 auth_logger = logging.getLogger("webstats.auth")
@@ -212,7 +211,12 @@ class RoleAwareLoginView(auth_views.LoginView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        public_signup_enabled = str(os.getenv("ENABLE_PUBLIC_SIGNUP", "0") or "").strip().lower() in {"1", "true", "yes", "on"}
+        public_signup_enabled = str(os.getenv("ENABLE_PUBLIC_SIGNUP", "0") or "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
         context["public_signup_enabled"] = public_signup_enabled
         return context
 
@@ -294,14 +298,14 @@ class RoleAwareLoginView(auth_views.LoginView):
                 return response
             safe_target = escape(target)
             html = (
-                "<!doctype html><html lang=\"es\"><head>"
-                "<meta charset=\"utf-8\"/>"
-                "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"/>"
-                f"<meta http-equiv=\"refresh\" content=\"0;url={safe_target}\"/>"
+                '<!doctype html><html lang="es"><head>'
+                '<meta charset="utf-8"/>'
+                '<meta name="viewport" content="width=device-width,initial-scale=1"/>'
+                f'<meta http-equiv="refresh" content="0;url={safe_target}"/>'
                 "<title>Entrando…</title>"
-                "</head><body style=\"font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;\">"
+                '</head><body style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">'
                 "<p>Entrando…</p>"
-                f"<p><a href=\"{safe_target}\">Continuar</a></p>"
+                f'<p><a href="{safe_target}">Continuar</a></p>'
                 f"<script>window.location.replace({target!r});</script>"
                 "</body></html>"
             )
@@ -341,7 +345,9 @@ def _extract_service_token(request) -> str:
         if candidate:
             return candidate
     for key in ("X-Service-Token", "X-Api-Key", "service_token", "token"):
-        candidate = str(getattr(request, "headers", {}).get(key) or request.POST.get(key) or request.GET.get(key) or "").strip()
+        candidate = str(
+            getattr(request, "headers", {}).get(key) or request.POST.get(key) or request.GET.get(key) or ""
+        ).strip()
         if candidate:
             return candidate
     return ""
@@ -388,7 +394,9 @@ def _service_login_failure(request, message: str, status_code: int = 403):
         return JsonResponse({"ok": False, "error": message}, status=status_code)
     response = _service_login_get_form(request)
     response.status_code = status_code
-    response.content = response.content.replace(b"</h1>", f"</h1><p style=\"color:#fca5a5;\">{escape(message)}</p>".encode("utf-8"))
+    response.content = response.content.replace(
+        b"</h1>", f'</h1><p style="color:#fca5a5;">{escape(message)}</p>'.encode("utf-8")
+    )
     return response
 
 
@@ -404,8 +412,7 @@ def service_token_login_page(request):
 
     token_prefix = ServiceAccessToken._token_prefix(raw_token)
     candidates = (
-        ServiceAccessToken.objects
-        .select_related("user", "workspace")
+        ServiceAccessToken.objects.select_related("user", "workspace")
         .filter(is_active=True, token_prefix=token_prefix)
         .order_by("-created_at", "-id")
     )

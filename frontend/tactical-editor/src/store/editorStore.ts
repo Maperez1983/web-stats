@@ -58,10 +58,12 @@ import {
 } from '../editor/serialization/SceneSerializer';
 import { resolveAssetDefinition } from '../editor/assets/assetRegistry';
 import { compileTacticalRecreation } from '../tactical-language';
+import type { TacticalLanguageDocument, TacticalStatement } from '../tactical-language/types';
 import type { TaskEditorDocument } from '../domain/taskDocument';
 
 export type EditorViewport = 'board2d' | 'board3d' | 'uefa';
 export type EditorInspector = 'properties' | 'sequence' | 'exports';
+export type EditorSurfaceMode = 'edition' | 'presentation';
 export type EditorTool =
   | 'select'
   | 'pan'
@@ -129,6 +131,7 @@ type EditorStore = {
   activeTool: EditorTool;
   activeAssetId: string | null;
   selectedIds: string[];
+  editorSurfaceMode: EditorSurfaceMode;
   dirty: boolean;
   saving: boolean;
   error: string | null;
@@ -139,9 +142,12 @@ type EditorStore = {
   snapGuides: Array<{ id: string; x1: number; y1: number; x2: number; y2: number }>;
   featureEnabled: boolean;
   tacticalRecreation: ReturnType<typeof compileTacticalRecreation> | null;
+  tacticalRecreationDraft: TacticalLanguageDocument | null;
+  tacticalRecreationModified: boolean;
   tacticalRecreationToken: number;
   setDocument: (document: TaskEditorDocument) => void;
   setViewport: (viewport: EditorViewport) => void;
+  setEditorSurfaceMode: (mode: EditorSurfaceMode) => void;
   setInspector: (inspector: EditorInspector) => void;
   setTool: (tool: EditorTool) => void;
   setActiveAssetId: (assetId: string | null) => void;
@@ -203,6 +209,12 @@ type EditorStore = {
   setSnapGuides: (guides: Array<{ id: string; x1: number; y1: number; x2: number; y2: number }>) => void;
   updatePreferences: (patch: Partial<EditorPreferences>) => void;
   generateRecreation: () => void;
+  setTacticalRecreationDraft: (draft: TacticalLanguageDocument | null) => void;
+  resetTacticalRecreationDraft: () => void;
+  acceptTacticalRecreationDraft: () => void;
+  patchTacticalRecreationStatement: (statementId: string, patch: Partial<TacticalStatement>) => void;
+  moveTacticalRecreationStatement: (statementId: string, direction: 'up' | 'down') => void;
+  removeTacticalRecreationStatement: (statementId: string) => void;
   addTimelineKeyframe: (time?: number, label?: string) => void;
   removeTimelineKeyframe: (keyframeId: string) => void;
   moveTimelineKeyframe: (keyframeId: string, time: number) => void;
@@ -230,9 +242,29 @@ function isFeatureEnabled(): boolean {
     return false;
   }
   const params = new URLSearchParams(window.location.search);
-  return ['1', 'true', 'konva', 'foundation'].includes(
-    String(params.get('editor2d') || '').toLowerCase()
-  );
+  const labMode = String(params.get('editor_lab') || '').trim().toLowerCase();
+  if (['production', 'live', 'off'].includes(labMode)) {
+    return false;
+  }
+  if (['konva', 'compare', 'comparison'].includes(labMode)) {
+    return true;
+  }
+  const raw = String(params.get('editor2d') || '').toLowerCase();
+  if (['0', 'false', 'legacy', 'off'].includes(raw)) {
+    return false;
+  }
+  if (['1', 'true', 'konva', 'foundation'].includes(raw)) {
+    return true;
+  }
+  return true;
+}
+
+function isPresentationMode(): EditorSurfaceMode {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return 'edition';
+  }
+  const stored = window.localStorage.getItem('tactical-editor-surface-mode-v1');
+  return stored === 'presentation' ? 'presentation' : 'edition';
 }
 
 function cloneScene(scene: TacticalScene): TacticalScene {
@@ -319,6 +351,13 @@ function normalizeGroupSelection(scene: TacticalScene, ids: string[]): string[] 
   return expandSelectionByGroups(scene, ids).filter((id, index, array) => array.indexOf(id) === index);
 }
 
+function rebuildTacticalRecreation(
+  scene: TacticalScene,
+  draft: TacticalLanguageDocument | null
+): ReturnType<typeof compileTacticalRecreation> {
+  return compileTacticalRecreation(scene, draft || undefined);
+}
+
 function mutateSelectedSceneObjects(
   scene: TacticalScene,
   ids: string[],
@@ -343,6 +382,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   activeTool: 'select',
   activeAssetId: null,
   selectedIds: [],
+  editorSurfaceMode: isPresentationMode(),
   dirty: false,
   saving: false,
   error: null,
@@ -353,6 +393,8 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   snapGuides: [],
   featureEnabled: isFeatureEnabled(),
   tacticalRecreation: null,
+  tacticalRecreationDraft: null,
+  tacticalRecreationModified: false,
   tacticalRecreationToken: 0,
   setDocument: (document) =>
     set({
@@ -366,9 +408,18 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       history: createHistoryState(),
       snapGuides: [],
       tacticalRecreation: null,
+      tacticalRecreationDraft: null,
+      tacticalRecreationModified: false,
       tacticalRecreationToken: 0,
     }),
   setViewport: (activeViewport) => set({ activeViewport }),
+  setEditorSurfaceMode: (editorSurfaceMode) =>
+    set(() => {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem('tactical-editor-surface-mode-v1', editorSurfaceMode);
+      }
+      return { editorSurfaceMode };
+    }),
   setInspector: (activeInspector) => set({ activeInspector }),
   setTool: (activeTool) => set({ activeTool }),
   setActiveAssetId: (activeAssetId) => set({ activeAssetId }),
@@ -1019,13 +1070,15 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         return {};
       }
       try {
-        const result = compileTacticalRecreation(state.scene);
+        const result = rebuildTacticalRecreation(state.scene, state.tacticalRecreationDraft);
         return {
           scene: result.scene,
           history: pushHistorySnapshot(state.history, state.scene),
           dirty: true,
           revision: state.revision + 1,
           tacticalRecreation: result,
+          tacticalRecreationDraft: deepClone(result.language),
+          tacticalRecreationModified: false,
           tacticalRecreationToken: state.tacticalRecreationToken + 1,
           error: null,
         };
@@ -1035,6 +1088,83 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
           error: error instanceof Error ? error.message : 'No se pudo generar la recreación táctica.',
         };
       }
+    }),
+  setTacticalRecreationDraft: (draft) =>
+    set((state) => ({
+      tacticalRecreationDraft: draft ? deepClone(draft) : null,
+      tacticalRecreationModified: Boolean(draft),
+      tacticalRecreationToken: state.tacticalRecreationToken,
+    })),
+  resetTacticalRecreationDraft: () =>
+    set((state) => ({
+      tacticalRecreationDraft: state.tacticalRecreation ? deepClone(state.tacticalRecreation.language) : null,
+      tacticalRecreationModified: false,
+    })),
+  acceptTacticalRecreationDraft: () =>
+    set({
+      tacticalRecreationModified: false,
+    }),
+  patchTacticalRecreationStatement: (statementId, patch) =>
+    set((state) => {
+      if (!state.scene || !state.tacticalRecreationDraft) {
+        return {};
+      }
+      const nextDraft = deepClone(state.tacticalRecreationDraft);
+      nextDraft.statements = nextDraft.statements.map((statement) =>
+        statement.id === statementId ? { ...statement, ...patch } : statement
+      );
+      return {
+        tacticalRecreationDraft: nextDraft,
+        tacticalRecreationModified: true,
+        tacticalRecreationToken: state.tacticalRecreationToken,
+      };
+    }),
+  moveTacticalRecreationStatement: (statementId, direction) =>
+    set((state) => {
+      if (!state.scene || !state.tacticalRecreationDraft) {
+        return {};
+      }
+      const nextDraft = deepClone(state.tacticalRecreationDraft);
+      const index = nextDraft.statements.findIndex((statement) => statement.id === statementId);
+      if (index < 0) {
+        return {};
+      }
+      const targetIndex = direction === 'up' ? Math.max(0, index - 1) : Math.min(nextDraft.statements.length - 1, index + 1);
+      if (targetIndex === index) {
+        return {};
+      }
+      const [statement] = nextDraft.statements.splice(index, 1);
+      nextDraft.statements.splice(targetIndex, 0, statement);
+      nextDraft.phases = nextDraft.phases.map((phase) => ({
+        ...phase,
+        statementIds: nextDraft.statements.filter((item) => item.phaseId === phase.id).map((item) => item.id),
+      }));
+      return {
+        tacticalRecreationDraft: nextDraft,
+        tacticalRecreationModified: true,
+        tacticalRecreationToken: state.tacticalRecreationToken,
+      };
+    }),
+  removeTacticalRecreationStatement: (statementId) =>
+    set((state) => {
+      if (!state.scene || !state.tacticalRecreationDraft) {
+        return {};
+      }
+      const nextDraft = deepClone(state.tacticalRecreationDraft);
+      nextDraft.statements = nextDraft.statements.filter((statement) => statement.id !== statementId);
+      nextDraft.dependencies = nextDraft.dependencies.filter(
+        (dependency) => dependency.fromStatementId !== statementId && dependency.toStatementId !== statementId
+      );
+      nextDraft.phases = nextDraft.phases.map((phase) => ({
+        ...phase,
+        statementIds: nextDraft.statements.filter((item) => item.phaseId === phase.id).map((item) => item.id),
+      }));
+      nextDraft.objectives = nextDraft.objectives.filter((objective) => objective.id !== `${statementId}-objective`);
+      return {
+        tacticalRecreationDraft: nextDraft,
+        tacticalRecreationModified: true,
+        tacticalRecreationToken: state.tacticalRecreationToken,
+      };
     }),
   addTimelineKeyframe: (time, label) =>
     set((state) => {

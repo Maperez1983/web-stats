@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Avatar Render Preview</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #00ff00; overflow: hidden; }
+    canvas { display: block; width: 100vw; height: 100vh; }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "../football/static/vendor/three/build/three.module.js"
+      }
+    }
+  </script>
+  <script type="module">
+    import * as THREE from '../football/static/vendor/three/build/three.module.js';
+    import { GLTFLoader } from '../football/static/vendor/three/examples/jsm/loaders/GLTFLoader.js';
+
+    const canvas = document.getElementById('c');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight, false);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.setClearColor(0x00ff00, 1);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x00ff00);
+
+    const camera = new THREE.PerspectiveCamera(20, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 4.6, 9.5);
+    camera.lookAt(0, 1.6, 0);
+
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x4a5d30, 1.85);
+    scene.add(hemi);
+    const dir = new THREE.DirectionalLight(0xffffff, 2.2);
+    dir.position.set(2.5, 5, 3);
+    scene.add(dir);
+    const rim = new THREE.DirectionalLight(0xbfe6ff, 0.8);
+    rim.position.set(-2, 2.5, -3);
+    scene.add(rim);
+
+    const shadow = new THREE.Mesh(
+      new THREE.CircleGeometry(0.34, 48),
+      new THREE.MeshBasicMaterial({ color: 0x648f1a, transparent: true, opacity: 0.35 })
+    );
+    shadow.rotation.x = -Math.PI / 2;
+    shadow.position.set(0, 0.01, 0);
+    scene.add(shadow);
+    const shadowCore = new THREE.Mesh(
+      new THREE.CircleGeometry(0.22, 48),
+      new THREE.MeshBasicMaterial({ color: 0x111827, transparent: true, opacity: 0.18 })
+    );
+    shadowCore.rotation.x = -Math.PI / 2;
+    shadowCore.position.set(0, 0.02, 0);
+    scene.add(shadowCore);
+
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(3, 3),
+      new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+    );
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+
+    const loader = new GLTFLoader();
+    loader.load('../football/static/football/models/avatar/player_humanoid.glb', (gltf) => {
+      const model = gltf.scene;
+      model.rotation.y = Math.PI;
+      model.scale.setScalar(8);
+      const box = new THREE.Box3().setFromObject(model);
+      const size = new THREE.Vector3();
+      const center = new THREE.Vector3();
+      box.getSize(size);
+      box.getCenter(center);
+      model.position.x -= center.x;
+      model.position.z -= center.z;
+      model.position.y -= box.min.y;
+      window.__avatarMetrics = {
+        minY: box.min.y,
+        maxY: box.max.y,
+        sizeY: size.y,
+        sizeX: size.x,
+        sizeZ: size.z,
+        centerX: center.x,
+        centerY: center.y,
+        centerZ: center.z,
+      };
+      model.traverse((node) => {
+        if (!node.isMesh) return;
+        node.castShadow = false;
+        node.receiveShadow = false;
+        if (node.material) {
+          node.material.transparent = true;
+          node.material.needsUpdate = true;
+        }
+      });
+      scene.add(model);
+      window.__avatarReady = true;
+      const render = () => {
+        renderer.render(scene, camera);
+        requestAnimationFrame(render);
+      };
+      render();
+    }, undefined, (error) => {
+      console.error(error);
+      window.__avatarReady = 'error';
+    });
+  </script>
+</body>
+</html>

@@ -113,7 +113,13 @@ class Command(BaseCommand):
             players = list(Player.objects.filter(team=primary_team).order_by("name", "id"))
             matches = []
             for p in players:
-                hay = " ".join([slugify(p.name or ""), slugify(getattr(p, "full_name", "") or ""), slugify(getattr(p, "nickname", "") or "")])
+                hay = " ".join(
+                    [
+                        slugify(p.name or ""),
+                        slugify(getattr(p, "full_name", "") or ""),
+                        slugify(getattr(p, "nickname", "") or ""),
+                    ]
+                )
                 if any(tok in hay for tok in tokens):
                     matches.append(p)
             if not matches:
@@ -138,13 +144,21 @@ class Command(BaseCommand):
             players = list(Player.objects.filter(team=primary_team).order_by("name", "id"))
             scored = []
             for p in players:
-                hay = " ".join([slugify(p.name or ""), slugify(getattr(p, "full_name", "") or ""), slugify(getattr(p, "nickname", "") or "")])
+                hay = " ".join(
+                    [
+                        slugify(p.name or ""),
+                        slugify(getattr(p, "full_name", "") or ""),
+                        slugify(getattr(p, "nickname", "") or ""),
+                    ]
+                )
                 score = sum(1 for t in tokens if t and t in hay)
                 if score:
                     scored.append((score, p))
             scored.sort(key=lambda item: (-item[0], item[1].id))
             if not scored:
-                self.stdout.write(self.style.ERROR(f"[auto] No encuentro jugador candidato para {username}. Usa --find o --link."))
+                self.stdout.write(
+                    self.style.ERROR(f"[auto] No encuentro jugador candidato para {username}. Usa --find o --link.")
+                )
                 return
             best_score = scored[0][0]
             best = [p for s, p in scored if s == best_score]

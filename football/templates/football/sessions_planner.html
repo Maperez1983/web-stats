@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
-    <script defer src="{% static 'football/js/pitch_surface_25d.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
+    <script defer src="{% static 'football/js/pitch_surface_25d.js' %}?v=pitch25d-v2-native-grass-restore{% if static_build_id %}-{{ static_build_id|urlencode }}{% endif %}"></script>
     <script defer src="{% static 'football/js/pitch_surface_preview.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
     {% include 'football/pwa_head.html' %}
     <style>
@@ -3287,14 +3287,14 @@
 		            const targetBlockInput = form.querySelector('input[name="target_block"]');
 		            let draggingTaskId = '';
 		            let draggingFromBlock = '';
-		
+
 		            const dropZones = Array.from(document.querySelectorAll('[data-drop-block]'));
 		            const normalize = (value) => String(value || '').trim();
-		
+
 		            const clearHighlights = () => {
 		              dropZones.forEach((zone) => zone.classList.remove('is-drop-target'));
 		            };
-		
+
 			            document.addEventListener('dragstart', (event) => {
 			              const card = event.target.closest('[data-task-id]');
 			              if (!card) return;
@@ -3306,14 +3306,14 @@
 		              try { event.dataTransfer.setData('text/plain', draggingTaskId); } catch (e) {}
 		              dropZones.forEach((zone) => zone.classList.add('is-drop-target'));
 		            });
-		
+
 			            document.addEventListener('dragend', () => {
 			              draggingTaskId = '';
 			              draggingFromBlock = '';
 			              try { window.__webstatsSessionsDragging = false; } catch (e) { /* ignore */ }
 			              clearHighlights();
 			            });
-		
+
 		            dropZones.forEach((zone) => {
 		              zone.addEventListener('dragover', (event) => {
 		                if (!draggingTaskId) return;

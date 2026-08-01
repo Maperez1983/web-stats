@@ -1,0 +1,25 @@
+{
+  "category": "cones",
+  "category_type": "equipment",
+  "default_family": "training_cones",
+  "families": [
+    "training_cones",
+    "marker_discs"
+  ],
+  "variants": [
+    "default",
+    "yellow",
+    "orange",
+    "blue",
+    "premium"
+  ],
+  "fallback_asset": "cones/training_cones/default",
+  "compatible_themes": [
+    "classic",
+    "broadcast",
+    "premium"
+  ],
+  "resolution_independent": true,
+  "theme_overrides_supported": true,
+  "assets": []
+}

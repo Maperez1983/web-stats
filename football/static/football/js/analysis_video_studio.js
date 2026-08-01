@@ -7608,12 +7608,12 @@
 	        return false;
 	      }
 	    };
-	
+
 	    const syncClipFiltersFromUi = () => {
 	      clipFilterState.q = clipNorm(clipSearchInput?.value || '');
 	      clipFilterState.collection = safeText(clipCollectionFilterSelect?.value, '').trim();
 	    };
-	
+
 	    const applyClipFilters = (items) => {
 	      syncClipFiltersFromUi();
 	      const q = clipFilterState.q;
@@ -7633,7 +7633,7 @@
 	        return hay.includes(q);
 	      });
 	    };
-	
+
 	    const rebuildCollectionFilters = (items) => {
 	      const list = (Array.isArray(items) ? items : []);
 	      const counts = new Map();
@@ -7645,7 +7645,7 @@
 	      const collections = Array.from(counts.entries())
 	        .sort((a, b) => a[0].localeCompare(b[0]))
 	        .map(([name, count]) => ({ name, count }));
-	
+
 	      // Select options
 	      if (clipCollectionFilterSelect) {
 	        const current = safeText(clipCollectionFilterSelect.value, '');
@@ -7654,7 +7654,7 @@
 	          .join('');
 	        if (current && collections.some((r) => r.name === current)) clipCollectionFilterSelect.value = current;
 	      }
-	
+
 	      // Chips
 	      if (clipCollectionsWrap) {
 	        const active = safeText(clipCollectionFilterSelect?.value, '');

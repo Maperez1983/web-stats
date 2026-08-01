@@ -4,8 +4,8 @@ import os
 from pathlib import Path
 
 from django.contrib.auth import get_user_model
-from django.core.management.base import BaseCommand
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management.base import BaseCommand
 from django.test import Client
 from django.urls import reverse
 
@@ -43,7 +43,9 @@ class Command(BaseCommand):
 
         # Informa si el entorno no está en modo "fallback monoclub"; en smoke usamos usuario plataforma.
         if not os.getenv("ALLOW_SINGLE_CLUB_FALLBACK"):
-            self.stdout.write(self.style.WARNING("Nota: ALLOW_SINGLE_CLUB_FALLBACK no está activo. Smoke usa superuser."))
+            self.stdout.write(
+                self.style.WARNING("Nota: ALLOW_SINGLE_CLUB_FALLBACK no está activo. Smoke usa superuser.")
+            )
 
         team = Team.objects.filter(id=int(team_id)).first() if team_id else Team.objects.filter(is_primary=True).first()
         if not team:
@@ -144,17 +146,17 @@ class Command(BaseCommand):
             pdf_file = SimpleUploadedFile("smoke_task.pdf", pdf_bytes, content_type="application/pdf")
             before = SessionTask.objects.count()
             post_data = {
-                    "planner_action": "library_upload_pdf",
-                    "planner_tab": "import",
-                    "team": int(team.id),
-                    "workspace": int(workspace.id),
-                    "pdf_import_mode": "raw",
-                    "pdf_task_title": "SMOKE PDF",
-                    "pdf_task_objective": "",
-                    "pdf_task_block": SessionTask.BLOCK_MAIN_1,
-                    "pdf_task_minutes": "15",
-                    "library_task_pdf": pdf_file,
-                }
+                "planner_action": "library_upload_pdf",
+                "planner_tab": "import",
+                "team": int(team.id),
+                "workspace": int(workspace.id),
+                "pdf_import_mode": "raw",
+                "pdf_task_title": "SMOKE PDF",
+                "pdf_task_objective": "",
+                "pdf_task_block": SessionTask.BLOCK_MAIN_1,
+                "pdf_task_minutes": "15",
+                "library_task_pdf": pdf_file,
+            }
             resp = c.post(sessions_url, data=post_data)
             _ok("POST importar tarea PDF", resp.status_code in (200, 302), f"status={resp.status_code}")
             after = SessionTask.objects.count()
@@ -168,8 +170,7 @@ class Command(BaseCommand):
 
         # 4) Enviar a papelera una tarea de biblioteca (si existe).
         lib_task = (
-            SessionTask.objects
-            .select_related("session__microcycle")
+            SessionTask.objects.select_related("session__microcycle")
             .filter(session__microcycle__team=team, deleted_at__isnull=True)
             .order_by("-id")
             .first()
@@ -237,12 +238,18 @@ class Command(BaseCommand):
         # 7) Crea microciclo/sesión mínima (flujo base).
         try:
             # Evita colisión unique (week_start).
-            week_start = TrainingMicrocycle.objects.filter(team=team).order_by("-week_start").values_list("week_start", flat=True).first()
+            week_start = (
+                TrainingMicrocycle.objects.filter(team=team)
+                .order_by("-week_start")
+                .values_list("week_start", flat=True)
+                .first()
+            )
             if week_start:
                 # a la siguiente semana
                 new_start = week_start.replace(day=min(28, week_start.day))  # safe
             else:
                 from datetime import date, timedelta
+
                 new_start = date.today()
             # Simple: usa get_or_create por week_start
             mc, _ = TrainingMicrocycle.objects.get_or_create(

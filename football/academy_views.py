@@ -10,16 +10,9 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
-from .event_taxonomy import normalize_label
 from . import permissions, workspace_context
-from .models import (
-    AcademyAssignment,
-    AcademyLesson,
-    AcademyLessonStep,
-    AcademyProgress,
-    AcademyQuizOption,
-)
-
+from .event_taxonomy import normalize_label
+from .models import AcademyAssignment, AcademyLesson, AcademyLessonStep, AcademyProgress, AcademyQuizOption
 
 CATEGORY_RANK = {
     AcademyLesson.CATEGORY_BABY: 0,
@@ -165,7 +158,15 @@ def academy_home_page(request):
 
         buckets = {
             "Metodología": ["metodologia", "didactica", "constraints", "sesion", "planificacion"],
-            "Ataque": ["ataque", "progresion", "salida", "finalizacion", "amplitud", "profundidad", "cambio_orientacion"],
+            "Ataque": [
+                "ataque",
+                "progresion",
+                "salida",
+                "finalizacion",
+                "amplitud",
+                "profundidad",
+                "cambio_orientacion",
+            ],
             "Defensa": ["defensa", "zona", "presion", "bloque", "bloque_medio", "centros", "area"],
             "Transición": ["transicion", "perdida", "recuperacion", "contrapresion", "repliegue"],
             "ABP": ["abp", "corner", "falta_lateral", "banda", "penalti"],
@@ -287,8 +288,9 @@ def academy_today_api(request):
     )
     lesson_ids = [int(a.lesson_id) for a in assignments if getattr(a, "lesson_id", None)]
     progresses = list(
-        AcademyProgress.objects.filter(workspace=workspace, user=request.user, lesson_id__in=lesson_ids)
-        .order_by("-updated_at")[:60]
+        AcademyProgress.objects.filter(workspace=workspace, user=request.user, lesson_id__in=lesson_ids).order_by(
+            "-updated_at"
+        )[:60]
     )
     progress_by_lesson_id = {int(p.lesson_id): p for p in progresses if getattr(p, "lesson_id", None)}
 
@@ -400,4 +402,10 @@ def academy_complete_api(request):
             progress.started_at = progress.completed_at
         progress.save(update_fields=["status", "completed_at", "started_at", "updated_at"])
 
-    return JsonResponse({"ok": True, "status": progress.status, "completed_at": progress.completed_at.isoformat() if progress.completed_at else ""})
+    return JsonResponse(
+        {
+            "ok": True,
+            "status": progress.status,
+            "completed_at": progress.completed_at.isoformat() if progress.completed_at else "",
+        }
+    )

@@ -1,6 +1,10 @@
+{% if roster_bank_compact %}
+<div class="section roster-bank roster-bank-compact" id="task-roster-bank" style="margin-top:0.5rem;">
+{% else %}
 <div class="section roster-bank" id="task-roster-bank" style="margin-top:0.9rem;">
+{% endif %}
   <div class="player-bank-head">
-    <h3 style="margin:0;">Plantilla disponible</h3>
+    <h3 style="margin:0;">Plantilla de jugadores</h3>
     <div class="player-bank-quickbar" id="task-player-bank-quickbar" aria-label="Controles rápidos de plantilla">
       <div class="player-bank-filter-group" role="group" aria-label="Filtro de plantilla">
         <button type="button" class="is-active" data-roster-filter="all" aria-pressed="true">Todos</button>
@@ -54,10 +58,10 @@
       </span>
     {% endif %}
   </div>
-  <div class="player-bank" id="task-player-bank">
+  <div class="player-bank" id="task-player-bank" data-testid="task-player-bank">
     {% if tactics_mode and tactical_player_catalog %}
       {% for p in tactical_player_catalog %}
-        <button type="button" class="player-token-bank" data-player-id="{{ p.id }}" title="{{ p.name|default:'' }}">
+        <button type="button" class="player-token-bank" data-player-id="{{ p.id }}" data-testid="task-player-bank-token-{{ p.id }}" title="{{ p.name|default:'' }}">
           <span class="player-token-bank-visuals">
             <span class="token-disk is-preview{% if p.position and p.position|upper == 'GK' %} is-goalkeeper{% endif %}">
               <span class="token-number">{% if p.position and p.position|upper == 'GK' %}GK{% else %}{{ p.number|default:"J" }}{% endif %}</span>
@@ -98,7 +102,7 @@
       {% endfor %}
     {% elif available_players %}
       {% for player in available_players %}
-        <button type="button" class="player-token-bank" data-player-id="{{ player.id }}" title="{{ player.name|default:'' }}">
+        <button type="button" class="player-token-bank" data-player-id="{{ player.id }}" data-testid="task-player-bank-token-{{ player.id }}" title="{{ player.name|default:'' }}">
           <span class="player-token-bank-visuals">
             <span class="token-disk is-preview{% if player.position and player.position|upper == 'GK' %} is-goalkeeper{% endif %}">
               <span class="token-number">{% if player.position and player.position|upper == 'GK' %}GK{% else %}{{ player.number|default:"J" }}{% endif %}</span>

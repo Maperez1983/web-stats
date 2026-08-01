@@ -1,0 +1,1 @@
+Player Asset Kit premium generado por código con svgwrite/cairosvg.\nLas poses viven en tools/generate_player_assets.py y se exportan a svg/, png/ y previews/.\n

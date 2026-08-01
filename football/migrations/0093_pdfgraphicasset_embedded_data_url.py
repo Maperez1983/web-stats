@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('football', '0092_alter_rivalvideo_video_blank'),
+        ("football", "0092_alter_rivalvideo_video_blank"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='pdfgraphicasset',
-            name='embedded_data_url',
-            field=models.TextField(blank=True, default=''),
+            model_name="pdfgraphicasset",
+            name="embedded_data_url",
+            field=models.TextField(blank=True, default=""),
         ),
     ]

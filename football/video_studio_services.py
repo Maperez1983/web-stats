@@ -8,16 +8,15 @@ from django.db import transaction
 from .models import RivalVideo, Team, VideoClip, VideoTimelineEvent, Workspace, WorkspacePreference
 from .task_library_services import sanitize_task_text
 
-
 logger = logging.getLogger(__name__)
 
 
 def autocut_enabled() -> bool:
     try:
-        raw = str(os.getenv('ANALYSIS_AUTOCUT_ON_UPLOAD') or '').strip().lower()
+        raw = str(os.getenv("ANALYSIS_AUTOCUT_ON_UPLOAD") or "").strip().lower()
     except Exception:
-        raw = ''
-    if raw and raw not in {'1', 'true', 'yes', 'on'}:
+        raw = ""
+    if raw and raw not in {"1", "true", "yes", "on"}:
         return False
     return True
 
@@ -27,14 +26,16 @@ def autoclip_pref_key(*, team_id, pack: str) -> str:
 
 
 def autoclip_pack_from_clip(*, clip):
-    collection = str(getattr(clip, 'collection', '') or '').strip().lower()
-    tags = getattr(clip, 'tags', None)
-    tags_norm = {str(tag or '').strip().lower() for tag in tags if str(tag or '').strip()} if isinstance(tags, list) else set()
-    if 'rival' in tags_norm or collection == 'rival':
-        return 'rival'
-    if 'own' in tags_norm or collection in {'propio', 'own'}:
-        return 'own'
-    return ''
+    collection = str(getattr(clip, "collection", "") or "").strip().lower()
+    tags = getattr(clip, "tags", None)
+    tags_norm = (
+        {str(tag or "").strip().lower() for tag in tags if str(tag or "").strip()} if isinstance(tags, list) else set()
+    )
+    if "rival" in tags_norm or collection == "rival":
+        return "rival"
+    if "own" in tags_norm or collection in {"propio", "own"}:
+        return "own"
+    return ""
 
 
 def median(values):
@@ -51,18 +52,18 @@ def _delete_autocut_queryset(queryset, *, label: str) -> None:
     try:
         queryset.delete()
     except Exception:
-        logger.exception('AutoCut: no se pudo limpiar %s.', label)
+        logger.exception("AutoCut: no se pudo limpiar %s.", label)
 
 
 def _bulk_create_with_save_fallback(objects, *, max_items: int, label: str) -> int:
-    items = list(objects[: max_items])
+    items = list(objects[:max_items])
     if not items:
         return 0
     try:
         type(items[0]).objects.bulk_create(items, ignore_conflicts=False)
         return len(items)
     except Exception:
-        logger.exception('AutoCut: bulk_create falló para %s; usando fallback individual.', label)
+        logger.exception("AutoCut: bulk_create falló para %s; usando fallback individual.", label)
 
     created = 0
     for obj in items:
@@ -70,34 +71,34 @@ def _bulk_create_with_save_fallback(objects, *, max_items: int, label: str) -> i
             obj.save()
             created += 1
         except Exception:
-            logger.exception('AutoCut: no se pudo guardar %s individual.', label)
+            logger.exception("AutoCut: no se pudo guardar %s individual.", label)
     return created
 
 
 def apply_autocut_suggestions(**kwargs):
-    video = kwargs.get('video')
-    scope_team = kwargs.get('scope_team')
-    owner_user = kwargs.get('owner_user')
-    created_by = str(kwargs.get('created_by') or '')[:80]
-    profile = kwargs.get('profile') or 'balanced'
-    include_kinds = kwargs.get('include_kinds')
-    max_moments = kwargs.get('max_moments', 18)
-    min_gap_s = kwargs.get('min_gap_s', 25.0)
-    pre_s = kwargs.get('pre_s', 8.0)
-    post_s = kwargs.get('post_s', 8.0)
-    max_scan_s = kwargs.get('max_scan_s')
-    replace = kwargs.get('replace', True)
+    video = kwargs.get("video")
+    scope_team = kwargs.get("scope_team")
+    owner_user = kwargs.get("owner_user")
+    created_by = str(kwargs.get("created_by") or "")[:80]
+    profile = kwargs.get("profile") or "balanced"
+    include_kinds = kwargs.get("include_kinds")
+    max_moments = kwargs.get("max_moments", 18)
+    min_gap_s = kwargs.get("min_gap_s", 25.0)
+    pre_s = kwargs.get("pre_s", 8.0)
+    post_s = kwargs.get("post_s", 8.0)
+    max_scan_s = kwargs.get("max_scan_s")
+    replace = kwargs.get("replace", True)
 
-    if not video or not getattr(video, 'id', None):
-        return {'ok': False, 'error': 'Vídeo no encontrado.'}
-    if not getattr(video, 'video', None):
-        return {'ok': False, 'error': 'AutoCut requiere MP4 subido (no YouTube).'}
+    if not video or not getattr(video, "id", None):
+        return {"ok": False, "error": "Vídeo no encontrado."}
+    if not getattr(video, "video", None):
+        return {"ok": False, "error": "AutoCut requiere MP4 subido (no YouTube)."}
     try:
-        video_path = str(video.video.path or '').strip()
+        video_path = str(video.video.path or "").strip()
     except Exception:
-        video_path = ''
+        video_path = ""
     if not video_path:
-        return {'ok': False, 'error': 'No se pudo resolver el archivo del vídeo en servidor.'}
+        return {"ok": False, "error": "No se pudo resolver el archivo del vídeo en servidor."}
 
     try:
         max_moments = int(max_moments or 18)
@@ -132,7 +133,7 @@ def apply_autocut_suggestions(**kwargs):
     try:
         result = suggest_autocuts(
             video_path,
-            profile=str(profile or 'balanced'),
+            profile=str(profile or "balanced"),
             include_kinds=include_kinds,
             max_moments=int(max_moments),
             min_gap_s=float(min_gap_s),
@@ -142,12 +143,12 @@ def apply_autocut_suggestions(**kwargs):
             refine=True,
         )
     except Exception:
-        logger.exception('AutoCut: no se pudo analizar el vídeo.', extra={'video_id': getattr(video, 'id', None)})
-        return {'ok': False, 'error': 'No se pudo analizar el vídeo (AutoCut).'}
+        logger.exception("AutoCut: no se pudo analizar el vídeo.", extra={"video_id": getattr(video, "id", None)})
+        return {"ok": False, "error": "No se pudo analizar el vídeo (AutoCut)."}
 
-    moments = result.get('moments') if isinstance(result, dict) else None
+    moments = result.get("moments") if isinstance(result, dict) else None
     if not isinstance(moments, list) or not moments:
-        return {'ok': True, 'created_events': 0, 'created_clips': 0, 'moments': []}
+        return {"ok": True, "created_events": 0, "created_clips": 0, "moments": []}
 
     if replace:
         _delete_autocut_queryset(
@@ -157,16 +158,16 @@ def apply_autocut_suggestions(**kwargs):
                 owner_user=owner_user if owner_user else None,
                 payload__autocut=True,
             ),
-            label='eventos previos',
+            label="eventos previos",
         )
         _delete_autocut_queryset(
             VideoClip.objects.filter(
                 video=video,
                 team=scope_team if scope_team else None,
                 owner_user=owner_user if owner_user else None,
-                collection='AutoCut',
+                collection="AutoCut",
             ),
-            label='clips previos',
+            label="clips previos",
         )
 
     ev_objs = []
@@ -174,18 +175,21 @@ def apply_autocut_suggestions(**kwargs):
     valid_kinds = {k for k, _ in VideoTimelineEvent.KIND_CHOICES}
     for moment in moments[: max_moments * 2]:
         try:
-            t = float(moment.get('time_s') or 0.0)
-            kind = str(moment.get('kind') or VideoTimelineEvent.KIND_TAG).strip() or VideoTimelineEvent.KIND_TAG
-            label = sanitize_task_text(str(moment.get('label') or '').strip(), multiline=False, max_len=160) or 'Auto · Momento'
-            score = float(moment.get('score') or 0.0)
-            clip_in_s = float(moment.get('clip_in_s') or max(0.0, t - float(pre_s)))
-            clip_out_s = float(moment.get('clip_out_s') or (t + float(post_s)))
+            t = float(moment.get("time_s") or 0.0)
+            kind = str(moment.get("kind") or VideoTimelineEvent.KIND_TAG).strip() or VideoTimelineEvent.KIND_TAG
+            label = (
+                sanitize_task_text(str(moment.get("label") or "").strip(), multiline=False, max_len=160)
+                or "Auto · Momento"
+            )
+            score = float(moment.get("score") or 0.0)
+            clip_in_s = float(moment.get("clip_in_s") or max(0.0, t - float(pre_s)))
+            clip_out_s = float(moment.get("clip_out_s") or (t + float(post_s)))
         except Exception:
             continue
-        payload = moment.get('meta') if isinstance(moment.get('meta'), dict) else {}
+        payload = moment.get("meta") if isinstance(moment.get("meta"), dict) else {}
         payload = dict(payload) if isinstance(payload, dict) else {}
-        payload['autocut'] = True
-        payload['score'] = float(score)
+        payload["autocut"] = True
+        payload["score"] = float(score)
         ev_objs.append(
             VideoTimelineEvent(
                 team=scope_team if scope_team else None,
@@ -194,29 +198,29 @@ def apply_autocut_suggestions(**kwargs):
                 time_ms=int(max(0.0, t) * 1000.0),
                 kind=kind if kind in valid_kinds else VideoTimelineEvent.KIND_TAG,
                 label=label[:160],
-                color='#22d3ee',
+                color="#22d3ee",
                 payload=payload,
                 created_by=created_by,
             )
         )
-        tags = ['autocut', kind]
+        tags = ["autocut", kind]
         try:
-            principle = str(payload.get('principle') or '').strip().lower()
+            principle = str(payload.get("principle") or "").strip().lower()
         except Exception:
-            principle = ''
+            principle = ""
         if principle:
-            tags.append(f'principle:{principle}'[:80])
+            tags.append(f"principle:{principle}"[:80])
         clip_objs.append(
             VideoClip(
                 team=scope_team if scope_team else None,
                 owner_user=owner_user if owner_user else None,
                 video=video,
                 title=label[:180],
-                collection='AutoCut',
+                collection="AutoCut",
                 in_ms=int(max(0.0, clip_in_s) * 1000.0),
                 out_ms=int(max(0.0, max(clip_in_s + 0.2, clip_out_s)) * 1000.0),
                 tags=tags,
-                notes='',
+                notes="",
                 overlay={},
                 created_by=created_by,
             )
@@ -225,19 +229,21 @@ def apply_autocut_suggestions(**kwargs):
     created_events = 0
     created_clips = 0
     if ev_objs:
-        created_events = _bulk_create_with_save_fallback(ev_objs, max_items=int(max_moments), label='eventos')
+        created_events = _bulk_create_with_save_fallback(ev_objs, max_items=int(max_moments), label="eventos")
     if clip_objs:
-        created_clips = _bulk_create_with_save_fallback(clip_objs, max_items=int(max_moments), label='clips')
+        created_clips = _bulk_create_with_save_fallback(clip_objs, max_items=int(max_moments), label="clips")
 
     return {
-        'ok': True,
-        'created_events': int(created_events),
-        'created_clips': int(created_clips),
-        'moments': moments[: max_moments],
+        "ok": True,
+        "created_events": int(created_events),
+        "created_clips": int(created_clips),
+        "moments": moments[:max_moments],
     }
 
 
-def schedule_autocut_after_upload(*, video_id: int, team_id=None, owner_user_id=None, workspace_id=None, created_by: str = '') -> None:
+def schedule_autocut_after_upload(
+    *, video_id: int, team_id=None, owner_user_id=None, workspace_id=None, created_by: str = ""
+) -> None:
     """
     Ejecuta AutoCut en background al subir un MP4, sin bloquear el request.
     """
@@ -247,7 +253,7 @@ def schedule_autocut_after_upload(*, video_id: int, team_id=None, owner_user_id=
     def _runner():
         try:
             entry = RivalVideo.objects.filter(id=int(video_id)).first()
-            if not entry or not getattr(entry, 'video', None):
+            if not entry or not getattr(entry, "video", None):
                 return
             scope_team = Team.objects.filter(id=int(team_id)).first() if team_id else None
             owner_user = User.objects.filter(id=int(owner_user_id)).first() if owner_user_id else None
@@ -260,28 +266,30 @@ def schedule_autocut_after_upload(*, video_id: int, team_id=None, owner_user_id=
                     video=entry,
                     time_ms=0,
                     kind=VideoTimelineEvent.KIND_NOTE,
-                    label='AutoCut: analizando...',
-                    color='#f4b400',
-                    payload={'autocut': True, 'autocut_job': True, 'state': 'running'},
-                    created_by=str(created_by or '')[:80],
+                    label="AutoCut: analizando...",
+                    color="#f4b400",
+                    payload={"autocut": True, "autocut_job": True, "state": "running"},
+                    created_by=str(created_by or "")[:80],
                 )
             except Exception:
                 job_event = None
 
-            pack = 'rival' if int(getattr(entry, 'rival_team_id', 0) or 0) else 'own'
+            pack = "rival" if int(getattr(entry, "rival_team_id", 0) or 0) else "own"
             learned_pre = None
             learned_post = None
             learned_min_gap = None
             try:
                 if workspace:
-                    key = autoclip_pref_key(team_id=int(getattr(scope_team, 'id', 0) or 0) if scope_team else 0, pack=pack)
+                    key = autoclip_pref_key(
+                        team_id=int(getattr(scope_team, "id", 0) or 0) if scope_team else 0, pack=pack
+                    )
                     pref = WorkspacePreference.objects.filter(workspace=workspace, key=key).first()
                     val = pref.value if pref and isinstance(pref.value, dict) else {}
                     if isinstance(val, dict):
-                        if str(val.get('pre') or '').strip():
-                            learned_pre = float(val.get('pre') or 0)
-                        if str(val.get('post') or '').strip():
-                            learned_post = float(val.get('post') or 0)
+                        if str(val.get("pre") or "").strip():
+                            learned_pre = float(val.get("pre") or 0)
+                        if str(val.get("post") or "").strip():
+                            learned_post = float(val.get("post") or 0)
             except Exception:
                 learned_pre = None
                 learned_post = None
@@ -293,18 +301,22 @@ def schedule_autocut_after_upload(*, video_id: int, team_id=None, owner_user_id=
                 else:
                     clip_qs = clip_qs.filter(team__isnull=True, owner_user=owner_user) if owner_user else clip_qs.none()
                 mids = []
-                for clip in list(clip_qs.only('in_ms', 'out_ms', 'tags', 'collection', 'updated_at').order_by('-updated_at', '-id')[:260]):
-                    tags = getattr(clip, 'tags', None)
+                for clip in list(
+                    clip_qs.only("in_ms", "out_ms", "tags", "collection", "updated_at").order_by("-updated_at", "-id")[
+                        :260
+                    ]
+                ):
+                    tags = getattr(clip, "tags", None)
                     if not isinstance(tags, list):
                         continue
-                    tags_norm = {str(tag or '').strip().lower() for tag in tags[:60] if str(tag or '').strip()}
-                    if 'autocut' in tags_norm or 'timeline' not in tags_norm:
+                    tags_norm = {str(tag or "").strip().lower() for tag in tags[:60] if str(tag or "").strip()}
+                    if "autocut" in tags_norm or "timeline" not in tags_norm:
                         continue
                     inferred_pack = autoclip_pack_from_clip(clip=clip)
                     if inferred_pack and inferred_pack != pack:
                         continue
-                    start_ms = int(getattr(clip, 'in_ms', 0) or 0)
-                    end_ms = int(getattr(clip, 'out_ms', 0) or 0)
+                    start_ms = int(getattr(clip, "in_ms", 0) or 0)
+                    end_ms = int(getattr(clip, "out_ms", 0) or 0)
                     if end_ms <= start_ms:
                         continue
                     mids.append(int((start_ms + end_ms) / 2))
@@ -323,8 +335,8 @@ def schedule_autocut_after_upload(*, video_id: int, team_id=None, owner_user_id=
                 video=entry,
                 scope_team=scope_team,
                 owner_user=owner_user,
-                created_by=str(created_by or '')[:80],
-                profile=str(os.environ.get('ANALYSIS_AUTOCUT_PROFILE') or 'balanced'),
+                created_by=str(created_by or "")[:80],
+                profile=str(os.environ.get("ANALYSIS_AUTOCUT_PROFILE") or "balanced"),
                 max_moments=18,
                 min_gap_s=float(learned_min_gap) if learned_min_gap is not None else 25.0,
                 pre_s=float(learned_pre) if learned_pre is not None else 8.0,
@@ -334,23 +346,23 @@ def schedule_autocut_after_upload(*, video_id: int, team_id=None, owner_user_id=
             )
             if job_event:
                 try:
-                    if result.get('ok'):
+                    if result.get("ok"):
                         job_event.delete()
                     else:
-                        job_event.label = 'AutoCut: error'
-                        job_event.payload = {'autocut': True, 'autocut_job': True, 'state': 'error'}
-                        job_event.save(update_fields=['label', 'payload', 'updated_at'])
+                        job_event.label = "AutoCut: error"
+                        job_event.payload = {"autocut": True, "autocut_job": True, "state": "error"}
+                        job_event.save(update_fields=["label", "payload", "updated_at"])
                 except Exception:
-                    logger.exception('AutoCut: no se pudo actualizar el evento de job.', extra={'video_id': video_id})
+                    logger.exception("AutoCut: no se pudo actualizar el evento de job.", extra={"video_id": video_id})
         except Exception:
-            logger.exception('AutoCut after upload failed', extra={'video_id': video_id})
+            logger.exception("AutoCut after upload failed", extra={"video_id": video_id})
 
     def _start():
         try:
-            thread = threading.Thread(target=_runner, name=f'autocut-video-{int(video_id)}', daemon=True)
+            thread = threading.Thread(target=_runner, name=f"autocut-video-{int(video_id)}", daemon=True)
             thread.start()
         except Exception:
-            logger.exception('AutoCut: no se pudo arrancar el hilo de análisis.', extra={'video_id': video_id})
+            logger.exception("AutoCut: no se pudo arrancar el hilo de análisis.", extra={"video_id": video_id})
 
     try:
         transaction.on_commit(_start)

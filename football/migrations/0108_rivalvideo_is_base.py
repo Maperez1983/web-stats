@@ -6,13 +6,16 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('football', '0107_analystvideofolder_base_video'),
+        ("football", "0107_analystvideofolder_base_video"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='rivalvideo',
-            name='is_base',
-            field=models.BooleanField(default=False, help_text='Marca el vídeo como “base” (partido completo) para que aparezca fijado arriba y sea fácil seguir recortando.'),
+            model_name="rivalvideo",
+            name="is_base",
+            field=models.BooleanField(
+                default=False,
+                help_text="Marca el vídeo como “base” (partido completo) para que aparezca fijado arriba y sea fácil seguir recortando.",
+            ),
         ),
     ]

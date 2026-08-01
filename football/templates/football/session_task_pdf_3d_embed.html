@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    {% load static %}
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ task_title|default:"Vista 3D" }}</title>
+    <style>
+      html, body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #f3f6fb;
+        font-family: "Segoe UI", Arial, sans-serif;
+      }
+      .sim-3d-inline,
+      .sim-3d-card,
+      .sim-3d-body {
+        width: 100%;
+        height: 100%;
+      }
+      .sim-3d-card {
+        position: relative;
+        overflow: hidden;
+        background: #f3f6fb;
+      }
+      .sim-3d-body {
+        position: relative;
+      }
+      .sim-3d-canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      .sim-3d-fallback {
+        position: absolute;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.92);
+      }
+      .sim-3d-fallback[hidden] {
+        display: none !important;
+      }
+      .sim-3d-fallback-stage img {
+        max-width: 100%;
+        max-height: 100%;
+        display: block;
+      }
+      .sim-3d-hud,
+      .sim-3d-foot,
+      .sim-3d-head,
+      #task-detail-3d-open,
+      #task-detail-3d-fullscreen,
+      #task-detail-3d-prev,
+      #task-detail-3d-play,
+      #task-detail-3d-next,
+      #task-detail-3d-record,
+      #task-detail-3d-snap,
+      #task-detail-3d-step-title,
+      #task-detail-3d-step-meta,
+      #task-detail-3d-progress-label,
+      #task-detail-3d-progress-bar,
+      #task-detail-3d-fallback-status,
+      #task-detail-3d-fallback-reason {
+        display: none !important;
+      }
+      #task-detail-3d-camera {
+        position: absolute;
+        left: -9999px;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="sim-3d-inline" id="task-detail-3d-inline" data-camera-preset="{{ camera_preset|default:'top_h' }}">
+      <div class="sim-3d-card" aria-label="Representación 3D de la tarea">
+        <div class="sim-3d-body">
+          <canvas class="sim-3d-canvas" id="task-detail-3d-canvas"></canvas>
+          <div class="sim-3d-fallback" id="task-detail-3d-fallback" hidden>
+            <div class="sim-3d-fallback-stage">
+              {% if fallback_preview_url %}
+              <img id="task-detail-3d-fallback-preview" src="{{ fallback_preview_url }}" alt="Vista alternativa 3D" />
+              {% else %}
+              <img id="task-detail-3d-fallback-preview" alt="Vista alternativa 3D" hidden />
+              {% endif %}
+            </div>
+            <div id="task-detail-3d-fallback-status">Preparando vista 3D…</div>
+            <div id="task-detail-3d-fallback-reason"></div>
+          </div>
+          <div class="sim-3d-hud">
+            <strong id="task-detail-3d-step-title">{{ task_title|default:"Pizarra" }}</strong>
+            <span id="task-detail-3d-step-meta">Paso 1/1</span>
+            <b id="task-detail-3d-progress-label">0%</b>
+            <span id="task-detail-3d-progress-bar"></span>
+          </div>
+        </div>
+        <div class="sim-3d-foot">
+          <button type="button" id="task-detail-3d-prev">Anterior</button>
+          <button type="button" id="task-detail-3d-play">Reproducir</button>
+          <button type="button" id="task-detail-3d-next">Siguiente</button>
+          <button type="button" id="task-detail-3d-record">Grabar</button>
+          <button type="button" id="task-detail-3d-snap">PNG</button>
+          <button type="button" id="task-detail-3d-fullscreen">Pantalla completa</button>
+          <button type="button" id="task-detail-3d-open">Abrir</button>
+          <select id="task-detail-3d-camera" aria-label="Cámara 3D">
+            <option value="broadcast"{% if camera_preset == 'broadcast' %} selected{% endif %}>Broadcast</option>
+            <option value="tactic"{% if camera_preset == 'tactic' %} selected{% endif %}>Táctica</option>
+            <option value="top_h"{% if camera_preset == 'top_h' %} selected{% endif %}>Cenital H</option>
+            <option value="top_v"{% if camera_preset == 'top_v' %} selected{% endif %}>Cenital V</option>
+            <option value="corner"{% if camera_preset == 'corner' %} selected{% endif %}>Esquina</option>
+            <option value="goal"{% if camera_preset == 'goal' %} selected{% endif %}>Portería</option>
+            <option value="drone"{% if camera_preset == 'drone' %} selected{% endif %}>Drone</option>
+            <option value="tunnel"{% if camera_preset == 'tunnel' %} selected{% endif %}>Túnel</option>
+            <option value="analyst"{% if camera_preset == 'analyst' %} selected{% endif %}>Analista</option>
+            <option value="coach"{% if camera_preset == 'coach' %} selected{% endif %}>Entrenador</option>
+            <option value="rosaleda"{% if camera_preset == 'rosaleda' %} selected{% endif %}>Estadio</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <script id="task-detail-3d-payload" type="application/json">
+      {
+        "taskTitle": "{{ task_title|default:''|escapejs }}",
+        "stadiumModelUrl": "{{ pitch3d_assets.pitch3d_stadium_model_src|default:''|escapejs }}",
+        "stadiumTopHSrc": "{{ pitch3d_assets.pitch3d_stadium_top_h_src|default:''|escapejs }}",
+        "stadiumTopVSrc": "{{ pitch3d_assets.pitch3d_stadium_top_v_src|default:''|escapejs }}",
+        "stadiumOverlayHSrc": "{{ pitch3d_assets.pitch3d_stadium_overlay_h_src|default:''|escapejs }}",
+        "stadiumOverlayVSrc": "{{ pitch3d_assets.pitch3d_stadium_overlay_v_src|default:''|escapejs }}",
+        "playerModelUrl": "{{ pitch3d_assets.pitch3d_player_model_src|default:''|escapejs }}",
+        "pitch3dContext": {{ task_pitch3d_context_json|safe }},
+        "graphicEditorState": {{ graphic_editor_state_json|safe }},
+        "animationFrames": {{ animation_frames_json|safe }},
+        "cameraPreset": "{{ camera_preset|default:'top_h'|escapejs }}"
+      }
+    </script>
+    <script type="module" src="{% static 'football/js/session_task_detail_3d.js' %}?v=task-detail-3d-stadium-v36-field-overlay-guard{% if static_build_id %}-{{ static_build_id|urlencode }}{% endif %}"></script>
+  </body>
+</html>

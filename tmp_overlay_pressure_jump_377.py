@@ -5,9 +5,10 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-
 SOURCE = Path("/Volumes/Mac Satecchi/Mac/Web-stats/media/rival-videos/video-youtube-analisis-proxy.mp4")
-OUT = Path("/Volumes/Mac Satecchi/Mac/Downloads/IA_MaxCuts_SeniorCoach108_video_7/annotated_cv/annotated_cv_377_CORREGIDO_salto_presion_espacio.mp4")
+OUT = Path(
+    "/Volumes/Mac Satecchi/Mac/Downloads/IA_MaxCuts_SeniorCoach108_video_7/annotated_cv/annotated_cv_377_CORREGIDO_salto_presion_espacio.mp4"
+)
 START_S = 120.0
 END_S = 172.0
 
@@ -40,7 +41,9 @@ def panel(frame, lines):
     cv2.rectangle(frame, (24, y0), (w - 24, h - 24), (0, 220, 255), 3)
     cv2.putText(frame, lines[0], (52, y0 + 40), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2, cv2.LINE_AA)
     for idx, text in enumerate(lines[1:3]):
-        cv2.putText(frame, text, (52, y0 + 78 + idx * 30), cv2.FONT_HERSHEY_SIMPLEX, 0.62, (232, 244, 255), 2, cv2.LINE_AA)
+        cv2.putText(
+            frame, text, (52, y0 + 78 + idx * 30), cv2.FONT_HERSHEY_SIMPLEX, 0.62, (232, 244, 255), 2, cv2.LINE_AA
+        )
 
 
 def draw_correction(frame, t):
@@ -56,11 +59,14 @@ def draw_correction(frame, t):
         arrow(frame, (545, 392), (705, 388), (0, 0, 255), 5)
         label(frame, "salto fuera de estructura", (330, 315), (0, 255, 255), (20, 30, 35), 0.62)
         label(frame, "intervalo libre", (620, 300), (80, 210, 255), (45, 10, 10), 0.62)
-        panel(frame, [
-            "Correccion entrenador: salto mal coordinado",
-            "El jugador de Malaga salta a presion y abandona la linea.",
-            "La espalda queda libre: aparece inferioridad defensiva.",
-        ])
+        panel(
+            frame,
+            [
+                "Correccion entrenador: salto mal coordinado",
+                "El jugador de Malaga salta a presion y abandona la linea.",
+                "La espalda queda libre: aparece inferioridad defensiva.",
+            ],
+        )
     elif 8.8 < t <= 15.8:
         # Desarrollo: el espacio se usa para progresar hacia zona de remate.
         player = (906, 222)
@@ -72,22 +78,28 @@ def draw_correction(frame, t):
         arrow(frame, (950, 355), (1035, 405), (0, 0, 255), 5)
         label(frame, "jugador que salta", (805, 170), (0, 255, 255), (20, 30, 35), 0.62)
         label(frame, "espacio dejado", (930, 445), (80, 210, 255), (45, 10, 10), 0.62)
-        panel(frame, [
-            "Consecuencia: se rompe la estructura",
-            "El salto no va acompanado de cobertura ni cierre interior.",
-            "Las Palmas puede atacar el intervalo y generar ocasion.",
-        ])
+        panel(
+            frame,
+            [
+                "Consecuencia: se rompe la estructura",
+                "El salto no va acompanado de cobertura ni cierre interior.",
+                "Las Palmas puede atacar el intervalo y generar ocasion.",
+            ],
+        )
     elif 15.8 < t <= 23.5:
         # Consecuencia cerca del area / contra posterior.
         space = [(555, 245), (760, 245), (805, 375), (595, 410)]
         frame[:] = alpha_poly(frame, space, (0, 0, 255), 0.22)
         arrow(frame, (600, 300), (760, 325), (0, 0, 255), 5)
         label(frame, "inferioridad tras el salto", (530, 220), (80, 210, 255), (45, 10, 10), 0.62)
-        panel(frame, [
-            "Lectura correcta para la IA",
-            "No es solo ABP/reinicio: es error de presion y cobertura.",
-            "Corte util: mostrar salto, espacio libre y casi gol.",
-        ])
+        panel(
+            frame,
+            [
+                "Lectura correcta para la IA",
+                "No es solo ABP/reinicio: es error de presion y cobertura.",
+                "Corte util: mostrar salto, espacio libre y casi gol.",
+            ],
+        )
 
 
 def main():

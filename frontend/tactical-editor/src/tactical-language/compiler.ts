@@ -22,6 +22,7 @@ import { planTacticalTiming, type TacticalTimingPlan } from './timing';
 import type {
   TacticalCompilationResult,
   TacticalLanguageDocument,
+  TacticalArrowRef,
   TacticalValidationIssue,
   TacticalStatement,
 } from './types';
@@ -61,6 +62,10 @@ function pointToObjectTopLeft(point: { x: number; y: number }, object: SceneObje
   };
 }
 
+function objectTopLeft(object: SceneObject, center: { x: number; y: number }) {
+  return pointToObjectTopLeft(center, object);
+}
+
 function statementById(language: TacticalLanguageDocument, statementId: string): TacticalStatement | null {
   return language.statements.find((statement) => statement.id === statementId) || null;
 }
@@ -74,6 +79,117 @@ function actorObject(context: NormalizedTacticalScene, actorId?: string | null):
 
 function arrowByKind(context: NormalizedTacticalScene, kind: 'pass' | 'run' | 'trajectory' | 'line', index = 0) {
   return context.arrows.filter((arrow) => arrow.kind === kind)[index] || null;
+}
+
+function zoneCenter(context: NormalizedTacticalScene, zoneId?: string | null) {
+  if (!zoneId) {
+    return null;
+  }
+  const zone = context.zones.find((item) => item.id === zoneId || item.objectId === zoneId) || null;
+  if (!zone) {
+    return null;
+  }
+  return {
+    x: zone.x + zone.width * 0.5,
+    y: zone.y + zone.height * 0.5,
+  };
+}
+
+function actorCenter(context: NormalizedTacticalScene, actorId?: string | null) {
+  const object = actorObject(context, actorId);
+  return object ? objectCenter(object) : null;
+}
+
+function statementDuration(timing: TacticalTimingPlan, statementId: string, fallback: number) {
+  return timing.windows.find((window) => window.statementId === statementId)?.duration || fallback;
+}
+
+function targetPointForStatement(
+  context: NormalizedTacticalScene,
+  statement: TacticalStatement,
+  currentActorPositions: Map<string, { x: number; y: number }>
+) {
+  if (statement.target?.kind === 'actor') {
+    const target = actorObject(context, statement.target.actorId || statement.target.objectId || null);
+    if (target) {
+      return objectCenter(target);
+    }
+  }
+  if (statement.target?.kind === 'zone') {
+    const point = zoneCenter(context, statement.target.zoneId || statement.target.objectId || null);
+    if (point) {
+      return point;
+    }
+  }
+  if (statement.target?.kind === 'ball') {
+    const ball = context.scene.objects.find((object) => object.type === 'ball') || null;
+    if (ball) {
+      return objectCenter(ball);
+    }
+  }
+  const originArrow = statement.originObjectIds
+    .map((objectId) => context.arrows.find((arrow) => arrow.objectId === objectId))
+    .find((arrow): arrow is TacticalArrowRef => Boolean(arrow));
+  if (originArrow) {
+    return statement.verb === 'RUN' || statement.verb === 'SUPPORT' || statement.verb === 'PRESS'
+      ? originArrow.end
+      : originArrow.end;
+  }
+  const subject = actorObject(context, statement.subjectId);
+  const subjectPosition = subject ? currentActorPositions.get(subject.id) || objectCenter(subject) : null;
+  if (!subjectPosition) {
+    return { x: 0, y: 0 };
+  }
+  const distance = statement.verb === 'CARRY' ? 120 : statement.verb === 'RUN' ? 100 : statement.verb === 'PRESS' ? 80 : 72;
+  const verticalOffset = statement.verb === 'SUPPORT' ? -30 : statement.verb === 'PRESS' ? 24 : 0;
+  return {
+    x: subjectPosition.x + distance,
+    y: subjectPosition.y + verticalOffset,
+  };
+}
+
+function defaultBallStartPoint(
+  context: NormalizedTacticalScene,
+  carrierId: string | undefined,
+  currentActorPositions: Map<string, { x: number; y: number }>
+) {
+  const carrier = actorObject(context, carrierId || null);
+  if (carrier) {
+    return currentActorPositions.get(carrier.id) || objectCenter(carrier);
+  }
+  const ball = context.scene.objects.find((object) => object.type === 'ball');
+  return ball ? objectCenter(ball) : { x: 0, y: 0 };
+}
+
+function ensureMotionPlan(plans: Map<string, MotionPlan>, object: SceneObject): MotionPlan {
+  const current = plans.get(object.id);
+  if (current) {
+    return current;
+  }
+  const plan: MotionPlan = {
+    objectId: object.id,
+    samples: [toSnapshot(object, 0), toSnapshot(object, 0)],
+  };
+  plans.set(object.id, plan);
+  return plan;
+}
+
+function addPlanSample(
+  plans: Map<string, MotionPlan>,
+  object: SceneObject,
+  time: number,
+  position?: { x: number; y: number },
+  overrides?: Partial<MotionSample>
+) {
+  const plan = ensureMotionPlan(plans, object);
+  const snapshot = toSnapshot(object, time, position);
+  const next = {
+    ...snapshot,
+    ...overrides,
+    time,
+  };
+  plan.samples = addSample(plan.samples, next);
+  return next;
 }
 
 function toSnapshot(object: SceneObject, time: number, position?: { x: number; y: number }): MotionSample {
@@ -113,126 +229,153 @@ function buildMotionPlans(
   language: TacticalLanguageDocument,
   timing: TacticalTimingPlan
 ): MotionPlan[] {
-  const gk = actorObject(context, language.statements.find((statement) => statement.id === 'stmt-pass-1')?.subjectId);
-  const rcb = actorObject(context, statementById(language, 'stmt-receive-1')?.subjectId);
-  const mcd = actorObject(context, statementById(language, 'stmt-receive-2')?.subjectId);
-  const rb = actorObject(context, statementById(language, 'stmt-support-1')?.subjectId);
-  const lcb =
-    context.scene.objects.find((object) =>
-      /central izquierdo|lcb/i.test(String(object.data?.name || object.data?.label || ''))
-    ) || null;
+  const motionPlans = new Map<string, MotionPlan>();
+  const actorObjects = context.actors
+    .filter((actor) => actor.kind !== 'ball')
+    .map((actor) => actorObject(context, actor.id))
+    .filter((object): object is SceneObject => Boolean(object));
   const ball = context.scene.objects.find((object) => object.type === 'ball') || null;
-  const supportZone = context.zones.find((zone) => /objetivo|target/i.test(zone.label)) || context.zones[0] || null;
-  const pass1Arrow = arrowByKind(context, 'pass', 0);
-  const pass2Arrow = arrowByKind(context, 'pass', 1) || arrowByKind(context, 'trajectory', 0);
-  const runArrow = arrowByKind(context, 'run', 0);
-
-  const pass1Target = rcb ? objectCenter(rcb) : pass1Arrow ? pass1Arrow.end : gk ? objectCenter(gk) : { x: 0, y: 0 };
-  const carryEndPoint =
-    pass2Arrow?.start ||
-    (rcb
-      ? {
-          x: objectCenter(rcb).x + 88,
-          y: objectCenter(rcb).y + 26,
-        }
-      : pass1Target);
-  const pass2Target = mcd ? objectCenter(mcd) : pass2Arrow?.end || carryEndPoint;
-  const supportTarget = supportZone
-    ? {
-        x: supportZone.x + supportZone.width * 0.5,
-        y: supportZone.y + supportZone.height * 0.5,
-      }
-    : runArrow?.end || { x: 0, y: 0 };
-
-  const motionPlans: MotionPlan[] = [];
-
-  if (gk) {
-    motionPlans.push({
-      objectId: gk.id,
-      samples: ensureBoundarySamples(
-        addSample(
-          addSample(
-            addSample([], toSnapshot(gk, 0)),
-            toSnapshot(gk, 0.8)
-          ),
-          toSnapshot(gk, 10)
-        ),
-        gk,
-        timing.duration
-      ),
-    });
-  }
-
-  if (rcb) {
-    let samples: MotionSample[] = [];
-    samples = addSample(samples, toSnapshot(rcb, 0));
-    samples = addSample(samples, toSnapshot(rcb, 0.8));
-    samples = addSample(
-      samples,
-      toSnapshot(rcb, 1.0, pointToObjectTopLeft(pass1Target, rcb))
-    );
-    samples = addSample(
-      samples,
-      toSnapshot(rcb, 3.0, pointToObjectTopLeft(carryEndPoint, rcb))
-    );
-    samples = addSample(
-      samples,
-      toSnapshot(rcb, 4.1, pointToObjectTopLeft(carryEndPoint, rcb))
-    );
-    samples = addSample(samples, toSnapshot(rcb, timing.duration, pointToObjectTopLeft(carryEndPoint, rcb)));
-    motionPlans.push({ objectId: rcb.id, samples });
-  }
-
-  if (mcd) {
-    let samples: MotionSample[] = [];
-    samples = addSample(samples, toSnapshot(mcd, 0));
-    samples = addSample(
-      samples,
-      toSnapshot(mcd, 4.1, pointToObjectTopLeft(pass2Target, mcd))
-    );
-    samples = addSample(
-      samples,
-      toSnapshot(mcd, timing.duration, pointToObjectTopLeft(pass2Target, mcd))
-    );
-    motionPlans.push({ objectId: mcd.id, samples });
-  }
-
-  if (rb) {
-    let samples: MotionSample[] = [];
-    samples = addSample(samples, toSnapshot(rb, 0));
-    samples = addSample(
-      samples,
-      toSnapshot(rb, 5.5, pointToObjectTopLeft(supportTarget, rb))
-    );
-    samples = addSample(
-      samples,
-      toSnapshot(rb, timing.duration, pointToObjectTopLeft(supportTarget, rb))
-    );
-    motionPlans.push({ objectId: rb.id, samples });
-  }
-
-  if (lcb) {
-    let samples: MotionSample[] = [];
-    samples = addSample(samples, toSnapshot(lcb as SceneObject, 0));
-    samples = addSample(samples, toSnapshot(lcb as SceneObject, timing.duration));
-    motionPlans.push({ objectId: (lcb as SceneObject).id, samples });
-  }
-
+  const duration = Math.max(0.001, timing.duration);
+  const ballCarrierId = language.possession.carrierId || context.actors.find((actor) => actor.kind === 'goalkeeper')?.id;
+  const currentActorPositions = new Map<string, { x: number; y: number }>();
+  actorObjects.forEach((object) => {
+    currentActorPositions.set(object.id, objectCenter(object));
+    ensureMotionPlan(motionPlans, object);
+  });
   if (ball) {
-    let samples: MotionSample[] = [];
-    const gkPoint = gk ? objectCenter(gk) : pass1Arrow?.start || objectCenter(ball);
-    const rcbPoint = rcb ? objectCenter(rcb) : pass1Target;
-    const mcdPoint = mcd ? objectCenter(mcd) : pass2Target;
-    samples = addSample(samples, toSnapshot(ball, 0, pointToObjectTopLeft(gkPoint, ball)));
-    samples = addSample(samples, toSnapshot(ball, 0.8, pointToObjectTopLeft(rcbPoint, ball)));
-    samples = addSample(samples, toSnapshot(ball, 1.0, pointToObjectTopLeft(rcbPoint, ball)));
-    samples = addSample(samples, toSnapshot(ball, 3.0, pointToObjectTopLeft(rcbPoint, ball)));
-    samples = addSample(samples, toSnapshot(ball, 4.1, pointToObjectTopLeft(mcdPoint, ball)));
-    samples = addSample(samples, toSnapshot(ball, timing.duration, pointToObjectTopLeft(mcdPoint, ball)));
-    motionPlans.push({ objectId: ball.id, samples });
+    ensureMotionPlan(motionPlans, ball);
   }
 
-  return motionPlans;
+  const fallbackBallCarrier = ballCarrierId && actorObject(context, ballCarrierId) ? ballCarrierId : null;
+  let activeBallCarrierId: string | null | undefined = fallbackBallCarrier;
+  const statementWindows = new Map(timing.windows.map((window) => [window.statementId, window] as const));
+  const statements = language.statements.filter((statement) => statement.verb !== 'BUILD_UP' && statement.verb !== 'PROGRESSION' && statement.verb !== 'SEQUENCE');
+
+  const registerStaticBoundary = (object: SceneObject) => {
+    const center = currentActorPositions.get(object.id) || objectCenter(object);
+    addPlanSample(motionPlans, object, 0, objectTopLeft(object, center));
+    addPlanSample(motionPlans, object, duration, objectTopLeft(object, center));
+  };
+
+  actorObjects.forEach(registerStaticBoundary);
+  if (ball) {
+    const center = ballCarrierId ? currentActorPositions.get(ballCarrierId) || objectCenter(ball) : objectCenter(ball);
+    addPlanSample(motionPlans, ball, 0, objectTopLeft(ball, center));
+    addPlanSample(motionPlans, ball, duration, objectTopLeft(ball, center));
+  }
+
+  statements.forEach((statement, index) => {
+    const window = statementWindows.get(statement.id);
+    const start = window?.start ?? Math.max(0, index * 0.75);
+    const end = window?.end ?? Math.min(duration, start + statementDuration(timing, statement.id, 0.5));
+    const subject = actorObject(context, statement.subjectId);
+    const subjectPlan = subject ? motionPlans.get(subject.id) : null;
+    const targetPoint = targetPointForStatement(context, statement, currentActorPositions);
+
+    if (statement.verb === 'PASS' || statement.verb === 'RETURN_PASS') {
+      const carrier = subject || (activeBallCarrierId ? actorObject(context, activeBallCarrierId) : null) || ball;
+      const ballObject = ball || carrier;
+      if (ballObject) {
+        const startPoint = carrier ? currentActorPositions.get(carrier.id) || objectCenter(carrier) : objectCenter(ballObject);
+        const receiveActor = statement.target?.kind === 'actor'
+          ? actorObject(context, statement.target.actorId || statement.target.objectId || null)
+          : statement.result.ballCarrierId
+            ? actorObject(context, statement.result.ballCarrierId)
+            : null;
+        const finishPoint = receiveActor
+          ? currentActorPositions.get(receiveActor.id) || objectCenter(receiveActor)
+          : targetPoint;
+        addPlanSample(motionPlans, ballObject, start, startPoint, {
+          style: deepClone(ballObject.style),
+          data: deepClone(ballObject.data),
+        });
+        addPlanSample(motionPlans, ballObject, end, finishPoint, {
+          style: deepClone(ballObject.style),
+          data: deepClone(ballObject.data),
+        });
+        if (receiveActor) {
+          const receiveCenter = currentActorPositions.get(receiveActor.id) || objectCenter(receiveActor);
+          addPlanSample(motionPlans, receiveActor, end, objectTopLeft(receiveActor, receiveCenter));
+          currentActorPositions.set(receiveActor.id, receiveCenter);
+        }
+        activeBallCarrierId = receiveActor?.id || statement.result.ballCarrierId || statement.target?.actorId || activeBallCarrierId;
+      }
+      return;
+    }
+
+    if (statement.verb === 'RECEIVE') {
+      if (subject && subjectPlan) {
+        const position = currentActorPositions.get(subject.id) || objectCenter(subject);
+        addPlanSample(motionPlans, subject, end, objectTopLeft(subject, position));
+        activeBallCarrierId = subject.id;
+      }
+      if (ball && subject) {
+        const position = currentActorPositions.get(subject.id) || objectCenter(subject);
+        addPlanSample(motionPlans, ball, end, objectTopLeft(ball, position));
+      }
+      return;
+    }
+
+    if (statement.verb === 'CARRY') {
+      if (subject && subjectPlan) {
+        const startPoint = currentActorPositions.get(subject.id) || objectCenter(subject);
+        const finishPoint = targetPoint;
+        addPlanSample(motionPlans, subject, start, objectTopLeft(subject, startPoint));
+        addPlanSample(motionPlans, subject, end, objectTopLeft(subject, finishPoint));
+        currentActorPositions.set(subject.id, finishPoint);
+        activeBallCarrierId = subject.id;
+        if (ball) {
+          addPlanSample(motionPlans, ball, start, objectTopLeft(ball, startPoint));
+          addPlanSample(motionPlans, ball, end, objectTopLeft(ball, finishPoint));
+        }
+      }
+      return;
+    }
+
+    if (statement.verb === 'RUN' || statement.verb === 'SUPPORT' || statement.verb === 'PRESS' || statement.verb === 'CREATE_SPACE' || statement.verb === 'OCCUPY_SPACE') {
+      if (subject && subjectPlan) {
+        const startPoint = currentActorPositions.get(subject.id) || objectCenter(subject);
+        const finishPoint = targetPoint;
+        addPlanSample(motionPlans, subject, start, objectTopLeft(subject, startPoint));
+        addPlanSample(motionPlans, subject, end, objectTopLeft(subject, finishPoint));
+        currentActorPositions.set(subject.id, finishPoint);
+      }
+      return;
+    }
+
+    if (statement.verb === 'HOLD') {
+      if (subject && subjectPlan) {
+        const holdPoint = currentActorPositions.get(subject.id) || objectCenter(subject);
+        addPlanSample(motionPlans, subject, start, objectTopLeft(subject, holdPoint));
+        addPlanSample(motionPlans, subject, end, objectTopLeft(subject, holdPoint));
+      }
+      return;
+    }
+
+    if (statement.verb === 'SHOOT') {
+      if (subject && subjectPlan) {
+        const releasePoint = currentActorPositions.get(subject.id) || objectCenter(subject);
+        addPlanSample(motionPlans, subject, start, objectTopLeft(subject, releasePoint));
+      }
+      if (ball) {
+        const releasePoint = subject ? currentActorPositions.get(subject.id) || objectCenter(subject) : objectCenter(ball);
+        const finishPoint = statement.target?.kind === 'zone' ? targetPoint : targetPoint;
+        addPlanSample(motionPlans, ball, start, objectTopLeft(ball, releasePoint));
+        addPlanSample(motionPlans, ball, end, objectTopLeft(ball, finishPoint));
+      }
+      activeBallCarrierId = undefined;
+      return;
+    }
+  });
+
+  const plans = [...motionPlans.values()].map((plan) => ({
+    ...plan,
+    samples: plan.samples
+      .filter((sample, sampleIndex, array) => sampleIndex === 0 || sample.time !== array[sampleIndex - 1].time)
+      .sort((left, right) => left.time - right.time),
+  }));
+
+  return plans;
 }
 
 function sampleMotionPlan(plan: MotionPlan, time: number): MotionSample {
@@ -358,9 +501,12 @@ function buildTimelineKeyframes(context: NormalizedTacticalScene, motionPlans: M
     .map((time, index) => sampleSceneSnapshot(context, motionPlans, time, index === 0 ? 'Inicio' : `t=${time.toFixed(1)}s`));
 }
 
-export function compileTacticalRecreation(scene: TacticalScene): TacticalCompilationResult {
+export function compileTacticalRecreation(
+  scene: TacticalScene,
+  languageOverride?: TacticalLanguageDocument
+): TacticalCompilationResult {
   const context = normalizeTacticalScene(scene);
-  const language = inferTacticalLanguage(context.scene);
+  const language = languageOverride || inferTacticalLanguage(context.scene);
   const plan = resolveTacticalPlan(language);
   const possessionResolution = resolvePossession(language, plan);
   const timing = planTacticalTiming(language, plan.executionOrder, 10);
@@ -403,7 +549,7 @@ export function compileTacticalRecreation(scene: TacticalScene): TacticalCompila
   if (!language.actors.find((actor) => actor.role === 'goalkeeper')) {
     validationIssues.push({
       id: 'missing-goalkeeper',
-      severity: 'error',
+      severity: 'warning',
       code: 'missing_goalkeeper',
       message: 'No se detectó un portero válido para la salida de balón.',
       entityIds: [],
@@ -414,7 +560,7 @@ export function compileTacticalRecreation(scene: TacticalScene): TacticalCompila
   if (!language.actors.find((actor) => actor.role === 'center-back-right')) {
     validationIssues.push({
       id: 'missing-central-right',
-      severity: 'error',
+      severity: 'warning',
       code: 'missing_center_back_right',
       message: 'No se detectó el central derecho.',
       entityIds: [],
@@ -425,7 +571,7 @@ export function compileTacticalRecreation(scene: TacticalScene): TacticalCompila
   if (!language.actors.find((actor) => actor.role === 'midfielder')) {
     validationIssues.push({
       id: 'missing-midfielder',
-      severity: 'error',
+      severity: 'warning',
       code: 'missing_midfielder',
       message: 'No se detectó el mediocentro.',
       entityIds: [],
@@ -436,7 +582,7 @@ export function compileTacticalRecreation(scene: TacticalScene): TacticalCompila
   if (!language.actors.find((actor) => actor.role === 'fullback-right')) {
     validationIssues.push({
       id: 'missing-right-back',
-      severity: 'error',
+      severity: 'warning',
       code: 'missing_right_back',
       message: 'No se detectó el lateral derecho.',
       entityIds: [],
@@ -447,7 +593,7 @@ export function compileTacticalRecreation(scene: TacticalScene): TacticalCompila
   if (!language.zones.length) {
     validationIssues.push({
       id: 'missing-target-zone',
-      severity: 'error',
+      severity: 'warning',
       code: 'missing_target_zone',
       message: 'No se detectó una zona objetivo.',
       entityIds: [],

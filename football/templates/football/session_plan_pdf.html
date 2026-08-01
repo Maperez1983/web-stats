@@ -97,10 +97,14 @@
         border-bottom: none;
       }
       .section-title.club {
-        background: {{ pdf_palette.primary }};
+        background: linear-gradient(90deg, {{ pdf_palette.primary }}, {{ pdf_palette.accent }});
         color: #ffffff;
         border: 1px solid {{ pdf_palette.primary }};
         border-bottom: none;
+      }
+      .empty-copy {
+        color: #94a3b8;
+        font-style: italic;
       }
       .box {
         border: 1px solid var(--border);
@@ -146,6 +150,11 @@
         break-inside: auto;
         box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
       }
+      .pdf-club .task-sheet-card {
+        border-radius: 18px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.99), rgba(248,250,252,0.98));
+        border-color: rgba(148,163,184,0.22);
+      }
       .task-sheet-card:last-child {
         margin-bottom: 0;
       }
@@ -176,11 +185,177 @@
         font-size: 13px;
         font-weight: 800;
         letter-spacing: 0.01em;
+        color: #0f172a;
+      }
+      .task-preview-grid {
+        display: table;
+        width: 100%;
+        table-layout: fixed;
+        border-collapse: separate;
+        border-spacing: 8px 0;
+      }
+      .task-preview-cell {
+        display: table-cell;
+        vertical-align: top;
+      }
+      .task-preview-label {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 8px;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: {% if pdf_style == 'club' %}{{ pdf_palette.primary }}{% else %}#64748b{% endif %};
+      }
+      .task-preview-box {
+        border: 1px solid #d5dde7;
+        border-radius: 12px;
+        overflow: hidden;
+        background: #fff;
+        min-height: 146px;
+      }
+      .task-preview-box img {
+        width: 100%;
+        display: block;
+      }
+      .task-reproduction-strip {
+        display: table;
+        width: 100%;
+        table-layout: fixed;
+        border-collapse: separate;
+        border-spacing: 6px 0;
+        margin: 8px 0 10px;
+      }
+      .task-reproduction-frame {
+        display: table-cell;
+        vertical-align: top;
+      }
+      .task-reproduction-frame img {
+        width: 100%;
+        display: block;
+        border: 1px solid #d5dde7;
+        border-radius: 10px;
+        background: #fff;
+      }
+      .session-summary-grid {
+        display: table;
+        width: 100%;
+        table-layout: fixed;
+        border-collapse: separate;
+        border-spacing: 8px;
+        margin: 0 0 12px;
+      }
+      .session-summary-row {
+        display: table-row;
+      }
+      .session-summary-card {
+        display: table-cell;
+        border: 1px solid var(--border-soft);
+        border-radius: 14px;
+        padding: 10px 11px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.96));
+        vertical-align: top;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+        position: relative;
+      }
+      .session-summary-card::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        height: 4px;
+        border-radius: 14px 14px 0 0;
+        background: linear-gradient(90deg, {% if pdf_style == 'club' %}{{ pdf_palette.primary }}, {{ pdf_palette.accent }}{% else %}#d92b30, #9f1239{% endif %});
+      }
+      .session-summary-card .label {
+        font-size: 8px;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: {% if pdf_style == 'club' %}{{ pdf_palette.primary }}{% else %}#64748b{% endif %};
+        margin-bottom: 5px;
+      }
+      .session-summary-card .value {
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.35;
+        color: #0f172a;
+      }
+      .session-editorial-grid {
+        display: table;
+        width: 100%;
+        table-layout: fixed;
+        border-collapse: separate;
+        border-spacing: 10px;
+        margin-bottom: 12px;
+      }
+      .session-editorial-row {
+        display: table-row;
+      }
+      .session-editorial-card {
+        display: table-cell;
+        width: 50%;
+        vertical-align: top;
+        border: 1px solid var(--border-soft);
+        border-radius: 14px;
+        padding: 11px 12px;
+        background: #ffffff;
+        box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+      }
+      .session-editorial-card h4 {
+        margin: 0 0 7px;
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: {% if pdf_style == 'club' %}{{ pdf_palette.primary }}{% else %}#64748b{% endif %};
+      }
+      .session-editorial-card p {
+        margin: 0;
+        line-height: 1.5;
+      }
+      .session-chip-row {
+        margin-top: 8px;
+        line-height: 1.7;
+      }
+      .session-chip {
+        display: inline-block;
+        margin: 0 5px 5px 0;
+        padding: 3px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--border-soft);
+        background: {% if pdf_style == 'club' %}rgba(15,23,42,0.03){% else %}#f8fafc{% endif %};
+        font-size: 8.5px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        color: #0f172a;
       }
       .task-meta {
         margin-top: 5px;
         color: #475569;
         font-size: 10px;
+      }
+      .task-sheet-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 8px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+      }
+      .task-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: {% if pdf_style == 'club' %}rgba(15,122,53,0.09){% else %}#f8fafc{% endif %};
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        color: {% if pdf_style == 'club' %}{{ pdf_palette.primary }}{% else %}#334155{% endif %};
+        font-size: 8px;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
       }
 	      .footer {
 	        padding: 8px 12px;
@@ -312,7 +487,7 @@
 	      .page-break { page-break-before: always; }
 
 	      /* UEFA (RFEF) estilo "ejemplo de sesión" (react-pdf) */
-		      
+
 	      .rfef-header {
 	        background: #e10613;
 	        color: #ffffff;
@@ -669,51 +844,136 @@
         <div class="section-title {% if pdf_style == 'club' %}club{% else %}uefa{% endif %}">
           Detalles de la sesión
         </div>
-        <table class="table {% if pdf_style != 'club' %}uefa-table{% endif %}" style="margin-bottom:12px;">
-          <tr>
-            <td style="width:18%;">Nombre</td>
-            <td colspan="3"><div class="v">{{ session_display_name|default:session.focus }}</div></td>
-          </tr>
-          <tr>
-            <td>Microciclo</td>
-            <td><div class="v">{{ microcycle_display_title|default:microcycle.title }}</div></td>
-            <td>Fecha</td>
-            <td><div class="v">{{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</div></td>
-          </tr>
-          <tr>
-            <td>Duración</td>
-            <td><div class="v">{{ session.duration_minutes }} min</div></td>
-            <td>Intensidad</td>
-            <td><div class="v">{{ intensity_label }}</div></td>
-          </tr>
-          <tr>
-            <td>Estado</td>
-            <td><div class="v">{{ status_label }}</div></td>
-            <td>Tareas</td>
-            <td><div class="v">{{ tasks_count }} · {{ task_minutes_total }} min totales</div></td>
-          </tr>
-          <tr>
-            <td>Entrenador</td>
-            <td><div class="v">{{ coach_name }}</div></td>
-            <td>Equipo</td>
-            <td><div class="v">{{ team_name }}</div></td>
-          </tr>
-        </table>
+        <div class="box {% if pdf_style != 'club' %}uefa-copy{% endif %}" style="margin-bottom:12px; padding-bottom:10px;">
+          <div style="font-size:20px; font-weight:900; line-height:1.1; color:{% if pdf_style == 'club' %}{{ pdf_palette.primary }}{% else %}#0f172a{% endif %};">
+            {{ session_display_name|default:session.focus }}
+          </div>
+          <div style="margin-top:5px; color:#475569; font-size:10px; line-height:1.45;">
+            {{ team_name }} · {{ coach_name }} · {{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}
+          </div>
+        </div>
+        <div class="session-summary-grid">
+          <div class="session-summary-row">
+            <div class="session-summary-card">
+              <div class="label">Microciclo</div>
+              <div class="value">{{ microcycle_display_title|default:microcycle.title|default:"-" }}</div>
+            </div>
+            <div class="session-summary-card">
+              <div class="label">Duración e intensidad</div>
+              <div class="value">{{ session.duration_minutes }} min · {{ intensity_label }}</div>
+            </div>
+            <div class="session-summary-card">
+              <div class="label">Estado y tareas</div>
+              <div class="value">{{ status_label }} · {{ tasks_count }} tareas / {{ task_minutes_total }} min</div>
+            </div>
+            <div class="session-summary-card">
+              <div class="label">Equipo</div>
+              <div class="value">{{ team_name }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title {% if pdf_style == 'club' %}club{% else %}uefa{% endif %}">
+          Resumen metodológico
+        </div>
+        <div class="session-editorial-grid">
+          <div class="session-editorial-row">
+            <div class="session-editorial-card">
+              <h4>Objetivo general</h4>
+              <p>{% if session_plan_fields.objective %}{{ session_plan_fields.objective|linebreaksbr }}{% else %}<span class="empty-copy">Sin definir</span>{% endif %}</p>
+            </div>
+            <div class="session-editorial-card">
+              <h4>Criterios de éxito</h4>
+              <p>{% if session_plan_fields.success_criteria %}{{ session_plan_fields.success_criteria|linebreaksbr }}{% else %}<span class="empty-copy">Sin definir</span>{% endif %}</p>
+            </div>
+          </div>
+          <div class="session-editorial-row">
+            <div class="session-editorial-card">
+              <h4>Objetivo táctico</h4>
+              <p>{% if session_plan_fields.objective_tactical %}{{ session_plan_fields.objective_tactical|linebreaksbr }}{% else %}<span class="empty-copy">Sin definir</span>{% endif %}</p>
+            </div>
+            <div class="session-editorial-card">
+              <h4>Objetivo físico</h4>
+              <p>{% if session_plan_fields.objective_physical %}{{ session_plan_fields.objective_physical|linebreaksbr }}{% else %}<span class="empty-copy">Sin definir</span>{% endif %}</p>
+            </div>
+          </div>
+          <div class="session-editorial-row">
+            <div class="session-editorial-card">
+              <h4>Regla principal</h4>
+              <p>{% if session_plan_fields.main_rule %}{{ session_plan_fields.main_rule|linebreaksbr }}{% else %}<span class="empty-copy">Sin definir</span>{% endif %}</p>
+              <div class="session-chip-row">
+                {% if session_plan_fields.rpe_target %}<span class="session-chip">RPE {{ session_plan_fields.rpe_target }}</span>{% endif %}
+                {% if session_plan_fields.player_count %}<span class="session-chip">{{ session_plan_fields.player_count }} jugadores</span>{% endif %}
+                {% if session_plan_fields.location %}<span class="session-chip">{{ session_plan_fields.location }}</span>{% endif %}
+                {% if session_plan_fields.recommended_duration %}<span class="session-chip">{{ session_plan_fields.recommended_duration }}</span>{% endif %}
+              </div>
+            </div>
+            <div class="session-editorial-card">
+              <h4>Materiales y contexto</h4>
+              <p>
+                {% if session_plan_fields.materials %}<strong>Material:</strong> {{ session_plan_fields.materials }}<br />{% endif %}
+                {% if session_plan_fields.absences %}<strong>Ausencias:</strong> {{ session_plan_fields.absences|linebreaksbr }}{% endif %}
+                {% if not session_plan_fields.materials and not session_plan_fields.absences %}<span class="empty-copy">Sin incidencias ni material definido</span>{% endif %}
+              </p>
+            </div>
+          </div>
+        </div>
 
         <div class="section-title {% if pdf_style == 'club' %}club{% else %}uefa{% endif %}">
           Contenido / explicación
         </div>
-	        <div class="box {% if pdf_style != 'club' %}uefa-copy{% endif %}" style="margin-bottom:12px; line-height:1.5;">
-	          {% if session_notes or session_plan_fields.warmup or session_plan_fields.activation or session_plan_fields.main or session_plan_fields.cooldown %}
-	            {% if session_plan_fields.warmup %}<p><strong>Calentamiento:</strong><br />{{ session_plan_fields.warmup|linebreaksbr }}</p>{% endif %}
-	            {% if session_plan_fields.activation %}<p><strong>Activación:</strong><br />{{ session_plan_fields.activation|linebreaksbr }}</p>{% endif %}
-	            {% if session_plan_fields.main %}<p><strong>Parte principal:</strong><br />{{ session_plan_fields.main|linebreaksbr }}</p>{% endif %}
-	            {% if session_plan_fields.cooldown %}<p><strong>Vuelta a la calma:</strong><br />{{ session_plan_fields.cooldown|linebreaksbr }}</p>{% endif %}
-	            {% if session_notes %}<p><strong>Notas:</strong><br />{{ session_notes|linebreaksbr }}</p>{% endif %}
-	          {% else %}
-	          <span style="color:#64748b;">(Sin textos guardados. Escríbelos en “Textos de sesión” y guarda antes de imprimir.)</span>
-	          {% endif %}
-	        </div>
+        <div class="session-editorial-grid">
+          <div class="session-editorial-row">
+            <div class="session-editorial-card">
+              <h4>Calentamiento</h4>
+              <p>{% if session_plan_fields.warmup %}{{ session_plan_fields.warmup|linebreaksbr }}{% else %}<span class="empty-copy">Sin definir</span>{% endif %}</p>
+            </div>
+            <div class="session-editorial-card">
+              <h4>Activación</h4>
+              <p>{% if session_plan_fields.activation %}{{ session_plan_fields.activation|linebreaksbr }}{% else %}<span class="empty-copy">Sin definir</span>{% endif %}</p>
+            </div>
+          </div>
+          <div class="session-editorial-row">
+            <div class="session-editorial-card">
+              <h4>Parte principal</h4>
+              <p>{% if session_plan_fields.main %}{{ session_plan_fields.main|linebreaksbr }}{% else %}<span class="empty-copy">Sin definir</span>{% endif %}</p>
+            </div>
+            <div class="session-editorial-card">
+              <h4>Vuelta a la calma</h4>
+              <p>{% if session_plan_fields.cooldown %}{{ session_plan_fields.cooldown|linebreaksbr }}{% else %}<span class="empty-copy">Sin definir</span>{% endif %}</p>
+            </div>
+          </div>
+          <div class="session-editorial-row">
+            <div class="session-editorial-card">
+              <h4>Coaching keys</h4>
+              <p>{% if session_plan_fields.coaching_keys %}{{ session_plan_fields.coaching_keys|linebreaksbr }}{% else %}<span class="empty-copy">Sin definir</span>{% endif %}</p>
+            </div>
+            <div class="session-editorial-card">
+              <h4>Principios clave</h4>
+              <p>{% if session_plan_fields.key_principles %}{{ session_plan_fields.key_principles|linebreaksbr }}{% else %}<span class="empty-copy">Sin definir</span>{% endif %}</p>
+            </div>
+          </div>
+          <div class="session-editorial-row">
+            <div class="session-editorial-card">
+              <h4>Indicadores de éxito</h4>
+              <p>{% if session_plan_fields.indicators %}{{ session_plan_fields.indicators|linebreaksbr }}{% else %}<span class="empty-copy">Sin definir</span>{% endif %}</p>
+            </div>
+            <div class="session-editorial-card">
+              <h4>Variantes / progresiones</h4>
+              <p>{% if session_plan_fields.variations %}{{ session_plan_fields.variations|linebreaksbr }}{% else %}<span class="empty-copy">Sin definir</span>{% endif %}</p>
+            </div>
+          </div>
+          <div class="session-editorial-row">
+            <div class="session-editorial-card">
+              <h4>Planificación semanal</h4>
+              <p>{% if session_plan_fields.weekly_plan %}{{ session_plan_fields.weekly_plan|linebreaksbr }}{% else %}<span class="empty-copy">Sin definir</span>{% endif %}</p>
+            </div>
+            <div class="session-editorial-card">
+              <h4>Notas</h4>
+              <p>{% if session_notes or session_plan_fields.notes %}{{ session_notes|default:session_plan_fields.notes|linebreaksbr }}{% else %}<span class="empty-copy">Sin notas adicionales</span>{% endif %}</p>
+            </div>
+          </div>
+        </div>
 
 	        {% if task_cards %}<div class="session-task-separator"></div>{% endif %}
 	        <div class="section-title {% if pdf_style == 'club' %}club{% else %}uefa{% endif %}">
@@ -722,13 +982,67 @@
 	        {% if task_cards %}
 	          {% for card in task_cards %}
 	          <div class="task-sheet-card">
-	            <div class="task-title">Tarea {{ forloop.counter }} · {{ card.sheet.title }}</div>
-	            <div class="task-meta">{{ card.sheet.block_label }} · {{ card.sheet.minutes }} min{% if card.sheet.type_label and card.sheet.type_label != '-' %} · {{ card.sheet.type_label }}{% endif %}</div>
-		              {% if card.preview_url %}
-		              <div class="task-graphic" style="margin-top:8px; margin-bottom:10px;">
-		                <img src="{{ card.preview_url }}" alt="Representación gráfica" />
-		              </div>
-		              {% endif %}
+	            <div class="task-sheet-head">
+	              <div>
+	                <div class="task-title">Tarea {{ forloop.counter }} · {{ card.sheet.title }}</div>
+	                <div class="task-meta">{{ card.sheet.block_label }} · {{ card.sheet.minutes }} min{% if card.sheet.type_label and card.sheet.type_label != '-' %} · {{ card.sheet.type_label }}{% endif %}</div>
+	              </div>
+	              <div class="task-badge">{{ card.sheet.block_label|default:"Tarea" }}</div>
+	            </div>
+                      {% if card.preview_2d_url or card.preview_3d_url %}
+                      <div class="task-preview-grid" style="margin-top:8px; margin-bottom:8px;">
+                        <div class="task-preview-cell">
+                          <span class="task-preview-label">Vista 2D</span>
+                          <div class="task-preview-box">
+                            {% if card.preview_2d_url %}
+                            <img src="{{ card.preview_2d_url }}" alt="Vista 2D" />
+                            {% else %}
+                            <div class="box" style="margin:0; min-height:146px; text-align:center; color:#94a3b8; border:none;">Sin vista 2D</div>
+                            {% endif %}
+                          </div>
+                        </div>
+                        <div class="task-preview-cell">
+                          <span class="task-preview-label">Vista 3D</span>
+                          <div class="task-preview-box">
+                            {% if card.preview_3d_url %}
+                            <img src="{{ card.preview_3d_url }}" alt="Vista 3D" />
+                            {% else %}
+                            <div class="box" style="margin:0; min-height:146px; text-align:center; color:#94a3b8; border:none;">Sin vista 3D</div>
+                            {% endif %}
+                          </div>
+                        </div>
+                      </div>
+                      {% elif card.preview_url %}
+                      <div class="task-graphic" style="margin-top:8px; margin-bottom:10px;">
+                        <img src="{{ card.preview_url }}" alt="Representación gráfica" />
+                      </div>
+                      {% else %}
+                      <div class="box" style="margin-top:8px; margin-bottom:10px; text-align:center; color:#94a3b8;">
+                        Sin representación gráfica
+                      </div>
+                      {% endif %}
+                      {% if card.reproduction_frames %}
+                      <div class="task-preview-label">Reproducción 2D</div>
+                      <div class="task-reproduction-strip">
+                        {% for frame in card.reproduction_frames %}
+                        {% if frame.preview_2d_url %}
+                        <div class="task-reproduction-frame">
+                          <img src="{{ frame.preview_2d_url }}" alt="Reproducción 2D {{ frame.title|default:'Paso' }}" />
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                      </div>
+                      <div class="task-preview-label" style="margin-top:6px;">Reproducción 3D</div>
+                      <div class="task-reproduction-strip">
+                        {% for frame in card.reproduction_frames %}
+                        {% if frame.preview_3d_url %}
+                        <div class="task-reproduction-frame">
+                          <img src="{{ frame.preview_3d_url }}" alt="Reproducción 3D {{ frame.title|default:'Paso' }}" />
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                      </div>
+                      {% endif %}
 		              {% if card.drills %}
 		              <div style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; color:#0f7a35; margin-bottom:6px;">Secuencia</div>
 		              <div class="drills-row" style="margin-top:0; margin-bottom:10px;">
@@ -764,7 +1078,7 @@
 	              <tr>
 	                <td colspan="2">
 	                  <strong>Descripción</strong>
-	                  {{ card.sheet.description|default:"-" }}
+	                  {% if card.sheet.description and '{%' not in card.sheet.description %}{{ card.sheet.description }}{% else %}<span class="empty-copy">Sin descripción operativa</span>{% endif %}
 	                </td>
 	              </tr>
 	              <tr>

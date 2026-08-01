@@ -6,7 +6,15 @@ import {
   ensureScene,
   normalizeLayerId,
 } from '../core/sceneSchema';
-import { resolveAssetId } from '../assets/assetRegistry';
+import { getAssetDefinition, resolveAssetId } from '../assets/assetRegistry';
+import { normalizeAnimationTimeline } from '../animation/AnimationSerializer';
+import {
+  konvaSceneToLegacyCanvas,
+  legacyCanvasToKonvaScene,
+  normalizeTaskGraphicState,
+  preserveUnknownLegacyFields,
+  validateTaskGraphicState,
+} from '../persistence/TaskGraphicStateAdapter';
 import type {
   SceneLayerId,
   SceneObject,
@@ -20,6 +28,11 @@ import type {
 } from '../../domain/taskDocument';
 
 function inferSceneType(rawObject: TacticalCanvasObject): SceneObjectType {
+  const assetId = typeof rawObject.data?.assetId === 'string' ? rawObject.data.assetId : undefined;
+  const assetDefinition = assetId ? getAssetDefinition(assetId) : null;
+  if (assetDefinition?.type) {
+    return assetDefinition.type;
+  }
   const kind = String(rawObject.data?.kind || rawObject.data?.type || rawObject.name || '')
     .trim()
     .toLowerCase();
@@ -131,73 +144,7 @@ function normalizeLegacyObject(rawObject: TacticalCanvasObject, index: number): 
 }
 
 export function createSceneFromDocument(document: TaskEditorDocument): TacticalScene {
-  const rawState = (document.graphic?.canvas_state || {}) as TacticalCanvasState &
-    Record<string, unknown>;
-  const sceneRoot =
-    typeof rawState === 'object' &&
-    rawState &&
-    Array.isArray((rawState as Record<string, unknown>).sceneObjects)
-      ? ensureScene(
-          {
-            schemaVersion: clampNumber((rawState as Record<string, unknown>).schemaVersion, 1, 1),
-            documentId: String(
-              (rawState as Record<string, unknown>).documentId || document.task.id
-            ),
-            pitch: ((rawState as Record<string, unknown>).pitch || {}) as TacticalScene['pitch'],
-            canvas: ((rawState as Record<string, unknown>).canvas || {
-              width: document.graphic?.canvas_width || 1050,
-              height: document.graphic?.canvas_height || 680,
-              padding: 28,
-            }) as TacticalScene['canvas'],
-            viewport: ((rawState as Record<string, unknown>).viewport ||
-              {}) as TacticalScene['viewport'],
-            layers: ((rawState as Record<string, unknown>).layers || []) as TacticalScene['layers'],
-            objects: ((rawState as Record<string, unknown>).sceneObjects ||
-              []) as TacticalScene['objects'],
-            timeline: ((rawState as Record<string, unknown>).timelineState || {
-              duration: 0,
-              currentTime: 0,
-              keyframes: [],
-            }) as TacticalScene['timeline'],
-            metadata: ((rawState as Record<string, unknown>).metadata || {
-              title: document.task.title,
-              source: 'foundation-v1',
-            }) as TacticalScene['metadata'],
-          },
-          {
-            documentId: String(document.task.id),
-            title: document.task.title,
-            canvasWidth: document.graphic?.canvas_width || 1050,
-            canvasHeight: document.graphic?.canvas_height || 680,
-          }
-        )
-      : null;
-
-  if (sceneRoot) {
-    return sceneRoot;
-  }
-
-  const base = createDefaultScene(
-    String(document.task.id),
-    document.task.title,
-    clampNumber(document.graphic?.canvas_width, 1050, 320, 4000),
-    clampNumber(document.graphic?.canvas_height, 680, 240, 4000)
-  );
-  const rawObjects = Array.isArray(rawState?.objects) ? rawState.objects : [];
-  const timeline = Array.isArray(rawState?.timeline) ? rawState.timeline : [];
-  return {
-    ...base,
-    objects: rawObjects.map((item, index) => normalizeLegacyObject(item, index)),
-    timeline: {
-      duration: timeline.length,
-      currentTime: 0,
-      keyframes: timeline,
-    },
-    metadata: {
-      ...base.metadata,
-      source: 'legacy',
-    },
-  };
+  return legacyCanvasToKonvaScene(document.graphic?.canvas_state, document).scene;
 }
 
 function sceneObjectToLegacyObject(sceneObject: SceneObject): TacticalCanvasObject {
@@ -274,31 +221,7 @@ function sceneObjectToLegacyObject(sceneObject: SceneObject): TacticalCanvasObje
 export function sceneToLegacyCanvasState(
   scene: TacticalScene
 ): TacticalCanvasState & Record<string, unknown> {
-  const safeScene = ensureScene(scene, {
-    documentId: scene.documentId,
-    title: scene.metadata.title,
-    canvasWidth: scene.canvas.width,
-    canvasHeight: scene.canvas.height,
-  });
-  return {
-    version: '5.3.0',
-    schemaVersion: safeScene.schemaVersion,
-    documentId: safeScene.documentId,
-    pitch: deepClone(safeScene.pitch),
-    canvas: deepClone(safeScene.canvas),
-    viewport: deepClone(safeScene.viewport),
-    layers: deepClone(safeScene.layers),
-    sceneObjects: deepClone(safeScene.objects),
-    timelineState: deepClone(safeScene.timeline),
-    timeline: Array.isArray(safeScene.timeline.keyframes)
-      ? deepClone(safeScene.timeline.keyframes)
-      : [],
-    metadata: {
-      ...deepClone(safeScene.metadata),
-      updatedAt: new Date().toISOString(),
-    },
-    objects: safeScene.objects.map((sceneObject) => sceneObjectToLegacyObject(sceneObject)),
-  };
+  return konvaSceneToLegacyCanvas(scene).canvasState;
 }
 
 export function parseImportedScene(raw: string, document: TaskEditorDocument): TacticalScene {
@@ -308,18 +231,7 @@ export function parseImportedScene(raw: string, document: TaskEditorDocument): T
     typeof parsed === 'object' &&
     Array.isArray((parsed as Record<string, unknown>).sceneObjects)
   ) {
-    return createSceneFromDocument({
-      ...document,
-      graphic: {
-        ...document.graphic,
-        canvas_state: parsed as TacticalCanvasState,
-      },
-    });
+    return normalizeTaskGraphicState(parsed, document).scene;
   }
-  return ensureScene(parsed as Partial<TacticalScene>, {
-    documentId: String(document.task.id),
-    title: document.task.title,
-    canvasWidth: document.graphic?.canvas_width || 1050,
-    canvasHeight: document.graphic?.canvas_height || 680,
-  });
+  return normalizeTaskGraphicState(parsed, document).scene;
 }

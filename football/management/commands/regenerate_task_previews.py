@@ -58,7 +58,9 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--only", choices=["all", "sessions", "task_studio"], default="sessions")
         parser.add_argument("--team-id", type=int, default=0, help="Filtra por Team.id (solo sesiones).")
-        parser.add_argument("--scope", type=str, default="any", help="Filtra por scope (coach/goalkeeper/fitness/abp/any).")
+        parser.add_argument(
+            "--scope", type=str, default="any", help="Filtra por scope (coach/goalkeeper/fitness/abp/any)."
+        )
         parser.add_argument("--limit", type=int, default=500, help="Máximo de tareas a procesar.")
         parser.add_argument("--force", action="store_true", help="Regenera aunque la preview parezca OK.")
         parser.add_argument("--dry-run", action="store_true", help="No guarda cambios; solo informa.")
@@ -141,7 +143,11 @@ class Command(BaseCommand):
                     continue
 
                 label = f"{kind}#{int(getattr(task, 'id', 0) or 0)}"
-                reason = "force" if force else ("missing" if not preview_name else ("pitch_only" if pitch_only else "broken"))
+                reason = (
+                    "force"
+                    if force
+                    else ("missing" if not preview_name else ("pitch_only" if pitch_only else "broken"))
+                )
                 self.stdout.write(f"- {label}: regenerate ({reason})")
                 if dry_run:
                     continue
@@ -159,7 +165,9 @@ class Command(BaseCommand):
                         if render_err:
                             self.stdout.write(self.style.WARNING(f"  render error: {render_err!r}"))
                         else:
-                            self.stdout.write(self.style.WARNING("  render: no output (¿sin canvas_state o fallo en Playwright?)"))
+                            self.stdout.write(
+                                self.style.WARNING("  render: no output (¿sin canvas_state o fallo en Playwright?)")
+                            )
 
                 if not ok and getattr(task, "task_pdf", None):
                     try:

@@ -150,7 +150,9 @@ def _parse_score_text(text: str) -> ScoreSample:
         return ScoreSample(video_t=0.0, raw=text or "")
 
 
-def _extract_score_samples(*, video_path: str, start: float, interval: float, max_seconds: float = 0.0) -> list[ScoreSample]:
+def _extract_score_samples(
+    *, video_path: str, start: float, interval: float, max_seconds: float = 0.0
+) -> list[ScoreSample]:
     """
     Extrae samples OCR del marcador cada `interval` segundos, empezando en `start`.
     """
@@ -190,9 +192,7 @@ def _stable_goal_events(samples: list[ScoreSample]) -> list[dict]:
     - aplica smoothing por mayoría en ventana de 3 (más reactivo con OCR intermitente)
     """
     parsed = [
-        s
-        for s in samples
-        if s.ascore is not None and s.bscore is not None and s.mm is not None and s.ss is not None
+        s for s in samples if s.ascore is not None and s.bscore is not None and s.mm is not None and s.ss is not None
     ]
     if not parsed:
         return []
@@ -246,13 +246,17 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--team-id", type=int, required=True)
         parser.add_argument("--video-id", type=int, default=0, help="Si existe RivalVideo, lo usa y no crea uno nuevo.")
-        parser.add_argument("--video-path", type=str, default="", help="Ruta a MP4 local para crear RivalVideo y analizar.")
+        parser.add_argument(
+            "--video-path", type=str, default="", help="Ruta a MP4 local para crear RivalVideo y analizar."
+        )
         parser.add_argument("--title", type=str, default="")
         parser.add_argument("--rival-team-id", type=int, default=0)
         parser.add_argument("--start", type=float, default=-1.0, help="Segundo donde empieza el marcador (auto si -1).")
         parser.add_argument("--interval", type=float, default=15.0, help="OCR cada N segundos.")
         parser.add_argument("--max-seconds", type=float, default=0.0, help="Limita análisis a N segundos (0=todo).")
-        parser.add_argument("--create-clips", action="store_true", help="Crea clips IN/OUT alrededor de cada gol detectado.")
+        parser.add_argument(
+            "--create-clips", action="store_true", help="Crea clips IN/OUT alrededor de cada gol detectado."
+        )
         parser.add_argument("--clip-pre", type=float, default=30.0, help="Segundos antes del gol para IN.")
         parser.add_argument("--clip-post", type=float, default=20.0, help="Segundos después del gol para OUT.")
         parser.add_argument("--dry-run", action="store_true")
@@ -358,7 +362,9 @@ class Command(BaseCommand):
             label = f"Gol {ev['score_new'][0]}-{ev['score_new'][1]}"
 
             # Idempotencia simple: evita duplicados si se re-ejecuta.
-            exists = VideoTimelineEvent.objects.filter(video=video, team=team, kind=VideoTimelineEvent.KIND_GOAL, time_ms=t_ms).exists()
+            exists = VideoTimelineEvent.objects.filter(
+                video=video, team=team, kind=VideoTimelineEvent.KIND_GOAL, time_ms=t_ms
+            ).exists()
             if not exists:
                 VideoTimelineEvent.objects.create(
                     team=team,
@@ -380,7 +386,9 @@ class Command(BaseCommand):
             if create_clips:
                 in_ms = max(0, int(t_ms - (clip_pre * 1000.0)))
                 out_ms = max(in_ms + 5000, int(t_ms + (clip_post * 1000.0)))
-                clip_exists = VideoClip.objects.filter(video=video, team=team, in_ms=in_ms, out_ms=out_ms, collection="Goles").exists()
+                clip_exists = VideoClip.objects.filter(
+                    video=video, team=team, in_ms=in_ms, out_ms=out_ms, collection="Goles"
+                ).exists()
                 if not clip_exists:
                     VideoClip.objects.create(
                         team=team,

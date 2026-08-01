@@ -162,4 +162,3 @@ Plan de transición:
 ### P2 (meses)
 - Dividir `football/views.py` por dominios (dashboard, actions, tactics, academy, analysis).
 - Añadir tests de smoke del editor TPad (carga + cambiar superficie + guardar clip + recargar y verificar persistencia).
-

@@ -120,6 +120,248 @@
         min-height: 100vh;
         min-height: 100dvh;
       }
+      body.session-task-detail-page.task-flow-create .page {
+        max-width: 1240px;
+        padding: 0.7rem 0.9rem 1.35rem;
+      }
+      body.session-task-detail-page.task-flow-create {
+        --ink: #18352b;
+        --panel: rgba(248, 252, 248, 0.92);
+        --line: rgba(0, 112, 80, 0.14);
+        background:
+          radial-gradient(circle at top left, rgba(0, 112, 80, 0.16), transparent 24%),
+          radial-gradient(circle at top right, rgba(255, 255, 255, 0.72), transparent 26%),
+          linear-gradient(180deg, #edf6f0 0%, #e0efe5 46%, #d7e9dd 100%) !important;
+      }
+      body.session-task-detail-page.task-flow-create .top {
+        margin-bottom: 0.75rem;
+        align-items: center;
+        border-color: rgba(8, 71, 48, 0.16);
+        background:
+          radial-gradient(circle at top left, rgba(16, 120, 76, 0.1), transparent 32%),
+          linear-gradient(135deg, rgba(248, 252, 249, 0.98), rgba(230, 239, 233, 0.98));
+        box-shadow: 0 18px 40px rgba(0, 52, 33, 0.08);
+      }
+      body.session-task-detail-page.task-flow-create .top-copy {
+        gap: 0.22rem;
+      }
+      body.session-task-detail-page.task-flow-create .product-nav-shortcuts,
+      body.session-task-detail-page.task-flow-create .dragon-nav {
+        text-shadow: none !important;
+      }
+      body.session-task-detail-page.task-flow-create .nav-context {
+        color: rgba(19, 49, 39, 0.88) !important;
+      }
+      body.session-task-detail-page.task-flow-create .nav-context-name,
+      body.session-task-detail-page.task-flow-create .nav-context-team,
+      body.session-task-detail-page.task-flow-create .nav-context-season {
+        color: #173d30 !important;
+      }
+      body.session-task-detail-page.task-flow-create .nav-context-sep,
+      body.session-task-detail-page.task-flow-create .nav-context-section {
+        color: rgba(23, 61, 48, 0.72) !important;
+      }
+      body.session-task-detail-page.task-flow-create .nav-season-form select {
+        color: #173d30 !important;
+        -webkit-text-fill-color: #173d30 !important;
+        border-color: rgba(10, 77, 53, 0.18) !important;
+        background: rgba(255, 255, 255, 0.96) !important;
+      }
+      body.session-task-detail-page.task-flow-create .product-nav-shortcuts a,
+      body.session-task-detail-page.task-flow-create .product-nav-shortcuts button.nav-command-btn,
+      body.session-task-detail-page.task-flow-create .nav-more summary {
+        color: #173d30 !important;
+        -webkit-text-fill-color: #173d30 !important;
+        border-color: rgba(10, 77, 53, 0.18) !important;
+        background: rgba(255, 255, 255, 0.94) !important;
+        box-shadow: 0 8px 18px rgba(0, 52, 33, 0.08) !important;
+      }
+      body.session-task-detail-page.task-flow-create .product-nav-shortcuts a:hover,
+      body.session-task-detail-page.task-flow-create .product-nav-shortcuts button.nav-command-btn:hover,
+      body.session-task-detail-page.task-flow-create .nav-more[open] summary {
+        color: #0f2e24 !important;
+        border-color: rgba(10, 77, 53, 0.34) !important;
+        background: rgba(255, 255, 255, 0.99) !important;
+      }
+      body.session-task-detail-page.task-flow-create .product-nav-shortcuts a.is-active,
+      body.session-task-detail-page.task-flow-create .product-nav-shortcuts button.nav-command-btn.is-active,
+      body.session-task-detail-page.task-flow-create .nav-more.is-active summary {
+        color: #0b4d35 !important;
+        -webkit-text-fill-color: #0b4d35 !important;
+        border-color: rgba(11, 109, 77, 0.48) !important;
+        background: rgba(255, 248, 225, 0.92) !important;
+      }
+      body.session-task-detail-page.task-flow-create .top,
+      body.session-task-detail-page.task-flow-create .top * {
+        text-shadow: none !important;
+      }
+      body.session-task-detail-page.task-flow-create .top h1,
+      body.session-task-detail-page.task-flow-create .top h1 * {
+        color: #0a4d35 !important;
+        -webkit-text-fill-color: #0a4d35 !important;
+        text-shadow: none !important;
+      }
+      body.session-task-detail-page.task-flow-create .top-kicker {
+        color: #0d5f44;
+        font-weight: 900;
+      }
+      body.session-task-detail-page.task-flow-create .top-pill {
+        color: #143528;
+        border-color: rgba(10, 77, 53, 0.16);
+        background: rgba(255, 255, 255, 0.94);
+      }
+      body.session-task-detail-page.task-flow-create .top .meta {
+        color: rgba(18, 49, 38, 0.9) !important;
+      }
+      body.session-task-detail-page.task-flow-create .top-actions .button,
+      body.session-task-detail-page.task-flow-create .top-actions a.button {
+        color: #143528 !important;
+        -webkit-text-fill-color: #143528 !important;
+        border-color: rgba(10, 77, 53, 0.16) !important;
+        background: rgba(255, 255, 255, 0.94) !important;
+      }
+      body.session-task-detail-page.task-flow-create .top-actions .button.primary,
+      body.session-task-detail-page.task-flow-create .top-actions a.button.primary {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border-color: rgba(10, 77, 53, 0.72) !important;
+        background: linear-gradient(180deg, #0b7a54, #096445) !important;
+      }
+      body.session-task-detail-page.task-flow-create .top-actions {
+        align-self: center;
+      }
+      body.session-task-detail-page.task-flow-create .task-detail-tab-bar {
+        display: none;
+      }
+      body.session-task-detail-page.task-flow-create .task-detail-tab-panel[data-task-tab-panel="presentation"] {
+        padding: 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+      }
+      body.session-task-detail-page.task-flow-create .task-detail-tab-panel[data-task-tab-panel="presentation"] > h2,
+      body.session-task-detail-page.task-flow-create .task-detail-tab-panel[data-task-tab-panel="presentation"] > .meta {
+        display: none;
+      }
+      body.session-task-detail-page.task-flow-create .task-flow-sheet-form {
+        display: grid;
+        gap: 0.95rem;
+      }
+      body.session-task-detail-page.task-flow-create .task-flow-sheet-shell {
+        border: 1px solid rgba(0, 112, 80, 0.14);
+        border-radius: 26px;
+        padding: 1rem;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(244, 249, 246, 0.96)),
+          radial-gradient(circle at top right, rgba(0, 112, 80, 0.06), transparent 28%);
+        box-shadow: 0 28px 56px rgba(0, 52, 33, 0.1);
+      }
+      body.session-task-detail-page.task-flow-create .task-flow-sheet-intro {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.9rem;
+        margin-bottom: 0.9rem;
+        padding: 0.95rem 1rem;
+        border: 1px solid rgba(0, 112, 80, 0.12);
+        border-radius: 18px;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(238, 247, 241, 0.98));
+      }
+      body.session-task-detail-page.task-flow-create .task-flow-sheet-intro h2 {
+        margin: 0 0 0.25rem;
+        font-size: 1.08rem;
+        line-height: 1.1;
+        color: #084b34;
+      }
+      body.session-task-detail-page.task-flow-create .task-flow-sheet-intro p {
+        margin: 0;
+        max-width: 62ch;
+        color: rgba(18, 49, 38, 0.9);
+      }
+      body.session-task-detail-page.task-flow-create .task-flow-sheet-status {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.42rem;
+        padding: 0.52rem 0.78rem;
+        border-radius: 999px;
+        border: 1px solid rgba(0, 112, 80, 0.16);
+        background: rgba(255, 255, 255, 0.92);
+        color: #084b34;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      body.session-task-detail-page.task-flow-create .task-edit-tab-panel[data-task-edit-tab-panel="settings"] {
+        padding-top: 0.55rem;
+      }
+      body.session-task-detail-page.task-flow-create .editor-section {
+        scroll-margin-top: 1rem;
+      }
+      body.session-task-detail-page.task-flow-create .msg {
+        border-radius: 14px;
+        padding: 0.8rem 0.95rem;
+        margin: 0 0 0.8rem;
+      }
+      body.session-task-detail-page.task-flow-create .create-actions {
+        position: sticky;
+        bottom: 14px;
+        z-index: 12;
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.7rem;
+        padding: 0.9rem 1rem;
+        border: 1px solid rgba(0, 112, 80, 0.16);
+        border-radius: 18px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(240, 247, 242, 0.96));
+        box-shadow: 0 18px 38px rgba(0, 52, 33, 0.14);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+      }
+      body.session-task-detail-page.task-flow-create .create-actions .button {
+        min-height: 46px;
+        padding-inline: 1.05rem;
+      }
+      body.session-task-detail-page.task-flow-create .button,
+      body.session-task-detail-page.task-flow-create .button.secondary,
+      body.session-task-detail-page.task-flow-create a.secondary {
+        color: #184133 !important;
+        -webkit-text-fill-color: #184133 !important;
+        border-color: rgba(0, 112, 80, 0.16) !important;
+        background: rgba(255, 255, 255, 0.92) !important;
+        box-shadow: 0 10px 22px rgba(0, 52, 33, 0.08) !important;
+      }
+      body.session-task-detail-page.task-flow-create .button.primary,
+      body.session-task-detail-page.task-flow-create button.primary,
+      body.session-task-detail-page.task-flow-create a.primary {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border-color: rgba(0, 112, 80, 0.7) !important;
+        background: linear-gradient(180deg, #0b7a54, #096445) !important;
+        box-shadow: 0 14px 28px rgba(0, 82, 51, 0.2) !important;
+      }
+      body.session-task-detail-page.task-flow-create .button:hover {
+        border-color: rgba(0, 112, 80, 0.3) !important;
+        background: rgba(255, 255, 255, 1) !important;
+      }
+      body.session-task-detail-page.task-flow-create .button.primary:hover,
+      body.session-task-detail-page.task-flow-create button.primary:hover,
+      body.session-task-detail-page.task-flow-create a.primary:hover {
+        background: linear-gradient(180deg, #0c845b, #0a6d4b) !important;
+      }
+      @media (max-width: 760px) {
+        body.session-task-detail-page.task-flow-create .task-flow-sheet-intro {
+          flex-direction: column;
+        }
+        body.session-task-detail-page.task-flow-create .create-actions {
+          justify-content: stretch;
+          flex-direction: column-reverse;
+        }
+        body.session-task-detail-page.task-flow-create .create-actions .button {
+          width: 100%;
+        }
+      }
       body.session-task-detail-page.task-detail-graphic-edit .top {
         margin-bottom: 0.38rem;
         padding: 0.55rem 0.7rem;
@@ -380,6 +622,122 @@
       }
       .task-detail-tab-panel.is-active {
         display: block;
+      }
+      .export-workbench {
+        display: grid;
+        gap: 0.9rem;
+      }
+      .export-live-card {
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 22px;
+        overflow: hidden;
+        background: rgba(255,255,255,0.04);
+        box-shadow: 0 20px 44px rgba(2, 6, 23, 0.18);
+      }
+      .export-live-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.8rem;
+        padding: 0.9rem 1rem;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+      }
+      .export-live-head h3 {
+        margin: 0;
+        font-size: 1rem;
+      }
+      .export-live-head .meta {
+        margin-top: 0.2rem;
+      }
+      .export-live-badges {
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+      }
+      .export-live-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        min-height: 34px;
+        padding: 0.34rem 0.6rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.06);
+        color: var(--ink);
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      .export-live-body {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+        gap: 0.9rem;
+        padding: 1rem;
+      }
+      .export-live-preview {
+        position: relative;
+        border-radius: 18px;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.1);
+        background: rgba(8, 15, 31, 0.78);
+        min-height: 280px;
+      }
+      .export-live-preview img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .export-live-overlay {
+        position: absolute;
+        left: 0.8rem;
+        right: 0.8rem;
+        top: 0.8rem;
+        display: flex;
+        justify-content: space-between;
+        gap: 0.7rem;
+        flex-wrap: wrap;
+        pointer-events: none;
+      }
+      .export-live-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.36rem;
+        padding: 0.34rem 0.58rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(2, 6, 23, 0.78);
+        color: #f8fafc;
+        font-size: 0.72rem;
+        font-weight: 800;
+      }
+      .export-live-panel {
+        display: grid;
+        gap: 0.75rem;
+      }
+      .export-live-meta-card {
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 16px;
+        padding: 0.85rem 0.9rem;
+        background: rgba(255,255,255,0.04);
+      }
+      .export-live-meta-card h4 {
+        margin: 0 0 0.45rem;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .export-live-actions {
+        display: flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+      }
+      @media (max-width: 980px) {
+        .export-live-body {
+          grid-template-columns: 1fr;
+        }
       }
       .task-edit-tab-bar {
         display: flex;
@@ -1395,26 +1753,43 @@
       }
     </style>
   </head>
-  <body class="prod-commercial session-task-detail-page{% if active_task_tab != 'edit' %} is-presentation{% endif %}{% if active_task_tab == 'edit' and active_task_edit_tab == 'graphic' %} task-detail-graphic-edit{% endif %}">
+  <body class="prod-commercial session-task-detail-page{% if active_task_tab != 'edit' %} is-presentation{% endif %}{% if active_task_tab == 'edit' and active_task_edit_tab == 'graphic' %} task-detail-graphic-edit{% endif %}{% if task_flow == 'create' %} task-flow-create{% endif %}">
     <main class="page product-shell">
       {% include 'football/includes/dragon_nav.html' %}
       <header class="top">
         <div class="top-copy">
-          <div class="top-kicker">Biblioteca de tarea</div>
+          <div class="top-kicker">{% if task_flow == 'create' %}Creación de tarea{% else %}Biblioteca de tarea{% endif %}</div>
           <h1>{{ task.title }}</h1>
           <div class="top-pills">
             <span class="top-pill">{{ task.get_block_display }}</span>
             <span class="top-pill">{{ task.duration_minutes }} min</span>
             {% if task.category %}<span class="top-pill">{{ task.category }}</span>{% endif %}
-            <span class="top-pill">{% if active_task_tab == 'edit' %}Edición{% elif active_task_tab == 'export' %}Exportar{% elif is_editable_task %}Presentación{% else %}Solo lectura{% endif %}</span>
+            {% if task_flow != 'create' %}
+            <span class="top-pill">{% if active_task_tab == 'edit' %}Pizarra{% elif active_task_tab == 'export' %}Exportar{% elif is_editable_task %}Presentación{% else %}Solo lectura{% endif %}</span>
+            {% endif %}
           </div>
         </div>
         <div class="top-actions">
           <a class="button" href="{{ back_url }}">{{ back_label }}</a>
-          {% if can_edit_task and not show_edit_mode %}
-          <button type="button" class="button" id="task-detail-enter-edit"{% if edit_graphic_url %} data-direct-url="{{ edit_graphic_url }}"{% endif %}>Abrir edición</button>
+          {% if editor_pro_url %}
+          <a class="button secondary" href="{{ editor_pro_url }}">Editor Pro</a>
           {% endif %}
-          {% if can_edit_task %}
+          {% if can_edit_task and detail_graphic_tab_url %}
+          <a class="button primary" href="{{ detail_graphic_tab_url }}">Pizarra gráfica</a>
+          {% endif %}
+          {% if task_flow == 'create' and active_task_format_tab == 'club' and create_uefa_format_url %}
+          <a class="button secondary" href="{{ create_uefa_format_url }}">Vista UEFA</a>
+          {% elif task_flow == 'create' and active_task_format_tab == 'uefa' and create_club_format_url %}
+          <a class="button secondary" href="{{ create_club_format_url }}">Volver a Club</a>
+          {% endif %}
+          {% if can_edit_task and task_flow != 'create' %}
+          <form method="post" style="display:inline-flex; margin:0;">
+            {% csrf_token %}
+            <input type="hidden" name="detail_action" value="generate_ollana_analysis" />
+            <button type="submit" class="button secondary">IA táctica</button>
+          </form>
+          {% endif %}
+          {% if can_edit_task and task_flow != 'create' %}
           <button
             type="button"
             class="button secondary"
@@ -1426,12 +1801,14 @@
           {% endif %}
         </div>
       </header>
-      <section class="panel task-detail-tab-bar" aria-label="Vista de la ficha">
+      <section class="panel task-detail-tab-bar" aria-label="Documento táctico">
         <div class="task-detail-tabs" role="tablist">
-          <button type="button" class="button task-detail-tab{% if active_task_tab == 'presentation' %} is-active{% endif %}" data-task-tab="presentation" role="tab" aria-selected="{% if active_task_tab == 'presentation' %}true{% else %}false{% endif %}">Presentación</button>
+          <button type="button" class="button task-detail-tab{% if active_task_tab == 'presentation' %} is-active{% endif %}" data-task-tab="presentation" data-scroll-target="#task-document-sheet" role="tab" aria-selected="{% if active_task_tab == 'presentation' %}true{% else %}false{% endif %}">Ficha</button>
           {% if can_edit_task %}
-          <button type="button" class="button task-detail-tab{% if active_task_tab == 'edit' %} is-active{% endif %}" data-task-tab="edit"{% if edit_graphic_url %} data-direct-url="{{ edit_graphic_url }}"{% endif %} role="tab" aria-selected="{% if active_task_tab == 'edit' %}true{% else %}false{% endif %}">Edición</button>
+          <button type="button" class="button task-detail-tab{% if active_task_tab == 'edit' %} is-active{% endif %}" data-task-tab="edit"{% if edit_graphic_url %} data-direct-url="{{ edit_graphic_url }}"{% endif %} role="tab" aria-selected="{% if active_task_tab == 'edit' %}true{% else %}false{% endif %}">Pizarra 2D</button>
           {% endif %}
+          <button type="button" class="button task-detail-tab" data-task-tab="presentation" data-scroll-target="#task-document-3d" role="tab" aria-selected="false">Vista 3D</button>
+          <button type="button" class="button task-detail-tab" data-task-tab="presentation" data-scroll-target="#task-document-sequence" role="tab" aria-selected="false">Secuencia</button>
           <button type="button" class="button task-detail-tab{% if active_task_tab == 'export' %} is-active{% endif %}" data-task-tab="export" role="tab" aria-selected="{% if active_task_tab == 'export' %}true{% else %}false{% endif %}">Exportar</button>
         </div>
       </section>
@@ -1441,37 +1818,83 @@
       {% if error %}
       <div class="msg err">{{ error }}</div>
       {% endif %}
-
       <section class="panel task-detail-tab-panel{% if active_task_tab == 'presentation' %} is-active{% endif %}" id="task-presentation-board" data-task-tab-panel="presentation">
-        <h2>Ficha táctica compartible</h2>
-        {% if show_edit_mode %}
-        <p class="meta">Esta es la ficha HTML de la tarea. En modo edición, los controles viven debajo y actúan sobre esta misma vista.</p>
+        <h2 id="task-document-sheet">Documento táctico único</h2>
+        <p class="meta">Aquí vive la tarea completa: ficha editable, representación gráfica, vista 3D y secuencia. La única edición externa sigue siendo la pizarra real.</p>
+        {% if task_flow == 'create' or inline_sheet_edit_mode %}
+        <form method="post" class="task-flow-sheet-form">
+          {% csrf_token %}
+          <input type="hidden" name="detail_action" value="update_task_detail" />
+          <div class="task-flow-sheet-shell">
+            <div class="task-flow-sheet-intro">
+              <div>
+                <h2>{% if inline_sheet_edit_mode and task_flow != 'create' %}Ficha Club editable{% else %}Ficha Club{% endif %}</h2>
+              </div>
+            </div>
         {% endif %}
+        {% if task_flow != 'create' %}
         <div class="task-detail-format-bar" role="tablist">
           <button type="button" class="button task-detail-format-tab{% if active_task_format_tab == 'uefa' %} is-active{% endif %}" data-task-format-tab="uefa" role="tab" aria-selected="{% if active_task_format_tab == 'uefa' %}true{% else %}false{% endif %}">Formato UEFA</button>
           <button type="button" class="button task-detail-format-tab{% if active_task_format_tab == 'club' %} is-active{% endif %}" data-task-format-tab="club" role="tab" aria-selected="{% if active_task_format_tab == 'club' %}true{% else %}false{% endif %}">Formato Club</button>
         </div>
+        {% endif %}
         {% if active_task_format_tab == 'club' %}
           <div class="task-detail-format-panel is-active" data-task-format-panel="club">
-            {% include 'football/includes/session_task_presentation_layout.html' with presentation_format='Club' presentation_context=task_presentation_pdf_context_by_format.club %}
+            {% if task_presentation_pdf_context_by_format.club %}
+            {% include 'football/includes/session_task_presentation_layout.html' with presentation_format='Club' presentation_context=task_presentation_pdf_context_by_format.club inline_sheet_edit_mode=inline_sheet_edit_mode %}
+            {% else %}
+            <div class="msg">La ficha Club se cargará cuando abras la presentación.</div>
+            {% endif %}
           </div>
         {% else %}
           <div class="task-detail-format-panel is-active" data-task-format-panel="uefa">
-            {% include 'football/includes/session_task_presentation_layout.html' with presentation_format='UEFA' presentation_context=task_presentation_pdf_context_by_format.uefa %}
+            {% if task_presentation_pdf_context_by_format.uefa %}
+            {% include 'football/includes/session_task_presentation_layout.html' with presentation_format='UEFA' presentation_context=task_presentation_pdf_context_by_format.uefa inline_sheet_edit_mode=False %}
+            {% else %}
+            <div class="msg">La ficha UEFA se cargará cuando abras la presentación.</div>
+            {% endif %}
           </div>
+        {% endif %}
+        {% if task_flow == 'create' or inline_sheet_edit_mode %}
+          </div>
+          <div class="create-actions" style="margin-top:1rem;">
+            <button type="submit" class="button">Guardar cambios</button>
+            {% if detail_graphic_tab_url %}
+            <a class="button primary" href="{{ detail_graphic_tab_url }}">Ir a pizarra</a>
+            {% endif %}
+          </div>
+        </form>
         {% endif %}
       </section>
 
-      {% if can_edit_task %}
+      {% if can_edit_task and task_flow != 'create' %}
       <section class="panel task-detail-tab-panel{% if active_task_tab == 'edit' %} is-active{% endif %}" id="task-edit-panel" data-task-tab-panel="edit">
         <div class="task-edit-tab-bar" role="tablist" aria-label="Edición de la tarea">
-          <button type="button" class="button task-edit-tab{% if active_task_edit_tab == 'graphic' %} is-active{% endif %}" data-task-edit-tab="graphic"{% if edit_graphic_url %} data-direct-url="{{ edit_graphic_url }}"{% endif %} role="tab" aria-selected="{% if active_task_edit_tab == 'graphic' %}true{% else %}false{% endif %}">Edición gráfica</button>
-          <button type="button" class="button task-edit-tab{% if active_task_edit_tab == 'settings' %} is-active{% endif %}" data-task-edit-tab="settings" role="tab" aria-selected="{% if active_task_edit_tab == 'settings' %}true{% else %}false{% endif %}">Configuración</button>
+          <button type="button" class="button task-edit-tab{% if active_task_edit_tab == 'graphic' %} is-active{% endif %}" data-task-edit-tab="graphic"{% if edit_graphic_url %} data-direct-url="{{ edit_graphic_url }}"{% endif %} role="tab" aria-selected="{% if active_task_edit_tab == 'graphic' %}true{% else %}false{% endif %}">Pizarra gráfica</button>
         </div>
 
         <section class="panel task-edit-tab-panel{% if active_task_edit_tab == 'graphic' %} is-active{% endif %}" data-task-edit-tab-panel="graphic">
-          <h2>Editor de tareas</h2>
-          <p class="meta">Aquí se carga directamente el editor real de pizarra y contenido de la tarea, dentro de la propia ficha.</p>
+          <h2>Motor gráfico compartido</h2>
+          <p class="meta">La ficha se define en el documento principal. Aquí se edita la pizarra real; lo que guardes vuelve a la ficha como 2D, 3D y secuencia sobre el mismo estado.</p>
+          {% if builder_embed_url and active_task_edit_tab == 'graphic' %}
+          <div class="task-graphic-embed-shell">
+            <iframe
+              src="{{ builder_embed_url }}"
+              title="Editor de tareas"
+              loading="lazy"
+              class="task-graphic-embed-frame"
+            ></iframe>
+          </div>
+          {% elif builder_embed_url %}
+          <div class="msg">La pizarra 2D se cargará al abrir la pestaña “Edición gráfica”.</div>
+          {% else %}
+          <div class="msg err">No se pudo cargar el editor real de tareas.</div>
+          {% endif %}
+        </section>
+      </section>
+      {% elif can_edit_task and task_flow == 'create' and active_task_tab == 'edit' and active_task_edit_tab == 'graphic' %}
+      <section class="panel task-detail-tab-panel is-active" id="task-edit-panel" data-task-tab-panel="edit">
+        <section class="panel task-edit-tab-panel is-active" data-task-edit-tab-panel="graphic">
           {% if builder_embed_url %}
           <div class="task-graphic-embed-shell">
             <iframe
@@ -1485,476 +1908,6 @@
           <div class="msg err">No se pudo cargar el editor real de tareas.</div>
           {% endif %}
         </section>
-
-        <section class="panel task-edit-tab-panel{% if active_task_edit_tab == 'settings' %} is-active{% endif %}" data-task-edit-tab-panel="settings">
-          <h2>Configuración</h2>
-          <p class="meta">Aquí se edita toda la parte técnica, descriptiva y metodológica que luego alimenta la ficha de presentación.</p>
-          <form method="post" class="grid editor-core" id="task-detail-form">
-            {% csrf_token %}
-            <input type="hidden" name="detail_action" value="update_task_detail" />
-            <div class="task-settings-tab-bar" role="tablist" aria-label="Secciones de configuración">
-              <button type="button" class="button task-settings-tab is-active" data-task-settings-tab="sheet" aria-selected="true">Ficha</button>
-              <button type="button" class="button task-settings-tab" data-task-settings-tab="content" aria-selected="false">Contenido</button>
-              <button type="button" class="button task-settings-tab" data-task-settings-tab="methodology" aria-selected="false">Metodología</button>
-              <button type="button" class="button task-settings-tab" data-task-settings-tab="load" aria-selected="false">Carga</button>
-            </div>
-
-            <section class="task-settings-pane is-active" data-task-settings-pane="sheet">
-              <div class="editor-section">
-                <div class="editor-section-head">
-                  <h3>Ficha técnica base</h3>
-                  <span class="meta">Lo que define la tarea antes de entrar en detalle.</span>
-                </div>
-                <div class="editor-grid">
-                  <label>
-                    Título
-                    <input type="text" name="task_title" value="{{ task.title }}" maxlength="160" required />
-                  </label>
-                  <label>
-                    Bloque
-                    <select name="task_block">
-                      {% for value, label in task_blocks %}
-                      <option value="{{ value }}" {% if task.block == value %}selected{% endif %}>{{ label }}</option>
-                      {% endfor %}
-                    </select>
-                  </label>
-                  <label>
-                    Minutos
-                    <input type="number" name="task_minutes" min="5" max="90" value="{{ task.duration_minutes }}" />
-                  </label>
-                  <label>
-                    Nº jugadores
-                    <input type="text" name="task_player_count" value="{{ task_meta.player_count|default:'' }}" placeholder="Ej: 6v6 + 2 porteros" />
-                  </label>
-                  <label>
-                    Espacio
-                    <input type="text" name="task_sheet_space" value="{{ task_sheet.space|default:'' }}" placeholder="Ej: Medio campo / 40x30 m" />
-                  </label>
-                  <label>
-                    Medidas
-                    <input type="text" name="task_sheet_dimensions" value="{{ task_sheet.dimensions }}" placeholder="Ej: 40x30 m" />
-                  </label>
-                  <label>
-                    Materiales
-                    <input type="text" name="task_sheet_materials" value="{{ task_sheet.materials }}" placeholder="Ej: 10 conos, 2 porterías, 8 petos" />
-                  </label>
-                  <label>
-                    Edad / categoría
-                    <input type="text" name="task_age_group" value="{{ task_meta.age_group }}" placeholder="Ej: Benjamín / Cadete" />
-                  </label>
-                  <label>
-                    Tipo de tarea
-                    <input type="text" name="task_training_type" value="{{ task_meta.training_type }}" placeholder="Ej: Conservación / Finalización" />
-                  </label>
-                  <label>
-                    Superficie
-                    <select name="task_surface">
-                      <option value="">-</option>
-                      {% for value, label in task_surface_choices %}
-                      <option value="{{ value }}" {% if task_meta.surface == value %}selected{% endif %}>{{ label }}</option>
-                      {% endfor %}
-                    </select>
-                  </label>
-                  <label>
-                    Formato de campo
-                    <select name="task_pitch_format">
-                      <option value="">-</option>
-                      {% for value, label in task_pitch_choices %}
-                      <option value="{{ value }}" {% if task_meta.pitch_format == value %}selected{% endif %}>{{ label }}</option>
-                      {% endfor %}
-                    </select>
-                  </label>
-                  <label class="full">
-                    Objetivo
-                    <textarea name="task_objective" rows="2" style="min-height:52px; resize:vertical;">{{ task.objective }}</textarea>
-                  </label>
-                  <label class="full">
-                    Jugadores / organización base
-                    <input type="text" name="task_sheet_players" value="{{ task_sheet.players }}" placeholder="Ej: 12 jugadores + 2 porteros / 3 equipos de 4" />
-                  </label>
-                </div>
-              </div>
-            </section>
-
-            <section class="task-settings-pane" data-task-settings-pane="content">
-              <div class="editor-section">
-                <div class="editor-section-head">
-                  <h3>Contenido descriptivo</h3>
-                  <span class="meta">Lo que el entrenador explica, corrige y ordena.</span>
-                </div>
-                <div class="editor-grid">
-                  <label class="full">
-                    Descripción de la tarea
-                    <textarea name="task_sheet_description">{{ task_sheet.description }}</textarea>
-                  </label>
-                  <label class="full">
-                    Organización
-                    <textarea name="task_organization">{{ task_meta.organization }}</textarea>
-                  </label>
-                  <label class="full">
-                    Consignas
-                    <textarea name="task_coaching_points">{{ task.coaching_points }}</textarea>
-                  </label>
-                  <label class="full">
-                    Reglas de confrontación
-                    <textarea name="task_confrontation_rules">{{ task.confrontation_rules }}</textarea>
-                  </label>
-                </div>
-              </div>
-            </section>
-
-            <section class="task-settings-pane" data-task-settings-pane="methodology">
-              <div class="editor-section">
-                <div class="editor-section-head">
-                  <h3>Metodología y variantes</h3>
-                  <span class="meta">Todo lo que luego se refleja en la ficha club/UEFA.</span>
-                </div>
-                <div class="editor-grid">
-                  <label>
-                    Estrategia
-                    <select name="task_strategy">
-                      <option value="">-</option>
-                      {% for value, label in task_strategy_choices %}
-                      <option value="{{ value }}" {% if task_meta.strategy == value %}selected{% endif %}>{{ label }}</option>
-                      {% endfor %}
-                    </select>
-                  </label>
-                  <label>
-                    Dinámica
-                    <select name="task_dynamics">
-                      <option value="">-</option>
-                      {% for value, label in task_dynamics_choices %}
-                      <option value="{{ value }}" {% if task_meta.dynamics == value %}selected{% endif %}>{{ label }}</option>
-                      {% endfor %}
-                    </select>
-                  </label>
-                  <label>
-                    Situación de juego
-                    <select name="task_structure">
-                      <option value="">-</option>
-                      {% for value, label in task_structure_choices %}
-                      <option value="{{ value }}" {% if task_meta.structure == value %}selected{% endif %}>{{ label }}</option>
-                      {% endfor %}
-                    </select>
-                  </label>
-                  <label>
-                    Coordinación
-                    <select name="task_coordination">
-                      <option value="">-</option>
-                      {% for value, label in task_coordination_choices %}
-                      <option value="{{ value }}" {% if task_meta.coordination == value %}selected{% endif %}>{{ label }}</option>
-                      {% endfor %}
-                    </select>
-                  </label>
-                  <label>
-                    Habilidades coordinativas
-                    <select name="task_coordination_skills">
-                      <option value="">-</option>
-                      {% for value, label in task_coordination_skills_choices %}
-                      <option value="{{ value }}" {% if task_meta.coordination_skills == value %}selected{% endif %}>{{ label }}</option>
-                      {% endfor %}
-                    </select>
-                  </label>
-                  <label>
-                    Intención táctica
-                    <select name="task_tactical_intent">
-                      <option value="">-</option>
-                      {% for value, label in task_tactical_intent_choices %}
-                      <option value="{{ value }}" {% if task_meta.tactical_intent == value %}selected{% endif %}>{{ label }}</option>
-                      {% endfor %}
-                    </select>
-                  </label>
-                  <label>
-                    Momento del juego
-                    <select name="task_game_moment">
-                      <option value="">-</option>
-                      {% for value, label in game_moment_choices %}
-                      <option value="{{ value }}" {% if task_meta.game_moment == value %}selected{% endif %}>{{ label }}</option>
-                      {% endfor %}
-                    </select>
-                  </label>
-                  <label>
-                    Complejidad
-                    <select name="task_complexity">
-                      <option value="">-</option>
-                      {% for value, label in task_complexity_choices %}
-                      <option value="{{ value }}" {% if task_meta.complexity == value %}selected{% endif %}>{{ label }}</option>
-                      {% endfor %}
-                    </select>
-                  </label>
-                  <label>
-                    Principio
-                    <input type="text" name="task_principle" value="{{ task_meta.principle }}" />
-                  </label>
-                  <label>
-                    Subprincipio
-                    <input type="text" name="task_subprinciple" value="{{ task_meta.subprinciple }}" />
-                  </label>
-                  <label>
-                    Estructura dominante
-                    <select name="task_dominant_structure">
-                      <option value="">-</option>
-                      {% for value, label in player_structure_choices %}
-                      <option value="{{ value }}" {% if task_meta.dominant_structure == value %}selected{% endif %}>{{ label }}</option>
-                      {% endfor %}
-                    </select>
-                  </label>
-                  <label>
-                    Estructura secundaria
-                    <select name="task_secondary_structure">
-                      <option value="">-</option>
-                      {% for value, label in player_structure_choices %}
-                      <option value="{{ value }}" {% if task_meta.secondary_structure == value %}selected{% endif %}>{{ label }}</option>
-                      {% endfor %}
-                    </select>
-                  </label>
-                  <label>
-                    Reparto de jugadores
-                    <input type="text" name="task_players_distribution" value="{{ task_meta.players_distribution }}" />
-                  </label>
-                  <label>
-                    Series
-                    <input type="text" name="task_series" value="{{ task_meta.series }}" />
-                  </label>
-                  <label>
-                    Repeticiones
-                    <input type="text" name="task_repetitions" value="{{ task_meta.repetitions }}" />
-                  </label>
-                  <label>
-                    Trabajo / descanso
-                    <input type="text" name="task_work_rest" value="{{ task_meta.work_rest }}" />
-                  </label>
-                  <label class="full">
-                    Regla provocadora
-                    <textarea name="task_provocation_rule" rows="2" style="min-height:52px; resize:vertical;">{{ task_meta.provocation_rule }}</textarea>
-                  </label>
-                  <label class="full">
-                    Progresión
-                    <textarea name="task_progression">{{ task_meta.progression }}</textarea>
-                  </label>
-                  <label class="full">
-                    Regresión
-                    <textarea name="task_regression">{{ task_meta.regression }}</textarea>
-                  </label>
-                  <label class="full">
-                    Criterio de éxito
-                    <textarea name="task_success_criteria">{{ task_meta.success_criteria }}</textarea>
-                  </label>
-                </div>
-              </div>
-            </section>
-
-            <section class="task-settings-pane" data-task-settings-pane="load">
-              <div class="editor-section">
-                <div class="editor-section-head">
-                  <h3>Carga y control</h3>
-                  <span class="meta">Exigencia prevista, contexto de microciclo y notas de control.</span>
-                </div>
-                <div class="editor-grid">
-                  <label>
-                    Carga física
-                    <select name="task_physical_load">
-                      <option value="">-</option>
-                      {% for value, label in task_load_level_choices %}
-                      <option value="{{ value }}" {% if task_meta.physical_load == value %}selected{% endif %}>{{ label }}</option>
-                      {% endfor %}
-                    </select>
-                  </label>
-                  <label>
-                    Carga cognitiva
-                    <select name="task_cognitive_load">
-                      <option value="">-</option>
-                      {% for value, label in task_load_level_choices %}
-                      <option value="{{ value }}" {% if task_meta.cognitive_load == value %}selected{% endif %}>{{ label }}</option>
-                      {% endfor %}
-                    </select>
-                  </label>
-                  <label>
-                    Carga emocional
-                    <select name="task_emotional_load">
-                      <option value="">-</option>
-                      {% for value, label in task_load_level_choices %}
-                      <option value="{{ value }}" {% if task_meta.emotional_load == value %}selected{% endif %}>{{ label }}</option>
-                      {% endfor %}
-                    </select>
-                  </label>
-                  <label>
-                    Día microciclo
-                    <select name="task_md_day">
-                      <option value="">-</option>
-                      {% for value, label in task_md_day_choices %}
-                      <option value="{{ value }}" {% if task_meta.md_day == value %}selected{% endif %}>{{ label }}</option>
-                      {% endfor %}
-                    </select>
-                  </label>
-                  <label>
-                    Carga dominante
-                    <select name="task_dominant_load">
-                      <option value="">-</option>
-                      {% for value, label in task_dominant_load_choices %}
-                      <option value="{{ value }}" {% if task_meta.dominant_load == value %}selected{% endif %}>{{ label }}</option>
-                      {% endfor %}
-                    </select>
-                  </label>
-                  <label>
-                    Escala RPE
-                    <select name="task_rpe_scale">
-                      {% for value, label in task_rpe_scale_choices %}
-                      <option value="{{ value }}" {% if task_meta.rpe_scale == value %}selected{% endif %}>{{ label }}</option>
-                      {% endfor %}
-                    </select>
-                  </label>
-                  <label>
-                    RPE previsto
-                    <input type="number" name="task_planned_rpe" min="0" max="20" value="{{ task_meta.planned_rpe }}" />
-                  </label>
-                  <label>
-                    Bienestar objetivo
-                    <input type="number" name="task_wellness_target" min="1" max="10" value="{{ task_meta.wellness_target }}" />
-                  </label>
-                  <label>
-                    Objetivo de carga
-                    <input type="text" name="task_load_target" value="{{ task_meta.load_target }}" />
-                  </label>
-                  <label>
-                    Monotonía objetivo
-                    <input type="text" name="task_monotony_target" value="{{ task_meta.monotony_target }}" />
-                  </label>
-                  <label>
-                    Strain objetivo
-                    <input type="text" name="task_strain_target" value="{{ task_meta.strain_target }}" />
-                  </label>
-                  <label class="full">
-                    Notas de carga
-                    <textarea name="task_load_notes">{{ task_meta.load_notes }}</textarea>
-                  </label>
-                </div>
-              </div>
-            </section>
-            <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
-              <button class="button" type="submit">Guardar cambios</button>
-              <button type="button" class="button secondary" id="task-detail-focus-editor">Ir a pizarra</button>
-            </div>
-          </form>
-
-          <form method="post" style="margin-top:0.7rem; display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
-            {% csrf_token %}
-            <input type="hidden" name="detail_action" value="generate_ollana_analysis" />
-            <button class="button secondary" type="submit">Regenerar análisis con Ollana</button>
-          </form>
-
-          {% if original_version %}
-          <details class="edit-section" style="margin-top:0.8rem;">
-            <summary>Versión original</summary>
-            <div class="compare-grid">
-              <div class="sheet-item muted">
-                <strong>Título original</strong>
-                <span>{{ original_version.title|default:"-" }}</span>
-              </div>
-              <div class="sheet-item muted">
-                <strong>Bloque original</strong>
-                <span>{{ original_version.block|default:"-" }}</span>
-              </div>
-              <div class="sheet-item muted">
-                <strong>Minutos originales</strong>
-                <span>{{ original_version.duration_minutes|default:"-" }}</span>
-              </div>
-              <div class="sheet-item muted">
-                <strong>Objetivo original</strong>
-                <span>{{ original_version.objective|default:"-" }}</span>
-              </div>
-            </div>
-            {% if original_task_sheet %}
-            <div class="sheet-grid" style="margin-top:0.6rem;">
-              <div class="sheet-item muted">
-                <strong>Jugadores</strong>
-                <span>{{ original_task_sheet.players|default:"-" }}</span>
-              </div>
-              <div class="sheet-item muted">
-                <strong>Espacio</strong>
-                <span>{{ original_task_sheet.space|default:"-" }}</span>
-              </div>
-              <div class="sheet-item muted">
-                <strong>Medidas</strong>
-                <span>{{ original_task_sheet.dimensions|default:"-" }}</span>
-              </div>
-              <div class="sheet-item muted">
-                <strong>Elementos</strong>
-                <span>{{ original_task_sheet.materials|default:"-" }}</span>
-              </div>
-            </div>
-            {% endif %}
-            {% if original_preview_url %}
-            <p style="margin:0.6rem 0 0.45rem;"><strong>Gráfico original</strong></p>
-            <div class="preview-stadium">
-              <img class="preview" src="{{ original_preview_url }}" alt="Gráfico original de {{ task.title }}" />
-            </div>
-            {% endif %}
-          </details>
-          {% endif %}
-
-          {% if has_analysis_meta %}
-          <details class="edit-section" style="margin-top:0.7rem;">
-            <summary>Análisis automático</summary>
-            <div class="chips" style="margin:0.4rem 0 0.5rem;">
-              <span class="chip">{% firstof analysis_meta.generated_by "Ollana" %}</span>
-              {% if analysis_meta.generation_mode %}<span class="chip">{{ analysis_meta.generation_mode }}</span>{% endif %}
-              {% if analysis_meta.generated_at %}<span class="chip">{{ analysis_meta.generated_at }}</span>{% endif %}
-            </div>
-            <div class="chips" style="margin-bottom:0.5rem;">
-              {% if analysis_meta.quality_score %}<span class="chip">Score {{ analysis_meta.quality_score }}/100</span>{% endif %}
-              {% for ctx in analysis_meta.work_contexts %}<span class="chip">{{ ctx }}</span>{% endfor %}
-              {% for tag in analysis_meta.objective_tags %}<span class="chip">{{ tag }}</span>{% endfor %}
-            </div>
-            {% if detected_materials %}
-            <p><strong>Material detectado:</strong></p>
-            <div class="chips">
-              {% for mat in detected_materials %}
-              <span class="chip">{{ mat.title|default:mat.label|default:mat.kind }}</span>
-              {% endfor %}
-            </div>
-            {% endif %}
-            {% if analysis_meta.summary %}
-            <p style="margin-top:0.55rem;"><strong>Resumen extraído:</strong></p>
-            <pre>{{ analysis_meta.summary }}</pre>
-            {% endif %}
-          </details>
-          {% endif %}
-
-          {% if related_tasks %}
-          <details class="edit-section" style="margin-top:0.7rem;">
-            <summary>Relacionadas</summary>
-            <p class="meta" style="margin-top:0;">Sugeridas por similitud (tipo, fase, objetivo y contexto).</p>
-            <div class="grid" style="margin-top:0.6rem;">
-              {% for rel in related_tasks %}
-              <a class="sheet-item" href="{% url 'session-task-detail' rel.id %}" style="text-decoration:none; color:inherit;">
-                <strong style="opacity:0.9;">{{ rel.title|default:"(sin título)" }}</strong>
-                <div style="margin-top:0.45rem;">
-                  {% if rel.task_preview_image or rel.task_pdf or rel.is_drawn %}
-                  <img
-                    src="{% url 'session-task-preview-file' rel.id %}?hd=1&amp;v={% if rel.task_preview_image %}{{ rel.task_preview_image.name|urlencode }}{% else %}{{ rel.id }}{% endif %}"
-                    alt="Vista previa de {{ rel.title }}"
-                    style="width:100%; aspect-ratio:16/9; border-radius:10px; border:1px solid rgba(255,255,255,0.14); object-fit:contain; object-position:center; background:rgba(255,255,255,0.05);"
-                    loading="lazy"
-                  />
-                  {% else %}
-                  <div style="width:100%; aspect-ratio:16/9; border-radius:10px; border:1px dashed rgba(255,255,255,0.18); display:flex; align-items:center; justify-content:center; opacity:0.7;">Sin gráfico</div>
-                  {% endif %}
-                </div>
-                <p class="meta" style="margin-top:0.5rem;">{{ rel.objective_summary|default:"" }}</p>
-              </a>
-              {% endfor %}
-            </div>
-          </details>
-          {% endif %}
-
-          {% if pdf_excerpt %}
-          <details class="edit-section" style="margin-top:0.7rem;">
-            <summary>Extracto del PDF</summary>
-            <pre>{{ pdf_excerpt }}</pre>
-          </details>
-          {% endif %}
-        </section>
       </section>
       {% else %}
         <section class="panel task-detail-tab-panel{% if active_task_tab == 'edit' %} is-active{% endif %}" id="task-edit-empty-panel" data-task-tab-panel="edit">
@@ -1966,13 +1919,101 @@
       {% if can_edit_task %}
       <section class="panel task-detail-tab-panel{% if active_task_tab == 'export' %} is-active{% endif %}" id="task-export-panel" data-task-tab-panel="export">
         <h2>Exportar</h2>
-        <p class="meta">Exporta la misma ficha HTML en PDF para compartirla o imprimirla sin salir de la tarea.</p>
-        <div class="grid">
-          <a class="button" href="{% url 'session-task-pdf' task.id %}?style=uefa&one_page=1" target="_blank" rel="noopener">PDF UEFA</a>
-          <a class="button" href="{% url 'session-task-pdf' task.id %}?style=club&one_page=1" target="_blank" rel="noopener">PDF Club</a>
-          {% if task.task_pdf %}
-          <a class="button" href="{% url 'session-task-file' task.id %}" target="_blank" rel="noopener">Abrir PDF original</a>
-          {% endif %}
+        <p class="meta">Exporta la misma ficha HTML en PDF sin salir del documento. El panel refleja también el estado activo de la secuencia para que sepas qué narrativa estás validando antes de exportar.</p>
+        {% if task_export_targets %}
+        <div class="task-export-list" style="margin-bottom:0.85rem;">
+          {% for export_item in task_export_targets %}
+          <a class="task-export-row{% if export_item.state != 'ready' %} is-pending{% endif %}" {% if export_item.url %}href="{{ export_item.url }}"{% else %}href="#task-document-sheet"{% endif %}{% if export_item.url %} target="_blank" rel="noopener"{% endif %}>
+            <span>
+              <strong>{{ export_item.label }}</strong>
+              <span>{{ export_item.hint }}</span>
+            </span>
+            <span class="task-export-state">{% if export_item.state == 'ready' %}Listo{% else %}Pendiente{% endif %}</span>
+          </a>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% if task_export_job_rows %}
+        <div class="task-export-list" style="margin-bottom:0.85rem;">
+          {% for export_job in task_export_job_rows %}
+          <div class="task-export-row{% if export_job.status != 'done' %} is-pending{% endif %}">
+            <span>
+              <strong>{{ export_job.kind_label }}</strong>
+              <span>{{ export_job.message|default:export_job.status_label }} · {{ export_job.progress }}%</span>
+            </span>
+            <span class="task-export-state">{{ export_job.status_label }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+        <div class="export-workbench">
+          <article class="export-live-card">
+            <div class="export-live-head">
+              <div>
+                <h3>Estado vivo de exportación</h3>
+                <div class="meta">La ficha, la preview 2D, la secuencia y la vista 3D se validan aquí antes de generar el PDF final.</div>
+              </div>
+              <div class="export-live-badges">
+                <span class="export-live-badge">Ficha viva</span>
+                <span class="export-live-badge">2D</span>
+                <span class="export-live-badge">3D</span>
+                <span class="export-live-badge">Secuencia</span>
+              </div>
+            </div>
+            <div class="export-live-body">
+              <div class="export-live-preview">
+                <div class="export-live-overlay">
+                  <div class="export-live-chip">
+                    <span data-task-export-live-step>Paso 1</span>
+                    <strong data-task-export-live-title>{{ task.title }}</strong>
+                  </div>
+                  <div class="export-live-chip">
+                    <span data-task-export-live-pct>0%</span>
+                  </div>
+                </div>
+                {% if task_presentation_pdf_context_by_format.club.task_preview_url %}
+                <img id="task-export-preview-image" src="{{ task_presentation_pdf_context_by_format.club.task_preview_url }}" alt="Preview de exportación de {{ task.title }}" />
+                {% elif task.task_preview_image %}
+                <img id="task-export-preview-image" src="{% url 'session-task-preview-file' task.id %}?hd=1&v={{ task.task_preview_image.name|urlencode }}" alt="Preview de exportación de {{ task.title }}" />
+                {% else %}
+                <div class="task-detail-empty" style="min-height:280px;">La exportación usará la ficha aunque todavía no haya preview 2D guardada.</div>
+                {% endif %}
+              </div>
+              <div class="export-live-panel">
+                <div class="export-live-meta-card">
+                  <h4>Salida preparada</h4>
+                  <div class="meta">
+                    El PDF toma como base esta misma ficha HTML y conserva la lectura táctica del documento.
+                    {% if animation_frames_json and animation_frames_json != "[]" %}
+                    La secuencia activa ya puede revisarse antes de exportar.
+                    {% else %}
+                    Todavía no hay secuencia temporal completa guardada.
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="export-live-meta-card">
+                  <h4>Acciones rápidas</h4>
+                  <div class="export-live-actions">
+                    <button type="button" class="button" id="task-export-open-3d">Revisar 3D</button>
+                    <button type="button" class="button secondary" id="task-export-open-sequence">Revisar secuencia</button>
+                    {% if detail_graphic_tab_url %}
+                    <a class="button secondary" href="{{ detail_graphic_tab_url }}">Editar pizarra</a>
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="export-live-meta-card">
+                  <h4>Exportaciones</h4>
+                  <div class="export-live-actions">
+                    <a class="button" href="{% url 'session-task-pdf' task.id %}?style=uefa&one_page=1" target="_blank" rel="noopener">PDF UEFA</a>
+                    <a class="button" href="{% url 'session-task-pdf' task.id %}?style=club&one_page=1" target="_blank" rel="noopener">PDF Club</a>
+                    {% if task.task_pdf %}
+                    <a class="button secondary" href="{% url 'session-task-file' task.id %}" target="_blank" rel="noopener">Abrir PDF original</a>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
         </div>
       </section>
       {% endif %}
@@ -1981,7 +2022,12 @@
     <script id="task-detail-3d-payload" type="application/json">
       {
         "taskTitle": "{{ task.title|default:''|escapejs }}",
+        "cameraPreset": "{% if task_meta.pitch_orientation == 'portrait' %}top_v{% else %}top_h{% endif %}",
         "stadiumModelUrl": "{{ pitch3d_assets.pitch3d_stadium_model_src|default:''|escapejs }}",
+        "stadiumTopHSrc": "{{ pitch3d_assets.pitch3d_stadium_top_h_src|default:''|escapejs }}",
+        "stadiumTopVSrc": "{{ pitch3d_assets.pitch3d_stadium_top_v_src|default:''|escapejs }}",
+        "stadiumOverlayHSrc": "{{ pitch3d_assets.pitch3d_stadium_overlay_h_src|default:''|escapejs }}",
+        "stadiumOverlayVSrc": "{{ pitch3d_assets.pitch3d_stadium_overlay_v_src|default:''|escapejs }}",
         "playerModelUrl": "{{ pitch3d_assets.pitch3d_player_model_src|default:''|escapejs }}",
         "pitch3dContext": {{ task_pitch3d_context_json|safe }},
         "graphicEditorState": {{ graphic_editor_state_json|safe }},
@@ -3145,16 +3191,12 @@
         const tabButtons = Array.from(document.querySelectorAll('[data-task-tab]'));
         const editTabButtons = Array.from(document.querySelectorAll('[data-task-edit-tab]'));
         const editTabPanels = Array.from(document.querySelectorAll('[data-task-edit-tab-panel]'));
-        const settingsTabButtons = Array.from(document.querySelectorAll('[data-task-settings-tab]'));
-        const settingsTabPanels = Array.from(document.querySelectorAll('[data-task-settings-pane]'));
         const formatTabButtons = Array.from(document.querySelectorAll('[data-task-format-tab]'));
         const formatTabPanels = Array.from(document.querySelectorAll('[data-task-format-panel]'));
         const tabPanels = Array.from(document.querySelectorAll('[data-task-tab-panel]'));
         const inlineEditor = document.getElementById('task-inline-editor');
-        const enterEditButton = document.getElementById('task-detail-enter-edit');
         let activeTaskEditTab = activeTaskEditTabFromServer;
         let activeTaskFormatTab = activeTaskFormatFromServer;
-        let activeTaskSettingsTab = 'sheet';
         const syncTaskTab = (tabName, shouldScroll = false) => {
           const nextTab = canEditTask && ['presentation', 'edit', 'export'].includes(tabName)
             ? tabName
@@ -3201,7 +3243,7 @@
         };
         const syncTaskEditTab = (editTab, shouldScroll = false) => {
           if (!canEditTask) return;
-          const nextEditTab = editTab === 'settings' ? 'settings' : 'graphic';
+          const nextEditTab = 'graphic';
           activeTaskEditTab = nextEditTab;
           editTabButtons.forEach((button) => {
             const isActive = button.dataset.taskEditTab === nextEditTab;
@@ -3274,28 +3316,20 @@
             }
           }
         };
-        const syncTaskSettingsTab = (tabName) => {
-          const nextTab = ['sheet', 'content', 'methodology', 'load'].includes(tabName) ? tabName : 'sheet';
-          activeTaskSettingsTab = nextTab;
-          settingsTabButtons.forEach((button) => {
-            const isActive = button.dataset.taskSettingsTab === nextTab;
-            button.classList.toggle('is-active', isActive);
-            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
-          });
-          settingsTabPanels.forEach((panel) => {
-            const isActive = panel.dataset.taskSettingsPane === nextTab;
-            panel.classList.toggle('is-active', isActive);
-            panel.hidden = !isActive;
-          });
-        };
         tabButtons.forEach((button) => {
           button.addEventListener('click', () => {
             const directUrl = String(button.dataset.directUrl || '').trim();
+            const scrollTarget = String(button.dataset.scrollTarget || '').trim();
             if ((button.dataset.taskTab || '') === 'edit' && directUrl) {
               window.location.href = directUrl;
               return;
             }
-            syncTaskTab(button.dataset.taskTab || 'presentation', true);
+            syncTaskTab(button.dataset.taskTab || 'presentation', !scrollTarget);
+            if (scrollTarget) {
+              window.requestAnimationFrame(() => {
+                document.querySelector(scrollTarget)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              });
+            }
           });
         });
         editTabButtons.forEach((button) => {
@@ -3308,24 +3342,10 @@
             syncTaskEditTab(button.dataset.taskEditTab || 'graphic', true);
           });
         });
-        settingsTabButtons.forEach((button) => {
-          button.addEventListener('click', () => {
-            syncTaskSettingsTab(button.dataset.taskSettingsTab || 'sheet');
-          });
-        });
         formatTabButtons.forEach((button) => {
           button.addEventListener('click', () => {
             syncTaskFormatTab(button.dataset.taskFormatTab || 'uefa');
           });
-        });
-        enterEditButton?.addEventListener('click', () => {
-          const directUrl = String(enterEditButton.dataset.directUrl || '').trim();
-          if (directUrl) {
-            window.location.href = directUrl;
-            return;
-          }
-          syncTaskTab('edit', true);
-          syncTaskEditTab('graphic', false);
         });
         syncTaskTab(activeTaskTab, false);
         syncTaskFormatTab(activeTaskFormatTab, false);
@@ -3620,7 +3640,6 @@
         const editTabPanels = Array.from(document.querySelectorAll('[data-task-edit-tab-panel]'));
         const formatTabButtons = Array.from(document.querySelectorAll('[data-task-format-tab]'));
         const formatTabPanels = Array.from(document.querySelectorAll('[data-task-format-panel]'));
-        const enterEditButton = document.getElementById('task-detail-enter-edit');
         if (!tabButtons.length || !tabPanels.length) return;
 
         let activeTaskTab = "{{ active_task_tab|escapejs }}" || 'presentation';
@@ -3640,7 +3659,7 @@
 
         const syncTaskEditTab = (nextTab, shouldScroll = false) => {
           if (!canEditTask || !editTabButtons.length || !editTabPanels.length) return;
-          activeTaskEditTab = nextTab === 'settings' ? 'settings' : 'graphic';
+          activeTaskEditTab = 'graphic';
           editTabButtons.forEach((button) => {
             const isActive = button.dataset.taskEditTab === activeTaskEditTab;
             button.classList.toggle('is-active', isActive);
@@ -3697,11 +3716,17 @@
         tabButtons.forEach((button) => {
           button.addEventListener('click', () => {
             const directUrl = String(button.dataset.directUrl || '').trim();
+            const scrollTarget = String(button.dataset.scrollTarget || '').trim();
             if ((button.dataset.taskTab || '') === 'edit' && directUrl) {
               window.location.href = directUrl;
               return;
             }
-            syncTaskTab(button.dataset.taskTab || 'presentation', true);
+            syncTaskTab(button.dataset.taskTab || 'presentation', !scrollTarget);
+            if (scrollTarget) {
+              window.requestAnimationFrame(() => {
+                document.querySelector(scrollTarget)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              });
+            }
           });
         });
         editTabButtons.forEach((button) => {
@@ -3717,16 +3742,184 @@
         formatTabButtons.forEach((button) => {
           button.addEventListener('click', () => syncTaskFormatTab(button.dataset.taskFormatTab || 'uefa'));
         });
-        enterEditButton?.addEventListener('click', () => {
-          const directUrl = String(enterEditButton.dataset.directUrl || '').trim();
-          if (directUrl) {
-            window.location.href = directUrl;
-            return;
-          }
-          syncTaskTab('edit', true);
-          syncTaskEditTab('graphic', false);
+        document.querySelectorAll('#task-detail-3d-open').forEach((button) => {
+          button.addEventListener('click', () => {
+            syncTaskTab('presentation', false);
+            window.requestAnimationFrame(() => {
+              document.querySelector('#task-document-3d')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+          });
         });
-
+        document.querySelectorAll('#task-detail-open-sequence').forEach((button) => {
+          button.addEventListener('click', () => {
+            syncTaskTab('presentation', false);
+            window.requestAnimationFrame(() => {
+              document.querySelector('#task-document-sequence')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+          });
+        });
+        document.querySelectorAll('#task-detail-enter-edit-empty').forEach((button) => {
+          button.addEventListener('click', () => {
+            const directUrl = "{{ edit_graphic_url|default:''|escapejs }}";
+            if (directUrl) {
+              window.location.href = directUrl;
+              return;
+            }
+            syncTaskTab('edit', true);
+          });
+        });
+        const timelineStepNodes = Array.from(document.querySelectorAll('[data-task-timeline-step]'));
+        const sequenceStepNodes = Array.from(document.querySelectorAll('[data-task-sequence-step]'));
+        const timelinePlayButtons = Array.from(document.querySelectorAll('[data-task-timeline-play]'));
+        const timelinePrevButtons = Array.from(document.querySelectorAll('[data-task-timeline-prev]'));
+        const timelineNextButtons = Array.from(document.querySelectorAll('[data-task-timeline-next]'));
+        const timelineLiveTitle = Array.from(document.querySelectorAll('[data-task-timeline-live-title]'));
+        const timelineLiveMeta = Array.from(document.querySelectorAll('[data-task-timeline-live-meta]'));
+        const previewImage = document.getElementById('task-preview-image');
+        const previewBaseSrc = String(previewImage?.getAttribute('src') || '').trim();
+        const previewLiveStep = Array.from(document.querySelectorAll('[data-task-preview-live-step]'));
+        const previewLiveTitle = Array.from(document.querySelectorAll('[data-task-preview-live-title]'));
+        const previewLivePct = Array.from(document.querySelectorAll('[data-task-preview-live-pct]'));
+        const previewLiveBar = Array.from(document.querySelectorAll('[data-task-preview-live-bar]'));
+        const exportPreviewImage = document.getElementById('task-export-preview-image');
+        const exportPreviewBaseSrc = String(exportPreviewImage?.getAttribute('src') || '').trim();
+        const exportLiveStep = Array.from(document.querySelectorAll('[data-task-export-live-step]'));
+        const exportLiveTitle = Array.from(document.querySelectorAll('[data-task-export-live-title]'));
+        const exportLivePct = Array.from(document.querySelectorAll('[data-task-export-live-pct]'));
+        const previewMap = new Map();
+        timelineStepNodes.forEach((node) => {
+          previewMap.set(Number(node.dataset.taskTimelineStep), {
+            title: String(node.dataset.taskTimelineTitle || '').trim(),
+            previewUrl: String(node.dataset.taskTimelinePreviewUrl || '').trim(),
+          });
+        });
+        sequenceStepNodes.forEach((node) => {
+          const key = Number(node.dataset.taskSequenceStep);
+          if (!previewMap.has(key)) {
+            previewMap.set(key, {
+              title: String(node.dataset.taskSequenceTitle || '').trim(),
+              previewUrl: String(node.dataset.taskSequencePreviewUrl || '').trim(),
+            });
+          }
+        });
+        const syncTimelineState = (detail = {}) => {
+          const activeIndex = Number.isFinite(Number(detail.stepIndex)) ? Number(detail.stepIndex) : 0;
+          const pct = Math.round((Number(detail.globalProgress) || 0) * 100);
+          const stepPct = Math.round((Number(detail.progress) || 0) * 100);
+          const previewMeta = previewMap.get(activeIndex) || {};
+          timelineStepNodes.forEach((node) => {
+            node.classList.toggle('is-active', Number(node.dataset.taskTimelineStep) === activeIndex);
+          });
+          sequenceStepNodes.forEach((node) => {
+            node.classList.toggle('is-active', Number(node.dataset.taskSequenceStep) === activeIndex);
+          });
+          timelineLiveTitle.forEach((node) => {
+            node.textContent = String(detail.title || `Paso ${activeIndex + 1}`);
+          });
+          timelineLiveMeta.forEach((node) => {
+            const stepCount = Number(detail.stepCount) || timelineStepNodes.length || 1;
+            const duration = Number(detail.duration) || 0;
+            node.textContent = `Paso ${activeIndex + 1}/${stepCount} · ${pct}% · ${duration}s`;
+          });
+          previewLiveStep.forEach((node) => {
+            const stepCount = Number(detail.stepCount) || timelineStepNodes.length || 1;
+            node.textContent = `Paso ${activeIndex + 1}/${stepCount}`;
+          });
+          previewLiveTitle.forEach((node) => {
+            node.textContent = String(detail.title || previewMeta.title || `Paso ${activeIndex + 1}`);
+          });
+          previewLivePct.forEach((node) => {
+            node.textContent = `${stepPct}%`;
+          });
+          previewLiveBar.forEach((node) => {
+            node.style.width = `${stepPct}%`;
+          });
+          if (previewImage) {
+            const nextSrc = String(previewMeta.previewUrl || '').trim() || previewBaseSrc;
+            if (nextSrc && previewImage.getAttribute('src') !== nextSrc) {
+              previewImage.setAttribute('src', nextSrc);
+            }
+          }
+          exportLiveStep.forEach((node) => {
+            const stepCount = Number(detail.stepCount) || timelineStepNodes.length || 1;
+            node.textContent = `Paso ${activeIndex + 1}/${stepCount}`;
+          });
+          exportLiveTitle.forEach((node) => {
+            node.textContent = String(detail.title || previewMeta.title || `Paso ${activeIndex + 1}`);
+          });
+          exportLivePct.forEach((node) => {
+            node.textContent = `${stepPct}%`;
+          });
+          if (exportPreviewImage) {
+            const nextExportSrc = String(previewMeta.previewUrl || '').trim() || exportPreviewBaseSrc;
+            if (nextExportSrc && exportPreviewImage.getAttribute('src') !== nextExportSrc) {
+              exportPreviewImage.setAttribute('src', nextExportSrc);
+            }
+          }
+          timelinePlayButtons.forEach((button) => {
+            button.textContent = detail.isPlaying ? 'Pausar' : 'Reproducir';
+          });
+        };
+        const invoke3DControl = (action, value) => {
+          const controls = window.__taskDetail3DControls;
+          if (!controls || typeof controls[action] !== 'function') return false;
+          controls[action](value);
+          return true;
+        };
+        const activateTimelineStep = (index) => {
+          syncTaskTab('presentation', false);
+          document.querySelector('#task-document-3d')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          if (!invoke3DControl('showStep', index)) {
+            syncTimelineState({ stepIndex: index, title: `Paso ${Number(index) + 1}`, stepCount: timelineStepNodes.length, duration: 0, globalProgress: 0, isPlaying: false });
+          }
+        };
+        timelineStepNodes.forEach((node) => {
+          const openStep = () => activateTimelineStep(Number(node.dataset.taskTimelineStep) || 0);
+          node.addEventListener('click', openStep);
+          node.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              openStep();
+            }
+          });
+        });
+        sequenceStepNodes.forEach((node) => {
+          node.addEventListener('click', () => activateTimelineStep(Number(node.dataset.taskSequenceStep) || 0));
+        });
+        timelinePlayButtons.forEach((button) => {
+          button.addEventListener('click', () => {
+            syncTaskTab('presentation', false);
+            document.querySelector('#task-document-3d')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            invoke3DControl('togglePlayback');
+          });
+        });
+        timelinePrevButtons.forEach((button) => {
+          button.addEventListener('click', () => invoke3DControl('prev'));
+        });
+        timelineNextButtons.forEach((button) => {
+          button.addEventListener('click', () => invoke3DControl('next'));
+        });
+        document.getElementById('task-export-open-3d')?.addEventListener('click', () => {
+          syncTaskTab('presentation', false);
+          window.requestAnimationFrame(() => {
+            document.querySelector('#task-document-3d')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          });
+        });
+        document.getElementById('task-export-open-sequence')?.addEventListener('click', () => {
+          syncTaskTab('presentation', false);
+          window.requestAnimationFrame(() => {
+            document.querySelector('#task-document-sequence')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          });
+        });
+        document.addEventListener('taskdetail:stepchange', (event) => {
+          syncTimelineState(event.detail || {});
+        });
+        window.setTimeout(() => {
+          try {
+            const state = window.__taskDetail3DControls?.getState?.() || window.__taskDetail3DState || {};
+            syncTimelineState(state);
+          } catch (error) {}
+        }, 120);
         syncTaskTab(activeTaskTab, false);
         syncTaskEditTab(activeTaskEditTab, false);
         syncTaskFormatTab(activeTaskFormatTab);
@@ -3739,6 +3932,6 @@
         }
       }
     </script>
-    <script type="module" src="{% static 'football/js/session_task_detail_3d.js' %}?v=task-detail-3d-stadium-v7-debug-portal{% if static_build_id %}-{{ static_build_id|urlencode }}{% endif %}"></script>
+    <script type="module" src="{% static 'football/js/session_task_detail_3d.js' %}?v=task-detail-3d-stadium-v36-field-overlay-guard{% if static_build_id %}-{{ static_build_id|urlencode }}{% endif %}"></script>
   </body>
 </html>

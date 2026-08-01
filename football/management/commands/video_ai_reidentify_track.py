@@ -11,7 +11,9 @@ from football.video_ai_services import appearance_distance, color_distance
 
 
 def _dist(a: dict, b: dict) -> float:
-    return math.hypot(float(a.get("x_rel", 0.0)) - float(b.get("x_rel", 0.0)), float(a.get("y_rel", 0.0)) - float(b.get("y_rel", 0.0)))
+    return math.hypot(
+        float(a.get("x_rel", 0.0)) - float(b.get("x_rel", 0.0)), float(a.get("y_rel", 0.0)) - float(b.get("y_rel", 0.0))
+    )
 
 
 def _nearest_frame(frames: list[dict], t: float) -> dict | None:
@@ -192,17 +194,38 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--track-json", required=True, help="JSON generado por video_ai_track_yolo.")
         parser.add_argument("--clip-id", type=int, required=True, help="VideoClip con anclajes del analista.")
-        parser.add_argument("--marker-uid", default="", help="UID del marker con anchors. Si vacío, usa el primero con anchors.")
+        parser.add_argument(
+            "--marker-uid", default="", help="UID del marker con anchors. Si vacío, usa el primero con anchors."
+        )
         parser.add_argument("--output-uid", default="winger-11", help="UID de salida para overlay.tracking.tracks.")
         parser.add_argument("--out", default="", help="Ruta JSON salida. Opcional.")
         parser.add_argument("--save-to-clip", action="store_true", help="Actualiza overlay.tracking del clip.")
-        parser.add_argument("--max-anchor-dist", type=float, default=0.14, help="Distancia máxima a anclaje para asignar ID.")
-        parser.add_argument("--max-frame-dist", type=float, default=0.16, help="Distancia máxima por frame para fallback.")
-        parser.add_argument("--expected-number", type=str, default="", help="Dorsal esperado para metadatos/OCR asistido.")
+        parser.add_argument(
+            "--max-anchor-dist", type=float, default=0.14, help="Distancia máxima a anclaje para asignar ID."
+        )
+        parser.add_argument(
+            "--max-frame-dist", type=float, default=0.16, help="Distancia máxima por frame para fallback."
+        )
+        parser.add_argument(
+            "--expected-number", type=str, default="", help="Dorsal esperado para metadatos/OCR asistido."
+        )
         parser.add_argument("--team-color-weight", type=float, default=0.08, help="Peso de similitud de color/equipo.")
-        parser.add_argument("--identity-lock", action="store_true", help="Bloquea identidad visual y evita cambios de jugador si baja la confianza.")
-        parser.add_argument("--identity-threshold", type=float, default=0.74, help="Score mínimo para aceptar cambio/detección con Identity Lock.")
-        parser.add_argument("--anchors-json", default="", help="JSON externo de anchors normalizados; si existe prevalece sobre los anchors guardados en el clip.")
+        parser.add_argument(
+            "--identity-lock",
+            action="store_true",
+            help="Bloquea identidad visual y evita cambios de jugador si baja la confianza.",
+        )
+        parser.add_argument(
+            "--identity-threshold",
+            type=float,
+            default=0.74,
+            help="Score mínimo para aceptar cambio/detección con Identity Lock.",
+        )
+        parser.add_argument(
+            "--anchors-json",
+            default="",
+            help="JSON externo de anchors normalizados; si existe prevalece sobre los anchors guardados en el clip.",
+        )
 
     def handle(self, *args, **options):
         track_path = Path(str(options["track_json"])).expanduser().resolve()
@@ -339,6 +362,7 @@ class Command(BaseCommand):
                 candidate_radius = max_frame_dist * (1.45 if identity_lock else 1.0)
                 candidates = [d for d in detections if min(_dist(d, expected), _dist(d, predicted)) <= candidate_radius]
                 if candidates:
+
                     def _candidate_score(d):
                         color_penalty = 0.0
                         if color_refs and isinstance(d.get("color"), dict):
@@ -354,15 +378,20 @@ class Command(BaseCommand):
                             - (float(d.get("conf") or 0.0) * 0.01)
                             + _ocr_score(d, expected_number)
                         )
+
                     chosen = min(candidates, key=_candidate_score)
             if chosen is not None and identity_lock:
                 geom_d = min(_dist(chosen, expected), _dist(chosen, predicted))
-                appearance_d = appearance_distance(identity_memory, chosen.get("color") if isinstance(chosen.get("color"), dict) else {})
+                appearance_d = appearance_distance(
+                    identity_memory, chosen.get("color") if isinstance(chosen.get("color"), dict) else {}
+                )
                 geom_score = max(0.0, 1.0 - (geom_d / max(0.001, max_frame_dist * 1.45)))
                 app_score = max(0.0, 1.0 - min(1.0, appearance_d))
                 det_conf = max(0.0, min(1.0, float(chosen.get("conf") or 0.0)))
                 ocr_bonus = -_ocr_score(chosen, expected_number)
-                chosen_identity_score = max(0.0, min(1.0, (geom_score * 0.44) + (app_score * 0.42) + (det_conf * 0.10) + (ocr_bonus * 0.55)))
+                chosen_identity_score = max(
+                    0.0, min(1.0, (geom_score * 0.44) + (app_score * 0.42) + (det_conf * 0.10) + (ocr_bonus * 0.55))
+                )
                 if chosen_identity_score < identity_threshold:
                     identity_switches_blocked += 1
                     chosen = None
@@ -372,7 +401,11 @@ class Command(BaseCommand):
                 chosen_source = "identity_prediction" if identity_lock else "anchor_interp"
             else:
                 used_ids.add(int(chosen["track_id"]))
-                if identity_lock and isinstance(chosen.get("color"), dict) and chosen_identity_score >= identity_threshold:
+                if (
+                    identity_lock
+                    and isinstance(chosen.get("color"), dict)
+                    and chosen_identity_score >= identity_threshold
+                ):
                     identity_accepts += 1
                     identity_memory = _blend_signature(identity_memory, chosen.get("color"), alpha=0.10)
                 chosen_source = "detection"
@@ -413,7 +446,9 @@ class Command(BaseCommand):
 
         points = _smooth_points(points, strength=0.18)
         if last_low_start is not None:
-            low_confidence_ranges.append({"start_s": last_low_start, "end_s": float(points[-1]["t"]) if points else last_low_start})
+            low_confidence_ranges.append(
+                {"start_s": last_low_start, "end_s": float(points[-1]["t"]) if points else last_low_start}
+            )
         avg_conf = sum(confidence_samples) / len(confidence_samples) if confidence_samples else 0.0
         if avg_conf >= 0.72 and not low_confidence_ranges:
             confidence_label = "high"

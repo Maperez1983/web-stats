@@ -23,9 +23,7 @@ SCHEDULE_TEMPLATE = (
 BASE_DIR = Path(__file__).resolve().parents[1]
 OUTPUT = BASE_DIR / "data" / "input" / "rfaf-standings.csv"
 NEXT_MATCH_FILE = BASE_DIR / "data" / "input" / "rfaf-next-match.json"
-FALLBACK_HTML = Path(
-    os.getenv("RFAF_FALLBACK_HTML", str(BASE_DIR / "data" / "input" / "rfaf-fallback.html"))
-)
+FALLBACK_HTML = Path(os.getenv("RFAF_FALLBACK_HTML", str(BASE_DIR / "data" / "input" / "rfaf-fallback.html")))
 HEADERS = [
     "position",
     "team",
@@ -120,9 +118,7 @@ def fetch_html(*, allow_fallback: bool = False) -> str:
     headers = {
         "User-Agent": USER_AGENT,
         "Accept-Language": "es-ES,es;q=0.9",
-        "Referer": (
-            "https://www.rfaf.es/pnfg/NPcd/NFG_VisGrupos_Vis?cod_primaria=1000123&codgrupo=45030656"
-        ),
+        "Referer": ("https://www.rfaf.es/pnfg/NPcd/NFG_VisGrupos_Vis?cod_primaria=1000123&codgrupo=45030656"),
     }
     try:
         response = requests.get(URL, headers=headers, timeout=30)
@@ -297,7 +293,7 @@ def _extract_schedule_template(html: str):
         current_round = int(match.group(2))
     except ValueError:
         current_round = None
-    template = re.sub(r'(?:CodJornada|codjornada)=\d+', 'CodJornada={jornada}', url, flags=re.IGNORECASE)
+    template = re.sub(r"(?:CodJornada|codjornada)=\d+", "CodJornada={jornada}", url, flags=re.IGNORECASE)
     return template, current_round
 
 
@@ -410,8 +406,7 @@ def parse_schedule(html: str, jornada: int) -> Optional[dict]:
         # Otras vienen en formato simple (local, estado/resultado, visitante).
         cell_texts = [cell.get_text(" ", strip=True) for cell in cells]
         if len(cell_texts) >= 4 and (
-            "benagalbon" in normalize_text(cell_texts[1])
-            or "benagalbon" in normalize_text(cell_texts[3])
+            "benagalbon" in normalize_text(cell_texts[1]) or "benagalbon" in normalize_text(cell_texts[3])
         ):
             home_name = cell_texts[1]
             middle_text = cell_texts[2] if len(cell_texts) > 2 else ""

@@ -62,4 +62,3 @@ Regla: usar además `phase`:
 
 - Sin tracking, el sistema no puede garantizar “zonal” vs “hombre” en juego abierto.
 - En ABP sí se puede aproximar, pero requiere filtrar bien: evitar saques/parones/publicidad.
-

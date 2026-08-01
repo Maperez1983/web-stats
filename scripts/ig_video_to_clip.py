@@ -25,7 +25,6 @@ from typing import Dict, List, Optional, Tuple
 
 from PIL import Image
 
-
 WORLD_W = 1054
 WORLD_H = 684
 
@@ -524,13 +523,25 @@ def build_clip_from_video(
                 # reduce a un máximo razonable
                 tracks_payload[tr.uid] = kfs[:240]
 
-        pro = {"v": 1, "enabled": True, "loop": True, "updated_at": dt.datetime.utcnow().isoformat() + "Z", "tracks": tracks_payload}
+        pro = {
+            "v": 1,
+            "enabled": True,
+            "loop": True,
+            "updated_at": dt.datetime.utcnow().isoformat() + "Z",
+            "tracks": tracks_payload,
+        }
 
         return {
             "v": 1,
             "name": str(name or "Clip importado").strip()[:120],
             "created_at": dt.datetime.utcnow().isoformat() + "Z",
-            "source": {"kind": "video", "fps": fps, "max_frames": max_frames, "scale_w": scale_w, "duration_s": _ffprobe_duration_seconds(input_path)},
+            "source": {
+                "kind": "video",
+                "fps": fps,
+                "max_frames": max_frames,
+                "scale_w": scale_w,
+                "duration_s": _ffprobe_duration_seconds(input_path),
+            },
             "steps": steps,
             "pro": pro,
         }
@@ -566,4 +577,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

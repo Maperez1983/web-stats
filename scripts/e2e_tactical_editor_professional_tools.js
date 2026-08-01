@@ -203,11 +203,11 @@ async function openEditor(page, baseUrl, taskId, username, password) {
     page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
     page.click('button[type="submit"], input[type="submit"]'),
   ]);
-  await page.goto(`${baseUrl}/coach/sesiones/tarea/${taskId}/editor-pro/?editor2d=1`, {
+  await page.goto(`${baseUrl}/coach/sesiones/tarea/${taskId}/editor-pro/`, {
     waitUntil: 'domcontentloaded',
   });
   await page.locator('#tactical-editor-root').waitFor({ state: 'visible', timeout: 30_000 });
-  await page.locator('text=Motor 2D Konva').waitFor({ state: 'visible', timeout: 30_000 });
+  await page.locator('text=Motor Konva').waitFor({ state: 'visible', timeout: 30_000 });
 }
 
 async function selectTool(page, name, options = {}) {
@@ -395,6 +395,46 @@ async function main() {
       'Reload should keep the edited player name'
     );
 
+    const generatePdfButton = page.getByTestId('task-generate-pdf');
+    const printPdfButton = page.getByTestId('task-print-pdf');
+    const sharePdfButton = page.getByTestId('task-share-pdf');
+    assert.equal(await generatePdfButton.count(), 1, 'Generate PDF button should exist');
+    assert.equal(await printPdfButton.count(), 1, 'Print PDF button should exist');
+    assert.equal(await sharePdfButton.count(), 1, 'Share PDF button should exist');
+
+    const generatedPdfPopup = page.waitForEvent('popup');
+    await generatePdfButton.click();
+    const generatedPdfPage = await generatedPdfPopup;
+    await generatedPdfPage.waitForLoadState('domcontentloaded').catch(() => {});
+    assert.match(
+      generatedPdfPage.url(),
+      /\/coach\/sesiones\/tarea\/\d+\/pdf\/\?style=club&one_page=1/,
+      'Generate PDF should open the club PDF route'
+    );
+    await generatedPdfPage.close().catch(() => {});
+
+    const printablePdfPopup = page.waitForEvent('popup');
+    await printPdfButton.click();
+    const printablePdfPage = await printablePdfPopup;
+    await printablePdfPage.waitForLoadState('domcontentloaded').catch(() => {});
+    assert.match(
+      printablePdfPage.url(),
+      /\/coach\/sesiones\/tarea\/\d+\/pdf\/\?style=uefa&one_page=1/,
+      'Print PDF should open the UEFA PDF route'
+    );
+    await printablePdfPage.close().catch(() => {});
+
+    const shareResponsePromise = page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/share/task-pdf/create/') && response.request().method() === 'POST'
+    );
+    await sharePdfButton.click();
+    const shareResponse = await shareResponsePromise;
+    const shareData = await shareResponse.json();
+    assert.ok(shareData && shareData.url, 'Share PDF should return a public URL');
+    const clipboardText = await page.evaluate(() => navigator.clipboard.readText().catch(() => ''));
+    assert.equal(clipboardText, shareData.url, 'Share PDF should copy the public URL to clipboard');
+
     const exportPngPromise = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Exportar PNG' }).click();
     const pngDownload = await exportPngPromise;
@@ -419,6 +459,41 @@ async function main() {
     await page.setViewportSize({ width: 1024, height: 768 });
     await page.waitForTimeout(500);
     await savePng(page, outDir, '10-responsive.png');
+
+    await page.getByTestId('task-version-history').click();
+    const versionHistoryPanel = page.getByTestId('task-version-history-panel');
+    await versionHistoryPanel.waitFor({ state: 'visible', timeout: 10_000 });
+    const versionEntries = versionHistoryPanel.getByTestId('task-version-entry');
+    assert.ok((await versionEntries.count()) >= 1, 'Version history should list at least one backup');
+    await page.getByRole('button', { name: 'Cerrar' }).click();
+
+    await page.getByTestId('task-rename').click();
+    const renameTitle = page.getByTestId('task-rename-title');
+    await renameTitle.waitFor({ state: 'visible', timeout: 10_000 });
+    await renameTitle.fill('Tarea base editor profesional (renombrada)');
+    await page.getByTestId('task-rename-confirm').click();
+    await page.getByRole('heading', { name: 'Tarea base editor profesional (renombrada)' }).waitFor({
+      state: 'visible',
+      timeout: 10_000,
+    });
+
+    await page.getByTestId('task-duplicate').click();
+    const duplicateTitle = page.getByTestId('task-save-as-title');
+    await duplicateTitle.waitFor({ state: 'visible', timeout: 10_000 });
+    await duplicateTitle.fill('Tarea base editor profesional (copia)');
+    const duplicatePopup = page.waitForNavigation({ waitUntil: 'domcontentloaded' });
+    await page.getByTestId('task-save-as-confirm').click();
+    await duplicatePopup;
+    await page.locator('#tactical-editor-root').waitFor({ state: 'visible', timeout: 30_000 });
+    assert.match(page.url(), /\/editor-pro\/(?:\?.*)?$/, 'Duplicate should reopen the cloned editor');
+    await savePng(page, outDir, '11-save-as-clone.png');
+
+    page.once('dialog', (dialog) => {
+      void dialog.accept().catch(() => {});
+    });
+    await page.getByTestId('task-delete').click();
+    await page.waitForURL(/\/coach\/sesiones\/?$/, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+    assert.match(page.url(), /\/coach\/sesiones\/?$/, 'Delete should return to the sessions hub');
 
     record('export', { result: 'png/json saved', outDir });
     fs.writeFileSync(

@@ -5,128 +5,138 @@ from . import models
 
 @admin.register(models.DataSource)
 class DataSourceAdmin(admin.ModelAdmin):
-    list_display = ('name', 'base_url')
+    list_display = ("name", "base_url")
 
 
 @admin.register(models.Competition)
 class CompetitionAdmin(admin.ModelAdmin):
-    list_display = ('name', 'region', 'level')
-    prepopulated_fields = {'slug': ('name',)}
+    list_display = ("name", "region", "level")
+    prepopulated_fields = {"slug": ("name",)}
 
 
 @admin.register(models.Season)
 class SeasonAdmin(admin.ModelAdmin):
-    list_display = ('name', 'competition', 'is_current')
+    list_display = ("name", "competition", "is_current")
 
 
 @admin.register(models.Group)
 class GroupAdmin(admin.ModelAdmin):
-    list_display = ('name', 'season', 'external_id')
+    list_display = ("name", "season", "external_id")
 
 
 @admin.register(models.Team)
 class TeamAdmin(admin.ModelAdmin):
-    list_display = ('name', 'category', 'game_format', 'group', 'is_primary', 'city')
-    list_filter = ('game_format', 'group', 'is_primary')
-    search_fields = ('name', 'short_name', 'slug', 'category')
-    prepopulated_fields = {'slug': ('name',)}
+    list_display = ("name", "category", "game_format", "group", "is_primary", "city")
+    list_filter = ("game_format", "group", "is_primary")
+    search_fields = ("name", "short_name", "slug", "category")
+    prepopulated_fields = {"slug": ("name",)}
 
 
 class WorkspaceTeamInline(admin.TabularInline):
     model = models.WorkspaceTeam
     extra = 0
-    autocomplete_fields = ('team',)
-    fields = ('team', 'is_default')
+    autocomplete_fields = ("team",)
+    fields = ("team", "is_default")
 
 
 @admin.register(models.Workspace)
 class WorkspaceAdmin(admin.ModelAdmin):
-    list_display = ('name', 'kind', 'slug', 'is_active', 'primary_team', 'owner_user')
-    list_filter = ('kind', 'is_active')
-    search_fields = ('name', 'slug')
-    autocomplete_fields = ('primary_team', 'owner_user')
+    list_display = ("name", "kind", "slug", "is_active", "primary_team", "owner_user")
+    list_filter = ("kind", "is_active")
+    search_fields = ("name", "slug")
+    autocomplete_fields = ("primary_team", "owner_user")
     inlines = (WorkspaceTeamInline,)
 
 
 @admin.register(models.WorkspaceSeason)
 class WorkspaceSeasonAdmin(admin.ModelAdmin):
-    list_display = ('label', 'workspace', 'start_date', 'end_date', 'is_active')
-    list_filter = ('is_active', 'workspace')
-    search_fields = ('label', 'workspace__name')
-    autocomplete_fields = ('workspace',)
+    list_display = ("label", "workspace", "start_date", "end_date", "is_active")
+    list_filter = ("is_active", "workspace")
+    search_fields = ("label", "workspace__name")
+    autocomplete_fields = ("workspace",)
 
 
 @admin.register(models.WorkspaceSeasonTeam)
 class WorkspaceSeasonTeamAdmin(admin.ModelAdmin):
-    list_display = ('season', 'team', 'status', 'is_active', 'confirmed_at')
-    list_filter = ('status', 'is_active', 'season')
-    search_fields = ('team__name', 'team__short_name', 'season__label', 'season__workspace__name')
-    autocomplete_fields = ('season', 'team')
+    list_display = ("season", "team", "status", "is_active", "confirmed_at")
+    list_filter = ("status", "is_active", "season")
+    search_fields = ("team__name", "team__short_name", "season__label", "season__workspace__name")
+    autocomplete_fields = ("season", "team")
 
 
 @admin.register(models.WorkspaceSeasonPlayer)
 class WorkspaceSeasonPlayerAdmin(admin.ModelAdmin):
-    list_display = ('season', 'player', 'status', 'is_confirmed', 'confirmed_at', 'left_at')
-    list_filter = ('status', 'is_confirmed', 'season')
-    search_fields = ('player__name', 'player__full_name', 'season__label', 'season__workspace__name')
-    autocomplete_fields = ('season', 'player', 'confirmed_by')
+    list_display = ("season", "player", "status", "is_confirmed", "confirmed_at", "left_at")
+    list_filter = ("status", "is_confirmed", "season")
+    search_fields = ("player__name", "player__full_name", "season__label", "season__workspace__name")
+    autocomplete_fields = ("season", "player", "confirmed_by")
 
 
 @admin.register(models.Player)
 class PlayerAdmin(admin.ModelAdmin):
-    list_display = ('name', 'team', 'number', 'position', 'injury', 'injury_date')
-    search_fields = ('name', 'full_name', 'nickname', 'team__name')
+    list_display = ("name", "team", "number", "position", "injury", "injury_date")
+    search_fields = ("name", "full_name", "nickname", "team__name")
 
 
 @admin.register(models.PlayerEvaluation)
 class PlayerEvaluationAdmin(admin.ModelAdmin):
-    list_display = ('player', 'team', 'club_season', 'evaluation_type', 'evaluated_on', 'status', 'overall_rating', 'objective_performance_rating', 'availability_rating')
-    list_filter = ('evaluation_type', 'status', 'maturation_status', 'club_season', 'team')
-    search_fields = ('player__name', 'player__full_name', 'team__name', 'club_season__label')
-    autocomplete_fields = ('player', 'team', 'club_season', 'created_by', 'updated_by')
+    list_display = (
+        "player",
+        "team",
+        "club_season",
+        "evaluation_type",
+        "evaluated_on",
+        "status",
+        "overall_rating",
+        "objective_performance_rating",
+        "availability_rating",
+    )
+    list_filter = ("evaluation_type", "status", "maturation_status", "club_season", "team")
+    search_fields = ("player__name", "player__full_name", "team__name", "club_season__label")
+    autocomplete_fields = ("player", "team", "club_season", "created_by", "updated_by")
 
 
 @admin.register(models.InjuryCatalogEntry)
 class InjuryCatalogEntryAdmin(admin.ModelAdmin):
-    list_display = ('name', 'code', 'category', 'region', 'typical_min_days', 'typical_max_days', 'is_active')
-    list_filter = ('category', 'region', 'is_active')
-    search_fields = ('name', 'code')
+    list_display = ("name", "code", "category", "region", "typical_min_days", "typical_max_days", "is_active")
+    list_filter = ("category", "region", "is_active")
+    search_fields = ("name", "code")
 
 
 @admin.register(models.PlayerInjuryRecord)
 class PlayerInjuryRecordAdmin(admin.ModelAdmin):
-    list_display = ('player', 'injury', 'injury_date', 'return_date', 'is_active', 'severity_grade', 'training_status')
-    list_filter = ('is_active', 'injury_type', 'injury_zone')
-    search_fields = ('player__name', 'injury', 'injury_type', 'injury_zone')
+    list_display = ("player", "injury", "injury_date", "return_date", "is_active", "severity_grade", "training_status")
+    list_filter = ("is_active", "injury_type", "injury_zone")
+    search_fields = ("player__name", "injury", "injury_type", "injury_zone")
 
 
 @admin.register(models.PlayerPhysicalMetric)
 class PlayerPhysicalMetricAdmin(admin.ModelAdmin):
-    list_display = ('player', 'recorded_on', 'workload', 'rpe', 'wellness')
-    list_filter = ('recorded_on',)
+    list_display = ("player", "recorded_on", "workload", "rpe", "wellness")
+    list_filter = ("recorded_on",)
 
 
 @admin.register(models.PlayerCommunication)
 class PlayerCommunicationAdmin(admin.ModelAdmin):
-    list_display = ('player', 'category', 'match', 'scheduled_for', 'created_at')
-    list_filter = ('category', 'created_at')
+    list_display = ("player", "category", "match", "scheduled_for", "created_at")
+    list_filter = ("category", "created_at")
 
 
 @admin.register(models.Match)
 class MatchAdmin(admin.ModelAdmin):
-    list_display = ('round', 'home_team', 'away_team', 'date', 'home_score', 'away_score')
-    list_filter = ('round', 'date')
+    list_display = ("round", "home_team", "away_team", "date", "home_score", "away_score")
+    list_filter = ("round", "date")
 
 
 @admin.register(models.TeamStanding)
 class TeamStandingAdmin(admin.ModelAdmin):
-    list_display = ('team', 'season', 'points', 'position')
-    list_filter = ('season', 'group')
+    list_display = ("team", "season", "points", "position")
+    list_filter = ("season", "group")
 
 
 @admin.register(models.CustomMetric)
 class CustomMetricAdmin(admin.ModelAdmin):
-    list_display = ('team', 'season', 'name', 'value', 'recorded_at')
+    list_display = ("team", "season", "name", "value", "recorded_at")
 
 
 admin.site.register(models.TeamStatistic)
@@ -140,39 +150,48 @@ admin.site.register(models.ScrapeRun)
 
 @admin.register(models.AiTrainerEvent)
 class AiTrainerEventAdmin(admin.ModelAdmin):
-    list_display = ('created_at', 'event_type', 'team', 'workspace', 'user')
-    list_filter = ('event_type', 'team')
-    search_fields = ('team__name', 'user__username', 'meta')
+    list_display = ("created_at", "event_type", "team", "workspace", "user")
+    list_filter = ("event_type", "team")
+    search_fields = ("team__name", "user__username", "meta")
 
 
 @admin.register(models.AiTrainerTokenWeight)
 class AiTrainerTokenWeightAdmin(admin.ModelAdmin):
-    list_display = ('updated_at', 'team', 'workspace', 'token', 'weight')
-    list_filter = ('team',)
-    search_fields = ('token', 'team__name')
+    list_display = ("updated_at", "team", "workspace", "token", "weight")
+    list_filter = ("team",)
+    search_fields = ("token", "team__name")
 
 
 @admin.register(models.AiTrainerTaskIndex)
 class AiTrainerTaskIndexAdmin(admin.ModelAdmin):
-    list_display = ('updated_at', 'team', 'repository', 'task')
-    list_filter = ('team', 'repository')
-    search_fields = ('task__title', 'content')
+    list_display = ("updated_at", "team", "repository", "task")
+    list_filter = ("team", "repository")
+    search_fields = ("task__title", "content")
 
 
 @admin.register(models.AiTrainerDictionaryEntry)
 class AiTrainerDictionaryEntryAdmin(admin.ModelAdmin):
-    list_display = ('updated_at', 'team', 'workspace', 'section', 'entry_key', 'label', 'created_by')
-    list_filter = ('team', 'section')
-    search_fields = ('entry_key', 'label', 'keywords', 'coaching_points')
+    list_display = ("updated_at", "team", "workspace", "section", "entry_key", "label", "created_by")
+    list_filter = ("team", "section")
+    search_fields = ("entry_key", "label", "keywords", "coaching_points")
 
 
 @admin.register(models.ServiceAccessToken)
 class ServiceAccessTokenAdmin(admin.ModelAdmin):
-    list_display = ('created_at', 'user', 'name', 'workspace', 'token_prefix', 'is_active', 'expires_at', 'last_used_at')
-    list_filter = ('is_active', 'workspace')
-    search_fields = ('user__username', 'user__email', 'name', 'token_prefix')
-    autocomplete_fields = ('user', 'workspace')
-    readonly_fields = ('token_prefix', 'token_hash', 'created_at', 'last_used_at')
+    list_display = (
+        "created_at",
+        "user",
+        "name",
+        "workspace",
+        "token_prefix",
+        "is_active",
+        "expires_at",
+        "last_used_at",
+    )
+    list_filter = ("is_active", "workspace")
+    search_fields = ("user__username", "user__email", "name", "token_prefix")
+    autocomplete_fields = ("user", "workspace")
+    readonly_fields = ("token_prefix", "token_hash", "created_at", "last_used_at")
 
     def has_add_permission(self, request):
         return False
@@ -180,38 +199,38 @@ class ServiceAccessTokenAdmin(admin.ModelAdmin):
 
 @admin.register(models.AcademyMediaAsset)
 class AcademyMediaAssetAdmin(admin.ModelAdmin):
-    list_display = ('created_at', 'kind', 'title', 'is_active')
-    list_filter = ('kind', 'is_active')
-    search_fields = ('title', 'source_url')
+    list_display = ("created_at", "kind", "title", "is_active")
+    list_filter = ("kind", "is_active")
+    search_fields = ("title", "source_url")
 
 
 class AcademyLessonStepInline(admin.TabularInline):
     model = models.AcademyLessonStep
     extra = 0
-    fields = ('order', 'step_type', 'title', 'media', 'is_required')
-    autocomplete_fields = ('media',)
-    ordering = ('order', 'id')
+    fields = ("order", "step_type", "title", "media", "is_required")
+    autocomplete_fields = ("media",)
+    ordering = ("order", "id")
 
 
 @admin.register(models.AcademyLesson)
 class AcademyLessonAdmin(admin.ModelAdmin):
-    list_display = ('updated_at', 'title', 'min_category', 'max_category', 'is_published')
-    list_filter = ('is_published', 'min_category', 'max_category')
-    search_fields = ('title', 'summary', 'created_by')
+    list_display = ("updated_at", "title", "min_category", "max_category", "is_published")
+    list_filter = ("is_published", "min_category", "max_category")
+    search_fields = ("title", "summary", "created_by")
     inlines = (AcademyLessonStepInline,)
 
 
 @admin.register(models.AcademyAssignment)
 class AcademyAssignmentAdmin(admin.ModelAdmin):
-    list_display = ('created_at', 'workspace', 'team', 'lesson', 'is_required', 'is_active', 'due_at')
-    list_filter = ('is_active', 'is_required')
-    search_fields = ('workspace__name', 'team__name', 'lesson__title')
-    autocomplete_fields = ('workspace', 'team', 'lesson', 'created_by')
+    list_display = ("created_at", "workspace", "team", "lesson", "is_required", "is_active", "due_at")
+    list_filter = ("is_active", "is_required")
+    search_fields = ("workspace__name", "team__name", "lesson__title")
+    autocomplete_fields = ("workspace", "team", "lesson", "created_by")
 
 
 @admin.register(models.AcademyProgress)
 class AcademyProgressAdmin(admin.ModelAdmin):
-    list_display = ('updated_at', 'workspace', 'team', 'user', 'lesson', 'status', 'correct_count', 'answer_count')
-    list_filter = ('status',)
-    search_fields = ('workspace__name', 'user__username', 'lesson__title')
-    autocomplete_fields = ('workspace', 'team', 'user', 'lesson', 'assignment')
+    list_display = ("updated_at", "workspace", "team", "user", "lesson", "status", "correct_count", "answer_count")
+    list_filter = ("status",)
+    search_fields = ("workspace__name", "user__username", "lesson__title")
+    autocomplete_fields = ("workspace", "team", "user", "lesson", "assignment")

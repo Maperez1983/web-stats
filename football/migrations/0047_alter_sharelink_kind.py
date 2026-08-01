@@ -6,13 +6,21 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('football', '0046_pdfgraphicasset_and_more'),
+        ("football", "0046_pdfgraphicasset_and_more"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='sharelink',
-            name='kind',
-            field=models.CharField(choices=[('task_pdf', 'PDF de tarea'), ('convocation_pdf', 'PDF de convocatoria'), ('task_simulation', 'Simulación de tarea')], default='task_pdf', max_length=40),
+            model_name="sharelink",
+            name="kind",
+            field=models.CharField(
+                choices=[
+                    ("task_pdf", "PDF de tarea"),
+                    ("convocation_pdf", "PDF de convocatoria"),
+                    ("task_simulation", "Simulación de tarea"),
+                ],
+                default="task_pdf",
+                max_length=40,
+            ),
         ),
     ]

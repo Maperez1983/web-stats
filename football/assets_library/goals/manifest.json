@@ -1,0 +1,24 @@
+{
+  "category": "goals",
+  "category_type": "equipment",
+  "default_family": "match_goals",
+  "families": [
+    "match_goals",
+    "mini_goals"
+  ],
+  "variants": [
+    "default",
+    "broadcast",
+    "premium",
+    "training"
+  ],
+  "fallback_asset": "goals/match_goals/default",
+  "compatible_themes": [
+    "classic",
+    "broadcast",
+    "premium"
+  ],
+  "resolution_independent": true,
+  "theme_overrides_supported": true,
+  "assets": []
+}

@@ -6,24 +6,24 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('football', '0014_player_injury_side_player_injury_type_and_more'),
+        ("football", "0014_player_injury_side_player_injury_type_and_more"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='HomeCarouselImage',
+            name="HomeCarouselImage",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('title', models.CharField(blank=True, max_length=120)),
-                ('image', models.ImageField(upload_to='home-carousel/')),
-                ('order', models.PositiveSmallIntegerField(default=0)),
-                ('is_active', models.BooleanField(default=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("title", models.CharField(blank=True, max_length=120)),
+                ("image", models.ImageField(upload_to="home-carousel/")),
+                ("order", models.PositiveSmallIntegerField(default=0)),
+                ("is_active", models.BooleanField(default=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': 'Imagen carrusel home',
-                'verbose_name_plural': 'Imágenes carrusel home',
-                'ordering': ['order', '-created_at', '-id'],
+                "verbose_name": "Imagen carrusel home",
+                "verbose_name_plural": "Imágenes carrusel home",
+                "ordering": ["order", "-created_at", "-id"],
             },
         ),
     ]

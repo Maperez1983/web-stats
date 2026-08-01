@@ -6,18 +6,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('football', '0011_player_birth_date_player_full_name_player_injury_and_more'),
+        ("football", "0011_player_birth_date_player_full_name_player_injury_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='player',
-            name='height_cm',
+            model_name="player",
+            name="height_cm",
             field=models.PositiveSmallIntegerField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='player',
-            name='weight_kg',
+            model_name="player",
+            name="weight_kg",
             field=models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True),
         ),
     ]

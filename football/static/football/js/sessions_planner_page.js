@@ -273,7 +273,7 @@
             });
           });
         })();
-	
+
 		      (() => {
 		        const form = document.getElementById('session-texts-form');
 		        if (!form) return;
@@ -286,12 +286,12 @@
 	          canStore = false;
 	        }
 	        if (!canStore) return;
-	
+
 	        const teamId = String(form.dataset.teamId || '').trim() || 'team';
 	        const sessionId = String(form.dataset.sessionId || '').trim() || 'session';
 	        const scopeKey = String(form.dataset.scopeKey || '').trim() || 'coach';
 	        const storageKey = `webstats:sessions:draft:${teamId}:${sessionId}:${scopeKey}:texts:v1`;
-	
+
 	        const fieldNames = ['section_warmup', 'section_activation', 'section_main', 'section_cooldown'];
 	        const fields = fieldNames
 	          .map((name) => form.querySelector(`[name="${name}"]`))
@@ -303,7 +303,7 @@
 	        const csrfTokenEl = form.querySelector('input[name="csrfmiddlewaretoken"]');
 	        const csrfToken = csrfTokenEl ? String(csrfTokenEl.value || '') : '';
 	        const postUrl = form.getAttribute('action') || window.location.href;
-	
+
 	        const readValues = () => {
 	          const out = {};
 	          fieldNames.forEach((name) => {
@@ -383,7 +383,7 @@
 	            t = window.setTimeout(() => fn(...args), ms);
 	          };
 	        };
-	
+
 	        const draft = loadDraft();
 	        if (draft && banner && restoreBtn && discardBtn) {
 	          const current = readValues();
@@ -403,12 +403,12 @@
 	            });
 	          }
 	        }
-	
+
 	        const scheduleSave = debounce(() => saveDraft(readValues()), 450);
 	        const scheduleServerSave = debounce(() => { void saveServer(); }, 650);
 	        fields.forEach((el) => el.addEventListener('input', scheduleSave));
 	        fields.forEach((el) => el.addEventListener('input', scheduleServerSave));
-	
+
 	        // Si la sesión ya tiene textos (renderizados desde servidor o restaurados localmente),
 	        // intentamos persistirlos una vez en backend para que el PDF siempre los recoja,
 	        // incluso si el usuario no vuelve a pulsar "Guardar textos".

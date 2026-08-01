@@ -153,10 +153,14 @@ for x in (-25, -12.5, 0, 12.5, 25):
 for y in (-8.5, 8.5):
     dashed_line("division_horizontal", (x1, y), (x2, y), 28, material=yellow_mat)
 
-for name_idx, pos in enumerate(((-42, -12), (-30, -20), (-28, -5), (-25, 12), (-5, -8), (8, -12), (15, 8), (32, -15), (42, 20))):
+for name_idx, pos in enumerate(
+    ((-42, -12), (-30, -20), (-28, -5), (-25, 12), (-5, -8), (8, -12), (15, 8), (32, -15), (42, 20))
+):
     create_player(f"granate_{name_idx + 1}", (pos[0], pos[1], 0), dark_mat)
 
-for name_idx, pos in enumerate(((-44, 12), (-18, -16), (-15, 5), (-6, 18), (5, 0), (22, 10), (24, -10), (38, 18), (45, -5))):
+for name_idx, pos in enumerate(
+    ((-44, 12), (-18, -16), (-15, 5), (-6, 18), (5, 0), (22, 10), (24, -10), (38, 18), (45, -5))
+):
     create_player(f"beige_{name_idx + 1}", (pos[0], pos[1], 0), light_mat)
 
 bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=12, radius=0.35, location=(-20, -3, 0.35))

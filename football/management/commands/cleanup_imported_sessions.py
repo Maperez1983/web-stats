@@ -13,7 +13,9 @@ class Command(BaseCommand):
     )
 
     def add_arguments(self, parser):
-        parser.add_argument("--team-id", type=int, default=0, help="Filtra por Team.id (si no, usa el equipo primario).")
+        parser.add_argument(
+            "--team-id", type=int, default=0, help="Filtra por Team.id (si no, usa el equipo primario)."
+        )
         parser.add_argument("--limit", type=int, default=500, help="Máximo de sesiones a procesar.")
         parser.add_argument("--dry-run", action="store_true", help="No guarda cambios; solo informa.")
         parser.add_argument("--clear-objective", action="store_true", help="También vacía `objective`.")
@@ -29,7 +31,11 @@ class Command(BaseCommand):
         clear_absences = bool(options.get("clear_absences"))
         verbosity = int(options.get("verbosity") or 1)
 
-        team = Team.objects.filter(id=team_id).first() if team_id else Team.objects.filter(is_primary=True).order_by("id").first()
+        team = (
+            Team.objects.filter(id=team_id).first()
+            if team_id
+            else Team.objects.filter(is_primary=True).order_by("id").first()
+        )
         if not team:
             self.stdout.write(self.style.ERROR("No se encontró equipo. Usa --team-id."))
             return
@@ -95,9 +101,7 @@ class Command(BaseCommand):
                 fields["absences"] = ""
 
             if verbosity >= 2:
-                self.stdout.write(
-                    f"- session#{session.id}: clean plan fields (dry_run={dry_run})"
-                )
+                self.stdout.write(f"- session#{session.id}: clean plan fields (dry_run={dry_run})")
 
             if not dry_run:
                 session.content = serialize_session_plan_fields(fields)

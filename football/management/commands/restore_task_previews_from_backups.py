@@ -104,12 +104,7 @@ def _looks_like_pitch_only_preview(raw: bytes) -> bool:
             white_ratio = whitish / total
             dark_ratio = darkish / total
             other_ratio = other / total
-            return (
-                green_ratio >= 0.70
-                and other_ratio <= 0.06
-                and white_ratio <= 0.38
-                and dark_ratio <= 0.55
-            )
+            return green_ratio >= 0.70 and other_ratio <= 0.06 and white_ratio <= 0.38 and dark_ratio <= 0.55
     except Exception:
         return False
 

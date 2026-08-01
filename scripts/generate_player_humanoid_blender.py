@@ -1,9 +1,8 @@
 import math
 import os
 
-import bpy
 import bmesh
-
+import bpy
 
 OUT_PATH = "/Volumes/Mac Satecchi/Mac/Web-stats/football/static/football/models/avatar/player_humanoid.glb"
 
@@ -150,8 +149,12 @@ def build_player():
 
     root = new_empty("PlayerRoot", location=(0, 0, 0))
     torso_pivot = new_empty("TorsoPivot", parent=root, location=(0, 0, 1.05))
-    left_arm_pivot = new_empty("LeftArmPivot", parent=torso_pivot, location=(-0.36, 0, 0.34), rotation=(0, 0, math.radians(8)))
-    right_arm_pivot = new_empty("RightArmPivot", parent=torso_pivot, location=(0.36, 0, 0.34), rotation=(0, 0, math.radians(-8)))
+    left_arm_pivot = new_empty(
+        "LeftArmPivot", parent=torso_pivot, location=(-0.36, 0, 0.34), rotation=(0, 0, math.radians(8))
+    )
+    right_arm_pivot = new_empty(
+        "RightArmPivot", parent=torso_pivot, location=(0.36, 0, 0.34), rotation=(0, 0, math.radians(-8))
+    )
     left_leg_pivot = new_empty("LeftLegPivot", parent=root, location=(-0.13, 0, 0.9))
     right_leg_pivot = new_empty("RightLegPivot", parent=root, location=(0.13, 0, 0.9))
 
@@ -259,7 +262,19 @@ def build_player():
     )
     right_hand = add_box("RightHand", (0.05, 0.04, 0.08), (0, 0, -0.82), parent=right_arm_pivot, material=skin)
 
-    for obj in (left_arm, left_forearm, left_hand, right_arm, right_forearm, right_hand, neck, chest_band, stripe_left, stripe_mid, stripe_right):
+    for obj in (
+        left_arm,
+        left_forearm,
+        left_hand,
+        right_arm,
+        right_forearm,
+        right_hand,
+        neck,
+        chest_band,
+        stripe_left,
+        stripe_mid,
+        stripe_right,
+    ):
         bevel(obj, width=0.012)
 
     left_thigh = add_tapered_cylinder(

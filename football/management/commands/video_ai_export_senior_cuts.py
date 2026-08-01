@@ -34,8 +34,8 @@ class Command(BaseCommand):
         if not model_path.exists():
             raise CommandError(f"No existe modelo YOLO: {model_path}")
         try:
-            from ultralytics import YOLO  # noqa: WPS433
             import cv2  # noqa: WPS433
+            from ultralytics import YOLO  # noqa: WPS433
         except Exception as exc:
             raise CommandError(f"No están disponibles ultralytics/cv2: {exc}") from exc
 
@@ -52,7 +52,10 @@ class Command(BaseCommand):
                 reports.append({"rank": rank, "error": "source_clip_not_found"})
                 continue
             senior = item.get("senior") if isinstance(item.get("senior"), dict) else {}
-            out_path = out_dir / f"senior_selectivo_{rank:02d}_{float(item.get('start_s') or 0):.1f}_{float(item.get('end_s') or 0):.1f}.mp4"
+            out_path = (
+                out_dir
+                / f"senior_selectivo_{rank:02d}_{float(item.get('start_s') or 0):.1f}_{float(item.get('end_s') or 0):.1f}.mp4"
+            )
             report = self._render_clip(
                 cv2=cv2,
                 model=model,
@@ -68,12 +71,22 @@ class Command(BaseCommand):
             reports.append(report)
             if out_path.exists():
                 exported.append(str(out_path))
-        (out_dir / "senior_export_report.json").write_text(json.dumps(reports, ensure_ascii=False, indent=2), encoding="utf-8")
+        (out_dir / "senior_export_report.json").write_text(
+            json.dumps(reports, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
         (out_dir / "exports.txt").write_text("\n".join(exported), encoding="utf-8")
-        self.stdout.write(json.dumps({"ok": True, "exported": len(exported), "out_dir": str(out_dir), "files": exported}, ensure_ascii=False, indent=2))
+        self.stdout.write(
+            json.dumps(
+                {"ok": True, "exported": len(exported), "out_dir": str(out_dir), "files": exported},
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
 
     def _find_source_clip(self, source_dir: Path, rank: int) -> Path | None:
-        candidates = sorted(source_dir.glob(f"cut_{rank:02d}_*.mp4")) + sorted(source_dir.glob(f"annotated_cut_{rank:02d}_*.mp4"))
+        candidates = sorted(source_dir.glob(f"cut_{rank:02d}_*.mp4")) + sorted(
+            source_dir.glob(f"annotated_cut_{rank:02d}_*.mp4")
+        )
         return candidates[0] if candidates else None
 
     def _render_clip(self, *, cv2, model, src: Path, out_path: Path, senior: dict, conf: float, imgsz: int) -> dict:
@@ -130,12 +143,17 @@ class Command(BaseCommand):
                 row["centers"].append((cx, cy))
                 row["area"].append(max(1.0, (det["box"][2] - det["box"][0]) * (det["box"][3] - det["box"][1])))
                 if ball_center:
-                    row["near_ball"].append(math.hypot((cx - ball_center[0]) / max(1, width), (cy - ball_center[1]) / max(1, height)))
+                    row["near_ball"].append(
+                        math.hypot((cx - ball_center[0]) / max(1, width), (cy - ball_center[1]) / max(1, height))
+                    )
             frames.append({"idx": idx, "image": frame, "people": detections, "ball": ball})
 
         selected = self._select_tracks(stats, senior)
         role_names = senior.get("selected_roles") if isinstance(senior.get("selected_roles"), list) else []
-        role_by_track = {tid: self._ascii(role_names[pos] if pos < len(role_names) else f"protagonista {pos + 1}") for pos, tid in enumerate(selected)}
+        role_by_track = {
+            tid: self._ascii(role_names[pos] if pos < len(role_names) else f"protagonista {pos + 1}")
+            for pos, tid in enumerate(selected)
+        }
         tmp_video = out_path.with_suffix(".video.mp4")
         writer = cv2.VideoWriter(str(tmp_video), cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height))
         if not writer.isOpened():
@@ -207,7 +225,9 @@ class Command(BaseCommand):
     def _draw_ball(self, cv2, img, box: list[float]) -> None:
         cx, cy = self._center(box)
         cv2.circle(img, (int(cx), int(cy)), 18, (34, 211, 238), 3)
-        cv2.putText(img, "balon", (int(cx) + 18, int(cy) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.52, (34, 211, 238), 2, cv2.LINE_AA)
+        cv2.putText(
+            img, "balon", (int(cx) + 18, int(cy) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.52, (34, 211, 238), 2, cv2.LINE_AA
+        )
 
     def _mux_audio(self, src: Path, video_only: Path, out_path: Path) -> None:
         ffmpeg = shutil.which("ffmpeg")

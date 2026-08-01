@@ -4,7 +4,6 @@ from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
 
-
 BASE_DIR = Path(__file__).resolve().parents[3]
 SCRIPT_PATH = BASE_DIR / "scripts" / "import_from_rfef.py"
 
@@ -36,9 +35,7 @@ class Command(BaseCommand):
                 timeout=timeout,
             )
         except subprocess.TimeoutExpired as exc:
-            raise CommandError(
-                f"Timeout al actualizar clasificación de la federación ({timeout}s)."
-            ) from exc
+            raise CommandError(f"Timeout al actualizar clasificación de la federación ({timeout}s).") from exc
         except Exception as exc:  # pragma: no cover
             raise CommandError(f"Error lanzando la importación: {exc}") from exc
 

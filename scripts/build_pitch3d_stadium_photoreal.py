@@ -3,7 +3,6 @@ from pathlib import Path
 
 import bpy
 
-
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "football/static/football/models/pitch3d/stadium_bowl_premium.glb"
 MATERIALS = ROOT / "football/static/football/materials/pitch3d/ambientcg"
@@ -190,9 +189,29 @@ def add_row_bands(prefix, inner_x, inner_y, radius, depth_start, depth_end, z_st
         d0 = depth_start + row * step
         d1 = d0 + step * 0.72
         z = z_start + (d0 - depth_start) * slope
-        flat_ring(f"{prefix}_seat_band_{row:02d}_TEAM_PRIMARY", inner_x + d0, inner_y + d0, inner_x + d1, inner_y + d1, radius + d0, radius + d1, z + 0.10, mat_seat)
+        flat_ring(
+            f"{prefix}_seat_band_{row:02d}_TEAM_PRIMARY",
+            inner_x + d0,
+            inner_y + d0,
+            inner_x + d1,
+            inner_y + d1,
+            radius + d0,
+            radius + d1,
+            z + 0.10,
+            mat_seat,
+        )
         if row % 4 == 0:
-            flat_ring(f"{prefix}_concrete_tread_{row:02d}", inner_x + d0 + step * 0.79, inner_y + d0 + step * 0.79, inner_x + d0 + step * 0.86, inner_y + d0 + step * 0.86, radius + d0 + step * 0.79, radius + d0 + step * 0.86, z, mat_step)
+            flat_ring(
+                f"{prefix}_concrete_tread_{row:02d}",
+                inner_x + d0 + step * 0.79,
+                inner_y + d0 + step * 0.79,
+                inner_x + d0 + step * 0.86,
+                inner_y + d0 + step * 0.86,
+                radius + d0 + step * 0.79,
+                radius + d0 + step * 0.86,
+                z,
+                mat_step,
+            )
 
 
 def add_stadium(mats):
@@ -217,12 +236,58 @@ def add_stadium(mats):
     flat_ring("photoreal_outer_public_concourse", 90.0, 70.5, 99.0, 79.5, 40.0, 49.0, 0.08, concrete)
 
     # Continuous bowl shells: no floating standalone stands.
-    sloped_ring("photoreal_lower_precast_bowl_solid_shell", inner_x, inner_y, radius, 0.0, 18.0, 0.90, 7.20, dark_concrete, 18)
-    sloped_ring("photoreal_lower_continuous_seating_deck_TEAM_PRIMARY", inner_x + 0.8, inner_y + 0.8, radius + 0.8, 1.4, 16.5, 2.05, 7.75, seat, 18)
-    flat_ring("photoreal_mid_concourse_ring", inner_x + 18.0, inner_y + 18.0, inner_x + 21.4, inner_y + 21.4, radius + 18.0, radius + 21.4, 7.95, concrete)
-    sloped_ring("photoreal_upper_precast_bowl_solid_shell", inner_x, inner_y, radius, 20.2, 35.0, 8.40, 15.25, dark_concrete, 16)
-    sloped_ring("photoreal_upper_continuous_seating_deck_TEAM_PRIMARY", inner_x + 1.2, inner_y + 1.2, radius + 1.2, 21.0, 34.0, 9.20, 15.70, seat, 16)
-    flat_ring("photoreal_upper_public_concourse", inner_x + 35.3, inner_y + 35.3, inner_x + 39.0, inner_y + 39.0, radius + 35.3, radius + 39.0, 15.92, concrete)
+    sloped_ring(
+        "photoreal_lower_precast_bowl_solid_shell", inner_x, inner_y, radius, 0.0, 18.0, 0.90, 7.20, dark_concrete, 18
+    )
+    sloped_ring(
+        "photoreal_lower_continuous_seating_deck_TEAM_PRIMARY",
+        inner_x + 0.8,
+        inner_y + 0.8,
+        radius + 0.8,
+        1.4,
+        16.5,
+        2.05,
+        7.75,
+        seat,
+        18,
+    )
+    flat_ring(
+        "photoreal_mid_concourse_ring",
+        inner_x + 18.0,
+        inner_y + 18.0,
+        inner_x + 21.4,
+        inner_y + 21.4,
+        radius + 18.0,
+        radius + 21.4,
+        7.95,
+        concrete,
+    )
+    sloped_ring(
+        "photoreal_upper_precast_bowl_solid_shell", inner_x, inner_y, radius, 20.2, 35.0, 8.40, 15.25, dark_concrete, 16
+    )
+    sloped_ring(
+        "photoreal_upper_continuous_seating_deck_TEAM_PRIMARY",
+        inner_x + 1.2,
+        inner_y + 1.2,
+        radius + 1.2,
+        21.0,
+        34.0,
+        9.20,
+        15.70,
+        seat,
+        16,
+    )
+    flat_ring(
+        "photoreal_upper_public_concourse",
+        inner_x + 35.3,
+        inner_y + 35.3,
+        inner_x + 39.0,
+        inner_y + 39.0,
+        radius + 35.3,
+        radius + 39.0,
+        15.92,
+        concrete,
+    )
 
     # Opaque exterior facade and rear wall behind upper tier.
     vertical_ring("photoreal_lower_exterior_building_wall", 78.2, 60.2, 28.2, 0.20, 8.80, dark_concrete)
@@ -234,36 +299,111 @@ def add_stadium(mats):
 
     # Integrated player tunnel: dark mouth with real mass and seating deck above.
     cube("photoreal_players_tunnel_black_mouth", (0, -39.15, 2.65), (12.4, 0.85, 3.20), mats["black"], bevel=0.04)
-    cube("photoreal_players_tunnel_left_concrete_cheek", (-14.2, -45.2, 4.20), (17.0, 15.0, 8.0), dark_concrete, (0.03, 0, 0), bevel=0.04)
-    cube("photoreal_players_tunnel_right_concrete_cheek", (14.2, -45.2, 4.20), (17.0, 15.0, 8.0), dark_concrete, (0.03, 0, 0), bevel=0.04)
+    cube(
+        "photoreal_players_tunnel_left_concrete_cheek",
+        (-14.2, -45.2, 4.20),
+        (17.0, 15.0, 8.0),
+        dark_concrete,
+        (0.03, 0, 0),
+        bevel=0.04,
+    )
+    cube(
+        "photoreal_players_tunnel_right_concrete_cheek",
+        (14.2, -45.2, 4.20),
+        (17.0, 15.0, 8.0),
+        dark_concrete,
+        (0.03, 0, 0),
+        bevel=0.04,
+    )
     cube("photoreal_players_tunnel_lintel", (0, -39.8, 4.55), (18.2, 1.1, 0.70), concrete, bevel=0.04)
-    cube("photoreal_players_tunnel_covered_ramp", (0, -45.6, 0.18), (11.4, 11.0, 0.22), asphalt, (0.03, 0, 0), bevel=0.01)
+    cube(
+        "photoreal_players_tunnel_covered_ramp", (0, -45.6, 0.18), (11.4, 11.0, 0.22), asphalt, (0.03, 0, 0), bevel=0.01
+    )
     cube("photoreal_tunnel_upper_bridge_deck", (0, -50.6, 8.15), (94.0, 18.0, 1.00), concrete, (0.04, 0, 0), bevel=0.04)
-    cube("photoreal_tunnel_upper_seating_plane_TEAM_PRIMARY", (0, -53.2, 10.8), (92.0, 18.0, 0.36), seat, (0.10, 0, 0), bevel=0.02)
+    cube(
+        "photoreal_tunnel_upper_seating_plane_TEAM_PRIMARY",
+        (0, -53.2, 10.8),
+        (92.0, 18.0, 0.36),
+        seat,
+        (0.10, 0, 0),
+        bevel=0.02,
+    )
     cube("photoreal_tunnel_rear_team_wall_TEAM_ACCENT", (0, -63.2, 14.2), (104.0, 1.1, 9.2), accent, bevel=0.04)
 
     # Vomitories, aligned and framed as architectural portals.
     for x in (-48, -32, -16, 0, 16, 32, 48):
         for side, y, sign in (("north", 39.55, 1), ("south", -39.55, -1)):
-            cube(f"photoreal_{side}_lower_vomitory_black_{x}", (x, y, 3.45), (4.0, 0.66, 2.55), mats["black"], bevel=0.02)
-            cube(f"photoreal_{side}_vomitory_lintel_{x}", (x, y + sign * 0.35, 4.95), (5.0, 0.48, 0.42), concrete, bevel=0.03)
-            cube(f"photoreal_{side}_stair_spine_{x}", (x, y + sign * 12.0, 7.45), (1.25, 22.0, 0.25), concrete, (-0.06 * sign, 0, 0), bevel=0.01)
-            cube(f"photoreal_{side}_stair_glass_l_{x}", (x - 0.82, y + sign * 12.0, 8.10), (0.08, 20.5, 0.72), glass, (-0.06 * sign, 0, 0), bevel=0.01)
-            cube(f"photoreal_{side}_stair_glass_r_{x}", (x + 0.82, y + sign * 12.0, 8.10), (0.08, 20.5, 0.72), glass, (-0.06 * sign, 0, 0), bevel=0.01)
+            cube(
+                f"photoreal_{side}_lower_vomitory_black_{x}", (x, y, 3.45), (4.0, 0.66, 2.55), mats["black"], bevel=0.02
+            )
+            cube(
+                f"photoreal_{side}_vomitory_lintel_{x}",
+                (x, y + sign * 0.35, 4.95),
+                (5.0, 0.48, 0.42),
+                concrete,
+                bevel=0.03,
+            )
+            cube(
+                f"photoreal_{side}_stair_spine_{x}",
+                (x, y + sign * 12.0, 7.45),
+                (1.25, 22.0, 0.25),
+                concrete,
+                (-0.06 * sign, 0, 0),
+                bevel=0.01,
+            )
+            cube(
+                f"photoreal_{side}_stair_glass_l_{x}",
+                (x - 0.82, y + sign * 12.0, 8.10),
+                (0.08, 20.5, 0.72),
+                glass,
+                (-0.06 * sign, 0, 0),
+                bevel=0.01,
+            )
+            cube(
+                f"photoreal_{side}_stair_glass_r_{x}",
+                (x + 0.82, y + sign * 12.0, 8.10),
+                (0.08, 20.5, 0.72),
+                glass,
+                (-0.06 * sign, 0, 0),
+                bevel=0.01,
+            )
     for y in (-34, -17, 0, 17, 34):
         for side, x, sign in (("east", 57.55, 1), ("west", -57.55, -1)):
-            cube(f"photoreal_{side}_lower_vomitory_black_{y}", (x, y, 3.45), (0.66, 4.0, 2.55), mats["black"], bevel=0.02)
-            cube(f"photoreal_{side}_vomitory_lintel_{y}", (x + sign * 0.35, y, 4.95), (0.48, 5.0, 0.42), concrete, bevel=0.03)
-            cube(f"photoreal_{side}_stair_spine_{y}", (x + sign * 12.0, y, 7.45), (22.0, 1.25, 0.25), concrete, (0, -0.06 * sign, 0), bevel=0.01)
+            cube(
+                f"photoreal_{side}_lower_vomitory_black_{y}", (x, y, 3.45), (0.66, 4.0, 2.55), mats["black"], bevel=0.02
+            )
+            cube(
+                f"photoreal_{side}_vomitory_lintel_{y}",
+                (x + sign * 0.35, y, 4.95),
+                (0.48, 5.0, 0.42),
+                concrete,
+                bevel=0.03,
+            )
+            cube(
+                f"photoreal_{side}_stair_spine_{y}",
+                (x + sign * 12.0, y, 7.45),
+                (22.0, 1.25, 0.25),
+                concrete,
+                (0, -0.06 * sign, 0),
+                bevel=0.01,
+            )
 
     # Pitchside LED boards and premium dugouts.
     flat_ring("photoreal_crisp_pitchside_led_RING_FACE_TEAM_ACCENT", 55.5, 37.5, 56.2, 38.2, 5.5, 6.2, 1.05, led)
     for x in (-10.5, 10.5):
         cube(f"photoreal_dugout_base_{x}", (x, -36.0, 0.28), (15.0, 2.4, 0.24), asphalt, bevel=0.03)
         cube(f"photoreal_dugout_polycarbonate_back_{x}", (x, -36.75, 1.30), (14.4, 0.12, 1.75), glass, bevel=0.02)
-        cube(f"photoreal_dugout_curved_roof_{x}", (x, -35.95, 2.20), (14.8, 2.1, 0.16), glass, (-0.16, 0, 0), bevel=0.04)
+        cube(
+            f"photoreal_dugout_curved_roof_{x}", (x, -35.95, 2.20), (14.8, 2.1, 0.16), glass, (-0.16, 0, 0), bevel=0.04
+        )
         for i in range(10):
-            cube(f"photoreal_dugout_seat_{x}_{i}_TEAM_PRIMARY", (x - 5.4 + i * 1.2, -35.55, 0.78), (0.62, 0.52, 0.24), seat, bevel=0.04)
+            cube(
+                f"photoreal_dugout_seat_{x}_{i}_TEAM_PRIMARY",
+                (x - 5.4 + i * 1.2, -35.55, 0.78),
+                (0.62, 0.52, 0.24),
+                seat,
+                bevel=0.04,
+            )
 
     # Continuous cantilever roof with soffit, trusses and floodlights.
     flat_ring("photoreal_roof_dark_soffit", 75.0, 57.0, 95.5, 77.5, 25.0, 45.5, 18.8, mats["black"])
@@ -289,7 +429,9 @@ def add_stadium(mats):
         cube(f"photoreal_west_facade_fin_{y}", (-93.6, y, 10.0), (0.22, 0.22, 8.2), concrete, bevel=0.01)
     cube("photoreal_main_scoreboard_frame", (0, 58.4, 14.6), (16.0, 0.46, 5.2), mats["black"], bevel=0.04)
     cube("photoreal_main_scoreboard_face_FACE_TEAM_ACCENT", (0, 58.05, 14.6), (14.5, 0.08, 4.3), led, bevel=0.02)
-    bpy.ops.mesh.primitive_cylinder_add(vertices=96, radius=3.3, depth=0.18, location=(0, 57.8, 18.0), rotation=(math.pi / 2, 0, 0))
+    bpy.ops.mesh.primitive_cylinder_add(
+        vertices=96, radius=3.3, depth=0.18, location=(0, 57.8, 18.0), rotation=(math.pi / 2, 0, 0)
+    )
     crest = bpy.context.object
     crest.name = "photoreal_roof_round_crest_TEAM_PRIMARY"
     crest.data.materials.append(seat)
@@ -342,15 +484,43 @@ def add_real_stadium_detail_pass(mats):
     for x in range(-78, 79, 12):
         cube(f"real_detail_north_roof_vertical_mast_{x}", (x, 76.4, 14.8), (0.24, 0.24, 8.6), metal, bevel=0.01)
         cube(f"real_detail_south_roof_vertical_mast_{x}", (x, -76.4, 14.8), (0.24, 0.24, 8.6), metal, bevel=0.01)
-        cube(f"real_detail_north_roof_cross_brace_a_{x}", (x + 3.0, 67.3, 19.1), (0.14, 17.8, 0.16), metal, (0.58, 0, 0), bevel=0.01)
-        cube(f"real_detail_south_roof_cross_brace_a_{x}", (x + 3.0, -67.3, 19.1), (0.14, 17.8, 0.16), metal, (-0.58, 0, 0), bevel=0.01)
+        cube(
+            f"real_detail_north_roof_cross_brace_a_{x}",
+            (x + 3.0, 67.3, 19.1),
+            (0.14, 17.8, 0.16),
+            metal,
+            (0.58, 0, 0),
+            bevel=0.01,
+        )
+        cube(
+            f"real_detail_south_roof_cross_brace_a_{x}",
+            (x + 3.0, -67.3, 19.1),
+            (0.14, 17.8, 0.16),
+            metal,
+            (-0.58, 0, 0),
+            bevel=0.01,
+        )
         cube(f"real_detail_north_lamp_cluster_extra_{x}", (x, 54.4, 16.6), (5.6, 0.15, 0.20), light, bevel=0.01)
         cube(f"real_detail_south_lamp_cluster_extra_{x}", (x, -54.4, 16.6), (5.6, 0.15, 0.20), light, bevel=0.01)
     for y in range(-60, 61, 12):
         cube(f"real_detail_east_roof_vertical_mast_{y}", (94.4, y, 14.8), (0.24, 0.24, 8.6), metal, bevel=0.01)
         cube(f"real_detail_west_roof_vertical_mast_{y}", (-94.4, y, 14.8), (0.24, 0.24, 8.6), metal, bevel=0.01)
-        cube(f"real_detail_east_roof_cross_brace_a_{y}", (84.3, y + 3.0, 19.1), (17.8, 0.14, 0.16), metal, (0, 0.58, 0), bevel=0.01)
-        cube(f"real_detail_west_roof_cross_brace_a_{y}", (-84.3, y + 3.0, 19.1), (17.8, 0.14, 0.16), metal, (0, -0.58, 0), bevel=0.01)
+        cube(
+            f"real_detail_east_roof_cross_brace_a_{y}",
+            (84.3, y + 3.0, 19.1),
+            (17.8, 0.14, 0.16),
+            metal,
+            (0, 0.58, 0),
+            bevel=0.01,
+        )
+        cube(
+            f"real_detail_west_roof_cross_brace_a_{y}",
+            (-84.3, y + 3.0, 19.1),
+            (17.8, 0.14, 0.16),
+            metal,
+            (0, -0.58, 0),
+            bevel=0.01,
+        )
         cube(f"real_detail_east_lamp_cluster_extra_{y}", (74.4, y, 16.6), (0.15, 5.6, 0.20), light, bevel=0.01)
         cube(f"real_detail_west_lamp_cluster_extra_{y}", (-74.4, y, 16.6), (0.15, 5.6, 0.20), light, bevel=0.01)
 
@@ -358,27 +528,91 @@ def add_real_stadium_detail_pass(mats):
     alt_seat = mat("TEAM_PRIMARY_ALT_SEAT_SHADE", (0.020, 0.34, 0.24, 1), 0.54, 0.02)
     for idx, d in enumerate((5.0, 8.2, 11.4, 14.6, 24.5, 27.6, 30.7, 33.2)):
         if idx % 2 == 0:
-            flat_ring(f"real_detail_subtle_seat_variation_{idx}_TEAM_PRIMARY", 57.0 + d, 39.0 + d, 57.0 + d + 0.40, 39.0 + d + 0.40, 7.0 + d, 7.0 + d + 0.40, 2.3 + idx * 0.95, alt_seat)
+            flat_ring(
+                f"real_detail_subtle_seat_variation_{idx}_TEAM_PRIMARY",
+                57.0 + d,
+                39.0 + d,
+                57.0 + d + 0.40,
+                39.0 + d + 0.40,
+                7.0 + d,
+                7.0 + d + 0.40,
+                2.3 + idx * 0.95,
+                alt_seat,
+            )
     for x in (-54, -36, -18, 0, 18, 36, 54):
-        cube(f"real_detail_north_aisle_concrete_cut_{x}", (x, 50.0, 5.6), (1.45, 20.0, 0.30), concrete, (-0.08, 0, 0), bevel=0.01)
-        cube(f"real_detail_south_aisle_concrete_cut_{x}", (x, -50.0, 5.6), (1.45, 20.0, 0.30), concrete, (0.08, 0, 0), bevel=0.01)
-        cube(f"real_detail_north_aisle_handrail_{x}", (x + 0.86, 50.0, 6.2), (0.08, 18.5, 0.75), metal, (-0.08, 0, 0), bevel=0.01)
-        cube(f"real_detail_south_aisle_handrail_{x}", (x + 0.86, -50.0, 6.2), (0.08, 18.5, 0.75), metal, (0.08, 0, 0), bevel=0.01)
+        cube(
+            f"real_detail_north_aisle_concrete_cut_{x}",
+            (x, 50.0, 5.6),
+            (1.45, 20.0, 0.30),
+            concrete,
+            (-0.08, 0, 0),
+            bevel=0.01,
+        )
+        cube(
+            f"real_detail_south_aisle_concrete_cut_{x}",
+            (x, -50.0, 5.6),
+            (1.45, 20.0, 0.30),
+            concrete,
+            (0.08, 0, 0),
+            bevel=0.01,
+        )
+        cube(
+            f"real_detail_north_aisle_handrail_{x}",
+            (x + 0.86, 50.0, 6.2),
+            (0.08, 18.5, 0.75),
+            metal,
+            (-0.08, 0, 0),
+            bevel=0.01,
+        )
+        cube(
+            f"real_detail_south_aisle_handrail_{x}",
+            (x + 0.86, -50.0, 6.2),
+            (0.08, 18.5, 0.75),
+            metal,
+            (0.08, 0, 0),
+            bevel=0.01,
+        )
     for y in (-42, -28, -14, 0, 14, 28, 42):
-        cube(f"real_detail_east_aisle_concrete_cut_{y}", (68.0, y, 5.6), (20.0, 1.45, 0.30), concrete, (0, -0.08, 0), bevel=0.01)
-        cube(f"real_detail_west_aisle_concrete_cut_{y}", (-68.0, y, 5.6), (20.0, 1.45, 0.30), concrete, (0, 0.08, 0), bevel=0.01)
+        cube(
+            f"real_detail_east_aisle_concrete_cut_{y}",
+            (68.0, y, 5.6),
+            (20.0, 1.45, 0.30),
+            concrete,
+            (0, -0.08, 0),
+            bevel=0.01,
+        )
+        cube(
+            f"real_detail_west_aisle_concrete_cut_{y}",
+            (-68.0, y, 5.6),
+            (20.0, 1.45, 0.30),
+            concrete,
+            (0, 0.08, 0),
+            bevel=0.01,
+        )
 
     # Pitch realism and technical equipment visible in real aerial references.
     grass_dark = mat("PITCH_MOWING_DARK_STRIPE", (0.035, 0.30, 0.11, 1), 0.62, 0.0)
     grass_light = mat("PITCH_MOWING_LIGHT_STRIPE", (0.10, 0.46, 0.16, 1), 0.58, 0.0)
     for i, x in enumerate(range(-48, 49, 12)):
-        cube(f"real_detail_pitch_mowing_stripe_{i}", (x, 0, 0.012), (12.0, 69.0, 0.012), grass_light if i % 2 else grass_dark, bevel=0)
+        cube(
+            f"real_detail_pitch_mowing_stripe_{i}",
+            (x, 0, 0.012),
+            (12.0, 69.0, 0.012),
+            grass_light if i % 2 else grass_dark,
+            bevel=0,
+        )
     for x in (-47.8, 47.8):
         cube(f"real_detail_goal_frame_backbar_{x}", (x, 0, 1.25), (0.10, 7.32, 0.10), metal, bevel=0.01)
     for x in (-50, 50):
         for y in (-32, 32):
             cyl(f"real_detail_corner_flag_pole_{x}_{y}", (x, y, 0.75), 0.035, 1.5, metal, vertices=12)
-            cube(f"real_detail_corner_flag_{x}_{y}_TEAM_SECONDARY", (x + (0.24 if x < 0 else -0.24), y, 1.35), (0.45, 0.03, 0.28), mats["secondary"], bevel=0.005)
+            cube(
+                f"real_detail_corner_flag_{x}_{y}_TEAM_SECONDARY",
+                (x + (0.24 if x < 0 else -0.24), y, 1.35),
+                (0.45, 0.03, 0.28),
+                mats["secondary"],
+                bevel=0.005,
+            )
 
 
 def add_definitive_completion_pass(mats):
@@ -396,20 +630,75 @@ def add_definitive_completion_pass(mats):
     # reading in the tactical camera and makes the bowl feel like one building.
     for sx in (-1, 1):
         for sy in (-1, 1):
-            cube(f"definitive_corner_foundation_{sx}_{sy}", (sx * 75.5, sy * 56.5, 4.3), (29.0, 29.0, 8.6), dark_concrete, bevel=0.05)
-            cube(f"definitive_corner_lower_seating_carpet_TEAM_PRIMARY_{sx}_{sy}", (sx * 68.8, sy * 50.6, 8.05), (30.0, 24.0, 0.55), seat, (-0.11 * sy, 0.10 * sx, 0), bevel=0.02)
-            cube(f"definitive_corner_upper_seating_carpet_TEAM_PRIMARY_{sx}_{sy}", (sx * 82.0, sy * 63.5, 15.9), (24.0, 22.0, 0.55), seat, (-0.16 * sy, 0.12 * sx, 0), bevel=0.02)
-            cube(f"definitive_corner_rear_wall_TEAM_ACCENT_{sx}_{sy}", (sx * 88.0, sy * 69.2, 12.2), (13.8, 1.15, 11.0), accent, bevel=0.03)
-            cube(f"definitive_corner_side_wall_TEAM_ACCENT_{sx}_{sy}", (sx * 93.2, sy * 60.2, 12.2), (1.15, 17.0, 11.0), accent, bevel=0.03)
+            cube(
+                f"definitive_corner_foundation_{sx}_{sy}",
+                (sx * 75.5, sy * 56.5, 4.3),
+                (29.0, 29.0, 8.6),
+                dark_concrete,
+                bevel=0.05,
+            )
+            cube(
+                f"definitive_corner_lower_seating_carpet_TEAM_PRIMARY_{sx}_{sy}",
+                (sx * 68.8, sy * 50.6, 8.05),
+                (30.0, 24.0, 0.55),
+                seat,
+                (-0.11 * sy, 0.10 * sx, 0),
+                bevel=0.02,
+            )
+            cube(
+                f"definitive_corner_upper_seating_carpet_TEAM_PRIMARY_{sx}_{sy}",
+                (sx * 82.0, sy * 63.5, 15.9),
+                (24.0, 22.0, 0.55),
+                seat,
+                (-0.16 * sy, 0.12 * sx, 0),
+                bevel=0.02,
+            )
+            cube(
+                f"definitive_corner_rear_wall_TEAM_ACCENT_{sx}_{sy}",
+                (sx * 88.0, sy * 69.2, 12.2),
+                (13.8, 1.15, 11.0),
+                accent,
+                bevel=0.03,
+            )
+            cube(
+                f"definitive_corner_side_wall_TEAM_ACCENT_{sx}_{sy}",
+                (sx * 93.2, sy * 60.2, 12.2),
+                (1.15, 17.0, 11.0),
+                accent,
+                bevel=0.03,
+            )
 
     # The tunnel side needs to read as a covered grandstand, not an open void.
     cube("definitive_tunnel_full_width_opaque_back_wall", (0, -58.6, 9.4), (96.0, 1.4, 13.4), dark_concrete, bevel=0.04)
-    cube("definitive_tunnel_roofed_volume_left", (-27.5, -47.5, 5.7), (32.0, 17.5, 10.2), dark_concrete, (0.04, 0, 0), bevel=0.04)
-    cube("definitive_tunnel_roofed_volume_right", (27.5, -47.5, 5.7), (32.0, 17.5, 10.2), dark_concrete, (0.04, 0, 0), bevel=0.04)
+    cube(
+        "definitive_tunnel_roofed_volume_left",
+        (-27.5, -47.5, 5.7),
+        (32.0, 17.5, 10.2),
+        dark_concrete,
+        (0.04, 0, 0),
+        bevel=0.04,
+    )
+    cube(
+        "definitive_tunnel_roofed_volume_right",
+        (27.5, -47.5, 5.7),
+        (32.0, 17.5, 10.2),
+        dark_concrete,
+        (0.04, 0, 0),
+        bevel=0.04,
+    )
     cube("definitive_tunnel_center_black_mouth_deep", (0, -39.9, 2.8), (13.8, 1.55, 3.65), black, bevel=0.03)
-    cube("definitive_tunnel_upper_seat_block_TEAM_PRIMARY", (0, -53.4, 12.25), (96.0, 18.0, 0.64), seat, (0.12, 0, 0), bevel=0.02)
+    cube(
+        "definitive_tunnel_upper_seat_block_TEAM_PRIMARY",
+        (0, -53.4, 12.25),
+        (96.0, 18.0, 0.64),
+        seat,
+        (0.12, 0, 0),
+        bevel=0.02,
+    )
     for x in (-43, -29, -15, 15, 29, 43):
-        cube(f"definitive_tunnel_side_aisle_{x}", (x, -51.8, 12.7), (1.7, 15.0, 0.32), concrete, (0.12, 0, 0), bevel=0.01)
+        cube(
+            f"definitive_tunnel_side_aisle_{x}", (x, -51.8, 12.7), (1.7, 15.0, 0.32), concrete, (0.12, 0, 0), bevel=0.01
+        )
 
     # A darker concrete shell and broad seat carpets make the dominant read closer to
     # real stadium photography: seating fields first, concrete only as structure/aisles.
@@ -420,7 +709,9 @@ def add_definitive_completion_pass(mats):
 
     # Strong continuous roof edge and visible light line, matching the reference idea
     # without switching to a night scene.
-    flat_ring("definitive_single_continuous_roof_plate_TEAM_SECONDARY", 72.8, 54.8, 103.0, 85.0, 22.8, 53.0, 20.75, roof)
+    flat_ring(
+        "definitive_single_continuous_roof_plate_TEAM_SECONDARY", 72.8, 54.8, 103.0, 85.0, 22.8, 53.0, 20.75, roof
+    )
     flat_ring("definitive_roof_inner_dark_lip", 70.6, 52.6, 73.4, 55.4, 20.6, 23.4, 19.0, black)
     flat_ring("definitive_roof_outer_dark_lip", 101.4, 83.4, 104.0, 86.0, 51.4, 54.0, 20.1, black)
     for x in range(-78, 79, 6):
@@ -438,10 +729,21 @@ def add_definitive_completion_pass(mats):
         cube(f"definitive_goal_end_dark_backdrop_{x}", (x, 0, 1.4), (0.35, 20.0, 2.4), black, bevel=0.02)
     for x in range(-54, 55, 18):
         cube(f"definitive_main_stand_premium_vomitory_black_{x}", (x, -39.3, 5.2), (5.2, 1.0, 4.0), black, bevel=0.02)
-        cube(f"definitive_main_stand_premium_vomitory_frame_{x}", (x, -39.9, 5.2), (6.4, 0.35, 4.8), concrete, bevel=0.02)
+        cube(
+            f"definitive_main_stand_premium_vomitory_frame_{x}", (x, -39.9, 5.2), (6.4, 0.35, 4.8), concrete, bevel=0.02
+        )
     for x in range(-72, 73, 12):
-        cube(f"definitive_roof_front_truss_bar_{x}", (x, 52.9, 19.0), (0.20, 7.8, 0.20), metal, (0.58, 0, 0), bevel=0.006)
-        cube(f"definitive_roof_back_truss_bar_{x}", (x, -52.9, 19.0), (0.20, 7.8, 0.20), metal, (-0.58, 0, 0), bevel=0.006)
+        cube(
+            f"definitive_roof_front_truss_bar_{x}", (x, 52.9, 19.0), (0.20, 7.8, 0.20), metal, (0.58, 0, 0), bevel=0.006
+        )
+        cube(
+            f"definitive_roof_back_truss_bar_{x}",
+            (x, -52.9, 19.0),
+            (0.20, 7.8, 0.20),
+            metal,
+            (-0.58, 0, 0),
+            bevel=0.006,
+        )
 
 
 def add_camera_and_lights():
@@ -464,7 +766,9 @@ def main():
         "accent": mat("TEAM_ACCENT", (0.02, 0.19, 0.15, 1), 0.48, 0.04),
         "secondary": mat("TEAM_SECONDARY", (0.94, 0.96, 0.94, 1), 0.52, 0.02),
         "concrete": pbr_mat("PHOTOREAL_PRECAST_CONCRETE", "Concrete048", (0.72, 0.74, 0.70, 1), 0.84, 0.02, 0.28),
-        "dark_concrete": pbr_mat("PHOTOREAL_DARK_STRUCTURAL_CONCRETE", "Concrete034", (0.40, 0.42, 0.40, 1), 0.88, 0.02, 0.25),
+        "dark_concrete": pbr_mat(
+            "PHOTOREAL_DARK_STRUCTURAL_CONCRETE", "Concrete034", (0.40, 0.42, 0.40, 1), 0.88, 0.02, 0.25
+        ),
         "metal": pbr_mat("PHOTOREAL_BRUSHED_METAL", "Metal049A", (0.62, 0.66, 0.66, 1), 0.32, 0.35, 0.25),
         "roof": pbr_mat("PHOTOREAL_CORRUGATED_ROOF", "CorrugatedSteel009", (0.76, 0.78, 0.77, 1), 0.38, 0.42, 0.30),
         "asphalt": pbr_mat("PHOTOREAL_SERVICE_ASPHALT", "Road012A", (0.055, 0.060, 0.060, 1), 0.82, 0.02, 0.22),

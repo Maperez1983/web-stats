@@ -6,14 +6,16 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('football', '0108_rivalvideo_is_base'),
+        ("football", "0108_rivalvideo_is_base"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='analystvideofolder',
-            name='is_visible_to_players',
-            field=models.BooleanField(default=False, help_text='Si está activo, la carpeta (y sus vídeos) se muestra en el espacio de Jugadores del equipo.'),
+            model_name="analystvideofolder",
+            name="is_visible_to_players",
+            field=models.BooleanField(
+                default=False,
+                help_text="Si está activo, la carpeta (y sus vídeos) se muestra en el espacio de Jugadores del equipo.",
+            ),
         ),
     ]
-

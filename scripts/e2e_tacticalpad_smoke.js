@@ -7,6 +7,7 @@
 //
 // Usage:
 //   E2E_BASE_URL=http://127.0.0.1:8001 E2E_USERNAME=e2e_coach E2E_PASSWORD=e2e node scripts/e2e_tacticalpad_smoke.js
+const { execFileSync } = require('child_process');
 const { chromium, webkit } = require('playwright');
 
 function pickBrowserType() {
@@ -25,10 +26,89 @@ function extractFirstObjectOfKind(state, kind) {
   return null;
 }
 
+function bootstrapRosterIfNeeded(username) {
+  const code = `
+from django.contrib.auth import get_user_model
+from django.contrib.sessions.models import Session
+from football.models import Player, Team, Workspace, WorkspaceMembership, WorkspaceTeam
+
+username = ${JSON.stringify(String(username || '').trim())}
+session_key = ${JSON.stringify(String(process.env.E2E_SESSION_KEY || '').trim())}
+user = get_user_model().objects.filter(username=username).first()
+if user:
+    workspace_id = 0
+    team_id = 0
+    if session_key:
+        sess = Session.objects.filter(session_key=session_key).first()
+        if sess:
+            data = sess.get_decoded() or {}
+            workspace_id = int(data.get('active_workspace_id') or 0)
+            mapping = data.get('active_team_by_workspace') or {}
+            team_id = int(mapping.get(str(workspace_id)) or 0)
+    team = Team.objects.filter(id=team_id).first() if team_id else None
+    workspace = Workspace.objects.filter(id=workspace_id).first() if workspace_id else None
+    if not team and workspace:
+        link = (
+            WorkspaceTeam.objects
+            .select_related('team')
+            .filter(workspace=workspace)
+            .order_by('-is_default', 'id')
+            .first()
+        )
+        team = link.team if link else getattr(workspace, 'primary_team', None)
+    if not team:
+        membership = (
+            WorkspaceMembership.objects
+            .select_related('workspace')
+            .filter(user=user, workspace__kind=Workspace.KIND_CLUB)
+            .order_by('-workspace__is_active', '-workspace__id', '-id')
+            .first()
+        )
+        if membership:
+            workspace = membership.workspace
+            link = (
+                WorkspaceTeam.objects
+                .select_related('team')
+                .filter(workspace=workspace)
+                .order_by('-is_default', 'id')
+                .first()
+            )
+            team = link.team if link else getattr(workspace, 'primary_team', None)
+    if team and not Player.objects.filter(team=team).exists():
+        Player.objects.create(team=team, name='Jugador Smoke', number=10, position='MC', is_active=True)
+        print(f'BOOTSTRAPPED_PLAYER team={team.id}')
+    else:
+        print(f'BOOTSTRAPPED_PLAYER skipped team={getattr(team, "id", None)}')
+else:
+    print('BOOTSTRAPPED_PLAYER skipped user-missing')
+`;
+  execFileSync('./.venv/bin/python', ['manage.py', 'shell', '-c', code], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      DEBUG: 'true',
+      SECRET_KEY: 'dev',
+      ALLOW_SQLITE_IN_PROD: 'true',
+    },
+    stdio: 'inherit',
+  });
+}
+
 async function main() {
   const baseUrl = (process.env.E2E_BASE_URL || 'http://127.0.0.1:8000').replace(/\/+$/, '');
-  const username = process.env.E2E_USERNAME || 'e2e_coach';
-  const password = process.env.E2E_PASSWORD || 'e2e';
+  const credentialCandidates = [
+    {
+      username: process.env.E2E_USERNAME || '',
+      password: process.env.E2E_PASSWORD || '',
+    },
+    { username: 'localadmin', password: 'localadmin' },
+    { username: 'e2e_coach', password: 'e2e' },
+  ].filter((entry, index, all) => {
+    if (!entry.username || !entry.password) return false;
+    return all.findIndex((candidate) => candidate.username === entry.username && candidate.password === entry.password) === index;
+  });
+  let username = '';
+  let password = '';
   const headless = String(process.env.E2E_HEADLESS || 'true').toLowerCase() !== 'false';
   const forceDevice = String(process.env.E2E_DEVICE || 'tablet').trim().toLowerCase(); // tablet|desktop|auto
 
@@ -67,49 +147,67 @@ async function main() {
 
   try {
     // Login
-    await page.goto(`${baseUrl}/login/`, { waitUntil: 'domcontentloaded' });
-    await page.fill('input[name="username"]', username);
-    await page.fill('input[name="password"]', password);
-    const [loginResp] = await Promise.all([
-      page.waitForResponse((resp) => {
+    let loginOk = false;
+    let lastLoginError = '';
+    for (const creds of credentialCandidates) {
+      // eslint-disable-next-line no-await-in-loop
+      await page.goto(`${baseUrl}/login/`, { waitUntil: 'domcontentloaded' });
+      // eslint-disable-next-line no-await-in-loop
+      await page.fill('input[name="username"]', creds.username);
+      // eslint-disable-next-line no-await-in-loop
+      await page.fill('input[name="password"]', creds.password);
+      // eslint-disable-next-line no-await-in-loop
+      const [loginResp] = await Promise.all([
+        page.waitForResponse((resp) => {
+          try {
+            const url = resp.url() || '';
+            return url.includes('/login') && resp.request()?.method?.() === 'POST';
+          } catch (e) {
+            return false;
+          }
+        }).catch(() => null),
+        page.click('button[type="submit"]'),
+        page.waitForNavigation({ waitUntil: 'domcontentloaded' }).catch(() => null),
+      ]);
+      // eslint-disable-next-line no-await-in-loop
+      const errText = await page.locator('.error').first().textContent().catch(() => '');
+      if (errText && errText.trim()) {
+        lastLoginError = `Login failed${loginResp ? ` [status=${loginResp.status()}]` : ''} (${errText.trim().slice(0, 180)})`;
+        continue;
+      }
+      // Login robusto: algunos despliegues devuelven 200 y redirigen por JS (la URL puede seguir siendo /login).
+      const hasSessionCookie = async () => {
         try {
-          const url = resp.url() || '';
-          return url.includes('/login') && resp.request()?.method?.() === 'POST';
+          const cookies = await context.cookies();
+          return (cookies || []).some((c) => {
+            const name = String(c?.name || '').toLowerCase();
+            return name === 'sessionid' || name === 'webstats_sessionid' || name.includes('sessionid');
+          });
         } catch (e) {
           return false;
         }
-      }).catch(() => null),
-      page.click('button[type="submit"]'),
-      page.waitForNavigation({ waitUntil: 'domcontentloaded' }).catch(() => null),
-    ]);
-    // Si hay un mensaje de error visible, fallamos explícitamente.
-    const errText = await page.locator('.error').first().textContent().catch(() => '');
-    if (errText && errText.trim()) {
-      const status = loginResp ? loginResp.status() : null;
-      throw new Error(`Login failed${status ? ` [status=${status}]` : ''} (${errText.trim().slice(0, 180)})`);
-    }
-
-    // Login robusto: algunos despliegues devuelven 200 y redirigen por JS (la URL puede seguir siendo /login).
-    const hasSessionCookie = async () => {
-      try {
-        const cookies = await context.cookies();
-        return (cookies || []).some((c) => {
-          const name = String(c?.name || '').toLowerCase();
-          return name === 'sessionid' || name === 'webstats_sessionid' || name.includes('sessionid');
-        });
-      } catch (e) {
-        return false;
+      };
+      let cookieOk = false;
+      for (let i = 0; i < 12; i += 1) {
+        // eslint-disable-next-line no-await-in-loop
+        if (await hasSessionCookie()) {
+          cookieOk = true;
+          break;
+        }
+        // eslint-disable-next-line no-await-in-loop
+        await page.waitForTimeout(250);
       }
-    };
-    for (let i = 0; i < 12; i += 1) {
-      // eslint-disable-next-line no-await-in-loop
-      if (await hasSessionCookie()) break;
-      // eslint-disable-next-line no-await-in-loop
-      await page.waitForTimeout(250);
+      if (!cookieOk) {
+        lastLoginError = `Login failed${loginResp ? ` [status=${loginResp.status()}]` : ''}`;
+        continue;
+      }
+      username = creds.username;
+      password = creds.password;
+      loginOk = true;
+      break;
     }
-    if (!(await hasSessionCookie())) {
-      const status = loginResp ? loginResp.status() : null;
-      throw new Error(`Login failed${status ? ` [status=${status}]` : ''}`);
+    if (!loginOk) {
+      throw new Error(lastLoginError || 'Login failed');
     }
 
     // Clear previous tactical-pad error marker to detect fresh failures.
@@ -155,7 +253,42 @@ async function main() {
 
     // Add a player token using the roster bank (always visible in the editor).
     // We simulate the iPad workflow: drag a player into the pitch (pointer-based DnD).
-    const bankBtn = page.locator('#task-player-bank button.player-token-bank').first();
+    const bankRoot = page.locator('[data-testid="task-player-bank"]').first();
+    try {
+      await bankRoot.waitFor({ state: 'visible', timeout: 4_000 });
+    } catch (e) {
+      await page.evaluate(() => {
+        try {
+          if (window.__webstatsTpadSetLibraryCollapsed) {
+            window.__webstatsTpadSetLibraryCollapsed(false);
+            return;
+          }
+        } catch (error) { /* ignore */ }
+        try { document.getElementById('task-library-toggle')?.click(); } catch (error) { /* ignore */ }
+      }).catch(() => null);
+      await page.waitForFunction(() => !document.body.classList.contains('library-collapsed'), null, { timeout: 10_000 }).catch(() => null);
+      try {
+        await bankRoot.waitFor({ state: 'visible', timeout: 35_000 });
+      } catch (innerError) {
+        throw innerError;
+      }
+    }
+    let bankBtn = bankRoot.locator('button.player-token-bank').first();
+    let bankCount = await bankBtn.count().catch(() => 0);
+    if (!bankCount) {
+      const cookies = await context.cookies();
+      const sessionCookie = cookies.find((cookie) => String(cookie?.name || '').toLowerCase().includes('sessionid'));
+      if (sessionCookie?.value) {
+        process.env.E2E_SESSION_KEY = sessionCookie.value;
+      }
+      bootstrapRosterIfNeeded(username);
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await page.waitForSelector('#create-task-canvas', { timeout: 35_000 });
+      await upperCanvas.waitFor({ state: 'visible', timeout: 35_000 });
+      await page.waitForTimeout(4000);
+      await bankRoot.waitFor({ state: 'visible', timeout: 35_000 });
+      bankBtn = bankRoot.locator('button.player-token-bank').first();
+    }
     await bankBtn.waitFor({ state: 'visible', timeout: 35_000 });
 
     const bankBox = await bankBtn.boundingBox();
@@ -170,7 +303,7 @@ async function main() {
     // Simulate pointer-based drag (iPad/pen/touch) rather than HTML5 drag-and-drop.
     // We dispatch PointerEvents because Playwright's mouse may trigger native DnD on draggable elements.
     const pointerId = 77;
-    await page.dispatchEvent('#task-player-bank button.player-token-bank', 'pointerdown', {
+    await page.dispatchEvent('[data-testid="task-player-bank"] button.player-token-bank', 'pointerdown', {
       pointerId,
       button: 0,
       clientX: startX,
@@ -277,6 +410,21 @@ async function main() {
         const sizeOk = rect && rect.width > 40 && rect.height > 40;
         return !hidden && !!sizeOk;
       });
+      console.log('[e2e] dock-state', await page.evaluate(() => {
+        const dock = document.getElementById('task-selection-dock');
+        const toolbar = document.getElementById('task-selection-toolbar');
+        const rect = dock?.getBoundingClientRect?.();
+        return {
+          dockExists: !!dock,
+          dockHidden: !!dock?.hidden,
+          dockAttrHidden: dock?.getAttribute('hidden') != null,
+          toolbarHidden: !!toolbar?.hidden,
+          toolbarAttrHidden: toolbar?.getAttribute('hidden') != null,
+          rect: rect ? { left: rect.left, top: rect.top, width: rect.width, height: rect.height } : null,
+          dockClass: dock?.className || '',
+          bodyClasses: document.body.className,
+        };
+      }));
       if (!dockVisible) throw new Error('Inspector flotante (task-selection-dock) no visible tras seleccionar objeto');
 
       // Close button should exist and hide dock.

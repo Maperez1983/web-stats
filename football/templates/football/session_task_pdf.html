@@ -1115,9 +1115,7 @@
                       <div>
                         <span class="tag">Vista 3D (plasmado automático)</span>
                         <div class="preview-frame" aria-label="Vista 3D de la tarea">
-                          {% if pdf_live_preview_mode and task_preview_3d_embed_url %}
-                          <div class="preview-embed"><iframe src="{{ task_preview_3d_embed_url }}" loading="lazy" referrerpolicy="same-origin" title="Vista 3D (plasmado automático)"></iframe></div>
-                          {% elif task_preview_3d_url %}
+                          {% if task_preview_3d_url %}
                           <div class="preview-img"><img src="{{ task_preview_3d_url }}" alt="Vista 3D (plasmado automático)" /></div>
                           {% elif graphic_view_3d_url and graphic_view_3d_url != task_preview_3d_embed_url %}
                           <div class="preview-img"><img src="{{ graphic_view_3d_url }}" alt="Vista 3D (plasmado automático)" /></div>
@@ -1139,9 +1137,7 @@
                       <div>
                         <span class="tag">Recreación 3D</span>
                         <div class="preview-frame" aria-label="Recreación 3D">
-                          {% if pdf_live_preview_mode and recreation_3d_embed_url %}
-                          <div class="preview-embed"><iframe src="{{ recreation_3d_embed_url }}" loading="lazy" referrerpolicy="same-origin" title="Recreación 3D"></iframe></div>
-                          {% elif recreation_3d_url %}
+                          {% if recreation_3d_url %}
                           <div class="preview-img"><img src="{{ recreation_3d_url }}" alt="Recreación 3D" /></div>
                           {% else %}
                           <div style="display:flex; align-items:center; justify-content:center; height:100%; min-height:180px; color:#6b7280; font-weight:700;">Sin recreación configurada</div>
@@ -1514,10 +1510,8 @@
                     <div class="preview-img"><img src="{{ frame.preview_3d_url }}" alt="Pizarra 3D {{ forloop.counter }}" /></div>
                     {% elif pdf_live_preview_mode and frame.preview_3d_embed_url %}
                     <div class="preview-embed"><iframe src="{{ frame.preview_3d_embed_url }}" loading="lazy" referrerpolicy="same-origin" title="Pizarra 3D {{ forloop.counter }}"></iframe></div>
-                    {% elif frame.preview_2d_url %}
-                    <div class="preview-img"><img src="{{ frame.preview_2d_url }}" alt="Pizarra 2D de respaldo {{ forloop.counter }}" /></div>
-                    {% elif frame.preview_url %}
-                    <div class="preview-img"><img src="{{ frame.preview_url }}" alt="Pizarra {{ forloop.counter }}" /></div>
+                    {% else %}
+                    <div class="placeholder-note">Sin vista 3D</div>
                     {% endif %}
                   </div>
                 </div>
@@ -1540,7 +1534,7 @@
             </div>
             {% endfor %}
           </div>
-		          {% elif task_preview_2d_url or task_preview_3d_url %}
+		          {% elif task_preview_2d_url or task_preview_3d_url or task_preview_3d_embed_url %}
               <div class="dual-preview-grid">
                 <div class="dual-preview-card">
                   <span class="tag">Vista 2D</span>
@@ -1553,9 +1547,7 @@
                 <div class="dual-preview-card">
                   <span class="tag">Vista 3D</span>
                   <div class="preview-frame" style="height:{{ pdf_graphic_height_px|default:380 }}px;" aria-label="Vista 3D de la tarea">
-                    {% if pdf_live_preview_mode and task_preview_3d_embed_url %}
-                    <div class="preview-embed"><iframe src="{{ task_preview_3d_embed_url }}" loading="lazy" referrerpolicy="same-origin" title="Vista 3D de la tarea"></iframe></div>
-                    {% elif task_preview_3d_url %}
+                    {% if task_preview_3d_url %}
                     <div class="preview-img"><img src="{{ task_preview_3d_url }}" alt="Vista 3D de la tarea" /></div>
                     {% endif %}
                   </div>
@@ -1624,9 +1616,7 @@
                 <div class="dual-preview-card">
                   <span class="tag">Vista 3D</span>
                   <div class="preview-frame" aria-label="Paso 3D {{ forloop.counter }}">
-                    {% if pdf_live_preview_mode and frame.preview_3d_embed_url %}
-                    <div class="preview-embed"><iframe src="{{ frame.preview_3d_embed_url }}" loading="lazy" referrerpolicy="same-origin" title="Paso 3D {{ forloop.counter }}"></iframe></div>
-                    {% elif frame.preview_3d_url %}
+                    {% if frame.preview_3d_url %}
                     <div class="preview-img"><img src="{{ frame.preview_3d_url }}" alt="Paso 3D {{ forloop.counter }}" /></div>
                     {% endif %}
                   </div>

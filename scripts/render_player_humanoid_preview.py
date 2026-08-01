@@ -1,8 +1,8 @@
-import bpy
 import math
 import os
-from mathutils import Vector
 
+import bpy
+from mathutils import Vector
 
 MODEL_PATH = "/Volumes/Mac Satecchi/Mac/Web-stats/football/static/football/models/avatar/player_humanoid.glb"
 OUT_FRONT = "/Volumes/Mac Satecchi/Mac/Downloads/player_humanoid_front.png"

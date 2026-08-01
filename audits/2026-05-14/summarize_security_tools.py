@@ -5,7 +5,6 @@ import json
 from collections import Counter, defaultdict
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 OUT_DIR = ROOT / "audits" / "2026-05-14"
 
@@ -131,4 +130,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

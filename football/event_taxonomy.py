@@ -1,7 +1,6 @@
 import re
 import unicodedata
 
-
 SUCCESS_RESULTS = {"ok", "ganado", "g", "ganó", "goles", "anotado", "marcado"}
 
 # Disparos "a puerta" usados históricamente por el staff (ej: "AP") o nuevas variantes.
@@ -183,58 +182,58 @@ TERCIO_MAP = {
     "ataque centro": "Ataque",
     "ataque izquierdo": "Ataque",
 }
-STANDARD_TERCIO_LABELS = ['Ataque', 'Construcción', 'Defensa']
-SHOT_KEYWORDS = {'tiro', 'remate', 'disparo', 'chuza', 'chute'}
+STANDARD_TERCIO_LABELS = ["Ataque", "Construcción", "Defensa"]
+SHOT_KEYWORDS = {"tiro", "remate", "disparo", "chuza", "chute"}
 PASS_KEYWORDS = {
-    'pase',
-    'pases',
-    'pase clave',
-    'pase al hueco',
-    'pase a la espalda',
-    'cambio de orientacion',
-    'cambio orientacion',
-    'switch',
+    "pase",
+    "pases",
+    "pase clave",
+    "pase al hueco",
+    "pase a la espalda",
+    "cambio de orientacion",
+    "cambio orientacion",
+    "switch",
 }
-KEY_PASS_KEYWORDS = {'pase clave', 'ultimo pase', 'último pase', 'key pass'}
-DRIBBLE_KEYWORDS = {'regate', 'regates', 'dribbling', 'dribble', 'conduccion', 'conducción'}
-GOALKEEPER_SAVE_KEYWORDS = {'parada', 'paradas', 'atajada', 'atajadas', 'blocaje', 'blocajes'}
-GOAL_KEYWORDS = {'gol', 'goles', 'anotado', 'marcado', 'goal'}
-ASSIST_KEYWORDS = {'asistencia', 'asist', 'pase gol', 'asiste'}
-YELLOW_CARD_KEYWORDS = {'amarilla', 'tarjeta amarilla'}
-RED_CARD_KEYWORDS = {'roja', 'tarjeta roja'}
-SUBSTITUTION_KEYWORDS = {'sustitucion', 'sustitución', 'cambio'}
+KEY_PASS_KEYWORDS = {"pase clave", "ultimo pase", "último pase", "key pass"}
+DRIBBLE_KEYWORDS = {"regate", "regates", "dribbling", "dribble", "conduccion", "conducción"}
+GOALKEEPER_SAVE_KEYWORDS = {"parada", "paradas", "atajada", "atajadas", "blocaje", "blocajes"}
+GOAL_KEYWORDS = {"gol", "goles", "anotado", "marcado", "goal"}
+ASSIST_KEYWORDS = {"asistencia", "asist", "pase gol", "asiste"}
+YELLOW_CARD_KEYWORDS = {"amarilla", "tarjeta amarilla"}
+RED_CARD_KEYWORDS = {"roja", "tarjeta roja"}
+SUBSTITUTION_KEYWORDS = {"sustitucion", "sustitución", "cambio"}
 SUB_ENTRY_KEYWORDS = {
-    'entrada',
-    'entrante',
-    'subida',
-    'entra',
-    'entrar',
-    'ingresa',
-    'ingresar',
-    'in',
+    "entrada",
+    "entrante",
+    "subida",
+    "entra",
+    "entrar",
+    "ingresa",
+    "ingresar",
+    "in",
 }
 SUB_EXIT_KEYWORDS = {
-    'salida',
-    'saliente',
-    'bajada',
-    'sale',
-    'salir',
-    'retira',
-    'retirado',
-    'out',
+    "salida",
+    "saliente",
+    "bajada",
+    "sale",
+    "salir",
+    "retira",
+    "retirado",
+    "out",
 }
 
 
 def _build_field_zones():
     sections = [
-        {'key': 'Defensa', 'label': 'Defensa', 'left_pct': 0, 'width_pct': 35},
-        {'key': 'Medio', 'label': 'Medio', 'left_pct': 35, 'width_pct': 30},
-        {'key': 'Ataque', 'label': 'Ataque', 'left_pct': 65, 'width_pct': 35},
+        {"key": "Defensa", "label": "Defensa", "left_pct": 0, "width_pct": 35},
+        {"key": "Medio", "label": "Medio", "left_pct": 35, "width_pct": 30},
+        {"key": "Ataque", "label": "Ataque", "left_pct": 65, "width_pct": 35},
     ]
     lanes = [
-        {'suffix': 'Izquierda', 'top_pct': 0, 'height_pct': 33},
-        {'suffix': 'Centro', 'top_pct': 33, 'height_pct': 34},
-        {'suffix': 'Derecha', 'top_pct': 67, 'height_pct': 33},
+        {"suffix": "Izquierda", "top_pct": 0, "height_pct": 33},
+        {"suffix": "Centro", "top_pct": 33, "height_pct": 34},
+        {"suffix": "Derecha", "top_pct": 67, "height_pct": 33},
     ]
     zones = []
     for section in sections:
@@ -243,37 +242,37 @@ def _build_field_zones():
             label = f"{section['label']} {lane['suffix']}"
             zones.append(
                 {
-                    'key': key,
-                    'label': label,
-                    'left': f"{section['left_pct']}%",
-                    'top': f"{lane['top_pct']}%",
-                    'width': f"{section['width_pct']}%",
-                    'height': f"{lane['height_pct']}%",
-                    'left_pct': section['left_pct'],
-                    'top_pct': lane['top_pct'],
-                    'width_pct': section['width_pct'],
-                    'height_pct': lane['height_pct'],
+                    "key": key,
+                    "label": label,
+                    "left": f"{section['left_pct']}%",
+                    "top": f"{lane['top_pct']}%",
+                    "width": f"{section['width_pct']}%",
+                    "height": f"{lane['height_pct']}%",
+                    "left_pct": section["left_pct"],
+                    "top_pct": lane["top_pct"],
+                    "width_pct": section["width_pct"],
+                    "height_pct": lane["height_pct"],
                 }
             )
     zones.append(
         {
-            'key': 'Portería',
-            'label': 'Portería',
-            'left': '0%',
-            'top': '40%',
-            'width': '8%',
-            'height': '20%',
-            'left_pct': 0,
-            'top_pct': 40,
-            'width_pct': 8,
-            'height_pct': 20,
+            "key": "Portería",
+            "label": "Portería",
+            "left": "0%",
+            "top": "40%",
+            "width": "8%",
+            "height": "20%",
+            "left_pct": 0,
+            "top_pct": 40,
+            "width_pct": 8,
+            "height_pct": 20,
         }
     )
     return zones
 
 
 FIELD_ZONES = _build_field_zones()
-FIELD_ZONE_KEYS = [zone['key'] for zone in FIELD_ZONES]
+FIELD_ZONE_KEYS = [zone["key"] for zone in FIELD_ZONES]
 
 
 def normalize_label(value):
@@ -413,15 +412,21 @@ def classify_duel_event(event_type, result=None, observation=None, zone=None):
         )
     if is_duel:
         if subtype == "offensive":
-            success = any(keyword in result_text for keyword in DUEL_OFFENSIVE_SUCCESS_KEYWORDS) or result_is_success(result)
+            success = any(keyword in result_text for keyword in DUEL_OFFENSIVE_SUCCESS_KEYWORDS) or result_is_success(
+                result
+            )
             failure = any(keyword in result_text for keyword in DUEL_OFFENSIVE_FAIL_KEYWORDS)
             won = success and not failure
         elif subtype == "defensive":
-            success = any(keyword in result_text for keyword in DUEL_DEFENSIVE_SUCCESS_KEYWORDS) or result_is_success(result)
+            success = any(keyword in result_text for keyword in DUEL_DEFENSIVE_SUCCESS_KEYWORDS) or result_is_success(
+                result
+            )
             failure = any(keyword in result_text for keyword in DUEL_DEFENSIVE_FAIL_KEYWORDS)
             won = success and not failure
         else:
-            success = any(keyword in result_text for keyword in DUEL_GENERIC_SUCCESS_KEYWORDS) or duel_result_is_success(result)
+            success = any(
+                keyword in result_text for keyword in DUEL_GENERIC_SUCCESS_KEYWORDS
+            ) or duel_result_is_success(result)
             failure = any(keyword in result_text for keyword in DUEL_GENERIC_FAIL_KEYWORDS)
             won = success and not failure
 
@@ -445,16 +450,16 @@ def categorize_position(player_position, zone):
 def zone_to_tercio(zone_label):
     normalized = normalize_label(zone_label)
     if not normalized:
-        return ''
-    if 'porteria' in normalized or 'meta' in normalized:
-        return 'Defensa'
-    if 'defensa' in normalized:
-        return 'Defensa'
-    if 'medio' in normalized or 'construcción' in normalized:
-        return 'Construcción'
-    if 'ataque' in normalized:
-        return 'Ataque'
-    return ''
+        return ""
+    if "porteria" in normalized or "meta" in normalized:
+        return "Defensa"
+    if "defensa" in normalized:
+        return "Defensa"
+    if "medio" in normalized or "construcción" in normalized:
+        return "Construcción"
+    if "ataque" in normalized:
+        return "Ataque"
+    return ""
 
 
 def map_tercio(raw):
@@ -501,9 +506,9 @@ def calculate_importance_score(minutes, total_possible_minutes, successes, max_s
     importance_score = round((availability_pct * 0.6) + (success_volume_pct * 0.4), 1)
     importance_score = max(0, min(importance_score, 100))
     return {
-        'availability_pct': availability_pct,
-        'success_volume_pct': success_volume_pct,
-        'importance_score': importance_score,
+        "availability_pct": availability_pct,
+        "success_volume_pct": success_volume_pct,
+        "importance_score": importance_score,
     }
 
 
@@ -538,9 +543,9 @@ def calculate_influence_score(
     )
     influence_pct = max(0, min(influence_pct, 100))
     return {
-        'successes_per90': successes_per90,
-        'decisive_actions_per90': decisive_actions_per90,
-        'influence_score': influence_pct,
+        "successes_per90": successes_per90,
+        "decisive_actions_per90": decisive_actions_per90,
+        "influence_score": influence_pct,
     }
 
 
@@ -555,7 +560,7 @@ def min_or_none(current, candidate):
 def extract_round_number(value):
     if not value:
         return None
-    match = re.search(r'(\d+)', str(value))
+    match = re.search(r"(\d+)", str(value))
     if not match:
         return None
     try:
@@ -567,89 +572,93 @@ def extract_round_number(value):
 def infer_player_profile(position):
     normalized = normalize_label(position)
     if not normalized:
-        return 'midfielder'
-    if normalized in {'por', 'gk'} or 'portero' in normalized:
-        return 'goalkeeper'
-    if normalized in {'dc', 'sd'} or any(token in normalized for token in ('delantero', 'punta', 'nueve', '9')):
-        return 'striker'
-    if normalized in {'ed', 'ei'} or any(token in normalized for token in ('extremo', 'banda', 'winger')):
-        return 'winger'
-    if normalized in {'dfc', 'ld', 'li'} or any(token in normalized for token in ('defensa', 'central', 'lateral', 'carrilero')):
-        return 'defender'
-    if normalized in {'mcd', 'mc', 'mp'} or 'interior' in normalized:
-        return 'midfielder'
-    return 'midfielder'
+        return "midfielder"
+    if normalized in {"por", "gk"} or "portero" in normalized:
+        return "goalkeeper"
+    if normalized in {"dc", "sd"} or any(token in normalized for token in ("delantero", "punta", "nueve", "9")):
+        return "striker"
+    if normalized in {"ed", "ei"} or any(token in normalized for token in ("extremo", "banda", "winger")):
+        return "winger"
+    if normalized in {"dfc", "ld", "li"} or any(
+        token in normalized for token in ("defensa", "central", "lateral", "carrilero")
+    ):
+        return "defender"
+    if normalized in {"mcd", "mc", "mp"} or "interior" in normalized:
+        return "midfielder"
+    return "midfielder"
 
 
 def format_profile_label(profile):
     return {
-        'goalkeeper': 'Portero',
-        'defender': 'Defensa',
-        'midfielder': 'Mediocampo',
-        'winger': 'Extremo',
-        'striker': 'Delantero',
-    }.get(profile, 'Jugador')
+        "goalkeeper": "Portero",
+        "defender": "Defensa",
+        "midfielder": "Mediocampo",
+        "winger": "Extremo",
+        "striker": "Delantero",
+    }.get(profile, "Jugador")
 
 
 def build_smart_kpis(stats):
-    profile = infer_player_profile(stats.get('position') or '')
-    pj = max(1, int(stats.get('pj', 0) or 0))
-    success_rate = round((stats.get('successes', 0) / stats.get('total_actions', 0)) * 100, 1) if stats.get('total_actions') else 0
-    shots = int(stats.get('shot_attempts', 0) or 0)
-    goals = int(stats.get('goals', 0) or 0)
-    assists = int(stats.get('assists', 0) or 0)
-    goalkeeper_saves = int(stats.get('goalkeeper_saves', 0) or 0)
-    duels_total = int(stats.get('duels_total', 0) or 0)
-    duels_won = int(stats.get('duels_won', 0) or 0)
+    profile = infer_player_profile(stats.get("position") or "")
+    pj = max(1, int(stats.get("pj", 0) or 0))
+    success_rate = (
+        round((stats.get("successes", 0) / stats.get("total_actions", 0)) * 100, 1) if stats.get("total_actions") else 0
+    )
+    shots = int(stats.get("shot_attempts", 0) or 0)
+    goals = int(stats.get("goals", 0) or 0)
+    assists = int(stats.get("assists", 0) or 0)
+    goalkeeper_saves = int(stats.get("goalkeeper_saves", 0) or 0)
+    duels_total = int(stats.get("duels_total", 0) or 0)
+    duels_won = int(stats.get("duels_won", 0) or 0)
     duel_rate = round((duels_won / duels_total) * 100, 1) if duels_total else 0
-    dribbles_total = int(stats.get('dribbles_attempted', 0) or 0)
-    dribbles_won = int(stats.get('dribbles_completed', 0) or 0)
+    dribbles_total = int(stats.get("dribbles_attempted", 0) or 0)
+    dribbles_won = int(stats.get("dribbles_completed", 0) or 0)
     dribble_rate = round((dribbles_won / dribbles_total) * 100, 1) if dribbles_total else 0
-    passes_attempts = int(stats.get('pass_attempts', 0) or 0)
-    passes_completed = int(stats.get('passes_completed', 0) or 0)
+    passes_attempts = int(stats.get("pass_attempts", 0) or 0)
+    passes_completed = int(stats.get("passes_completed", 0) or 0)
     pass_rate = round((passes_completed / passes_attempts) * 100, 1) if passes_attempts else 0
     goals_per_match = round(goals / pj, 2)
     shots_per_goal = shots_needed_per_goal(shots, goals)
 
-    if profile == 'goalkeeper':
+    if profile == "goalkeeper":
         kpis = [
-            {'label': 'Paradas', 'value': f'{goalkeeper_saves}'},
-            {'label': 'Paradas/PJ', 'value': f'{round(goalkeeper_saves / pj, 2)}'},
-            {'label': 'Efectividad', 'value': f'{success_rate}%'},
+            {"label": "Paradas", "value": f"{goalkeeper_saves}"},
+            {"label": "Paradas/PJ", "value": f"{round(goalkeeper_saves / pj, 2)}"},
+            {"label": "Efectividad", "value": f"{success_rate}%"},
         ]
-    elif profile == 'striker':
+    elif profile == "striker":
         kpis = [
-            {'label': 'Goles/PJ', 'value': f'{goals_per_match}'},
-            {'label': 'Disparos/Gol', 'value': '-' if shots_per_goal is None else f'{shots_per_goal}'},
-            {'label': 'Efectividad', 'value': f'{success_rate}%'},
+            {"label": "Goles/PJ", "value": f"{goals_per_match}"},
+            {"label": "Disparos/Gol", "value": "-" if shots_per_goal is None else f"{shots_per_goal}"},
+            {"label": "Efectividad", "value": f"{success_rate}%"},
         ]
-    elif profile == 'winger':
+    elif profile == "winger":
         kpis = [
-            {'label': 'Regates G/T', 'value': f'{dribbles_won}/{dribbles_total}'},
-            {'label': 'Regate %', 'value': f'{dribble_rate}%'},
-            {'label': 'Duelos %', 'value': f'{duel_rate}%'},
+            {"label": "Regates G/T", "value": f"{dribbles_won}/{dribbles_total}"},
+            {"label": "Regate %", "value": f"{dribble_rate}%"},
+            {"label": "Duelos %", "value": f"{duel_rate}%"},
         ]
-    elif profile == 'defender':
+    elif profile == "defender":
         kpis = [
-            {'label': 'Duelos G/T', 'value': f'{duels_won}/{duels_total}'},
-            {'label': 'Duelos %', 'value': f'{duel_rate}%'},
-            {'label': 'Pase %', 'value': f'{pass_rate}%'},
+            {"label": "Duelos G/T", "value": f"{duels_won}/{duels_total}"},
+            {"label": "Duelos %", "value": f"{duel_rate}%"},
+            {"label": "Pase %", "value": f"{pass_rate}%"},
         ]
-    elif profile == 'midfielder':
+    elif profile == "midfielder":
         kpis = [
-            {'label': 'Duelos G/T', 'value': f'{duels_won}/{duels_total}'},
-            {'label': 'Pase %', 'value': f'{pass_rate}%'},
-            {'label': 'Efectividad', 'value': f'{success_rate}%'},
+            {"label": "Duelos G/T", "value": f"{duels_won}/{duels_total}"},
+            {"label": "Pase %", "value": f"{pass_rate}%"},
+            {"label": "Efectividad", "value": f"{success_rate}%"},
         ]
     else:
         kpis = [
-            {'label': 'Efectividad', 'value': f'{success_rate}%'},
-            {'label': 'Duelos G/T', 'value': f'{duels_won}/{duels_total}'},
-            {'label': 'Pase %', 'value': f'{pass_rate}%'},
+            {"label": "Efectividad", "value": f"{success_rate}%"},
+            {"label": "Duelos G/T", "value": f"{duels_won}/{duels_total}"},
+            {"label": "Pase %", "value": f"{pass_rate}%"},
         ]
     if assists > 0:
-        kpis = [{'label': 'Asistencias', 'value': f'{assists}'}] + [
-            item for item in kpis if item.get('label') != 'Asistencias'
+        kpis = [{"label": "Asistencias", "value": f"{assists}"}] + [
+            item for item in kpis if item.get("label") != "Asistencias"
         ]
         kpis = kpis[:3]
     return profile, format_profile_label(profile), kpis

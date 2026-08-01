@@ -1,0 +1,23 @@
+{
+  "category": "coaches",
+  "category_type": "entity",
+  "default_family": "coach_tokens",
+  "families": [
+    "coach_tokens",
+    "staff_tokens"
+  ],
+  "variants": [
+    "default",
+    "academy",
+    "premium"
+  ],
+  "fallback_asset": "coaches/coach_tokens/default",
+  "compatible_themes": [
+    "classic",
+    "academy",
+    "premium"
+  ],
+  "resolution_independent": true,
+  "theme_overrides_supported": true,
+  "assets": []
+}

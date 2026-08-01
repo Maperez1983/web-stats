@@ -8,6 +8,8 @@ import {
 import { createObject } from '../editor/objects/ObjectFactory';
 import { createDefaultScene } from '../editor/core/sceneSchema';
 import type { SceneLayerId, SceneObjectType } from '../editor/core/sceneSchema';
+import { MVP_VOCABULARY } from '../tactical-language/vocabulary';
+import type { TacticalLanguageDocument, TacticalTargetRef, TacticalVerb } from '../tactical-language/types';
 import { useEditorStore, useSelectedObject } from '../store/editorStore';
 
 const TEAM_OPTIONS = [
@@ -221,7 +223,13 @@ export function RightInspector() {
   const scene = useEditorStore((state) => state.scene);
   const selectedIds = useEditorStore((state) => state.selectedIds);
   const tacticalRecreation = useEditorStore((state) => state.tacticalRecreation);
+  const tacticalRecreationDraft = useEditorStore((state) => state.tacticalRecreationDraft);
+  const tacticalRecreationModified = useEditorStore((state) => state.tacticalRecreationModified);
   const generateRecreation = useEditorStore((state) => state.generateRecreation);
+  const patchTacticalRecreationStatement = useEditorStore((state) => state.patchTacticalRecreationStatement);
+  const moveTacticalRecreationStatement = useEditorStore((state) => state.moveTacticalRecreationStatement);
+  const removeTacticalRecreationStatement = useEditorStore((state) => state.removeTacticalRecreationStatement);
+  const resetTacticalRecreationDraft = useEditorStore((state) => state.resetTacticalRecreationDraft);
   const activeInspector = useEditorStore((state) => state.activeInspector);
   const setInspector = useEditorStore((state) => state.setInspector);
   const setObjectColor = useEditorStore((state) => state.setObjectColor);
@@ -366,6 +374,70 @@ export function RightInspector() {
         assetCategory ? asset.category === assetCategory : true
       )
     : [];
+  const tacticalDraft = tacticalRecreationDraft || tacticalRecreation?.language || null;
+  const draftStatements = tacticalDraft?.statements || [];
+  const objectOptions = useMemo(
+    () =>
+      (scene?.objects || [])
+        .slice()
+        .sort((left, right) => left.zIndex - right.zIndex)
+        .map((object) => ({
+          id: object.id,
+          label: object.data.name || object.data.label || object.type,
+          type: object.type,
+          isZone: object.type.startsWith('zone') || object.type === 'lane' || object.type === 'sector',
+        })),
+    [scene?.objects]
+  );
+  const objectLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    objectOptions.forEach((option) => {
+      map.set(option.id, option.label);
+    });
+    return map;
+  }, [objectOptions]);
+  const currentDraftSummary = tacticalDraft
+    ? `${draftStatements.length} acciones${tacticalRecreationModified ? ' · pendiente de regenerar' : ''}`
+    : 'Pendiente de generar';
+  const targetLabelByStatement = (statement: TacticalLanguageDocument['statements'][number]) => {
+    if (statement.target?.kind === 'actor') {
+      return objectLabelById.get(statement.target.actorId || statement.target.objectId || '') || statement.target.label || 'Actor';
+    }
+    if (statement.target?.kind === 'zone') {
+      return objectLabelById.get(statement.target.zoneId || statement.target.objectId || '') || statement.target.label || 'Zona';
+    }
+    if (statement.target?.kind === 'ball') {
+      return 'Balón';
+    }
+    return 'Sin destino';
+  };
+  const targetRefForObjectId = (objectId: string): TacticalTargetRef | undefined => {
+    const option = objectOptions.find((item) => item.id === objectId);
+    if (!option) {
+      return undefined;
+    }
+    if (option.isZone) {
+      return {
+        kind: 'zone',
+        zoneId: objectId,
+        objectId,
+        label: option.label,
+      };
+    }
+    if (option.type === 'ball') {
+      return {
+        kind: 'ball',
+        objectId,
+        label: option.label,
+      };
+    }
+    return {
+      kind: 'actor',
+      actorId: objectId,
+      objectId,
+      label: option.label,
+    };
+  };
 
   return (
     <aside className="te-panel te-inspector">
@@ -432,6 +504,145 @@ export function RightInspector() {
               <button type="button" data-testid="inspector-generate-recreation" onClick={() => generateRecreation()}>
                 Generar recreación
               </button>
+              {tacticalDraft ? (
+                <div className="te-tactical-editor">
+                  <div className="te-action-row wrap">
+                    <button type="button" data-testid="tactical-recreation-accept" onClick={() => void generateRecreation()}>
+                      Aceptar
+                    </button>
+                    <button type="button" data-testid="tactical-recreation-cancel" onClick={() => resetTacticalRecreationDraft()}>
+                      Cancelar
+                    </button>
+                    <button type="button" data-testid="tactical-recreation-regenerate" onClick={() => generateRecreation()}>
+                      Regenerar
+                    </button>
+                    {tacticalRecreationModified ? <span className="te-badge te-badge-warning">Borrador modificado</span> : null}
+                  </div>
+                  <div className="te-stat-note">{currentDraftSummary}</div>
+                  <div className="te-recreation-list">
+                    {draftStatements.map((statement, index) => (
+                      <article key={statement.id} className="te-recreation-item">
+                        <div className="te-recreation-item-head">
+                          <strong>
+                            {index + 1}. {statement.verb}
+                          </strong>
+                          <span>{statement.confidence.toFixed(2)}</span>
+                        </div>
+                        <div className="te-recreation-grid">
+                          <label>
+                            Acción
+                            <select
+                              value={statement.verb}
+                              onChange={(event) =>
+                                patchTacticalRecreationStatement(statement.id, {
+                                  verb: event.target.value as TacticalVerb,
+                                })
+                              }
+                            >
+                              {MVP_VOCABULARY.map((meta) => (
+                                <option key={meta.verb} value={meta.verb}>
+                                  {meta.label}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            Actor
+                            <select
+                              value={statement.subjectId}
+                              onChange={(event) =>
+                                patchTacticalRecreationStatement(statement.id, {
+                                  subjectId: event.target.value,
+                                })
+                              }
+                            >
+                              {objectOptions.map((object) => (
+                                <option key={object.id} value={object.id}>
+                                  {object.label}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            Destino
+                            <select
+                              value={
+                                statement.target?.kind === 'actor'
+                                  ? statement.target.actorId || statement.target.objectId || ''
+                                  : statement.target?.kind === 'zone'
+                                    ? statement.target.zoneId || statement.target.objectId || ''
+                                    : ''
+                              }
+                              onChange={(event) =>
+                                patchTacticalRecreationStatement(statement.id, {
+                                  target: event.target.value ? targetRefForObjectId(event.target.value) : undefined,
+                                })
+                              }
+                            >
+                              <option value="">Sin destino</option>
+                              {objectOptions.map((object) => (
+                                <option key={object.id} value={object.id}>
+                                  {object.label} · {object.type}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            Duración
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              value={typeof statement.duration === 'number' ? statement.duration : ''}
+                              onChange={(event) =>
+                                patchTacticalRecreationStatement(statement.id, {
+                                  duration: event.target.value === '' ? undefined : Number(event.target.value),
+                                })
+                              }
+                            />
+                          </label>
+                        </div>
+                        <div className="te-action-row wrap">
+                          <button type="button" onClick={() => moveTacticalRecreationStatement(statement.id, 'up')}>
+                            Subir
+                          </button>
+                          <button type="button" onClick={() => moveTacticalRecreationStatement(statement.id, 'down')}>
+                            Bajar
+                          </button>
+                          <button
+                            type="button"
+                            className={statement.parallelGroupId ? 'is-active' : ''}
+                            onClick={() =>
+                              patchTacticalRecreationStatement(statement.id, {
+                                parallelGroupId: statement.parallelGroupId ? undefined : 'parallel-group',
+                              })
+                            }
+                          >
+                            Simultánea
+                          </button>
+                          <button type="button" onClick={() => removeTacticalRecreationStatement(statement.id)}>
+                            Eliminar
+                          </button>
+                        </div>
+                        <div className="te-stat-note">
+                          {statement.target ? targetLabelByStatement(statement) : 'Sin destino'}
+                          {statement.conditions.length ? ` · ${statement.conditions.length} condición(es)` : ''}
+                        </div>
+                        {statement.conditions.length ? (
+                          <div className="te-metadata-list">
+                            {statement.conditions.map((condition) => (
+                              <div key={`${statement.id}-${condition.kind}-${condition.expression}`}>
+                                <strong>{condition.kind}</strong>
+                                <span>{condition.expression}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
             <div className="te-action-row wrap">
               <button type="button" onClick={() => selectAllObjects()}>

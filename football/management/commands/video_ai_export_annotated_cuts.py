@@ -16,7 +16,9 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--video-id", type=int, required=True)
         parser.add_argument("--collection", type=str, default="IA MaxCuts")
-        parser.add_argument("--out-dir", type=str, default="/Volumes/Mac Satecchi/Mac/Downloads/IA_MaxCuts_video_7_deep/annotated_cv")
+        parser.add_argument(
+            "--out-dir", type=str, default="/Volumes/Mac Satecchi/Mac/Downloads/IA_MaxCuts_video_7_deep/annotated_cv"
+        )
 
     def handle(self, *args, **options):
         video = RivalVideo.objects.filter(id=int(options["video_id"])).first()
@@ -25,7 +27,11 @@ class Command(BaseCommand):
         source = video.video.path
         if not source or not Path(source).exists():
             raise CommandError(f"No existe el archivo: {source}")
-        clips = list(VideoClip.objects.filter(video=video, collection=str(options["collection"] or "IA MaxCuts")).order_by("in_ms"))
+        clips = list(
+            VideoClip.objects.filter(video=video, collection=str(options["collection"] or "IA MaxCuts")).order_by(
+                "in_ms"
+            )
+        )
         if not clips:
             raise CommandError("No hay cortes para exportar.")
         out_dir = Path(str(options["out_dir"])).expanduser()
@@ -69,7 +75,11 @@ class Command(BaseCommand):
             except Exception:
                 pass
         (out_dir / "exports.txt").write_text("\n".join(exported), encoding="utf-8")
-        self.stdout.write(json.dumps({"exported": len(exported), "out_dir": str(out_dir), "files": exported}, ensure_ascii=False, indent=2))
+        self.stdout.write(
+            json.dumps(
+                {"exported": len(exported), "out_dir": str(out_dir), "files": exported}, ensure_ascii=False, indent=2
+            )
+        )
 
     def _clip_text(self, clip: VideoClip) -> tuple[str, str]:
         overlay = clip.overlay if isinstance(getattr(clip, "overlay", None), dict) else {}
@@ -89,7 +99,11 @@ class Command(BaseCommand):
         cv2.rectangle(overlay, (28, y0), (width - 28, y1), (23, 6, 2), -1)
         frame = cv2.addWeighted(overlay, 0.68, frame, 0.32, 0)
         cv2.rectangle(frame, (28, y0), (width - 28, y1), (238, 211, 34), 3)
-        cv2.putText(frame, str(label)[:52], (54, y0 + 38), cv2.FONT_HERSHEY_SIMPLEX, 0.92, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(
+            frame, str(label)[:52], (54, y0 + 38), cv2.FONT_HERSHEY_SIMPLEX, 0.92, (255, 255, 255), 2, cv2.LINE_AA
+        )
         for idx, line in enumerate(textwrap.wrap(str(explanation), width=86)[:2]):
-            cv2.putText(frame, line, (54, y0 + 76 + idx * 28), cv2.FONT_HERSHEY_SIMPLEX, 0.68, (240, 232, 226), 2, cv2.LINE_AA)
+            cv2.putText(
+                frame, line, (54, y0 + 76 + idx * 28), cv2.FONT_HERSHEY_SIMPLEX, 0.68, (240, 232, 226), 2, cv2.LINE_AA
+            )
         return frame

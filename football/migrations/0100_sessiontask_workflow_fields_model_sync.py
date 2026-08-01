@@ -38,7 +38,9 @@ def ensure_sessiontask_workflow_columns(apps, schema_editor):
 
     if "workflow_is_latest" not in cols:
         if vendor == "sqlite":
-            add_sqlite("workflow_is_latest bool", f"UPDATE {table} SET workflow_is_latest = COALESCE(workflow_is_latest, 1)")
+            add_sqlite(
+                "workflow_is_latest bool", f"UPDATE {table} SET workflow_is_latest = COALESCE(workflow_is_latest, 1)"
+            )
         elif vendor == "postgresql":
             cursor.execute(f'ALTER TABLE "{table}" ADD COLUMN workflow_is_latest boolean NOT NULL DEFAULT true')
         elif vendor == "mysql":
@@ -46,27 +48,42 @@ def ensure_sessiontask_workflow_columns(apps, schema_editor):
 
     if "workflow_status" not in cols:
         if vendor == "sqlite":
-            add_sqlite("workflow_status varchar(12)", f"UPDATE {table} SET workflow_status = COALESCE(NULLIF(workflow_status,''), 'draft')")
+            add_sqlite(
+                "workflow_status varchar(12)",
+                f"UPDATE {table} SET workflow_status = COALESCE(NULLIF(workflow_status,''), 'draft')",
+            )
         elif vendor == "postgresql":
-            cursor.execute(f'ALTER TABLE "{table}" ADD COLUMN workflow_status varchar(12) NOT NULL DEFAULT %s', ["draft"])
+            cursor.execute(
+                f'ALTER TABLE "{table}" ADD COLUMN workflow_status varchar(12) NOT NULL DEFAULT %s', ["draft"]
+            )
         elif vendor == "mysql":
             cursor.execute(f"ALTER TABLE {table} ADD COLUMN workflow_status varchar(12) NOT NULL DEFAULT 'draft'")
 
     if "workflow_version_group" not in cols:
         if vendor == "sqlite":
-            add_sqlite("workflow_version_group char(32)", f"UPDATE {table} SET workflow_version_group = COALESCE(workflow_version_group, '')")
+            add_sqlite(
+                "workflow_version_group char(32)",
+                f"UPDATE {table} SET workflow_version_group = COALESCE(workflow_version_group, '')",
+            )
         elif vendor == "postgresql":
-            cursor.execute(f'ALTER TABLE "{table}" ADD COLUMN workflow_version_group char(32) NOT NULL DEFAULT %s', [""])
+            cursor.execute(
+                f'ALTER TABLE "{table}" ADD COLUMN workflow_version_group char(32) NOT NULL DEFAULT %s', [""]
+            )
         elif vendor == "mysql":
             cursor.execute(f"ALTER TABLE {table} ADD COLUMN workflow_version_group char(32) NOT NULL DEFAULT ''")
 
     if "workflow_version_number" not in cols:
         if vendor == "sqlite":
-            add_sqlite("workflow_version_number smallint unsigned", f"UPDATE {table} SET workflow_version_number = COALESCE(workflow_version_number, 1)")
+            add_sqlite(
+                "workflow_version_number smallint unsigned",
+                f"UPDATE {table} SET workflow_version_number = COALESCE(workflow_version_number, 1)",
+            )
         elif vendor == "postgresql":
             cursor.execute(f'ALTER TABLE "{table}" ADD COLUMN workflow_version_number smallint NOT NULL DEFAULT 1')
         elif vendor == "mysql":
-            cursor.execute(f"ALTER TABLE {table} ADD COLUMN workflow_version_number smallint unsigned NOT NULL DEFAULT 1")
+            cursor.execute(
+                f"ALTER TABLE {table} ADD COLUMN workflow_version_number smallint unsigned NOT NULL DEFAULT 1"
+            )
 
 
 class Migration(migrations.Migration):
@@ -103,4 +120,3 @@ class Migration(migrations.Migration):
             ],
         )
     ]
-
