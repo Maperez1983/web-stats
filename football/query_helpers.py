@@ -246,6 +246,9 @@ def get_next_operational_calendar_match(primary_team):
         return None
     today = timezone.localdate()
     qs = _team_match_queryset(primary_team).exclude(date__isnull=True)
+    same_day_match = qs.filter(date=today).order_by('is_closed', 'kickoff_time', 'id').first()
+    if same_day_match:
+        return same_day_match
     open_upcoming = qs.filter(is_closed=False, date__gte=today).order_by('date', 'id').first()
     if open_upcoming:
         return open_upcoming

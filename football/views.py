@@ -30976,7 +30976,11 @@ def convocation_page(request):
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404("Equipo principal no configurado")
-    active_match = get_requested_match(request, primary_team) or get_next_operational_calendar_match(primary_team)
+    active_match = (
+        get_requested_match(request, primary_team)
+        or _resolve_active_match_for_flow(request, primary_team)
+        or get_next_operational_calendar_match(primary_team)
+    )
     requested_context = str(request.GET.get("context") or "").strip().lower()
     active_match_context = str(getattr(active_match, "context", "") or "").strip().lower()
     allowed_contexts = {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY}
@@ -87663,6 +87667,21 @@ def _resolve_active_match_for_flow(request, primary_team):
             active_match = None
     if not active_match:
         active_match = get_latest_live_match(primary_team) or get_active_match(primary_team)
+    if not from_explicit:
+        try:
+            operational_match = get_next_operational_calendar_match(primary_team)
+        except Exception:
+            operational_match = None
+        if operational_match:
+            active_date = getattr(active_match, "date", None) if active_match else None
+            operational_date = getattr(operational_match, "date", None)
+            today = timezone.localdate()
+            if (
+                not active_match
+                or (active_date and active_date < today)
+                or (operational_date and active_date and operational_date < active_date)
+            ):
+                active_match = operational_match
     # GUARD DE TEMPORADA: si la auto-resolución acabó en un partido ANTERIOR al inicio de la
     # temporada actual, lo descartamos (y limpiamos la sesión) para no arrastrar la convocatoria de
     # la temporada pasada (con jugadores que ya no siguen). No aplica a selección explícita.
