@@ -902,16 +902,21 @@ def player_home_page(request):
                         season_end = _season.end_date
             except Exception:
                 pass
+            # Solo cuentan las sesiones que YA se han dado. Con el calendario de la temporada
+            # creado por adelantado, contar hasta junio daba "129 de 129 asistidas" en agosto:
+            # la presencia es implicita (solo se registran las ausencias), asi que toda sesion
+            # futura contaba como asistida. El tope es HOY.
+            hasta = min(season_end, today)
             sessions_total = (
                 TrainingSession.objects.filter(
-                    microcycle__team_id=player.team_id, session_date__range=(season_start, season_end)
+                    microcycle__team_id=player.team_id, session_date__range=(season_start, hasta)
                 )
                 .exclude(status=TrainingSession.STATUS_CANCELED)
                 .count()
             )
             missed = TrainingSessionAttendance.objects.filter(
                 player=player,
-                session__session_date__range=(season_start, season_end),
+                session__session_date__range=(season_start, hasta),
                 status__in=[
                     TrainingSessionAttendance.STATUS_ABSENT,
                     TrainingSessionAttendance.STATUS_INJURED,

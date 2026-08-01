@@ -79801,9 +79801,13 @@ def player_detail_page(request, player_id):
             season_start = timezone.localdate() - timedelta(days=365)
         if not season_end:
             season_end = timezone.localdate() + timedelta(days=30)
+        # Solo las sesiones YA dadas: con el calendario de la temporada creado por adelantado,
+        # contar hasta junio daba "asistidas = todas" en agosto (la presencia es implicita).
+        # Mismo criterio que el portal del jugador para que los dos contadores cuadren.
+        session_window_end = min(season_end, timezone.localdate())
         session_total_in_season = int(
             TrainingSession.objects.filter(microcycle__team=primary_team)
-            .filter(session_date__range=(season_start, season_end))
+            .filter(session_date__range=(season_start, session_window_end))
             .exclude(status=TrainingSession.STATUS_CANCELED)
             .count()
             or 0
@@ -88389,8 +88393,11 @@ def team_calendar_ics(request):
         raise Http404("Equipo no configurado")
 
     today = timezone.localdate()
-    window_from = today - timedelta(days=30)
-    window_to = today + timedelta(days=210)
+    # Ventana del calendario. Antes eran 210 dias hacia delante y la temporada se cortaba
+    # a mitad: quien se suscribia desde el movil dejaba de ver entrenamientos a partir de
+    # febrero. Una temporada va de julio a junio, asi que hace falta cubrir un ano largo.
+    window_from = today - timedelta(days=120)
+    window_to = today + timedelta(days=430)
 
     matches = list(
         _team_match_queryset(primary_team)
