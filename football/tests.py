@@ -114,6 +114,7 @@ from football.models import (
 from football.query_helpers import (
     _team_match_queryset,
     get_active_injury_player_ids,
+    get_active_match,
     get_current_convocation_record,
     is_injury_record_active,
     is_manual_sanction_active,
@@ -11716,6 +11717,31 @@ class QueryHelperTests(TestCase):
 
         self.assertEqual(resolved.id, target_record.id)
         self.assertNotEqual(resolved.id, old_record.id)
+
+    def test_get_active_match_prefers_nearest_chronological_match_even_if_friendly(self):
+        today = timezone.localdate()
+        friendly = Match.objects.create(
+            season=self.team.group.season,
+            group=self.team.group,
+            home_team=self.team,
+            away_team=self.rival,
+            context=Match.CONTEXT_FRIENDLY,
+            round="Amistoso hoy",
+            date=today,
+        )
+        Match.objects.create(
+            season=self.team.group.season,
+            group=self.team.group,
+            home_team=self.team,
+            away_team=self.rival,
+            context=Match.CONTEXT_LEAGUE,
+            round="J2",
+            date=today + timedelta(days=2),
+        )
+
+        resolved = get_active_match(self.team)
+
+        self.assertEqual(resolved.id, friendly.id)
 
     def test_manual_sanction_helper_expires_after_until_date(self):
         player = Player.objects.create(
