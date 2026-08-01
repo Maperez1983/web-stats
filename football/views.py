@@ -42119,6 +42119,52 @@ def coach_injuries_page(request):
 
 
 @login_required
+def player_communication_detail_page(request, player_id, comm_id):
+    """
+    Ficha de una comunicación. Existe sobre todo por la publicación: en la tabla sólo se ve
+    el interruptor, y aquí queda el registro de quién la publicó y cuándo.
+    """
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    workspace = _get_active_workspace(request)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404("Equipo principal no configurado")
+    player = Player.objects.filter(id=player_id, team=primary_team).first()
+    if not player:
+        raise Http404("Jugador no encontrado")
+    comunicacion = (
+        PlayerCommunication.objects.select_related("match", "published_to_player_by")
+        .filter(id=comm_id, player=player)
+        .first()
+    )
+    if not comunicacion:
+        raise Http404("Comunicación no encontrada")
+
+    can_edit = bool(
+        _can_manage_workspace(request.user, workspace)
+        or _is_admin_user(request.user)
+        or _can_access_platform(request.user)
+    )
+    if request.method == "POST" and can_edit and str(request.POST.get("form_action") or "") == "toggle":
+        _on = not bool(comunicacion.published_to_player)
+        comunicacion.published_to_player = _on
+        comunicacion.published_to_player_at = timezone.now() if _on else None
+        comunicacion.published_to_player_by = request.user if (_on and request.user.is_authenticated) else None
+        comunicacion.save(
+            update_fields=["published_to_player", "published_to_player_at", "published_to_player_by"]
+        )
+        return redirect("player-communication-detail", player_id=player.id, comm_id=comunicacion.id)
+
+    return render(
+        request,
+        "football/player_communication_detail.html",
+        {"player": player, "comunicacion": comunicacion, "can_edit": can_edit},
+    )
+
+
+@login_required
 def player_injury_detail_page(request, player_id, record_id):
     forbidden = _forbid_if_no_coach_access(request.user)
     if forbidden:

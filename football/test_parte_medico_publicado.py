@@ -110,3 +110,52 @@ class ParteMedicoPublicadoTests(TestCase):
         )
         self.parte.refresh_from_db()
         self.assertFalse(self.parte.published_to_player)
+
+
+class FichaDeComunicacionTests(TestCase):
+    """La comunicación tiene ficha propia, con el registro de quién la publicó."""
+
+    def setUp(self):
+        cache.clear()
+        from .models import PlayerCommunication
+
+        self.owner = User.objects.create_user(username="dueno8", password="x")
+        self.workspace = Workspace.objects.create(
+            name="Club fichacom", slug="club-fichacom", kind=Workspace.KIND_CLUB, owner_user=self.owner
+        )
+        self.team = Team.objects.create(name="Senior com", slug="senior-com")
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.team, is_default=True)
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace, user=self.owner, role=WorkspaceMembership.ROLE_OWNER
+        )
+        self.player = Player.objects.create(name="Jugador Com", team=self.team, is_active=True)
+        self.comm = PlayerCommunication.objects.create(
+            player=self.player,
+            category=PlayerCommunication.CATEGORY_INTERNAL,
+            message="Reunión con el delegado el jueves",
+        )
+        self.client.force_login(self.owner)
+        session = self.client.session
+        session["active_workspace_id"] = self.workspace.id
+        session["active_team_by_workspace"] = {str(self.workspace.id): int(self.team.id)}
+        session.save()
+
+    def test_la_ficha_abre_y_muestra_el_mensaje(self):
+        resp = self.client.get(
+            reverse("player-communication-detail", args=[self.player.id, self.comm.id])
+        )
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Reunión con el delegado")
+        self.assertContains(resp, "Sólo para el staff")
+
+    def test_publicar_desde_la_ficha_deja_quien_y_cuando(self):
+        self.client.post(
+            reverse("player-communication-detail", args=[self.player.id, self.comm.id]),
+            {"form_action": "toggle"},
+        )
+        self.comm.refresh_from_db()
+
+        self.assertTrue(self.comm.published_to_player)
+        self.assertEqual(self.comm.published_to_player_by, self.owner)
+        self.assertIsNotNone(self.comm.published_to_player_at)

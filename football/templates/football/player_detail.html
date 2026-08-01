@@ -2980,7 +2980,7 @@
                   <td>{{ item.get_category_display }}</td>
                   <td>{{ item.match.round|default:'-' }}</td>
                   <td>{% if item.scheduled_for %}{{ item.scheduled_for|date:'d/m/Y H:i' }}{% else %}-{% endif %}</td>
-                  <td>{{ item.message }}</td>
+                  <td><a href="{% url 'player-communication-detail' player.id item.id %}" style="color:inherit;">{{ item.message }}</a></td>
                   <td>{{ item.created_by|default:'-' }}</td>
                   <td>
                     {% if not is_player_readonly %}

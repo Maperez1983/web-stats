@@ -92,6 +92,7 @@ urlpatterns = [
     path("players/", views.player_dashboard_page, name="player-dashboard"),
     path("players/notifications/read/", views.player_notifications_mark_read, name="player-notifications-read"),
     path("player/<int:player_id>/lesiones/<int:record_id>/", views.player_injury_detail_page, name="player-injury-detail"),
+    path("player/<int:player_id>/comunicacion/<int:comm_id>/", views.player_communication_detail_page, name="player-communication-detail"),
     path("player/<int:player_id>/avatar.png", views.player_avatar_recolored, name="player-avatar-recolored"),
     path("players/attendance/mark/", views.player_attendance_mark, name="player-attendance-mark"),
     path("players/videos/", views.player_video_library_page, name="player-video-library"),
