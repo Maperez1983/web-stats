@@ -1505,6 +1505,8 @@
           <div data-task-script-player data-script-id="task-script-json"></div>
         </section>
         {{ task_script|json_script:"task-script-json" }}
+        {% comment %}El renderizador del césped va ANTES: es el mismo que pinta la pizarra, y así el movimiento se ve sobre el campo de verdad y no sobre uno dibujado aparte.{% endcomment %}
+        <script src="{% static 'football/js/pitch_surface_25d.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
         <script src="{% static 'football/js/task_script_player.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
         <style>
           .task-script-panel .tsp-canvas { width:100%; border-radius:14px; display:block; }

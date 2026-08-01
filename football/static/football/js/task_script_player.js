@@ -56,31 +56,50 @@
     return { x: last[0], y: last[1] };
   };
 
-  const drawPitch = (ctx, w, h) => {
+  /* El campo lo pinta el MISMO renderizador que la pizarra (pitch_surface_25d.js), con el preset,
+     la orientacion y el cesped que dice el guion. Antes este reproductor dibujaba su propio campo
+     verde a franjas: dos aspectos para el mismo tablero hacen que parezca otro programa. */
+  const pitchImageCache = new Map();
+
+  const pitchImage = (pitch) => {
+    const preset = String(pitch?.preset || 'full_pitch');
+    const orientation = String(pitch?.orientation || 'landscape');
+    const grass = String(pitch?.grass || 'flat_2d');
+    const key = `${preset}|${orientation}|${grass}`;
+    if (pitchImageCache.has(key)) return pitchImageCache.get(key);
+    let img = null;
+    try {
+      const api = window.WebstatsPitch25D;
+      if (api && typeof api.buildPitchSvg === 'function') {
+        const svg = api.buildPitchSvg(preset, orientation, grass);
+        if (svg) {
+          img = new Image();
+          img.decoding = 'async';
+          img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+        }
+      }
+    } catch (e) { img = null; }
+    pitchImageCache.set(key, img);
+    return img;
+  };
+
+  // Respaldo sobrio por si el renderizador no ha cargado: verde liso, sin inventarse un estilo.
+  const drawPitchFallback = (ctx, w, h) => {
     ctx.fillStyle = '#2f7d32';
     ctx.fillRect(0, 0, w, h);
-    // Franjas de corte: dan escala y hacen que se note el movimiento.
-    ctx.fillStyle = 'rgba(255,255,255,0.045)';
-    const bands = 8;
-    for (let i = 0; i < bands; i += 1) {
-      if (i % 2) continue;
-      ctx.fillRect((w / bands) * i, 0, w / bands, h);
-    }
-    ctx.strokeStyle = 'rgba(255,255,255,0.72)';
-    ctx.lineWidth = Math.max(1.2, w * 0.0022);
-    const m = w * 0.02;
-    ctx.strokeRect(m, m, w - m * 2, h - m * 2);
-    ctx.beginPath();
-    ctx.moveTo(w / 2, m);
-    ctx.lineTo(w / 2, h - m);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(w / 2, h / 2, Math.min(w, h) * 0.13, 0, TAU);
-    ctx.stroke();
-    const areaW = w * 0.15;
-    const areaH = h * 0.44;
-    ctx.strokeRect(m, (h - areaH) / 2, areaW, areaH);
-    ctx.strokeRect(w - m - areaW, (h - areaH) / 2, areaW, areaH);
+  };
+
+  const actorImageCache = new Map();
+
+  const actorImage = (url) => {
+    if (!url) return null;
+    if (actorImageCache.has(url)) return actorImageCache.get(url);
+    const img = new Image();
+    img.decoding = 'async';
+    // Mismo origen que la pizarra: el navegador suele traerla ya cacheada.
+    img.src = url;
+    actorImageCache.set(url, img);
+    return img;
   };
 
   const drawActor = (ctx, actor, pos, w, h, radius) => {
@@ -96,24 +115,55 @@
       ctx.stroke();
       return;
     }
+    // Sombra: la misma pista de profundidad que usa la chapa en el editor.
     ctx.beginPath();
     ctx.arc(x, y + radius * 0.16, radius, 0, TAU);
     ctx.fillStyle = 'rgba(2,6,23,0.28)';
     ctx.fill();
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, TAU);
-    ctx.fillStyle = actor.color || '#2f6fd6';
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.92)';
-    ctx.lineWidth = Math.max(1.4, radius * 0.14);
-    ctx.stroke();
+
+    const img = actorImage(actor.img);
+    const listo = !!(img && img.complete && img.naturalWidth);
+    if (listo) {
+      // La figura del jugador, recortada en circulo como en la pizarra.
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, TAU);
+      ctx.clip();
+      const lado = radius * 2;
+      ctx.drawImage(img, x - radius, y - radius, lado, lado);
+      ctx.restore();
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, TAU);
+      ctx.strokeStyle = actor.color || 'rgba(255,255,255,0.92)';
+      ctx.lineWidth = Math.max(1.6, radius * 0.16);
+      ctx.stroke();
+    } else {
+      // Sin figura (o mientras carga): disco con su color, que es lo que hace la pizarra tambien.
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, TAU);
+      ctx.fillStyle = actor.color || '#2f6fd6';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.92)';
+      ctx.lineWidth = Math.max(1.4, radius * 0.14);
+      ctx.stroke();
+    }
+
     const label = String(actor.label || '').slice(0, 3);
     if (label) {
+      // El dorsal SIEMPRE encima y legible: a este tamano es lo unico que identifica de un vistazo.
+      const rr = radius * 0.62;
+      const cy = listo ? y + radius * 0.52 : y;
+      if (listo) {
+        ctx.beginPath();
+        ctx.arc(x, cy, rr, 0, TAU);
+        ctx.fillStyle = 'rgba(9,15,26,0.82)';
+        ctx.fill();
+      }
       ctx.fillStyle = '#ffffff';
-      ctx.font = `800 ${Math.round(radius * 1.05)}px system-ui, sans-serif`;
+      ctx.font = `800 ${Math.round(rr * 1.15)}px system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(label, x, y);
+      ctx.fillText(label, x, cy);
     }
   };
 
@@ -130,6 +180,13 @@
     if (steps.length < 2 || !actors.length) return;
 
     const actorById = new Map(actors.map((a) => [a.uid, a]));
+    // Las figuras llegan por red: cuando cada una carga se repinta, para no dejar discos de color
+    // en una tarea que si tiene chapas.
+    let repintar = null;
+    actors.forEach((a) => {
+      const img = actorImage(a.img);
+      if (img && !img.complete) img.addEventListener('load', () => { try { repintar && repintar(); } catch (e) {} }, { once: true });
+    });
 
     host.innerHTML = `
       <canvas class="tsp-canvas"></canvas>
@@ -180,7 +237,16 @@
 
     const render = () => {
       const { w, h } = sizeCanvas();
-      drawPitch(ctx, w, h);
+      const campo = pitchImage(script.pitch);
+      if (campo && campo.complete && campo.naturalWidth) ctx.drawImage(campo, 0, 0, w, h);
+      else {
+        drawPitchFallback(ctx, w, h);
+        // El SVG del cesped tarda un instante en decodificar: se repinta al llegar.
+        if (campo && !campo.dataset_wired) {
+          campo.dataset_wired = true;
+          campo.addEventListener('load', () => { try { render(); } catch (e) {} }, { once: true });
+        }
+      }
       const { index, t } = locate(elapsed);
       const step = steps[index] || {};
       const prev = steps[index - 1] || null;
@@ -239,6 +305,7 @@
       elapsed = (num(seek.value) / 1000) * totalSeconds;
       render();
     });
+    repintar = render;
     window.addEventListener('resize', render, { passive: true });
     render();
   };

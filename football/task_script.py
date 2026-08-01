@@ -112,6 +112,41 @@ def _actor_uid(obj, index):
     return f'obj{index}'
 
 
+# Las URL de imagen viajan tal cual (unos 60-120 bytes). Las incrustadas en base64 NO: una sola
+# pesaria mas que el guion entero y ademas ya esta dentro del lienzo, que es quien la guarda.
+MAX_IMG_LEN = 300
+
+
+def _actor_image(obj):
+    """
+    Imagen de la ficha: la MISMA que ya usa la pizarra.
+
+    Se lee del propio dibujo (el hijo `image` del grupo de la chapa), no de la base de datos: asi
+    el reproductor no puede acabar pintando un asset distinto del que ve el entrenador. Si el
+    jugador no tiene figura, se cae a su foto.
+    """
+    def buscar(nodo, hondo=0):
+        if hondo > 4 or not isinstance(nodo, dict):
+            return ''
+        src = _text(nodo.get('src'))
+        if src and not src.startswith('data:') and len(src) <= MAX_IMG_LEN:
+            return src
+        for hijo in (nodo.get('objects') if isinstance(nodo.get('objects'), list) else []):
+            encontrado = buscar(hijo, hondo + 1)
+            if encontrado:
+                return encontrado
+        return ''
+
+    url = buscar(obj)
+    if url:
+        return url
+    data = obj.get('data') if isinstance(obj.get('data'), dict) else {}
+    foto = _text(data.get('playerPhotoUrl'))
+    if foto and not foto.startswith('data:') and len(foto) <= MAX_IMG_LEN:
+        return foto
+    return ''
+
+
 def _actor_from_object(obj, index):
     data = obj.get('data') if isinstance(obj.get('data'), dict) else {}
     kind = _object_kind(obj)
@@ -125,6 +160,12 @@ def _actor_from_object(obj, index):
         'label': _text(data.get('playerNumber') or data.get('label'))[:6],
         'name': _text(data.get('playerName'))[:60],
         'color': color[:24],
+        # Identidad visual de la ficha, para que el movimiento se vea con las MISMAS chapas que la
+        # pizarra. Dos juegos de assets para el mismo tablero es lo que hace que la aplicacion
+        # parezca dos aplicaciones.
+        'img': _actor_image(obj),
+        'stripe': _text(data.get('token_stripe_color'))[:24],
+        'style': _text(data.get('token_style'))[:24],
     }
 
 
@@ -248,8 +289,11 @@ def build_script(tactical_layout):
         return {
             'v': SCRIPT_VERSION,
             'pitch': {
-                'preset': _text(meta.get('pitch_preset'), 'flat_2d')[:40],
-                'orientation': _text(meta.get('pitch_orientation'), 'h')[:4],
+                # Los tres datos que necesita el renderizador del cesped (pitch_surface_25d.js),
+                # el mismo que pinta la pizarra.
+                'preset': _text(meta.get('pitch_preset'), 'full_pitch')[:40],
+                'orientation': _text(meta.get('pitch_orientation'), 'landscape')[:16],
+                'grass': _text(meta.get('pitch_grass_style'), 'flat_2d')[:40],
             },
             'actors': list(actors_by_uid.values()),
             'steps': steps,
@@ -271,6 +315,9 @@ def normalize_script(raw):
         if not uid or uid in seen:
             continue
         seen.add(uid)
+        img = _text(item.get('img'))
+        if img.startswith('data:') or len(img) > MAX_IMG_LEN:
+            img = ''
         actors.append({
             'uid': uid,
             'kind': _text(item.get('kind'), 'token')[:16],
@@ -278,6 +325,9 @@ def normalize_script(raw):
             'label': _text(item.get('label'))[:6],
             'name': _text(item.get('name'))[:60],
             'color': _text(item.get('color'), '#2f6fd6')[:24],
+            'img': img,
+            'stripe': _text(item.get('stripe'))[:24],
+            'style': _text(item.get('style'))[:24],
         })
     if not actors:
         return {}
@@ -316,8 +366,9 @@ def normalize_script(raw):
     return {
         'v': SCRIPT_VERSION,
         'pitch': {
-            'preset': _text(pitch.get('preset'), 'flat_2d')[:40],
-            'orientation': _text(pitch.get('orientation'), 'h')[:4],
+            'preset': _text(pitch.get('preset'), 'full_pitch')[:40],
+            'orientation': _text(pitch.get('orientation'), 'landscape')[:16],
+            'grass': _text(pitch.get('grass'), 'flat_2d')[:40],
         },
         'actors': actors,
         'steps': steps,
