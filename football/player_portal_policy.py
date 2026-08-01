@@ -73,9 +73,9 @@ SECTIONS = [
     {
         'key': 'injuries',
         'label': 'Lesiones',
-        'help': 'Su historial de lesiones y plazos.',
+        'help': 'Su historial de lesiones y plazos. En "sólo lo publicado", ve el parte que el club publique.',
         'default': VISIBLE,
-        'states': (HIDDEN, VISIBLE),
+        'states': (HIDDEN, VISIBLE, PUBLISHED_ONLY),
     },
     {
         'key': 'seasons',

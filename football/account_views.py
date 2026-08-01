@@ -1003,11 +1003,12 @@ def _player_home_zones(request, player, vis):
 
             # El parte abierto (sin alta) es el que le importa; si no hay ficha de lesión
             # pero el jugador está marcado como lesionado, al menos se le dice qué tiene.
-            record = (
-                PlayerInjuryRecord.objects.filter(player=player, return_date__isnull=True)
-                .order_by("-injury_date", "-id")
-                .first()
-            )
+            _records = PlayerInjuryRecord.objects.filter(player=player, return_date__isnull=True)
+            if vis.injuries_published:
+                # "Sólo lo publicado": el parte es del staff hasta que alguien decida
+                # compartirlo. Sin parte publicado no se cae al `player.injury` de abajo.
+                _records = _records.filter(published_to_player=True)
+            record = _records.order_by("-injury_date", "-id").first()
             if record is not None:
                 zones["active_injury"] = {
                     "name": record.injury,
@@ -1015,7 +1016,7 @@ def _player_home_zones(request, player, vis):
                     "since": record.injury_date,
                     "expected_return": record.estimated_return_date,
                 }
-            elif str(getattr(player, "injury", "") or "").strip():
+            elif not vis.injuries_published and str(getattr(player, "injury", "") or "").strip():
                 zones["active_injury"] = {
                     "name": player.injury,
                     "zone": getattr(player, "injury_zone", ""),

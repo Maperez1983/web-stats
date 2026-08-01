@@ -1420,6 +1420,17 @@ class PlayerInjuryRecord(models.Model):
     )
     notes = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
+    # Un parte médico es del staff mientras nadie decida lo contrario. Con la sección de
+    # lesiones en "sólo lo publicado", el jugador ve únicamente los partes publicados.
+    published_to_player = models.BooleanField(default=False, help_text='Visible en el portal del jugador.')
+    published_to_player_at = models.DateTimeField(null=True, blank=True)
+    published_to_player_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='published_player_injuries',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

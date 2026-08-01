@@ -2721,13 +2721,20 @@
         </p>
         {% endif %}
         {% if not is_player_readonly and injury_records %}
+        {% comment %}Publicar va en su propio formulario porque la tabla vive dentro del de
+        borrado y el HTML no admite formularios anidados: los botones lo alcanzan con form=.
+        {% endcomment %}
+        <form method="post" id="injury-publish-form">
+          {% csrf_token %}
+          <input type="hidden" name="form_action" value="injury_publish" />
+        </form>
         <form method="post" onsubmit="return confirm('¿Eliminar las lesiones seleccionadas? No se puede deshacer.');">
           {% csrf_token %}
           <input type="hidden" name="form_action" value="delete-injuries" />
         {% endif %}
         <table>
           <thead>
-            <tr>{% if not is_player_readonly %}<th style="width:2.2rem;"><input type="checkbox" id="injSelectAll" aria-label="Seleccionar todas"></th>{% endif %}<th>Lesión</th><th>Tipo · Zona · Lado</th><th>Fecha lesión</th><th>Alta est.</th><th>Alta real</th><th>Días</th><th>Estado</th></tr>
+            <tr>{% if not is_player_readonly %}<th style="width:2.2rem;"><input type="checkbox" id="injSelectAll" aria-label="Seleccionar todas"></th>{% endif %}<th>Lesión</th><th>Tipo · Zona · Lado</th><th>Fecha lesión</th><th>Alta est.</th><th>Alta real</th><th>Días</th><th>Estado</th><th>¿Lo ve él?</th></tr>
           </thead>
           <tbody>
             {% for item in injury_records %}
@@ -2756,9 +2763,19 @@
                 {% endif %}
                 <div class="subtle" style="margin-top:0.25rem;">{{ item.recovered_label }}</div>
               </td>
+              <td>
+                {% if is_player_readonly %}
+                  {% if item.published_to_player %}Sí{% else %}No{% endif %}
+                {% else %}
+                  <button type="submit" class="btn ghost sm" form="injury-publish-form"
+                          name="injury_id" value="{{ item.id }}">
+                    {% if item.published_to_player %}Publicado · ocultar{% else %}Publicar{% endif %}
+                  </button>
+                {% endif %}
+              </td>
             </tr>
             {% empty %}
-            <tr><td colspan="8" class="subtle">Sin lesiones registradas.</td></tr>
+            <tr><td colspan="9" class="subtle">Sin lesiones registradas.</td></tr>
             {% endfor %}
           </tbody>
         </table>

@@ -78530,6 +78530,27 @@ def player_detail_page(request, player_id):
                     )
                 return redirect(f"{reverse('player-detail', args=[player.id])}?tab=communication")
 
+            if form_action == "injury_publish":
+                _inj_id = str(request.POST.get("injury_id") or "").strip()
+                _inj = (
+                    PlayerInjuryRecord.objects.filter(id=int(_inj_id), player=player).first()
+                    if _inj_id.isdigit()
+                    else None
+                )
+                if _inj is not None:
+                    _on = not bool(_inj.published_to_player)
+                    _inj.published_to_player = _on
+                    _inj.published_to_player_at = timezone.now() if _on else None
+                    _inj.published_to_player_by = request.user if (_on and request.user.is_authenticated) else None
+                    _inj.save(
+                        update_fields=[
+                            "published_to_player",
+                            "published_to_player_at",
+                            "published_to_player_by",
+                        ]
+                    )
+                return redirect(f"{reverse('player-detail', args=[player.id])}?tab=salud")
+
             if form_action == "communication_publish":
                 _comm_id = str(request.POST.get("communication_id") or "").strip()
                 _comm = (
