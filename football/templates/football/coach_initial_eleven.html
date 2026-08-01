@@ -3657,6 +3657,18 @@
         if (chosenGk) used.add(String(chosenGk.id));
         const fallback = [...groups.def, ...groups.mid, ...groups.fwd, ...groups.other].slice(0);
         fallback.sort((a, b) => numberValue(a) - numberValue(b));
+        const pickFromGroup = (role) => {
+          const bucket = groups[role];
+          while (bucket?.length) {
+            const cand = bucket.shift();
+            if (!cand?.id) continue;
+            const id = String(cand.id);
+            if (used.has(id)) continue;
+            used.add(id);
+            return cand;
+          }
+          return null;
+        };
         const pickFallback = () => {
           while (fallback.length) {
             const cand = fallback.shift();
@@ -3675,9 +3687,8 @@
             let player = null;
             if (slot?.role === 'gk') {
               player = chosenGk || pickFallback();
-            } else if (slot?.role && groups[slot.role] && groups[slot.role].length) {
-              player = groups[slot.role].shift();
-              used.add(String(player.id));
+            } else if (slot?.role) {
+              player = pickFromGroup(slot.role) || pickFallback();
             } else {
               player = pickFallback();
             }
