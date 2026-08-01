@@ -13330,6 +13330,17 @@ class MatchActionWorkflowTests(TestCase):
         self.assertContains(response, 'id="status-subs-left-count">Sin limite<', html=False)
         self.assertContains(response, 'id="persistent-subs-limit">Sin limite<', html=False)
 
+    def test_match_actions_page_keeps_player_roster_before_lineup_controls(self):
+        response = self.client.get(reverse('match-action-page'), {'match_id': self.match.id})
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+        roster_index = content.find('id="convocation-list"')
+        lineup_index = content.find('class="sidebar-lineup-builder roster-lineup-builder"')
+        self.assertGreaterEqual(roster_index, 0)
+        self.assertGreater(lineup_index, roster_index)
+        self.assertContains(response, 'data-player-id="', html=False)
+
     def test_match_actions_page_does_not_embed_css_inside_script(self):
         response = self.client.get(reverse('match-action-page'))
         self.assertEqual(response.status_code, 200)

@@ -2206,55 +2206,72 @@
         background: var(--panel);
         display: flex;
         flex-direction: column;
-        gap: 0.75rem;
-        padding: 2rem 1.5rem;
+        gap: 0.65rem;
+        padding: 1rem;
         border-left: 1px solid rgba(255, 255, 255, 0.05);
         min-width: 0;
       }
       .sidebar-header {
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
+        display: grid;
+        grid-template-columns: 54px minmax(0, 1fr);
+        align-items: center;
+        column-gap: 0.7rem;
+        flex: 0 0 auto;
+      }
+      .sidebar-header .dragon-link {
+        grid-row: 1 / span 2;
+        align-self: center;
+      }
+      .actions-sidebar .sidebar-header .dragon-logo {
+        width: 50px !important;
+        height: 50px !important;
+        max-width: 50px !important;
       }
       .sidebar-header h1 {
         margin: 0;
-        font-size: 1.3rem;
-        letter-spacing: 0.2em;
+        font-size: 1rem;
+        letter-spacing: 0.16em;
         text-transform: uppercase;
       }
       .sidebar-header p {
         margin: 0;
         color: var(--prod-muted);
-        font-size: 0.85rem;
-        letter-spacing: 0.18em;
+        font-size: 0.68rem;
+        line-height: 1.3;
+        letter-spacing: 0.1em;
       }
       .convocation-list {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 0.6rem;
+        flex: 1 1 240px;
+        min-height: 180px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-content: start;
+        gap: 0.45rem;
         overflow-y: auto;
-        padding-right: 0.25rem;
+        padding: 0.1rem 0.25rem 0.1rem 0;
       }
       .convocation-card {
-        padding: 0.75rem 1rem;
-        border-radius: 16px;
+        min-width: 0;
+        padding: 0.5rem 0.55rem;
+        border-radius: 13px;
         background: rgba(255, 255, 255, 0.04);
         border: 1px solid rgba(255, 255, 255, 0.08);
         cursor: pointer;
         transition: border 0.2s ease, transform 0.2s ease;
       }
       .convocation-card-body {
-        display: flex;
-        flex-direction: column;
+        display: grid;
+        grid-template-columns: 32px minmax(0, 1fr);
         align-items: center;
-        gap: 0.45rem;
-        margin-top: 0.35rem;
+        gap: 0.4rem;
+        margin-top: 0.25rem;
       }
       .convocation-card-photo {
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
+        width: 32px;
+        height: 32px;
+        border-radius: 9px;
+        grid-column: 1;
+        grid-row: 1;
         object-fit: cover;
         object-position: top center;
         border: 1px solid rgba(255, 255, 255, 0.25);
@@ -2295,10 +2312,13 @@
       }
       .convocation-card strong {
         display: block;
-        font-size: 0.9rem;
+        grid-column: 2;
+        grid-row: 1;
+        min-width: 0;
+        font-size: 0.72rem;
         margin-top: 0;
-        text-align: center;
-        letter-spacing: 0.06em;
+        text-align: left;
+        letter-spacing: 0.04em;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -2689,6 +2709,57 @@
         }
         .actions-sidebar .convocation-list {
           min-height: 0;
+        }
+        .actions-sidebar .roster-lineup-builder {
+          flex: 0 0 auto;
+          gap: 0.35rem;
+          margin: 0;
+        }
+        .actions-sidebar .roster-lineup-builder .lineup-status {
+          display: none;
+        }
+        .actions-sidebar .roster-lineup-builder .lineup-slot {
+          padding: 0.4rem 0.5rem;
+          border-radius: 12px;
+        }
+        .actions-sidebar .roster-lineup-builder .lineup-slot-header {
+          margin-bottom: 0.25rem;
+          font-size: 0.58rem;
+        }
+        .actions-sidebar .roster-lineup-builder .lineup-drop-area {
+          min-height: 54px;
+          height: 54px;
+          padding: 0.3rem;
+          flex-direction: row;
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          overflow-y: hidden;
+        }
+        .actions-sidebar .roster-lineup-builder .lineup-chip {
+          flex: 0 0 auto;
+          flex-direction: row;
+          gap: 0.3rem;
+          max-width: 128px;
+          padding: 0.25rem 0.35rem;
+          font-size: 0.58rem;
+        }
+        .actions-sidebar .roster-lineup-builder .lineup-chip img,
+        .actions-sidebar .roster-lineup-builder .lineup-chip-avatar {
+          width: 28px;
+          height: 28px;
+          flex: 0 0 28px;
+        }
+        .actions-sidebar .roster-lineup-builder .lineup-chip-name {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .actions-sidebar .manual-load-tools {
+          flex: 0 0 auto;
+          margin: 0 !important;
+        }
+        .actions-sidebar .manual-load-tools .lineup-status {
+          display: none;
         }
       }
       @media (max-width: 1240px) {
@@ -4319,38 +4390,7 @@
             {% endif %}
           </a>
           <h1>Convocados</h1>
-	          <p>Arrastra las fichas para organizar titulares y suplentes.</p>
-        </div>
-        <div class="sidebar-lineup-builder">
-          <div class="lineup-toolbar">
-	            <button type="button" class="primary" id="lineup-auto-pick-btn">Auto {{ starters_limit|default:11 }}</button>
-            <button type="button" id="lineup-fill-bench-btn">Completar banquillo</button>
-            <button type="button" class="danger" id="lineup-clear-btn">Limpiar</button>
-          </div>
-	          <div class="lineup-status" id="lineup-status-msg">Define {{ starters_limit|default:11 }} titulares para cerrar el {{ starters_limit|default:11 }} inicial.</div>
-          <div class="lineup-slot">
-            <div class="lineup-slot-header">
-	              <span>{{ starters_limit|default:11 }} inicial</span>
-	              <span class="lineup-count" id="lineup-starters-count">0/{{ starters_limit|default:11 }}</span>
-            </div>
-            <div class="lineup-drop-area" id="sidebar-initial-lineup" data-section="starters"></div>
-          </div>
-          <div class="lineup-slot">
-            <div class="lineup-slot-header">
-              <span>Suplentes</span>
-              <span class="lineup-count" id="lineup-bench-count">0</span>
-            </div>
-            <div class="lineup-drop-area" id="sidebar-bench-lineup" data-section="bench"></div>
-          </div>
-          <input type="hidden" id="initial-lineup-data" name="initial_lineup" value='{{ initial_lineup_json|default:"{\"starters\":[],\"bench\":[]}"|escape }}' />
-        </div>
-        <div class="sidebar-lineup-builder" style="margin-top:0.85rem;">
-          <div class="lineup-toolbar">
-            <button type="button" id="manual-bulk-open-btn">Carga manual (cantidad)</button>
-          </div>
-          <div class="lineup-status" style="opacity:0.9;">
-            Útil para recuperar partidos: añade <em>N</em> acciones iguales a un jugador (ej. “Pérdida no forzada” × 6).
-          </div>
+	          <p>Toca un jugador para cargarle la acción. Arrastra para organizar el once.</p>
         </div>
         <div class="convocation-list" id="convocation-list">
           {% if convocation_players %}
@@ -4377,6 +4417,37 @@
           {% else %}
           <p class="convocation-empty">No hay convocatoria guardada.</p>
           {% endif %}
+        </div>
+        <div class="sidebar-lineup-builder roster-lineup-builder">
+          <div class="lineup-toolbar">
+	            <button type="button" class="primary" id="lineup-auto-pick-btn">Auto {{ starters_limit|default:11 }}</button>
+            <button type="button" id="lineup-fill-bench-btn">Completar banquillo</button>
+            <button type="button" class="danger" id="lineup-clear-btn">Limpiar</button>
+          </div>
+	          <div class="lineup-status" id="lineup-status-msg">Define {{ starters_limit|default:11 }} titulares para cerrar el {{ starters_limit|default:11 }} inicial.</div>
+          <div class="lineup-slot">
+            <div class="lineup-slot-header">
+	              <span>{{ starters_limit|default:11 }} inicial</span>
+	              <span class="lineup-count" id="lineup-starters-count">0/{{ starters_limit|default:11 }}</span>
+            </div>
+            <div class="lineup-drop-area" id="sidebar-initial-lineup" data-section="starters"></div>
+          </div>
+          <div class="lineup-slot">
+            <div class="lineup-slot-header">
+              <span>Suplentes</span>
+              <span class="lineup-count" id="lineup-bench-count">0</span>
+            </div>
+            <div class="lineup-drop-area" id="sidebar-bench-lineup" data-section="bench"></div>
+          </div>
+          <input type="hidden" id="initial-lineup-data" name="initial_lineup" value='{{ initial_lineup_json|default:"{\"starters\":[],\"bench\":[]}"|escape }}' />
+        </div>
+        <div class="sidebar-lineup-builder manual-load-tools" style="margin-top:0.85rem;">
+          <div class="lineup-toolbar">
+            <button type="button" id="manual-bulk-open-btn">Carga manual (cantidad)</button>
+          </div>
+          <div class="lineup-status" style="opacity:0.9;">
+            Útil para recuperar partidos: añade <em>N</em> acciones iguales a un jugador (ej. “Pérdida no forzada” × 6).
+          </div>
         </div>
       </aside>
       <div class="quick-history-modal" id="manual-bulk-modal" aria-hidden="true">
