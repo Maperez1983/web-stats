@@ -129,13 +129,9 @@ from .player_portal_policy import (
 from .preview_render import render_html_selector_png, render_task_preview_png
 from .session_plan_fields import parse_session_plan_fields, serialize_session_plan_fields
 from .session_task_editor_services import (
-    _ensure_local_editor_lab_workspace,
     _ensure_original_task_snapshot,
-    _find_local_editor_lab_task,
     _forbid_if_workspace_module_disabled,
     _get_primary_team_for_request,
-    _is_local_editor_lab_request,
-    _local_editor_lab_context,
     _task_builder_initial_values,
 )
 from .task_backups import write_task_backup
@@ -13180,33 +13176,6 @@ def dashboard_page(request):
     # Separación de dominios:
     # - `segundajugada.es` muestra siempre la landing (aunque haya sesión iniciada)
     # - `app.segundajugada.es` entra a la app (si no hay sesión, manda al login)
-    if _is_local_editor_lab_request(request):
-        if not request.user.is_authenticated:
-            login_url = reverse("login")
-            next_path = request.get_full_path() or "/"
-            if next_path and next_path != "/":
-                return redirect(f"{login_url}?next={quote(next_path)}")
-            return redirect(login_url)
-        try:
-            _ensure_local_editor_lab_workspace(request)
-        except Exception:
-            pass
-        try:
-            local_task = _find_local_editor_lab_task(request)
-            if not local_task:
-                active_workspace_obj = _get_active_workspace(request)
-                if active_workspace_obj:
-                    try:
-                        _bootstrap_demo_club_workspace(active_workspace_obj)
-                    except Exception:
-                        pass
-                    local_task = _find_local_editor_lab_task(request)
-            if local_task:
-                return redirect(
-                    f"{reverse('sessions-task-edit', args=[int(local_task.id)])}?editor_lab=production&embedded=1"
-                )
-        except Exception:
-            pass
     if host in landing_hosts and not host.startswith("app."):
         # Si el usuario ya tiene sesión iniciada, evitar “loops” Landing ⇄ Login ⇄ Landing:
         # redirigir siempre a `app.<dominio>` manteniendo la ruta.
@@ -55924,30 +55893,11 @@ def session_task_builder_page(request, scope_key="coach", scope_title="Sesiones 
         workspace = _get_active_workspace(request)
     except Exception:
         workspace = None
-    local_editor_lab_request = _is_local_editor_lab_request(request)
-    local_editor_lab_mode = str(request.GET.get("editor_lab") or "").strip().lower()
-    local_editor_lab_create_route = (
-        local_editor_lab_request
-        and scope_key == "coach"
-        and not task_id
-        and str(getattr(request, "path", "") or "").rstrip("/").endswith("/coach/sesiones/tareas/nueva")
-    )
-    local_editor_lab_active = local_editor_lab_request and (bool(task_id) or local_editor_lab_create_route)
-    if local_editor_lab_create_route:
-        try:
-            local_task = _find_local_editor_lab_task(request)
-            if local_task and getattr(local_task, "id", None):
-                task_id = int(local_task.id)
-                local_editor_lab_active = True
-        except Exception:
-            logger.exception(
-                "sessions_task_builder: no se pudo resolver la tarea del laboratorio local",
-                extra={"team_id": getattr(primary_team, "id", None), "user_id": getattr(request.user, "id", None)},
-            )
-    embedded_mode = (
-        str(request.GET.get("embedded") or "").strip().lower() in {"1", "true", "yes", "on"} or local_editor_lab_active
-    )
-    tactics_mode = bool(local_editor_lab_active)
+    embedded_mode = str(request.GET.get("embedded") or "").strip().lower() in {"1", "true", "yes", "on"}
+    # Hay UN editor de tareas. `tactics_mode` es el Playbook, que es otra pantalla y lo pasa a mano;
+    # aqui es siempre falso. Antes lo encendia el "laboratorio local", que daba un editor distinto
+    # en local que en produccion: cualquier prueba visual hecha en casa enganaba.
+    tactics_mode = False
 
     # Guardrail: si hay un despliegue sin migraciones aplicadas, el editor puede caer en 500.
     # En lugar de eso, devolvemos un mensaje claro (y el traceback queda en logs).
@@ -56526,7 +56476,6 @@ def session_task_builder_page(request, scope_key="coach", scope_title="Sesiones 
             "scope_route_name": _sessions_scope_route_name(scope_key),
             "embedded_mode": embedded_mode,
             "tactics_mode": tactics_mode,
-            "editor_lab_compact": local_editor_lab_active,
             "task": task,
             "feedback": feedback,
             "error": error,
@@ -56586,7 +56535,6 @@ def session_task_builder_page(request, scope_key="coach", scope_title="Sesiones 
             "show_dragon_nav": not embedded_mode,
             "confirmed_players_api_url": reverse("sessions-confirmed-players-api"),
             "task_resource_library_url": task_resource_library_url,
-            **_local_editor_lab_context(request, task, current_mode="production"),
             **pitch3d_assets,
         },
     )

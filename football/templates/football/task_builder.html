@@ -44,30 +44,9 @@
 		    </script>
     {% include 'football/pwa_head.html' %}
     {% include 'football/includes/task_builder/styles.html' %}
-    {% if editor_lab_compact %}
-    <style>
-      body.editor-lab-compact .product-nav-shortcuts,
-      body.editor-lab-compact .dragon-nav,
-      body.editor-lab-compact .topbar,
-      body.editor-lab-compact #task-builder-draft-alert,
-      body.editor-lab-compact .task-landing,
-      body.editor-lab-compact .tpad-support-fab,
-      body.editor-lab-compact #tpad-overlay-backdrop,
-      body.editor-lab-compact .task-mode-tabs,
-      body.editor-lab-compact .saved-task-info,
-      body.editor-lab-compact .alert {
-        display: none !important;
-      }
-      body.editor-lab-compact .page {
-        max-width: none;
-        margin: 0;
-        padding: 0;
-      }
-    </style>
-    {% endif %}
   </head>
 				  <body
-			        class="prod-commercial{% if tactics_mode %} tactics-mode{% endif %}{% if embedded_mode %} embedded-task-builder{% endif %}{% if editor_lab_compact %} editor-lab-compact{% endif %} suppress-auto-tour"
+			        class="prod-commercial{% if tactics_mode %} tactics-mode{% endif %}{% if embedded_mode %} embedded-task-builder{% endif %} suppress-auto-tour"
 		        data-tpad-diagnostics="{% if tactics_mode and request.GET.diag == '1' %}1{% else %}0{% endif %}"
 		      >
 			    <div id="tpad-overlay-backdrop" class="overlay-backdrop" hidden></div>
@@ -82,7 +61,6 @@
           </div>
 			    {% endif %}
 		    <main class="page">
-        {% include 'football/includes/editor_lab_switcher.html' %}
 	      {% if show_dragon_nav|default:True %}
 	      {% include 'football/includes/dragon_nav.html' %}
 	      {# El editor sirve a dos zonas: el sub-nav sigue a la que vienes. #}

@@ -8,7 +8,6 @@ from . import (
     session_pdf,
     tactical_views,
     task_board_snapshot,
-    task_editor_pro_views,
     video_studio_views,
     views,
     workspace_views,
@@ -728,56 +727,6 @@ urlpatterns = [
         "coach/sesiones/tarea/<int:task_id>/pdf-3d-embed/",
         views.session_task_pdf_3d_embed,
         name="session-task-pdf-3d-embed",
-    ),
-    path(
-        "coach/sesiones/tarea/<int:task_id>/editor-pro/",
-        task_editor_pro_views.session_task_editor_pro_page,
-        name="session-task-editor-pro",
-    ),
-    path(
-        "coach/sesiones/tarea/<int:task_id>/editor-lab/",
-        task_editor_pro_views.session_task_editor_lab_compare_page,
-        name="session-task-editor-lab-compare",
-    ),
-    path(
-        "coach/sesiones/tarea/<int:task_id>/editor-pro/document/",
-        task_editor_pro_views.session_task_editor_document_api,
-        name="session-task-editor-document-api",
-    ),
-    path(
-        "coach/sesiones/tarea/<int:task_id>/editor-pro/export-jobs/",
-        task_editor_pro_views.session_task_export_jobs_api,
-        name="session-task-export-jobs-api",
-    ),
-    path(
-        "coach/sesiones/tarea/<int:task_id>/editor-pro/save-as/",
-        task_editor_pro_views.session_task_editor_save_as_api,
-        name="session-task-editor-save-as-api",
-    ),
-    path(
-        "coach/sesiones/tarea/<int:task_id>/editor-pro/rename/",
-        task_editor_pro_views.session_task_editor_rename_api,
-        name="session-task-editor-rename-api",
-    ),
-    path(
-        "coach/sesiones/tarea/<int:task_id>/editor-pro/delete/",
-        task_editor_pro_views.session_task_editor_delete_api,
-        name="session-task-editor-delete-api",
-    ),
-    path(
-        "coach/sesiones/tarea/<int:task_id>/editor-pro/versions/",
-        task_editor_pro_views.session_task_editor_versions_api,
-        name="session-task-editor-versions-api",
-    ),
-    path(
-        "coach/sesiones/tarea/<int:task_id>/editor-pro/versions/restore/",
-        task_editor_pro_views.session_task_editor_restore_version_api,
-        name="session-task-editor-restore-version-api",
-    ),
-    path(
-        "coach/sesiones/tarea/<int:task_id>/editor-pro/ai-preview/",
-        task_editor_pro_views.session_task_ai_preview_file,
-        name="session-task-ai-preview-file",
     ),
     path(
         "coach/sesiones/sesion-importada/<int:doc_id>/archivo/",
