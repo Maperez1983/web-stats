@@ -101,7 +101,6 @@ from football.query_helpers import (
     is_injury_record_active,
     is_manual_sanction_active,
 )
-from football.render_engine import renderer_3d as task_renderer_3d
 from football.services import find_roster_entry
 from football.session_plan_fields import parse_session_plan_fields, serialize_session_plan_fields
 from football.staff_briefing import build_weekly_staff_brief
