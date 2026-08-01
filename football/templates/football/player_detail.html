@@ -1241,21 +1241,7 @@
           </div>
         </article>
         <article class="decision-card">
-          <span class="label">Próxima sesión</span>
-          <div class="value">
-            {% if next_session %}
-              {{ next_session.date_label }}{% if next_session.time_label %} · {{ next_session.time_label }}{% endif %}
-            {% else %}
-              Sin próximas sesiones
-            {% endif %}
-          </div>
-          <div class="meta">
-            {% if next_session %}
-              {{ next_session.focus }}{% if next_session.status_label %} · {{ next_session.status_label }}{% endif %}
-            {% else %}
-              No hay sesiones cargadas para los próximos 14 días.
-            {% endif %}
-          </div>
+          {% include 'football/includes/_proxima_sesion_card.html' with fecha=next_session.date_label hora=next_session.time_label foco=next_session.focus estado=next_session.status_label %}
         </article>
         <article class="decision-card">
           <span class="label">Última comunicación</span>

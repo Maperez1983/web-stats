@@ -1,0 +1,23 @@
+{% comment %}
+Tarjeta "próxima sesión", compartida por el resumen del entrenador (ficha) y el "Hoy" del
+jugador (portal). Recibe todo por parámetro para que cada pantalla la pinte con SUS datos:
+
+    {% include 'football/includes/_proxima_sesion_card.html' with fecha=… hora=… foco=… estado=… %}
+
+No lleva nada comparativo a propósito: el portal del jugador no compara con nadie.
+{% endcomment %}
+<span class="label">Próxima sesión</span>
+<div class="value">
+  {% if fecha %}
+    {{ fecha }}{% if hora %} · {{ hora }}{% endif %}
+  {% else %}
+    Sin próximas sesiones
+  {% endif %}
+</div>
+<div class="meta">
+  {% if fecha %}
+    {{ foco|default:"Sesión" }}{% if estado %} · {{ estado }}{% endif %}
+  {% else %}
+    No hay sesiones cargadas para los próximos 14 días.
+  {% endif %}
+</div>

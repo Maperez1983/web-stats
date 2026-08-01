@@ -96,3 +96,57 @@ class WellnessDesdeElPortalTests(TestCase):
 
         registro = PlayerPhysicalMetric.objects.get(player=self.player, recorded_on=timezone.localdate())
         self.assertEqual(registro.wellness, 4)
+
+
+class TarjetaCompartidaTests(TestCase):
+    """La tarjeta de próxima sesión es la misma pieza en la ficha y en el portal."""
+
+    def setUp(self):
+        cache.clear()
+        from datetime import date
+
+        from .models import TrainingMicrocycle, TrainingSession
+
+        self.owner = User.objects.create_user(username="dueno11", password="x")
+        self.workspace = Workspace.objects.create(
+            name="Club tarjeta", slug="club-tarjeta", kind=Workspace.KIND_CLUB, owner_user=self.owner
+        )
+        self.team = Team.objects.create(name="Senior tarjeta", slug="senior-tarjeta")
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.team, is_default=True)
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace, user=self.owner, role=WorkspaceMembership.ROLE_OWNER
+        )
+        self.jugador_user = User.objects.create_user(username="jugador11", password="x")
+        self.player = Player.objects.create(
+            name="Jugador Tarjeta", team=self.team, is_active=True, user=self.jugador_user
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace, user=self.jugador_user, role=WorkspaceMembership.ROLE_VIEWER
+        )
+        micro = TrainingMicrocycle.objects.create(
+            team=self.team, week_start=date(2026, 7, 27), week_end=date(2026, 8, 2)
+        )
+        TrainingSession.objects.create(microcycle=micro, session_date=date(2026, 7, 30))
+
+    def test_la_ficha_del_entrenador_pinta_la_tarjeta(self):
+        self.client.force_login(self.owner)
+        session = self.client.session
+        session["active_workspace_id"] = self.workspace.id
+        session["active_team_by_workspace"] = {str(self.workspace.id): int(self.team.id)}
+        session.save()
+
+        resp = self.client.get(reverse("player-detail", args=[self.player.id]))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Próxima sesión")
+
+    def test_el_portal_pinta_la_misma_tarjeta(self):
+        self.client.force_login(self.jugador_user)
+        session = self.client.session
+        session["active_workspace_id"] = self.workspace.id
+        session.save()
+
+        resp = self.client.get(reverse("player-home"))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "today-card")

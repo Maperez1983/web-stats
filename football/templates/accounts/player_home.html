@@ -9,6 +9,10 @@
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
     <style>
+      /* La tarjeta de próxima sesión es la misma pieza que en la ficha del entrenador. */
+      .today-card .label { display:block; font-size:.68rem; letter-spacing:.12em; text-transform:uppercase; color:var(--prod-muted); font-weight:800; }
+      .today-card .value { margin-top:.25rem; font-weight:800; }
+      .today-card .meta { margin-top:.2rem; color:var(--prod-muted); font-size:.86rem; }
       /* Sólo lo específico de esta pantalla. Colores, tipografía, botones y tarjetas los pone
          el sistema (`--prod-*`): aquí no se redefine nada de eso. Antes esta página se lo
          inventaba todo y por eso se veía como otra web. El portal se abre en un móvil, así
@@ -144,13 +148,8 @@
 
           {% if next_session %}
             <div class="row">
-              <div>
-                <strong>Próximo entrenamiento</strong>
-                <div class="empty">
-                  {{ next_session.session_date|date:"l d/m" }}
-                  {% if next_session.start_time %} · {{ next_session.start_time|time:"H:i" }}{% endif %}
-                  {% if next_session.focus %} · {{ next_session.focus }}{% endif %}
-                </div>
+              <div class="today-card">
+                {% include 'football/includes/_proxima_sesion_card.html' with fecha=next_session.session_date|date:"l d/m" hora=next_session.start_time|time:"H:i" foco=next_session.focus estado="" %}
               </div>
               {% if next_session_attendance %}
                 <span class="pill">{{ next_session_attendance.get_status_display }}</span>
