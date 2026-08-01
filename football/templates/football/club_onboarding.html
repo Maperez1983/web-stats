@@ -18,6 +18,16 @@
         --amber: #f4b400;
         --pitch: #2f7d32;
       }
+      /* Modo claro: esta pantalla define sus propios colores y no los adaptaba, asi que los
+         paneles salian GRISES translucidos sobre blanco y los rotulos y las pildoras "OK" se
+         quedaban por debajo del contraste minimo. */
+      :root[data-theme="light"] {
+        --deep: #f4f7fb;
+        --panel: #ffffff;
+        --line: rgba(15, 23, 42, 0.12);
+        --ink: #0f172a;
+        --muted: rgba(15, 23, 42, 0.68);
+      }
       * { box-sizing: border-box; }
       body {
         margin: 0;
@@ -585,6 +595,18 @@
           grid-template-columns: 1fr;
         }
       }
+      /* Fondo de pagina y acentos del tema claro: el degradado y los tonos pastel estaban
+         pensados para fondo oscuro. */
+      :root[data-theme="light"] body {
+        background:
+          radial-gradient(circle at 10% -10%, rgba(70, 211, 255, 0.10), transparent 40%),
+          radial-gradient(circle at 90% 0%, rgba(255, 191, 69, 0.10), transparent 35%),
+          var(--deep) !important;
+      }
+      :root[data-theme="light"] .config-section-kicker { color: #1d4ed8; }
+      :root[data-theme="light"] .badge.ok { color: #15803d; border-color: rgba(34,197,94,.45); }
+      :root[data-theme="light"] .badge.todo { color: #92400e; border-color: rgba(245,158,11,.45); }
+      :root[data-theme="light"] .badge.optional { color: rgba(15,23,42,.72); }
     </style>
   </head>
   <body class="prod-commercial">
@@ -913,6 +935,8 @@
 
           <div class="actions">
             <button class="btn btn-primary" type="submit">Guardar branding</button>
+            {% comment %}Un solo "Ver Home": el mismo boton estaba tres veces en esta
+            pantalla (portada, equipaciones y modulos).{% endcomment %}
             <a class="btn btn-ghost" href="{% url 'dashboard-home' %}">Ver Home</a>
           </div>
         </form>
@@ -987,7 +1011,6 @@
           <div class="actions">
             <button class="btn btn-primary" type="submit">Guardar equipaciones</button>
             <a class="btn btn-ghost" href="{% url 'kit2d-generator' %}">Crear kit 2D FM</a>
-            <a class="btn btn-ghost" href="{% url 'dashboard-home' %}">Ver Home</a>
           </div>
         </form>
 
@@ -1233,7 +1256,6 @@
 
           <div class="actions">
             <button class="btn btn-primary" type="submit">Guardar identidad</button>
-            <a class="btn btn-ghost" href="{% url 'dashboard-home' %}">Ver Home</a>
           </div>
         </form>
         </section>
