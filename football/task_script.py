@@ -311,3 +311,35 @@ def normalize_script(raw):
         'actors': actors,
         'steps': steps,
     }
+
+
+# Claves que NO viajan en la copia ligera: son el lienzo pesado (~165 KB por tarea) y solo las
+# necesita el editor. Sacarlas es lo que permite que listados y fichas no des-diferan la columna.
+_HEAVY_KEYS = ('tokens', 'timeline')
+_HEAVY_META_KEYS = ('graphic_editor', 'original_version')
+
+
+def build_layout_light(tactical_layout):
+    """
+    `task_layout_light` = el layout sin el lienzo pesado, con el guion ya calculado dentro.
+
+    Vive aquí y no dentro de `SessionTask.save()` porque hay dos productores: el guardado normal
+    y el comando de relleno. Con la lógica duplicada, una tarea rellenada por el comando y otra
+    guardada por el editor acabarían con copias ligeras distintas — que es exactamente el problema
+    que este módulo existe para evitar.
+    """
+    if not isinstance(tactical_layout, dict):
+        return {}
+    light = {k: v for k, v in tactical_layout.items() if k not in _HEAVY_KEYS}
+    meta = light.get('meta')
+    if isinstance(meta, dict):
+        light['meta'] = {k: v for k, v in meta.items() if k not in _HEAVY_META_KEYS}
+    try:
+        script = build_script(tactical_layout)
+    except Exception:
+        script = None
+    if script:
+        light['script'] = script
+    else:
+        light.pop('script', None)
+    return light

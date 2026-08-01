@@ -2962,28 +2962,13 @@ class SessionTask(models.Model):
         # Perf: mantiene task_layout_light = tactical_layout SIN el canvas pesado, para que
         # listados/presentacion (que solo necesitan meta) no detoasten ~165KB por tarea.
         try:
-            _lay = self.tactical_layout if isinstance(self.tactical_layout, dict) else None
-            if isinstance(_lay, dict):
-                _light = {k: v for k, v in _lay.items() if k not in ('tokens', 'timeline')}
-                _m = _light.get('meta')
-                if isinstance(_m, dict):
-                    _light['meta'] = {k: v for k, v in _m.items() if k not in ('graphic_editor', 'original_version')}
-                # El GUION va DENTRO de la copia ligera: pesa unos cientos de bytes y asi los
-                # listados, la ficha y el portal del jugador pueden reproducir el movimiento sin
-                # des-diferir la columna pesada (que es lo que costaba 5 s por pantalla).
-                try:
-                    from .task_script import build_script
+            # El GUION va DENTRO de la copia ligera: pesa unos cientos de bytes, asi los listados,
+            # la ficha y el portal pueden reproducir el movimiento sin des-diferir la columna
+            # pesada. Se construye en task_script.build_layout_light para que el guardado y el
+            # comando de relleno produzcan exactamente lo mismo.
+            from .task_script import build_layout_light
 
-                    _script = build_script(_lay)
-                    if _script:
-                        _light['script'] = _script
-                    else:
-                        _light.pop('script', None)
-                except Exception:
-                    _light.pop('script', None)
-                self.task_layout_light = _light
-            else:
-                self.task_layout_light = {}
+            self.task_layout_light = build_layout_light(self.tactical_layout)
             _uf2 = kwargs.get('update_fields')
             if _uf2 is not None:
                 kwargs['update_fields'] = list(set(_uf2) | {'task_layout_light'})

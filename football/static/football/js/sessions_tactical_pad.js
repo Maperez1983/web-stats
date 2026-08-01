@@ -2877,7 +2877,7 @@
 			              '        </select>',
 			              '        <button type="button" class="button" id="task-pitch-3d-refresh" title="Sincroniza con la pizarra actual">Actualizar</button>',
 			              '        <button type="button" class="button primary" id="task-pitch-3d-snap-tactic" title="Descarga PNG enfocando la táctica">PNG táctica</button>',
-			              '        <button type="button" class="button" id="task-pitch-3d-play" title="Reproduce escenarios (si existen)">▶</button>',
+			              '        <button type="button" class="button" id="task-pitch-3d-play" title="Reproduce los pasos (si existen)">▶</button>',
 			              '        <button type="button" class="button" id="task-pitch-3d-record" title="Grabar WebM (beta)">REC</button>',
 			              '        <select id="task-pitch-3d-action" title="Tipo de acción para rutas del elemento seleccionado">',
 			              '          <option value="pass">Pase</option>',
@@ -20287,7 +20287,7 @@
 						      if (!steps.length) {
 						        pitch3dCurrentStep = 0;
 						        syncPitch3dNavUi(0);
-						        setPitch3dHud('Pizarra', 'Sin escenarios.');
+						        setPitch3dHud('Pizarra', 'Sin pasos.');
 						        buildPitch3dRoot(serializeCanvasOnly(), {
 						          preset: presetSelect?.value || 'full_pitch',
 						          orientation: pitchOrientation,
@@ -28788,7 +28788,7 @@
       if (stepDurationInput) stepDurationInput.value = String(active.duration || 3);
       if (scenarioTitleInput) {
         scenarioTitleInput.disabled = false;
-        scenarioTitleInput.value = active.title || `Escenario ${activeStepIndex + 1}`;
+        scenarioTitleInput.value = active.title || `Paso ${activeStepIndex + 1}`;
       }
       if (scenarioDurationInput) {
         scenarioDurationInput.disabled = false;
@@ -28804,7 +28804,7 @@
       } catch (e) { /* ignore */ }
       if (!timeline.length) {
         targets.forEach((node) => {
-          node.innerHTML = '<div class="timeline-empty">Todavía no hay escenarios. Diseña el primer escenario y pulsa “+ Escenario”.</div>';
+          node.innerHTML = '<div class="timeline-empty">Todavía no hay pasos. Coloca las fichas y pulsa “+ Paso”.</div>';
         });
         syncStepInputs();
         return;
@@ -28818,8 +28818,8 @@
           button.dataset.stepIndex = String(index);
           button.innerHTML = `
             <div>
-              <strong>${step.title || `Escenario ${index + 1}`}</strong>
-              <span>${step.duration || 3} s · escenario ${index + 1}</span>
+              <strong>${step.title || `Paso ${index + 1}`}</strong>
+              <span>${step.duration || 3} s · paso ${index + 1}</span>
             </div>
             <span>${index === activeStepIndex ? 'Editando' : 'Abrir'}</span>
           `;
@@ -34419,7 +34419,7 @@
 	        if (uid && destino) destinos.set(uid, { x: Number(destino.x) || 0, y: Number(destino.y) || 0 });
 	      });
 	      if (!destinos.size) {
-	        setStatus('Dibuja alguna ruta con “Ruta” antes de crear el escenario.', true);
+	        setStatus('Dibuja alguna ruta con “Ruta” antes de crear el paso.', true);
 	        return;
 	      }
 	      persistActiveStepSnapshot();
@@ -34463,7 +34463,7 @@
 	      loadCanvasSnapshot(timeline[insercion].canvas_state, () => {
 	        renderTimeline();
 	        pushHistory();
-	        setStatus(`Escenario creado con ${destinos.size} movimiento${destinos.size === 1 ? '' : 's'}.`);
+	        setStatus(`Paso creado con ${destinos.size} movimiento${destinos.size === 1 ? '' : 's'}.`);
 	        paintOnionSkin();
 	        schedulePlayerBankUpdate();
 	      }, { sourceWidth: Math.round(w || 0), sourceHeight: Math.round(h || 0) });
@@ -37155,17 +37155,18 @@
       syncScenarioRouteUi();
     });
     // El gesto termina en el lienzo (mouse:up), no en el boton: hay que refrescar el estado del
-    // chip cuando la ruta se cierra sola. El propio popover al abrirse tambien se resincroniza.
+    // chip cuando la ruta se cierra sola. Al abrir el panel de Pasos tambien, porque el contador
+    // de rutas vive ahi.
     scenariosBtn?.addEventListener('click', () => { window.setTimeout(syncScenarioRouteUi, 0); });
     try { canvas.on('mouse:up', () => { window.setTimeout(syncScenarioRouteUi, 0); }); } catch (e) { /* ignore */ }
     scenarioTemplate3Btn?.addEventListener('click', async () => {
       if (isSimulating) {
-        setStatus('Sal del simulador para usar plantillas de escenarios.', true);
+        setStatus('Sal del simulador para usar plantillas de pasos.', true);
         return;
       }
       const willReplace = !!timeline.length;
       if (willReplace) {
-        const ok = __safeConfirm('Esto reemplazará los escenarios actuales. ¿Continuar?');
+        const ok = __safeConfirm('Esto reemplazará los pasos actuales. ¿Continuar?');
         if (!ok) return;
       }
       persistActiveStepSnapshot();
@@ -37185,7 +37186,7 @@
       syncStepInputs();
       pushHistory();
       refreshLivePreview();
-      setStatus('Plantilla de 3 escenarios creada.');
+      setStatus('Plantilla de 3 pasos creada.');
     });
     stepTitleInput?.addEventListener('input', () => {
       if (activeStepIndex < 0 || !timeline[activeStepIndex]) return;
@@ -37200,13 +37201,13 @@
     });
     scenarioTitleInput?.addEventListener('input', () => {
       if (activeStepIndex < 0 || !timeline[activeStepIndex]) return;
-      timeline[activeStepIndex].title = safeText(scenarioTitleInput.value, `Escenario ${activeStepIndex + 1}`);
+      timeline[activeStepIndex].title = safeText(scenarioTitleInput.value, `Paso ${activeStepIndex + 1}`);
       if (stepTitleInput) stepTitleInput.value = timeline[activeStepIndex].title || '';
       renderTimeline();
     });
     scenarioTitleInput?.addEventListener('change', () => {
       if (activeStepIndex < 0 || !timeline[activeStepIndex]) return;
-      timeline[activeStepIndex].title = safeText(scenarioTitleInput.value, `Escenario ${activeStepIndex + 1}`);
+      timeline[activeStepIndex].title = safeText(scenarioTitleInput.value, `Paso ${activeStepIndex + 1}`);
       if (stepTitleInput) stepTitleInput.value = timeline[activeStepIndex].title || '';
       pushHistory();
     });

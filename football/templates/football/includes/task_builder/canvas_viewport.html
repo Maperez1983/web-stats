@@ -323,7 +323,7 @@
 	                    <button type="button" class="icon-btn" id="task-layers-btn" title="Capas" aria-label="Capas">
 	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 2 7l10 5 10-5-10-5Zm0 8L2 5v2l10 5 10-5V5l-10 5Zm0 4L2 9v2l10 5 10-5V9l-10 5Zm0 4L2 13v2l10 5 10-5v-2l-10 5Z"/></svg>
 	                    </button>
-				                    <button type="button" class="icon-btn" id="task-scenarios-btn" title="Escenarios" aria-label="Escenarios">
+				                    <button type="button" class="icon-btn" id="task-scenarios-btn" title="Pasos de la tarea (secuencia y movimiento)" aria-label="Pasos de la tarea">
 				                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1h2v2h-2v2h2v2h-2v2h2v2h-2v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6Zm2 0v12h10V6H6Z"/></svg>
 				                    </button>
 				                    <button type="button" class="button" id="task-export-surface-btn" title="Descargar imagen HD de la superficie gráfica">Imagen</button>
@@ -370,29 +370,30 @@
 			                    </div>
 			                    <div class="scenarios-popover" id="task-scenarios-popover" hidden>
 			                      <div class="scenarios-popover-head">
-			                        <h4>Escenarios (multipizarra)</h4>
+			                        <h4>Pasos de la tarea</h4>
 			                        <button type="button" class="scenarios-popover-close" id="task-scenarios-close" aria-label="Cerrar">×</button>
 			                      </div>
 			                      <div class="scenarios-popover-body">
-			                        <p class="meta">Guarda varios escenarios dentro de una misma tarea. Cada escenario mantiene su propia pizarra.</p>
+			                        <p class="meta">Guarda varios pasos dentro de una misma tarea. Cada paso mantiene su propia pizarra.</p>
 			                        <div class="scenarios-controls">
-			                          <button type="button" class="button" id="task-scenario-add">+ Escenario</button>
+			                          <button type="button" class="button" id="task-scenario-add">+ Paso</button>
 			                          <button type="button" class="button" id="task-scenario-duplicate">Duplicar</button>
 			                          <button type="button" class="button danger" id="task-scenario-remove">Eliminar</button>
-			                          <button type="button" class="button" id="task-scenario-template-3" title="Crea 3 escenarios rápidos: Inicio, Desarrollo, Final">Plantilla 3</button>
+			                          <button type="button" class="button" id="task-scenario-template-3" title="Crea 3 pasos rápidos: Inicio, Desarrollo, Final">Plantilla 3</button>
 			                        </div>
-			                          {# La Ruta solo existia en el Playbook: en el editor no habia forma de dibujar el movimiento. #}
-			                          <p class="meta">Movimiento: dibuja adonde va cada ficha con <strong>Ruta</strong> y pulsa <strong>Crear escenario</strong>.</p>
-			                          <div class="scenarios-controls">
-			                            <button type="button" class="button" id="task-scenario-route" aria-pressed="false" title="Toca una ficha y arrastra hasta su destino (Mayus para encadenar varias)">Ruta</button>
-			                            <button type="button" class="button" id="task-scenario-route-steps" title="Crea el escenario en el que las fichas ya han llegado al final de su ruta">Crear escenario</button>
-			                            <button type="button" class="button danger" id="task-scenario-route-clear" title="Borra las rutas dibujadas">Borrar rutas</button>
-			                            <span class="meta" id="task-scenario-route-count" data-tactics-route-count>0 rutas</span>
-			                          </div>
-			                        <div class="scenarios-fields" aria-label="Datos del escenario activo">
+			                        {# Dibujar el movimiento va en el panel de Pasos, que es el unico que el editor
+			                           muestra hoy: la barra "Flujo / Animar" pertenece a un chrome retirado. #}
+			                        <p class="meta">Movimiento: marca con <strong>Ruta</strong> adónde va cada ficha y pulsa <strong>Crear paso</strong>.</p>
+			                        <div class="scenarios-controls">
+			                          <button type="button" class="button" id="task-scenario-route" aria-pressed="false" title="Toca una ficha y arrastra hasta donde va (Mayús para encadenar varias)">Ruta</button>
+			                          <button type="button" class="button" id="task-scenario-route-steps" title="Crea el paso en el que las fichas ya han llegado al final de su ruta">Crear paso</button>
+			                          <button type="button" class="button danger" id="task-scenario-route-clear" title="Borra las rutas dibujadas">Borrar rutas</button>
+			                          <span class="meta" id="task-scenario-route-count" data-tactics-route-count>0 rutas</span>
+			                        </div>
+			                        <div class="scenarios-fields" aria-label="Datos del paso activo">
 			                          <label>
 			                            Título
-			                            <input type="text" id="task-scenario-title-pop" placeholder="Ej.: Escenario 1" />
+			                            <input type="text" id="task-scenario-title-pop" placeholder="Ej.: Salida" />
 			                          </label>
 			                          <label>
 			                            Seg (opcional)

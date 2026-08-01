@@ -534,10 +534,10 @@
 		                  <div class="meta" style="margin:-0.2rem 0 0.85rem;">
 		                    <label class="chip-toggle" style="display:inline-flex; gap:10px; align-items:center;">
 		                      <input type="checkbox" name="draw_task_multi_board" id="task-multi-board-toggle" value="1" {% if initial.multi_board_enabled %}checked{% endif %} />
-		                      Multipizarra (varios escenarios)
+		                      Varios pasos en la misma tarea
 		                    </label>
 		                    <div style="margin-top:0.35rem; opacity:0.9;">
-		                      Si lo activas, puedes guardar varios escenarios dentro de una misma tarea (panel “Escenarios”) y aparecerán en el PDF de la tarea.
+		                      Si lo activas, puedes guardar varios pasos dentro de una misma tarea y aparecerán en el PDF.
 		                    </div>
 		                  </div>
 		                  <div class="compact-grid">
@@ -750,7 +750,7 @@
               <div class="section">
                 <h3>Jugadores detectados</h3>
                 <div class="assigned-summary" id="task-assigned-summary">
-                  Se rellenan automáticamente según las chapas usadas en la pizarra (y en los escenarios multipizarra).
+                  Se rellenan automáticamente según las chapas usadas en la pizarra (y en los demás pasos).
                 </div>
               </div>
               </div>
@@ -857,21 +857,21 @@
 	                    {% endif %}
 	                  </div>
 	                  <div class="timeline-toolbar">
-	                    <button type="button" id="task-step-add">Añadir escenario</button>
-	                    <button type="button" id="task-step-duplicate">Duplicar escenario</button>
-	                    <button type="button" id="task-step-remove">Eliminar escenario</button>
-	                    <button type="button" id="task-step-play" title="Pasa por escenarios como previsualización.">Previsualizar</button>
+	                    <button type="button" id="task-step-add">Añadir paso</button>
+	                    <button type="button" id="task-step-duplicate">Duplicar paso</button>
+	                    <button type="button" id="task-step-remove">Eliminar paso</button>
+	                    <button type="button" id="task-step-play" title="Recorre los pasos como previsualización.">Previsualizar</button>
 	                  </div>
 	                </div>
                   {% if not tactics_mode %}
 	                <div class="meta" style="margin-top:0.55rem;">
-	                  Activa “Multipizarra” en Ajustes avanzados para que estos escenarios se incluyan en el PDF.
+	                  Activa “Varios pasos” en Ajustes avanzados para que estos pasos se incluyan en el PDF.
 	                </div>
                   {% endif %}
 	                <div class="timeline-list" id="task-timeline-list"></div>
 	                <div class="compact-grid" style="margin-top:0.8rem;">
 	                  <label>
-	                    Nombre del escenario
+	                    Nombre del paso
 	                    <input type="text" id="task-step-title" maxlength="80" placeholder="Ej: Inicio de la acción" />
 	                  </label>
 	                  <label>
