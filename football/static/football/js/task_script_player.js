@@ -102,6 +102,33 @@
     return img;
   };
 
+  /* Cada figura se recorta y se escala UNA vez a su tamano. Escalar 22 PNG grandes en cada
+     fotograma es lo que hace que una animacion se arrastre. */
+  const spriteCache = new Map();
+
+  const actorSprite = (url, radius) => {
+    const img = actorImage(url);
+    if (!img || !img.complete || !img.naturalWidth) return null;
+    const lado = Math.max(8, Math.round(radius * 2));
+    const clave = `${url}|${lado}`;
+    if (spriteCache.has(clave)) return spriteCache.get(clave);
+    let off = null;
+    try {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      off = document.createElement('canvas');
+      off.width = Math.round(lado * dpr);
+      off.height = Math.round(lado * dpr);
+      const octx = off.getContext('2d');
+      octx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      octx.beginPath();
+      octx.arc(lado / 2, lado / 2, lado / 2, 0, TAU);
+      octx.clip();
+      octx.drawImage(img, 0, 0, lado, lado);
+    } catch (e) { off = null; }
+    spriteCache.set(clave, off);
+    return off;
+  };
+
   const drawActor = (ctx, actor, pos, w, h, radius) => {
     const x = pos.x * w;
     const y = pos.y * h;
@@ -121,17 +148,11 @@
     ctx.fillStyle = 'rgba(2,6,23,0.28)';
     ctx.fill();
 
-    const img = actorImage(actor.img);
-    const listo = !!(img && img.complete && img.naturalWidth);
+    const ficha = actorSprite(actor.img, radius);
+    const listo = !!ficha;
     if (listo) {
-      // La figura del jugador, recortada en circulo como en la pizarra.
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(x, y, radius, 0, TAU);
-      ctx.clip();
-      const lado = radius * 2;
-      ctx.drawImage(img, x - radius, y - radius, lado, lado);
-      ctx.restore();
+      // La figura del jugador, ya recortada y a su tamano: por fotograma solo se copia.
+      ctx.drawImage(ficha, x - radius, y - radius, radius * 2, radius * 2);
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, TAU);
       ctx.strokeStyle = actor.color || 'rgba(255,255,255,0.92)';
@@ -235,18 +256,40 @@
       return { index: 0, t: 0 };
     };
 
+    /* El cesped es un SVG grande (puede llevar la foto del cesped dentro). Dibujarlo en cada
+       fotograma congelaba la pagina: se rasteriza UNA vez por tamano en un lienzo aparte y por
+       fotograma solo se copia, que es una operacion plana. */
+    let fondo = null;
+    let fondoClave = '';
+    const fondoPara = (w, h) => {
+      const campo = pitchImage(script.pitch);
+      if (!campo) return null;
+      if (!(campo.complete && campo.naturalWidth)) {
+        if (!campo.__reintento) {
+          campo.__reintento = true;
+          campo.addEventListener('load', () => { try { fondoClave = ''; render(); } catch (e) {} }, { once: true });
+        }
+        return null;
+      }
+      const clave = `${Math.round(w)}x${Math.round(h)}`;
+      if (fondo && fondoClave === clave) return fondo;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const off = document.createElement('canvas');
+      off.width = Math.round(w * dpr);
+      off.height = Math.round(h * dpr);
+      const octx = off.getContext('2d');
+      octx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      try { octx.drawImage(campo, 0, 0, w, h); } catch (e) { return null; }
+      fondo = off;
+      fondoClave = clave;
+      return fondo;
+    };
+
     const render = () => {
       const { w, h } = sizeCanvas();
-      const campo = pitchImage(script.pitch);
-      if (campo && campo.complete && campo.naturalWidth) ctx.drawImage(campo, 0, 0, w, h);
-      else {
-        drawPitchFallback(ctx, w, h);
-        // El SVG del cesped tarda un instante en decodificar: se repinta al llegar.
-        if (campo && !campo.dataset_wired) {
-          campo.dataset_wired = true;
-          campo.addEventListener('load', () => { try { render(); } catch (e) {} }, { once: true });
-        }
-      }
+      const cesped = fondoPara(w, h);
+      if (cesped) ctx.drawImage(cesped, 0, 0, w, h);
+      else drawPitchFallback(ctx, w, h);
       const { index, t } = locate(elapsed);
       const step = steps[index] || {};
       const prev = steps[index - 1] || null;
