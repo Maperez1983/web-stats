@@ -1471,8 +1471,8 @@
       {% if error %}
       <div class="msg err">{{ error }}</div>
       {% endif %}
-      {# Avisos de las acciones de cabecera (hoy, «Favorita»): el editor ya no esta en esta pagina,
-         asi que su `#graphic-status` tampoco. #}
+      {% comment %}Avisos de las acciones de cabecera (hoy, «Favorita»): el editor ya no esta en
+      esta pagina, asi que su `#graphic-status` tampoco.{% endcomment %}
       <div class="msg" id="task-header-status" role="status" aria-live="polite" hidden></div>
 
       <section class="panel task-detail-tab-panel{% if active_task_tab == 'presentation' %} is-active{% endif %}" id="task-presentation-board" data-task-tab-panel="presentation">
