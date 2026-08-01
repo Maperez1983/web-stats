@@ -207,12 +207,10 @@ def get_active_match(primary_team):
     qs = _team_match_queryset(primary_team)
     if not qs.exists():
         return None
-    # Default UX: si hay partidos de torneo/amistoso, no deben desplazar al "próximo partido" de Liga.
-    qs_league = qs.filter(context=Match.CONTEXT_LEAGUE)
-    if qs_league.exists():
-        qs = qs_league
     today = timezone.localdate()
-    upcoming = qs.filter(date__gte=today).order_by('date').first()
+    # Flujo operativo: home y convocatoria deben seguir el orden cronológico real
+    # del calendario, sin privilegiar Liga sobre amistosos/torneos.
+    upcoming = qs.filter(date__gte=today).order_by("date", "id").first()
     if upcoming:
         return upcoming
     undated_next = list(qs.filter(date__isnull=True))

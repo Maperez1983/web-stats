@@ -5,31 +5,36 @@ import os
 import shutil
 import tempfile
 import zipfile
+from io import StringIO
 from datetime import date, timedelta, time
 from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
-from io import StringIO
+from unittest.mock import Mock, patch
+
+import requests
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from django.core.management import call_command
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
 from django.http import HttpResponse
-from django.test import RequestFactory, SimpleTestCase, TestCase, TransactionTestCase
+from django.test import RequestFactory, SimpleTestCase, TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import AnalystVideoFolder, AnalysisVideoReport, AiTrainerTaskIndex, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerEvaluation, PlayerFine, PlayerSeasonReport, PlayerStatistic, RivalAnalysisReport, RivalVideo, ScoutingTarget, Season, SessionTask, ServiceAccessToken, StaffMember, TacticalPlaybookClip, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, TrainingSessionAttendance, UserInvitation, VideoClip, VideoTimelineEvent, VideoTelestrationProject, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspacePlayer, WorkspacePreference, WorkspaceSeason, WorkspaceSeasonPlayer, WorkspaceSeasonTeam, WorkspaceTeam, WorkspaceTeamAccess
+from football import dashboard_pending_services
+from football import dashboard_services, local_llm, next_match_services, preview_render, system_guard, team_media_services, workspace_context
 from football import views as football_views
 from football.bootstrap import ensure_bootstrap_admin_from_env
+from football.dashboard_services import SCRAPE_LOCK_KEY, compute_player_cards_for_match, compute_player_dashboard, compute_player_metrics, compute_team_metrics_for_match
 from football.event_taxonomy import (
     PASS_KEYWORDS,
-    build_smart_kpis,
-    calculate_influence_score,
     calculate_importance_score,
+    calculate_influence_score,
+    build_smart_kpis,
     classify_duel_event,
     contains_keyword,
     is_shot_attempt_event,
@@ -38,24 +43,70 @@ from football.event_taxonomy import (
     shots_needed_per_goal,
 )
 from football.healthchecks import run_system_healthcheck
-from football.manual_stats import get_manual_player_base_overrides, save_manual_player_base_overrides, season_display_name
-from football.query_helpers import _team_match_queryset, get_active_injury_player_ids, get_current_convocation_record, is_injury_record_active, is_manual_sanction_active
 from football.injuries import categorize_time_loss, estimate_return_date, time_loss_days
-from football import dashboard_services, next_match_services, team_media_services, workspace_context
-from football import dashboard_pending_services
-from football.session_plan_fields import parse_session_plan_fields, serialize_session_plan_fields
-from football.models import AppUserRole
+from football.models import (
+    AiTrainerTaskIndex,
+    AnalysisVideoReport,
+    AnalystVideoFolder,
+    AppUserRole,
+    Competition,
+    ConvocationRecord,
+    Group,
+    Match,
+    MatchEvent,
+    MatchReport,
+    Player,
+    PlayerCommunication,
+    PlayerEvaluation,
+    PlayerFine,
+    PlayerSeasonReport,
+    PlayerStatistic,
+    RivalAnalysisReport,
+    RivalVideo,
+    Season,
+    ServiceAccessToken,
+    SessionTask,
+    StaffMember,
+    TacticalPlaybookClip,
+    TaskStudioProfile,
+    TaskStudioRosterPlayer,
+    TaskStudioTask,
+    Team,
+    TeamStanding,
+    TrainingMicrocycle,
+    TrainingSession,
+    TrainingSessionAttendance,
+    UserInvitation,
+    VideoClip,
+    VideoTelestrationProject,
+    VideoTimelineEvent,
+    Workspace,
+    WorkspaceCompetitionContext,
+    WorkspaceCompetitionSnapshot,
+    WorkspaceMembership,
+    WorkspacePlayer,
+    WorkspacePreference,
+    WorkspaceSeason,
+    WorkspaceSeasonPlayer,
+    WorkspaceSeasonTeam,
+    WorkspaceTeam,
+    WorkspaceTeamAccess,
+)
+from football.manual_stats import get_manual_player_base_overrides, save_manual_player_base_overrides, season_display_name
+from football.query_helpers import (
+    _team_match_queryset,
+    get_active_match,
+    get_active_injury_player_ids,
+    get_current_convocation_record,
+    is_injury_record_active,
+    is_manual_sanction_active,
+)
+from football.render_engine import renderer_3d as task_renderer_3d
 from football.services import find_roster_entry
+from football.session_plan_fields import parse_session_plan_fields, serialize_session_plan_fields
 from football.staff_briefing import build_weekly_staff_brief
-from football.task_library import filter_task_library, prepare_task_library
 from football.stats_audit import run_stats_audit
-from football.dashboard_services import SCRAPE_LOCK_KEY, compute_player_cards_for_match, compute_player_dashboard, compute_player_metrics, compute_team_metrics_for_match
-from football import system_guard
-from football import local_llm
-from football import preview_render
-from django.test import override_settings
-from unittest.mock import Mock, patch
-import requests
+from football.task_library import filter_task_library, prepare_task_library
 
 
 class WriteEndpointAuthTests(TestCase):
@@ -10382,6 +10433,31 @@ class QueryHelperTests(TestCase):
 
         self.assertEqual(resolved.id, target_record.id)
         self.assertNotEqual(resolved.id, old_record.id)
+
+    def test_get_active_match_prefers_nearest_chronological_match_even_if_friendly(self):
+        today = timezone.localdate()
+        friendly = Match.objects.create(
+            season=self.team.group.season,
+            group=self.team.group,
+            home_team=self.team,
+            away_team=self.rival,
+            context=Match.CONTEXT_FRIENDLY,
+            round="Amistoso hoy",
+            date=today,
+        )
+        Match.objects.create(
+            season=self.team.group.season,
+            group=self.team.group,
+            home_team=self.team,
+            away_team=self.rival,
+            context=Match.CONTEXT_LEAGUE,
+            round="J2",
+            date=today + timedelta(days=2),
+        )
+
+        resolved = get_active_match(self.team)
+
+        self.assertEqual(resolved.id, friendly.id)
 
     def test_manual_sanction_helper_expires_after_until_date(self):
         player = Player.objects.create(
