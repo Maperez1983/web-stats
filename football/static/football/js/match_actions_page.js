@@ -195,6 +195,7 @@
 	        document.getElementById('match-finalize-btn'),
 	        document.getElementById('match-finalize-btn-top'),
 	      ].filter(Boolean);
+      const convocationCards = document.querySelectorAll('.convocation-card');
       const fillClosePlayerSelect = (select) => {
         if (!select || select.options.length > 1) return;
         convocationCards.forEach((card) => {
@@ -317,7 +318,6 @@
       const quickButtonsContainer = popupForm.querySelector('.popup-quick-actions');
       const quickButtons = popupForm.querySelectorAll('.quick-action');
       const popupCloseButtons = popupForm.querySelectorAll('.close-popup');
-      const convocationCards = document.querySelectorAll('.convocation-card');
       const historyList = document.getElementById('history-list');
       let historyFilterBar = document.getElementById('hf');
       if (!historyFilterBar && historyList?.parentNode) {
