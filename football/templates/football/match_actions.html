@@ -2709,31 +2709,78 @@
         }
         .actions-sidebar .convocation-list {
           min-height: 0;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          grid-template-rows: repeat(6, minmax(0, 1fr));
+          grid-auto-flow: row;
+          gap: 0.32rem;
+          overflow: hidden;
+          padding: 0;
+        }
+        .actions-sidebar .convocation-card {
+          min-height: 0;
+          height: 100%;
+          padding: 0.3rem 0.35rem;
+          border-radius: 10px;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+        }
+        .actions-sidebar .convocation-card header {
+          justify-content: flex-start;
+          font-size: 0.58rem;
+          letter-spacing: 0.08em;
+          line-height: 1;
+        }
+        .actions-sidebar .convocation-card header span:last-child {
+          display: none;
+        }
+        .actions-sidebar .convocation-card-body {
+          grid-template-columns: 24px minmax(0, 1fr);
+          gap: 0.25rem;
+          margin-top: 0.18rem;
+        }
+        .actions-sidebar .convocation-card-photo {
+          width: 24px;
+          height: 24px;
+          border-radius: 7px;
+        }
+        .actions-sidebar .convocation-card strong {
+          font-size: 0.6rem;
+          line-height: 1.05;
+          letter-spacing: 0.01em;
         }
         .actions-sidebar .roster-lineup-builder {
           flex: 0 0 auto;
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 0.35rem;
           margin: 0;
+        }
+        .actions-sidebar .roster-lineup-builder .lineup-toolbar {
+          grid-column: 1 / -1;
+          flex-wrap: nowrap;
+        }
+        .actions-sidebar .roster-lineup-builder .lineup-toolbar button {
+          flex: 1 1 0;
+          padding: 0.24rem 0.35rem;
+          font-size: 0.54rem;
+          letter-spacing: 0.08em;
+          white-space: nowrap;
         }
         .actions-sidebar .roster-lineup-builder .lineup-status {
           display: none;
         }
         .actions-sidebar .roster-lineup-builder .lineup-slot {
-          padding: 0.4rem 0.5rem;
+          padding: 0.32rem 0.45rem;
           border-radius: 12px;
         }
         .actions-sidebar .roster-lineup-builder .lineup-slot-header {
-          margin-bottom: 0.25rem;
+          margin-bottom: 0;
           font-size: 0.58rem;
+          letter-spacing: 0.1em;
         }
         .actions-sidebar .roster-lineup-builder .lineup-drop-area {
-          min-height: 54px;
-          height: 54px;
-          padding: 0.3rem;
-          flex-direction: row;
-          flex-wrap: nowrap;
-          overflow-x: auto;
-          overflow-y: hidden;
+          display: none;
         }
         .actions-sidebar .roster-lineup-builder .lineup-chip {
           flex: 0 0 auto;

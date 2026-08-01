@@ -13340,6 +13340,8 @@ class MatchActionWorkflowTests(TestCase):
         self.assertGreaterEqual(roster_index, 0)
         self.assertGreater(lineup_index, roster_index)
         self.assertContains(response, 'data-player-id="', html=False)
+        self.assertContains(response, 'grid-template-columns: repeat(4, minmax(0, 1fr));', html=False)
+        self.assertContains(response, '.actions-sidebar .roster-lineup-builder .lineup-drop-area', html=False)
 
     def test_match_actions_page_does_not_embed_css_inside_script(self):
         response = self.client.get(reverse('match-action-page'))
