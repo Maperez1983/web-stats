@@ -1054,9 +1054,15 @@ def _player_home_zones(request, player, vis):
         try:
             from .models import PlayerInjuryRecord
 
-            # El parte abierto (sin alta) es el que le importa; si no hay ficha de lesión
-            # pero el jugador está marcado como lesionado, al menos se le dice qué tiene.
-            _records = PlayerInjuryRecord.objects.filter(player=player, return_date__isnull=True)
+            # Usa la misma definición de lesión activa que ficha, convocatorias y pizarras.
+            # Un parte recuperado no debe reaparecer en el portal aunque conserve por error
+            # una fecha de alta vacía o un is_active antiguo.
+            today = timezone.localdate()
+            _records = (
+                PlayerInjuryRecord.objects
+                .filter(player=player, is_active=True, is_recovered=False)
+                .filter(Q(return_date__isnull=True) | Q(return_date__gt=today))
+            )
             if vis.injuries_published:
                 # "Sólo lo publicado": el parte es del staff hasta que alguien decida
                 # compartirlo. Sin parte publicado no se cae al `player.injury` de abajo.

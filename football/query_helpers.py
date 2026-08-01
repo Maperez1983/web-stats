@@ -75,6 +75,27 @@ def get_active_injury_player_ids(player_ids):
         return set()
 
 
+def sync_player_injury_summary(player, today=None):
+    """Sincroniza los campos legacy de Player con su lesión activa real."""
+    if not player or not getattr(player, 'id', None):
+        return None
+    reference_day = today or timezone.localdate()
+    active_record = (
+        PlayerInjuryRecord.objects
+        .filter(player_id=player.id, is_active=True, is_recovered=False)
+        .filter(Q(return_date__isnull=True) | Q(return_date__gt=reference_day))
+        .order_by('-injury_date', '-id')
+        .first()
+    )
+    player.injury = str(getattr(active_record, 'injury', '') or '') if active_record else ''
+    player.injury_type = str(getattr(active_record, 'injury_type', '') or '') if active_record else ''
+    player.injury_zone = str(getattr(active_record, 'injury_zone', '') or '') if active_record else ''
+    player.injury_side = str(getattr(active_record, 'injury_side', '') or '') if active_record else ''
+    player.injury_date = getattr(active_record, 'injury_date', None) if active_record else None
+    player.save(update_fields=['injury', 'injury_type', 'injury_zone', 'injury_side', 'injury_date'])
+    return active_record
+
+
 def _team_match_queryset(primary_team):
     if not primary_team:
         return Match.objects.none()

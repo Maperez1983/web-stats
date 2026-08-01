@@ -475,6 +475,7 @@ from football.query_helpers import (
     is_injury_record_active,
     is_manual_sanction_active,
     parse_match_date_from_ui,
+    sync_player_injury_summary,
 )
 from football.season_history_services import (
     club_season_date_bounds,
@@ -42314,6 +42315,7 @@ def coach_injuries_page(request):
                     .exclude(id=record.id)
                     .update(is_active=False, is_recovered=True)
                 )
+                sync_player_injury_summary(record.player, today=today)
                 message = (
                     "Lesión marcada como alta."
                     if not _others_closed
@@ -42335,12 +42337,7 @@ def coach_injuries_page(request):
                     notes=notes,
                     is_active=is_active,
                 )
-                player.injury = injury_name or player.injury
-                player.injury_type = injury_type or player.injury_type
-                player.injury_zone = injury_zone or player.injury_zone
-                player.injury_side = injury_side or player.injury_side
-                player.injury_date = injury_date
-                player.save(update_fields=["injury", "injury_type", "injury_zone", "injury_side", "injury_date"])
+                sync_player_injury_summary(player, today=today)
                 message = "Lesión registrada."
         except ValueError as exc:
             error = str(exc)
@@ -42348,6 +42345,8 @@ def coach_injuries_page(request):
             logger.exception("Error registrando lesión")
             error = "No se pudo guardar la lesión."
 
+        if not error:
+            _invalidate_team_dashboard_caches(primary_team)
         return redirect(reverse("coach-injuries") + (f"?team={primary_team.id}" if primary_team else ""))
 
     return render(
@@ -42549,18 +42548,7 @@ def player_injury_detail_page(request, player_id, record_id):
         return parse_date(value)
 
     def _sync_player_summary():
-        latest_active = (
-            PlayerInjuryRecord.objects.filter(player=player, is_active=True)
-            .order_by("-injury_date", "-id")
-            .first()
-        )
-        summary = latest_active
-        player.injury = str(getattr(summary, "injury", "") or "") if summary else ""
-        player.injury_type = str(getattr(summary, "injury_type", "") or "") if summary else ""
-        player.injury_zone = str(getattr(summary, "injury_zone", "") or "") if summary else ""
-        player.injury_side = str(getattr(summary, "injury_side", "") or "") if summary else ""
-        player.injury_date = getattr(summary, "injury_date", None) if summary else None
-        player.save(update_fields=["injury", "injury_type", "injury_zone", "injury_side", "injury_date"])
+        sync_player_injury_summary(player, today=today)
 
     if request.method == "POST":
         if not can_edit:
@@ -42570,6 +42558,7 @@ def player_injury_detail_page(request, player_id, record_id):
             if action == "delete-record":
                 record.delete()
                 _sync_player_summary()
+                _invalidate_team_dashboard_caches(primary_team)
                 return redirect(reverse("player-detail", args=[player.id]) + "?tab=injuries")
             if action == "reopen-record":
                 record.is_recovered = False
@@ -77452,27 +77441,7 @@ def _persist_player_injury(
             notes=str(injury_notes or "").strip(),
             is_active=not is_recovered and (not injury_return_date or injury_return_date > timezone.localdate()),
         )
-    # La denormalización "lesión actual" del Player debe reflejar la lesión ACTIVA más
-    # reciente, no la que se acabe de tocar: al editar una lesión antigua o marcar una
-    # como recuperada, el jugador debe dejar de figurar lesionado si ya no tiene ninguna
-    # activa (antes se re-estampaban estos campos de forma incondicional).
-    active_record = (
-        PlayerInjuryRecord.objects.filter(player=player, is_active=True)
-        .order_by("-injury_date", "-id")
-        .first()
-    )
-    if active_record:
-        player.injury = active_record.injury
-        player.injury_type = str(active_record.injury_type or "").strip()
-        player.injury_zone = str(active_record.injury_zone or "").strip()
-        player.injury_side = str(active_record.injury_side or "").strip()
-        player.injury_date = active_record.injury_date or player.injury_date
-    else:
-        player.injury = ""
-        player.injury_type = ""
-        player.injury_zone = ""
-        player.injury_side = ""
-    player.save(update_fields=["injury", "injury_type", "injury_zone", "injury_side", "injury_date"])
+    sync_player_injury_summary(player)
     return record
 
 
@@ -78791,6 +78760,7 @@ def player_detail_page(request, player_id):
                 ids = [int(x) for x in raw_ids if str(x).strip().isdigit()]
                 if ids:
                     PlayerInjuryRecord.objects.filter(player=player, id__in=ids).delete()
+                    sync_player_injury_summary(player)
                     _invalidate_team_dashboard_caches(primary_team)
                 return redirect(f"{reverse('player-detail', args=[player.id])}?tab=injuries")
             if form_action == "injuries":

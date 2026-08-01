@@ -1,8 +1,12 @@
 import datetime
+from types import SimpleNamespace
 
 from django.contrib.auth import get_user_model
-from django.test import Client, TestCase
+from django.test import Client, RequestFactory, TestCase
+from django.urls import reverse
+from django.utils import timezone
 
+from football.account_views import _player_home_zones
 from football.models import (
     Player,
     PlayerInjuryRecord,
@@ -10,6 +14,8 @@ from football.models import (
     Workspace,
     WorkspaceMembership,
 )
+from football.query_helpers import get_active_injury_player_ids
+from football.views import _build_tactical_player_catalog
 
 
 class PlayerInjuriesTests(TestCase):
@@ -100,3 +106,80 @@ class PlayerInjuriesTests(TestCase):
         )
         self.assertFalse(PlayerInjuryRecord.objects.filter(id=mine.id).exists())
         self.assertTrue(PlayerInjuryRecord.objects.filter(id=theirs.id).exists())
+
+    def test_medical_discharge_updates_player_and_tactical_boards(self):
+        today = timezone.localdate()
+        self.player.injury = "Esguince de tobillo"
+        self.player.injury_type = "Articular"
+        self.player.injury_zone = "Tobillo"
+        self.player.injury_side = "Derecha"
+        self.player.injury_date = today - datetime.timedelta(days=7)
+        self.player.save()
+        record = PlayerInjuryRecord.objects.create(
+            player=self.player,
+            injury="Esguince de tobillo",
+            injury_type="Articular",
+            injury_zone="Tobillo",
+            injury_side="Derecha",
+            injury_date=today - datetime.timedelta(days=7),
+            is_active=True,
+        )
+
+        self.assertIn(self.player.id, get_active_injury_player_ids([self.player.id]))
+        response = self.client.post(
+            reverse("coach-injuries"),
+            {
+                "action": "close",
+                "player_id": self.player.id,
+                "record_id": record.id,
+                "return_date": today.isoformat(),
+            },
+            HTTP_HOST="localhost",
+        )
+
+        self.assertEqual(response.status_code, 302)
+        record.refresh_from_db()
+        self.player.refresh_from_db()
+        self.assertTrue(record.is_recovered)
+        self.assertFalse(record.is_active)
+        self.assertEqual(self.player.injury, "")
+        self.assertEqual(self.player.injury_type, "")
+        self.assertEqual(self.player.injury_zone, "")
+        self.assertEqual(self.player.injury_side, "")
+        self.assertIsNone(self.player.injury_date)
+        self.assertNotIn(self.player.id, get_active_injury_player_ids([self.player.id]))
+
+        request = RequestFactory().get("/", HTTP_HOST="localhost")
+        request.user = self.user
+        request.session = {
+            "active_workspace_id": self.workspace.id,
+            "active_team_by_workspace": {str(self.workspace.id): self.team.id},
+        }
+        catalog = _build_tactical_player_catalog(request, self.team)
+        player_entry = next(item for item in catalog if item["id"] == self.player.id)
+        self.assertEqual(player_entry["estado"], "disponible")
+
+    def test_player_portal_ignores_recovered_record_without_return_date(self):
+        PlayerInjuryRecord.objects.create(
+            player=self.player,
+            injury="Parte ya cerrado",
+            injury_date=timezone.localdate() - datetime.timedelta(days=5),
+            return_date=None,
+            is_active=False,
+            is_recovered=True,
+        )
+        request = RequestFactory().get("/", HTTP_HOST="localhost")
+        request.user = self.user
+        visibility = SimpleNamespace(
+            injuries=True,
+            injuries_published=False,
+            physical=False,
+            evaluation=False,
+            videos=False,
+            fines=False,
+            communication=False,
+        )
+
+        zones = _player_home_zones(request, self.player, visibility)
+
+        self.assertIsNone(zones["active_injury"])

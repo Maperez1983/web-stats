@@ -11825,6 +11825,7 @@ class PlayerDetailStatsFallbackTests(TestCase):
 
     def test_player_detail_injury_form_creates_record_in_injuries_tab(self):
         self.client.force_login(self.user)
+        injury_date = timezone.localdate()
 
         response = self.client.post(
             reverse('player-detail', args=[self.player.id]),
@@ -11834,8 +11835,8 @@ class PlayerDetailStatsFallbackTests(TestCase):
                 'injury_type': 'Muscular',
                 'injury_zone': 'Isquios',
                 'injury_side': 'izquierdo',
-                'injury_date': '2026-07-01',
-                'injury_return_date': '2026-07-10',
+                'injury_date': injury_date.isoformat(),
+                'injury_return_date': '',
                 'injury_notes': 'Carga alta en pretemporada',
                 'injury_record_mode': 'new',
             },
@@ -11848,7 +11849,7 @@ class PlayerDetailStatsFallbackTests(TestCase):
         self.assertEqual(self.player.injury_type, 'Muscular')
         self.assertEqual(self.player.injury_zone, 'Isquios')
         self.assertEqual(self.player.injury_side, 'izquierdo')
-        self.assertEqual(str(self.player.injury_date), '2026-07-01')
+        self.assertEqual(self.player.injury_date, injury_date)
         self.assertContains(response, 'Historial de lesiones')
         self.assertContains(response, 'Sobrecarga muscular')
 

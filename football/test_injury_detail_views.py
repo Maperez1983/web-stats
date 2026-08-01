@@ -68,6 +68,12 @@ class PlayerInjuryDetailViewTests(TestCase):
         session.save()
 
     def test_save_record_marks_recovered_and_creates_milestone(self):
+        self.player.injury = self.record.injury
+        self.player.injury_type = self.record.injury_type
+        self.player.injury_zone = self.record.injury_zone
+        self.player.injury_side = self.record.injury_side
+        self.player.injury_date = self.record.injury_date
+        self.player.save()
         response = self.client.post(
             reverse('player-injury-detail', args=[self.player.id, self.record.id]),
             data={
@@ -93,6 +99,12 @@ class PlayerInjuryDetailViewTests(TestCase):
         self.assertFalse(self.record.is_active)
         self.assertTrue(self.record.blocks_training)
         self.assertIsNotNone(self.record.return_date)
+        self.player.refresh_from_db()
+        self.assertEqual(self.player.injury, '')
+        self.assertEqual(self.player.injury_type, '')
+        self.assertEqual(self.player.injury_zone, '')
+        self.assertEqual(self.player.injury_side, '')
+        self.assertIsNone(self.player.injury_date)
 
         milestone_response = self.client.post(
             reverse('player-injury-detail', args=[self.player.id, self.record.id]),
