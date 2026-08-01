@@ -30484,8 +30484,12 @@
     // Chapa con escudo (base sin dorsal): local verdiblanca, visitante amarilla lisa, portero azul/negra.
     const CHAPA_BASE_URL = '/static/football/images/chapa/';
     const CHAPA_KEY = { titular:'chapa_local', visitante:'chapa_away', turquesa:'chapa_turquesa', blanca:'chapa_blanca', chandal:'chapa_chandal', gk_azul:'chapa_gk_azul', gk_negra:'chapa_gk_negra', gk_magenta:'chapa_gk_magenta' };
-    const chapaBaseUrlForToken = (kit, isGoalkeeper) => {
-      const key = CHAPA_KEY[safeText(kit)] || (isGoalkeeper ? 'chapa_gk_azul' : 'chapa_local');
+    const chapaBaseUrlForToken = (kit, isGoalkeeper, isAway) => {
+      // Sin equipacion explicita, el RIVAL usa la suya (amarilla), no la nuestra.
+      // Antes caia siempre en 'chapa_local' y una ficha de rival salia verdiblanca
+      // con nuestro escudo, indistinguible de un jugador propio.
+      const porDefecto = isGoalkeeper ? 'chapa_gk_azul' : (isAway ? 'chapa_away' : 'chapa_local');
+      const key = CHAPA_KEY[safeText(kit)] || porDefecto;
       return `${CHAPA_BASE_URL}${key}.png`;
     };
     const AVATAR_FIELD_COLORS = { verde: [30, 138, 60], amarilla: [240, 206, 20], blanca: [238, 238, 238], turquesa: [26, 163, 163] };
@@ -31455,7 +31459,7 @@
 			          // Si la imagen no está cargada, cae al disco vectorial de siempre (fallback).
 			          const __chapaImgUrl = (options && options.assetUrl)
 			            ? (resolvePlayerPhotoUrl(options.assetUrl) || safeText(options.assetUrl))
-			            : chapaBaseUrlForToken(options && options.kit, isGoalkeeper);
+			            : chapaBaseUrlForToken(options && options.kit, isGoalkeeper, isAway || isRivalTokenKind(kind));
 			          const __chapaEl = __chapaImgUrl ? (getReadyAvatarImage(__chapaImgUrl) || ensureAvatarImage(__chapaImgUrl)) : null;
 			          const __useChapaImg = !!__chapaEl; // usamos SIEMPRE la imagen de chapa (placeholder de color mientras carga)
 			          if (__useChapaImg) {
