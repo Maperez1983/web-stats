@@ -4193,9 +4193,15 @@
                 </label>
                 <label>
                   Minuto
-                  <input type="hidden" name="minute" value="0" />
-                  <input type="hidden" name="period" value="1" />
+                  <input type="number" name="minute" value="0" min="0" max="120" aria-label="Minuto de la acción" />
                   <span class="auto-field-value" data-minute-display>0'</span>
+                </label>
+                <label>
+                  Parte
+                  <select name="period" aria-label="Parte de la acción">
+                    <option value="1" selected>1ª parte</option>
+                    <option value="2">2ª parte</option>
+                  </select>
                 </label>
                 <label>
                   Zona del campo
@@ -4926,6 +4932,11 @@
 	          };
 	          var parseMinuteFromUi = function () {
 	            try {
+	              var minuteInput = form.querySelector('[name="minute"]');
+	              var manualMinute = minuteInput ? parseInt(String(minuteInput.value || ''), 10) : NaN;
+	              if (isFinite(manualMinute) && manualMinute >= 0) return String(manualMinute);
+	            } catch (e0) {}
+	            try {
 	              var minuteDisplay = form.querySelector('[data-minute-display]');
 	              var txt = minuteDisplay ? String(minuteDisplay.textContent || '') : '';
 	              txt = txt.replace(/[^\d]/g, '');
@@ -4944,6 +4955,11 @@
 	            return '';
 	          };
 	          var parseHalfFromUi = function () {
+	            try {
+	              var periodInput = form.querySelector('[name="period"]');
+	              var manualPeriod = periodInput ? String(periodInput.value || '').trim() : '';
+	              if (manualPeriod === '1' || manualPeriod === '2') return manualPeriod;
+	            } catch (e0) {}
 	            try {
 	              var halfBtn = document.getElementById('change-half-btn');
 	              var label = String(halfBtn ? halfBtn.textContent : '').toLowerCase();

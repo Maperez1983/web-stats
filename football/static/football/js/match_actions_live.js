@@ -1939,7 +1939,6 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       return;
     }
     ensureResultSelected(currentAction);
-    syncAutoFields();
     const payload = new FormData(popupForm);
     await submitPopupAction(payload, { isTeamOnlyAction, source: 'popup' });
   });
