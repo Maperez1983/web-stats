@@ -22472,26 +22472,19 @@ def resolve_player_avatar_url(player):
 
 
 def player_avatar_pending(player):
-    """True si la foto/características actuales NO cuadran con el último avatar generado, es decir,
-    hay cambios pendientes de la próxima pasada de generación (comando/worker). Solo es un aviso."""
+    """
+    True si al jugador le falta el avatar o lo tiene desactualizado.
+
+    La regla vive junto al generador (`generate_player_avatars.avatar_pendiente`) para que la
+    pantalla que lo avisa y el comando que lo genera no puedan discrepar: si discreparan, la lista
+    diria una cosa y el comando haria otra.
+    """
     if player is None:
         return False
     try:
-        from football.management.commands.generate_player_avatars import _inputs_key, _find_player_photo_name
-        photo_name = _find_player_photo_name(player)
-    except Exception:
-        return False
-    has_custom = bool(
-        getattr(player, "skin_grade", None)
-        or (getattr(player, "hairstyle", "") or "").strip()
-        or (getattr(player, "hair_color", "") or "").strip()
-        or getattr(player, "height_cm", None)
-        or photo_name
-    )
-    if not has_custom:
-        return False
-    try:
-        return _inputs_key(player, photo_name) != (getattr(player, "avatar_source_key", "") or "")
+        from football.management.commands.generate_player_avatars import avatar_pendiente
+
+        return avatar_pendiente(player)
     except Exception:
         return False
 

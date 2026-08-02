@@ -6,6 +6,8 @@ prod) no falle. El resultado se guarda en Player.avatar_generated y el resolver 
 pizarra / 11 / editor. Regenera solo si cambian las entradas (avatar_source_key).
 
 Uso:
+    python manage.py generate_player_avatars --listar        # quien esta pendiente (vale en prod)
+    python manage.py generate_player_avatars --pendientes    # barre la cola
     python manage.py generate_player_avatars --all
     python manage.py generate_player_avatars --player 42 --force
 
@@ -57,6 +59,63 @@ def _find_player_photo_name(player):
         except Exception:
             pass
     return ""
+
+
+def avatar_pendiente(player):
+    """
+    ¿A este jugador le falta el avatar o lo tiene desactualizado?
+
+    Es la regla que decide la COLA: hay material para generarlo (foto o características) y el
+    avatar guardado no corresponde a ese material. Vive aquí, junto al generador, para que la
+    pantalla que lo avisa y el comando que lo hace no puedan discrepar.
+    """
+    if player is None:
+        return False
+    try:
+        photo_name = _find_player_photo_name(player)
+    except Exception:
+        return False
+    hay_material = bool(
+        getattr(player, "skin_grade", None)
+        or (getattr(player, "hairstyle", "") or "").strip()
+        or (getattr(player, "hair_color", "") or "").strip()
+        or getattr(player, "height_cm", None)
+        or photo_name
+    )
+    if not hay_material:
+        return False
+    try:
+        return _inputs_key(player, photo_name) != (getattr(player, "avatar_source_key", "") or "")
+    except Exception:
+        return False
+
+
+def cola_avatares(queryset=None):
+    """
+    Reparte la plantilla en tres montones. Los dos primeros son trabajo mío; el tercero es del
+    entrenador: sin foto ni características no hay nada que generar.
+    """
+    qs = queryset if queryset is not None else Player.objects.filter(is_active=True)
+    pendientes, al_dia, sin_material = [], [], []
+    for player in qs.order_by("number", "name"):
+        try:
+            hay_foto = bool(_find_player_photo_name(player))
+        except Exception:
+            hay_foto = False
+        hay_material = bool(
+            hay_foto
+            or getattr(player, "skin_grade", None)
+            or (getattr(player, "hairstyle", "") or "").strip()
+            or (getattr(player, "hair_color", "") or "").strip()
+            or getattr(player, "height_cm", None)
+        )
+        if not hay_material:
+            sin_material.append(player)
+        elif avatar_pendiente(player):
+            pendientes.append(player)
+        else:
+            al_dia.append(player)
+    return pendientes, al_dia, sin_material
 
 
 def _inputs_key(player, photo_name=""):
@@ -122,8 +181,23 @@ class Command(BaseCommand):
         parser.add_argument("--all", action="store_true", help="Todos los jugadores activos (con foto o por características).")
         parser.add_argument("--player", type=int, default=0, help="Solo este id de jugador.")
         parser.add_argument("--force", action="store_true", help="Regenerar aunque no cambien las entradas.")
+        parser.add_argument("--pendientes", action="store_true", help="Solo los que tienen el avatar pendiente (la cola).")
+        parser.add_argument("--listar", action="store_true", help="Enseña la cola y sale. No necesita insightface: sirve tambien en produccion.")
 
     def handle(self, *args, **opts):
+        # --listar va PRIMERO, antes de los imports pesados: asi se puede mirar la cola en
+        # produccion, donde insightface no existe.
+        if opts.get("listar"):
+            pendientes, al_dia, sin_material = cola_avatares()
+            self.stdout.write(f"Al dia:        {len(al_dia)}")
+            self.stdout.write(f"Pendientes:    {len(pendientes)}")
+            for p in pendientes:
+                self.stdout.write(f"   · {p.number or '-'} {p.name}")
+            self.stdout.write(f"Sin material:  {len(sin_material)}  (falta foto o caracteristicas; esto no lo arregla el comando)")
+            for p in sin_material:
+                self.stdout.write(f"   · {p.number or '-'} {p.name}")
+            return
+
         import cv2
         import numpy as np
         from PIL import Image
@@ -182,8 +256,18 @@ class Command(BaseCommand):
         qs = Player.objects.filter(is_active=True)
         if opts["player"]:
             qs = Player.objects.filter(id=opts["player"])
+        elif opts.get("pendientes"):
+            # La cola: el comando ya no decide a quien le toca, lo dice el estado de los datos.
+            pendientes, _al_dia, sin_material = cola_avatares(qs)
+            if not pendientes:
+                self.stdout.write("No hay nada pendiente.")
+                if sin_material:
+                    self.stdout.write(f"({len(sin_material)} jugadores sin foto ni caracteristicas: eso hay que rellenarlo a mano.)")
+                return
+            qs = Player.objects.filter(id__in=[p.id for p in pendientes])
+            self.stdout.write(f"Cola: {len(pendientes)} jugadores.")
         elif not opts["all"]:
-            self.stderr.write("Indica --all o --player <id>."); return
+            self.stderr.write("Indica --all, --pendientes, --listar o --player <id>."); return
 
         # Altura por PERCENTIL de la plantilla: el más bajo del equipo -> escala mínima, el más
         # alto -> máxima, anclando en p10-p90 para que un outlier no comprima al resto (la mediana
