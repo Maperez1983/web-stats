@@ -1123,6 +1123,9 @@
             {% else %}<span class="ph-badge ph-ok">Disponible</span>{% endif %}
             {% if player.has_federative_license %}<span class="ph-badge ph-ok" title="Ficha federativa">✅ Fichado</span>{% else %}<span class="ph-badge" title="Sin ficha federativa">Sin ficha</span>{% endif %}
             {% if evaluation_consensus.overall %}<span class="ph-badge ph-accent" title="Media del cuerpo técnico · {{ evaluation_consensus.voters }} valoración{{ evaluation_consensus.voters|pluralize:"es" }}">★ {{ evaluation_consensus.overall }}</span>{% endif %}
+            {% comment %}Figura del jugador: por que no sale su cara en la pizarra. `avatar_pending` ya venia en el contexto y no lo pintaba nadie; sin foto no hay nada que generar y eso lo tiene que arreglar el entrenador, no el comando.{% endcomment %}
+            {% if avatar_pending %}<span class="ph-badge ph-warn" title="Su figura se regenerara en la proxima pasada de avatares">⏳ Avatar pendiente</span>
+            {% elif not player_photo_url %}<span class="ph-badge ph-muted" title="Sin foto no se puede generar su figura: sale como ficha de color en la pizarra">Sin foto</span>{% endif %}
             {% if player.position %}<span class="ph-badge ph-muted">{{ player.position|display_position }}</span>{% endif %}
             {% if player.number %}<span class="ph-badge ph-muted">#{{ player.number }}</span>{% endif %}
           </div>

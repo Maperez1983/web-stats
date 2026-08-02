@@ -1414,6 +1414,8 @@
                 {% else %}
                 <span class="badge off">Inactivo</span>
                 {% endif %}
+                {% comment %}Aviso de figura. Aqui se mira SOLO el campo de la BD (gratis): preguntar por la foto son cuatro consultas al almacenamiento por jugador, y en un listado de 25 eso son cien. El motivo exacto -pendiente o sin foto- esta en su ficha.{% endcomment %}
+                {% if not player.avatar_generated %}<span class="badge off" title="Sin figura generada: en la pizarra sale como ficha de color. Entra en su ficha para ver por que.">Sin avatar</span>{% endif %}
               </td>
               <td>
                 {% if can_edit %}
