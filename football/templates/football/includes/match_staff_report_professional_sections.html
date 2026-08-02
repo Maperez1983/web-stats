@@ -5,9 +5,9 @@
   <h2 class="pro-section-title">Resumen del partido</h2>
   <p class="pro-section-intro">Marcador, producción ofensiva y las conclusiones prioritarias que deben guiar la revisión del cuerpo técnico.</p>
   <div class="pro-scoreboard">
-    <div class="pro-team"><img class="pro-team-crest" src="{{ crest_src }}" alt="Escudo de {{ team_name }}"><span>{{ team_name }}</span></div>
+    <div class="pro-team"><img class="pro-team-crest" src="{{ crest_src }}" alt=""><span>{{ team_name }}</span></div>
     <div class="pro-score">{{ score_label }}<small>Resultado final</small></div>
-    <div class="pro-team"><img class="pro-team-crest" src="{{ opponent_crest_src }}" alt="Escudo de {{ opponent_name }}"><span>{{ opponent_name }}</span></div>
+    <div class="pro-team"><img class="pro-team-crest" src="{{ opponent_crest_src }}" alt=""><span>{{ opponent_name }}</span></div>
   </div>
   <div class="pro-compare-table" aria-label="Comparativa exacta del partido">
     {% for row in pro.exact_comparison %}
