@@ -23386,11 +23386,13 @@ def coach_overview_page(request):
         ) or _has_group
         # Auto-mostrado (sin ?diag): solo si hay competición configurada pero la tabla sale vacía.
         # Con ?diag=standings se muestra siempre (para depurar cualquier caso).
-        # Búsqueda en vivo en Universo del equipo (solo con ?diag explícito, porque hace red):
-        # nos dice si Universo encuentra al equipo por nombre y cuántos candidatos hay.
-        # Las sondas hacen red (login + búsqueda). Se ejecutan cuando vamos a pintar el panel,
-        # es decir con ?diag explícito o en el auto-mostrado (clasificación vacía + liga configurada).
-        _run_probes = bool(_diag_requested or _has_real_competition)
+        #
+        # LAS SONDAS HACEN RED (login en Universo + búsqueda del equipo recorriendo grupos) y
+        # SÓLO se ejecutan si se piden con ?diag. Antes también corrían en el auto-mostrado, que
+        # es el caso de CUALQUIER categoría sin clasificación todavía: la portada del cadete
+        # tardaba más de 25 segundos en cada carga y llegaba a colgar el navegador. Un panel de
+        # diagnóstico no puede costar eso; sin sondas se pinta igual con lo que ya está en la BD.
+        _run_probes = bool(_diag_requested)
         _universo_token = "—"
         if _run_probes:
             try:
