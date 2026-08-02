@@ -87146,15 +87146,8 @@ def compute_player_dashboard(
                 away_team=primary_team,
                 is_closed=True,
             )
-            if scope_value != "all":
-                if scope_value == Match.CONTEXT_LEAGUE:
-                    internal_matches_qs = internal_matches_qs.filter(
-                        Q(context=Match.CONTEXT_LEAGUE) | Q(context="")
-                    )
-                else:
-                    internal_matches_qs = internal_matches_qs.filter(context=scope_value)
-            if tournament_filter and scope_value == Match.CONTEXT_TOURNAMENT:
-                internal_matches_qs = internal_matches_qs.filter(tournament_name=tournament_filter)
+            # Es una actividad transversal de plantilla, no un resultado competitivo. Por eso
+            # cuenta en la ficha aunque el Match se guardara como amistoso y el selector esté en Liga.
             if season_obj and not (date_start or date_end):
                 internal_matches_qs = internal_matches_qs.filter(season=season_obj)
             if date_start:

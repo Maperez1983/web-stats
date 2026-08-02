@@ -256,7 +256,7 @@ class PlayerDashboardAgendaTests(TestCase):
             home_team=self.team,
             away_team=self.team,
             is_closed=True,
-            context=Match.CONTEXT_LEAGUE,
+            context=Match.CONTEXT_FRIENDLY,
             round="Partido interno",
         )
 
