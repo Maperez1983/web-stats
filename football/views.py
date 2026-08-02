@@ -28444,6 +28444,7 @@ def _match_staff_report_context(request, *, match, primary_team):
                     "name": player.name,
                     "number": player.number or "",
                     "profile_label": (player.position or "").strip(),
+                    "photo_url": _safe_resolve_player_photo_url(request, player),
                     "actions": 0,
                     "successes": 0,
                     "goals": 0,

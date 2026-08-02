@@ -196,6 +196,8 @@
         background:transparent; box-shadow:none; backdrop-filter:none;
       }
       .header .eyebrow { margin:0 0 6px; color:var(--accent-deep); font-size:12px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; }
+      .report-brand { display:grid; grid-template-columns:64px minmax(0,1fr); gap:14px; align-items:center; }
+      .report-crest { display:block; width:64px; height:64px; object-fit:contain; border:1px solid var(--line); border-radius:16px; background:#fff; padding:5px; box-shadow:var(--shadow); }
       .header h1 { margin:0; color:var(--ink); font-size:clamp(26px,4.4vw,42px); line-height:1.03; font-weight:800; letter-spacing:-.01em; text-transform:none; }
       .header p { margin:8px 0 0; color:var(--ink-soft); font-size:14px; }
       .meta { margin-top:10px; }
@@ -262,15 +264,18 @@
   <body class="report-a4">
     <div class="shell sqr a4-sheet">
       <header class="header">
-        <div>
-          <div class="eyebrow">Informe al cuerpo técnico · Postpartido</div>
-          <h1>Informe de partido</h1>
-          <p>{{ team_name }} vs {{ opponent_name }}</p>
-          <div class="meta">
-            {% if match_date_label %}<span class="pill">{{ match_date_label }}</span>{% endif %}
-            {% if location_label %}<span class="pill">{{ location_label }}</span>{% endif %}
-            {% if round_label %}<span class="pill">{{ round_label }}</span>{% endif %}
-            {% if score_label %}<span class="pill score-pill">{{ score_label }}</span>{% endif %}
+        <div class="report-brand">
+          <img class="report-crest" src="{{ crest_src }}" alt="Escudo de {{ team_name }}" />
+          <div>
+            <div class="eyebrow">Informe al cuerpo técnico · Postpartido</div>
+            <h1>Informe de partido</h1>
+            <p>{{ team_name }} vs {{ opponent_name }}</p>
+            <div class="meta">
+              {% if match_date_label %}<span class="pill">{{ match_date_label }}</span>{% endif %}
+              {% if location_label %}<span class="pill">{{ location_label }}</span>{% endif %}
+              {% if round_label %}<span class="pill">{{ round_label }}</span>{% endif %}
+              {% if score_label %}<span class="pill score-pill">{{ score_label }}</span>{% endif %}
+            </div>
           </div>
         </div>
         <div class="actions">

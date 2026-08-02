@@ -137,7 +137,6 @@ class MatchStaffReportTests(TestCase):
         identity_label = "Informe al cuerpo técnico · Postpartido"
         for section_title in (
             "Resumen ejecutivo",
-            "Historia del partido",
             "Con balón",
             "Sin balón y transiciones",
             "Balón parado",
@@ -156,6 +155,11 @@ class MatchStaffReportTests(TestCase):
         self.assertIn("Acciones ganadas", html)
         self.assertIn("Nuestro equipo", html)
         self.assertIn("Once rival no disponible", html)
+        self.assertIn('class="report-crest"', html)
+        self.assertIn("Escudo de Equipo informe", html)
+        self.assertIn('class="pro-player-list"', html)
+        self.assertNotIn("Qué cambió el encuentro", html)
+        self.assertNotIn("Qué cambió el encuentro", pdf_html)
         self.assertNotIn("Aportación principal", html)
         self.assertIn(identity_label, pdf_html)
         self.assertIn("#0F8A4B", pdf_html)
