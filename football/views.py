@@ -78935,7 +78935,10 @@ def _auto_match_rating_from_stats(stats, position=None):
         s += min(0.24, 0.05 * saves)
         s -= min(0.40, 0.10 * goals_conceded)
     elif line in ("central", "lateral"):
-        s += min(0.12, 0.01 * (recoveries + aerial_won))
+        # En defensa, recuperar y ganar el duelo es la producción principal del puesto,
+        # no una acción secundaria. Premiamos el volumen defensivo confirmado sin
+        # volver a contar por separado la especialidad aérea.
+        s += min(0.20, 0.02 * (recoveries + dw))
     elif line in ("pivote", "medio"):
         s += min(0.10, 0.01 * (key_passes + long_won))
     elif line in ("banda", "delantero"):
@@ -78953,7 +78956,7 @@ def _auto_match_rating_from_stats(stats, position=None):
         successes = max(0, min(total, int(stats.get("successes", 0) or 0)))
         success_ratio = successes / total
         if success_ratio < 0.50:
-            rating -= min(0.45, (0.50 - success_ratio) * 1.50)
+            rating -= min(0.45, (0.50 - success_ratio) * 2.00)
     minutes_raw = stats.get("minutes_played")
     try:
         minutes = max(0, int(float(minutes_raw))) if minutes_raw is not None else None

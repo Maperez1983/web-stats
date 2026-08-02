@@ -394,6 +394,23 @@ class MatchRatingAlgorithmTests(TestCase):
 
         self.assertLessEqual(rating, 6.5)
 
+    def test_defensive_production_has_extra_positional_value(self):
+        defensive_work = {
+            "total_actions": 20,
+            "successes": 15,
+            "recoveries": 4,
+            "explicit_duels_total": 4,
+            "explicit_duels_won": 4,
+            "forced_turnovers": 2,
+            "retentions_lost": 4,
+            "minutes_played": 45,
+        }
+
+        central_rating = views._auto_match_rating_from_stats(defensive_work, "DFC")
+        forward_rating = views._auto_match_rating_from_stats(defensive_work, "DC")
+
+        self.assertGreater(central_rating, forward_rating)
+
     def test_contextual_consequences_and_unforced_errors_have_meaningful_weight(self):
         common = {"total_actions": 12, "pass_attempts": 8, "passes_completed": 6}
         neutral = views._auto_match_rating_from_stats(common, "MC")
