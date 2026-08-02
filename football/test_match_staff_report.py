@@ -67,7 +67,7 @@ class MatchStaffReportTests(TestCase):
             raw_data={"perspective": perspective},
         )
 
-    @patch("football.views.resolve_team_crest_url", return_value="")
+    @patch("football.views.resolve_team_crest_url", return_value="https://media.example/Unknown.png")
     def test_context_builds_team_and_player_match_reports(self, _crest):
         impact_event = self._event(
             "PASE EN LARGO", "GANADO", minute=12, period=1, zone="Medio centro", tercio="Construcción"
@@ -157,6 +157,7 @@ class MatchStaffReportTests(TestCase):
         self.assertIn("Once rival no disponible", html)
         self.assertIn('class="report-crest"', html)
         self.assertIn("Escudo de Equipo informe", html)
+        self.assertNotIn("Unknown.png", html)
         self.assertIn('class="pro-player-list"', html)
         self.assertNotIn("Qué cambió el encuentro", html)
         self.assertNotIn("Qué cambió el encuentro", pdf_html)

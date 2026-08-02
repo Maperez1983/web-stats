@@ -28548,6 +28548,17 @@ def _match_staff_report_context(request, *, match, primary_team):
                 crest_uri = ""
         if not crest_uri:
             crest_uri = resolve_team_crest_url(request, team_obj, sync=True)
+        # Algunos equipos heredaron el marcador del proveedor `Unknown.png`. Aunque
+        # sea una URL válida, no contiene un escudo y el navegador la muestra vacía.
+        if "unknown" in str(crest_uri or "").lower():
+            crest_uri = ""
+        if not crest_uri and _is_benagalbon_team(team_obj):
+            crest_uri = _image_file_as_small_data_uri(
+                static_base_dir / "football" / "images" / "cdb-benagalbon-crest-pdf.png",
+                max_width=220,
+                max_height=220,
+                quality=82,
+            )
         if not crest_uri:
             initials = "".join([c for c in str(fallback_label or "").upper() if c.isalpha()])[:2] or "2J"
             svg = f"""<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><rect width='100%' height='100%' rx='90' ry='90' fill='#0f172a'/><text x='50%' y='54%' text-anchor='middle' dominant-baseline='middle' font-family='Arial' font-size='72' font-weight='900' fill='#f8fafc'>{initials}</text></svg>"""
