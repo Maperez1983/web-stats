@@ -25,7 +25,7 @@
   <div class="pb-field" data-pb-team="{{ primary_team_id|default:0 }}" data-pb-save-url="{% url 'coach-pitch-board-save' %}"
        style="background-image:url('{% static 'football/images/pitch3d/coach_home_pitch_surface.png' %}');">
     {% for p in coach_pitch_players %}
-    <a class="pb-chip pb-{{ p.state }}{% if p.is_scout %} pb-scout{% endif %}" href="{{ p.ficha_url }}" data-pb-pid="{{ p.id }}"{% if p.is_scout %} data-pb-scout="1"{% endif %} draggable="false"
+    <a class="pb-chip pb-{{ p.state }}{% if p.is_scout %} pb-scout{% endif %}" href="{{ p.ficha_url }}" data-pb-pid="{{ p.id }}" data-pb-state="{{ p.state }}"{% if p.is_scout %} data-pb-scout="1"{% endif %} draggable="false"
        style="left:{{ p.left|unlocalize }}%;top:{{ p.top|unlocalize }}%;"
        title="{{ p.name }} · {{ p.state_label }}" aria-label="{{ p.name }}, {{ p.position|default:'jugador' }}, {{ p.state_label }}. Abrir ficha.">
       <span class="pb-avatar"><img src="{% if p.avatar_url %}{{ p.avatar_url }}{% else %}{% static p.avatar %}{% endif %}" alt="" draggable="false" /></span>
@@ -47,10 +47,20 @@
     </a>
     {% endfor %}
   </div>
-  <div class="pb-legend">
-    <span class="pb-dot pb-available"></span> Disponible
-    <span class="pb-dot pb-trial"></span> A prueba
-    <span class="pb-dot pb-injured"></span> Lesionado
+  <div class="pb-legend" role="group" aria-label="Filtrar jugadores por estado">
+    <button type="button" class="pb-filter pb-filter-all is-active" data-pb-filter="all" aria-pressed="true">
+      Todos <span class="pb-filter-count" data-pb-filter-count="all"></span>
+    </button>
+    <button type="button" class="pb-filter" data-pb-filter="available" aria-pressed="false">
+      <span class="pb-dot pb-available"></span> Disponible <span class="pb-filter-count" data-pb-filter-count="available"></span>
+    </button>
+    <button type="button" class="pb-filter" data-pb-filter="trial" aria-pressed="false">
+      <span class="pb-dot pb-trial"></span> A prueba <span class="pb-filter-count" data-pb-filter-count="trial"></span>
+    </button>
+    <button type="button" class="pb-filter" data-pb-filter="injured" aria-pressed="false">
+      <span class="pb-dot pb-injured"></span> Lesionado <span class="pb-filter-count" data-pb-filter-count="injured"></span>
+    </button>
+    <span class="pb-filter-summary" data-pb-filter-summary aria-live="polite"></span>
   </div>
   {% else %}
   <p class="muted" style="margin:0;">Aún no hay jugadores en la plantilla.</p>
@@ -104,6 +114,7 @@
     -webkit-user-select: none; touch-action: none;
     -webkit-user-drag: none; -khtml-user-drag: none; -moz-user-drag: none; user-drag: none;
   }
+  .pb-chip[hidden] { display: none; }
   .pb-chip img { -webkit-user-drag: none; user-drag: none; }
   .pb-chip.pb-dragging { cursor: grabbing; z-index: 5; }
   .pb-chip:focus-visible { outline: 2px solid var(--accent, #f4b400); outline-offset: 3px; border-radius: 12px; }
@@ -143,11 +154,25 @@
   .pb-available .pb-num { border-color: #86efac; }
   .pb-trial .pb-num { border-color: #fde68a; }
   .pb-injured .pb-num { border-color: #fca5a5; }
-  .pb-legend { display: flex; gap: 1rem; align-items: center; margin-top: 0.7rem; font-size: 0.76rem; color: var(--muted, #91a1b9); flex-wrap: wrap; }
+  .pb-legend { display: flex; gap: 0.45rem; align-items: center; margin-top: 0.7rem; font-size: 0.76rem; color: var(--muted, #91a1b9); flex-wrap: wrap; }
+  .pb-filter {
+    display: inline-flex; align-items: center; gap: 0.2rem; min-height: 30px; padding: 0.3rem 0.62rem;
+    border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 999px; background: rgba(15, 23, 42, 0.22);
+    color: inherit; font: inherit; font-weight: 750; cursor: pointer;
+  }
+  .pb-filter:hover { background: rgba(148, 163, 184, 0.12); color: var(--prod-text, #e5e7eb); }
+  .pb-filter:focus-visible { outline: 2px solid var(--accent, #f4b400); outline-offset: 2px; }
+  .pb-filter.is-active { border-color: rgba(244, 180, 0, 0.55); background: rgba(244, 180, 0, 0.14); color: var(--prod-text, #f8fafc); }
+  .pb-filter-count { min-width: 1.25rem; padding: 0.05rem 0.28rem; border-radius: 999px; background: rgba(148, 163, 184, 0.14); text-align: center; font-size: 0.68rem; }
+  .pb-filter-summary { margin-left: auto; font-size: 0.7rem; white-space: nowrap; }
   .pb-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 0.2rem; }
   .pb-dot.pb-available { background: #86efac; }
   .pb-dot.pb-trial { background: #fde68a; }
   .pb-dot.pb-injured { background: #fca5a5; }
+  @media print {
+    .pb-filter { border: 0; padding: 0; background: transparent; cursor: default; }
+    .pb-filter-all, .pb-filter-summary, .pb-filter-count { display: none; }
+  }
   /* En móvil el campo es estrecho -> el clamp+cqw ya encoge a los jugadores; no fijamos px aquí
      para no pisar ese escalado (antes forzaba 78px y se solapaban). */
 </style>
@@ -248,14 +273,12 @@
       var toggle = card.querySelector('.pb-view-toggle');
       var field = card.querySelector('.pb-field');
       var list = card.querySelector('[data-pb-list]');
-      var legend = card.querySelector('.pb-legend');
       if (!toggle || !list) return;
       var KEY = 'pb-view';
       function apply(view) {
         var isList = view === 'list';
         if (field) field.hidden = isList;
         list.hidden = !isList;
-        if (legend) legend.hidden = isList;
         toggle.querySelectorAll('.pb-view-btn').forEach(function (b) {
           b.classList.toggle('is-active', b.getAttribute('data-pb-view') === view);
         });
@@ -270,6 +293,46 @@
       var saved = 'field';
       try { saved = localStorage.getItem(KEY) || 'field'; } catch (e) {}
       apply(saved);
+
+      var filterButtons = Array.prototype.slice.call(card.querySelectorAll('[data-pb-filter]'));
+      var chips = Array.prototype.slice.call(card.querySelectorAll('.pb-chip[data-pb-state]'));
+      var rows = Array.prototype.slice.call(card.querySelectorAll('.pb-list-row[data-pb-state]'));
+      var summary = card.querySelector('[data-pb-filter-summary]');
+
+      function countState(state) {
+        if (state === 'all') return chips.length;
+        return chips.filter(function (chip) { return chip.getAttribute('data-pb-state') === state; }).length;
+      }
+
+      filterButtons.forEach(function (button) {
+        var state = button.getAttribute('data-pb-filter') || 'all';
+        var count = card.querySelector('[data-pb-filter-count="' + state + '"]');
+        if (count) count.textContent = String(countState(state));
+      });
+
+      function applyFilter(state) {
+        var selected = ['available', 'trial', 'injured'].indexOf(state) >= 0 ? state : 'all';
+        chips.concat(rows).forEach(function (item) {
+          item.hidden = selected !== 'all' && item.getAttribute('data-pb-state') !== selected;
+        });
+        filterButtons.forEach(function (button) {
+          var active = button.getAttribute('data-pb-filter') === selected;
+          button.classList.toggle('is-active', active);
+          button.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+        if (summary) {
+          var visible = countState(selected);
+          summary.textContent = selected === 'all' ? visible + ' jugadores' : 'Mostrando ' + visible + ' de ' + chips.length;
+        }
+      }
+
+      filterButtons.forEach(function (button) {
+        button.addEventListener('click', function () {
+          var state = button.getAttribute('data-pb-filter') || 'all';
+          applyFilter(button.getAttribute('aria-pressed') === 'true' && state !== 'all' ? 'all' : state);
+        });
+      });
+      applyFilter('all');
     });
   })();
 </script>

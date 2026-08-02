@@ -48,6 +48,19 @@ class CoachPitchBoardPersistenceTests(TestCase):
         # Debe salir con punto decimal (CSS válido), no coma localizada.
         self.assertIn('left:55.5%;top:66.6%;', body)
 
+    def test_home_and_roster_render_interactive_status_filters(self):
+        for url in (f'/coach/?team={self.team.id}', f'/coach/plantilla/?team={self.team.id}'):
+            with self.subTest(url=url):
+                response = self.client.get(url, HTTP_HOST='localhost')
+                self.assertEqual(response.status_code, 200)
+                body = response.content.decode('utf-8', 'ignore')
+                self.assertIn('aria-label="Filtrar jugadores por estado"', body)
+                self.assertIn('data-pb-filter="all"', body)
+                self.assertIn('data-pb-filter="available"', body)
+                self.assertIn('data-pb-filter="trial"', body)
+                self.assertIn('data-pb-filter="injured"', body)
+                self.assertIn('data-pb-state="available"', body)
+
     def test_player_from_other_team_is_rejected(self):
         other = Team.objects.create(name='Otro', slug='otro')
         stranger = Player.objects.create(team=other, name='X', is_active=True)
