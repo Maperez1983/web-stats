@@ -18,7 +18,7 @@
   .pro-compare-row span { color:var(--ink-faint,#7C877E); font-size:10px; font-weight:800; letter-spacing:.1em; text-align:center; text-transform:uppercase; }
   .pro-percentage-grid { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:8px; margin-top:14px; }
   .pro-percentage-card { display:grid; grid-template-rows:62px auto; justify-items:center; gap:7px; min-width:0; padding:11px 7px; border:1px solid var(--line-soft,#E2E9E1); border-radius:12px; background:var(--surface-2,#F3F7F2); text-align:center; }
-  .pro-percentage-ring { display:grid; width:60px; height:60px; place-items:center; border:7px solid #DCE8DF; border-radius:50%; background:radial-gradient(circle at center,#fff 54%,transparent 55%),conic-gradient(var(--accent,#0F8A4B) calc(var(--percentage) * 1%),#DCE8DF 0); }
+  .pro-percentage-ring { display:grid; width:60px; height:60px; place-items:center; border:7px solid var(--line-soft,#DCE8DF); border-radius:50%; background:radial-gradient(circle at center,var(--surface-2,#F3F7F2) 54%,transparent 55%),conic-gradient(var(--accent,#0F8A4B) calc(var(--percentage) * 1%),var(--surface-3,#DCE8DF) 0); }
   .pro-percentage-ring strong { color:var(--ink,#12201A); font-size:16px; }
   .pro-percentage-card span { display:block; min-height:24px; color:var(--ink,#12201A); font-size:9px; font-weight:900; line-height:1.3; text-transform:uppercase; }
   .pro-percentage-card small { display:block; margin-top:3px; color:var(--ink-faint,#7C877E); font-size:8px; }
@@ -134,5 +134,5 @@
     .pro-pitch { min-height:230px; }
   }
   .report-pdf .actions,.report-pdf .pro-player-identity a { display:none !important; }
-  @media print { .pro-section { break-inside:auto; page-break-inside:auto; } .pro-findings,.pro-panel,.pro-flow-item,.pro-quality-item,.pro-player-card,.pro-tactical-card { break-inside:avoid; page-break-inside:avoid; } .pro-percentage-ring { background:#fff; } }
+  @media print { .pro-section { break-inside:auto; page-break-inside:auto; } .pro-findings,.pro-panel,.pro-flow-item,.pro-quality-item,.pro-player-card,.pro-tactical-card { break-inside:avoid; page-break-inside:avoid; } .pro-percentage-ring { border-color:#B8C9BC; background:radial-gradient(circle at center,#fff 54%,transparent 55%),conic-gradient(#0F8A4B calc(var(--percentage) * 1%),#DCE8DF 0) !important; } .pro-percentage-ring strong { color:#12201A !important; } }
 </style>
