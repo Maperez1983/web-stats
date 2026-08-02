@@ -6,7 +6,17 @@ from django.test import RequestFactory, TestCase
 from django.template.loader import render_to_string
 
 from football import views
-from football.models import Competition, Match, MatchEvent, Player, PlayerStatistic, Season, Team
+from football.models import (
+    Competition,
+    Match,
+    MatchEvent,
+    MatchLineup,
+    Player,
+    PlayerStatistic,
+    RivalConvocationRecord,
+    Season,
+    Team,
+)
 
 
 class MatchStaffReportTests(TestCase):
@@ -113,6 +123,12 @@ class MatchStaffReportTests(TestCase):
         self.assertEqual(exact["Disparos"], (1, 7))
         self.assertEqual(exact["A puerta"], (1, 2))
         self.assertEqual(exact["Córners"], (4, 7))
+        percentages = {row["label"]: row["pct"] for row in professional["percentage_metrics"]}
+        self.assertEqual(percentages["Precisión de pase"], 100)
+        self.assertEqual(percentages["Pase largo"], 100)
+        self.assertEqual(percentages["Duelos"], 100)
+        self.assertEqual(percentages["Tiros a puerta"], 100)
+        self.assertEqual(professional["shot_comparison"]["opponent_pct"], 28.6)
         self.assertEqual([row["level"] for row in professional["data_quality"]], ["Exacto", "Derivado", "No disponible"])
 
         context["pdf_url"] = "/coach/informes/partido/pdf/?match_id=1"
@@ -137,8 +153,48 @@ class MatchStaffReportTests(TestCase):
         self.assertIn(identity_label, html)
         self.assertIn('class="shell sqr a4-sheet"', html)
         self.assertIn("Jugador Uno", pdf_html)
+        self.assertIn("Acciones ganadas", html)
+        self.assertIn("Nuestro equipo", html)
+        self.assertIn("Once rival no disponible", html)
+        self.assertNotIn("Aportación principal", html)
         self.assertIn(identity_label, pdf_html)
         self.assertIn("#0F8A4B", pdf_html)
+
+    @patch("football.views.resolve_team_crest_url", return_value="")
+    def test_report_uses_saved_lineups_without_filling_missing_players(self, _crest):
+        MatchLineup.objects.create(
+            team=self.team,
+            match=self.match,
+            lineup_data={
+                "starters": [
+                    {"id": str(self.player.id), "x_pct": 24, "y_pct": 51},
+                ],
+                "bench": [],
+            },
+        )
+        RivalConvocationRecord.objects.create(
+            team=self.team,
+            match=self.match,
+            rival_team=self.rival,
+            convocation_data=[{"code": "rival-9", "name": "Delantero Rival", "number": 9, "position": "DC"}],
+            lineup_data={
+                "starters": [{"code": "rival-9", "x_pct": 76, "y_pct": 50}],
+                "bench": [],
+            },
+        )
+        request = RequestFactory().get("/coach/informes/partido/")
+        request.user = AnonymousUser()
+
+        context = views._match_staff_report_context(request, match=self.match, primary_team=self.team)
+        tactical = context["professional_report"]["tactical"]
+
+        self.assertEqual(len(tactical["own"]["starters"]), 1)
+        self.assertEqual(tactical["own_missing"], 10)
+        self.assertEqual(tactical["own"]["starters"][0]["name"], "JUGADOR UNO")
+        self.assertTrue(tactical["own"]["starters"][0]["has_coordinates"])
+        self.assertEqual(len(tactical["rival"]["starters"]), 1)
+        self.assertEqual(tactical["rival_missing"], 10)
+        self.assertEqual(tactical["rival"]["starters"][0]["name"], "Delantero Rival")
 
     @patch("football.views.resolve_team_crest_url", return_value="")
     def test_player_report_is_narrative_and_keeps_percentage_kpis_out(self, _crest):

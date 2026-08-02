@@ -29212,6 +29212,9 @@ def _match_staff_report_context(request, *, match, primary_team):
         professional_players.append(
             {
                 **row,
+                "initials": "".join(
+                    part[0] for part in str(row.get("name") or "").strip().split()[:2] if part
+                ).upper() or "SJ",
                 "contribution": contribution,
                 "focus": focus,
                 "influence": influence,
@@ -29219,10 +29222,156 @@ def _match_staff_report_context(request, *, match, primary_team):
             }
         )
 
+    def _percentage(completed, attempted):
+        attempted = int(attempted or 0)
+        completed = int(completed or 0)
+        return round((completed / attempted) * 100, 1) if attempted else 0
+
+    percentage_metrics = [
+        {
+            "label": "Precisión de pase",
+            "pct": _percentage(totals["passes_ok"], totals["passes"]),
+            "detail": f'{totals["passes_ok"]}/{totals["passes"]}',
+        },
+        {
+            "label": "Pase largo",
+            "pct": _percentage(team_sums["long_passes_ok"], team_sums["long_passes"]),
+            "detail": f'{team_sums["long_passes_ok"]}/{team_sums["long_passes"]}',
+        },
+        {
+            "label": "Regates",
+            "pct": _percentage(team_sums["dribbles_ok"], team_sums["dribbles"]),
+            "detail": f'{team_sums["dribbles_ok"]}/{team_sums["dribbles"]}',
+        },
+        {
+            "label": "Duelos",
+            "pct": _percentage(totals["duels_won"], totals["duels"]),
+            "detail": f'{totals["duels_won"]}/{totals["duels"]}',
+        },
+        {
+            "label": "Tiros a puerta",
+            "pct": _percentage(totals["shots_target"], totals["shots"]),
+            "detail": f'{totals["shots_target"]}/{totals["shots"]}',
+        },
+        {
+            "label": "Duelos aéreos",
+            "pct": _percentage(totals["aerial_won"], totals["aerial"]),
+            "detail": f'{totals["aerial_won"]}/{totals["aerial"]}',
+        },
+    ]
+
+    ratings_by_player = {
+        int(row["player_id"]): row.get("rating")
+        for row in professional_players
+        if row.get("player_id") is not None
+    }
+    minutes_by_player = {
+        int(row["player_id"]): int(row.get("minutes") or 0)
+        for row in professional_players
+        if row.get("player_id") is not None
+    }
+
+    convocation_record = _get_convocation_record_for_match(primary_team, match)
+    stored_lineup = _stored_lineup_for_match(primary_team, match, convocation_record)
+    # Un informe histórico debe conservar el once aunque hoy algún jugador ya no esté activo.
+    allowed_players = list(Player.objects.filter(team=primary_team))
+    own_lineup = _normalize_lineup_payload_with_limit(
+        stored_lineup,
+        allowed_players,
+        starters_limit=_required_starters_for_team(primary_team),
+    )
+    own_lineup = _ensure_lineup_orientation(own_lineup, target="lr")
+    for section in ("starters", "bench"):
+        for lineup_player in own_lineup.get(section, []):
+            try:
+                player_id = int(lineup_player.get("id"))
+            except (TypeError, ValueError):
+                player_id = 0
+            lineup_player["minutes"] = minutes_by_player.get(player_id, 0)
+            lineup_player["rating"] = ratings_by_player.get(player_id)
+            lineup_player["has_coordinates"] = (
+                lineup_player.get("x_pct") is not None and lineup_player.get("y_pct") is not None
+            )
+
+    rival_record = (
+        RivalConvocationRecord.objects.filter(team=primary_team, match=match)
+        .select_related("rival_team")
+        .first()
+    )
+    rival_lineup = {"starters": [], "bench": []}
+    if rival_record:
+        rival_lineup = _normalize_rival_lineup_payload_with_limit(
+            rival_record.lineup_data if isinstance(rival_record.lineup_data, dict) else {},
+            rival_record.convocation_data if isinstance(rival_record.convocation_data, list) else [],
+            starters_limit=_required_starters_for_team(primary_team),
+        )
+        rival_lineup = _ensure_lineup_orientation(rival_lineup, target="lr")
+        for section in ("starters", "bench"):
+            for lineup_player in rival_lineup.get(section, []):
+                lineup_player["has_coordinates"] = (
+                    lineup_player.get("x_pct") is not None and lineup_player.get("y_pct") is not None
+                )
+
+    substitution_rows = defaultdict(lambda: {"out": [], "in": []})
+    for event in events:
+        if not (
+            is_substitution_event(event.event_type, event.zone)
+            or is_substitution_entry(event.event_type, event.result, event.zone)
+            or is_substitution_exit(event.event_type, event.result, event.zone)
+        ):
+            continue
+        player = event.player
+        player_row = {
+            "name": (player.name or "").strip() if player else "Sin jugador",
+            "number": player.number if player and player.number is not None else "—",
+            "rating": ratings_by_player.get(int(player.id)) if player else None,
+        }
+        minute_key = event.minute if event.minute is not None else -1
+        result_label = str(event.result or "").strip().lower()
+        zone_label = str(event.zone or "").strip().lower()
+        if is_substitution_exit(event.event_type, event.result, event.zone) or result_label.startswith("sal"):
+            substitution_rows[minute_key]["out"].append(player_row)
+        elif is_substitution_entry(event.event_type, event.result, event.zone) or result_label.startswith("ent"):
+            substitution_rows[minute_key]["in"].append(player_row)
+        elif "sal" in zone_label:
+            substitution_rows[minute_key]["out"].append(player_row)
+        else:
+            substitution_rows[minute_key]["in"].append(player_row)
+
+    substitutions = []
+    for minute_key in sorted(substitution_rows):
+        outgoing = substitution_rows[minute_key]["out"]
+        incoming = substitution_rows[minute_key]["in"]
+        for index in range(max(len(outgoing), len(incoming), 1)):
+            substitutions.append(
+                {
+                    "minute": None if minute_key == -1 else minute_key,
+                    "out": outgoing[index] if index < len(outgoing) else None,
+                    "in": incoming[index] if index < len(incoming) else None,
+                }
+            )
+
+    starters_limit = _required_starters_for_team(primary_team)
+    tactical = {
+        "own": own_lineup,
+        "rival": rival_lineup,
+        "starters_limit": starters_limit,
+        "own_missing": max(0, starters_limit - len(own_lineup.get("starters", []))),
+        "rival_missing": max(0, starters_limit - len(rival_lineup.get("starters", []))),
+        "substitutions": substitutions,
+    }
+
     professional_report = {
         "corners_for": corners_for,
         "corners_against": corners_against,
         "exact_comparison": exact_comparison,
+        "percentage_metrics": percentage_metrics,
+        "shot_comparison": {
+            "team_pct": _percentage(totals["shots_target"], totals["shots"]),
+            "opponent_pct": _percentage(opponent_shots_target, opponent_shots),
+            "team_detail": f'{totals["shots_target"]}/{totals["shots"]}',
+            "opponent_detail": f"{opponent_shots_target}/{opponent_shots}",
+        },
         "executive_findings": executive_findings[:3],
         "with_ball": [
             {"label": "Pases", "value": f'{totals["passes_ok"]}/{totals["passes"]}', "note": "completados / intentados"},
@@ -29243,6 +29392,7 @@ def _match_staff_report_context(request, *, match, primary_team):
         "transition_notes": transition_notes,
         "set_piece_notes": set_piece_notes,
         "players": professional_players,
+        "tactical": tactical,
         "data_quality": [
             {"level": "Exacto", "text": "Marcador, minutos, eventos, disparos, pases registrados, duelos, córners, faltas y paradas."},
             {"level": "Derivado", "text": "Distribución zonal, influencia, lectura por fases y conclusiones técnicas."},
