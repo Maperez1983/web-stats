@@ -420,6 +420,10 @@ def fetch_universo_team_roster(team_code: str) -> list[dict]:
                 'red_cards': 0,
                 'dorsal': dorsal,
                 'code': code_key,
+                # La fila cruda: Universo mete aqui datos que este normalizador no conoce
+                # (fecha de nacimiento, foto, nacionalidad...). El importador de plantilla propia
+                # los lee de aqui en vez de obligar a tocar este normalizador cada vez.
+                'raw': row,
             }
         )
 

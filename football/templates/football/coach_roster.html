@@ -1392,6 +1392,28 @@
         {% endif %}
 
         {% if active_tab == 'manage' %}
+        {% if can_manage_roster %}
+        {# Completar la ficha con lo que la federación ya tiene. No copia la plantilla de
+           Universo: sólo toca a los jugadores ya dados de alta cuyo nombre casa. #}
+        <div class="club-panel" style="margin:0 0 14px;">
+          <div class="club-panel-head"><h3 style="margin:0;">Completar fichas desde Universo RFAF</h3></div>
+          <div class="club-panel-body" style="display:grid; gap:10px;">
+            <p style="margin:0; color:var(--prod-soft);">
+              Rellena dorsal, posición, fecha de nacimiento y foto de <strong>los jugadores que ya están en esta plantilla</strong>
+              y cuyo nombre coincide con el de Universo. A nadie más se le toca ni se le da de alta.
+            </p>
+            <label style="display:grid; gap:4px; max-width:520px;">
+              <span style="font-size:12px; color:var(--prod-soft);">Equipo de origen en Universo (opcional)</span>
+              <input type="text" id="universoCodigo" placeholder="Código o URL de universorfaf.es — vacío = este equipo" />
+              <span style="font-size:12px; color:var(--prod-soft);">Los que suben de categoría siguen en la plantilla del equipo del año pasado: pega aquí su URL.</span>
+            </label>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button type="button" class="inline-ghost" id="btnUniversoVer">Ver qué hay (no escribe nada)</button>
+              <button type="button" class="inline-ok" id="btnUniversoImportar">Completar fichas</button>
+            </div>
+          </div>
+        </div>
+        {% endif %}
         <div class="roster-table-wrap">
         <table>
           <thead>
@@ -1524,5 +1546,86 @@
         {% endif %}
       </section>
     </main>
-  </body>
+  
+<script>
+  (() => {
+    const ver = document.getElementById('btnUniversoVer');
+    const importar = document.getElementById('btnUniversoImportar');
+    if (!ver && !importar) return;
+    const campo = document.getElementById('universoCodigo');
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+    const equipo = '{{ primary_team_id }}';
+
+    // El usuario pega la URL entera de la ficha del equipo; el código es el número de /team/<id>.
+    const codigoDe = (texto) => {
+      const limpio = String(texto || '').trim();
+      if (!limpio) return '';
+      const m = limpio.match(/\/team\/(\d+)/);
+      return m ? m[1] : limpio.replace(/\D+/g, '');
+    };
+
+    const pedir = async (boton, extra, trabajando) => {
+      boton.disabled = true;
+      const antes = boton.textContent;
+      boton.textContent = trabajando;
+      try {
+        const cuerpo = new URLSearchParams({ team_id: equipo, codigo: codigoDe(campo && campo.value), ...extra });
+        if (csrf) cuerpo.set('csrfmiddlewaretoken', csrf.value);
+        const respuesta = await fetch('{% url 'coach-team-import-squad' %}', {
+          method: 'POST', body: cuerpo, credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        });
+        const datos = await respuesta.json().catch(() => ({}));
+        if (!respuesta.ok || !datos.ok) {
+          window.alert(datos.error || 'No se pudo consultar Universo RFAF.');
+          return null;
+        }
+        return datos;
+      } catch (error) {
+        window.alert('No se pudo consultar Universo RFAF.');
+        return null;
+      } finally {
+        boton.disabled = false;
+        boton.textContent = antes;
+      }
+    };
+
+    if (ver) ver.addEventListener('click', async () => {
+      const datos = await pedir(ver, { inspect: '1' }, 'Mirando…');
+      if (!datos) return;
+      const lineas = [
+        `${datos.equipo}: Universo devuelve ${datos.filas} jugadores.`,
+        '',
+        `Casan con tu plantilla (${(datos.casan || []).length}): ${(datos.casan || []).join(', ') || '—'}`,
+        '',
+        `Tuyos que Universo no trae (${(datos.no_estan_en_universo || []).length}): ${(datos.no_estan_en_universo || []).join(', ') || '—'}`,
+        '',
+        `De Universo que no están en tu ficha (${(datos.no_estan_en_la_ficha || []).length}): ${(datos.no_estan_en_la_ficha || []).join(', ') || '—'}`,
+        '',
+        `Datos por jugador: ${(datos.claves || []).join(', ') || '—'}`,
+      ];
+      window.alert(lineas.join('\n'));
+    });
+
+    if (importar) importar.addEventListener('click', async () => {
+      const corregir = window.confirm(
+        'Aceptar: corrige también lo que ya esté puesto.\n' +
+        'Cancelar: sólo rellena lo que esté vacío (recomendado).'
+      );
+      const datos = await pedir(importar, { overwrite: corregir ? '1' : '0' }, 'Completando…');
+      if (!datos) return;
+      const r = datos.resumen || {};
+      const lineas = [
+        `${datos.equipo}: ${(r.actualizados || []).length} fichas completadas, ${(r.fotos || []).length} fotos.`,
+        '',
+        ...(r.actualizados || []).slice(0, 30),
+      ];
+      if ((r.no_estan_en_universo || []).length) lineas.push('', 'Tuyos que Universo no trae:', (r.no_estan_en_universo || []).join(', '));
+      if ((r.no_estan_en_la_ficha || []).length) lineas.push('', 'De Universo que no están en tu ficha (no se han creado):', (r.no_estan_en_la_ficha || []).join(', '));
+      window.alert(lineas.join('\n'));
+      window.location.reload();
+    });
+  })();
+</script>
+</body>
 </html>
