@@ -6,7 +6,9 @@ prod) no falle. El resultado se guarda en Player.avatar_generated y el resolver 
 pizarra / 11 / editor. Regenera solo si cambian las entradas (avatar_source_key).
 
 Uso:
-    python manage.py generate_player_avatars --listar        # quien esta pendiente (vale en prod)
+    python manage.py generate_player_avatars --listar               # quien esta pendiente (vale en prod)
+    python manage.py generate_player_avatars --pendientes --club 1  # solo un club
+    python manage.py generate_player_avatars --pendientes --equipo 3
     python manage.py generate_player_avatars --pendientes    # barre la cola
     python manage.py generate_player_avatars --all
     python manage.py generate_player_avatars --player 42 --force
@@ -174,6 +176,21 @@ def _recolor_hair(arr, mask01, hair_hex):
         return
 
 
+def _ambito(opts):
+    """
+    A quien alcanza el comando. Sin filtros son TODOS los jugadores activos de TODOS los clubes:
+    en una plataforma con varios clubes eso es generar avatares ajenos con tu maquina.
+    """
+    qs = Player.objects.filter(is_active=True)
+    if opts.get("equipo"):
+        qs = qs.filter(team_id=opts["equipo"])
+    if opts.get("club"):
+        # `Team.club` es la clave real; `Team.workspace` es la relacion INVERSA de Workspace y no
+        # se puede filtrar por ahi.
+        qs = qs.filter(team__club_id=opts["club"])
+    return qs
+
+
 class Command(BaseCommand):
     help = "Genera el avatar por jugador: face-swap si tiene foto, si no sintético (piel/peinado/altura)."
 
@@ -182,13 +199,15 @@ class Command(BaseCommand):
         parser.add_argument("--player", type=int, default=0, help="Solo este id de jugador.")
         parser.add_argument("--force", action="store_true", help="Regenerar aunque no cambien las entradas.")
         parser.add_argument("--pendientes", action="store_true", help="Solo los que tienen el avatar pendiente (la cola).")
+        parser.add_argument("--equipo", type=int, default=0, help="Limita a un equipo (id).")
+        parser.add_argument("--club", type=int, default=0, help="Limita a un club/espacio de trabajo (id).")
         parser.add_argument("--listar", action="store_true", help="Enseña la cola y sale. No necesita insightface: sirve tambien en produccion.")
 
     def handle(self, *args, **opts):
         # --listar va PRIMERO, antes de los imports pesados: asi se puede mirar la cola en
         # produccion, donde insightface no existe.
         if opts.get("listar"):
-            pendientes, al_dia, sin_material = cola_avatares()
+            pendientes, al_dia, sin_material = cola_avatares(_ambito(opts))
             self.stdout.write(f"Al dia:        {len(al_dia)}")
             self.stdout.write(f"Pendientes:    {len(pendientes)}")
             for p in pendientes:
@@ -253,7 +272,7 @@ class Command(BaseCommand):
             if _rf:
                 rapado_face = sorted(_rf, key=lambda f: (f.bbox[2] - f.bbox[0]))[-1]
 
-        qs = Player.objects.filter(is_active=True)
+        qs = _ambito(opts)
         if opts["player"]:
             qs = Player.objects.filter(id=opts["player"])
         elif opts.get("pendientes"):
@@ -273,20 +292,30 @@ class Command(BaseCommand):
         # alto -> máxima, anclando en p10-p90 para que un outlier no comprima al resto (la mediana
         # queda en ~1.0). Usa SIEMPRE la plantilla completa, no solo los que se regeneran ahora.
         # Nota: si cambia mucho la plantilla, relanza con --force para refrescar la escala de todos.
+        # Altura por percentil DE SU EQUIPO. Antes el percentil se sacaba de TODA la tabla, no de la
+        # plantilla: con alevines de 1,40 y seniors de 1,90 -y varios clubes en la misma base- los
+        # anclajes p10/p90 no describian a nadie, asi que un senior salia aplastado y un nino
+        # estirado. El comentario decia "la plantilla completa"; la consulta no la filtraba.
         HEIGHT_MIN_F, HEIGHT_MAX_F = 0.88, 1.12
-        _sq = sorted(h for h in Player.objects.filter(is_active=True).values_list("height_cm", flat=True) if h)
-        _h_lo = _sq[int(0.10 * (len(_sq) - 1))] if len(_sq) >= 3 else None
-        _h_hi = _sq[int(0.90 * (len(_sq) - 1))] if len(_sq) >= 3 else None
+        _percentiles = {}
 
-        def _height_factor(h_cm):
-            if not h_cm or _h_lo is None or _h_hi <= _h_lo:
+        def _anclas(team_id):
+            if team_id in _percentiles:
+                return _percentiles[team_id]
+            alturas = sorted(
+                h for h in Player.objects.filter(is_active=True, team_id=team_id).values_list("height_cm", flat=True) if h
+            )
+            par = (alturas[int(0.10 * (len(alturas) - 1))], alturas[int(0.90 * (len(alturas) - 1))]) if len(alturas) >= 3 else (None, None)
+            _percentiles[team_id] = par
+            return par
+
+        def _height_factor(player):
+            h_cm = getattr(player, "height_cm", None)
+            lo, hi = _anclas(getattr(player, "team_id", None))
+            if not h_cm or lo is None or hi <= lo:
                 return 1.0
-            t = max(0.0, min(1.0, (h_cm - _h_lo) / (_h_hi - _h_lo)))
+            t = max(0.0, min(1.0, (h_cm - lo) / (hi - lo)))
             return HEIGHT_MIN_F + t * (HEIGHT_MAX_F - HEIGHT_MIN_F)
-
-        if _h_lo is not None:
-            self.stdout.write(f"Altura por percentil de plantilla: p10={_h_lo}cm p90={_h_hi}cm "
-                              f"-> escala {HEIGHT_MIN_F}–{HEIGHT_MAX_F}")
 
         done = skipped = failed = 0
         for player in qs:
@@ -351,7 +380,7 @@ class Command(BaseCommand):
 
                 # altura: escala la figura (pies abajo) según el percentil de la plantilla.
                 out = Image.fromarray(arr.astype("uint8"), "RGBA")
-                f = _height_factor(getattr(player, "height_cm", None))
+                f = _height_factor(player)
                 if abs(f - 1.0) > 0.01:
                     W, H = out.size
                     sc = out.resize((max(1, int(W * f)), max(1, int(H * f))), Image.LANCZOS)
