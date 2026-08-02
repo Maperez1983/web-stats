@@ -653,7 +653,9 @@
         <div class="hm-stat"><div class="n">{{ federative_report.a_prueba }}</div><div class="k">A prueba</div></div>
         <div class="hm-stat red"><div class="n">{{ federative_report.lesionados }}</div><div class="k">Lesionados</div></div>
         {% endif %}
-        {% if highlighted_standing %}
+        {% comment %}Sin jornadas jugadas, el "puesto" es el orden alfabético de la tabla: no se
+        enseña como posición.{% endcomment %}
+        {% if highlighted_standing and standings_has_played %}
         <div class="hm-stat gold"><div class="n">{{ highlighted_standing.rank|default:"-" }}<span class="d">º</span></div><div class="k">Clasificación</div></div>
         {% if highlighted_standing.points %}<div class="hm-stat"><div class="n">{{ highlighted_standing.points }}</div><div class="k">Puntos</div></div>{% endif %}
         {% endif %}
@@ -671,7 +673,7 @@
             <div style="flex:1;min-width:0;">
               <div class="hm-rname">vs {{ next_match_opponent|default:"Rival por confirmar" }}</div>
               <div class="hm-rmeta">{{ next_match.round|default:"Jornada por confirmar" }}{% if next_match_date %} · {{ next_match_date }}{% endif %}{% if next_match.time %} · {{ next_match.time }}{% endif %}</div>
-              <div class="hm-rmeta2">{% if next_match.location %}{{ next_match.location }}{% endif %}{% if opponent_standing %} · Rival {{ opponent_standing.rank|default:"-" }}º{% if opponent_standing.points %} · {{ opponent_standing.points }} pts{% endif %}{% endif %}</div>
+              <div class="hm-rmeta2">{% if next_match_location_label %}{{ next_match_location_label }}{% endif %}{% if next_match_location_url %}{% if next_match_location_label %} · {% endif %}<a href="{{ next_match_location_url }}" target="_blank" rel="noreferrer">Ver ubicación</a>{% endif %}{% if opponent_standing and standings_has_played %} · Rival {{ opponent_standing.rank|default:"-" }}º{% if opponent_standing.points %} · {{ opponent_standing.points }} pts{% endif %}{% endif %}</div>
               <div class="hm-rform" id="hm-rival-form" hidden><span class="hm-rformk">Últimos 5</span> <span id="hm-rival-form-badges"></span> <span class="hm-rforms" id="hm-rival-form-sum"></span></div>
             </div>
           </div>
@@ -688,6 +690,9 @@
           </div>
           {% if standings_season_label %}
           <p class="hm-prev-season" title="Todavía no hay tabla de la temporada en curso: se muestra la última disponible.">⚠️ Temporada {{ standings_season_label }} · aún no hay clasificación de la actual</p>
+          {% endif %}
+          {% if not standings_has_played %}
+          <p class="hm-prev-season">Aún no se ha jugado ninguna jornada: el orden es provisional.</p>
           {% endif %}
           {% if standings_window %}
           <table class="hm-mini">

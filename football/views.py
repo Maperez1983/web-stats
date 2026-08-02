@@ -23313,6 +23313,26 @@ def coach_pitch_board_save(request):
     return JsonResponse({"ok": True})
 
 
+def _split_venue_text_and_link(value):
+    """
+    Separa el nombre de un campo de juego de un posible enlace.
+
+    Si en el campo hay pegada una URL (típico: una búsqueda de Google del campo), no es un
+    nombre: se devuelve aparte para pintarla como enlace y no como un churro ilegible.
+    """
+    raw = str(value or "").strip()
+    if not raw:
+        return "", ""
+    if raw.lower().startswith(("http://", "https://", "www.")):
+        return "", raw if "://" in raw else f"https://{raw}"
+    encontrado = re.search(r"(https?://\S+)", raw)
+    if encontrado:
+        enlace = encontrado.group(1)
+        texto = raw.replace(enlace, "").strip(" ·-,;")
+        return texto, enlace
+    return raw, ""
+
+
 @login_required
 def coach_overview_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
@@ -23497,6 +23517,17 @@ def coach_overview_page(request):
         except Exception:
             pass
     hero_image_data_uri, hero_image_url = _build_team_hero_payload(request, workspace, primary_team)
+    # El campo del partido se copia del estadio del equipo, y ahí alguien puede haber pegado una
+    # búsqueda de Google. Un enlace crudo en la portada no es el nombre de un campo: se separa.
+    try:
+        _loc_raw = (
+            str(next_match.get("location") or "").strip()
+            if isinstance(next_match, dict)
+            else str(getattr(next_match, "location", "") or "").strip()
+        )
+    except Exception:
+        _loc_raw = ""
+    next_match_location_label, next_match_location_url = _split_venue_text_and_link(_loc_raw)
     team_name_folded = (primary_team.name or "").strip().lower() if primary_team else ""
     highlighted_standing = None
     for row in standings:
@@ -23512,6 +23543,16 @@ def coach_overview_page(request):
         ) or standings
     except Exception:
         pass
+    # Con la liga sin empezar todas las filas van a cero: el "puesto" es sólo el orden
+    # alfabético de la tabla, así que enseñarlo como posición es mentir.
+    standings_has_played = False
+    for row in standings:
+        try:
+            if int(str(row.get("played") or row.get("pj") or 0).strip() or 0) > 0:
+                standings_has_played = True
+                break
+        except Exception:
+            continue
     standings_rows = []
     for row in standings:
         row_copy = dict(row)
@@ -23752,6 +23793,9 @@ def coach_overview_page(request):
             "standings_window": standings_window,
             "standings_window_truncated": standings_window_truncated,
             "highlighted_standing": highlighted_standing,
+            "standings_has_played": standings_has_played,
+            "next_match_location_label": next_match_location_label,
+            "next_match_location_url": next_match_location_url,
             "opponent_standing": opponent_standing,
             "module_hub": module_hub,
             "can_access_platform": can_access_platform,
@@ -89229,7 +89273,9 @@ def match_hub_create_match(request):
         if home_away == "away":
             location_value = str(getattr(rival_team, "home_stadium", "") or "").strip()
         elif home_away == "home":
-            location_value = str(getattr(primary_team, "home_stadium", "") or "").strip()
+            # Sólo el NOMBRE del campo: si en el estadio del equipo hay pegado un enlace, no se
+            # arrastra al partido (acababa pintándose como campo en la portada).
+            location_value, _ = _split_venue_text_and_link(getattr(primary_team, "home_stadium", ""))
     season_obj = resolve_stats_season(primary_team) or getattr(getattr(primary_team, "group", None), "season", None)
     selected_match_season = _home_current_club_season(request, workspace) or selected_club_season_for_request(
         request, workspace=workspace
