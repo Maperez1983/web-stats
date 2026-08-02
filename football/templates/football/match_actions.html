@@ -1088,6 +1088,15 @@
         color: var(--prod-button-text);
         box-shadow: inset 0 0 0 1px rgba(250, 204, 21, 0.28);
       }
+      .match-stage-recovery {
+        color: #a5f3fc;
+        box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.24);
+      }
+      .match-stage-recovery:hover,
+      .match-stage-recovery:focus-visible {
+        background: rgba(34, 211, 238, 0.12);
+        color: #ecfeff;
+      }
       .match-stage-panel {
         display: none;
       }
@@ -1403,6 +1412,33 @@
         display: flex;
         gap: 0.75rem;
         flex-wrap: wrap;
+      }
+      .manual-recovery-notice {
+        display: grid;
+        gap: 0.25rem;
+        padding: 0.85rem 1rem;
+        border: 1px solid rgba(34, 211, 238, 0.28);
+        border-radius: 14px;
+        background: linear-gradient(135deg, rgba(8, 145, 178, 0.14), rgba(15, 23, 42, 0.72));
+        color: var(--prod-text);
+      }
+      .manual-recovery-notice strong {
+        color: #a5f3fc;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .manual-recovery-notice span {
+        color: var(--prod-muted);
+        line-height: 1.45;
+      }
+      .manual-recovery-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.7rem;
+      }
+      .manual-recovery-grid label {
+        display: grid;
+        gap: 0.35rem;
       }
       .closure-actions button {
         border: none;
@@ -3081,6 +3117,7 @@
           <nav class="match-stage-tabs" aria-label="Fases del registro">
             <button type="button" class="match-stage-tab {% if default_stage == 'pre' %}is-active{% endif %}" data-stage-tab="pre">Prepartido</button>
             <button type="button" class="match-stage-tab {% if default_stage == 'live' %}is-active{% endif %}" data-stage-tab="live">En vivo</button>
+            <button type="button" class="match-stage-tab match-stage-recovery" id="manual-bulk-open-nav">Recuperar acciones</button>
             <button type="button" class="match-stage-tab {% if default_stage == 'close' %}is-active{% endif %}" data-stage-tab="close">Cierre</button>
           </nav>
 	          <script>
@@ -4338,9 +4375,11 @@
               <h3>Historial reciente</h3>
               <div class="history-grid" id="history-list">
 	              {% for event in recent_events %}
-		              <article class="history-item" data-event-id="{{ event.id }}" data-system="{{ event.system|default:'' }}"{% if event.player_id %} data-player-id="{{ event.player_id }}"{% endif %}>
+	              <article class="history-item" data-event-id="{{ event.id }}" data-system="{{ event.system|default:'' }}" data-source="{{ event.source_file|default:'' }}"{% if event.player_id %} data-player-id="{{ event.player_id }}"{% endif %}>
 	                <span class="hist-minute">{{ event.minute|default:"??" }}'</span>
-                  {% if event.system == 'touch-field-final' %}
+                  {% if event.source_file == 'manual-recovery' %}
+                    <span class="pending-pill" style="background: rgba(8,145,178,0.16); border-color: rgba(34,211,238,0.35); color: #a5f3fc;">RECUPERADA</span>
+                  {% elif event.system == 'touch-field-final' %}
                     <span class="pending-pill" style="background: rgba(47,125,50,0.16); border-color: rgba(47,125,50,0.35); color: var(--prod-text);">GUARDADA</span>
                   {% endif %}
 	                {% with event_player=event.player %}
@@ -4348,7 +4387,7 @@
 	                {% endwith %}
 	                <p class="hist-text">{{ event.event_type }} · {{ event.zone|default:"-" }} · {{ event.result|default:"" }}</p>
 	                <div class="history-actions">
-                    {% if event.system != 'touch-field-final' %}
+                    {% if event.system != 'touch-field-final' or event.source_file == 'manual-recovery' %}
 	                  <button type="button" class="history-delete" aria-label="Eliminar acción">🗑</button>
                     {% endif %}
 	                </div>
@@ -4502,22 +4541,26 @@
         </div>
         <div class="sidebar-lineup-builder manual-load-tools" style="margin-top:0.85rem;">
           <div class="lineup-toolbar">
-            <button type="button" id="manual-bulk-open-btn">Carga manual (cantidad)</button>
+            <button type="button" id="manual-bulk-open-btn">Recuperar acciones</button>
           </div>
           <div class="lineup-status" style="opacity:0.9;">
-            Útil para recuperar partidos: añade <em>N</em> acciones iguales a un jugador (ej. “Pérdida no forzada” × 6).
+            Reconstruye acciones que no pudieron registrarse durante el partido, con minuto y trazabilidad manual.
           </div>
         </div>
       </aside>
       <div class="quick-history-modal" id="manual-bulk-modal" aria-hidden="true">
         <div class="quick-history-dialog" role="dialog" aria-modal="true" aria-labelledby="manual-bulk-title" style="max-width: 720px;">
           <header>
-            <h4 id="manual-bulk-title">Carga manual (por cantidad)</h4>
+            <h4 id="manual-bulk-title">Recuperar acciones del partido</h4>
             <button type="button" class="quick-history-close" id="manual-bulk-close">Cerrar</button>
           </header>
           <form id="manual-bulk-form" style="display:grid; gap:0.7rem; padding: 0.25rem 0 0.25rem;">
             {% csrf_token %}
             <input type="hidden" name="match_id" value="{{ selected_match_id|default:'' }}" />
+            <div class="manual-recovery-notice">
+              <strong>Modo recuperación</strong>
+              <span>Estas acciones se guardan como definitivas y quedan identificadas como introducidas manualmente.</span>
+            </div>
             <datalist id="manual-bulk-action-catalog">
               {% for action in action_catalog %}
                 <option value="{{ action|escape }}"></option>
@@ -4535,7 +4578,6 @@
             <label style="display:grid; gap:0.35rem;">
               <span>Acción</span>
               <input type="text" name="action_type" list="manual-bulk-action-catalog" placeholder="Ej: Pérdida, Pase, Duelo…" required />
-              <small style="opacity:0.75;">Puedes escribirla tal cual. (Si quieres, luego lo mejoramos con selector.)</small>
             </label>
             <label style="display:grid; gap:0.35rem;">
               <span>Resultado</span>
@@ -4551,13 +4593,23 @@
               <span>Zona (opcional)</span>
               <input type="text" name="zone" placeholder="Ej: Defensa Centro, Ataque Derecha…" />
             </label>
+            <div class="manual-recovery-grid">
+              <label>
+                <span>Minuto</span>
+                <input type="number" name="minute" min="0" max="120" value="0" inputmode="numeric" />
+              </label>
+              <label>
+                <span>Cantidad</span>
+                <input type="number" name="quantity" min="1" max="500" value="1" required inputmode="numeric" />
+              </label>
+            </div>
             <label style="display:grid; gap:0.35rem;">
-              <span>Cantidad</span>
-              <input type="number" name="quantity" min="1" max="500" value="1" required />
+              <span>Observación (opcional)</span>
+              <input type="text" name="observation" maxlength="500" placeholder="Ej: reconstruido desde acta o vídeo" />
             </label>
             <div style="display:flex; gap:0.6rem; justify-content:flex-end;">
               <button type="button" class="button" id="manual-bulk-cancel">Cancelar</button>
-              <button type="submit" class="button">Añadir</button>
+              <button type="submit" class="button">Guardar recuperación</button>
             </div>
             <div id="manual-bulk-status" style="opacity:0.85;"></div>
           </form>

@@ -10,6 +10,17 @@ MATCH_ACTIONS_TEMPLATE = ROOT / "football" / "templates" / "football" / "match_a
 
 
 class MatchActionsJavascriptContractTests(SimpleTestCase):
+    def test_manual_recovery_is_available_in_match_flow(self):
+        template = MATCH_ACTIONS_TEMPLATE.read_text(encoding="utf-8")
+        source = MATCH_ACTIONS_JS.read_text(encoding="utf-8")
+
+        self.assertIn('id="manual-bulk-open-nav"', template)
+        self.assertIn("Recuperar acciones del partido", template)
+        self.assertIn('name="minute" min="0" max="120"', template)
+        self.assertIn('name="observation" maxlength="500"', template)
+        self.assertIn("manualBulkOpenNav?.addEventListener('click', openManualBulk);", source)
+        self.assertIn("observation: String(fd.get('observation')", source)
+
     def test_convocation_cards_are_initialized_before_close_selects(self):
         source = MATCH_ACTIONS_JS.read_text(encoding="utf-8")
 

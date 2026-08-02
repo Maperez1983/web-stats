@@ -912,6 +912,7 @@ const urlWithMatchId = (baseUrl) => {
 
       // --- Carga manual (por cantidad) ---
       const manualBulkOpenBtn = document.getElementById('manual-bulk-open-btn');
+      const manualBulkOpenNav = document.getElementById('manual-bulk-open-nav');
       const manualBulkModal = document.getElementById('manual-bulk-modal');
       const manualBulkCloseBtn = document.getElementById('manual-bulk-close');
       const manualBulkCancelBtn = document.getElementById('manual-bulk-cancel');
@@ -931,6 +932,7 @@ const urlWithMatchId = (baseUrl) => {
         try { manualBulkModal.classList.remove('is-visible'); } catch (e) {}
       };
       manualBulkOpenBtn?.addEventListener('click', openManualBulk);
+      manualBulkOpenNav?.addEventListener('click', openManualBulk);
       manualBulkCloseBtn?.addEventListener('click', closeManualBulk);
       manualBulkCancelBtn?.addEventListener('click', closeManualBulk);
       manualBulkModal?.addEventListener('click', (ev) => {
@@ -953,7 +955,9 @@ const urlWithMatchId = (baseUrl) => {
           action_type: String(fd.get('action_type') || '').trim(),
           result: String(fd.get('result') || '').trim(),
           zone: String(fd.get('zone') || '').trim(),
+          minute: Number(fd.get('minute') || 0) || 0,
           quantity: Number(fd.get('quantity') || 1) || 1,
+          observation: String(fd.get('observation') || '').trim(),
         };
         if (!payload.match_id) {
           if (manualBulkStatus) manualBulkStatus.textContent = 'Falta match_id.';
@@ -984,13 +988,28 @@ const urlWithMatchId = (baseUrl) => {
             if (manualBulkStatus) manualBulkStatus.textContent = data?.error || 'No se pudo guardar.';
             return;
           }
-          if (manualBulkStatus) manualBulkStatus.textContent = `Añadidas ${Number(data.created) || 0} acciones.`;
+          const created = Number(data.created) || 0;
+          if (manualBulkStatus) {
+            manualBulkStatus.textContent = created === 1
+              ? 'Acción recuperada y guardada.'
+              : `${created} acciones recuperadas y guardadas.`;
+          }
           // Refresca eventos/contadores sin recargar página.
           try {
             document.dispatchEvent(new CustomEvent('webstats:match-actions:recorded', { detail: { bulk: true } }));
           } catch (e) {}
           // Cierra modal y refresca historial desde servidor (si aplica).
-          try { closeManualBulk(); } catch (e) {}
+          try {
+            form.reset();
+            const quantity = form.querySelector('[name="quantity"]');
+            if (quantity) quantity.value = '1';
+            closeManualBulk();
+          } catch (e) {}
+          showPageStatus && showPageStatus(
+            created === 1 ? 'Acción recuperada correctamente.' : `${created} acciones recuperadas correctamente.`,
+            'success',
+            3600
+          );
         } catch (e) {
           if (manualBulkStatus) manualBulkStatus.textContent = 'Error de red.';
         }

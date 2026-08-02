@@ -111,7 +111,7 @@ def event_matches_stats_source(event, preferred_sources=None):
     """¿Este evento cuenta para las estadísticas, según la fuente única declarada del partido?
     - '__none__'   (solo resultado / sin datos) -> NO cuenta.
     - '__manual__' (manual)                      -> cuenta si es un evento manual.
-    - 'registro-acciones' (en vivo)              -> cuenta SOLO si es del registro en vivo (estricto).
+    - 'registro-acciones' (en vivo)              -> cuenta el directo y su recuperación manual auditada.
     - sin preferencia (legacy sin declarar)      -> cuenta.
     Ya NO hay bypass que deje pasar siempre los manuales: eso causaba el doble conteo."""
     if not preferred_sources:
@@ -124,6 +124,8 @@ def event_matches_stats_source(event, preferred_sources=None):
         return False
     if preferred_source == STATS_SOURCE_MANUAL_MARK:
         return is_manual_event_source(current_source)
+    if preferred_source == 'registro-acciones' and current_source == 'manual-recovery':
+        return True
     return current_source == preferred_source
 
 

@@ -1245,14 +1245,16 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     applyQuickButton(btn);
   });
 
-  const appendHistoryEntry = ({ minute, player, action, zone, result, event_id, pending = false, system = '' }) => {
+  const appendHistoryEntry = ({ minute, player, action, zone, result, event_id, pending = false, system = '', source_file = '' }) => {
     if (!historyList) return false;
     if (event_id && historyList.querySelector(`[data-event-id="${event_id}"]`)) return false;
     const item = document.createElement('article');
     item.className = 'history-item';
     if (pending) item.classList.add('is-offline-pending');
     const sys = String(system || '').trim() || (pending ? 'offline' : 'touch-field');
+    const source = String(source_file || '').trim();
     if (sys) item.dataset.system = sys;
+    if (source) item.dataset.source = source;
     if (player?.id) {
       item.dataset.playerId = String(player.id);
     }
@@ -1262,11 +1264,11 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     const playerName = String(player?.name || 'EQUIPO').toUpperCase();
     item.innerHTML = `
       <span class="hist-minute">${minuteLabel}</span>
-      ${pending ? `<span class="pending-pill">PENDIENTE</span>` : (sys === 'touch-field-final' ? `<span class="pending-pill" style="background: rgba(47,125,50,0.16); border-color: rgba(47,125,50,0.35); color: rgba(226,255,232,0.92);">GUARDADA</span>` : '')}
+      ${pending ? `<span class="pending-pill">PENDIENTE</span>` : (source === 'manual-recovery' ? `<span class="pending-pill" style="background: rgba(8,145,178,0.16); border-color: rgba(34,211,238,0.35); color: #a5f3fc;">RECUPERADA</span>` : (sys === 'touch-field-final' ? `<span class="pending-pill" style="background: rgba(47,125,50,0.16); border-color: rgba(47,125,50,0.35); color: rgba(226,255,232,0.92);">GUARDADA</span>` : ''))}
       <strong>#${playerNumber} ${playerName}</strong>
       <p class="hist-text">${action} · ${zone || '-'} · ${result || ''}</p>
       <div class="history-actions">
-        ${(sys === 'touch-field-final') ? '' : '<button type="button" class="history-delete" aria-label="Eliminar acción">🗑</button>'}
+        ${(sys === 'touch-field-final' && source !== 'manual-recovery') ? '' : '<button type="button" class="history-delete" aria-label="Eliminar acción">🗑</button>'}
       </div>
     `;
     if (event_id) item.dataset.eventId = event_id;
@@ -1291,7 +1293,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     });
     // Si el item viene renderizado como "guardado", aseguramos que el botón de delete no actúe.
     try {
-      if (sys === 'touch-field-final') {
+      if (sys === 'touch-field-final' && String(item.dataset.source || '') !== 'manual-recovery') {
         item.querySelectorAll('.history-delete').forEach((btn) => btn.remove());
       }
     } catch (e) {}
@@ -2130,6 +2132,8 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
           zone: ev.zone,
           result: ev.result,
           event_id: String(ev.id || ''),
+          system: ev.system,
+          source_file: ev.source_file,
         });
         if (!inserted) return;
         const derivedDropKey = classifyCounterDropKey({ action: ev.action, result: ev.result });

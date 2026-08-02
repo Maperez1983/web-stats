@@ -108,6 +108,28 @@ class ManualEventAggregationTests(TestCase):
         self.assertEqual(cards[0]['actions'], 3)
         self.assertEqual(cards[0]['successes'], 3)
 
+    def test_live_source_includes_audited_recovery_actions(self):
+        self.match.stats_source = Match.STATS_SOURCE_LIVE
+        self.match.save(update_fields=['stats_source'])
+        MatchEvent.objects.create(
+            match=self.match,
+            player=self.player,
+            event_type='Robo',
+            result='OK',
+            zone='Ataque Centro',
+            tercio='Ataque',
+            minute=55,
+            period=2,
+            system='touch-field-final',
+            source_file='manual-recovery',
+            raw_data={'recovery': True},
+        )
+
+        cards = compute_player_cards_for_match(self.match, self.team)
+
+        self.assertEqual(cards[0]['actions'], 2)
+        self.assertEqual(cards[0]['successes'], 2)
+
 
 class PlayerCardStaffRatingTests(TestCase):
     def setUp(self):

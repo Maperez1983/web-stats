@@ -7260,6 +7260,8 @@ def _serialize_match_event(event, duplicate=False):
         "action": event.event_type,
         "zone": event.zone,
         "result": event.result,
+        "source_file": event.source_file,
+        "system": event.system,
         "duplicate": bool(duplicate),
         "team_side": team_side,
         "player": {
@@ -24847,15 +24849,16 @@ def match_action_page(request):
         else:
             message = "Completa el jugador y el tipo de acción."
     # Persistencia de registro en vivo:
-    # - En el panel de registro solo deben reaparecer acciones pendientes (touch-field).
-    # - Las guardadas (touch-field-final) quedan en histórico/KPI/informes, pero no se vuelven a pintar
-    #   como "trabajo pendiente" al arrancar limpio después de Guardar partido.
+    # Las acciones en vivo pendientes y las recuperadas manualmente deben verse en el historial.
+    # El resto de acciones ya consolidadas permanece en informes para no reabrir un partido cerrado.
     if active_match:
         recent_events = (
             MatchEvent.objects.filter(
                 match=active_match,
-                source_file="registro-acciones",
-                system="touch-field",
+            )
+            .filter(
+                Q(source_file="registro-acciones", system="touch-field")
+                | Q(source_file="manual-recovery", system="touch-field-final")
             )
             .select_related("player")
             .order_by("-created_at", "-id")[:120]
@@ -24876,8 +24879,13 @@ def match_action_page(request):
     actions_final_count = 0
     if active_match:
         try:
-            base_actions = MatchEvent.objects.filter(match=active_match, source_file="registro-acciones")
-            actions_pending_count = base_actions.filter(system="touch-field").count()
+            base_actions = MatchEvent.objects.filter(
+                match=active_match,
+                source_file__in=["registro-acciones", "manual-recovery"],
+            )
+            actions_pending_count = base_actions.filter(
+                source_file="registro-acciones", system="touch-field"
+            ).count()
             actions_final_count = (
                 0 if just_finalized_active_match else base_actions.filter(system="touch-field-final").count()
             )
@@ -24987,7 +24995,8 @@ def match_action_page(request):
         if not default_stage:
             try:
                 has_any_actions = MatchEvent.objects.filter(
-                    match=active_match, source_file="registro-acciones"
+                    match=active_match,
+                    source_file__in=["registro-acciones", "manual-recovery"],
                 ).exists()
             except Exception:
                 has_any_actions = False
@@ -25588,7 +25597,7 @@ def bulk_add_match_actions(request):
     Carga manual rápida de acciones para un partido (por cantidad).
 
     Caso de uso: recuperar partidos atrasados cuando no se pudo registrar evento a evento.
-    - Crea MatchEvent(s) `touch-field-final` con `source_file='manual-bulk'`.
+    - Crea MatchEvent(s) finales con trazabilidad de recuperación manual.
     - Respeta match_id seleccionado y la convocatoria del partido.
     """
     if not _can_edit_match_actions(request.user):
@@ -25620,6 +25629,7 @@ def bulk_add_match_actions(request):
     action_type = str(payload.get("action_type") or request.POST.get("action_type") or "").strip()
     result = str(payload.get("result") or request.POST.get("result") or "").strip()
     zone = str(payload.get("zone") or request.POST.get("zone") or "").strip()
+    observation = str(payload.get("observation") or request.POST.get("observation") or "").strip()[:500]
     quantity = _parse_int(payload.get("quantity") or request.POST.get("quantity")) or 1
     if quantity < 1:
         quantity = 1
@@ -25683,20 +25693,36 @@ def bulk_add_match_actions(request):
                 result=result,
                 zone=zone,
                 tercio=tercio,
-                observation="Carga manual",
-                source_file="manual-bulk",
+                observation=observation or "Recuperación manual",
+                source_file="manual-recovery",
                 system="touch-field-final",
                 raw_data={
+                    "recovery": True,
                     "bulk": True,
                     "bulk_quantity": int(quantity),
                     "bulk_index": int(idx),
                     "created_at": now_dt.isoformat(),
+                    "created_by_id": int(getattr(request.user, "id", 0) or 0),
                 },
             )
         )
     MatchEvent.objects.bulk_create(events, batch_size=250)
+    # Si el partido ya tiene captura en vivo, la recuperación la complementa y no sustituye
+    # esa fuente. En un partido sin captura, la recuperación sí pasa a ser la fuente manual.
+    recovery_stats_source = (
+        Match.STATS_SOURCE_LIVE
+        if str(getattr(match, "stats_source", "") or "") == Match.STATS_SOURCE_LIVE
+        else Match.STATS_SOURCE_MANUAL
+    )
+    _set_match_stats_source(match, recovery_stats_source)
     _invalidate_team_dashboard_caches(primary_team)
-    return JsonResponse({"ok": True, "created": len(events)})
+    return JsonResponse(
+        {
+            "ok": True,
+            "created": len(events),
+            "events": [_serialize_match_event(event, duplicate=False) for event in events],
+        }
+    )
 
 
 @authenticated_write
@@ -26121,8 +26147,8 @@ def delete_match_action(request):
     candidate_events = MatchEvent.objects.filter(
         Q(match__home_team=primary_team) | Q(match__away_team=primary_team)
     ).filter(
-        source_file="registro-acciones",
-        system="touch-field",
+        Q(source_file="registro-acciones", system="touch-field")
+        | Q(source_file="manual-recovery", system="touch-field-final"),
     )
     if requested_match:
         candidate_events = candidate_events.filter(match=requested_match)
@@ -26159,17 +26185,11 @@ def update_match_action(request):
     if not match:
         return JsonResponse({"error": "No hay partido disponible para actualizar acciones"}, status=400)
 
-    convocation_record = get_current_convocation_record(
-        primary_team,
-        match=match,
-        fallback_to_latest=True,
-    )
-    if not convocation_record:
-        return JsonResponse({"error": "No hay convocatoria activa guardada para este partido"}, status=400)
+    convocation_record = _get_convocation_record_for_match(primary_team, match)
 
     event = (
         MatchEvent.objects.filter(id=int(event_id), match=match)
-        .filter(source_file="registro-acciones")
+        .filter(source_file__in=["registro-acciones", "manual-recovery"])
         .filter(system__in=["touch-field", "touch-field-final"])
         .select_related("player")
         .first()
@@ -26206,7 +26226,9 @@ def update_match_action(request):
     player = None
     if not _is_team_only_action(action_type_key):
         player_id = request.POST.get("player")
-        player = convocation_record.players.filter(id=player_id).first()
+        player = convocation_record.players.filter(id=player_id).first() if convocation_record else None
+        if not player:
+            player = Player.objects.filter(team=primary_team, id=player_id).first()
         if not player:
             return JsonResponse({"error": "Selecciona un jugador convocado válido"}, status=400)
 
@@ -26309,7 +26331,9 @@ def match_actions_events_api(request):
 
     qs = (
         MatchEvent.objects.filter(
-            match=match, source_file="registro-acciones", system__in=["touch-field", "touch-field-final"]
+            match=match,
+            source_file__in=["registro-acciones", "manual-recovery"],
+            system__in=["touch-field", "touch-field-final"],
         )
         .filter(id__gt=int(since_id))
         .select_related("player")
@@ -26355,6 +26379,49 @@ def _reset_matchday_after_finalize(request, primary_team, match):
             except Exception:
                 pass
     _set_match_closed_state(match, is_closed=True)
+
+
+def _finalize_matchday_common(request, primary_team, match, *, stats_source=None, persist_ratings=True):
+    """Cierra un partido igual desde Registro, Hub o ficha y consolida solo lo pendiente."""
+    if not primary_team or not match:
+        return {"updated": 0, "score_for": "", "score_against": ""}
+
+    with transaction.atomic():
+        if stats_source:
+            _set_match_stats_source(match, stats_source)
+        updated = int(
+            MatchEvent.objects.filter(
+                match=match,
+                source_file="registro-acciones",
+                system="touch-field",
+            ).update(system="touch-field-final")
+            or 0
+        )
+        try:
+            _sync_match_score_from_events(match, primary_team)
+        except Exception:
+            pass
+        if persist_ratings:
+            try:
+                _persist_match_ratings(primary_team, match, request=request)
+            except Exception:
+                logger.debug("No se pudieron congelar valoraciones al cerrar match=%s", match.id, exc_info=True)
+        _reset_matchday_after_finalize(request, primary_team, match)
+
+    _invalidate_team_dashboard_caches(primary_team)
+    try:
+        match.refresh_from_db(fields=["home_score", "away_score", "is_closed"])
+        is_home = match.home_team_id == primary_team.id
+        score_for = match.home_score if is_home else match.away_score
+        score_against = match.away_score if is_home else match.home_score
+    except Exception:
+        score_for = None
+        score_against = None
+    return {
+        "updated": updated,
+        "score_for": "" if score_for is None else str(int(score_for)),
+        "score_against": "" if score_against is None else str(int(score_against)),
+    }
 
 
 @authenticated_write
@@ -26448,74 +26515,21 @@ def finalize_match_actions(request):
 
     staff_selection_payload = _save_staff_match_selection()
 
-    def _reset_matchday_state_after_finalize():
-        _reset_matchday_after_finalize(request, primary_team, match)
-
-    pending_events = list(
-        MatchEvent.objects.filter(
-            match=match,
-            system="touch-field",
-            source_file="registro-acciones",
-        ).select_related("player")
+    result = _finalize_matchday_common(
+        request,
+        primary_team,
+        match,
+        stats_source=Match.STATS_SOURCE_LIVE,
     )
-
-    def _score_payload_for_match():
-        try:
-            is_home = match.home_team_id == primary_team.id
-            score_for = match.home_score if is_home else match.away_score
-            score_against = match.away_score if is_home else match.home_score
-        except Exception:
-            score_for = None
-            score_against = None
-        return {
-            "score_for": "" if score_for is None else str(int(score_for)),
-            "score_against": "" if score_against is None else str(int(score_against)),
-        }
-
-    if not pending_events:
-        _reset_matchday_state_after_finalize()
-        _invalidate_team_dashboard_caches(primary_team)
-        return JsonResponse(
-            {
-                "saved": True,
-                "match_id": match.id,
-                "match_label": str(match),
-                "updated": 0,
-                "deduplicated": 0,
-                "staff_selection": staff_selection_payload,
-                **_score_payload_for_match(),
-            }
-        )
-    # Consolidar TODO lo pendiente. No eliminamos "duplicados" aquí porque en fútbol puede haber
-    # acciones iguales repetidas en el mismo minuto (y el usuario prefiere sumar de más antes
-    # que perder acciones reales). El endpoint `register_match_action` ya evita doble-click inmediato.
-    keep_ids = [event.id for event in pending_events if getattr(event, "id", None)]
-    updated = 0
-    if keep_ids:
-        updated = MatchEvent.objects.filter(id__in=keep_ids).update(system="touch-field-final")
-    # Auto-rellena marcador si el staff no lo fijó manualmente.
-    try:
-        _sync_match_score_from_events(match, primary_team)
-    except Exception:
-        pass
-    _invalidate_team_dashboard_caches(primary_team)
-    _reset_matchday_state_after_finalize()
-    try:
-        is_home = match.home_team_id == primary_team.id
-        score_for = match.home_score if is_home else match.away_score
-        score_against = match.away_score if is_home else match.home_score
-    except Exception:
-        score_for = None
-        score_against = None
     return JsonResponse(
         {
             "saved": True,
-            "updated": updated,
+            "updated": result["updated"],
             "deduplicated": 0,
             "match_id": match.id,
             "match_label": str(match),
-            "score_for": "" if score_for is None else str(int(score_for)),
-            "score_against": "" if score_against is None else str(int(score_against)),
+            "score_for": result["score_for"],
+            "score_against": result["score_against"],
             "staff_selection": staff_selection_payload,
         }
     )
@@ -83510,15 +83524,11 @@ def match_editor_page(request, match_id):
                     attendance_marked = _ensure_match_attendance_session(
                         match, primary_team, roster_players, actor=request.user
                     )
-                _invalidate_team_dashboard_caches(primary_team)
-                # Congelar las notas automáticas del partido (histórico/MVP) + avisar a los jugadores.
-                try:
-                    _persist_match_ratings(primary_team, match, request=request)
-                except Exception:
-                    pass
-                _set_match_closed_state(match, is_closed=True)
+                close_result = _finalize_matchday_common(request, primary_team, match)
                 try:
                     _msg = "Partido cerrado."
+                    if close_result["updated"]:
+                        _msg += f" {close_result['updated']} acciones consolidadas."
                     if attendance_marked:
                         _msg += f" Cuenta como entrenamiento: {attendance_marked} asistencias marcadas."
                     messages.success(request, _msg)
@@ -83727,7 +83737,7 @@ def match_editor_page(request, match_id):
                     Q(player__team=primary_team) | Q(player__isnull=True)
                 )
                 if scope == "manual":
-                    qs = qs.filter(source_file__in=["manual-bulk", "admin-manual"])
+                    qs = qs.filter(source_file__in=["manual-bulk", "admin-manual", "manual-recovery"])
                 deleted_count, _ = qs.delete()
                 _invalidate_team_dashboard_caches(primary_team)
                 return redirect(reverse("match-editor", args=[int(match.id)]) + f"?team={int(primary_team.id)}")
@@ -88079,8 +88089,6 @@ def match_hub_finalize_match(request):
     if not match:
         return HttpResponse("No hay partido activo para guardar.", status=400)
 
-    # Cerrar desde el Hub es parte del flujo en vivo: declara la fuente como "en vivo".
-    _set_match_stats_source(match, Match.STATS_SOURCE_LIVE)
     # Permite fijar marcador desde el Hub sin tener que entrar a Registro de acciones.
     # UI: trabaja como "a favor / en contra" relativo al equipo principal.
     try:
@@ -88096,29 +88104,13 @@ def match_hub_finalize_match(request):
     except Exception:
         pass
 
-    try:
-        updated = int(
-            MatchEvent.objects.filter(
-                match=match,
-                source_file="registro-acciones",
-                system="touch-field",
-            ).update(system="touch-field-final")
-            or 0
-        )
-    except Exception:
-        updated = 0
-    try:
-        _sync_match_score_from_events(match, primary_team)
-    except Exception:
-        pass
-    # Coherencia con el cierre desde Registro de acciones: desengancha la convocatoria is_current
-    # y limpia el match activo de sesión, para que cerrar desde el Hub NO deje el matchday a medias
-    # (antes quedaba is_current y bloqueaba el siguiente partido).
-    try:
-        _reset_matchday_after_finalize(request, primary_team, match)
-    except Exception:
-        pass
-    _invalidate_team_dashboard_caches(primary_team)
+    result = _finalize_matchday_common(
+        request,
+        primary_team,
+        match,
+        stats_source=Match.STATS_SOURCE_LIVE,
+    )
+    updated = result["updated"]
 
     # Cierre único: tras consolidar las acciones en vivo, llevamos a la ficha del partido
     # (panel "Cerrar partido") para revisar/completar resultado y minutos en un solo sitio.
