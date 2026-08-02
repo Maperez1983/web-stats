@@ -76,6 +76,85 @@
       .impact-delta{font-size:10px;font-weight:800;color:#0A5E33;}.impact-item.negative .impact-delta{color:#B43C32;}
     </style>
     {% include 'football/includes/match_staff_report_professional_css.html' %}
+    <style>
+      /* WeasyPrint 57 fragments CSS grid aggressively. Keep the web hierarchy while
+         translating the report to stable, compact A4 flex layouts. */
+      @media print {
+        .report-pdf .section-grid { display:block; }
+        .report-pdf .pro-section { display:block; margin:0 0 7mm; padding:4mm; overflow:visible; border:1px solid #D3DCD3; border-radius:12px; background:#fff; break-inside:auto; page-break-inside:auto; }
+        .report-pdf .pro-section-number { margin-bottom:2px; font-size:7px; }
+        .report-pdf .pro-section-title { font-size:17px; }
+        .report-pdf .pro-section-intro { margin-top:4px; font-size:8px; line-height:1.35; }
+        .report-pdf .pro-scoreboard { margin-top:9px; padding:12px 15px; border-radius:11px; }
+        .report-pdf .pro-team { font-size:18px; }
+        .report-pdf .pro-score { min-width:92px; font-size:34px; }
+        .report-pdf .pro-compare-table { margin-top:7px; }
+        .report-pdf .pro-compare-row { min-height:25px; }
+        .report-pdf .pro-compare-row strong { padding:4px 9px; font-size:12px; }
+        .report-pdf .pro-compare-row span { font-size:7px; }
+
+        .report-pdf .pro-percentage-grid { display:flex; flex-wrap:nowrap; gap:5px; margin-top:8px; }
+        .report-pdf .pro-percentage-card { display:block; width:16.1%; min-height:78px; padding:6px 3px; }
+        .report-pdf .pro-percentage-ring { width:42px; height:42px; margin:0 auto 4px; border-width:4px; }
+        .report-pdf .pro-percentage-ring strong { font-size:11px; }
+        .report-pdf .pro-percentage-card span { min-height:0; font-size:6px; line-height:1.2; }
+        .report-pdf .pro-percentage-card small { margin-top:2px; font-size:6px; }
+
+        .report-pdf .pro-findings { display:flex; gap:6px; margin-top:8px; }
+        .report-pdf .pro-finding { width:33.333%; padding:7px; border-top-width:3px; }
+        .report-pdf .pro-finding strong { font-size:8px; }
+        .report-pdf .pro-finding p { margin-top:3px; font-size:7px; line-height:1.35; }
+
+        .report-pdf .pro-split,
+        .report-pdf .pro-analysis-row { display:flex; gap:7px; margin-top:8px; align-items:stretch; }
+        .report-pdf .pro-split > .pro-panel,
+        .report-pdf .pro-analysis-row > .pro-panel { width:50%; }
+        .report-pdf .pro-panel { padding:8px; }
+        .report-pdf .pro-panel h3 { margin-bottom:6px; font-size:9px; }
+        .report-pdf .pro-metric-grid { display:flex; flex-wrap:wrap; gap:5px; }
+        .report-pdf .pro-metric { display:block; width:31.8%; min-height:64px; padding:7px; }
+        .report-pdf .pro-metric .label { font-size:6px; }
+        .report-pdf .pro-metric .value { margin-top:4px; font-size:16px; }
+        .report-pdf .pro-metric .note { margin-top:4px; font-size:6px; }
+        .report-pdf .pro-zone-list { display:block; }
+        .report-pdf .pro-zone-list > div + div { margin-top:7px; }
+        .report-pdf .pro-zone-head { font-size:7px; }
+        .report-pdf .pro-zone-track { height:6px; }
+        .report-pdf .pro-comparison-bar + .pro-comparison-bar { margin-top:7px; }
+        .report-pdf .pro-comparison-bar div,
+        .report-pdf .pro-territory-legend { font-size:7px; }
+        .report-pdf .pro-chart-note,
+        .report-pdf .pro-note-list { font-size:7px; line-height:1.4; }
+
+        .report-pdf .pro-tactical-grid { display:block; margin-top:8px; }
+        .report-pdf .pro-tactical-card { display:block; margin-bottom:7px; padding:9px; break-inside:avoid; page-break-inside:avoid; }
+        .report-pdf .pro-tactical-head { margin-bottom:6px; }
+        .report-pdf .pro-pitch { width:100%; height:235px; min-height:0; aspect-ratio:auto; }
+        .report-pdf .pro-xi-token { width:52px; }
+        .report-pdf .pro-xi-disc { width:37px; height:37px; }
+        .report-pdf .pro-substitutions { margin-top:7px; padding:8px; break-inside:avoid; page-break-inside:avoid; }
+        .report-pdf .pro-substitutions article { display:flex; gap:6px; padding:5px 0; }
+        .report-pdf .pro-substitutions article > * { flex:1; }
+
+        .report-pdf .pro-player-list { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; align-items:flex-start; }
+        .report-pdf .pro-player-card { display:block; width:49%; min-height:82px; padding:7px; break-inside:avoid; page-break-inside:avoid; }
+        .report-pdf .pro-player-identity { display:flex; gap:7px; }
+        .report-pdf .pro-player-avatar { width:34px; height:34px; border-radius:10px; }
+        .report-pdf .pro-player-identity strong { font-size:8px; }
+        .report-pdf .pro-player-identity small,
+        .report-pdf .pro-player-identity a { font-size:6px; }
+        .report-pdf .pro-player-kpis { display:flex; margin-top:6px; }
+        .report-pdf .pro-player-kpis div { width:33.333%; padding:4px 5px; }
+        .report-pdf .pro-player-kpis span { min-height:0; font-size:5px; }
+        .report-pdf .pro-player-kpis strong { font-size:10px; }
+        .report-pdf .pro-player-progress { height:3px; margin-top:4px; }
+        .report-pdf .pro-quality { display:flex; gap:5px; }
+        .report-pdf .pro-quality-item { width:33.333%; padding:7px; }
+        .report-pdf .pro-quality-item strong,
+        .report-pdf .pro-quality-item span { font-size:7px; }
+        .report-pdf .pro-microcycle { padding:9px; font-size:8px; line-height:1.4; }
+      }
+    </style>
   </head>
   <body class="report-pdf">
     <div class="top">
