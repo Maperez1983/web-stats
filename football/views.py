@@ -25687,7 +25687,8 @@ def bulk_add_match_actions(request):
     tercio = zone_to_tercio(zone) if zone else ""
     half = _half_minutes_for_team(primary_team)
     base_minute = 1
-    minute_override = _parse_int(payload.get("minute") or request.POST.get("minute"))
+    minute_value = payload.get("minute") if "minute" in payload else request.POST.get("minute")
+    minute_override = _parse_int(minute_value)
     if minute_override is not None:
         base_minute = max(0, min(120, minute_override))
     else:
