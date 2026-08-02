@@ -259,6 +259,20 @@ class PlayerDashboardAgendaTests(TestCase):
             context=Match.CONTEXT_FRIENDLY,
             round="Partido interno",
         )
+        PlayerStatistic.objects.create(
+            player=teammate,
+            season=season,
+            context="manual-base",
+            name="manual_pj",
+            value=0,
+        )
+        PlayerStatistic.objects.create(
+            player=teammate,
+            season=season,
+            context="manual-base",
+            name="manual_totals_lock",
+            value=1,
+        )
 
         response = self.client.get(reverse("player-detail", args=[teammate.id]), HTTP_HOST="localhost")
 

@@ -87506,6 +87506,14 @@ def compute_player_dashboard(
         merged["decisive_actions_per90"] = influence["decisive_actions_per90"]
         merged["influence_score"] = influence["influence_score"]
         _apply_manual_master_overrides(merged, manual_entry, report_manual_entry, include_report_derived=True)
+        # Los totales manuales no pueden ocultar partidos cerrados que ya forman parte del
+        # detalle calculado (especialmente los partidos internos, que cuentan para toda la plantilla).
+        played_matches_count = sum(
+            1 for item in matches if isinstance(item, dict) and item.get("played")
+        )
+        if played_matches_count > int(merged.get("pj", 0) or 0):
+            merged["pj"] = int(played_matches_count)
+            merged["pc"] = max(int(merged.get("pc", 0) or 0), int(played_matches_count))
         # Acciones/90: lo consumen la ficha del jugador y el snapshot (stats.actions_per90); antes
         # solo lo adjuntaba player_dashboard_page, así que en la ficha salía 0. Se calcula aquí, tras
         # los overrides manuales, para respetar los minutos ajustados a mano.
