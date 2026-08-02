@@ -28,6 +28,10 @@ fi
 : "${AWS_STORAGE_BUCKET_NAME:?Faltan las credenciales AWS (USE_S3_MEDIA + AWS_*). Defínelas en .env.avatars}"
 export USE_S3_MEDIA="${USE_S3_MEDIA:-true}"
 export AVATAR_INSWAPPER="${AVATAR_INSWAPPER:-$HOME/ai-image-gen/inswapper_128.onnx}"
+# settings exige SECRET_KEY cuando DEBUG=False. Este comando no firma nada -solo escribe imagenes
+# y filas-, asi que vale una de usar y tirar: mejor eso que traerse la clave real de produccion al
+# portatil. Si prefieres la tuya, defínela en .env.avatars y esta linea la respeta.
+export SECRET_KEY="${SECRET_KEY:-avatares-offline-solo-para-este-comando}"
 
 if [ ! -f "$AVATAR_INSWAPPER" ]; then
   echo "No encuentro el modelo inswapper en: $AVATAR_INSWAPPER" >&2
