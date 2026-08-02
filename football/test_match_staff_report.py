@@ -24,7 +24,7 @@ class MatchStaffReportTests(TestCase):
         competition = Competition.objects.create(name="Liga informe", slug="liga-informe", region="Malaga")
         self.season = Season.objects.create(competition=competition, name="2026/27")
         self.team = Team.objects.create(name="Equipo informe", slug="equipo-informe")
-        self.rival = Team.objects.create(name="Rival informe", slug="rival-informe")
+        self.rival = Team.objects.create(name="C.D. RINCON", slug="rival-informe")
         self.player = Player.objects.create(team=self.team, name="Jugador Uno", number=8, position="MC")
         self.match = Match.objects.create(
             season=self.season,
@@ -120,9 +120,10 @@ class MatchStaffReportTests(TestCase):
 
         professional = context["professional_report"]
         self.assertEqual(context["team_name"], "Equipo informe")
-        self.assertEqual(context["opponent_name"], "Rival informe")
+        self.assertEqual(context["opponent_name"], "C.D. RINCON")
         self.assertTrue(context["crest_src"])
         self.assertTrue(context["opponent_crest_src"])
+        self.assertTrue(context["opponent_crest_src"].startswith("data:image/jpeg;base64,"))
         exact = {row["label"]: (row["team"], row["opponent"]) for row in professional["exact_comparison"]}
         self.assertEqual(exact["Disparos"], (1, 7))
         self.assertEqual(exact["A puerta"], (1, 2))
