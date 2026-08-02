@@ -129,6 +129,10 @@ class MatchStaffReportTests(TestCase):
         self.assertEqual(percentages["Duelos"], 100)
         self.assertEqual(percentages["Tiros a puerta"], 100)
         self.assertEqual(professional["shot_comparison"]["opponent_pct"], 28.6)
+        self.assertTrue(all(row["value"].endswith("%") for row in professional["with_ball"]))
+        self.assertTrue(all(row["value"].endswith("%") for row in professional["without_ball"]))
+        self.assertEqual(professional["with_ball"][0]["value"], "100%")
+        self.assertEqual(professional["without_ball"][3]["value"], "28.6%")
         self.assertEqual([row["level"] for row in professional["data_quality"]], ["Exacto", "Derivado", "No disponible"])
 
         context["pdf_url"] = "/coach/informes/partido/pdf/?match_id=1"
@@ -159,6 +163,7 @@ class MatchStaffReportTests(TestCase):
         self.assertIn("Escudo de Equipo informe", html)
         self.assertNotIn("Unknown.png", html)
         self.assertIn('class="pro-player-list"', html)
+        self.assertNotIn('class="pro-pitch-player"', html)
         self.assertNotIn("Qué cambió el encuentro", html)
         self.assertNotIn("Qué cambió el encuentro", pdf_html)
         self.assertNotIn("Aportación principal", html)
@@ -204,6 +209,9 @@ class MatchStaffReportTests(TestCase):
         html = render_to_string("football/match_staff_report.html", context, request=request)
         self.assertIn("left:24.0%;top:51.0%;", html)
         self.assertIn("left:76.0%;top:50.0%;", html)
+        self.assertIn('class="pro-xi-token', html)
+        self.assertIn('class="pro-xi-disc"', html)
+        self.assertIn("coach_home_pitch_surface.png", html)
         self.assertNotIn("left:24,0%", html)
 
     @patch("football.views.resolve_team_crest_url", return_value="")

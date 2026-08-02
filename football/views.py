@@ -29085,6 +29085,7 @@ def _match_staff_report_context(request, *, match, primary_team):
             "fouls_committed",
             "fouls_received",
             "saves",
+            "goals_conceded",
         )
     }
     opponent_shots_off = max(0, opponent_shots - opponent_shots_target)
@@ -29294,6 +29295,14 @@ def _match_staff_report_context(request, *, match, primary_team):
                 player_id = 0
             lineup_player["minutes"] = minutes_by_player.get(player_id, 0)
             lineup_player["rating"] = ratings_by_player.get(player_id)
+            player_obj = next((player for player in allowed_players if int(player.id) == player_id), None)
+            lineup_player["avatar_url"] = resolve_player_avatar_url(player_obj) if player_obj else ""
+            lineup_player["display_image"] = (
+                lineup_player.get("photo") or lineup_player.get("avatar_url") or ""
+            )
+            lineup_player["initials"] = "".join(
+                part[0] for part in str(lineup_player.get("name") or "").split()[:2] if part
+            ).upper() or "SJ"
             lineup_player["has_coordinates"] = (
                 lineup_player.get("x_pct") is not None and lineup_player.get("y_pct") is not None
             )
@@ -29379,20 +29388,20 @@ def _match_staff_report_context(request, *, match, primary_team):
         },
         "executive_findings": executive_findings[:3],
         "with_ball": [
-            {"label": "Pases", "value": f'{totals["passes_ok"]}/{totals["passes"]}', "note": "completados / intentados"},
-            {"label": "Pase largo", "value": f'{team_sums["long_passes_ok"]}/{team_sums["long_passes"]}', "note": "completados / intentados"},
-            {"label": "Regates", "value": f'{team_sums["dribbles_ok"]}/{team_sums["dribbles"]}', "note": "completados / intentados"},
-            {"label": "Centros", "value": f'{team_sums["crosses_ok"]}/{team_sums["crosses"]}', "note": "completados / intentados"},
-            {"label": "Finalizaciones", "value": totals["shots"], "note": f'{totals["shots_target"]} a puerta'},
-            {"label": "Zona ofensiva", "value": zone_map["ataque"]["count"], "note": "acciones ubicadas"},
+            {"label": "Pases", "value": f'{_percentage(totals["passes_ok"], totals["passes"]):g}%', "note": f'{totals["passes_ok"]}/{totals["passes"]} completados'},
+            {"label": "Pase largo", "value": f'{_percentage(team_sums["long_passes_ok"], team_sums["long_passes"]):g}%', "note": f'{team_sums["long_passes_ok"]}/{team_sums["long_passes"]} completados'},
+            {"label": "Regates", "value": f'{_percentage(team_sums["dribbles_ok"], team_sums["dribbles"]):g}%', "note": f'{team_sums["dribbles_ok"]}/{team_sums["dribbles"]} completados'},
+            {"label": "Centros", "value": f'{_percentage(team_sums["crosses_ok"], team_sums["crosses"]):g}%', "note": f'{team_sums["crosses_ok"]}/{team_sums["crosses"]} completados'},
+            {"label": "Finalizaciones", "value": f'{_percentage(totals["shots_target"], totals["shots"]):g}%', "note": f'{totals["shots_target"]}/{totals["shots"]} a puerta'},
+            {"label": "Peso ofensivo", "value": f'{zone_map["ataque"]["pct"]:g}%', "note": f'{zone_map["ataque"]["count"]}/{known_zones} acciones ubicadas'},
         ],
         "without_ball": [
-            {"label": "Recuperaciones", "value": team_sums["recoveries"], "note": "acciones confirmadas"},
-            {"label": "Duelos", "value": f'{totals["duels_won"]}/{totals["duels"]}', "note": "ganados / disputados"},
-            {"label": "Aéreos", "value": f'{totals["aerial_won"]}/{totals["aerial"]}', "note": "ganados / disputados"},
-            {"label": "Disparos rivales", "value": opponent_shots, "note": f"{opponent_shots_target} a puerta"},
-            {"label": "Faltas cometidas", "value": team_sums["fouls_committed"], "note": "acciones confirmadas"},
-            {"label": "Paradas", "value": team_sums["saves"], "note": "acciones confirmadas"},
+            {"label": "Recuperaciones", "value": f'{team_family_map["recoveries"]["rate"]:g}%', "note": f'{team_family_map["recoveries"]["successes"]}/{team_family_map["recoveries"]["total"]} ganadas'},
+            {"label": "Duelos", "value": f'{_percentage(totals["duels_won"], totals["duels"]):g}%', "note": f'{totals["duels_won"]}/{totals["duels"]} ganados'},
+            {"label": "Aéreos", "value": f'{_percentage(totals["aerial_won"], totals["aerial"]):g}%', "note": f'{totals["aerial_won"]}/{totals["aerial"]} ganados'},
+            {"label": "Precisión rival", "value": f'{_percentage(opponent_shots_target, opponent_shots):g}%', "note": f'{opponent_shots_target}/{opponent_shots} a puerta'},
+            {"label": "Acciones ganadas", "value": f'{success_rate:g}%', "note": f'{total_successes}/{total_actions} acciones'},
+            {"label": "Paradas", "value": f'{_percentage(team_sums["saves"], team_sums["saves"] + team_sums["goals_conceded"]):g}%', "note": f'{team_sums["saves"]}/{team_sums["saves"] + team_sums["goals_conceded"]} tiros resueltos'},
         ],
         "transition_notes": transition_notes,
         "set_piece_notes": set_piece_notes,

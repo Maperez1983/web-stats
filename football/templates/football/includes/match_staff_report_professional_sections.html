@@ -1,4 +1,4 @@
-{% load l10n %}
+{% load static l10n %}
 {% with pro=professional_report %}
 <section class="card pro-section pro-executive">
   <p class="pro-section-number">01 · Resumen ejecutivo</p>
@@ -104,10 +104,9 @@
     <article class="pro-tactical-card">
       <div class="pro-tactical-head"><div><span>Nuestro equipo</span><strong>{{ team_name }}</strong></div><b>{{ pro.tactical.own.starters|length }}/{{ pro.tactical.starters_limit }} guardados</b></div>
       {% if pro.tactical.own.starters %}
-      <div class="pro-pitch" aria-label="Once inicial de {{ team_name }}">
-        <div class="pro-pitch-line center"></div><div class="pro-pitch-circle"></div><div class="pro-pitch-box left"></div><div class="pro-pitch-box right"></div>
+      <div class="pro-pitch" style="background-image:url('{% static 'football/images/pitch3d/coach_home_pitch_surface.png' %}');" aria-label="Once inicial de {{ team_name }}">
         {% for p in pro.tactical.own.starters %}
-          {% if p.has_coordinates %}<div class="pro-pitch-player" style="left:{{ p.x_pct|unlocalize }}%;top:{{ p.y_pct|unlocalize }}%;"><span>{% if p.number != "--" %}{{ p.number }}{% else %}{{ forloop.counter }}{% endif %}</span><strong>{{ p.name }}</strong><small>{{ p.minutes }}′ · {% if p.rating != None %}{{ p.rating|floatformat:1 }}{% else %}—{% endif %}</small></div>{% endif %}
+          {% if p.has_coordinates %}<div class="pro-xi-token{% if 'POR' in p.position|upper %} is-gk{% endif %}" style="left:{{ p.x_pct|unlocalize }}%;top:{{ p.y_pct|unlocalize }}%;"><div class="pro-xi-disc">{% if p.display_image %}<img src="{{ p.display_image }}" alt="" />{% else %}<span>{{ p.initials }}</span>{% endif %}<b>{% if p.number != "--" %}{{ p.number }}{% else %}{{ forloop.counter }}{% endif %}</b></div><strong>{{ p.name }}</strong><small>{{ p.minutes }}′ · {% if p.rating != None %}{{ p.rating|floatformat:1 }}{% else %}—{% endif %}</small></div>{% endif %}
         {% endfor %}
       </div>
       {% if pro.tactical.own_missing %}<p class="pro-lineup-warning">Faltan {{ pro.tactical.own_missing }} posiciones por guardar; no se han completado artificialmente.</p>{% endif %}
@@ -116,10 +115,9 @@
     <article class="pro-tactical-card rival">
       <div class="pro-tactical-head"><div><span>Equipo rival</span><strong>{{ opponent_name }}</strong></div>{% if pro.tactical.rival.starters %}<b>{{ pro.tactical.rival.starters|length }}/{{ pro.tactical.starters_limit }} guardados</b>{% endif %}</div>
       {% if pro.tactical.rival.starters %}
-      <div class="pro-pitch rival" aria-label="Once inicial de {{ opponent_name }}">
-        <div class="pro-pitch-line center"></div><div class="pro-pitch-circle"></div><div class="pro-pitch-box left"></div><div class="pro-pitch-box right"></div>
+      <div class="pro-pitch rival" style="background-image:url('{% static 'football/images/pitch3d/coach_home_pitch_surface.png' %}');" aria-label="Once inicial de {{ opponent_name }}">
         {% for p in pro.tactical.rival.starters %}
-          {% if p.has_coordinates %}<div class="pro-pitch-player" style="left:{{ p.x_pct|unlocalize }}%;top:{{ p.y_pct|unlocalize }}%;"><span>{% if p.number %}{{ p.number }}{% else %}{{ forloop.counter }}{% endif %}</span><strong>{{ p.name|default:"Sin nombre" }}</strong><small>{{ p.position|default:"Rival" }}</small></div>{% endif %}
+          {% if p.has_coordinates %}<div class="pro-xi-token rival" style="left:{{ p.x_pct|unlocalize }}%;top:{{ p.y_pct|unlocalize }}%;"><div class="pro-xi-disc"><span>{{ p.number|default:forloop.counter }}</span><b>{{ p.number|default:forloop.counter }}</b></div><strong>{{ p.name|default:"Sin nombre" }}</strong><small>{{ p.position|default:"Rival" }}</small></div>{% endif %}
         {% endfor %}
       </div>
       {% if pro.tactical.rival_missing %}<p class="pro-lineup-warning">El once rival está incompleto: faltan {{ pro.tactical.rival_missing }} posiciones.</p>{% endif %}
