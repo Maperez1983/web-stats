@@ -119,6 +119,10 @@ class MatchStaffReportTests(TestCase):
         self.assertEqual(summary["Córners contra"], 7)
 
         professional = context["professional_report"]
+        self.assertEqual(context["team_name"], "Equipo informe")
+        self.assertEqual(context["opponent_name"], "Rival informe")
+        self.assertTrue(context["crest_src"])
+        self.assertTrue(context["opponent_crest_src"])
         exact = {row["label"]: (row["team"], row["opponent"]) for row in professional["exact_comparison"]}
         self.assertEqual(exact["Disparos"], (1, 7))
         self.assertEqual(exact["A puerta"], (1, 2))
@@ -168,6 +172,9 @@ class MatchStaffReportTests(TestCase):
         self.assertNotIn("Qué cambió el encuentro", pdf_html)
         self.assertNotIn("Aportación principal", html)
         self.assertIn(identity_label, pdf_html)
+        self.assertIn("Resumen del partido", pdf_html)
+        self.assertNotIn("El partido, en una página", pdf_html)
+        self.assertIn('class="pro-team-crest"', pdf_html)
         self.assertIn("#0F8A4B", pdf_html)
 
     @patch("football.views.resolve_team_crest_url", return_value="")
