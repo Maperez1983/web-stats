@@ -116,6 +116,25 @@ class MatchStaffReportTests(TestCase):
         self.assertIn(identity_label, pdf_html)
         self.assertIn("#0F8A4B", pdf_html)
 
+    @patch("football.views.resolve_team_crest_url", return_value="")
+    def test_error_that_cost_a_goal_is_not_counted_as_a_goal_scored(self, _crest):
+        event = self._event(
+            "PÉRDIDA DE MARCA", "PERDIDO", minute=34, period=1, zone="Defensa Centro", tercio="Defensa"
+        )
+        event.observation = "Pérdida de marca que terminó en gol rival"
+        event.raw_data = {"impact": {"code": "goal_conceded", "reason": "lost_mark"}}
+        event.save(update_fields=["observation", "raw_data"])
+
+        request = RequestFactory().get("/coach/informes/partido/")
+        request.user = AnonymousUser()
+        context = views._match_staff_report_context(request, match=self.match, primary_team=self.team)
+
+        goals_card = next(card for card in context["summary_cards"] if card["label"] == "Goles")
+        self.assertEqual(goals_card["value"], 0)
+        self.assertEqual(context["player_reports"][0]["goals"], 0)
+        self.assertEqual(context["player_reports"][0]["impact_delta"], -0.55)
+        self.assertEqual(context["timeline"], [])
+
 
 class MatchRatingAlgorithmTests(TestCase):
     def setUp(self):

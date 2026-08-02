@@ -28394,7 +28394,9 @@ def _match_staff_report_context(request, *, match, primary_team):
         goals_for = sum(
             1
             for ev in events
-            if is_goal_event(ev.event_type, ev.result, ev.observation) and not _is_conceded_goal_event(ev)
+            if is_goal_event(ev.event_type, ev.result, ev.observation)
+            and not _is_conceded_goal_event(ev)
+            and (match_event_impact(ev) or {}).get("code") != "goal_conceded"
         )
         if is_home:
             home_score = home_score if home_score is not None else goals_for
@@ -28415,7 +28417,13 @@ def _match_staff_report_context(request, *, match, primary_team):
         if result_is_success(ev.result):
             total_successes += 1
         is_conceded_goal = _is_conceded_goal_event(ev)
-        is_goal = is_goal_event(ev.event_type, ev.result, ev.observation) and not is_conceded_goal
+        impact = match_event_impact(ev)
+        is_contextual_goal_against = (impact or {}).get("code") == "goal_conceded"
+        is_goal = (
+            is_goal_event(ev.event_type, ev.result, ev.observation)
+            and not is_conceded_goal
+            and not is_contextual_goal_against
+        )
         is_assist = is_assist_event(ev.event_type, ev.result, ev.observation)
         is_yellow = is_yellow_card_event(ev.event_type, ev.result, ev.zone)
         is_red = is_red_card_event(ev.event_type, ev.result, ev.zone)
@@ -84535,7 +84543,11 @@ def _build_player_match_stats_payload(primary_team, player, match):
         stats["total_actions"] += 1
         if event_success:
             stats["successes"] += 1
-        if is_goal_event(event.event_type, event.result, event.observation) and not is_conceded_goal:
+        if (
+            is_goal_event(event.event_type, event.result, event.observation)
+            and not is_conceded_goal
+            and (impact or {}).get("code") != "goal_conceded"
+        ):
             stats["goals"] += 1
         if is_assist_event(event.event_type, event.result, event.observation):
             stats["assists"] += 1
