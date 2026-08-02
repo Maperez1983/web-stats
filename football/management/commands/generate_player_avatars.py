@@ -63,6 +63,44 @@ def _find_player_photo_name(player):
     return ""
 
 
+# La figura base (kit_home_hd.png) es un CUERPO DE ADULTO. Ponerle la cara de un nino de 8 anos
+# encima no produce "el nino": produce un adulto con su cara, que es otra cosa y no se puede
+# ensenar a su familia. La altura solo escala la misma figura -un nino no es un adulto pequeno:
+# cambian las proporciones, empezando por la cabeza-, asi que escalar no lo arregla.
+#
+# Hasta que existan figuras por categoria, el generador NO toca a los menores de esta edad; esos
+# jugadores se quedan con su foto, que es la representacion honesta que ya tienen.
+EDAD_MINIMA_FIGURA = 16
+
+
+def edad_de(player, hoy=None):
+    """Edad en anos a partir de la fecha de nacimiento. None si no se sabe."""
+    import datetime
+    fecha = getattr(player, 'birth_date', None)
+    if not fecha:
+        return None
+    hoy = hoy or datetime.date.today()
+    try:
+        return hoy.year - fecha.year - ((hoy.month, hoy.day) < (fecha.month, fecha.day))
+    except Exception:
+        return None
+
+
+def figura_apta(player, edad_minima=EDAD_MINIMA_FIGURA):
+    """
+    ¿La figura base sirve para este jugador? (edad, motivo)
+
+    Sin fecha de nacimiento se dice que NO: mejor quedarse sin avatar que arriesgarse a poner un
+    cuerpo de adulto a un alevin porque falte un dato.
+    """
+    edad = edad_de(player)
+    if edad is None:
+        return False, 'sin fecha de nacimiento'
+    if edad < edad_minima:
+        return False, f'{edad} anos'
+    return True, ''
+
+
 def avatar_pendiente(player):
     """
     ¿A este jugador le falta el avatar o lo tiene desactualizado?
@@ -112,6 +150,9 @@ def cola_avatares(queryset=None):
             or getattr(player, "height_cm", None)
         )
         if not hay_material:
+            sin_material.append(player)
+        elif not figura_apta(player)[0]:
+            # No es trabajo pendiente: es que no hay figura para su edad.
             sin_material.append(player)
         elif avatar_pendiente(player):
             pendientes.append(player)
@@ -201,6 +242,8 @@ class Command(BaseCommand):
         parser.add_argument("--pendientes", action="store_true", help="Solo los que tienen el avatar pendiente (la cola).")
         parser.add_argument("--equipo", type=int, default=0, help="Limita a un equipo (id).")
         parser.add_argument("--club", type=int, default=0, help="Limita a un club/espacio de trabajo (id).")
+        parser.add_argument("--edad-minima", type=int, default=EDAD_MINIMA_FIGURA,
+                            help=f"Edad minima para usar la figura base de adulto (por defecto {EDAD_MINIMA_FIGURA}).")
         parser.add_argument("--listar", action="store_true", help="Enseña la cola y sale. No necesita insightface: sirve tambien en produccion.")
 
     def handle(self, *args, **opts):
@@ -317,11 +360,17 @@ class Command(BaseCommand):
             t = max(0.0, min(1.0, (h_cm - lo) / (hi - lo)))
             return HEIGHT_MIN_F + t * (HEIGHT_MAX_F - HEIGHT_MIN_F)
 
-        done = skipped = failed = 0
+        done = skipped = failed = menores = 0
         for player in qs:
             # Porteros: la figura base es de campo -> no se les genera avatar de campo (usan su PNG GK).
             _pos = str(getattr(player, "position", "") or "").strip().lower()
             if _pos in {"por", "gk"} or "porter" in _pos or "goalkeep" in _pos:
+                continue
+            # Ninos NO: la figura base es un cuerpo de adulto (ver figura_apta).
+            _apta, _motivo = figura_apta(player, opts.get("edad_minima") or EDAD_MINIMA_FIGURA)
+            if not _apta:
+                menores += 1
+                self.stdout.write(f"· {player.id} {player.name} — sin figura para su edad ({_motivo})")
                 continue
             photo_name = _find_player_photo_name(player)
             has_photo = bool(photo_name)
@@ -400,4 +449,4 @@ class Command(BaseCommand):
                 failed += 1
                 self.stderr.write(f"✗ {player.id} {player.name}: {exc}")
 
-        self.stdout.write(self.style.SUCCESS(f"Generados {done} · saltados {skipped} · fallidos {failed}"))
+        self.stdout.write(self.style.SUCCESS(f"Generados {done} · saltados {skipped} · fallidos {failed} · sin figura por edad {menores}"))

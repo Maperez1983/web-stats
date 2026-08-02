@@ -556,6 +556,17 @@ elif not DEBUG:
         },
     }
 
+# Escape para comandos OFFLINE que se lanzan desde un portatil contra la BD/S3 de produccion
+# (p. ej. generate_player_avatars): ahi no hay `staticfiles.json`, y el almacenamiento con
+# manifiesto revienta al resolver cualquier {% static %} durante el import de urls.py. Estos
+# comandos no sirven paginas, solo escriben datos, asi que se les deja el backend simple.
+# Solo se activa con la variable puesta a mano; el servidor nunca la define.
+if os.environ.get('OFFLINE_MANAGEMENT_COMMAND') == '1':
+    _storages = dict(globals().get('STORAGES') or {})
+    _storages.setdefault('default', {'BACKEND': 'django.core.files.storage.FileSystemStorage'})
+    _storages['staticfiles'] = {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'}
+    STORAGES = _storages
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
