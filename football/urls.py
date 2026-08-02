@@ -565,6 +565,7 @@ urlpatterns = [
     path("registro-acciones/video/marker/", views.match_video_marker_api, name="match-video-marker-api"),
     path("registro-acciones/eliminar/", views.delete_match_action, name="match-action-delete"),
     path("registro-acciones/actualizar/", views.update_match_action, name="match-action-update"),
+    path("registro-acciones/impacto/", views.update_match_action_impact, name="match-action-impact"),
     path("registro-acciones/eventos/", views.match_actions_events_api, name="match-actions-events-api"),
     path("registro-acciones/partido/guardar/", views.save_match_info, name="match-info-save"),
     path("registro-acciones/finalizar/", views.finalize_match_actions, name="match-action-finalize"),

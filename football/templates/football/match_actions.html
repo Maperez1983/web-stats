@@ -2550,7 +2550,8 @@
         gap: 0.35rem;
         align-items: center;
       }
-	    .history-delete,
+      .history-delete,
+      .history-impact,
       .history-replay {
         width: 30px;
         height: 30px;
@@ -2564,6 +2565,23 @@
         place-items: center;
 	    }
       .history-replay { color: rgba(34, 211, 238, 0.95); }
+      .history-impact { color:#F4B400; }
+      .history-item.has-impact { border-color:rgba(244,180,0,.38); }
+      .history-impact-badge { grid-column:2 / -1; width:max-content; border-radius:999px; padding:3px 8px; background:rgba(244,180,0,.12); color:#F6D777; font-size:.66rem; font-weight:800; }
+      .history-impact-badge.is-negative { background:rgba(214,69,69,.14); color:#F6AAA4; }
+      .impact-modal { position:fixed; inset:0; z-index:2147483647; display:grid; place-items:center; padding:1rem; background:rgba(2,6,23,.76); }
+      .impact-modal[hidden] { display:none !important; }
+      .impact-dialog { width:min(620px,100%); border:1px solid rgba(255,255,255,.16); border-radius:18px; padding:1rem; background:#0B1624; box-shadow:0 24px 70px rgba(0,0,0,.48); }
+      .impact-dialog header { display:flex; justify-content:space-between; align-items:center; gap:.8rem; }
+      .impact-dialog h4 { margin:0; }
+      .impact-choice-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; margin-top:.8rem; }
+      .impact-choice { border:1px solid rgba(255,255,255,.14); border-radius:12px; padding:.7rem; background:rgba(255,255,255,.04); color:var(--prod-text); text-align:left; font-weight:800; cursor:pointer; }
+      .impact-choice[data-polarity='positive'] { border-color:rgba(47,125,50,.42); }
+      .impact-choice[data-polarity='negative'] { border-color:rgba(214,69,69,.42); }
+      .impact-choice.is-selected { outline:2px solid #F4B400; background:rgba(244,180,0,.12); }
+      .impact-reason { display:grid; gap:.35rem; margin-top:.8rem; color:var(--prod-muted); font-size:.72rem; font-weight:800; text-transform:uppercase; }
+      .impact-reason select { width:100%; border:1px solid rgba(255,255,255,.14); border-radius:12px; padding:.7rem; background:#101F30; color:var(--prod-text); }
+      @media (max-width:560px) { .impact-choice-grid { grid-template-columns:1fr; } }
 	      .button {
         border: none;
         border-radius: 999px;
@@ -3243,7 +3261,7 @@
 	                  var res = data.result || '';
 	                  text = String(ev) + ' · ' + String(zone || '-') + ' · ' + String(res || '');
 	                }
-	                item.innerHTML = '<span class=\"hist-minute\">' + minute + \"'\" + '</span><strong>' + playerLabel + '</strong><p class=\"hist-text\">' + text + '</p><div class=\"history-actions\"><button type=\"button\" class=\"history-delete\" aria-label=\"Eliminar acción\">🗑</button></div>';
+	                item.innerHTML = '<span class=\"hist-minute\">' + minute + \"'\" + '</span><strong>' + playerLabel + '</strong><p class=\"hist-text\">' + text + '</p><div class=\"history-actions\"><button type=\"button\" class=\"history-impact\" aria-label=\"Valorar impacto\">★</button><button type=\"button\" class=\"history-delete\" aria-label=\"Eliminar acción\">🗑</button></div>';
 		                try {
 		                  if (list.firstChild) list.insertBefore(item, list.firstChild);
 		                  else list.appendChild(item);
@@ -4375,7 +4393,7 @@
               <h3>Historial reciente</h3>
               <div class="history-grid" id="history-list">
 	              {% for event in recent_events %}
-	              <article class="history-item" data-event-id="{{ event.id }}" data-system="{{ event.system|default:'' }}" data-source="{{ event.source_file|default:'' }}"{% if event.player_id %} data-player-id="{{ event.player_id }}"{% endif %}>
+	              <article class="history-item{% if event.raw_data.impact.code %} has-impact{% endif %}" data-event-id="{{ event.id }}" data-system="{{ event.system|default:'' }}" data-source="{{ event.source_file|default:'' }}" data-impact-code="{{ event.raw_data.impact.code|default:'' }}" data-impact-reason="{{ event.raw_data.impact.reason|default:'' }}"{% if event.player_id %} data-player-id="{{ event.player_id }}"{% endif %}>
 	                <span class="hist-minute">{{ event.minute|default:"??" }}'</span>
                   {% if event.source_file == 'manual-recovery' %}
                     <span class="pending-pill" style="background: rgba(8,145,178,0.16); border-color: rgba(34,211,238,0.35); color: #a5f3fc;">RECUPERADA</span>
@@ -4387,10 +4405,12 @@
 	                {% endwith %}
 	                <p class="hist-text">{{ event.event_type }} · {{ event.zone|default:"-" }} · {{ event.result|default:"" }}</p>
 	                <div class="history-actions">
+	                  <button type="button" class="history-impact" aria-label="Valorar impacto" title="Marcar como acción clave">★</button>
                     {% if event.system != 'touch-field-final' or event.source_file == 'manual-recovery' %}
 	                  <button type="button" class="history-delete" aria-label="Eliminar acción">🗑</button>
                     {% endif %}
 	                </div>
+	                {% if event.raw_data.impact.code %}<span class="history-impact-badge">IMPACTO · {{ event.raw_data.impact.code|upper }}</span>{% endif %}
 	              </article>
 	              {% empty %}
               <article class="history-item">
@@ -4701,14 +4721,30 @@
 	        </div>
       </section>
     </div>
-    <div class="quick-history-modal" id="quick-history-modal" aria-hidden="true">
+	    <div class="quick-history-modal" id="quick-history-modal" aria-hidden="true">
       <div class="quick-history-dialog" role="dialog" aria-modal="true" aria-labelledby="quick-history-title">
         <header>
           <h4 id="quick-history-title">Historial</h4>
           <button type="button" class="quick-history-close" id="quick-history-close">Cerrar</button>
         </header>
         <ol class="quick-history-list" id="quick-history-list"></ol>
-      </div>
+	    </div>
+	    <div class="impact-modal" id="match-impact-modal" hidden aria-hidden="true">
+	      <div class="impact-dialog" role="dialog" aria-modal="true" aria-labelledby="match-impact-title" data-save-url="{% url 'match-action-impact' %}">
+	        <header><div><h4 id="match-impact-title">Impacto en el partido</h4><div class="meta" id="match-impact-event">Selecciona la consecuencia real de la acción.</div></div><button type="button" class="button ghost" data-impact-close>Cerrar</button></header>
+	        <input type="hidden" id="match-impact-event-id" value="" />
+	        <input type="hidden" id="match-impact-code" value="" />
+	        <div class="impact-choice-grid">
+	          {% for code, option in match_impact_options.items %}
+	          <button type="button" class="impact-choice" data-impact-code="{{ code }}" data-polarity="{{ option.polarity }}">{{ option.short_label }}<small style="display:block;opacity:.72;margin-top:3px;">{{ option.label }}</small></button>
+	          {% endfor %}
+	        </div>
+	        <label class="impact-reason">Motivo
+	          <select id="match-impact-reason"><option value="">Sin motivo específico</option>{% for code, label in match_impact_reasons.items %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select>
+	        </label>
+	        <div style="display:flex;justify-content:space-between;gap:.5rem;margin-top:.8rem;"><button type="button" class="button ghost" data-impact-clear>Quitar impacto</button><div style="display:flex;gap:.5rem;"><button type="button" class="button ghost" data-impact-close>Cancelar</button><button type="button" class="button" data-impact-save>Guardar impacto</button></div></div>
+	      </div>
+	    </div>
     </div>
     <div class="action-picker-overlay" id="action-picker" aria-hidden="true">
       <div class="action-picker" role="dialog" aria-modal="true" aria-label="Selector de acciones">
@@ -5105,7 +5141,7 @@
 	              item.innerHTML = '<span class="hist-minute">' + minuteLabel + '</span>'
 	                + '<strong>#' + num + ' ' + name + '</strong>'
 	                + '<p class="hist-text">' + action + ' · ' + (zone || '-') + ' · ' + (result || '') + '</p>'
-	                + '<div class="history-actions"><button type="button" class="history-delete" aria-label="Eliminar acción">🗑</button></div>';
+	                + '<div class="history-actions"><button type="button" class="history-impact" aria-label="Valorar impacto">★</button><button type="button" class="history-delete" aria-label="Eliminar acción">🗑</button></div>';
 	              try { list.insertBefore(item, list.firstChild); } catch (e1) { try { list.appendChild(item); } catch (e2) {} }
 	              while (list.children && list.children.length > 24) {
 	                try { list.removeChild(list.lastChild); } catch (e3) { break; }

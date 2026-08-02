@@ -7,64 +7,73 @@
     <style>
       @page { size: A4 portrait; margin: 12mm; }
       * { box-sizing: border-box; }
-      body { margin: 0; font-family: var(--print-font, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif); background: var(--print-paper, #f1f5f9); color: var(--print-ink, #0b1220); }
-      .top { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; padding:14px 14px 10px; border-bottom:1px solid rgba(148,163,184,.35); background: linear-gradient(135deg,#0b1220 0%, #0f172a 55%, rgba(244,180,0,.62) 100%); color:#fff; break-after: avoid-page; page-break-after: avoid; }
+      body { margin:0; font-family:var(--print-font,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif); background:#fff; color:#12201A; }
+      .top { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; padding:10px 0 14px; border-bottom:2px solid #12201A; background:#fff; color:#12201A; break-after:avoid-page; page-break-after:avoid; }
       .brand{display:flex; align-items:center; gap:10px;}
       .brand img{display:block; object-fit:contain;}
       .brand .meta{line-height:1.2;}
-      .brand .meta .app{font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:rgba(226,232,240,.82); font-weight:900;}
-      .brand .meta .team{font-size:12px; color:#fff; font-weight:900;}
-      .club-meta{ text-align:right; font-size:12px; color:rgba(226,232,240,.88); line-height:1.35;}
-      .club-meta strong{color:#fff;}
-      .content{padding:14px;}
+      .brand .meta .app{font-size:9px; letter-spacing:.16em; text-transform:uppercase; color:#0A5E33; font-weight:800;}
+      .brand .meta .team{font-size:21px; line-height:1.05; color:#12201A; font-weight:800;}
+      .brand .meta .fixture{margin-top:4px;font-size:11px;color:#4B584F;font-weight:700;}
+      .brand .meta .score{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:999px;background:#0F8A4B;color:#fff;font-weight:800;}
+      .club-meta{ text-align:right; font-size:11px; color:#4B584F; line-height:1.35;}
+      .club-meta strong{color:#12201A;}
+      .content{padding:0;}
       .section{margin-top:14px;}
-      .section h2{margin:0 0 8px; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:#475569;}
-      .grid-4{display:grid; grid-template-columns:repeat(4,1fr); gap:10px;}
-      .card{border:1px solid #e2e8f0; border-radius:14px; padding:10px; background:#fff; box-shadow:0 10px 24px rgba(2,6,23,.06); break-inside: avoid; page-break-inside: avoid;}
+      .section h2{margin:0 0 8px; font-size:12px; letter-spacing:0; color:#12201A;}
+      .section h2::before{content:"";display:inline-block;width:7px;height:7px;margin-right:7px;border-radius:50%;background:#0F8A4B;vertical-align:1px;}
+      .grid-4{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
+      .card{border:1px solid #D3DCD3; border-radius:12px; padding:10px; background:#fff; box-shadow:none; break-inside:avoid; page-break-inside:avoid;}
       .kv{display:flex; justify-content:space-between; gap:8px; align-items:baseline;}
-      .kv .k{color:#64748b; font-size:11px; letter-spacing:.10em; text-transform:uppercase; font-weight:900;}
-      .kv .v{font-weight:1000; font-size:18px; color:#0f172a;}
+      .kv .k{color:#4B584F; font-size:10px; letter-spacing:.04em; text-transform:uppercase; font-weight:700;}
+      .kv .v{font-weight:800; font-size:18px; color:#12201A;}
       .bars{display:grid; grid-template-columns:repeat(2,1fr); gap:10px;}
-      .bar{padding:10px; border:1px solid #e2e8f0; border-radius:14px; background:#fff; box-shadow:0 10px 24px rgba(2,6,23,.06); break-inside: avoid; page-break-inside: avoid;}
+      .bar{padding:10px; border:1px solid #D3DCD3; border-radius:12px; background:#fff; box-shadow:none; break-inside:avoid; page-break-inside:avoid;}
       .bar-row{display:flex; justify-content:space-between; align-items:baseline; gap:10px;}
-      .bar-row .label{font-size:11px; letter-spacing:.10em; text-transform:uppercase; color:#64748b; font-weight:900;}
-      .bar-row .value{font-size:14px; font-weight:1000; color:#0f172a;}
-      .track{margin-top:8px; height:10px; border-radius:999px; background:#e2e8f0; overflow:hidden;}
-      .fill{height:100%; border-radius:999px; background:linear-gradient(90deg,#0f7a35,#22c55e); width:0%;}
-      .fill.gold{background:linear-gradient(90deg,#f59e0b,#fbbf24);}
+      .bar-row .label{font-size:10px; letter-spacing:.04em; text-transform:uppercase; color:#4B584F; font-weight:700;}
+      .bar-row .value{font-size:13px; font-weight:800; color:#12201A;}
+      .track{margin-top:8px; height:9px; border-radius:999px; background:#EAF0E9; overflow:hidden;}
+      .fill{height:100%; border-radius:999px; background:#0F8A4B; width:0%;}
+      .fill.gold{background:#B87614;}
       .table{width:100%; border-collapse:collapse;}
-      .table th,.table td{border-bottom:1px solid #e2e8f0; padding:6px 0; font-size:12px;}
-      .table th{text-align:left; color:#64748b; font-size:11px; letter-spacing:.10em; text-transform:uppercase;}
-      .num{width:42px; color:#0f172a; font-weight:1000;}
+      .table th,.table td{border-bottom:1px solid #E2E9E1; padding:6px 0; font-size:12px;}
+      .table th{text-align:left; color:#7C877E; font-size:10px; letter-spacing:.06em; text-transform:uppercase;}
+      .num{width:42px; color:#12201A; font-weight:800;}
       .right{text-align:right;}
       .timeline{display:grid; gap:8px;}
-      .t-item{display:flex; gap:10px; align-items:flex-start; border:1px solid #e2e8f0; border-radius:14px; background:#fff; box-shadow:0 10px 24px rgba(2,6,23,.06); padding:10px; break-inside: avoid; page-break-inside: avoid;}
-      .t-min{min-width:40px; height:28px; border-radius:999px; background:#0f172a; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:1000; letter-spacing:.08em; font-size:11px;}
-      .t-title{font-weight:1000; letter-spacing:.08em; text-transform:uppercase; font-size:11px; color:#0f172a;}
-      .t-text{margin-top:2px; font-size:11px; color:#475569;}
+      .t-item{display:flex; gap:10px; align-items:flex-start; border:1px solid #E2E9E1; border-radius:10px; background:#F3F7F2; box-shadow:none; padding:9px; break-inside:avoid; page-break-inside:avoid;}
+      .t-min{min-width:40px; height:27px; border-radius:999px; background:#0F8A4B; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; letter-spacing:.06em; font-size:10px;}
+      .t-title{font-weight:800; letter-spacing:.04em; text-transform:uppercase; font-size:10px; color:#12201A;}
+      .t-text{margin-top:2px; font-size:10px; color:#4B584F;}
       .performance-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;}
       .metric-stack{display:grid;gap:7px;}
-      .metric-row{border:1px solid #e2e8f0;border-radius:10px;padding:7px;background:#fff;break-inside:avoid;page-break-inside:avoid;}
+      .metric-row{border:1px solid #E2E9E1;border-radius:10px;padding:7px;background:#F3F7F2;break-inside:avoid;page-break-inside:avoid;}
       .metric-head{display:flex;justify-content:space-between;gap:6px;align-items:baseline;}
       .metric-head strong{font-size:9px;letter-spacing:.08em;text-transform:uppercase;}
-      .metric-head span{font-size:9px;color:#64748b;font-weight:800;}
+      .metric-head span{font-size:9px;color:#7C877E;font-weight:700;}
       .player-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;}
-      .player-card{border:1px solid #e2e8f0;border-radius:12px;padding:9px;background:#fff;break-inside:avoid;page-break-inside:avoid;}
+      .player-card{border:1px solid #D3DCD3;border-radius:12px;padding:9px;background:#fff;break-inside:avoid;page-break-inside:avoid;}
       .player-head{display:flex;justify-content:space-between;gap:7px;align-items:flex-start;}
-      .player-name{font-size:12px;font-weight:1000;color:#0f172a;}
-      .player-sub{margin-top:2px;font-size:8px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;font-weight:800;}
-      .minutes{border-radius:999px;padding:3px 7px;background:#0f172a;color:#fff;font-size:9px;font-weight:900;white-space:nowrap;}
+      .player-name{font-size:12px;font-weight:800;color:#12201A;}
+      .player-sub{margin-top:2px;font-size:8px;color:#7C877E;text-transform:uppercase;letter-spacing:.06em;font-weight:700;}
+      .minutes{border-radius:999px;padding:3px 7px;background:#0F8A4B;color:#fff;font-size:9px;font-weight:800;white-space:nowrap;}
       .mini-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:7px;}
-      .mini-stat{border-radius:7px;padding:4px;background:#f1f5f9;text-align:center;}
-      .mini-stat .k{font-size:7px;color:#64748b;text-transform:uppercase;font-weight:900;letter-spacing:.06em;}
-      .mini-stat .v{font-size:11px;color:#0f172a;font-weight:1000;margin-top:1px;}
-      .detail-line{margin-top:6px;font-size:8px;line-height:1.45;color:#475569;font-weight:700;}
-      .comparison{margin-top:10px;padding-top:8px;border-top:1px solid #e2e8f0;display:grid;gap:6px;}
+      .mini-stat{border-radius:7px;padding:4px;background:#F3F7F2;text-align:center;}
+      .mini-stat .k{font-size:7px;color:#7C877E;text-transform:uppercase;font-weight:700;letter-spacing:.06em;}
+      .mini-stat .v{font-size:11px;color:#12201A;font-weight:800;margin-top:1px;}
+      .detail-line{margin-top:6px;font-size:8px;line-height:1.45;color:#4B584F;font-weight:600;}
+      .comparison{margin-top:10px;padding-top:8px;border-top:1px solid #E2E9E1;display:grid;gap:6px;}
       .compare-row{display:grid;grid-template-columns:.8fr 1fr 1fr;gap:8px;align-items:center;}
       .compare-side{display:grid;grid-template-columns:18px 1fr;gap:5px;align-items:center;}
-      .compare-side .fill.opponent{background:linear-gradient(90deg,#64748b,#94a3b8);}
-      .foot{margin-top:12px; border-top:1px solid #e2e8f0; padding-top:10px; display:flex; justify-content:space-between; align-items:center;}
-      .foot .muted{color:#64748b; font-size:11px;}
+      .compare-side .fill.opponent{background:#356FA6;}
+      .foot{margin-top:12px; border-top:1px solid #D3DCD3; padding-top:10px; display:flex; justify-content:space-between; align-items:center;}
+      .foot .muted{color:#7C877E; font-size:10px;}
+      .impact-list{display:grid;gap:6px;}
+      .impact-item{display:grid;grid-template-columns:38px 1fr auto;gap:8px;align-items:center;padding:7px;border:1px solid #E2E9E1;border-radius:9px;background:#F3F7F2;break-inside:avoid;page-break-inside:avoid;}
+      .impact-minute{padding:3px 5px;border-radius:999px;background:#0F8A4B;color:#fff;text-align:center;font-size:9px;font-weight:800;}
+      .impact-item.negative .impact-minute{background:#B43C32;}
+      .impact-copy strong{display:block;font-size:10px;color:#12201A;}.impact-copy span{font-size:8px;color:#4B584F;}
+      .impact-delta{font-size:10px;font-weight:800;color:#0A5E33;}.impact-item.negative .impact-delta{color:#B43C32;}
     </style>
   </head>
   <body>
@@ -73,15 +82,16 @@
         <img src="{{ brand_mark_src }}" alt="2J" style="width:44px;height:auto;" />
         <img src="{{ crest_src }}" alt="Escudo" style="width:34px;height:34px;border-radius:999px;border:1px solid #e2e8f0;background:#fff;padding:2px;" />
         <div class="meta">
-          <div class="app">Segunda Jugada · Informe partido</div>
-          <div class="team">{{ team_name }} vs {{ opponent_name }}</div>
+          <div class="app">Informe al cuerpo técnico · Postpartido</div>
+          <div class="team">Informe de partido</div>
+          <div class="fixture">{{ team_name }} vs {{ opponent_name }}{% if score_label %}<span class="score">{{ score_label }}</span>{% endif %}</div>
         </div>
       </div>
       <div class="club-meta">
         <div><strong>{{ round_label }}</strong>{% if match_date_label %} · {{ match_date_label }}{% endif %}</div>
         <div>{{ location_label }}</div>
         {% if staff_lines %}
-        <div style="margin-top:6px;font-size:10px;color:rgba(226,232,240,.86);line-height:1.35;">
+        <div style="margin-top:6px;font-size:9px;color:#7C877E;line-height:1.35;">
           {% for line in staff_lines %}
           <div><strong>{{ line.role }}</strong> · {{ line.name }}{% if line.license_number %} · Lic. {{ line.license_number }}{% endif %}</div>
           {% endfor %}
@@ -108,7 +118,7 @@
         {% endif %}
         {% if plan_abc %}
         <div style="margin-top:10px;">
-          <div style="font-weight:900; letter-spacing:0.1em; text-transform:uppercase; font-size:11px; color:#e2e8f0;">Plan A/B/C</div>
+          <div style="font-weight:800; letter-spacing:0.08em; text-transform:uppercase; font-size:10px; color:#12201A;">Plan A/B/C</div>
           <div class="timeline" style="margin-top:8px;">
             {% if plan_abc.a %}<div class="t-item"><div class="t-min">🅰️</div><div><div class="t-title">Plan A</div><div class="t-text">{{ plan_abc.a|linebreaksbr }}</div></div></div>{% endif %}
             {% if plan_abc.b %}<div class="t-item"><div class="t-min">🅱️</div><div><div class="t-title">Plan B</div><div class="t-text">{{ plan_abc.b|linebreaksbr }}</div></div></div>{% endif %}
@@ -131,19 +141,34 @@
       </div>
       {% endif %}
 
+      {% if decisive_moments %}
+      <div class="section">
+        <h2>Momentos decisivos</h2>
+        <div class="impact-list">
+          {% for moment in decisive_moments %}
+          <div class="impact-item {% if moment.polarity == 'negative' %}negative{% endif %}">
+            <div class="impact-minute">{{ moment.minute|default:"--" }}'</div>
+            <div class="impact-copy"><strong>{{ moment.player_name }} · {{ moment.reason_label|default:moment.action }}</strong><span>{{ moment.label }}</span></div>
+            <div class="impact-delta">{% if moment.rating_delta > 0 %}+{% endif %}{{ moment.rating_delta|floatformat:2 }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
       {% if postmatch_pro %}
       <div class="section">
         <h2>Postpartido PRO</h2>
-        <div style="font-size:11px;color:#e2e8f0;line-height:1.35;">
+        <div style="font-size:10px;color:#4B584F;line-height:1.4;">
           {% for line in postmatch_pro.insights %}
           <div style="margin-top:6px;">{{ line }}</div>
           {% empty %}
-          <div style="margin-top:6px;color:#64748b;">Sin insights automáticos.</div>
+          <div style="margin-top:6px;color:#7C877E;">Sin insights automáticos.</div>
           {% endfor %}
         </div>
         <div style="margin-top:10px;">
-          <div style="font-weight:900; letter-spacing:0.1em; text-transform:uppercase; font-size:11px; color:#e2e8f0;">Propuesta microciclo</div>
-          <div style="margin-top:8px; white-space:pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:10px; color:#e2e8f0; background: rgba(2,6,23,0.14); border:1px solid rgba(255,255,255,0.12); border-radius: 10px; padding:8px;">{{ postmatch_pro.microcycle_text }}</div>
+          <div style="font-weight:800; letter-spacing:0.08em; text-transform:uppercase; font-size:10px; color:#12201A;">Propuesta microciclo</div>
+          <div style="margin-top:8px; white-space:pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:9px; color:#4B584F; background:#F3F7F2; border:1px solid #E2E9E1; border-radius:10px; padding:8px;">{{ postmatch_pro.microcycle_text }}</div>
         </div>
       </div>
       {% endif %}
@@ -178,7 +203,7 @@
           </div>
         </div>
         <div class="comparison">
-          <div class="compare-row" style="color:#64748b;font-size:8px;text-transform:uppercase;font-weight:900;"><span>Comparativa</span><span>{{ team_name }}</span><span>{{ opponent_name }}</span></div>
+          <div class="compare-row" style="color:#7C877E;font-size:8px;text-transform:uppercase;font-weight:800;"><span>Comparativa</span><span>{{ team_name }}</span><span>{{ opponent_name }}</span></div>
           {% for row in team_report.comparison %}
           <div class="compare-row">
             <strong style="font-size:9px;">{{ row.label }}</strong>
@@ -202,7 +227,7 @@
                 <div class="track"><div class="fill" style="width: {{ row.pct }}%;"></div></div>
               </div>
             {% empty %}
-              <div style="margin-top:10px;color:#64748b;font-size:11px;">No hay acciones registradas.</div>
+              <div style="margin-top:10px;color:#7C877E;font-size:10px;">No hay acciones registradas.</div>
             {% endfor %}
           </div>
           <div class="bar">
@@ -213,7 +238,7 @@
                 <div class="track"><div class="fill gold" style="width: {{ row.pct }}%;"></div></div>
               </div>
             {% empty %}
-              <div style="margin-top:10px;color:#64748b;font-size:11px;">No hay acciones registradas.</div>
+              <div style="margin-top:10px;color:#7C877E;font-size:10px;">No hay acciones registradas.</div>
             {% endfor %}
           </div>
         </div>
@@ -231,7 +256,7 @@
                 <div class="player-name">{% if p.number %}#{{ p.number }} · {% endif %}{{ p.name }}</div>
                 <div class="player-sub">{{ p.profile_label|default:"Sin perfil" }} · {{ p.dominant_zone }}</div>
               </div>
-              <div class="minutes">{{ p.minutes }} min</div>
+              <div class="minutes">{% if p.rating != None %}{{ p.rating|floatformat:1 }} · {% endif %}{{ p.minutes }} min</div>
             </div>
             <div class="mini-grid">
               {% for stat in p.headline_stats %}
@@ -245,9 +270,10 @@
               {% if p.fouls_committed or p.fouls_received %} · faltas {{ p.fouls_committed }}/{{ p.fouls_received }}{% endif %}
               {% if p.yellow or p.red %} · tarjetas {{ p.yellow }}/{{ p.red }}{% endif %}
             </div>
+            {% if p.impact_events %}<div class="detail-line"><strong>Impacto:</strong> {% for impact in p.impact_events %}{{ impact.short_label }}{% if impact.reason_label %} ({{ impact.reason_label }}){% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</div>{% endif %}
           </div>
           {% empty %}
-          <div class="card" style="color:#64748b;">No hay acciones registradas.</div>
+          <div class="card" style="color:#7C877E;">No hay acciones registradas.</div>
           {% endfor %}
         </div>
       </div>
@@ -266,7 +292,7 @@
             </div>
           </div>
           {% empty %}
-          <div class="card" style="color:#64748b;">Sin eventos clave (goles/tarjetas).</div>
+          <div class="card" style="color:#7C877E;">Sin eventos clave (goles/tarjetas).</div>
           {% endfor %}
         </div>
       </div>

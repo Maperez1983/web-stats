@@ -338,6 +338,7 @@ from football.event_taxonomy import (
     shots_needed_per_goal,
     zone_to_tercio,
 )
+from football.match_impact import MATCH_IMPACT_OPTIONS, MATCH_IMPACT_REASONS, match_event_impact, normalize_match_impact
 from football.normalization import FOOT_CHOICES, POSITION_CHOICES, SKIN_TONE_CHOICES, normalize_foot_value, normalize_position_value
 from football.injuries import categorize_time_loss
 from football.injuries import estimate_return_date as estimate_return_date_from_catalog
@@ -7247,6 +7248,7 @@ def _serialize_match_event(event, duplicate=False):
         minute_label = ""
     if minute_label:
         minute_label = re.sub(r"\s+", "", minute_label)
+    impact = match_event_impact(event)
     nickname = ""
     try:
         nickname = str(getattr(player, "nickname", "") or "").strip() if player else ""
@@ -7264,6 +7266,7 @@ def _serialize_match_event(event, duplicate=False):
         "system": event.system,
         "duplicate": bool(duplicate),
         "team_side": team_side,
+        "impact": impact or {},
         "player": {
             "id": player.id if player else None,
             "name": player.name if player else "Equipo",
@@ -7271,6 +7274,22 @@ def _serialize_match_event(event, duplicate=False):
             "number": (player.number if player and player.number is not None else "--"),
         },
     }
+
+
+def _match_impact_from_request(request):
+    return normalize_match_impact(
+        request.POST.get("impact_code"),
+        request.POST.get("impact_reason"),
+    )
+
+
+def _set_raw_match_impact(raw_data, impact):
+    raw = dict(raw_data) if isinstance(raw_data, dict) else {}
+    if impact:
+        raw["impact"] = {"code": impact["code"], "reason": impact.get("reason") or ""}
+    else:
+        raw.pop("impact", None)
+    return raw
 
 
 TEAM_ONLY_ACTION_TYPES = {
@@ -25232,6 +25251,8 @@ def match_action_page(request):
             "active_workspace": active_ws,
             "matchday_role_key": _matchday_quick_buttons_role_key(request.user),
             "edit_match_url": edit_match_url,
+            "match_impact_options": MATCH_IMPACT_OPTIONS,
+            "match_impact_reasons": MATCH_IMPACT_REASONS,
         },
     )
     try:
@@ -25555,6 +25576,7 @@ def register_match_action(request):
         raw_data["second_yellow"] = True
     if event_kind:
         raw_data["kind"] = event_kind
+    raw_data = _set_raw_match_impact(raw_data, _match_impact_from_request(request))
     event = MatchEvent.objects.create(
         match=match,
         player=player if player else None,
@@ -25630,6 +25652,10 @@ def bulk_add_match_actions(request):
     result = str(payload.get("result") or request.POST.get("result") or "").strip()
     zone = str(payload.get("zone") or request.POST.get("zone") or "").strip()
     observation = str(payload.get("observation") or request.POST.get("observation") or "").strip()[:500]
+    impact = normalize_match_impact(
+        payload.get("impact_code") or request.POST.get("impact_code"),
+        payload.get("impact_reason") or request.POST.get("impact_reason"),
+    )
     quantity = _parse_int(payload.get("quantity") or request.POST.get("quantity")) or 1
     if quantity < 1:
         quantity = 1
@@ -25696,14 +25722,17 @@ def bulk_add_match_actions(request):
                 observation=observation or "Recuperación manual",
                 source_file="manual-recovery",
                 system="touch-field-final",
-                raw_data={
-                    "recovery": True,
-                    "bulk": True,
-                    "bulk_quantity": int(quantity),
-                    "bulk_index": int(idx),
-                    "created_at": now_dt.isoformat(),
-                    "created_by_id": int(getattr(request.user, "id", 0) or 0),
-                },
+                raw_data=_set_raw_match_impact(
+                    {
+                        "recovery": True,
+                        "bulk": True,
+                        "bulk_quantity": int(quantity),
+                        "bulk_index": int(idx),
+                        "created_at": now_dt.isoformat(),
+                        "created_by_id": int(getattr(request.user, "id", 0) or 0),
+                    },
+                    impact,
+                ),
             )
         )
     MatchEvent.objects.bulk_create(events, batch_size=250)
@@ -26299,9 +26328,59 @@ def update_match_action(request):
     except Exception:
         pass
 
+    # Impacto contextual: es opcional y se puede añadir o retirar al editar la acción.
+    try:
+        raw = _set_raw_match_impact(event.raw_data, _match_impact_from_request(request))
+        if raw != (event.raw_data if isinstance(event.raw_data, dict) else {}):
+            event.raw_data = raw
+            changed.append("raw_data")
+    except Exception:
+        pass
+
     if changed:
         event.save(update_fields=list(dict.fromkeys(changed)))
         _invalidate_team_dashboard_caches(primary_team)
+    return JsonResponse({**_serialize_match_event(event, duplicate=False), "updated": True})
+
+
+@authenticated_write
+@require_POST
+def update_match_action_impact(request):
+    """Añade o retira una consecuencia contextual sin reabrir la edición completa de la acción."""
+    if not _can_edit_match_actions(request.user):
+        return JsonResponse({"error": "Solo el cuerpo técnico puede valorar acciones."}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, "match_actions", label="registro de acciones")
+    if forbidden:
+        return JsonResponse({"error": "El registro de acciones no está activo."}, status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({"error": "Equipo principal no configurado"}, status=400)
+    event_id = _parse_int(request.POST.get("event_id"))
+    if not event_id:
+        return JsonResponse({"error": "Evento no válido"}, status=400)
+    requested_match = get_requested_match(request, primary_team)
+    events = MatchEvent.objects.filter(id=event_id).filter(
+        Q(match__home_team=primary_team) | Q(match__away_team=primary_team),
+        source_file__in=["registro-acciones", "manual-recovery"],
+        system__in=["touch-field", "touch-field-final"],
+    )
+    if requested_match:
+        events = events.filter(match=requested_match)
+    event = events.select_related("match", "player").first()
+    if not event:
+        return JsonResponse({"error": "Evento no encontrado"}, status=404)
+    if event.player_id and getattr(event.player, "team_id", None) != primary_team.id:
+        return JsonResponse({"error": "No puedes valorar eventos de otro equipo."}, status=403)
+
+    impact = _match_impact_from_request(request)
+    event.raw_data = _set_raw_match_impact(event.raw_data, impact)
+    event.save(update_fields=["raw_data"])
+    _invalidate_team_dashboard_caches(primary_team)
+    if getattr(event.match, "is_closed", False):
+        try:
+            _persist_match_ratings(primary_team, event.match, notify=False)
+        except Exception:
+            logger.debug("No se pudieron recalcular notas tras impacto event=%s", event.id, exc_info=True)
     return JsonResponse({**_serialize_match_event(event, duplicate=False), "updated": True})
 
 
@@ -28783,6 +28862,8 @@ def _match_staff_report_context(request, *, match, primary_team):
                 "unforced_errors": 0,
                 "fouls_committed": 0,
                 "fouls_received": 0,
+                "impact_delta": 0.0,
+                "impact_events": [],
                 "dominant_zone": "Sin zona",
                 "zone_counts": Counter(),
             }
@@ -28799,6 +28880,7 @@ def _match_staff_report_context(request, *, match, primary_team):
     except Exception:
         manual_minutes = {}
 
+    decisive_moments = []
     for ev in events:
         success = result_is_success(ev.result)
         period = int(getattr(ev, "period", 0) or 0)
@@ -28833,6 +28915,19 @@ def _match_staff_report_context(request, *, match, primary_team):
         if not ev.player_id or int(ev.player_id) not in player_detail:
             continue
         detail = player_detail[int(ev.player_id)]
+        impact = match_event_impact(ev)
+        if impact:
+            moment = {
+                **impact,
+                "event_id": ev.id,
+                "minute": ev.minute,
+                "action": ev.event_type,
+                "player_name": detail["name"],
+                "player_id": ev.player_id,
+            }
+            detail["impact_delta"] += float(impact["rating_delta"])
+            detail["impact_events"].append(moment)
+            decisive_moments.append(moment)
         if zone_key:
             detail["zone_counts"][zone_key] += 1
         if _is_pass(ev):
@@ -28880,6 +28975,13 @@ def _match_staff_report_context(request, *, match, primary_team):
         item["rate"] = round((item["successes"] / item["total"]) * 100, 1) if item["total"] else 0
 
     player_reports = []
+    try:
+        rating_map = {
+            int(row["player_id"]): row
+            for row in _build_match_ratings(primary_team, match, prefer_frozen=False)
+        }
+    except Exception:
+        rating_map = {}
     zone_labels = {key: item["label"] for key, item in zone_map.items()}
     for player_id, detail in player_detail.items():
         detail["minutes"] = manual_minutes.get(player_id, 0)
@@ -28889,6 +28991,8 @@ def _match_staff_report_context(request, *, match, primary_team):
         detail["pass_rate"] = round((detail["passes_ok"] / detail["passes"]) * 100, 1) if detail["passes"] else 0
         detail["duel_rate"] = round((detail["duels_won"] / detail["duels"]) * 100, 1) if detail["duels"] else 0
         detail["shot_rate"] = round((detail["shots_target"] / detail["shots"]) * 100, 1) if detail["shots"] else 0
+        detail["impact_delta"] = round(float(detail["impact_delta"]), 2)
+        detail["rating"] = (rating_map.get(int(player_id)) or {}).get("rating")
         detail["headline_stats"] = [
             {"label": "Pase", "value": f'{detail["passes_ok"]}/{detail["passes"]}'},
             {"label": "Duelos", "value": f'{detail["duels_won"]}/{detail["duels"]}'},
@@ -28949,6 +29053,10 @@ def _match_staff_report_context(request, *, match, primary_team):
         "postmatch_pro": postmatch_pro,
         "team_report": team_report,
         "player_reports": player_reports,
+        "decisive_moments": sorted(
+            decisive_moments,
+            key=lambda row: (int(row.get("minute") or 0), str(row.get("player_name") or "")),
+        ),
         "summary_cards": summary_cards,
         "top_event_types": top_event_types,
         "top_results": top_results,
@@ -78309,38 +78417,87 @@ def _fm_position_group(pos):
 
 def _auto_match_rating_from_stats(stats, position=None):
     """Rating FM automático de una actuación (0-10) desde el payload de stats por partido.
-    Base 6.0, pesos por acción tipada, ponderado por línea, clamp 4-10. None si no hay acciones."""
+    Base 6.4 y aportes conservadores: el registro manual suele recoger más acciones destacadas
+    que acciones neutras, por lo que una suma lineal sobrevaloraría casi toda la plantilla."""
     if not stats:
         return None
     total = int(stats.get("total_actions", 0) or 0)
     if total <= 0:
         return None
-    base = 6.0
+    base = 6.4
     s = 0.0
     goals = int(stats.get("goals", 0) or 0)
-    s += 1.0 * goals
-    s += 0.7 * int(stats.get("assists", 0) or 0)
-    s += 0.2 * int(stats.get("key_passes_completed", 0) or 0)
+    assists = int(stats.get("assists", 0) or 0)
+    key_passes = int(stats.get("key_passes_completed", 0) or 0)
+    s += 0.72 * goals
+    s += 0.40 * assists
+    s += min(0.36, 0.10 * key_passes)
     sot = int(stats.get("shots_on_target", 0) or 0)
-    s += 0.15 * sot
-    s += 0.05 * max(0, int(stats.get("shot_attempts", 0) or 0) - sot)
+    off_target = max(0, int(stats.get("shot_attempts", 0) or 0) - sot)
+    s += 0.06 * max(0, sot - goals)
+    s -= min(0.42, 0.07 * off_target)
     pc = int(stats.get("passes_completed", 0) or 0)
     pa = int(stats.get("pass_attempts", 0) or 0)
-    s += min(0.8, 0.01 * pc)
-    s -= min(0.8, 0.02 * max(0, pa - pc))
-    dw = int(stats.get("duels_won", 0) or 0)
-    dt = int(stats.get("duels_total", 0) or 0)
-    s += min(0.9, 0.08 * dw)
-    s -= min(0.9, 0.06 * max(0, dt - dw))
-    s += min(1.2, 0.12 * int(stats.get("goalkeeper_saves", 0) or 0))
+    s += min(0.24, 0.004 * pc)
+    s -= min(0.60, 0.03 * max(0, pa - pc))
+    dw = int(stats.get("explicit_duels_won", stats.get("duels_won", 0)) or 0)
+    dt = int(stats.get("explicit_duels_total", stats.get("duels_total", 0)) or 0)
+    s += min(0.40, 0.04 * dw)
+    s -= min(0.60, 0.06 * max(0, dt - dw))
+
+    aerial_won = int(stats.get("aerial_duels_won", 0) or 0)
+    aerial_total = int(stats.get("aerial_duels_total", 0) or 0)
+    # Los aéreos ya forman parte de los duelos. Solo añadimos un ajuste mínimo por especialidad
+    # para que un mismo evento no puntúe dos veces con un peso completo.
+    s += min(0.08, 0.01 * aerial_won)
+    s -= min(0.12, 0.015 * max(0, aerial_total - aerial_won))
+    recoveries = int(stats.get("recoveries", 0) or 0)
+    forced_turnovers = int(stats.get("forced_turnovers", 0) or 0)
+    s += min(0.36, 0.04 * recoveries)
+    s -= min(0.40, 0.04 * forced_turnovers)
+    s -= min(1.10, 0.14 * int(stats.get("unforced_turnovers", 0) or 0))
+
+    dribbles_won = int(stats.get("dribbles_completed", 0) or 0)
+    dribbles_total = int(stats.get("dribbles_attempted", 0) or 0)
+    s += min(0.28, 0.04 * dribbles_won)
+    s -= min(0.42, 0.07 * max(0, dribbles_total - dribbles_won))
+    crosses_won = int(stats.get("crosses_completed", 0) or 0)
+    crosses_total = int(stats.get("crosses_attempted", 0) or 0)
+    s += min(0.18, 0.03 * crosses_won)
+    s -= min(0.30, 0.05 * max(0, crosses_total - crosses_won))
+    long_won = int(stats.get("long_passes_completed", 0) or 0)
+    long_total = int(stats.get("long_passes_attempted", 0) or 0)
+    s += min(0.14, 0.015 * long_won)
+    s -= min(0.30, 0.04 * max(0, long_total - long_won))
+    s += min(0.14, 0.02 * int(stats.get("retentions_won", 0) or 0))
+    s -= min(0.40, 0.04 * int(stats.get("retentions_lost", 0) or 0))
+    s += min(0.12, 0.015 * int(stats.get("fouls_received", 0) or 0))
+    s -= min(0.50, 0.05 * int(stats.get("fouls_committed", 0) or 0))
+
+    saves = int(stats.get("goalkeeper_saves", 0) or 0)
+    goals_conceded = int(stats.get("goals_conceded", 0) or 0)
+    s += min(0.72, 0.14 * saves)
+    s -= min(1.20, 0.30 * goals_conceded)
     s -= 0.30 * int(stats.get("yellow_cards", 0) or 0)
     s -= 1.20 * int(stats.get("red_cards", 0) or 0)
+
     line = _fm_position_group(position)
-    if line in ("gk", "central"):
-        s += 0.30 * goals
-    elif line == "delantero":
-        s -= 0.10 * goals
-    rating = base + s
+    if line == "gk":
+        s += min(0.24, 0.05 * saves)
+        s -= min(0.40, 0.10 * goals_conceded)
+    elif line in ("central", "lateral"):
+        s += min(0.12, 0.01 * (recoveries + aerial_won))
+    elif line in ("pivote", "medio"):
+        s += min(0.10, 0.01 * (key_passes + long_won))
+    elif line in ("banda", "delantero"):
+        s += min(0.12, 0.02 * (dribbles_won + max(0, sot - goals)))
+    # FM concentra la mayoría de actuaciones cerca de su media. Comprimimos la suma positiva
+    # para que muchas acciones menores no equivalgan por sí solas a una actuación sobresaliente.
+    if s > 0:
+        s *= 0.72
+    # El impacto contextual no se comprime: representa una consecuencia comprobada del partido,
+    # no volumen estadístico rutinario.
+    rating = base + s + float(stats.get("contextual_impact", 0.0) or 0.0)
     if total < 5:  # poca implicación: regresa hacia la base
         rating = base + (rating - base) * 0.6
     return round(max(4.0, min(10.0, rating)), 1)
@@ -78464,28 +78621,31 @@ def _frozen_match_rating(player, match):
         return None
 
 
-def _compute_match_rating(primary_team, player, match):
+def _compute_match_rating(primary_team, player, match, *, prefer_frozen=True):
     """Rating de una actuación según la fuente del partido: acciones en vivo, edición manual, o
     solo resultado. Si el partido ya se cerró, PREFIERE la nota congelada (queda fija aunque se
     editen datos luego). Devuelve dict o None si el jugador no participó (sin minutos)."""
     if not primary_team or not player or not match:
         return None
     source = str(getattr(match, "stats_source", "") or "")
-    if source == Match.STATS_SOURCE_LIVE:
-        try:
-            payload = _build_player_match_stats_payload(primary_team, player, match)
-        except Exception:
-            payload = None
+    try:
+        payload_result = _build_player_match_stats_payload(primary_team, player, match)
+        payload = payload_result[0] if isinstance(payload_result, tuple) else payload_result
+    except Exception:
+        payload = None
+    # La etiqueta de fuente describe cómo se capturó el partido, no si existen acciones útiles.
+    # Las acciones confirmadas mandan también en una recuperación manual posterior al cierre.
+    if int((payload or {}).get("total_actions", 0) or 0) > 0:
         rating = _auto_match_rating_from_stats(payload, getattr(player, "position", ""))
         info = None if rating is None else {
-            "rating": rating, "method": "live", "method_label": "en vivo", "confidence": "alta",
+            "rating": rating, "method": "actions", "method_label": "acciones", "confidence": "alta",
             "goals": int((payload or {}).get("goals", 0) or 0),
             "assists": int((payload or {}).get("assists", 0) or 0),
         }
     else:
         info = _result_based_match_rating(primary_team, player, match, source)
     # Nota congelada: manda si el partido ya está cerrado.
-    frozen = _frozen_match_rating(player, match)
+    frozen = _frozen_match_rating(player, match) if prefer_frozen else None
     if frozen is not None:
         if info is None:
             info = {"rating": frozen, "method": "frozen", "method_label": "cerrado",
@@ -78501,7 +78661,7 @@ def _compute_match_rating(primary_team, player, match):
 
 
 def _match_participants(primary_team, match):
-    """Jugadores que participaron: con eventos (live) o con minutos manuales; si no hay ninguno, los convocados."""
+    """Jugadores con acciones o minutos; solo usa convocados como respaldo si no hay participación."""
     convocados = []
     try:
         rec = _get_convocation_record_for_match(primary_team, match)
@@ -78509,22 +78669,14 @@ def _match_participants(primary_team, match):
             convocados = list(rec.players.filter(is_active=True))
     except Exception:
         convocados = []
-    source = str(getattr(match, "stats_source", "") or "")
-    if source == Match.STATS_SOURCE_LIVE:
-        try:
-            pids = set(
-                confirmed_events_queryset().filter(match=match, player__isnull=False)
-                .values_list("player_id", flat=True)
-            )
-        except Exception:
-            pids = set()
-        extra = list(Player.objects.filter(id__in=pids)) if pids else []
-        seen, out = set(), []
-        for p in list(convocados) + extra:
-            if int(p.id) not in seen:
-                seen.add(int(p.id))
-                out.append(p)
-        return out or convocados
+    try:
+        event_player_ids = set(
+            confirmed_events_queryset()
+            .filter(match=match, player__isnull=False)
+            .values_list("player_id", flat=True)
+        )
+    except Exception:
+        event_player_ids = set()
     try:
         mm = {
             int(r["player_id"]): int(r["value"] or 0)
@@ -78532,22 +78684,22 @@ def _match_participants(primary_team, match):
         }
     except Exception:
         mm = {}
-    played = {pid for pid, v in mm.items() if v > 0}
-    if played:
-        pool = {int(p.id): p for p in convocados}
-        for p in Player.objects.filter(id__in=played):
+    participant_ids = event_player_ids | {pid for pid, value in mm.items() if value > 0}
+    if participant_ids:
+        pool = {int(p.id): p for p in convocados if int(p.id) in participant_ids}
+        for p in Player.objects.filter(id__in=participant_ids):
             pool.setdefault(int(p.id), p)
-        return [pool[pid] for pid in played if pid in pool]
+        return [pool[pid] for pid in sorted(participant_ids) if pid in pool]
     return convocados
 
 
-def _build_match_ratings(primary_team, match):
+def _build_match_ratings(primary_team, match, *, prefer_frozen=True):
     """Notas de todos los participantes del partido, ordenadas desc, con el MVP marcado."""
     if not primary_team or not match:
         return []
     rows = []
     for p in _match_participants(primary_team, match):
-        info = _compute_match_rating(primary_team, p, match)
+        info = _compute_match_rating(primary_team, p, match, prefer_frozen=prefer_frozen)
         if not info:
             continue
         rows.append({
@@ -78569,7 +78721,9 @@ def _persist_match_ratings(primary_team, match, request=None, notify=True):
         season = getattr(match, "season", None)
         if not season or not primary_team or not match:
             return 0
-        ratings = _build_match_ratings(primary_team, match)
+        # Un segundo cierre puede llegar tras recuperar acciones. En ese caso recalculamos en vez
+        # de volver a copiar la nota congelada antigua.
+        ratings = _build_match_ratings(primary_team, match, prefer_frozen=False)
         if not ratings:
             return 0
         for r in ratings:
@@ -84335,6 +84489,8 @@ def _build_player_match_stats_payload(primary_team, player, match):
         "tercio_totals": {label: 0 for label in STANDARD_TERCIO_LABELS},
         "duels_total": 0,
         "duels_won": 0,
+        "explicit_duels_total": 0,
+        "explicit_duels_won": 0,
         "aerial_duels_total": 0,
         "aerial_duels_won": 0,
         "shot_attempts": 0,
@@ -84343,12 +84499,42 @@ def _build_player_match_stats_payload(primary_team, player, match):
         "passes_completed": 0,
         "key_passes_completed": 0,
         "goalkeeper_saves": 0,
+        "goals_conceded": 0,
+        "recoveries": 0,
+        "forced_turnovers": 0,
+        "unforced_turnovers": 0,
+        "dribbles_attempted": 0,
+        "dribbles_completed": 0,
+        "crosses_attempted": 0,
+        "crosses_completed": 0,
+        "long_passes_attempted": 0,
+        "long_passes_completed": 0,
+        "retentions_won": 0,
+        "retentions_lost": 0,
+        "fouls_committed": 0,
+        "fouls_received": 0,
+        "contextual_impact": 0.0,
+        "impact_events": [],
     }
     for event in events:
+        event_label = normalize_label(event.event_type)
+        event_success = result_is_success(event.result)
+        is_conceded_goal = "gol encajado" in event_label or normalize_label(event.result) == "en contra"
+        impact = match_event_impact(event)
+        if impact:
+            stats["contextual_impact"] += float(impact["rating_delta"])
+            stats["impact_events"].append(
+                {
+                    **impact,
+                    "event_id": event.id,
+                    "minute": event.minute,
+                    "action": event.event_type,
+                }
+            )
         stats["total_actions"] += 1
-        if result_is_success(event.result):
+        if event_success:
             stats["successes"] += 1
-        if is_goal_event(event.event_type, event.result, event.observation):
+        if is_goal_event(event.event_type, event.result, event.observation) and not is_conceded_goal:
             stats["goals"] += 1
         if is_assist_event(event.event_type, event.result, event.observation):
             stats["assists"] += 1
@@ -84362,6 +84548,10 @@ def _build_player_match_stats_payload(primary_team, player, match):
             stats["duels_total"] += 1
             if duel_event.get("won"):
                 stats["duels_won"] += 1
+            if event_label == "duelo" or event_label.startswith("duelo "):
+                stats["explicit_duels_total"] += 1
+                if duel_event.get("won"):
+                    stats["explicit_duels_won"] += 1
             if duel_event.get("aerial"):
                 stats["aerial_duels_total"] += 1
                 if duel_event.get("won"):
@@ -84378,7 +84568,7 @@ def _build_player_match_stats_payload(primary_team, player, match):
                 stats["tercio_counts"][mapped] = int(stats["tercio_counts"].get(mapped, 0) or 0) + 1
                 stats["tercio_totals"][mapped] = int(stats["tercio_totals"].get(mapped, 0) or 0) + 1
 
-        shot_event = is_shot_attempt_event(event.event_type, event.result, event.observation)
+        shot_event = is_shot_attempt_event(event.event_type, event.result, event.observation) and not is_conceded_goal
         if shot_event:
             stats["shot_attempts"] += 1
             if is_shot_on_target_event(event.event_type, event.result, event.observation):
@@ -84386,6 +84576,38 @@ def _build_player_match_stats_payload(primary_team, player, match):
 
         if is_goalkeeper_save_event(event.event_type, event.result, event.observation):
             stats["goalkeeper_saves"] += 1
+        if is_conceded_goal:
+            stats["goals_conceded"] += 1
+        if event_label.startswith("robo") or "recuperacion" in event_label:
+            if event_success:
+                stats["recoveries"] += 1
+        if "perdida forzada" in event_label or "error forzado" in event_label:
+            stats["forced_turnovers"] += 1
+        if "perdida no forzada" in event_label or "error no forzado" in event_label:
+            stats["unforced_turnovers"] += 1
+        if contains_keyword(event.event_type, DRIBBLE_KEYWORDS) or contains_keyword(
+            event.observation, DRIBBLE_KEYWORDS
+        ):
+            stats["dribbles_attempted"] += 1
+            if event_success:
+                stats["dribbles_completed"] += 1
+        if event_label == "centro" or event_label.startswith("centro "):
+            stats["crosses_attempted"] += 1
+            if event_success:
+                stats["crosses_completed"] += 1
+        if "pase en largo" in event_label:
+            stats["long_passes_attempted"] += 1
+            if event_success:
+                stats["long_passes_completed"] += 1
+        if event_label == "caida" or event_label.startswith("caida "):
+            if event_success:
+                stats["retentions_won"] += 1
+            else:
+                stats["retentions_lost"] += 1
+        if "falta cometida" in event_label:
+            stats["fouls_committed"] += 1
+        if "falta recibida" in event_label:
+            stats["fouls_received"] += 1
 
         is_pass_event = (
             contains_keyword(event.event_type, PASS_KEYWORDS)
@@ -84394,13 +84616,14 @@ def _build_player_match_stats_payload(primary_team, player, match):
         )
         if is_pass_event:
             stats["pass_attempts"] += 1
-            is_completed_pass = result_is_success(event.result) or is_assist_event(
+            is_completed_pass = event_success or is_assist_event(
                 event.event_type, event.result, event.observation
             )
             if is_completed_pass:
                 stats["passes_completed"] += 1
                 if is_key_pass_event(event.event_type, event.result, event.observation):
                     stats["key_passes_completed"] += 1
+    stats["contextual_impact"] = round(float(stats["contextual_impact"]), 2)
     total_tercios = sum(stats["tercio_totals"].values())
     stats["success_rate"] = (
         round((stats["successes"] / stats["total_actions"]) * 100, 1) if stats["total_actions"] else 0

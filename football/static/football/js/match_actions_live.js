@@ -1268,6 +1268,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       <strong>#${playerNumber} ${playerName}</strong>
       <p class="hist-text">${action} · ${zone || '-'} · ${result || ''}</p>
       <div class="history-actions">
+        <button type="button" class="history-impact" aria-label="Valorar impacto" title="Marcar como acción clave">★</button>
         ${(sys === 'touch-field-final' && source !== 'manual-recovery') ? '' : '<button type="button" class="history-delete" aria-label="Eliminar acción">🗑</button>'}
       </div>
     `;
@@ -1311,7 +1312,112 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     }
   };
 
+  const impactModal = document.getElementById('match-impact-modal');
+  const impactDialog = impactModal?.querySelector?.('.impact-dialog') || null;
+  const impactEventId = document.getElementById('match-impact-event-id');
+  const impactCode = document.getElementById('match-impact-code');
+  const impactEventLabel = document.getElementById('match-impact-event');
+  const impactReason = document.getElementById('match-impact-reason');
+  let impactArticle = null;
+  const closeImpactModal = () => {
+    if (!impactModal) return;
+    impactModal.hidden = true;
+    impactModal.setAttribute('aria-hidden', 'true');
+    impactArticle = null;
+  };
+  const openImpactModal = (article) => {
+    if (!impactModal || !article?.dataset?.eventId) return;
+    impactArticle = article;
+    if (impactEventId) impactEventId.value = String(article.dataset.eventId || '');
+    if (impactCode) impactCode.value = String(article.dataset.impactCode || '');
+    if (impactReason) impactReason.value = String(article.dataset.impactReason || '');
+    impactModal.querySelectorAll('[data-impact-code]').forEach((button) => {
+      button.classList.toggle('is-selected', String(button.dataset.impactCode || '') === String(article.dataset.impactCode || ''));
+    });
+    if (impactEventLabel) {
+      impactEventLabel.textContent = String(article.querySelector('.hist-text')?.textContent || 'Selecciona la consecuencia real.');
+    }
+    impactModal.hidden = false;
+    impactModal.setAttribute('aria-hidden', 'false');
+  };
+  const paintImpact = (article, impact) => {
+    if (!article) return;
+    const code = String(impact?.code || '');
+    article.dataset.impactCode = code;
+    article.dataset.impactReason = String(impact?.reason || '');
+    article.classList.toggle('has-impact', Boolean(code));
+    let badge = article.querySelector('.history-impact-badge');
+    if (!code) {
+      badge?.remove?.();
+      return;
+    }
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'history-impact-badge';
+      article.appendChild(badge);
+    }
+    badge.classList.toggle('is-negative', String(impact?.polarity || '') === 'negative');
+    badge.textContent = `IMPACTO · ${String(impact?.short_label || code).toUpperCase()}`;
+  };
+  const saveImpact = async (code = '') => {
+    const eventId = String(impactEventId?.value || impactArticle?.dataset?.eventId || '');
+    const saveUrl = String(impactDialog?.dataset?.saveUrl || '');
+    if (!eventId || !saveUrl) return;
+    try {
+      const response = await fetch(saveUrl, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+        body: new URLSearchParams({
+          event_id: eventId,
+          match_id: currentMatchId,
+          impact_code: String(code || ''),
+          impact_reason: String(impactReason?.value || ''),
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        showPageStatus(data.error || 'No se pudo guardar el impacto.', 'danger', 4200);
+        return;
+      }
+      paintImpact(impactArticle, data.impact || {});
+      showPageStatus(code ? 'Impacto guardado y valoración recalculada.' : 'Impacto retirado.', 'success', 2600);
+      closeImpactModal();
+    } catch (error) {
+      console.error(error);
+      showPageStatus('No se pudo guardar el impacto.', 'danger', 4200);
+    }
+  };
+  impactModal?.querySelectorAll?.('[data-impact-close]')?.forEach((button) => {
+    button.addEventListener('click', closeImpactModal);
+  });
+  impactModal?.querySelectorAll?.('[data-impact-code]')?.forEach((button) => {
+    button.addEventListener('click', () => {
+      const code = String(button.dataset.impactCode || '');
+      if (impactCode) impactCode.value = code;
+      impactModal.querySelectorAll('[data-impact-code]').forEach((item) => item.classList.toggle('is-selected', item === button));
+    });
+  });
+  impactModal?.querySelector?.('[data-impact-clear]')?.addEventListener('click', () => saveImpact(''));
+  impactModal?.querySelector?.('[data-impact-save]')?.addEventListener('click', () => {
+    const code = String(impactCode?.value || '');
+    if (!code) {
+      showPageStatus('Selecciona el impacto de la acción.', 'warning', 2400);
+      return;
+    }
+    saveImpact(code);
+  });
+  impactModal?.addEventListener('click', (event) => {
+    if (event.target === impactModal) closeImpactModal();
+  });
+
   historyList.addEventListener('click', async (event) => {
+    const impactButton = closestSafe(event.target, '.history-impact');
+    if (impactButton) {
+      const article = impactButton.closest('[data-event-id]');
+      if (article) openImpactModal(article);
+      return;
+    }
     const button = closestSafe(event.target, '.history-delete');
     if (!button) return;
     const article = button.closest('[data-event-id]');
