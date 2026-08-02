@@ -82,6 +82,11 @@
       @media print {
         .report-pdf .section-grid { display:block; }
         .report-pdf .pro-section { display:block; margin:0 0 7mm; padding:4mm; overflow:visible; border:1px solid #D3DCD3; border-radius:12px; background:#fff; break-inside:auto; page-break-inside:auto; }
+        .report-pdf .pro-executive { break-after:page; page-break-after:always; }
+        .report-pdf .pro-section:nth-of-type(2),
+        .report-pdf .pro-section:nth-of-type(3),
+        .report-pdf .pro-section:nth-of-type(4) { break-inside:avoid; page-break-inside:avoid; }
+        .report-pdf .pro-section:nth-of-type(5) { break-before:page; page-break-before:always; }
         .report-pdf .pro-section-number { margin-bottom:2px; font-size:7px; }
         .report-pdf .pro-section-title { font-size:17px; }
         .report-pdf .pro-section-intro { margin-top:4px; font-size:8px; line-height:1.35; }
@@ -136,8 +141,10 @@
         .report-pdf .pro-substitutions article { display:flex; gap:6px; padding:5px 0; }
         .report-pdf .pro-substitutions article > * { flex:1; }
 
-        .report-pdf .pro-player-list { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; align-items:flex-start; }
-        .report-pdf .pro-player-card { display:block; width:49%; min-height:82px; padding:7px; break-inside:avoid; page-break-inside:avoid; }
+        .report-pdf .pro-player-list { display:block; margin-top:8px; }
+        .report-pdf .pro-player-list::after { display:block; clear:both; content:""; }
+        .report-pdf .pro-player-card { display:block; float:left; width:49%; min-height:82px; margin:0 1% 6px 0; padding:7px; break-inside:avoid; page-break-inside:avoid; }
+        .report-pdf .pro-player-card:nth-child(even) { margin-right:0; margin-left:1%; }
         .report-pdf .pro-player-identity { display:flex; gap:7px; }
         .report-pdf .pro-player-avatar { width:34px; height:34px; border-radius:10px; }
         .report-pdf .pro-player-identity strong { font-size:8px; }
