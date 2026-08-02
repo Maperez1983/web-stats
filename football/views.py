@@ -28282,6 +28282,18 @@ def _match_staff_report_context(request, *, match, primary_team):
     home_score = match.home_score
     away_score = match.away_score
 
+    def _is_conceded_goal_event(ev):
+        text = normalize_label(
+            " ".join(
+                [
+                    str(getattr(ev, "event_type", "") or ""),
+                    str(getattr(ev, "result", "") or ""),
+                    str(getattr(ev, "observation", "") or ""),
+                ]
+            )
+        )
+        return "gol encajado" in text or normalize_label(getattr(ev, "result", "") or "") == "en contra"
+
     preferred_sources = preferred_event_source_by_match(primary_team)
     events = list(_filter_stats_events(
         confirmed_events_queryset()
@@ -28291,7 +28303,11 @@ def _match_staff_report_context(request, *, match, primary_team):
         preferred_sources=preferred_sources,
     ))
     if home_score is None or away_score is None:
-        goals_for = sum(1 for ev in events if is_goal_event(ev.event_type, ev.result, ev.observation))
+        goals_for = sum(
+            1
+            for ev in events
+            if is_goal_event(ev.event_type, ev.result, ev.observation) and not _is_conceded_goal_event(ev)
+        )
         if is_home:
             home_score = home_score if home_score is not None else goals_for
         else:
@@ -28310,7 +28326,8 @@ def _match_staff_report_context(request, *, match, primary_team):
         total_actions += 1
         if result_is_success(ev.result):
             total_successes += 1
-        is_goal = is_goal_event(ev.event_type, ev.result, ev.observation)
+        is_conceded_goal = _is_conceded_goal_event(ev)
+        is_goal = is_goal_event(ev.event_type, ev.result, ev.observation) and not is_conceded_goal
         is_assist = is_assist_event(ev.event_type, ev.result, ev.observation)
         is_yellow = is_yellow_card_event(ev.event_type, ev.result, ev.zone)
         is_red = is_red_card_event(ev.event_type, ev.result, ev.zone)
@@ -28351,9 +28368,17 @@ def _match_staff_report_context(request, *, match, primary_team):
             if is_red:
                 row["red"] += 1
 
-        if is_goal or is_yellow or is_red:
+        if is_goal or is_conceded_goal or is_yellow or is_red:
             minute = ev.minute if ev.minute is not None else ""
-            label = "Gol" if is_goal else "Tarjeta roja" if is_red else "Tarjeta amarilla"
+            label = (
+                "Gol"
+                if is_goal
+                else "Gol encajado"
+                if is_conceded_goal
+                else "Tarjeta roja"
+                if is_red
+                else "Tarjeta amarilla"
+            )
             who = (player.name if player else "").strip() or "—"
             timeline.append({"minute": minute, "title": label, "text": f"{who} · {ev.event_type} {ev.result}".strip()})
 

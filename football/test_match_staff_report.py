@@ -51,6 +51,7 @@ class MatchStaffReportTests(TestCase):
         self._event("PASE EN LARGO", "GANADO", minute=12, period=1, zone="Medio centro", tercio="Construcción")
         self._event("DUELO AEREO", "GANADO", minute=52, period=2, zone="Area", tercio="Ataque")
         self._event("DISPARO", "A PUERTA", minute=60, period=2, zone="Frontal", tercio="Ataque")
+        self._event("GOL ENCAJADO", "EN CONTRA", minute=70, period=2, zone="Portería", tercio="Defensa")
 
         request = RequestFactory().get("/coach/informes/partido/")
         request.user = AnonymousUser()
@@ -60,8 +61,8 @@ class MatchStaffReportTests(TestCase):
         self.assertEqual(family["passes"]["total"], 1)
         self.assertEqual(family["duels"]["successes"], 1)
         self.assertEqual(family["shots"]["successes"], 1)
-        self.assertEqual([row["actions"] for row in context["team_report"]["periods"]], [1, 2])
-        self.assertEqual(context["team_report"]["known_zone_actions"], 3)
+        self.assertEqual([row["actions"] for row in context["team_report"]["periods"]], [1, 3])
+        self.assertEqual(context["team_report"]["known_zone_actions"], 4)
 
         player = context["player_reports"][0]
         self.assertEqual(player["minutes"], 75)
@@ -69,6 +70,9 @@ class MatchStaffReportTests(TestCase):
         self.assertEqual((player["aerial_won"], player["aerial"]), (1, 1))
         self.assertEqual((player["shots_target"], player["shots"]), (1, 1))
         self.assertEqual(player["dominant_zone"], "Ataque")
+        self.assertEqual(player["goals"], 0)
+        self.assertEqual(player["goals_conceded"], 1)
+        self.assertEqual(next(card["value"] for card in context["summary_cards"] if card["label"] == "Goles"), 0)
 
         context["pdf_url"] = "/coach/informes/partido/pdf/?match_id=1"
         html = render_to_string("football/match_staff_report.html", context, request=request)
