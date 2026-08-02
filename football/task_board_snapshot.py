@@ -57,7 +57,14 @@ _inflight_lock = threading.Lock()
 # Un Chromium a la vez por proceso: abrir el editor completo consume bastante memoria y varias
 # fichas abiertas a la vez podrían tumbar la instancia. Los demás esperan turno.
 _render_gate = threading.Semaphore(1)
-RENDER_GATE_TIMEOUT_SECONDS = 180
+# Con fotos que ahora pueden durar 3 minutos, 180 s de espera dejaban a la siguiente fuera por
+# el turno, no por la foto: se descartaba sola y quedaba marcada como fallida.
+RENDER_GATE_TIMEOUT_SECONDS = 900
+
+# Tiempo de espera del navegador, en función de lo cargado que esté el dibujo (ver `_timeouts_for`).
+SNAPSHOT_TIMEOUT_BASE_MS = 60000
+SNAPSHOT_TIMEOUT_PER_OBJECT_MS = 180
+SNAPSHOT_TIMEOUT_MAX_MS = 240000
 
 
 def board_signature(task) -> str:
@@ -182,7 +189,7 @@ def queue_snapshot(request, task, *, force: bool = False) -> bool:
 
     thread = threading.Thread(
         target=_render_and_store,
-        args=(task_id, url, cookies, sig),
+        args=(task_id, url, cookies, sig, board_object_count(task)),
         name=f"board-snapshot-{task_id}",
         daemon=True,
     )
@@ -212,14 +219,45 @@ def _mark_failed(task_id: int) -> None:
         pass
 
 
-def _render_and_store(task_id: int, url: str, cookies: list, sig: str) -> None:
+def board_object_count(task) -> int:
+    """Cuantos objetos tiene el dibujo. Sirve para dar mas tiempo a las pizarras cargadas."""
+    from .task_library_services import extract_canvas_state_for_preview
+
+    try:
+        canvas_state, _w, _h = extract_canvas_state_for_preview(task)
+    except Exception:
+        return 0
+    objects = canvas_state.get("objects") if isinstance(canvas_state, dict) else None
+    return len(objects) if isinstance(objects, list) else 0
+
+
+def _timeouts_for(object_count: int) -> tuple[int, int]:
+    """(timeout_ms, settle_ms) segun el tamanio del dibujo.
+
+    Con 60 s fijos las tareas importadas del PPT (400-1000 objetos, y la pagina del editor
+    pesando megas) NO llegaban a `__WEBSTATS_SNAPSHOT_READY` y la ficha se quedaba con la
+    miniatura vieja. Cada objeto es una imagen o un grupo de Fabric que hay que cargar y
+    pintar, asi que el tiempo tiene que ir con el numero de objetos, no ser una constante.
+    """
+    count = max(0, int(object_count or 0))
+    timeout_ms = min(SNAPSHOT_TIMEOUT_MAX_MS, SNAPSHOT_TIMEOUT_BASE_MS + count * SNAPSHOT_TIMEOUT_PER_OBJECT_MS)
+    settle_ms = 1500 if count < 200 else 3000
+    return timeout_ms, settle_ms
+
+
+def _render_and_store(task_id: int, url: str, cookies: list, sig: str, object_count: int = 0) -> None:
     from django.db import connection
 
     try:
-        png = _render(url, cookies)
+        png = _render(url, cookies, object_count)
         if not png:
             logger.warning("board snapshot: render vacio para tarea %s", task_id)
-            _note(task_id, f"sin foto: Playwright no disponible o la pizarra no llego a estar lista · {url}")
+            timeout_ms, _settle = _timeouts_for(object_count)
+            _note(
+                task_id,
+                f"sin foto: Playwright no disponible o la pizarra no llego a estar lista "
+                f"({object_count} objetos, limite {timeout_ms // 1000}s) · {url}",
+            )
             _mark_failed(task_id)
             return
         if not _looks_like_a_real_board(png):
@@ -245,19 +283,20 @@ def _render_and_store(task_id: int, url: str, cookies: list, sig: str) -> None:
             pass
 
 
-def _render(url: str, cookies: list) -> bytes | None:
+def _render(url: str, cookies: list, object_count: int = 0) -> bytes | None:
     if not _render_gate.acquire(timeout=RENDER_GATE_TIMEOUT_SECONDS):
         logger.warning("board snapshot: cola llena, se salta esta foto")
         return None
     try:
-        return _render_locked(url, cookies)
+        return _render_locked(url, cookies, object_count)
     finally:
         _render_gate.release()
 
 
-def _render_locked(url: str, cookies: list) -> bytes | None:
+def _render_locked(url: str, cookies: list, object_count: int = 0) -> bytes | None:
     from .preview_render import render_url_selector_png
 
+    timeout_ms, settle_ms = _timeouts_for(object_count)
     return render_url_selector_png(
         url=url,
         selector=SNAPSHOT_SELECTOR,
@@ -266,8 +305,8 @@ def _render_locked(url: str, cookies: list) -> bytes | None:
         viewport_height=SNAPSHOT_VIEWPORT_HEIGHT,
         device_scale_factor=SNAPSHOT_DEVICE_SCALE,
         wait_for_js=SNAPSHOT_READY_JS,
-        timeout_ms=60000,
-        settle_ms=1500,
+        timeout_ms=timeout_ms,
+        settle_ms=settle_ms,
     )
 
 
@@ -390,7 +429,7 @@ def board_snapshot_status_view(request, task_id):
         # con los ojos que esta fotografiando Playwright cuando el blindaje la rechaza.
         from django.http import HttpResponse
 
-        png = _render(editor_snapshot_url(request, task), session_cookies_for(request))
+        png = _render(editor_snapshot_url(request, task), session_cookies_for(request), board_object_count(task))
         if not png:
             return JsonResponse({"ok": False, "error": "sin foto (Playwright o pizarra no lista)"}, status=503)
         resp = HttpResponse(png, content_type="image/png")
@@ -454,15 +493,15 @@ def queue_many(request, tasks) -> int:
             if task_id in _inflight:
                 continue
             _inflight.add(task_id)
-        jobs.append((task_id, editor_snapshot_url(request, task), sig))
+        jobs.append((task_id, editor_snapshot_url(request, task), sig, board_object_count(task)))
 
     if not jobs:
         return 0
 
     def _run_all():
-        for task_id, url, sig in jobs:
+        for task_id, url, sig, object_count in jobs:
             try:
-                _render_and_store(task_id, url, cookies, sig)
+                _render_and_store(task_id, url, cookies, sig, object_count)
             except Exception:
                 logger.exception("board snapshot: fallo en lote, tarea %s", task_id)
 
