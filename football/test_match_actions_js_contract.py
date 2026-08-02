@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parent.parent
 MATCH_ACTIONS_JS = ROOT / "football" / "static" / "football" / "js" / "match_actions_page.js"
 MATCH_ACTIONS_LIVE_JS = ROOT / "football" / "static" / "football" / "js" / "match_actions_live.js"
 MATCH_ACTIONS_TEMPLATE = ROOT / "football" / "templates" / "football" / "match_actions.html"
+MATCH_ACTIONS_VIEWS = ROOT / "football" / "views.py"
 
 
 class MatchActionsJavascriptContractTests(SimpleTestCase):
@@ -20,6 +21,19 @@ class MatchActionsJavascriptContractTests(SimpleTestCase):
         self.assertIn('name="observation" maxlength="500"', template)
         self.assertIn("manualBulkOpenNav?.addEventListener('click', openManualBulk);", source)
         self.assertIn("observation: String(fd.get('observation')", source)
+
+    def test_impact_modal_is_not_nested_inside_hidden_history_modal(self):
+        template = MATCH_ACTIONS_TEMPLATE.read_text(encoding="utf-8")
+
+        history_end = template.index('<ol class="quick-history-list" id="quick-history-list"></ol>')
+        impact_start = template.index('<div class="impact-modal" id="match-impact-modal"')
+        between = template[history_end:impact_start]
+        self.assertGreaterEqual(between.count("</div>"), 2)
+
+    def test_manual_recovery_preserves_zero_minute_from_json(self):
+        source = MATCH_ACTIONS_VIEWS.read_text(encoding="utf-8")
+
+        self.assertIn('payload.get("minute") if "minute" in payload else request.POST.get("minute")', source)
 
     def test_convocation_cards_are_initialized_before_close_selects(self):
         source = MATCH_ACTIONS_JS.read_text(encoding="utf-8")
