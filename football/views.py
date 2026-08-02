@@ -61712,14 +61712,37 @@ def _cover_parse_int(value):
 
 @csrf_exempt
 def session_task_cover_upload(request):
-    """La fábrica local sube una portada fotorrealista para una tarea (token-gated)."""
+    """Sube la portada de una tarea.
+
+    Dos vias de entrada: el token compartido de la fabrica local de portadas, o un
+    usuario con sesion iniciada que pueda gestionar el club de esa tarea. Antes solo
+    valia el token, asi que poner portada a una tarea propia desde la app era
+    imposible aunque fueras el dueno.
+    """
     if request.method != "POST":
         return JsonResponse({"error": "POST required"}, status=405)
-    if not _cover_factory_token_ok(request):
+    por_token = _cover_factory_token_ok(request)
+    if not por_token and not request.user.is_authenticated:
         return JsonResponse({"error": "unauthorized"}, status=401)
     task = SessionTask.objects.filter(id=_cover_parse_int(request.POST.get("task_id"))).first()
     if not task:
         return JsonResponse({"error": "task not found"}, status=404)
+    if not por_token:
+        # La vista esta exenta de CSRF por la via del token. Si entra por SESION hay que
+        # comprobarlo a mano: si no, cualquier web podria escribir portadas en las tareas
+        # de un entrenador que tuviera la sesion abierta.
+        from django.middleware.csrf import CsrfViewMiddleware
+
+        fallo_csrf = CsrfViewMiddleware(lambda _req: None).process_view(request, None, (), {})
+        if fallo_csrf is not None:
+            return JsonResponse({"error": "csrf"}, status=403)
+        # Y tiene que poder acceder al equipo de esa tarea.
+        try:
+            equipo = task.session.microcycle.team
+        except Exception:
+            equipo = None
+        if equipo is None or not _user_can_access_team(request, equipo):
+            return JsonResponse({"error": "forbidden"}, status=403)
     f = request.FILES.get("image")
     if not f:
         return JsonResponse({"error": "no image"}, status=400)
