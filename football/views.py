@@ -77723,6 +77723,7 @@ def _build_player_minutes_load(player, club_season, match_minutes, matches_playe
             ]
             rows = TrainingSession.objects.filter(
                 club_season=club_season,
+                status=TrainingSession.STATUS_DONE,
                 attendance_marks__player=player,
                 attendance_marks__status__in=att_ok,
             ).values_list("id", "duration_minutes")
@@ -78378,7 +78379,10 @@ def _build_player_match_ratings(primary_team, player, limit=6):
         pass
     if not match_ids:
         return empty
-    matches = list(Match.objects.filter(id__in=match_ids).order_by("-date", "-id")[: max(1, int(limit))])
+    matches = list(
+        Match.objects.filter(id__in=match_ids, is_closed=True)
+        .order_by("-date", "-id")[: max(1, int(limit))]
+    )
     rows = []
     for m in matches:
         info = _compute_match_rating(primary_team, player, m)
@@ -79192,6 +79196,7 @@ def player_detail_page(request, player_id):
                 date_start=club_date_start,
                 date_end=club_date_end,
                 club_season=selected_club_season,
+                closed_only=True,
             )
             if selected_club_season:
                 matches = [
@@ -80170,7 +80175,7 @@ def player_detail_page(request, player_id):
                     season_is_active = bool(getattr(season_row, "is_active", False))
                     # v2: la clave sube de versión al corregir el gate de stats base por temporada
                     # (evita servir el acumulado viejo cacheado para la ventana de la temporada nueva).
-                    hist_cache_key = f"player_hist_dash_v2:{int(primary_team.id)}:{hist_start}:{hist_end}"
+                    hist_cache_key = f"player_hist_dash_v3:{int(primary_team.id)}:{hist_start}:{hist_end}"
                     # La activa tiene datos casi vivos → caché corta (3 min); las pasadas son
                     # inmutables → caché larga. En ambos casos la clave es por (equipo, ventana),
                     # así que TODAS las fichas del equipo comparten el mismo cálculo (evita que la
@@ -80188,6 +80193,7 @@ def player_detail_page(request, player_id):
                             date_start=hist_start,
                             date_end=hist_end,
                             refresh_photo_urls=False,
+                            closed_only=True,
                         )
                         try:
                             cache.set(hist_cache_key, hist_rows, hist_ttl)
@@ -80524,6 +80530,27 @@ def player_detail_page(request, player_id):
             ),
         ]
         fm_attribute_radar_data = _build_fm_attribute_radar_data(fm_attribute_groups)
+        dashboard_evaluation_areas = []
+        for area in (evaluation_consensus.get("areas", []) if isinstance(evaluation_consensus, dict) else []):
+            value = area.get("value") if isinstance(area, dict) else None
+            try:
+                numeric_value = float(value) if value is not None else None
+            except (TypeError, ValueError):
+                numeric_value = None
+            dashboard_evaluation_areas.append(
+                {
+                    "label": area.get("label", "Área") if isinstance(area, dict) else "Área",
+                    "value": value,
+                    "pct": max(0, min(100, round(numeric_value * 10))) if numeric_value is not None else 0,
+                }
+            )
+        dashboard_performance = {
+            "matches": int(_row_num(safe_stats, "pj") or 0),
+            "minutes": int(_row_num(safe_stats, "minutes") or 0),
+            "goals": int(_row_num(safe_stats, "goals") or 0),
+            "assists": int(_row_num(safe_stats, "assists") or 0),
+            "participation_pct": max(0, min(100, round(_row_num(safe_stats, "participation_pct") or 0))),
+        }
         _ficha_cat_names, _ficha_cat_map = _club_category_ui_data()
 
         return render(
@@ -80618,6 +80645,8 @@ def player_detail_page(request, player_id):
                 "fines_records": fines_records,
                 "stats_error": stats_error,
                 "evaluation_consensus": evaluation_consensus,
+                "dashboard_evaluation_areas": dashboard_evaluation_areas,
+                "dashboard_performance": dashboard_performance,
                 "is_player_readonly": is_player_readonly,
                 # `vis` = qué secciones ve el jugador (política del club). Distinto de
                 # `is_player_readonly`, que es "no puede editar".
@@ -85478,6 +85507,7 @@ def compute_player_dashboard(
     club_season=None,
     *,
     refresh_photo_urls: bool = True,
+    closed_only: bool = False,
 ):
     if not primary_team:
         return []
@@ -85493,7 +85523,7 @@ def compute_player_dashboard(
     except Exception:
         season_id = None
     cache_key_base = _player_dashboard_cache_key_scoped(primary_team.id, season_id=season_id)
-    cache_key = f"{cache_key_base}:{scope_value}"
+    cache_key = f"{cache_key_base}:{scope_value}:{'closed' if closed_only else 'all'}"
     date_start = date_start if isinstance(date_start, date) else None
     date_end = date_end if isinstance(date_end, date) else None
     dashboard_roster_season = None
@@ -85782,6 +85812,8 @@ def compute_player_dashboard(
         )
     preferred_sources = preferred_event_source_by_match(primary_team, scope=scope_value)
     convocation_base_qs = ConvocationRecord.objects.filter(team=primary_team, match__isnull=False)
+    if closed_only:
+        convocation_base_qs = convocation_base_qs.filter(match__is_closed=True)
     if scope_value != "all":
         if scope_value == Match.CONTEXT_LEAGUE:
             convocation_base_qs = convocation_base_qs.filter(
@@ -85860,6 +85892,8 @@ def compute_player_dashboard(
             Q(system="touch-field", source_file="registro-acciones") | ~Q(system="touch-field")
         )
     )
+    if closed_only:
+        stats_events = stats_events.filter(match__is_closed=True)
     if dashboard_roster_season:
         stats_events = stats_events.filter(player_id__in=list(roster_player_ids))
     # Multi-temporada: si viene ventana de fechas (date_start/end), la FECHA del partido acota la
@@ -85922,6 +85956,8 @@ def compute_player_dashboard(
                 .values_list("match_id", flat=True)
                 .distinct()
             )
+            if closed_only:
+                manual_ids = manual_ids.filter(match__is_closed=True)
             candidate_ids |= {int(mid) for mid in manual_ids if mid}
         except Exception:
             pass
@@ -86157,6 +86193,8 @@ def compute_player_dashboard(
         Q(player__team=primary_team) | Q(player__isnull=True),
         Q(match_id__in=list(allowed_match_ids)) if allowed_match_ids else Q(match__isnull=False),
     ).filter(Q(system="touch-field-final") | Q(system="touch-field", source_file="registro-acciones"))
+    if closed_only:
+        live_events = live_events.filter(match__is_closed=True)
     if dashboard_roster_season:
         live_events = live_events.filter(Q(player_id__in=list(roster_player_ids)) | Q(player__isnull=True))
     if scope_value != "all":
@@ -86777,6 +86815,8 @@ def compute_player_dashboard(
     # Ensure imported matches tied to PlayerStatistic are visible in player panels
     # even when no MatchEvent was captured for those fixtures.
     player_stat_matches_qs = PlayerStatistic.objects.filter(player__team=primary_team, match__isnull=False)
+    if closed_only:
+        player_stat_matches_qs = player_stat_matches_qs.filter(match__is_closed=True)
     if dashboard_roster_season:
         player_stat_matches_qs = player_stat_matches_qs.filter(player_id__in=list(roster_player_ids))
     # Multi-temporada: ver comentario en stats_events. Con ventana de fechas, acota la fecha.
@@ -86965,6 +87005,8 @@ def compute_player_dashboard(
             context="manual-match",
             name__in=["manual_minutes", "manual_goals", "manual_assists"],
         )
+        if closed_only:
+            manual_match_qs = manual_match_qs.filter(match__is_closed=True)
         if dashboard_roster_season:
             manual_match_qs = manual_match_qs.filter(player_id__in=list(roster_player_ids))
         if season_obj and not (date_start or date_end):
@@ -87093,6 +87135,71 @@ def compute_player_dashboard(
                 pass
     except Exception:
         pass
+
+    # Un partido interno cerrado pertenece a toda la plantilla, aunque no haya acciones,
+    # convocatoria o minutos individuales. Cuenta como 1 PJ para cada jugador; los minutos
+    # permanecen a 0 salvo que exista una ficha manual, porque no debemos inventarlos.
+    if closed_only:
+        try:
+            internal_matches_qs = Match.objects.filter(
+                home_team=primary_team,
+                away_team=primary_team,
+                is_closed=True,
+            )
+            if scope_value != "all":
+                if scope_value == Match.CONTEXT_LEAGUE:
+                    internal_matches_qs = internal_matches_qs.filter(
+                        Q(context=Match.CONTEXT_LEAGUE) | Q(context="")
+                    )
+                else:
+                    internal_matches_qs = internal_matches_qs.filter(context=scope_value)
+            if tournament_filter and scope_value == Match.CONTEXT_TOURNAMENT:
+                internal_matches_qs = internal_matches_qs.filter(tournament_name=tournament_filter)
+            if season_obj and not (date_start or date_end):
+                internal_matches_qs = internal_matches_qs.filter(season=season_obj)
+            if date_start:
+                internal_matches_qs = internal_matches_qs.filter(date__gte=date_start)
+            if date_end:
+                internal_matches_qs = internal_matches_qs.filter(date__lte=date_end)
+
+            for internal_match in internal_matches_qs.order_by("date", "id"):
+                match_id = int(internal_match.id)
+                for player in roster_players:
+                    stats = player_stats.get(int(player.id))
+                    if not stats:
+                        continue
+                    matches_dict = stats.setdefault("matches", {})
+                    entry = matches_dict.setdefault(
+                        match_id,
+                        {
+                            "match_id": match_id,
+                            "round": internal_match.round or "Partido interno",
+                            "date": internal_match.date.isoformat() if internal_match.date else None,
+                            "home": True,
+                            "opponent": primary_team.display_name,
+                            "home_score": internal_match.home_score,
+                            "away_score": internal_match.away_score,
+                            "result": (internal_match.result or "").strip(),
+                            "played": False,
+                            "minutes": 0,
+                            "goals": 0,
+                            "assists": 0,
+                            "actions": 0,
+                            "successes": 0,
+                            "success_rate": 0,
+                        },
+                    )
+                    entry["played"] = True
+                    played_count = sum(
+                        1
+                        for item in matches_dict.values()
+                        if isinstance(item, dict) and item.get("played")
+                    )
+                    stats["pj"] = max(int(stats.get("pj", 0) or 0), int(played_count))
+                    stats["pc"] = max(int(stats.get("pc", 0) or 0), int(stats["pj"]))
+                    stats["has_events"] = True
+        except Exception:
+            pass
 
     result = []
     today = timezone.localdate()

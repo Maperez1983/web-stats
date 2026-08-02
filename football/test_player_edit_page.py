@@ -16,8 +16,14 @@ from django.utils import timezone
 
 from football.models import (
     AppUserRole,
+    Competition,
+    ConvocationRecord,
+    Group,
+    Match,
     Player,
     PlayerInjuryRecord,
+    PlayerStatistic,
+    Season,
     Team,
     TrainingMicrocycle,
     TrainingSession,
@@ -195,6 +201,71 @@ class PlayerDashboardAgendaTests(TestCase):
         self.assertContains(response, 'data-pane="agenda"')
         self.assertContains(response, "Entrenamientos y partidos")
 
+        html = response.content.decode("utf-8")
+        personal = html.split('data-pane="personal"', 1)[1].split('data-pane="agenda"', 1)[0]
+        self.assertNotIn("Próximas sesiones", personal)
+        self.assertNotIn("Asistencia (temporada)", personal)
+
+    def test_open_match_does_not_count_as_played_in_player_detail(self):
+        competition = Competition.objects.create(name="Liga ficha", slug="liga-ficha-dashboard")
+        season = Season.objects.create(competition=competition, name="2026/2027")
+        group = Group.objects.create(season=season, name="Grupo ficha", slug="grupo-ficha-dashboard")
+        self.team.group = group
+        self.team.save(update_fields=["group"])
+        rival = Team.objects.create(name="Rival", slug="rival-ficha-dashboard", group=group)
+        today = timezone.localdate()
+
+        for offset, is_closed in ((-1, True), (3, False)):
+            match = Match.objects.create(
+                season=season,
+                group=group,
+                date=today + timedelta(days=offset),
+                home_team=self.team,
+                away_team=rival,
+                is_closed=is_closed,
+                stats_source=Match.STATS_SOURCE_MANUAL,
+            )
+            convocation = ConvocationRecord.objects.create(team=self.team, match=match, is_current=not is_closed)
+            convocation.players.add(self.player)
+            PlayerStatistic.objects.create(
+                player=self.player,
+                season=season,
+                match=match,
+                context="manual-match",
+                name="manual_minutes",
+                value=45,
+            )
+
+        response = self.client.get(reverse("player-detail", args=[self.player.id]), HTTP_HOST="localhost")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["stats"]["pj"], 1)
+        self.assertEqual(response.context["dashboard_performance"]["matches"], 1)
+
+    def test_closed_internal_match_counts_for_every_roster_player(self):
+        competition = Competition.objects.create(name="Liga interna", slug="liga-interna-dashboard")
+        season = Season.objects.create(competition=competition, name="2026/2027")
+        group = Group.objects.create(season=season, name="Grupo interno", slug="grupo-interno-dashboard")
+        self.team.group = group
+        self.team.save(update_fields=["group"])
+        teammate = Player.objects.create(team=self.team, name="Compañero sin registro", is_active=True)
+        Match.objects.create(
+            season=season,
+            group=group,
+            date=timezone.localdate() - timedelta(days=1),
+            home_team=self.team,
+            away_team=self.team,
+            is_closed=True,
+            context=Match.CONTEXT_LEAGUE,
+            round="Partido interno",
+        )
+
+        response = self.client.get(reverse("player-detail", args=[teammate.id]), HTTP_HOST="localhost")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["stats"]["pj"], 1)
+        self.assertEqual(response.context["stats"]["minutes"], 0)
+
 
 class PlayerFormPageTests(TestCase):
     """
@@ -248,3 +319,4 @@ class PlayerFormPageTests(TestCase):
             HTTP_HOST="localhost",
         )
         self.assertTrue(PlayerInjuryRecord.objects.filter(player=self.player).exists())
+    Season,

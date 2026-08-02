@@ -1041,11 +1041,28 @@
         body.is-player-home #radar-trends,
         body.is-player-home .decision-board { display:none !important; }
 
-        .player-dashboard-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.75rem; }
-        .player-dashboard-kpi { border:1px solid rgba(148,163,184,.2); border-radius:16px; padding:1rem; background:linear-gradient(145deg,rgba(15,23,42,.82),rgba(15,23,42,.42)); min-height:126px; }
+        .player-dashboard-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.85rem; }
+        .player-dashboard-kpi { display:block; color:inherit; text-decoration:none; border:1px solid rgba(148,163,184,.2); border-radius:18px; padding:1rem; background:linear-gradient(145deg,rgba(15,23,42,.86),rgba(15,23,42,.46)); min-height:190px; overflow:hidden; position:relative; }
+        .player-dashboard-kpi::after { content:""; position:absolute; width:140px; height:140px; border-radius:50%; right:-60px; top:-70px; background:var(--dashboard-glow,rgba(56,189,248,.12)); filter:blur(2px); }
+        .player-dashboard-kpi:hover { border-color:rgba(56,189,248,.42); transform:translateY(-1px); }
         .player-dashboard-kpi .kicker { display:block; color:var(--prod-muted); font-size:.68rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
         .player-dashboard-kpi .number { display:block; margin-top:.45rem; color:var(--prod-text); font-size:1.65rem; font-weight:900; line-height:1.1; }
         .player-dashboard-kpi .description { display:block; margin-top:.45rem; color:var(--prod-muted); font-size:.78rem; line-height:1.4; }
+        .dashboard-visual { display:flex; gap:1rem; align-items:center; margin-top:.85rem; }
+        .dashboard-ring { --ring-value:0; --ring-color:#38bdf8; width:92px; height:92px; flex:0 0 92px; border-radius:50%; display:grid; place-items:center; background:conic-gradient(var(--ring-color) calc(var(--ring-value) * 1%),rgba(148,163,184,.14) 0); position:relative; }
+        .dashboard-ring::before { content:""; position:absolute; inset:9px; border-radius:50%; background:#101827; }
+        .dashboard-ring strong { position:relative; z-index:1; font-size:1.25rem; }
+        .dashboard-metrics { display:grid; grid-template-columns:repeat(2,minmax(74px,1fr)); gap:.55rem; width:100%; }
+        .dashboard-metric { padding:.52rem .6rem; border-radius:10px; background:rgba(2,6,23,.34); }
+        .dashboard-metric strong { display:block; font-size:1.1rem; }
+        .dashboard-metric span { display:block; margin-top:.12rem; color:var(--prod-muted); font-size:.66rem; text-transform:uppercase; letter-spacing:.06em; }
+        .dashboard-bars { display:grid; gap:.42rem; width:100%; }
+        .dashboard-bar-row { display:grid; grid-template-columns:78px minmax(0,1fr) 28px; gap:.5rem; align-items:center; font-size:.7rem; }
+        .dashboard-bar-track { height:7px; border-radius:999px; overflow:hidden; background:rgba(148,163,184,.15); }
+        .dashboard-bar-fill { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,#22c55e,#38bdf8); }
+        .season-tabs { display:flex; gap:.45rem; flex-wrap:wrap; margin:0 0 1rem; }
+        .season-tab { color:var(--prod-muted); text-decoration:none; border:1px solid rgba(148,163,184,.24); border-radius:999px; padding:.5rem .8rem; font-size:.78rem; font-weight:800; }
+        .season-tab.is-active { color:#07131f; border-color:#38bdf8; background:#38bdf8; }
         .player-dashboard-lower { display:grid; grid-template-columns:minmax(0,1.45fr) minmax(280px,.55fr); gap:.85rem; margin-top:.85rem; }
         .player-dashboard-panel { border:1px solid rgba(148,163,184,.18); border-radius:16px; padding:1rem; background:rgba(2,6,23,.3); }
         .player-agenda-list { display:grid; gap:.5rem; margin-top:.75rem; }
@@ -1068,8 +1085,7 @@
         .player-calendar-legend { display:flex; gap:1rem; flex-wrap:wrap; margin-top:.7rem; color:var(--prod-muted); font-size:.75rem; }
         .player-calendar-legend span::before { content:""; display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:.35rem; background:#38bdf8; }
         .player-calendar-legend .match::before { background:#f59e0b; }
-        @media (max-width:1000px) { .player-dashboard-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-        @media (max-width:720px) { .player-dashboard-grid,.player-dashboard-lower { grid-template-columns:1fr; } .player-dashboard-kpi { min-height:auto; } }
+        @media (max-width:720px) { .player-dashboard-grid,.player-dashboard-lower { grid-template-columns:1fr; } .player-dashboard-kpi { min-height:auto; } .dashboard-visual { align-items:flex-start; } }
 
 	    </style>
   </head>
@@ -1379,26 +1395,48 @@
           <a class="btn alt" href="{% url 'player-detail' player.id %}?{% qs_replace tab='agenda' %}">Abrir agenda</a>
         </div>
         <div class="player-dashboard-grid">
-          <article class="player-dashboard-kpi">
+          <a class="player-dashboard-kpi" style="--dashboard-glow:rgba(34,197,94,.15);" href="{% url 'player-detail' player.id %}?{% qs_replace tab='salud' %}">
             <span class="kicker">Disponibilidad</span>
             <span class="number">{% if has_active_injury %}Lesionado{% elif has_manual_sanction %}Sancionado{% else %}Disponible{% endif %}</span>
-            <span class="description">{% if has_active_injury %}{% if injury_allows_training %}Puede entrenar con adaptación.{% else %}No disponible para entrenar.{% endif %}{% elif is_called_up %}Convocado para el próximo partido.{% else %}Sin bloqueos activos.{% endif %}</span>
-          </article>
-          <article class="player-dashboard-kpi">
+            <div class="dashboard-visual">
+              <div class="dashboard-ring" style="--ring-value:{% if has_active_injury or has_manual_sanction %}28{% else %}100{% endif %};--ring-color:{% if has_active_injury or has_manual_sanction %}#f59e0b{% else %}#22c55e{% endif %};"><strong>{% if has_active_injury or has_manual_sanction %}!{% else %}OK{% endif %}</strong></div>
+              <span class="description">{% if has_active_injury %}{% if injury_allows_training %}Puede entrenar con adaptación.{% else %}No disponible para entrenar.{% endif %}<br>{{ injury_days_in_season }} días de baja esta temporada.{% elif has_manual_sanction %}Tiene una sanción activa que debe revisarse.{% elif is_called_up %}Convocado para el próximo partido.{% else %}Sin lesiones ni bloqueos activos.{% endif %}</span>
+            </div>
+          </a>
+          <a class="player-dashboard-kpi" style="--dashboard-glow:rgba(56,189,248,.15);" href="{% url 'player-detail' player.id %}?{% qs_replace tab='agenda' %}">
             <span class="kicker">Asistencia verificada</span>
-            <span class="number">{{ attendance_completed_pct|default:0 }}%</span>
-            <span class="description">{{ attendance_completed_total }} asistidas de {{ attendance_session_total }} sesiones cerradas. {{ attendance_pending }} pendientes de verificar.</span>
-          </article>
-          <article class="player-dashboard-kpi">
-            <span class="kicker">Carga cerrada</span>
-            <span class="number">{{ training_minutes_total|default:0 }}'</span>
-            <span class="description">Acumulada en {{ training_sessions_participated|default:0 }} sesiones realizadas con participación registrada.</span>
-          </article>
-          <article class="player-dashboard-kpi">
-            <span class="kicker">Valoración staff</span>
-            <span class="number">{% if evaluation_consensus.overall %}{{ evaluation_consensus.overall }}{% else %}--{% endif %}</span>
-            <span class="description">{% if evaluation_consensus.voters %}Media de {{ evaluation_consensus.voters }} miembro{{ evaluation_consensus.voters|pluralize:"s" }} del cuerpo técnico.{% else %}Sin evaluación cerrada todavía.{% endif %}</span>
-          </article>
+            <div class="dashboard-visual">
+              <div class="dashboard-ring" style="--ring-value:{{ attendance_completed_pct|default:0 }};--ring-color:#38bdf8;"><strong>{{ attendance_completed_pct|default:0 }}%</strong></div>
+              <span class="description">{{ attendance_completed_total }} asistidas de {{ attendance_session_total }} sesiones cerradas.<br>{{ attendance_pending }} pendientes de verificar.</span>
+            </div>
+          </a>
+          <a class="player-dashboard-kpi" style="--dashboard-glow:rgba(245,158,11,.15);" href="{% url 'player-detail' player.id %}?{% qs_replace tab='stats' %}">
+            <span class="kicker">Rendimiento · {{ selected_club_season.label|default:'temporada actual' }}</span>
+            <div class="dashboard-visual">
+              <div class="dashboard-ring" style="--ring-value:{{ dashboard_performance.participation_pct }};--ring-color:#f59e0b;"><strong>{{ dashboard_performance.participation_pct }}%</strong></div>
+              <div class="dashboard-metrics">
+                <div class="dashboard-metric"><strong>{{ dashboard_performance.matches }}</strong><span>Partidos</span></div>
+                <div class="dashboard-metric"><strong>{{ dashboard_performance.minutes }}'</strong><span>Minutos</span></div>
+                <div class="dashboard-metric"><strong>{{ dashboard_performance.goals }}</strong><span>Goles</span></div>
+                <div class="dashboard-metric"><strong>{{ dashboard_performance.assists }}</strong><span>Asistencias</span></div>
+              </div>
+            </div>
+          </a>
+          <a class="player-dashboard-kpi" style="--dashboard-glow:rgba(34,197,94,.15);" href="{% url 'player-detail' player.id %}?{% qs_replace tab='evaluations' %}">
+            <span class="kicker">Valoración del cuerpo técnico</span>
+            <span class="number">{% if evaluation_consensus.overall %}{{ evaluation_consensus.overall }} / 10{% else %}Sin valorar{% endif %}</span>
+            <div class="dashboard-visual">
+              {% if dashboard_evaluation_areas %}
+              <div class="dashboard-bars">
+                {% for area in dashboard_evaluation_areas %}
+                <div class="dashboard-bar-row"><span>{{ area.label }}</span><span class="dashboard-bar-track"><i class="dashboard-bar-fill" style="width:{{ area.pct }}%;"></i></span><strong>{% if area.value %}{{ area.value }}{% else %}-{% endif %}</strong></div>
+                {% endfor %}
+              </div>
+              {% else %}
+              <span class="description">Todavía no hay una valoración cerrada del staff.</span>
+              {% endif %}
+            </div>
+          </a>
         </div>
         <div class="player-dashboard-lower">
           <section class="player-dashboard-panel">
@@ -1642,80 +1680,6 @@
           </div>
         </details>
         {% endif %}
-        <div class="attendance-summary-card">
-          <div class="attendance-summary-head">
-            <div>
-              <strong style="letter-spacing:0.12em; text-transform:uppercase; font-size:0.82rem;">Asistencia (temporada)</strong>
-              <div class="subtle" style="margin-top:0.25rem;">
-                {{ attendance_season_start|date:"d/m/Y" }}–{{ attendance_season_end|date:"d/m/Y" }}
-                · Sesiones: <strong>{{ attendance_session_total }}</strong>
-                · Completados: <strong>{{ attendance_completed_total }}</strong> (<strong>{{ attendance_completed_pct }}%</strong>)
-                · Marcadas: <strong>{{ attendance_marked_total }}</strong>
-                · Pendientes: <strong>{{ attendance_pending }}</strong>
-                · Días baja: <strong>{{ injury_days_in_season }}</strong>
-                · Entreno: <strong>{{ training_sessions_participated }}</strong> ses · <strong>{{ training_minutes_total }}′</strong>
-              </div>
-            </div>
-            <div class="attendance-chip-row">
-              <span class="product-chip" style="background:rgba(52,211,153,0.16); border-color:rgba(52,211,153,0.4);" title="Minutos de entreno acumulados (suma de las tareas en las que participó)">⏱ {{ training_minutes_total }}′ entreno</span>
-              <span class="product-chip">Pres {{ attendance_counts.present|default:0 }}</span>
-              <span class="product-chip">Aus {{ attendance_counts.absent|default:0 }}</span>
-              <span class="product-chip">Tarde {{ attendance_counts.late|default:0 }}</span>
-              <span class="product-chip">Les {{ attendance_counts.injured|default:0 }}</span>
-              <span class="product-chip">Just {{ attendance_counts.excused|default:0 }}</span>
-            </div>
-          </div>
-
-          {% if upcoming_sessions %}
-            <div style="margin-top:0.85rem; border-top:1px solid rgba(144,161,185,0.16); padding-top:0.75rem;">
-              <strong style="letter-spacing:0.12em; text-transform:uppercase; font-size:0.82rem;">Próximas sesiones (14 días)</strong>
-              <div style="margin-top:0.55rem; display:grid; gap:0.55rem;">
-                {% for s in upcoming_sessions %}
-                  <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:0.75rem; flex-wrap:wrap; border:1px solid rgba(144,161,185,0.18); border-radius:0.85rem; padding:0.65rem 0.75rem; background:rgba(15,23,42,0.32);">
-                    <div style="min-width:240px;">
-                      <div style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase;">
-                        <a href="{% url 'player-session-detail' player.id s.id %}" style="color:inherit;">{{ s.date_label }}{% if s.time_label %} · {{ s.time_label }}{% endif %}</a>
-                      </div>
-                      <div class="subtle" style="margin-top:0.2rem;">{{ s.focus }}</div>
-                      <div class="subtle" style="margin-top:0.25rem;">
-                        {% if s.status_label %}
-                          Estado: <strong>{{ s.status_label }}</strong>
-                        {% else %}
-                          Estado: <strong>Sin confirmar</strong>
-                        {% endif %}
-                        {% if s.notes %} · {{ s.notes }}{% endif %}
-                      </div>
-                    </div>
-                    {% if can_self_mark_attendance %}
-                      <form method="post" action="{% url 'player-attendance-mark' %}" style="display:flex; gap:0.4rem; align-items:flex-end; flex-wrap:wrap;">
-                        {% csrf_token %}
-                        <input type="hidden" name="session_id" value="{{ s.id }}" />
-                        <input type="hidden" name="next" value="{{ request.get_full_path }}" />
-                        <label style="display:flex; flex-direction:column; gap:0.25rem; font-size:0.82rem;">
-                          Confirmación
-                          <select name="status">
-                            <option value="">Seleccionar…</option>
-                            {% for value, label in attendance_status_choices %}
-                              <option value="{{ value }}" {% if s.status == value %}selected{% endif %}>{{ label }}</option>
-                            {% endfor %}
-                          </select>
-                        </label>
-                        <label style="display:flex; flex-direction:column; gap:0.25rem; font-size:0.82rem;">
-                          Nota (opcional)
-                          <input type="text" name="notes" maxlength="180" value="{{ s.notes|default:'' }}" placeholder="Ej. Llego 10' tarde…" />
-                        </label>
-                        <button class="btn" type="submit">Guardar</button>
-                      </form>
-                    {% endif %}
-                  </div>
-                {% endfor %}
-              </div>
-              {% if not can_self_mark_attendance %}
-                <p class="subtle" style="margin:0.65rem 0 0;">Solo el jugador puede confirmar su asistencia desde su cuenta.</p>
-              {% endif %}
-            </div>
-          {% endif %}
-        </div>
         {% if not is_player_readonly %}
         <p style="margin:0 0 1rem;">
           <a class="btn alt" href="{% url 'player-edit' player.id %}">✎ Editar ficha completa</a>
@@ -1770,7 +1734,14 @@
 
       {% if vis.seasons %}
       <section class="card tab-pane" data-pane="stats">
-        <h2 style="margin-top:0;">Temporadas e histórico</h2>
+        <h2 style="margin-top:0;">Rendimiento por temporada</h2>
+        {% if club_season_options %}
+        <nav class="season-tabs" aria-label="Temporadas del jugador">
+          {% for season in club_season_options %}
+          <a class="season-tab{% if selected_club_season_id == season.id %} is-active{% endif %}" href="{% url 'player-detail' player.id %}?{% qs_replace club_season_id=season.id tab='stats' %}">{{ season.label }}{% if season.is_active %} · actual{% endif %}</a>
+          {% endfor %}
+        </nav>
+        {% endif %}
         {% if not is_player_readonly %}
         <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin:0 0 1rem;">
           <a class="btn alt" href="{% url 'player-season-report-edit' player.id %}">📝 Informe de temporada</a>
@@ -1821,6 +1792,8 @@
           </div>
         {% endif %}
         {% if season_history_rows %}
+          <details class="fm-manage" style="margin-top:1rem;">
+          <summary style="cursor:pointer;font-weight:800;padding:.7rem .85rem;border:1px solid rgba(148,163,184,.24);border-radius:12px;">Comparar con otras temporadas</summary>
           <div class="season-history-grid">
             {% for row in season_history_rows %}
               <article class="season-history-row">
@@ -1838,19 +1811,21 @@
                   </div>
                 </div>
                 <div style="display:flex; gap:0.45rem; flex-wrap:wrap; justify-content:flex-end;">
-                  <a class="btn alt" href="{% url 'player-detail' player.id %}?{% qs_replace club_season_id=row.id tab='personal' %}">Abrir</a>
+                  <a class="btn alt" href="{% url 'player-detail' player.id %}?{% qs_replace club_season_id=row.id tab='stats' %}">Abrir</a>
                   <a class="btn" href="{{ row.pdf_url }}" target="_blank" rel="noopener">PDF</a>
                 </div>
               </article>
             {% endfor %}
           </div>
+          </details>
         {% else %}
           <div class="stat" style="margin-top:0.9rem;">
             <div class="label">Histórico</div>
             <div class="value" style="font-size:1rem;">Sin temporadas registradas todavía.</div>
           </div>
         {% endif %}
-        <h3 style="margin:1.4rem 0 0.4rem;">Histórico La Preferente</h3>
+        <details class="fm-manage" style="margin-top:1rem;">
+        <summary style="cursor:pointer;font-weight:800;padding:.7rem .85rem;border:1px solid rgba(148,163,184,.24);border-radius:12px;">Histórico externo · La Preferente</summary>
         {% if preferente_history_rows %}
           <p class="subtle" style="margin:0 0 0.6rem;">Estadísticas por temporada según La Preferente.</p>
           <div style="overflow-x:auto;">
@@ -1898,13 +1873,17 @@
           </form>
         </details>
         {% endif %}
+        </details>
       </section>
       {% endif %}
 
       {% if vis.evaluation %}
       <section class="card tab-pane" data-pane="evaluations">
-        <h2 style="margin-top:0;">Evaluaciones</h2>
+        <h2 style="margin-top:0;">Valoración del cuerpo técnico</h2>
+        <p class="subtle" style="margin-top:-.35rem;">Una única lectura consensuada del staff. Los análisis de rol y atributos son complementarios y no crean una segunda nota.</p>
         {% if fm_role_fit %}
+        <details class="fm-manage" style="margin:0 0 1.1rem;">
+        <summary style="cursor:pointer;font-weight:800;padding:.7rem .85rem;border:1px solid rgba(148,163,184,.24);border-radius:12px;">Análisis complementario · perfil y encaje por rol</summary>
         <section aria-label="Perfil y encaje por rol" style="border:1px solid rgba(148,163,184,0.18);border-radius:16px;padding:1.1rem 1.15rem;margin:0 0 1.1rem;background:var(--prod-panel-flat, rgba(2,6,23,0.32));">
           <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.4rem;margin-bottom:1rem;">
             <h3 style="margin:0;font-size:1rem;">Perfil y encaje</h3>
@@ -1960,6 +1939,7 @@
             {% endwith %}
           </div>
         </section>
+        </details>
         {% endif %}
         {% if fm_eval %}
         <details style="margin:0 0 1.1rem;">
@@ -2099,33 +2079,7 @@
           {% endif %}
         </div>
 
-        <div class="attendance-summary-card">
-          <div class="attendance-summary-head">
-            <div>
-              <strong style="letter-spacing:0.12em;text-transform:uppercase;font-size:0.82rem;">Seguimiento técnico</strong>
-              <div class="subtle" style="margin-top:0.25rem;">
-                {% if evaluation_summary.latest %}
-                  Última cerrada: <strong>{{ evaluation_summary.latest.get_evaluation_type_display }}</strong>
-                  · {{ evaluation_summary.latest.evaluated_on|date:"d/m/Y" }}
-                  · esa valoración suelta: <strong>{{ evaluation_summary.latest.average_rating|default:evaluation_summary.latest.overall_rating|default:"--" }}</strong>
-                  {% if evaluation_summary.days_since is not None %} · hace {{ evaluation_summary.days_since }} días{% endif %}
-                {% else %}
-                  Sin evaluación cerrada en este contexto de temporada.
-                {% endif %}
-              </div>
-            </div>
-            <div class="attendance-chip-row">
-              {% if evaluation_summary.pending %}
-                <span class="product-chip">Pendiente</span>
-              {% else %}
-                <span class="product-chip">Al día</span>
-              {% endif %}
-              <span class="product-chip">{{ evaluation_summary.count }} registros</span>
-            </div>
-          </div>
-        </div>
-
-        {% if evaluation_chart_context.trend_rows %}
+        {% if evaluation_summary.count > 1 and evaluation_chart_context.trend_rows %}
         <h3 style="margin-top:1rem;">Evolución y mejora</h3>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem;margin:0.5rem 0 1.1rem;">
           {% with radar=evaluation_chart_context.radar %}
@@ -2720,10 +2674,12 @@
         {% endif %}
       </section>
 
-      {% if vis.evaluation %}
-      <section class="card tab-pane" data-pane="evaluations">
-        <h2 style="margin-top:0;">Atributos · lectura FM</h2>
-        <p class="subtle" style="margin:0 0 0.4rem;">Radar derivado de las estadísticas y percentiles del jugador (perfil objetivo, no editable) · complementa el radar de valoración.</p>
+      {% if vis.performance %}
+      <section class="card tab-pane" data-pane="stats">
+        <details class="fm-manage">
+        <summary style="cursor:pointer;font-weight:900;padding:.75rem .9rem;border:1px solid rgba(148,163,184,.24);border-radius:12px;">Análisis avanzado · perfil estadístico automático</summary>
+        <h2>Atributos · lectura FM</h2>
+        <p class="subtle" style="margin:0 0 0.4rem;">Lectura automática derivada de estadísticas y percentiles. No es una valoración del cuerpo técnico.</p>
         <div class="fm-attributes-shell" style="margin-top:0.9rem;">
           <div class="fm-attributes-header">
             <div>
@@ -2808,6 +2764,7 @@
             </div>
           {% endif %}
         </div>
+        </details>
       </section>
       {% endif %}
 
@@ -3149,6 +3106,8 @@
         const activate = (tab) => {
           buttons.forEach((btn) => btn.classList.toggle('is-active', btn.dataset.tab === tab));
           panes.forEach((pane) => pane.classList.toggle('is-active', pane.dataset.pane === tab));
+          const quickBoard = document.querySelector('.decision-board');
+          if (quickBoard) quickBoard.hidden = tab !== 'resumen';
           const url = new URL(window.location.href);
           url.searchParams.set('tab', tab);
           window.history.replaceState({}, '', url);
