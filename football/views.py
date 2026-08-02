@@ -28283,13 +28283,13 @@ def _match_staff_report_context(request, *, match, primary_team):
     away_score = match.away_score
 
     preferred_sources = preferred_event_source_by_match(primary_team)
-    events = _filter_stats_events(
+    events = list(_filter_stats_events(
         confirmed_events_queryset()
         .filter(match=match, player__team=primary_team)
         .select_related("player")
         .order_by("minute", "id"),
         preferred_sources=preferred_sources,
-    )
+    ))
     if home_score is None or away_score is None:
         goals_for = sum(1 for ev in events if is_goal_event(ev.event_type, ev.result, ev.observation))
         if is_home:
@@ -28327,6 +28327,7 @@ def _match_staff_report_context(request, *, match, primary_team):
             row = per_player.setdefault(
                 player.id,
                 {
+                    "player_id": player.id,
                     "name": player.name,
                     "number": player.number or "",
                     "profile_label": (player.position or "").strip(),
@@ -28428,7 +28429,7 @@ def _match_staff_report_context(request, *, match, primary_team):
         if not crest_uri:
             initials = "".join([c for c in str(fallback_label or "").upper() if c.isalpha()])[:2] or "2J"
             svg = f"""<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><rect width='100%' height='100%' rx='90' ry='90' fill='#0f172a'/><text x='50%' y='54%' text-anchor='middle' dominant-baseline='middle' font-family='Arial' font-size='72' font-weight='900' fill='#f8fafc'>{initials}</text></svg>"""
-            crest_uri = "data:image/svg+xml;charset=utf-8," + urllib.parse.quote(svg)
+            crest_uri = "data:image/svg+xml;charset=utf-8," + quote(svg)
         return crest_uri
 
     crest_src = _team_crest_data_uri(primary_team, fallback_label=primary_team.display_name)
@@ -28686,6 +28687,194 @@ def _match_staff_report_context(request, *, match, primary_team):
         "microcycle_text": microcycle_text,
     }
 
+    # Lectura estructurada para el informe. Se calcula sobre las mismas acciones
+    # confirmadas y filtradas que alimentan el resto de estadísticas del sistema.
+    def _event_text(ev):
+        return normalize_label(
+            " ".join(
+                [
+                    str(getattr(ev, "event_type", "") or ""),
+                    str(getattr(ev, "result", "") or ""),
+                    str(getattr(ev, "observation", "") or ""),
+                ]
+            )
+        )
+
+    def _matches(ev, *terms):
+        text = _event_text(ev)
+        return any(normalize_label(term) in text for term in terms)
+
+    def _family_row(key, label):
+        return {"key": key, "label": label, "total": 0, "successes": 0, "rate": 0}
+
+    family_defs = [
+        ("passes", "Pases", lambda ev: _is_pass(ev)),
+        ("duels", "Duelos", lambda ev: _is_duel(ev)),
+        ("recoveries", "Recuperaciones", lambda ev: _is_steal(ev)),
+        ("dribbles", "Regates", lambda ev: _matches(ev, "regate", "dribbling", "dribble")),
+        ("shots", "Finalizaciones", lambda ev: _is_shot(ev)),
+        ("crosses", "Centros", lambda ev: _is_cross(ev)),
+    ]
+    team_family_map = {key: _family_row(key, label) for key, label, _check in family_defs}
+    period_map = {
+        0: {"label": "Sin parte", "actions": 0, "successes": 0, "rate": 0},
+        1: {"label": "1ª parte", "actions": 0, "successes": 0, "rate": 0},
+        2: {"label": "2ª parte", "actions": 0, "successes": 0, "rate": 0},
+    }
+    zone_map = {
+        "defensa": {"label": "Defensa", "count": 0, "pct": 0},
+        "construccion": {"label": "Construcción", "count": 0, "pct": 0},
+        "ataque": {"label": "Ataque", "count": 0, "pct": 0},
+    }
+    player_detail = {}
+    for row in players:
+        detail = dict(row)
+        detail.update(
+            {
+                "minutes": 0,
+                "passes": 0,
+                "passes_ok": 0,
+                "long_passes": 0,
+                "long_passes_ok": 0,
+                "duels": 0,
+                "duels_won": 0,
+                "aerial": 0,
+                "aerial_won": 0,
+                "recoveries": 0,
+                "dribbles": 0,
+                "dribbles_ok": 0,
+                "shots": 0,
+                "shots_target": 0,
+                "crosses": 0,
+                "crosses_ok": 0,
+                "saves": 0,
+                "goals_conceded": 0,
+                "forced_errors": 0,
+                "unforced_errors": 0,
+                "fouls_committed": 0,
+                "fouls_received": 0,
+                "dominant_zone": "Sin zona",
+                "zone_counts": Counter(),
+            }
+        )
+        player_detail[int(row["player_id"])] = detail
+
+    try:
+        manual_minutes = {
+            int(item["player_id"]): max(0, int(float(item["value"] or 0)))
+            for item in PlayerStatistic.objects.filter(match=match, name="manual_minutes").values(
+                "player_id", "value"
+            )
+        }
+    except Exception:
+        manual_minutes = {}
+
+    for ev in events:
+        success = result_is_success(ev.result)
+        period = int(getattr(ev, "period", 0) or 0)
+        if period not in period_map:
+            minute = int(getattr(ev, "minute", 0) or 0)
+            period = 1 if minute and minute <= 45 else 2 if minute else 0
+        elif period == 0:
+            minute = int(getattr(ev, "minute", 0) or 0)
+            period = 1 if minute and minute <= 45 else 2 if minute else 0
+        period_map[period]["actions"] += 1
+        if success:
+            period_map[period]["successes"] += 1
+
+        raw_tercio = normalize_label(getattr(ev, "tercio", "") or "")
+        raw_zone = normalize_label(getattr(ev, "zone", "") or "")
+        zone_key = ""
+        if "def" in raw_tercio or "defensa" in raw_zone:
+            zone_key = "defensa"
+        elif "constr" in raw_tercio or "medio" in raw_tercio or "constr" in raw_zone or "medio" in raw_zone:
+            zone_key = "construccion"
+        elif "ata" in raw_tercio or "ofens" in raw_tercio or "ataque" in raw_zone or "area" in raw_zone or "frontal" in raw_zone:
+            zone_key = "ataque"
+        if zone_key:
+            zone_map[zone_key]["count"] += 1
+
+        for key, _label, check in family_defs:
+            if check(ev):
+                team_family_map[key]["total"] += 1
+                if success or (key == "shots" and _is_shot_on_target(ev)):
+                    team_family_map[key]["successes"] += 1
+
+        if not ev.player_id or int(ev.player_id) not in player_detail:
+            continue
+        detail = player_detail[int(ev.player_id)]
+        if zone_key:
+            detail["zone_counts"][zone_key] += 1
+        if _is_pass(ev):
+            detail["passes"] += 1
+            detail["passes_ok"] += int(success)
+            if _matches(ev, "pase largo", "pase en largo"):
+                detail["long_passes"] += 1
+                detail["long_passes_ok"] += int(success)
+        if _is_duel(ev):
+            detail["duels"] += 1
+            detail["duels_won"] += int(success)
+        if _is_aerial(ev):
+            detail["aerial"] += 1
+            detail["aerial_won"] += int(success)
+        if _is_steal(ev):
+            detail["recoveries"] += 1
+        if _matches(ev, "regate", "dribbling", "dribble"):
+            detail["dribbles"] += 1
+            detail["dribbles_ok"] += int(success)
+        if _is_shot(ev):
+            detail["shots"] += 1
+            detail["shots_target"] += int(_is_shot_on_target(ev))
+        if _is_cross(ev):
+            detail["crosses"] += 1
+            detail["crosses_ok"] += int(success)
+        if is_goalkeeper_save_event(ev.event_type, ev.result, ev.observation):
+            detail["saves"] += 1
+        if _matches(ev, "gol encajado"):
+            detail["goals_conceded"] += 1
+        if _matches(ev, "error forzado") and not _matches(ev, "no forzado"):
+            detail["forced_errors"] += 1
+        if _matches(ev, "error no forzado", "no forzado"):
+            detail["unforced_errors"] += 1
+        if _matches(ev, "falta cometida"):
+            detail["fouls_committed"] += 1
+        if _matches(ev, "falta recibida"):
+            detail["fouls_received"] += 1
+
+    for row in period_map.values():
+        row["rate"] = round((row["successes"] / row["actions"]) * 100, 1) if row["actions"] else 0
+    known_zones = sum(item["count"] for item in zone_map.values())
+    for item in zone_map.values():
+        item["pct"] = round((item["count"] / known_zones) * 100, 1) if known_zones else 0
+    for item in team_family_map.values():
+        item["rate"] = round((item["successes"] / item["total"]) * 100, 1) if item["total"] else 0
+
+    player_reports = []
+    zone_labels = {key: item["label"] for key, item in zone_map.items()}
+    for player_id, detail in player_detail.items():
+        detail["minutes"] = manual_minutes.get(player_id, 0)
+        if detail["zone_counts"]:
+            dominant_key, _count = detail["zone_counts"].most_common(1)[0]
+            detail["dominant_zone"] = zone_labels.get(dominant_key, "Sin zona")
+        detail["pass_rate"] = round((detail["passes_ok"] / detail["passes"]) * 100, 1) if detail["passes"] else 0
+        detail["duel_rate"] = round((detail["duels_won"] / detail["duels"]) * 100, 1) if detail["duels"] else 0
+        detail["shot_rate"] = round((detail["shots_target"] / detail["shots"]) * 100, 1) if detail["shots"] else 0
+        detail["headline_stats"] = [
+            {"label": "Pase", "value": f'{detail["passes_ok"]}/{detail["passes"]}'},
+            {"label": "Duelos", "value": f'{detail["duels_won"]}/{detail["duels"]}'},
+            {"label": "A puerta", "value": f'{detail["shots_target"]}/{detail["shots"]}'},
+            {"label": "G+A", "value": f'{detail["goals"] + detail["assists"]}'},
+        ]
+        player_reports.append(detail)
+    player_reports.sort(key=lambda row: (-int(row.get("minutes") or 0), -int(row.get("actions") or 0), row["name"]))
+
+    team_report = {
+        "families": list(team_family_map.values()),
+        "periods": [period_map[1], period_map[2]] + ([period_map[0]] if period_map[0]["actions"] else []),
+        "zones": list(zone_map.values()),
+        "known_zone_actions": known_zones,
+    }
+
     return {
         "team_name": team_name,
         "opponent_name": opponent_name,
@@ -28699,6 +28888,8 @@ def _match_staff_report_context(request, *, match, primary_team):
         "briefing": briefing,
         "plan_abc": plan_abc,
         "postmatch_pro": postmatch_pro,
+        "team_report": team_report,
+        "player_reports": player_reports,
         "summary_cards": summary_cards,
         "top_event_types": top_event_types,
         "top_results": top_results,

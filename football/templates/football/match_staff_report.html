@@ -123,6 +123,23 @@
       .t-min { min-width: 52px; height: 28px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.12); display: inline-flex; align-items: center; justify-content: center; font-weight: 1000; letter-spacing: 0.08em; text-transform: uppercase; background: rgba(15, 23, 42, 0.7); }
       .t-title { font-weight: 1000; letter-spacing: 0.1em; text-transform: uppercase; font-size: 0.72rem; }
       .t-text { margin-top: 0.12rem; color: var(--prod-muted); font-weight: 800; }
+      .performance-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0.7rem; }
+      .metric-stack { display:grid; gap:0.65rem; }
+      .metric-row { border:1px solid rgba(255,255,255,0.1); border-radius:14px; padding:0.65rem 0.7rem; background:rgba(255,255,255,0.035); }
+      .metric-head { display:flex; align-items:baseline; justify-content:space-between; gap:0.7rem; }
+      .metric-head strong { font-size:0.72rem; letter-spacing:0.1em; text-transform:uppercase; }
+      .metric-head span { color:var(--prod-muted); font-size:0.78rem; font-weight:900; }
+      .player-report-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0.75rem; }
+      .player-report { border:1px solid rgba(255,255,255,0.12); border-radius:17px; padding:0.8rem; background:linear-gradient(145deg,rgba(255,255,255,0.055),rgba(255,255,255,0.02)); }
+      .player-report-head { display:flex; justify-content:space-between; gap:0.65rem; align-items:flex-start; }
+      .player-name { font-size:0.96rem; font-weight:1000; }
+      .player-sub { margin-top:0.18rem; color:var(--prod-muted); font-size:0.72rem; font-weight:850; letter-spacing:0.06em; text-transform:uppercase; }
+      .mini-grid { margin-top:0.65rem; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0.45rem; }
+      .mini-stat { border-radius:11px; background:rgba(2,6,23,0.32); padding:0.48rem; text-align:center; }
+      .mini-stat .k { color:var(--prod-muted); font-size:0.59rem; font-weight:900; letter-spacing:0.09em; text-transform:uppercase; }
+      .mini-stat .v { margin-top:0.15rem; font-size:0.92rem; font-weight:1000; }
+      .detail-line { margin-top:0.65rem; color:var(--prod-muted); font-size:0.74rem; font-weight:800; line-height:1.55; }
+      @media (max-width:760px) { .performance-grid,.player-report-grid { grid-template-columns:1fr; } }
 
       /* Presentation mode (1 click): hide chrome, enlarge content, add lower-third. */
       .present-toggle { border-color: rgba(186, 230, 253, 0.24); }
@@ -240,6 +257,42 @@
         </section>
         {% endif %}
 
+        {% if 'summary' in sections %}
+        <section class="card" style="grid-column:1 / -1;">
+          <h2>Lectura de equipo</h2>
+          <p class="meta">Rendimiento por familias de juego, partes y zonas registradas.</p>
+          <div class="performance-grid">
+            <div class="metric-stack">
+              <div class="bar-row"><div class="label">Familias</div><div class="value">Aciertos / total</div></div>
+              {% for metric in team_report.families %}
+              <div class="metric-row">
+                <div class="metric-head"><strong>{{ metric.label }}</strong><span>{{ metric.successes }}/{{ metric.total }} · {{ metric.rate }}%</span></div>
+                <div class="track"><div class="fill" style="width:{{ metric.rate }}%;"></div></div>
+              </div>
+              {% endfor %}
+            </div>
+            <div class="metric-stack">
+              <div class="bar-row"><div class="label">Por partes</div><div class="value">% éxito</div></div>
+              {% for period in team_report.periods %}
+              <div class="metric-row">
+                <div class="metric-head"><strong>{{ period.label }}</strong><span>{{ period.actions }} acc · {{ period.rate }}%</span></div>
+                <div class="track"><div class="fill gold" style="width:{{ period.rate }}%;"></div></div>
+              </div>
+              {% endfor %}
+            </div>
+            <div class="metric-stack">
+              <div class="bar-row"><div class="label">Territorio</div><div class="value">{{ team_report.known_zone_actions }} ubicadas</div></div>
+              {% for zone in team_report.zones %}
+              <div class="metric-row">
+                <div class="metric-head"><strong>{{ zone.label }}</strong><span>{{ zone.count }} · {{ zone.pct }}%</span></div>
+                <div class="track"><div class="fill" style="width:{{ zone.pct }}%;"></div></div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </section>
+        {% endif %}
+
         {% if 'top' in sections %}
         <section class="card">
           <h2>Top acciones</h2>
@@ -273,41 +326,34 @@
 
         {% if 'players' in sections %}
         <section class="card" style="grid-column: 1 / -1;">
-          <h2>Jugadores</h2>
-          <p class="meta">Acciones, % éxito, goles y tarjetas.</p>
-          <div style="overflow:auto;">
-            <table>
-              <thead>
-                <tr>
-                  <th style="min-width:42px;">#</th>
-                  <th style="min-width:220px;">Jugador</th>
-                  <th style="min-width:120px;">Perfil</th>
-                  <th class="right" style="min-width:70px;">Acc</th>
-                  <th class="right" style="min-width:80px;">% Éx</th>
-                  <th class="right" style="min-width:40px;">G</th>
-                  <th class="right" style="min-width:40px;">A</th>
-                  <th class="right" style="min-width:50px;">TA</th>
-                  <th class="right" style="min-width:50px;">TR</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for p in players %}
-                <tr>
-                  <td class="muted">{% if p.number %}{{ p.number }}{% else %}—{% endif %}</td>
-                  <td style="font-weight:1000;">{{ p.name }}</td>
-                  <td class="muted">{{ p.profile_label|default:"" }}</td>
-                  <td class="right">{{ p.actions }}</td>
-                  <td class="right">{{ p.success_rate }}%</td>
-                  <td class="right">{{ p.goals }}</td>
-                  <td class="right">{{ p.assists }}</td>
-                  <td class="right">{{ p.yellow }}</td>
-                  <td class="right">{{ p.red }}</td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="9" class="muted">No hay acciones registradas.</td></tr>
+          <h2>Informe por jugador</h2>
+          <p class="meta">Minutos, participación, eficacia y contribución por familias.</p>
+          <div class="player-report-grid">
+            {% for p in player_reports %}
+            <article class="player-report">
+              <div class="player-report-head">
+                <div>
+                  <div class="player-name">{% if p.number %}#{{ p.number }} · {% endif %}{{ p.name }}</div>
+                  <div class="player-sub">{{ p.profile_label|default:"Sin perfil" }} · {{ p.dominant_zone }}</div>
+                </div>
+                <span class="pill">{{ p.minutes }} min</span>
+              </div>
+              <div class="mini-grid">
+                {% for stat in p.headline_stats %}
+                <div class="mini-stat"><div class="k">{{ stat.label }}</div><div class="v">{{ stat.value }}</div></div>
                 {% endfor %}
-              </tbody>
-            </table>
+              </div>
+              <div class="detail-line">
+                {{ p.actions }} acciones · {{ p.success_rate }}% éxito · {{ p.recoveries }} recuperaciones · {{ p.dribbles_ok }}/{{ p.dribbles }} regates · {{ p.long_passes_ok }}/{{ p.long_passes }} pases largos · {{ p.crosses_ok }}/{{ p.crosses }} centros
+                {% if p.saves or p.goals_conceded %} · {{ p.saves }} paradas · {{ p.goals_conceded }} encajados{% endif %}
+                {% if p.forced_errors or p.unforced_errors %} · errores: {{ p.forced_errors }} forzados / {{ p.unforced_errors }} no forzados{% endif %}
+                {% if p.fouls_committed or p.fouls_received %} · faltas: {{ p.fouls_committed }} cometidas / {{ p.fouls_received }} recibidas{% endif %}
+                {% if p.yellow or p.red %} · tarjetas: {{ p.yellow }} amarillas / {{ p.red }} rojas{% endif %}
+              </div>
+            </article>
+            {% empty %}
+            <div class="muted">No hay acciones registradas.</div>
+            {% endfor %}
           </div>
         </section>
         {% endif %}

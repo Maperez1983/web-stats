@@ -42,6 +42,23 @@
       .t-min{min-width:40px; height:28px; border-radius:999px; background:#0f172a; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:1000; letter-spacing:.08em; font-size:11px;}
       .t-title{font-weight:1000; letter-spacing:.08em; text-transform:uppercase; font-size:11px; color:#0f172a;}
       .t-text{margin-top:2px; font-size:11px; color:#475569;}
+      .performance-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;}
+      .metric-stack{display:grid;gap:7px;}
+      .metric-row{border:1px solid #e2e8f0;border-radius:10px;padding:7px;background:#fff;break-inside:avoid;page-break-inside:avoid;}
+      .metric-head{display:flex;justify-content:space-between;gap:6px;align-items:baseline;}
+      .metric-head strong{font-size:9px;letter-spacing:.08em;text-transform:uppercase;}
+      .metric-head span{font-size:9px;color:#64748b;font-weight:800;}
+      .player-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;}
+      .player-card{border:1px solid #e2e8f0;border-radius:12px;padding:9px;background:#fff;break-inside:avoid;page-break-inside:avoid;}
+      .player-head{display:flex;justify-content:space-between;gap:7px;align-items:flex-start;}
+      .player-name{font-size:12px;font-weight:1000;color:#0f172a;}
+      .player-sub{margin-top:2px;font-size:8px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;font-weight:800;}
+      .minutes{border-radius:999px;padding:3px 7px;background:#0f172a;color:#fff;font-size:9px;font-weight:900;white-space:nowrap;}
+      .mini-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:7px;}
+      .mini-stat{border-radius:7px;padding:4px;background:#f1f5f9;text-align:center;}
+      .mini-stat .k{font-size:7px;color:#64748b;text-transform:uppercase;font-weight:900;letter-spacing:.06em;}
+      .mini-stat .v{font-size:11px;color:#0f172a;font-weight:1000;margin-top:1px;}
+      .detail-line{margin-top:6px;font-size:8px;line-height:1.45;color:#475569;font-weight:700;}
       .foot{margin-top:12px; border-top:1px solid #e2e8f0; padding-top:10px; display:flex; justify-content:space-between; align-items:center;}
       .foot .muted{color:#64748b; font-size:11px;}
     </style>
@@ -127,6 +144,38 @@
       </div>
       {% endif %}
 
+      {% if 'summary' in sections %}
+      <div class="section">
+        <h2>Lectura de equipo</h2>
+        <div class="performance-grid">
+          <div class="metric-stack">
+            {% for metric in team_report.families %}
+            <div class="metric-row">
+              <div class="metric-head"><strong>{{ metric.label }}</strong><span>{{ metric.successes }}/{{ metric.total }} · {{ metric.rate }}%</span></div>
+              <div class="track"><div class="fill" style="width:{{ metric.rate }}%;"></div></div>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="metric-stack">
+            {% for period in team_report.periods %}
+            <div class="metric-row">
+              <div class="metric-head"><strong>{{ period.label }}</strong><span>{{ period.actions }} acc · {{ period.rate }}%</span></div>
+              <div class="track"><div class="fill gold" style="width:{{ period.rate }}%;"></div></div>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="metric-stack">
+            {% for zone in team_report.zones %}
+            <div class="metric-row">
+              <div class="metric-head"><strong>{{ zone.label }}</strong><span>{{ zone.count }} · {{ zone.pct }}%</span></div>
+              <div class="track"><div class="fill" style="width:{{ zone.pct }}%;"></div></div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
       {% if 'top' in sections %}
       <div class="section">
         <h2>Acciones (Top)</h2>
@@ -159,18 +208,33 @@
 
       {% if 'players' in sections %}
       <div class="section">
-        <h2>Jugadores</h2>
-        <div class="card" style="padding:12px;">
-          <table class="table">
-            <thead><tr><th class="num">#</th><th>Jugador</th><th>Perfil</th><th class="right">Acc</th><th class="right">% Éxito</th><th class="right">G</th><th class="right">A</th><th class="right">TA</th><th class="right">TR</th></tr></thead>
-            <tbody>
-              {% for p in players %}
-              <tr><td class="num">{% if p.number %}{{ p.number }}{% else %}—{% endif %}</td><td style="font-weight:1000;">{{ p.name }}</td><td style="color:#475569;">{{ p.profile_label|default:"" }}</td><td class="right">{{ p.actions }}</td><td class="right">{{ p.success_rate }}%</td><td class="right">{{ p.goals }}</td><td class="right">{{ p.assists }}</td><td class="right">{{ p.yellow }}</td><td class="right">{{ p.red }}</td></tr>
-              {% empty %}
-              <tr><td colspan="9" style="color:#64748b;">No hay acciones registradas.</td></tr>
+        <h2>Informe por jugador</h2>
+        <div class="player-grid">
+          {% for p in player_reports %}
+          <div class="player-card">
+            <div class="player-head">
+              <div>
+                <div class="player-name">{% if p.number %}#{{ p.number }} · {% endif %}{{ p.name }}</div>
+                <div class="player-sub">{{ p.profile_label|default:"Sin perfil" }} · {{ p.dominant_zone }}</div>
+              </div>
+              <div class="minutes">{{ p.minutes }} min</div>
+            </div>
+            <div class="mini-grid">
+              {% for stat in p.headline_stats %}
+              <div class="mini-stat"><div class="k">{{ stat.label }}</div><div class="v">{{ stat.value }}</div></div>
               {% endfor %}
-            </tbody>
-          </table>
+            </div>
+            <div class="detail-line">
+              {{ p.actions }} acciones · {{ p.success_rate }}% éxito · {{ p.recoveries }} recuperaciones · {{ p.dribbles_ok }}/{{ p.dribbles }} regates · {{ p.long_passes_ok }}/{{ p.long_passes }} pases largos · {{ p.crosses_ok }}/{{ p.crosses }} centros
+              {% if p.saves or p.goals_conceded %} · {{ p.saves }} paradas · {{ p.goals_conceded }} encajados{% endif %}
+              {% if p.forced_errors or p.unforced_errors %} · errores {{ p.forced_errors }}/{{ p.unforced_errors }}{% endif %}
+              {% if p.fouls_committed or p.fouls_received %} · faltas {{ p.fouls_committed }}/{{ p.fouls_received }}{% endif %}
+              {% if p.yellow or p.red %} · tarjetas {{ p.yellow }}/{{ p.red }}{% endif %}
+            </div>
+          </div>
+          {% empty %}
+          <div class="card" style="color:#64748b;">No hay acciones registradas.</div>
+          {% endfor %}
         </div>
       </div>
       {% endif %}
