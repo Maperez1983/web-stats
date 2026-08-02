@@ -29180,7 +29180,8 @@ def _match_staff_report_context(request, *, match, primary_team):
         if int(row.get("goals") or 0) or int(row.get("assists") or 0):
             contribution = "Influencia directa en gol"
         elif int(row.get("saves") or 0):
-            contribution = f'{int(row.get("saves") or 0)} paradas'
+            saves = int(row.get("saves") or 0)
+            contribution = f"{saves} {'parada' if saves == 1 else 'paradas'}"
         elif int(row.get("recoveries") or 0) >= 3:
             contribution = f'{int(row.get("recoveries") or 0)} recuperaciones'
         elif int(row.get("duels_won") or 0) >= 3:
