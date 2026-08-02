@@ -43539,11 +43539,16 @@ def coach_matches_sync_venues(request):
 
     sobrescribir = str(request.POST.get("overwrite") or "").strip().lower() in {"1", "true", "on", "yes"}
     limpiar = str(request.POST.get("clear") or "").strip().lower() in {"1", "true", "on", "yes"}
-    equipos = list(
-        Team.objects.filter(group_id=primary_team.group_id).order_by("name")
-        if primary_team.group_id
-        else Team.objects.filter(id=primary_team.id)
-    )
+    # Un equipo suelto (el rival de un amistoso, que no está en tu grupo) o todo el grupo.
+    equipo_pedido = _parse_int(request.POST.get("team_id"))
+    if equipo_pedido:
+        equipos = list(Team.objects.filter(id=equipo_pedido))
+    else:
+        equipos = list(
+            Team.objects.filter(group_id=primary_team.group_id).order_by("name")
+            if primary_team.group_id
+            else Team.objects.filter(id=primary_team.id)
+        )
     if limpiar:
         return JsonResponse({"ok": True, "limpiados": limpiar_campos_de_equipos(equipos)})
     try:
@@ -44918,6 +44923,18 @@ def team_page(request):
                 })
     except Exception:
         logger.debug("No se pudo preparar el portal del jugador de la ficha de equipo", exc_info=True)
+
+    if request.method == "POST" and str(request.POST.get("form_action") or "") == "venue":
+        # El campo de juego se edita aquí: es el dato que se mira el día del partido y hasta
+        # ahora sólo se podía tocar en la ficha de rival (o sea, nunca para el equipo propio).
+        if _can_manage_workspace(request.user, _get_active_workspace(request)) or _is_admin_user(request.user):
+            primary_team.home_stadium = str(request.POST.get("home_stadium") or "").strip()[:200]
+            primary_team.home_stadium_address = str(request.POST.get("home_stadium_address") or "").strip()[:260]
+            primary_team.home_stadium_maps_url = str(request.POST.get("home_stadium_maps_url") or "").strip()
+            primary_team.save(
+                update_fields=["home_stadium", "home_stadium_address", "home_stadium_maps_url"]
+            )
+        return redirect(f"{reverse('team-page')}?team={int(primary_team.id)}#campo")
 
     return render(request, "football/team_page.html", {
         "team": primary_team, "crest": crest, "club_obj": club_obj,
@@ -89046,6 +89063,30 @@ def _resolve_active_match_for_flow(request, primary_team):
     return active_match
 
 
+def _temporada_para_partido_sin_liga(primary_team, club_season=None):
+    """
+    Temporada de respaldo para equipos sin competición configurada.
+
+    `Match.season` es obligatorio y se resolvía desde la liga del equipo. Una categoría de
+    cantera en pretemporada TODAVÍA no tiene liga — que es justo cuando se cierran los
+    amistosos —, así que el alta moría con "No hay temporada activa". Se usa una competición
+    propia del club para esos partidos en vez de obligar a configurar una liga que aún no existe.
+    """
+    from football.models import Competition, Season
+
+    etiqueta = str(getattr(club_season, "label", "") or "").strip()
+    if not etiqueta:
+        hoy = timezone.localdate()
+        inicio = hoy.year if hoy.month >= 7 else hoy.year - 1
+        etiqueta = f"{inicio}/{inicio + 1}"
+    competicion, _ = Competition.objects.get_or_create(
+        slug="amistosos",
+        defaults={"name": "Amistosos y pretemporada"},
+    )
+    season, _ = Season.objects.get_or_create(competition=competicion, name=etiqueta)
+    return season
+
+
 @authenticated_write
 @require_POST
 def match_hub_create_match(request):
@@ -89138,11 +89179,11 @@ def match_hub_create_match(request):
         elif home_away == "home":
             location_value = str(getattr(primary_team, "home_stadium", "") or "").strip()
     season_obj = resolve_stats_season(primary_team) or getattr(getattr(primary_team, "group", None), "season", None)
-    if not season_obj:
-        return HttpResponse("No hay temporada activa para asignar el partido.", status=400)
     selected_match_season = _home_current_club_season(request, workspace) or selected_club_season_for_request(
         request, workspace=workspace
     )
+    if not season_obj:
+        season_obj = _temporada_para_partido_sin_liga(primary_team, selected_match_season)
     home_team = primary_team if home_away == "home" else rival_team
     away_team = rival_team if home_away == "home" else primary_team
     match_obj = None

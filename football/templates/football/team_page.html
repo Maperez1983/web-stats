@@ -17,6 +17,10 @@
       .tm-meta{font-size:.8rem;color:var(--fm-ink-2);font-weight:700;margin-top:.25rem;display:flex;gap:.9rem;flex-wrap:wrap;align-items:center;}
       .tm-kit{display:inline-flex;gap:3px;align-items:center;}
       .tm-sw{width:15px;height:15px;border-radius:4px;border:1px solid rgba(255,255,255,.2);}
+      .tm-venue{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.7rem;background:var(--fm-panel);border:1px solid var(--fm-line);border-radius:14px;padding:.9rem 1rem;}
+      .tm-venue label{display:grid;gap:.3rem;font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;font-weight:800;color:var(--fm-ink-3);}
+      .tm-venue input{width:100%;box-sizing:border-box;}
+      .tm-venue-actions{grid-column:1/-1;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;}
       .tm-sect{font-size:.68rem;text-transform:uppercase;letter-spacing:.12em;color:var(--fm-ink-3);font-weight:800;margin:1.3rem 0 .7rem;}
       .tm-chips{display:flex;gap:.6rem;flex-wrap:wrap;}
       .tm-chip{border:1px solid var(--fm-line);background:var(--fm-panel);border-radius:12px;padding:.6rem .9rem;min-width:96px;}
@@ -84,6 +88,32 @@
         <p class="tm-empty">Sin staff registrado para este equipo. Añádelo en Dirección → Staff.</p>
         {% endif %}
 
+        <div class="tm-sect" id="campo">Campo de juego</div>
+        <form method="post" class="tm-venue">
+          {% csrf_token %}
+          <input type="hidden" name="form_action" value="venue" />
+          <label>Campo
+            <input name="home_stadium" value="{{ team.home_stadium|default:'' }}" placeholder="Ej. Benagalbón Campo Municipal" />
+          </label>
+          <label>Dirección
+            <input name="home_stadium_address" value="{{ team.home_stadium_address|default:'' }}" placeholder="Calle, número, municipio" />
+          </label>
+          <label>Enlace del mapa
+            <input name="home_stadium_maps_url" type="url" value="{{ team.home_stadium_maps_url|default:'' }}" placeholder="https://maps.google.com/..." />
+          </label>
+          <div class="tm-venue-actions">
+            <button type="submit" class="btn primary">Guardar campo</button>
+            {% if team.home_stadium_maps_url %}
+            <a class="btn" href="{{ team.home_stadium_maps_url }}" target="_blank" rel="noreferrer">Abrir en el mapa</a>
+            {% endif %}
+            <button type="button" class="btn" id="btnVenueUniverso" data-team="{{ team.id }}">Traer de Universo</button>
+          </div>
+          <p class="tm-empty" style="margin:.5rem 0 0;">
+            Universo trae el nombre del campo (con su localidad) y el enlace del mapa; la dirección
+            postal no viene en su ficha, así que esa la escribes tú.
+          </p>
+        </form>
+
         {% comment %} Plantilla, Planificador, Centro medico, Contratos y Desarrollo ya estan en
            el sub-nav de Equipo: aqui solo los accesos de OTRAS zonas. {% endcomment %}
         {% if portal_rows %}
@@ -133,5 +163,42 @@
         </div>
       </main>
     </div>
+    <script>
+      (() => {
+        const boton = document.getElementById('btnVenueUniverso');
+        if (!boton) return;
+        boton.addEventListener('click', async () => {
+          const csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+          boton.disabled = true;
+          const antes = boton.textContent;
+          boton.textContent = 'Consultando…';
+          try {
+            const cuerpo = new URLSearchParams({ overwrite: '1', team_id: boton.dataset.team || '' });
+            if (csrf) cuerpo.set('csrfmiddlewaretoken', csrf.value);
+            const respuesta = await fetch('{% url 'coach-matches-sync-venues' %}', {
+              method: 'POST', body: cuerpo, credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            });
+            const datos = await respuesta.json().catch(() => ({}));
+            if (!respuesta.ok || !datos.ok) {
+              window.alert(datos.error || 'No se pudo consultar Universo RFAF.');
+              return;
+            }
+            const r = datos.resumen || {};
+            if ((r.actualizados || []).length) {
+              window.alert(r.actualizados.join('\n'));
+              window.location.reload();
+            } else {
+              window.alert('Universo no devolvió campo para este equipo.');
+            }
+          } catch (error) {
+            window.alert('No se pudo consultar Universo RFAF.');
+          } finally {
+            boton.disabled = false;
+            boton.textContent = antes;
+          }
+        });
+      })();
+    </script>
   </body>
 </html>
