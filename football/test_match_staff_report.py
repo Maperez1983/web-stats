@@ -196,6 +196,11 @@ class MatchStaffReportTests(TestCase):
         self.assertEqual(tactical["rival_missing"], 10)
         self.assertEqual(tactical["rival"]["starters"][0]["name"], "Delantero Rival")
 
+        html = render_to_string("football/match_staff_report.html", context, request=request)
+        self.assertIn("left:24.0%;top:51.0%;", html)
+        self.assertIn("left:76.0%;top:50.0%;", html)
+        self.assertNotIn("left:24,0%", html)
+
     @patch("football.views.resolve_team_crest_url", return_value="")
     def test_player_report_is_narrative_and_keeps_percentage_kpis_out(self, _crest):
         self.match.home_score = 2
