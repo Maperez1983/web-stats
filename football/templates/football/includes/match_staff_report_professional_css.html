@@ -57,6 +57,12 @@
   .pro-quality-item span { display:block; margin-top:4px; color:var(--ink-soft,#4B584F); font-size:9px; line-height:1.4; }
   .pro-microcycle { margin-top:12px; padding:14px; border-left:5px solid var(--accent,#0F8A4B); border-radius:10px; background:var(--surface-2,#F3F7F2); color:var(--ink,#12201A); white-space:pre-wrap; font-size:11px; line-height:1.55; }
   @media (max-width:760px) { .pro-findings,.pro-split,.pro-flow,.pro-quality { grid-template-columns:1fr; } .pro-metric-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .pro-player-wrap { overflow-x:auto; } .pro-player-table { min-width:820px; } }
+  @media (max-width:520px) {
+    .pro-scoreboard { grid-template-columns:minmax(0,1fr) minmax(0,1fr); grid-template-areas:"home away" "score score"; gap:14px 10px; padding:18px; }
+    .pro-team:first-child { grid-area:home; }
+    .pro-team:last-child { grid-area:away; }
+    .pro-score { grid-area:score; min-width:0; padding-top:13px; border-top:1px solid rgba(255,255,255,.2); }
+  }
   .report-pdf .actions { display:none !important; }
   @media print { .pro-section { break-inside:auto; page-break-inside:auto; } .pro-findings,.pro-panel,.pro-flow-item,.pro-quality-item { break-inside:avoid; page-break-inside:avoid; } }
 </style>
