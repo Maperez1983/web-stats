@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -12,6 +12,9 @@ from football.models import (
     PlayerInjuryRecord,
     Season,
     Team,
+    TrainingMicrocycle,
+    TrainingSession,
+    TrainingSessionAttendance,
     Workspace,
     WorkspaceMembership,
     WorkspaceTeam,
@@ -178,6 +181,43 @@ class PlayerInjuryDetailViewTests(TestCase):
         self.assertTrue(self.record.is_active)
         self.assertIsNone(self.record.return_date)
         self.assertEqual(self.record.estimated_return_date, date(2026, 8, 11))
+
+    def test_recovering_one_record_keeps_future_injury_mark_when_another_is_active(self):
+        today = date.today()
+        PlayerInjuryRecord.objects.create(
+            player=self.player,
+            injury='Segunda lesión activa',
+            injury_date=today,
+            is_active=True,
+        )
+        microcycle = TrainingMicrocycle.objects.create(
+            team=self.team,
+            week_start=today,
+            week_end=today + timedelta(days=7),
+        )
+        session = TrainingSession.objects.create(
+            microcycle=microcycle,
+            session_date=today + timedelta(days=1),
+        )
+        mark = TrainingSessionAttendance.objects.create(
+            session=session,
+            player=self.player,
+            status=TrainingSessionAttendance.STATUS_INJURED,
+        )
+
+        response = self.client.post(
+            reverse('player-injury-detail', args=[self.player.id, self.record.id]),
+            data={
+                'action': 'save-record',
+                'injury': self.record.injury,
+                'injury_date': self.record.injury_date.isoformat(),
+                'injury_status': 'recovered',
+            },
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(TrainingSessionAttendance.objects.filter(id=mark.id).exists())
 
     def test_closed_record_shows_reopen_action_and_explicit_status(self):
         self.record.is_recovered = True

@@ -11,6 +11,9 @@ from football.models import (
     Player,
     PlayerInjuryRecord,
     Team,
+    TrainingMicrocycle,
+    TrainingSession,
+    TrainingSessionAttendance,
     Workspace,
     WorkspaceMembership,
 )
@@ -109,6 +112,29 @@ class PlayerInjuriesTests(TestCase):
 
     def test_medical_discharge_updates_player_and_tactical_boards(self):
         today = timezone.localdate()
+        microcycle = TrainingMicrocycle.objects.create(
+            team=self.team,
+            week_start=today - datetime.timedelta(days=7),
+            week_end=today + datetime.timedelta(days=7),
+        )
+        past_session = TrainingSession.objects.create(
+            microcycle=microcycle,
+            session_date=today - datetime.timedelta(days=1),
+        )
+        future_session = TrainingSession.objects.create(
+            microcycle=microcycle,
+            session_date=today + datetime.timedelta(days=1),
+        )
+        past_mark = TrainingSessionAttendance.objects.create(
+            session=past_session,
+            player=self.player,
+            status=TrainingSessionAttendance.STATUS_INJURED,
+        )
+        future_mark = TrainingSessionAttendance.objects.create(
+            session=future_session,
+            player=self.player,
+            status=TrainingSessionAttendance.STATUS_INJURED,
+        )
         self.player.injury = "Esguince de tobillo"
         self.player.injury_type = "Articular"
         self.player.injury_zone = "Tobillo"
@@ -148,6 +174,8 @@ class PlayerInjuriesTests(TestCase):
         self.assertEqual(self.player.injury_side, "")
         self.assertIsNone(self.player.injury_date)
         self.assertNotIn(self.player.id, get_active_injury_player_ids([self.player.id]))
+        self.assertTrue(TrainingSessionAttendance.objects.filter(id=past_mark.id).exists())
+        self.assertFalse(TrainingSessionAttendance.objects.filter(id=future_mark.id).exists())
 
         request = RequestFactory().get("/", HTTP_HOST="localhost")
         request.user = self.user

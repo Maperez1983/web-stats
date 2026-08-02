@@ -18,6 +18,7 @@ from football.models import (
     PlayerInjuryRecord,
     PlayerStatistic,
     Team,
+    TrainingSessionAttendance,
 )
 from football.services import _parse_int
 
@@ -76,7 +77,7 @@ def get_active_injury_player_ids(player_ids):
 
 
 def sync_player_injury_summary(player, today=None):
-    """Sincroniza los campos legacy de Player con su lesión activa real."""
+    """Sincroniza el estado médico del jugador y sus marcas futuras de lesión."""
     if not player or not getattr(player, 'id', None):
         return None
     reference_day = today or timezone.localdate()
@@ -93,6 +94,12 @@ def sync_player_injury_summary(player, today=None):
     player.injury_side = str(getattr(active_record, 'injury_side', '') or '') if active_record else ''
     player.injury_date = getattr(active_record, 'injury_date', None) if active_record else None
     player.save(update_fields=['injury', 'injury_type', 'injury_zone', 'injury_side', 'injury_date'])
+    if active_record is None:
+        TrainingSessionAttendance.objects.filter(
+            player_id=player.id,
+            status=TrainingSessionAttendance.STATUS_INJURED,
+            session__session_date__gte=reference_day,
+        ).delete()
     return active_record
 
 
