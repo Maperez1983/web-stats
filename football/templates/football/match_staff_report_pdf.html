@@ -75,8 +75,9 @@
       .impact-copy strong{display:block;font-size:10px;color:#12201A;}.impact-copy span{font-size:8px;color:#4B584F;}
       .impact-delta{font-size:10px;font-weight:800;color:#0A5E33;}.impact-item.negative .impact-delta{color:#B43C32;}
     </style>
+    {% include 'football/includes/match_staff_report_professional_css.html' %}
   </head>
-  <body>
+  <body class="report-pdf">
     <div class="top">
       <div class="brand">
         <img src="{{ brand_mark_src }}" alt="2J" style="width:44px;height:auto;" />
@@ -101,6 +102,10 @@
     </div>
 
     <div class="content">
+      <div class="section-grid">
+        {% include 'football/includes/match_staff_report_professional_sections.html' %}
+      </div>
+      {% if legacy_report_layout %}
       {% if briefing or plan_abc %}
       <div class="section">
         <h2>Plan de partido</h2>
@@ -296,6 +301,7 @@
           {% endfor %}
         </div>
       </div>
+      {% endif %}
       {% endif %}
 
       <div class="foot">

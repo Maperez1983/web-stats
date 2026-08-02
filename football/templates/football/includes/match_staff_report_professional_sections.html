@@ -1,0 +1,107 @@
+{% with pro=professional_report %}
+<section class="card pro-section pro-executive">
+  <p class="pro-section-number">01 · Resumen ejecutivo</p>
+  <h2 class="pro-section-title">El partido, en una página</h2>
+  <p class="pro-section-intro">Marcador, producción ofensiva y las conclusiones prioritarias que deben guiar la revisión del cuerpo técnico.</p>
+  <div class="pro-scoreboard">
+    <div class="pro-team">{{ team_name }}</div>
+    <div class="pro-score">{{ score_label }}<small>Resultado final</small></div>
+    <div class="pro-team">{{ opponent_name }}</div>
+  </div>
+  <div class="pro-compare-table" aria-label="Comparativa exacta del partido">
+    {% for row in pro.exact_comparison %}
+    <div class="pro-compare-row"><strong>{{ row.team }}</strong><span>{{ row.label }}</span><strong>{{ row.opponent }}</strong></div>
+    {% endfor %}
+  </div>
+  <div class="pro-findings">
+    {% for finding in pro.executive_findings %}
+    <article class="pro-finding {{ finding.tone }}"><strong>{{ finding.title }}</strong><p>{{ finding.text }}</p></article>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="card pro-section">
+  <p class="pro-section-number">02 · Historia del partido</p>
+  <h2 class="pro-section-title">Qué cambió el encuentro</h2>
+  <p class="pro-section-intro">Secuencia cronológica de goles, tarjetas y acciones cuya consecuencia fue mayor que el gesto técnico aislado.</p>
+  <div class="pro-flow">
+    {% for item in timeline %}
+    <article class="pro-flow-item"><span class="pro-flow-minute">{% if item.minute %}{{ item.minute }}′{% else %}—{% endif %}</span><div><strong>{{ item.title }}</strong><span>{{ item.text }}</span></div></article>
+    {% endfor %}
+    {% for moment in decisive_moments %}
+    <article class="pro-flow-item {% if moment.polarity == 'negative' %}negative{% endif %}"><span class="pro-flow-minute">{% if moment.minute %}{{ moment.minute }}′{% else %}—{% endif %}</span><div><strong>{{ moment.player_name }} · {{ moment.reason_label|default:moment.action }}</strong><span>{{ moment.label }}</span></div></article>
+    {% empty %}
+      {% if not timeline %}<article class="pro-flow-item"><span class="pro-flow-minute">—</span><div><strong>Sin momentos etiquetados</strong><span>El marcador y los datos globales siguen disponibles, pero faltan minutos para reconstruir la evolución.</span></div></article>{% endif %}
+    {% endfor %}
+  </div>
+</section>
+
+<section class="card pro-section">
+  <p class="pro-section-number">03 · Con balón</p>
+  <h2 class="pro-section-title">Cómo atacó {{ team_name }}</h2>
+  <p class="pro-section-intro">Volumen y ejecución de las acciones registradas. La distribución territorial describe dónde se anotaron acciones, no posesión.</p>
+  <div class="pro-split">
+    <div class="pro-panel">
+      <h3>Producción ofensiva</h3>
+      <div class="pro-metric-grid">
+        {% for metric in pro.with_ball %}<article class="pro-metric"><div class="label">{{ metric.label }}</div><div class="value">{{ metric.value }}</div><div class="note">{{ metric.note }}</div></article>{% endfor %}
+      </div>
+    </div>
+    <div class="pro-panel">
+      <h3>Distribución de acciones ubicadas</h3>
+      <div class="pro-zone-list">
+        {% for zone in team_report.zones %}
+        <div><div class="pro-zone-head"><span>{{ zone.label }}</span><strong>{{ zone.count }} acciones</strong></div><div class="pro-zone-track"><div class="pro-zone-fill" style="width:{{ zone.pct }}%;"></div></div></div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="card pro-section">
+  <p class="pro-section-number">04 · Sin balón y transiciones</p>
+  <h2 class="pro-section-title">Qué recuperó, qué concedió y dónde asumió riesgo</h2>
+  <p class="pro-section-intro">Las métricas defensivas se limitan a eventos confirmados; no se calcula PPDA ni presión real sin pases completos del rival.</p>
+  <div class="pro-split">
+    <div class="pro-panel"><h3>Comportamiento defensivo</h3><div class="pro-metric-grid">{% for metric in pro.without_ball %}<article class="pro-metric"><div class="label">{{ metric.label }}</div><div class="value">{{ metric.value }}</div><div class="note">{{ metric.note }}</div></article>{% endfor %}</div></div>
+    <div class="pro-panel"><h3>Lectura de transiciones</h3><ul class="pro-note-list">{% for note in pro.transition_notes %}<li>{{ note }}</li>{% endfor %}</ul></div>
+  </div>
+</section>
+
+<section class="card pro-section">
+  <p class="pro-section-number">05 · Balón parado</p>
+  <h2 class="pro-section-title">ABP y situaciones de marca</h2>
+  <p class="pro-section-intro">Balance de córners y consecuencias registradas. Las acciones sin minuto o sin zona se conservan como recuento, no se colocan artificialmente en el campo.</p>
+  <div class="pro-split">
+    <div class="pro-panel"><h3>{{ team_name }}</h3><div class="pro-metric-grid"><article class="pro-metric"><div class="label">Córners a favor</div><div class="value">{{ pro.corners_for }}</div><div class="note">dato exacto</div></article><article class="pro-metric"><div class="label">Córners en contra</div><div class="value">{{ pro.corners_against }}</div><div class="note">dato exacto</div></article></div></div>
+    <div class="pro-panel"><h3>Lectura técnica</h3><ul class="pro-note-list">{% for note in pro.set_piece_notes %}<li>{{ note }}</li>{% endfor %}</ul></div>
+  </div>
+</section>
+
+<section class="card pro-section">
+  <p class="pro-section-number">06 · Rendimiento individual</p>
+  <h2 class="pro-section-title">Contribución e influencia</h2>
+  <p class="pro-section-intro">El global resume la aportación. Los porcentajes, mapas y detalle completo permanecen en los KPI y en el informe individual de cada jugador.</p>
+  <div class="pro-player-wrap">
+    <table class="pro-player-table">
+      <thead><tr><th>Jugador</th><th>Pos.</th><th>Min.</th><th>G+A</th><th>Influencia</th><th>Aportación principal</th><th>Foco</th><th>Nota</th><th>Informe</th></tr></thead>
+      <tbody>
+        {% for p in pro.players %}
+        <tr><td><strong>{% if p.number %}#{{ p.number }} · {% endif %}{{ p.name }}</strong></td><td>{{ p.profile_label|default:"—" }}</td><td>{{ p.minutes }}</td><td>{{ p.goals|add:p.assists }}</td><td><span class="pro-influence">{{ p.influence }}</span></td><td>{{ p.contribution }}</td><td>{{ p.focus }}</td><td>{% if p.rating != None %}<strong>{{ p.rating|floatformat:1 }}</strong>{% else %}—{% endif %}</td><td><a href="{{ p.report_url }}">Abrir</a></td></tr>
+        {% empty %}<tr><td colspan="9">No hay participación registrada.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card pro-section">
+  <p class="pro-section-number">07 · Conclusiones y microciclo</p>
+  <h2 class="pro-section-title">Del partido al entrenamiento</h2>
+  <p class="pro-section-intro">Prioridades derivadas de las acciones confirmadas. El staff puede convertirlas en tareas y completar la interpretación con vídeo.</p>
+  <div class="pro-findings">{% for finding in pro.executive_findings %}<article class="pro-finding {{ finding.tone }}"><strong>{{ finding.title }}</strong><p>{{ finding.text }}</p></article>{% endfor %}</div>
+  {% if postmatch_pro %}<div class="pro-microcycle" id="postmatch-microcycle-text">{{ postmatch_pro.microcycle_text }}</div>{% endif %}
+  <div class="actions" style="margin-top:12px;justify-content:flex-start;"><button class="btn" type="button" id="postmatch-copy">Copiar propuesta</button><button class="btn primary" type="button" id="postmatch-to-tasks" data-match-id="{{ request.GET.match_id|default:'' }}">Crear tareas</button></div>
+  <p class="meta" id="postmatch-status" style="margin:7px 0 0;">—</p>
+  <div class="pro-quality">{% for quality in pro.data_quality %}<article class="pro-quality-item"><strong>{{ quality.level }}</strong><span>{{ quality.text }}</span></article>{% endfor %}</div>
+</section>
+{% endwith %}

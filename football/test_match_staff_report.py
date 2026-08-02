@@ -108,13 +108,32 @@ class MatchStaffReportTests(TestCase):
         self.assertEqual(summary["Córners favor"], 4)
         self.assertEqual(summary["Córners contra"], 7)
 
+        professional = context["professional_report"]
+        exact = {row["label"]: (row["team"], row["opponent"]) for row in professional["exact_comparison"]}
+        self.assertEqual(exact["Disparos"], (1, 7))
+        self.assertEqual(exact["A puerta"], (1, 2))
+        self.assertEqual(exact["Córners"], (4, 7))
+        self.assertEqual([row["level"] for row in professional["data_quality"]], ["Exacto", "Derivado", "No disponible"])
+
         context["pdf_url"] = "/coach/informes/partido/pdf/?match_id=1"
         html = render_to_string("football/match_staff_report.html", context, request=request)
         pdf_html = render_to_string("football/match_staff_report_pdf.html", context)
         identity_label = "Informe al cuerpo técnico · Postpartido"
-        self.assertIn("Lectura de equipo", html)
-        self.assertIn("Informe por jugador", html)
-        self.assertIn("Momentos decisivos", html)
+        for section_title in (
+            "Resumen ejecutivo",
+            "Historia del partido",
+            "Con balón",
+            "Sin balón y transiciones",
+            "Balón parado",
+            "Rendimiento individual",
+            "Conclusiones y microciclo",
+        ):
+            self.assertIn(section_title, html)
+            self.assertIn(section_title, pdf_html)
+        self.assertIn("Posesión real", html)
+        self.assertIn("No disponible", html)
+        self.assertNotIn("Posesión aproximada", html)
+        self.assertNotIn("xG estimado", html)
         self.assertIn(identity_label, html)
         self.assertIn('class="shell sqr a4-sheet"', html)
         self.assertIn("Jugador Uno", pdf_html)

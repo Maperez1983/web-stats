@@ -29058,6 +29058,197 @@ def _match_staff_report_context(request, *, match, primary_team):
         "comparison": comparison_rows,
     }
 
+    # Lectura profesional: jerarquiza el partido sin inventar tracking, xG ni posesión.
+    # Los recuentos son exactos sobre las acciones confirmadas; las conclusiones se
+    # presentan expresamente como lectura derivada del cuerpo de datos disponible.
+    score_for = home_score if is_home else away_score
+    score_against = away_score if is_home else home_score
+    score_for = int(score_for or 0)
+    score_against = int(score_against or 0)
+    team_sums = {
+        key: sum(int(row.get(key) or 0) for row in player_reports)
+        for key in (
+            "long_passes",
+            "long_passes_ok",
+            "recoveries",
+            "dribbles",
+            "dribbles_ok",
+            "crosses",
+            "crosses_ok",
+            "forced_errors",
+            "unforced_errors",
+            "fouls_committed",
+            "fouls_received",
+            "saves",
+        )
+    }
+    opponent_shots_off = max(0, opponent_shots - opponent_shots_target)
+    exact_comparison = [
+        {"label": "Goles", "team": score_for, "opponent": score_against},
+        {"label": "Disparos", "team": totals["shots"], "opponent": opponent_shots},
+        {"label": "A puerta", "team": totals["shots_target"], "opponent": opponent_shots_target},
+        {
+            "label": "Fuera",
+            "team": max(0, totals["shots"] - totals["shots_target"]),
+            "opponent": opponent_shots_off,
+        },
+        {"label": "Córners", "team": corners_for, "opponent": corners_against},
+    ]
+
+    executive_findings = []
+    if totals["shots"]:
+        executive_findings.append(
+            {
+                "tone": "positive" if totals["shots_target"] * 2 >= totals["shots"] else "warning",
+                "title": "Producción ofensiva",
+                "text": (
+                    f'{totals["shots_target"]} de {totals["shots"]} finalizaciones fueron a puerta. '
+                    "El equipo consiguió convertir sus ataques en remates claros."
+                ),
+            }
+        )
+    if opponent_shots_target:
+        executive_findings.append(
+            {
+                "tone": "negative" if score_against >= opponent_shots_target else "warning",
+                "title": "Calidad de lo concedido",
+                "text": (
+                    f"El rival marcó {score_against} goles con {opponent_shots_target} disparos a puerta. "
+                    "La prioridad no es solo conceder menos, sino reducir la claridad de esas ocasiones."
+                ),
+            }
+        )
+    if corners_for or corners_against:
+        executive_findings.append(
+            {
+                "tone": "negative" if corners_against > corners_for else "neutral",
+                "title": "Balón parado",
+                "text": (
+                    f"Balance de córners: {corners_for} a favor y {corners_against} en contra. "
+                    "Debe revisarse junto a los errores de marca registrados."
+                ),
+            }
+        )
+    if not executive_findings:
+        executive_findings.append(
+            {
+                "tone": "neutral",
+                "title": "Muestra disponible",
+                "text": "El informe se limita a las acciones confirmadas y evita completar huecos con estimaciones.",
+            }
+        )
+
+    transition_notes = []
+    if totals["steals_high"]:
+        transition_notes.append(
+            f'{totals["steals_high"]} recuperaciones altas registradas: capacidad para volver a atacar cerca del área rival.'
+        )
+    if totals["losses_def"]:
+        transition_notes.append(
+            f'{totals["losses_def"]} pérdidas en zona defensiva: riesgo relevante en salida y primera progresión.'
+        )
+    if team_sums["forced_errors"]:
+        transition_notes.append(
+            f'{team_sums["forced_errors"]} errores forzados al rival reflejan actividad defensiva y presión sobre el poseedor.'
+        )
+    if team_sums["unforced_errors"]:
+        transition_notes.append(
+            f'{team_sums["unforced_errors"]} errores no forzados propios redujeron la continuidad de las posesiones.'
+        )
+    if not transition_notes:
+        transition_notes.append("No hay suficientes cambios de posesión etiquetados para una lectura de transiciones fiable.")
+
+    set_piece_notes = [
+        f"Córners: {corners_for} a favor y {corners_against} en contra.",
+        f'Acciones de balón parado registradas: {totals["abp"]}.',
+    ]
+    lost_mark_impacts = [
+        moment for moment in decisive_moments if str(moment.get("reason") or "") == "lost_mark"
+    ]
+    if lost_mark_impacts:
+        set_piece_notes.append(
+            f"Se registraron {len(lost_mark_impacts)} pérdidas de marca con consecuencia decisiva; requieren revisión en vídeo o pizarra."
+        )
+
+    professional_players = []
+    for row in player_reports:
+        rating = row.get("rating")
+        try:
+            rating_value = float(rating) if rating is not None else None
+        except (TypeError, ValueError):
+            rating_value = None
+        if int(row.get("goals") or 0) or int(row.get("assists") or 0):
+            contribution = "Influencia directa en gol"
+        elif int(row.get("saves") or 0):
+            contribution = f'{int(row.get("saves") or 0)} paradas'
+        elif int(row.get("recoveries") or 0) >= 3:
+            contribution = f'{int(row.get("recoveries") or 0)} recuperaciones'
+        elif int(row.get("duels_won") or 0) >= 3:
+            contribution = f'{int(row.get("duels_won") or 0)} duelos ganados'
+        else:
+            contribution = f'{int(row.get("actions") or 0)} acciones registradas'
+
+        negative_impacts = [
+            impact for impact in row.get("impact_events", []) if str(impact.get("polarity") or "") == "negative"
+        ]
+        if negative_impacts:
+            focus = str(negative_impacts[0].get("reason_label") or negative_impacts[0].get("label") or "Decisión decisiva")
+        elif int(row.get("unforced_errors") or 0):
+            focus = "Reducir errores no forzados"
+        elif int(row.get("duels") or 0) and int(row.get("duels_won") or 0) * 2 < int(row.get("duels") or 0):
+            focus = "Mejorar eficacia en duelos"
+        else:
+            focus = "Consolidar su aportación"
+        influence = (
+            "Determinante"
+            if rating_value is not None and rating_value >= 7.0
+            else "Positiva"
+            if rating_value is not None and rating_value >= 6.5
+            else "Estable"
+            if rating_value is not None and rating_value >= 6.0
+            else "A revisar"
+        )
+        professional_players.append(
+            {
+                **row,
+                "contribution": contribution,
+                "focus": focus,
+                "influence": influence,
+                "report_url": reverse("player-match-stats", args=[row["player_id"], match.id]) + "?report=1",
+            }
+        )
+
+    professional_report = {
+        "corners_for": corners_for,
+        "corners_against": corners_against,
+        "exact_comparison": exact_comparison,
+        "executive_findings": executive_findings[:3],
+        "with_ball": [
+            {"label": "Pases", "value": f'{totals["passes_ok"]}/{totals["passes"]}', "note": "completados / intentados"},
+            {"label": "Pase largo", "value": f'{team_sums["long_passes_ok"]}/{team_sums["long_passes"]}', "note": "completados / intentados"},
+            {"label": "Regates", "value": f'{team_sums["dribbles_ok"]}/{team_sums["dribbles"]}', "note": "completados / intentados"},
+            {"label": "Centros", "value": f'{team_sums["crosses_ok"]}/{team_sums["crosses"]}', "note": "completados / intentados"},
+            {"label": "Finalizaciones", "value": totals["shots"], "note": f'{totals["shots_target"]} a puerta'},
+            {"label": "Zona ofensiva", "value": zone_map["ataque"]["count"], "note": "acciones ubicadas"},
+        ],
+        "without_ball": [
+            {"label": "Recuperaciones", "value": team_sums["recoveries"], "note": "acciones confirmadas"},
+            {"label": "Duelos", "value": f'{totals["duels_won"]}/{totals["duels"]}', "note": "ganados / disputados"},
+            {"label": "Aéreos", "value": f'{totals["aerial_won"]}/{totals["aerial"]}', "note": "ganados / disputados"},
+            {"label": "Disparos rivales", "value": opponent_shots, "note": f"{opponent_shots_target} a puerta"},
+            {"label": "Faltas cometidas", "value": team_sums["fouls_committed"], "note": "acciones confirmadas"},
+            {"label": "Paradas", "value": team_sums["saves"], "note": "acciones confirmadas"},
+        ],
+        "transition_notes": transition_notes,
+        "set_piece_notes": set_piece_notes,
+        "players": professional_players,
+        "data_quality": [
+            {"level": "Exacto", "text": "Marcador, minutos, eventos, disparos, pases registrados, duelos, córners, faltas y paradas."},
+            {"level": "Derivado", "text": "Distribución zonal, influencia, lectura por fases y conclusiones técnicas."},
+            {"level": "No disponible", "text": "Posesión real, xG profesional, PPDA, distancias, red de pases y rupturas de línea."},
+        ],
+    }
+
     return {
         "team_name": team_name,
         "opponent_name": opponent_name,
@@ -29072,6 +29263,7 @@ def _match_staff_report_context(request, *, match, primary_team):
         "plan_abc": plan_abc,
         "postmatch_pro": postmatch_pro,
         "team_report": team_report,
+        "professional_report": professional_report,
         "player_reports": player_reports,
         "decisive_moments": sorted(
             decisive_moments,

@@ -256,6 +256,7 @@
       @media (max-width:860px) { .header { grid-template-columns:1fr; } .header .actions { justify-content:flex-start; } }
       @media print { .shell.sqr { padding:0; } .card,.kpi { box-shadow:none; } .header .actions { display:none; } }
     </style>
+    {% include 'football/includes/match_staff_report_professional_css.html' %}
     {% include 'football/includes/report_a4.html' %}
   </head>
   <body class="report-a4">
@@ -280,6 +281,8 @@
       </header>
 
       <div class="section-grid" id="reportGrid">
+        {% include 'football/includes/match_staff_report_professional_sections.html' %}
+        {% if legacy_report_layout %}
         {% if briefing or plan_abc %}
         <section class="card" style="grid-column: 1 / -1;">
           <h2>Plan de partido</h2>
@@ -515,6 +518,7 @@
             {% endfor %}
           </div>
         </section>
+        {% endif %}
         {% endif %}
       </div>
     </div>
