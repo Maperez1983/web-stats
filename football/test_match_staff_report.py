@@ -262,6 +262,50 @@ class MatchRatingAlgorithmTests(TestCase):
         self.assertLess(conceded_goal, conceded_chance)
         self.assertLessEqual(repeated_unforced_errors, neutral - 0.5)
 
+    def test_testimonial_minutes_cap_routine_actions_but_not_a_goal(self):
+        routine = {
+            "total_actions": 2,
+            "pass_attempts": 2,
+            "passes_completed": 2,
+            "minutes_played": 2,
+        }
+
+        routine_rating = views._auto_match_rating_from_stats(routine, "MC")
+        scorer_rating = views._auto_match_rating_from_stats({**routine, "goals": 1}, "DC")
+
+        self.assertLessEqual(routine_rating, 6.4)
+        self.assertGreater(scorer_rating, routine_rating)
+
+    def test_goalkeeper_routine_distribution_is_almost_neutral(self):
+        distribution = {
+            "total_actions": 12,
+            "pass_attempts": 10,
+            "passes_completed": 10,
+            "long_passes_attempted": 2,
+            "long_passes_completed": 2,
+            "minutes_played": 90,
+        }
+
+        goalkeeper_rating = views._auto_match_rating_from_stats(distribution, "POR")
+        midfielder_rating = views._auto_match_rating_from_stats(distribution, "MC")
+
+        self.assertLessEqual(goalkeeper_rating, 6.5)
+        self.assertLess(goalkeeper_rating, midfielder_rating)
+
+    def test_short_appearance_does_not_dilute_a_decisive_negative_error(self):
+        rating = views._auto_match_rating_from_stats(
+            {
+                "total_actions": 2,
+                "pass_attempts": 1,
+                "passes_completed": 1,
+                "minutes_played": 2,
+                "contextual_impact": -0.55,
+            },
+            "MC",
+        )
+
+        self.assertLessEqual(rating, 5.9)
+
     def test_persist_recalculates_stale_frozen_rating_and_includes_manual_events(self):
         for _index in range(5):
             self._event("ROBO", "GANADO")

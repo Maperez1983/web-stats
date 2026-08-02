@@ -78435,6 +78435,7 @@ def _auto_match_rating_from_stats(stats, position=None):
         return None
     base = 6.4
     s = 0.0
+    line = _fm_position_group(position)
     goals = int(stats.get("goals", 0) or 0)
     assists = int(stats.get("assists", 0) or 0)
     key_passes = int(stats.get("key_passes_completed", 0) or 0)
@@ -78447,8 +78448,14 @@ def _auto_match_rating_from_stats(stats, position=None):
     s -= min(0.42, 0.07 * off_target)
     pc = int(stats.get("passes_completed", 0) or 0)
     pa = int(stats.get("pass_attempts", 0) or 0)
-    s += min(0.24, 0.004 * pc)
-    s -= min(0.60, 0.03 * max(0, pa - pc))
+    # Para un portero, circular sin presión es una acción de mantenimiento, no una
+    # intervención decisiva. El fallo conserva penalización, pero el acierto rutinario
+    # apenas eleva la nota.
+    pass_reward = 0.001 if line == "gk" else 0.004
+    pass_reward_cap = 0.04 if line == "gk" else 0.24
+    pass_error_weight = 0.02 if line == "gk" else 0.03
+    s += min(pass_reward_cap, pass_reward * pc)
+    s -= min(0.60, pass_error_weight * max(0, pa - pc))
     dw = int(stats.get("explicit_duels_won", stats.get("duels_won", 0)) or 0)
     dt = int(stats.get("explicit_duels_total", stats.get("duels_total", 0)) or 0)
     s += min(0.40, 0.04 * dw)
@@ -78462,7 +78469,8 @@ def _auto_match_rating_from_stats(stats, position=None):
     s -= min(0.12, 0.015 * max(0, aerial_total - aerial_won))
     recoveries = int(stats.get("recoveries", 0) or 0)
     forced_turnovers = int(stats.get("forced_turnovers", 0) or 0)
-    s += min(0.36, 0.04 * recoveries)
+    recovery_weight = 0.065 if line in ("central", "lateral", "pivote", "medio") else 0.055
+    s += min(0.52, recovery_weight * recoveries)
     s -= min(0.40, 0.04 * forced_turnovers)
     s -= min(1.10, 0.14 * int(stats.get("unforced_turnovers", 0) or 0))
 
@@ -78476,8 +78484,10 @@ def _auto_match_rating_from_stats(stats, position=None):
     s -= min(0.30, 0.05 * max(0, crosses_total - crosses_won))
     long_won = int(stats.get("long_passes_completed", 0) or 0)
     long_total = int(stats.get("long_passes_attempted", 0) or 0)
-    s += min(0.14, 0.015 * long_won)
-    s -= min(0.30, 0.04 * max(0, long_total - long_won))
+    long_reward = 0.003 if line == "gk" else 0.015
+    long_reward_cap = 0.03 if line == "gk" else 0.14
+    s += min(long_reward_cap, long_reward * long_won)
+    s -= min(0.30, 0.03 * max(0, long_total - long_won))
     s += min(0.14, 0.02 * int(stats.get("retentions_won", 0) or 0))
     s -= min(0.40, 0.04 * int(stats.get("retentions_lost", 0) or 0))
     s += min(0.12, 0.015 * int(stats.get("fouls_received", 0) or 0))
@@ -78490,7 +78500,6 @@ def _auto_match_rating_from_stats(stats, position=None):
     s -= 0.30 * int(stats.get("yellow_cards", 0) or 0)
     s -= 1.20 * int(stats.get("red_cards", 0) or 0)
 
-    line = _fm_position_group(position)
     if line == "gk":
         s += min(0.24, 0.05 * saves)
         s -= min(0.40, 0.10 * goals_conceded)
@@ -78507,7 +78516,25 @@ def _auto_match_rating_from_stats(stats, position=None):
     # El impacto contextual no se comprime: representa una consecuencia comprobada del partido,
     # no volumen estadístico rutinario.
     rating = base + s + float(stats.get("contextual_impact", 0.0) or 0.0)
-    if total < 5:  # poca implicación: regresa hacia la base
+    minutes_raw = stats.get("minutes_played")
+    try:
+        minutes = max(0, int(float(minutes_raw))) if minutes_raw is not None else None
+    except (TypeError, ValueError):
+        minutes = None
+    decisive_positive = bool(goals or assists or float(stats.get("contextual_impact", 0.0) or 0.0) > 0)
+    # Un suplente con participación testimonial no puede alcanzar una nota alta por dos
+    # acciones rutinarias. Los goles, asistencias y acciones decisivas positivas sí rompen
+    # el tope; las penalizaciones negativas nunca se amortiguan por haber jugado poco.
+    if minutes is not None and not decisive_positive:
+        if minutes <= 5:
+            rating = min(rating, 6.4)
+        elif minutes <= 15:
+            rating = min(rating, 6.6)
+        elif minutes < 30:
+            rating = min(rating, 6.9)
+    if total < 3 and not decisive_positive:
+        rating = min(rating, 6.5)
+    if total < 5 and rating > base:  # poca implicación positiva: regresa hacia la base
         rating = base + (rating - base) * 0.6
     return round(max(4.0, min(10.0, rating)), 1)
 
@@ -78645,6 +78672,9 @@ def _compute_match_rating(primary_team, player, match, *, prefer_frozen=True):
     # La etiqueta de fuente describe cómo se capturó el partido, no si existen acciones útiles.
     # Las acciones confirmadas mandan también en una recuperación manual posterior al cierre.
     if int((payload or {}).get("total_actions", 0) or 0) > 0:
+        manual_stats = _manual_stats_for_player_match(player, match)
+        if manual_stats.get("minutes") is not None:
+            payload = {**payload, "minutes_played": int(manual_stats["minutes"] or 0)}
         rating = _auto_match_rating_from_stats(payload, getattr(player, "position", ""))
         info = None if rating is None else {
             "rating": rating, "method": "actions", "method_label": "acciones", "confidence": "alta",
