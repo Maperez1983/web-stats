@@ -863,7 +863,7 @@
                     </div>
                     <div class="broadcast-identity">
                       <h2 class="broadcast-name">{{ card.nickname|default:card.name|display_text }}</h2>
-                      <div class="broadcast-sub">{{ card.profile_label|default:card.position|default:"-"|display_position }}</div>
+                      <div class="broadcast-sub">{{ card.profile_label|default:card.position|default:"-"|display_position }}{% if card.sin_avatar %} <span class="sin-avatar-badge" title="Sin figura generada: en la pizarra sale como ficha de color. Entra en su ficha para ver por que.">sin avatar</span>{% endif %}</div>
                       <div class="broadcast-staff-rating" aria-label="Valoración media staff {{ card.staff_rating_display|default:'--/10' }}">
                         <div class="broadcast-staff-row">
                           <span>Staff</span>
@@ -1028,6 +1028,7 @@
                   <span class="pc-nm-wrap">
                     <img class="pc-av" src="{% if card.photo_url %}{{ card.photo_url }}{% else %}{% static 'football/images/player-avatar.svg' %}{% endif %}" alt="" loading="lazy" decoding="async" />
                     <a href="{% url 'player-detail' player_id=card.player_id %}{{ active_team_query|default:'' }}">{{ card.nickname|default:card.name|display_text }}</a>
+                    {% if card.sin_avatar %}<span class="sin-avatar-badge" title="Sin figura generada">sin avatar</span>{% endif %}
                     {% if card.has_active_injury or card.is_sanctioned or card.is_apercibido %}
                     <span class="status-icons pc-status">
                       {% if card.has_active_injury %}<span class="status-icon injury" title="Lesión activa">✚</span>{% endif %}
@@ -1063,6 +1064,9 @@
             .pc-nm-wrap { display:inline-flex; align-items:center; gap:0.4rem; max-width:100%; }
             .pc-table .pc-av { width:1.6rem; height:1.6rem; border-radius:50%; object-fit:cover; object-position:50% 12%; flex:none; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.14); }
             .pc-status { margin-left:0.1rem; }
+            /* Aviso discreto: informa sin competir con lesion o sancion, que son mas urgentes. */
+            .sin-avatar-badge { display:inline-flex; align-items:center; padding:0.06rem 0.36rem; border-radius:999px; font-size:0.6rem; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; color:#cbd5e1; background:rgba(148,163,184,0.16); border:1px solid rgba(148,163,184,0.3); white-space:nowrap; }
+
             .pc-table .pc-ov { display:inline-grid; place-items:center; min-width:2.3rem; padding:0.14rem 0.3rem; border-radius:0.5rem; font-weight:900; font-size:0.86rem; }
             .pc-table .pc-ov-good { color:#0a1f12; background:#34d399; }
             .pc-table .pc-ov-warn { color:#241a03; background:#fbbf24; }

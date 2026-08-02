@@ -41616,6 +41616,23 @@ def coach_roster_page(request):
             {"n": _fed_chips.get("total_activos", 0), "k": "Total activos"},
         ]
 
+    # Aviso de figura: quien no tiene avatar generado sale como ficha de color en la pizarra.
+    # UNA consulta con los ids, sin tocar el almacenamiento: preguntar por la foto son cuatro
+    # llamadas por jugador y en un listado de 25 serian cien. El motivo exacto vive en su ficha.
+    try:
+        _ids_cards = [int(_parse_int(row.get("player_id")) or 0) for row in (player_cards or [])]
+        _ids_cards = [i for i in _ids_cards if i]
+        _con_avatar = set(
+            Player.objects.filter(id__in=_ids_cards)
+            .exclude(avatar_generated="")
+            .exclude(avatar_generated__isnull=True)
+            .values_list("id", flat=True)
+        ) if _ids_cards else set()
+        for row in (player_cards or []):
+            row["sin_avatar"] = int(_parse_int(row.get("player_id")) or 0) not in _con_avatar
+    except Exception:
+        pass
+
     return render(
         request,
         "football/coach_roster.html",
