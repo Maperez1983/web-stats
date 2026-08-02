@@ -81,7 +81,7 @@
          translating the report to stable, compact A4 flex layouts. */
       @media print {
         .report-pdf .section-grid { display:block; }
-        .report-pdf .pro-section { display:block; margin:0 0 7mm; padding:4mm; overflow:visible; border:1px solid #D3DCD3; border-radius:12px; background:#fff; break-inside:auto; page-break-inside:auto; }
+        .report-pdf .pro-section { display:block; margin:0 0 4mm; padding:4mm; overflow:visible; border:1px solid #D3DCD3; border-radius:12px; background:#fff; break-inside:auto; page-break-inside:auto; }
         .report-pdf .pro-executive { break-after:page; page-break-after:always; }
         .report-pdf .pro-section:nth-of-type(2),
         .report-pdf .pro-section:nth-of-type(3),
@@ -100,7 +100,7 @@
 
         .report-pdf .pro-percentage-grid { display:flex; flex-wrap:nowrap; gap:5px; margin-top:8px; }
         .report-pdf .pro-percentage-card { display:block; width:16.1%; min-height:78px; padding:6px 3px; }
-        .report-pdf .pro-percentage-ring { width:42px; height:42px; margin:0 auto 4px; border-width:4px; }
+        .report-pdf .pro-percentage-ring { width:42px; height:42px; margin:0 auto 4px; border:4px solid #0F8A4B; background:#fff !important; }
         .report-pdf .pro-percentage-ring strong { font-size:11px; }
         .report-pdf .pro-percentage-card span { min-height:0; font-size:6px; line-height:1.2; }
         .report-pdf .pro-percentage-card small { margin-top:2px; font-size:6px; }
@@ -128,6 +128,8 @@
         .report-pdf .pro-comparison-bar + .pro-comparison-bar { margin-top:7px; }
         .report-pdf .pro-comparison-bar div,
         .report-pdf .pro-territory-legend { font-size:7px; }
+        .report-pdf .pro-territory-legend { display:flex; gap:6px; }
+        .report-pdf .pro-territory-legend div { display:flex; width:33.333%; gap:4px; }
         .report-pdf .pro-chart-note,
         .report-pdf .pro-note-list { font-size:7px; line-height:1.4; }
 
@@ -142,9 +144,8 @@
         .report-pdf .pro-substitutions article > * { flex:1; }
 
         .report-pdf .pro-player-list { display:block; margin-top:8px; }
-        .report-pdf .pro-player-list::after { display:block; clear:both; content:""; }
-        .report-pdf .pro-player-card { display:block; float:left; width:49%; min-height:82px; margin:0 1% 6px 0; padding:7px; break-inside:avoid; page-break-inside:avoid; }
-        .report-pdf .pro-player-card:nth-child(even) { margin-right:0; margin-left:1%; }
+        .report-pdf .pro-player-row { display:flex; gap:6px; margin-bottom:6px; break-inside:avoid; page-break-inside:avoid; }
+        .report-pdf .pro-player-card { display:block; width:50%; min-height:82px; margin:0; padding:7px; break-inside:avoid; page-break-inside:avoid; }
         .report-pdf .pro-player-identity { display:flex; gap:7px; }
         .report-pdf .pro-player-avatar { width:34px; height:34px; border-radius:10px; }
         .report-pdf .pro-player-identity strong { font-size:8px; }

@@ -130,6 +130,7 @@
   </div>
   <div class="pro-player-list">
     {% for p in pro.players %}
+    {% if forloop.counter0|divisibleby:"2" %}<div class="pro-player-row">{% endif %}
     <article class="pro-player-card">
       <div class="pro-player-identity">
         <span class="pro-player-avatar">{% if p.photo_url %}<img src="{{ p.photo_url }}" alt="{{ p.name }}" />{% else %}{{ p.initials }}{% endif %}{% if p.number %}<b>{{ p.number }}</b>{% endif %}</span>
@@ -139,6 +140,7 @@
       <div class="pro-player-kpis"><div><span>Acciones ganadas</span><strong>{{ p.success_rate|floatformat:0 }}%</strong></div><div><span>Minutos</span><strong>{{ p.minutes }}′</strong></div><div><span>Valoración</span><strong>{% if p.rating != None %}{{ p.rating|floatformat:1 }}{% else %}—{% endif %}</strong></div></div>
       <div class="pro-player-progress"><span style="width:{{ p.success_rate|unlocalize }}%;"></span></div>
     </article>
+    {% if forloop.counter|divisibleby:"2" or forloop.last %}</div>{% endif %}
     {% empty %}<div class="pro-lineup-empty"><strong>Sin participación registrada</strong><span>No hay acciones de jugador confirmadas para este partido.</span></div>{% endfor %}
   </div>
 </section>
