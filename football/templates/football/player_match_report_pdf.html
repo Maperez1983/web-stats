@@ -1,0 +1,69 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Informe · {{ player.name }} · {{ opponent_name }}</title>
+  <style>
+    @page { size:A4; margin:13mm; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:#18201c; font-family:"Avenir Next","Segoe UI",sans-serif; background:#eef1ed; }
+    .sheet { min-height:270mm; padding:12mm; background:#fff; border-top:8px solid #0f8a4b; }
+    .eyebrow { margin:0 0 4px; color:#376c4e; font-size:9px; font-weight:900; letter-spacing:1.5px; text-transform:uppercase; }
+    h1 { margin:0; font-size:28px; line-height:1; }
+    .meta { margin:7px 0 0; color:#69746e; font-size:11px; }
+    .score { display:flex; align-items:center; gap:14px; margin:15px 0; padding:12px 15px; border-radius:12px; background:#10291f; color:#fff; }
+    .score strong { font-size:24px; }
+    .score span { font-size:11px; color:#c7ddd1; }
+    .summary { display:grid; grid-template-columns:repeat(5,1fr); gap:7px; margin:12px 0 18px; }
+    .summary article { padding:9px; border:1px solid #d8dfda; border-radius:10px; background:#f4f6f3; }
+    .summary span { display:block; color:#6a756e; font-size:7px; font-weight:900; letter-spacing:.7px; text-transform:uppercase; }
+    .summary strong { display:block; margin-top:4px; font-size:16px; }
+    .verdict { padding:15px; border-left:5px solid #f4b400; background:#fbfaf3; }
+    .verdict h2 { margin:0 0 5px; font-size:19px; }
+    .verdict p { margin:0; color:#49554e; font-size:11px; line-height:1.5; }
+    .columns { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:15px; }
+    .panel { padding:13px; border:1px solid #dce2de; border-radius:12px; }
+    .panel h3 { margin:0 0 8px; color:#164f32; font-size:13px; text-transform:uppercase; letter-spacing:.6px; }
+    ul { margin:0; padding-left:17px; }
+    li { margin:0 0 7px; color:#39453e; font-size:10px; line-height:1.45; }
+    .moments { margin-top:14px; }
+    .moment { display:grid; grid-template-columns:38px 1fr; gap:7px; padding:7px 0; border-top:1px solid #e3e8e4; font-size:10px; }
+    .moment:first-of-type { border-top:0; }
+    .minute { color:#a87500; font-weight:900; }
+    footer { margin-top:18px; padding-top:8px; border-top:1px solid #dfe5e1; color:#748078; font-size:8px; }
+  </style>
+</head>
+<body>
+  <main class="sheet">
+    <p class="eyebrow">Segunda Jugada · Informe individual postpartido</p>
+    <h1>{{ player.name }}</h1>
+    <p class="meta">{{ team_name }} vs {{ opponent_name }} · {{ match.date }} · {{ match.location }}</p>
+
+    <div class="score"><strong>{{ score_label }}</strong><span>Partido cerrado · Informe consolidado por el cuerpo técnico</span></div>
+    <section class="summary">
+      {% for item in global_summary %}<article><span>{{ item.label }}</span><strong>{{ item.value }}</strong></article>{% endfor %}
+    </section>
+
+    <section class="verdict">
+      <h2>{{ performance_label }}</h2>
+      <p>{{ performance_text }}</p>
+    </section>
+
+    <div class="columns">
+      <section class="panel"><h3>Lo que aportaste</h3><ul>{% for item in strengths %}<li>{{ item }}</li>{% endfor %}</ul></section>
+      <section class="panel"><h3>Siguiente foco</h3><ul>{% for item in improvements %}<li>{{ item }}</li>{% endfor %}</ul></section>
+    </div>
+
+    {% if player_moments %}
+    <section class="panel moments">
+      <h3>Momentos que explican el partido</h3>
+      {% for item in player_moments %}
+      <div class="moment"><span class="minute">{% if item.minute %}{{ item.minute }}′{% else %}—{% endif %}</span><span><strong>{{ item.action }}</strong><br>{{ item.label }}{% if item.reason_label %} · {{ item.reason_label }}{% endif %}</span></div>
+      {% endfor %}
+    </section>
+    {% endif %}
+    <footer>Informe generado al cerrar el partido. El detalle estadístico y los porcentajes permanecen en los KPI del cuerpo técnico.</footer>
+  </main>
+</body>
+</html>

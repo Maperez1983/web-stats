@@ -986,6 +986,7 @@ def _player_home_zones(request, player, vis):
         PlayerCommunication,
         PlayerFine,
         PlayerNotification,
+        PlayerStatistic,
         TrainingSession,
         TrainingSessionAttendance,
         VideoInboxItem,
@@ -1006,6 +1007,7 @@ def _player_home_zones(request, player, vis):
         "fines": [],
         "fines_total": 0,
         "communications": [],
+        "match_reports": [],
         "agenda_weeks": [],
         "agenda_month_label": "",
         "agenda_previous_url": "",
@@ -1033,6 +1035,49 @@ def _player_home_zones(request, player, vis):
         )
     except Exception:
         logger.debug("No se pudieron cargar los avisos del jugador", exc_info=True)
+
+    report_url_by_match = {}
+    try:
+        rating_rows = list(
+            PlayerStatistic.objects.filter(
+                player=player,
+                match__isnull=False,
+                match__is_closed=True,
+                name="rating",
+                context="auto-rating",
+            )
+            .select_related("match__home_team", "match__away_team")
+            .order_by("-match__date", "-match_id")[:8]
+        )
+        for rating_row in rating_rows:
+            match_obj = rating_row.match
+            opponent = match_obj.away_team if match_obj.home_team_id == player.team_id else match_obj.home_team
+            opponent_name = str(
+                getattr(opponent, "display_name", "") or getattr(opponent, "name", "") or "Rival"
+            ).strip()
+            if match_obj.home_team_id == player.team_id:
+                score_for, score_against = match_obj.home_score, match_obj.away_score
+            else:
+                score_for, score_against = match_obj.away_score, match_obj.home_score
+            score_label = (
+                f"{int(score_for)} - {int(score_against)}"
+                if score_for is not None and score_against is not None
+                else "Partido cerrado"
+            )
+            report_url = reverse("player-match-stats", args=[player.id, match_obj.id])
+            report_url_by_match[int(match_obj.id)] = report_url
+            zones["match_reports"].append(
+                {
+                    "match_id": int(match_obj.id),
+                    "date": match_obj.date,
+                    "opponent": opponent_name,
+                    "score": score_label,
+                    "url": report_url,
+                    "pdf_url": reverse("player-match-report-pdf", args=[player.id, match_obj.id]),
+                }
+            )
+    except Exception:
+        logger.debug("No se pudieron cargar los informes de partido del jugador", exc_info=True)
 
     try:
         if getattr(player, "team_id", None):
@@ -1098,6 +1143,7 @@ def _player_home_zones(request, player, vis):
                     "kind": "match",
                     "time": match.kickoff_time.strftime("%H:%M") if match.kickoff_time else "",
                     "title": f"Partido · {opponent_name}",
+                    "url": report_url_by_match.get(int(match.id), ""),
                 }
             )
         zones["agenda_weeks"] = [

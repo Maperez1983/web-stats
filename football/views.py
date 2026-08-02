@@ -29039,6 +29039,17 @@ def _match_staff_report_context(request, *, match, primary_team):
         row["team_pct"] = round((int(row["team"] or 0) / row_max) * 100, 1)
         row["opponent_pct"] = round((int(row["opponent"] or 0) / row_max) * 100, 1)
 
+    # El encabezado de cualquier informe debe permitir entender el partido sin bajar
+    # hasta las tablas de detalle. Son recuentos absolutos, no porcentajes.
+    summary_cards.extend(
+        [
+            {"label": "A puerta", "value": totals["shots_target"]},
+            {"label": "Fuera", "value": max(0, totals["shots"] - totals["shots_target"])},
+            {"label": "Córners favor", "value": corners_for},
+            {"label": "Córners contra", "value": corners_against},
+        ]
+    )
+
     team_report = {
         "families": list(team_family_map.values()),
         "periods": [period_map[1], period_map[2]] + ([period_map[0]] if period_map[0]["actions"] else []),
@@ -30238,7 +30249,13 @@ def match_staff_report_pdf(request):
         slugify(f"informe-partido-{team_name}-{opponent_name}-{match.date or timezone.localdate()}")
         or f"informe-partido-{match.id}"
     )
-    return _build_pdf_response_or_html_fallback(request, pdf_html, filename, inline=True, force_pdf=True)
+    return _build_pdf_response_or_html_fallback(
+        request,
+        pdf_html,
+        filename,
+        inline=not bool(request.GET.get("download")),
+        force_pdf=True,
+    )
 
 
 @login_required
@@ -84757,6 +84774,133 @@ def _build_player_match_stats_payload(primary_team, player, match):
     return stats, match_payload
 
 
+def _player_match_report_context(request, *, primary_team, player, match):
+    """Presentación individual segura: narrativa para el jugador y cifras colectivas absolutas."""
+    staff_context = _match_staff_report_context(request, match=match, primary_team=primary_team)
+    report_row = next(
+        (
+            row
+            for row in staff_context.get("player_reports", [])
+            if int(row.get("player_id") or 0) == int(player.id)
+        ),
+        None,
+    ) or {}
+    rating_info = _compute_match_rating(primary_team, player, match, prefer_frozen=True) or {}
+    rating = report_row.get("rating")
+    if rating is None:
+        rating = rating_info.get("rating")
+    try:
+        rating_value = float(rating) if rating is not None else None
+    except (TypeError, ValueError):
+        rating_value = None
+
+    if rating_value is None:
+        performance_label = "Informe disponible"
+        performance_text = "El cuerpo técnico ya ha cerrado el partido y ha consolidado tu participación."
+    elif rating_value >= 7.0:
+        performance_label = "Actuación destacada"
+        performance_text = "Tu intervención tuvo una influencia positiva y clara en el desarrollo del partido."
+    elif rating_value >= 6.4:
+        performance_label = "Aportación sólida"
+        performance_text = "Cumpliste tu función y aportaste estabilidad al equipo durante tu participación."
+    elif rating_value >= 6.0:
+        performance_label = "Actuación correcta"
+        performance_text = "Hubo aportaciones útiles y también situaciones concretas que podemos seguir mejorando."
+    else:
+        performance_label = "Partido para aprender"
+        performance_text = "El encuentro deja situaciones importantes para revisar y convertir en aprendizaje."
+
+    strengths = []
+    if int(report_row.get("goals") or 0) or int(report_row.get("assists") or 0):
+        strengths.append("Tuviste influencia directa en una acción de gol del equipo.")
+    if int(report_row.get("saves") or 0):
+        strengths.append("Respondiste cuando el rival consiguió finalizar a portería.")
+    if int(report_row.get("recoveries") or 0) >= 3:
+        strengths.append("Ayudaste al equipo a recuperar la posesión y cortar ataques rivales.")
+    if int(report_row.get("dribbles_ok") or 0) and int(report_row.get("dribbles_ok") or 0) == int(
+        report_row.get("dribbles") or 0
+    ):
+        strengths.append("Fuiste eficaz cuando decidiste superar a un rival con balón.")
+    if int(report_row.get("passes_ok") or 0) >= 5 and int(report_row.get("passes_ok") or 0) >= int(
+        report_row.get("passes") or 0
+    ) - 1:
+        strengths.append("Diste continuidad al juego y ofreciste soluciones seguras con balón.")
+    if not strengths:
+        strengths.append("Tu participación queda registrada como referencia para el siguiente partido.")
+
+    improvements = []
+    negative_impacts = [
+        impact
+        for impact in report_row.get("impact_events", [])
+        if str(impact.get("polarity") or "") == "negative"
+    ]
+    for impact in negative_impacts[:2]:
+        reason = str(impact.get("reason_label") or impact.get("short_label") or "Acción decisiva").strip()
+        improvements.append(f"Revisar la situación de {reason.lower()} y la decisión previa.")
+    if int(report_row.get("unforced_errors") or 0):
+        improvements.append("Reducir los errores no forzados en acciones donde había una solución segura.")
+    if int(report_row.get("duels") or 0) and int(report_row.get("duels_won") or 0) * 2 < int(
+        report_row.get("duels") or 0
+    ):
+        improvements.append("Mejorar el perfil corporal y el momento de entrada en los duelos.")
+    if int(report_row.get("passes") or 0) >= 4 and int(report_row.get("passes_ok") or 0) * 2 < int(
+        report_row.get("passes") or 0
+    ):
+        improvements.append("Elegir una opción de pase más segura cuando el equipo está bajo presión.")
+    if not improvements:
+        improvements.append("Mantener esta línea y trasladarla al próximo entrenamiento.")
+
+    totals = (staff_context.get("postmatch_pro") or {}).get("totals") or {}
+    comparison = {
+        str(row.get("label") or ""): row for row in (staff_context.get("team_report") or {}).get("comparison", [])
+    }
+    corners = comparison.get("Córners") or {}
+    shots_total = int(totals.get("shots") or 0)
+    shots_target = int(totals.get("shots_target") or 0)
+    global_summary = [
+        {"label": "Resultado", "value": staff_context.get("score_label") or "—"},
+        {"label": "A puerta", "value": shots_target},
+        {"label": "Fuera", "value": max(0, shots_total - shots_target)},
+        {"label": "Córners favor", "value": int(corners.get("team") or 0)},
+        {"label": "Córners contra", "value": int(corners.get("opponent") or 0)},
+    ]
+    player_moments = [
+        {
+            "minute": item.get("minute"),
+            "action": item.get("action"),
+            "label": item.get("label") or item.get("short_label"),
+            "reason_label": item.get("reason_label"),
+            "polarity": item.get("polarity"),
+        }
+        for item in report_row.get("impact_events", [])
+    ]
+    return {
+        "player": player,
+        "match_obj": match,
+        "match": {
+            "match_id": int(match.id),
+            "opponent": staff_context.get("opponent_name") or "Rival",
+            "date": staff_context.get("match_date_label") or "",
+            "location": staff_context.get("location_label") or "",
+            "round": staff_context.get("round_label") or "",
+        },
+        "team_name": staff_context.get("team_name") or primary_team.display_name,
+        "opponent_name": staff_context.get("opponent_name") or "Rival",
+        "score_label": staff_context.get("score_label") or "—",
+        "crest_src": staff_context.get("crest_src") or "",
+        "brand_mark_src": staff_context.get("brand_mark_src") or "",
+        "rating": rating_value,
+        "minutes": int(report_row.get("minutes") or 0),
+        "performance_label": performance_label,
+        "performance_text": performance_text,
+        "strengths": strengths[:3],
+        "improvements": improvements[:3],
+        "global_summary": global_summary,
+        "player_moments": player_moments,
+        "generated_at": timezone.localtime(),
+    }
+
+
 @login_required
 def player_match_stats_page(request, player_id, match_id):
     forbidden = _forbid_if_workspace_module_disabled(request, "players", label="estadísticas de jugador")
@@ -84773,6 +84917,22 @@ def player_match_stats_page(request, player_id, match_id):
     match = _team_match_queryset(primary_team).filter(id=match_id).first()
     if not match:
         raise Http404("Partido no encontrado")
+    is_player_account = bool(
+        _get_user_role(request.user) == AppUserRole.ROLE_PLAYER and not _is_admin_user(request.user)
+    )
+    report_mode = is_player_account or str(request.GET.get("report") or "").strip() == "1"
+    if report_mode and not bool(getattr(match, "is_closed", False)):
+        return HttpResponse("El informe estará disponible cuando el cuerpo técnico cierre el partido.", status=409)
+    if report_mode:
+        context = _player_match_report_context(request, primary_team=primary_team, player=player, match=match)
+        context.update(
+            {
+                "is_player_report": True,
+                "is_player_account": is_player_account,
+                "pdf_url": reverse("player-match-report-pdf", args=[player.id, match.id]),
+            }
+        )
+        return render(request, "football/player_match_stats.html", context)
     stats, match_payload = _build_player_match_stats_payload(primary_team, player, match)
     return render(
         request,
@@ -84781,7 +84941,47 @@ def player_match_stats_page(request, player_id, match_id):
             "player": player,
             "stats": stats,
             "match": match_payload,
+            "is_player_report": False,
+            "is_player_account": False,
+            "player_report_url": (
+                reverse("player-match-stats", args=[player.id, match.id]) + "?report=1"
+                if bool(getattr(match, "is_closed", False))
+                else ""
+            ),
+            "player_report_pdf_url": (
+                reverse("player-match-report-pdf", args=[player.id, match.id])
+                if bool(getattr(match, "is_closed", False))
+                else ""
+            ),
         },
+    )
+
+
+@pdf_view_guard
+@login_required
+def player_match_report_pdf(request, player_id, match_id):
+    primary_team, player = _resolve_player_for_request_scope(request, int(player_id))
+    if not primary_team or not player:
+        raise Http404("Jugador no encontrado")
+    forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
+    if forbidden:
+        return forbidden
+    match = _team_match_queryset(primary_team).filter(id=match_id).first()
+    if not match:
+        raise Http404("Partido no encontrado")
+    if not bool(getattr(match, "is_closed", False)):
+        return HttpResponse("El informe se genera al cerrar el partido.", status=409)
+    context = _player_match_report_context(request, primary_team=primary_team, player=player, match=match)
+    pdf_html = render_to_string("football/player_match_report_pdf.html", context)
+    filename = slugify(
+        f"informe-{player.name}-{context['opponent_name']}-{match.date or timezone.localdate()}"
+    ) or f"informe-jugador-{player.id}-partido-{match.id}"
+    return _build_pdf_response_or_html_fallback(
+        request,
+        pdf_html,
+        filename,
+        inline=not bool(request.GET.get("download")),
+        force_pdf=True,
     )
 
 

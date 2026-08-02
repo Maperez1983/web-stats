@@ -195,23 +195,78 @@
         background: rgba(2, 6, 23, 0.75);
         border-color: rgba(250, 204, 21, 0.25);
       }
+      .report-hero { position:relative; overflow:hidden; padding:1.35rem; background:linear-gradient(135deg,#0b2d22 0%,#10251f 52%,#111827 100%); }
+      .report-hero::after { content:""; position:absolute; width:240px; height:240px; right:-90px; top:-130px; border-radius:50%; border:42px solid rgba(244,180,0,.12); }
+      .report-kicker { margin:0 0 .35rem; color:#9bd9b7; font-size:.7rem; font-weight:900; letter-spacing:.14em; text-transform:uppercase; }
+      .report-verdict { margin:.2rem 0; font-size:clamp(1.55rem,4vw,2.35rem); line-height:1; color:#fff; }
+      .report-copy { max-width:720px; margin:.65rem 0 0; color:#d7e5dd; line-height:1.55; }
+      .report-score-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:.55rem; margin-top:1rem; }
+      .report-score { border:1px solid rgba(255,255,255,.12); border-radius:14px; padding:.7rem; background:rgba(255,255,255,.05); }
+      .report-score span { display:block; color:#aebdb5; font-size:.62rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
+      .report-score strong { display:block; margin-top:.25rem; color:#fff; font-size:1.25rem; }
+      .report-columns { display:grid; grid-template-columns:1fr 1fr; gap:.8rem; }
+      .report-list { margin:0; padding:0; list-style:none; display:grid; gap:.6rem; }
+      .report-list li { position:relative; padding:.75rem .8rem .75rem 2rem; border-radius:13px; background:rgba(255,255,255,.035); line-height:1.45; }
+      .report-list li::before { content:""; position:absolute; left:.8rem; top:1.05rem; width:7px; height:7px; border-radius:50%; background:#2f9e5b; }
+      .report-list.focus li::before { background:#f4b400; }
+      .report-moment { display:flex; gap:.75rem; align-items:flex-start; padding:.75rem 0; border-top:1px solid rgba(148,163,184,.16); }
+      .report-moment:first-of-type { border-top:0; }
+      .report-minute { min-width:42px; color:#f4b400; font-weight:900; }
+      @media (max-width:760px) { .report-score-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .report-columns { grid-template-columns:1fr; } }
     </style>
   </head>
   <body class="prod-commercial">
     <div class="container">
       {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True hide_global_guard_widget=True %}
-      {% include 'football/includes/_zone_subnav.html' with zone='partido' %}
+      {% if not is_player_account %}{% include 'football/includes/_zone_subnav.html' with zone='partido' %}{% endif %}
       <header>
         <div>
           <p class="meta">Resumen individual del partido</p>
           <h1 style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>{{ player.name }} · {{ match.opponent }}</span></h1>
 	          <p class="meta">{{ match.date }} · {{ match.location }} · Jornada {{ match.round }} · ID {{ match.match_id }}</p>
         </div>
-        <a href="{% url 'player-detail' player.id %}">← Volver al jugador</a>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;justify-content:flex-end;">
+          {% if is_player_report %}<a href="{{ pdf_url }}?download=1">Descargar informe</a>{% endif %}
+          {% if is_player_account %}<a href="{% url 'player-home' %}">← Mi espacio</a>{% else %}<a href="{% url 'player-detail' player.id %}">← Volver al jugador</a>{% endif %}
+        </div>
       </header>
 
+      {% if is_player_report %}
+      <section class="card report-hero">
+        <p class="report-kicker">Informe individual · Partido cerrado</p>
+        <h2 class="report-verdict">{{ performance_label }}</h2>
+        <p class="report-copy">{{ performance_text }}</p>
+        <div class="report-score-grid" aria-label="Resumen global del partido">
+          {% for item in global_summary %}
+          <article class="report-score"><span>{{ item.label }}</span><strong>{{ item.value }}</strong></article>
+          {% endfor %}
+        </div>
+      </section>
+      <div class="report-columns">
+        <section class="card">
+          <h2 class="section-title">Lo que aportaste</h2>
+          <ul class="report-list">{% for item in strengths %}<li>{{ item }}</li>{% endfor %}</ul>
+        </section>
+        <section class="card">
+          <h2 class="section-title">Siguiente foco</h2>
+          <ul class="report-list focus">{% for item in improvements %}<li>{{ item }}</li>{% endfor %}</ul>
+        </section>
+      </div>
+      {% if player_moments %}
+      <section class="card">
+        <h2 class="section-title">Momentos que explican el partido</h2>
+        {% for item in player_moments %}
+        <article class="report-moment">
+          <span class="report-minute">{% if item.minute %}{{ item.minute }}′{% else %}—{% endif %}</span>
+          <div><strong>{{ item.action }}</strong><div class="meta">{{ item.label }}{% if item.reason_label %} · {{ item.reason_label }}{% endif %}</div></div>
+        </article>
+        {% endfor %}
+      </section>
+      {% endif %}
+      {% else %}
       <section class="card overview" data-kpi-container>
         <h2 class="overview-title">KPI de rendimiento</h2>
+        {% if player_report_url %}<p class="meta" style="margin:-.25rem 0 .8rem;"><a href="{{ player_report_url }}">Ver informe que recibe el jugador</a> · <a href="{{ player_report_pdf_url }}?download=1">Descargar PDF individual</a></p>{% endif %}
         <details class="kpi-customizer" data-kpi-pref-key="player_match_stats">
           <summary>Personalizar KPIs</summary>
           <div class="kpi-customizer-body"></div>
@@ -272,8 +327,9 @@
           </div>
         </div>
       </section>
+      {% endif %}
     </div>
-    <script src="{% static 'football/js/kpi_customizer.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
+    {% if not is_player_report %}<script src="{% static 'football/js/kpi_customizer.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>{% endif %}
     {% if request.user.is_authenticated %}
       {% include 'football/includes/global_guard_widget.html' %}
     {% endif %}

@@ -81,6 +81,10 @@
         </div>
         <div style="display:flex;gap:0.6rem;flex-wrap:wrap;justify-content:flex-end;">
           <a class="btn" href="{% url 'match-stats' match_id=match.id %}?team={{ primary_team_id }}">Ver stats</a>
+          {% if match.is_closed %}
+          <a class="btn" href="{% url 'match-staff-report' %}?match_id={{ match.id }}&team={{ primary_team_id }}">Ver informe global</a>
+          <a class="btn primary" href="{% url 'match-staff-report-pdf' %}?match_id={{ match.id }}&team={{ primary_team_id }}&download=1">Descargar informe global</a>
+          {% endif %}
           <a class="btn" href="{% url 'match-action-page' %}?match_id={{ match.id }}&stage=close&team={{ primary_team_id }}">Registro acciones</a>
         </div>
       </header>
@@ -167,7 +171,7 @@
         </div>
         <div style="overflow:auto;">
           <table>
-            <thead><tr><th style="min-width:200px;">Jugador</th><th>Pos</th><th>G</th><th>A</th><th>Nota</th></tr></thead>
+            <thead><tr><th style="min-width:200px;">Jugador</th><th>Pos</th><th>G</th><th>A</th><th>Nota</th><th>Informe</th></tr></thead>
             <tbody>
               {% for r in match_ratings %}
               <tr {% if r.mvp %}style="background:rgba(244,180,0,0.08);"{% endif %}>
@@ -176,6 +180,7 @@
                 <td>{% if r.goals %}{{ r.goals }}{% else %}—{% endif %}</td>
                 <td>{% if r.assists %}{{ r.assists }}{% else %}—{% endif %}</td>
                 <td><strong style="font-size:1.05rem;color:{% if r.tone == 'good' %}var(--prod-success){% elif r.tone == 'mid' %}#e2a53a{% else %}var(--prod-danger){% endif %};">{{ r.rating|floatformat:1 }}</strong> <small style="color:var(--prod-muted);">{{ r.method_label }}</small></td>
+                <td>{% if match.is_closed %}<a href="{% url 'player-match-stats' r.player_id match.id %}?report=1" style="color:#7dd3fc;font-weight:800;text-decoration:none;">Ver</a> · <a href="{% url 'player-match-report-pdf' r.player_id match.id %}?download=1" style="color:#f4b400;font-weight:800;text-decoration:none;">PDF</a>{% else %}<small>Pendiente de cierre</small>{% endif %}</td>
               </tr>
               {% endfor %}
             </tbody>

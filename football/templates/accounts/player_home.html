@@ -86,7 +86,14 @@
       .portal-calendar-date { display:block;text-align:right;color:var(--prod-muted);font-size:.68rem;font-weight:800; }
       .portal-calendar-event { display:block;margin-top:.28rem;padding:.3rem .34rem;border-radius:6px;background:rgba(56,189,248,.14);border-left:3px solid #38bdf8;font-size:.64rem;line-height:1.25; }
       .portal-calendar-event.match { background:rgba(245,158,11,.15);border-left-color:#f59e0b; }
+      a.portal-calendar-event { color:inherit;text-decoration:none; }
+      a.portal-calendar-event:hover { box-shadow:inset 0 0 0 1px rgba(255,255,255,.26); }
       .portal-calendar-event strong { display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+      .match-report-list { display:grid;gap:.6rem;margin-top:1rem; }
+      .match-report-card { display:flex;align-items:center;justify-content:space-between;gap:.8rem;padding:.8rem;border:1px solid rgba(255,255,255,.11);border-radius:12px;background:rgba(255,255,255,.035); }
+      .match-report-card .result { color:#fbbf24;font-size:.76rem;font-weight:900;letter-spacing:.05em;text-transform:uppercase; }
+      .match-report-actions { display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end; }
+      @media (max-width:640px) { .match-report-card { align-items:flex-start;flex-direction:column; } .match-report-actions { justify-content:flex-start; } }
     </style>
   </head>
   <body class="prod-commercial">
@@ -208,7 +215,11 @@
                     <div class="portal-calendar-day{% if not day.in_month %} outside{% endif %}{% if day.is_today %} today{% endif %}">
                       <span class="portal-calendar-date">{{ day.day }}</span>
                       {% for item in day.items %}
-                        <span class="portal-calendar-event{% if item.kind == 'match' %} match{% endif %}"><strong>{% if item.time %}{{ item.time }} · {% endif %}{{ item.title }}</strong></span>
+                        {% if item.url %}
+                          <a class="portal-calendar-event{% if item.kind == 'match' %} match{% endif %}" href="{{ item.url }}" aria-label="Abrir informe de {{ item.title }}"><strong>{% if item.time %}{{ item.time }} · {% endif %}{{ item.title }}</strong></a>
+                        {% else %}
+                          <span class="portal-calendar-event{% if item.kind == 'match' %} match{% endif %}"><strong>{% if item.time %}{{ item.time }} · {% endif %}{{ item.title }}</strong></span>
+                        {% endif %}
                       {% endfor %}
                     </div>
                   {% endfor %}
@@ -239,6 +250,24 @@
           <p class="empty" style="margin-top:0.7rem;font-size:0.74rem;">
             Se actualiza con la asistencia y la participación por tarea que registra tu entrenador.
           </p>
+          {% if match_reports %}
+            <div class="match-report-list" aria-label="Informes de partido">
+              <h3 style="margin:0;">Mis informes de partido</h3>
+              {% for report in match_reports %}
+                <article class="match-report-card">
+                  <div>
+                    <strong>{{ report.opponent }}</strong>
+                    <div class="result">{{ report.score }}</div>
+                    <div class="when">{{ report.date|date:"d/m/Y" }}</div>
+                  </div>
+                  <div class="match-report-actions">
+                    <a class="btn alt" href="{{ report.url }}">Ver informe</a>
+                    <a class="btn alt" href="{{ report.pdf_url }}?download=1">Descargar PDF</a>
+                  </div>
+                </article>
+              {% endfor %}
+            </div>
+          {% endif %}
         </section>
         {% endif %}
 

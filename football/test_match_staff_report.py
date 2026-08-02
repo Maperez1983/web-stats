@@ -102,6 +102,11 @@ class MatchStaffReportTests(TestCase):
         self.assertEqual(player["impact_delta"], 0.15)
         self.assertEqual(context["decisive_moments"][0]["reason_label"], "Acción decisiva")
         self.assertEqual(next(card["value"] for card in context["summary_cards"] if card["label"] == "Goles"), 0)
+        summary = {card["label"]: card["value"] for card in context["summary_cards"]}
+        self.assertEqual(summary["A puerta"], 1)
+        self.assertEqual(summary["Fuera"], 0)
+        self.assertEqual(summary["Córners favor"], 4)
+        self.assertEqual(summary["Córners contra"], 7)
 
         context["pdf_url"] = "/coach/informes/partido/pdf/?match_id=1"
         html = render_to_string("football/match_staff_report.html", context, request=request)
@@ -115,6 +120,37 @@ class MatchStaffReportTests(TestCase):
         self.assertIn("Jugador Uno", pdf_html)
         self.assertIn(identity_label, pdf_html)
         self.assertIn("#0F8A4B", pdf_html)
+
+    @patch("football.views.resolve_team_crest_url", return_value="")
+    def test_player_report_is_narrative_and_keeps_percentage_kpis_out(self, _crest):
+        self.match.home_score = 2
+        self.match.away_score = 2
+        self.match.is_closed = True
+        self.match.save(update_fields=["home_score", "away_score", "is_closed"])
+        self._event("PASE", "GANADO", minute=18, period=1, zone="Medio centro", tercio="Construcción")
+        self._event("ROBO", "GANADO", minute=31, period=1, zone="Medio centro", tercio="Construcción")
+
+        request = RequestFactory().get("/player/informe/")
+        request.user = AnonymousUser()
+        context = views._player_match_report_context(
+            request,
+            primary_team=self.team,
+            player=self.player,
+            match=self.match,
+        )
+        context.update({"is_player_report": True, "is_player_account": True, "pdf_url": "/informe.pdf"})
+        html = render_to_string("football/player_match_stats.html", context, request=request)
+        pdf_html = render_to_string("football/player_match_report_pdf.html", context)
+
+        self.assertEqual(
+            {item["label"]: item["value"] for item in context["global_summary"]},
+            {"Resultado": "2 - 2", "A puerta": 0, "Fuera": 0, "Córners favor": 0, "Córners contra": 0},
+        )
+        self.assertIn("Lo que aportaste", html)
+        self.assertIn("Siguiente foco", html)
+        self.assertNotIn("Precisión de pase", html)
+        self.assertNotIn("Porcentaje", html)
+        self.assertNotIn("Precisión de pase", pdf_html)
 
     @patch("football.views.resolve_team_crest_url", return_value="")
     def test_error_that_cost_a_goal_is_not_counted_as_a_goal_scored(self, _crest):

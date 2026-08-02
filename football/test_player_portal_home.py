@@ -18,10 +18,14 @@ from django.utils import timezone
 from football import player_portal_policy as policy
 from football.models import (
     AppUserRole,
+    Competition,
+    Match,
     Player,
     PlayerFine,
     PlayerObjective,
     PlayerPortalPolicy,
+    PlayerStatistic,
+    Season,
     Team,
     UserInvitation,
     Workspace,
@@ -134,6 +138,43 @@ class PlayerHomeTests(TestCase):
         self.assertEqual(response.context["training_marker"]["sessions_total"], 0)
         self.assertEqual(response.context["training_marker"]["sessions_attended"], 0)
         self.assertNotContains(response, reverse("player-attendance-mark"))
+
+    def test_closed_match_generates_player_report_entry_and_calendar_link(self):
+        competition = Competition.objects.create(name="Liga portal", slug="liga-portal", region="Malaga")
+        season = Season.objects.create(competition=competition, name="2026/27 portal")
+        rival = Team.objects.create(name="Rival portal", slug="rival-portal")
+        match = Match.objects.create(
+            season=season,
+            home_team=self.team,
+            away_team=rival,
+            date=timezone.localdate(),
+            home_score=2,
+            away_score=2,
+            is_closed=True,
+            stats_source=Match.STATS_SOURCE_MANUAL,
+        )
+        PlayerStatistic.objects.create(
+            player=self.player,
+            season=season,
+            match=match,
+            name="rating",
+            value=6.3,
+            context="auto-rating",
+        )
+
+        response = self._home()
+        report_url = reverse("player-match-stats", args=[self.player.id, match.id])
+
+        self.assertContains(response, "Mis informes de partido")
+        self.assertContains(response, "Rival portal")
+        self.assertContains(response, "2 - 2")
+        self.assertContains(response, report_url)
+        self.assertContains(response, reverse("player-match-report-pdf", args=[self.player.id, match.id]))
+
+        report_response = self.client.get(report_url, HTTP_HOST="localhost")
+        self.assertEqual(report_response.status_code, 200)
+        self.assertContains(report_response, "Lo que aportaste")
+        self.assertNotContains(report_response, "Precisión de pase")
 
 
 class FichaIsClosedToThePlayerTests(TestCase):
