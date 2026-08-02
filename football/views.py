@@ -28302,6 +28302,14 @@ def _match_staff_report_context(request, *, match, primary_team):
         .order_by("minute", "id"),
         preferred_sources=preferred_sources,
     ))
+    team_context_events = list(
+        _filter_stats_events(
+            confirmed_events_queryset()
+            .filter(match=match, player__isnull=True)
+            .order_by("minute", "id"),
+            preferred_sources=preferred_sources,
+        )
+    )
     if home_score is None or away_score is None:
         goals_for = sum(
             1
@@ -28890,11 +28898,40 @@ def _match_staff_report_context(request, *, match, primary_team):
         player_reports.append(detail)
     player_reports.sort(key=lambda row: (-int(row.get("minutes") or 0), -int(row.get("actions") or 0), row["name"]))
 
+    corners_for = 0
+    corners_against = 0
+    opponent_shots = 0
+    opponent_shots_target = 0
+    for event in team_context_events:
+        raw_data = event.raw_data if isinstance(event.raw_data, dict) else {}
+        perspective = str(raw_data.get("perspective") or "").strip().lower()
+        event_label = normalize_label(event.event_type)
+        if "corner" in event_label:
+            if perspective == "for":
+                corners_for += 1
+            elif perspective == "against":
+                corners_against += 1
+        if perspective == "against" and ("disparo" in event_label or "remate" in event_label):
+            opponent_shots += 1
+            if is_shot_on_target_event(event.event_type, event.result, event.observation):
+                opponent_shots_target += 1
+
+    comparison_rows = [
+        {"label": "Finalizaciones", "team": totals["shots"], "opponent": opponent_shots},
+        {"label": "A puerta", "team": totals["shots_target"], "opponent": opponent_shots_target},
+        {"label": "Córners", "team": corners_for, "opponent": corners_against},
+    ]
+    for row in comparison_rows:
+        row_max = max(int(row["team"] or 0), int(row["opponent"] or 0), 1)
+        row["team_pct"] = round((int(row["team"] or 0) / row_max) * 100, 1)
+        row["opponent_pct"] = round((int(row["opponent"] or 0) / row_max) * 100, 1)
+
     team_report = {
         "families": list(team_family_map.values()),
         "periods": [period_map[1], period_map[2]] + ([period_map[0]] if period_map[0]["actions"] else []),
         "zones": list(zone_map.values()),
         "known_zone_actions": known_zones,
+        "comparison": comparison_rows,
     }
 
     return {

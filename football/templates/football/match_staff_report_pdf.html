@@ -59,6 +59,10 @@
       .mini-stat .k{font-size:7px;color:#64748b;text-transform:uppercase;font-weight:900;letter-spacing:.06em;}
       .mini-stat .v{font-size:11px;color:#0f172a;font-weight:1000;margin-top:1px;}
       .detail-line{margin-top:6px;font-size:8px;line-height:1.45;color:#475569;font-weight:700;}
+      .comparison{margin-top:10px;padding-top:8px;border-top:1px solid #e2e8f0;display:grid;gap:6px;}
+      .compare-row{display:grid;grid-template-columns:.8fr 1fr 1fr;gap:8px;align-items:center;}
+      .compare-side{display:grid;grid-template-columns:18px 1fr;gap:5px;align-items:center;}
+      .compare-side .fill.opponent{background:linear-gradient(90deg,#64748b,#94a3b8);}
       .foot{margin-top:12px; border-top:1px solid #e2e8f0; padding-top:10px; display:flex; justify-content:space-between; align-items:center;}
       .foot .muted{color:#64748b; font-size:11px;}
     </style>
@@ -172,6 +176,16 @@
             </div>
             {% endfor %}
           </div>
+        </div>
+        <div class="comparison">
+          <div class="compare-row" style="color:#64748b;font-size:8px;text-transform:uppercase;font-weight:900;"><span>Comparativa</span><span>{{ team_name }}</span><span>{{ opponent_name }}</span></div>
+          {% for row in team_report.comparison %}
+          <div class="compare-row">
+            <strong style="font-size:9px;">{{ row.label }}</strong>
+            <div class="compare-side"><strong>{{ row.team }}</strong><div class="track"><div class="fill" style="width:{{ row.team_pct }}%;"></div></div></div>
+            <div class="compare-side"><strong>{{ row.opponent }}</strong><div class="track"><div class="fill opponent" style="width:{{ row.opponent_pct }}%;"></div></div></div>
+          </div>
+          {% endfor %}
         </div>
       </div>
       {% endif %}

@@ -46,12 +46,31 @@ class MatchStaffReportTests(TestCase):
             system="touch-field-final",
         )
 
+    def _team_event(self, event_type, result, perspective):
+        return MatchEvent.objects.create(
+            match=self.match,
+            player=None,
+            event_type=event_type,
+            result=result,
+            source_file="manual-recovery",
+            system="touch-field-final",
+            raw_data={"perspective": perspective},
+        )
+
     @patch("football.views.resolve_team_crest_url", return_value="")
     def test_context_builds_team_and_player_match_reports(self, _crest):
         self._event("PASE EN LARGO", "GANADO", minute=12, period=1, zone="Medio centro", tercio="Construcción")
         self._event("DUELO AEREO", "GANADO", minute=52, period=2, zone="Area", tercio="Ataque")
         self._event("DISPARO", "AP", minute=60, period=2, zone="Frontal", tercio="Ataque")
         self._event("GOL ENCAJADO", "EN CONTRA", minute=70, period=2, zone="Portería", tercio="Defensa")
+        for _index in range(4):
+            self._team_event("CORNER", "NEUTRAL", "for")
+        for _index in range(7):
+            self._team_event("CORNER", "NEUTRAL", "against")
+        for _index in range(2):
+            self._team_event("DISPARO RIVAL", "AP", "against")
+        for _index in range(5):
+            self._team_event("DISPARO RIVAL", "FALLADO", "against")
 
         request = RequestFactory().get("/coach/informes/partido/")
         request.user = AnonymousUser()
@@ -63,6 +82,10 @@ class MatchStaffReportTests(TestCase):
         self.assertEqual(family["shots"]["successes"], 1)
         self.assertEqual([row["actions"] for row in context["team_report"]["periods"]], [1, 3])
         self.assertEqual(context["team_report"]["known_zone_actions"], 4)
+        comparison = {row["label"]: row for row in context["team_report"]["comparison"]}
+        self.assertEqual((comparison["Finalizaciones"]["team"], comparison["Finalizaciones"]["opponent"]), (1, 7))
+        self.assertEqual((comparison["A puerta"]["team"], comparison["A puerta"]["opponent"]), (1, 2))
+        self.assertEqual((comparison["Córners"]["team"], comparison["Córners"]["opponent"]), (4, 7))
 
         player = context["player_reports"][0]
         self.assertEqual(player["minutes"], 75)
