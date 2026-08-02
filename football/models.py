@@ -309,6 +309,21 @@ def resolve_or_create_team(*, name, external_id='', preferente_url='', group=Non
         values.setdefault('preferente_url', preferente_url)
     if group is not None:
         values.setdefault('group', group)
+        # Club por un lado, categoría como sub-id del club: si la competición dice la
+        # categoría, el equipo nace ya con ella. Los importados entraban sin categoría y
+        # luego no se distinguía el cadete del Alhaurín de su senior.
+        if not str(values.get('category') or '').strip():
+            try:
+                from football.team_category_services import deducir_categoria
+
+                categoria = deducir_categoria(
+                    getattr(group, 'name', ''),
+                    getattr(getattr(getattr(group, 'season', None), 'competition', None), 'name', ''),
+                )
+                if categoria:
+                    values['category'] = categoria
+            except Exception:
+                pass  # sin categoría deducible: se queda vacía y la rellena la pasada manual
     team = Team.objects.create(name=str(name or '').strip()[:150], slug=_unique_team_slug(name), **values)
     return team, True
 

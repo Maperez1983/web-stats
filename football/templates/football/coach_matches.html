@@ -121,6 +121,8 @@
           </form>
           <button type="button" class="btn" id="btnSyncVenues"
                   title="Trae de Universo el campo de juego, la dirección y el enlace de mapa de los equipos de tu grupo.">🏟️ Traer campos de juego</button>
+          <button type="button" class="btn" id="btnFillCategories"
+                  title="Pone a cada equipo su categoría (cadete, juvenil, senior…) a partir de su competición.">🏷️ Poner categorías</button>
           {% endif %}
           {% if calendar_ics_url %}
           <button type="button" class="btn" id="btnSubscribeIcs" data-ics="{{ calendar_ics_url }}" title="Suscribir este calendario en Apple/Google Calendar">📅 Suscribir calendario</button>
@@ -395,6 +397,46 @@
           } finally {
             boton.disabled = false;
             boton.textContent = textoOriginal;
+          }
+        });
+      })();
+    </script>
+    <script>
+      (() => {
+        const boton = document.getElementById('btnFillCategories');
+        if (!boton) return;
+        boton.addEventListener('click', async () => {
+          const csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+          boton.disabled = true;
+          const antes = boton.textContent;
+          boton.textContent = 'Poniendo categorías…';
+          try {
+            const cuerpo = new URLSearchParams({ overwrite: '0' });
+            if (csrf) cuerpo.set('csrfmiddlewaretoken', csrf.value);
+            const respuesta = await fetch('{% url 'coach-teams-fill-categories' %}', {
+              method: 'POST', body: cuerpo, credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            });
+            const datos = await respuesta.json().catch(() => ({}));
+            if (!respuesta.ok || !datos.ok) {
+              window.alert(datos.error || 'No se pudieron poner las categorías.');
+              return;
+            }
+            const r = datos.resumen || {};
+            const lineas = [
+              `Equipos mirados: ${datos.equipos}`,
+              `Con categoría nueva: ${(r.actualizados || []).length}`,
+              `Ya la tenían: ${(r.ya_tenian || []).length}`,
+              `Sin pistas en su competición: ${(r.sin_pistas || []).length}`,
+            ];
+            if ((r.actualizados || []).length) lineas.push('', ...r.actualizados.slice(0, 30));
+            if ((r.sin_pistas || []).length) lineas.push('', 'Sin pistas:', (r.sin_pistas || []).slice(0, 15).join(', '));
+            window.alert(lineas.join('\n'));
+          } catch (error) {
+            window.alert('No se pudieron poner las categorías.');
+          } finally {
+            boton.disabled = false;
+            boton.textContent = antes;
           }
         });
       })();

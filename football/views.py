@@ -43582,6 +43582,35 @@ def coach_tournaments_page(request):
 @login_required
 @login_required
 @require_POST
+def coach_teams_fill_categories(request):
+    """
+    Rellena la categoría de los equipos a partir de su competición.
+
+    Club por un lado y categoría como sub-id: los equipos importados entraban sin ella (52
+    de 77 en producción) y así no se distingue el cadete de un club de su senior.
+    """
+    if not _can_edit_match_actions(request.user):
+        return HttpResponse("Solo el cuerpo técnico puede tocar los equipos.", status=403)
+    workspace = _get_active_workspace(request)
+    if not (_can_access_platform(request.user) or (workspace and _can_manage_workspace(request.user, workspace))):
+        return HttpResponse("Solo el administrador del club puede hacerlo.", status=403)
+
+    from football.team_category_services import rellenar_categorias
+
+    sobrescribir = str(request.POST.get("overwrite") or "").strip().lower() in {"1", "true", "on", "yes"}
+    equipos = list(
+        Team.objects.select_related("group", "group__season", "group__season__competition").order_by("name")
+    )
+    try:
+        resumen = rellenar_categorias(equipos, sobrescribir=sobrescribir)
+    except Exception:
+        logger.exception("No se pudieron rellenar las categorías de los equipos")
+        return JsonResponse({"ok": False, "error": "No se pudieron rellenar las categorías."}, status=500)
+    return JsonResponse({"ok": True, "equipos": len(equipos), "resumen": resumen})
+
+
+@login_required
+@require_POST
 def coach_matches_sync_venues(request):
     """
     Trae de Universo el terreno de juego de los equipos del grupo activo.
