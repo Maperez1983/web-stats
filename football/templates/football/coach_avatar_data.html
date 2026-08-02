@@ -1,0 +1,94 @@
+{% extends 'football/base.html' %}
+{% block content %}
+<div class="page">
+  {% include 'football/includes/dragon_nav.html' %}
+  {% include 'football/includes/_zone_subnav.html' with zone='equipo' %}
+
+  <header style="margin-bottom:1rem;">
+    <p class="meta" style="margin:0;">Plantilla · {{ team_name }}</p>
+    <h1 style="margin:.2rem 0 .35rem;">Datos del avatar</h1>
+    <p class="meta" style="margin:0;">
+      El avatar de un jugador sale de cinco datos suyos. Aquí están <strong>sólo los que les falta alguno</strong>:
+      rellena lo que sepas y guarda una vez. Lo que dejes en blanco se queda como está.
+    </p>
+  </header>
+
+  {% if guardados %}
+  <div class="alert" style="margin-bottom:1rem;">Guardado. {{ guardados }} jugador{{ guardados|pluralize:"es" }} actualizado{{ guardados|pluralize:"s" }}.</div>
+  {% endif %}
+
+  <div class="panel" style="margin-bottom:1rem; display:flex; gap:1.4rem; flex-wrap:wrap; align-items:center;">
+    <div><strong style="font-size:1.5rem;">{{ filas|length }}</strong> <span class="meta">por completar</span></div>
+    <div><strong style="font-size:1.5rem;">{{ completos }}</strong> <span class="meta">completos</span></div>
+    <div class="meta">de {{ total }} jugadores activos</div>
+  </div>
+
+  {% if not filas %}
+    <div class="panel"><p style="margin:0;">Todos tienen sus datos. No hay nada que completar en este equipo.</p></div>
+  {% else %}
+  <form method="post">
+    {% csrf_token %}
+    <div class="panel" style="overflow-x:auto;">
+      <table style="width:100%; border-collapse:collapse; font-size:.88rem;">
+        <thead>
+          <tr>
+            <th style="text-align:left;">Jugador</th>
+            <th>Edad</th>
+            <th>Foto</th>
+            <th>Complexión</th>
+            <th>Altura</th>
+            <th>Peinado</th>
+            <th>Color de pelo</th>
+            <th>Piel</th>
+            <th style="text-align:left;">Le falta</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in filas %}
+          <tr style="border-top:1px solid rgba(148,163,184,.18);">
+            <td style="padding:.45rem .4rem;">
+              <input type="hidden" name="player_id" value="{{ f.p.id }}" />
+              <a href="{% url 'player-detail' player_id=f.p.id %}">{{ f.p.number|default:"—" }} · {{ f.p.nickname|default:f.p.name }}</a>
+            </td>
+            <td style="text-align:center;">{% if f.edad %}{{ f.edad }}{% else %}<span class="meta">—</span>{% endif %}</td>
+            <td style="text-align:center;">{% if f.tiene_foto %}✓{% else %}<span class="meta" title="Sin foto no se puede poner su cara">—</span>{% endif %}</td>
+            <td>
+              <select name="build_{{ f.p.id }}">
+                <option value="">—</option>
+                {% for v, etq in build_choices %}<option value="{{ v }}" {% if f.p.build == v %}selected{% endif %}>{{ etq }}</option>{% endfor %}
+              </select>
+            </td>
+            <td><input type="number" name="height_cm_{{ f.p.id }}" value="{{ f.p.height_cm|default_if_none:'' }}" min="90" max="230" style="width:5.5rem;" placeholder="cm" /></td>
+            <td>
+              <select name="hairstyle_{{ f.p.id }}">
+                <option value="">—</option>
+                {% for v, etq in hairstyle_choices %}<option value="{{ v }}" {% if f.p.hairstyle == v %}selected{% endif %}>{{ etq }}</option>{% endfor %}
+              </select>
+            </td>
+            <td>
+              <select name="hair_color_{{ f.p.id }}">
+                <option value="">—</option>
+                {% for hex, etq in colores_pelo %}<option value="{{ hex }}" {% if f.p.hair_color == hex %}selected{% endif %}>{{ etq }}</option>{% endfor %}
+              </select>
+            </td>
+            <td>
+              <select name="skin_grade_{{ f.p.id }}">
+                <option value="">—</option>
+                {% for g in "123456" %}<option value="{{ g }}" {% if f.p.skin_grade|stringformat:"s" == g %}selected{% endif %}>{{ g }}</option>{% endfor %}
+              </select>
+            </td>
+            <td class="meta" style="white-space:nowrap;">{{ f.faltan|join:", " }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div style="display:flex; gap:.6rem; align-items:center; margin-top:1rem;">
+      <button class="button primary" type="submit">Guardar</button>
+      <span class="meta">La foto y la fecha de nacimiento se suben desde la ficha del jugador.</span>
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

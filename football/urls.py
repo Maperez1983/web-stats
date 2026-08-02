@@ -5,6 +5,7 @@ from . import pwa as pwa_views
 from . import (
     season_diagnostics,
     task_token_image,
+    avatar_data_views,
     season_wizard_views,
     session_pdf,
     tactical_views,
@@ -601,6 +602,8 @@ urlpatterns = [
     path("coach/rivales/<int:rival_id>/", views.analysis_rival_profile_page, name="coach-rival-profile"),
     path("coach/plantilla/", views.coach_roster_page, name="coach-roster"),
     path("coach/plantilla/avatares/subir/", views.coach_upload_avatars, name="coach-upload-avatars"),
+    # Completar de una vez los datos que necesita el avatar (ver football/avatar_data_views.py).
+    path("coach/plantilla/avatares/datos/", avatar_data_views.coach_avatar_data_page, name="coach-avatar-data"),
     path("coach/plantilla/avatares/caracteristicas.xlsx", views.coach_avatar_characteristics_xlsx, name="coach-avatar-characteristics"),
     path("coach/plantilla/avatares/fotos.zip", views.coach_download_player_photos_zip, name="coach-download-photos-zip"),
     path("coach/plantilla/pdf/", views.coach_roster_pdf, name="coach-roster-pdf"),

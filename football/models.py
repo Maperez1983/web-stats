@@ -1182,6 +1182,14 @@ class Player(models.Model):
     skin_grade = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Grado de piel 1 (muy clara) a 6 (muy oscura) para el avatar.')
     hair_color = models.CharField(max_length=16, blank=True, help_text='Color de pelo del avatar en hex (ej. #4a2d1a).')
     HAIRSTYLE_CHOICES = [('corto', 'Corto'), ('medio', 'Medio'), ('rizado', 'Rizado'), ('largo', 'Largo'), ('rapado', 'Rapado')]
+    # Complexion: elige QUE cuerpo se usa como figura del avatar. Sin este dato el generador tenia
+    # una sola figura para todos (o habria que repartirlas al azar, que es peor: el mismo jugador
+    # cambiaria de cuerpo segun el dia). Las figuras ya existen -bodytypes_hd para adultos y las
+    # nuevas de nino-; lo que faltaba era el campo para elegirlas.
+    BUILD_CHOICES = [('delgado', 'Delgado'), ('normal', 'Normal'), ('fuerte', 'Fuerte'), ('espigado', 'Espigado')]
+    build = models.CharField(
+        max_length=16, blank=True, choices=BUILD_CHOICES,
+        help_text='Complexion del jugador: decide la figura del avatar.')
     hairstyle = models.CharField(max_length=16, blank=True, choices=HAIRSTYLE_CHOICES, help_text='Forma del peinado del avatar (corto/medio/rizado).')
     # Avatar final generado OFFLINE (face-swap con la foto + peinado + color + altura). Se cachea como
     # imagen y avatar_source_key guarda el hash de las entradas para regenerar solo si cambian.
