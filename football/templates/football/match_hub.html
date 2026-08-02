@@ -198,6 +198,47 @@
         text-transform: uppercase;
         color: var(--prod-muted);
       }
+      .pending-close-list {
+        display: grid;
+        gap: 0.55rem;
+        margin-top: 0.15rem;
+      }
+      .pending-close-item {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.7rem;
+        align-items: center;
+        padding: 0.7rem;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(3, 10, 20, 0.58);
+      }
+      .pending-close-item.is-selected {
+        border-color: rgba(70, 211, 255, 0.42);
+        background: linear-gradient(135deg, rgba(70, 211, 255, 0.11), rgba(7, 16, 30, 0.82));
+      }
+      .pending-close-copy {
+        min-width: 0;
+      }
+      .pending-close-copy strong {
+        display: block;
+        color: var(--prod-button-text);
+        line-height: 1.25;
+      }
+      .pending-close-copy span {
+        display: block;
+        margin-top: 0.2rem;
+        color: var(--prod-muted);
+        font-size: 0.72rem;
+        line-height: 1.35;
+      }
+      .pending-close-item .btn {
+        padding-inline: 0.7rem;
+      }
+      @media (max-width: 520px) {
+        .pending-close-item { grid-template-columns: 1fr; }
+        .pending-close-item .btn { width: 100%; box-sizing: border-box; }
+      }
       .modal-backdrop {
         position: fixed;
         inset: 0;
@@ -417,7 +458,32 @@
         <article class="card step-card{% if hub_current_step > 4 %} is-done{% elif hub_current_step == 4 %} is-now{% else %} is-todo{% endif %}" id="matchday-close">
           <span class="step-badge">{% if hub_current_step > 4 %}Hecho{% elif hub_current_step == 4 %}Ahora{% else %}Después{% endif %}</span>
           <h2>4 · Cerrar &amp; PDFs</h2>
-          <p>Genera acta, imprime la ficha y archiva el partido.</p>
+          <p>Revisa los partidos ya celebrados que todavía no se han cerrado.</p>
+          <div class="pending-close-list" aria-label="Partidos pendientes de cierre">
+            {% for pending_match in pending_close_matches %}
+              <article class="pending-close-item{% if pending_match.id == active_match_id %} is-selected{% endif %}">
+                <div class="pending-close-copy">
+                  <strong>{{ pending_match.date_label }}{% if pending_match.time_label %} · {{ pending_match.time_label }}{% endif %} · {{ pending_match.opponent }}</strong>
+                  <span>
+                    {{ pending_match.context_label }}{% if pending_match.round %} · {{ pending_match.round }}{% endif %}
+                    · {{ pending_match.actions_count }} acciones
+                    {% if pending_match.pending_actions_count %} · {{ pending_match.pending_actions_count }} sin consolidar{% endif %}
+                    {% if pending_match.score_label %} · {{ pending_match.score_label }}{% endif %}
+                  </span>
+                </div>
+                <a class="btn{% if pending_match.id == active_match_id %} primary{% endif %}" href="{% url 'match-hub' %}?match_id={{ pending_match.id }}&amp;team={{ primary_team_id }}&amp;stage=close#matchday-close">
+                  {% if pending_match.id == active_match_id %}Seleccionado{% else %}Revisar{% endif %}
+                </a>
+              </article>
+            {% empty %}
+              <div class="pending-close-item">
+                <div class="pending-close-copy">
+                  <strong>Todo cerrado</strong>
+                  <span>No hay partidos celebrados pendientes de cierre.</span>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
           <div class="status">
             <span class="badge {% if can_render_pdfs %}ok{% else %}warn{% endif %}">
               {% if can_render_pdfs %}PDF OK{% else %}PDF con incidencia{% endif %}

@@ -12,13 +12,13 @@ from football.models import Competition, ConvocationRecord, Match, MatchEvent, S
 class MatchdayFinalizeTests(TestCase):
     def setUp(self):
         competition = Competition.objects.create(name="Liga cierre", slug="liga-cierre", region="Malaga")
-        season = Season.objects.create(competition=competition, name="2026/27")
+        self.season = Season.objects.create(competition=competition, name="2026/27")
         self.team = Team.objects.create(name="Equipo cierre", slug="equipo-cierre")
-        rival = Team.objects.create(name="Rival cierre", slug="rival-cierre")
+        self.rival = Team.objects.create(name="Rival cierre", slug="rival-cierre")
         self.match = Match.objects.create(
             home_team=self.team,
-            away_team=rival,
-            season=season,
+            away_team=self.rival,
+            season=self.season,
             date=datetime.date(2026, 8, 2),
             context=Match.CONTEXT_FRIENDLY,
         )
@@ -78,3 +78,30 @@ class MatchdayFinalizeTests(TestCase):
         self.assertEqual(second["updated"], 0)
         self.assertEqual(MatchEvent.objects.filter(match=self.match).count(), 3)
         self.assertEqual(persist_ratings.call_count, 2)
+
+    def test_pending_close_queue_excludes_future_and_closed_matches(self):
+        Match.objects.create(
+            home_team=self.team,
+            away_team=self.rival,
+            season=self.season,
+            date=datetime.date(2026, 8, 3),
+            context=Match.CONTEXT_FRIENDLY,
+        )
+        Match.objects.create(
+            home_team=self.team,
+            away_team=self.rival,
+            season=self.season,
+            date=datetime.date(2026, 8, 1),
+            context=Match.CONTEXT_FRIENDLY,
+            is_closed=True,
+        )
+
+        pending = views._pending_close_match_payloads(
+            self.team,
+            today=datetime.date(2026, 8, 2),
+        )
+
+        self.assertEqual([row["id"] for row in pending], [self.match.id])
+        self.assertEqual(pending[0]["opponent"], "Rival cierre")
+        self.assertEqual(pending[0]["actions_count"], 3)
+        self.assertEqual(pending[0]["pending_actions_count"], 2)

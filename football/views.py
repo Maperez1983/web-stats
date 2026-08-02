@@ -87544,6 +87544,82 @@ def compute_player_dashboard(
     return result
 
 
+def _pending_close_match_payloads(
+    primary_team,
+    *,
+    selected_club_season=None,
+    season_start=None,
+    season_end=None,
+    today=None,
+):
+    """Partidos ya celebrados que siguen abiertos, ordenados para vaciar la cola de cierre."""
+    if not primary_team:
+        return []
+    reference_date = today or timezone.localdate()
+    matches = Match.objects.filter(
+        Q(home_team=primary_team) | Q(away_team=primary_team),
+        is_closed=False,
+        date__lte=reference_date,
+    ).select_related("home_team", "away_team")
+    if selected_club_season:
+        matches = _apply_club_season_filter(
+            matches,
+            selected_club_season,
+            "date",
+            season_start,
+            season_end,
+        )
+    matches = list(matches.order_by("date", "kickoff_time", "id")[:80])
+    if not matches:
+        return []
+
+    match_ids = [int(match.id) for match in matches]
+    event_counts = {
+        int(row["match_id"]): int(row["total"] or 0)
+        for row in MatchEvent.objects.filter(match_id__in=match_ids)
+        .values("match_id")
+        .annotate(total=Count("id"))
+    }
+    pending_counts = {
+        int(row["match_id"]): int(row["total"] or 0)
+        for row in MatchEvent.objects.filter(
+            match_id__in=match_ids,
+            source_file="registro-acciones",
+            system="touch-field",
+        )
+        .values("match_id")
+        .annotate(total=Count("id"))
+    }
+    context_labels = dict(Match.CONTEXT_CHOICES)
+    payloads = []
+    for match in matches:
+        is_home = int(match.home_team_id or 0) == int(primary_team.id)
+        opponent = match.away_team if is_home else match.home_team
+        score_for = match.home_score if is_home else match.away_score
+        score_against = match.away_score if is_home else match.home_score
+        payloads.append(
+            {
+                "id": int(match.id),
+                "opponent": str(
+                    getattr(opponent, "display_name", "") or getattr(opponent, "name", "") or "Rival"
+                ).strip(),
+                "date_label": match.date.strftime("%d/%m/%Y") if match.date else "Sin fecha",
+                "time_label": match.kickoff_time.strftime("%H:%M") if match.kickoff_time else "",
+                "round": str(match.round or "").strip(),
+                "location": str(match.location or "").strip(),
+                "context_label": context_labels.get(match.context, "Liga"),
+                "actions_count": event_counts.get(int(match.id), 0),
+                "pending_actions_count": pending_counts.get(int(match.id), 0),
+                "score_label": (
+                    f"{int(score_for)} - {int(score_against)}"
+                    if score_for is not None and score_against is not None
+                    else ""
+                ),
+            }
+        )
+    return payloads
+
+
 @login_required
 def match_hub_page(request):
     """
@@ -87574,6 +87650,12 @@ def match_hub_page(request):
             or (match_season_end and active_match.date > match_season_end)
         ):
             active_match = None
+    pending_close_matches = _pending_close_match_payloads(
+        primary_team,
+        selected_club_season=match_selected_season,
+        season_start=match_season_start,
+        season_end=match_season_end,
+    )
     convocation_record = None
     if active_match:
         convocation_record = get_current_convocation_record(
@@ -87788,6 +87870,8 @@ def match_hub_page(request):
             "actions_count": int(actions_count or 0),
             "actions_pending_count": int(actions_pending_count or 0),
             "actions_final_count": int(actions_final_count or 0),
+            "pending_close_matches": pending_close_matches,
+            "pending_close_count": len(pending_close_matches),
             "can_finalize_match": can_finalize_match,
             "can_render_pdfs": can_render_pdfs,
             "pdf_smoke_detail": pdf_smoke_detail,
