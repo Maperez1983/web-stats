@@ -22828,8 +22828,12 @@ def _build_coach_pitch_board_players(primary_team, roster_players, roster_member
         _no_confirmado = membership is not None and not bool(getattr(membership, "is_confirmed", False))
         if pid in injury_ids:
             state, state_label, avatar = "injured", "Lesionado", "injured_crutches.png"
-        elif _sin_ficha or _no_confirmado:
+        elif _no_confirmado:
             state, state_label, avatar = "trial", "A prueba", "chandal_black.png"
+        elif _sin_ficha:
+            # Estar confirmado en la plantilla y no tener licencia son hechos distintos.
+            # Conservamos el estado visual de alerta, pero no llamamos "a prueba" al jugador.
+            state, state_label, avatar = "trial", "Sin ficha", "chandal_black.png"
         else:
             state, state_label, avatar = "available", "Disponible", None
         bucket = _roster_preview_bucket(getattr(player, "position", "") or "")
@@ -77541,6 +77545,8 @@ EVALUATION_PARAMETER_CATALOG = [
             ("entradas", "Entradas"),
             ("tecnica", "Técnica"),
             ("balon_parado", "Balón parado"),
+            ("juego_espaldas", "Juego de espaldas"),
+            ("pase_largo", "Pases en largo"),
         ],
     },
     {
@@ -77555,6 +77561,8 @@ EVALUATION_PARAMETER_CATALOG = [
             ("vision", "Visión de juego"),
             ("trabajo_equipo", "Trabajo en equipo"),
             ("marcaje", "Marcaje"),
+            ("presion", "Presión"),
+            ("cobertura", "Cobertura"),
         ],
     },
     {
@@ -78434,7 +78442,11 @@ def player_detail_page(request, player_id):
             is_player_view=is_player_readonly,
         )
         active_match = get_active_match(primary_team)
-        current_convocation = get_current_convocation_record(primary_team, match=active_match)
+        # La ficha debe hablar siempre del partido activo. Si todavía no existe su
+        # convocatoria, no reutilizamos silenciosamente la del encuentro anterior.
+        current_convocation = get_current_convocation_record(
+            primary_team, match=active_match, fallback_to_latest=False
+        )
         is_called_up = bool(current_convocation and current_convocation.players.filter(id=player.id).exists())
 
         def _parse_date_value(raw_value):
@@ -78652,6 +78664,9 @@ def player_detail_page(request, player_id):
                 injury_date = _parse_date_value(request.POST.get("injury_date"))
                 injury_return_date = _parse_date_value(request.POST.get("injury_return_date"))
                 injury_record_mode = (request.POST.get("injury_record_mode") or "").strip().lower()
+                if injury_date and injury_return_date and injury_return_date < injury_date:
+                    messages.error(request, "La fecha de alta no puede ser anterior a la fecha de lesión.")
+                    return redirect(f"{reverse('player-detail', args=[player.id])}?tab=salud")
                 manual_sanction_active = str(request.POST.get("manual_sanction_active") or "").lower() in {
                     "1",
                     "true",
@@ -78771,6 +78786,9 @@ def player_detail_page(request, player_id):
                 injury_notes = request.POST.get("injury_notes", "").strip()
                 injury_date = _parse_date_value(request.POST.get("injury_date"))
                 injury_return_date = _parse_date_value(request.POST.get("injury_return_date"))
+                if injury_date and injury_return_date and injury_return_date < injury_date:
+                    messages.error(request, "La fecha de alta no puede ser anterior a la fecha de lesión.")
+                    return redirect(f"{reverse('player-detail', args=[player.id])}?tab=salud")
                 severity_grade = _parse_int(request.POST.get("severity_grade"))
                 blocks_training = str(request.POST.get("blocks_training") or "").lower() in {"1", "true", "on", "yes"}
                 is_recovered = str(request.POST.get("is_recovered") or "").lower() in {"1", "true", "on", "yes"}
@@ -79194,24 +79212,25 @@ def player_detail_page(request, player_id):
             report_start = getattr(season_obj, "start_date", None)
             report_end = getattr(season_obj, "end_date", None)
 
-            sessions_qs = TrainingSession.objects.filter(microcycle__team=primary_team).exclude(
-                status=TrainingSession.STATUS_CANCELED
+            attendance_report_end = min(report_end, timezone.localdate()) if report_end else timezone.localdate()
+            sessions_qs = TrainingSession.objects.filter(
+                microcycle__team=primary_team,
+                status=TrainingSession.STATUS_DONE,
             )
             if report_start:
                 sessions_qs = sessions_qs.filter(session_date__gte=report_start)
-            if report_end:
-                sessions_qs = sessions_qs.filter(session_date__lte=report_end)
+            sessions_qs = sessions_qs.filter(session_date__lte=attendance_report_end)
             total_sessions = int(sessions_qs.count() or 0)
 
             attendance_by_player_id = {}
             if total_sessions > 0:
-                marks_qs = TrainingSessionAttendance.objects.filter(session__microcycle__team=primary_team).exclude(
-                    session__status=TrainingSession.STATUS_CANCELED
+                marks_qs = TrainingSessionAttendance.objects.filter(
+                    session__microcycle__team=primary_team,
+                    session__status=TrainingSession.STATUS_DONE,
                 )
                 if report_start:
                     marks_qs = marks_qs.filter(session__session_date__gte=report_start)
-                if report_end:
-                    marks_qs = marks_qs.filter(session__session_date__lte=report_end)
+                marks_qs = marks_qs.filter(session__session_date__lte=attendance_report_end)
 
                 status_rows = list(marks_qs.values("player_id", "status").annotate(c=Count("id")))
                 counts_by_player = {}
@@ -79873,14 +79892,16 @@ def player_detail_page(request, player_id):
             season_start = timezone.localdate() - timedelta(days=365)
         if not season_end:
             season_end = timezone.localdate() + timedelta(days=30)
-        # Solo las sesiones YA dadas: con el calendario de la temporada creado por adelantado,
-        # contar hasta junio daba "asistidas = todas" en agosto (la presencia es implicita).
-        # Mismo criterio que el portal del jugador para que los dos contadores cuadren.
+        # Solo las sesiones cerradas pueden generar asistencia y carga. La fecha por sí sola
+        # no confirma que el entrenamiento se celebrara ni que el staff pasara lista.
         session_window_end = min(season_end, timezone.localdate())
+        closed_sessions_qs = TrainingSession.objects.filter(
+            microcycle__team=primary_team,
+            status=TrainingSession.STATUS_DONE,
+            session_date__range=(season_start, session_window_end),
+        )
         session_total_in_season = int(
-            TrainingSession.objects.filter(microcycle__team=primary_team)
-            .filter(session_date__range=(season_start, session_window_end))
-            .exclude(status=TrainingSession.STATUS_CANCELED)
+            closed_sessions_qs
             .count()
             or 0
         )
@@ -79893,7 +79914,9 @@ def player_detail_page(request, player_id):
         }
         for row in (
             TrainingSessionAttendance.objects.filter(
-                player=player, session__session_date__range=(season_start, season_end)
+                player=player,
+                session__status=TrainingSession.STATUS_DONE,
+                session__session_date__range=(season_start, session_window_end),
             )
             .values("status")
             .annotate(total=Count("id"))
@@ -79901,15 +79924,11 @@ def player_detail_page(request, player_id):
             key = str(row.get("status") or "").strip()
             if key in attendance_counts:
                 attendance_counts[key] = int(row.get("total") or 0)
-        # "Presente" es IMPLÍCITO (no se guarda fila; solo se persisten excepciones). Por eso
-        # NO se puede contar por marcas 'present'. Asistidas = total de sesiones − las que faltó
-        # (ausente + lesionado + justificado). Los 'tarde' cuentan como asistidas (vino, tarde).
-        _missed = (
-            int(attendance_counts.get(TrainingSessionAttendance.STATUS_ABSENT, 0) or 0)
-            + int(attendance_counts.get(TrainingSessionAttendance.STATUS_INJURED, 0) or 0)
-            + int(attendance_counts.get(TrainingSessionAttendance.STATUS_EXCUSED, 0) or 0)
+        # No inferimos presencia. El dato nace al cerrar la sesión y verificar la lista.
+        attendance_completed_total = (
+            int(attendance_counts.get(TrainingSessionAttendance.STATUS_PRESENT, 0) or 0)
+            + int(attendance_counts.get(TrainingSessionAttendance.STATUS_LATE, 0) or 0)
         )
-        attendance_completed_total = max(0, int(session_total_in_season or 0) - _missed)
         attendance_completed_pct = (
             round((attendance_completed_total / session_total_in_season) * 100, 1) if session_total_in_season else 0.0
         )
@@ -79924,7 +79943,8 @@ def player_detail_page(request, player_id):
         try:
             _part_qs = SessionTaskParticipation.objects.filter(
                 player=player,
-                session_task__session__session_date__range=(season_start, season_end),
+                session_task__session__status=TrainingSession.STATUS_DONE,
+                session_task__session__session_date__range=(season_start, session_window_end),
             )
             training_minutes_total = int(
                 _part_qs.aggregate(m=Sum("session_task__duration_minutes")).get("m") or 0
@@ -79941,7 +79961,7 @@ def player_detail_page(request, player_id):
                 start = getattr(rec, "injury_date", None)
                 if not start:
                     continue
-                end = getattr(rec, "return_date", None) or season_end
+                end = getattr(rec, "return_date", None) or timezone.localdate()
                 if not end:
                     continue
                 window_start = max(start, season_start) if season_start else start
@@ -79951,47 +79971,56 @@ def player_detail_page(request, player_id):
         except Exception:
             injury_days = 0
 
-        # Próximas sesiones y partidos: agenda del jugador para los próximos 14 días.
+        # Agenda mensual del jugador. Cargamos las seis semanas visibles, como hacen
+        # Google Calendar y Apple Calendar, para que entrenamientos y partidos convivan.
         today = timezone.localdate()
         upcoming_end = today + timedelta(days=14)
-        upcoming_sessions = list(
+        agenda_month_raw = str(request.GET.get("agenda_month") or "").strip()
+        try:
+            agenda_month = datetime.strptime(agenda_month_raw, "%Y-%m").date().replace(day=1)
+        except (TypeError, ValueError):
+            agenda_month = today.replace(day=1)
+        agenda_grid_start = agenda_month - timedelta(days=agenda_month.weekday())
+        agenda_grid_end = agenda_grid_start + timedelta(days=41)
+        agenda_sessions = list(
             TrainingSession.objects.select_related("microcycle")
             .filter(microcycle__team=primary_team)
-            .filter(session_date__range=(today, upcoming_end))
+            .filter(session_date__range=(agenda_grid_start, agenda_grid_end))
             .exclude(status=TrainingSession.STATUS_CANCELED)
-            .order_by("session_date", "start_time", "order", "id")[:12]
+            .order_by("session_date", "start_time", "order", "id")
         )
-        upcoming_matches = []
+        agenda_matches = []
         try:
-            upcoming_matches = list(
+            agenda_matches = list(
                 _team_match_queryset(primary_team)
-                .filter(date__range=(today, upcoming_end))
+                .filter(date__range=(agenda_grid_start, agenda_grid_end))
                 .select_related("home_team", "away_team")
-                .order_by("date", "kickoff_time", "id")[:12]
+                .order_by("date", "kickoff_time", "id")
             )
         except Exception:
-            upcoming_matches = []
-        upcoming_marks = (
+            agenda_matches = []
+        agenda_marks = (
             {
                 int(mark.session_id): mark
                 for mark in TrainingSessionAttendance.objects.filter(
                     player=player,
-                    session_id__in=[int(s.id) for s in upcoming_sessions],
+                    session_id__in=[int(s.id) for s in agenda_sessions],
                 )
             }
-            if upcoming_sessions
+            if agenda_sessions
             else {}
         )
-        upcoming_session_rows = []
-        for s in upcoming_sessions:
-            mark = upcoming_marks.get(int(s.id))
+        agenda_session_rows = []
+        for s in agenda_sessions:
+            mark = agenda_marks.get(int(s.id))
+            attendance_is_verified = bool(mark and s.status == TrainingSession.STATUS_DONE)
             session_meta_bits = [
                 s.start_time.strftime("%H:%M") if getattr(s, "start_time", None) else "",
                 f"{int(getattr(s, 'duration_minutes', 0) or 0)}'" if getattr(s, "duration_minutes", None) else "",
                 str(getattr(s, "get_intensity_display", lambda: "")() or "").strip(),
             ]
             session_meta = " · ".join([bit for bit in session_meta_bits if str(bit or "").strip()]) or "Entreno"
-            upcoming_session_rows.append(
+            agenda_session_rows.append(
                 {
                     "kind": "session",
                     "id": int(s.id),
@@ -80002,20 +80031,21 @@ def player_detail_page(request, player_id):
                     "title": str(getattr(s, "focus", "") or "").strip() or "Sesión",
                     "meta": session_meta,
                     "detail": str(getattr(s, "content", "") or "").strip(),
-                    "status": str(getattr(mark, "status", "") or "").strip(),
+                    "status": str(getattr(mark, "status", "") or "").strip() if attendance_is_verified else "",
                     "status_label": (
                         dict(TrainingSessionAttendance.STATUS_CHOICES).get(getattr(mark, "status", ""), "")
-                        if mark
+                        if attendance_is_verified
                         else ""
                     ),
-                    "notes": str(getattr(mark, "notes", "") or "").strip() if mark else "",
+                    "notes": str(getattr(mark, "notes", "") or "").strip() if attendance_is_verified else "",
+                    "is_closed": s.status == TrainingSession.STATUS_DONE,
                     "url": reverse("training-session-detail", args=[int(s.id)]),
                     "attendance_url": reverse("training-session-detail", args=[int(s.id)]) + "#asistencia",
                 }
             )
 
-        upcoming_match_rows = []
-        for m in upcoming_matches:
+        agenda_match_rows = []
+        for m in agenda_matches:
             if not getattr(m, "date", None):
                 continue
             opponent = m.away_team if m.home_team_id == primary_team.id else m.home_team
@@ -80038,7 +80068,7 @@ def player_detail_page(request, player_id):
             round_label = str(getattr(m, "round", "") or "").strip()
             if round_label:
                 meta_bits.append(round_label)
-            upcoming_match_rows.append(
+            agenda_match_rows.append(
                 {
                     "kind": "match",
                     "id": int(m.id),
@@ -80059,7 +80089,7 @@ def player_detail_page(request, player_id):
                 }
             )
 
-        player_agenda_rows = upcoming_session_rows + upcoming_match_rows
+        player_agenda_rows = agenda_session_rows + agenda_match_rows
         player_agenda_rows.sort(
             key=lambda row: (
                 row.get("date") or today,
@@ -80068,11 +80098,47 @@ def player_detail_page(request, player_id):
                 int(row.get("id") or 0),
             )
         )
+        player_dashboard_agenda_rows = [
+            row for row in player_agenda_rows if today <= row.get("date") <= upcoming_end
+        ][:6]
         agenda_view_mode = str(request.GET.get("agenda_view") or "citation").strip().lower()
         if agenda_view_mode not in {"citation", "detail"}:
             agenda_view_mode = "citation"
         if is_player_readonly:
             agenda_view_mode = "citation"
+        rows_by_date = defaultdict(list)
+        for row in player_agenda_rows:
+            rows_by_date[row.get("date")].append(row)
+        player_agenda_weeks = []
+        for week_index in range(6):
+            week = []
+            for day_index in range(7):
+                day = agenda_grid_start + timedelta(days=(week_index * 7) + day_index)
+                week.append(
+                    {
+                        "date": day,
+                        "day": day.day,
+                        "is_today": day == today,
+                        "in_month": day.month == agenda_month.month,
+                        "items": rows_by_date.get(day, []),
+                    }
+                )
+            player_agenda_weeks.append(week)
+        month_names = [
+            "", "enero", "febrero", "marzo", "abril", "mayo", "junio",
+            "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+        ]
+        previous_month = (agenda_month - timedelta(days=1)).replace(day=1)
+        next_month = (agenda_month + timedelta(days=32)).replace(day=1)
+        agenda_base_params = dict(request.GET.items())
+        agenda_base_params["tab"] = "agenda"
+        agenda_base_params.pop("agenda_month", None)
+        player_agenda_previous_url = f"{request.path}?{urlencode({**agenda_base_params, 'agenda_month': previous_month.strftime('%Y-%m')})}"
+        player_agenda_next_url = f"{request.path}?{urlencode({**agenda_base_params, 'agenda_month': next_month.strftime('%Y-%m')})}"
+        player_agenda_today_url = f"{request.path}?{urlencode({**agenda_base_params, 'agenda_month': today.strftime('%Y-%m')})}"
+        upcoming_session_rows = [
+            row for row in agenda_session_rows if today <= row.get("date") <= upcoming_end
+        ][:12]
         agenda_params = dict(request.GET.items())
         agenda_params["agenda_view"] = "citation"
         player_agenda_citation_url = f"{request.path}?{urlencode(agenda_params)}"
@@ -80579,6 +80645,12 @@ def player_detail_page(request, player_id):
                 "training_sessions_participated": training_sessions_participated,
                 "injury_days_in_season": injury_days,
                 "player_agenda_rows": player_agenda_rows,
+                "player_dashboard_agenda_rows": player_dashboard_agenda_rows,
+                "player_agenda_weeks": player_agenda_weeks,
+                "player_agenda_month_label": f"{month_names[agenda_month.month].capitalize()} {agenda_month.year}",
+                "player_agenda_previous_url": player_agenda_previous_url,
+                "player_agenda_next_url": player_agenda_next_url,
+                "player_agenda_today_url": player_agenda_today_url,
                 "player_agenda_view_mode": agenda_view_mode,
                 "player_agenda_citation_url": player_agenda_citation_url,
                 "player_agenda_detail_url": player_agenda_detail_url,

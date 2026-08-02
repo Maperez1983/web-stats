@@ -4,7 +4,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-    <title>Nueva valoración · {{ player.name }} · 2J</title>
+    <title>Evaluación del cuerpo técnico · {{ player.name }} · 2J</title>
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
@@ -42,7 +42,7 @@
 
       <div class="head">
         <div class="who">
-          <h1>Nueva valoración · {{ player.name }}</h1>
+          <h1>Evaluación del cuerpo técnico · {{ player.name }}</h1>
           <p>
             {% if team %}{{ team.display_name|default:team.name }}{% endif %}
             {% if player.number %} · #{{ player.number }}{% endif %}

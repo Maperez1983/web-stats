@@ -101,6 +101,40 @@ class PlayerHomeTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "no está vinculada")
 
+    def test_agenda_is_visible_and_only_closed_attendance_counts(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from football.models import TrainingMicrocycle, TrainingSession, TrainingSessionAttendance
+
+        today = timezone.localdate()
+        microcycle = TrainingMicrocycle.objects.create(
+            team=self.team,
+            title="Semana",
+            week_start=today - timedelta(days=today.weekday()),
+            week_end=today - timedelta(days=today.weekday()) + timedelta(days=6),
+        )
+        planned = TrainingSession.objects.create(
+            microcycle=microcycle,
+            session_date=today,
+            focus="Presión y cobertura",
+            status=TrainingSession.STATUS_PLANNED,
+        )
+        TrainingSessionAttendance.objects.create(
+            session=planned,
+            player=self.player,
+            status=TrainingSessionAttendance.STATUS_PRESENT,
+        )
+
+        response = self._home()
+
+        self.assertContains(response, "Mi agenda")
+        self.assertContains(response, "Presión y cobertura")
+        self.assertEqual(response.context["training_marker"]["sessions_total"], 0)
+        self.assertEqual(response.context["training_marker"]["sessions_attended"], 0)
+        self.assertNotContains(response, reverse("player-attendance-mark"))
+
 
 class FichaIsClosedToThePlayerTests(TestCase):
     """La ficha es la herramienta del staff; el jugador tiene su portal."""

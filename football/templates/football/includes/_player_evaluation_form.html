@@ -2,7 +2,7 @@
 {% comment %}Formulario de nueva valoración: 67 campos y su script de auto-cálculo.
 Vivía dentro de la pestaña Evaluación, que es una pantalla de consulta. Se saca a su
 propia página; el POST sigue yendo a la ficha, que ya sabe guardarlo.{% endcomment %}
-        <h3 style="margin-top:1rem;">Nueva evaluación</h3>
+        <h3 style="margin-top:1rem;">Nueva evaluación del staff</h3>
         <form method="post" action="{% url 'player-detail' player.id %}">
           {% csrf_token %}
           <input type="hidden" name="form_action" value="evaluation" />

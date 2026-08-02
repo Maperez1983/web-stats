@@ -1041,6 +1041,36 @@
         body.is-player-home #radar-trends,
         body.is-player-home .decision-board { display:none !important; }
 
+        .player-dashboard-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.75rem; }
+        .player-dashboard-kpi { border:1px solid rgba(148,163,184,.2); border-radius:16px; padding:1rem; background:linear-gradient(145deg,rgba(15,23,42,.82),rgba(15,23,42,.42)); min-height:126px; }
+        .player-dashboard-kpi .kicker { display:block; color:var(--prod-muted); font-size:.68rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+        .player-dashboard-kpi .number { display:block; margin-top:.45rem; color:var(--prod-text); font-size:1.65rem; font-weight:900; line-height:1.1; }
+        .player-dashboard-kpi .description { display:block; margin-top:.45rem; color:var(--prod-muted); font-size:.78rem; line-height:1.4; }
+        .player-dashboard-lower { display:grid; grid-template-columns:minmax(0,1.45fr) minmax(280px,.55fr); gap:.85rem; margin-top:.85rem; }
+        .player-dashboard-panel { border:1px solid rgba(148,163,184,.18); border-radius:16px; padding:1rem; background:rgba(2,6,23,.3); }
+        .player-agenda-list { display:grid; gap:.5rem; margin-top:.75rem; }
+        .player-agenda-list-item { display:grid; grid-template-columns:72px minmax(0,1fr); gap:.75rem; align-items:start; padding:.7rem; border-radius:12px; background:rgba(15,23,42,.5); border-left:3px solid #38bdf8; color:inherit; text-decoration:none; }
+        .player-agenda-list-item.is-match { border-left-color:#f59e0b; }
+        .player-calendar-toolbar { display:flex; align-items:center; justify-content:space-between; gap:.75rem; flex-wrap:wrap; margin-bottom:.9rem; }
+        .player-calendar-toolbar h2 { margin:0; text-transform:capitalize; }
+        .player-calendar-shell { overflow-x:auto; padding-bottom:.35rem; }
+        .player-calendar { min-width:840px; border:1px solid rgba(148,163,184,.2); border-radius:16px; overflow:hidden; background:rgba(2,6,23,.32); }
+        .player-calendar-weekdays,.player-calendar-week { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); }
+        .player-calendar-weekdays > div { padding:.55rem; text-align:center; color:var(--prod-muted); font-size:.68rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; border-right:1px solid rgba(148,163,184,.14); }
+        .player-calendar-day { min-height:128px; padding:.48rem; border-top:1px solid rgba(148,163,184,.14); border-right:1px solid rgba(148,163,184,.14); }
+        .player-calendar-day.is-outside { opacity:.42; background:rgba(2,6,23,.38); }
+        .player-calendar-day.is-today { box-shadow:inset 0 0 0 2px rgba(56,189,248,.7); }
+        .player-calendar-date { display:flex; justify-content:flex-end; margin-bottom:.4rem; color:var(--prod-muted); font-size:.74rem; font-weight:800; }
+        .player-calendar-day.is-today .player-calendar-date span { display:grid; place-items:center; width:24px; height:24px; border-radius:50%; color:#03131d; background:#38bdf8; }
+        .player-calendar-event { display:block; margin-top:.3rem; padding:.38rem .42rem; border-radius:7px; background:rgba(14,165,233,.16); border-left:3px solid #38bdf8; color:var(--prod-text); font-size:.68rem; line-height:1.3; text-decoration:none; overflow:hidden; }
+        .player-calendar-event.is-match { background:rgba(245,158,11,.16); border-left-color:#f59e0b; }
+        .player-calendar-event strong { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .player-calendar-legend { display:flex; gap:1rem; flex-wrap:wrap; margin-top:.7rem; color:var(--prod-muted); font-size:.75rem; }
+        .player-calendar-legend span::before { content:""; display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:.35rem; background:#38bdf8; }
+        .player-calendar-legend .match::before { background:#f59e0b; }
+        @media (max-width:1000px) { .player-dashboard-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+        @media (max-width:720px) { .player-dashboard-grid,.player-dashboard-lower { grid-template-columns:1fr; } .player-dashboard-kpi { min-height:auto; } }
+
 	    </style>
   </head>
   <body class="prod-commercial{% if is_player_readonly %} is-player-home{% endif %}">
@@ -1330,10 +1360,9 @@
       {% comment %} Las pestañas del jugador salen de la política del club (`vis`), no de la plantilla.
          Para el staff `vis` no restringe nada y salen todas. {% endcomment %}
       <div class="tabs" role="tablist">
-        {% comment %}Seis pestañas, no ocho: Físico y Lesiones son la misma pregunta (cómo está),
-        y el Histórico es rendimiento de otros años. Los nombres viejos siguen valiendo en ?tab=
-        gracias a los alias de abajo.{% endcomment %}
         <button class="tab-btn" data-tab="resumen" role="tab">Resumen</button>
+        <button class="tab-btn" data-tab="personal" role="tab">Datos personales</button>
+        <button class="tab-btn" data-tab="agenda" role="tab">Agenda</button>
         {% if vis.performance or vis.seasons %}<button class="tab-btn" data-tab="stats" role="tab">Rendimiento</button>{% endif %}
         {% if vis.evaluation %}<button class="tab-btn" data-tab="evaluations" role="tab">Valoración</button>{% endif %}
         {% if vis.physical or vis.injuries %}<button class="tab-btn" data-tab="salud" role="tab">Salud</button>{% endif %}
@@ -1342,6 +1371,64 @@
       </div>
 
       <section class="card tab-pane" data-pane="resumen">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem;">
+          <div>
+            <p class="subtle" style="margin:0 0 .2rem;text-transform:uppercase;letter-spacing:.12em;font-size:.68rem;font-weight:800;">Cuadro de mando</p>
+            <h2 style="margin:0;">Situación actual</h2>
+          </div>
+          <a class="btn alt" href="{% url 'player-detail' player.id %}?{% qs_replace tab='agenda' %}">Abrir agenda</a>
+        </div>
+        <div class="player-dashboard-grid">
+          <article class="player-dashboard-kpi">
+            <span class="kicker">Disponibilidad</span>
+            <span class="number">{% if has_active_injury %}Lesionado{% elif has_manual_sanction %}Sancionado{% else %}Disponible{% endif %}</span>
+            <span class="description">{% if has_active_injury %}{% if injury_allows_training %}Puede entrenar con adaptación.{% else %}No disponible para entrenar.{% endif %}{% elif is_called_up %}Convocado para el próximo partido.{% else %}Sin bloqueos activos.{% endif %}</span>
+          </article>
+          <article class="player-dashboard-kpi">
+            <span class="kicker">Asistencia verificada</span>
+            <span class="number">{{ attendance_completed_pct|default:0 }}%</span>
+            <span class="description">{{ attendance_completed_total }} asistidas de {{ attendance_session_total }} sesiones cerradas. {{ attendance_pending }} pendientes de verificar.</span>
+          </article>
+          <article class="player-dashboard-kpi">
+            <span class="kicker">Carga cerrada</span>
+            <span class="number">{{ training_minutes_total|default:0 }}'</span>
+            <span class="description">Acumulada en {{ training_sessions_participated|default:0 }} sesiones realizadas con participación registrada.</span>
+          </article>
+          <article class="player-dashboard-kpi">
+            <span class="kicker">Valoración staff</span>
+            <span class="number">{% if evaluation_consensus.overall %}{{ evaluation_consensus.overall }}{% else %}--{% endif %}</span>
+            <span class="description">{% if evaluation_consensus.voters %}Media de {{ evaluation_consensus.voters }} miembro{{ evaluation_consensus.voters|pluralize:"s" }} del cuerpo técnico.{% else %}Sin evaluación cerrada todavía.{% endif %}</span>
+          </article>
+        </div>
+        <div class="player-dashboard-lower">
+          <section class="player-dashboard-panel">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;">
+              <h3 style="margin:0;">Próximos eventos</h3>
+              <span class="subtle">14 días</span>
+            </div>
+            <div class="player-agenda-list">
+              {% for item in player_dashboard_agenda_rows %}
+                <a class="player-agenda-list-item {% if item.kind == 'match' %}is-match{% endif %}" href="{{ item.url }}">
+                  <strong>{{ item.date|date:"d M" }}{% if item.time_label %}<br>{{ item.time_label }}{% endif %}</strong>
+                  <span><strong>{{ item.title }}</strong><span class="subtle" style="display:block;margin-top:.15rem;">{{ item.meta }}{% if item.status_label %} · {{ item.status_label }}{% endif %}</span></span>
+                </a>
+              {% empty %}
+                <p class="subtle" style="margin:.75rem 0 0;">No hay entrenamientos ni partidos en los próximos 14 días.</p>
+              {% endfor %}
+            </div>
+          </section>
+          <aside class="player-dashboard-panel">
+            <h3 style="margin:0 0 .7rem;">Alertas</h3>
+            {% if has_active_injury %}<p class="pill warn" style="display:block;margin:.4rem 0;">Lesión activa · {{ injury_days_in_season }} días de baja acumulados</p>{% endif %}
+            {% if has_manual_sanction %}<p class="pill warn" style="display:block;margin:.4rem 0;">Sanción manual activa</p>{% endif %}
+            {% if attendance_pending %}<p class="pill" style="display:block;margin:.4rem 0;">{{ attendance_pending }} asistencia{{ attendance_pending|pluralize:"s" }} sin verificar</p>{% endif %}
+            {% if evaluation_summary.pending %}<p class="pill" style="display:block;margin:.4rem 0;">Evaluación pendiente</p>{% endif %}
+            {% if not has_active_injury and not has_manual_sanction and not attendance_pending and not evaluation_summary.pending %}<p class="subtle">No hay alertas operativas.</p>{% endif %}
+          </aside>
+        </div>
+      </section>
+
+      <section class="card tab-pane" data-pane="personal">
         <h2 style="margin-top:0;">Datos personales</h2>
         {% with kst='font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--prod-muted);font-weight:800;' vst='font-size:.95rem;font-weight:700;color:var(--prod-text);margin-top:1px;' cardst='border:1px solid rgba(148,163,184,0.18);border-radius:12px;padding:.85rem .95rem;background:rgba(2,6,23,0.35);' ctit='font-size:.64rem;text-transform:uppercase;letter-spacing:.12em;color:var(--prod-muted);font-weight:800;margin:0 0 .65rem;' %}
         <section aria-label="Resumen del jugador" style="margin:0 0 1.1rem;">
@@ -1637,6 +1724,48 @@
 
 
 
+      </section>
+
+      <section class="card tab-pane" data-pane="agenda">
+        <div class="player-calendar-toolbar">
+          <div>
+            <p class="subtle" style="margin:0 0 .2rem;text-transform:uppercase;letter-spacing:.12em;font-size:.68rem;font-weight:800;">Entrenamientos y partidos</p>
+            <h2>{{ player_agenda_month_label }}</h2>
+          </div>
+          <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;">
+            <a class="btn alt" href="{{ player_agenda_previous_url }}" aria-label="Mes anterior">Anterior</a>
+            <a class="btn alt" href="{{ player_agenda_today_url }}">Hoy</a>
+            <a class="btn alt" href="{{ player_agenda_next_url }}" aria-label="Mes siguiente">Siguiente</a>
+            {% if not is_player_readonly %}
+              {% if player_agenda_view_mode == 'detail' %}<a class="btn" href="{{ player_agenda_citation_url }}">Solo cita</a>{% else %}<a class="btn" href="{{ player_agenda_detail_url }}">Ver contenido</a>{% endif %}
+            {% endif %}
+          </div>
+        </div>
+        <div class="player-calendar-shell">
+          <div class="player-calendar" role="grid" aria-label="Agenda mensual de {{ player.name }}">
+            <div class="player-calendar-weekdays" role="row">
+              <div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div>
+            </div>
+            {% for week in player_agenda_weeks %}
+              <div class="player-calendar-week" role="row">
+                {% for day in week %}
+                  <div class="player-calendar-day{% if not day.in_month %} is-outside{% endif %}{% if day.is_today %} is-today{% endif %}" role="gridcell">
+                    <div class="player-calendar-date"><span>{{ day.day }}</span></div>
+                    {% for item in day.items %}
+                      <a class="player-calendar-event{% if item.kind == 'match' %} is-match{% endif %}" href="{{ item.url }}" title="{{ item.title }} · {{ item.meta }}">
+                        <strong>{% if item.time_label %}{{ item.time_label }} · {% endif %}{{ item.title }}</strong>
+                        {% if player_agenda_view_mode == 'detail' and item.detail %}<span>{{ item.detail|truncatechars:90 }}</span>{% endif %}
+                        {% if item.status_label %}<span>Asistencia: {{ item.status_label }}</span>{% endif %}
+                      </a>
+                    {% endfor %}
+                  </div>
+                {% endfor %}
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="player-calendar-legend"><span>Entrenamiento</span><span class="match">Partido</span></div>
+        <p class="subtle" style="margin:.75rem 0 0;">La asistencia y la carga solo se muestran después de cerrar la sesión y verificar la lista. El jugador ve el título u objetivo fijado por el entrenador, no el contenido interno completo.</p>
       </section>
 
       {% if vis.seasons %}
@@ -2068,7 +2197,7 @@
 
         {% if not is_player_readonly %}
         <p style="margin:1rem 0 0;">
-          <a class="btn alt" href="{% url 'player-evaluation-new' player.id %}">✎ Nueva valoración</a>
+          <a class="btn alt" href="{% url 'player-evaluation-new' player.id %}">Nueva evaluación del staff</a>
         </p>
         {% endif %}
 
@@ -3002,7 +3131,7 @@
         // llevando a su sitio aunque las pestañas se hayan reagrupado.
         const tabAliases = {
           general: 'resumen',
-          personal: 'resumen',
+          personal: 'personal',
           performance: 'stats',
           seasons: 'stats',
           attributes: 'evaluations',
@@ -3013,7 +3142,7 @@
           communication: 'club',
           fines: 'club',
         };
-        const rawTab = '{{ active_tab|default:"stats"|escapejs }}' || 'stats';
+        const rawTab = '{{ active_tab|default:"resumen"|escapejs }}' || 'resumen';
         const fallbackTab = tabAliases[rawTab] || rawTab;
         const buttons = Array.from(document.querySelectorAll('.tab-btn'));
         const panes = Array.from(document.querySelectorAll('.tab-pane'));
@@ -3025,7 +3154,7 @@
           window.history.replaceState({}, '', url);
         };
         buttons.forEach((btn) => btn.addEventListener('click', () => activate(btn.dataset.tab)));
-	        activate(buttons.some((b) => b.dataset.tab === fallbackTab) ? fallbackTab : 'stats');
+	        activate(buttons.some((b) => b.dataset.tab === fallbackTab) ? fallbackTab : 'resumen');
 		      })();
 		    </script>
 		    <script>

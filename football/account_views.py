@@ -870,9 +870,7 @@ def player_home_page(request):
         except Exception:
             objectives = []
 
-    # Marcador de ENTRENO del jugador (temporada): asistencia + minutos de entreno. Alimentado por
-    # la asistencia (presente implícito → asistidas = total − ausente/lesionado/justificado) y por la
-    # participación por tarea (minutos = suma de duración de las tareas en las que participó).
+    # Marcador de entreno: solo sesiones cerradas, asistencia verificada y carga consolidada.
     training_marker = {
         "sessions_total": 0,
         "sessions_attended": 0,
@@ -902,33 +900,32 @@ def player_home_page(request):
                         season_end = _season.end_date
             except Exception:
                 pass
-            # Solo cuentan las sesiones que YA se han dado. Con el calendario de la temporada
-            # creado por adelantado, contar hasta junio daba "129 de 129 asistidas" en agosto:
-            # la presencia es implicita (solo se registran las ausencias), asi que toda sesion
-            # futura contaba como asistida. El tope es HOY.
             hasta = min(season_end, today)
             sessions_total = (
                 TrainingSession.objects.filter(
-                    microcycle__team_id=player.team_id, session_date__range=(season_start, hasta)
+                    microcycle__team_id=player.team_id,
+                    session_date__range=(season_start, hasta),
+                    status=TrainingSession.STATUS_DONE,
                 )
-                .exclude(status=TrainingSession.STATUS_CANCELED)
                 .count()
             )
-            missed = TrainingSessionAttendance.objects.filter(
+            attended = TrainingSessionAttendance.objects.filter(
                 player=player,
                 session__session_date__range=(season_start, hasta),
+                session__status=TrainingSession.STATUS_DONE,
                 status__in=[
-                    TrainingSessionAttendance.STATUS_ABSENT,
-                    TrainingSessionAttendance.STATUS_INJURED,
-                    TrainingSessionAttendance.STATUS_EXCUSED,
+                    TrainingSessionAttendance.STATUS_PRESENT,
+                    TrainingSessionAttendance.STATUS_LATE,
                 ],
             ).count()
             part_qs = SessionTaskParticipation.objects.filter(
-                player=player, session_task__session__session_date__range=(season_start, season_end)
+                player=player,
+                session_task__session__status=TrainingSession.STATUS_DONE,
+                session_task__session__session_date__range=(season_start, hasta),
             )
             training_marker = {
                 "sessions_total": int(sessions_total or 0),
-                "sessions_attended": max(0, int(sessions_total or 0) - int(missed or 0)),
+                "sessions_attended": int(attended or 0),
                 "sessions_trained": part_qs.values("session_task__session_id").distinct().count(),
                 "minutes": int(part_qs.aggregate(m=Sum("session_task__duration_minutes")).get("m") or 0),
             }
@@ -985,6 +982,7 @@ def _player_home_zones(request, player, vis):
     from django.db.models import Sum
 
     from .models import (
+        Match,
         PlayerCommunication,
         PlayerFine,
         PlayerNotification,
@@ -1008,6 +1006,11 @@ def _player_home_zones(request, player, vis):
         "fines": [],
         "fines_total": 0,
         "communications": [],
+        "agenda_weeks": [],
+        "agenda_month_label": "",
+        "agenda_previous_url": "",
+        "agenda_next_url": "",
+        "agenda_today_url": "",
     }
     if player is None:
         return zones
@@ -1043,11 +1046,82 @@ def _player_home_zones(request, player, vis):
                 .first()
             )
             if zones["next_session"] is not None:
-                zones["next_session_attendance"] = TrainingSessionAttendance.objects.filter(
-                    session=zones["next_session"], player=player
-                ).first()
+                # Una marca futura no es asistencia. Solo se publica al cerrar la sesión.
+                if zones["next_session"].status == TrainingSession.STATUS_DONE:
+                    zones["next_session_attendance"] = TrainingSessionAttendance.objects.filter(
+                        session=zones["next_session"], player=player
+                    ).first()
     except Exception:
         logger.debug("No se pudo cargar la próxima sesión del jugador", exc_info=True)
+
+    try:
+        from datetime import datetime, timedelta
+
+        today = timezone.localdate()
+        raw_month = str(request.GET.get("agenda_month") or "").strip()
+        try:
+            month = datetime.strptime(raw_month, "%Y-%m").date().replace(day=1)
+        except (TypeError, ValueError):
+            month = today.replace(day=1)
+        grid_start = month - timedelta(days=month.weekday())
+        grid_end = grid_start + timedelta(days=41)
+        items_by_date = {}
+        sessions = (
+            TrainingSession.objects.filter(
+                microcycle__team_id=player.team_id,
+                session_date__range=(grid_start, grid_end),
+            )
+            .exclude(status=TrainingSession.STATUS_CANCELED)
+            .order_by("session_date", "start_time", "id")
+        )
+        for session_obj in sessions:
+            items_by_date.setdefault(session_obj.session_date, []).append(
+                {
+                    "kind": "session",
+                    "time": session_obj.start_time.strftime("%H:%M") if session_obj.start_time else "",
+                    "title": str(session_obj.focus or "Entrenamiento").strip(),
+                }
+            )
+        matches = (
+            Match.objects.filter(Q(home_team_id=player.team_id) | Q(away_team_id=player.team_id))
+            .filter(date__range=(grid_start, grid_end))
+            .select_related("home_team", "away_team")
+            .order_by("date", "kickoff_time", "id")
+        )
+        for match in matches:
+            opponent = match.away_team if match.home_team_id == player.team_id else match.home_team
+            opponent_name = str(
+                getattr(opponent, "display_name", "") or getattr(opponent, "name", "") or "Rival"
+            ).strip()
+            items_by_date.setdefault(match.date, []).append(
+                {
+                    "kind": "match",
+                    "time": match.kickoff_time.strftime("%H:%M") if match.kickoff_time else "",
+                    "title": f"Partido · {opponent_name}",
+                }
+            )
+        zones["agenda_weeks"] = [
+            [
+                {
+                    "date": (day := grid_start + timedelta(days=(week * 7) + offset)),
+                    "day": day.day,
+                    "is_today": day == today,
+                    "in_month": day.month == month.month,
+                    "items": items_by_date.get(day, []),
+                }
+                for offset in range(7)
+            ]
+            for week in range(6)
+        ]
+        names = ["", "enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+        zones["agenda_month_label"] = f"{names[month.month].capitalize()} {month.year}"
+        previous_month = (month - timedelta(days=1)).replace(day=1)
+        next_month = (month + timedelta(days=32)).replace(day=1)
+        zones["agenda_previous_url"] = f"{reverse('player-home')}?agenda_month={previous_month:%Y-%m}#agenda"
+        zones["agenda_next_url"] = f"{reverse('player-home')}?agenda_month={next_month:%Y-%m}#agenda"
+        zones["agenda_today_url"] = f"{reverse('player-home')}?agenda_month={today:%Y-%m}#agenda"
+    except Exception:
+        logger.debug("No se pudo cargar la agenda mensual del jugador", exc_info=True)
 
     # MI CUERPO -------------------------------------------------------------------------
     if vis.injuries:
