@@ -89,10 +89,12 @@
         .report-pdf .pro-section-number { margin-bottom:2px; font-size:7px; }
         .report-pdf .pro-section-title { font-size:17px; }
         .report-pdf .pro-section-intro { margin-top:4px; font-size:8px; line-height:1.35; }
-        .report-pdf .pro-scoreboard { margin-top:9px; padding:12px 15px; border-radius:11px; }
-        .report-pdf .pro-team { font-size:18px; }
+        .report-pdf .pro-scoreboard { display:flex; margin-top:9px; padding:12px 15px; border-radius:11px; }
+        .report-pdf .pro-team { width:38%; flex:none; font-size:18px; }
+        .report-pdf .pro-team:first-child { justify-content:flex-start; }
+        .report-pdf .pro-team:last-child { justify-content:flex-start; }
         .report-pdf .pro-team-crest { width:34px; height:34px; flex-basis:34px; }
-        .report-pdf .pro-score { min-width:92px; font-size:34px; }
+        .report-pdf .pro-score { width:24%; min-width:0; flex:none; font-size:34px; }
         .report-pdf .pro-compare-table { width:54%; margin:7px auto 0; }
         .report-pdf .pro-compare-row { display:flex; min-height:25px; justify-content:center; }
         .report-pdf .pro-compare-row strong { width:25%; padding:4px 9px; font-size:12px; text-align:center; }
