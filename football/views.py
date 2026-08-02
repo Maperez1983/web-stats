@@ -85045,7 +85045,13 @@ def _build_player_match_stats_payload(primary_team, player, match):
     }
     for event in events:
         event_label = normalize_label(event.event_type)
-        event_success = result_is_success(event.result)
+        is_forced_turnover = "perdida forzada" in event_label or "error forzado" in event_label
+        is_unforced_turnover = "perdida no forzada" in event_label or "error no forzado" in event_label
+        # Algunos registros históricos guardaron errores con resultado GANADO. Un error
+        # nunca puede elevar aciertos ni transformarse en un duelo ganado por esa etiqueta.
+        event_success = result_is_success(event.result) and not (
+            is_forced_turnover or is_unforced_turnover
+        )
         is_conceded_goal = "gol encajado" in event_label or normalize_label(event.result) == "en contra"
         impact = match_event_impact(event)
         if impact:
@@ -85112,9 +85118,9 @@ def _build_player_match_stats_payload(primary_team, player, match):
         if event_label.startswith("robo") or "recuperacion" in event_label:
             if event_success:
                 stats["recoveries"] += 1
-        if "perdida forzada" in event_label or "error forzado" in event_label:
+        if is_forced_turnover:
             stats["forced_turnovers"] += 1
-        if "perdida no forzada" in event_label or "error no forzado" in event_label:
+        if is_unforced_turnover:
             stats["unforced_turnovers"] += 1
         if contains_keyword(event.event_type, DRIBBLE_KEYWORDS) or contains_keyword(
             event.observation, DRIBBLE_KEYWORDS

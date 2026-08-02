@@ -32,8 +32,6 @@ DUEL_EVENT_KEYWORDS = {
     "falta recibida",
     "presión",
     "presionado",
-    "error forzado",
-    "error",
     "disputa",
 }
 DUEL_SUCCESS_KEYWORD = {"ganado", "recuperado", "ok", "fortaleza", "favorable", "superado"}

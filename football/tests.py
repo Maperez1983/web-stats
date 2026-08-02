@@ -12612,6 +12612,12 @@ class TaxonomyBehaviorTests(TestCase):
         self.assertTrue(classify_duel_event('Duelo aéreo', 'GANADO')['is_duel'])
         self.assertTrue(classify_duel_event('Duelo aéreo', 'GANADO')['won'])
 
+    def test_errors_never_count_as_duels_even_with_won_result(self):
+        error = classify_duel_event('ERROR FORZADO', 'GANADO')
+
+        self.assertFalse(error['is_duel'])
+        self.assertFalse(error['won'])
+
     def test_switch_and_depth_passes_count_as_passes(self):
         self.assertTrue(contains_keyword('PASE A LA ESPALDA', PASS_KEYWORDS))
         self.assertTrue(contains_keyword('Cambio de orientación', PASS_KEYWORDS))

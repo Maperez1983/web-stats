@@ -335,6 +335,18 @@ class MatchRatingAlgorithmTests(TestCase):
         self.assertEqual(rating["confidence"], "alta")
         self.assertGreaterEqual(rating["rating"], 6.4)
 
+    def test_error_marked_as_won_is_never_a_success_or_won_duel(self):
+        self._event("ERROR FORZADO", "GANADO")
+
+        payload, _match_payload = views._build_player_match_stats_payload(
+            self.team, self.player, self.match
+        )
+
+        self.assertEqual(payload["forced_turnovers"], 1)
+        self.assertEqual(payload["successes"], 0)
+        self.assertEqual(payload["duels_total"], 0)
+        self.assertEqual(payload["duels_won"], 0)
+
     def test_positive_and_negative_events_move_rating_around_fm_average(self):
         common = {"total_actions": 10}
         positive = {
