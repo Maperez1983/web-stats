@@ -4239,9 +4239,44 @@
 			            <span>{{ library_source_counts.performed|default:0 }} tareas · con fecha</span>
 			          </a>
 			        </div>
-			        <p class="meta" style="margin:-0.1rem 0 0.9rem;">
+
+			        {# Colecciones: hasta ahora sólo existían como desplegable escondido, así que una #}
+			        {# colección creada no se podía ABRIR. Aquí se ven como carpetas, igual que arriba. #}
+			        <div class="folder-grid" aria-label="Colecciones de tareas" style="margin-top:0.75rem;">
+			          <a
+			            class="folder-card {% if not library_collection_id %}is-current{% endif %}"
+			            href="?{% qs_replace tab='library' collection_id=None lib_page=None %}"
+			            {% if not library_collection_id %}aria-current="page"{% endif %}
+			          >
+			            <strong>📚 Todas</strong>
+			            <span>Sin colección · toda la carpeta</span>
+			          </a>
+			          {% for col in library_collections %}
+			          <a
+			            class="folder-card {% if library_collection_id == col.id %}is-current{% endif %}"
+			            href="?{% qs_replace tab='library' collection_id=col.id lib_page=None %}"
+			            {% if library_collection_id == col.id %}aria-current="page"{% endif %}
+			          >
+			            <strong>🗂️ {{ col.name }}</strong>
+			            <span>{{ col.item_count|default:0 }} tareas · colección</span>
+			          </a>
+			          {% endfor %}
+			          <details class="folder-card" style="cursor:pointer;">
+			            <summary style="list-style:none; font-weight:900;">➕ Nueva colección</summary>
+			            <form method="post" style="margin:0.55rem 0 0; display:grid; gap:0.4rem;">
+			              {% csrf_token %}
+			              <input type="hidden" name="planner_action" value="create_task_collection" />
+			              <input type="hidden" name="planner_tab" value="library" />
+			              <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+			              <input type="text" name="collection_name" placeholder="Nombre (ej: ‘Biblioteca de Aitor’)…" />
+			              <button type="submit" class="button secondary small">Crear</button>
+			            </form>
+			          </details>
+			        </div>
+
+			        <p class="meta" style="margin:0.6rem 0 0.9rem;">
 			          Estás viendo la carpeta:
-			          <strong>{% if library_source_tab == 'imported' %}Importadas{% elif library_source_tab == 'performed' %}Realizadas{% else %}Creadas{% endif %}</strong>.
+			          <strong>{% if library_source_tab == 'imported' %}Importadas{% elif library_source_tab == 'performed' %}Realizadas{% else %}Creadas{% endif %}</strong>{% if library_collection_id %}{% for col in library_collections %}{% if library_collection_id == col.id %}, colección <strong>{{ col.name }}</strong> ({{ col.item_count|default:0 }} tareas, ordenadas por número){% endif %}{% endfor %}{% endif %}.
 			        </p>
 			        {% if library_source_tab != 'imported' and library_source_tab != 'performed' %}
 			        <form method="post" style="margin:-0.4rem 0 0.9rem;" onsubmit="return confirm('¿Enviar a la papelera los borradores vacíos (sin título, objetivo, dibujo ni PDF)? Se pueden restaurar.');">
@@ -4281,6 +4316,7 @@
                         <option value="quality" {% if library_sort == 'quality' %}selected{% endif %}>Mayor calidad</option>
                         <option value="confidence" {% if library_sort == 'confidence' %}selected{% endif %}>Mayor confianza</option>
                         <option value="title" {% if library_sort == 'title' %}selected{% endif %}>A‑Z</option>
+                        <option value="number" {% if library_sort == 'number' %}selected{% endif %}>Por número (Tarea 1, 2, 3…)</option>
                       </select>
                       <button type="submit" class="secondary">Aplicar</button>
                       <a

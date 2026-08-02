@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from datetime import date
 
@@ -410,6 +411,17 @@ def filter_task_library_advanced(
 
     if reference_date:
         filtered = [item for item in filtered if str(getattr(item, 'reference_date_iso', '') or '') == reference_date]
+
+    if sort_key == 'number':
+        # Orden del material impreso: "Tarea 2, 3, 4… 10, 11". El alfabético pone la 10
+        # antes que la 2, así que se ordena por el primer número del título.
+        def _numero(item):
+            m = re.search(r'\d+', str(getattr(item, 'title', '') or ''))
+            # Las que no llevan número van al final, y entre ellas por título.
+            return (0, int(m.group()), '') if m else (1, 0, str(getattr(item, 'title', '') or '').lower())
+
+        filtered.sort(key=lambda item: (*_numero(item), int(getattr(item, 'id', 0) or 0)))
+        return filtered
 
     if sort_key == 'title':
         filtered.sort(key=lambda item: (str(getattr(item, 'title', '') or '').lower(), int(getattr(item, 'id', 0) or 0)))

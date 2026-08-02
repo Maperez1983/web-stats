@@ -49455,11 +49455,16 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
     library_duration_band = str(request.GET.get("duration") or request.POST.get("duration") or "").strip()
     library_quality = str(request.GET.get("quality") or request.POST.get("quality") or "").strip()
     library_reference_date = str(request.GET.get("ref_date") or request.POST.get("ref_date") or "").strip()
-    library_sort = str(request.GET.get("sort") or request.POST.get("sort") or "recent").strip().lower()
     library_collection_id = _parse_int(request.GET.get("collection_id") or request.POST.get("collection_id"))
-    allowed_sorts = {"recent", "quality", "confidence", "title"}
+    # Dentro de una colección el orden natural es el del material: "Tarea 2, 3, 4…", no el
+    # alfabético ("Tarea 1, 10, 100"). Por eso es el orden por defecto al abrir una colección.
+    _sort_por_defecto = "number" if library_collection_id else "recent"
+    library_sort = (
+        str(request.GET.get("sort") or request.POST.get("sort") or _sort_por_defecto).strip().lower()
+    )
+    allowed_sorts = {"recent", "quality", "confidence", "title", "number"}
     if library_sort not in allowed_sorts:
-        library_sort = "recent"
+        library_sort = _sort_por_defecto
     library_filters_active = bool(
         library_q
         or library_phase_keys
@@ -54192,8 +54197,6 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
         attendance_count_map = defaultdict(lambda: defaultdict(int))
         if ids:
             try:
-                from django.db.models import Count  # noqa: WPS433
-
                 tasks_counts = (
                     SessionTask.objects.filter(session_id__in=ids, deleted_at__isnull=True)
                     .values("session_id")
@@ -54203,8 +54206,6 @@ def _sessions_workspace_page(request, scope_key="coach", scope_title="Sesiones")
             except Exception:
                 tasks_count_map = {}
             try:
-                from django.db.models import Count  # noqa: WPS433
-
                 marks_counts = (
                     TrainingSessionAttendance.objects.filter(session_id__in=ids, player__team=primary_team)
                     .values("session_id", "status")
