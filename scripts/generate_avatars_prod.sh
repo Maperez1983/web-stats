@@ -36,4 +36,11 @@ if [ ! -f "$AVATAR_INSWAPPER" ]; then
 fi
 
 echo "Generando avatares contra producción (S3 + BD)…"
-exec python manage.py generate_player_avatars "${@:---all}"
+# En macOS no hay `python` a secas: sin esto el script moria con "command not found" despues de
+# haber pedido credenciales. Se prefiere python3 y se deja anular con PY_BIN.
+PY_BIN="${PY_BIN:-$(command -v python3 || command -v python || true)}"
+if [ -z "$PY_BIN" ]; then
+  echo "No encuentro python3 en el PATH. Define PY_BIN con la ruta del interprete." >&2
+  exit 1
+fi
+exec "$PY_BIN" manage.py generate_player_avatars "${@:---all}"
