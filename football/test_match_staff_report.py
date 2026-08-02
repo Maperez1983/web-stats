@@ -409,7 +409,12 @@ class MatchRatingAlgorithmTests(TestCase):
         central_rating = views._auto_match_rating_from_stats(defensive_work, "DFC")
         forward_rating = views._auto_match_rating_from_stats(defensive_work, "DC")
 
-        self.assertGreater(central_rating, forward_rating)
+        self.assertGreaterEqual(central_rating, forward_rating + 0.1)
+
+        low_execution = {**defensive_work, "successes": 9}
+        low_execution_central = views._auto_match_rating_from_stats(low_execution, "DFC")
+        low_execution_forward = views._auto_match_rating_from_stats(low_execution, "DC")
+        self.assertEqual(low_execution_central, low_execution_forward)
 
     def test_contextual_consequences_and_unforced_errors_have_meaningful_weight(self):
         common = {"total_actions": 12, "pass_attempts": 8, "passes_completed": 6}

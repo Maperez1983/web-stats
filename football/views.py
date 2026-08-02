@@ -78908,6 +78908,10 @@ def _auto_match_rating_from_stats(stats, position=None):
     total = int(stats.get("total_actions", 0) or 0)
     if total <= 0:
         return None
+    success_ratio = None
+    if "successes" in stats:
+        successes = max(0, min(total, int(stats.get("successes", 0) or 0)))
+        success_ratio = successes / total
     base = 6.4
     s = 0.0
     line = _fm_position_group(position)
@@ -78980,9 +78984,10 @@ def _auto_match_rating_from_stats(stats, position=None):
         s -= min(0.40, 0.10 * goals_conceded)
     elif line in ("central", "lateral"):
         # En defensa, recuperar y ganar el duelo es la producción principal del puesto,
-        # no una acción secundaria. Premiamos el volumen defensivo confirmado sin
-        # volver a contar por separado la especialidad aérea.
-        s += min(0.20, 0.02 * (recoveries + dw))
+        # no una acción secundaria. El bonus exige una ejecución global suficiente para
+        # que el volumen aislado no oculte una actuación cargada de errores.
+        if success_ratio is None or success_ratio >= 0.50:
+            s += min(0.36, 0.045 * (recoveries + dw))
     elif line in ("pivote", "medio"):
         s += min(0.10, 0.01 * (key_passes + long_won))
     elif line in ("banda", "delantero"):
@@ -78996,9 +79001,7 @@ def _auto_match_rating_from_stats(stats, position=None):
     rating = base + s + float(stats.get("contextual_impact", 0.0) or 0.0)
     # Un gol no debe ocultar una ejecución global deficiente. Con una muestra suficiente,
     # penalizamos de forma gradual solo el tramo inferior al 50 % de acciones exitosas.
-    if total >= 10 and "successes" in stats:
-        successes = max(0, min(total, int(stats.get("successes", 0) or 0)))
-        success_ratio = successes / total
+    if total >= 10 and success_ratio is not None:
         if success_ratio < 0.50:
             rating -= min(0.45, (0.50 - success_ratio) * 2.00)
     minutes_raw = stats.get("minutes_played")
