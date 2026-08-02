@@ -344,7 +344,7 @@
                 {% endfor %}
               </div>
               <div class="detail-line">
-                {{ p.actions }} acciones · {{ p.success_rate }}% éxito · {{ p.recoveries }} recuperaciones · {{ p.dribbles_ok }}/{{ p.dribbles }} regates · {{ p.long_passes_ok }}/{{ p.long_passes }} pases largos · {{ p.crosses_ok }}/{{ p.crosses }} centros
+                {{ p.actions }} acciones · {{ p.success_rate }}% éxito · {{ p.recoveries }} recuperaciones · {{ p.duels_won }}/{{ p.duels }} duelos · {{ p.aerial_won }}/{{ p.aerial }} aéreos · {{ p.dribbles_ok }}/{{ p.dribbles }} regates · {{ p.long_passes_ok }}/{{ p.long_passes }} pases largos · {{ p.crosses_ok }}/{{ p.crosses }} centros
                 {% if p.saves or p.goals_conceded %} · {{ p.saves }} paradas · {{ p.goals_conceded }} encajados{% endif %}
                 {% if p.forced_errors or p.unforced_errors %} · errores: {{ p.forced_errors }} forzados / {{ p.unforced_errors }} no forzados{% endif %}
                 {% if p.fouls_committed or p.fouls_received %} · faltas: {{ p.fouls_committed }} cometidas / {{ p.fouls_received }} recibidas{% endif %}

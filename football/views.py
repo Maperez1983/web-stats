@@ -28519,10 +28519,7 @@ def _match_staff_report_context(request, *, match, primary_team):
     def _is_shot_on_target(ev):
         if not _is_shot(ev):
             return False
-        a = str(getattr(ev, "event_type", "") or "").lower()
-        r = str(getattr(ev, "result", "") or "").lower()
-        o = str(getattr(ev, "observation", "") or "").lower()
-        return ("a puerta" in r) or ("gol" in a) or ("gol" in r) or ("gol" in o)
+        return is_shot_on_target_event(ev.event_type, ev.result, ev.observation)
 
     def _is_pass(ev):
         a = str(getattr(ev, "event_type", "") or "")

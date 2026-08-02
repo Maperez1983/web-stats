@@ -50,7 +50,7 @@ class MatchStaffReportTests(TestCase):
     def test_context_builds_team_and_player_match_reports(self, _crest):
         self._event("PASE EN LARGO", "GANADO", minute=12, period=1, zone="Medio centro", tercio="Construcción")
         self._event("DUELO AEREO", "GANADO", minute=52, period=2, zone="Area", tercio="Ataque")
-        self._event("DISPARO", "A PUERTA", minute=60, period=2, zone="Frontal", tercio="Ataque")
+        self._event("DISPARO", "AP", minute=60, period=2, zone="Frontal", tercio="Ataque")
         self._event("GOL ENCAJADO", "EN CONTRA", minute=70, period=2, zone="Portería", tercio="Defensa")
 
         request = RequestFactory().get("/coach/informes/partido/")
