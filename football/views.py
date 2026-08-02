@@ -78947,6 +78947,13 @@ def _auto_match_rating_from_stats(stats, position=None):
     # El impacto contextual no se comprime: representa una consecuencia comprobada del partido,
     # no volumen estadístico rutinario.
     rating = base + s + float(stats.get("contextual_impact", 0.0) or 0.0)
+    # Un gol no debe ocultar una ejecución global deficiente. Con una muestra suficiente,
+    # penalizamos de forma gradual solo el tramo inferior al 50 % de acciones exitosas.
+    if total >= 10 and "successes" in stats:
+        successes = max(0, min(total, int(stats.get("successes", 0) or 0)))
+        success_ratio = successes / total
+        if success_ratio < 0.50:
+            rating -= min(0.45, (0.50 - success_ratio) * 1.50)
     minutes_raw = stats.get("minutes_played")
     try:
         minutes = max(0, int(float(minutes_raw))) if minutes_raw is not None else None

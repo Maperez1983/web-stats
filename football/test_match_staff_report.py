@@ -374,6 +374,26 @@ class MatchRatingAlgorithmTests(TestCase):
         self.assertGreaterEqual(rating, 6.8)
         self.assertLessEqual(rating, 7.3)
 
+    def test_goal_does_not_hide_low_overall_execution(self):
+        error_heavy_scorer = {
+            "total_actions": 23,
+            "successes": 9,
+            "goals": 1,
+            "explicit_duels_total": 5,
+            "explicit_duels_won": 5,
+            "recoveries": 1,
+            "forced_turnovers": 6,
+            "retentions_lost": 6,
+            "long_passes_attempted": 1,
+            "fouls_committed": 2,
+            "fouls_received": 1,
+            "minutes_played": 45,
+        }
+
+        rating = views._auto_match_rating_from_stats(error_heavy_scorer, "LD")
+
+        self.assertLessEqual(rating, 6.5)
+
     def test_contextual_consequences_and_unforced_errors_have_meaningful_weight(self):
         common = {"total_actions": 12, "pass_attempts": 8, "passes_completed": 6}
         neutral = views._auto_match_rating_from_stats(common, "MC")
