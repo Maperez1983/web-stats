@@ -347,6 +347,14 @@ class MatchRatingAlgorithmTests(TestCase):
         self.assertEqual(payload["duels_total"], 0)
         self.assertEqual(payload["duels_won"], 0)
 
+        context = views._match_staff_report_context(
+            RequestFactory().get("/coach/informes/partido/"),
+            match=self.match,
+            primary_team=self.team,
+        )
+        report = next(row for row in context["player_reports"] if row["player_id"] == self.player.id)
+        self.assertEqual(report["success_rate"], 0)
+
     def test_positive_and_negative_events_move_rating_around_fm_average(self):
         common = {"total_actions": 10}
         positive = {

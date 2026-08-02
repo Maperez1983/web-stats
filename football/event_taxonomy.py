@@ -564,6 +564,21 @@ def result_is_success(result):
     return normalized in SUCCESS_RESULTS
 
 
+def event_result_is_success(event_type, result):
+    """Resultado efectivo de una acción, protegiendo datos históricos contradictorios."""
+    event_label = normalize_label(event_type)
+    negative_execution = any(
+        label in event_label
+        for label in (
+            "perdida forzada",
+            "error forzado",
+            "perdida no forzada",
+            "error no forzado",
+        )
+    )
+    return result_is_success(result) and not negative_execution
+
+
 def shots_needed_per_goal(shots, goals):
     shots_value = max(0, int(shots or 0))
     goals_value = max(0, int(goals or 0))

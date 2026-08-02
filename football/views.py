@@ -319,6 +319,7 @@ from football.event_taxonomy import (
     classify_duel_event,
     contains_keyword,
     extract_round_number,
+    event_result_is_success,
     is_assist_event,
     is_goal_event,
     is_goalkeeper_save_event,
@@ -28453,7 +28454,7 @@ def _match_staff_report_context(request, *, match, primary_team):
     timeline = []
     for ev in events:
         total_actions += 1
-        if result_is_success(ev.result):
+        if event_result_is_success(ev.event_type, ev.result):
             total_successes += 1
         is_conceded_goal = _is_conceded_goal_event(ev)
         impact = match_event_impact(ev)
@@ -28493,7 +28494,7 @@ def _match_staff_report_context(request, *, match, primary_team):
                 },
             )
             row["actions"] += 1
-            if result_is_success(ev.result):
+            if event_result_is_success(ev.event_type, ev.result):
                 row["successes"] += 1
             if is_goal:
                 row["goals"] += 1
@@ -28942,7 +28943,7 @@ def _match_staff_report_context(request, *, match, primary_team):
 
     decisive_moments = []
     for ev in events:
-        success = result_is_success(ev.result)
+        success = event_result_is_success(ev.event_type, ev.result)
         period = int(getattr(ev, "period", 0) or 0)
         if period not in period_map:
             minute = int(getattr(ev, "minute", 0) or 0)
@@ -29017,9 +29018,9 @@ def _match_staff_report_context(request, *, match, primary_team):
             detail["saves"] += 1
         if _matches(ev, "gol encajado"):
             detail["goals_conceded"] += 1
-        if _matches(ev, "error forzado") and not _matches(ev, "no forzado"):
+        if _matches(ev, "error forzado", "perdida forzada") and not _matches(ev, "no forzado"):
             detail["forced_errors"] += 1
-        if _matches(ev, "error no forzado", "no forzado"):
+        if _matches(ev, "error no forzado", "perdida no forzada", "no forzado"):
             detail["unforced_errors"] += 1
         if _matches(ev, "falta cometida"):
             detail["fouls_committed"] += 1
@@ -29201,7 +29202,7 @@ def _match_staff_report_context(request, *, match, primary_team):
         )
     if team_sums["forced_errors"]:
         transition_notes.append(
-            f'{team_sums["forced_errors"]} errores forzados al rival reflejan actividad defensiva y presión sobre el poseedor.'
+            f'{team_sums["forced_errors"]} errores propios bajo presión redujeron la continuidad de las posesiones.'
         )
     if team_sums["unforced_errors"]:
         transition_notes.append(
@@ -85051,9 +85052,7 @@ def _build_player_match_stats_payload(primary_team, player, match):
         is_unforced_turnover = "perdida no forzada" in event_label or "error no forzado" in event_label
         # Algunos registros históricos guardaron errores con resultado GANADO. Un error
         # nunca puede elevar aciertos ni transformarse en un duelo ganado por esa etiqueta.
-        event_success = result_is_success(event.result) and not (
-            is_forced_turnover or is_unforced_turnover
-        )
+        event_success = event_result_is_success(event.event_type, event.result)
         is_conceded_goal = "gol encajado" in event_label or normalize_label(event.result) == "en contra"
         impact = match_event_impact(event)
         if impact:
