@@ -277,14 +277,22 @@ def workspace_team_links(workspace):
     if not workspace or workspace.kind != Workspace.KIND_CLUB:
         return []
     workspace_ids = _workspace_group_ids(workspace) or [int(workspace.id)]
+    base = (
+        WorkspaceTeam.objects.filter(workspace_id__in=workspace_ids)
+        .select_related('workspace', 'team')
+        .order_by('workspace_id', '-is_default', 'team__name', 'id')
+    )
     try:
-        links = list(
-            WorkspaceTeam.objects.filter(workspace_id__in=workspace_ids, is_active=True)
-            .select_related('workspace', 'team')
-            .order_by('workspace_id', '-is_default', 'team__name', 'id')
-        )
+        links = list(base.filter(is_active=True))
     except Exception:
-        links = []
+        # Si el filtro falla (por ejemplo, la columna todavía no está en esta base de datos),
+        # se devuelven TODAS. Quedarse sin categorías deja al club sin selector y sin poder
+        # cambiar de equipo: es peor que enseñar una archivada de más.
+        logger.debug('No se pudo filtrar por categorías activas; se devuelven todas', exc_info=True)
+        try:
+            links = list(base)
+        except Exception:
+            links = []
     if not links and getattr(workspace, 'primary_team_id', None):
         try:
             WorkspaceTeam.objects.get_or_create(

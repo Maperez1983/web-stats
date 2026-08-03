@@ -144,3 +144,50 @@ class CategoriaArchivadaTests(TestCase):
 
         equipos = [enlace.team for enlace in workspace_team_links(self.club)]
         self.assertIn(self.alevin, equipos)
+
+
+class ElSelectorNoSePuedeQuedarVacioTests(TestCase):
+    """
+    Un filtro nuevo no puede dejar al club sin categorías: sin ellas desaparece el selector
+    y no hay forma de cambiar de equipo. Pasó al añadir `is_active`.
+    """
+
+    def setUp(self):
+        self.duenio = User.objects.create_user(username="duenio-selector", password="x")
+        self.club = Workspace.objects.create(
+            name="Club selector vacio", slug="club-selector-vacio",
+            kind=Workspace.KIND_CLUB, owner_user=self.duenio,
+        )
+        self.senior = Team.objects.create(name="Senior sel2", slug="senior-sel2")
+        self.cadete = Team.objects.create(name="Cadete sel2", slug="cadete-sel2")
+        WorkspaceTeam.objects.create(workspace=self.club, team=self.senior, is_default=True)
+        WorkspaceTeam.objects.create(workspace=self.club, team=self.cadete)
+
+    def test_si_el_filtro_falla_se_devuelven_todas(self):
+        from unittest.mock import patch
+
+        from django.db.models import QuerySet
+
+        from .workspace_context import workspace_team_links
+
+        original = QuerySet.filter
+
+        def _filter_que_falla(self, *args, **kwargs):
+            if "is_active" in kwargs:
+                raise Exception("la columna no existe en esta base de datos")
+            return original(self, *args, **kwargs)
+
+        with patch.object(QuerySet, "filter", _filter_que_falla):
+            enlaces = workspace_team_links(self.club)
+
+        self.assertEqual(len(enlaces), 2, "El club se quedó sin categorías al fallar el filtro")
+
+    def test_en_condiciones_normales_filtra(self):
+        from .workspace_context import workspace_team_links
+
+        enlace = WorkspaceTeam.objects.get(workspace=self.club, team=self.cadete)
+        enlace.is_active = False
+        enlace.save(update_fields=["is_active"])
+
+        equipos = [e.team for e in workspace_team_links(self.club)]
+        self.assertEqual(equipos, [self.senior])
