@@ -157,7 +157,27 @@ def tactical_plan_page(request):
         vistos.add(snap.team_id)
         rivales.append({'id': snap.team_id, 'name': snap.team.name if snap.team else '—', 'players': len(filas)})
 
+    # Partidos a los que se puede volcar el planteamiento: los que aun no se han cerrado.
+    partidos = []
+    try:
+        from .query_helpers import _team_match_queryset
+
+        for m in _team_match_queryset(equipo).filter(is_closed=False).order_by('date')[:20]:
+            rival_nombre = ''
+            for lado in ('away_team', 'home_team'):
+                otro = getattr(m, lado, None)
+                if otro and otro.id != equipo.id:
+                    rival_nombre = otro.name
+                    break
+            partidos.append({
+                'id': m.id,
+                'label': f"{m.date:%d/%m} · {rival_nombre or 'rival por definir'}",
+            })
+    except Exception:
+        partidos = []
+
     return render(request, 'football/tactical_plan.html', {
+        'partidos_json': json.dumps(partidos),
         'team': equipo,
         'team_name': equipo.display_name,
         'planes_json': json.dumps([_plan_json(p) for p in planes]),
@@ -251,6 +271,107 @@ def tactical_plan_delete(request):
         return JsonResponse({'ok': False, 'error': 'Datos ilegibles'}, status=400)
     borrados, _ = TacticalPlan.objects.filter(team=equipo, id=plan_id).delete()
     return JsonResponse({'ok': bool(borrados)})
+
+
+@login_required
+@require_POST
+def tactical_plan_apply(request):
+    """
+    Vuelca un planteamiento sobre un partido: el once, sus posiciones y el rival.
+
+    Escribe por el MISMO camino que el prepartido -convocatoria + MatchLineup, la doble escritura
+    que ya existia- en vez de inventarse un tercer sitio donde guardar el once. Si se guardara
+    aparte, la pizarra del partido y esta pantalla acabarian diciendo cosas distintas.
+    """
+    from django.utils import timezone
+
+    from .models import MatchLineup, RivalConvocationRecord
+    from .query_helpers import _team_match_queryset
+    from .views import (
+        _ensure_matchday_convocation_record,
+        _forbid_if_no_coach_access,
+        _get_primary_team_for_request,
+        _normalize_lineup_payload_with_limit,
+    )
+
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    equipo = _get_primary_team_for_request(request)
+    if not equipo:
+        return JsonResponse({'ok': False, 'error': 'Equipo no configurado'}, status=400)
+    try:
+        datos = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+        plan_id = int(datos.get('plan_id') or 0)
+        match_id = int(datos.get('match_id') or 0)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'Datos ilegibles'}, status=400)
+
+    plan = TacticalPlan.objects.filter(team=equipo, id=plan_id).select_related('rival_team').first()
+    if not plan:
+        return JsonResponse({'ok': False, 'error': 'Planteamiento no encontrado'}, status=404)
+    partido = _team_match_queryset(equipo).filter(id=match_id).first()
+    if not partido:
+        return JsonResponse({'ok': False, 'error': 'Partido no encontrado'}, status=404)
+
+    titulares = (plan.lineup_data or {}).get('starters') or []
+    if not titulares:
+        return JsonResponse({'ok': False, 'error': 'Ese planteamiento no tiene a nadie colocado'}, status=400)
+
+    convocatoria = _ensure_matchday_convocation_record(equipo, match=partido)
+    if not convocatoria:
+        return JsonResponse({'ok': False, 'error': 'No se pudo preparar la convocatoria del partido'}, status=400)
+
+    # Un titular tiene que estar convocado: si no, el once seria invalido y se caeria al guardar.
+    # Se anaden los que falten y se dice cuantos, que es informacion util, no un efecto oculto.
+    ids_plan = [int(f.get('id')) for f in titulares if str(f.get('id') or '').isdigit()]
+    ya = set(convocatoria.players.values_list('id', flat=True))
+    faltan = [pid for pid in ids_plan if pid not in ya]
+    if faltan:
+        nuevos = list(Player.objects.filter(team=equipo, is_active=True, id__in=faltan))
+        if nuevos:
+            convocatoria.players.add(*nuevos)
+
+    permitidos = list(convocatoria.players.all())
+    normalizado = _normalize_lineup_payload_with_limit(
+        {'starters': titulares, 'bench': []}, permitidos, starters_limit=LIMITE_TITULARES
+    )
+    normalizado['_meta'] = {
+        'saved_at': timezone.now().isoformat(),
+        'starters_limit': LIMITE_TITULARES,
+        'match_id': partido.id,
+        'source': 'tactics-plan-apply',
+        'plan_id': plan.id,
+        'orientation': 'lr',
+    }
+    convocatoria.lineup_data = normalizado
+    convocatoria.save(update_fields=['lineup_data'])
+    MatchLineup.objects.update_or_create(
+        team=equipo, match=partido, defaults={'lineup_data': normalizado}
+    )
+
+    # El rival, si el planteamiento lo lleva.
+    rival_filas = (plan.rival_lineup_data or {}).get('starters') or []
+    if rival_filas and plan.rival_team_id:
+        RivalConvocationRecord.objects.update_or_create(
+            team=equipo, match=partido,
+            defaults={
+                'rival_team': plan.rival_team,
+                'provider': 'plan',
+                'convocation_data': [
+                    {k: f.get(k) for k in ('code', 'name', 'number', 'position', 'photo_url')}
+                    for f in rival_filas
+                ],
+                'lineup_data': {'starters': rival_filas, 'bench': []},
+            },
+        )
+
+    return JsonResponse({
+        'ok': True,
+        'starters': len(normalizado.get('starters') or []),
+        'added_to_convocation': len(faltan),
+        'rival': len(rival_filas),
+    })
 
 
 @login_required

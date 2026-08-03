@@ -644,6 +644,7 @@ urlpatterns = [
     path("coach/tactica/planteamiento/guardar/", tactical_plan_views.tactical_plan_save, name="tactics-plan-save"),
     path("coach/tactica/planteamiento/borrar/", tactical_plan_views.tactical_plan_delete, name="tactics-plan-delete"),
     path("coach/tactica/planteamiento/rival/", tactical_plan_views.tactical_plan_rival_roster, name="tactics-plan-rival"),
+    path("coach/tactica/planteamiento/aplicar/", tactical_plan_views.tactical_plan_apply, name="tactics-plan-apply"),
     path("coach/11-inicial/", views.initial_eleven_page, name="initial-eleven"),
     path("coach/sesiones/", views.sessions_page, name="sessions"),
     path("coach/sesiones/biblioteca/", views.session_library_page, name="session-library"),

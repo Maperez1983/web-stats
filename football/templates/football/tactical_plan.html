@@ -93,6 +93,13 @@
           </div>
 
           <div class="tp-panel">
+            <h2>Aplicar a un partido</h2>
+            <select id="tp-match"><option value="">Elige el partido</option></select>
+            <button class="button primary" id="tp-apply" type="button" style="margin-top:.5rem;width:100%;">Aplicar planteamiento</button>
+            <p class="tp-hint">Coloca este once en el prepartido de ese partido, con sus posiciones y con el rival.</p>
+          </div>
+
+          <div class="tp-panel">
             <h2>Rival</h2>
             <select id="tp-rival"><option value="">Sin rival</option></select>
             <p class="tp-hint">Se colocan sus once primeros de la plantilla ya volcada. Sus fichas también se arrastran.</p>
@@ -104,11 +111,13 @@
       {{ jugadores_json|json_script:"tp-jugadores" }}
       {{ rivales_json|json_script:"tp-rivales" }}
       {{ slots_json|json_script:"tp-slots" }}
+      {{ partidos_json|json_script:"tp-partidos" }}
       <script>
         window.TP_URLS = {
           save: '{% url "tactics-plan-save" %}',
           del: '{% url "tactics-plan-delete" %}',
           rival: '{% url "tactics-plan-rival" %}',
+          apply: '{% url "tactics-plan-apply" %}',
         };
         window.TP_LIMITE = {{ starters_limit }};
       </script>

@@ -91,3 +91,81 @@ class PlanteamientoTests(TestCase):
                              content_type="application/json", secure=True)
         self.assertTrue(r.json()["ok"])
         self.assertEqual(TacticalPlan.objects.filter(team=self.team).count(), 0)
+
+
+class AplicarPlanteamientoTests(PlanteamientoTests):
+    """El puente: un planteamiento vuelca sobre el prepartido de un partido."""
+
+    def _partido(self):
+        import datetime
+
+        from football.models import Competition, Match, Season
+
+        comp = Competition.objects.create(name="Amistosos")
+        temporada = Season.objects.create(
+            competition=comp, name="2026/2027",
+            start_date=datetime.date(2026, 7, 1), end_date=datetime.date(2027, 6, 30),
+        )
+        return Match.objects.create(
+            season=temporada, home_team=self.team, away_team=self.rival,
+            date=datetime.date(2026, 8, 20), context="friendly",
+        )
+
+    def test_aplicar_deja_el_once_en_el_partido(self):
+        from football.models import MatchLineup, RivalConvocationRecord
+
+        plan = self._guardar(
+            rival_team_id=self.rival.id,
+            rival_lineup={"starters": [{"code": "r1", "name": "Rival 1", "number": "1", "x_pct": 93, "y_pct": 50}]},
+        ).json()["plan"]
+        partido = self._partido()
+
+        r = self.client.post(
+            reverse("tactics-plan-apply"),
+            data=json.dumps({"plan_id": plan["id"], "match_id": partido.id}),
+            content_type="application/json", secure=True,
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertTrue(r.json()["ok"])
+
+        guardado = MatchLineup.objects.get(team=self.team, match=partido)
+        titulares = guardado.lineup_data["starters"]
+        self.assertEqual(len(titulares), 1)
+        self.assertEqual(titulares[0]["x_pct"], 7, "la posición del planteamiento tiene que llegar tal cual")
+        self.assertEqual(guardado.lineup_data["_meta"]["orientation"], "lr")
+        self.assertEqual(guardado.lineup_data["_meta"]["source"], "tactics-plan-apply")
+
+        rival = RivalConvocationRecord.objects.get(team=self.team, match=partido)
+        self.assertEqual(len(rival.lineup_data["starters"]), 1)
+
+    def test_el_titular_que_no_estaba_convocado_se_convoca(self):
+        plan = self._guardar().json()["plan"]
+        partido = self._partido()
+        r = self.client.post(
+            reverse("tactics-plan-apply"),
+            data=json.dumps({"plan_id": plan["id"], "match_id": partido.id}),
+            content_type="application/json", secure=True,
+        )
+        # p1 no estaba en ninguna convocatoria: si no se añade, el once se guardaría vacío.
+        self.assertEqual(r.json()["starters"], 1)
+
+    def test_no_se_aplica_a_un_partido_de_otro_equipo(self):
+        import datetime
+
+        from football.models import Competition, Match, Season
+
+        otro = Team.objects.create(name="Otro club", slug="otro-club")
+        comp = Competition.objects.create(name="Liga")
+        temporada = Season.objects.create(
+            competition=comp, name="26/27",
+            start_date=datetime.date(2026, 7, 1), end_date=datetime.date(2027, 6, 30),
+        )
+        ajeno = Match.objects.create(season=temporada, home_team=otro, away_team=self.rival,
+                                     date=datetime.date(2026, 9, 1))
+        plan = self._guardar().json()["plan"]
+        r = self.client.post(
+            reverse("tactics-plan-apply"),
+            data=json.dumps({"plan_id": plan["id"], "match_id": ajeno.id}),
+            content_type="application/json", secure=True,
+        )
+        self.assertEqual(r.status_code, 404)

@@ -264,6 +264,45 @@
     aviso('Planteamiento nuevo: elige los once y colócalos.');
   });
 
+  // --- aplicar a un partido ---
+  const pintarSelectorPartido = () => {
+    const sel = $('tp-match');
+    if (!sel) return;
+    leerJson('tp-partidos', []).forEach((p) => {
+      const o = document.createElement('option');
+      o.value = p.id;
+      o.textContent = p.label;
+      sel.appendChild(o);
+    });
+  };
+
+  const botonAplicar = $('tp-apply');
+  if (botonAplicar) {
+    botonAplicar.addEventListener('click', async () => {
+      const partido = ($('tp-match') || {}).value;
+      if (!estado.id) { aviso('Guarda el planteamiento antes de aplicarlo.'); return; }
+      if (!partido) { aviso('Elige a qué partido lo aplicas.'); return; }
+      aviso('Aplicando…');
+      try {
+        const r = await fetch(URLS.apply, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
+          body: JSON.stringify({ plan_id: estado.id, match_id: partido }),
+        });
+        const d = await r.json();
+        if (!d.ok) { aviso(d.error || 'No se pudo aplicar.'); return; }
+        const extra = d.added_to_convocation
+          ? ' (' + d.added_to_convocation + ' añadidos a la convocatoria)'
+          : '';
+        aviso('Aplicado: ' + d.starters + ' titulares' + (d.rival ? ' y ' + d.rival + ' del rival' : '') + extra + '.');
+      } catch (e) {
+        aviso('No se pudo aplicar.');
+      }
+    });
+  }
+
+  pintarSelectorPartido();
   pintarSelectorRival();
   pintarLista();
   pintarBanquillo();
