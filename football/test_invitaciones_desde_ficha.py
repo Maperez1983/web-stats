@@ -222,6 +222,28 @@ class AltaDeStaffConAccesoTests(TestCase):
         self.assertTrue(self.StaffMember.objects.filter(name="Nuevo Entrenador").exists())
         self.assertFalse(UserInvitation.objects.filter(email__iexact="solo.ficha@club.com").exists())
 
+    def test_al_invitar_se_le_da_su_categoria_explicitamente(self):
+        """
+        Sin fila de acceso la persona entraba "de rebote", porque el sistema deducía su
+        categoría de la ficha de staff. Cuando esa deducción falla, se queda fuera (403).
+        """
+        from .models import WorkspaceTeamAccess
+
+        self._alta()
+        invitacion = UserInvitation.objects.get(email__iexact="nuevo.entrenador@club.com")
+
+        acceso = WorkspaceTeamAccess.objects.filter(
+            workspace=self.workspace, user=invitacion.user, team=self.cadete
+        ).first()
+        self.assertIsNotNone(acceso, "Se invitó sin darle acceso a su categoría")
+        self.assertTrue(acceso.is_default)
+        self.assertFalse(
+            WorkspaceTeamAccess.objects.filter(
+                workspace=self.workspace, user=invitacion.user, team=self.senior
+            ).exists(),
+            "Se le dio acceso a una categoría que no es la suya",
+        )
+
     def test_el_ambito_club_completo_no_ata_a_una_categoria(self):
         self._alta(scope="club", name="Coordinador Club")
 
