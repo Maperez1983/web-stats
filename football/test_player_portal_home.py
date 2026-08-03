@@ -257,6 +257,47 @@ class PlayerHomeTests(TestCase):
         self.assertEqual(b"".join(response.streaming_content), b"%PDF-archived-version")
         self.assertIn("v1.pdf", response.headers["Content-Disposition"])
 
+    def test_historical_pending_archive_uses_manual_minutes_in_dashboard(self):
+        competition = Competition.objects.create(name="Liga histórica", slug="liga-historica", region="Malaga")
+        season = Season.objects.create(competition=competition, name="2026/27 histórica")
+        rival = Team.objects.create(name="Rival histórico", slug="rival-historico")
+        match = Match.objects.create(
+            season=season,
+            home_team=self.team,
+            away_team=rival,
+            date=timezone.localdate(),
+            is_closed=True,
+        )
+        PlayerStatistic.objects.create(
+            player=self.player,
+            season=season,
+            match=match,
+            name="rating",
+            value=6.5,
+            context="auto-rating",
+        )
+        PlayerStatistic.objects.create(
+            player=self.player,
+            season=season,
+            match=match,
+            name="manual_minutes",
+            value=45,
+            context="manual-match",
+        )
+        PlayerMatchReportArchive.objects.create(
+            player=self.player,
+            match=match,
+            version=1,
+            rating=6.5,
+            snapshot={"historical_backfill": True},
+            reason="historical_backfill",
+        )
+
+        response = self._home()
+
+        self.assertEqual(response.context["performance_trends"]["minutes"], 45)
+        self.assertContains(response, "45′")
+
 
 class FichaIsClosedToThePlayerTests(TestCase):
     """La ficha es la herramienta del staff; el jugador tiene su portal."""

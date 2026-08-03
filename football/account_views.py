@@ -1153,6 +1153,21 @@ def _player_home_zones(request, player, vis):
             chronological = list(reversed(latest_archives))
             ratings = [float(row.rating) for row in chronological if row.rating is not None]
             recent_ratings = ratings[-5:]
+            historical_minute_rows = {
+                int(row["match_id"]): int(row["value"] or 0)
+                for row in PlayerStatistic.objects.filter(
+                    player=player,
+                    match_id__in=[archive.match_id for archive in latest_archives],
+                    name="manual_minutes",
+                ).values("match_id", "value")
+            }
+
+            def _archive_minutes(row):
+                snapshot = row.snapshot or {}
+                if snapshot.get("historical_backfill"):
+                    return historical_minute_rows.get(int(row.match_id), int(row.minutes or 0))
+                return int(row.minutes or 0)
+
             recent_snapshots = [row.snapshot or {} for row in latest_archives[:5]]
             kpi_buckets = {}
             for snapshot in recent_snapshots:
@@ -1164,7 +1179,7 @@ def _player_home_zones(request, player, vis):
                     bucket["values"].append(int(kpi.get("percentage") or 0))
             zones["performance_trends"] = {
                 "matches": len(latest_archives),
-                "minutes": sum(int(row.minutes or 0) for row in latest_archives),
+                "minutes": sum(_archive_minutes(row) for row in latest_archives),
                 "average": round(sum(ratings) / len(ratings), 1) if ratings else None,
                 "form": round(sum(recent_ratings) / len(recent_ratings), 1) if recent_ratings else None,
                 "best": round(max(ratings), 1) if ratings else None,
