@@ -280,3 +280,106 @@ class AltaDeStaffConAccesoTests(TestCase):
         peticion.session["active_workspace_id"] = self.workspace.id
         alcanza = allowed_team_ids_for_request(peticion)
         self.assertNotIn(self.senior.id, alcanza, "Un entrenador del cadete alcanza el senior")
+
+
+class ContrasenaDesdeLaFichaTests(TestCase):
+    """
+    El correo de invitación no siempre llega. Sin una forma de dar la contraseña a mano, la
+    persona se queda fuera y nadie puede hacer nada.
+    """
+
+    def setUp(self):
+        from .models import StaffMember
+
+        self.owner = User.objects.create_user(username="dueno-pwd", password="x", email="d4@club.com")
+        self.workspace = Workspace.objects.create(
+            name="Club contrasena", slug="club-contrasena",
+            kind=Workspace.KIND_CLUB, owner_user=self.owner,
+        )
+        self.cadete = Team.objects.create(name="Cadete pwd", slug="cadete-pwd")
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.cadete, is_default=True)
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace, user=self.owner, role=WorkspaceMembership.ROLE_OWNER
+        )
+        self.entrenador = User.objects.create_user(
+            username="entrenador.pwd", password="loquesea", email="e@club.com", is_active=False
+        )
+        self.miembro = StaffMember.objects.create(
+            workspace=self.workspace, team=self.cadete, name="Entrenador Pwd",
+            role_title="Entrenador", user=self.entrenador, is_active=True,
+        )
+        self.client.force_login(self.owner)
+        sesion = self.client.session
+        sesion["active_workspace_id"] = self.workspace.id
+        sesion["active_team_by_workspace"] = {str(self.workspace.id): int(self.cadete.id)}
+        sesion.save()
+
+    def _poner(self, clave, repetida=None, staff_id=None):
+        return self.client.post(
+            reverse("staff-member-detail", args=[staff_id or self.miembro.id]),
+            {"action": "set_password", "new_password": clave, "new_password_confirm": repetida if repetida is not None else clave},
+            follow=True,
+        )
+
+    def test_deja_la_cuenta_lista_para_entrar(self):
+        self._poner("Clave-Larga-2026x")
+
+        self.entrenador.refresh_from_db()
+        self.assertTrue(self.entrenador.is_active, "La cuenta sigue sin activar")
+        self.assertTrue(self.entrenador.check_password("Clave-Larga-2026x"))
+
+    def test_las_invitaciones_pendientes_dejan_de_valer(self):
+        from django.utils import timezone
+        from datetime import timedelta
+
+        invitacion = UserInvitation.objects.create(
+            user=self.entrenador, token=UserInvitation.generate_token(), email="e@club.com",
+            expires_at=timezone.now() + timedelta(days=7), is_active=True,
+        )
+
+        self._poner("Clave-Larga-2026x")
+
+        invitacion.refresh_from_db()
+        self.assertFalse(invitacion.is_active, "El enlace viejo sigue sirviendo tras poner la contraseña")
+
+    def test_si_no_coinciden_no_toca_nada(self):
+        self._poner("Clave-Larga-2026x", "Otra-Clave-2026x")
+
+        self.entrenador.refresh_from_db()
+        self.assertFalse(self.entrenador.is_active)
+        self.assertFalse(self.entrenador.check_password("Clave-Larga-2026x"))
+
+    def test_una_contrasena_debil_se_rechaza(self):
+        self._poner("1234")
+
+        self.entrenador.refresh_from_db()
+        self.assertFalse(self.entrenador.check_password("1234"))
+
+    def test_no_se_le_puede_cambiar_al_propietario(self):
+        from .models import StaffMember
+
+        ficha_dueno = StaffMember.objects.create(
+            workspace=self.workspace, team=self.cadete, name="El Dueño",
+            role_title="Presidente", user=self.owner, is_active=True,
+        )
+
+        self._poner("Clave-Larga-2026x", staff_id=ficha_dueno.id)
+
+        self.owner.refresh_from_db()
+        self.assertFalse(self.owner.check_password("Clave-Larga-2026x"))
+
+    def test_quien_no_manda_en_el_club_no_puede(self):
+        intruso = User.objects.create_user(username="intruso-pwd", password="x")
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace, user=intruso, role=WorkspaceMembership.ROLE_MEMBER
+        )
+        self.client.force_login(intruso)
+        sesion = self.client.session
+        sesion["active_workspace_id"] = self.workspace.id
+        sesion.save()
+
+        respuesta = self._poner("Clave-Larga-2026x")
+
+        self.entrenador.refresh_from_db()
+        self.assertFalse(self.entrenador.check_password("Clave-Larga-2026x"))
+        self.assertIn(respuesta.status_code, (200, 403))

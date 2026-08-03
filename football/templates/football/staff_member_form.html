@@ -364,6 +364,22 @@
             <a class="btn" href="#staff-access-block" style="margin-top:.6rem;display:inline-block;text-decoration:none">Configurar qué ve</a>
             {% endif %}
           </article>
+          {% comment %}Dar la contraseña a mano. El correo de invitación no siempre llega, y sin
+          esto la persona se queda fuera sin que nadie pueda hacer nada.{% endcomment %}
+          {% if member.user and can_manage_workspace %}
+          <article class="status-card">
+            <span class="label">Contraseña</span>
+            <div class="value">{% if member.user.is_active %}Cuenta activa{% else %}Cuenta sin activar{% endif %}</div>
+            <div class="meta">Ponle una contraseña y dísela; ella la cambia luego desde su perfil.</div>
+            <form method="post" style="margin-top:.6rem; display:grid; gap:.4rem;">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="set_password" />
+              <input type="password" name="new_password" placeholder="Contraseña nueva" autocomplete="new-password" required />
+              <input type="password" name="new_password_confirm" placeholder="Repítela" autocomplete="new-password" required />
+              <button class="btn" type="submit">Establecer contraseña y activar</button>
+            </form>
+          </article>
+          {% endif %}
           <article class="status-card">
             <span class="label">Licencia</span>
             <div class="value">
