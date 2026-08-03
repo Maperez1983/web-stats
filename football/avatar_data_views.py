@@ -114,7 +114,9 @@ def coach_avatar_data_page(request):
                         # parse_date y no el ayudante de views.py: aquel vive ANIDADO dentro de
                         # una vista, así que importarlo revienta en tiempo de ejecución.
                         valor = parse_date(bruto)
-                        if not valor:
+                        # Un ano de dos cifras ("0017" por "2017") pasa la validacion de fecha y
+                        # deja al jugador con dos mil anos. Ya hay dos fichas asi.
+                        if not valor or valor.year < 1900:
                             continue
                     elif campo in ('height_cm', 'skin_grade'):
                         try:

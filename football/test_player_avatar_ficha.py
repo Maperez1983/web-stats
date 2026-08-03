@@ -193,3 +193,18 @@ class PizarraPlantillaNinosTests(TestCase):
         ficha = grupos[0] if isinstance(grupos, list) else [c for g in grupos.values() for c in g][0]
         self.assertEqual(ficha["avatar_url"], "")
         self.assertIn("chandal_black.png", ficha["avatar"])
+
+
+class EdadImposibleTests(TestCase):
+    """Hay fichas reales con el año '0017' en vez de '2017'. Un dato así no puede decidir nada."""
+
+    def test_una_edad_imposible_se_trata_como_desconocida(self):
+        from football.management.commands.generate_player_avatars import edad_de, figura_para
+
+        equipo = Team.objects.create(name="Benagalbón Benjamín A", slug="bj-err", category="Benjamín")
+        marc = Player.objects.create(
+            team=equipo, name="Marc", is_active=True, birth_date=datetime.date(17, 1, 1)
+        )
+        self.assertIsNone(edad_de(marc), "2009 años no es una edad")
+        # Y entonces manda la categoría del equipo: cuerpo de niño, no de adulto.
+        self.assertTrue(figura_para(marc)["clave"].startswith("peque"))

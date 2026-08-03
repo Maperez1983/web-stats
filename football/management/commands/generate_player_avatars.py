@@ -109,9 +109,15 @@ def edad_de(player, hoy=None):
         return None
     hoy = hoy or datetime.date.today()
     try:
-        return hoy.year - fecha.year - ((hoy.month, hoy.day) < (fecha.month, fecha.day))
+        edad = hoy.year - fecha.year - ((hoy.month, hoy.day) < (fecha.month, fecha.day))
     except Exception:
         return None
+    # Una edad imposible es un error de tecleo, no un dato: en produccion hay fichas con el ano
+    # "0017" en vez de "2017", y esos jugadores salian con 2009 anos y cuerpo de adulto. Se trata
+    # como si no se supiera la fecha, y entonces manda la categoria del equipo.
+    if edad < 0 or edad > 110:
+        return None
+    return edad
 
 
 _INSTALADAS = {}
