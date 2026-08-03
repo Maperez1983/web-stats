@@ -318,6 +318,25 @@ def brand_theme(request):
     }
 
 
+def _tiene_ficha_de_jugador(request):
+    """
+    ¿La cuenta de quien mira está vinculada a una ficha de jugador?
+
+    Se calcula FUERA de la caché del contexto a propósito: en cuanto se vincula la ficha, el
+    enlace a su espacio aparece. Es un `exists()` sobre una columna con índice único.
+    """
+    try:
+        usuario = getattr(request, 'user', None)
+        if usuario is None or not getattr(usuario, 'is_authenticated', False):
+            return False
+        from .models import Player
+
+        return Player.objects.filter(user=usuario, is_active=True).exists()
+    except Exception:
+        logger.debug('No se pudo comprobar si el usuario tiene ficha de jugador', exc_info=True)
+        return False
+
+
 def workspace_access(request):
     """
     Contexto global para plantillas:
@@ -441,6 +460,7 @@ def workspace_access(request):
     if isinstance(cached_payload, dict) and cached_payload:
         cached_payload = dict(cached_payload)
         cached_payload['active_team_current_path'] = request.get_full_path() if request else ''
+        cached_payload['tiene_ficha_de_jugador'] = _tiene_ficha_de_jugador(request)
         return cached_payload
 
     module_access = {}
@@ -612,11 +632,17 @@ def workspace_access(request):
         'can_access_platform': can_access_platform,
         'is_admin_user': is_admin,
         'can_access_staff': can_access_staff,
+        # Una misma persona puede ser dos cosas: entrenador del cadete y jugador del senior.
+        # El ROL es único, así que quien tiene rol de entrenador nunca veía su propio espacio
+        # de jugador aunque su ficha estuviera vinculada a su cuenta. Lo que manda para esto no
+        # es el rol: es el vínculo.
+        'tiene_ficha_de_jugador': _tiene_ficha_de_jugador(request),
     }
     if ctx_cache_key:
         try:
             to_cache = dict(payload)
             to_cache.pop('active_team_current_path', None)
+            to_cache.pop('tiene_ficha_de_jugador', None)
             cache.set(ctx_cache_key, to_cache, cache_ttl_s)
         except Exception:
             logger.debug('No se pudo guardar payload de workspace access en cache %s', ctx_cache_key, exc_info=True)

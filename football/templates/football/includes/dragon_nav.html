@@ -198,6 +198,12 @@
   {% if can_manage_workspace and active_workspace and active_workspace.kind == 'club' %}
   <a href="{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Configuración del club: temporada, identidad, permisos y staff." class="{% if nav_url_name == 'club-onboarding' or nav_url_name == 'club-season-wizard' %}is-active{% endif %}" {% if nav_url_name == 'club-onboarding' or nav_url_name == 'club-season-wizard' %}aria-current="page"{% endif %}>Club</a>
   {% endif %}
+  {% comment %}Quien además es jugador del club -el entrenador del cadete que juega en el
+  senior- entra a SU espacio desde aquí. No depende del rol, que es único, sino de que su
+  ficha esté vinculada a su cuenta.{% endcomment %}
+  {% if tiene_ficha_de_jugador %}
+  <a href="{% url 'player-home' %}" data-help="Tu espacio como jugador: tu ficha, tus objetivos y tu parte diario." class="{% if nav_url_name == 'player-home' %}is-active{% endif %}" {% if nav_url_name == 'player-home' %}aria-current="page"{% endif %}>Mi ficha</a>
+  {% endif %}
   {% endwith %}
 </nav>
 {% endif %}
