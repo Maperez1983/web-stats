@@ -31,7 +31,9 @@
       .cl-kit{display:inline-flex;gap:3px;margin-left:auto;flex:0 0 auto;}
       .cl-sw{width:13px;height:13px;border-radius:4px;border:1px solid rgba(255,255,255,.2);}
       .cl-staff{display:flex;gap:.4rem;flex-wrap:wrap;}
-      .cl-staff span{font-size:.8rem;color:var(--fm-ink-2);background:var(--fm-panel);border:1px solid var(--fm-line);border-radius:999px;padding:.32rem .78rem;}
+      .cl-staff a.cl-person{text-decoration:none;}
+      .cl-staff a.cl-person:hover{border-color:var(--fm-ink-3);}
+      .cl-staff span, .cl-staff a.cl-person{font-size:.8rem;color:var(--fm-ink-2);background:var(--fm-panel);border:1px solid var(--fm-line);border-radius:999px;padding:.32rem .78rem;}
       .cl-staff b{color:var(--fm-ink);}
       .cl-note{font-size:.72rem;color:var(--fm-ink-3);margin-top:.7rem;}
       .cl-links{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1.3rem;}
@@ -94,13 +96,18 @@
         {% comment %}Sólo el cuerpo técnico del club y el de la categoría en la que estás: estando
         en el cadete no se mira quién entrena al benjamín. De los demás se dice cuántos son.{% endcomment %}
         <div class="cl-sect">Cuerpo técnico{% if staff_team_name %} · {{ staff_team_name }}{% endif %}</div>
+        {% comment %}Cada persona enlaza a SU ficha: si se ve aquí, desde aquí se edita. Antes
+        había que ir a Dirección → Staff a buscarla otra vez.{% endcomment %}
         {% if staff %}
         <div class="cl-staff">
-          {% for s in staff %}<span><b>{{ s.name }}</b> · {{ s.role }}{% if not s.global %} <span style="color:var(--fm-ink-3);">({{ s.team }})</span>{% endif %}</span>{% endfor %}
+          {% for s in staff %}<a class="cl-person" href="{% url 'staff-member-detail' staff_id=s.id %}{% if staff_team_id %}?team={{ staff_team_id }}{% endif %}"><b>{{ s.name }}</b> · {{ s.role }}{% if not s.global %} <span style="color:var(--fm-ink-3);">({{ s.team }})</span>{% endif %}</a>{% endfor %}
         </div>
         {% else %}
-        <p class="cl-empty">Sin staff registrado. Añádelo en Dirección → Staff.</p>
+        <p class="cl-empty">Todavía no hay nadie en el cuerpo técnico de esta categoría.</p>
         {% endif %}
+        <p class="cl-empty" style="margin-top:.6rem;">
+          <a href="{% url 'staff-member-create' %}{% if staff_team_id %}?team={{ staff_team_id }}{% endif %}">+ Añadir a alguien al cuerpo técnico</a>
+        </p>
         {% if staff_otros %}
         <p class="cl-empty" style="margin-top:.6rem;">
           Otras categorías tienen {{ staff_otros }} persona{{ staff_otros|pluralize:"s" }} más en su cuerpo técnico.
