@@ -133,6 +133,8 @@ class MatchStaffReportTests(TestCase):
         self.assertEqual(percentages["Pase largo"], 100)
         self.assertEqual(percentages["Duelos"], 100)
         self.assertEqual(percentages["Tiros a puerta"], 100)
+        self.assertEqual(percentages["Conversión total"], 0)
+        self.assertEqual(percentages["Conversión a puerta"], 0)
         self.assertEqual(professional["shot_comparison"]["opponent_pct"], 28.6)
         self.assertTrue(all(row["value"].endswith("%") for row in professional["with_ball"]))
         self.assertTrue(all(row["value"].endswith("%") for row in professional["without_ball"]))

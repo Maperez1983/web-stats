@@ -18,7 +18,7 @@
     {% for metric in pro.percentage_metrics %}
     <article class="pro-percentage-card">
       <div class="pro-percentage-ring" style="--percentage:{{ metric.pct|unlocalize }};"><strong>{{ metric.pct|floatformat:0 }}%</strong></div>
-      <div><span>{{ metric.label }}</span><small>{{ metric.detail }} acertadas</small></div>
+      <div><span>{{ metric.label }}</span><small>{{ metric.detail }} {{ metric.detail_suffix|default:"acertadas" }}</small></div>
     </article>
     {% endfor %}
   </div>
