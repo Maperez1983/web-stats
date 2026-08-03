@@ -40,6 +40,14 @@
     .summary article { width:19.1%; min-height:52px; padding:8px; border:1px solid #d8e2da; border-radius:10px; background:#f2f6f2; }
     .summary span { display:block; color:#68776e; font-size:6px; font-weight:900; letter-spacing:.65px; text-transform:uppercase; }
     .summary strong { display:block; margin-top:4px; color:#123b25; font-size:15px; }
+    .action-kpis { display:flex; margin-top:6px; }
+    .action-kpi { flex:1; min-width:0; margin-right:6px; padding:8px 9px; border:1px solid #d8e2da; border-radius:10px; background:#fff; }
+    .action-kpi:last-child { margin-right:0; }
+    .action-kpi span { display:block; min-height:15px; color:#506158; font-size:6px; font-weight:900; letter-spacing:.55px; line-height:1.25; text-transform:uppercase; }
+    .action-kpi strong { display:block; margin-top:2px; color:#0a5e33; font-size:17px; }
+    .action-kpi small { display:block; margin-top:1px; color:#738078; font-size:6px; }
+    .action-track { height:5px; margin-top:6px; overflow:hidden; border-radius:999px; background:#e2ebe4; }
+    .action-track i { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,#0a5e33,#4fc27c); }
     .columns { display:flex; justify-content:space-between; margin-top:11px; }
     .panel { width:49.2%; padding:11px 12px; border:1px solid #d8e2da; border-radius:12px; background:#fff; }
     .panel.focus { border-top:4px solid #f4b400; }
@@ -91,6 +99,13 @@
       {% for item in global_summary %}<article><span>{{ item.label }}</span><strong>{{ item.value }}</strong></article>{% endfor %}
     </section>
 
+    {% if player_action_kpis %}
+    <h3 class="summary-title">Tu ejecución</h3>
+    <section class="action-kpis">
+      {% for item in player_action_kpis %}<article class="action-kpi"><span>{{ item.label }}</span><strong>{{ item.percentage }}%</strong><small>{{ item.detail }} acciones</small><div class="action-track"><i style="width:{{ item.percentage }}%;"></i></div></article>{% endfor %}
+    </section>
+    {% endif %}
+
     <div class="columns">
       <section class="panel positive"><h3>Lo que aportaste</h3><ul>{% for item in strengths %}<li>{{ item }}</li>{% endfor %}</ul></section>
       <section class="panel focus"><h3>Siguiente foco</h3><ul>{% for item in improvements %}<li>{{ item }}</li>{% endfor %}</ul></section>
@@ -102,7 +117,7 @@
       {% for item in player_moments %}<div class="moment"><span class="minute">{% if item.minute %}{{ item.minute }}′{% else %}—{% endif %}</span><span><strong>{{ item.action }}</strong> · {{ item.label }}{% if item.reason_label %} · {{ item.reason_label }}{% endif %}</span></div>{% endfor %}
     </section>
     {% endif %}
-    <footer><span>Informe generado al cerrar el partido.</span><span>El detalle porcentual permanece en los KPI del cuerpo técnico.</span></footer>
+    <footer><span>Informe generado al cerrar el partido.</span><span>Las ponderaciones de la valoración permanecen en el área técnica.</span></footer>
   </main>
 </body>
 </html>

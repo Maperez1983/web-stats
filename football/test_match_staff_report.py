@@ -297,7 +297,7 @@ class MatchStaffReportTests(TestCase):
         self.assertEqual(percentages["Duelos aéreos"], (100, "1/1"))
 
     @patch("football.views.resolve_team_crest_url", return_value="")
-    def test_player_report_is_narrative_and_keeps_percentage_kpis_out(self, _crest):
+    def test_player_report_combines_narrative_with_action_kpis(self, _crest):
         self.match.home_score = 2
         self.match.away_score = 2
         self.match.is_closed = True
@@ -329,9 +329,17 @@ class MatchStaffReportTests(TestCase):
         self.assertIn("Valoración", pdf_html)
         self.assertIn("C.D. RINCON", pdf_html)
         self.assertIn('class="player-portrait"', pdf_html)
-        self.assertNotIn("Precisión de pase", html)
-        self.assertNotIn("Porcentaje", html)
-        self.assertNotIn("Precisión de pase", pdf_html)
+        self.assertEqual(
+            context["player_action_kpis"],
+            [
+                {"key": "passes", "label": "Pases", "percentage": 100, "detail": "1/1"},
+                {"key": "duels", "label": "Duelos", "percentage": 100, "detail": "1/1"},
+            ],
+        )
+        self.assertIn("Tu ejecución", html)
+        self.assertIn("100%", html)
+        self.assertIn("1/1", pdf_html)
+        self.assertNotIn("Ponderación del algoritmo", html)
 
     @patch("football.views.resolve_team_crest_url", return_value="")
     def test_error_that_cost_a_goal_is_not_counted_as_a_goal_scored(self, _crest):

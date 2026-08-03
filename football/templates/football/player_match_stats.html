@@ -222,6 +222,13 @@
       .report-score { border:1px solid rgba(255,255,255,.12) !important; border-radius:14px; padding:.7rem; background:rgba(255,255,255,.05) !important; }
       .report-score span { display:block; color:#aebdb5; font-size:.62rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
       .report-score strong { display:block; margin-top:.25rem; color:#fff; font-size:1.25rem; }
+      .report-action-kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(135px,1fr)); gap:.55rem; margin-top:1rem; }
+      .report-action-kpi { position:relative; z-index:1; padding:.75rem; border:1px solid rgba(255,255,255,.13); border-radius:14px; background:rgba(255,255,255,.06); }
+      .report-action-kpi span { display:block; min-height:1.5rem; color:#b8cbc0; font-size:.6rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
+      .report-action-kpi strong { display:block; color:#fff; font-size:1.55rem; line-height:1; }
+      .report-action-kpi small { display:block; margin-top:.2rem; color:#9bd9b7; font-size:.68rem; }
+      .report-action-track { height:6px; margin-top:.55rem; overflow:hidden; border-radius:999px; background:rgba(255,255,255,.12); }
+      .report-action-track i { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,#2f9e5b,#75d49b); }
       .report-columns { display:grid; grid-template-columns:1fr 1fr; gap:.8rem; }
       .report-list { margin:0; padding:0; list-style:none; display:grid; gap:.6rem; }
       .report-list li { position:relative; padding:.75rem .8rem .75rem 2rem; border-radius:13px; background:rgba(255,255,255,.035); line-height:1.45; }
@@ -272,6 +279,12 @@
           <article class="report-score"><span>{{ item.label }}</span><strong>{{ item.value }}</strong></article>
           {% endfor %}
         </div>
+        {% if player_action_kpis %}
+        <h3 class="report-kicker" style="margin-top:1.1rem;">Tu ejecución</h3>
+        <div class="report-action-kpis" aria-label="Porcentajes de ejecución individual">
+          {% for item in player_action_kpis %}<article class="report-action-kpi"><span>{{ item.label }}</span><strong>{{ item.percentage }}%</strong><small>{{ item.detail }} acciones</small><div class="report-action-track"><i style="width:{{ item.percentage }}%;"></i></div></article>{% endfor %}
+        </div>
+        {% endif %}
       </section>
       <div class="report-columns">
         <section class="card">
