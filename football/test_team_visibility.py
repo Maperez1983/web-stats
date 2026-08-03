@@ -69,3 +69,41 @@ class SelectorDeRivalTests(TestCase):
 
         self.assertIn("CD Federativo sel", nombres)
         self.assertNotIn("Su Cadete sel", nombres)
+
+
+class ClasificacionPorCategoriaTests(TestCase):
+    """Un club se llama igual en todas sus categorías: la tabla del cadete no es la del senior."""
+
+    def setUp(self):
+        self.cadete_propio = Team.objects.create(
+            name="Mi Cadete cls", slug="mi-cadete-cls", category="CADETE"
+        )
+        self.rincon_senior = Team.objects.create(
+            name="C.D. Rincón", slug="rincon-senior-cls", category="SENIOR"
+        )
+        self.rincon_cadete = Team.objects.create(
+            name="C.D. Rincón", slug="rincon-cadete-cls", category="CADETE"
+        )
+        self.sin_categoria = Team.objects.create(name="CD Sin Categoría", slug="sin-cat-cls")
+
+    def test_no_cuela_el_senior_en_la_tabla_del_cadete(self):
+        from .team_visibility import misma_categoria
+
+        visibles = misma_categoria(Team.objects.all(), self.cadete_propio)
+
+        self.assertIn(self.rincon_cadete, visibles)
+        self.assertNotIn(self.rincon_senior, visibles)
+
+    def test_los_que_aun_no_tienen_categoria_siguen_entrando(self):
+        """Son mayoría de los importados: excluirlos rompería emparejados que hoy funcionan."""
+        from .team_visibility import misma_categoria
+
+        self.assertIn(self.sin_categoria, misma_categoria(Team.objects.all(), self.cadete_propio))
+
+    def test_si_el_equipo_no_tiene_categoria_no_se_filtra_nada(self):
+        from .team_visibility import misma_categoria
+
+        visibles = misma_categoria(Team.objects.all(), self.sin_categoria)
+
+        self.assertIn(self.rincon_senior, visibles)
+        self.assertIn(self.rincon_cadete, visibles)

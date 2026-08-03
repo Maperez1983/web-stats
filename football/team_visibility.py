@@ -65,3 +65,24 @@ def excluir_equipos_ajenos(queryset, team=None, *, workspace=None):
     """Quita del queryset los equipos que pertenecen a otro club cliente."""
     ajenos = ids_de_equipos_ajenos(team, workspace=workspace)
     return queryset.exclude(id__in=ajenos) if ajenos else queryset
+
+
+def misma_categoria(queryset, team):
+    """
+    Deja sólo los equipos de la MISMA categoría que el de referencia.
+
+    La clasificación empareja las filas de la tabla con equipos de la base por NOMBRE. Un club
+    tiene el mismo nombre en todas sus categorías ("C.D. Rincón" es senior, cadete e infantil),
+    así que sin este filtro la tabla del cadete puede quedarse con el escudo, el id y el
+    histórico del senior.
+
+    Los equipos que todavía no tienen categoría puesta se dejan pasar: son mayoría de los
+    importados y excluirlos rompería emparejados que hoy funcionan. Filtrar de menos aquí es
+    un rival sin escudo; filtrar de más es una clasificación equivocada.
+    """
+    categoria = str(getattr(team, "category", "") or "").strip()
+    if not categoria:
+        return queryset
+    from django.db.models import Q
+
+    return queryset.filter(Q(category__iexact=categoria) | Q(category="") | Q(category__isnull=True))
