@@ -65,11 +65,16 @@ def categoria_para_equipo(team):
     grupo = getattr(team, "group", None)
     season = getattr(grupo, "season", None) if grupo else None
     competicion = getattr(season, "competition", None) if season else None
-    return deducir_categoria(
+    por_competicion = deducir_categoria(
         getattr(grupo, "name", ""),
         getattr(competicion, "name", ""),
         getattr(season, "name", ""),
     )
+    if por_competicion:
+        return por_competicion
+    # El nombre del propio equipo suele llevarla escrita ("CD SAN ESTANISLAO JUVENIL"), y eso
+    # manda sobre contra quién juega: un juvenil puede jugar un amistoso contra un cadete.
+    return deducir_categoria(getattr(team, "name", ""), getattr(team, "short_name", ""))
 
 
 def categoria_por_los_partidos(team):

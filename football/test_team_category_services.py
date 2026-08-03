@@ -143,3 +143,31 @@ class CategoriaPorLosPartidosTests(TestCase):
         from .team_category_services import categoria_por_los_partidos
 
         self.assertEqual(categoria_por_los_partidos(self.rival), "")
+
+
+class CategoriaEnElNombreTests(TestCase):
+    """El nombre lo dice, y manda sobre el rival: un juvenil juega amistosos contra cadetes."""
+
+    def test_el_nombre_del_equipo_manda_sobre_contra_quien_juega(self):
+        from datetime import date
+
+        from .models import Competition, Match, Season, Team
+        from .team_category_services import categoria_para_equipo, rellenar_categorias
+
+        competicion = Competition.objects.create(name="Amistosos nom")
+        temporada = Season.objects.create(
+            competition=competicion, name="2026/2027", start_date=date(2026, 7, 1)
+        )
+        cadete = Team.objects.create(
+            name="Mi Cadete nom", slug="mi-cadete-nom", category="CADETE", is_primary=True
+        )
+        juvenil = Team.objects.create(name="CD SAN ESTANISLAO JUVENIL", slug="estanislao-nom")
+        Match.objects.create(
+            home_team=cadete, away_team=juvenil, date=date(2026, 9, 5), season=temporada
+        )
+
+        self.assertEqual(categoria_para_equipo(juvenil), "Juvenil")
+
+        rellenar_categorias([juvenil])
+        juvenil.refresh_from_db()
+        self.assertEqual(juvenil.category, "Juvenil")

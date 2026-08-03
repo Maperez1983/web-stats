@@ -218,7 +218,7 @@ class WorkspaceTeamInline(admin.TabularInline):
     model = models.WorkspaceTeam
     extra = 0
     autocomplete_fields = ('team',)
-    fields = ('team', 'is_default')
+    fields = ('team', 'is_default', 'is_active')
 
 
 @admin.register(models.Workspace)

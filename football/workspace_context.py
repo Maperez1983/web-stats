@@ -279,7 +279,7 @@ def workspace_team_links(workspace):
     workspace_ids = _workspace_group_ids(workspace) or [int(workspace.id)]
     try:
         links = list(
-            WorkspaceTeam.objects.filter(workspace_id__in=workspace_ids)
+            WorkspaceTeam.objects.filter(workspace_id__in=workspace_ids, is_active=True)
             .select_related('workspace', 'team')
             .order_by('workspace_id', '-is_default', 'team__name', 'id')
         )

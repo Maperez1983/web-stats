@@ -775,6 +775,14 @@ class WorkspaceTeam(models.Model):
     workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name='teams')
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='workspace_links')
     is_default = models.BooleanField(default=False)
+    # Una categoría que este año no se saca a competir (el Alevín A, el Benjamín A...) no se
+    # borra: se archiva. Borrarla se llevaría por delante su histórico -jugadores, sesiones,
+    # partidos de años anteriores- y eso no es lo que quiere decir "este año no lo usamos".
+    is_active = models.BooleanField(
+        default=True,
+        help_text='Desmarcar si esta temporada no se usa. No borra nada: deja de salir en los '
+                  'selectores y en los recuentos del club, y su histórico se conserva.',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

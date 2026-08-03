@@ -107,3 +107,40 @@ class ClasificacionPorCategoriaTests(TestCase):
 
         self.assertIn(self.rincon_senior, visibles)
         self.assertIn(self.rincon_cadete, visibles)
+
+
+class CategoriaArchivadaTests(TestCase):
+    """"Este año no lo usamos" no es "bórralo": el histórico se queda."""
+
+    def setUp(self):
+        self.duenio = User.objects.create_user(username="duenio-arch", password="x")
+        self.club = Workspace.objects.create(
+            name="Club archivo", slug="club-archivo", kind=Workspace.KIND_CLUB, owner_user=self.duenio
+        )
+        self.senior = Team.objects.create(name="Senior arch", slug="senior-arch")
+        self.alevin = Team.objects.create(name="Alevín arch", slug="alevin-arch")
+        WorkspaceTeam.objects.create(workspace=self.club, team=self.senior, is_default=True)
+        self.enlace_alevin = WorkspaceTeam.objects.create(workspace=self.club, team=self.alevin)
+
+    def test_la_categoria_archivada_sale_de_los_selectores(self):
+        from .workspace_context import workspace_team_links
+
+        self.enlace_alevin.is_active = False
+        self.enlace_alevin.save(update_fields=["is_active"])
+
+        equipos = [enlace.team for enlace in workspace_team_links(self.club)]
+        self.assertIn(self.senior, equipos)
+        self.assertNotIn(self.alevin, equipos)
+
+    def test_archivar_no_borra_nada(self):
+        self.enlace_alevin.is_active = False
+        self.enlace_alevin.save(update_fields=["is_active"])
+
+        self.assertTrue(Team.objects.filter(id=self.alevin.id).exists())
+        self.assertTrue(WorkspaceTeam.objects.filter(id=self.enlace_alevin.id).exists())
+
+    def test_por_defecto_todas_estan_activas(self):
+        from .workspace_context import workspace_team_links
+
+        equipos = [enlace.team for enlace in workspace_team_links(self.club)]
+        self.assertIn(self.alevin, equipos)
