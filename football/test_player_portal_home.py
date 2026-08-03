@@ -20,6 +20,7 @@ from football.models import (
     AppUserRole,
     Competition,
     Match,
+    MatchEvent,
     Player,
     PlayerFine,
     PlayerObjective,
@@ -161,6 +162,24 @@ class PlayerHomeTests(TestCase):
             value=6.3,
             context="auto-rating",
         )
+        PlayerStatistic.objects.create(
+            player=self.player,
+            season=season,
+            match=match,
+            name="manual_minutes",
+            value=45,
+            context="manual-match",
+        )
+        for result in ("OK", "ERROR"):
+            MatchEvent.objects.create(
+                match=match,
+                player=self.player,
+                minute=12,
+                event_type="Pase",
+                result=result,
+                source_file="manual-recovery",
+                system="touch-field-final",
+            )
 
         response = self._home()
         report_url = reverse("player-match-stats", args=[self.player.id, match.id])
@@ -170,11 +189,41 @@ class PlayerHomeTests(TestCase):
         self.assertContains(response, "2 - 2")
         self.assertContains(response, report_url)
         self.assertContains(response, reverse("player-match-report-pdf", args=[self.player.id, match.id]))
+        self.assertContains(response, "Último partido")
+        self.assertEqual(response.context["latest_match_report"]["rating"], 6.3)
+        self.assertContains(response, "45 minutos")
+        self.assertContains(response, "Pases")
+        self.assertContains(response, "50%")
 
         report_response = self.client.get(report_url, HTTP_HOST="localhost")
         self.assertEqual(report_response.status_code, 200)
         self.assertContains(report_response, "Lo que aportaste")
         self.assertNotContains(report_response, "Precisión de pase")
+
+    def test_open_match_does_not_create_a_personal_report(self):
+        competition = Competition.objects.create(name="Liga abierta", slug="liga-abierta", region="Malaga")
+        season = Season.objects.create(competition=competition, name="2026/27 abierta")
+        rival = Team.objects.create(name="Rival sin cerrar", slug="rival-sin-cerrar")
+        match = Match.objects.create(
+            season=season,
+            home_team=self.team,
+            away_team=rival,
+            date=timezone.localdate(),
+            is_closed=False,
+        )
+        PlayerStatistic.objects.create(
+            player=self.player,
+            season=season,
+            match=match,
+            name="rating",
+            value=7.1,
+            context="auto-rating",
+        )
+
+        response = self._home()
+
+        self.assertEqual(response.context["match_reports"], [])
+        self.assertIsNone(response.context["latest_match_report"])
 
 
 class FichaIsClosedToThePlayerTests(TestCase):

@@ -1008,6 +1008,7 @@ def _player_home_zones(request, player, vis):
         "fines_total": 0,
         "communications": [],
         "match_reports": [],
+        "latest_match_report": None,
         "agenda_weeks": [],
         "agenda_month_label": "",
         "agenda_previous_url": "",
@@ -1076,6 +1077,45 @@ def _player_home_zones(request, player, vis):
                     "pdf_url": reverse("player-match-report-pdf", args=[player.id, match_obj.id]),
                 }
             )
+
+        # El cierre ya congela la nota y las acciones. Reutilizamos esa misma fotografia para
+        # que el dashboard y el informe nunca discrepen, sin guardar una segunda copia del PDF.
+        if rating_rows:
+            latest_rating = rating_rows[0]
+            latest_match = latest_rating.match
+            latest_report = zones["match_reports"][0]
+            try:
+                from .views import _player_match_report_context
+
+                report_context = _player_match_report_context(
+                    request,
+                    primary_team=player.team,
+                    player=player,
+                    match=latest_match,
+                )
+                latest_report = {
+                    **latest_report,
+                    "rating": report_context.get("rating"),
+                    "minutes": int(report_context.get("minutes") or 0),
+                    "performance_label": report_context.get("performance_label") or "Informe disponible",
+                    "performance_text": report_context.get("performance_text") or "",
+                    "action_kpis": list(report_context.get("player_action_kpis") or [])[:4],
+                }
+            except Exception:
+                logger.debug(
+                    "No se pudo construir el resumen del ultimo informe del jugador %s",
+                    player.id,
+                    exc_info=True,
+                )
+                latest_report = {
+                    **latest_report,
+                    "rating": float(latest_rating.value) if latest_rating.value is not None else None,
+                    "minutes": None,
+                    "performance_label": "Informe disponible",
+                    "performance_text": "El partido ya esta cerrado y tu informe personal esta disponible.",
+                    "action_kpis": [],
+                }
+            zones["latest_match_report"] = latest_report
     except Exception:
         logger.debug("No se pudieron cargar los informes de partido del jugador", exc_info=True)
 

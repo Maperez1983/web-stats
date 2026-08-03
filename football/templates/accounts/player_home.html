@@ -90,6 +90,24 @@
       a.portal-calendar-event:hover { box-shadow:inset 0 0 0 1px rgba(255,255,255,.26); }
       .portal-calendar-event strong { display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
       .match-report-list { display:grid;gap:.6rem;margin-top:1rem; }
+      .latest-report { margin-top:.85rem;padding:clamp(.85rem,2.5vw,1.1rem);border:1px solid rgba(52,211,153,.28);border-radius:16px;background:linear-gradient(135deg,rgba(16,185,129,.13),rgba(255,255,255,.025)); }
+      .latest-report-head { display:flex;align-items:flex-start;justify-content:space-between;gap:1rem; }
+      .latest-report-kicker { color:#6ee7b7;font-size:.64rem;font-weight:900;letter-spacing:.12em;text-transform:uppercase; }
+      .latest-report-title { margin:.18rem 0 0;font-size:clamp(1.05rem,4vw,1.35rem); }
+      .latest-report-score { margin-top:.12rem;color:#fbbf24;font-size:1.05rem;font-weight:900; }
+      .latest-report-rating { min-width:68px;text-align:center;padding:.55rem .65rem;border-radius:14px;background:#fbbf24;color:#172033; }
+      .latest-report-rating strong { display:block;font-size:1.55rem;line-height:1; }
+      .latest-report-rating span { display:block;margin-top:.2rem;font-size:.56rem;font-weight:900;letter-spacing:.08em;text-transform:uppercase; }
+      .latest-report-meta { display:flex;gap:.45rem;flex-wrap:wrap;margin-top:.7rem; }
+      .latest-report-meta span { padding:.28rem .52rem;border-radius:999px;background:rgba(255,255,255,.07);color:var(--prod-muted);font-size:.68rem;font-weight:800; }
+      .latest-kpis { display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.55rem;margin-top:.8rem; }
+      .latest-kpi { padding:.62rem;border:1px solid rgba(255,255,255,.1);border-radius:11px;background:rgba(2,6,23,.28); }
+      .latest-kpi-top { display:flex;align-items:baseline;justify-content:space-between;gap:.35rem; }
+      .latest-kpi-label { color:var(--prod-muted);font-size:.59rem;font-weight:900;letter-spacing:.08em;text-transform:uppercase; }
+      .latest-kpi-value { font-size:1rem;font-weight:900; }
+      .latest-kpi-track { height:5px;margin-top:.42rem;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.1); }
+      .latest-kpi-fill { display:block;height:100%;border-radius:inherit;background:#34d399; }
+      .latest-report-actions { display:flex;gap:.45rem;flex-wrap:wrap;margin-top:.85rem; }
       .match-report-card { display:flex;align-items:center;justify-content:space-between;gap:.8rem;padding:.8rem;border:1px solid rgba(255,255,255,.11);border-radius:12px;background:rgba(255,255,255,.035); }
       .match-report-card .result { color:#fbbf24;font-size:.76rem;font-weight:900;letter-spacing:.05em;text-transform:uppercase; }
       .match-report-actions { display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end; }
@@ -233,6 +251,45 @@
         {% if vis.performance %}
         <section class="panel" id="rendimiento">
           <h2>Mi rendimiento</h2>
+          {% if latest_match_report %}
+            <article class="latest-report" aria-label="Resumen del último informe de partido">
+              <div class="latest-report-head">
+                <div>
+                  <div class="latest-report-kicker">Último partido</div>
+                  <h3 class="latest-report-title">{{ latest_match_report.opponent }}</h3>
+                  <div class="latest-report-score">{{ latest_match_report.score }}</div>
+                </div>
+                {% if latest_match_report.rating is not None %}
+                  <div class="latest-report-rating">
+                    <strong>{{ latest_match_report.rating|floatformat:1 }}</strong>
+                    <span>Valoración</span>
+                  </div>
+                {% endif %}
+              </div>
+              <div class="latest-report-meta">
+                <span>{{ latest_match_report.date|date:"d/m/Y" }}</span>
+                {% if latest_match_report.minutes is not None %}<span>{{ latest_match_report.minutes }} minutos</span>{% endif %}
+                <span>{{ latest_match_report.performance_label }}</span>
+              </div>
+              {% if latest_match_report.action_kpis %}
+                <div class="latest-kpis" aria-label="Indicadores principales del partido">
+                  {% for kpi in latest_match_report.action_kpis %}
+                    <div class="latest-kpi">
+                      <div class="latest-kpi-top">
+                        <span class="latest-kpi-label">{{ kpi.label }}</span>
+                        <span class="latest-kpi-value">{{ kpi.percentage }}%</span>
+                      </div>
+                      <div class="latest-kpi-track"><span class="latest-kpi-fill" style="width:{{ kpi.percentage }}%;"></span></div>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+              <div class="latest-report-actions">
+                <a class="btn" href="{{ latest_match_report.url }}">Ver informe completo</a>
+                <a class="btn alt" href="{{ latest_match_report.pdf_url }}?download=1">Descargar PDF</a>
+              </div>
+            </article>
+          {% endif %}
           <div class="marks">
             <div class="mark">
               <div class="n">{{ training_marker.sessions_attended }}<span style="font-size:0.9rem;opacity:0.6;">/{{ training_marker.sessions_total }}</span></div>
