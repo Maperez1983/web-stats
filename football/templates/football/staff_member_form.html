@@ -471,9 +471,14 @@
             </label>
             <label>
               Ámbito (a qué categoría accede)
+              {% comment %}La categoría se ELIGE aquí. Antes ponía "Solo esta categoría" y se
+              tomaba la que el editor tuviera activa: abrir la ficha del entrenador del cadete
+              desde el senior y guardar le cambiaba el ámbito sin que nadie se enterara -y con
+              él, a qué llega esa persona-.{% endcomment %}
               <select name="scope" {% if mode != 'create' and not can_manage_workspace %}disabled{% endif %}>
-                {% if member and member.team %}<option value="team" selected>Solo esta categoría</option>{% else %}<option value="team">Solo esta categoría</option>{% endif %}
-                {% if member and not member.team %}<option value="club" selected>Club completo</option>{% else %}<option value="club">Club completo</option>{% endif %}
+                {% for opcion in scope_options %}
+                <option value="{{ opcion.value }}" {% if opcion.selected %}selected{% endif %}>{{ opcion.label }}</option>
+                {% endfor %}
               </select>
             </label>
             <label>

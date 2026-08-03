@@ -246,3 +246,85 @@ class AislamientoDeCategoriaTests(TestCase):
         self.assertEqual(
             allowed_team_ids_for_request(peticion), {self.senior.id, self.cadete.id}
         )
+
+
+class AmbitoExplicitoTests(TestCase):
+    """
+    El ámbito de una ficha de staff se ELIGE. Antes se tomaba del equipo activo de quien
+    editaba: abrir la ficha del entrenador del cadete desde el senior y darle a guardar le
+    cambiaba la categoría, y con ella a qué llega esa persona.
+    """
+
+    def setUp(self):
+        from django.urls import reverse
+
+        from .models import StaffMember
+
+        self.reverse = reverse
+        self.owner = User.objects.create_user(username="dueno-ambito", password="x")
+        self.workspace = Workspace.objects.create(
+            name="Club ambito", slug="club-ambito", kind=Workspace.KIND_CLUB, owner_user=self.owner
+        )
+        self.senior = Team.objects.create(name="Senior ambito", slug="senior-ambito")
+        self.cadete = Team.objects.create(name="Cadete ambito", slug="cadete-ambito")
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.senior, is_default=True)
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.cadete)
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace, user=self.owner, role=WorkspaceMembership.ROLE_OWNER
+        )
+        self.miembro = StaffMember.objects.create(
+            workspace=self.workspace, team=self.cadete, name="Del Cadete",
+            role_title="Entrenador asistente", is_active=True,
+        )
+        self.client.force_login(self.owner)
+        sesion = self.client.session
+        sesion["active_workspace_id"] = self.workspace.id
+        # Quien edita está en el SENIOR, no en el cadete.
+        sesion["active_team_by_workspace"] = {str(self.workspace.id): int(self.senior.id)}
+        sesion.save()
+
+    def test_guardar_desde_otra_categoria_no_se_lo_lleva(self):
+        self.client.post(
+            self.reverse("staff-member-detail", args=[self.miembro.id]),
+            {"name": "Del Cadete", "role_title": "Entrenador asistente",
+             "scope": f"team_{self.cadete.id}", "access_action": "none", "is_active": "1"},
+            follow=True,
+        )
+        self.miembro.refresh_from_db()
+
+        self.assertEqual(self.miembro.team_id, self.cadete.id, "Le cambió la categoría al guardar")
+
+    def test_se_puede_moverlo_a_otra_categoria_a_proposito(self):
+        self.client.post(
+            self.reverse("staff-member-detail", args=[self.miembro.id]),
+            {"name": "Del Cadete", "role_title": "Entrenador asistente",
+             "scope": f"team_{self.senior.id}", "access_action": "none", "is_active": "1"},
+            follow=True,
+        )
+        self.miembro.refresh_from_db()
+
+        self.assertEqual(self.miembro.team_id, self.senior.id)
+
+    def test_club_completo_lo_deja_sin_categoria(self):
+        self.client.post(
+            self.reverse("staff-member-detail", args=[self.miembro.id]),
+            {"name": "Del Cadete", "role_title": "Entrenador asistente",
+             "scope": "club", "access_action": "none", "is_active": "1"},
+            follow=True,
+        )
+        self.miembro.refresh_from_db()
+
+        self.assertIsNone(self.miembro.team_id)
+
+    def test_una_categoria_de_otro_club_no_cuela(self):
+        ajena = Team.objects.create(name="De otro club", slug="ajena-ambito")
+
+        self.client.post(
+            self.reverse("staff-member-detail", args=[self.miembro.id]),
+            {"name": "Del Cadete", "role_title": "Entrenador asistente",
+             "scope": f"team_{ajena.id}", "access_action": "none", "is_active": "1"},
+            follow=True,
+        )
+        self.miembro.refresh_from_db()
+
+        self.assertNotEqual(self.miembro.team_id, ajena.id)
