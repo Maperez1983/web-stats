@@ -2768,6 +2768,73 @@ const urlWithMatchId = (baseUrl) => {
       const tacticsPitch = document.getElementById('tactics-pitch');
       const tacticsTokensEl = document.getElementById('tactics-tokens');
       const tacticsResetBtn = document.getElementById('tactics-reset-positions');
+      // --- Rival en la pizarra ---
+      // Todo esto faltaba. El once del rival ya llegaba al navegador (json_script
+      // "rival-lineup-server", con las posiciones que se fijan en "Preparar rival") y la funcion
+      // que lo pinta tambien estaba escrita, pero nadie habia declarado sus piezas: el estado, el
+      // contenedor, el guardado y el interruptor. Resultado: el dato viajaba y se moria aqui.
+      const tacticsRivalTokensEl = document.getElementById('tactics-rival-tokens');
+      const tacticsToggleRivalBtn = document.getElementById('tactics-toggle-rival');
+      const readJsonScript = (id, fallback) => {
+        try {
+          const node = document.getElementById(id);
+          if (!node) return fallback;
+          const parsed = JSON.parse(node.textContent || 'null');
+          return parsed && typeof parsed === 'object' ? parsed : fallback;
+        } catch (e) {
+          return fallback;
+        }
+      };
+      const rivalLineupState = readJsonScript('rival-lineup-server', { starters: [], bench: [] });
+      if (!Array.isArray(rivalLineupState.starters)) rivalLineupState.starters = [];
+      if (!Array.isArray(rivalLineupState.bench)) rivalLineupState.bench = [];
+      // El rival se ve por defecto: la pantalla de prepartido es justamente para confrontar los
+      // dos onces. Se puede apagar para repasar solo el nuestro.
+      let rivalVisible = true;
+      const syncRivalToggleUi = () => {
+        if (!tacticsToggleRivalBtn) return;
+        const hayRival = (rivalLineupState.starters || []).length > 0;
+        tacticsToggleRivalBtn.hidden = !hayRival;
+        tacticsToggleRivalBtn.style.display = hayRival ? '' : 'none';
+        tacticsToggleRivalBtn.textContent = rivalVisible ? 'Rival: ON' : 'Rival: OFF';
+        tacticsToggleRivalBtn.setAttribute('aria-pressed', rivalVisible ? 'true' : 'false');
+      };
+      const setRivalVisible = (visible, opts) => {
+        const options = opts || {};
+        rivalVisible = !!visible;
+        if (tacticsRivalTokensEl) tacticsRivalTokensEl.hidden = !rivalVisible;
+        syncRivalToggleUi();
+        if (!options.silent) {
+          try { renderTacticsBoard(); } catch (e) {}
+        }
+      };
+      let rivalSaveTimer = null;
+      const updateRivalLineupState = () => {
+        // Guardado diferido: arrastrar una ficha dispara muchos movimientos y no hace falta un
+        // POST por cada uno.
+        const url = String(urls.rivalLineupSaveUrl || '');
+        if (!url) return;
+        if (rivalSaveTimer) clearTimeout(rivalSaveTimer);
+        rivalSaveTimer = setTimeout(async () => {
+          try {
+            await fetch(urlWithMatchId(url), {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+                Accept: 'application/json',
+              },
+              body: JSON.stringify({
+                match_id: currentMatchId,
+                lineup: { starters: rivalLineupState.starters, bench: rivalLineupState.bench },
+              }),
+            });
+          } catch (e) {}
+        }, 600);
+      };
+      // El rival, en espejo: misma estructura vista desde el otro lado.
+      const defaultBaseSlotsRival = defaultBaseSlots.map((slot) => ({ x: 100 - slot.x, y: 100 - slot.y }));
       let renderTacticsBoard = () => {};
       const clampPct = (value, min, max) => Math.max(min, Math.min(max, value));
       const safeNumber = (raw, fallback = NaN) => {
@@ -2818,18 +2885,21 @@ const urlWithMatchId = (baseUrl) => {
         ) return 'att';
         return 'any';
       };
+      // Campo HORIZONTAL (el cesped real lo es) y nosotros en la mitad izquierda: la pantalla de
+      // prepartido es para confrontar los dos onces, y para eso cada equipo tiene que caber en su
+      // mitad. Antes el once ocupaba el campo entero en vertical y no quedaba sitio para el rival.
       const defaultBaseSlots = [
-        { x: 50, y: 86 }, // GK
-        { x: 18, y: 72 },
-        { x: 38, y: 74 },
-        { x: 62, y: 74 },
-        { x: 82, y: 72 },
-        { x: 30, y: 52 },
-        { x: 50, y: 56 },
-        { x: 70, y: 52 },
-        { x: 25, y: 30 },
-        { x: 50, y: 26 },
-        { x: 75, y: 30 },
+        { x: 7, y: 50 },  // portero
+        { x: 20, y: 18 },
+        { x: 20, y: 39 },
+        { x: 20, y: 61 },
+        { x: 20, y: 82 },
+        { x: 32, y: 30 },
+        { x: 33, y: 50 },
+        { x: 32, y: 70 },
+        { x: 44, y: 18 },
+        { x: 46, y: 50 },
+        { x: 44, y: 82 },
       ];
       const pickPlayersByRole = (players, role) => {
         const list = Array.isArray(players) ? players.slice() : [];
@@ -2994,8 +3064,25 @@ const urlWithMatchId = (baseUrl) => {
         const name = document.createElement('div');
         name.className = 'name';
         name.textContent = shortDisplayName(player?.name || 'Rival').toUpperCase();
-        avatar.classList.add('fallback');
-        avatar.textContent = String(getInitials(player?.name || player?.number || 'R'));
+        const foto = String(player?.photo_url || '').trim();
+        if (foto) {
+          // La foto viene del volcado de laPreferente. Si no carga (enlace caido, sin foto), se
+          // cae a las iniciales sin dejar el hueco vacio.
+          const img = document.createElement('img');
+          img.src = foto;
+          img.alt = '';
+          img.loading = 'lazy';
+          img.referrerPolicy = 'no-referrer';
+          img.addEventListener('error', () => {
+            avatar.innerHTML = '';
+            avatar.classList.add('fallback');
+            avatar.textContent = String(getInitials(player?.name || player?.number || 'R'));
+          });
+          avatar.appendChild(img);
+        } else {
+          avatar.classList.add('fallback');
+          avatar.textContent = String(getInitials(player?.name || player?.number || 'R'));
+        }
         el.appendChild(avatar);
         el.appendChild(badge);
         el.appendChild(name);
@@ -3065,8 +3152,35 @@ const urlWithMatchId = (baseUrl) => {
         el.addEventListener('pointercancel', endDrag);
         return el;
       };
+      // Los onces guardados antes de esto tienen coordenadas del campo VERTICAL (portero abajo,
+      // ataque arriba) y ocupan el campo entero. Sobre el cesped horizontal quedarian de lado y
+      // pisando al rival, asi que se giran una vez y se comprimen a nuestra mitad. Se detecta por
+      // donde esta el portero: en vertical estaba abajo del todo.
+      const girarSiVienenEnVertical = (starters) => {
+        const filas = Array.isArray(starters) ? starters : [];
+        const conPos = filas.filter((p) => Number.isFinite(safeNumber(p?.x_pct, NaN)) && Number.isFinite(safeNumber(p?.y_pct, NaN)));
+        if (conPos.length < 3) return false;
+        const abajo = conPos.filter((p) => safeNumber(p.y_pct, 0) > 70).length;
+        if (abajo < Math.ceil(conPos.length * 0.4)) return false;
+        filas.forEach((p) => {
+          const x = safeNumber(p?.x_pct, NaN);
+          const y = safeNumber(p?.y_pct, NaN);
+          if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+          p.x_pct = Math.round(clampPct((100 - y) * 0.48, 4, 48) * 100) / 100;
+          p.y_pct = Math.round(clampPct(x, 6, 94) * 100) / 100;
+        });
+        return true;
+      };
+      let posicionesGiradas = false;
       const renderTacticsBoardImpl = () => {
         if (!tacticsPitch || !tacticsTokensEl) return;
+        if (!posicionesGiradas) {
+          posicionesGiradas = true;
+          try {
+            // `updateLineupInput` es el guardado diferido del once (mismo camino que al arrastrar).
+            if (girarSiVienenEnVertical(lineupState?.starters)) updateLineupInput();
+          } catch (e) {}
+        }
         const starters = Array.isArray(lineupState?.starters) ? lineupState.starters.slice(0, startersLimit) : [];
         tacticsTokensEl.innerHTML = '';
         if (!starters.length) return;
@@ -3105,11 +3219,12 @@ const urlWithMatchId = (baseUrl) => {
       };
       renderTacticsBoard = () => {
         renderTacticsBoardImpl();
-        // Pizarra del rival: a medio implementar (renderRivalTacticsBoardImpl usa variables sin
-        // declarar y lanzaba un ReferenceError -tragado por try/catch- en CADA redibujado). El botón
-        // está oculto; no la llamamos hasta que la feature esté completa. Evita el error de consola.
-        // renderRivalTacticsBoardImpl();
+        renderRivalTacticsBoardImpl();
       };
+      if (tacticsToggleRivalBtn) {
+        tacticsToggleRivalBtn.addEventListener('click', () => setRivalVisible(!rivalVisible));
+      }
+      setRivalVisible(true, { silent: true });
       if (tacticsResetBtn) {
         tacticsResetBtn.addEventListener('click', () => applyBasePositionsToStarters());
       }
