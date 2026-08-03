@@ -12607,15 +12607,62 @@ class KpiAuditEndpointTests(TestCase):
 
 class TaxonomyBehaviorTests(TestCase):
     def test_robo_and_duelo_aereo_count_as_duels(self):
-        self.assertTrue(classify_duel_event('ROBO', 'GANADO')['is_duel'])
-        self.assertTrue(classify_duel_event('ROBO', 'GANADO')['won'])
-        self.assertTrue(classify_duel_event('Duelo aéreo', 'GANADO')['is_duel'])
-        self.assertTrue(classify_duel_event('Duelo aéreo', 'GANADO')['won'])
+        steal = classify_duel_event('ROBO', 'GANADO')
+        aerial = classify_duel_event('Duelo aéreo', 'GANADO')
+
+        self.assertTrue(steal['is_duel'])
+        self.assertTrue(steal['counted'])
+        self.assertTrue(steal['won'])
+        self.assertEqual(steal['subtype'], 'defensive')
+        self.assertTrue(aerial['is_duel'])
+        self.assertTrue(aerial['counted'])
+        self.assertTrue(aerial['won'])
+        self.assertTrue(aerial['aerial'])
+
+    def test_regates_and_second_balls_are_duels(self):
+        dribble = classify_duel_event('REGATE', 'FALLADO')
+        second_ball = classify_duel_event('CAÍDA', 'GANADA')
+
+        self.assertEqual(dribble['subtype'], 'offensive')
+        self.assertTrue(dribble['counted'])
+        self.assertFalse(dribble['won'])
+        self.assertEqual(second_ball['subtype'], 'second_ball')
+        self.assertTrue(second_ball['counted'])
+        self.assertTrue(second_ball['won'])
+
+    def test_neutral_duel_is_recognized_but_not_counted(self):
+        duel = classify_duel_event('REGATE', 'NEUTRAL')
+
+        self.assertTrue(duel['is_duel'])
+        self.assertFalse(duel['counted'])
+        self.assertFalse(duel['won'])
+        self.assertEqual(duel['outcome'], '')
+
+    def test_non_contested_actions_do_not_count_as_duels(self):
+        for action in (
+            'PRESIÓN ALTA',
+            'RECUPERACIÓN ALTA',
+            'INTERCEPCIÓN',
+            'FALTA COMETIDA',
+            'FALTA RECIBIDA',
+            'PÉRDIDA FORZADA',
+        ):
+            with self.subTest(action=action):
+                duel = classify_duel_event(action, 'GANADO')
+                self.assertFalse(duel['is_duel'])
+                self.assertFalse(duel['counted'])
+
+    def test_observation_does_not_turn_an_unrelated_action_into_duel(self):
+        event = classify_duel_event('ERROR FORZADO', 'PERDIDO', observation='Provocado por presión rival')
+
+        self.assertFalse(event['is_duel'])
+        self.assertFalse(event['counted'])
 
     def test_errors_never_count_as_duels_even_with_won_result(self):
         error = classify_duel_event('ERROR FORZADO', 'GANADO')
 
         self.assertFalse(error['is_duel'])
+        self.assertFalse(error['counted'])
         self.assertFalse(error['won'])
 
     def test_switch_and_depth_passes_count_as_passes(self):

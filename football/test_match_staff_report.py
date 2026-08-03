@@ -226,6 +226,45 @@ class MatchStaffReportTests(TestCase):
         self.assertNotIn("left:24,0%", html)
 
     @patch("football.views.resolve_team_crest_url", return_value="")
+    def test_report_counts_only_decided_contested_actions_as_duels(self, _crest):
+        for index, (event_type, result) in enumerate(
+            (
+                ("DUELO AEREO", "GANADO"),
+                ("ROBO", "GANADO"),
+                ("REGATE", "GANADO"),
+                ("CAIDA", "PERDIDO"),
+                ("REGATE", "NEUTRAL"),
+                ("PRESION ALTA", "GANADO"),
+                ("RECUPERACION ALTA", "GANADO"),
+                ("INTERCEPCION", "GANADO"),
+                ("FALTA COMETIDA", "PERDIDO"),
+            ),
+            start=1,
+        ):
+            self._event(
+                event_type,
+                result,
+                minute=index,
+                period=1,
+                zone="Medio centro",
+                tercio="Construcción",
+            )
+
+        request = RequestFactory().get("/coach/informes/partido/")
+        request.user = AnonymousUser()
+        context = views._match_staff_report_context(request, match=self.match, primary_team=self.team)
+
+        player = context["player_reports"][0]
+        self.assertEqual((player["duels_won"], player["duels"]), (3, 4))
+        self.assertEqual((player["aerial_won"], player["aerial"]), (1, 1))
+        percentages = {
+            row["label"]: (row["pct"], row["detail"])
+            for row in context["professional_report"]["percentage_metrics"]
+        }
+        self.assertEqual(percentages["Duelos"], (75, "3/4"))
+        self.assertEqual(percentages["Duelos aéreos"], (100, "1/1"))
+
+    @patch("football.views.resolve_team_crest_url", return_value="")
     def test_player_report_is_narrative_and_keeps_percentage_kpis_out(self, _crest):
         self.match.home_score = 2
         self.match.away_score = 2
@@ -329,6 +368,7 @@ class MatchRatingAlgorithmTests(TestCase):
         self.assertEqual((payload["crosses_completed"], payload["crosses_attempted"]), (1, 1))
         self.assertEqual((payload["long_passes_completed"], payload["long_passes_attempted"]), (1, 1))
         self.assertEqual(payload["retentions_lost"], 1)
+        self.assertEqual((payload["duels_won"], payload["duels_total"]), (2, 3))
         self.assertEqual(payload["fouls_committed"], 1)
         self.assertEqual(payload["fouls_received"], 1)
         self.assertEqual(payload["goals_conceded"], 1)

@@ -16,56 +16,62 @@ SHOT_ON_TARGET_RESULTS = {
     "a- p",
     "a",
 }
-DUEL_EVENT_KEYWORDS = {
-    "duelo",
-    "regate",
-    "regates",
-    "robo",
-    "robado",
-    "intercepción",
-    "intervención",
-    "entrada",
-    "entradas",
-    "recuperación",
-    "recuperado",
-    "falta cometida",
-    "falta recibida",
-    "presión",
-    "presionado",
-    "disputa",
-}
-DUEL_SUCCESS_KEYWORD = {"ganado", "recuperado", "ok", "fortaleza", "favorable", "superado"}
+DUEL_EVENT_KEYWORDS = {"duelo", "duelos", "disputa", "disputas", "challenge"}
 DUEL_OFFENSIVE_KEYWORDS = {
     "regate",
     "regates",
     "dribbling",
     "dribble",
-    "conduccion",
-    "conducción",
     "encare",
     "1v1",
     "1x1",
 }
 DUEL_DEFENSIVE_KEYWORDS = {
-    "duelo",
     "robo",
+    "robos",
     "robado",
-    "intercepción",
-    "intervención",
+    "tackle",
+    "tackles",
+    "desarme",
+    "desarmes",
     "entrada",
     "entradas",
-    "recuperación",
-    "recuperado",
-    "presión",
-    "presionado",
-    "disputa",
 }
-DUEL_GENERIC_SUCCESS_KEYWORDS = {"ok", "ganado", "favorable", "exitoso", "completado"}
-DUEL_GENERIC_FAIL_KEYWORDS = {"perdido", "fallado", "fallida", "falta", "error"}
-DUEL_OFFENSIVE_SUCCESS_KEYWORDS = {"ok", "ganado", "superado", "exitoso", "completado"}
-DUEL_OFFENSIVE_FAIL_KEYWORDS = {"perdido", "fallado", "fallida", "falta", "error", "interceptado", "robado"}
-DUEL_DEFENSIVE_SUCCESS_KEYWORDS = {"ok", "ganado", "favorable", "robo", "recuper", "intercep", "entrada", "despeje"}
-DUEL_DEFENSIVE_FAIL_KEYWORDS = {"perdido", "fallado", "fallida", "falta", "error", "superado", "regateado", "driblado"}
+DUEL_SECOND_BALL_KEYWORDS = {
+    "caida",
+    "caidas",
+    "segunda jugada",
+    "segundas jugadas",
+    "balon dividido",
+    "balones divididos",
+}
+DUEL_SUCCESS_KEYWORDS = {
+    "ok",
+    "ganado",
+    "ganada",
+    "favorable",
+    "exitoso",
+    "exitosa",
+    "completado",
+    "completada",
+    "acertado",
+    "acertada",
+    "recuperado",
+}
+DUEL_FAIL_KEYWORDS = {
+    "mal",
+    "perdido",
+    "perdida",
+    "fallado",
+    "fallada",
+    "fallido",
+    "fallida",
+    "erroneo",
+    "erronea",
+    "superado por",
+    "regateado",
+    "driblado",
+}
 DUEL_AERIAL_KEYWORDS = {
     "aereo",
     "aéreo",
@@ -379,7 +385,7 @@ def is_duel_event(event_type, observation=None):
 def duel_result_is_success(result):
     if not result:
         return False
-    normalized = result.strip().lower()
+    normalized = normalize_label(result)
     return any(keyword in normalized for keyword in DUEL_SUCCESS_KEYWORD)
 
 
@@ -387,45 +393,39 @@ def classify_duel_event(event_type, result=None, observation=None, zone=None):
     event_normalized = normalize_label(event_type)
     observation_normalized = normalize_label(observation)
     zone_normalized = normalize_label(zone)
-    context_text = " ".join(part for part in [event_normalized, observation_normalized] if part).strip()
-    result_text = " ".join(part for part in [normalize_label(result), observation_normalized] if part).strip()
 
     subtype = ""
-    if any(keyword in context_text for keyword in DUEL_OFFENSIVE_KEYWORDS):
+    # La naturaleza del evento procede del tipo registrado. Una observación como
+    # "provocado por presión" no debe convertir un pase o un error en duelo.
+    if any(keyword in event_normalized for keyword in DUEL_OFFENSIVE_KEYWORDS):
         subtype = "offensive"
-    elif any(keyword in context_text for keyword in DUEL_DEFENSIVE_KEYWORDS):
+    elif any(keyword in event_normalized for keyword in DUEL_DEFENSIVE_KEYWORDS):
         subtype = "defensive"
-    elif "duelo" in zone_normalized:
-        subtype = "generic"
-    elif any(keyword in context_text for keyword in DUEL_EVENT_KEYWORDS):
+    elif any(keyword in event_normalized for keyword in DUEL_SECOND_BALL_KEYWORDS):
+        subtype = "second_ball"
+    elif any(keyword in event_normalized for keyword in DUEL_EVENT_KEYWORDS):
         subtype = "generic"
 
     is_duel = bool(subtype)
-    won = False
-    is_aerial = False
+    aerial_text = " ".join(part for part in [event_normalized, observation_normalized, zone_normalized] if part)
+    is_aerial = is_duel and any(keyword in aerial_text for keyword in DUEL_AERIAL_KEYWORDS)
+
+    outcome = ""
     if is_duel:
-        # “Aéreo” es una dimensión transversal (puede ser ofensivo/defensivo/genérico).
-        # Lo inferimos por texto del evento/observación/zona.
-        is_aerial = any(keyword in context_text for keyword in DUEL_AERIAL_KEYWORDS) or any(
-            keyword in zone_normalized for keyword in DUEL_AERIAL_KEYWORDS
-        )
-    if is_duel:
-        if subtype == "offensive":
-            success = any(keyword in result_text for keyword in DUEL_OFFENSIVE_SUCCESS_KEYWORDS) or result_is_success(result)
-            failure = any(keyword in result_text for keyword in DUEL_OFFENSIVE_FAIL_KEYWORDS)
-            won = success and not failure
-        elif subtype == "defensive":
-            success = any(keyword in result_text for keyword in DUEL_DEFENSIVE_SUCCESS_KEYWORDS) or result_is_success(result)
-            failure = any(keyword in result_text for keyword in DUEL_DEFENSIVE_FAIL_KEYWORDS)
-            won = success and not failure
-        else:
-            success = any(keyword in result_text for keyword in DUEL_GENERIC_SUCCESS_KEYWORDS) or duel_result_is_success(result)
-            failure = any(keyword in result_text for keyword in DUEL_GENERIC_FAIL_KEYWORDS)
-            won = success and not failure
+        result_normalized = normalize_label(result)
+        outcome_text = result_normalized or observation_normalized
+        if any(keyword in outcome_text for keyword in DUEL_FAIL_KEYWORDS):
+            outcome = "lost"
+        elif any(keyword in outcome_text for keyword in DUEL_SUCCESS_KEYWORDS) or result_is_success(result):
+            outcome = "won"
+
+    counted = is_duel and outcome in {"won", "lost"}
 
     return {
         "is_duel": is_duel,
-        "won": won,
+        "counted": counted,
+        "won": outcome == "won",
+        "outcome": outcome,
         "subtype": subtype,
         "aerial": is_aerial,
     }
