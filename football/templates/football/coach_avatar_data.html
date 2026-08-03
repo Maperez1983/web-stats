@@ -19,6 +19,14 @@
       .av-cifras { display:flex; gap:1.6rem; align-items:baseline; flex-wrap:wrap; }
       .av-cifras strong { font-size:1.6rem; }
       .av-scroll { overflow-x:auto; }
+      /* Los equipos del club, como botones de verdad: en la version anterior salian como texto
+         corrido y no parecian pulsables. */
+      .av-equipo { display:inline-flex; gap:.4rem; align-items:baseline; text-decoration:none;
+                   padding:.42rem .8rem; border-radius:999px; font-size:.84rem; font-weight:700;
+                   border:1px solid rgba(148,163,184,0.32); color:var(--prod-text, inherit); }
+      .av-equipo:hover { border-color:rgba(74,134,232,.55); }
+      .av-equipo-activo { border-color:rgba(74,134,232,.7); background:rgba(74,134,232,.16); }
+      .av-equipo-n { font-weight:500; font-size:.76rem; opacity:.75; }
     </style>
   </head>
   <body class="prod-commercial">
@@ -44,9 +52,9 @@
       {% if pestanas %}
       <nav style="display:flex;gap:.4rem;flex-wrap:wrap;margin:0 0 1rem;">
         {% for e in pestanas %}
-        <a href="?equipo={{ e.team.id }}" class="pill" style="text-decoration:none;{% if e.activo %}border-color:rgba(74,134,232,.6);background:rgba(74,134,232,.16);font-weight:800;{% endif %}">
+        <a href="?equipo={{ e.team.id }}" class="av-equipo{% if e.activo %} av-equipo-activo{% endif %}">
           {{ e.team.display_name }}
-          {% if e.pendientes %}<span style="opacity:.8;"> · {{ e.pendientes }} por completar</span>{% else %}<span style="opacity:.8;"> · al día</span>{% endif %}
+          {% if e.pendientes %}<span class="av-equipo-n">{{ e.pendientes }} por completar</span>{% else %}<span class="av-equipo-n">al día</span>{% endif %}
         </a>
         {% endfor %}
       </nav>
