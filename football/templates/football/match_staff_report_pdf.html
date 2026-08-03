@@ -95,12 +95,13 @@
         .report-pdf .pro-team:last-child { justify-content:flex-start; }
         .report-pdf .pro-team-crest { width:34px; height:34px; flex-basis:34px; }
         .report-pdf .pro-score { width:24%; min-width:0; flex:none; font-size:34px; }
-        .report-pdf .pro-compare-table { display:grid; grid-template-columns:repeat(5,1fr); gap:5px; width:100%; margin:7px auto 0; }
-        .report-pdf .pro-compare-row { display:grid; grid-template-columns:1fr auto 1fr; grid-template-rows:auto 1fr; min-height:54px; padding:5px; }
-        .report-pdf .pro-compare-row strong { width:auto; align-self:end; padding:0; font-size:15px; text-align:center; }
+        .report-pdf .pro-compare-table { display:flex; gap:5px; width:100%; margin:7px auto 0; }
+        .report-pdf .pro-compare-row { display:flex; width:20%; min-height:54px; flex-wrap:wrap; align-items:flex-end; justify-content:center; padding:5px; }
+        .report-pdf .pro-compare-row strong { order:2; width:40%; align-self:flex-end; padding:0; font-size:15px; text-align:center; }
         .report-pdf .pro-compare-row strong:last-child { text-align:center; }
-        .report-pdf .pro-compare-row > i { align-self:end; font-size:5px; }
-        .report-pdf .pro-compare-row span { width:auto; align-self:start; min-height:16px; font-size:6px; }
+        .report-pdf .pro-compare-row > i { order:3; width:20%; align-self:flex-end; font-size:5px; text-align:center; }
+        .report-pdf .pro-compare-row strong:last-child { order:4; }
+        .report-pdf .pro-compare-row span { order:1; width:100%; align-self:flex-start; min-height:16px; font-size:6px; }
 
         .report-pdf .pro-percentage-grid { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
         .report-pdf .pro-percentage-card { display:block; width:24.2%; min-height:72px; padding:5px 3px; }
@@ -148,14 +149,17 @@
         .report-pdf .pro-xi-disc i { right:-11px; top:-6px; height:11px; padding:0 3px; font-size:4px; }
         .report-pdf .pro-xi-token > strong { max-width:54px; margin-top:1px; padding:1px 3px; font-size:6px; line-height:1; }
         .report-pdf .pro-xi-token > small { margin-top:1px; padding:1px 3px; border-radius:5px; background:rgba(2,6,23,.7); font-size:5px; line-height:1; white-space:nowrap; }
-        .report-pdf .pro-pitch-entries { display:grid; grid-template-columns:85px 1fr; gap:5px; margin-top:5px; padding:5px 7px; }
+        .report-pdf .pro-pitch-entries { display:flex; gap:6px; align-items:stretch; margin-top:5px; padding:5px 7px; }
+        .report-pdf .pro-pitch-entries-title { width:78px; flex:none; }
         .report-pdf .pro-pitch-entries-title span { font-size:7px; }
         .report-pdf .pro-pitch-entries-title small { font-size:4px; }
-        .report-pdf .pro-pitch-entries article { grid-template-columns:24px 1fr 1fr; gap:5px; padding:2px 0; }
+        .report-pdf .pro-pitch-entries article { display:flex; width:50%; gap:4px; align-items:flex-start; padding:2px 0 2px 6px; border-top:0; border-left:1px solid rgba(255,255,255,.13); }
         .report-pdf .pro-pitch-entries time { font-size:7px; }
+        .report-pdf .pro-pitch-entries article div { width:44%; }
         .report-pdf .pro-pitch-entries article span { font-size:4px; }
-        .report-pdf .pro-pitch-entries article strong { font-size:5px; }
+        .report-pdf .pro-pitch-entries article strong { font-size:5px; line-height:1.25; white-space:normal; }
         .report-pdf .pro-substitutions { margin-top:7px; padding:8px; break-inside:avoid; page-break-inside:avoid; }
+        .report-pdf .pro-substitutions.is-inferred { display:none; }
         .report-pdf .pro-substitutions article { display:flex; gap:6px; padding:5px 0; }
         .report-pdf .pro-substitutions article > * { flex:1; }
 
@@ -163,7 +167,7 @@
         .report-pdf .pro-player-row { display:flex; gap:6px; margin-bottom:3px; break-inside:avoid; page-break-inside:avoid; }
         .report-pdf .pro-player-card { display:block; width:50%; min-height:65px; margin:0; padding:5px; border-left-width:3px; break-inside:avoid; page-break-inside:avoid; }
         .report-pdf .pro-player-identity { display:flex; gap:5px; }
-        .report-pdf .pro-player-avatar { width:26px; height:26px; border-radius:8px; }
+        .report-pdf .pro-player-avatar { width:26px; min-width:26px; height:26px; flex:none; border-radius:8px; }
         .report-pdf .pro-player-identity strong { font-size:8px; }
         .report-pdf .pro-player-identity small,
         .report-pdf .pro-player-identity a { font-size:6px; }
