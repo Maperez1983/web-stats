@@ -169,3 +169,27 @@ class AvatarGenericoPorEdadTests(TestCase):
         self.assertGreater(len(set(claves)), 1, "seis niños no pueden salir todos con el mismo cuerpo")
         # Y el reparto no cambia entre llamadas: nadie cambia de cuerpo al regenerar.
         self.assertEqual(claves, [figura_para(p)["clave"] for p in ninos])
+
+
+class PizarraPlantillaNinosTests(TestCase):
+    """En el campo de Inicio, un benjamín 'a prueba' no puede salir con chándal de adulto."""
+
+    def test_el_nino_a_prueba_usa_su_cuerpo_y_no_el_chandal_de_adulto(self):
+        from football.views import _build_coach_pitch_board_players
+
+        equipo = Team.objects.create(name="Benagalbón Benjamín A", slug="bj-a", category="Benjamín")
+        nino = Player.objects.create(team=equipo, name="Nino", position="MC", is_active=True)
+        grupos = _build_coach_pitch_board_players(equipo, [nino], {}, set())
+        ficha = grupos[0] if isinstance(grupos, list) else [c for g in grupos.values() for c in g][0]
+        self.assertEqual(ficha["state"], "trial", "sigue siendo a prueba: el estado no se toca")
+        self.assertIn("nino_", ficha["avatar_url"], "debe pintarse con cuerpo de niño")
+
+    def test_el_adulto_a_prueba_conserva_su_chandal(self):
+        from football.views import _build_coach_pitch_board_players
+
+        equipo = Team.objects.create(name="Benagalbón", slug="sr", category="Senior")
+        adulto = Player.objects.create(team=equipo, name="Adulto", position="MC", is_active=True)
+        grupos = _build_coach_pitch_board_players(equipo, [adulto], {}, set())
+        ficha = grupos[0] if isinstance(grupos, list) else [c for g in grupos.values() for c in g][0]
+        self.assertEqual(ficha["avatar_url"], "")
+        self.assertIn("chandal_black.png", ficha["avatar"])

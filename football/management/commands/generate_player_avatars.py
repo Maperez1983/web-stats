@@ -163,7 +163,7 @@ def edad_por_categoria(team):
     return None
 
 
-def figura_para(player, solo_instaladas=True):
+def figura_para(player, solo_instaladas=True, team=None):
     """
     Que cuerpo le toca a este jugador. None si no se puede saber.
 
@@ -172,8 +172,10 @@ def figura_para(player, solo_instaladas=True):
     """
     edad = edad_de(player)
     if edad is None:
-        # Sin fecha de nacimiento, la categoria del equipo: generico, pero de su edad.
-        edad = edad_por_categoria(getattr(player, "team", None))
+        # Sin fecha de nacimiento, la categoria del equipo: generico, pero de su edad. `team` se
+        # puede pasar ya resuelto: en una lista de veinticinco jugadores, leer player.team en cada
+        # vuelta es una consulta por jugador.
+        edad = edad_por_categoria(team if team is not None else getattr(player, "team", None))
     if edad is None:
         return None
     candidatas = [f for f in FIGURAS if f["desde"] <= edad <= f["hasta"]]
