@@ -190,3 +190,59 @@ class StaffFichaAccessPostTests(TestCase):
         self.assertTrue(membership.module_access.get("sessions"))
         row = WorkspaceTeamAccess.objects.get(workspace=self.workspace, team=self.senior, user=self.coach)
         self.assertEqual(row.module_access, {})
+
+
+class AislamientoDeCategoriaTests(TestCase):
+    """
+    Regla del club: quien trabaja en una categoría no ve las demás.
+
+    Se prueba sobre `allowed_team_ids_for_request`, que es de donde beben la ficha del club,
+    la plantilla y el resto de pantallas: si esto se abre, se abren todas a la vez.
+    """
+
+    def setUp(self):
+        from django.test import RequestFactory
+
+        self.factory = RequestFactory()
+        self.owner = User.objects.create_user(username="owner-aisl", password="x")
+        self.coach = User.objects.create_user(username="coach-aisl", password="x")
+        self.workspace = Workspace.objects.create(
+            name="Club aislamiento", kind=Workspace.KIND_CLUB, owner_user=self.owner
+        )
+        self.senior = Team.objects.create(name="Senior aisl", slug="senior-aisl")
+        self.cadete = Team.objects.create(name="Cadete aisl", slug="cadete-aisl")
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.senior, is_default=True)
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.cadete)
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace, user=self.coach, role=WorkspaceMembership.ROLE_MEMBER
+        )
+
+    def _peticion(self, user):
+        from django.contrib.sessions.backends.db import SessionStore
+
+        request = self.factory.get("/coach/")
+        request.user = user
+        request.session = SessionStore()
+        request.session["active_workspace_id"] = self.workspace.id
+        return request
+
+    def test_el_del_cadete_no_alcanza_al_senior(self):
+        from .workspace_context import allowed_team_ids_for_request, user_can_access_team
+
+        WorkspaceTeamAccess.objects.create(
+            workspace=self.workspace, user=self.coach, team=self.cadete, is_default=True
+        )
+        peticion = self._peticion(self.coach)
+
+        self.assertEqual(allowed_team_ids_for_request(peticion), {self.cadete.id})
+        self.assertTrue(user_can_access_team(peticion, self.cadete))
+        self.assertFalse(user_can_access_team(peticion, self.senior))
+
+    def test_quien_manda_en_el_club_llega_a_todas(self):
+        from .workspace_context import allowed_team_ids_for_request
+
+        peticion = self._peticion(self.owner)
+
+        self.assertEqual(
+            allowed_team_ids_for_request(peticion), {self.senior.id, self.cadete.id}
+        )
