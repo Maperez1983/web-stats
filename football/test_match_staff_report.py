@@ -209,6 +209,7 @@ class MatchStaffReportTests(TestCase):
         self.assertEqual(len(tactical["own"]["starters"]), 1)
         self.assertEqual(tactical["own_missing"], 10)
         self.assertEqual(tactical["own"]["starters"][0]["name"], "JUGADOR UNO")
+        self.assertEqual(tactical["own"]["starters"][0]["board_name"], "JUGADOR")
         self.assertTrue(tactical["own"]["starters"][0]["has_coordinates"])
         self.assertEqual(len(tactical["rival"]["starters"]), 1)
         self.assertEqual(tactical["rival_missing"], 10)

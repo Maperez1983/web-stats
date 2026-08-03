@@ -106,7 +106,7 @@
       {% if pro.tactical.own.starters %}
       <div class="pro-pitch" style="background-image:url('{% static 'football/images/pitch3d/coach_home_pitch_surface.png' %}');" aria-label="Once inicial de {{ team_name }}">
         {% for p in pro.tactical.own.starters %}
-          {% if p.has_coordinates %}<div class="pro-xi-token{% if 'POR' in p.position|upper %} is-gk{% endif %}" style="left:{{ p.x_pct|unlocalize }}%;top:{{ p.y_pct|unlocalize }}%;"><div class="pro-xi-disc">{% if p.display_image %}<img src="{{ p.display_image }}" alt="" />{% else %}<span>{{ p.initials }}</span>{% endif %}<b>{% if p.number != "--" %}{{ p.number }}{% else %}{{ forloop.counter }}{% endif %}</b></div><strong>{{ p.name }}</strong><small>{{ p.minutes }}′ · {% if p.rating != None %}{{ p.rating|floatformat:1 }}{% else %}—{% endif %}</small></div>{% endif %}
+          {% if p.has_coordinates %}<div class="pro-xi-token{% if 'POR' in p.position|upper %} is-gk{% endif %}" style="left:{{ p.x_pct|unlocalize }}%;top:{{ p.y_pct|unlocalize }}%;"><div class="pro-xi-disc">{% if p.display_image %}<img src="{{ p.display_image }}" alt="" />{% else %}<span>{{ p.initials }}</span>{% endif %}<b>{% if p.number != "--" %}{{ p.number }}{% else %}{{ forloop.counter }}{% endif %}</b></div><strong>{{ p.board_name|default:p.name }}</strong><small>{{ p.minutes }}′ · {% if p.rating != None %}{{ p.rating|floatformat:1 }}{% else %}—{% endif %}</small></div>{% endif %}
         {% endfor %}
       </div>
       {% if pro.tactical.own_missing %}<p class="pro-lineup-warning">Faltan {{ pro.tactical.own_missing }} posiciones por guardar; no se han completado artificialmente.</p>{% endif %}
@@ -117,7 +117,7 @@
       {% if pro.tactical.rival.starters %}
       <div class="pro-pitch rival" style="background-image:url('{% static 'football/images/pitch3d/coach_home_pitch_surface.png' %}');" aria-label="Once inicial de {{ opponent_name }}">
         {% for p in pro.tactical.rival.starters %}
-          {% if p.has_coordinates %}<div class="pro-xi-token rival" style="left:{{ p.x_pct|unlocalize }}%;top:{{ p.y_pct|unlocalize }}%;"><div class="pro-xi-disc"><span>{{ p.number|default:forloop.counter }}</span><b>{{ p.number|default:forloop.counter }}</b></div><strong>{{ p.name|default:"Sin nombre" }}</strong><small>{{ p.position|default:"Rival" }}</small></div>{% endif %}
+          {% if p.has_coordinates %}<div class="pro-xi-token rival" style="left:{{ p.x_pct|unlocalize }}%;top:{{ p.y_pct|unlocalize }}%;"><div class="pro-xi-disc"><span>{{ p.number|default:forloop.counter }}</span><b>{{ p.number|default:forloop.counter }}</b></div><strong>{{ p.board_name|default:p.name|default:"Rival" }}</strong><small>{{ p.position|default:"Rival" }}</small></div>{% endif %}
         {% endfor %}
       </div>
       {% if pro.tactical.rival_missing %}<p class="pro-lineup-warning">El once rival está incompleto: faltan {{ pro.tactical.rival_missing }} posiciones.</p>{% endif %}
