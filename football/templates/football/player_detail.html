@@ -1471,58 +1471,82 @@
 
       <section class="card tab-pane" data-pane="personal">
         <h2 style="margin-top:0;">Datos personales</h2>
-        {% with kst='font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--prod-muted);font-weight:800;' vst='font-size:.95rem;font-weight:700;color:var(--prod-text);margin-top:1px;' cardst='border:1px solid rgba(148,163,184,0.18);border-radius:12px;padding:.85rem .95rem;background:rgba(2,6,23,0.35);' ctit='font-size:.64rem;text-transform:uppercase;letter-spacing:.12em;color:var(--prod-muted);font-weight:800;margin:0 0 .65rem;' %}
-        <section aria-label="Resumen del jugador" style="margin:0 0 1.1rem;">
-          <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-bottom:.85rem;">
-            {% if has_active_injury %}<span class="pill warn">Lesión activa</span>{% elif has_manual_sanction %}<span class="pill warn">Sanción</span>{% else %}<span class="pill ok">Disponible</span>{% endif %}
-            {% if convocation_pending %}<span class="pill warn">Convocatoria pendiente</span>{% elif is_called_up %}<span class="pill ok">Convocado</span>{% else %}<span class="pill">No convocado</span>{% endif %}
-            {% if player.position %}<span class="pill" style="background:rgba(74,134,232,.14);border-color:rgba(74,134,232,.4);color:#8fb4ff;">{{ player.position }}</span>{% endif %}
-            {% if player.dominant_foot %}<span class="pill">Pie {{ player.dominant_foot|title }}</span>{% endif %}
-            {% if player.has_federative_license %}<span class="pill ok">Fichado</span>{% else %}<span class="pill">Sin ficha fed.</span>{% endif %}
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(238px,1fr));gap:.8rem;">
+        {% comment %}Reorganizada: la foto entra aqui (es el dato personal por excelencia y de ella sale su cara en la pizarra), aparecen contacto y los rasgos del avatar, y lo que FALTA se ve en ambar en vez de esconderse: un campo oculto y uno vacio se parecian demasiado, y asi nadie sabia que rellenar. Fuera los chips, que ya estan en la cabecera. Los rasgos de juego se han ido a Valoracion, que es donde se juzga.{% endcomment %}
+        {% with kst='font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--prod-muted);font-weight:800;' vst='font-size:.95rem;font-weight:700;color:var(--prod-text);margin-top:1px;' fst='font-size:.9rem;font-weight:600;color:#f6d488;margin-top:1px;' cardst='border:1px solid rgba(148,163,184,0.18);border-radius:12px;padding:.85rem .95rem;background:rgba(2,6,23,0.35);' ctit='font-size:.64rem;text-transform:uppercase;letter-spacing:.12em;color:var(--prod-muted);font-weight:800;margin:0 0 .65rem;' %}
+        <div style="display:grid;grid-template-columns:minmax(200px,240px) 1fr;gap:.9rem;align-items:start;">
+
+          <div style="display:flex;flex-direction:column;gap:.9rem;">
             <div style="{{ cardst }}">
-              <p style="{{ ctit }}">Ficha</p>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem .9rem;">
-                <div><div style="{{ kst }}">Nombre</div><div style="{{ vst }}">{{ player.full_name|default:player.name }}</div></div>
-                {% if player.nickname %}<div><div style="{{ kst }}">Apodo</div><div style="{{ vst }}">{{ player.nickname }}</div></div>{% endif %}
-                <div><div style="{{ kst }}">Nacimiento</div><div style="{{ vst }}">{% if player.birth_date %}{{ player.birth_date|date:'d/m/Y' }}{% if player.age %} · {{ player.age }}{% endif %}{% else %}—{% endif %}</div></div>
-                {% if player.number %}<div><div style="{{ kst }}">Dorsal</div><div style="{{ vst }}">{{ player.number }}</div></div>{% endif %}
-                {% if player.position %}<div><div style="{{ kst }}">Posición</div><div style="{{ vst }}">{{ player.position }}</div></div>{% endif %}
-                {% if player.preferred_position %}<div><div style="{{ kst }}">Pos. preferida</div><div style="{{ vst }}">{{ player.preferred_position }}</div></div>{% endif %}
-                {% if player.height_cm %}<div><div style="{{ kst }}">Altura</div><div style="{{ vst }}">{{ player.height_cm }} cm</div></div>{% endif %}
-                {% if player.weight_kg %}<div><div style="{{ kst }}">Peso</div><div style="{{ vst }}">{{ player.weight_kg|floatformat:'-1' }} kg</div></div>{% endif %}
+              <p style="{{ ctit }}">Foto</p>
+              <div style="border:1px solid rgba(148,163,184,0.22);border-radius:10px;overflow:hidden;background:rgba(2,6,23,0.5);aspect-ratio:3/3.6;display:flex;align-items:center;justify-content:center;">
+                {% if player_photo_url %}
+                  <img src="{{ player_photo_url }}" alt="{{ player.name }}" style="width:100%;height:100%;object-fit:cover;object-position:50% 12%;" loading="lazy" />
+                {% else %}
+                  <span style="{{ fst }}text-align:center;padding:.6rem;">Sin foto</span>
+                {% endif %}
+              </div>
+              <p class="subtle" style="margin:.55rem 0 0;font-size:.72rem;">De frente y con luz: es la que se usa para su cara en la pizarra.</p>
+            </div>
+
+            <div style="{{ cardst }}">
+              <p style="{{ ctit }}">Contacto</p>
+              <div style="display:grid;gap:.6rem;">
+                <div><div style="{{ kst }}">Teléfono</div><div style="{% if player.phone %}{{ vst }}{% else %}{{ fst }}{% endif %}">{{ player.phone|default:"Sin indicar" }}</div></div>
+                <div><div style="{{ kst }}">Email</div><div style="{% if player.contact_email %}{{ vst }}{% else %}{{ fst }}{% endif %}">{{ player.contact_email|default:"Sin indicar" }}</div></div>
+                <div><div style="{{ kst }}">De quién es</div><div style="{% if player.contact_name %}{{ vst }}{% else %}{{ fst }}{% endif %}">{% if player.contact_name %}{{ player.contact_name }}{% if player.contact_is_guardian %} · tutor{% endif %}{% else %}Sin indicar{% endif %}</div></div>
               </div>
             </div>
-            {% if player.contract_end or player.release_clause or player.origin_team or player.has_agent or player.phone or player.contact_email or player.has_federative_license %}
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:.9rem;">
             <div style="{{ cardst }}">
-              <p style="{{ ctit }}">Contrato y club</p>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem .9rem;">
-                <div><div style="{{ kst }}">Ficha fed.</div><div style="{{ vst }}">{% if player.has_federative_license %}<span style="color:#3fbf6a;">Sí · fichado</span>{% else %}No{% endif %}</div></div>
+              <p style="{{ ctit }}">Identidad</p>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.7rem .9rem;">
+                <div><div style="{{ kst }}">Nombre completo</div><div style="{{ vst }}">{{ player.full_name|default:player.name }}</div></div>
+                <div><div style="{{ kst }}">Apodo</div><div style="{% if player.nickname %}{{ vst }}{% else %}{{ fst }}{% endif %}">{{ player.nickname|default:"Sin indicar" }}</div></div>
+                <div><div style="{{ kst }}">Nacimiento</div><div style="{% if player.birth_date %}{{ vst }}{% else %}{{ fst }}{% endif %}">{% if player.birth_date %}{{ player.birth_date|date:'d/m/Y' }}{% if player.age %} · {{ player.age }} años{% endif %}{% else %}Falta{% endif %}</div></div>
+                <div><div style="{{ kst }}">Dorsal</div><div style="{% if player.number %}{{ vst }}{% else %}{{ fst }}{% endif %}">{{ player.number|default:"Sin dorsal" }}</div></div>
+                <div><div style="{{ kst }}">Posición</div><div style="{% if player.position %}{{ vst }}{% else %}{{ fst }}{% endif %}">{% if player.position %}{{ player.position|display_position }}{% else %}Sin indicar{% endif %}</div></div>
+                {% if player.preferred_position %}<div><div style="{{ kst }}">Pos. preferida</div><div style="{{ vst }}">{{ player.preferred_position|display_position }}</div></div>{% endif %}
+              </div>
+            </div>
+
+            <div style="{{ cardst }}">
+              <p style="{{ ctit }}">Físico</p>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.7rem .9rem;">
+                <div><div style="{{ kst }}">Altura</div><div style="{% if player.height_cm %}{{ vst }}{% else %}{{ fst }}{% endif %}">{% if player.height_cm %}{{ player.height_cm }} cm{% else %}Falta{% endif %}</div></div>
+                <div><div style="{{ kst }}">Peso</div><div style="{% if player.weight_kg %}{{ vst }}{% else %}{{ fst }}{% endif %}">{% if player.weight_kg %}{{ player.weight_kg|floatformat:'-1' }} kg{% else %}Sin indicar{% endif %}</div></div>
+                <div><div style="{{ kst }}">Pie dominante</div><div style="{% if player.dominant_foot %}{{ vst }}{% else %}{{ fst }}{% endif %}">{{ player.dominant_foot|title|default:"Sin indicar" }}</div></div>
+                <div><div style="{{ kst }}">Complexión</div><div style="{% if player.build %}{{ vst }}{% else %}{{ fst }}{% endif %}">{% if player.build %}{{ player.get_build_display }}{% else %}Falta{% endif %}</div></div>
+              </div>
+            </div>
+
+            <div style="{{ cardst }}">
+              <p style="{{ ctit }}">Rasgos para su avatar</p>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.7rem .9rem;">
+                <div><div style="{{ kst }}">Tono de piel</div><div style="{% if player.skin_grade %}{{ vst }}{% else %}{{ fst }}{% endif %}">{{ player.skin_grade|default:"Falta" }}</div></div>
+                <div><div style="{{ kst }}">Peinado</div><div style="{% if player.hairstyle %}{{ vst }}{% else %}{{ fst }}{% endif %}">{% if player.hairstyle %}{{ player.get_hairstyle_display }}{% else %}Falta{% endif %}</div></div>
+                <div><div style="{{ kst }}">Color de pelo</div><div style="{% if player.hair_color %}{{ vst }}{% else %}{{ fst }}{% endif %}">{% if player.hair_color %}<span style="display:inline-block;width:.85rem;height:.85rem;border-radius:50%;vertical-align:-1px;margin-right:.3rem;background:{{ player.hair_color }};border:1px solid rgba(255,255,255,.35);"></span>{{ player.hair_color }}{% else %}Falta{% endif %}</div></div>
+              </div>
+              {% if not is_player_readonly %}
+              <p style="margin:.7rem 0 0;font-size:.78rem;">
+                <a href="{% url 'coach-avatar-data' %}">Completar los datos del avatar de todo el equipo →</a>
+              </p>
+              {% endif %}
+            </div>
+
+            <div style="{{ cardst }}">
+              <p style="{{ ctit }}">Club</p>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.7rem .9rem;">
+                <div><div style="{{ kst }}">Ficha federativa</div><div style="{{ vst }}">{% if player.has_federative_license %}<span style="color:#3fbf6a;">Sí · fichado</span>{% else %}<span style="color:#f6d488;">Sin ficha</span>{% endif %}</div></div>
                 {% if player.contract_end %}<div><div style="{{ kst }}">Contrato</div><div style="{{ vst }}">hasta {{ player.contract_end|date:'d/m/Y' }}</div></div>{% endif %}
                 {% if player.release_clause %}<div><div style="{{ kst }}">Cláusula</div><div style="{{ vst }}">{{ player.release_clause }}</div></div>{% endif %}
-                {% if player.origin_team %}<div><div style="{{ kst }}">Club origen</div><div style="{{ vst }}">{{ player.origin_team }}</div></div>{% endif %}
+                {% if player.origin_team %}<div><div style="{{ kst }}">Club de origen</div><div style="{{ vst }}">{{ player.origin_team }}</div></div>{% endif %}
                 {% if player.has_agent %}<div><div style="{{ kst }}">Agente</div><div style="{{ vst }}">{{ player.agent_name|default:'Sí' }}</div></div>{% endif %}
-                {% if player.phone %}<div><div style="{{ kst }}">Teléfono</div><div style="{{ vst }}">{{ player.phone }}</div></div>{% endif %}
-                {% if player.contact_email %}<div><div style="{{ kst }}">Email de contacto</div><div style="{{ vst }}">{{ player.contact_email }}{% if player.contact_name %} · {{ player.contact_name }}{% endif %}{% if player.contact_is_guardian %} (tutor){% endif %}</div></div>{% endif %}
               </div>
             </div>
-            {% elif not is_player_readonly %}
-            <div style="{{ cardst }}">
-              <p style="{{ ctit }}">Contrato y club</p>
-              <p class="subtle" style="margin:.3rem 0 0;font-size:.82rem;">Sin datos todavía. Se rellena en «Editar ficha completa».</p>
-            </div>
-            {% endif %}
-            {% if player_traits_chips %}
-            <div style="{{ cardst }}">
-              <p style="{{ ctit }}">Rasgos / preferencias</p>
-              <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
-                {% for t in player_traits_chips %}<span class="pill" style="background:rgba(74,134,232,.14);border-color:rgba(74,134,232,.4);color:#8fb4ff;">{{ t }}</span>{% endfor %}
-              </div>
-            </div>
-            {% endif %}
           </div>
-        </section>
+        </div>
         {% endwith %}
         {% if not is_player_readonly %}
         <details class="fm-manage" style="margin:0 0 1rem;">
@@ -1685,7 +1709,7 @@
         {% endif %}
         {% if not is_player_readonly %}
         <p style="margin:0 0 1rem;">
-          <a class="btn alt" href="{% url 'player-edit' player.id %}">✎ Editar ficha completa</a>
+          <a class="btn" href="{% url 'player-edit' player.id %}">✎ Editar datos personales</a>
         </p>
         {% endif %}
 
@@ -1884,6 +1908,15 @@
       <section class="card tab-pane" data-pane="evaluations">
         <h2 style="margin-top:0;">Valoración del cuerpo técnico</h2>
         <p class="subtle" style="margin-top:-.35rem;">Una única lectura consensuada del staff. Los análisis de rol y atributos son complementarios y no crean una segunda nota.</p>
+        {% comment %}Rasgos y preferencias de juego: estaban en Datos personales, que es donde se guardan los datos de la persona. Esto es un juicio tecnico sobre como juega, asi que vive aqui.{% endcomment %}
+        {% if player_traits_chips %}
+        <div style="border:1px solid rgba(148,163,184,0.18);border-radius:12px;padding:.85rem .95rem;background:rgba(2,6,23,0.35);margin:0 0 1.1rem;">
+          <p style="font-size:.64rem;text-transform:uppercase;letter-spacing:.12em;color:var(--prod-muted);font-weight:800;margin:0 0 .65rem;">Rasgos y preferencias de juego</p>
+          <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+            {% for t in player_traits_chips %}<span class="pill" style="background:rgba(74,134,232,.14);border-color:rgba(74,134,232,.4);color:#8fb4ff;">{{ t }}</span>{% endfor %}
+          </div>
+        </div>
+        {% endif %}
         {% if fm_role_fit %}
         <details class="fm-manage" style="margin:0 0 1.1rem;">
         <summary style="cursor:pointer;font-weight:800;padding:.7rem .85rem;border:1px solid rgba(148,163,184,.24);border-radius:12px;">Análisis complementario · perfil y encaje por rol</summary>

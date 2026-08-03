@@ -151,6 +151,14 @@ el mismo y el POST sigue yendo a la ficha, que ya sabe procesarlo.{% endcomment 
               <label>Altura (cm)
                 <input type="number" name="height_cm" min="100" max="240" value="{{ player.height_cm|default:'' }}" />
               </label>
+              <label>Complexión
+                <select name="build">
+                  <option value="" {% if not player.build %}selected{% endif %}>Sin definir</option>
+                  {% for value,label in build_choices %}
+                  <option value="{{ value }}" {% if player.build == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
               <label>Peso base (kg)
                 <input type="number" step="0.01" min="0" name="weight_kg_base" value="{{ player.weight_kg|unlocalize|default:'' }}" />
               </label>
