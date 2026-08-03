@@ -5,65 +5,104 @@
   <meta charset="utf-8" />
   <title>Informe · {{ player.name }} · {{ opponent_name }}</title>
   <style>
-    @page { size:A4; margin:13mm; }
+    @page { size:A4; margin:12mm; }
     * { box-sizing:border-box; }
-    body { margin:0; color:#18201c; font-family:"Avenir Next","Segoe UI",sans-serif; background:#eef1ed; }
-    .sheet { min-height:270mm; padding:12mm; background:#fff; border-top:8px solid #0f8a4b; }
-    .eyebrow { margin:0 0 4px; color:#376c4e; font-size:9px; font-weight:900; letter-spacing:1.5px; text-transform:uppercase; }
-    h1 { margin:0; font-size:28px; line-height:1; }
-    .meta { margin:7px 0 0; color:#69746e; font-size:11px; }
-    .score { display:flex; align-items:center; gap:14px; margin:15px 0; padding:12px 15px; border-radius:12px; background:#10291f; color:#fff; }
-    .score strong { font-size:24px; }
-    .score span { font-size:11px; color:#c7ddd1; }
-    .summary { display:grid; grid-template-columns:repeat(5,1fr); gap:7px; margin:12px 0 18px; }
-    .summary article { padding:9px; border:1px solid #d8dfda; border-radius:10px; background:#f4f6f3; }
-    .summary span { display:block; color:#6a756e; font-size:7px; font-weight:900; letter-spacing:.7px; text-transform:uppercase; }
-    .summary strong { display:block; margin-top:4px; font-size:16px; }
-    .verdict { padding:15px; border-left:5px solid #f4b400; background:#fbfaf3; }
-    .verdict h2 { margin:0 0 5px; font-size:19px; }
-    .verdict p { margin:0; color:#49554e; font-size:11px; line-height:1.5; }
-    .columns { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:15px; }
-    .panel { padding:13px; border:1px solid #dce2de; border-radius:12px; }
-    .panel h3 { margin:0 0 8px; color:#164f32; font-size:13px; text-transform:uppercase; letter-spacing:.6px; }
-    ul { margin:0; padding-left:17px; }
-    li { margin:0 0 7px; color:#39453e; font-size:10px; line-height:1.45; }
-    .moments { margin-top:14px; }
-    .moment { display:grid; grid-template-columns:38px 1fr; gap:7px; padding:7px 0; border-top:1px solid #e3e8e4; font-size:10px; }
+    body { margin:0; color:#132019; font-family:"Avenir Next","Segoe UI",sans-serif; background:#edf2ed; }
+    .sheet { min-height:273mm; padding:10mm; border-top:7px solid #0f8a4b; background:#fff; }
+    .top { display:flex; align-items:center; justify-content:space-between; padding-bottom:8px; border-bottom:2px solid #153d2c; }
+    .brand { display:flex; align-items:center; width:64%; }
+    .brand img { width:38px; height:38px; margin-right:10px; object-fit:contain; }
+    .eyebrow { margin:0 0 2px; color:#287247; font-size:8px; font-weight:900; letter-spacing:1.4px; text-transform:uppercase; }
+    h1 { margin:0; font-size:22px; line-height:1; }
+    .top-meta { width:34%; color:#65746b; font-size:8px; line-height:1.45; text-align:right; }
+    .match-strip { display:flex; align-items:center; margin-top:10px; padding:9px 12px; border-radius:12px; background:linear-gradient(135deg,#0a5e33,#10291f); color:#fff; }
+    .match-team { display:flex; width:38%; align-items:center; font-size:12px; font-weight:900; }
+    .match-team.away { justify-content:flex-end; text-align:right; }
+    .match-team img { width:32px; height:32px; margin-right:8px; object-fit:contain; }
+    .match-team.away img { margin:0 0 0 8px; }
+    .match-score { width:24%; font-size:27px; font-weight:1000; text-align:center; }
+    .match-score small { display:block; margin-top:2px; color:#bcd4c5; font-size:6px; letter-spacing:1px; text-transform:uppercase; }
+    .player-hero { display:flex; min-height:132px; margin-top:10px; overflow:hidden; border:1px solid #d6e2d8; border-radius:14px; background:linear-gradient(135deg,#f4f8f4 0%,#e8f2eb 62%,#dceade 100%); }
+    .player-portrait { display:flex; width:116px; flex:none; align-items:flex-end; justify-content:center; background:linear-gradient(160deg,#0a5e33,#153d2c); }
+    .player-portrait img { display:block; width:106px; height:126px; object-fit:contain; object-position:center bottom; }
+    .player-initials { display:flex; width:76px; height:76px; align-items:center; justify-content:center; margin-bottom:23px; border:3px solid rgba(255,255,255,.72); border-radius:50%; color:#fff; font-size:24px; font-weight:1000; }
+    .player-main { width:calc(100% - 116px); padding:14px 16px; }
+    .player-role { margin:0 0 3px; color:#36714f; font-size:7px; font-weight:900; letter-spacing:1px; text-transform:uppercase; }
+    .player-name { margin:0; font-size:27px; line-height:1; }
+    .player-reading { margin:7px 0 0; color:#46564d; font-size:9px; line-height:1.4; }
+    .player-facts { display:flex; margin-top:10px; }
+    .player-fact { min-width:86px; margin-right:7px; padding:7px 10px; border:1px solid #cadbce; border-radius:10px; background:rgba(255,255,255,.78); }
+    .player-fact.rating { border-color:#e3ce80; background:#fff7dc; }
+    .player-fact span { display:block; color:#68786e; font-size:6px; font-weight:900; letter-spacing:.7px; text-transform:uppercase; }
+    .player-fact strong { display:block; margin-top:2px; font-size:15px; }
+    .summary-title { margin:13px 0 6px; color:#183e2a; font-size:9px; font-weight:1000; letter-spacing:1px; text-transform:uppercase; }
+    .summary { display:flex; justify-content:space-between; }
+    .summary article { width:19.1%; min-height:52px; padding:8px; border:1px solid #d8e2da; border-radius:10px; background:#f2f6f2; }
+    .summary span { display:block; color:#68776e; font-size:6px; font-weight:900; letter-spacing:.65px; text-transform:uppercase; }
+    .summary strong { display:block; margin-top:4px; color:#123b25; font-size:15px; }
+    .columns { display:flex; justify-content:space-between; margin-top:11px; }
+    .panel { width:49.2%; padding:11px 12px; border:1px solid #d8e2da; border-radius:12px; background:#fff; }
+    .panel.focus { border-top:4px solid #f4b400; }
+    .panel.positive { border-top:4px solid #0f8a4b; }
+    .panel h3 { margin:0 0 7px; color:#164f32; font-size:10px; letter-spacing:.6px; text-transform:uppercase; }
+    ul { margin:0; padding:0; list-style:none; }
+    li { position:relative; margin:0 0 6px; padding-left:13px; color:#3c4a42; font-size:8px; line-height:1.4; }
+    li:last-child { margin-bottom:0; }
+    li::before { position:absolute; top:4px; left:0; width:6px; height:6px; border-radius:50%; background:#0f8a4b; content:""; }
+    .focus li::before { background:#f4b400; }
+    .moments { width:100%; margin-top:10px; }
+    .moment { display:flex; padding:5px 0; border-top:1px solid #e3e9e4; font-size:8px; }
     .moment:first-of-type { border-top:0; }
-    .minute { color:#a87500; font-weight:900; }
-    footer { margin-top:18px; padding-top:8px; border-top:1px solid #dfe5e1; color:#748078; font-size:8px; }
+    .minute { width:36px; flex:none; color:#9d7000; font-weight:1000; }
+    footer { display:flex; justify-content:space-between; margin-top:13px; padding-top:7px; border-top:1px solid #dfe6e1; color:#748078; font-size:6.5px; }
   </style>
 </head>
 <body>
   <main class="sheet">
-    <p class="eyebrow">Segunda Jugada · Informe individual postpartido</p>
-    <h1>{{ player.name }}</h1>
-    <p class="meta">{{ team_name }} vs {{ opponent_name }} · {{ match.date }} · {{ match.location }}</p>
+    <header class="top">
+      <div class="brand">
+        {% if brand_mark_src %}<img src="{{ brand_mark_src }}" alt="2J" />{% endif %}
+        <div><p class="eyebrow">Segunda Jugada · Informe individual postpartido</p><h1>Informe de rendimiento</h1></div>
+      </div>
+      <div class="top-meta"><strong>{{ match.date }}</strong><br>{{ match.location }}<br>{{ match.round }}</div>
+    </header>
 
-    <div class="score"><strong>{{ score_label }}</strong><span>Partido cerrado · Informe consolidado por el cuerpo técnico</span></div>
+    <section class="match-strip">
+      <div class="match-team">{% if crest_src %}<img src="{{ crest_src }}" alt="" />{% endif %}<span>{{ team_name }}</span></div>
+      <div class="match-score">{{ score_label }}<small>Resultado final</small></div>
+      <div class="match-team away"><span>{{ opponent_name }}</span>{% if opponent_crest_src %}<img src="{{ opponent_crest_src }}" alt="" />{% endif %}</div>
+    </section>
+
+    <section class="player-hero">
+      <div class="player-portrait">{% if player_photo_src %}<img src="{{ player_photo_src }}" alt="{{ player.name }}" />{% else %}<span class="player-initials">{{ player_initials }}</span>{% endif %}</div>
+      <div class="player-main">
+        <p class="player-role">#{{ player_number }} · {{ player_position }}</p>
+        <h2 class="player-name">{{ player.name }}</h2>
+        <p class="player-reading"><strong>{{ performance_label }}.</strong> {{ performance_text }}</p>
+        <div class="player-facts">
+          <div class="player-fact"><span>Minutos</span><strong>{{ minutes }}′</strong></div>
+          <div class="player-fact rating"><span>Valoración</span><strong>{% if rating != None %}{{ rating|floatformat:1 }}{% else %}—{% endif %}</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <h3 class="summary-title">El partido en cifras</h3>
     <section class="summary">
       {% for item in global_summary %}<article><span>{{ item.label }}</span><strong>{{ item.value }}</strong></article>{% endfor %}
     </section>
 
-    <section class="verdict">
-      <h2>{{ performance_label }}</h2>
-      <p>{{ performance_text }}</p>
-    </section>
-
     <div class="columns">
-      <section class="panel"><h3>Lo que aportaste</h3><ul>{% for item in strengths %}<li>{{ item }}</li>{% endfor %}</ul></section>
-      <section class="panel"><h3>Siguiente foco</h3><ul>{% for item in improvements %}<li>{{ item }}</li>{% endfor %}</ul></section>
+      <section class="panel positive"><h3>Lo que aportaste</h3><ul>{% for item in strengths %}<li>{{ item }}</li>{% endfor %}</ul></section>
+      <section class="panel focus"><h3>Siguiente foco</h3><ul>{% for item in improvements %}<li>{{ item }}</li>{% endfor %}</ul></section>
     </div>
 
     {% if player_moments %}
     <section class="panel moments">
-      <h3>Momentos que explican el partido</h3>
-      {% for item in player_moments %}
-      <div class="moment"><span class="minute">{% if item.minute %}{{ item.minute }}′{% else %}—{% endif %}</span><span><strong>{{ item.action }}</strong><br>{{ item.label }}{% if item.reason_label %} · {{ item.reason_label }}{% endif %}</span></div>
-      {% endfor %}
+      <h3>Momentos para revisar</h3>
+      {% for item in player_moments %}<div class="moment"><span class="minute">{% if item.minute %}{{ item.minute }}′{% else %}—{% endif %}</span><span><strong>{{ item.action }}</strong> · {{ item.label }}{% if item.reason_label %} · {{ item.reason_label }}{% endif %}</span></div>{% endfor %}
     </section>
     {% endif %}
-    <footer>Informe generado al cerrar el partido. El detalle estadístico y los porcentajes permanecen en los KPI del cuerpo técnico.</footer>
+    <footer><span>Informe generado al cerrar el partido.</span><span>El detalle porcentual permanece en los KPI del cuerpo técnico.</span></footer>
   </main>
 </body>
 </html>

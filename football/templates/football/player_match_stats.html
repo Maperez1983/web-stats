@@ -200,6 +200,24 @@
       .report-kicker { margin:0 0 .35rem; color:#9bd9b7; font-size:.7rem; font-weight:900; letter-spacing:.14em; text-transform:uppercase; }
       .report-verdict { margin:.2rem 0; font-size:clamp(1.55rem,4vw,2.35rem); line-height:1; color:#fff !important; }
       .report-copy { max-width:720px; margin:.65rem 0 0; color:#d7e5dd; line-height:1.55; }
+      .report-matchline { position:relative; z-index:1; display:flex; align-items:center; margin:.7rem 0 1rem; padding:.7rem .85rem; border:1px solid rgba(255,255,255,.13); border-radius:15px; background:rgba(0,0,0,.2); }
+      .report-club { display:flex; width:38%; align-items:center; gap:.55rem; color:#fff; font-weight:900; }
+      .report-club.away { justify-content:flex-end; text-align:right; }
+      .report-club img { width:38px; height:38px; object-fit:contain; }
+      .report-result { width:24%; color:#fff; font-size:1.7rem; font-weight:1000; text-align:center; }
+      .report-result small { display:block; color:#9bd9b7; font-size:.55rem; letter-spacing:.12em; text-transform:uppercase; }
+      .report-player { position:relative; z-index:1; display:flex; min-height:150px; overflow:hidden; border-radius:17px; background:linear-gradient(135deg,rgba(255,255,255,.11),rgba(255,255,255,.035)); }
+      .report-player-photo { display:grid; width:130px; flex:none; place-items:end center; background:linear-gradient(160deg,#0f8a4b,#153d2c); }
+      .report-player-photo img { display:block; width:120px; height:145px; object-fit:contain; object-position:center bottom; }
+      .report-player-initials { display:grid; width:78px; height:78px; place-items:center; align-self:center; border:3px solid rgba(255,255,255,.65); border-radius:50%; font-size:1.5rem; font-weight:1000; }
+      .report-player-main { padding:1rem 1.15rem; }
+      .report-player-role { margin:0 0 .25rem; color:#9bd9b7; font-size:.65rem; font-weight:900; letter-spacing:.1em; text-transform:uppercase; }
+      .report-player-main h2 { margin:0; color:#fff; font-size:clamp(1.65rem,4vw,2.45rem); line-height:1; }
+      .report-facts { display:flex; gap:.55rem; margin-top:.85rem; }
+      .report-fact { min-width:92px; padding:.55rem .7rem; border:1px solid rgba(255,255,255,.13); border-radius:12px; background:rgba(255,255,255,.08); }
+      .report-fact.rating { border-color:rgba(244,180,0,.48); background:rgba(244,180,0,.12); }
+      .report-fact span { display:block; color:#b8cbc0; font-size:.55rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
+      .report-fact strong { display:block; margin-top:.15rem; color:#fff; font-size:1.15rem; }
       .report-score-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:.55rem; margin-top:1rem; }
       .report-score { border:1px solid rgba(255,255,255,.12) !important; border-radius:14px; padding:.7rem; background:rgba(255,255,255,.05) !important; }
       .report-score span { display:block; color:#aebdb5; font-size:.62rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
@@ -212,7 +230,7 @@
       .report-moment { display:flex; gap:.75rem; align-items:flex-start; padding:.75rem 0; border-top:1px solid rgba(148,163,184,.16); }
       .report-moment:first-of-type { border-top:0; }
       .report-minute { min-width:42px; color:#f4b400; font-weight:900; }
-      @media (max-width:760px) { .report-score-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .report-columns { grid-template-columns:1fr; } }
+      @media (max-width:760px) { .report-score-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .report-columns { grid-template-columns:1fr; } .report-club { font-size:.72rem; } .report-club img { width:30px; height:30px; } .report-player-photo { width:100px; } .report-player-photo img { width:94px; height:132px; } }
     </style>
   </head>
   <body class="prod-commercial">
@@ -234,8 +252,21 @@
       {% if is_player_report %}
       <section class="card report-hero">
         <p class="report-kicker">Informe individual · Partido cerrado</p>
-        <h2 class="report-verdict">{{ performance_label }}</h2>
-        <p class="report-copy">{{ performance_text }}</p>
+        <div class="report-matchline">
+          <div class="report-club">{% if crest_src %}<img src="{{ crest_src }}" alt="" />{% endif %}<span>{{ team_name }}</span></div>
+          <div class="report-result">{{ score_label }}<small>Resultado final</small></div>
+          <div class="report-club away"><span>{{ opponent_name }}</span>{% if opponent_crest_src %}<img src="{{ opponent_crest_src }}" alt="" />{% endif %}</div>
+        </div>
+        <div class="report-player">
+          <div class="report-player-photo">{% if player_photo_src %}<img src="{{ player_photo_src }}" alt="{{ player.name }}" />{% else %}<span class="report-player-initials">{{ player_initials }}</span>{% endif %}</div>
+          <div class="report-player-main">
+            <p class="report-player-role">#{{ player_number }} · {{ player_position }}</p>
+            <h2>{{ player.name }}</h2>
+            <h3 class="report-verdict">{{ performance_label }}</h3>
+            <p class="report-copy">{{ performance_text }}</p>
+            <div class="report-facts"><div class="report-fact"><span>Minutos</span><strong>{{ minutes }}′</strong></div><div class="report-fact rating"><span>Valoración</span><strong>{% if rating != None %}{{ rating|floatformat:1 }}{% else %}—{% endif %}</strong></div></div>
+          </div>
+        </div>
         <div class="report-score-grid" aria-label="Resumen global del partido">
           {% for item in global_summary %}
           <article class="report-score"><span>{{ item.label }}</span><strong>{{ item.value }}</strong></article>
