@@ -111,7 +111,9 @@ existe, se queda donde está y sigue funcionando.{% endcomment %}
   <a href="{% url 'team-page' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'team-page' %}on{% endif %}">🏳️ Ficha del equipo</a>
   <a href="{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'staff-directory' %}on{% endif %}">👔 Staff</a>
   {% if can_manage_workspace %}<a href="{% url 'workspace-members' %}" class="{% if request.resolver_match.url_name == 'workspace-members' %}on{% endif %}">👥 Miembros</a>{% endif %}
-  <a href="{% url 'club-onboarding' %}" class="{% if request.resolver_match.url_name == 'club-onboarding' %}on{% endif %}">⚙️ Configuración</a>
+  {% comment %}Configuración es del administrador del club. Se ofrecía a todo el mundo y al
+  entrar daba 403: un entrenador de categoría se encontraba una puerta cerrada en su menú.{% endcomment %}
+  {% if can_manage_workspace %}<a href="{% url 'club-onboarding' %}" class="{% if request.resolver_match.url_name == 'club-onboarding' %}on{% endif %}">⚙️ Configuración</a>{% endif %}
   {% if request.user.is_staff or request.user.is_superuser %}<a href="{% url 'platform-overview' %}" class="{% if request.resolver_match.url_name == 'platform-overview' %}on{% endif %}">🛠️ Gobierno</a>{% endif %}
     </div>
   </details>

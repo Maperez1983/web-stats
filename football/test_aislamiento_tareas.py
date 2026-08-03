@@ -100,3 +100,41 @@ class TareasDeOtroEquipoTests(TestCase):
 
         self.assertTrue(_can_reach_task(peticion, self.tarea_cadete))
         self.assertFalse(_can_reach_task(peticion, self.tarea_senior))
+
+
+class ElMenuNoOfrecePuertasCerradasTests(TestCase):
+    """
+    Un entrenador de categoría veía "⚙️ Configuración" en su menú y al pulsarla recibía un
+    403. Si una puerta no se puede abrir, no se enseña.
+    """
+
+    def setUp(self):
+        self.owner = User.objects.create_user(username="dueno-menu", password="x")
+        self.entrenador = User.objects.create_user(username="entrenador-menu", password="x")
+        self.workspace = Workspace.objects.create(
+            name="Club menu", slug="club-menu", kind=Workspace.KIND_CLUB, owner_user=self.owner
+        )
+        self.cadete = Team.objects.create(name="Cadete menu", slug="cadete-menu")
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.cadete, is_default=True)
+        for usuario, rol in (
+            (self.owner, WorkspaceMembership.ROLE_OWNER),
+            (self.entrenador, WorkspaceMembership.ROLE_MEMBER),
+        ):
+            WorkspaceMembership.objects.create(workspace=self.workspace, user=usuario, role=rol)
+        WorkspaceTeamAccess.objects.create(
+            workspace=self.workspace, user=self.entrenador, team=self.cadete, is_default=True
+        )
+
+    def _menu_de(self, usuario):
+        self.client.force_login(usuario)
+        sesion = self.client.session
+        sesion["active_workspace_id"] = self.workspace.id
+        sesion["active_team_by_workspace"] = {str(self.workspace.id): int(self.cadete.id)}
+        sesion.save()
+        return self.client.get(reverse("staff-directory")).content.decode("utf-8", "ignore")
+
+    def test_al_entrenador_no_se_le_ofrece_configuracion(self):
+        self.assertNotIn("/onboarding/", self._menu_de(self.entrenador))
+
+    def test_al_que_manda_si(self):
+        self.assertIn("/onboarding/", self._menu_de(self.owner))

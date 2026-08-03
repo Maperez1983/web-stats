@@ -36,7 +36,9 @@ tambien debe poder abrirla. La logica vive en football/js/command_palette.js.
   {"label":"Jugadores · estadísticas","url":"{% url 'coach-roster' %}?tab=stats{% if active_team %}&team={{ active_team.id }}{% endif %}","keywords":"jugadores stats kpi"},
   {"label":"Alta jugador","url":"{% url 'coach-roster' %}?tab=manage{% if active_team %}&team={{ active_team.id }}{% endif %}","keywords":"alta jugador crear"},
   {"label":"Staff","url":"{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"staff cuerpo tecnico"},
+  {% if can_manage_workspace %}{# Sólo el administrador del club: al resto le daba 403. #}
   {"label":"Configuración","url":"{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"configuracion ajustes onboarding club branding portada escudo"},
+  {% endif %}
   {"label":"Cuenta","url":"{% url 'account-page' %}","keywords":"cuenta perfil eliminar"},
   {"label":"Soporte","url":"{% url 'support-page' %}","keywords":"soporte ayuda contact"},
   {"label":"Privacidad","url":"{% url 'privacy-policy' %}","keywords":"privacidad legal policy"},
