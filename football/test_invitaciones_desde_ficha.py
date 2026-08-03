@@ -149,3 +149,112 @@ class ContactoEnLaFichaTests(TestCase):
         # El que no tiene email no se inventa ninguna cuenta, y se dice cuántos quedaron fuera.
         self.assertFalse(UserInvitation.objects.filter(player=self.sin_email).exists())
         self.assertContains(resp, "1 sin email en su ficha")
+
+
+class AltaDeStaffConAccesoTests(TestCase):
+    """
+    El camino entero: dar de alta a un entrenador desde su ficha, invitarle, que acepte y
+    que entre viendo SU categoría y ninguna más.
+    """
+
+    def setUp(self):
+        from django.test import RequestFactory
+
+        from .models import StaffMember
+
+        self.factory = RequestFactory()
+        self.StaffMember = StaffMember
+        self.owner = User.objects.create_user(username="dueno-alta", password="x", email="d3@club.com")
+        self.workspace = Workspace.objects.create(
+            name="Club alta staff", slug="club-alta-staff",
+            kind=Workspace.KIND_CLUB, owner_user=self.owner,
+        )
+        self.cadete = Team.objects.create(name="Cadete alta", slug="cadete-alta")
+        self.senior = Team.objects.create(name="Senior alta", slug="senior-alta")
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.cadete, is_default=True)
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.senior)
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace, user=self.owner, role=WorkspaceMembership.ROLE_OWNER
+        )
+        self.client.force_login(self.owner)
+        sesion = self.client.session
+        sesion["active_workspace_id"] = self.workspace.id
+        sesion["active_team_by_workspace"] = {str(self.workspace.id): int(self.cadete.id)}
+        sesion.save()
+
+    def _alta(self, **extra):
+        datos = {
+            "name": "Nuevo Entrenador",
+            "role_title": "Entrenador",
+            "email": "nuevo.entrenador@club.com",
+            "scope": "team",
+            "access_action": "invite",
+            "role_preset": "coach",
+        }
+        datos.update(extra)
+        return self.client.post(reverse("staff-member-create"), datos, follow=True)
+
+    def test_el_alta_crea_la_ficha_en_su_categoria(self):
+        self._alta()
+
+        miembro = self.StaffMember.objects.get(name="Nuevo Entrenador")
+        self.assertEqual(miembro.team_id, self.cadete.id)
+        self.assertEqual(miembro.email, "nuevo.entrenador@club.com")
+        self.assertTrue(miembro.is_active)
+
+    def test_el_alta_crea_la_invitacion_a_su_email(self):
+        self._alta()
+
+        invitacion = UserInvitation.objects.filter(email__iexact="nuevo.entrenador@club.com").first()
+        self.assertIsNotNone(invitacion, "No se creó la invitación al marcar 'Crear invitación'")
+        self.assertTrue(invitacion.token)
+        # La invitación ya trae su usuario creado (inactivo hasta que ponga contraseña).
+        self.assertFalse(invitacion.user.is_active)
+        self.assertTrue(
+            WorkspaceMembership.objects.filter(workspace=self.workspace, user=invitacion.user).exists(),
+            "El invitado no quedó dado de alta en el club",
+        )
+
+    def test_sin_invitacion_no_se_crea_acceso(self):
+        """'Sin acceso nuevo' debe dejar la ficha hecha y NINGUNA invitación."""
+        self._alta(access_action="none", email="solo.ficha@club.com")
+
+        self.assertTrue(self.StaffMember.objects.filter(name="Nuevo Entrenador").exists())
+        self.assertFalse(UserInvitation.objects.filter(email__iexact="solo.ficha@club.com").exists())
+
+    def test_el_ambito_club_completo_no_ata_a_una_categoria(self):
+        self._alta(scope="club", name="Coordinador Club")
+
+        miembro = self.StaffMember.objects.get(name="Coordinador Club")
+        self.assertIsNone(miembro.team_id)
+
+    def test_al_aceptar_entra_y_solo_ve_su_categoria(self):
+        from .workspace_context import allowed_team_ids_for_request
+
+        self._alta()
+        invitacion = UserInvitation.objects.get(email__iexact="nuevo.entrenador@club.com")
+
+        usuario = invitacion.user
+        self.client.logout()
+        respuesta = self.client.post(
+            reverse("user-invite-accept", args=[invitacion.token]),
+            {"password": "Contrasena-Larga-9", "password_confirm": "Contrasena-Larga-9"},
+            follow=True,
+        )
+        self.assertEqual(respuesta.status_code, 200)
+
+        usuario.refresh_from_db()
+        invitacion.refresh_from_db()
+        self.assertTrue(usuario.is_active, "Tras aceptar, el usuario sigue sin poder entrar")
+        self.assertIsNotNone(invitacion.accepted_at, "La invitación no quedó marcada como aceptada")
+        self.assertTrue(
+            self.client.login(username=usuario.username, password="Contrasena-Larga-9"),
+            "La contraseña que puso al aceptar no le deja entrar",
+        )
+
+        peticion = self.factory.get("/coach/")
+        peticion.user = usuario
+        peticion.session = self.client.session
+        peticion.session["active_workspace_id"] = self.workspace.id
+        alcanza = allowed_team_ids_for_request(peticion)
+        self.assertNotIn(self.senior.id, alcanza, "Un entrenador del cadete alcanza el senior")
