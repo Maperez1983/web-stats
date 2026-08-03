@@ -51,12 +51,14 @@
             <div class="cl-meta">
               <span>🏛️ Club</span>
               {% if season_label %}<span>🗓️ {{ season_label }}</span>{% endif %}
-              <span>👥 {{ n_teams }} equipo{{ n_teams|pluralize }}</span>
+              {% if otras_categorias %}<span>👥 {{ otras_categorias|add:n_teams }} equipos en el club</span>{% else %}<span>👥 {{ n_teams }} equipo{{ n_teams|pluralize }}</span>{% endif %}
             </div>
           </div>
         </div>
 
-        <div class="cl-sect">Resumen del club</div>
+        {% comment %}Los números son los de la categoría en la que estás, no los del club
+        entero: si no, "79 jugadores" no le sirve a nadie que esté preparando el cadete.{% endcomment %}
+        <div class="cl-sect">Resumen{% if staff_team_name %} · {{ staff_team_name }}{% endif %}</div>
         <div class="cl-chips">
           <div class="cl-chip gold"><div class="n">{{ n_teams }}</div><div class="k">Equipos</div></div>
           <div class="cl-chip"><div class="n">{{ total_players }}</div><div class="k">Jugadores</div></div>
@@ -64,8 +66,14 @@
           <div class="cl-chip red"><div class="n">{{ total_injured }}</div><div class="k">Lesionados</div></div>
         </div>
         {% if scoped %}<p class="cl-note">Estás viendo solo los equipos a los que tienes acceso.</p>{% endif %}
+        {% if otras_categorias %}
+        <p class="cl-note">
+          El club tiene {{ otras_categorias }} categoría{{ otras_categorias|pluralize:"s" }} más.
+          Cámbiala en el selector de arriba para ver la suya.
+        </p>
+        {% endif %}
 
-        <div class="cl-sect">Equipos</div>
+        <div class="cl-sect">{% if otras_categorias %}Tu categoría{% else %}Equipos{% endif %}</div>
         {% if teams %}
         <div class="cl-teams">
           {% for t in teams %}
