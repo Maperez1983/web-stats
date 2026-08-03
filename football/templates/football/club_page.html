@@ -83,13 +83,21 @@
         <p class="cl-empty">No hay equipos accesibles en este club.</p>
         {% endif %}
 
-        <div class="cl-sect">Cuerpo técnico del club</div>
+        {% comment %}Sólo el cuerpo técnico del club y el de la categoría en la que estás: estando
+        en el cadete no se mira quién entrena al benjamín. De los demás se dice cuántos son.{% endcomment %}
+        <div class="cl-sect">Cuerpo técnico{% if staff_team_name %} · {{ staff_team_name }}{% endif %}</div>
         {% if staff %}
         <div class="cl-staff">
           {% for s in staff %}<span><b>{{ s.name }}</b> · {{ s.role }}{% if not s.global %} <span style="color:var(--fm-ink-3);">({{ s.team }})</span>{% endif %}</span>{% endfor %}
         </div>
         {% else %}
         <p class="cl-empty">Sin staff registrado. Añádelo en Dirección → Staff.</p>
+        {% endif %}
+        {% if staff_otros %}
+        <p class="cl-empty" style="margin-top:.6rem;">
+          Otras categorías tienen {{ staff_otros }} persona{{ staff_otros|pluralize:"s" }} más en su cuerpo técnico.
+          <a href="{% url 'staff-directory' %}" style="color:var(--fm-ink-2);">Verlas en Dirección → Staff</a>.
+        </p>
         {% endif %}
       </main>
     </div>
