@@ -115,6 +115,9 @@ def emparejar(jugadores, filas):
     nombre de la ficha esté CONTENIDO en el de Universo. Si dos jugadores de Universo encajan
     con el mismo (dos "Sergio"), no se toca a ninguno: se devuelve suelto para que lo mire el
     club. Devuelve (parejas, jugadores_sueltos, filas_sueltas).
+
+    Sólo se casa por NOMBRE. El dorsal no vale como criterio: los de la ficha son los de esta
+    temporada y los de Universo los de la anterior, así que casan personas distintas.
     """
     filas = [f for f in (filas or []) if isinstance(f, dict)]
     parejas = []
@@ -152,21 +155,9 @@ def emparejar(jugadores, filas):
             casadas.add(candidatos[0])
             parejas.append((jugador, filas[candidatos[0]]))
 
-    # 3) Último recurso: el dorsal, que dentro de la temporada es estable.
-    for indice, fila in enumerate(filas):
-        if indice in casadas:
-            continue
-        dorsal = fila.get("dorsal")
-        if not dorsal:
-            continue
-        jugador = next(
-            (j for j in jugadores if j.id not in usados and str(getattr(j, "number", "") or "") == str(dorsal)),
-            None,
-        )
-        if jugador is not None:
-            usados.add(jugador.id)
-            casadas.add(indice)
-            parejas.append((jugador, fila))
+    # NO se casa por dorsal. Se probó y metía datos de otro niño: los dorsales de la ficha
+    # son los de esta temporada y los de Universo los de la anterior, así que coinciden por
+    # casualidad entre personas distintas. Si el nombre no casa, el jugador se queda suelto.
 
     sueltos = [j for j in jugadores if j.id not in usados]
     sueltas = [
@@ -212,7 +203,7 @@ def aplicar_plantilla(team, filas, *, sobrescribir=False, bajar_fotos=True, desc
     descargar = descargar or descargar_foto
     guardar_foto = guardar_foto or _guardar_foto_del_jugador
 
-    jugadores = list(Player.objects.filter(team=team, is_active=True))
+    jugadores = list(Player.objects.filter(team=team, is_active=True).order_by("id"))
     parejas, sueltos, sueltas = emparejar(jugadores, filas or [])
 
     resumen = {

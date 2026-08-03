@@ -29,10 +29,14 @@ class EmparejarTests(TestCase):
         self.assertEqual(sueltos, [])
         self.assertEqual(sueltas, [])
 
-    def test_si_el_nombre_no_casa_lo_intenta_por_dorsal(self):
-        parejas, _, _ = emparejar([self.dos], [{"name": "Adnan El Mansouri", "dorsal": 14}])
+    def test_no_casa_por_dorsal_aunque_coincida(self):
+        """El dorsal es de otra temporada: casarlo mete los datos de otro niño."""
+        parejas, sueltos, _ = emparejar(
+            [self.dos], [{"name": "Rodrigo Jose Paniagua Carrillo", "dorsal": 14}]
+        )
 
-        self.assertEqual(parejas[0][0], self.dos)
+        self.assertEqual(parejas, [])
+        self.assertEqual([j.name for j in sueltos], ["Adnan"])
 
     def test_dice_quien_se_queda_fuera_por_cada_lado(self):
         parejas, sueltos, sueltas = emparejar([self.uno, self.dos], [{"name": "Jugador Desconocido"}])
@@ -55,6 +59,11 @@ class AplicarPlantillaTests(TestCase):
 
         self.assertEqual(self.jugador.position, "Defensa")
         self.assertEqual(self.jugador.number, 2)
+
+    def test_el_apodo_no_arrastra_a_un_desconocido(self):
+        parejas, _, _ = emparejar([self.jugador], [{"name": "OTRO CHAVAL, PEPE", "dorsal": 2}])
+
+        self.assertEqual(parejas, [])
 
     def test_no_pisa_el_dorsal_que_puso_el_club(self):
         aplicar_plantilla(self.equipo, [{"name": "Lucas Cecchetos", "dorsal": 99}])
