@@ -72,6 +72,40 @@ def categoria_para_equipo(team):
     )
 
 
+def categoria_por_los_partidos(team):
+    """
+    Categoría deducida de CONTRA QUIÉN juega.
+
+    Los rivales de amistoso se crean a mano, sin grupo ni competición: por ahí no hay nada
+    que deducir. Pero si un equipo sólo se ha enfrentado a tu Cadete, es un cadete. Se exige
+    unanimidad: si ha jugado contra dos categorías tuyas distintas, no se adivina.
+    """
+    from django.db.models import Q
+
+    from .models import Match
+
+    if not getattr(team, "id", None):
+        return ""
+    categorias = set()
+    try:
+        partidos = Match.objects.filter(
+            Q(home_team=team) | Q(away_team=team)
+        ).select_related("home_team", "away_team")
+        for partido in partidos[:60]:
+            for lado in (partido.home_team, partido.away_team):
+                if not lado or int(getattr(lado, "id", 0) or 0) == int(team.id):
+                    continue
+                if not getattr(lado, "is_primary", False):
+                    continue
+                categoria = str(getattr(lado, "category", "") or "").strip()
+                if categoria:
+                    categorias.add(categoria)
+    except Exception:
+        logger.debug("No se pudo deducir la categoría por partidos de %s", getattr(team, "id", None), exc_info=True)
+        return ""
+    return categorias.pop() if len(categorias) == 1 else ""
+
+
 def rellenar_categorias(teams, *, sobrescribir=False):
     """
     Pone la categoría a los equipos que no la tengan. Devuelve un resumen legible.
@@ -85,7 +119,7 @@ def rellenar_categorias(teams, *, sobrescribir=False):
         if actual and not sobrescribir:
             resumen["ya_tenian"].append(team.name)
             continue
-        categoria = categoria_para_equipo(team)
+        categoria = categoria_para_equipo(team) or categoria_por_los_partidos(team)
         if not categoria:
             resumen["sin_pistas"].append(team.name)
             continue
