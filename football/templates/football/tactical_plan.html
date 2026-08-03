@@ -49,6 +49,32 @@
       .tp-row { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
       .tp-row input, .tp-row select { flex: 1; min-width: 8rem; }
       .tp-hint { color: var(--prod-muted); font-size: .76rem; margin: .5rem 0 0; }
+      .tp-head { display: flex; align-items: center; gap: .8rem; margin-bottom: .6rem; flex-wrap: wrap; }
+      .tp-side { display: inline-flex; align-items: center; gap: .45rem; font-size: .95rem; }
+      .tp-side-rival { margin-left: auto; }
+      .tp-side img { width: 26px; height: 26px; object-fit: contain; }
+      .tp-side em { font-style: normal; color: var(--prod-muted); font-size: .82rem; letter-spacing: .06em; }
+      .tp-vs { color: var(--prod-muted); font-size: .74rem; letter-spacing: .18em; text-transform: uppercase; }
+      .tp-dibujo { font-size: 1.5rem; font-weight: 800; letter-spacing: .04em; margin-bottom: .5rem; }
+      .tp-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: .35rem .6rem; }
+      .tp-metric { display: flex; justify-content: space-between; gap: .4rem; font-size: .78rem; }
+      .tp-metric span { color: var(--prod-muted); }
+      .tp-metric strong { font-variant-numeric: tabular-nums; }
+      .tp-sub { margin: .7rem 0 .3rem; font-size: .66rem; text-transform: uppercase; letter-spacing: .1em; color: var(--prod-muted); }
+      .tp-lanes { display: flex; flex-direction: column; gap: .22rem; }
+      .tp-lane { display: flex; justify-content: space-between; font-size: .78rem; padding: .22rem .45rem; border-radius: 7px; background: rgba(148,163,184,.1); }
+      .tp-lane strong { font-variant-numeric: tabular-nums; }
+      .tp-lane.mas { background: rgba(34,197,94,.16); color: #86efac; }
+      .tp-lane.menos { background: rgba(248,113,113,.16); color: #fecaca; }
+      /* Los carriles sobre el césped: se encienden a voluntad, no van siempre puestos. */
+      .tp-lanes-layer { position: absolute; inset: 0; pointer-events: none; }
+      .tp-lane-band { position: absolute; left: 0; right: 0; border-top: 1px dashed rgba(255,255,255,.32); }
+      .tp-lane-band:first-child { border-top: none; }
+      .tp-lane-band span {
+        position: absolute; left: 6px; top: 3px; font-size: .6rem; letter-spacing: .1em;
+        text-transform: uppercase; color: rgba(255,255,255,.72); text-shadow: 0 2px 8px rgba(0,0,0,.9);
+      }
+      .tp-zone-line { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,.22); }
     </style>
   </head>
   <body class="prod-commercial">
@@ -69,17 +95,34 @@
 
       <div class="tp-layout">
         <section>
+          <div class="tp-head">
+            <span class="tp-side">
+              {% if crest_url %}<img src="{{ crest_url }}" alt="" />{% endif %}<strong>{{ team_name }}</strong>
+              <em id="tp-shape">—</em>
+            </span>
+            <span class="tp-vs">vs</span>
+            <span class="tp-side tp-side-rival">
+              <em id="tp-shape-rival">—</em>
+              <strong id="tp-rival-name">Sin rival</strong><img id="tp-rival-crest" alt="" hidden />
+            </span>
+          </div>
           <div class="tp-row" style="margin-bottom:.6rem;">
             <input id="tp-name" type="text" placeholder="Nombre del planteamiento (ej. 1-4-3-3 base)" maxlength="80" />
             <input id="tp-formation" type="text" placeholder="1-4-3-3" maxlength="24" style="max-width:9rem;" />
             <button class="button primary" id="tp-save" type="button">Guardar</button>
             <button class="button" id="tp-delete" type="button">Borrar</button>
+            <button class="button" id="tp-lanes-toggle" type="button" aria-pressed="false">Carriles: OFF</button>
           </div>
           <div class="tp-pitch" id="tp-pitch" role="application" aria-label="Campo con los dos onces"></div>
           <p class="tp-hint" id="tp-status">Arrastra las fichas para colocarlas. Se guardan al pulsar Guardar.</p>
         </section>
 
         <aside>
+          <div class="tp-panel">
+            <h2>Cómo queda</h2>
+            <div id="tp-read"><p class="tp-hint" style="margin:0;">Coloca el once y aquí verás cómo queda.</p></div>
+          </div>
+
           <div class="tp-panel">
             <h2>Planteamientos</h2>
             <div id="tp-list"><p class="tp-hint" style="margin:0;">Todavía no hay ninguno guardado.</p></div>

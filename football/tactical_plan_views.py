@@ -110,6 +110,32 @@ def _normalizar_rival(payload):
     return {'starters': filas, '_meta': {'orientation': 'lr'}}
 
 
+def _escudo_de(equipo):
+    if not equipo:
+        return ''
+    try:
+        if getattr(equipo, 'crest_image', None):
+            return equipo.crest_image.url
+    except Exception:
+        pass
+    return str(getattr(equipo, 'crest_url', '') or '')
+
+
+def _foto_de(request, player):
+    from .views import resolve_player_avatar_url, resolve_player_photo_url
+
+    try:
+        foto = resolve_player_photo_url(request, player)
+        if foto:
+            return foto
+    except Exception:
+        pass
+    try:
+        return resolve_player_avatar_url(player) or ''
+    except Exception:
+        return ''
+
+
 def _plan_json(plan):
     return {
         'id': plan.id,
@@ -155,7 +181,12 @@ def tactical_plan_page(request):
         if not filas:
             continue
         vistos.add(snap.team_id)
-        rivales.append({'id': snap.team_id, 'name': snap.team.name if snap.team else '—', 'players': len(filas)})
+        rivales.append({
+            'id': snap.team_id,
+            'name': snap.team.name if snap.team else '—',
+            'players': len(filas),
+            'crest': _escudo_de(snap.team),
+        })
 
     # Partidos a los que se puede volcar el planteamiento: los que aun no se han cerrado.
     partidos = []
@@ -187,9 +218,13 @@ def tactical_plan_page(request):
                 'name': (p.nickname or p.name or '').strip(),
                 'number': str(p.number or ''),
                 'position': (p.position or '').strip(),
+                # La cara del jugador: es lo que hace que la pizarra sea SU equipo y no once
+                # círculos de color. Primero su foto; si no tiene, la figura recoloreada.
+                'photo_url': _foto_de(request, p),
             }
             for p in jugadores
         ]),
+        'crest_url': _escudo_de(equipo),
         'rivales_json': json.dumps(rivales),
         'slots_json': json.dumps([{'x': x, 'y': y} for x, y in SLOTS]),
         'starters_limit': LIMITE_TITULARES,

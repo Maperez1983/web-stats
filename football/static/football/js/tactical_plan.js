@@ -62,7 +62,7 @@
     const soltar = () => {
       if (!desde) return;
       desde = null;
-      if (arrastrando) aviso('Movido. Recuerda guardar el planteamiento.');
+      if (arrastrando) { pintarLectura(); aviso('Movido. Recuerda guardar el planteamiento.'); }
       arrastrando = false;
     };
     el.addEventListener('pointerup', soltar);
@@ -74,7 +74,7 @@
     el.className = 'tp-token' + (esRival ? ' is-rival' : '');
     el.style.left = (fila.x_pct ?? 50) + '%';
     el.style.top = (fila.y_pct ?? 50) + '%';
-    if (esRival && fila.photo_url) {
+    if (fila.photo_url) {
       const img = document.createElement('img');
       img.src = fila.photo_url;
       img.alt = '';
@@ -104,8 +104,166 @@
 
   const pintarCampo = () => {
     campo.innerHTML = '';
+    pintarCarriles();
     estado.starters.forEach((f) => campo.appendChild(crearFicha(f, false)));
     estado.rival.forEach((f) => campo.appendChild(crearFicha(f, true)));
+    pintarLectura();
+    pintarCabeceraRival();
+  };
+
+  // Los carriles sobre el césped: se encienden con el interruptor, no van siempre puestos.
+  let carrilesVisibles = false;
+  const pintarCarriles = () => {
+    if (!carrilesVisibles) return;
+    const capa = document.createElement('div');
+    capa.className = 'tp-lanes-layer';
+    CARRILES.forEach((c) => {
+      const banda = document.createElement('div');
+      banda.className = 'tp-lane-band';
+      banda.style.top = c.desde + '%';
+      banda.style.height = (c.hasta - c.desde) + '%';
+      const etq = document.createElement('span');
+      etq.textContent = c.nombre;
+      banda.appendChild(etq);
+      capa.appendChild(banda);
+    });
+    ZONAS.slice(1).forEach((z) => {
+      const linea = document.createElement('div');
+      linea.className = 'tp-zone-line';
+      linea.style.left = z.desde + '%';
+      capa.appendChild(linea);
+    });
+    campo.appendChild(capa);
+  };
+
+  // --- lectura del campo: carriles, estructura y superioridades ---
+  //
+  // El eje X es la longitud (portería a portería) y el Y la ANCHURA, así que los carriles son
+  // bandas horizontales. Los cinco de siempre: banda, interior (la medialuna), central, interior,
+  // banda. Las proporciones no son iguales a propósito: el central es más ancho que los interiores.
+  const CARRILES = [
+    { clave: 'izq', nombre: 'Banda izq.', desde: 0, hasta: 20 },
+    { clave: 'int_izq', nombre: 'Interior izq.', desde: 20, hasta: 37 },
+    { clave: 'centro', nombre: 'Central', desde: 37, hasta: 63 },
+    { clave: 'int_der', nombre: 'Interior der.', desde: 63, hasta: 80 },
+    { clave: 'der', nombre: 'Banda der.', desde: 80, hasta: 100 },
+  ];
+  const ZONAS = [
+    { clave: 'def', nombre: 'Defensiva', desde: 0, hasta: 34 },
+    { clave: 'media', nombre: 'Media', desde: 34, hasta: 67 },
+    { clave: 'ofe', nombre: 'Ofensiva', desde: 67, hasta: 100 },
+  ];
+
+  const carrilDe = (y) => CARRILES.find((c) => y >= c.desde && y < c.hasta) || CARRILES[CARRILES.length - 1];
+  const zonaDe = (x) => ZONAS.find((z) => x >= z.desde && x < z.hasta) || ZONAS[ZONAS.length - 1];
+
+  const leerEstructura = () => {
+    const jug = estado.starters.filter((p) => Number.isFinite(Number(p.x_pct)));
+    if (jug.length < 3) return null;
+    // El portero fuera: si entra, la profundidad y la altura del bloque mienten.
+    const ordenados = [...jug].sort((a, b) => a.x_pct - b.x_pct);
+    const portero = ordenados[0];
+    const campo = ordenados.slice(1);
+    if (!campo.length) return null;
+
+    // Líneas: se agrupan por cercanía en X. Un salto grande abre línea nueva.
+    const lineas = [];
+    let actual = [campo[0]];
+    for (let i = 1; i < campo.length; i += 1) {
+      if (campo[i].x_pct - campo[i - 1].x_pct > 7) { lineas.push(actual); actual = []; }
+      actual.push(campo[i]);
+    }
+    lineas.push(actual);
+
+    const xs = campo.map((p) => p.x_pct);
+    const ys = campo.map((p) => p.y_pct);
+    const media = (a) => a.reduce((s, v) => s + v, 0) / a.length;
+    // Distancia entre líneas: la mayor separación entre líneas consecutivas, que es por donde
+    // te parten.
+    let mayorHueco = 0;
+    for (let i = 1; i < lineas.length; i += 1) {
+      const hueco = media(lineas[i].map((p) => p.x_pct)) - media(lineas[i - 1].map((p) => p.x_pct));
+      if (hueco > mayorHueco) mayorHueco = hueco;
+    }
+    return {
+      dibujo: '1-' + lineas.map((l) => l.length).join('-'),
+      amplitud: Math.round(Math.max(...ys) - Math.min(...ys)),
+      profundidad: Math.round(Math.max(...xs) - Math.min(...xs)),
+      entreLineas: Math.round(mayorHueco),
+      altura: Math.round(media(xs)),
+      porteroFuera: Math.round(portero.x_pct),
+    };
+  };
+
+  const leerCarriles = () => CARRILES.map((c) => ({
+    nombre: c.nombre,
+    nuestros: estado.starters.filter((p) => carrilDe(p.y_pct).clave === c.clave).length,
+    rival: estado.rival.filter((p) => carrilDe(p.y_pct).clave === c.clave).length,
+  }));
+
+  const leerZonas = () => ZONAS.map((z) => ({
+    nombre: z.nombre,
+    nuestros: estado.starters.filter((p) => zonaDe(p.x_pct).clave === z.clave).length,
+    // El rival mira hacia el otro lado: su zona ofensiva es nuestra defensiva.
+    rival: estado.rival.filter((p) => zonaDe(100 - p.x_pct).clave === z.clave).length,
+  }));
+
+  const pintarLectura = () => {
+    const cont = $('tp-read');
+    if (!cont) return;
+    const e = leerEstructura();
+    if (!e) { cont.innerHTML = '<p class="tp-hint" style="margin:0;">Coloca el once y aquí verás cómo queda.</p>'; return; }
+    const fila = (etq, val, pista) => '<div class="tp-metric"><span>' + etq + '</span><strong title="' + pista + '">' + val + '</strong></div>';
+    let html = '<div class="tp-dibujo">' + e.dibujo + '</div>';
+    html += '<div class="tp-metrics">';
+    html += fila('Amplitud', e.amplitud + '%', 'Cuánto ocupas a lo ancho');
+    html += fila('Profundidad', e.profundidad + '%', 'Del último al primero, sin el portero');
+    html += fila('Entre líneas', e.entreLineas + '%', 'La mayor separación entre dos líneas: por ahí te parten');
+    html += fila('Altura', e.altura + '%', 'Dónde vive el bloque');
+    html += '</div>';
+
+    const carriles = leerCarriles();
+    html += '<p class="tp-sub">Carriles</p><div class="tp-lanes">';
+    carriles.forEach((c) => {
+      const dif = c.nuestros - c.rival;
+      const clase = dif > 0 ? 'mas' : (dif < 0 ? 'menos' : '');
+      const marca = estado.rival.length ? (dif > 0 ? '+' + dif : String(dif)) : String(c.nuestros);
+      html += '<div class="tp-lane ' + clase + '"><span>' + c.nombre + '</span><strong>' + marca + '</strong></div>';
+    });
+    html += '</div>';
+
+    if (estado.rival.length) {
+      html += '<p class="tp-sub">Zonas</p><div class="tp-lanes">';
+      leerZonas().forEach((z) => {
+        const dif = z.nuestros - z.rival;
+        const clase = dif > 0 ? 'mas' : (dif < 0 ? 'menos' : '');
+        html += '<div class="tp-lane ' + clase + '"><span>' + z.nombre + '</span><strong>' + (dif > 0 ? '+' + dif : dif) + '</strong></div>';
+      });
+      html += '</div><p class="tp-hint" style="margin:.4rem 0 0;">+ es superioridad nuestra en esa franja.</p>';
+    }
+    cont.innerHTML = html;
+    const forma = $('tp-shape');
+    if (forma) forma.textContent = e.dibujo;
+  };
+
+  const pintarCabeceraRival = () => {
+    const nombre = $('tp-rival-name');
+    const escudo = $('tp-rival-crest');
+    const forma = $('tp-shape-rival');
+    const r = rivales.find((x) => String(x.id) === String(estado.rival_team_id));
+    if (nombre) nombre.textContent = r ? r.name : 'Sin rival';
+    if (escudo) {
+      if (r && r.crest) { escudo.src = r.crest; escudo.hidden = false; } else { escudo.hidden = true; }
+    }
+    if (forma) {
+      // El dibujo del rival se lee igual que el nuestro, pero mirando desde su lado.
+      const suyos = estado.rival.map((p) => ({ ...p, x_pct: 100 - p.x_pct }));
+      const guardado = estado.starters;
+      estado.starters = suyos;
+      const e = leerEstructura();
+      estado.starters = guardado;
+      forma.textContent = e ? e.dibujo : '—';
+    }
   };
 
   // --- banquillo de la plantilla ---
@@ -125,7 +283,7 @@
         } else {
           if (estado.starters.length >= LIMITE) { aviso('Ya hay ' + LIMITE + ' en el campo.'); return; }
           const hueco = slots[estado.starters.length] || { x: 50, y: 50 };
-          estado.starters.push({ id: p.id, name: p.name, number: p.number, position: p.position, x_pct: hueco.x, y_pct: hueco.y });
+          estado.starters.push({ id: p.id, name: p.name, number: p.number, position: p.position, photo_url: p.photo_url || '', x_pct: hueco.x, y_pct: hueco.y });
         }
         pintarBanquillo();
         pintarCampo();
@@ -158,7 +316,11 @@
     estado.id = plan.id;
     estado.name = plan.name || '';
     estado.formation = plan.formation || '';
-    estado.starters = ((plan.lineup || {}).starters || []).map((f) => ({ ...f }));
+    const porId = new Map(plantilla.map((p) => [String(p.id), p]));
+    estado.starters = ((plan.lineup || {}).starters || []).map((f) => {
+      const p = porId.get(String(f.id));
+      return { ...f, photo_url: (p && p.photo_url) || '' };
+    });
     estado.rival = ((plan.rival_lineup || {}).starters || []).map((f) => ({ ...f }));
     estado.rival_team_id = plan.rival_team_id || '';
     $('tp-name').value = estado.name;
@@ -299,6 +461,16 @@
       } catch (e) {
         aviso('No se pudo aplicar.');
       }
+    });
+  }
+
+  const btnCarriles = $('tp-lanes-toggle');
+  if (btnCarriles) {
+    btnCarriles.addEventListener('click', () => {
+      carrilesVisibles = !carrilesVisibles;
+      btnCarriles.textContent = carrilesVisibles ? 'Carriles: ON' : 'Carriles: OFF';
+      btnCarriles.setAttribute('aria-pressed', carrilesVisibles ? 'true' : 'false');
+      pintarCampo();
     });
   }
 
