@@ -126,6 +126,43 @@ def _figura_instalada(figura):
     return _INSTALADAS[clave]
 
 
+# Edad tipica de cada categoria. Sirve para el jugador al que le falta la fecha de nacimiento: su
+# EQUIPO si dice de que edad es. No es su edad, es la de su categoria -por eso el cuerpo que sale
+# es generico- pero es infinitamente mejor que ponerle a un benjamin un cuerpo de adulto.
+# El orden importa: "prebenjamin" contiene "benjamin".
+CATEGORIAS_EDAD = (
+    ("prebenjamin", 7),
+    ("benjamin", 8),
+    ("querubin", 5),
+    ("bebe", 4),
+    ("alevin", 10),
+    ("infantil", 12),
+    ("cadete", 14),
+    ("juvenil", 17),
+    ("senior", 24),
+    ("aficionado", 24),
+    ("amateur", 24),
+    ("veterano", 35),
+)
+
+
+def _sin_tildes(texto):
+    import unicodedata
+    limpio = unicodedata.normalize("NFKD", str(texto or "")).encode("ascii", "ignore").decode()
+    return "".join(c for c in limpio.lower() if c.isalnum())
+
+
+def edad_por_categoria(team):
+    """Edad tipica de la categoria del equipo (por el campo `category` o por su nombre)."""
+    if team is None:
+        return None
+    texto = _sin_tildes(f"{getattr(team, 'category', '')} {getattr(team, 'name', '')} {getattr(team, 'short_name', '')}")
+    for clave, edad in CATEGORIAS_EDAD:
+        if clave in texto:
+            return edad
+    return None
+
+
 def figura_para(player, solo_instaladas=True):
     """
     Que cuerpo le toca a este jugador. None si no se puede saber.
@@ -134,6 +171,9 @@ def figura_para(player, solo_instaladas=True):
     cada regeneracion le cambiaria el cuerpo al jugador.
     """
     edad = edad_de(player)
+    if edad is None:
+        # Sin fecha de nacimiento, la categoria del equipo: generico, pero de su edad.
+        edad = edad_por_categoria(getattr(player, "team", None))
     if edad is None:
         return None
     candidatas = [f for f in FIGURAS if f["desde"] <= edad <= f["hasta"]]
@@ -148,15 +188,17 @@ def figura_apta(player, edad_minima=None):
     """
     ¿Hay un cuerpo para este jugador? (si/no, motivo)
 
-    Sin fecha de nacimiento se dice que NO: mejor quedarse sin avatar que arriesgarse a ponerle un
-    cuerpo de adulto a un alevin porque falte un dato.
+    Si falta la fecha de nacimiento se tira de la categoria del equipo: sale un cuerpo generico,
+    pero de su edad. Lo que no se hace nunca es caer en el de adulto por defecto.
 
     `edad_minima` se mantiene por compatibilidad con la opcion --edad-minima: si se pasa, ademas
     hay que llegar a esa edad.
     """
     edad = edad_de(player)
     if edad is None:
-        return False, 'sin fecha de nacimiento'
+        edad = edad_por_categoria(getattr(player, "team", None))
+        if edad is None:
+            return False, 'sin fecha de nacimiento y sin categoria del equipo'
     if edad_minima and edad < int(edad_minima):
         return False, f'{edad} anos (por debajo del minimo pedido)'
     if figura_para(player) is None:

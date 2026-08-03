@@ -1,3 +1,5 @@
+import datetime
+
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
@@ -87,7 +89,10 @@ class PlayerAvatarFichaTests(TestCase):
 
         # Sin características ni foto -> no hay nada pendiente.
         self.assertFalse(player_avatar_pending(self.player))
-        # Con característica y sin avatar generado -> pendiente.
+        # Con característica y sin avatar generado -> pendiente. Hace falta saber su edad: sin
+        # fecha de nacimiento ni categoría del equipo no hay cuerpo que ponerle, y entonces no es
+        # trabajo pendiente sino un dato que falta.
+        self.player.birth_date = datetime.date(2000, 5, 9)
         self.player.skin_grade = 3
         self.player.save()
         self.assertTrue(player_avatar_pending(self.player))
@@ -115,3 +120,52 @@ class PlayerAvatarFichaTests(TestCase):
         self.client.post(url, {"form_action": "profile", "hairstyle": "mohicano"}, HTTP_HOST="localhost")
         self.player.refresh_from_db()
         self.assertEqual(self.player.hairstyle, "")
+
+
+class AvatarGenericoPorEdadTests(TestCase):
+    """
+    Un jugador sin datos tiene que salir igualmente, y con el cuerpo de su edad.
+
+    Antes se quedaba sin avatar y el llamante caía en un PNG de adulto para todo el mundo: en la
+    pizarra de un benjamín salían veinte hombres hechos y derechos.
+    """
+
+    def setUp(self):
+        self.benjamines = Team.objects.create(name="Benagalbón Benjamín A", slug="benj-a", category="Benjamín")
+        self.senior = Team.objects.create(name="Benagalbón", slug="senior", category="Senior")
+
+    def test_cuerpo_por_categoria_cuando_falta_la_fecha(self):
+        from football.management.commands.generate_player_avatars import figura_para
+
+        nino = Player.objects.create(team=self.benjamines, name="Nino", is_active=True)
+        figura = figura_para(nino)
+        self.assertIsNotNone(figura, "un benjamín sin fecha debe coger el cuerpo de su categoría")
+        self.assertTrue(figura["clave"].startswith("peque"), figura)
+
+    def test_la_fecha_manda_sobre_la_categoria(self):
+        from football.management.commands.generate_player_avatars import figura_para
+
+        # Un cadete apuntado por error en el equipo de benjamines: manda SU fecha.
+        mayor = Player.objects.create(
+            team=self.benjamines, name="Mayor", is_active=True, birth_date=datetime.date(2011, 1, 1)
+        )
+        self.assertEqual(figura_para(mayor)["clave"][:3], "ado")
+
+    def test_el_resolver_da_figura_generica_al_nino_y_nada_al_adulto(self):
+        from football.views import resolve_player_avatar_url
+
+        nino = Player.objects.create(team=self.benjamines, name="Nino2", is_active=True)
+        url = resolve_player_avatar_url(nino)
+        self.assertIn("nino_peque", url, "el niño sin datos debe recibir un cuerpo de niño")
+        # El adulto se queda como estaba: '' y el llamante pone su PNG de siempre.
+        adulto = Player.objects.create(team=self.senior, name="Adulto", is_active=True)
+        self.assertEqual(resolve_player_avatar_url(adulto), "")
+
+    def test_variantes_repartidas_pero_estables(self):
+        from football.management.commands.generate_player_avatars import figura_para
+
+        ninos = [Player.objects.create(team=self.benjamines, name=f"N{i}", is_active=True) for i in range(6)]
+        claves = [figura_para(p)["clave"] for p in ninos]
+        self.assertGreater(len(set(claves)), 1, "seis niños no pueden salir todos con el mismo cuerpo")
+        # Y el reparto no cambia entre llamadas: nadie cambia de cuerpo al regenerar.
+        self.assertEqual(claves, [figura_para(p)["clave"] for p in ninos])
