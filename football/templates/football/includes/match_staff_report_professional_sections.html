@@ -11,7 +11,7 @@
   </div>
   <div class="pro-compare-table" aria-label="Comparativa exacta del partido">
     {% for row in pro.exact_comparison %}
-    <div class="pro-compare-row"><span>{{ row.label }}</span><div class="pro-compare-values"><strong>{{ row.team }}</strong><i>vs</i><strong>{{ row.opponent }}</strong></div></div>
+    <div class="pro-compare-row"><span>{{ row.label }}</span><div class="pro-compare-values"><strong>{{ row.team }} <i>vs</i> {{ row.opponent }}</strong></div></div>
     {% endfor %}
   </div>
   <div class="pro-percentage-grid" aria-label="Porcentajes principales del equipo">
