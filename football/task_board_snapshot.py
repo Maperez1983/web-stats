@@ -412,6 +412,54 @@ def snapshot_data_uri(task) -> str:
 # Diagnóstico (coach-gated). Patrón que ya nos sirvió con Playwright en Render: si algo
 # server-side "cae siempre al fallback", hace falta un endpoint que devuelva el error REAL.
 # ---------------------------------------------------------------------------
+def board_snapshot_upload_view(request, task_id):
+    """Guarda una foto de la pizarra hecha FUERA del servidor.
+
+    Existe porque hacer las fotos aqui no siempre es viable: en Render corremos con un
+    unico worker y Chromium compite con la propia app; con una biblioteca entera por
+    fotografiar la instancia se reinicia (502) y no termina nunca. Fotografiando desde
+    otra maquina, el servidor solo tiene que servir la pagina del editor.
+
+    Sube exactamente lo mismo que produce el hilo interno (`_store`): la imagen como
+    `task-<id>-board-hd.jpg` y la firma del dibujo, para que `snapshot_is_current` la de
+    por buena y no se vuelva a intentar.
+    """
+    from django.http import JsonResponse
+
+    from .models import SessionTask
+    from .permissions import can_access_sessions_workspace
+
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "POST required"}, status=405)
+    if not can_access_sessions_workspace(request.user):
+        return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+    task = SessionTask.objects.filter(pk=int(task_id)).first()
+    if not task:
+        return JsonResponse({"ok": False, "error": "not_found"}, status=404)
+
+    imagen = request.FILES.get("image")
+    if not imagen:
+        return JsonResponse({"ok": False, "error": "sin imagen"}, status=400)
+    raw = imagen.read()
+    if not raw or len(raw) > 12 * 1024 * 1024:
+        return JsonResponse({"ok": False, "error": "tamanio de imagen no valido"}, status=400)
+    if not _looks_like_a_real_board(raw):
+        return JsonResponse({"ok": False, "error": "la imagen no parece una pizarra"}, status=400)
+
+    sig = board_signature(task)
+    if not sig:
+        return JsonResponse({"ok": False, "error": "la tarea no tiene dibujo"}, status=400)
+    # La firma que manda es la del dibujo ACTUAL: si la pizarra ha cambiado desde que se
+    # hizo la foto fuera, `_store` la descarta sola (misma proteccion que el hilo interno).
+    enviada = str(request.POST.get("signature") or "").strip()
+    if enviada and enviada != sig:
+        return JsonResponse({"ok": False, "error": "la pizarra cambio despues de la foto"}, status=409)
+
+    _store(int(task.id), _to_jpeg(raw) if raw[:2] != b"\xff\xd8" else raw, sig)
+    task.refresh_from_db()
+    return JsonResponse({"ok": True, "task": int(task.id), "al_dia": snapshot_is_current(task)})
+
+
 def board_snapshot_status_view(request, task_id):
     from django.http import JsonResponse
 

@@ -739,6 +739,12 @@ urlpatterns = [
         task_board_snapshot.board_snapshot_status_view,
         name="session-task-board-hd",
     ),
+    # Sube una foto de la pizarra hecha fuera (el servidor no siempre puede con Chromium).
+    path(
+        "coach/sesiones/tarea/<int:task_id>/foto-hd/subir/",
+        task_board_snapshot.board_snapshot_upload_view,
+        name="session-task-board-hd-upload",
+    ),
     path(
         "coach/sesiones/tarea/<int:task_id>/cover/", views.session_task_cover_file, name="session-task-cover-file"
     ),
