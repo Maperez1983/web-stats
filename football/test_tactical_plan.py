@@ -1,0 +1,93 @@
+import json
+
+from django.contrib.auth import get_user_model
+from django.test import Client, TestCase
+from django.urls import reverse
+
+from football.models import (
+    Player,
+    TacticalPlan,
+    Team,
+    TeamRosterSnapshot,
+    Workspace,
+    WorkspaceMembership,
+    WorkspaceTeam,
+)
+
+
+class PlanteamientoTests(TestCase):
+    """Táctica · Planteamiento: el once del equipo, guardado y reutilizable."""
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_superuser("s", "s@example.com", "x")
+        self.team = Team.objects.create(name="Benagalbón", slug="bena", is_primary=True)
+        self.ws = Workspace.objects.create(name="Club", slug="club", kind=Workspace.KIND_CLUB)
+        WorkspaceMembership.objects.create(workspace=self.ws, user=self.user, role="owner")
+        WorkspaceTeam.objects.create(workspace=self.ws, team=self.team, is_default=True)
+        self.p1 = Player.objects.create(team=self.team, name="Uno", number=1, is_active=True)
+        self.p2 = Player.objects.create(team=self.team, name="Dos", number=2, is_active=True)
+        self.rival = Team.objects.create(name="C.D. Rival", slug="rival")
+        TeamRosterSnapshot.objects.create(
+            team=self.rival,
+            provider="lapreferente",
+            roster_payload=[
+                {"name": f"Rival {i}", "number": i, "position": "MC", "photo_url": f"https://ej/{i}.png"}
+                for i in range(1, 15)
+            ],
+        )
+        self.client = Client()
+        self.client.force_login(self.user)
+        s = self.client.session
+        s["active_workspace_id"] = self.ws.id
+        s["active_team_by_workspace"] = {str(self.ws.id): self.team.id}
+        s.save()
+
+    def _guardar(self, **extra):
+        payload = {"name": "1-4-3-3 base", "formation": "1-4-3-3",
+                   "lineup": {"starters": [{"id": self.p1.id, "x_pct": 7, "y_pct": 50}]}}
+        payload.update(extra)
+        return self.client.post(reverse("tactics-plan-save"), data=json.dumps(payload),
+                                content_type="application/json", secure=True)
+
+    def test_la_pantalla_usa_el_cesped_de_siempre(self):
+        r = self.client.get(reverse("tactics-plan"), secure=True)
+        self.assertEqual(r.status_code, 200)
+        html = r.content.decode()
+        self.assertIn("coach_home_pitch_surface", html, "el campo tiene que ser el mismo de toda la app")
+        self.assertIn("C.D. Rival", html, "los rivales con plantilla volcada deben poder elegirse")
+
+    def test_guardar_y_recuperar_un_planteamiento(self):
+        r = self._guardar(rival_team_id=self.rival.id,
+                          rival_lineup={"starters": [{"code": "r1", "name": "Rival 1", "number": "1"}]})
+        self.assertEqual(r.status_code, 200)
+        plan = r.json()["plan"]
+        self.assertEqual(len(plan["lineup"]["starters"]), 1)
+        self.assertEqual(len(plan["rival_lineup"]["starters"]), 1)
+        self.assertEqual(plan["lineup"]["_meta"]["orientation"], "lr",
+                         "misma orientación que el prepartido, o no se podrá volcar")
+
+    def test_el_mismo_nombre_no_duplica(self):
+        self._guardar()
+        self._guardar()
+        self.assertEqual(TacticalPlan.objects.filter(team=self.team).count(), 1)
+
+    def test_no_se_cuela_un_jugador_de_otro_equipo(self):
+        otro = Team.objects.create(name="Otro", slug="otro")
+        intruso = Player.objects.create(team=otro, name="Intruso", is_active=True)
+        r = self._guardar(lineup={"starters": [{"id": intruso.id, "x_pct": 50, "y_pct": 50}]})
+        self.assertEqual(r.json()["plan"]["lineup"]["starters"], [])
+
+    def test_el_once_no_pasa_de_once(self):
+        jugadores = [Player.objects.create(team=self.team, name=f"J{i}", number=i, is_active=True) for i in range(3, 20)]
+        filas = [{"id": p.id, "x_pct": 50, "y_pct": 50} for p in jugadores]
+        r = self._guardar(lineup={"starters": filas})
+        self.assertEqual(len(r.json()["plan"]["lineup"]["starters"]), 11)
+
+    def test_plantilla_del_rival_y_borrado(self):
+        r = self.client.get(reverse("tactics-plan-rival") + f"?rival={self.rival.id}", secure=True)
+        self.assertEqual(len(r.json()["players"]), 14)
+        plan_id = self._guardar().json()["plan"]["id"]
+        r = self.client.post(reverse("tactics-plan-delete"), data=json.dumps({"id": plan_id}),
+                             content_type="application/json", secure=True)
+        self.assertTrue(r.json()["ok"])
+        self.assertEqual(TacticalPlan.objects.filter(team=self.team).count(), 0)

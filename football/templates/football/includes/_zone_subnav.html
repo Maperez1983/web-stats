@@ -58,8 +58,13 @@ existe, se queda donde está y sigue funcionando.{% endcomment %}
     <summary><span data-zone-current>♟️ Táctica</span><span class="zone-menu-caret" aria-hidden="true">&#9662;</span></summary>
     <div class="zone-menu-list">
       <div class="zone-menu-title">♟️ Táctica</div>
-  <a href="{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'coach-tactics' %}on{% endif %}">✏️ Pizarra</a>
-  <a href="{% url 'tactics-roles' %}" class="{% if request.resolver_match.url_name == 'tactics-roles' %}on{% endif %}">♟️ Roles y encaje</a>
+  {% comment %}El planteamiento va PRIMERO: es lo que se hace antes de un partido. La pizarra de
+  dibujo (que es el editor de tareas en modo playbook) y los roles vienen despues, y el ABP entra
+  en el menu: existia y no habia forma de llegar a el desde aqui.{% endcomment %}
+  <a href="{% url 'tactics-plan' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'tactics-plan' %}on{% endif %}">♟️ Planteamiento</a>
+  <a href="{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'coach-tactics' %}on{% endif %}">✏️ Pizarra de jugadas</a>
+  <a href="{% url 'coach-abp-board' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'coach-abp-board' %}on{% endif %}">🎯 Balón parado</a>
+  <a href="{% url 'tactics-roles' %}" class="{% if request.resolver_match.url_name == 'tactics-roles' %}on{% endif %}">📋 Roles y encaje</a>
     </div>
   </details>
 </nav>

@@ -2074,6 +2074,50 @@ class ConvocationRecord(models.Model):
             self.save(update_fields=['is_current'])
 
 
+class TacticalPlan(models.Model):
+    """
+    Un PLANTEAMIENTO: nuestro once colocado en el campo, opcionalmente enfrentado al de un rival.
+
+    Cuelga del EQUIPO, no de un partido. Esa es toda la diferencia con el once que se guarda en
+    prepartido: el planteamiento se piensa una vez -"1-4-3-3 base", "plan B con dos puntas"- y se
+    aplica a muchos partidos. Antes esto no existia y cada partido empezaba de cero.
+
+    Las coordenadas van en la misma orientacion que usa el registro de acciones ('lr', campo
+    horizontal), para que un planteamiento se pueda volcar tal cual sobre un partido.
+    """
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='tactical_plans')
+    name = models.CharField(max_length=80)
+    formation = models.CharField(max_length=24, blank=True, default='', help_text='Ej. 1-4-3-3')
+    notes = models.TextField(blank=True, default='')
+    lineup_data = models.JSONField(default=dict, blank=True, help_text="{'starters': [...], 'bench': [...]}")
+    rival_team = models.ForeignKey(
+        Team,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='as_rival_tactical_plans',
+    )
+    rival_lineup_data = models.JSONField(default=dict, blank=True)
+    is_default = models.BooleanField(default=False, help_text='El planteamiento con el que se empieza.')
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='tactical_plans',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-is_default', '-updated_at', 'name']
+        unique_together = ('team', 'name')
+
+    def __str__(self):
+        return f'{self.team_id} · {self.name}'
+
+
 class RivalConvocationRecord(models.Model):
     """
     Convocatoria/Alineación del rival asociada a un partido concreto.
