@@ -83,14 +83,44 @@ def _clave(nombre):
     return " ".join(sorted(palabras))
 
 
+def nombre_persona(nombre):
+    """Universo escribe "APELLIDOS, NOMBRE" en mayúsculas. En la ficha se lee al derecho."""
+    texto = _texto(nombre)
+    if not texto:
+        return ""
+    if "," in texto:
+        apellidos, _, pila = texto.partition(",")
+        texto = f"{pila.strip()} {apellidos.strip()}".strip()
+    partes = []
+    for palabra in texto.split():
+        if palabra.isupper() or palabra.islower():
+            minusculas = palabra.lower()
+            partes.append(minusculas if minusculas in {"de", "del", "la", "las", "los", "y"} else minusculas.capitalize())
+        else:
+            partes.append(palabra)
+    return " ".join(partes)
+
+
+def _palabras(nombre):
+    crudo = unicodedata.normalize("NFKD", str(nombre or "")).encode("ascii", "ignore").decode("ascii")
+    return {p for p in re.split(r"[^a-zA-Z0-9]+", crudo.lower()) if len(p) > 1}
+
+
 def emparejar(jugadores, filas):
     """
     Empareja jugadores de la ficha con filas de Universo.
 
-    Primero por nombre completo; si no, por dorsal, que en cantera es estable dentro de la
-    temporada. Devuelve (parejas, jugadores_sueltos, filas_sueltas) para poder DECIR qué no
-    casó en vez de adivinar.
+    En la ficha el club los tiene por el nombre corto ("Eloy") y Universo los manda por su
+    licencia ("BUSTAMANTE SALADO, ELOY"), así que además del nombre completo se acepta que el
+    nombre de la ficha esté CONTENIDO en el de Universo. Si dos jugadores de Universo encajan
+    con el mismo (dos "Sergio"), no se toca a ninguno: se devuelve suelto para que lo mire el
+    club. Devuelve (parejas, jugadores_sueltos, filas_sueltas).
     """
+    filas = [f for f in (filas or []) if isinstance(f, dict)]
+    parejas = []
+    usados = set()
+    casadas = set()
+
     por_nombre = {}
     for jugador in jugadores:
         for candidato in (getattr(jugador, "full_name", ""), getattr(jugador, "name", "")):
@@ -98,26 +128,50 @@ def emparejar(jugadores, filas):
             if clave:
                 por_nombre.setdefault(clave, jugador)
 
-    parejas = []
-    usados = set()
-    sueltas = []
-    for fila in filas:
-        nombre = str((fila or {}).get("name") or "").strip()
-        jugador = por_nombre.get(_clave(nombre))
-        if jugador is None:
-            dorsal = (fila or {}).get("dorsal")
-            if dorsal:
-                jugador = next(
-                    (j for j in jugadores if j.id not in usados and str(getattr(j, "number", "") or "") == str(dorsal)),
-                    None,
-                )
-        if jugador is None or jugador.id in usados:
-            sueltas.append(nombre or "(sin nombre)")
+    # 1) Nombre completo, aunque venga en otro orden.
+    for indice, fila in enumerate(filas):
+        jugador = por_nombre.get(_clave(fila.get("name")))
+        if jugador is not None and jugador.id not in usados:
+            usados.add(jugador.id)
+            casadas.add(indice)
+            parejas.append((jugador, fila))
+
+    # 2) El nombre de la ficha contenido en el de Universo, y sólo si no hay dudas.
+    for jugador in jugadores:
+        if jugador.id in usados:
             continue
-        usados.add(jugador.id)
-        parejas.append((jugador, fila))
+        suyas = _palabras(getattr(jugador, "full_name", "")) or _palabras(getattr(jugador, "name", ""))
+        if not suyas:
+            continue
+        candidatos = [
+            i for i, fila in enumerate(filas)
+            if i not in casadas and suyas and suyas <= _palabras(fila.get("name"))
+        ]
+        if len(candidatos) == 1:
+            usados.add(jugador.id)
+            casadas.add(candidatos[0])
+            parejas.append((jugador, filas[candidatos[0]]))
+
+    # 3) Último recurso: el dorsal, que dentro de la temporada es estable.
+    for indice, fila in enumerate(filas):
+        if indice in casadas:
+            continue
+        dorsal = fila.get("dorsal")
+        if not dorsal:
+            continue
+        jugador = next(
+            (j for j in jugadores if j.id not in usados and str(getattr(j, "number", "") or "") == str(dorsal)),
+            None,
+        )
+        if jugador is not None:
+            usados.add(jugador.id)
+            casadas.add(indice)
+            parejas.append((jugador, fila))
 
     sueltos = [j for j in jugadores if j.id not in usados]
+    sueltas = [
+        _texto(fila.get("name")) or "(sin nombre)" for i, fila in enumerate(filas) if i not in casadas
+    ]
     return parejas, sueltos, sueltas
 
 
@@ -179,6 +233,11 @@ def aplicar_plantilla(team, filas, *, sobrescribir=False, bajar_fotos=True, desc
                 jugador.number = int(dorsal)
                 cambios.append("number")
 
+        completo = nombre_persona(fila.get("name"))
+        if completo and (sobrescribir or not _texto(getattr(jugador, "full_name", ""))):
+            jugador.full_name = completo[:180]
+            cambios.append("full_name")
+
         posicion = _texto(fila.get("position"))
         if posicion and (sobrescribir or not _texto(getattr(jugador, "position", ""))):
             jugador.position = posicion[:60]
@@ -188,6 +247,12 @@ def aplicar_plantilla(team, filas, *, sobrescribir=False, bajar_fotos=True, desc
         if nacimiento and (sobrescribir or not getattr(jugador, "birth_date", None)):
             jugador.birth_date = nacimiento
             cambios.append("birth_date")
+
+        licencia = _texto(raw.get("cod_licencia"))
+        if licencia and hasattr(jugador, "federation_license_number"):
+            if sobrescribir or not _texto(getattr(jugador, "federation_license_number", "")):
+                jugador.federation_license_number = licencia[:80]
+                cambios.append("federation_license_number")
 
         pais = _buscar(raw, CLAVES_NACIONALIDAD)
         if pais and hasattr(jugador, "nationality") and (sobrescribir or not _texto(getattr(jugador, "nationality", ""))):

@@ -341,10 +341,21 @@ def fetch_universo_team_roster(team_code: str) -> list[dict]:
             'Regenera `data/input/rfaf_storage_state.json` o ejecuta el sync automático.'
         )
 
+    def _player_info(item):
+        """En `squad` el jugador viene anidado en `player_info`; el dorsal, fuera."""
+        if not isinstance(item, dict):
+            return {}
+        info = item.get('player_info')
+        return info if isinstance(info, dict) else {}
+
     def _looks_like_player_row(item) -> bool:
         if not isinstance(item, dict):
             return False
-        return bool(str(item.get('nombre') or item.get('name') or item.get('nombre_jugador') or '').strip())
+        info = _player_info(item)
+        return bool(
+            str(item.get('nombre') or item.get('name') or item.get('nombre_jugador') or '').strip()
+            or str(info.get('name') or info.get('nombre') or '').strip()
+        )
 
     def _extract_squad(obj):
         if not isinstance(obj, dict):
@@ -397,10 +408,17 @@ def fetch_universo_team_roster(team_code: str) -> list[dict]:
     for row in squad:
         if not isinstance(row, dict):
             continue
-        name = (row.get('nombre') or row.get('name') or row.get('nombre_jugador') or '').strip()
+        info = _player_info(row)
+        name = (
+            row.get('nombre') or row.get('name') or row.get('nombre_jugador')
+            or info.get('name') or info.get('nombre') or ''
+        ).strip()
         if not name:
             continue
-        code_key = str(row.get('codigo_jugador') or row.get('code') or row.get('id') or '').strip()
+        code_key = str(
+            row.get('codigo_jugador') or row.get('code') or info.get('cod_licencia')
+            or row.get('cod_licencia') or row.get('id') or ''
+        ).strip()
         uniq = f'code:{code_key}' if code_key else f'name:{normalize_label(name)}'
         if uniq in seen_keys:
             continue
@@ -423,7 +441,7 @@ def fetch_universo_team_roster(team_code: str) -> list[dict]:
                 # La fila cruda: Universo mete aqui datos que este normalizador no conoce
                 # (fecha de nacimiento, foto, nacionalidad...). El importador de plantilla propia
                 # los lee de aqui en vez de obligar a tocar este normalizador cada vez.
-                'raw': row,
+                'raw': {**row, **info},
             }
         )
 

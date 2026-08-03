@@ -6,6 +6,7 @@ from .universo_squad_import import (
     emparejar,
     importar_plantilla_de_universo,
     leer_fecha,
+    nombre_persona,
     url_de_foto,
 )
 
@@ -153,3 +154,62 @@ class DatosDeLaFilaCrudaTests(TestCase):
         self.jugador.refresh_from_db()
         self.assertEqual(self.jugador.number, 5)
         self.assertEqual(resumen["fotos"], [])
+
+
+class NombreCortoTests(TestCase):
+    """En la ficha están por el nombre corto; Universo los manda por su licencia."""
+
+    def setUp(self):
+        self.equipo = Team.objects.create(name="Cadete corto", slug="cadete-corto")
+        self.eloy = Player.objects.create(team=self.equipo, name="Eloy", full_name="Eloy")
+        self.sergio = Player.objects.create(team=self.equipo, name="Sergio", full_name="Sergio")
+
+    def test_casa_el_nombre_corto_dentro_del_de_universo(self):
+        parejas, sueltos, _ = emparejar([self.eloy], [{"name": "BUSTAMANTE SALADO, ELOY"}])
+
+        self.assertEqual(len(parejas), 1)
+        self.assertEqual(parejas[0][0], self.eloy)
+        self.assertEqual(sueltos, [])
+
+    def test_dos_que_encajan_igual_no_se_tocan(self):
+        parejas, sueltos, sueltas = emparejar(
+            [self.sergio], [{"name": "GARCIA LOPEZ, SERGIO"}, {"name": "RUIZ MOYA, SERGIO"}]
+        )
+
+        self.assertEqual(parejas, [])
+        self.assertEqual([j.name for j in sueltos], ["Sergio"])
+        self.assertEqual(len(sueltas), 2)
+
+    def test_el_nombre_completo_gana_al_parecido(self):
+        parejas, _, _ = emparejar(
+            [self.eloy], [{"name": "ELOY"}, {"name": "BUSTAMANTE SALADO, ELOY MANUEL"}]
+        )
+
+        self.assertEqual(parejas[0][1]["name"], "ELOY")
+
+    def test_guarda_la_licencia_federativa(self):
+        aplicar_plantilla(
+            self.equipo,
+            [{"name": "BUSTAMANTE SALADO, ELOY", "raw": {"cod_licencia": "15516806"}}],
+            bajar_fotos=False,
+        )
+        self.eloy.refresh_from_db()
+
+        self.assertEqual(self.eloy.federation_license_number, "15516806")
+
+
+class NombreCompletoTests(TestCase):
+    def test_pone_el_nombre_al_derecho_y_legible(self):
+        self.assertEqual(nombre_persona("BUSTAMANTE SALADO, ELOY"), "Eloy Bustamante Salado")
+        self.assertEqual(nombre_persona("DE LA TORRE RUIZ, JUAN"), "Juan de la Torre Ruiz")
+        self.assertEqual(nombre_persona(""), "")
+
+    def test_rellena_el_nombre_completo_vacio_sin_tocar_el_corto(self):
+        equipo = Team.objects.create(name="Cadete nombre", slug="cadete-nombre")
+        jugador = Player.objects.create(team=equipo, name="Eloy")
+
+        aplicar_plantilla(equipo, [{"name": "BUSTAMANTE SALADO, ELOY"}], bajar_fotos=False)
+        jugador.refresh_from_db()
+
+        self.assertEqual(jugador.name, "Eloy")
+        self.assertEqual(jugador.full_name, "Eloy Bustamante Salado")
