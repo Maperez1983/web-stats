@@ -2833,8 +2833,6 @@ const urlWithMatchId = (baseUrl) => {
           } catch (e) {}
         }, 600);
       };
-      // El rival, en espejo: misma estructura vista desde el otro lado.
-      const defaultBaseSlotsRival = defaultBaseSlots.map((slot) => ({ x: 100 - slot.x, y: 100 - slot.y }));
       let renderTacticsBoard = () => {};
       const clampPct = (value, min, max) => Math.max(min, Math.min(max, value));
       const safeNumber = (raw, fallback = NaN) => {
@@ -2901,6 +2899,11 @@ const urlWithMatchId = (baseUrl) => {
         { x: 46, y: 50 },
         { x: 44, y: 82 },
       ];
+      // El rival, en espejo: misma estructura vista desde el otro lado. Va AQUI, despues de
+      // `defaultBaseSlots`: declararlo antes lo dejaba en la zona muerta temporal de `const` y el
+      // ReferenceError se cargaba la inicializacion entera de la pagina (ni una ficha en el campo).
+      const defaultBaseSlotsRival = defaultBaseSlots.map((slot) => ({ x: 100 - slot.x, y: 100 - slot.y }));
+
       const pickPlayersByRole = (players, role) => {
         const list = Array.isArray(players) ? players.slice() : [];
         const inRole = [];
@@ -3219,7 +3222,8 @@ const urlWithMatchId = (baseUrl) => {
       };
       renderTacticsBoard = () => {
         renderTacticsBoardImpl();
-        renderRivalTacticsBoardImpl();
+        // El rival no puede llevarse por delante nuestra pizarra si algo falla en su lado.
+        try { renderRivalTacticsBoardImpl(); } catch (e) { console.warn('Pizarra del rival', e); }
       };
       if (tacticsToggleRivalBtn) {
         tacticsToggleRivalBtn.addEventListener('click', () => setRivalVisible(!rivalVisible));
