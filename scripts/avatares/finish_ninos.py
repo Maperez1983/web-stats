@@ -104,6 +104,148 @@ def unificar_verde(im, objetivo=VERDE_CLUB):
     return Image.fromarray(a.astype("uint8"), "RGBA")
 
 
+BLANCO_CLUB = (243, 243, 240)
+BANDAS = 7          # rayas verticales a lo ancho del torso, empezando y acabando en verde
+
+
+def _fila_entrepierna(dentro):
+    """
+    La fila donde se juntan las piernas. Por debajo hay dos tramos (una pierna y otra); por
+    encima, uno solo. Es el limite anatomico de la camiseta: el pantalon empieza por encima, pero
+    la camiseta NUNCA baja de ahi.
+    """
+    h = dentro.shape[0]
+    for y in range(h - 5, int(h * 0.35), -1):
+        fila = dentro[y].astype(np.int8)
+        tramos = int(np.count_nonzero(np.diff(np.concatenate(([0], fila, [0]))) == 1))
+        if tramos < 2:
+            return y
+    return int(h * 0.55)
+
+
+def _mascara_piel(rgb, dentro, cara):
+    """Piel del jugador, para no repintarle la cara ni los brazos. Muestrea su propio tono."""
+    x0, y0, x1, y1 = [float(v) for v in cara.bbox]
+    cx, cy = int((x0 + x1) / 2), int(y0 + (y1 - y0) * 0.62)
+    rad = max(3, int((x1 - x0) * 0.08))
+    muestra = np.median(rgb[cy - rad:cy + rad, cx - rad:cx + rad].reshape(-1, 3), axis=0)
+
+    def ycrcb(v):
+        r, g, b = v[..., 0], v[..., 1], v[..., 2]
+        y = 0.299 * r + 0.587 * g + 0.114 * b
+        return np.stack([y, (r - y) * 0.713 + 128, (b - y) * 0.564 + 128], axis=-1)
+
+    a = ycrcb(rgb.astype(np.float32))
+    m = ycrcb(muestra.astype(np.float32).reshape(1, 1, 3))[0, 0]
+    d = np.sqrt((a[..., 1] - m[1]) ** 2 + (a[..., 2] - m[2]) ** 2)
+    return dentro & (d < 30)
+
+
+def uniformar_rayas(im, cara, verde=VERDE_CLUB, blanco=BLANCO_CLUB, bandas=BANDAS):
+    """
+    Pinta LA MISMA camiseta en todas las figuras: mismo numero de rayas, mismos colores, y los
+    pliegues de cada una respetados.
+
+    Igualar solo el color no bastaba: cada tirada de Flux dibujaba las rayas a su manera -unas
+    anchas, otras finas, alguna con las mangas de otro color- y la equipacion tiene que ser LA del
+    club, no un parecido.
+
+    Se pinta SOLO la camiseta, y la camiseta se reconoce por una propiedad que no tiene ninguna
+    otra prenda: es lo unico que lleva blanco. El pantalon y las medias son verde liso y las botas
+    quedan por debajo; la piel se excluye aparte, muestreando su tono en la mejilla, porque si no
+    al jugador se le pinta la cara.
+    """
+    a = np.asarray(im).astype(np.float32)
+    rgb, alfa = a[:, :, :3], a[:, :, 3]
+    r, g, b = rgb[:, :, 0], rgb[:, :, 1], rgb[:, :, 2]
+    dentro = alfa > 128
+    piel = _mascara_piel(rgb, dentro, cara)
+    es_verde = dentro & (~piel) & (g > r + 25) & (g > b + 25)
+    es_blanco = dentro & (~piel) & (r > 165) & (g > 165) & (b > 165) & (abs(r - g) < 40) & (abs(g - b) < 40)
+    tela = es_verde | es_blanco
+    if tela.sum() < 2000:
+        return im
+
+    # Filas de camiseta: las que llevan blanco de forma apreciable, en el tercio alto del cuerpo.
+    alto = a.shape[0]
+    ancho_fila = tela.sum(axis=1).astype(np.float32)
+    blanco_fila = es_blanco.sum(axis=1).astype(np.float32)
+    con_blanco = (ancho_fila > 40) & (blanco_fila > ancho_fila * 0.12)
+    barbilla = int(cara.bbox[3])
+    con_blanco[:barbilla] = False
+    con_blanco[int(alto * 0.72):] = False        # de la rodilla para abajo no hay camiseta
+    # La camiseta no puede pasar de la entrepierna. Sin este tope, un pantalon palido con algo de
+    # blanco se colaba como "fila de camiseta" y acababa con rayas pintadas.
+    tope = _fila_entrepierna(dentro)
+    con_blanco[tope:] = False
+    filas = np.nonzero(con_blanco)[0]
+    if len(filas) < 40:
+        return im
+    y_ini, y_fin = int(filas.min()), int(filas.max())
+
+    yy, xx = np.mgrid[0:alto, 0:a.shape[1]]
+    # La camiseta se RELLENA fila a fila, de un borde de tela al otro, en vez de ir pixel a pixel:
+    # los pliegues mas oscuros no pasaban el filtro de "verde" y quedaban sin pintar, y la camiseta
+    # salia moteada. Lo unico que se respeta dentro es la piel (cuello y brazos).
+    camiseta = np.zeros_like(dentro)
+    for y in range(y_ini, y_fin + 1):
+        xs_fila = np.nonzero(tela[y])[0]
+        if len(xs_fila) < 10:
+            continue
+        camiseta[y, xs_fila.min():xs_fila.max() + 1] = True
+    camiseta &= dentro & (~piel)
+    # Lo que no es tela ni piel dentro de la camiseta es un logo (escudo, marca, patrocinador):
+    # muy saturado o casi negro. Se protege, porque esta funcion tambien se usa sobre figuras que
+    # YA los llevan pegados.
+    maxc, minc = rgb.max(axis=2), rgb.min(axis=2)
+    saturado = (maxc - minc) > 60
+    oscuro = maxc < 90
+    camiseta &= ~((saturado & ~es_verde) | oscuro)
+    if camiseta.sum() < 1500:
+        return im
+
+    # Ancho de banda medido en el TRAMO CENTRAL de una fila baja de la camiseta (sin mangas).
+    y_ref = y_ini + int((y_fin - y_ini) * 0.8)
+    xs = np.nonzero(camiseta[y_ref])[0]
+    if len(xs) < 20:
+        xs = np.nonzero(camiseta[y_fin - 2])[0]
+    centro, ancho_torso = (xs.min() + xs.max()) / 2.0, float(xs.max() - xs.min() + 1)
+    banda = max(6.0, ancho_torso / bandas)
+
+    lum = rgb.max(axis=2) / 255.0
+    ref_v = float(np.median(lum[es_verde & camiseta])) if (es_verde & camiseta).any() else 0.5
+    ref_b = float(np.median(lum[es_blanco & camiseta])) if (es_blanco & camiseta).any() else 0.9
+
+    indice = np.floor((xx - centro) / banda + 0.5).astype(int)
+    toca_verde = (indice % 2) == 0
+
+    salida = rgb.copy()
+    # El blanco admite MUCHO menos juego que el verde: si se le deja bajar con la sombra, las
+    # rayas blancas salen grises y la camiseta parece otra.
+    for pinta, color, ref, (lo, hi) in (
+        (camiseta & toca_verde, verde, ref_v, (0.62, 1.30)),
+        (camiseta & ~toca_verde, blanco, ref_b, (0.88, 1.04)),
+    ):
+        if not pinta.any():
+            continue
+        factor = np.clip(lum[pinta] / max(ref, 0.05), lo, hi)[:, None]
+        salida[pinta] = np.clip(np.array(color, dtype=np.float32) * factor, 0, 255)
+    # PANTALON Y MEDIAS: verde liso del club. Salian de todo -uno con el pantalon casi menta, otro
+    # con las medias de dos colores- y son la mitad de la equipacion. Se repinta de la camiseta
+    # para abajo, sin llegar a las botas (el ultimo 12% de la figura), y sin tocar la piel.
+    debajo = (yy > y_fin) & (yy < int(alto * 0.88)) & dentro & (~piel)
+    # Todo lo que hay ahi es pantalon o medias: no hace falta adivinar el color, que es
+    # justamente lo que fallaba (un pantalon menta no pasaba por "verde" y se quedaba menta).
+    prenda = debajo
+    if prenda.sum() > 500:
+        ref_p = float(np.median(lum[debajo & es_verde])) if (debajo & es_verde).any() else 0.45
+        factor = np.clip(lum[prenda] / max(ref_p, 0.05), 0.62, 1.30)[:, None]
+        salida[prenda] = np.clip(np.array(verde, dtype=np.float32) * factor, 0, 255)
+
+    a[:, :, :3] = salida
+    return Image.fromarray(a.astype("uint8"), "RGBA")
+
+
 def finish(origen, destino):
     # El chandal es negro: el patrocinador tiene que ir en blanco o desaparece.
     chandal = "chandal" in os.path.basename(destino)
@@ -113,11 +255,16 @@ def finish(origen, destino):
     if fig.size[0] * s > CW:
         s = (CW * 0.98) / fig.size[0]
     fig = fig.resize((int(fig.size[0] * s), int(fig.size[1] * s)))
-    fig = unificar_verde(fig)   # ANTES de los logos: el escudo tambien tiene verde y no se toca
+    # ANTES de los logos: el escudo tambien lleva verde y blanco y no se puede repintar.
+    fig = unificar_verde(fig)
     lienzo = Image.new("RGBA", (CW, CH), (0, 0, 0, 0))
     lienzo.alpha_composite(fig, ((CW - fig.size[0]) // 2, CH - fig.size[1] - int(CH * 0.005)))
 
     cara = cara_de(lienzo)
+    if cara is not None and not chandal:
+        # Las rayas se pintan sobre el lienzo ya montado y ANTES de los logos: el escudo lleva
+        # verde y blanco y no se puede repintar.
+        lienzo = uniformar_rayas(lienzo, cara)
     if cara is None:
         print(f"AVISO {os.path.basename(destino)}: sin cara detectada, no se pegan los logos")
         lienzo.save(destino)
