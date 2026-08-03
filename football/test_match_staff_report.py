@@ -182,6 +182,28 @@ class MatchStaffReportTests(TestCase):
 
     @patch("football.views.resolve_team_crest_url", return_value="")
     def test_report_uses_saved_lineups_without_filling_missing_players(self, _crest):
+        self._event("PASE", "GANADO", minute=20, period=1, zone="Medio centro", tercio="Construcción")
+        substitute = Player.objects.create(team=self.team, name="Jugador Dos", number=19, position="MC")
+        PlayerStatistic.objects.create(
+            player=substitute,
+            season=self.season,
+            match=self.match,
+            name="manual_minutes",
+            value=15,
+            context="manual-match",
+        )
+        MatchEvent.objects.create(
+            match=self.match,
+            player=substitute,
+            event_type="PASE",
+            result="GANADO",
+            minute=80,
+            period=2,
+            zone="Medio centro",
+            tercio="Construcción",
+            source_file="manual-recovery",
+            system="touch-field-final",
+        )
         MatchLineup.objects.create(
             team=self.team,
             match=self.match,
@@ -189,7 +211,7 @@ class MatchStaffReportTests(TestCase):
                 "starters": [
                     {"id": str(self.player.id), "x_pct": 24, "y_pct": 51},
                 ],
-                "bench": [],
+                "bench": [{"id": str(substitute.id)}],
             },
         )
         RivalConvocationRecord.objects.create(
@@ -213,6 +235,14 @@ class MatchStaffReportTests(TestCase):
         self.assertEqual(tactical["own"]["starters"][0]["name"], "JUGADOR UNO")
         self.assertEqual(tactical["own"]["starters"][0]["board_name"], "JUGADOR")
         self.assertTrue(tactical["own"]["starters"][0]["has_coordinates"])
+        self.assertEqual(tactical["own"]["starters"][0]["change_direction"], "out")
+        self.assertEqual(tactical["own"]["starters"][0]["change_minute"], 75)
+        self.assertEqual(tactical["own"]["bench"][0]["change_direction"], "in")
+        self.assertEqual(tactical["own"]["bench"][0]["change_minute"], 75)
+        self.assertTrue(tactical["changes_are_inferred"])
+        self.assertEqual(tactical["change_groups"][0]["minute"], 75)
+        self.assertEqual(tactical["change_groups"][0]["out"][0]["board_name"], "JUGADOR")
+        self.assertEqual(tactical["change_groups"][0]["in"][0]["board_name"], "JUGADOR")
         self.assertEqual(len(tactical["rival"]["starters"]), 1)
         self.assertEqual(tactical["rival_missing"], 10)
         self.assertEqual(tactical["rival"]["starters"][0]["name"], "Delantero Rival")
@@ -223,6 +253,8 @@ class MatchStaffReportTests(TestCase):
         self.assertIn('class="pro-xi-token', html)
         self.assertIn('class="pro-xi-disc"', html)
         self.assertIn("coach_home_pitch_surface.png", html)
+        self.assertIn("reconstruidos por minutos", html)
+        self.assertIn("↓ 75′", html)
         self.assertNotIn("left:24,0%", html)
 
     @patch("football.views.resolve_team_crest_url", return_value="")
