@@ -8,10 +8,10 @@
     @page { size:A4; margin:12mm; }
     * { box-sizing:border-box; }
     body { margin:0; color:#132019; font-family:"Avenir Next","Segoe UI",sans-serif; background:#edf2ed; }
-    .sheet { min-height:273mm; padding:10mm; border-top:7px solid #0f8a4b; background:#fff; }
+    .sheet { position:relative; min-height:273mm; padding:10mm 10mm 22mm; border-top:7px solid #0f8a4b; background:#fff; }
     .top { display:flex; align-items:center; justify-content:space-between; padding-bottom:8px; border-bottom:2px solid #153d2c; }
     .brand { display:flex; align-items:center; width:64%; }
-    .brand img { width:38px; height:38px; margin-right:10px; object-fit:contain; }
+    .brand-badge { display:flex; width:34px; height:34px; flex:none; align-items:center; justify-content:center; margin-right:10px; border-radius:9px; background:#10291f; color:#f4b400; font-size:12px; font-weight:1000; letter-spacing:-.5px; }
     .eyebrow { margin:0 0 2px; color:#287247; font-size:8px; font-weight:900; letter-spacing:1.4px; text-transform:uppercase; }
     h1 { margin:0; font-size:22px; line-height:1; }
     .top-meta { width:34%; color:#65746b; font-size:8px; line-height:1.45; text-align:right; }
@@ -54,14 +54,14 @@
     .moment { display:flex; padding:5px 0; border-top:1px solid #e3e9e4; font-size:8px; }
     .moment:first-of-type { border-top:0; }
     .minute { width:36px; flex:none; color:#9d7000; font-weight:1000; }
-    footer { display:flex; justify-content:space-between; margin-top:13px; padding-top:7px; border-top:1px solid #dfe6e1; color:#748078; font-size:6.5px; }
+    footer { position:absolute; right:10mm; bottom:9mm; left:10mm; display:flex; justify-content:space-between; padding-top:7px; border-top:1px solid #dfe6e1; color:#748078; font-size:6.5px; }
   </style>
 </head>
 <body>
   <main class="sheet">
     <header class="top">
       <div class="brand">
-        {% if brand_mark_src %}<img src="{{ brand_mark_src }}" alt="2J" />{% endif %}
+        <span class="brand-badge">2J</span>
         <div><p class="eyebrow">Segunda Jugada · Informe individual postpartido</p><h1>Informe de rendimiento</h1></div>
       </div>
       <div class="top-meta"><strong>{{ match.date }}</strong><br>{{ match.location }}<br>{{ match.round }}</div>
@@ -76,7 +76,7 @@
     <section class="player-hero">
       <div class="player-portrait">{% if player_photo_src %}<img src="{{ player_photo_src }}" alt="{{ player.name }}" />{% else %}<span class="player-initials">{{ player_initials }}</span>{% endif %}</div>
       <div class="player-main">
-        <p class="player-role">#{{ player_number }} · {{ player_position }}</p>
+        <p class="player-role">{% if player_number != "—" %}#{{ player_number }} · {% endif %}{{ player_position }}</p>
         <h2 class="player-name">{{ player.name }}</h2>
         <p class="player-reading"><strong>{{ performance_label }}.</strong> {{ performance_text }}</p>
         <div class="player-facts">

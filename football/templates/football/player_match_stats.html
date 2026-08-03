@@ -260,7 +260,7 @@
         <div class="report-player">
           <div class="report-player-photo">{% if player_photo_src %}<img src="{{ player_photo_src }}" alt="{{ player.name }}" />{% else %}<span class="report-player-initials">{{ player_initials }}</span>{% endif %}</div>
           <div class="report-player-main">
-            <p class="report-player-role">#{{ player_number }} · {{ player_position }}</p>
+            <p class="report-player-role">{% if player_number != "—" %}#{{ player_number }} · {% endif %}{{ player_position }}</p>
             <h2>{{ player.name }}</h2>
             <h3 class="report-verdict">{{ performance_label }}</h3>
             <p class="report-copy">{{ performance_text }}</p>
