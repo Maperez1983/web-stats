@@ -19,6 +19,7 @@ import json
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from .models import Player, TacticalPlan, Team, TeamRosterSnapshot
@@ -306,6 +307,88 @@ def tactical_plan_delete(request):
         return JsonResponse({'ok': False, 'error': 'Datos ilegibles'}, status=400)
     borrados, _ = TacticalPlan.objects.filter(team=equipo, id=plan_id).delete()
     return JsonResponse({'ok': bool(borrados)})
+
+
+@login_required
+def tactical_plan_board(request, plan_id):
+    """
+    Sólo el campo, sin menús ni paneles: es lo que se fotografía para la charla.
+
+    Se sirve como página propia en vez de recortar la pantalla completa porque así la imagen sale
+    siempre igual, mida lo que mida la ventana de quien la pide.
+    """
+    from .views import _forbid_if_no_coach_access, _get_primary_team_for_request
+
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    equipo = _get_primary_team_for_request(request)
+    if not equipo:
+        return redirect('coach-roster')
+    plan = TacticalPlan.objects.filter(team=equipo, id=plan_id).select_related('rival_team').first()
+    if not plan:
+        return redirect('tactics-plan')
+
+    porid = {p.id: p for p in Player.objects.filter(team=equipo, is_active=True)}
+    nuestros = []
+    for fila in (plan.lineup_data or {}).get('starters') or []:
+        p = porid.get(fila.get('id'))
+        nuestros.append({**fila, 'photo_url': _foto_de(request, p) if p else ''})
+
+    return render(request, 'football/tactical_plan_board.html', {
+        'plan': plan,
+        'team_name': equipo.display_name,
+        'crest_url': _escudo_de(equipo),
+        'rival_name': plan.rival_team.name if plan.rival_team else '',
+        'rival_crest': _escudo_de(plan.rival_team),
+        'nuestros': nuestros,
+        'rivales': (plan.rival_lineup_data or {}).get('starters') or [],
+    })
+
+
+@login_required
+def tactical_plan_image(request, plan_id):
+    """La foto del planteamiento en PNG, para el vestuario o el grupo del staff."""
+    from django.http import HttpResponse
+
+    from .preview_render import _acquire_playwright_browser
+    from .task_board_snapshot import session_cookies_for
+    from .views import _forbid_if_no_coach_access, _get_primary_team_for_request
+
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    equipo = _get_primary_team_for_request(request)
+    plan = TacticalPlan.objects.filter(team=equipo, id=plan_id).first() if equipo else None
+    if not plan:
+        return JsonResponse({'ok': False, 'error': 'Planteamiento no encontrado'}, status=404)
+
+    url = request.build_absolute_uri(reverse('tactics-plan-board', args=[plan.id]))
+    try:
+        with _acquire_playwright_browser() as (pw, browser):
+            if browser is None:
+                return JsonResponse({'ok': False, 'error': 'La foto no está disponible en este servidor'}, status=503)
+            contexto = browser.new_context(viewport={'width': 1400, 'height': 860}, device_scale_factor=2)
+            try:
+                cookies = session_cookies_for(request)
+                if cookies:
+                    contexto.add_cookies(cookies)
+                pagina = contexto.new_page()
+                pagina.goto(url, wait_until='networkidle', timeout=20000)
+                nodo = pagina.query_selector('#tp-shot') or pagina
+                imagen = nodo.screenshot(type='png')
+            finally:
+                try:
+                    contexto.close()
+                except Exception:
+                    pass
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo hacer la foto'}, status=500)
+
+    nombre = (plan.name or 'planteamiento').replace('"', '').replace('/', '-')
+    resp = HttpResponse(imagen, content_type='image/png')
+    resp['Content-Disposition'] = f'attachment; filename="{nombre}.png"'
+    return resp
 
 
 @login_required

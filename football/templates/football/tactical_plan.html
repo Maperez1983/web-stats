@@ -139,6 +139,7 @@
             <h2>Aplicar a un partido</h2>
             <select id="tp-match"><option value="">Elige el partido</option></select>
             <button class="button primary" id="tp-apply" type="button" style="margin-top:.5rem;width:100%;">Aplicar planteamiento</button>
+            <a class="button" id="tp-image" href="#" style="margin-top:.4rem;width:100%;text-align:center;">Descargar imagen</a>
             <p class="tp-hint">Coloca este once en el prepartido de ese partido, con sus posiciones y con el rival.</p>
           </div>
 
@@ -161,6 +162,7 @@
           del: '{% url "tactics-plan-delete" %}',
           rival: '{% url "tactics-plan-rival" %}',
           apply: '{% url "tactics-plan-apply" %}',
+          image: '{% url "tactics-plan-image" 0 %}',
         };
         window.TP_LIMITE = {{ starters_limit }};
       </script>

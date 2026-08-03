@@ -1,0 +1,73 @@
+{% load static l10n football_extras %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>{{ plan.name }} · {{ team_name }}</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      {% comment %}Página de una sola cosa: el campo con los dos onces, para fotografiarla.
+      Sin menús ni paneles, y con medidas fijas, para que la imagen salga siempre igual mida lo que
+      mida la ventana de quien la pide.{% endcomment %}
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #0b1220; font-family: "Avenir Next", Inter, "Segoe UI", system-ui, sans-serif; }
+      #tp-shot { width: 1360px; padding: 18px 18px 22px; background: #0b1220; color: #eef4f1; }
+      .cab { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+      .cab img { width: 34px; height: 34px; object-fit: contain; }
+      .cab .lado { display: flex; align-items: center; gap: 8px; font-size: 19px; font-weight: 600; }
+      .cab .der { margin-left: auto; }
+      .cab .vs { font-size: 12px; letter-spacing: .2em; text-transform: uppercase; opacity: .6; }
+      .cab .dib { font-size: 14px; opacity: .75; letter-spacing: .06em; }
+      .campo {
+        position: relative; width: 100%; aspect-ratio: 1664 / 945; border-radius: 16px;
+        overflow: hidden; container-type: inline-size;
+        background-image: url('{% static "football/images/pitch3d/coach_home_pitch_surface.png" %}');
+        background-size: cover; background-position: center;
+        box-shadow: inset 0 0 60px rgba(0,0,0,.35);
+      }
+      .ficha {
+        position: absolute; width: 8.5cqw; max-width: 62px; aspect-ratio: 1/1; transform: translate(-50%, -50%);
+        border-radius: 999px; border: 2px solid rgba(234,255,245,.9); background: #0f7a52;
+        display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 18px rgba(0,0,0,.45);
+      }
+      .ficha.rival { background: #8c1f2b; border-color: rgba(255,233,236,.9); }
+      .ficha img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; border-radius: 999px; display: block; }
+      .ficha .n { font-weight: 800; font-size: 15px; color: #fff; }
+      .ficha .etq {
+        position: absolute; top: calc(100% + 5px); left: 50%; transform: translateX(-50%);
+        font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+        white-space: nowrap; text-shadow: 0 2px 10px rgba(0,0,0,.9);
+      }
+      .pie { margin-top: 10px; font-size: 12px; opacity: .6; letter-spacing: .05em; }
+    </style>
+  </head>
+  <body>
+    <div id="tp-shot">
+      <div class="cab">
+        <span class="lado">
+          {% if crest_url %}<img src="{{ crest_url }}" alt="" />{% endif %}{{ team_name }}
+          {% if plan.formation %}<span class="dib">{{ plan.formation }}</span>{% endif %}
+        </span>
+        <span class="vs">vs</span>
+        <span class="lado der">{{ rival_name|default:"Sin rival" }}{% if rival_crest %}<img src="{{ rival_crest }}" alt="" />{% endif %}</span>
+      </div>
+
+      <div class="campo">
+        {% for f in nuestros %}
+        <div class="ficha" style="left:{{ f.x_pct|unlocalize }}%;top:{{ f.y_pct|unlocalize }}%;">
+          {% if f.photo_url %}<img src="{{ f.photo_url }}" alt="" />{% else %}<span class="n">{{ f.number|default:"·" }}</span>{% endif %}
+          <span class="etq">{{ f.name|truncatechars:12 }}</span>
+        </div>
+        {% endfor %}
+        {% for f in rivales %}
+        <div class="ficha rival" style="left:{{ f.x_pct|unlocalize }}%;top:{{ f.y_pct|unlocalize }}%;">
+          {% if f.photo_url %}<img src="{{ f.photo_url }}" alt="" referrerpolicy="no-referrer" />{% else %}<span class="n">{{ f.number|default:"·" }}</span>{% endif %}
+          <span class="etq">{{ f.name|truncatechars:12 }}</span>
+        </div>
+        {% endfor %}
+      </div>
+
+      <p class="pie">{{ plan.name }}{% if plan.notes %} · {{ plan.notes|truncatechars:120 }}{% endif %}</p>
+    </div>
+  </body>
+</html>

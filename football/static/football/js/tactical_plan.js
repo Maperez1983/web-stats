@@ -329,6 +329,7 @@
     pintarLista();
     pintarBanquillo();
     pintarCampo();
+    refrescarEnlaceImagen();
     aviso('Planteamiento «' + estado.name + '» cargado.');
   };
 
@@ -387,6 +388,7 @@
       if (idx >= 0) planes[idx] = d.plan; else planes.unshift(d.plan);
       estado.id = d.plan.id;
       pintarLista();
+      refrescarEnlaceImagen();
       aviso('Guardado.');
     } catch (e) {
       aviso('No se pudo guardar.');
@@ -473,6 +475,19 @@
       pintarCampo();
     });
   }
+
+  const enlaceImagen = $('tp-image');
+  const refrescarEnlaceImagen = () => {
+    if (!enlaceImagen) return;
+    if (!estado.id) {
+      enlaceImagen.removeAttribute('href');
+      enlaceImagen.textContent = 'Descargar imagen (guarda antes)';
+      return;
+    }
+    // La URL lleva un 0 de plantilla y se sustituye por el planteamiento cargado.
+    enlaceImagen.href = String(URLS.image || '').replace(/0(\/?)(\?|$|imagen)/, String(estado.id) + '$1$2').replace('/0/', '/' + estado.id + '/');
+    enlaceImagen.textContent = 'Descargar imagen';
+  };
 
   pintarSelectorPartido();
   pintarSelectorRival();

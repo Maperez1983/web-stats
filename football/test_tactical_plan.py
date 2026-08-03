@@ -169,3 +169,28 @@ class AplicarPlanteamientoTests(PlanteamientoTests):
             content_type="application/json", secure=True,
         )
         self.assertEqual(r.status_code, 404)
+
+
+class ImagenPlanteamientoTests(PlanteamientoTests):
+    """La página que se fotografía para la charla."""
+
+    def test_el_campo_solo_lleva_los_dos_onces(self):
+        plan = self._guardar(
+            rival_team_id=self.rival.id,
+            rival_lineup={"starters": [{"code": "r1", "name": "Rival 1", "number": "9", "x_pct": 93, "y_pct": 50}]},
+        ).json()["plan"]
+        r = self.client.get(reverse("tactics-plan-board", args=[plan["id"]]), secure=True)
+        self.assertEqual(r.status_code, 200)
+        html = r.content.decode()
+        self.assertIn("coach_home_pitch_surface", html)
+        self.assertIn("Rival 1", html)
+        self.assertIn("Uno", html, "nuestro titular tiene que salir")
+        # Es una página para fotografiar: nada de menús ni paneles.
+        self.assertNotIn("dragon_nav", html)
+        self.assertNotIn("tp-panel", html)
+
+    def test_no_se_puede_ver_el_campo_de_otro_equipo(self):
+        otro = Team.objects.create(name="Otro club", slug="otro-club")
+        ajeno = TacticalPlan.objects.create(team=otro, name="suyo")
+        r = self.client.get(reverse("tactics-plan-board", args=[ajeno.id]), secure=True)
+        self.assertEqual(r.status_code, 302, "debe rebotar, no enseñar el planteamiento de otro")
