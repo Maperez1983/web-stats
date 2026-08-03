@@ -81,9 +81,14 @@ def _find_player_photo_name(player):
 # conserva los nombres que ya tenia. `overlays` marca la unica figura sobre la que estan alineados
 # los peinados postizos (hairstyles/*.png): en las demas el peinado solo cambia de color.
 FIGURAS = (
-    {"clave": "peque_a", "png": "nino_peque_a_hd.png", "desde": 0, "hasta": 9},
-    {"clave": "peque_b", "png": "nino_peque_b_hd.png", "desde": 0, "hasta": 9},
-    {"clave": "peque_c", "png": "nino_peque_c_hd.png", "desde": 0, "hasta": 9},
+    # Bebe aparte de Benjamin: con cuatro anos la cabeza es enorme respecto al cuerpo y las
+    # piernas cortisimas; con nueve ya no. Meterlos en el mismo tramo era hacerle a un bebe el
+    # mismo favor que le haciamos antes a un benjamin con el cuerpo de adulto.
+    {"clave": "bebe_a", "png": "nino_bebe_a_hd.png", "desde": 0, "hasta": 6},
+    {"clave": "bebe_b", "png": "nino_bebe_b_hd.png", "desde": 0, "hasta": 6},
+    {"clave": "peque_a", "png": "nino_peque_a_hd.png", "desde": 7, "hasta": 9},
+    {"clave": "peque_b", "png": "nino_peque_b_hd.png", "desde": 7, "hasta": 9},
+    {"clave": "peque_c", "png": "nino_peque_c_hd.png", "desde": 7, "hasta": 9},
     {"clave": "medio_a", "png": "nino_medio_a_hd.png", "desde": 10, "hasta": 13},
     {"clave": "medio_b", "png": "nino_medio_b_hd.png", "desde": 10, "hasta": 13},
     {"clave": "ado_a", "png": "nino_ado_a_hd.png", "desde": 14, "hasta": 15},
@@ -135,6 +140,8 @@ CATEGORIAS_EDAD = (
     ("benjamin", 8),
     ("querubin", 5),
     ("bebe", 4),
+    ("baby", 4),
+    ("chupetin", 4),
     ("alevin", 10),
     ("infantil", 12),
     ("cadete", 14),

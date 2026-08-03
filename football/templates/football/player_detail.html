@@ -1123,9 +1123,10 @@
             {% else %}<span class="ph-badge ph-ok">Disponible</span>{% endif %}
             {% if player.has_federative_license %}<span class="ph-badge ph-ok" title="Ficha federativa">✅ Fichado</span>{% else %}<span class="ph-badge" title="Sin ficha federativa">Sin ficha</span>{% endif %}
             {% if evaluation_consensus.overall %}<span class="ph-badge ph-accent" title="Media del cuerpo técnico · {{ evaluation_consensus.voters }} valoración{{ evaluation_consensus.voters|pluralize:"es" }}">★ {{ evaluation_consensus.overall }}</span>{% endif %}
-            {% comment %}Figura del jugador: por que no sale su cara en la pizarra. `avatar_pending` ya venia en el contexto y no lo pintaba nadie; sin foto no hay nada que generar y eso lo tiene que arreglar el entrenador, no el comando.{% endcomment %}
-            {% if avatar_pending %}<span class="ph-badge ph-warn" title="Su figura se regenerara en la proxima pasada de avatares">⏳ Avatar pendiente</span>
-            {% elif not player_photo_url %}<span class="ph-badge ph-muted" title="Sin foto no se puede generar su figura: sale como ficha de color en la pizarra">Sin foto</span>{% endif %}
+            {% comment %}El aviso de "avatar pendiente" tambien se ha ido: el estado de los
+            avatares se ve entero en Plantilla -> Avatares, equipo por equipo. Lo que si se queda
+            es que le falta la FOTO, porque eso es un dato de la persona y se sube aqui.{% endcomment %}
+            {% if not player_photo_url %}<span class="ph-badge ph-muted" title="Sin foto no se le puede poner su cara: sale como ficha de color en la pizarra">Sin foto</span>{% endif %}
             {% if player.position %}<span class="ph-badge ph-muted">{{ player.position|display_position }}</span>{% endif %}
             {% if player.number %}<span class="ph-badge ph-muted">#{{ player.number }}</span>{% endif %}
           </div>
@@ -1521,20 +1522,10 @@
               </div>
             </div>
 
-            <div style="{{ cardst }}">
-              <p style="{{ ctit }}">Rasgos para su avatar</p>
-              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.7rem .9rem;">
-                <div><div style="{{ kst }}">Tono de piel</div><div style="{% if player.skin_grade %}{{ vst }}{% else %}{{ fst }}{% endif %}">{% if player.skin_grade %}{{ avatar_skin_label|default:player.skin_grade }}{% else %}Falta{% endif %}</div></div>
-                <div><div style="{{ kst }}">Peinado</div><div style="{% if player.hairstyle %}{{ vst }}{% else %}{{ fst }}{% endif %}">{% if player.hairstyle %}{{ player.get_hairstyle_display }}{% else %}Falta{% endif %}</div></div>
-                <div><div style="{{ kst }}">Color de pelo</div><div style="{% if player.hair_color %}{{ vst }}{% else %}{{ fst }}{% endif %}">{% if player.hair_color %}<span style="display:inline-block;width:.85rem;height:.85rem;border-radius:50%;vertical-align:-1px;margin-right:.3rem;background:{{ player.hair_color }};border:1px solid rgba(255,255,255,.35);"></span>{{ avatar_hair_label|default:"Personalizado" }}{% else %}Falta{% endif %}</div></div>
-              </div>
-              {% if not is_player_readonly %}
-              <p style="margin:.7rem 0 0;font-size:.78rem;">
-                <a href="{% url 'coach-avatar-data' %}">Completar los datos del avatar de todo el equipo →</a>
-              </p>
-              {% endif %}
-            </div>
-
+            {% comment %}Los rasgos del avatar (tono de piel, peinado, color de pelo) estaban
+            aqui y se han ido a su pantalla, Plantilla -> Avatares, donde se completa el equipo
+            entero de una vez. En la ficha se queda lo que es de la PERSONA -nacimiento, altura,
+            complexion-, que ademas es de donde sale su avatar.{% endcomment %}
             <div style="{{ cardst }}">
               <p style="{{ ctit }}">Club</p>
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.7rem .9rem;">

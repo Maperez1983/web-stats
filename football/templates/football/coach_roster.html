@@ -786,11 +786,20 @@
               <a href="{% url 'coach-roster-pdf' %}{{ active_team_query|default:'' }}" target="_blank" rel="noopener">PDF plantilla</a>
             </div>
           </details>
+          {% comment %}Los avatares estaban dentro de "Informes", que ni lo son ni es donde nadie
+          los busca: por eso no se encontraban. Botón propio.{% endcomment %}
+          <details class="export-menu">
+            <summary class="button">🧍 Avatares ▾</summary>
+            <div class="export-menu-list">
+              <a href="{% url 'coach-avatar-data' %}">Completar los datos que faltan</a>
+              <a href="{% url 'coach-upload-avatars' %}">Subir avatares a mano</a>
+              <a href="{% url 'coach-download-photos-zip' %}">Descargar las fotos (.zip)</a>
+              <a href="{% url 'coach-avatar-characteristics' %}">Descargar características (.xlsx)</a>
+            </div>
+          </details>
           <details class="export-menu">
             <summary class="button">📋 Informes ▾</summary>
             <div class="export-menu-list">
-              <a href="{% url 'coach-avatar-data' %}">🧍 Datos del avatar (completar lo que falta)</a>
-              <a href="{% url 'coach-upload-avatars' %}">🖼️ Subir avatares de jugador</a>
               <a href="{% url 'coach-squad-report' %}" target="_blank" rel="noopener">Estado de plantilla (por fases)</a>
               <a href="{% url 'coach-microcycle-report' %}" target="_blank" rel="noopener">Evaluación de microciclo</a>
               <a href="{% url 'coach-next-match-report' %}" target="_blank" rel="noopener">Próximo partido</a>

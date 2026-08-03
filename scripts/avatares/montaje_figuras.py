@@ -8,9 +8,11 @@ REPO = os.environ.get("WEBSTATS_REPO") or "/Volumes/Mac Satecchi/Mac/Web-stats-a
 LIB = os.path.join(REPO, "football/static/football/images/coach_roster_avatars/library")
 
 FIGURAS = [
-    ("peque_a", "nino_peque_a_hd.png", "6-9"),
-    ("peque_b", "nino_peque_b_hd.png", "6-9"),
-    ("peque_c", "nino_peque_c_hd.png", "6-9"),
+    ("bebe_a", "nino_bebe_a_hd.png", "0-6"),
+    ("bebe_b", "nino_bebe_b_hd.png", "0-6"),
+    ("peque_a", "nino_peque_a_hd.png", "7-9"),
+    ("peque_b", "nino_peque_b_hd.png", "7-9"),
+    ("peque_c", "nino_peque_c_hd.png", "7-9"),
     ("medio_a", "nino_medio_a_hd.png", "10-13"),
     ("medio_b", "nino_medio_b_hd.png", "10-13"),
     ("ado_a", "nino_ado_a_hd.png", "14-15"),

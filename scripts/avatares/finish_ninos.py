@@ -42,14 +42,18 @@ def cara_de(rgba):
     return sorted(caras, key=lambda f: (f.bbox[2] - f.bbox[0]))[-1]
 
 
-def _sponsor():
-    """El logo del patrocinador, en gris muy oscuro (como en las equipaciones de adulto)."""
+def _sponsor(claro=False):
+    """
+    El logo del patrocinador. Gris muy oscuro sobre la equipacion (fondo blanco y verde) y BLANCO
+    sobre el chandal: en negro sobre negro no se veia, que es como salio la primera tanda.
+    """
     mo = Image.open(os.path.expanduser("~/ai-image-gen/modernia_logo.png")).convert("RGBA")
     mo = mo.crop(mo.split()[3].getbbox())
+    tinta = (255, 255, 255) if claro else (15, 15, 15)
     px = mo.load()
     for y in range(mo.size[1]):
         for x in range(mo.size[0]):
-            px[x, y] = (15, 15, 15, px[x, y][3])
+            px[x, y] = (*tinta, px[x, y][3])
     return mo
 
 
@@ -57,13 +61,59 @@ def ancho(im, w):
     return im.resize((w, max(1, int(w * im.size[1] / im.size[0]))))
 
 
+# El verde de la equipacion APROBADA, medido en la figura de adulto (kit_home_hd.png). Flux se
+# inventa un verde distinto en cada tirada -salieron siete- y eso rompe justo lo que se buscaba:
+# que todos lleven la misma camiseta. Aqui se les pone el verde bueno.
+VERDE_CLUB = (3, 89, 51)
+
+
+def unificar_verde(im, objetivo=VERDE_CLUB):
+    """
+    Lleva el verde de la equipacion al verde del club, conservando pliegues y sombras.
+
+    Se cambia el TONO y la saturacion, no la luminosidad: si se pintara plano, la camiseta
+    quedaria como una mancha recortada. Las rayas blancas no se tocan (no son verde).
+    """
+    import colorsys
+
+    a = np.asarray(im).astype(np.float32)
+    rgb, alfa = a[:, :, :3], a[:, :, 3]
+    r, g, b = rgb[:, :, 0], rgb[:, :, 1], rgb[:, :, 2]
+    # "Verde de tela": el verde manda con claridad sobre rojo y azul. Deja fuera piel, blanco,
+    # botas y el fondo transparente.
+    mascara = (alfa > 128) & (g > r + 25) & (g > b + 25)
+    if mascara.sum() < 500:
+        return im
+
+    h_obj, l_obj, s_obj = colorsys.rgb_to_hls(*[c / 255.0 for c in objetivo])
+    maxc = rgb.max(axis=2) / 255.0
+    minc = rgb.min(axis=2) / 255.0
+    lum = (maxc + minc) / 2.0
+    # La luminosidad se reescala para que la MEDIA case con la del verde bueno: si no, un verde
+    # menta clarito seguiria pareciendo menta aunque el tono fuera el correcto.
+    lum_media = float(np.median(lum[mascara]))
+    ajuste = (l_obj / lum_media) if lum_media > 0.01 else 1.0
+    lum_nueva = np.clip(lum * ajuste, 0.04, 0.96)
+
+    ys, xs = np.nonzero(mascara)
+    salida = rgb.copy()
+    for y, x in zip(ys, xs):
+        rr, gg, bb = colorsys.hls_to_rgb(h_obj, float(lum_nueva[y, x]), s_obj)
+        salida[y, x] = (rr * 255.0, gg * 255.0, bb * 255.0)
+    a[:, :, :3] = salida
+    return Image.fromarray(a.astype("uint8"), "RGBA")
+
+
 def finish(origen, destino):
+    # El chandal es negro: el patrocinador tiene que ir en blanco o desaparece.
+    chandal = "chandal" in os.path.basename(destino)
     fig = remove(Image.open(origen).convert("RGBA"))
     fig = fig.crop(fig.split()[3].getbbox())
     s = (CH * 0.99) / fig.size[1]
     if fig.size[0] * s > CW:
         s = (CW * 0.98) / fig.size[0]
     fig = fig.resize((int(fig.size[0] * s), int(fig.size[1] * s)))
+    fig = unificar_verde(fig)   # ANTES de los logos: el escudo tambien tiene verde y no se toca
     lienzo = Image.new("RGBA", (CW, CH), (0, 0, 0, 0))
     lienzo.alpha_composite(fig, ((CW - fig.size[0]) // 2, CH - fig.size[1] - int(CH * 0.005)))
 
@@ -79,7 +129,7 @@ def finish(origen, destino):
 
     crest = Image.open(LOGOS + "benagalbon_crest_alpha.png").convert("RGBA")
     nike = Image.open(LOGOS + "nike_swoosh.png").convert("RGBA")
-    mo = _sponsor()
+    mo = _sponsor(claro=chandal)
 
     # Escudo: pecho derecho (a su izquierda), por debajo del cuello. Las distancias van en
     # "caras": es la unica medida que se mantiene entre un benjamin y un cadete.
@@ -99,4 +149,7 @@ def finish(origen, destino):
 if __name__ == "__main__":
     for origen in sorted(glob.glob(os.path.join(ORIGEN, "raw_*.png"))):
         clave = re.sub(r"^raw_", "", os.path.basename(origen)).replace(".png", "")
-        finish(origen, os.path.join(DESTINO, f"nino_{clave}_hd.png"))
+        # Los chandales son figuras de ESTADO (a prueba / sin ficha): se sirven tal cual, sin
+        # mascaras y sin pasar por el generador, asi que conservan el nombre que espera la app.
+        destino = f"{clave}.png" if clave.startswith("chandal_") else f"nino_{clave}_hd.png"
+        finish(origen, os.path.join(DESTINO, destino))

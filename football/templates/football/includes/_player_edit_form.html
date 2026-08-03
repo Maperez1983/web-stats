@@ -121,73 +121,12 @@ página.{% endcomment %}
               <label>Perfil BeSoccer (URL)
                 <input type="url" name="besoccer_url" value="{{ player.besoccer_url|default:'' }}" placeholder="https://es.besoccer.com/jugador/..." />
               </label>
-              <div style="grid-column:1/-1;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--prod-muted);font-weight:800;border-top:1px solid rgba(148,163,184,.18);padding-top:.7rem;margin-top:.3rem;">Avatar</div>
-              <label>Tono de piel (avatar)
-                <select name="skin_tone">
-                  <option value="" {% if not player.skin_tone %}selected{% endif %}>Automático</option>
-                  {% for value,label in skin_tone_choices %}
-                  <option value="{{ value }}" {% if player.skin_tone == value %}selected{% endif %}>{{ label }}</option>
-                  {% endfor %}
-                </select>
-              </label>
-              {% if avatar_pending %}
-              <div style="grid-column:1/-1;display:flex;align-items:center;gap:0.5rem;background:rgba(244,180,0,0.12);border:1px solid rgba(244,180,0,0.4);color:#b45309;border-radius:10px;padding:0.5rem 0.75rem;font-size:0.82rem;font-weight:700;margin:0.2rem 0 0;">
-                <span aria-hidden="true">⏳</span> Avatar pendiente de regenerar — se actualizará en la próxima pasada (o al guardar y regenerar).
-              </div>
-              {% endif %}
-              <div class="avatar-perso" style="grid-column:1/-1;display:grid;grid-template-columns:auto 1fr;gap:0.9rem;align-items:start;border:1px solid rgba(148,163,184,0.22);border-radius:12px;padding:0.8rem 0.9rem;margin:0.2rem 0;">
-                <div style="text-align:center;">
-                  <img id="avatarPersoPreview" src="{% url 'player-avatar-recolored' player.id %}" alt="Avatar del jugador"
-                       style="width:78px;height:120px;object-fit:contain;background:rgba(2,6,23,0.5);border-radius:10px;display:block;" loading="lazy" />
-                  <div style="font-size:0.62rem;letter-spacing:0.06em;text-transform:uppercase;opacity:0.55;margin-top:4px;font-weight:800;">Avatar</div>
-                </div>
-                <div style="display:grid;gap:0.6rem;">
-                  <label style="margin:0;">Grado de piel (Football Manager)
-                    <select name="skin_grade" id="avatarPersoGrade">
-                      <option value="" {% if not player.skin_grade %}selected{% endif %}>Automático</option>
-                      {% for g in "123456"|make_list %}
-                      <option value="{{ g }}" {% if player.skin_grade|stringformat:'s' == g %}selected{% endif %}>{{ g }} · {% if g == '1' %}muy clara{% elif g == '2' %}clara{% elif g == '3' %}media{% elif g == '4' %}morena{% elif g == '5' %}oscura{% else %}muy oscura{% endif %}</option>
-                      {% endfor %}
-                    </select>
-                  </label>
-                  <label style="margin:0;">Color de pelo
-                    <select name="hair_color" id="avatarPersoHair">
-                      <option value="" {% if not player.hair_color %}selected{% endif %}>Automático</option>
-                      {% for hex,label in avatar_hair_choices %}
-                      <option value="{{ hex }}" {% if player.hair_color == hex %}selected{% endif %}>{{ label }}</option>
-                      {% endfor %}
-                    </select>
-                  </label>
-                  <label style="margin:0;">Peinado
-                    <select name="hairstyle" id="avatarPersoStyle">
-                      <option value="" {% if not player.hairstyle %}selected{% endif %}>Base</option>
-                      <option value="corto" {% if player.hairstyle == 'corto' %}selected{% endif %}>Corto</option>
-                      <option value="medio" {% if player.hairstyle == 'medio' %}selected{% endif %}>Medio</option>
-                      <option value="rizado" {% if player.hairstyle == 'rizado' %}selected{% endif %}>Rizado</option>
-                      <option value="largo" {% if player.hairstyle == 'largo' %}selected{% endif %}>Largo</option>
-                      <option value="rapado" {% if player.hairstyle == 'rapado' %}selected{% endif %}>Rapado</option>
-                    </select>
-                  </label>
-                  <p class="muted" style="margin:0;font-size:0.72rem;">La vista previa se actualiza al elegir; se aplica en la pizarra y el 11 al guardar.</p>
-                </div>
-              </div>
-              <script>
-                (function () {
-                  var img = document.getElementById('avatarPersoPreview');
-                  var grade = document.getElementById('avatarPersoGrade');
-                  var hair = document.getElementById('avatarPersoHair');
-                  if (!img || !grade || !hair) return;
-                  var base = img.getAttribute('src').split('?')[0];
-                  function refresh() {
-                    var qs = [];
-                    if (grade.value) qs.push('g=' + encodeURIComponent(grade.value));
-                    if (hair.value) qs.push('h=' + encodeURIComponent(hair.value));
-                    img.src = base + (qs.length ? ('?' + qs.join('&')) : '?_=1');
-                  }
-                  grade.addEventListener('change', refresh);
-                  hair.addEventListener('change', refresh);
-                })();
-              </script>
+              {% comment %}Aqui vivia el bloque "Avatar" (tono de piel, grado, color de pelo,
+              peinado y vista previa). El avatar tiene ahora su propia pantalla, en
+              Plantilla -> Avatares, donde se rellena el equipo entero de una vez; tenerlo
+              tambien aqui era pedir el mismo dato en dos sitios, que es como acaban
+              contradiciendose. La ficha guarda a la PERSONA (nacimiento, altura, complexion),
+              que es de donde salen esos avatares.{% endcomment %}
               <div style="grid-column:1/-1;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--prod-muted);font-weight:800;border-top:1px solid rgba(148,163,184,.18);padding-top:.7rem;margin-top:.3rem;">Físico y contacto</div>
               <label>Altura (cm)
                 <input type="number" name="height_cm" min="100" max="240" value="{{ player.height_cm|default:'' }}" />
