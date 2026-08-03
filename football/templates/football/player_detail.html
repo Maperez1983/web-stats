@@ -1524,9 +1524,9 @@
             <div style="{{ cardst }}">
               <p style="{{ ctit }}">Rasgos para su avatar</p>
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.7rem .9rem;">
-                <div><div style="{{ kst }}">Tono de piel</div><div style="{% if player.skin_grade %}{{ vst }}{% else %}{{ fst }}{% endif %}">{{ player.skin_grade|default:"Falta" }}</div></div>
+                <div><div style="{{ kst }}">Tono de piel</div><div style="{% if player.skin_grade %}{{ vst }}{% else %}{{ fst }}{% endif %}">{% if player.skin_grade %}{{ avatar_skin_label|default:player.skin_grade }}{% else %}Falta{% endif %}</div></div>
                 <div><div style="{{ kst }}">Peinado</div><div style="{% if player.hairstyle %}{{ vst }}{% else %}{{ fst }}{% endif %}">{% if player.hairstyle %}{{ player.get_hairstyle_display }}{% else %}Falta{% endif %}</div></div>
-                <div><div style="{{ kst }}">Color de pelo</div><div style="{% if player.hair_color %}{{ vst }}{% else %}{{ fst }}{% endif %}">{% if player.hair_color %}<span style="display:inline-block;width:.85rem;height:.85rem;border-radius:50%;vertical-align:-1px;margin-right:.3rem;background:{{ player.hair_color }};border:1px solid rgba(255,255,255,.35);"></span>{{ player.hair_color }}{% else %}Falta{% endif %}</div></div>
+                <div><div style="{{ kst }}">Color de pelo</div><div style="{% if player.hair_color %}{{ vst }}{% else %}{{ fst }}{% endif %}">{% if player.hair_color %}<span style="display:inline-block;width:.85rem;height:.85rem;border-radius:50%;vertical-align:-1px;margin-right:.3rem;background:{{ player.hair_color }};border:1px solid rgba(255,255,255,.35);"></span>{{ avatar_hair_label|default:"Personalizado" }}{% else %}Falta{% endif %}</div></div>
               </div>
               {% if not is_player_readonly %}
               <p style="margin:.7rem 0 0;font-size:.78rem;">

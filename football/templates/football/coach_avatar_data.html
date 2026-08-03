@@ -31,7 +31,8 @@
           <p style="margin:0;color:var(--prod-muted, rgba(15,23,42,0.64));">Plantilla · {{ team_name }}</p>
           <h1 style="margin:0.2rem 0 0.35rem;">Datos del avatar</h1>
           <p style="margin:0;max-width:70ch;color:var(--prod-muted, rgba(15,23,42,0.64));">
-            El avatar de un jugador sale de cinco datos suyos. Aquí están <strong>sólo los que les falta alguno</strong>:
+            El avatar de un jugador sale de seis datos suyos, y el primero es la fecha de nacimiento:
+            con ocho años no lleva el mismo cuerpo que con veinticinco. Aquí están <strong>sólo los que les falta alguno</strong>:
             rellena lo que sepas y guarda una vez. Lo que dejes en blanco se queda como está.
           </p>
         </div>
@@ -39,6 +40,17 @@
           <a class="button" href="{% url 'coach-roster' %}">← Plantilla</a>
         </div>
       </header>
+
+      {% if pestanas %}
+      <nav style="display:flex;gap:.4rem;flex-wrap:wrap;margin:0 0 1rem;">
+        {% for e in pestanas %}
+        <a href="?equipo={{ e.team.id }}" class="pill" style="text-decoration:none;{% if e.activo %}border-color:rgba(74,134,232,.6);background:rgba(74,134,232,.16);font-weight:800;{% endif %}">
+          {{ e.team.display_name }}
+          {% if e.pendientes %}<span style="opacity:.8;"> · {{ e.pendientes }} por completar</span>{% else %}<span style="opacity:.8;"> · al día</span>{% endif %}
+        </a>
+        {% endfor %}
+      </nav>
+      {% endif %}
 
       {% if guardados %}
       <section class="panel" style="margin-bottom:1rem;">
@@ -59,11 +71,13 @@
       {% else %}
       <form method="post">
         {% csrf_token %}
+        <input type="hidden" name="equipo" value="{{ team.id }}" />
         <section class="panel av-scroll">
           <table class="av-tabla">
             <thead>
               <tr>
                 <th class="izq">Jugador</th>
+                <th>Nacimiento</th>
                 <th>Edad</th>
                 <th>Foto</th>
                 <th>Complexión</th>
@@ -81,6 +95,7 @@
                   <input type="hidden" name="player_id" value="{{ f.p.id }}" />
                   <a href="{% url 'player-detail' player_id=f.p.id %}">{{ f.p.number|default:"—" }} · {{ f.p.nickname|default:f.p.name }}</a>
                 </td>
+                <td><input type="date" name="birth_date_{{ f.p.id }}" value="{{ f.p.birth_date|date:'Y-m-d' }}" style="width:8.4rem;" /></td>
                 <td>{% if f.edad %}{{ f.edad }}{% else %}—{% endif %}</td>
                 <td>{% if f.tiene_foto %}✓{% else %}<span title="Sin foto no se puede poner su cara">—</span>{% endif %}</td>
                 <td>
@@ -117,7 +132,7 @@
 
         <div style="display:flex; gap:0.6rem; align-items:center; margin-top:1rem; flex-wrap:wrap;">
           <button class="button primary" type="submit">Guardar</button>
-          <span style="color:var(--prod-muted, rgba(15,23,42,0.64));">La foto y la fecha de nacimiento se suben desde la ficha del jugador.</span>
+          <span style="color:var(--prod-muted, rgba(15,23,42,0.64));">La foto se sube desde la ficha del jugador; lo demás se rellena aquí.</span>
         </div>
       </form>
       {% endif %}
