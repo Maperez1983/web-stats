@@ -30,6 +30,12 @@ def prepare_task_library(
         return bool(str(value or '').strip())
 
     def _has_canvas_objects(task):
+        # La copia ligera NO lleva el lienzo (es justo lo que le quitan), asi que este dato hay
+        # que traerlo anotado desde la consulta (`has_canvas_objects`, resuelto en SQL). Sin eso
+        # tocariamos `tactical_layout` y volveriamos a des-diferir la columna pesada por fila.
+        anotado = getattr(task, 'has_canvas_objects', None)
+        if anotado is not None:
+            return bool(anotado)
         try:
             layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
             meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
@@ -39,6 +45,19 @@ def prepare_task_library(
             return bool(objects)
         except Exception:
             return False
+
+    def _meta_ligero(task):
+        """`meta` sin des-diferir `tactical_layout`.
+
+        Esta funcion se ejecuta UNA VEZ POR TAREA del listado. Leyendo el campo gordo hacia una
+        consulta por fila (179 consultas y ~12-33 s en la Biblioteca del club); la copia ligera
+        trae la misma `meta` sin el lienzo.
+        """
+        light = getattr(task, 'task_layout_light', None)
+        if isinstance(light, dict) and isinstance(light.get('meta'), dict):
+            return light['meta']
+        layout = task.tactical_layout if isinstance(getattr(task, 'tactical_layout', None), dict) else {}
+        return layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
 
     context_groups = defaultdict(list)
     objective_groups = defaultdict(list)
@@ -50,8 +69,7 @@ def prepare_task_library(
     date_groups = defaultdict(list)
 
     for task in tasks:
-        layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
-        meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+        meta = _meta_ligero(task)
         analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
         task.analysis_meta = analysis_meta
         task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
