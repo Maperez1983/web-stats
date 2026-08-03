@@ -99,3 +99,60 @@ class EntrenadorQueTambienJuegaTests(TestCase):
         self.ficha.save(update_fields=["user"])
 
         self.assertFalse(_valor())
+
+
+class EnlazarUnaCuentaQueYaExisteTests(TestCase):
+    """
+    Quien ya tiene cuenta por otra vía no necesita otra invitación: se enlaza la que tiene,
+    o el club acaba con dos usuarios para la misma persona.
+    """
+
+    def setUp(self):
+        self.owner = User.objects.create_user(username="dueno-enlace", password="x")
+        self.entrenador = User.objects.create_user(
+            username="manuel-enlace", password="x", first_name="Manuel", last_name="Fernández"
+        )
+        self.workspace = Workspace.objects.create(
+            name="Club enlace", slug="club-enlace", kind=Workspace.KIND_CLUB, owner_user=self.owner
+        )
+        self.senior = Team.objects.create(name="Senior enlace", slug="senior-enlace")
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.senior, is_default=True)
+        for usuario, rol in ((self.owner, WorkspaceMembership.ROLE_OWNER), (self.entrenador, WorkspaceMembership.ROLE_MEMBER)):
+            WorkspaceMembership.objects.create(workspace=self.workspace, user=usuario, role=rol)
+        self.ficha = Player.objects.create(team=self.senior, name="Lolo", is_active=True)
+        self.client.force_login(self.owner)
+        sesion = self.client.session
+        sesion["active_workspace_id"] = self.workspace.id
+        sesion["active_team_by_workspace"] = {str(self.workspace.id): int(self.senior.id)}
+        sesion.save()
+
+    def _enlazar(self, player_id, user_id):
+        return self.client.post(
+            reverse("player-portal-settings"),
+            {"action": "link", "player_id": str(player_id), "user_id": str(user_id)},
+            follow=True,
+        )
+
+    def test_enlaza_la_ficha_con_la_cuenta_que_ya_tiene(self):
+        self._enlazar(self.ficha.id, self.entrenador.id)
+        self.ficha.refresh_from_db()
+
+        self.assertEqual(self.ficha.user_id, self.entrenador.id)
+
+    def test_no_enlaza_una_cuenta_de_fuera_del_club(self):
+        extraño = User.objects.create_user(username="de-fuera-enlace", password="x")
+
+        self._enlazar(self.ficha.id, extraño.id)
+        self.ficha.refresh_from_db()
+
+        self.assertIsNone(self.ficha.user_id)
+
+    def test_una_cuenta_no_puede_ser_dos_jugadores(self):
+        otra = Player.objects.create(team=self.senior, name="Otro", user=self.entrenador, is_active=True)
+
+        self._enlazar(self.ficha.id, self.entrenador.id)
+        self.ficha.refresh_from_db()
+        otra.refresh_from_db()
+
+        self.assertIsNone(self.ficha.user_id)
+        self.assertEqual(otra.user_id, self.entrenador.id)

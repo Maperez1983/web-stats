@@ -552,6 +552,46 @@ def player_portal_settings_page(request):
                 _player.user = None
                 _player.save(update_fields=["user"])
                 notice = f"{_player.name} ya no está vinculado a ninguna cuenta."
+        elif not error and action == "link":
+            # Vincular una ficha de jugador a una cuenta QUE YA EXISTE. Hacía falta para el
+            # caso de quien es dos cosas en el club -entrenador del cadete y jugador del
+            # senior-: su cuenta ya está creada, así que invitarle otra vez sólo crearía un
+            # usuario duplicado. Sólo se ofrecen cuentas que ya son miembros del club.
+            from django.contrib.auth.models import User as _User
+
+            from .models import Player as _Player, WorkspaceMembership as _Membership
+
+            _pid = str(request.POST.get("player_id") or "").strip()
+            _uid = str(request.POST.get("user_id") or "").strip()
+            _player = (
+                _Player.objects.filter(
+                    id=int(_pid), team__workspace_links__workspace=workspace
+                ).first()
+                if _pid.isdigit()
+                else None
+            )
+            _user = (
+                _User.objects.filter(id=int(_uid)).first()
+                if _uid.isdigit()
+                else None
+            )
+            if _player is None:
+                error = "Ese jugador no es de este club."
+            elif _user is None:
+                error = "Esa cuenta no existe."
+            elif not _Membership.objects.filter(workspace=workspace, user=_user).exists():
+                error = "Esa cuenta no es miembro de este club."
+            else:
+                _ocupada = _Player.objects.filter(user=_user).exclude(id=_player.id).first()
+                if _ocupada is not None:
+                    error = f"Esa cuenta ya es la ficha de {_ocupada.name}. Suéltala antes."
+                else:
+                    _player.user = _user
+                    _player.save(update_fields=["user"])
+                    notice = (
+                        f"{_player.name} queda vinculado a {_user.get_username()}. "
+                        "Ya le sale «Mi ficha» en su barra, aunque entre como cuerpo técnico."
+                    )
         elif not error and action == "reset" and target_team is not None:
             PlayerPortalPolicy.objects.filter(workspace=workspace, team=target_team).delete()
             notice = f"{target_team.name} vuelve a la regla del club."
@@ -653,8 +693,30 @@ def player_portal_settings_page(request):
     except Exception:
         logger.debug("No se pudieron contar los jugadores por equipo", exc_info=True)
 
+    # Cuentas del club que aún no son la ficha de nadie: para vincular a quien ya tiene
+    # cuenta por otra vía (el entrenador del cadete que además juega en el senior).
+    cuentas_libres = []
+    try:
+        from django.contrib.auth.models import User as _User
+
+        from .models import Player as _Player, WorkspaceMembership as _Membership
+
+        _ocupadas = set(
+            _Player.objects.filter(user__isnull=False).values_list("user_id", flat=True)
+        )
+        _ids = _Membership.objects.filter(workspace=workspace).values_list("user_id", flat=True)
+        for _u in _User.objects.filter(id__in=list(_ids)).order_by("first_name", "username"):
+            if _u.id in _ocupadas:
+                continue
+            _nombre = (_u.get_full_name() or "").strip() or _u.get_username()
+            cuentas_libres.append({"id": _u.id, "label": f"{_nombre} ({_u.get_username()})"})
+    except Exception:
+        logger.debug("No se pudieron listar las cuentas del club", exc_info=True)
+        cuentas_libres = []
+
     return render(request, "accounts/player_portal_settings.html", {
         "workspace": workspace,
+        "cuentas_libres": cuentas_libres,
         "teams": teams,
         "squad_team": squad_team,
         "squad_team_options": squad_team_options,

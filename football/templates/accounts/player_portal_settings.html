@@ -217,6 +217,23 @@
                          {% if item.contact_email %}checked{% endif %} style="width:auto;" />
                   <button class="btn primary" type="submit">Invitar</button>
                 </form>
+                {% comment %}Quien ya tiene cuenta por otra vía -el entrenador del cadete que
+                además juega en el senior- no necesita otra invitación: se enlaza la que
+                tiene, o acabaría con dos usuarios.{% endcomment %}
+                {% if cuentas_libres %}
+                <form method="post" style="margin:.35rem 0 0;display:flex;gap:.35rem;align-items:center;flex-wrap:wrap;">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="link" />
+                  <input type="hidden" name="player_id" value="{{ item.player.id }}" />
+                  <select name="user_id" style="min-width:210px;">
+                    <option value="">— o enlazar una cuenta que ya existe —</option>
+                    {% for cuenta in cuentas_libres %}
+                    <option value="{{ cuenta.id }}">{{ cuenta.label }}</option>
+                    {% endfor %}
+                  </select>
+                  <button class="btn alt" type="submit">Enlazar</button>
+                </form>
+                {% endif %}
               {% endif %}
             </div>
           </div>
