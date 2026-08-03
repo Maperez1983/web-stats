@@ -3155,35 +3155,8 @@ const urlWithMatchId = (baseUrl) => {
         el.addEventListener('pointercancel', endDrag);
         return el;
       };
-      // Los onces guardados antes de esto tienen coordenadas del campo VERTICAL (portero abajo,
-      // ataque arriba) y ocupan el campo entero. Sobre el cesped horizontal quedarian de lado y
-      // pisando al rival, asi que se giran una vez y se comprimen a nuestra mitad. Se detecta por
-      // donde esta el portero: en vertical estaba abajo del todo.
-      const girarSiVienenEnVertical = (starters) => {
-        const filas = Array.isArray(starters) ? starters : [];
-        const conPos = filas.filter((p) => Number.isFinite(safeNumber(p?.x_pct, NaN)) && Number.isFinite(safeNumber(p?.y_pct, NaN)));
-        if (conPos.length < 3) return false;
-        const abajo = conPos.filter((p) => safeNumber(p.y_pct, 0) > 70).length;
-        if (abajo < Math.ceil(conPos.length * 0.4)) return false;
-        filas.forEach((p) => {
-          const x = safeNumber(p?.x_pct, NaN);
-          const y = safeNumber(p?.y_pct, NaN);
-          if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-          p.x_pct = Math.round(clampPct((100 - y) * 0.48, 4, 48) * 100) / 100;
-          p.y_pct = Math.round(clampPct(x, 6, 94) * 100) / 100;
-        });
-        return true;
-      };
-      let posicionesGiradas = false;
       const renderTacticsBoardImpl = () => {
         if (!tacticsPitch || !tacticsTokensEl) return;
-        if (!posicionesGiradas) {
-          posicionesGiradas = true;
-          try {
-            // `updateLineupInput` es el guardado diferido del once (mismo camino que al arrastrar).
-            if (girarSiVienenEnVertical(lineupState?.starters)) updateLineupInput();
-          } catch (e) {}
-        }
         const starters = Array.isArray(lineupState?.starters) ? lineupState.starters.slice(0, startersLimit) : [];
         tacticsTokensEl.innerHTML = '';
         if (!starters.length) return;
