@@ -6,7 +6,17 @@ from django.contrib.sessions.middleware import SessionMiddleware
 from django.test import RequestFactory, TestCase
 
 from football import views
-from football.models import Competition, ConvocationRecord, Match, MatchEvent, Season, Team
+from football.models import (
+    Competition,
+    ConvocationRecord,
+    Match,
+    MatchEvent,
+    Player,
+    PlayerMatchReportArchive,
+    PlayerStatistic,
+    Season,
+    Team,
+)
 
 
 class MatchdayFinalizeTests(TestCase):
@@ -78,6 +88,30 @@ class MatchdayFinalizeTests(TestCase):
         self.assertEqual(second["updated"], 0)
         self.assertEqual(MatchEvent.objects.filter(match=self.match).count(), 3)
         self.assertEqual(persist_ratings.call_count, 2)
+
+    def test_close_archives_only_players_with_participation_evidence(self):
+        played = Player.objects.create(team=self.team, name="Jugó", position="MC")
+        unused = Player.objects.create(team=self.team, name="No jugó", position="MC")
+        self.convocation.players.add(played, unused)
+        self.pending[0].player = played
+        self.pending[0].save(update_fields=["player"])
+        PlayerStatistic.objects.create(
+            player=played,
+            season=self.season,
+            match=self.match,
+            name="manual_minutes",
+            value=45,
+            context="manual-match",
+        )
+
+        result = views._finalize_matchday_common(self._request(), self.team, self.match)
+
+        self.assertEqual(result["archived_count"], 1)
+        archive = PlayerMatchReportArchive.objects.get(match=self.match)
+        self.assertEqual(archive.player, played)
+        self.assertEqual(archive.version, 1)
+        self.assertEqual(archive.minutes, 45)
+        self.assertFalse(PlayerMatchReportArchive.objects.filter(player=unused, match=self.match).exists())
 
     def test_pending_close_queue_excludes_future_and_closed_matches(self):
         Match.objects.create(

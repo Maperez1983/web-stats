@@ -362,6 +362,14 @@ class MatchAdmin(admin.ModelAdmin):
     list_filter = ('round', 'date')
 
 
+@admin.register(models.PlayerMatchReportArchive)
+class PlayerMatchReportArchiveAdmin(admin.ModelAdmin):
+    list_display = ('player', 'match', 'version', 'status', 'rating', 'minutes', 'generated_at')
+    list_filter = ('status', 'reason', 'generated_at')
+    search_fields = ('player__name', 'match__home_team__name', 'match__away_team__name')
+    readonly_fields = ('generated_at', 'updated_at')
+
+
 @admin.register(models.TeamStanding)
 class TeamStandingAdmin(admin.ModelAdmin):
     list_display = ('team', 'season', 'points', 'position')

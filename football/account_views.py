@@ -986,6 +986,7 @@ def _player_home_zones(request, player, vis):
         PlayerCommunication,
         PlayerFine,
         PlayerNotification,
+        PlayerMatchReportArchive,
         PlayerStatistic,
         TrainingSession,
         TrainingSessionAttendance,
@@ -1009,6 +1010,7 @@ def _player_home_zones(request, player, vis):
         "communications": [],
         "match_reports": [],
         "latest_match_report": None,
+        "performance_trends": None,
         "agenda_weeks": [],
         "agenda_month_label": "",
         "agenda_previous_url": "",
@@ -1084,15 +1086,30 @@ def _player_home_zones(request, player, vis):
             latest_rating = rating_rows[0]
             latest_match = latest_rating.match
             latest_report = zones["match_reports"][0]
+            archive = (
+                PlayerMatchReportArchive.objects.filter(player=player, match=latest_match)
+                .order_by("-version", "-id")
+                .first()
+            )
+            archived_snapshot = getattr(archive, "snapshot", None) or {}
             try:
                 from .views import _player_match_report_context
 
-                report_context = _player_match_report_context(
-                    request,
-                    primary_team=player.team,
-                    player=player,
-                    match=latest_match,
-                )
+                if archived_snapshot and not archived_snapshot.get("historical_backfill"):
+                    report_context = {
+                        "rating": archived_snapshot.get("rating"),
+                        "minutes": archived_snapshot.get("minutes", 0),
+                        "performance_label": archived_snapshot.get("performance_label"),
+                        "performance_text": archived_snapshot.get("performance_text"),
+                        "player_action_kpis": archived_snapshot.get("action_kpis") or [],
+                    }
+                else:
+                    report_context = _player_match_report_context(
+                        request,
+                        primary_team=player.team,
+                        player=player,
+                        match=latest_match,
+                    )
                 latest_report = {
                     **latest_report,
                     "rating": report_context.get("rating"),
@@ -1100,6 +1117,8 @@ def _player_home_zones(request, player, vis):
                     "performance_label": report_context.get("performance_label") or "Informe disponible",
                     "performance_text": report_context.get("performance_text") or "",
                     "action_kpis": list(report_context.get("player_action_kpis") or [])[:4],
+                    "version": int(getattr(archive, "version", 1) or 1),
+                    "archive_status": str(getattr(archive, "status", "pending") or "pending"),
                 }
             except Exception:
                 logger.debug(
@@ -1116,6 +1135,57 @@ def _player_home_zones(request, player, vis):
                     "action_kpis": [],
                 }
             zones["latest_match_report"] = latest_report
+
+        latest_archives = []
+        seen_matches = set()
+        for archive in (
+            PlayerMatchReportArchive.objects.filter(player=player, match__is_closed=True)
+            .select_related("match")
+            .order_by("-match__date", "-match_id", "-version", "-id")[:40]
+        ):
+            if archive.match_id in seen_matches:
+                continue
+            seen_matches.add(archive.match_id)
+            latest_archives.append(archive)
+            if len(latest_archives) >= 10:
+                break
+        if latest_archives:
+            chronological = list(reversed(latest_archives))
+            ratings = [float(row.rating) for row in chronological if row.rating is not None]
+            recent_ratings = ratings[-5:]
+            recent_snapshots = [row.snapshot or {} for row in latest_archives[:5]]
+            kpi_buckets = {}
+            for snapshot in recent_snapshots:
+                for kpi in snapshot.get("action_kpis") or []:
+                    key = str(kpi.get("key") or "")
+                    if not key:
+                        continue
+                    bucket = kpi_buckets.setdefault(key, {"label": kpi.get("label") or key, "values": []})
+                    bucket["values"].append(int(kpi.get("percentage") or 0))
+            zones["performance_trends"] = {
+                "matches": len(latest_archives),
+                "minutes": sum(int(row.minutes or 0) for row in latest_archives),
+                "average": round(sum(ratings) / len(ratings), 1) if ratings else None,
+                "form": round(sum(recent_ratings) / len(recent_ratings), 1) if recent_ratings else None,
+                "best": round(max(ratings), 1) if ratings else None,
+                "points": [
+                    {
+                        "rating": row.rating,
+                        "height": max(12, min(100, round(((float(row.rating or 4) - 4) / 6) * 100))),
+                        "opponent": str((row.snapshot or {}).get("opponent_name") or "Rival"),
+                        "date": row.match.date,
+                    }
+                    for row in chronological
+                ],
+                "kpis": [
+                    {
+                        "key": key,
+                        "label": bucket["label"],
+                        "percentage": round(sum(bucket["values"]) / len(bucket["values"])),
+                    }
+                    for key, bucket in kpi_buckets.items()
+                ][:4],
+            }
     except Exception:
         logger.debug("No se pudieron cargar los informes de partido del jugador", exc_info=True)
 

@@ -100,6 +100,17 @@ else
   echo "[avatars] autogeneración desactivada (AVATAR_AUTOGEN_ENABLED=${AVATAR_AUTOGEN_ENABLED:-false}, modelo=${avatar_model})" >&2
 fi
 
+# El cierre guarda primero los datos; esta cola materializa los PDF sin bloquear al entrenador.
+(
+  sleep 90
+  while true; do
+    echo "[player-reports] procesando cola ($(date -u))" >&2
+    python manage.py generate_player_match_report_archives --limit 10 --retry-errors \
+      || echo "[player-reports] la pasada falló; se reintentará" >&2
+    sleep "${PLAYER_REPORT_ARCHIVE_INTERVAL_SECONDS:-300}"
+  done
+) &
+
 exec python manage.py run_ollana_operator \
   --workspace-id "${OLLANA_OPERATOR_WORKSPACE_ID}" \
   --actor-id "${OLLANA_OPERATOR_ACTOR_ID}" \

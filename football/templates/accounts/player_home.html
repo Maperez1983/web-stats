@@ -108,10 +108,19 @@
       .latest-kpi-track { height:5px;margin-top:.42rem;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.1); }
       .latest-kpi-fill { display:block;height:100%;border-radius:inherit;background:#34d399; }
       .latest-report-actions { display:flex;gap:.45rem;flex-wrap:wrap;margin-top:.85rem; }
+      .performance-overview { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.55rem;margin-top:.9rem; }
+      .performance-stat { padding:.7rem;border:1px solid rgba(255,255,255,.09);border-radius:12px;background:rgba(255,255,255,.025); }
+      .performance-stat strong { display:block;font-size:1.25rem;line-height:1; }
+      .performance-stat span { display:block;margin-top:.28rem;color:var(--prod-muted);font-size:.58rem;font-weight:900;letter-spacing:.07em;text-transform:uppercase; }
+      .rating-trend { display:flex;align-items:flex-end;gap:.35rem;height:94px;margin-top:.85rem;padding:.5rem .3rem 0;border-bottom:1px solid rgba(255,255,255,.12); }
+      .rating-trend-item { flex:1;min-width:18px;height:100%;display:flex;align-items:flex-end;justify-content:center;position:relative; }
+      .rating-trend-bar { width:min(24px,70%);min-height:8px;border-radius:6px 6px 2px 2px;background:linear-gradient(180deg,#34d399,#0f766e); }
+      .rating-trend-value { position:absolute;bottom:calc(var(--bar-height) + 3px);font-size:.58rem;font-weight:900;color:#a7f3d0; }
+      .trend-kpis { display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.5rem;margin-top:.75rem; }
       .match-report-card { display:flex;align-items:center;justify-content:space-between;gap:.8rem;padding:.8rem;border:1px solid rgba(255,255,255,.11);border-radius:12px;background:rgba(255,255,255,.035); }
       .match-report-card .result { color:#fbbf24;font-size:.76rem;font-weight:900;letter-spacing:.05em;text-transform:uppercase; }
       .match-report-actions { display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end; }
-      @media (max-width:640px) { .match-report-card { align-items:flex-start;flex-direction:column; } .match-report-actions { justify-content:flex-start; } }
+      @media (max-width:640px) { .match-report-card { align-items:flex-start;flex-direction:column; } .match-report-actions { justify-content:flex-start; } .performance-overview { grid-template-columns:repeat(2,minmax(0,1fr)); } }
     </style>
   </head>
   <body class="prod-commercial">
@@ -289,6 +298,34 @@
                 <a class="btn alt" href="{{ latest_match_report.pdf_url }}?download=1">Descargar PDF</a>
               </div>
             </article>
+          {% endif %}
+          {% if performance_trends %}
+            <div class="performance-overview" aria-label="Resumen de rendimiento en partidos">
+              <div class="performance-stat"><strong>{{ performance_trends.average|floatformat:1 }}</strong><span>Media</span></div>
+              <div class="performance-stat"><strong>{{ performance_trends.form|floatformat:1 }}</strong><span>Forma · 5</span></div>
+              <div class="performance-stat"><strong>{{ performance_trends.minutes }}′</strong><span>Minutos</span></div>
+              <div class="performance-stat"><strong>{{ performance_trends.best|floatformat:1 }}</strong><span>Mejor nota</span></div>
+            </div>
+            {% if performance_trends.points|length > 1 %}
+              <div class="rating-trend" aria-label="Evolución de valoración por partido">
+                {% for point in performance_trends.points %}
+                  <div class="rating-trend-item" title="{{ point.opponent }}{% if point.date %} · {{ point.date|date:'d/m/Y' }}{% endif %} · {{ point.rating|floatformat:1 }}">
+                    <span class="rating-trend-value" style="--bar-height:{{ point.height }}%;">{{ point.rating|floatformat:1 }}</span>
+                    <span class="rating-trend-bar" style="height:{{ point.height }}%;"></span>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+            {% if performance_trends.kpis %}
+              <div class="trend-kpis" aria-label="Promedios de ejecución de los últimos cinco partidos">
+                {% for kpi in performance_trends.kpis %}
+                  <div class="latest-kpi">
+                    <div class="latest-kpi-top"><span class="latest-kpi-label">{{ kpi.label }} · últimos 5</span><span class="latest-kpi-value">{{ kpi.percentage }}%</span></div>
+                    <div class="latest-kpi-track"><span class="latest-kpi-fill" style="width:{{ kpi.percentage }}%;"></span></div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
           {% endif %}
           <div class="marks">
             <div class="mark">

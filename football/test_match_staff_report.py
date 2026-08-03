@@ -12,6 +12,7 @@ from football.models import (
     MatchEvent,
     MatchLineup,
     Player,
+    PlayerMatchReportArchive,
     PlayerStatistic,
     RivalConvocationRecord,
     Season,
@@ -340,6 +341,37 @@ class MatchStaffReportTests(TestCase):
         self.assertIn("100%", html)
         self.assertIn("1/1", pdf_html)
         self.assertNotIn("Ponderación del algoritmo", html)
+
+    @patch("football.views.resolve_team_crest_url", return_value="")
+    def test_regeneration_keeps_versions_and_frozen_snapshots(self, _crest):
+        self.match.is_closed = True
+        self.match.save(update_fields=["is_closed"])
+        self._event("PASE", "GANADO", minute=18, period=1, zone="Medio centro", tercio="Construcción")
+        request = RequestFactory().get("/player/informe/")
+        request.user = AnonymousUser()
+
+        first = views._create_player_report_archive(
+            request,
+            primary_team=self.team,
+            player=self.player,
+            match=self.match,
+            reason="match_closed",
+        )
+        first_rating = first.snapshot["rating"]
+        self._event("PASE", "PERDIDO", minute=30, period=1, zone="Medio centro", tercio="Construcción")
+        second = views._create_player_report_archive(
+            request,
+            primary_team=self.team,
+            player=self.player,
+            match=self.match,
+            reason="staff_regeneration",
+            force_new_version=True,
+        )
+
+        self.assertEqual((first.version, second.version), (1, 2))
+        self.assertEqual(PlayerMatchReportArchive.objects.filter(player=self.player, match=self.match).count(), 2)
+        first.refresh_from_db()
+        self.assertEqual(first.snapshot["rating"], first_rating)
 
     @patch("football.views.resolve_team_crest_url", return_value="")
     def test_error_that_cost_a_goal_is_not_counted_as_a_goal_scored(self, _crest):

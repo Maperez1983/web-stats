@@ -2406,6 +2406,55 @@ class PlayerStatistic(models.Model):
         return f'{self.player.name} - {self.name}: {self.value}'
 
 
+class PlayerMatchReportArchive(models.Model):
+    """Version inmutable del informe individual generado al cerrar o revisar un partido."""
+
+    STATUS_PENDING = 'pending'
+    STATUS_READY = 'ready'
+    STATUS_ERROR = 'error'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pendiente'),
+        (STATUS_READY, 'Listo'),
+        (STATUS_ERROR, 'Error'),
+    ]
+
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='match_report_archives')
+    match = models.ForeignKey(Match, on_delete=models.CASCADE, related_name='player_report_archives')
+    version = models.PositiveSmallIntegerField(default=1)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    rating = models.FloatField(null=True, blank=True)
+    minutes = models.PositiveSmallIntegerField(default=0)
+    snapshot = models.JSONField(default=dict, blank=True)
+    pdf = models.FileField(upload_to='player-match-reports/', null=True, blank=True)
+    reason = models.CharField(max_length=120, blank=True)
+    error_message = models.CharField(max_length=240, blank=True)
+    generated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='generated_player_match_reports',
+    )
+    generated_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-version', '-generated_at', '-id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['player', 'match', 'version'],
+                name='uniq_player_match_report_version',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['player', 'match', '-version'], name='pmra_player_match_ver_idx'),
+            models.Index(fields=['status', 'generated_at'], name='pmra_status_created_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.player.name} · partido {self.match_id} · v{self.version}'
+
+
 class CustomMetric(models.Model):
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='custom_metrics')
     season = models.ForeignKey(Season, on_delete=models.CASCADE, related_name='custom_metrics')

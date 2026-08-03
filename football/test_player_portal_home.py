@@ -11,6 +11,7 @@ from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.core.files.base import ContentFile
 from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -24,6 +25,7 @@ from football.models import (
     Player,
     PlayerFine,
     PlayerObjective,
+    PlayerMatchReportArchive,
     PlayerPortalPolicy,
     PlayerStatistic,
     Season,
@@ -224,6 +226,36 @@ class PlayerHomeTests(TestCase):
 
         self.assertEqual(response.context["match_reports"], [])
         self.assertIsNone(response.context["latest_match_report"])
+
+    def test_pdf_download_serves_the_archived_version(self):
+        competition = Competition.objects.create(name="Liga PDF", slug="liga-pdf", region="Malaga")
+        season = Season.objects.create(competition=competition, name="2026/27 PDF")
+        rival = Team.objects.create(name="Rival PDF", slug="rival-pdf")
+        match = Match.objects.create(
+            season=season,
+            home_team=self.team,
+            away_team=rival,
+            date=timezone.localdate(),
+            is_closed=True,
+        )
+        archive = PlayerMatchReportArchive.objects.create(
+            player=self.player,
+            match=match,
+            version=1,
+            status=PlayerMatchReportArchive.STATUS_READY,
+            rating=6.4,
+            snapshot={"rating": 6.4, "minutes": 45},
+        )
+        archive.pdf.save("archived-report.pdf", ContentFile(b"%PDF-archived-version"))
+
+        response = self.client.get(
+            reverse("player-match-report-pdf", args=[self.player.id, match.id]) + "?download=1",
+            HTTP_HOST="localhost",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(b"".join(response.streaming_content), b"%PDF-archived-version")
+        self.assertIn("v1.pdf", response.headers["Content-Disposition"])
 
 
 class FichaIsClosedToThePlayerTests(TestCase):

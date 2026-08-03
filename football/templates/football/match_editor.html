@@ -84,6 +84,11 @@
           {% if match.is_closed %}
           <a class="btn" href="{% url 'match-staff-report' %}?match_id={{ match.id }}&team={{ primary_team_id }}">Ver informe global</a>
           <a class="btn primary" href="{% url 'match-staff-report-pdf' %}?match_id={{ match.id }}&team={{ primary_team_id }}&download=1">Descargar informe global</a>
+          <form method="post" style="margin:0;">
+            {% csrf_token %}
+            <input type="hidden" name="form_action" value="regenerate_player_reports" />
+            <button class="btn" type="submit">Regenerar informes personales</button>
+          </form>
           {% endif %}
           <a class="btn" href="{% url 'match-action-page' %}?match_id={{ match.id }}&stage=close&team={{ primary_team_id }}">Registro acciones</a>
         </div>
@@ -92,6 +97,16 @@
       {% if message %}<p class="alert ok">{{ message }}</p>{% endif %}
       {% if error %}<p class="alert err">{{ error }}</p>{% endif %}
       {% include 'football/includes/_zone_chips.html' with chips=editor_chips %}
+
+      {% if match.is_closed %}
+      <section class="panel" style="padding:.75rem 1rem;display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;">
+        <strong>Informes personales · v{{ report_archive_summary.latest_version|default:"1" }}</strong>
+        <span class="pill">{{ report_archive_summary.reports }} jugadores</span>
+        <span class="pill">{{ report_archive_summary.ready }} PDF listos</span>
+        {% if report_archive_summary.pending %}<span class="pill warn">{{ report_archive_summary.pending }} pendientes</span>{% endif %}
+        <small style="color:var(--prod-muted);">Regenerar crea una nueva versión y conserva las anteriores.</small>
+      </section>
+      {% endif %}
 
 
       <section class="panel" id="close-match-panel" style="border:1px solid rgba(56,189,248,0.35);">
