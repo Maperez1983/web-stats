@@ -61,12 +61,23 @@ class PizarraFichadosTests(TestCase):
         fila = self._fila(p, {})
         self.assertEqual(fila.get('state'), 'available')
 
-    def test_sin_ficha_sigue_avisando_con_chandal(self):
-        """No tener licencia sí es no estar fichado: el aviso se queda."""
-        p = self._jugador('Reno', ficha=False)
-        fila = self._fila(p, {})
+    def test_confirmado_en_plantilla_basta_aunque_no_haya_licencia(self):
+        """En pretemporada nadie tiene ficha todavía y la plantilla es la de siempre."""
+        p = self._jugador('Adnan', ficha=False)
+        fila = self._fila(p, {p.id: self._membresia(p, confirmada=True)})
+        self.assertEqual(fila.get('state'), 'available')
+        self.assertNotIn('chandal', str(fila.get('avatar') or ''))
+
+    def test_ni_licencia_ni_confirmado_si_es_a_prueba(self):
+        p = self._jugador('Ojeado', ficha=False)
+        fila = self._fila(p, {p.id: self._membresia(p, confirmada=False)})
         self.assertEqual(fila.get('state'), 'trial')
         self.assertIn('chandal', str(fila.get('avatar') or ''))
+
+    def test_sin_nada_de_nada_tambien_es_a_prueba(self):
+        p = self._jugador('Suelto', ficha=False)
+        fila = self._fila(p, {})
+        self.assertEqual(fila.get('state'), 'trial')
 
     def test_el_lesionado_manda_sobre_todo(self):
         p = self._jugador('Lesionado', ficha=True)
