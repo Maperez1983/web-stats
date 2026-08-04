@@ -438,6 +438,7 @@ def _task_builder_initial_values(task):
         "pitch_format": str(meta.get("pitch_format") or ""),
         "game_phase": str(meta.get("game_phase") or ""),
         "game_moment": str(meta.get("game_moment") or ""),
+        "task_family": str(meta.get("task_family") or ""),
         "principle": str(meta.get("principle") or ""),
         "subprinciple": str(meta.get("subprinciple") or ""),
         "provocation_rule": str(meta.get("provocation_rule") or ""),
