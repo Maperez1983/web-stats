@@ -304,6 +304,13 @@
 		              veces.{% endcomment %}
 		              {% comment %}El saque inicial se marca PARANDO el video donde toca, que es lo natural
 		              viendo un partido; teclear el segundo exacto no lo hace nadie.{% endcomment %}
+		              {% comment %}Dos modos. "Cortar" es lo que hace cualquiera -ver, marcar y guardar-, y
+		              "Editar" abre la telestracion y los exports. 228 controles a la vez no los usa nadie:
+		              el analista no pierde nada y el segundo entrenador puede entrar.{% endcomment %}
+		              <div class="vs-modo" role="group" aria-label="Modo del estudio" style="display:inline-flex;gap:.3rem;margin-right:.5rem;">
+		                <button type="button" class="button primary" id="vs-modo-cortar" aria-pressed="true">✂️ Cortar</button>
+		                <button type="button" class="button" id="vs-modo-editar" aria-pressed="false">🎨 Editar</button>
+		              </div>
 		              <button type="button" class="button" id="vs-mark-kickoff" title="El vídeo está en el saque inicial: márcalo">⚽ Saque aquí</button>
 		              <button type="button" class="button" id="vs-mark-second-half" title="El vídeo está en el inicio de la 2ª parte">2ª parte aquí</button>
 		              <button type="button" class="button" id="vs-clips-registro" title="Convierte las acciones registradas del partido en clips">Clips del registro</button>
@@ -370,7 +377,7 @@
 			                </div>
 			              </details>
             </div>
-            <div class="right">
+            <div class="right" data-vs-advanced="1">
 	              <button type="button" class="button" id="vs-tool-select">Select</button>
 	              <button type="button" class="button" id="vs-tool-pen">Pen</button>
 		              <button type="button" class="button" id="vs-tool-line" title="Línea recta: arrastra para dibujar. Mantén Shift para horizontal/vertical.">Línea</button>

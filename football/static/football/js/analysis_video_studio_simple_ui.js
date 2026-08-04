@@ -195,3 +195,37 @@
   // reaparecen los que estaban escondidos.
   try { new MutationObserver(() => { original = ''; aplicar(); }).observe(lista, { childList: true }); } catch (e) { /* ignore */ }
 })();
+
+/*
+  Dos modos: "Cortar" y "Editar".
+
+  El estudio tenía 228 controles compitiendo en la misma pantalla: los cuatro que usa cualquiera
+  -ver, marcar IN/OUT, guardar- y los doscientos que usa un analista un domingo al mes. Aquí no se
+  quita nada: se guarda lo avanzado detrás de un interruptor, y se recuerda la elección.
+*/
+(function () {
+  const cortar = document.getElementById('vs-modo-cortar');
+  const editar = document.getElementById('vs-modo-editar');
+  if (!cortar || !editar) return;
+  const LLAVE = 'vs-modo';
+
+  const aplicar = (modo) => {
+    const simple = modo !== 'editar';
+    document.querySelectorAll('[data-vs-advanced]').forEach((el) => { el.hidden = simple; });
+    cortar.classList.toggle('primary', simple);
+    editar.classList.toggle('primary', !simple);
+    cortar.setAttribute('aria-pressed', simple ? 'true' : 'false');
+    editar.setAttribute('aria-pressed', simple ? 'false' : 'true');
+    try { window.localStorage.setItem(LLAVE, simple ? 'cortar' : 'editar'); } catch (e) { /* ignore */ }
+    // El lienzo se dimensiona a partir del reproductor: al cambiar el modo cambia el hueco, y sin
+    // avisar se queda con la medida vieja.
+    try { window.dispatchEvent(new Event('resize')); } catch (e) { /* ignore */ }
+  };
+
+  cortar.addEventListener('click', () => aplicar('cortar'));
+  editar.addEventListener('click', () => aplicar('editar'));
+
+  let guardado = 'cortar';
+  try { guardado = window.localStorage.getItem(LLAVE) || 'cortar'; } catch (e) { guardado = 'cortar'; }
+  aplicar(guardado);
+})();
