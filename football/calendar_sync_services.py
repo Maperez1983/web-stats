@@ -17,7 +17,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.text import slugify
 
-from .models import Match, Team, resolve_or_create_team
+from .models import Match, Team, resolve_or_create_team, team_by_alias
 
 
 def _parse_int(value):
@@ -228,6 +228,11 @@ def _resolve_opponent(primary_team, group, opponent_name, *, write):
         .order_by("-is_primary", "name")
         .first()
     )
+    if opp:
+        return opp
+    # Las consultas de arriba son por nombre EXACTO: el calendario de Universo escribe al rival
+    # en corto y mayúsculas ("PIZARRA") y no casaba con su ficha real, así que se creaba otra.
+    opp = team_by_alias(opponent_name, group=group)
     if opp:
         return opp
     if not write:

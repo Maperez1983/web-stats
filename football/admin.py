@@ -158,15 +158,47 @@ class ClubCategoryAdmin(admin.ModelAdmin):
         return obj.teams.count()
 
 
+class TeamNameAliasInline(admin.TabularInline):
+    """Los nombres con los que las fuentes externas escriben este equipo. Añadir uno aquí evita
+    que la próxima sincronización cree otra ficha con esa grafía."""
+
+    model = models.TeamNameAlias
+    extra = 1
+    fields = ('alias', 'source', 'alias_key')
+    readonly_fields = ('alias_key',)
+
+
+@admin.register(models.TeamNameAlias)
+class TeamNameAliasAdmin(admin.ModelAdmin):
+    list_display = ('alias', 'team', 'alias_key', 'source', 'created_at')
+    search_fields = ('alias', 'alias_key', 'team__name')
+    autocomplete_fields = ('team',)
+    readonly_fields = ('alias_key', 'created_at')
+
+
 @admin.register(models.Team)
 class TeamAdmin(admin.ModelAdmin):
-    list_display = ('name', 'club', 'category', 'category_ref', 'name_key', 'external_id', 'possible_duplicates', 'possible_duplicates_fuzzy', 'group', 'is_primary')
+    list_display = ('name', 'que_es', 'club', 'category', 'category_ref', 'name_key', 'external_id', 'possible_duplicates', 'possible_duplicates_fuzzy', 'group', 'is_primary')
     list_filter = ('game_format', 'group', 'is_primary')
     search_fields = ('name', 'short_name', 'slug', 'category', 'name_key', 'external_id', 'preferente_url')
     prepopulated_fields = {'slug': ('name',)}
     autocomplete_fields = ('club', 'category_ref')
     ordering = ('name_key', 'name')
     actions = ('merge_selected_teams',)
+    inlines = (TeamNameAliasInline,)
+
+    @admin.display(description='Qué es')
+    def que_es(self, obj):
+        # Sin esto, el repositorio de recursos del sistema se lee como un club suelto sin
+        # grupo ni categoría — o sea, como basura que hay que borrar. Y no lo es.
+        if models.is_system_team(obj):
+            return '⚙️ REPOSITORIO DEL SISTEMA — no es un club, no borrar'
+        return ''
+
+    def has_delete_permission(self, request, obj=None):
+        if models.is_system_team(obj):
+            return False
+        return super().has_delete_permission(request, obj=obj)
 
     @admin.display(description='Posibles duplicados')
     def possible_duplicates(self, obj):

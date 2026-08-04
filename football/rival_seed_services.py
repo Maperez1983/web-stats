@@ -10,19 +10,8 @@ campos vacíos. Sirve tanto para Universo RFAF como para La Preferente (ambas fi
 from django.db.models import Q
 from django.utils.text import slugify
 
-from .models import Team
+from .models import Team, resolve_or_create_team
 from .query_helpers import _normalize_team_lookup_key
-
-
-def _unique_rival_slug(base_name):
-    base = slugify(base_name) or "rival"
-    slug = base[:150]
-    counter = 2
-    while Team.objects.filter(slug=slug).exists():
-        suffix = f"-{counter}"
-        slug = base[: 150 - len(suffix)] + suffix
-        counter += 1
-    return slug
 
 
 def seed_rivals_from_standings(primary_team, standings_rows):
@@ -65,19 +54,30 @@ def seed_rivals_from_standings(primary_team, standings_rows):
             ).first()
 
         if not team_obj:
+            # Por `resolve_or_create_team`, no por Team.objects.create: la búsqueda de arriba es
+            # por nombre EXACTO y no reconocía al club escrito de otra forma por la fuente
+            # ("PIZARRA" frente a "C.D. Pizarra Atlético C.F."), así que sembraba una ficha
+            # nueva en cada sincronización. El helper añade name_key y los alias aprendidos.
+            # Con el grupo del equipo primario, además, el rival nace con liga y categoría en
+            # vez de suelto: son los rivales de ESA clasificación.
             try:
-                Team.objects.create(
+                team_obj, was_created = resolve_or_create_team(
                     name=full_name[:150],
-                    slug=_unique_rival_slug(full_name),
                     external_id=team_code[:120] if team_code else "",
-                    crest_url=crest_url[:600] if crest_url else "",
-                    home_stadium=home_stadium[:200] if home_stadium else "",
-                    is_primary=False,
+                    group=getattr(primary_team, "group", None),
+                    defaults={
+                        # sin 'slug': lo calcula el propio helper (pasarlo aquí lo duplicaría)
+                        "crest_url": crest_url[:600] if crest_url else "",
+                        "home_stadium": home_stadium[:200] if home_stadium else "",
+                        "is_primary": False,
+                    },
                 )
-                result["created"] += 1
             except Exception:
                 result["skipped"] += 1
-            continue
+                continue
+            if was_created:
+                result["created"] += 1
+                continue
 
         changed = False
         if team_code and (team_obj.external_id or "").strip() != team_code:

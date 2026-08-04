@@ -271,12 +271,90 @@ def _unique_team_slug(name):
     return slug
 
 
+# Equipo "de sistema": NO es un club, es el repositorio global de recursos de la pizarra
+# (iconos, plantillas). Se llama PIZARRA por la pizarra táctica, y lo recrea a demanda la
+# subida de recursos con scope=system. Parece basura en los listados del admin y no lo es:
+# borrarlo se lleva por cascada los recursos del catálogo global.
+SYSTEM_TEAM_SLUG = 'pizarra'
+
+
+def is_system_team(team):
+    """El repositorio de recursos del sistema, que NO debe tratarse como un equipo real
+    (ni fusionarse, ni borrarse, ni contarse entre los clubes)."""
+    return bool(team) and str(getattr(team, 'slug', '') or '') == SYSTEM_TEAM_SLUG
+
+
+class TeamNameAlias(models.Model):
+    """
+    Otro nombre con el que una fuente externa escribe un equipo que YA existe.
+
+    Cada fuente escribe el mismo club a su manera: la federación manda "Castejon" y
+    laPreferente "E.F. de Vélez Francisco Castejón". `name_key` es deliberadamente
+    conservador (no quita CD/CF para no fusionar clubes distintos), así que esos dos
+    nombres nunca casan y cada sincronización sembraba una ficha nueva del mismo club.
+    El alias es la memoria de esa equivalencia, y la deja escrita la fusión de duplicados.
+    """
+
+    team = models.ForeignKey('Team', on_delete=models.CASCADE, related_name='name_aliases')
+    alias = models.CharField(max_length=150)
+    # unique: una grafía sólo puede señalar a UN equipo; si no, volveríamos a la ambigüedad.
+    alias_key = models.CharField(max_length=150, unique=True, db_index=True)
+    source = models.CharField(max_length=40, blank=True, default='', help_text='De dónde vino esa grafía (universo, preferente, fusión…)')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'alias de equipo'
+        verbose_name_plural = 'alias de equipos'
+        ordering = ['alias']
+
+    def save(self, *args, **kwargs):
+        self.alias = str(self.alias or '').strip()[:150]
+        self.alias_key = normalize_team_name_key(self.alias)[:150]
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'{self.alias} → {self.team_id}'
+
+
+def team_by_alias(name, group=None):
+    """Equipo al que apunta esa grafía, o None. Con `group`, prefiere el del mismo grupo:
+    un club tiene varias categorías y el alias puede existir para más de una."""
+    key = normalize_team_name_key(name)
+    if not key:
+        return None
+    aliases = list(TeamNameAlias.objects.filter(alias_key=key).select_related('team')[:5])
+    if not aliases:
+        return None
+    if group is not None:
+        for alias in aliases:
+            if getattr(alias.team, 'group_id', None) == getattr(group, 'id', group):
+                return alias.team
+    return aliases[0].team
+
+
+def register_team_alias(team, name, *, source=''):
+    """Deja escrito que `name` es ese equipo. No pisa un alias existente ni registra una
+    grafía que ya es el nombre real de OTRO equipo (eso desviaría fichas legítimas).
+    Devuelve el alias creado, o None si no procedía."""
+    key = normalize_team_name_key(name)
+    if not team or not key or key == (getattr(team, 'name_key', '') or ''):
+        return None
+    if TeamNameAlias.objects.filter(alias_key=key).exists():
+        return None
+    if Team.objects.filter(name_key=key).exclude(pk=team.pk).exists():
+        return None
+    try:
+        return TeamNameAlias.objects.create(team=team, alias=name, source=source or '')
+    except Exception:
+        return None
+
+
 def resolve_or_create_team(*, name, external_id='', preferente_url='', group=None, defaults=None):
     """
     Devuelve (team, created) evitando duplicar el MISMO equipo real. Orden de identidad:
-    external_id -> preferente_url -> nombre normalizado (name_key, priorizando el mismo grupo).
-    Crea solo si no hay coincidencia. Reúne en un helper la lógica de dedup para todos los
-    puntos de creación (importación de clasificación, rivales, etc.).
+    external_id -> preferente_url -> nombre normalizado (name_key, priorizando el mismo grupo)
+    -> alias aprendidos. Crea solo si no hay coincidencia. Reúne en un helper la lógica de
+    dedup para todos los puntos de creación (importación de clasificación, rivales, etc.).
     """
     external_id = str(external_id or '').strip()
     preferente_url = str(preferente_url or '').strip()
@@ -302,6 +380,11 @@ def resolve_or_create_team(*, name, external_id='', preferente_url='', group=Non
             candidates = list(Team.objects.filter(name_key=key)[:2])
             if len(candidates) == 1:
                 return candidates[0], False
+
+    # Último recurso antes de crear: ¿ya nos enseñaron que esta grafía es un equipo nuestro?
+    aliased = team_by_alias(name, group=group)
+    if aliased is not None:
+        return aliased, False
 
     values = dict(defaults or {})
     values.setdefault('external_id', external_id)
@@ -478,6 +561,11 @@ def merge_teams(keep, drop):
     from django.db import IntegrityError, transaction
     if keep is None or drop is None or keep.pk == drop.pk:
         return keep
+    # El repositorio del sistema aparece en los listados como un equipo más llamado PIZARRA y
+    # se confunde con el club de Pizarra. Fusionarlo colgaría los recursos globales de un club
+    # rival, y borrarlo se los llevaría por cascada.
+    if is_system_team(keep) or is_system_team(drop):
+        return keep
     reassigned, dropped = 0, 0
     for rel in list(drop._meta.related_objects):
         field = rel.field
@@ -503,7 +591,14 @@ def merge_teams(keep, drop):
     if getattr(keep, 'club_id', None) is None and getattr(drop, 'club_id', None):
         keep.club_id = drop.club_id
         keep.save(update_fields=['club'])
+    grafias = [getattr(drop, 'name', ''), getattr(drop, 'short_name', '')]
     drop.delete()
+    # La fusión ENSEÑA: las grafías del duplicado quedan apuntando a keep. Sin esto, la
+    # siguiente sincronización volvía a crear la misma ficha y la limpieza no duraba nada.
+    # Después del delete, no antes: mientras el duplicado existe, su propio nombre cuenta
+    # como "nombre real de otro equipo" y el registro se rechazaría a sí mismo.
+    for grafia in grafias:
+        register_team_alias(keep, grafia, source='fusion')
     return keep
 
 
