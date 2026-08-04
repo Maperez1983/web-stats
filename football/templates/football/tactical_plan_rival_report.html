@@ -1,0 +1,106 @@
+{% load static l10n football_extras %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Rival · {{ rival.name }} · {{ plan.name }}</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      {% comment %}Una hoja: quién juega, quién mete y quién ve tarjetas. Pensada para imprimirse
+      o mandarse tal cual, así que el ancho es fijo y no hay nada interactivo.{% endcomment %}
+      .rr-head { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; margin-bottom: 1rem; }
+      .rr-head img { width: 40px; height: 40px; object-fit: contain; }
+      .rr-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 1rem; align-items: start; }
+      @media (max-width: 860px) { .rr-grid { grid-template-columns: 1fr; } }
+      .rr-card { border: 1px solid rgba(148,163,184,0.22); border-radius: 14px; padding: .9rem 1rem; background: rgba(2,6,23,0.35); margin-bottom: .9rem; }
+      .rr-card h2 { margin: 0 0 .7rem; font-size: .68rem; text-transform: uppercase; letter-spacing: .12em; color: var(--prod-muted); }
+      .rr-row { display: flex; align-items: center; gap: .6rem; padding: .35rem 0; border-top: 1px solid rgba(148,163,184,0.14); }
+      .rr-row:first-of-type { border-top: none; }
+      .rr-row img { width: 34px; height: 34px; border-radius: 999px; object-fit: cover; object-position: 50% 18%; background: rgba(2,6,23,.5); }
+      .rr-dorsal { min-width: 1.9rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--prod-muted); }
+      .rr-nombre { font-weight: 600; }
+      .rr-pos { color: var(--prod-muted); font-size: .78rem; margin-left: .35rem; }
+      .rr-dato { margin-left: auto; font-variant-numeric: tabular-nums; font-size: .82rem; color: var(--prod-muted); white-space: nowrap; }
+      .rr-dato b { color: var(--prod-text); }
+      .rr-alerta { background: rgba(244,180,0,.14); border-color: rgba(244,180,0,.4); }
+      .rr-nota { color: var(--prod-muted); font-size: .78rem; margin: .5rem 0 0; }
+      @media print { .zone-subnav, .dragon-nav, .rr-noprint { display: none !important; } body { background: #fff; } }
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <main class="page">
+      {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='tactica' %}
+
+      <header class="top rr-head">
+        <div style="display:flex;align-items:center;gap:.7rem;">
+          {% if rival_crest %}<img src="{{ rival_crest }}" alt="" />{% endif %}
+          <div>
+            <p style="margin:0;color:var(--prod-muted);">Rival · para {{ plan.name }}</p>
+            <h1 style="margin:.15rem 0 0;">{{ rival.name }}</h1>
+          </div>
+        </div>
+        <div class="rr-noprint">
+          <a class="button" href="{% url 'tactics-plan' %}">← Planteamiento</a>
+        </div>
+      </header>
+
+      <div class="rr-grid">
+        <section>
+          <div class="rr-card">
+            <h2>Su once probable · por minutos jugados</h2>
+            {% for p in probable %}
+            <div class="rr-row">
+              <span class="rr-dorsal">{{ p.number|default:"–" }}</span>
+              {% if p.photo_url %}<img src="{{ p.photo_url }}" alt="" referrerpolicy="no-referrer" loading="lazy" />{% endif %}
+              <span><span class="rr-nombre">{{ p.name }}</span>{% if p.position %}<span class="rr-pos">{{ p.position }}</span>{% endif %}</span>
+              <span class="rr-dato"><b>{{ p.minutes }}</b>′ · {{ p.pj }} pj{% if p.goals %} · <b>{{ p.goals }}</b> g{% endif %}</span>
+            </div>
+            {% empty %}
+            <p class="rr-nota">No hay plantilla volcada de este rival.</p>
+            {% endfor %}
+            <p class="rr-nota">No sabemos su alineación: son los once con más minutos esta temporada, que es la aproximación honesta.</p>
+          </div>
+        </section>
+
+        <aside>
+          {% if goleadores %}
+          <div class="rr-card rr-alerta">
+            <h2>Quién mete los goles</h2>
+            {% for p in goleadores %}
+            <div class="rr-row">
+              <span class="rr-dorsal">{{ p.number|default:"–" }}</span>
+              <span class="rr-nombre">{{ p.name }}</span>
+              <span class="rr-dato"><b>{{ p.goals }}</b> {% if p.goals == 1 %}gol{% else %}goles{% endif %}{% if p.pj %} en {{ p.pj }} pj{% endif %}</span>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+
+          {% if tarjetas %}
+          <div class="rr-card">
+            <h2>Quién ve tarjetas</h2>
+            {% for p in tarjetas %}
+            <div class="rr-row">
+              <span class="rr-dorsal">{{ p.number|default:"–" }}</span>
+              <span class="rr-nombre">{{ p.name }}</span>
+              <span class="rr-dato"><b>{{ p.yellow }}</b>A{% if p.red %} · <b>{{ p.red }}</b>R{% endif %}</span>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+
+          <div class="rr-card">
+            <h2>Nuestro planteamiento</h2>
+            <p style="margin:0;font-size:1.05rem;font-weight:700;">{{ plan.name }}{% if plan.formation %} · {{ plan.formation }}{% endif %}</p>
+            <p class="rr-nota">{{ nuestro_once|length }} titulares colocados · plantilla del rival: {{ total_jugadores }} jugadores.</p>
+            <p style="margin:.6rem 0 0;"><a href="{% url 'tactics-plan-board' plan.id %}">Ver el campo →</a></p>
+          </div>
+        </aside>
+      </div>
+    </main>
+  </body>
+</html>

@@ -485,6 +485,7 @@
           return { ...p, x_pct: 100 - s.x, y_pct: 100 - s.y };
         });
         pintarCampo();
+        refrescarEnlaceImagen();
         aviso('Rival colocado: ' + estado.rival.length + ' jugadores.');
       } catch (e) {
         aviso('No se pudo cargar la plantilla del rival.');
@@ -609,6 +610,98 @@
     });
   }
 
+  // --- biblioteca de estructuras ---
+  const FORMACIONES = leerJson('tp-formaciones', {});
+  const selEstructura = $('tp-formation-lib');
+  if (selEstructura) {
+    Object.keys(FORMACIONES).forEach((nombre) => {
+      const o = document.createElement('option');
+      o.value = nombre;
+      o.textContent = nombre;
+      selEstructura.appendChild(o);
+    });
+    selEstructura.addEventListener('change', () => {
+      const puestos = FORMACIONES[selEstructura.value];
+      if (!puestos) return;
+      if (!estado.starters.length) { aviso('Pon primero a los once en el campo.'); selEstructura.value = ''; return; }
+      // Se recolocan por el orden en que están, que ya viene por dorsal: el portero primero.
+      estado.starters.forEach((p, i) => {
+        const s = puestos[i] || puestos[puestos.length - 1];
+        p.x_pct = s.x;
+        p.y_pct = s.y;
+      });
+      if (!($('tp-formation').value || '').trim()) $('tp-formation').value = selEstructura.value;
+      pintarCampo();
+      aviso('Colocados en ' + selEstructura.value + '. Ajusta lo que quieras y guarda.');
+    });
+  }
+
+  // --- animación entre fases ---
+  // Las fases son los fotogramas: se interpola entre ellas, igual que el guion de las tareas.
+  let animando = false;
+  const animar = async () => {
+    if (animando) return;
+    guardarFaseActual();
+    if (estado.fase === 'base') {
+      estado.fases.base = { starters: estado.starters.map((f) => ({ ...f })), rival: estado.rival.map((f) => ({ ...f })) };
+    }
+    const orden = FASES.map((f) => f.key).filter((k) => (estado.fases[k] || {}).starters?.length);
+    if (orden.length < 2) { aviso('Hacen falta al menos dos fases dibujadas para animar.'); return; }
+    animando = true;
+    const faseInicial = estado.fase;
+    const btn = $('tp-play');
+    if (btn) btn.textContent = '■ Parar';
+
+    const interpolar = (a, b, t) => {
+      const porId = new Map(b.map((p) => [String(p.id || p.code), p]));
+      return a.map((p) => {
+        const fin = porId.get(String(p.id || p.code));
+        if (!fin) return p;
+        return { ...p, x_pct: p.x_pct + (fin.x_pct - p.x_pct) * t, y_pct: p.y_pct + (fin.y_pct - p.y_pct) * t };
+      });
+    };
+    const suave = (t) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
+
+    for (let i = 0; i < orden.length - 1 && animando; i += 1) {
+      const desde = estado.fases[orden[i]];
+      const hasta = estado.fases[orden[i + 1]];
+      const inicio = performance.now();
+      const DURACION = 1100;
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((resolve) => {
+        const paso = (ahora) => {
+          if (!animando) { resolve(); return; }
+          const t = Math.min(1, (ahora - inicio) / DURACION);
+          estado.starters = interpolar(desde.starters, hasta.starters, suave(t));
+          estado.rival = interpolar(desde.rival || [], hasta.rival || [], suave(t));
+          pintarCampo();
+          if (t < 1) requestAnimationFrame(paso); else resolve();
+        };
+        requestAnimationFrame(paso);
+      });
+      if (animando) await new Promise((r) => setTimeout(r, 450));
+    }
+
+    animando = false;
+    if (btn) btn.textContent = '▶ Animar';
+    // Se vuelve a dejar la pizarra donde estaba: animar es MIRAR, no editar.
+    estado.fase = faseInicial;
+    const vuelta = estado.fases[faseInicial];
+    if (vuelta) {
+      estado.starters = vuelta.starters.map((f) => ({ ...f }));
+      estado.rival = vuelta.rival.map((f) => ({ ...f }));
+    }
+    pintarCampo();
+  };
+
+  const btnPlay = $('tp-play');
+  if (btnPlay) {
+    btnPlay.addEventListener('click', () => {
+      if (animando) { animando = false; return; }
+      animar();
+    });
+  }
+
   const btnCarriles = $('tp-lanes-toggle');
   if (btnCarriles) {
     btnCarriles.addEventListener('click', () => {
@@ -620,16 +713,28 @@
   }
 
   const enlaceImagen = $('tp-image');
+  const enlaceInforme = $('tp-rival-report');
+  // Las URLs llevan un 0 de plantilla que se sustituye por el planteamiento cargado.
+  const conPlan = (plantillaUrl) => String(plantillaUrl || '').replace('/0/', '/' + estado.id + '/');
   const refrescarEnlaceImagen = () => {
-    if (!enlaceImagen) return;
-    if (!estado.id) {
-      enlaceImagen.removeAttribute('href');
-      enlaceImagen.textContent = 'Descargar imagen (guarda antes)';
-      return;
+    if (enlaceImagen) {
+      if (!estado.id) {
+        enlaceImagen.removeAttribute('href');
+        enlaceImagen.textContent = 'Descargar imagen (guarda antes)';
+      } else {
+        enlaceImagen.href = conPlan(URLS.image);
+        enlaceImagen.textContent = 'Descargar imagen';
+      }
     }
-    // La URL lleva un 0 de plantilla y se sustituye por el planteamiento cargado.
-    enlaceImagen.href = String(URLS.image || '').replace(/0(\/?)(\?|$|imagen)/, String(estado.id) + '$1$2').replace('/0/', '/' + estado.id + '/');
-    enlaceImagen.textContent = 'Descargar imagen';
+    if (enlaceInforme) {
+      if (!estado.id || !estado.rival_team_id) {
+        enlaceInforme.removeAttribute('href');
+        enlaceInforme.textContent = estado.id ? 'Informe del rival (elige rival)' : 'Informe del rival (guarda antes)';
+      } else {
+        enlaceInforme.href = conPlan(URLS.rivalReport);
+        enlaceInforme.textContent = 'Informe del rival';
+      }
+    }
   };
 
   pintarFases();

@@ -264,3 +264,41 @@ class BajasEnElPlanteamientoTests(PlanteamientoTests):
         self.assertTrue(d["ok"], "avisa, pero no impide: el entrenador manda")
         self.assertEqual(d["starters"], 1)
         self.assertEqual(d["warnings"][0]["motivo"], "sancionado")
+
+
+class InformeDelRivalTests(PlanteamientoTests):
+    """El rival en una hoja, con lo que ya está importado."""
+
+    def _plan_con_rival(self):
+        return self._guardar(
+            rival_team_id=self.rival.id,
+            rival_lineup={"starters": [{"code": "r1", "name": "Rival 1", "number": "9"}]},
+        ).json()["plan"]
+
+    def test_el_once_probable_son_los_de_mas_minutos(self):
+        from football.models import TeamRosterSnapshot
+
+        TeamRosterSnapshot.objects.filter(team=self.rival).delete()
+        TeamRosterSnapshot.objects.create(team=self.rival, provider="lapreferente", roster_payload=[
+            {"name": "Titular", "number": 5, "minutes": 900, "pj": 10, "goals": 2},
+            {"name": "Suplente", "number": 20, "minutes": 30, "pj": 3, "goals": 0},
+            {"name": "Killer", "number": 9, "minutes": 700, "pj": 9, "goals": 12, "yellow_cards": 4},
+        ])
+        plan = self._plan_con_rival()
+        r = self.client.get(reverse("tactics-plan-rival-report", args=[plan["id"]]), secure=True)
+        self.assertEqual(r.status_code, 200)
+        html = r.content.decode()
+        self.assertLess(html.index("Titular"), html.index("Suplente"), "el once probable va por minutos")
+        self.assertIn("12", html, "el goleador tiene que salir")
+        self.assertIn("Quién mete los goles", html)
+
+    def test_sin_rival_no_hay_informe(self):
+        plan = self._guardar().json()["plan"]  # sin rival
+        r = self.client.get(reverse("tactics-plan-rival-report", args=[plan["id"]]), secure=True)
+        self.assertEqual(r.status_code, 302)
+
+    def test_no_se_ve_el_informe_de_otro_equipo(self):
+        otro = Team.objects.create(name="Otro club", slug="otro-inf")
+        ajeno = TacticalPlan.objects.create(team=otro, name="suyo", rival_team=self.rival)
+        r = self.client.get(reverse("tactics-plan-rival-report", args=[ajeno.id]), secure=True)
+        self.assertEqual(r.status_code, 302)

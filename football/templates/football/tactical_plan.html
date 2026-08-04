@@ -130,10 +130,12 @@
           </div>
           <div class="tp-row" style="margin-bottom:.6rem;">
             <input id="tp-name" type="text" placeholder="Nombre del planteamiento (ej. 1-4-3-3 base)" maxlength="80" />
-            <input id="tp-formation" type="text" placeholder="1-4-3-3" maxlength="24" style="max-width:9rem;" />
+            <select id="tp-formation-lib" title="Colocar el once con una estructura" style="max-width:11rem;"><option value="">Estructura…</option></select>
+            <input id="tp-formation" type="text" placeholder="1-4-3-3" maxlength="24" style="max-width:8rem;" />
             <button class="button primary" id="tp-save" type="button">Guardar</button>
             <button class="button" id="tp-delete" type="button">Borrar</button>
             <button class="button" id="tp-lanes-toggle" type="button" aria-pressed="false">Carriles: OFF</button>
+            <button class="button" id="tp-play" type="button" title="Ver el movimiento entre fases">▶ Animar</button>
           </div>
           <div class="tp-phases" id="tp-phases" role="tablist" aria-label="Fases del planteamiento"></div>
           <div class="tp-pitch" id="tp-pitch" role="application" aria-label="Campo con los dos onces"></div>
@@ -163,6 +165,7 @@
             <select id="tp-match"><option value="">Elige el partido</option></select>
             <button class="button primary" id="tp-apply" type="button" style="margin-top:.5rem;width:100%;">Aplicar planteamiento</button>
             <a class="button" id="tp-image" href="#" style="margin-top:.4rem;width:100%;text-align:center;">Descargar imagen</a>
+            <a class="button" id="tp-rival-report" href="#" style="margin-top:.4rem;width:100%;text-align:center;">Informe del rival</a>
             <p class="tp-hint">Coloca este once en el prepartido de ese partido, con sus posiciones y con el rival.</p>
           </div>
 
@@ -180,6 +183,7 @@
       {{ slots_json|json_script:"tp-slots" }}
       {{ partidos_json|json_script:"tp-partidos" }}
       {{ fases_json|json_script:"tp-fases" }}
+      {{ formaciones_json|json_script:"tp-formaciones" }}
       <script>
         window.TP_URLS = {
           save: '{% url "tactics-plan-save" %}',
@@ -187,6 +191,7 @@
           rival: '{% url "tactics-plan-rival" %}',
           apply: '{% url "tactics-plan-apply" %}',
           image: '{% url "tactics-plan-image" 0 %}',
+          rivalReport: '{% url "tactics-plan-rival-report" 0 %}',
         };
         window.TP_LIMITE = {{ starters_limit }};
       </script>

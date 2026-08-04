@@ -44,6 +44,20 @@ SLOTS = [
 ]
 SLOTS_RIVAL = [(100 - x, 100 - y) for (x, y) in SLOTS]
 
+# Biblioteca de estructuras. La competencia presume de "más de 100 formaciones"; la mayoría son la
+# misma con otro nombre. Estas son las que se juegan, y colocan el once de un clic para no empezar
+# arrastrando once fichas. El portero va primero, y el orden es de atrás hacia delante.
+FORMACIONES = {
+    '1-4-4-2': [(7,50),(20,18),(20,39),(20,61),(20,82),(34,18),(34,39),(34,61),(34,82),(46,38),(46,62)],
+    '1-4-3-3': [(7,50),(20,18),(20,39),(20,61),(20,82),(32,30),(33,50),(32,70),(44,18),(46,50),(44,82)],
+    '1-4-2-3-1': [(7,50),(20,18),(20,39),(20,61),(20,82),(30,40),(30,60),(42,20),(42,50),(42,80),(50,50)],
+    '1-4-1-4-1': [(7,50),(20,18),(20,39),(20,61),(20,82),(29,50),(39,18),(39,39),(39,61),(39,82),(49,50)],
+    '1-3-5-2': [(7,50),(20,32),(20,50),(20,68),(32,12),(32,36),(33,50),(32,64),(32,88),(45,40),(45,60)],
+    '1-5-3-2': [(7,50),(19,14),(20,32),(20,50),(20,68),(19,86),(33,32),(34,50),(33,68),(45,40),(45,60)],
+    '1-3-4-3': [(7,50),(20,32),(20,50),(20,68),(32,14),(32,40),(32,60),(32,86),(45,20),(47,50),(45,80)],
+    '1-4-4-2 rombo': [(7,50),(20,18),(20,39),(20,61),(20,82),(29,50),(36,26),(36,74),(43,50),(50,38),(50,62)],
+}
+
 
 def _pct(valor, por_defecto):
     try:
@@ -308,6 +322,9 @@ def tactical_plan_page(request):
         'rivales_json': json.dumps(rivales),
         'slots_json': json.dumps([{'x': x, 'y': y} for x, y in SLOTS]),
         'fases_json': json.dumps([{'key': k, 'name': n} for k, n in FASES]),
+        'formaciones_json': json.dumps({
+            nombre: [{'x': x, 'y': y} for (x, y) in puestos] for nombre, puestos in FORMACIONES.items()
+        }),
         'starters_limit': LIMITE_TITULARES,
     })
 
@@ -580,6 +597,68 @@ def tactical_plan_apply(request):
         'added_to_convocation': len(faltan),
         'rival': len(rival_filas),
         'warnings': avisos,
+    })
+
+
+@login_required
+def tactical_plan_rival_report(request, plan_id):
+    """
+    El rival en una hoja: su once probable, quién mete los goles y quién ve tarjetas.
+
+    Wyscout hace esto con vídeo para la élite. Aquí sale de lo que ya está importado de
+    laPreferente, que para Preferente no lo tiene nadie.
+    """
+    from .views import _forbid_if_no_coach_access, _get_primary_team_for_request
+
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    equipo = _get_primary_team_for_request(request)
+    if not equipo:
+        return redirect('coach-roster')
+    plan = TacticalPlan.objects.filter(team=equipo, id=plan_id).select_related('rival_team').first()
+    if not plan or not plan.rival_team_id:
+        return redirect('tactics-plan')
+
+    snap = TeamRosterSnapshot.objects.filter(team_id=plan.rival_team_id).order_by('-updated_at').first()
+    filas = [r for r in ((snap.roster_payload if snap else []) or []) if isinstance(r, dict) and (r.get('name') or '').strip()]
+
+    def num(row, clave):
+        try:
+            return int(str(row.get(clave) or 0).strip() or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    plantilla = [{
+        'name': (r.get('name') or '').strip(),
+        'number': str(r.get('number') or r.get('dorsal') or '').strip(),
+        'position': (r.get('position') or '').strip(),
+        'photo_url': (r.get('photo_url') or '').strip(),
+        'pj': num(r, 'pj'),
+        'minutes': num(r, 'minutes'),
+        'goals': num(r, 'goals'),
+        'yellow': num(r, 'yellow_cards'),
+        'red': num(r, 'red_cards'),
+    } for r in filas]
+
+    # El once probable: los de más minutos. Es la aproximación honesta -no sabemos su alineación-
+    # y con los minutos de la temporada acierta casi siempre.
+    probable = sorted(plantilla, key=lambda x: (-x['minutes'], -x['pj'], x['name']))[:11]
+    goleadores = [p for p in sorted(plantilla, key=lambda x: -x['goals']) if p['goals']][:5]
+    tarjetas = [p for p in sorted(plantilla, key=lambda x: -(x['yellow'] + x['red'] * 2)) if (p['yellow'] or p['red'])][:5]
+
+    return render(request, 'football/tactical_plan_rival_report.html', {
+        'plan': plan,
+        'team_name': equipo.display_name,
+        'crest_url': _escudo_de(equipo),
+        'rival': plan.rival_team,
+        'rival_crest': _escudo_de(plan.rival_team),
+        'plantilla': plantilla,
+        'probable': probable,
+        'goleadores': goleadores,
+        'tarjetas': tarjetas,
+        'nuestro_once': (plan.lineup_data or {}).get('starters') or [],
+        'total_jugadores': len(plantilla),
     })
 
 
