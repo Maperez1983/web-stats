@@ -25,6 +25,15 @@ from django.views.decorators.http import require_POST
 from .models import Player, TacticalPlan, Team, TeamRosterSnapshot
 
 LIMITE_TITULARES = 11
+# Las fases de un planteamiento. Son fijas a proposito: si cada entrenador se inventa las suyas,
+# dos planteamientos del mismo club dejan de poder compararse.
+FASES = (
+    ('base', 'Once base'),
+    ('salida', 'Salida de balón'),
+    ('presion', 'Presión alta'),
+    ('repliegue', 'Repliegue'),
+    ('abp', 'Balón parado'),
+)
 MAX_PLANTEAMIENTOS = 40
 
 # La misma estructura base que el prepartido, en orientación 'lr' (campo horizontal, nosotros a la
@@ -137,6 +146,28 @@ def _foto_de(request, player):
         return ''
 
 
+def _normalizar_fases(payload, permitidos):
+    """Las fases guardadas: sólo las del catálogo y sólo con jugadores del equipo."""
+    validas = dict(FASES)
+    filas = payload if isinstance(payload, list) else []
+    fuera = []
+    vistas = set()
+    for item in filas:
+        if not isinstance(item, dict):
+            continue
+        clave = str(item.get('key') or '').strip()
+        if clave not in validas or clave in vistas:
+            continue
+        vistas.add(clave)
+        fuera.append({
+            'key': clave,
+            'name': validas[clave],
+            'starters': (_normalizar({'starters': item.get('starters')}, permitidos))['starters'],
+            'rival': (_normalizar_rival({'starters': item.get('rival')}))['starters'],
+        })
+    return fuera
+
+
 def _plan_json(plan):
     return {
         'id': plan.id,
@@ -148,6 +179,7 @@ def _plan_json(plan):
         'rival_team_id': plan.rival_team_id,
         'rival_team_name': plan.rival_team.name if plan.rival_team else '',
         'rival_lineup': plan.rival_lineup_data or {'starters': []},
+        'phases': plan.phases_data if isinstance(plan.phases_data, list) else [],
         'updated_at': plan.updated_at.isoformat() if plan.updated_at else '',
     }
 
@@ -228,6 +260,7 @@ def tactical_plan_page(request):
         'crest_url': _escudo_de(equipo),
         'rivales_json': json.dumps(rivales),
         'slots_json': json.dumps([{'x': x, 'y': y} for x, y in SLOTS]),
+        'fases_json': json.dumps([{'key': k, 'name': n} for k, n in FASES]),
         'starters_limit': LIMITE_TITULARES,
     })
 
@@ -281,6 +314,7 @@ def tactical_plan_save(request):
     plan.rival_team = rival
     plan.rival_lineup_data = rival_lineup
     plan.is_default = bool(datos.get('is_default'))
+    plan.phases_data = _normalizar_fases(datos.get('phases'), permitidos)
     plan.save()
 
     if plan.is_default:

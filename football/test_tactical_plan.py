@@ -194,3 +194,28 @@ class ImagenPlanteamientoTests(PlanteamientoTests):
         ajeno = TacticalPlan.objects.create(team=otro, name="suyo")
         r = self.client.get(reverse("tactics-plan-board", args=[ajeno.id]), secure=True)
         self.assertEqual(r.status_code, 302, "debe rebotar, no enseñar el planteamiento de otro")
+
+
+class FasesPlanteamientoTests(PlanteamientoTests):
+    """Un planteamiento no es una foto: son la salida, la presión, el repliegue y el ABP."""
+
+    def test_las_fases_se_guardan_y_vuelven(self):
+        r = self._guardar(phases=[
+            {"key": "presion", "starters": [{"id": self.p1.id, "x_pct": 60, "y_pct": 40}]},
+            {"key": "repliegue", "starters": [{"id": self.p2.id, "x_pct": 15, "y_pct": 50}]},
+        ])
+        fases = r.json()["plan"]["phases"]
+        self.assertEqual([f["key"] for f in fases], ["presion", "repliegue"])
+        self.assertEqual(fases[0]["name"], "Presión alta", "el nombre lo pone el catálogo, no el navegador")
+        self.assertEqual(fases[0]["starters"][0]["x_pct"], 60)
+
+    def test_una_fase_inventada_no_entra(self):
+        r = self._guardar(phases=[{"key": "invento", "starters": [{"id": self.p1.id}]}])
+        self.assertEqual(r.json()["plan"]["phases"], [],
+                         "las fases son fijas: si cada uno se inventa las suyas, no se pueden comparar")
+
+    def test_una_fase_no_cuela_jugadores_de_otro_equipo(self):
+        otro = Team.objects.create(name="Otro", slug="otro-f")
+        intruso = Player.objects.create(team=otro, name="Intruso", is_active=True)
+        r = self._guardar(phases=[{"key": "salida", "starters": [{"id": intruso.id, "x_pct": 50, "y_pct": 50}]}])
+        self.assertEqual(r.json()["plan"]["phases"][0]["starters"], [])

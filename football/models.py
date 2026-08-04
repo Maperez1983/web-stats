@@ -2099,6 +2099,11 @@ class TacticalPlan(models.Model):
         related_name='as_rival_tactical_plans',
     )
     rival_lineup_data = models.JSONField(default=dict, blank=True)
+    # FASES: un planteamiento no es una foto, son varias. La salida de balón, la presión alta, el
+    # repliegue y el balón parado son el mismo once en sitios distintos. Se guardan aquí, no en
+    # planteamientos separados, porque son el mismo plan mirado en momentos distintos.
+    # Forma: [{'key': 'salida', 'name': 'Salida de balón', 'starters': [...], 'rival': [...]}]
+    phases_data = models.JSONField(default=list, blank=True)
     is_default = models.BooleanField(default=False, help_text='El planteamiento con el que se empieza.')
     created_by = models.ForeignKey(
         User,

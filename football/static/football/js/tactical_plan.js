@@ -30,7 +30,10 @@
   const rivales = leerJson('tp-rivales', []);
   let planes = leerJson('tp-planes', []);
 
-  const estado = { id: null, name: '', formation: '', starters: [], rival_team_id: '', rival: [] };
+  const FASES = leerJson('tp-fases', [{ key: 'base', name: 'Once base' }]);
+  // `fase` es la que se está viendo; `fases` guarda lo que hay dibujado en cada una. La fase base
+  // vive en starters/rival (es el once del planteamiento); las demás, en este mapa.
+  const estado = { id: null, name: '', formation: '', starters: [], rival_team_id: '', rival: [], fase: 'base', fases: {} };
 
   const csrf = () => {
     const m = document.cookie.match(/(^|;\s*)csrftoken=([^;]+)/);
@@ -134,6 +137,52 @@
       capa.appendChild(linea);
     });
     campo.appendChild(capa);
+  };
+
+  // --- fases ---
+  const guardarFaseActual = () => {
+    if (estado.fase === 'base') return;
+    estado.fases[estado.fase] = {
+      starters: estado.starters.map((f) => ({ ...f })),
+      rival: estado.rival.map((f) => ({ ...f })),
+    };
+  };
+
+  const cambiarFase = (clave) => {
+    if (clave === estado.fase) return;
+    guardarFaseActual();
+    if (estado.fase === 'base') {
+      estado.fases.base = { starters: estado.starters.map((f) => ({ ...f })), rival: estado.rival.map((f) => ({ ...f })) };
+    }
+    estado.fase = clave;
+    const guardada = estado.fases[clave];
+    if (guardada) {
+      estado.starters = guardada.starters.map((f) => ({ ...f }));
+      estado.rival = guardada.rival.map((f) => ({ ...f }));
+    } else if (estado.fases.base) {
+      // Una fase nueva arranca desde el once base: nadie quiere recolocar once fichas de cero.
+      estado.starters = estado.fases.base.starters.map((f) => ({ ...f }));
+      estado.rival = estado.fases.base.rival.map((f) => ({ ...f }));
+    }
+    pintarFases();
+    pintarBanquillo();
+    pintarCampo();
+    aviso('Fase: ' + (FASES.find((f) => f.key === clave) || {}).name + '. Mueve y guarda.');
+  };
+
+  const pintarFases = () => {
+    const cont = $('tp-phases');
+    if (!cont) return;
+    cont.innerHTML = '';
+    FASES.forEach((f) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      const dibujada = f.key === 'base' ? estado.starters.length > 0 : !!(estado.fases[f.key] || {}).starters?.length;
+      b.className = 'tp-phase' + (f.key === estado.fase ? ' is-on' : '') + (dibujada ? ' tiene' : '');
+      b.textContent = f.name;
+      b.addEventListener('click', () => cambiarFase(f.key));
+      cont.appendChild(b);
+    });
   };
 
   // --- lectura del campo: carriles, estructura y superioridades ---
@@ -323,10 +372,18 @@
     });
     estado.rival = ((plan.rival_lineup || {}).starters || []).map((f) => ({ ...f }));
     estado.rival_team_id = plan.rival_team_id || '';
+    estado.fase = 'base';
+    estado.fases = {};
+    (plan.phases || []).forEach((f) => {
+      if (f && f.key && f.key !== 'base') {
+        estado.fases[f.key] = { starters: f.starters || [], rival: f.rival || [] };
+      }
+    });
     $('tp-name').value = estado.name;
     $('tp-formation').value = estado.formation;
     $('tp-rival').value = estado.rival_team_id || '';
     pintarLista();
+    pintarFases();
     pintarBanquillo();
     pintarCampo();
     refrescarEnlaceImagen();
@@ -367,6 +424,12 @@
   $('tp-save').addEventListener('click', async () => {
     const nombre = ($('tp-name').value || '').trim();
     if (!nombre) { aviso('Ponle un nombre al planteamiento.'); return; }
+    if (estado.fase !== 'base' && estado.fases.base) {
+      // El once del planteamiento es el de la fase base, se esté viendo la que se esté viendo.
+      guardarFaseActual();
+      estado.starters = estado.fases.base.starters.map((f) => ({ ...f }));
+      estado.rival = estado.fases.base.rival.map((f) => ({ ...f }));
+    }
     aviso('Guardando…');
     try {
       const r = await fetch(URLS.save, {
@@ -380,6 +443,10 @@
           lineup: { starters: estado.starters },
           rival_team_id: estado.rival_team_id || null,
           rival_lineup: { starters: estado.rival },
+          phases: (function () {
+            guardarFaseActual();
+            return Object.keys(estado.fases).map((k) => ({ key: k, starters: estado.fases[k].starters, rival: estado.fases[k].rival }));
+          })(),
         }),
       });
       const d = await r.json();
@@ -489,6 +556,7 @@
     enlaceImagen.textContent = 'Descargar imagen';
   };
 
+  pintarFases();
   pintarSelectorPartido();
   pintarSelectorRival();
   pintarLista();

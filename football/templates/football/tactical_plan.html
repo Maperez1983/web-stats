@@ -75,6 +75,13 @@
         text-transform: uppercase; color: rgba(255,255,255,.72); text-shadow: 0 2px 8px rgba(0,0,0,.9);
       }
       .tp-zone-line { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,.22); }
+      .tp-phases { display: flex; gap: .35rem; flex-wrap: wrap; margin-bottom: .5rem; }
+      .tp-phase {
+        font-size: .78rem; padding: .32rem .7rem; border-radius: 999px; cursor: pointer;
+        border: 1px solid rgba(148,163,184,0.3); background: transparent; color: var(--prod-text);
+      }
+      .tp-phase.is-on { border-color: rgba(244,180,0,.65); background: rgba(244,180,0,.16); font-weight: 700; }
+      .tp-phase.tiene::after { content: " ·"; color: #86efac; }
     </style>
   </head>
   <body class="prod-commercial">
@@ -113,6 +120,7 @@
             <button class="button" id="tp-delete" type="button">Borrar</button>
             <button class="button" id="tp-lanes-toggle" type="button" aria-pressed="false">Carriles: OFF</button>
           </div>
+          <div class="tp-phases" id="tp-phases" role="tablist" aria-label="Fases del planteamiento"></div>
           <div class="tp-pitch" id="tp-pitch" role="application" aria-label="Campo con los dos onces"></div>
           <p class="tp-hint" id="tp-status">Arrastra las fichas para colocarlas. Se guardan al pulsar Guardar.</p>
         </section>
@@ -156,6 +164,7 @@
       {{ rivales_json|json_script:"tp-rivales" }}
       {{ slots_json|json_script:"tp-slots" }}
       {{ partidos_json|json_script:"tp-partidos" }}
+      {{ fases_json|json_script:"tp-fases" }}
       <script>
         window.TP_URLS = {
           save: '{% url "tactics-plan-save" %}',
