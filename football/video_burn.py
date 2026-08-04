@@ -29,6 +29,91 @@ logger = logging.getLogger(__name__)
 TIPOS = {'line', 'rect', 'circle', 'ellipse', 'path', 'polyline', 'polygon', 'text', 'i-text', 'textbox', 'triangle', 'group'}
 
 
+# --- recursos gráficos ---------------------------------------------------------------------
+#
+# Una flecha de una línea recta con un triángulo pegado se ve casera. Lo que hace que la
+# telestración de los programas caros parezca profesional no es magia: es cuerpo que se AFILA hacia
+# la punta, una sombra por debajo que la despega del césped, y un borde oscuro que la hace legible
+# igual sobre hierba clara que sobre el público.
+
+SOMBRA = (0, 0, 0, 110)
+
+
+def _perpendicular(x1, y1, x2, y2):
+    largo = math.hypot(x2 - x1, y2 - y1) or 1.0
+    return (-(y2 - y1) / largo, (x2 - x1) / largo)
+
+
+def _cuerpo_de_flecha(puntos, grosor):
+    """El polígono de una flecha que se afila: ancha en el origen, fina antes de la punta."""
+    if len(puntos) < 2:
+        return []
+    (x1, y1), (x2, y2) = puntos[0], puntos[-1]
+    nx, ny = _perpendicular(x1, y1, x2, y2)
+    largo = math.hypot(x2 - x1, y2 - y1) or 1.0
+    cabeza = min(largo * 0.42, max(16.0, grosor * 3.4))
+    ux, uy = (x2 - x1) / largo, (y2 - y1) / largo
+    bx, by = x2 - ux * cabeza, y2 - uy * cabeza     # donde acaba el cuerpo
+    ancho_atras = grosor * 0.75
+    ancho_delante = grosor * 0.42
+    ala = grosor * 1.75
+    return [
+        (x1 + nx * ancho_atras, y1 + ny * ancho_atras),
+        (bx + nx * ancho_delante, by + ny * ancho_delante),
+        (bx + nx * ala, by + ny * ala),
+        (x2, y2),
+        (bx - nx * ala, by - ny * ala),
+        (bx - nx * ancho_delante, by - ny * ancho_delante),
+        (x1 - nx * ancho_atras, y1 - ny * ancho_atras),
+    ]
+
+
+def _flecha(dibujo, puntos, color, grosor):
+    cuerpo = _cuerpo_de_flecha(puntos, grosor)
+    if not cuerpo:
+        return
+    # Sombra desplazada: es lo que despega el dibujo del césped.
+    desvio = max(2, int(grosor * 0.5))
+    dibujo.polygon([(x + desvio, y + desvio) for (x, y) in cuerpo], fill=SOMBRA)
+    dibujo.polygon(cuerpo, fill=color, outline=(10, 18, 28, 210))
+
+
+def _foco_jugador(dibujo, cx, cy, radio, color):
+    """Marcar a un jugador es un ANILLO a sus pies con halo, no un círculo plano encima."""
+    for i in range(5, 0, -1):
+        r = radio * (1 + i * 0.13)
+        alfa = int(26 * (6 - i) / 5)
+        dibujo.ellipse([cx - r, cy - r * 0.55, cx + r, cy + r * 0.55],
+                       fill=(color[0], color[1], color[2], alfa))
+    dibujo.ellipse([cx - radio, cy - radio * 0.55, cx + radio, cy + radio * 0.55],
+                   outline=(10, 18, 28, 200), width=max(4, int(radio * 0.16)))
+    dibujo.ellipse([cx - radio, cy - radio * 0.55, cx + radio, cy + radio * 0.55],
+                   outline=color, width=max(2, int(radio * 0.1)))
+
+
+def _zona(dibujo, caja, color):
+    """Una zona es un espacio TEÑIDO con su borde, no un rectángulo hueco."""
+    x1, y1, x2, y2 = caja
+    dibujo.rectangle([x1, y1, x2, y2], fill=(color[0], color[1], color[2], 46))
+    dibujo.rectangle([x1, y1, x2, y2], outline=(10, 18, 28, 160), width=6)
+    dibujo.rectangle([x1, y1, x2, y2], outline=color, width=3)
+
+
+def _placa_de_texto(dibujo, x, y, texto, fuente, color):
+    """El texto va sobre una placa oscura: sobre hierba clara, sin ella, no se lee."""
+    try:
+        caja = dibujo.textbbox((x, y), texto, font=fuente)
+    except Exception:
+        return False
+    margen = 10
+    dibujo.rounded_rectangle(
+        [caja[0] - margen, caja[1] - margen * 0.7, caja[2] + margen, caja[3] + margen * 0.7],
+        radius=10, fill=(8, 15, 26, 205), outline=(color[0], color[1], color[2], 190), width=2,
+    )
+    dibujo.text((x, y), texto, font=fuente, fill=color)
+    return True
+
+
 def _color(valor, por_defecto=(255, 255, 255, 255)):
     """Traduce un color de Fabric ('#fff', 'rgba(...)') a una tupla RGBA."""
     texto = str(valor or '').strip().lower()
@@ -101,39 +186,45 @@ def _pinta(dibujo, objeto, ancho, alto, dx=0.0, dy=0.0, escala=1.0):
     alt = float(objeto.get('height') or 0) * float(objeto.get('scaleY') or 1) * escala
 
     if tipo in {'rect', 'triangle'}:
-        dibujo.rectangle([izq, arr, izq + anc, arr + alt], outline=trazo, fill=relleno, width=grosor)
+        _zona(dibujo, (izq, arr, izq + anc, arr + alt), trazo or (234, 244, 239, 255))
     elif tipo in {'circle', 'ellipse'}:
         radio = float(objeto.get('radius') or 0) * float(objeto.get('scaleX') or 1) * escala
-        if radio:
-            dibujo.ellipse([izq, arr, izq + radio * 2, arr + radio * 2], outline=trazo, fill=relleno, width=grosor)
-        else:
-            dibujo.ellipse([izq, arr, izq + anc, arr + alt], outline=trazo, fill=relleno, width=grosor)
+        if not radio:
+            radio = max(anc, alt) / 2.0
+        _foco_jugador(dibujo, izq + radio, arr + radio, radio, trazo or (255, 215, 106, 255))
     elif tipo in {'text', 'i-text', 'textbox'}:
         from PIL import ImageFont
 
-        try:
-            tam = int(float(objeto.get('fontSize') or 28) * escala)
-            fuente = ImageFont.truetype('/System/Library/Fonts/Supplemental/Arial Bold.ttf', tam)
-        except Exception:
-            fuente = None
-        dibujo.text((izq, arr), str(objeto.get('text') or ''), fill=trazo or (255, 255, 255, 255),
-                    font=fuente, stroke_width=max(1, grosor // 2), stroke_fill=(0, 0, 0, 220))
+        fuente = None
+        tam = max(14, int(float(objeto.get('fontSize') or 28) * escala))
+        for ruta in ('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+                     '/System/Library/Fonts/Supplemental/Arial Bold.ttf',
+                     '/System/Library/Fonts/Helvetica.ttc'):
+            try:
+                fuente = ImageFont.truetype(ruta, tam)
+                break
+            except Exception:
+                continue
+        texto = str(objeto.get('text') or '')
+        color = trazo or (255, 255, 255, 255)
+        if not (fuente and _placa_de_texto(dibujo, izq, arr, texto, fuente, color)):
+            dibujo.text((izq, arr), texto, fill=color, font=fuente,
+                        stroke_width=max(1, grosor // 2), stroke_fill=(0, 0, 0, 220))
     else:
         puntos = _puntos_de(objeto, dx, dy, escala)
-        if len(puntos) >= 2:
+        if len(puntos) < 2:
+            return
+        datos = objeto.get('data') if isinstance(objeto.get('data'), dict) else {}
+        clase = str(datos.get('kind') or objeto.get('vsKind') or '').lower()
+        if clase in {'arrow', 'flecha', 'move', 'trayectoria'}:
+            _flecha(dibujo, puntos, trazo or (111, 211, 255, 255), grosor)
+        else:
+            # Trazo libre: sombra debajo y borde oscuro, para que se lea sobre cualquier césped.
+            desvio = max(2, int(grosor * 0.45))
+            dibujo.line([(x + desvio, y + desvio) for (x, y) in puntos], fill=SOMBRA,
+                        width=grosor + 2, joint='curve')
+            dibujo.line(puntos, fill=(10, 18, 28, 200), width=grosor + 4, joint='curve')
             dibujo.line(puntos, fill=trazo, width=grosor, joint='curve')
-            # Punta de flecha: el estudio marca las flechas en `data`, y una flecha sin punta no
-            # dice hacia dónde va.
-            datos = objeto.get('data') if isinstance(objeto.get('data'), dict) else {}
-            if str(datos.get('kind') or objeto.get('vsKind') or '').lower() in {'arrow', 'flecha'}:
-                (x1, y1), (x2, y2) = puntos[-2], puntos[-1]
-                ang = math.atan2(y2 - y1, x2 - x1)
-                largo = max(10.0, grosor * 3.2)
-                dibujo.polygon([
-                    (x2, y2),
-                    (x2 - largo * math.cos(ang - 0.45), y2 - largo * math.sin(ang - 0.45)),
-                    (x2 - largo * math.cos(ang + 0.45), y2 - largo * math.sin(ang + 0.45)),
-                ], fill=trazo)
 
 
 def capa_png(overlay, *, ancho, alto, ancho_lienzo=0, alto_lienzo=0):
