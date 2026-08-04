@@ -164,3 +164,58 @@ class ZonasQueNoTapanElCampoTests(TestCase):
         self.assertEqual(resumen['actualizadas'], ['Con zona'])
         self.assertEqual(self._objetos_de()[0]['data']['kind'], 'ball')
         self.assertEqual(SessionTask.objects.get(title='Con zona').objective, 'corregida')
+
+
+class PiezasQueSeVenTests(TestCase):
+    """El lienzo no deduce nada de `data.kind`.
+
+    Un círculo sin `radius` se dibuja de tamaño cero y una ficha sin contenido es un envoltorio
+    vacío: las dos primeras tareas del libro entraron así y el campo salía sin jugadores, conos
+    ni balón (2026-08-04).
+    """
+
+    def setUp(self):
+        self.team = Team.objects.create(name='C.D. Piezas', slug='cd-piezas', is_primary=True)
+
+    def _objetos(self, objetos):
+        importar_fichas(self.team, [{'titulo': 'Piezas', 'objetos': objetos}])
+        tarea = SessionTask.objects.get(title='Piezas')
+        return tarea.tactical_layout['meta']['graphic_editor']['canvas_state']['objects']
+
+    def test_la_ficha_de_jugador_lleva_su_disco_dentro(self):
+        o = self._objetos([{'type': 'group', 'left': 100, 'top': 100, 'data': {'kind': 'player_local'}}])[0]
+        self.assertEqual(o['type'], 'group')
+        self.assertTrue(o['objects'])
+        disco = o['objects'][0]
+        self.assertEqual(disco['type'], 'circle')
+        self.assertGreater(disco['radius'], 0)
+        self.assertTrue(disco['fill'])
+
+    def test_local_y_rival_no_son_del_mismo_color(self):
+        local = self._objetos([{'type': 'group', 'data': {'kind': 'player_local'}}])[0]
+        SessionTask.objects.all().delete()
+        rival = self._objetos([{'type': 'group', 'data': {'kind': 'player_rival'}}])[0]
+        self.assertNotEqual(local['objects'][0]['fill'], rival['objects'][0]['fill'])
+
+    def test_el_dorsal_se_dibuja_encima(self):
+        o = self._objetos([{'type': 'group', 'data': {'kind': 'player_local', 'label': 'C'}}])[0]
+        textos = [h for h in o['objects'] if h.get('type') == 'text']
+        self.assertEqual(textos[0]['text'], 'C')
+
+    def test_el_cono_tiene_tamano(self):
+        o = self._objetos([{'type': 'circle', 'left': 50, 'top': 50, 'data': {'kind': 'cone'}}])[0]
+        self.assertGreater(o['radius'], 0)
+        self.assertTrue(o['fill'])
+
+    def test_el_balon_tiene_tamano(self):
+        o = self._objetos([{'type': 'circle', 'data': {'kind': 'ball'}}])[0]
+        self.assertGreater(o['radius'], 0)
+
+    def test_ningun_circulo_se_queda_sin_radio(self):
+        o = self._objetos([{'type': 'circle', 'data': {'kind': 'lo_que_sea'}}])[0]
+        self.assertGreater(o['radius'], 0)
+
+    def test_se_respeta_la_posicion_que_se_pide(self):
+        o = self._objetos([{'type': 'group', 'left': 321, 'top': 123, 'data': {'kind': 'player_rival'}}])[0]
+        self.assertEqual(o['left'], 321)
+        self.assertEqual(o['top'], 123)

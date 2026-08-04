@@ -57,12 +57,62 @@ def _texto(valor, limite=8000):
     return str(valor or '').strip()[:limite]
 
 
+# Cada pieza, con su forma y su color. El lienzo NO deduce nada de `data.kind`: un circulo sin
+# `radius` se dibuja de tamaño cero y una ficha sin contenido es un envoltorio vacio. Las dos
+# primeras tareas del libro entraron asi y el campo salia sin jugadores, conos ni balon.
+RADIO_FICHA = 22
+PIEZAS = {
+    'player_local': {'color': '#2f7d32', 'borde': '#f8fafc', 'radio': RADIO_FICHA},
+    'player_rival': {'color': '#e03127', 'borde': '#f8fafc', 'radio': RADIO_FICHA},
+    'goalkeeper_local': {'color': '#f4b400', 'borde': '#0f172a', 'radio': RADIO_FICHA},
+    'goalkeeper_rival': {'color': '#a855f7', 'borde': '#f8fafc', 'radio': RADIO_FICHA},
+    'cone': {'color': '#f97316', 'borde': '#7c2d12', 'radio': 9},
+    'ball': {'color': '#f8fafc', 'borde': '#0f172a', 'radio': 8},
+}
+
+
+def _ficha(kind, left, top, label=''):
+    """Una ficha de jugador es un GRUPO: el disco de su equipo y, encima, su etiqueta."""
+    pieza = PIEZAS[kind]
+    radio = pieza['radio']
+    hijos = [{
+        'type': 'circle', 'radius': radio, 'left': -radio, 'top': -radio,
+        'fill': pieza['color'], 'stroke': pieza['borde'], 'strokeWidth': 3,
+    }]
+    texto = str(label or '').strip()[:3]
+    if texto:
+        hijos.append({
+            'type': 'text', 'text': texto, 'fontSize': 20, 'fontWeight': 'bold',
+            'fill': pieza['borde'], 'left': -7 * len(texto), 'top': -11,
+        })
+    return {
+        'type': 'group', 'left': left, 'top': top,
+        'width': radio * 2, 'height': radio * 2,
+        'objects': hijos, 'data': {'kind': kind, 'label': texto},
+    }
+
+
 def _normalizar_objeto(obj):
     """Completa lo que el lienzo necesita para pintar un objeto sin sorpresas."""
     if not isinstance(obj, dict):
         return None
     salida = dict(obj)
     kind = str((salida.get('data') or {}).get('kind') or '').strip().lower()
+    left = salida.get('left', 0)
+    top = salida.get('top', 0)
+
+    if kind in PIEZAS:
+        etiqueta = str((salida.get('data') or {}).get('label') or '')
+        if kind in {'cone', 'ball'}:
+            pieza = PIEZAS[kind]
+            salida.setdefault('type', 'circle')
+            salida.setdefault('radius', pieza['radio'])
+            salida.setdefault('fill', str((salida.get('data') or {}).get('color') or pieza['color']))
+            salida.setdefault('stroke', pieza['borde'])
+            salida.setdefault('strokeWidth', 2)
+            return salida
+        return _ficha(kind, left, top, etiqueta)
+
     if kind == 'zone':
         for clave, valor in ESTILO_ZONA.items():
             salida.setdefault(clave, valor)
@@ -73,6 +123,9 @@ def _normalizar_objeto(obj):
         # Cualquier otro rectángulo sin relleno tendría el mismo problema.
         salida.setdefault('fill', 'rgba(255,255,255,0.10)')
         salida.setdefault('stroke', '#e2e8f0')
+    elif salida.get('type') == 'circle':
+        salida.setdefault('radius', 10)
+        salida.setdefault('fill', '#e2e8f0')
     return salida
 
 
