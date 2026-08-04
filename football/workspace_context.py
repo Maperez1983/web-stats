@@ -250,7 +250,26 @@ def get_active_workspace(request):
                         )
         except Exception:
             logger.debug('No se pudo crear membresia viewer de fallback para usuario %s', getattr(request.user, 'id', None), exc_info=True)
-    fallback_workspace = available_qs.order_by('kind', 'name', 'id').first()
+    # Al entrar sin nada elegido se cogía el PRIMERO POR ORDEN ALFABÉTICO, y a quien tiene
+    # varios espacios eso le metía en el que no es: el dueño del club acababa en uno de demo,
+    # con Miembros y Configuración en 403 y su propio Staff en "club no configurado". Primero
+    # el club que administra, después uno donde sea miembro, y sólo al final el orden de antes.
+    fallback_workspace = None
+    try:
+        clubes = available_qs.filter(kind=Workspace.KIND_CLUB, is_active=True)
+        fallback_workspace = (
+            clubes.filter(owner_user=request.user).order_by('id').first()
+            or clubes.filter(
+                memberships__user=request.user,
+                memberships__role__in=[WorkspaceMembership.ROLE_OWNER, WorkspaceMembership.ROLE_ADMIN],
+            ).order_by('id').first()
+            or clubes.filter(memberships__user=request.user).order_by('id').first()
+        )
+    except Exception:
+        logger.debug('No se pudo elegir el club preferido del usuario %s', getattr(request.user, 'id', None), exc_info=True)
+        fallback_workspace = None
+    if fallback_workspace is None:
+        fallback_workspace = available_qs.order_by('kind', 'name', 'id').first()
     if fallback_workspace:
         request.session['active_workspace_id'] = fallback_workspace.id
         return _cache_active_workspace(request, fallback_workspace)

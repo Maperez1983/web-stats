@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from django.test import TestCase
 
-from .models import Team, Workspace, WorkspaceTeam
+from .models import Team, Workspace, WorkspaceMembership, WorkspaceTeam
 from .team_visibility import excluir_equipos_ajenos, ids_de_equipos_ajenos
 
 
@@ -191,3 +191,58 @@ class ElSelectorNoSePuedeQuedarVacioTests(TestCase):
 
         equipos = [e.team for e in workspace_team_links(self.club)]
         self.assertEqual(equipos, [self.senior])
+
+
+class AlEntrarElClubQueTocaTests(TestCase):
+    """
+    Con varios espacios de trabajo, entrar sin nada elegido metía al usuario en el PRIMERO
+    POR ORDEN ALFABÉTICO. Al dueño de "Benagalbón" le tocaba "2J Football Intelligence
+    (Demo)": Miembros y Configuración en 403 y su propio Staff en "club no configurado".
+    """
+
+    def setUp(self):
+        from django.test import RequestFactory
+
+        self.factory = RequestFactory()
+        self.duenio = User.objects.create_user(username="duenio-entrada", password="x")
+        # El de demo se llama con un "2" delante: gana por orden alfabético.
+        self.demo = Workspace.objects.create(
+            name="2J Football Intelligence (Demo)", slug="demo-entrada",
+            kind=Workspace.KIND_CLUB, owner_user=User.objects.create_user(username="otro-entrada", password="x"),
+        )
+        self.suyo = Workspace.objects.create(
+            name="Benagalbón", slug="suyo-entrada", kind=Workspace.KIND_CLUB, owner_user=self.duenio
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.demo, user=self.duenio, role=WorkspaceMembership.ROLE_VIEWER
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.suyo, user=self.duenio, role=WorkspaceMembership.ROLE_OWNER
+        )
+
+    def _peticion(self):
+        from django.contrib.sessions.backends.db import SessionStore
+
+        peticion = self.factory.get("/coach/")
+        peticion.user = self.duenio
+        peticion.session = SessionStore()
+        return peticion
+
+    def test_entra_en_el_club_que_administra_no_en_el_primero_alfabetico(self):
+        from .workspace_context import get_active_workspace
+
+        elegido = get_active_workspace(self._peticion())
+
+        self.assertEqual(elegido, self.suyo, "Le ha metido en un club que no es el suyo")
+
+    def test_si_no_es_dueño_de_ninguno_entra_donde_sea_miembro(self):
+        from .workspace_context import get_active_workspace
+
+        invitado = User.objects.create_user(username="invitado-entrada", password="x")
+        WorkspaceMembership.objects.create(
+            workspace=self.demo, user=invitado, role=WorkspaceMembership.ROLE_MEMBER
+        )
+        peticion = self._peticion()
+        peticion.user = invitado
+
+        self.assertEqual(get_active_workspace(peticion), self.demo)
