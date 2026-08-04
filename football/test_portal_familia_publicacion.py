@@ -183,7 +183,9 @@ class FichaSeisPestanasTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         for tab in ["resumen", "stats", "evaluations", "salud", "desarrollo", "club"]:
             self.assertIn(f'data-tab="{tab}"', html)
-        for viejo in ["physical", "injuries", "seasons", "videos", "discipline", "personal"]:
+        # "personal" y "agenda" se añadieron después de aquel rediseño y se quedan: la
+        # primera es la persona y su contacto, la segunda tiene entidad propia.
+        for viejo in ["physical", "injuries", "seasons", "videos", "discipline"]:
             self.assertNotIn(f'data-tab="{viejo}"', html)
 
     def test_los_enlaces_viejos_siguen_teniendo_alias(self):

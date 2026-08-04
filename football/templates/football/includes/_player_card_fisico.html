@@ -1,0 +1,21 @@
+{% comment %}Tarjeta "Físico" de la ficha del jugador.
+
+Vive en un parcial porque se pinta en SALUD, que es donde se sigue su evolución. Estaba en
+"Datos personales" con altura y peso a la vez en las dos pestañas: dos casillas para el
+mismo dato acaban descuadradas y nadie sabe cuál vale.
+
+Altura y peso NO están aquí: el propio panel de Salud ya los da como estadística, con su
+evolución (altura base, peso base, último peso). Aquí quedan los rasgos que no estaban en
+ningún otro sitio.
+
+Trae sus propios estilos: los de la ficha son variables de un `{% with %}` local que no
+llegan hasta aquí.{% endcomment %}
+{% with kst='font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--prod-muted);font-weight:800;' vst='font-size:.95rem;font-weight:700;color:var(--prod-text);margin-top:1px;' fst='font-size:.9rem;font-weight:600;color:#f6d488;margin-top:1px;' cardst='border:1px solid rgba(148,163,184,0.18);border-radius:12px;padding:.85rem .95rem;background:rgba(2,6,23,0.35);' ctit='font-size:.64rem;text-transform:uppercase;letter-spacing:.12em;color:var(--prod-muted);font-weight:800;margin:0 0 .65rem;' %}
+<div style="{{ cardst }}margin:0 0 1rem;">
+  <p style="{{ ctit }}">Rasgos físicos</p>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.7rem .9rem;">
+    <div><div style="{{ kst }}">Pie dominante</div><div style="{% if player.dominant_foot %}{{ vst }}{% else %}{{ fst }}{% endif %}">{{ player.dominant_foot|title|default:"Sin indicar" }}</div></div>
+    <div><div style="{{ kst }}">Complexión</div><div style="{% if player.build %}{{ vst }}{% else %}{{ fst }}{% endif %}">{% if player.build %}{{ player.get_build_display }}{% else %}Falta{% endif %}</div></div>
+  </div>
+</div>
+{% endwith %}

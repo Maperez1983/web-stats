@@ -1,0 +1,19 @@
+{% comment %}Tarjeta "Club" de la ficha del jugador: ficha federativa, contrato, cláusula,
+club de origen y agente.
+
+Estaba en "Datos personales". No lo son: son la relación del jugador con el club. Y en un
+club donde buena parte de la plantilla son menores, una pestaña que se llama "datos
+personales" debe ser quién es y cómo contactar con su familia, no dónde vive su cláusula
+de rescisión.{% endcomment %}
+{% with kst='font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--prod-muted);font-weight:800;' vst='font-size:.95rem;font-weight:700;color:var(--prod-text);margin-top:1px;' cardst='border:1px solid rgba(148,163,184,0.18);border-radius:12px;padding:.85rem .95rem;background:rgba(2,6,23,0.35);' ctit='font-size:.64rem;text-transform:uppercase;letter-spacing:.12em;color:var(--prod-muted);font-weight:800;margin:0 0 .65rem;' %}
+<div style="{{ cardst }}margin:0 0 1rem;">
+  <p style="{{ ctit }}">Vinculación con el club</p>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.7rem .9rem;">
+    <div><div style="{{ kst }}">Ficha federativa</div><div style="{{ vst }}">{% if player.has_federative_license %}<span style="color:#3fbf6a;">Sí · fichado</span>{% else %}<span style="color:#f6d488;">Sin ficha</span>{% endif %}</div></div>
+    {% if player.contract_end %}<div><div style="{{ kst }}">Contrato</div><div style="{{ vst }}">hasta {{ player.contract_end|date:'d/m/Y' }}</div></div>{% endif %}
+    {% if player.release_clause %}<div><div style="{{ kst }}">Cláusula</div><div style="{{ vst }}">{{ player.release_clause }}</div></div>{% endif %}
+    {% if player.origin_team %}<div><div style="{{ kst }}">Club de origen</div><div style="{{ vst }}">{{ player.origin_team }}</div></div>{% endif %}
+    {% if player.has_agent %}<div><div style="{{ kst }}">Agente</div><div style="{{ vst }}">{{ player.agent_name|default:'Sí' }}</div></div>{% endif %}
+  </div>
+</div>
+{% endwith %}
