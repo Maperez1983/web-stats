@@ -20,28 +20,35 @@ import re
 # Se escriben enteras en mayúscula: son siglas, no palabras.
 SIGLAS = {
     "cd", "cf", "ud", "ad", "sad", "fc", "ef", "cdf", "sd", "rcd", "cp", "pd", "ucd",
-    "cdad", "af", "at", "ca", "ef", "emf", "amf",
+    "af", "at", "ca", "ef", "emf", "amf",
 }
 
-# Van en minúscula salvo al principio: son partículas, no nombres.
-PARTICULAS = {"de", "del", "la", "las", "los", "el", "y", "e", "da", "do", "dos"}
+# Preposiciones y conjunciones: en minúscula salvo al principio.
+PARTICULAS = {"de", "del", "y", "e", "da", "do"}
+
+# Los artículos dependen de lo que llevan DELANTE: en "Alhaurín de la Torre" es partícula,
+# pero en "La Cala", "El Palo" o "El Ejido" abre el topónimo y va en mayúscula.
+ARTICULOS = {"la", "las", "los", "el"}
 
 
-def _palabra(bruta, *, primera):
+def _palabra(bruta, *, primera, anterior=""):
     """Formatea UNA palabra respetando puntos de sigla ('C.D.') y guiones ('Caro-Accino')."""
     if not bruta:
         return bruta
 
     solo_letras = re.sub(r"[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ]", "", bruta).lower()
 
-    # Siglas con puntos ("c.d.") o sin ellos ("cd"), y cualquier grupo de 2-4 letras que ya
-    # viniera enteramente en mayúsculas y no sea una palabra conocida.
+    # Sigla: la conocemos ("cd", "sad") o lleva puntos DENTRO ("C.D.", "G.I."). Un punto sólo
+    # al final no la hace sigla, la hace abreviatura de una palabra: "STA." es Santa y "PTO."
+    # es Puerto, así que van como "Sta." y "Pto.", no gritando.
     if solo_letras in SIGLAS:
         return bruta.upper()
-    if bruta.isupper() and len(solo_letras) <= 3 and solo_letras not in PARTICULAS:
+    if "." in bruta[:-1]:
         return bruta.upper()
 
     if solo_letras in PARTICULAS and not primera:
+        return bruta.lower()
+    if solo_letras in ARTICULOS and not primera and anterior in PARTICULAS:
         return bruta.lower()
 
     if "-" in bruta:
@@ -75,9 +82,11 @@ def formato_nombre_club(nombre):
     grita = all(p.upper() == p for p in palabras)
     if not grita:
         return limpio
-    return " ".join(
-        _palabra(palabra, primera=(indice == 0)) for indice, palabra in enumerate(palabras)
-    )
+    salida = []
+    for indice, palabra in enumerate(palabras):
+        anterior = re.sub(r"[^a-záéíóúüñ]", "", palabras[indice - 1].lower()) if indice else ""
+        salida.append(_palabra(palabra, primera=(indice == 0), anterior=anterior))
+    return " ".join(salida)
 
 
 def revisar(objetos):

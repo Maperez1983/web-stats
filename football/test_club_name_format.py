@@ -12,6 +12,26 @@ class FormatoDelNombreTests(SimpleTestCase):
         self.assertEqual(formato_nombre_club("C.D. RINCON"), "C.D. Rincon")
         self.assertEqual(formato_nombre_club("LA CALA C.D."), "La Cala C.D.")
 
+    def test_los_articulos_del_toponimo_no_se_bajan(self):
+        """"La Cala", "El Palo" y "El Ejido" son el nombre del sitio, no partículas."""
+        self.assertEqual(formato_nombre_club("CD LA CALA"), "CD La Cala")
+        self.assertEqual(formato_nombre_club("CD EL PALO FÚTBOL CLUB"), "CD El Palo Fútbol Club")
+        self.assertEqual(
+            formato_nombre_club("C.D. PVO. EL EJIDO 1969 S.A.D."), "C.D. Pvo. El Ejido 1969 S.A.D."
+        )
+
+    def test_una_abreviatura_no_es_una_sigla(self):
+        """"STA." es Santa y "PTO." es Puerto: son palabras abreviadas, no siglas."""
+        self.assertEqual(
+            formato_nombre_club("U.D. STA. ROSALÍA MAQUEDA"), "U.D. Sta. Rosalía Maqueda"
+        )
+        self.assertEqual(
+            formato_nombre_club("PTO. MALAGUEÑO CDAD JARDÍN G.I."), "Pto. Malagueño Cdad Jardín G.I."
+        )
+
+    def test_una_palabra_corta_no_es_una_sigla(self):
+        self.assertEqual(formato_nombre_club("C.D. SANTA FE"), "C.D. Santa Fe")
+
     def test_las_particulas_van_en_minuscula(self):
         self.assertEqual(
             formato_nombre_club("ALHAURIN DE LA TORRE C.F."), "Alhaurin de la Torre C.F."
