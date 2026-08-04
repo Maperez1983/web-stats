@@ -106,3 +106,46 @@ class AplicarloATodosTests(TestCase):
 
         self.assertEqual(equipo.name, "C.D. Rincon")
         self.assertEqual(equipo.name_key, clave_antes)
+
+
+class GrafiaDeLaFederacionTests(TestCase):
+    """
+    El mismo club escrito de dos formas: manda la del equipo que trae código federativo.
+    """
+
+    def _equipo(self, nombre, slug, external_id=""):
+        from .models import Team
+
+        return Team.objects.create(name=nombre, slug=slug, external_id=external_id)
+
+    def test_manda_la_del_que_tiene_codigo_federativo(self):
+        from .club_name_format import unificar_grafias
+
+        senior = self._equipo("ALHAURIN DE LA TORRE C.F.", "alh-senior", external_id="12345")
+        cadete = self._equipo("ALHAURÍN DE LA TORRE CF", "alh-cadete")
+
+        unificar_grafias([senior, cadete])
+        cadete.refresh_from_db()
+
+        self.assertEqual(cadete.name, "ALHAURIN DE LA TORRE C.F.")
+
+    def test_si_ninguno_tiene_codigo_no_se_elige_por_nosotros(self):
+        from .club_name_format import unificar_grafias
+
+        uno = self._equipo("CD LA CALA", "cala-1")
+        otro = self._equipo("LA CALA C.D.", "cala-2")
+
+        unificar_grafias([uno, otro])
+        uno.refresh_from_db()
+        otro.refresh_from_db()
+
+        self.assertEqual(uno.name, "CD LA CALA")
+        self.assertEqual(otro.name, "LA CALA C.D.")
+
+    def test_si_todos_lo_escriben_igual_no_toca_nada(self):
+        from .club_name_format import grafia_de_la_federacion
+
+        a = self._equipo("C.D. RINCON", "rincon-a", external_id="802730")
+        b = self._equipo("C.D. RINCON", "rincon-b")
+
+        self.assertEqual(grafia_de_la_federacion([a, b]), {})

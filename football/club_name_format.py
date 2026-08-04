@@ -118,3 +118,59 @@ def aplicar(objetos):
         objeto.save(update_fields=["name"])
         resumen["cambiados"].append(f"{actual} → {nuevo}")
     return resumen
+
+
+def grafia_de_la_federacion(equipos):
+    """
+    Para cada club, cómo lo escribe la FEDERACIÓN.
+
+    El mismo club aparece escrito de varias formas porque cada categoría entró por una vía:
+    "ALHAURIN DE LA TORRE C.F." (senior, importado) y "ALHAURÍN DE LA TORRE CF" (cadete, a
+    mano). Manda el que trae `external_id`, que es el que vino de la federación con su código.
+
+    Devuelve {clave_de_emparejado: nombre}. Sólo entran los clubes donde hay una grafía
+    federativa clara; si ninguna la tiene, no se elige por nosotros.
+    """
+    from .models import normalize_team_name_key
+
+    por_clave = {}
+    for equipo in equipos:
+        clave = str(getattr(equipo, "name_key", "") or "") or normalize_team_name_key(
+            getattr(equipo, "name", "")
+        )
+        if not clave:
+            continue
+        por_clave.setdefault(clave, []).append(equipo)
+
+    canonicos = {}
+    for clave, grupo in por_clave.items():
+        nombres = {str(getattr(e, "name", "") or "").strip() for e in grupo}
+        if len(nombres) < 2:
+            continue  # todos lo escriben igual: no hay nada que unificar
+        federativos = [
+            str(getattr(e, "name", "") or "").strip()
+            for e in grupo
+            if str(getattr(e, "external_id", "") or "").strip()
+        ]
+        if not federativos:
+            continue
+        # Si los propios federativos discrepan, no se elige por nosotros.
+        if len(set(federativos)) == 1:
+            canonicos[clave] = federativos[0]
+    return canonicos
+
+
+def unificar_grafias(equipos):
+    """Escribe en todos los equipos de un club la grafía que usa la federación."""
+    canonicos = grafia_de_la_federacion(equipos)
+    resumen = {"unificados": [], "sin_referencia": []}
+    for equipo in equipos:
+        clave = str(getattr(equipo, "name_key", "") or "")
+        canonico = canonicos.get(clave)
+        actual = str(getattr(equipo, "name", "") or "").strip()
+        if not canonico or canonico == actual:
+            continue
+        equipo.name = canonico
+        equipo.save(update_fields=["name"])
+        resumen["unificados"].append(f"{actual} → {canonico}")
+    return resumen
