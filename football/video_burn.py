@@ -36,7 +36,10 @@ TIPOS = {'line', 'rect', 'circle', 'ellipse', 'path', 'polyline', 'polygon', 'te
 # la punta, una sombra por debajo que la despega del césped, y un borde oscuro que la hace legible
 # igual sobre hierba clara que sobre el público.
 
-SOMBRA = (0, 0, 0, 110)
+SOMBRA = (0, 0, 0, 150)
+# Se pinta a este multiplo y se reduce al final: Pillow no suaviza bordes y sin esto todo sale
+# dentado, que es la marca de la casa de un grafico hecho a mano.
+SUPERMUESTREO = 3
 
 
 def _perpendicular(x1, y1, x2, y2):
@@ -115,36 +118,41 @@ def _trocear(puntos, raya, hueco):
     return [t for t in tramos if len(t) >= 2]
 
 
-def _flecha(dibujo, puntos, color, grosor, clase='pase'):
+def _flecha(dibujo, puntos, color, grosor, clase='pase', sombras=None):
     # Cada tipo de flecha se dibuja distinto, como en la pizarra: el pase es limpio, la conduccion
     # ondulada, el desmarque discontinuo y la presion mas gruesa. Se distinguen SIN leer la leyenda.
     if clase in {'conduccion', 'dribble'}:
         camino = _ondular_trazo(puntos, grosor * 1.5, grosor * 4.5)
-        _trazo_con_sombra(dibujo, camino, color, grosor)
-        _punta(dibujo, camino, color, grosor)
+        _trazo_con_sombra(dibujo, camino, color, grosor, sombras)
+        _punta(dibujo, camino, color, grosor, sombras)
         return
     if clase in {'desmarque', 'run', 'move', 'trayectoria'}:
         for tramo in _trocear(puntos, grosor * 2.6, grosor * 1.9):
-            _trazo_con_sombra(dibujo, tramo, color, grosor)
-        _punta(dibujo, puntos, color, grosor)
+            _trazo_con_sombra(dibujo, tramo, color, grosor, sombras)
+        _punta(dibujo, puntos, color, grosor, sombras)
         return
     ancho = grosor * (1.55 if clase in {'presion', 'press'} else 1.0)
     cuerpo = _cuerpo_de_flecha(puntos, ancho)
     if not cuerpo:
         return
-    desvio = max(2, int(ancho * 0.5))
-    dibujo.polygon([(x + desvio, y + desvio) for (x, y) in cuerpo], fill=SOMBRA)
+    desvio = max(2, int(ancho * 0.55))
+    (sombras or dibujo).polygon([(x + desvio, y + desvio) for (x, y) in cuerpo], fill=SOMBRA)
     dibujo.polygon(cuerpo, fill=color, outline=(10, 18, 28, 210))
+    # Filo claro en el borde de arriba: da volumen sin recurrir a un degradado real.
+    if len(cuerpo) >= 4:
+        brillo = (min(255, color[0] + 60), min(255, color[1] + 60), min(255, color[2] + 60), 190)
+        dibujo.line(cuerpo[:3], fill=brillo, width=max(2, int(ancho * 0.22)), joint='curve')
 
 
-def _trazo_con_sombra(dibujo, puntos, color, grosor):
-    desvio = max(2, int(grosor * 0.45))
-    dibujo.line([(x + desvio, y + desvio) for (x, y) in puntos], fill=SOMBRA, width=grosor + 2, joint='curve')
+def _trazo_con_sombra(dibujo, puntos, color, grosor, sombras=None):
+    desvio = max(2, int(grosor * 0.5))
+    (sombras or dibujo).line([(x + desvio, y + desvio) for (x, y) in puntos], fill=SOMBRA,
+                             width=grosor + 4, joint='curve')
     dibujo.line(puntos, fill=(10, 18, 28, 200), width=grosor + 4, joint='curve')
     dibujo.line(puntos, fill=color, width=grosor, joint='curve')
 
 
-def _punta(dibujo, puntos, color, grosor):
+def _punta(dibujo, puntos, color, grosor, sombras=None):
     (x1, y1), (x2, y2) = puntos[-2], puntos[-1]
     ang = math.atan2(y2 - y1, x2 - x1)
     largo = max(12.0, grosor * 3.4)
@@ -153,11 +161,11 @@ def _punta(dibujo, puntos, color, grosor):
         (x2 - largo * math.cos(ang - 0.42), y2 - largo * math.sin(ang - 0.42)),
         (x2 - largo * math.cos(ang + 0.42), y2 - largo * math.sin(ang + 0.42)),
     ]
-    dibujo.polygon([(x + 2, y + 2) for (x, y) in triangulo], fill=SOMBRA)
+    (sombras or dibujo).polygon([(x + grosor * 0.5, y + grosor * 0.5) for (x, y) in triangulo], fill=SOMBRA)
     dibujo.polygon(triangulo, fill=color, outline=(10, 18, 28, 210))
 
 
-def _foco_jugador(dibujo, cx, cy, radio, color, dorsal=''):
+def _foco_jugador(dibujo, cx, cy, radio, color, dorsal='', sombras=None):
     """
     Marcar a un jugador: anillo ELIPTICO a sus pies, con halo y sombra.
 
@@ -168,7 +176,7 @@ def _foco_jugador(dibujo, cx, cy, radio, color, dorsal=''):
     rx = radio
     ry = radio * 0.42
     # Sombra proyectada: separa el anillo del suelo.
-    dibujo.ellipse([cx - rx, cy - ry + rx * 0.10, cx + rx, cy + ry + rx * 0.10], fill=(0, 0, 0, 90))
+    (sombras or dibujo).ellipse([cx - rx, cy - ry + rx * 0.12, cx + rx, cy + ry + rx * 0.12], fill=(0, 0, 0, 130))
     # Halo: varios anillos cada vez mas tenues hacia fuera.
     for i in range(6, 0, -1):
         f = 1 + i * 0.11
@@ -273,7 +281,7 @@ def _puntos_de(objeto, dx=0.0, dy=0.0, escala=1.0):
     return []
 
 
-def _pinta(dibujo, objeto, ancho, alto, dx=0.0, dy=0.0, escala=1.0):
+def _pinta(dibujo, objeto, ancho, alto, dx=0.0, dy=0.0, escala=1.0, sombras=None):
     tipo = str(objeto.get('type') or '').lower()
     if tipo not in TIPOS:
         return
@@ -284,7 +292,8 @@ def _pinta(dibujo, objeto, ancho, alto, dx=0.0, dy=0.0, escala=1.0):
     if tipo == 'group':
         for hijo in (objeto.get('objects') or []):
             _pinta(dibujo, hijo, ancho, alto,
-                   dx + float(objeto.get('left') or 0), dy + float(objeto.get('top') or 0), escala)
+                   dx + float(objeto.get('left') or 0), dy + float(objeto.get('top') or 0), escala,
+                   sombras=sombras)
         return
 
     izq = (float(objeto.get('left') or 0) + dx) * escala
@@ -300,7 +309,7 @@ def _pinta(dibujo, objeto, ancho, alto, dx=0.0, dy=0.0, escala=1.0):
             radio = max(anc, alt) / 2.0
         datos = objeto.get('data') if isinstance(objeto.get('data'), dict) else {}
         _foco_jugador(dibujo, izq + radio, arr + radio, radio, trazo or (255, 215, 106, 255),
-                      dorsal=str(datos.get('number') or datos.get('dorsal') or ''))
+                      dorsal=str(datos.get('number') or datos.get('dorsal') or ''), sombras=sombras)
     elif tipo in {'text', 'i-text', 'textbox'}:
         from PIL import ImageFont
 
@@ -327,7 +336,7 @@ def _pinta(dibujo, objeto, ancho, alto, dx=0.0, dy=0.0, escala=1.0):
         clase = str(datos.get('kind') or objeto.get('vsKind') or '').lower()
         if clase in {'arrow', 'flecha', 'pase', 'pass', 'conduccion', 'dribble',
                      'desmarque', 'run', 'move', 'trayectoria', 'presion', 'press'}:
-            _flecha(dibujo, puntos, trazo or (111, 211, 255, 255), grosor, clase=clase)
+            _flecha(dibujo, puntos, trazo or (111, 211, 255, 255), grosor, clase=clase, sombras=sombras)
         else:
             # Trazo libre: sombra debajo y borde oscuro, para que se lea sobre cualquier césped.
             desvio = max(2, int(grosor * 0.45))
@@ -338,25 +347,41 @@ def _pinta(dibujo, objeto, ancho, alto, dx=0.0, dy=0.0, escala=1.0):
 
 
 def capa_png(overlay, *, ancho, alto, ancho_lienzo=0, alto_lienzo=0):
-    """La capa de dibujo como PNG transparente del tamaño del vídeo. None si no hay nada que pintar."""
-    from PIL import Image, ImageDraw
+    """La capa de dibujo como PNG transparente del tamaño del vídeo. None si no hay nada que pintar.
+
+    Se pinta a TRIPLE tamaño y se reduce al final. Pillow no suaviza los bordes: un polígono
+    dibujado directamente sale dentado, y eso es exactamente lo que hace que un gráfico parezca
+    casero por muy bien pensado que esté. Reducir con Lanczos da el borde limpio de televisión.
+
+    Y las sombras van en su propia capa DESENFOCADA: una copia desplazada y dura se ve como un
+    calco; desenfocada, el dibujo parece flotar sobre el césped.
+    """
+    from PIL import Image, ImageDraw, ImageFilter
 
     objetos = (overlay or {}).get('objects') if isinstance(overlay, dict) else None
     if not objetos:
         return None
-    # El lienzo del editor mide lo que medía el reproductor de quien dibujó; si no viene, se asume
-    # que ya está en las medidas del vídeo.
-    escala = (ancho / float(ancho_lienzo)) if ancho_lienzo else 1.0
+    escala_lienzo = (ancho / float(ancho_lienzo)) if ancho_lienzo else 1.0
+    ss = SUPERMUESTREO
+    ancho_ss, alto_ss = int(ancho * ss), int(alto * ss)
 
-    lienzo = Image.new('RGBA', (int(ancho), int(alto)), (0, 0, 0, 0))
-    dibujo = ImageDraw.Draw(lienzo, 'RGBA')
+    sombras = Image.new('RGBA', (ancho_ss, alto_ss), (0, 0, 0, 0))
+    tinta = Image.new('RGBA', (ancho_ss, alto_ss), (0, 0, 0, 0))
+    lapiz_sombra = ImageDraw.Draw(sombras, 'RGBA')
+    lapiz = ImageDraw.Draw(tinta, 'RGBA')
+
     for objeto in objetos:
         if not isinstance(objeto, dict):
             continue
         try:
-            _pinta(dibujo, objeto, ancho, alto, escala=escala)
+            _pinta(lapiz, objeto, ancho_ss, alto_ss, escala=escala_lienzo * ss, sombras=lapiz_sombra)
         except Exception:
             logger.debug('No se pudo pintar un objeto de la telestración', exc_info=True)
+
+    sombras = sombras.filter(ImageFilter.GaussianBlur(radius=max(3, int(6 * ss))))
+    lienzo = Image.alpha_composite(sombras, tinta)
+    lienzo = lienzo.resize((int(ancho), int(alto)), Image.LANCZOS)
+
     buffer = io.BytesIO()
     lienzo.save(buffer, 'PNG')
     return buffer.getvalue()
