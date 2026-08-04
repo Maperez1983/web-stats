@@ -114,3 +114,53 @@ class ImportarTareasDeLibroTests(TestCase):
         tarea = SessionTask.objects.get(title=FICHA['titulo'])
         self.assertEqual(tarea.game_moment, '')
         self.assertEqual(tarea.structure_periodization, '')
+
+
+class ZonasQueNoTapanElCampoTests(TestCase):
+    """Un rect sin `fill` lo pinta el lienzo NEGRO Y OPACO: tapa el campo y las fichas.
+
+    Pasó con las dos primeras tareas del libro (2026-08-04): al abrir el editor sólo se veía un
+    rectángulo negro. El estilo lo pone el importador, no quien manda el lote.
+    """
+
+    def setUp(self):
+        self.team = Team.objects.create(name='C.D. Zonas', slug='cd-zonas', is_primary=True)
+
+    def _objetos_de(self, titulo='Con zona'):
+        tarea = SessionTask.objects.get(title=titulo)
+        return tarea.tactical_layout['meta']['graphic_editor']['canvas_state']['objects']
+
+    def test_la_zona_entra_translucida_y_con_borde(self):
+        importar_fichas(self.team, [{
+            'titulo': 'Con zona',
+            'objetos': [{'type': 'rect', 'left': 10, 'top': 10, 'data': {'kind': 'zone'}}],
+        }])
+        zona = self._objetos_de()[0]
+        self.assertIn('rgba', zona['fill'])
+        self.assertNotEqual(zona['fill'], '')
+        self.assertTrue(zona.get('stroke'))
+
+    def test_no_se_pisa_el_estilo_que_ya_venga(self):
+        importar_fichas(self.team, [{
+            'titulo': 'Con zona',
+            'objetos': [{'type': 'rect', 'fill': 'rgba(255,0,0,0.2)', 'data': {'kind': 'zone'}}],
+        }])
+        self.assertEqual(self._objetos_de()[0]['fill'], 'rgba(255,0,0,0.2)')
+
+    def test_cualquier_rectangulo_suelto_tampoco_sale_negro(self):
+        importar_fichas(self.team, [{
+            'titulo': 'Con zona',
+            'objetos': [{'type': 'rect', 'data': {'kind': 'otra_cosa'}}],
+        }])
+        self.assertTrue(self._objetos_de()[0].get('fill'))
+
+    def test_reimportar_corregido_actualiza_el_dibujo(self):
+        importar_fichas(self.team, [{'titulo': 'Con zona', 'objetos': [{'type': 'rect', 'data': {'kind': 'zone'}}]}])
+        resumen = importar_fichas(self.team, [{
+            'titulo': 'Con zona',
+            'descripcion': 'corregida',
+            'objetos': [{'type': 'circle', 'left': 5, 'top': 5, 'data': {'kind': 'ball'}}],
+        }], actualizar=True)
+        self.assertEqual(resumen['actualizadas'], ['Con zona'])
+        self.assertEqual(self._objetos_de()[0]['data']['kind'], 'ball')
+        self.assertEqual(SessionTask.objects.get(title='Con zona').objective, 'corregida')

@@ -45,8 +45,35 @@ CONTENIDOS = {
 }
 
 
+# Estilo de las zonas y las líneas del editor. NO es cosmética opcional: un rect sin `fill`
+# explícito lo pinta el lienzo NEGRO Y OPACO, y una zona así tapa el campo entero y las fichas
+# que tiene debajo. Pasó con las dos primeras tareas del libro (2026-08-04): en el editor sólo
+# se veía un rectángulo negro. Por eso se rellena aquí y no se confía en quien manda el lote.
+ESTILO_ZONA = {'fill': 'rgba(56,189,248,0.16)', 'stroke': '#38bdf8', 'strokeDashArray': [8, 6]}
+ESTILO_LINEA = {'stroke': '#38bdf8', 'strokeWidth': 3, 'fill': ''}
+
+
 def _texto(valor, limite=8000):
     return str(valor or '').strip()[:limite]
+
+
+def _normalizar_objeto(obj):
+    """Completa lo que el lienzo necesita para pintar un objeto sin sorpresas."""
+    if not isinstance(obj, dict):
+        return None
+    salida = dict(obj)
+    kind = str((salida.get('data') or {}).get('kind') or '').strip().lower()
+    if kind == 'zone':
+        for clave, valor in ESTILO_ZONA.items():
+            salida.setdefault(clave, valor)
+    elif kind in {'line_solid', 'line_dashed', 'arrow_run', 'arrow_pass'}:
+        for clave, valor in ESTILO_LINEA.items():
+            salida.setdefault(clave, valor)
+    elif salida.get('type') == 'rect':
+        # Cualquier otro rectángulo sin relleno tendría el mismo problema.
+        salida.setdefault('fill', 'rgba(255,255,255,0.10)')
+        salida.setdefault('stroke', '#e2e8f0')
+    return salida
 
 
 def _meta_de_la_ficha(ficha):
@@ -68,7 +95,9 @@ def _meta_de_la_ficha(ficha):
         meta['source'] = fuente
     objetos = ficha.get('objetos')
     if isinstance(objetos, list) and objetos:
-        meta['graphic_editor'] = {'canvas_state': {'objects': objetos}}
+        pintables = [o for o in (_normalizar_objeto(x) for x in objetos) if o]
+        if pintables:
+            meta['graphic_editor'] = {'canvas_state': {'objects': pintables}}
     return meta
 
 
@@ -84,13 +113,16 @@ def _notas_de_la_ficha(ficha):
     return '\n\n'.join(partes)
 
 
-def importar_fichas(team, fichas, *, coleccion=COLECCION_POR_DEFECTO, scope_key='coach', escribir=True):
+def importar_fichas(team, fichas, *, coleccion=COLECCION_POR_DEFECTO, scope_key='coach', escribir=True, actualizar=False):
     """Crea en la biblioteca del equipo una tarea por ficha y las agrupa en `coleccion`.
 
-    Idempotente por título dentro de la colección: repetir la importación no duplica. Devuelve
-    un resumen con lo creado, lo que ya estaba y lo que se descartó.
+    Idempotente por título dentro de la colección: repetir la importación no duplica. Con
+    `actualizar`, en vez de saltar la que ya existe le reescribe ficha y pizarra — que es lo que
+    hace falta cuando el lote se corrige (p. ej. un dibujo que salía mal) y hay que reimportarlo.
+
+    Devuelve un resumen con lo creado, lo actualizado, lo que ya estaba y lo que se descartó.
     """
-    resumen = {'creadas': [], 'ya_estaban': [], 'descartadas': []}
+    resumen = {'creadas': [], 'actualizadas': [], 'ya_estaban': [], 'descartadas': []}
     if not team or not fichas:
         return resumen
 
@@ -99,17 +131,19 @@ def importar_fichas(team, fichas, *, coleccion=COLECCION_POR_DEFECTO, scope_key=
     ) if escribir else None
 
     estanteria = None
+    previas = {}
     if escribir:
         estanteria, _ = SessionTaskCollection.objects.get_or_create(
             team=team,
             repository=SessionTaskCollection.REPO_INTERACTIVE,
             name=str(coleccion or COLECCION_POR_DEFECTO)[:120],
         )
-        titulos_previos = set(
-            SessionTaskCollectionItem.objects.filter(collection=estanteria).values_list('task__title', flat=True)
-        )
-    else:
-        titulos_previos = set()
+        previas = {
+            str(item.task.title): item.task
+            for item in SessionTaskCollectionItem.objects.filter(collection=estanteria).select_related('task')
+            if item.task
+        }
+    titulos_previos = set(previas.keys())
 
     orden = 0
     for ficha in fichas:
@@ -121,7 +155,22 @@ def importar_fichas(team, fichas, *, coleccion=COLECCION_POR_DEFECTO, scope_key=
             resumen['descartadas'].append('ficha sin título')
             continue
         if titulo in titulos_previos:
-            resumen['ya_estaban'].append(titulo)
+            if not (actualizar and escribir):
+                resumen['ya_estaban'].append(titulo)
+                continue
+            tarea = previas.get(titulo)
+            try:
+                tarea.objective = _texto(ficha.get('descripcion'))
+                tarea.coaching_points = _texto(ficha.get('comportamientos'))
+                tarea.confrontation_rules = _texto(ficha.get('reglas'))
+                tarea.notes = _notas_de_la_ficha(ficha)
+                tarea.duration_minutes = int(ficha.get('minutos') or tarea.duration_minutes or 15)
+                tarea.tactical_layout = {'meta': _meta_de_la_ficha(ficha)}
+                tarea.save()
+                resumen['actualizadas'].append(titulo)
+            except Exception:
+                logger.exception('No se pudo actualizar la tarea %s', titulo)
+                resumen['descartadas'].append(titulo)
             continue
 
         if not escribir:
