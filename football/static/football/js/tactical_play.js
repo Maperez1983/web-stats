@@ -563,6 +563,7 @@
     pintarCampo();
     refrescarEnlaces();
     pintarPublicacion();
+    pintarClips();
     aviso('Jugada «' + j.name + '» cargada.');
   };
 
@@ -600,6 +601,7 @@
       pintarLista();
       refrescarEnlaces();
       pintarPublicacion();
+      pintarClips();
       aviso('Guardada.');
     } catch (e) {
       aviso('No se pudo guardar.');
@@ -640,6 +642,7 @@
     pintarCampo();
     refrescarEnlaces();
     pintarPublicacion();
+    pintarClips();
     aviso('Jugada nueva: pon a los jugadores y dibuja el primer movimiento.');
   });
 
@@ -773,6 +776,72 @@
     });
   }
 
+  // --- el puente con Análisis: qué clips ejecutan esta jugada ---
+  const clips = leerJson('tj-clips-data', []);
+  const pintarClips = () => {
+    const cont = $('tj-clips');
+    if (!cont) return;
+    if (!estado.id) {
+      cont.innerHTML = '<p class="tj-hint" style="margin:0;">Guarda la jugada para enlazarle clips.</p>';
+      return;
+    }
+    if (!clips.length) {
+      cont.innerHTML = '<p class="tj-hint" style="margin:0;">Todavía no hay clips del equipo en el estudio de vídeo.</p>';
+      return;
+    }
+    const mios = clips.filter((c) => String(c.play_id) === String(estado.id));
+    cont.innerHTML = '';
+    const resumen = document.createElement('p');
+    resumen.className = 'tj-hint';
+    resumen.style.margin = '0 0 .45rem';
+    resumen.innerHTML = mios.length
+      ? '<strong>Ejecutada ' + mios.length + (mios.length === 1 ? ' vez' : ' veces') + '</strong> en vídeo.'
+      : 'Ningún clip marcado todavía.';
+    cont.appendChild(resumen);
+
+    clips.forEach((c) => {
+      const suyo = String(c.play_id) === String(estado.id);
+      const otra = c.play_id && !suyo;
+      const fila = document.createElement('div');
+      fila.className = 'tj-item' + (suyo ? ' is-on' : '');
+      fila.style.cursor = 'default';
+      const marca = document.createElement('button');
+      marca.type = 'button';
+      marca.className = 'button' + (suyo ? ' primary' : '');
+      marca.style.cssText = 'font-size:.7rem;padding:.2rem .45rem;';
+      marca.textContent = suyo ? 'Quitar' : 'Es esta';
+      marca.disabled = !!otra;
+      if (otra) marca.title = 'Ya está marcado en otra jugada';
+      marca.addEventListener('click', async () => {
+        try {
+          const r = await fetch(URLS.clip, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
+            body: JSON.stringify({ play_id: estado.id, clip_id: c.id, remove: suyo }),
+          });
+          const d = await r.json();
+          if (!d.ok) { aviso(d.error || 'No se pudo enlazar el clip.'); return; }
+          c.play_id = d.linked ? estado.id : null;
+          pintarClips();
+          aviso(d.linked ? 'Clip marcado como ejecución de esta jugada.' : 'Clip desmarcado.');
+        } catch (e) {
+          aviso('No se pudo enlazar el clip.');
+        }
+      });
+      const texto = document.createElement('span');
+      texto.innerHTML = '<strong></strong><br><small style="color:var(--prod-muted);"></small>';
+      texto.querySelector('strong').textContent = c.title;
+      texto.querySelector('small').textContent = c.video || '';
+      const ver = document.createElement('a');
+      ver.href = c.url;
+      ver.textContent = 'ver';
+      ver.style.cssText = 'font-size:.72rem;margin-left:auto;';
+      fila.append(texto, ver, marca);
+      cont.appendChild(fila);
+    });
+  };
+
   // --- la jugada en la charla de un partido ---
   const selPartido = $('tj-match');
   if (selPartido) {
@@ -851,6 +920,7 @@
   pintarBanquillo();
   refrescarEnlaces();
   pintarPublicacion();
+  pintarClips();
   const primeras = filtro ? jugadas.filter((j) => j.kind === filtro) : jugadas;
   if (filtro) { estado.kind = filtro; if (selTipo) { selTipo.value = filtro; selTipo.dispatchEvent(new Event('change')); } }
   if (primeras.length) cargarJugada(primeras[0]); else pintarCampo();

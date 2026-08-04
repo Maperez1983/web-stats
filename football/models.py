@@ -3816,6 +3816,17 @@ class VideoClip(models.Model):
     out_ms = models.PositiveIntegerField(default=0)
     tags = models.JSONField(default=list, blank=True)
     notes = models.TextField(blank=True)
+    # El puente entre lo DIBUJADO y lo JUGADO: este clip es una ejecución de esa jugada del
+    # playbook (Táctica · Jugadas). Es lo que permite pasar de "esto es lo que quiero" a "esto es
+    # lo que hicimos", que es justo lo que un vídeo puede demostrar y un dibujo no.
+    tactical_play = models.ForeignKey(
+        'TacticalPlay',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='clips',
+        help_text='La jugada del playbook que este clip ejecuta.',
+    )
     overlay = models.JSONField(default=dict, blank=True, help_text='Estado de la pizarra (fabric/canvas) para este clip.')
     thumbnail = models.ImageField(
         upload_to='video-clips/thumbs/',

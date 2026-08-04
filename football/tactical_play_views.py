@@ -339,6 +339,8 @@ def tactical_play_page(request):
         'crest_url': _escudo_de(equipo),
         'dibujos_antiguos': dibujos_antiguos,
         'partidos_json': json.dumps(_partidos_abiertos(equipo)),
+        # Los clips del equipo, para poder decir cuáles son la ejecución de una jugada.
+        'clips_json': json.dumps(_clips_de(equipo)),
         # El tipo con el que se entra: "Balón parado" del menú abre esta misma pantalla ya filtrada.
         'tipo_inicial': request.GET.get('tipo', ''),
         'jugadas_json': json.dumps([_jugada_json(j) for j in jugadas]),
@@ -927,3 +929,62 @@ def tactical_play_gif(request, play_id):
     resp = HttpResponse(buffer.getvalue(), content_type='image/gif')
     resp['Content-Disposition'] = f'attachment; filename="{nombre}.gif"'
     return resp
+
+
+@login_required
+@require_POST
+def tactical_play_clip(request):
+    """
+    Dice que un clip de vídeo es una EJECUCIÓN de esta jugada (o deshace el enlace).
+
+    Es el puente entre Táctica y Análisis: el dibujo dice lo que quieres que pase y el clip enseña
+    lo que pasó de verdad. Sin esto, el playbook y el vídeo eran dos cajones que no se hablaban.
+    """
+    from .models import VideoClip
+    from .views import _forbid_if_no_coach_access, _get_primary_team_for_request
+
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    equipo = _get_primary_team_for_request(request)
+    if not equipo:
+        return JsonResponse({'ok': False, 'error': 'Equipo no configurado'}, status=400)
+    try:
+        datos = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+        jugada_id = int(datos.get('play_id') or 0)
+        clip_id = int(datos.get('clip_id') or 0)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'Datos ilegibles'}, status=400)
+
+    jugada = TacticalPlay.objects.filter(team=equipo, id=jugada_id).first()
+    if not jugada:
+        return JsonResponse({'ok': False, 'error': 'Jugada no encontrada'}, status=404)
+    # El clip tiene que ser del equipo: los clips personales de otro analista no son nuestros.
+    clip = VideoClip.objects.filter(id=clip_id, team=equipo).first()
+    if not clip:
+        return JsonResponse({'ok': False, 'error': 'Clip no encontrado'}, status=404)
+
+    clip.tactical_play = None if datos.get('remove') else jugada
+    clip.save(update_fields=['tactical_play', 'updated_at'])
+    return JsonResponse({'ok': True, 'linked': bool(clip.tactical_play_id), 'total': jugada.clips.count()})
+
+
+def _clips_de(equipo, jugada=None, limite=30):
+    """Los clips del equipo, marcando cuáles son ejecuciones de esta jugada."""
+    from .models import VideoClip
+
+    filas = []
+    try:
+        qs = VideoClip.objects.filter(team=equipo).select_related('video', 'tactical_play')
+        for clip in qs.order_by('-updated_at')[:limite]:
+            filas.append({
+                'id': clip.id,
+                'title': (clip.title or 'Clip sin nombre')[:80],
+                'video': str(getattr(clip.video, 'title', '') or '')[:60],
+                'play_id': clip.tactical_play_id,
+                'mine': bool(jugada and clip.tactical_play_id == jugada.id),
+                'url': reverse('analysis-video-clip-view', args=[clip.id]) if clip.id else '',
+            })
+    except Exception:
+        return []
+    return filas

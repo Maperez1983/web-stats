@@ -660,6 +660,8 @@ urlpatterns = [
     path("coach/tactica/jugadas/enganchar/", tactical_play_views.tactical_play_attach_task, name="tactics-play-attach"),
     path("coach/tactica/jugadas/publicar/", tactical_play_views.tactical_play_publish, name="tactics-play-publish"),
     path("coach/tactica/jugadas/partido/", tactical_play_views.tactical_play_match, name="tactics-play-match"),
+    # El puente con Análisis: un clip de vídeo es la ejecución de una jugada.
+    path("coach/tactica/jugadas/clip/", tactical_play_views.tactical_play_clip, name="tactics-play-clip"),
     # La misma jugada, pero por la puerta del jugador: publicada y de su equipo.
     path("jugadas/<int:play_id>/", tactical_play_views.tactical_play_player_board, name="tactics-play-player"),
     path("coach/11-inicial/", views.initial_eleven_page, name="initial-eleven"),

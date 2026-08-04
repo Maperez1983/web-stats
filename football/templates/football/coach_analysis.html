@@ -1248,6 +1248,30 @@
 	        </div>
 
 	        <div data-tab="insights">
+	        {% comment %}El puente con Táctica: qué jugadas del playbook tienen vídeo que las
+	        demuestre. Va ANTES del análisis del rival porque esto es lo nuestro: lo que dibujamos
+	        frente a lo que de verdad hicimos.{% endcomment %}
+	        {% if jugadas_en_video %}
+	        <div class="grid" style="margin-bottom:1rem;">
+	          <div class="item item-wide">
+	            <h3>Nuestras jugadas en vídeo</h3>
+	            <p class="meta" style="margin:.35rem 0 .75rem;">
+	              Lo dibujado en <a href="{% url 'tactics-plays' %}">Táctica · Jugadas</a> frente a lo
+	              ejecutado. Los clips se marcan desde la propia jugada.
+	            </p>
+	            <ul class="list">
+	              {% for j in jugadas_en_video %}
+	              <li>
+	                <a href="{% url 'tactics-play-board' j.id %}">{{ j.name }}</a>
+	                <span class="meta">· {{ j.kind_label }} ·
+	                  {% if j.clips %}{{ j.clips }} clip{{ j.clips|pluralize }}{% else %}sin vídeo todavía{% endif %}
+	                </span>
+	              </li>
+	              {% endfor %}
+	            </ul>
+	          </div>
+	        </div>
+	        {% endif %}
 	        {% if roster %}
 	        <div class="grid">
           {% if rival_briefing %}

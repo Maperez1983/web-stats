@@ -467,3 +467,95 @@ class JugadaEnPartidoYExportacionTests(TestCase):
         html = r.content.decode()
         self.assertIn("estimados por el puesto", html, "un % sin avisar se lee como un dato medido")
         self.assertIn('"estimado": true', html)
+
+
+class JugadaEnVideoTests(TestCase):
+    """El puente con Análisis: un clip de vídeo es la ejecución de una jugada dibujada."""
+
+    def setUp(self):
+        from football.models import RivalVideo, VideoClip
+
+        self.user = get_user_model().objects.create_superuser("s4", "s4@example.com", "x")
+        self.team = Team.objects.create(name="Benagalbón", slug="bena4", is_primary=True)
+        self.otro = Team.objects.create(name="Otro", slug="otro4")
+        self.ws = Workspace.objects.create(name="Club", slug="club4", kind=Workspace.KIND_CLUB)
+        WorkspaceMembership.objects.create(workspace=self.ws, user=self.user, role="owner")
+        WorkspaceTeam.objects.create(workspace=self.ws, team=self.team, is_default=True)
+        Player.objects.create(team=self.team, name="Uno", number=1, is_active=True)
+
+        self.play = TacticalPlay.objects.create(team=self.team, name="Salida 3-2", steps_data=[])
+        self.video = RivalVideo.objects.create(team=self.team, title="Jornada 1")
+        self.clip = VideoClip.objects.create(team=self.team, video=self.video, title="Salida por dentro",
+                                             in_ms=1000, out_ms=9000)
+        self.clip_ajeno = VideoClip.objects.create(team=self.otro, video=self.video, title="De otros",
+                                                  in_ms=0, out_ms=5000)
+
+        self.client = Client()
+        self.client.force_login(self.user)
+        s = self.client.session
+        s["active_workspace_id"] = self.ws.id
+        s["active_team_by_workspace"] = {str(self.ws.id): self.team.id}
+        s.save()
+
+    def _enlazar(self, clip_id, play_id, remove=False):
+        return self.client.post(
+            reverse("tactics-play-clip"),
+            data=json.dumps({"play_id": play_id, "clip_id": clip_id, "remove": remove}),
+            content_type="application/json", secure=True,
+        )
+
+    def test_marcar_un_clip_como_ejecucion_de_la_jugada(self):
+        r = self._enlazar(self.clip.id, self.play.id)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["total"], 1)
+        self.clip.refresh_from_db()
+        self.assertEqual(self.clip.tactical_play_id, self.play.id)
+
+    def test_desmarcarlo(self):
+        self._enlazar(self.clip.id, self.play.id)
+        self._enlazar(self.clip.id, self.play.id, remove=True)
+        self.clip.refresh_from_db()
+        self.assertIsNone(self.clip.tactical_play_id)
+
+    def test_no_se_enlaza_un_clip_de_otro_equipo(self):
+        r = self._enlazar(self.clip_ajeno.id, self.play.id)
+        self.assertEqual(r.status_code, 404)
+        self.clip_ajeno.refresh_from_db()
+        self.assertIsNone(self.clip_ajeno.tactical_play_id)
+
+    def test_borrar_la_jugada_no_borra_el_clip(self):
+        self._enlazar(self.clip.id, self.play.id)
+        self.play.delete()
+        self.clip.refresh_from_db()
+        self.assertIsNone(self.clip.tactical_play_id, "el vídeo no se pierde por retirar un dibujo")
+
+    def test_la_jugada_ensena_sus_clips(self):
+        self._enlazar(self.clip.id, self.play.id)
+        html = self.client.get(reverse("tactics-plays"), secure=True).content.decode()
+        self.assertIn("En vídeo", html)
+        self.assertIn("Salida por dentro", html, "el clip enlazado tiene que salir en la jugada")
+
+    def test_analisis_ensena_las_jugadas_con_su_video(self):
+        from football.views import _plays_with_clip_counts
+
+        self._enlazar(self.clip.id, self.play.id)
+        filas = _plays_with_clip_counts(self.team)
+        self.assertEqual(filas[0]["name"], "Salida 3-2")
+        self.assertEqual(filas[0]["clips"], 1)
+
+    def test_analisis_ordena_primero_lo_que_tiene_video(self):
+        from football.views import _plays_with_clip_counts
+
+        TacticalPlay.objects.create(team=self.team, name="Sin vídeo", steps_data=[])
+        self._enlazar(self.clip.id, self.play.id)
+        filas = _plays_with_clip_counts(self.team)
+        self.assertEqual(filas[0]["name"], "Salida 3-2")
+        self.assertEqual(filas[1]["clips"], 0)
+
+    def test_el_clip_guardado_desde_el_video_puede_traer_la_jugada(self):
+        from football.views import _tactical_play_for_clip
+
+        self.assertEqual(_tactical_play_for_clip(self.play.id, self.team), self.play)
+        self.assertIsNone(_tactical_play_for_clip(self.play.id, self.otro),
+                          "una jugada de otro equipo no se cuela por el guardado del clip")
+        self.assertIsNone(_tactical_play_for_clip(0, self.team))

@@ -175,6 +175,14 @@
           </div>
 
           <div class="tj-panel">
+            <h2>En vídeo</h2>
+            {% comment %}El puente con Análisis: marcar qué clips son la ejecución de esta jugada.
+            El dibujo dice lo que quieres; el clip enseña lo que pasó.{% endcomment %}
+            <div id="tj-clips"><p class="tj-hint" style="margin:0;">Guarda la jugada para enlazarle clips.</p></div>
+            <p class="tj-hint">Los clips salen del estudio de vídeo, en Análisis.</p>
+          </div>
+
+          <div class="tj-panel">
             <h2>Charla del partido</h2>
             <select id="tj-match"><option value="">Elige el partido</option></select>
             <button class="button" id="tj-match-add" type="button" style="margin-top:.4rem;width:100%;">Añadir a ese partido</button>
@@ -194,12 +202,14 @@
       {{ slots_json|json_script:"tj-slots" }}
       {{ tipos_json|json_script:"tj-tipos" }}
       {{ partidos_json|json_script:"tj-partidos" }}
+      {{ clips_json|json_script:"tj-clips-data" }}
       <script>
         window.TJ_URLS = {
           save: '{% url "tactics-play-save" %}',
           del: '{% url "tactics-play-delete" %}',
           publish: '{% url "tactics-play-publish" %}',
           match: '{% url "tactics-play-match" %}',
+          clip: '{% url "tactics-play-clip" %}',
           image: '{% url "tactics-play-image" 0 %}',
           gif: '{% url "tactics-play-gif" 0 %}',
           board: '{% url "tactics-play-board" 0 %}',
