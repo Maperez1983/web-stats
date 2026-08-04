@@ -11,6 +11,12 @@ set -euo pipefail
 : "${GUNICORN_THREADS:=4}"
 : "${GUNICORN_KEEPALIVE:=5}"
 : "${GUNICORN_GRACEFUL_TIMEOUT:=30}"
+# Recicla cada worker tras N peticiones. Sin esto los workers no se reponen NUNCA: cada
+# página pesada (admin de equipos, render HD) deja memoria que no vuelve, y en un contenedor
+# de 2 GB compartido con Ollama se acaba llegando al límite y el proceso muere -> 502.
+# El jitter evita que los dos workers se reciclen a la vez y dejen un hueco sin servicio.
+: "${GUNICORN_MAX_REQUESTS:=200}"
+: "${GUNICORN_MAX_REQUESTS_JITTER:=50}"
 : "${INSTALL_PLAYWRIGHT_BROWSERS:=false}"
 : "${INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME:=false}"
 : "${DJANGO_RUN_ASGI:=false}"
@@ -97,6 +103,8 @@ _start_server() {
       --graceful-timeout "${GUNICORN_GRACEFUL_TIMEOUT}" \
       --keep-alive "${GUNICORN_KEEPALIVE}" \
       --workers "${GUNICORN_WORKERS}" \
+      --max-requests "${GUNICORN_MAX_REQUESTS}" \
+      --max-requests-jitter "${GUNICORN_MAX_REQUESTS_JITTER}" \
       --access-logfile - \
       --error-logfile - &
   else
@@ -110,6 +118,8 @@ _start_server() {
         --graceful-timeout "${GUNICORN_GRACEFUL_TIMEOUT}" \
         --keep-alive "${GUNICORN_KEEPALIVE}" \
         --workers "${GUNICORN_WORKERS}" \
+        --max-requests "${GUNICORN_MAX_REQUESTS}" \
+        --max-requests-jitter "${GUNICORN_MAX_REQUESTS_JITTER}" \
         --access-logfile - \
         --error-logfile - &
     else
@@ -121,6 +131,8 @@ _start_server() {
       --graceful-timeout "${GUNICORN_GRACEFUL_TIMEOUT}" \
       --keep-alive "${GUNICORN_KEEPALIVE}" \
       --workers "${GUNICORN_WORKERS}" \
+      --max-requests "${GUNICORN_MAX_REQUESTS}" \
+      --max-requests-jitter "${GUNICORN_MAX_REQUESTS_JITTER}" \
       --access-logfile - \
       --error-logfile - &
     fi
@@ -137,7 +149,10 @@ if [ "${_pw_rt_install}" = "true" ]; then
     echo "[boot] Aviso: INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME está activado en Render; puede ralentizar y consumir disco." >&2
   fi
   export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-0}"
-  python -m playwright install chromium firefox webkit || true
+  # Solo chromium: es el que se lanza de verdad (firefox y webkit son el respaldo de
+  # preview_render y ya vienen del build). Bajarlos otra vez en cada arranque solo cuesta
+  # disco y tiempo de bind del puerto en Render.
+  python -m playwright install "${PLAYWRIGHT_RUNTIME_BROWSERS:-chromium}" || true
 fi
 
 trap 'kill -TERM "${server_pid}" 2>/dev/null || true' TERM INT
