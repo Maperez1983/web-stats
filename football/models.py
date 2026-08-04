@@ -1871,6 +1871,18 @@ class ScoutingTarget(models.Model):
     ]
 
     workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name='scouting_targets')
+    # A QUÉ equipo se ojea. El objetivo colgaba solo del club, asi que el cadete y el senior
+    # veian exactamente la misma direccion deportiva: no es que faltara un filtro, es que el
+    # dato no existia. Nulo = del club (no se ha decidido categoria), y ese se ve desde todas.
+    team = models.ForeignKey(
+        'Team',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='scouting_targets',
+        db_index=True,
+        help_text='Equipo/categoría para la que se ojea. Vacío = del club, visible en todas.',
+    )
     player = models.ForeignKey(Player, on_delete=models.SET_NULL, null=True, blank=True, related_name='scouting_targets')
     subject_name = models.CharField(max_length=160, help_text='Nombre del jugador ojeado, aunque no exista como ficha local.')
     subject_team_name = models.CharField(max_length=160, blank=True, help_text='Club actual o referencia del jugador.')
