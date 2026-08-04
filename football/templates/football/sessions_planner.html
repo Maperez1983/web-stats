@@ -4240,6 +4240,25 @@
 			          </a>
 			        </div>
 
+			        {# Tipo de tarea: la familia (rondo, circuito, partido…) como fila de carpetas, #}
+			        {# igual que las colecciones. Es la pregunta que más se hace al buscar una tarea. #}
+			        <div class="folder-grid" aria-label="Tipo de tarea" style="margin-top:0.75rem;">
+			          <a class="folder-card {% if not library_family %}is-current{% endif %}"
+			             href="?{% qs_replace tab='library' family=None lib_page=None %}"
+			             {% if not library_family %}aria-current="page"{% endif %}>
+			            <strong>⚽ Todos los tipos</strong>
+			            <span>Sin filtrar por tipo</span>
+			          </a>
+			          {% for value, label in task_family_choices %}
+			          <a class="folder-card {% if library_family == value %}is-current{% endif %}"
+			             href="?{% qs_replace tab='library' family=value lib_page=None %}"
+			             {% if library_family == value %}aria-current="page"{% endif %}>
+			            <strong>{{ label }}</strong>
+			            <span>tipo de tarea</span>
+			          </a>
+			          {% endfor %}
+			        </div>
+
 			        {# Colecciones: hasta ahora sólo existían como desplegable escondido, así que una #}
 			        {# colección creada no se podía ABRIR. Aquí se ven como carpetas, igual que arriba. #}
 			        <div class="folder-grid" aria-label="Colecciones de tareas" style="margin-top:0.75rem;">

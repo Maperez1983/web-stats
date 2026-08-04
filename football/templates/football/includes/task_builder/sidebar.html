@@ -598,6 +598,16 @@
 	                  <div class="section" id="task-methodology-card" style="grid-column:1 / -1; margin:0.35rem 0 0.55rem; padding:0.75rem; border:1px solid rgba(255,255,255,0.10); border-radius:14px; background:rgba(255,255,255,0.035);" data-methodology-picker data-help="Conecta la tarea con la periodización táctica: momento, principio, subprincipio, regla provocadora y carga.">
 	                    <h3 style="margin:0 0 0.55rem;">Metodología</h3>
 	                    <div class="compact-grid" data-methodology-grid>
+	                      {# Familia de la tarea: el "que tipo es" (rondo, circuito, partido...). #}
+	                      <label>
+	                        Tipo de tarea
+	                        <select name="task_family">
+	                          <option value="">Selecciona...</option>
+	                          {% for value, label in task_family_choices %}
+	                          <option value="{{ value }}" {% if initial.task_family == value %}selected{% endif %}>{{ label }}</option>
+	                          {% endfor %}
+	                        </select>
+	                      </label>
 	                      <label>
 	                        Momento del juego
 	                        <select name="draw_task_game_moment">

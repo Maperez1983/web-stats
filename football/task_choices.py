@@ -160,6 +160,19 @@ TASK_CONSTRAINT_CHOICES = [
 # ============================================================
 
 # Momentos del juego (las 5 fases del modelo de juego).
+# FAMILIA de la tarea: el "que tipo de tarea es" que faltaba. Siete grupos acordados con el
+# club a partir de leer sus 179 tareas del PPT una a una; el detalle fino (rondo en octogono,
+# rueda con estaciones numeradas...) va en el texto de la tarea, no aqui.
+TASK_FAMILY_CHOICES = [
+    ("rondo", "Rondo / posesión"),
+    ("posicion", "Juego de posición"),
+    ("circuito", "Circuito / rueda de pases"),
+    ("finalizacion", "Finalización y ABP"),
+    ("partido", "Partido condicionado"),
+    ("transicion", "Transición"),
+    ("estructural", "Tarea estructural"),
+]
+
 GAME_MOMENT_CHOICES = [
     ("offensive_organization", "Organización ofensiva"),
     ("defensive_transition", "Transición ataque-defensa"),
@@ -209,6 +222,7 @@ def derive_task_columns(tactical_layout):
         meta = {}
     return {
         "game_moment": _task_col_str(meta.get("game_moment"), 40),
+        "task_family": _task_col_str(meta.get("task_family"), 30),
         "principle": _task_col_str(meta.get("principle"), 160),
         "subprinciple": _task_col_str(meta.get("subprinciple"), 200),
         "structure_periodization": _task_col_str(meta.get("dominant_structure"), 40),

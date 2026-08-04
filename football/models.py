@@ -3178,6 +3178,8 @@ class SessionTask(models.Model):
     # columnas son un índice para poder filtrar/buscar (biblioteca de tareas).
     game_moment = models.CharField(max_length=40, blank=True, default='', db_index=True,
                                    help_text='Momento del juego (derivado del JSON)')
+    task_family = models.CharField(max_length=30, blank=True, default='', db_index=True,
+                                   help_text='Familia de la tarea: rondo, juego de posición, circuito… (derivado del JSON)')
     principle = models.CharField(max_length=160, blank=True, default='')
     subprinciple = models.CharField(max_length=200, blank=True, default='')
     structure_periodization = models.CharField(max_length=40, blank=True, default='', db_index=True,
