@@ -272,7 +272,10 @@
   <a href="{% url 'match-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Gestiona el día de partido: convocatoria, 11 inicial, registro de acciones e informes." class="{% if 'registro-acciones' in nav_path or 'convocatoria' in nav_path or '11-inicial' in nav_path or nav_path|slice:":9" == '/partido/' or nav_path|slice:":7" == '/match/' or nav_path|slice:":12" == '/incidencias/' %}is-active{% endif %}" {% if 'registro-acciones' in nav_path or 'convocatoria' in nav_path or '11-inicial' in nav_path or nav_path|slice:":9" == '/partido/' or nav_path|slice:":7" == '/match/' or nav_path|slice:":12" == '/incidencias/' %}aria-current="page"{% endif %}>Partido</a>
   {% endif %}
   {% if workspace_module_access.tactics|default:True %}
-  <a href="{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Abre herramientas tácticas: modelo de juego, pizarra, ABP y recursos para preparar el partido." class="{% if 'coach/tactica' in nav_path %}is-active{% endif %}" {% if 'coach/tactica' in nav_path %}aria-current="page"{% endif %}>Táctica</a>
+  {% comment %}La puerta del area es el PLANTEAMIENTO (nuestro once frente al del rival): es lo que se
+  hace antes de un partido. Antes entraba en la pizarra de dibujo, que es el editor de tareas en modo
+  playbook, y dejaba el planteamiento escondido en el desplegable.{% endcomment %}
+  <a href="{% url 'tactics-plan' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Plantea el partido: tu once frente al del rival, con fases, carriles y el informe del rival. Dentro estan tambien la pizarra de jugadas y el balon parado." class="{% if 'coach/tactica' in nav_path %}is-active{% endif %}" {% if 'coach/tactica' in nav_path %}aria-current="page"{% endif %}>Táctica</a>
   {% endif %}
   {% if can_access_staff|default:False %}
   <a href="{% url 'scouting-board' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" data-help="Abre la bandeja de dirección deportiva: ojeados, informes, seguimiento y prioridades." class="{% if nav_url_name == 'scouting-board' or nav_url_name == 'scouting-target-detail' %}is-active{% endif %}" {% if nav_url_name == 'scouting-board' or nav_url_name == 'scouting-target-detail' %}aria-current="page"{% endif %}>Dirección</a>

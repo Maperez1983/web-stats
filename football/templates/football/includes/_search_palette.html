@@ -27,7 +27,8 @@ tambien debe poder abrirla. La logica vive en football/js/command_palette.js.
   {"label":"Academia","url":"{% url 'academy-home' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"academia lecciones guia interactiva quiz"},
   {% endif %}
 	  {"label":"Agenda semanal","url":"{% url 'team-agenda' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"agenda semanal calendario entrenos partidos"},
-	  {"label":"Táctica","url":"{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"tactica táctica pizarra playbook clips"},
+	  {"label":"Táctica · Planteamiento","url":"{% url 'tactics-plan' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"tactica táctica planteamiento once alineacion alineación rival sistema formacion formación"},
+	  {"label":"Táctica · Pizarra de jugadas","url":"{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"tactica táctica pizarra playbook clips dibujar jugada"},
   {"label":"Crear tarea (editor)","url":"{% url 'sessions-task-create' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"crear tarea pizarra editor"},
   {"label":"Calendario (ICS)","url":"{% url 'team-calendar-ics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"calendario ics exportar google apple"},
   {"label":"Buscar (página)","url":"{% url 'search-page' %}","keywords":"buscar search"},
