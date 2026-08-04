@@ -1134,7 +1134,9 @@
             {% if player.preferred_position and player.preferred_position != player.position %}<span class="ph-badge ph-muted" title="Posición preferida">prefiere {{ player.preferred_position|display_position }}</span>{% endif %}
             {% if player.number %}<span class="ph-badge ph-muted">#{{ player.number }}</span>{% endif %}
           </div>
-          {% if player.nickname %}
+          {% comment %}El apodo sólo si dice algo: el nombre grande de la ficha YA es el corto,
+          así que en "Eloy" ponía "Apodo: Eloy". Cuando coincide, sobra.{% endcomment %}
+          {% if player.nickname and player.nickname != player.name %}
             <p style="margin:0.2rem 0 0;" class="subtle">Apodo: {{ player.nickname|display_text }}</p>
           {% endif %}
           {% if current_convocation %}
@@ -1478,7 +1480,10 @@
         <h2 style="margin-top:0;">Datos personales</h2>
         {% comment %}Reorganizada: la foto entra aqui (es el dato personal por excelencia y de ella sale su cara en la pizarra), aparecen contacto y los rasgos del avatar, y lo que FALTA se ve en ambar en vez de esconderse: un campo oculto y uno vacio se parecian demasiado, y asi nadie sabia que rellenar. Fuera los chips, que ya estan en la cabecera. Los rasgos de juego se han ido a Valoracion, que es donde se juzga.{% endcomment %}
         {% with kst='font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--prod-muted);font-weight:800;' vst='font-size:.95rem;font-weight:700;color:var(--prod-text);margin-top:1px;' fst='font-size:.9rem;font-weight:600;color:#f6d488;margin-top:1px;' cardst='border:1px solid rgba(148,163,184,0.18);border-radius:12px;padding:.85rem .95rem;background:rgba(2,6,23,0.35);' ctit='font-size:.64rem;text-transform:uppercase;letter-spacing:.12em;color:var(--prod-muted);font-weight:800;margin:0 0 .65rem;' %}
-        <div style="display:grid;grid-template-columns:minmax(200px,240px) 1fr;gap:.9rem;align-items:start;">
+        {% comment %}La columna estrecha se quedó sólo con la foto al repartir las tarjetas, y
+        la ancha con una sola: media pestaña en blanco. El contacto sube a la columna ancha, que
+        además es lo que más se usa -de ese email sale la invitación al portal-.{% endcomment %}
+        <div style="display:grid;grid-template-columns:minmax(180px,210px) 1fr;gap:.9rem;align-items:start;">
 
           <div style="display:flex;flex-direction:column;gap:.9rem;">
             <div style="{{ cardst }}">
@@ -1493,6 +1498,10 @@
               <p class="subtle" style="margin:.55rem 0 0;font-size:.72rem;">De frente y con luz: es la que se usa para su cara en la pizarra.</p>
             </div>
 
+
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:.9rem;">
             <div style="{{ cardst }}">
               <p style="{{ ctit }}">Contacto</p>
               <div style="display:grid;gap:.6rem;">
@@ -1501,9 +1510,7 @@
                 <div><div style="{{ kst }}">Teléfono</div><div style="{% if player.phone %}{{ vst }}{% else %}{{ fst }}{% endif %}">{{ player.phone|default:"Sin indicar" }}</div></div>
 </div>
             </div>
-          </div>
 
-          <div style="display:flex;flex-direction:column;gap:.9rem;">
             <div style="{{ cardst }}">
               <p style="{{ ctit }}">Identidad</p>
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.7rem .9rem;">
