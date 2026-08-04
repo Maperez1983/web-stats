@@ -219,3 +219,48 @@ class FasesPlanteamientoTests(PlanteamientoTests):
         intruso = Player.objects.create(team=otro, name="Intruso", is_active=True)
         r = self._guardar(phases=[{"key": "salida", "starters": [{"id": intruso.id, "x_pct": 50, "y_pct": 50}]}])
         self.assertEqual(r.json()["plan"]["phases"][0]["starters"], [])
+
+
+class BajasEnElPlanteamientoTests(PlanteamientoTests):
+    """Lo que una pizarra suelta no puede saber: quién no puede jugar."""
+
+    def test_el_lesionado_sale_marcado_en_la_pantalla(self):
+        import datetime
+
+        from football.models import PlayerInjuryRecord
+
+        PlayerInjuryRecord.objects.create(
+            player=self.p1, injury="Rotura", injury_date=datetime.date(2026, 8, 1),
+            is_active=True, is_recovered=False,
+        )
+        r = self.client.get(reverse("tactics-plan"), secure=True)
+        # El json_script lleva el JSON escapado dentro de una cadena, así que se busca el valor.
+        self.assertIn('lesionado', r.content.decode())
+
+    def test_el_sancionado_a_mano_tambien(self):
+        self.p2.manual_sanction_active = True
+        self.p2.save(update_fields=["manual_sanction_active"])
+        r = self.client.get(reverse("tactics-plan"), secure=True)
+        self.assertIn('sancionado', r.content.decode())
+
+    def test_aplicar_avisa_pero_no_bloquea(self):
+        self.p1.manual_sanction_active = True
+        self.p1.save(update_fields=["manual_sanction_active"])
+        plan = self._guardar().json()["plan"]
+
+        import datetime
+
+        from football.models import Competition, Match, Season
+
+        comp = Competition.objects.create(name="Liga")
+        temporada = Season.objects.create(competition=comp, name="26/27",
+                                          start_date=datetime.date(2026, 7, 1), end_date=datetime.date(2027, 6, 30))
+        partido = Match.objects.create(season=temporada, home_team=self.team, away_team=self.rival,
+                                       date=datetime.date(2026, 9, 5))
+        r = self.client.post(reverse("tactics-plan-apply"),
+                             data=json.dumps({"plan_id": plan["id"], "match_id": partido.id}),
+                             content_type="application/json", secure=True)
+        d = r.json()
+        self.assertTrue(d["ok"], "avisa, pero no impide: el entrenador manda")
+        self.assertEqual(d["starters"], 1)
+        self.assertEqual(d["warnings"][0]["motivo"], "sancionado")

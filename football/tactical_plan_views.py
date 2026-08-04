@@ -126,6 +126,43 @@ def _normalizar_rival(payload):
     return {'starters': filas, '_meta': {'orientation': 'lr'}}
 
 
+def _bajas_del_equipo(jugadores, match=None):
+    """
+    Quién no puede jugar: lesionado o sancionado. Devuelve {id: motivo}.
+
+    La sanción por ciclo de tarjetas depende del partido (se arrastra de la jornada anterior), así
+    que sólo se mira cuando hay partido; la sanción puesta a mano vale siempre.
+    """
+    from django.utils import timezone
+
+    from .query_helpers import get_active_injury_player_ids, get_sanctioned_player_ids_from_previous_round
+
+    ids = [p.id for p in jugadores]
+    fuera = {}
+    try:
+        for pid in get_active_injury_player_ids(ids) or []:
+            fuera[int(pid)] = 'lesionado'
+    except Exception:
+        pass
+    hoy = timezone.localdate()
+    for p in jugadores:
+        if fuera.get(p.id):
+            continue
+        if getattr(p, 'manual_sanction_active', False):
+            hasta = getattr(p, 'manual_sanction_until', None)
+            if not hasta or hasta >= hoy:
+                fuera[p.id] = 'sancionado'
+    if match is not None:
+        try:
+            equipo = getattr(jugadores[0], 'team', None) if jugadores else None
+            for pid in get_sanctioned_player_ids_from_previous_round(equipo, reference_match=match) or []:
+                if int(pid) in set(ids):
+                    fuera.setdefault(int(pid), 'sancionado')
+        except Exception:
+            pass
+    return fuera
+
+
 def _escudo_de(equipo):
     if not equipo:
         return ''
@@ -207,6 +244,9 @@ def tactical_plan_page(request):
     jugadores = list(
         Player.objects.filter(team=equipo, is_active=True).order_by('number', 'name')
     )
+    # Quién NO está. Esto es lo que una pizarra suelta no puede saber: TacticalPad dibuja
+    # círculos; aquí el círculo es un jugador del club, con su parte médico y su sanción.
+    bajas = _bajas_del_equipo(jugadores)
     planes = list(TacticalPlan.objects.filter(team=equipo).select_related('rival_team'))
 
     # Rivales con plantilla ya volcada: son los únicos a los que se les puede poner un once
@@ -260,6 +300,7 @@ def tactical_plan_page(request):
                 # La cara del jugador: es lo que hace que la pizarra sea SU equipo y no once
                 # círculos de color. Primero su foto; si no tiene, la figura recoloreada.
                 'photo_url': _foto_de(request, p),
+                'baja': bajas.get(p.id, ''),
             }
             for p in jugadores
         ]),
@@ -524,11 +565,21 @@ def tactical_plan_apply(request):
             },
         )
 
+    # Avisar de quién no puede jugar ESE partido. No se bloquea el volcado -el entrenador manda,
+    # y una sanción puede estar mal metida- pero no se le deja descubrirlo el domingo.
+    puestos = [p for p in permitidos if p.id in {int(f['id']) for f in (normalizado.get('starters') or [])}]
+    bajas = _bajas_del_equipo(puestos, match=partido)
+    avisos = [
+        {'name': (p.nickname or p.name or '').strip(), 'motivo': bajas[p.id]}
+        for p in puestos if p.id in bajas
+    ]
+
     return JsonResponse({
         'ok': True,
         'starters': len(normalizado.get('starters') or []),
         'added_to_convocation': len(faltan),
         'rival': len(rival_filas),
+        'warnings': avisos,
     })
 
 

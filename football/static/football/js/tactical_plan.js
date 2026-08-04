@@ -97,6 +97,15 @@
       n.textContent = fila.number || '·';
       el.appendChild(n);
     }
+    if (!esRival && fila.baja) {
+      el.classList.add('is-baja');
+      const marca = document.createElement('span');
+      marca.className = 'baja';
+      marca.textContent = fila.baja === 'lesionado' ? '+' : '!';
+      marca.title = fila.baja;
+      el.appendChild(marca);
+      el.title = (fila.name || '') + ' · ' + fila.baja;
+    }
     const lbl = document.createElement('span');
     lbl.className = 'lbl';
     lbl.textContent = String(fila.name || '').split(' ')[0].slice(0, 12);
@@ -335,6 +344,15 @@
       });
       html += '</div><p class="tp-hint" style="margin:.4rem 0 0;">+ es superioridad nuestra en esa franja.</p>';
     }
+    const fuera = estado.starters.filter((p) => p.baja);
+    if (fuera.length) {
+      html += '<p class="tp-sub">No pueden jugar</p><div class="tp-lanes">';
+      fuera.forEach((p) => {
+        html += '<div class="tp-lane menos"><span>' + String(p.name || '').split(' ')[0] + '</span><strong>' + p.baja + '</strong></div>';
+      });
+      html += '</div>';
+    }
+
     const raros = fueraDeSitio();
     if (raros.length) {
       html += '<p class="tp-sub">Fuera de su puesto</p>';
@@ -378,14 +396,15 @@
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'button' + (puesto ? ' primary' : '');
-      b.textContent = (p.number ? '#' + p.number + ' ' : '') + (p.name || '').split(' ')[0];
+      b.textContent = (p.number ? '#' + p.number + ' ' : '') + (p.name || '').split(' ')[0] + (p.baja ? (p.baja === 'lesionado' ? ' +' : ' !') : '');
+      if (p.baja) { b.classList.add('es-baja'); b.title = p.baja; }
       b.addEventListener('click', () => {
         if (puesto) {
           estado.starters = estado.starters.filter((s) => String(s.id) !== String(p.id));
         } else {
           if (estado.starters.length >= LIMITE) { aviso('Ya hay ' + LIMITE + ' en el campo.'); return; }
           const hueco = slots[estado.starters.length] || { x: 50, y: 50 };
-          estado.starters.push({ id: p.id, name: p.name, number: p.number, position: p.position, photo_url: p.photo_url || '', x_pct: hueco.x, y_pct: hueco.y });
+          estado.starters.push({ id: p.id, name: p.name, number: p.number, position: p.position, photo_url: p.photo_url || '', baja: p.baja || '', x_pct: hueco.x, y_pct: hueco.y });
         }
         pintarBanquillo();
         pintarCampo();
@@ -421,7 +440,7 @@
     const porId = new Map(plantilla.map((p) => [String(p.id), p]));
     estado.starters = ((plan.lineup || {}).starters || []).map((f) => {
       const p = porId.get(String(f.id));
-      return { ...f, photo_url: (p && p.photo_url) || '' };
+      return { ...f, photo_url: (p && p.photo_url) || '', baja: (p && p.baja) || '' };
     });
     estado.rival = ((plan.rival_lineup || {}).starters || []).map((f) => ({ ...f }));
     estado.rival_team_id = plan.rival_team_id || '';
@@ -579,7 +598,11 @@
         const extra = d.added_to_convocation
           ? ' (' + d.added_to_convocation + ' añadidos a la convocatoria)'
           : '';
-        aviso('Aplicado: ' + d.starters + ' titulares' + (d.rival ? ' y ' + d.rival + ' del rival' : '') + extra + '.');
+        let texto = 'Aplicado: ' + d.starters + ' titulares' + (d.rival ? ' y ' + d.rival + ' del rival' : '') + extra + '.';
+        if ((d.warnings || []).length) {
+          texto += ' OJO: ' + d.warnings.map((w) => w.name + ' (' + w.motivo + ')').join(', ') + ' para ese partido.';
+        }
+        aviso(texto);
       } catch (e) {
         aviso('No se pudo aplicar.');
       }
