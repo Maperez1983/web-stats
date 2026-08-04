@@ -1067,6 +1067,7 @@ def _player_home_zones(request, player, vis):
         "wellness_today": None,
         "inbox_items": [],
         "inbox_unread": 0,
+        "plays": [],
         "fines": [],
         "fines_total": 0,
         "communications": [],
@@ -1432,6 +1433,19 @@ def _player_home_zones(request, player, vis):
             zones["inbox_unread"] = int(inbox.filter(is_read=False).count())
         except Exception:
             logger.debug("No se pudo cargar el buzón de vídeo del jugador", exc_info=True)
+
+    # Las jugadas del equipo. Dos llaves: la sección abierta y la jugada PUBLICADA a propósito;
+    # el cajón entero de Táctica no es suyo.
+    if vis.plays:
+        try:
+            from .models import TacticalPlay
+
+            zones["plays"] = list(
+                TacticalPlay.objects.filter(team_id=player.team_id, published_to_players=True)
+                .order_by("-published_at", "-updated_at")[:6]
+            )
+        except Exception:
+            logger.debug("No se pudieron cargar las jugadas publicadas del equipo", exc_info=True)
 
     # CLUB ------------------------------------------------------------------------------
     if vis.fines:

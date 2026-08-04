@@ -2158,6 +2158,11 @@ class TacticalPlay(models.Model):
     kind = models.CharField(max_length=16, choices=KIND_CHOICES, default=KIND_ATAQUE)
     notes = models.TextField(blank=True, default='')
     steps_data = models.JSONField(default=list, blank=True)
+    # Publicar es un gesto deliberado, igual que en el resto del portal: que una jugada exista no
+    # significa que el jugador tenga que verla. La sección abierta y la jugada publicada son DOS
+    # llaves, y hacen falta las dos (ver player_portal_policy).
+    published_to_players = models.BooleanField(default=False)
+    published_at = models.DateTimeField(null=True, blank=True)
     created_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -3042,6 +3047,17 @@ class SessionTask(models.Model):
     title = models.CharField(max_length=160)
     block = models.CharField(max_length=30, choices=BLOCK_CHOICES, default=BLOCK_MAIN_1)
     duration_minutes = models.PositiveSmallIntegerField(default=15)
+    # La jugada que este ejercicio entrena (Táctica · Jugadas). Es un enlace, no una copia: si la
+    # jugada cambia, cambia en la tarea. SET_NULL porque borrar una jugada no puede llevarse por
+    # delante el ejercicio.
+    tactical_play = models.ForeignKey(
+        'TacticalPlay',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='session_tasks',
+        help_text='La jugada del equipo que se entrena en esta tarea.',
+    )
     objective = models.TextField(blank=True)
     coaching_points = models.TextField(blank=True, help_text='Consignas clave para ejecutar la tarea')
     confrontation_rules = models.TextField(blank=True, help_text='Reglas de confrontación y puntuación')

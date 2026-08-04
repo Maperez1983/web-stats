@@ -164,6 +164,7 @@ def _jugada_json(jugada):
         'kind_label': jugada.get_kind_display(),
         'notes': jugada.notes,
         'steps': jugada.steps_data if isinstance(jugada.steps_data, list) else [],
+        'published': bool(jugada.published_to_players),
         'updated_at': jugada.updated_at.isoformat() if jugada.updated_at else '',
     }
 
@@ -411,6 +412,10 @@ def tactical_play_board(request, play_id):
         return redirect('tactics-plays')
 
     pasos = _con_fotos(request, jugada.steps_data if isinstance(jugada.steps_data, list) else [], equipo)
+    # El número va dentro del paso, no lo cuenta la plantilla: al pedir uno suelto seguiría diciendo
+    # "1" aunque fuese el tercero.
+    for i, p in enumerate(pasos, start=1):
+        p['n'] = i
     try:
         pedido = int(request.GET.get('paso') or 0)
     except (TypeError, ValueError):
@@ -470,3 +475,151 @@ def tactical_play_image(request, play_id):
     resp = HttpResponse(imagen, content_type='image/png')
     resp['Content-Disposition'] = f'attachment; filename="{nombre}.png"'
     return resp
+
+
+@login_required
+@require_POST
+def tactical_play_attach_task(request):
+    """
+    Engancha una jugada a una tarea de entrenamiento (o la desengancha).
+
+    Es un ENLACE, no una copia: la tarea apunta a la jugada, así que retocar la jugada retoca lo
+    que enseña el ejercicio. Copiarla habría creado la segunda fuente de siempre.
+    """
+    from .models import SessionTask
+    from .views import _forbid_if_no_coach_access, _get_primary_team_for_request
+
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    equipo = _get_primary_team_for_request(request)
+    if not equipo:
+        return JsonResponse({'ok': False, 'error': 'Equipo no configurado'}, status=400)
+    try:
+        tarea_id = int(request.POST.get('task_id') or 0)
+        jugada_id = int(request.POST.get('play_id') or 0)
+    except (TypeError, ValueError):
+        return JsonResponse({'ok': False, 'error': 'Datos ilegibles'}, status=400)
+
+    tarea = SessionTask.objects.filter(id=tarea_id, session__microcycle__team=equipo).first()
+    if not tarea:
+        return JsonResponse({'ok': False, 'error': 'Tarea no encontrada'}, status=404)
+
+    if jugada_id:
+        jugada = TacticalPlay.objects.filter(team=equipo, id=jugada_id).first()
+        if not jugada:
+            return JsonResponse({'ok': False, 'error': 'Jugada no encontrada'}, status=404)
+        tarea.tactical_play = jugada
+    else:
+        tarea.tactical_play = None
+    tarea.save(update_fields=['tactical_play'])
+
+    destino = request.POST.get('next') or ''
+    if destino.startswith('/'):
+        return redirect(destino)
+    return JsonResponse({'ok': True, 'play_id': tarea.tactical_play_id})
+
+
+@login_required
+@require_POST
+def tactical_play_publish(request):
+    """
+    Publica (o retira) la jugada en el espacio de los jugadores, y les avisa.
+
+    Publicar es un gesto deliberado: que una jugada exista no significa que el equipo tenga que
+    verla. Y el aviso va por el mismo camino que la convocatoria (PlayerNotification), no por uno
+    nuevo.
+    """
+    from django.utils import timezone
+
+    from .models import Player, PlayerNotification
+    from .views import _forbid_if_no_coach_access, _get_primary_team_for_request
+
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    equipo = _get_primary_team_for_request(request)
+    if not equipo:
+        return JsonResponse({'ok': False, 'error': 'Equipo no configurado'}, status=400)
+    try:
+        datos = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+        jugada_id = int(datos.get('id') or 0)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'Datos ilegibles'}, status=400)
+
+    jugada = TacticalPlay.objects.filter(team=equipo, id=jugada_id).first()
+    if not jugada:
+        return JsonResponse({'ok': False, 'error': 'Jugada no encontrada'}, status=404)
+
+    publicar = bool(datos.get('publish', True))
+    jugada.published_to_players = publicar
+    jugada.published_at = timezone.now() if publicar else None
+    jugada.save(update_fields=['published_to_players', 'published_at'])
+
+    avisados = 0
+    if publicar:
+        enlace = reverse('tactics-play-player', args=[jugada.id])
+        workspace = None
+        try:
+            from .workspace_context import get_active_workspace
+
+            workspace = get_active_workspace(request)
+        except Exception:
+            workspace = None
+        for player in Player.objects.filter(team=equipo, is_active=True).select_related('user'):
+            usuario = getattr(player, 'user', None)
+            if not usuario:
+                continue  # sin cuenta no hay a quién avisar; la jugada le espera igual en su espacio
+            PlayerNotification.objects.create(
+                workspace=workspace,
+                team=equipo,
+                target_user=usuario,
+                created_by_user=request.user if request.user.is_authenticated else None,
+                kind=PlayerNotification.KIND_GENERAL,
+                title='Jugada nueva: ' + jugada.name,
+                message='Tu entrenador ha publicado una jugada. Míratela antes del próximo entreno.',
+                link_url=enlace,
+            )
+            avisados += 1
+
+    return JsonResponse({'ok': True, 'published': publicar, 'notified': avisados})
+
+
+@login_required
+def tactical_play_player_board(request, play_id):
+    """
+    La jugada tal cual la ve un jugador: el mismo campo, sin nada que tocar.
+
+    Dos llaves, como el resto del portal: la jugada tiene que estar PUBLICADA y ser de SU equipo.
+    El cuerpo técnico también puede abrirla (así comprueba qué se ve).
+    """
+    from .models import Player
+    from .permissions import can_access_coach_workspace
+
+    jugada = TacticalPlay.objects.filter(id=play_id).first()
+    if not jugada:
+        return redirect('player-home')
+
+    es_staff = False
+    try:
+        es_staff = bool(can_access_coach_workspace(request.user))
+    except Exception:
+        es_staff = False
+
+    if not es_staff:
+        suya = Player.objects.filter(user=request.user, team_id=jugada.team_id, is_active=True).exists()
+        if not suya or not jugada.published_to_players:
+            return redirect('player-home')
+
+    pasos = _con_fotos(request, jugada.steps_data if isinstance(jugada.steps_data, list) else [], jugada.team)
+    for i, p in enumerate(pasos, start=1):
+        p['n'] = i
+
+    return render(request, 'football/tactical_play_board.html', {
+        'play': jugada,
+        'team_name': jugada.team.display_name if jugada.team else '',
+        'crest_url': _escudo_de(jugada.team),
+        'pasos': pasos,
+        'kind_label': jugada.get_kind_display(),
+        'para_jugador': True,
+    })

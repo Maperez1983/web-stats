@@ -1495,6 +1495,37 @@
         {% if presentation_inline_edit %}
         <p class="meta" style="margin:0.3rem 0 0.55rem;">Estás <strong>editando la ficha Club</strong>. Cambia los campos directamente y pulsa <strong>Guardar cambios</strong>. El formato UEFA se genera solo.</p>
         {% endif %}
+        {% comment %}La JUGADA que entrena este ejercicio. Es un enlace a Táctica · Jugadas, no una
+        copia: si la jugada cambia, aquí cambia. Sale sólo si hay jugadas dibujadas o si ya hay una
+        enganchada, para no meter un selector vacío en la ficha de todo el mundo.{% endcomment %}
+        {% if task_play or team_plays %}
+        <section class="panel">
+          <h3 style="margin:0 0 2px; font-size:13px; text-transform:uppercase; letter-spacing:.06em;">Jugada que entrena</h3>
+          {% if task_play %}
+            <p class="meta" style="margin:0 0 8px;">
+              <strong>{{ task_play.name }}</strong> · {{ task_play.get_kind_display }} ·
+              <a href="{% url 'tactics-play-board' task_play.id %}">ver la jugada</a>
+            </p>
+          {% else %}
+            <p class="meta" style="margin:0 0 8px;">Esta tarea no está enganchada a ninguna jugada.</p>
+          {% endif %}
+          {% if can_edit_task %}
+          <form method="post" action="{% url 'tactics-play-attach' %}" style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;">
+            {% csrf_token %}
+            <input type="hidden" name="task_id" value="{{ task.id }}" />
+            <input type="hidden" name="next" value="{{ request.get_full_path }}" />
+            <select name="play_id" style="flex:1;min-width:12rem;">
+              <option value="0">Sin jugada</option>
+              {% for j in team_plays %}
+              <option value="{{ j.id }}"{% if task_play and task_play.id == j.id %} selected{% endif %}>{{ j.name }}</option>
+              {% endfor %}
+            </select>
+            <button class="button" type="submit">Guardar jugada</button>
+          </form>
+          {% endif %}
+        </section>
+        {% endif %}
+
         {% comment %}Reproductor del GUION. Sale ANTES de los formatos y solo si la tarea tiene
         movimiento de verdad (dos pasos o mas): con un paso no hay nada que reproducir y la foto de
         la pizarra ya lo cuenta. El JS se carga solo en esta pagina, nunca en los listados.{% endcomment %}

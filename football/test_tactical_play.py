@@ -195,6 +195,7 @@ class JugadasTests(TestCase):
         html = r.content.decode()
         self.assertIn("Dos", html)
         self.assertNotIn("· Uno", html)
+        self.assertIn("2 · Dos", html, "el paso suelto tiene que seguir siendo el 2, no volver a ser el 1")
 
     def test_el_tablero_de_otro_equipo_no_se_ve(self):
         ajena = TacticalPlay.objects.create(team=self.otro, name="Suya", steps_data=[self._paso()])
@@ -207,3 +208,132 @@ class JugadasTests(TestCase):
         r = self.client.get(reverse("tactics-plan"), secure=True)
         self.assertIn(reverse("tactics-plays"), r.content.decode(),
                       "si no está en el menú, no existe")
+
+
+class JugadaEnSesionYPortalTests(TestCase):
+    """La jugada no se queda en Táctica: entra en la tarea de entreno y llega al jugador."""
+
+    def setUp(self):
+        from datetime import date
+
+        from football.models import SessionTask, TrainingMicrocycle, TrainingSession
+
+        self.user = get_user_model().objects.create_superuser("s2", "s2@example.com", "x")
+        self.team = Team.objects.create(name="Benagalbón", slug="bena2", is_primary=True)
+        self.otro = Team.objects.create(name="Otro", slug="otro2")
+        self.ws = Workspace.objects.create(name="Club", slug="club2", kind=Workspace.KIND_CLUB)
+        WorkspaceMembership.objects.create(workspace=self.ws, user=self.user, role="owner")
+        WorkspaceTeam.objects.create(workspace=self.ws, team=self.team, is_default=True)
+        self.p1 = Player.objects.create(team=self.team, name="Uno", number=1, is_active=True)
+
+        self.jugador_user = get_user_model().objects.create_user("chaval", "c@example.com", "x")
+        self.p2 = Player.objects.create(
+            team=self.team, name="Dos", number=2, is_active=True, user=self.jugador_user
+        )
+
+        self.play = TacticalPlay.objects.create(
+            team=self.team, name="Salida 3-2",
+            steps_data=[{"name": "Salida", "starters": [{"id": self.p1.id, "x_pct": 10, "y_pct": 50}],
+                         "rival": [], "shapes": []}],
+        )
+        micro = TrainingMicrocycle.objects.create(
+            team=self.team, week_start=date(2026, 8, 3), week_end=date(2026, 8, 9)
+        )
+        sesion = TrainingSession.objects.create(microcycle=micro, session_date=date(2026, 8, 4))
+        self.tarea = SessionTask.objects.create(session=sesion, title="Rondo", duration_minutes=15)
+
+        self.client = Client()
+        self.client.force_login(self.user)
+        s = self.client.session
+        s["active_workspace_id"] = self.ws.id
+        s["active_team_by_workspace"] = {str(self.ws.id): self.team.id}
+        s.save()
+
+    # --- la sesión ---
+
+    def test_enganchar_una_jugada_a_una_tarea(self):
+        r = self.client.post(reverse("tactics-play-attach"),
+                             {"task_id": self.tarea.id, "play_id": self.play.id}, secure=True)
+        self.assertEqual(r.status_code, 200)
+        self.tarea.refresh_from_db()
+        self.assertEqual(self.tarea.tactical_play_id, self.play.id)
+
+    def test_desenganchar(self):
+        self.tarea.tactical_play = self.play
+        self.tarea.save(update_fields=["tactical_play"])
+        self.client.post(reverse("tactics-play-attach"),
+                         {"task_id": self.tarea.id, "play_id": 0}, secure=True)
+        self.tarea.refresh_from_db()
+        self.assertIsNone(self.tarea.tactical_play_id)
+
+    def test_no_se_engancha_una_jugada_de_otro_equipo(self):
+        ajena = TacticalPlay.objects.create(team=self.otro, name="Suya", steps_data=[])
+        r = self.client.post(reverse("tactics-play-attach"),
+                             {"task_id": self.tarea.id, "play_id": ajena.id}, secure=True)
+        self.assertEqual(r.status_code, 404)
+        self.tarea.refresh_from_db()
+        self.assertIsNone(self.tarea.tactical_play_id)
+
+    def test_borrar_la_jugada_no_borra_la_tarea(self):
+        self.tarea.tactical_play = self.play
+        self.tarea.save(update_fields=["tactical_play"])
+        self.play.delete()
+        self.tarea.refresh_from_db()
+        self.assertIsNone(self.tarea.tactical_play_id, "la tarea sobrevive, sólo pierde el enlace")
+
+    # --- el portal ---
+
+    def test_publicar_avisa_a_los_jugadores_con_cuenta(self):
+        from football.models import PlayerNotification
+
+        r = self.client.post(reverse("tactics-play-publish"),
+                             data=json.dumps({"id": self.play.id, "publish": True}),
+                             content_type="application/json", secure=True)
+        self.assertTrue(r.json()["ok"])
+        self.assertEqual(r.json()["notified"], 1, "sólo se avisa a quien tiene cuenta")
+        self.play.refresh_from_db()
+        self.assertTrue(self.play.published_to_players)
+        self.assertIsNotNone(self.play.published_at)
+        aviso = PlayerNotification.objects.get(target_user=self.jugador_user)
+        self.assertIn("Salida 3-2", aviso.title)
+        self.assertEqual(aviso.link_url, reverse("tactics-play-player", args=[self.play.id]))
+
+    def test_retirar_la_publicacion(self):
+        self.client.post(reverse("tactics-play-publish"),
+                         data=json.dumps({"id": self.play.id, "publish": True}),
+                         content_type="application/json", secure=True)
+        self.client.post(reverse("tactics-play-publish"),
+                         data=json.dumps({"id": self.play.id, "publish": False}),
+                         content_type="application/json", secure=True)
+        self.play.refresh_from_db()
+        self.assertFalse(self.play.published_to_players)
+
+    def test_el_jugador_no_ve_una_jugada_sin_publicar(self):
+        c = Client()
+        c.force_login(self.jugador_user)
+        r = c.get(reverse("tactics-play-player", args=[self.play.id]), secure=True)
+        self.assertEqual(r.status_code, 302, "sin publicar no es suya")
+
+    def test_el_jugador_ve_la_jugada_publicada_de_su_equipo(self):
+        self.play.published_to_players = True
+        self.play.save(update_fields=["published_to_players"])
+        c = Client()
+        c.force_login(self.jugador_user)
+        r = c.get(reverse("tactics-play-player", args=[self.play.id]), secure=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("Salida 3-2", r.content.decode())
+
+    def test_el_jugador_no_ve_la_jugada_publicada_de_otro_equipo(self):
+        ajena = TacticalPlay.objects.create(
+            team=self.otro, name="Ajena", published_to_players=True, steps_data=[],
+        )
+        c = Client()
+        c.force_login(self.jugador_user)
+        r = c.get(reverse("tactics-play-player", args=[ajena.id]), secure=True)
+        self.assertEqual(r.status_code, 302, "publicada sí, pero no es de su equipo")
+
+    def test_la_politica_del_portal_trae_la_seccion_de_jugadas(self):
+        from football.player_portal_policy import PUBLISHED_ONLY, default_sections
+
+        self.assertEqual(default_sections()["plays"], PUBLISHED_ONLY,
+                         "por defecto sólo lo publicado, como el resto de lo sensible")

@@ -176,7 +176,7 @@
           {% if vis.performance %}<a href="#rendimiento">Mi rendimiento</a>{% endif %}
           {% if vis.evaluation %}<a href="#valoracion">Mi valoración</a>{% endif %}
           {% if vis.physical or vis.injuries %}<a href="#cuerpo">Mi cuerpo</a>{% endif %}
-          {% if vis.objectives or vis.videos %}<a href="#desarrollo">Mi desarrollo</a>{% endif %}
+          {% if vis.objectives or vis.videos or vis.plays %}<a href="#desarrollo">Mi desarrollo</a>{% endif %}
           {% if vis.fines or vis.communication %}<a href="#club">Club</a>{% endif %}
         </nav>
 
@@ -506,7 +506,7 @@
         </section>
         {% endif %}
 
-        {% if vis.objectives or vis.videos %}
+        {% if vis.objectives or vis.videos or vis.plays %}
         <section class="panel" id="desarrollo">
           <h2>Mi desarrollo</h2>
 
@@ -520,6 +520,23 @@
               {% endfor %}
             {% else %}
               <p class="empty">Aún no tienes objetivos asignados.</p>
+            {% endif %}
+          {% endif %}
+
+          {% if vis.plays %}
+            <h2 style="margin-top:1.1rem;">Jugadas del equipo</h2>
+            {% if plays %}
+              {% for jugada in plays %}
+                <div class="row">
+                  <div>
+                    <a href="{% url 'tactics-play-player' jugada.id %}">{{ jugada.name }}</a>
+                    <div class="empty">{{ jugada.get_kind_display }} · {{ jugada.steps_data|length }} pasos</div>
+                  </div>
+                  <span class="when">{{ jugada.published_at|date:"d/m" }}</span>
+                </div>
+              {% endfor %}
+            {% else %}
+              <p class="empty">Tu entrenador todavía no ha publicado ninguna jugada.</p>
             {% endif %}
           {% endif %}
 

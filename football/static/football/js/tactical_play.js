@@ -462,7 +462,9 @@
       const n = (actual.rival || []).length;
       if (n >= LIMITE) { aviso('Ya hay ' + LIMITE + ' rivales.'); return; }
       const hueco = slots[n] || { x: 50, y: 50 };
-      const ficha = { code: 'r' + n, name: 'Rival', number: String(n + 1), position: '', photo_url: '', x_pct: 100 - hueco.x, y_pct: 100 - hueco.y };
+      // Sin nombre a propósito: un rival genérico es un dorsal, y once etiquetas que ponen "Rival"
+      // debajo de cada ficha sólo tapan el dibujo.
+      const ficha = { code: 'r' + n, name: '', number: String(n + 1), position: '', photo_url: '', x_pct: 100 - hueco.x, y_pct: 100 - hueco.y };
       estado.pasos.forEach((s) => { s.rival = (s.rival || []).concat([{ ...ficha }]); });
       pintarCampo();
       aviso('Rival añadido. Arrástralo a su sitio.');
@@ -537,6 +539,7 @@
     pintarBanquillo();
     pintarCampo();
     refrescarEnlaces();
+    pintarPublicacion();
     aviso('Jugada «' + j.name + '» cargada.');
   };
 
@@ -572,6 +575,7 @@
       estado.id = d.play.id;
       pintarLista();
       refrescarEnlaces();
+      pintarPublicacion();
       aviso('Guardada.');
     } catch (e) {
       aviso('No se pudo guardar.');
@@ -592,6 +596,7 @@
       estado.id = null;
       pintarLista();
       refrescarEnlaces();
+      pintarPublicacion();
       aviso('Borrada.');
     } catch (e) {
       aviso('No se pudo borrar.');
@@ -609,6 +614,7 @@
     pintarBanquillo();
     pintarCampo();
     refrescarEnlaces();
+    pintarPublicacion();
     aviso('Jugada nueva: pon a los jugadores y dibuja el primer movimiento.');
   });
 
@@ -698,6 +704,50 @@
     });
   }
 
+  // --- publicar a los jugadores ---
+  // Guardar es para ti; publicar es mandársela al equipo y avisarles. Por eso son dos botones y no
+  // uno: nadie quiere que cada retoque le suene el móvil a veinte chavales.
+  const pintarPublicacion = () => {
+    const nodo = $('tj-publish-state');
+    const btn = $('tj-publish');
+    const jugada = jugadas.find((j) => String(j.id) === String(estado.id));
+    const publicada = !!(jugada && jugada.published);
+    if (btn) btn.textContent = publicada ? 'Retirar del espacio del jugador' : 'Publicar a los jugadores';
+    if (!nodo) return;
+    if (!estado.id) nodo.textContent = 'Se guarda antes de publicar.';
+    else if (publicada) nodo.textContent = 'Publicada: tus jugadores la ven en su espacio.';
+    else nodo.textContent = 'Todavía no la ve nadie más que tú.';
+  };
+
+  const btnPublicar = $('tj-publish');
+  if (btnPublicar) {
+    btnPublicar.addEventListener('click', async () => {
+      if (!estado.id) { aviso('Guarda la jugada antes de publicarla.'); return; }
+      const jugada = jugadas.find((j) => String(j.id) === String(estado.id));
+      const publicar = !(jugada && jugada.published);
+      if (publicar && !window.confirm('¿Publicar «' + (jugada || {}).name + '» y avisar a los jugadores?')) return;
+      try {
+        const r = await fetch(URLS.publish, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
+          body: JSON.stringify({ id: estado.id, publish: publicar }),
+        });
+        const d = await r.json();
+        if (!d.ok) { aviso(d.error || 'No se pudo publicar.'); return; }
+        if (jugada) jugada.published = d.published;
+        pintarPublicacion();
+        aviso(d.published
+          ? (d.notified === 1
+            ? 'Publicada. Avisado 1 jugador con cuenta.'
+            : 'Publicada. Avisados ' + d.notified + ' jugadores con cuenta.')
+          : 'Retirada del espacio del jugador.');
+      } catch (e) {
+        aviso('No se pudo publicar.');
+      }
+    });
+  }
+
   // --- enlaces que necesitan la jugada guardada ---
   const conId = (url) => String(url || '').replace('/0/', '/' + estado.id + '/');
   const refrescarEnlaces = () => {
@@ -739,5 +789,6 @@
   pintarLista();
   pintarBanquillo();
   refrescarEnlaces();
+  pintarPublicacion();
   if (jugadas.length) cargarJugada(jugadas[0]); else pintarCampo();
 })();

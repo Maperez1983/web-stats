@@ -656,6 +656,10 @@ urlpatterns = [
     path("coach/tactica/jugadas/borrar/", tactical_play_views.tactical_play_delete, name="tactics-play-delete"),
     path("coach/tactica/jugadas/<int:play_id>/campo/", tactical_play_views.tactical_play_board, name="tactics-play-board"),
     path("coach/tactica/jugadas/<int:play_id>/imagen.png", tactical_play_views.tactical_play_image, name="tactics-play-image"),
+    path("coach/tactica/jugadas/enganchar/", tactical_play_views.tactical_play_attach_task, name="tactics-play-attach"),
+    path("coach/tactica/jugadas/publicar/", tactical_play_views.tactical_play_publish, name="tactics-play-publish"),
+    # La misma jugada, pero por la puerta del jugador: publicada y de su equipo.
+    path("jugadas/<int:play_id>/", tactical_play_views.tactical_play_player_board, name="tactics-play-player"),
     path("coach/11-inicial/", views.initial_eleven_page, name="initial-eleven"),
     path("coach/sesiones/", views.sessions_page, name="sessions"),
     path("coach/sesiones/biblioteca/", views.session_library_page, name="session-library"),

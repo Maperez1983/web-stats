@@ -149,6 +149,19 @@
             <h2>Compartir</h2>
             <a class="button" id="tj-image" href="#" style="width:100%;text-align:center;">Descargar imagen</a>
             <a class="button" id="tj-board" href="#" style="margin-top:.4rem;width:100%;text-align:center;">Ver a pantalla completa</a>
+            {% comment %}Publicar es un gesto aparte de guardar: guardar es para ti, publicar es
+            mandársela al equipo. Y avisa, como la convocatoria.{% endcomment %}
+            <button class="button primary" id="tj-publish" type="button" style="margin-top:.4rem;width:100%;">Publicar a los jugadores</button>
+            <p class="tj-hint" id="tj-publish-state">Se guarda antes de publicar.</p>
+          </div>
+
+          <div class="tj-panel">
+            <h2>Lo que dibujaste antes</h2>
+            <p class="tj-hint" style="margin:0 0 .5rem;">
+              La pizarra antigua guardaba los dibujos como tareas de entrenamiento. Sigue ahí con
+              todo lo que hicieras en ella.
+            </p>
+            <a class="button" href="{% url 'coach-tactics' %}{% if team %}?team={{ team.id }}{% endif %}" style="width:100%;text-align:center;">Abrir la pizarra antigua</a>
           </div>
 
           <div class="tj-panel">
@@ -167,6 +180,7 @@
         window.TJ_URLS = {
           save: '{% url "tactics-play-save" %}',
           del: '{% url "tactics-play-delete" %}',
+          publish: '{% url "tactics-play-publish" %}',
           image: '{% url "tactics-play-image" 0 %}',
           board: '{% url "tactics-play-board" 0 %}',
         };

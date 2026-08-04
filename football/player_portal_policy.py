@@ -106,6 +106,13 @@ SECTIONS = [
         'states': (HIDDEN, PUBLISHED_ONLY),
     },
     {
+        'key': 'plays',
+        'label': 'Jugadas',
+        'help': 'Las jugadas del equipo que el entrenador publica. Sólo las publicadas, nunca el cajón entero.',
+        'default': PUBLISHED_ONLY,
+        'states': (HIDDEN, PUBLISHED_ONLY),
+    },
+    {
         'key': 'objectives',
         # Hoy TODO objetivo de la ficha lo asigna el entrenador: no existe el borrador, así
         # que "sólo lo publicado" sería una etiqueta vacía. Cuando la fase 3 añada el

@@ -59,7 +59,7 @@
 
       {% for paso in pasos %}
       <div class="paso">
-        <h2>{{ forloop.counter }} · {{ paso.name }}</h2>
+        <h2>{{ paso.n }} · {{ paso.name }}</h2>
         <div class="campo">
           <svg class="dib" viewBox="0 0 1664 945" preserveAspectRatio="none">
             {% for f in paso.formas %}
