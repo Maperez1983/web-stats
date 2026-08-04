@@ -227,6 +227,36 @@ lo pone el molde común y aquí queda sólo lo suyo: cabecera, hitos, formulario
       {% if message %}<div class="panel" style="border-color:rgba(47,125,50,0.35);">{{ message }}</div>{% endif %}
       {% if error %}<div class="panel" style="border-color:rgba(248,113,113,0.35);">{{ error }}</div>{% endif %}
 
+      {% if other_open_records %}
+      {% comment %}El jugador figura lesionado mientras le quede UN parte abierto. Si cierras éste
+      y no ves los otros, la pizarra lo sigue pintando lesionado y parece un fallo del sistema.
+      {% endcomment %}
+      <section class="panel" style="border-color:rgba(248,113,113,0.45);">
+        <h2 style="margin:0;font-size:1rem;">
+          {{ player.name }} tiene {{ other_open_records|length }} parte{{ other_open_records|pluralize:",s" }} más sin alta
+        </h2>
+        <p class="sub" style="margin:.4rem 0 .7rem;">
+          Mientras quede uno abierto seguirá saliendo como <strong>lesionado</strong> en la pizarra, la convocatoria y los informes,
+          aunque cierres éste.
+        </p>
+        <ul style="margin:0;padding-left:1.1rem;line-height:1.7;">
+          {% for otro in other_open_records %}
+          <li>
+            <a href="{{ otro.detail_url }}" style="color:inherit;font-weight:900;">{{ otro.injury }}</a>
+            · {{ otro.injury_date|date:"d/m/Y" }}{% if otro.injury_zone %} · {{ otro.injury_zone }}{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% if can_edit %}
+        <form method="post" style="margin-top:.8rem;" onsubmit="return confirm('¿Dar de alta también {{ other_open_records|length }} parte(s) más de {{ player.name }}?');">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="close-others" />
+          <button class="btn primary" type="submit">Cerrar los {{ other_open_records|length }} restantes</button>
+        </form>
+        {% endif %}
+      </section>
+      {% endif %}
+
       <section class="panel">
         <div class="grid">
           <div>

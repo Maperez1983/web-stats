@@ -57,6 +57,31 @@ def is_injury_record_active(record, today=None):
     return True
 
 
+def open_injury_records(player_id, *, exclude_id=None, today=None):
+    """Los partes de lesión que siguen abiertos de un jugador, del más reciente al más antiguo.
+
+    Un jugador figura como lesionado mientras le quede UN parte abierto, así que cerrar el que
+    tienes delante no basta: hay que ver los otros. Mismo criterio que
+    `get_active_injury_record_ids`/`is_injury_record_active` para que la lista y el estado del
+    jugador no puedan discrepar.
+    """
+    if not player_id:
+        return []
+    reference_day = today or timezone.localdate()
+    try:
+        queryset = (
+            PlayerInjuryRecord.objects
+            .filter(player_id=int(player_id), is_active=True, is_recovered=False)
+            .filter(Q(return_date__isnull=True) | Q(return_date__gt=reference_day))
+            .order_by('-injury_date', '-id')
+        )
+        if exclude_id:
+            queryset = queryset.exclude(id=int(exclude_id))
+        return list(queryset)
+    except (OperationalError, ProgrammingError):
+        return []
+
+
 def get_active_injury_player_ids(player_ids):
     normalized_ids = [int(pid) for pid in set(player_ids or []) if pid]
     if not normalized_ids:

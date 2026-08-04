@@ -217,6 +217,12 @@ class Team(models.Model):
         related_name='teams',
         help_text='Categoría (sub-entidad del club) a la que pertenece este equipo.',
     )
+    division = models.CharField(
+        max_length=4,
+        blank=True,
+        null=True,
+        help_text='División del equipo dentro de la categoría (A, B, C, etc.)',
+    )
     GAME_FORMAT_F7 = 'f7'
     GAME_FORMAT_F11 = 'f11'
     GAME_FORMAT_CHOICES = [

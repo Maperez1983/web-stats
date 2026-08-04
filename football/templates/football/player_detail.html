@@ -2642,10 +2642,22 @@
             <div class="value">{{ injury_records|length }}</div>
           </article>
           <article class="stat">
+            <div class="label">Partes sin alta</div>
+            <div class="value">{{ open_injury_count|default:0 }}</div>
+          </article>
+          <article class="stat">
             <div class="label">Última lesión</div>
             <div class="value">{% if latest_injury_record %}{{ latest_injury_record.injury|default:'--' }}{% else %}--{% endif %}</div>
           </article>
         </div>
+        {% if open_injury_count > 1 %}
+        {% comment %}Varios partes abiertos a la vez: cerrar uno no le devuelve a "disponible".
+        Es lo que hacía parecer que el sistema ignoraba el alta.{% endcomment %}
+        <p class="pill warn" style="display:block;margin:.7rem 0 0;padding:.6rem .8rem;line-height:1.5;">
+          Tiene {{ open_injury_count }} partes abiertos a la vez. Mientras quede uno sin alta seguirá figurando como lesionado
+          en la pizarra, la convocatoria y los informes: ciérralos todos desde cualquiera de ellos.
+        </p>
+        {% endif %}
         {% if not is_player_readonly %}
         <p style="margin:.6rem 0 1rem;">
           <a class="btn alt" href="{% url 'player-form' player.id 'lesion' %}">✎ Registrar lesión</a>
