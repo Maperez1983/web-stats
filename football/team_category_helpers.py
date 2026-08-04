@@ -73,3 +73,25 @@ def get_players_for_session(team):
 
     # Sesiones incluyen todos los equipos de la categoría
     return get_players_for_category(team.category_ref, include_related_divisions=True)
+
+
+def get_teams_for_sessions_view(team):
+    """
+    Obtiene todos los equipos de la categoría para filtrar sesiones/tareas.
+
+    Si el entrenador es de Cadete A, ve sesiones de Cadete A + B.
+
+    Args:
+        team: Team instance (equipo actual del usuario)
+
+    Returns:
+        QuerySet de Team en la misma categoría
+    """
+    from football.models import Team
+
+    if not team or not team.category_ref:
+        # Fallback: solo equipo actual
+        return Team.objects.filter(id=team.id) if team else Team.objects.none()
+
+    # Todos los equipos de la categoría
+    return Team.objects.filter(category_ref=team.category_ref)
