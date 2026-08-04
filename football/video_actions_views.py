@@ -77,6 +77,11 @@ def analysis_video_clips_from_actions_api(request, video_id):
     if campos:
         video.save(update_fields=campos)
 
+    # Marcar el saque es un gesto aparte de generar: se hace viendo el vídeo, y muchas veces antes
+    # de que exista el registro del partido.
+    if datos.get("solo_marcar"):
+        return JsonResponse({"ok": True, "marked": True, "match_id": video.match_id})
+
     if not video.match_id:
         return JsonResponse(
             {"ok": False, "error": "Ata primero la grabación a su partido."}, status=400

@@ -86,13 +86,10 @@
       if (!id) return;
       cuerpo.match_id = Number(id) || 0;
     }
-    // El minuto 0 del partido casi nunca es el segundo 0 del vídeo: se graba antes del saque.
-    const inicio = window.prompt('¿En qué segundo del vídeo se pita el inicio? (0 si empieza justo)', '0');
-    if (inicio === null) return;
-    cuerpo.kickoff_s = Number(inicio) || 0;
-    const segunda = window.prompt('¿Y en qué segundo empieza la 2ª parte? (0 si la grabación es continua)', '0');
-    if (segunda === null) return;
-    cuerpo.second_half_s = Number(segunda) || 0;
+    // El saque y la 2ª parte ya se marcaron con el vídeo (botones "Saque aquí" / "2ª parte aquí").
+    // Si nadie los marcó, se asume grabación que empieza en el saque, y se dice.
+    const marcado = Number((document.getElementById('vs-kickoff-s') || {}).value || 0);
+    if (!marcado) decir('Sin saque marcado: se toma el segundo 0. Si grabaste antes, pausa en el saque y pulsa «Saque aquí».');
 
     decir('Generando clips desde el registro…');
     try {
@@ -112,4 +109,89 @@
       decir('No se pudieron generar los clips.');
     }
   });
+})();
+
+
+/*
+  Marcar el saque y la 2ª parte CON el vídeo: se pausa donde toca y se pulsa. Es lo que hace
+  cualquiera viendo un partido; teclear "el segundo 743" no lo hace nadie.
+*/
+(function () {
+  const url = window.VS_CLIPS_REGISTRO_URL;
+  const video = document.getElementById('vs-video');
+  if (!url || !video) return;
+  const csrf = () => {
+    const m = document.cookie.match(/(^|;\s*)csrftoken=([^;]+)/);
+    return m ? decodeURIComponent(m[2]) : '';
+  };
+  const decir = (t) => { const n = document.getElementById('vs-status'); if (n) n.textContent = t; };
+  const reloj = (s) => {
+    const m = Math.floor(s / 60);
+    return m + "'" + String(Math.round(s % 60)).padStart(2, '0') + '"';
+  };
+
+  const marcar = async (clave, etiqueta, guardaEn) => {
+    const segundo = Math.max(0, Math.round(video.currentTime || 0));
+    const cuerpo = { solo_marcar: true };
+    cuerpo[clave] = segundo;
+    const atado = (document.getElementById('vs-match-id') || {}).value;
+    if (!atado) {
+      const id = window.prompt('¿De qué partido es esta grabación? Pega su número.');
+      if (!id) return;
+      cuerpo.match_id = Number(id) || 0;
+    }
+    try {
+      const r = await fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
+        body: JSON.stringify(cuerpo),
+      });
+      const d = await r.json();
+      if (!d.ok && !d.marked) { decir(d.error || 'No se pudo marcar.'); return; }
+      const campo = document.getElementById(guardaEn);
+      if (campo) campo.value = String(segundo * 1000);
+      decir(etiqueta + ' marcado en ' + reloj(segundo) + '.');
+    } catch (e) {
+      decir('No se pudo marcar.');
+    }
+  };
+
+  const bSaque = document.getElementById('vs-mark-kickoff');
+  if (bSaque) bSaque.addEventListener('click', () => marcar('kickoff_s', 'Saque inicial', 'vs-kickoff-s'));
+  const bSegunda = document.getElementById('vs-mark-second-half');
+  if (bSegunda) bSegunda.addEventListener('click', () => marcar('second_half_s', 'Inicio de la 2ª parte', 'vs-second-half-s'));
+})();
+
+/*
+  Filtro de la lista de clips. Es lo que hace un analista todo el rato: "enséñame las pérdidas".
+  Filtra sobre lo que ya está pintado -título, notas y etiquetas- sin volver al servidor.
+*/
+(function () {
+  const caja = document.getElementById('vs-clips-filter');
+  const lista = document.getElementById('vs-clips');
+  const cuenta = document.getElementById('vs-clips-count-simple');
+  if (!caja || !lista) return;
+  let original = '';
+
+  const aplicar = () => {
+    const q = caja.value.trim().toLowerCase();
+    const filas = Array.from(lista.children);
+    let vistos = 0;
+    filas.forEach((fila) => {
+      const texto = (fila.textContent || '').toLowerCase();
+      const ok = !q || texto.includes(q);
+      fila.hidden = !ok;
+      if (ok) vistos += 1;
+    });
+    if (cuenta) {
+      if (!original) original = cuenta.textContent || '';
+      cuenta.textContent = q ? (vistos + ' de ' + filas.length + ' clips · filtro «' + caja.value.trim() + '»') : original;
+    }
+  };
+
+  caja.addEventListener('input', aplicar);
+  // La lista se repinta al guardar o borrar clips: hay que volver a aplicar el filtro o
+  // reaparecen los que estaban escondidos.
+  try { new MutationObserver(() => { original = ''; aplicar(); }).observe(lista, { childList: true }); } catch (e) { /* ignore */ }
 })();

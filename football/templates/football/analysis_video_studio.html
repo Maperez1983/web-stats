@@ -251,6 +251,10 @@
   </head>
   <body class="prod-commercial">
     <main class="vs-page">
+      {% comment %}El estudio es una herramienta, pero sigue siendo el programa: misma barra y misma
+      sub-navegacion que el resto. Sin esto se abria como una web aparte.{% endcomment %}
+      {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='analisis' %}
       <div class="vs-head">
         <div class="vs-head-main">
           <div class="vs-kicker">Analisis de video</div>
@@ -298,6 +302,10 @@
 		              {% comment %}El registro del domingo ya dice que paso y en que minuto: esto solo
 		              lo traduce a cortes. Es el "etiquetado en vivo" que venden fuera, sin etiquetar dos
 		              veces.{% endcomment %}
+		              {% comment %}El saque inicial se marca PARANDO el video donde toca, que es lo natural
+		              viendo un partido; teclear el segundo exacto no lo hace nadie.{% endcomment %}
+		              <button type="button" class="button" id="vs-mark-kickoff" title="El vídeo está en el saque inicial: márcalo">⚽ Saque aquí</button>
+		              <button type="button" class="button" id="vs-mark-second-half" title="El vídeo está en el inicio de la 2ª parte">2ª parte aquí</button>
 		              <button type="button" class="button" id="vs-clips-registro" title="Convierte las acciones registradas del partido en clips">Clips del registro</button>
 		              <button type="button" class="button" id="vs-mark-in">IN</button>
 		              <button type="button" class="button" id="vs-mark-out">OUT</button>
@@ -464,6 +472,10 @@
                 <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Clips</div>
                 <div class="hint" style="margin-bottom:0.55rem;">Marca <span class="k">IN</span>/<span class="k">OUT</span>, pulsa <span class="k">Guardar</span> y después abre el clip para anotar.</div>
                 <div class="hint" id="vs-clips-count-simple" style="margin:-0.25rem 0 0.55rem;">—</div>
+                {% comment %}Filtrar por etiqueta es lo que un analista hace todo el rato ("todas las
+                perdidas"): sin esto la lista de un partido entero es inmanejable.{% endcomment %}
+                <input type="search" id="vs-clips-filter" placeholder="Filtrar: gol, pérdida, 2ª parte…"
+                       style="width:100%;margin-bottom:.55rem;" autocomplete="off" />
                 <div class="vs-clips-scroll">
                   <div class="list vs-clips-grid" id="vs-clips"></div>
                 </div>
@@ -1178,6 +1190,7 @@
     los partidos a los que se puede atar.{% endcomment %}
     <input type="hidden" id="vs-match-id" value="{{ video.match_id|default:'' }}" />
     <input type="hidden" id="vs-kickoff-s" value="{{ video.kickoff_ms|default:0 }}" />
+    <input type="hidden" id="vs-second-half-s" value="{{ video.second_half_ms|default:0 }}" />
     <script>
       window.VS_CLIPS_REGISTRO_URL = '{% url "analysis-video-clips-from-actions" video.id %}';
     </script>
