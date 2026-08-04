@@ -2,11 +2,17 @@ import logging
 import re
 import unicodedata
 
-from .library_repositories import library_repository_for_task
-from .models import AiTrainerTaskIndex
+from .library_repositories import is_library_microcycle, library_repository_for_task
+from .models import AiTrainerTaskIndex, AiTrainerTokenWeight
 
 
 logger = logging.getLogger(__name__)
+
+# Cuánto sube el peso de un concepto cada vez que el entrenador mete en una sesión REAL una
+# tarea que lo trabaja. Bajo a propósito: la señal es abundante (una sesión por día) y lo que
+# interesa es la tendencia de la temporada, no el último martes.
+PESO_POR_USO = 0.35
+LIMITE_PESO = 25.0
 
 
 def normalize_ai_trainer_text(value: str) -> str:
@@ -99,3 +105,63 @@ def ai_trainer_index_task(task, *, team=None):
     except Exception:
         logger.exception('No se pudo indexar la tarea IA %s', getattr(task, 'id', None))
         return None
+
+
+def _equipo_de_la_tarea(task):
+    return getattr(getattr(getattr(task, 'session', None), 'microcycle', None), 'team', None)
+
+
+def aprender_de_tarea_usada(task, *, team=None, delta=None):
+    """Sube el peso de los conceptos de una tarea que el entrenador ha metido en una sesión.
+
+    De dónde sale la señal importa: hasta ahora los pesos SOLO se movían desde dos botones de
+    la pantalla IA-Trainer, así que con 288 tareas indexadas y una temporada de sesiones el
+    sistema no había aprendido ni un dato (0 filas en AiTrainerTokenWeight el 2026-08-04).
+    Lo que de verdad dice qué le gusta al entrenador es lo que acaba poniendo en el campo.
+
+    Las tareas de la BIBLIOTECA no cuentan: guardar una plantilla no es decidir entrenarla.
+    Devuelve el número de conceptos reforzados (0 si no procedía).
+    """
+    if not task:
+        return 0
+    microcycle = getattr(getattr(task, 'session', None), 'microcycle', None)
+    if microcycle is None:
+        return 0
+    try:
+        if is_library_microcycle(microcycle):
+            return 0
+    except Exception:
+        logger.debug('No se pudo saber si el microciclo es de biblioteca', exc_info=True)
+        return 0
+
+    team = team or _equipo_de_la_tarea(task)
+    if not team:
+        return 0
+
+    tokens = []
+    indice = getattr(task, 'ai_trainer_index', None)
+    if indice is not None and isinstance(getattr(indice, 'tokens', None), list):
+        tokens = [str(t or '').strip().lower() for t in indice.tokens]
+    if not tokens:
+        texto = ' '.join(
+            str(getattr(task, campo, '') or '')
+            for campo in ('title', 'objective', 'coaching_points', 'confrontation_rules')
+        )
+        tokens = ai_trainer_tokenize(normalize_ai_trainer_text(texto), limit=32)
+
+    tokens = [t for t in tokens if t][:24]
+    if not tokens:
+        return 0
+
+    paso = float(PESO_POR_USO if delta is None else delta)
+    reforzados = 0
+    for token in tokens:
+        clave = token[:64]
+        try:
+            fila, _ = AiTrainerTokenWeight.objects.get_or_create(team=team, workspace=None, token=clave)
+            fila.weight = max(-LIMITE_PESO, min(LIMITE_PESO, float(fila.weight or 0.0) + paso))
+            fila.save(update_fields=['weight', 'updated_at'])
+            reforzados += 1
+        except Exception:
+            logger.debug('No se pudo reforzar el concepto %s', clave, exc_info=True)
+    return reforzados
