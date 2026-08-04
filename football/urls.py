@@ -631,6 +631,7 @@ urlpatterns = [
     path("coach/partidos/campos/", views.coach_matches_sync_venues, name="coach-matches-sync-venues"),
     path("coach/equipos/categorias/", views.coach_teams_fill_categories, name="coach-teams-fill-categories"),
     path("coach/equipos/nombres/", views.coach_clubs_format_names, name="coach-clubs-format-names"),
+    path("coach/equipos/campos/", views.coach_teams_fill_venues, name="coach-teams-fill-venues"),
     path("coach/equipos/plantilla-universo/", views.coach_team_import_squad, name="coach-team-import-squad"),
     path("coach/lesiones/", views.coach_injuries_page, name="coach-injuries"),
     path("coach/carga/", views.coach_load_page, name="coach-load"),
