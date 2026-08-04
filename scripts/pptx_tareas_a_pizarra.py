@@ -20,6 +20,8 @@ P = "http://schemas.openxmlformats.org/presentationml/2006/main"
 R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 
 # Nombres de media -> material de nuestro editor (por tamaño/uso tipico).
+RUTA_MATERIAL_PPT = "/static/football/images/ppt_material/"
+
 MEDIA_A_KIND = {
     "cono": "cone", "seta": "cone", "pica": "pole_marker", "aro": "ring",
     "valla": "hurdle", "escalera": "ladder", "maniqui": "mannequin",
@@ -56,14 +58,12 @@ def _kind_por_imagen(nombre, ancho, alto, zonas):
         return IMAGEN_A_KIND[nombre]
     if nombre in zonas:
         return ("zone", zonas[nombre])
-    # Cola larga: por forma, nunca "porteria por ser grande".
-    if ancho < 26 and alto < 26:
-        return ("cone", "")
-    if alto > ancho * 2.2:
-        return ("pole_marker", "")
-    if ancho > alto * 2.2:
-        return ("goal_mini", "")
-    return ("mannequin", "")
+    # El PPT trae su PROPIA biblioteca de material (setas de seis colores, aros, vallas,
+    # escaleras, mini-porterias, bosu, step, balon medicinal, petos y porteros con distintas
+    # equipaciones): 41 imagenes que aparecen 147 veces. Antes se las aproximaba con el
+    # material nuestro que "mas se le pareciera", que muchas veces no se le parecia nada.
+    # Ahora se coloca la IMAGEN DEL PPT tal cual.
+    return ("image_url:" + RUTA_MATERIAL_PPT + nombre, "")
 
 
 def _child(node, ns, name):
@@ -87,7 +87,55 @@ def _xfrm(sp):
         "x": int(off.getAttribute("x")), "y": int(off.getAttribute("y")),
         "cx": int(ext.getAttribute("cx")), "cy": int(ext.getAttribute("cy")),
         "flipH": x.getAttribute("flipH") == "1", "flipV": x.getAttribute("flipV") == "1",
+        "rot": int(x.getAttribute("rot") or 0) // 60000,
     }
+
+
+def _caja_visual(xf):
+    """Caja tal y como SE VE, aplicando el giro.
+
+    `ext` guarda el tamaño SIN girar. La foto de campo del PPT (`image2.jpeg`) es un campo
+    VERTICAL girado 90° para verse horizontal, y se usa así en 97 de las 179 diapositivas:
+    tomar su `ext` a pelo daba un marco de referencia TRANSPUESTO (720x1280 en vez de
+    1280x720) y colocaba media tarea fuera del campo. El giro es alrededor del centro.
+    """
+    if not xf:
+        return xf
+    if (xf.get("rot") or 0) % 180 != 90:
+        return xf
+    cxc = xf["x"] + xf["cx"] / 2.0
+    cyc = xf["y"] + xf["cy"] / 2.0
+    nueva = dict(xf)
+    nueva["cx"], nueva["cy"] = xf["cy"], xf["cx"]
+    nueva["x"] = cxc - nueva["cx"] / 2.0
+    nueva["y"] = cyc - nueva["cy"] / 2.0
+    return nueva
+
+
+def _marco_por_contenido(tree):
+    """Marco deducido de lo DIBUJADO, para las diapositivas sin foto de campo.
+
+    Son 7 (118, 119, 123, 124, 138, 139, 140). Ahí el campo está dibujado con formas, así
+    que el encuadre bueno es la caja que envuelve todo lo que hay, con un pequeño respiro.
+    """
+    x0 = y0 = None
+    x1 = y1 = None
+    for etiqueta in (P,):
+        for nodo in list(tree.getElementsByTagNameNS(etiqueta, "sp")) + list(tree.getElementsByTagNameNS(etiqueta, "pic")):
+            xf = _caja_visual(_xfrm(nodo))
+            if not xf:
+                continue
+            x0 = xf["x"] if x0 is None else min(x0, xf["x"])
+            y0 = xf["y"] if y0 is None else min(y0, xf["y"])
+            x1 = xf["x"] + xf["cx"] if x1 is None else max(x1, xf["x"] + xf["cx"])
+            y1 = xf["y"] + xf["cy"] if y1 is None else max(y1, xf["y"] + xf["cy"])
+    if x0 is None or x1 <= x0 or y1 <= y0:
+        return None
+    respiro_x = (x1 - x0) * 0.04
+    respiro_y = (y1 - y0) * 0.04
+    return {"x": x0 - respiro_x, "y": y0 - respiro_y,
+            "cx": (x1 - x0) + 2 * respiro_x, "cy": (y1 - y0) + 2 * respiro_y,
+            "flipH": False, "flipV": False, "rot": 0}
 
 
 def _fill_rgb(spPr):
@@ -106,6 +154,25 @@ def _fill_rgb(spPr):
         return None
 
 
+def _texto_corto(sp):
+    """Texto de la forma si es un dorsal (1-3 caracteres). '' si no lo es."""
+    t = "".join(n.firstChild.nodeValue for n in sp.getElementsByTagNameNS(A, "t") if n.firstChild).strip()
+    return t if t and len(t) <= 3 else ""
+
+
+def _tiene_degradado(spPr):
+    """True si la forma se rellena con un DEGRADADO.
+
+    Importa porque el jugador numerado del PPT es una elipse gris metalizada
+    (gradiente negro->blanco->negro) con el dorsal dentro. Como `_fill_rgb` solo miraba
+    `solidFill`, devolvia None y esas fichas acababan convertidas en BALONES: 410
+    jugadores perdidos en 72 de las 179 tareas.
+    """
+    if spPr is None:
+        return False
+    return any(n.nodeType == 1 and n.localName == "gradFill" for n in spPr.childNodes)
+
+
 def _equipo(rgb):
     """Verde -> local; rojo/amarillo/azul -> rival. Devuelve None si no parece ficha."""
     if not rgb:
@@ -120,6 +187,44 @@ def _equipo(rgb):
     if b > 120 and b > r + 40:
         return "player_rival"
     return None
+
+
+def _agrupar_trozos(trozos, radio=34.0, minimo=4):
+    """Agrupa los trocitos de una figura vectorial en las FIGURAS que forman.
+
+    Cada jugador dibujado a vector son decenas de piezas pequenas muy juntas (pelo, piel,
+    camiseta...). Se agrupan por cercania y cada monton pasa a ser una ficha. El equipo se
+    deduce del color dominante de la ropa, descartando piel y pelo.
+    """
+    _PIEL_PELO = {(255, 192, 192), (153, 102, 51), (160, 80, 0), (224, 224, 224),
+                  (0, 0, 0), (255, 255, 255), (64, 64, 64)}
+    sin_ver = list(trozos)
+    grupos = []
+    while sin_ver:
+        semilla = sin_ver.pop()
+        monton = [semilla]
+        cambio = True
+        while cambio:
+            cambio = False
+            for t in list(sin_ver):
+                if any((t["cx"] - m["cx"]) ** 2 + (t["cy"] - m["cy"]) ** 2 <= radio ** 2 for m in monton):
+                    monton.append(t)
+                    sin_ver.remove(t)
+                    cambio = True
+        if len(monton) < minimo:
+            continue
+        cx = sum(m["cx"] for m in monton) / len(monton)
+        cy = sum(m["cy"] for m in monton) / len(monton)
+        ropa = [m["rgb"] for m in monton if m["rgb"] and m["rgb"] not in _PIEL_PELO]
+        equipo = "player_local"
+        if ropa:
+            from collections import Counter
+            dom = Counter(ropa).most_common(1)[0][0]
+            e = _equipo(dom)
+            if e:
+                equipo = e
+        grupos.append({"cx": round(cx, 1), "cy": round(cy, 1), "equipo": equipo})
+    return grupos
 
 
 def convertir(pptx_path, slide_no, canvas_w=1280, canvas_h=720, zonas_medios=None):
@@ -152,8 +257,15 @@ def convertir(pptx_path, slide_no, canvas_w=1280, canvas_h=720, zonas_medios=Non
                         xf = {"x": int(off.getAttribute("x")), "y": int(off.getAttribute("y")),
                               "cx": int(ext.getAttribute("cx")), "cy": int(ext.getAttribute("cy")),
                               "flipH": False, "flipV": False}
+        xf = _caja_visual(xf)
         if xf and (campo is None or xf["cx"] * xf["cy"] > campo["cx"] * campo["cy"]):
             campo = xf
+    # Una imagen pequeña (un balón, un maniquí) NO es el campo. Si la mayor no llega ni a un
+    # tercio de la diapositiva, es que esta tarea no trae foto de campo: hay 7 así, y tomar
+    # un sprite de 43 px como marco disparaba la escala y tiraba la tarea entera.
+    _AREA_DIAPO = 1280 * 720 * 9525 * 9525
+    if campo is None or campo["cx"] * campo["cy"] < _AREA_DIAPO * 0.30:
+        campo = _marco_por_contenido(tree) or campo
     if not campo:
         return None, {"error": "sin imagen de campo"}
 
@@ -170,6 +282,7 @@ def convertir(pptx_path, slide_no, canvas_w=1280, canvas_h=720, zonas_medios=Non
         return round(min(max(f, _M), 1 - _M) * canvas_h, 1)
 
     objetos = []
+    trozos_figura = []
     cuenta = {"ficha": 0, "cono": 0, "flecha": 0, "trazo": 0, "material": 0, "zona": 0, "balon": 0}
 
     for sp in tree.getElementsByTagNameNS(P, "sp"):
@@ -182,20 +295,29 @@ def convertir(pptx_path, slide_no, canvas_w=1280, canvas_h=720, zonas_medios=Non
         rgb = _fill_rgb(spPr)
         cx, cy = mx(xf["x"] + xf["cx"] / 2), my(xf["y"] + xf["cy"] / 2)
         ancho = xf["cx"] / campo["cx"] * canvas_w
+        # Tamano REAL en la diapositiva (px). El umbral de "esto es una ficha" tiene que ir
+        # aqui y no en unidades de lienzo: con un campo estrecho (los de ficha ocupan media
+        # diapositiva) la misma ficha de 28 px pasaba a 68 y se descartaba sin dejar rastro.
+        ancho_pt = xf["cx"] / 9525.0
 
         if prst is not None:
             kind = prst.getAttribute("prst")
-            if kind == "ellipse" and ancho < 60:
+            if kind in ("ellipse", "dodecagon") and ancho_pt <= 45:
+                dorsal = _texto_corto(sp)
                 equipo = _equipo(rgb)
+                # El jugador numerado va en gris metalizado (degradado) con el dorsal dentro:
+                # sin color solido no hay equipo que deducir, pero ficha es. Es nuestro.
+                if not equipo and (dorsal or _tiene_degradado(spPr)):
+                    equipo = "player_local"
                 if equipo:
                     objetos.append({"type": "group", "left": cx, "top": cy,
-                                    "data": {"kind": equipo, "label": ""}})
+                                    "data": {"kind": equipo, "label": dorsal, "number": dorsal}})
                     cuenta["ficha"] += 1
                     continue
                 objetos.append({"type": "circle", "left": cx, "top": cy, "data": {"kind": "ball", "label": "Balón"}})
                 cuenta["balon"] += 1
                 continue
-            if kind == "triangle" and ancho < 60:
+            if kind == "triangle" and ancho_pt <= 45:
                 # Guardamos el color real: el PPT distingue setas verdes de conos rojos y eso
                 # significa algo dentro de la tarea (dos recorridos, dos equipos...).
                 hexc = "#%02x%02x%02x" % rgb if rgb else ""
@@ -222,7 +344,7 @@ def convertir(pptx_path, slide_no, canvas_w=1280, canvas_h=720, zonas_medios=Non
                                          "label": "Carrera" if punta else "Línea"}})
                 cuenta["flecha"] += 1
                 continue
-            if kind in ("rect", "roundRect") and ancho > 120:
+            if kind in ("rect", "roundRect") and ancho_pt > 60:
                 objetos.append({"type": "rect", "left": mx(xf["x"]), "top": my(xf["y"]),
                                 "width": round(xf["cx"] / campo["cx"] * canvas_w, 1),
                                 "height": round(xf["cy"] / campo["cy"] * canvas_h, 1),
@@ -232,6 +354,17 @@ def convertir(pptx_path, slide_no, canvas_w=1280, canvas_h=720, zonas_medios=Non
                 continue
 
         if cust is not None:
+            # OJO: no todo custGeom es un trazo. En las diapositivas con ficha (124-138) los
+            # jugadores estan DIBUJADOS a vector: cada figura son decenas de trocitos rellenos
+            # y sin contorno. Convertirlos uno a uno daba tareas de 800 rayas oscuras sin
+            # sentido. Se apartan aqui y luego se agrupan en la figura que forman.
+            _ln = _child(spPr, A, "ln") if spPr is not None else None
+            _sin_trazo = _ln is None or _child(_ln, A, "noFill") is not None
+            _ancho_pt = xf["cx"] / 9525.0
+            _alto_pt = xf["cy"] / 9525.0
+            if _sin_trazo and max(_ancho_pt, _alto_pt) <= 20:
+                trozos_figura.append({"cx": cx, "cy": cy, "rgb": rgb})
+                continue
             # Trazo a mano alzada -> path de fabric (el editor lo trata como dibujo libre).
             path = _child(cust, A, "pathLst")
             p = path.getElementsByTagNameNS(A, "path")[0] if path is not None and path.getElementsByTagNameNS(A, "path") else None
@@ -254,10 +387,29 @@ def convertir(pptx_path, slide_no, canvas_w=1280, canvas_h=720, zonas_medios=Non
                 elif cmd.localName == "cubicBezTo" and len(conv) == 3:
                     cmds.append(["C", conv[0][0], conv[0][1], conv[1][0], conv[1][1], conv[2][0], conv[2][1]])
             if len(cmds) > 1:
-                objetos.append({"type": "path", "path": cmds, "fill": None, "stroke": "#0f172a",
+                # El PPT distingue trazos AMBAR (365), negros (306) y algunos rojos, y ademas
+                # marca los discontinuos con `custDash` (no con el discontinuo estandar, que es
+                # lo que yo miraba y por eso salian todos continuos y del mismo color).
+                _trazo_rgb = _fill_rgb(_ln) if _ln is not None else None
+                _color = "#%02x%02x%02x" % _trazo_rgb if _trazo_rgb else "#0f172a"
+                _discontinuo = _ln is not None and (
+                    _child(_ln, A, "custDash") is not None or _child(_ln, A, "prstDash") is not None
+                )
+                _con_punta = _ln is not None and (
+                    _child(_ln, A, "headEnd") is not None or _child(_ln, A, "tailEnd") is not None
+                )
+                objetos.append({"type": "path", "path": cmds, "fill": None, "stroke": _color,
                                 "strokeWidth": 3, "left": mx(xf["x"]), "top": my(xf["y"]),
-                                "data": {"kind": "free_draw", "label": "Trazo"}})
+                                "dashed": _discontinuo, "arrow": _con_punta,
+                                "data": {"kind": "free_draw", "label": "Flecha" if _con_punta else "Trazo",
+                                         "color": _color, "dashed": _discontinuo}})
                 cuenta["trazo"] += 1
+
+    # 1.b) Los trocitos apartados se agrupan por cercania: cada monton es UN jugador.
+    for _grupo in _agrupar_trozos(trozos_figura):
+        objetos.append({"type": "group", "left": _grupo["cx"], "top": _grupo["cy"],
+                        "data": {"kind": _grupo["equipo"], "label": "", "number": ""}})
+        cuenta["ficha"] += 1
 
     # 2) Material dibujado como IMAGEN (conos, balones, porterias...).
     for pic in tree.getElementsByTagNameNS(P, "pic"):
