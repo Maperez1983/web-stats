@@ -2123,6 +2123,59 @@ class TacticalPlan(models.Model):
         return f'{self.team_id} · {self.name}'
 
 
+class TacticalPlay(models.Model):
+    """
+    Una JUGADA: lo que pasa, dibujado sobre el campo y contado por pasos.
+
+    El planteamiento dice DONDE se coloca cada uno; esto dice QUE hace: el lateral sube, el interior
+    cae a recibir, el pase va al espacio. Para eso hacen falta trazos, y hasta ahora la unica forma
+    de dibujarlos era la "pizarra de jugadas", que es el editor de tareas de entrenamiento en modo
+    playbook: te pedia RPE y carga, y guardaba la jugada como una tarea en un equipo de sistema.
+
+    Aqui la jugada es una jugada: cuelga del EQUIPO, usa las fichas reales de la plantilla y se
+    guarda con sus pasos. Las coordenadas van en porcentaje y en la misma orientacion que el
+    planteamiento y el registro de acciones ('lr', campo horizontal, nosotros a la izquierda).
+
+    Forma de `steps_data`:
+        [{'name': 'Salida', 'starters': [...], 'rival': [...], 'shapes': [
+            {'tool': 'pase', 'points': [{'x': 12.0, 'y': 50.0}, ...], 'text': ''}
+        ]}]
+    """
+
+    KIND_ATAQUE = 'ataque'
+    KIND_DEFENSA = 'defensa'
+    KIND_TRANSICION = 'transicion'
+    KIND_ABP = 'abp'
+    KIND_CHOICES = [
+        (KIND_ATAQUE, 'Ataque'),
+        (KIND_DEFENSA, 'Defensa'),
+        (KIND_TRANSICION, 'Transición'),
+        (KIND_ABP, 'Balón parado'),
+    ]
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='tactical_plays')
+    name = models.CharField(max_length=80)
+    kind = models.CharField(max_length=16, choices=KIND_CHOICES, default=KIND_ATAQUE)
+    notes = models.TextField(blank=True, default='')
+    steps_data = models.JSONField(default=list, blank=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='tactical_plays',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at', 'name']
+        unique_together = ('team', 'name')
+
+    def __str__(self):
+        return f'{self.team_id} · {self.name}'
+
+
 class RivalConvocationRecord(models.Model):
     """
     Convocatoria/Alineación del rival asociada a un partido concreto.

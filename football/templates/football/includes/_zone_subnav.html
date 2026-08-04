@@ -62,7 +62,11 @@ existe, se queda donde está y sigue funcionando.{% endcomment %}
   dibujo (que es el editor de tareas en modo playbook) y los roles vienen despues, y el ABP entra
   en el menu: existia y no habia forma de llegar a el desde aqui.{% endcomment %}
   <a href="{% url 'tactics-plan' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'tactics-plan' %}on{% endif %}">♟️ Planteamiento</a>
-  <a href="{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'coach-tactics' %}on{% endif %}">✏️ Pizarra de jugadas</a>
+  <a href="{% url 'tactics-plays' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'tactics-plays' %}on{% endif %}">✏️ Jugadas</a>
+  {% comment %}"Pizarra libre" es el editor de tareas de entrenamiento en modo playbook: dibuja, pero
+  guarda lo dibujado como una tarea. Se queda por lo que ya hay guardado ahi; lo que se dibuja a
+  partir de ahora va en Jugadas, que si es una jugada.{% endcomment %}
+  <a href="{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'coach-tactics' %}on{% endif %}">🗒️ Pizarra libre (editor de tareas)</a>
   <a href="{% url 'coach-abp-board' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'coach-abp-board' %}on{% endif %}">🎯 Balón parado</a>
   <a href="{% url 'tactics-roles' %}" class="{% if request.resolver_match.url_name == 'tactics-roles' %}on{% endif %}">📋 Roles y encaje</a>
   {% comment %}Roles y encaje se queda, pero de segunda: su "% de encaje" necesita evaluaciones

@@ -1,0 +1,179 @@
+{% load static football_extras %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Táctica · Jugadas · {{ team_name }}</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      {% comment %}Mismo césped y misma ficha que el Planteamiento y el prepartido. Lo único nuevo
+      es la capa de dibujo, que va en un SVG por encima del campo y por debajo de las fichas: así se
+      dibuja sin perder el arrastre de los jugadores.{% endcomment %}
+      .tj-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 300px); gap: 1rem; align-items: start; }
+      @media (max-width: 900px) { .tj-layout { grid-template-columns: 1fr; } }
+      .tj-pitch {
+        position: relative; width: 100%; aspect-ratio: 1664 / 945; container-type: inline-size;
+        border-radius: 18px; border: 1px solid rgba(255,255,255,0.14); overflow: hidden;
+        background-image: url('{% static "football/images/pitch3d/coach_home_pitch_surface.png" %}');
+        background-size: cover; background-position: center;
+        box-shadow: inset 0 0 60px rgba(0,0,0,0.35); touch-action: none;
+        /* Sin esto, arrastrar para dibujar selecciona de paso el texto que hay alrededor y la
+           pantalla se llena de azul. */
+        user-select: none; -webkit-user-select: none;
+      }
+      .tj-pitch.dibujando { cursor: crosshair; }
+      .tj-draw { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+      .tj-token {
+        position: absolute; width: 8.5cqw; max-width: 62px; aspect-ratio: 1/1;
+        transform: translate(-50%, -50%); border-radius: 999px; cursor: grab;
+        border: 2px solid rgba(234,255,245,.9); background: #0f7a52;
+        display: flex; align-items: center; justify-content: center; user-select: none;
+        box-shadow: 0 6px 18px rgba(0,0,0,.45);
+      }
+      .tj-token.is-rival { background: #8c1f2b; border-color: rgba(255,233,236,.9); }
+      .tj-token:active { cursor: grabbing; }
+      .tj-pitch.dibujando .tj-token { cursor: crosshair; pointer-events: none; }
+      .tj-token img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; border-radius: 999px; display: block; }
+      .tj-token .num { font-weight: 800; font-size: .82rem; color: #fff; }
+      .tj-token .lbl {
+        position: absolute; top: calc(100% + 5px); left: 50%; transform: translateX(-50%);
+        font-size: .66rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+        white-space: nowrap; color: #f2f7f4; text-shadow: 0 2px 10px rgba(0,0,0,.9); pointer-events: none;
+      }
+      .tj-token.is-baja { border-color: rgba(248,113,113,.95); }
+      .tj-panel { border: 1px solid rgba(148,163,184,0.22); border-radius: 14px; padding: .85rem .9rem; background: rgba(2,6,23,0.35); margin-bottom: .8rem; }
+      .tj-panel h2 { margin: 0 0 .6rem; font-size: .68rem; text-transform: uppercase; letter-spacing: .12em; color: var(--prod-muted); }
+      .tj-row { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
+      .tj-row input, .tj-row select { flex: 1; min-width: 8rem; }
+      .tj-hint { color: var(--prod-muted); font-size: .76rem; margin: .5rem 0 0; }
+      .tj-bank { display: flex; flex-wrap: wrap; gap: .3rem; }
+      .tj-bank button { font-size: .74rem; padding: .3rem .5rem; border-radius: 8px; }
+      .tj-bank button.es-baja { border-color: rgba(248,113,113,.5); color: #fecaca; }
+      .tj-item { display: flex; align-items: center; gap: .4rem; padding: .45rem .55rem; border-radius: 10px; border: 1px solid rgba(148,163,184,0.2); margin-bottom: .4rem; cursor: pointer; }
+      .tj-item.is-on { border-color: rgba(74,134,232,.6); background: rgba(74,134,232,.14); }
+      .tj-item strong { font-size: .86rem; }
+      .tj-item small { color: var(--prod-muted); font-size: .72rem; margin-left: auto; }
+      /* La barra de dibujo. Cada herramienta lleva su trazo dibujado al lado: el nombre solo no
+         dice si "desmarque" es continua o discontinua. */
+      .tj-tools { display: flex; gap: .3rem; flex-wrap: wrap; margin-bottom: .5rem; }
+      .tj-tool {
+        display: inline-flex; align-items: center; gap: .35rem; font-size: .78rem;
+        padding: .3rem .6rem; border-radius: 999px; cursor: pointer; background: transparent;
+        border: 1px solid rgba(148,163,184,0.3); color: var(--prod-text);
+      }
+      .tj-tool.is-on { border-color: rgba(74,134,232,.7); background: rgba(74,134,232,.18); font-weight: 700; }
+      .tj-tool svg { width: 26px; height: 12px; overflow: visible; }
+      .tj-steps { display: flex; gap: .35rem; flex-wrap: wrap; margin-bottom: .5rem; align-items: center; }
+      .tj-step {
+        font-size: .78rem; padding: .32rem .7rem; border-radius: 999px; cursor: pointer;
+        border: 1px solid rgba(148,163,184,0.3); background: transparent; color: var(--prod-text);
+      }
+      .tj-step.is-on { border-color: rgba(244,180,0,.65); background: rgba(244,180,0,.16); font-weight: 700; }
+      .tj-head { display: flex; align-items: center; gap: .8rem; margin-bottom: .6rem; flex-wrap: wrap; }
+      .tj-head img { width: 26px; height: 26px; object-fit: contain; }
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <main class="page">
+      {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='tactica' %}
+
+      <header class="top">
+        <div>
+          <p style="margin:0;color:var(--prod-muted);">Táctica · {{ team_name }}</p>
+          <h1 style="margin:.2rem 0 .35rem;">Jugadas</h1>
+          <p style="margin:0;max-width:72ch;color:var(--prod-muted);">
+            Dibuja lo que pasa: pases, conducciones y desmarques sobre tu once real. Se cuenta por
+            pasos y se reproduce, para enseñarla en la charla.
+          </p>
+        </div>
+      </header>
+
+      <div class="tj-layout">
+        <section>
+          <div class="tj-head">
+            {% if crest_url %}<img src="{{ crest_url }}" alt="" />{% endif %}
+            <strong>{{ team_name }}</strong>
+            <span id="tj-kind-label" style="color:var(--prod-muted);font-size:.82rem;"></span>
+          </div>
+
+          <div class="tj-row" style="margin-bottom:.6rem;">
+            <input id="tj-name" type="text" placeholder="Nombre de la jugada (ej. Salida 3-2 por dentro)" maxlength="80" />
+            <select id="tj-kind" style="max-width:11rem;"></select>
+            <button class="button primary" id="tj-save" type="button">Guardar</button>
+            <button class="button" id="tj-delete" type="button">Borrar</button>
+            <button class="button" id="tj-play" type="button" title="Ver la jugada paso a paso">▶ Reproducir</button>
+          </div>
+
+          <div class="tj-tools" id="tj-tools" role="toolbar" aria-label="Herramientas de dibujo"></div>
+
+          <div class="tj-steps" id="tj-steps" role="tablist" aria-label="Pasos de la jugada"></div>
+
+          <div class="tj-pitch" id="tj-pitch" role="application" aria-label="Campo de la jugada">
+            <svg class="tj-draw" id="tj-draw" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+          </div>
+          <p class="tj-hint" id="tj-status">Elige una herramienta y arrastra sobre el campo para dibujar. Sin herramienta, se mueven las fichas.</p>
+        </section>
+
+        <aside>
+          <div class="tj-panel">
+            <h2>Jugadas</h2>
+            <div id="tj-list"><p class="tj-hint" style="margin:0;">Todavía no hay ninguna guardada.</p></div>
+            <button class="button" id="tj-new" type="button" style="margin-top:.5rem;width:100%;">Nueva jugada</button>
+          </div>
+
+          <div class="tj-panel">
+            <h2>Empezar desde un planteamiento</h2>
+            <select id="tj-plan"><option value="">Elige un planteamiento…</option></select>
+            <p class="tj-hint">Coloca su once (y el rival, si lo tiene) en el paso que estás viendo.</p>
+          </div>
+
+          <div class="tj-panel">
+            <h2>Nuestro once</h2>
+            <div class="tj-bank" id="tj-bank"></div>
+            <p class="tj-hint">Toca un jugador para ponerlo o quitarlo (máximo {{ starters_limit }}).</p>
+            <button class="button" id="tj-add-rival" type="button" style="margin-top:.45rem;width:100%;">Añadir un rival</button>
+          </div>
+
+          <div class="tj-panel">
+            <h2>Dibujo</h2>
+            <button class="button" id="tj-undo" type="button" style="width:100%;">Deshacer el último trazo</button>
+            <button class="button" id="tj-clear" type="button" style="margin-top:.4rem;width:100%;">Borrar el dibujo del paso</button>
+            <p class="tj-hint">Sólo afecta al paso que estás viendo.</p>
+          </div>
+
+          <div class="tj-panel">
+            <h2>Compartir</h2>
+            <a class="button" id="tj-image" href="#" style="width:100%;text-align:center;">Descargar imagen</a>
+            <a class="button" id="tj-board" href="#" style="margin-top:.4rem;width:100%;text-align:center;">Ver a pantalla completa</a>
+          </div>
+
+          <div class="tj-panel">
+            <h2>Notas</h2>
+            <textarea id="tj-notes" rows="4" maxlength="4000" placeholder="Lo que hay que decir al explicarla."></textarea>
+          </div>
+        </aside>
+      </div>
+
+      {{ jugadas_json|json_script:"tj-jugadas" }}
+      {{ jugadores_json|json_script:"tj-jugadores" }}
+      {{ planes_json|json_script:"tj-planes" }}
+      {{ slots_json|json_script:"tj-slots" }}
+      {{ tipos_json|json_script:"tj-tipos" }}
+      <script>
+        window.TJ_URLS = {
+          save: '{% url "tactics-play-save" %}',
+          del: '{% url "tactics-play-delete" %}',
+          image: '{% url "tactics-play-image" 0 %}',
+          board: '{% url "tactics-play-board" 0 %}',
+        };
+        window.TJ_LIMITE = {{ starters_limit }};
+        window.TJ_MAX_PASOS = {{ max_pasos }};
+      </script>
+      <script src="{% static 'football/js/tactical_play.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    </main>
+  </body>
+</html>
