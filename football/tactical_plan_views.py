@@ -641,9 +641,11 @@ def tactical_plan_rival_report(request, plan_id):
         'red': num(r, 'red_cards'),
     } for r in filas]
 
-    # El once probable: los de más minutos. Es la aproximación honesta -no sabemos su alineación-
-    # y con los minutos de la temporada acierta casi siempre.
-    probable = sorted(plantilla, key=lambda x: (-x['minutes'], -x['pj'], x['name']))[:11]
+    # El once probable: los de más minutos. Pero si NADIE tiene minutos -la temporada no ha
+    # empezado, que es justo lo que pasa en agosto- ordenar por minutos es ordenar alfabéticamente
+    # y presentarlo como "once probable" sería mentir con formato de dato. En ese caso no hay once.
+    hay_minutos = any(p['minutes'] or p['pj'] for p in plantilla)
+    probable = sorted(plantilla, key=lambda x: (-x['minutes'], -x['pj'], x['name']))[:11] if hay_minutos else []
     goleadores = [p for p in sorted(plantilla, key=lambda x: -x['goals']) if p['goals']][:5]
     tarjetas = [p for p in sorted(plantilla, key=lambda x: -(x['yellow'] + x['red'] * 2)) if (p['yellow'] or p['red'])][:5]
 
@@ -657,6 +659,8 @@ def tactical_plan_rival_report(request, plan_id):
         'probable': probable,
         'goleadores': goleadores,
         'tarjetas': tarjetas,
+        'hay_minutos': hay_minutos,
+        'plantilla_ordenada': sorted(plantilla, key=lambda x: (x['position'], x['name'])),
         'nuestro_once': (plan.lineup_data or {}).get('starters') or [],
         'total_jugadores': len(plantilla),
     })

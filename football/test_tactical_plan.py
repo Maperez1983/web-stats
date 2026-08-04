@@ -302,3 +302,21 @@ class InformeDelRivalTests(PlanteamientoTests):
         ajeno = TacticalPlan.objects.create(team=otro, name="suyo", rival_team=self.rival)
         r = self.client.get(reverse("tactics-plan-rival-report", args=[ajeno.id]), secure=True)
         self.assertEqual(r.status_code, 302)
+
+
+class InformeSinMinutosTests(InformeDelRivalTests):
+    """En agosto nadie tiene minutos: ordenar por minutos es ordenar alfabéticamente."""
+
+    def test_sin_minutos_no_se_inventa_un_once_probable(self):
+        from football.models import TeamRosterSnapshot
+
+        TeamRosterSnapshot.objects.filter(team=self.rival).delete()
+        TeamRosterSnapshot.objects.create(team=self.rival, provider="lapreferente", roster_payload=[
+            {"name": "Ana Uno", "number": 1, "minutes": 0, "pj": 0},
+            {"name": "Zoe Once", "number": 11, "minutes": 0, "pj": 0},
+        ])
+        plan = self._plan_con_rival()
+        html = self.client.get(reverse("tactics-plan-rival-report", args=[plan["id"]]), secure=True).content.decode()
+        self.assertIn("no se puede decir quién es titular", html)
+        self.assertNotIn("once probable · por minutos", html.lower())
+        self.assertIn("Zoe Once", html, "la plantilla completa sí se enseña")

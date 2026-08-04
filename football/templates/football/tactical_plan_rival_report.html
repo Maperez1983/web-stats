@@ -51,7 +51,13 @@
       <div class="rr-grid">
         <section>
           <div class="rr-card">
-            <h2>Su once probable · por minutos jugados</h2>
+            <h2>{% if hay_minutos %}Su once probable · por minutos jugados{% else %}Su plantilla{% endif %}</h2>
+            {% if not hay_minutos %}
+            <p class="rr-nota" style="margin:0 0 .6rem;">
+              Todavía no hay minutos de esta temporada, así que <strong>no se puede decir quién es titular</strong>.
+              Esta es su plantilla completa; el once probable aparecerá cuando se jueguen jornadas.
+            </p>
+            {% endif %}
             {% for p in probable %}
             <div class="rr-row">
               <span class="rr-dorsal">{{ p.number|default:"–" }}</span>
@@ -60,9 +66,17 @@
               <span class="rr-dato"><b>{{ p.minutes }}</b>′ · {{ p.pj }} pj{% if p.goals %} · <b>{{ p.goals }}</b> g{% endif %}</span>
             </div>
             {% empty %}
-            <p class="rr-nota">No hay plantilla volcada de este rival.</p>
+              {% for p in plantilla_ordenada %}
+              <div class="rr-row">
+                <span class="rr-dorsal">{{ p.number|default:"–" }}</span>
+                {% if p.photo_url %}<img src="{{ p.photo_url }}" alt="" referrerpolicy="no-referrer" loading="lazy" />{% endif %}
+                <span><span class="rr-nombre">{{ p.name }}</span>{% if p.position %}<span class="rr-pos">{{ p.position }}</span>{% endif %}</span>
+              </div>
+              {% empty %}
+              <p class="rr-nota">No hay plantilla volcada de este rival.</p>
+              {% endfor %}
             {% endfor %}
-            <p class="rr-nota">No sabemos su alineación: son los once con más minutos esta temporada, que es la aproximación honesta.</p>
+            {% if hay_minutos %}<p class="rr-nota">No sabemos su alineación: son los once con más minutos esta temporada, que es la aproximación honesta.</p>{% endif %}
           </div>
         </section>
 
