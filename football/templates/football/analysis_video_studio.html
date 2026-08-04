@@ -318,11 +318,11 @@
 		              <button type="button" class="button" id="vs-mark-out">OUT</button>
 		              <button type="button" class="button primary" id="vs-clip-save-quick" title="Crea un clip con el segmento IN/OUT">Guardar</button>
 		              <button type="button" class="button primary" id="vs-clip-save-mp4" title="1 clic: guarda el clip (IN/OUT) y genera un MP4 en servidor">Guardar+MP4</button>
-		              <button type="button" class="button" id="vs-export-seg" data-vs-advanced="1">Export segmento</button>
-		              <button type="button" class="button primary" id="vs-export-share" data-vs-advanced="1">Export + compartir</button>
-		              <button type="button" class="button" id="vs-export-server" data-vs-advanced="1" title="Corta MP4 en servidor (rápido, sin grabación)">MP4 server</button>
-			              <button type="button" class="button" id="vs-export-server-playlist" data-vs-advanced="1" title="Concatena clips seleccionados en un MP4 (servidor)">MP4 playlist</button>
-			              <button type="button" class="button" id="vs-export-retry" data-vs-advanced="1" hidden>Reintentar upload</button>
+		              <button type="button" class="button" id="vs-export-seg" data-vs-advanced="1">Exportar segmento</button>
+		              <button type="button" class="button primary" id="vs-export-share" data-vs-advanced="1">Exportar y compartir</button>
+		              <button type="button" class="button" id="vs-export-server" data-vs-advanced="1" title="Corta MP4 en servidor (rápido, sin grabación)">MP4 en servidor</button>
+			              <button type="button" class="button" id="vs-export-server-playlist" data-vs-advanced="1" title="Concatena clips seleccionados en un MP4 (servidor)">MP4 de la lista</button>
+			              <button type="button" class="button" id="vs-export-retry" data-vs-advanced="1" hidden>Reintentar subida</button>
 			              <button type="button" class="button" id="vs-record" data-vs-advanced="1">Grabar</button>
 		              <button type="button" class="button" id="vs-still-clip" title="Captura un frame y crea un clip de foto (3s) para montar después">Foto→Clip</button>
 		              <button type="button" class="button" id="vs-snap">PNG</button>
@@ -378,14 +378,14 @@
 			              </details>
             </div>
             <div class="right" data-vs-advanced="1">
-	              <button type="button" class="button" id="vs-tool-select">Select</button>
-	              <button type="button" class="button" id="vs-tool-pen">Pen</button>
+	              <button type="button" class="button" id="vs-tool-select">Elegir</button>
+	              <button type="button" class="button" id="vs-tool-pen">Lápiz</button>
 		              <button type="button" class="button" id="vs-tool-line" title="Línea recta: arrastra para dibujar. Mantén Shift para horizontal/vertical.">Línea</button>
-		              <button type="button" class="button" id="vs-tool-rect" title="Rectángulo: arrastra para dibujar. Shift=cuadrado.">Rect</button>
+		              <button type="button" class="button" id="vs-tool-rect" title="Rectángulo: arrastra para dibujar. Shift=cuadrado.">Rectángulo</button>
 		              <button type="button" class="button" id="vs-tool-circle" title="Círculo/elipse: arrastra para dibujar. Shift=círculo.">Círculo</button>
 		              <button type="button" class="button" id="vs-tool-measure" title="Medir distancia (requiere calibración para metros)">Medir</button>
-		              <button type="button" class="button" id="vs-tool-arrow">Arrow</button>
-		              <button type="button" class="button" id="vs-tool-curve" title="Flecha curva: arrastra para dibujar. Mantén Shift para curvar al lado contrario.">Curve</button>
+		              <button type="button" class="button" id="vs-tool-arrow">Flecha</button>
+		              <button type="button" class="button" id="vs-tool-curve" title="Flecha curva: arrastra para dibujar. Mantén Shift para curvar al lado contrario.">Curva</button>
 	              <button type="button" class="button" id="vs-tool-text">Texto</button>
               <button type="button" class="button" id="vs-tool-player" title="Marcador jugador (círculo + dorsal)">Jugador</button>
               <button type="button" class="button" id="vs-tool-structure" title="Estructura táctica: conecta marcadores Jugador seleccionados y los sigue si tienen tracking.">Estructura</button>
@@ -397,8 +397,8 @@
 	              <button type="button" class="button" id="vs-space-follow-player" title="El espacio seleccionado seguirá al marcador Jugador seleccionado en la misma selección.">Seguir jugador</button>
 	              <button type="button" class="button" id="vs-space-follow-manual" title="El espacio seleccionado usará keyframes manuales y dejará de seguir referencias.">Manual</button>
 	              <button type="button" class="button" id="vs-tool-move" title="Trayectoria: arrastra desde el inicio al final para crear la flecha.">Trayectoria</button>
-	              <button type="button" class="button" id="vs-tool-spot">Spotlight</button>
-	              <button type="button" class="button" id="vs-tool-blur">Blur</button>
+	              <button type="button" class="button" id="vs-tool-spot">Foco</button>
+	              <button type="button" class="button" id="vs-tool-blur">Difuminar</button>
 		              <button type="button" class="button" id="vs-undo">Undo</button>
 		              <button type="button" class="button" id="vs-redo">Redo</button>
 		              <button type="button" class="button" id="vs-view-reset" title="Reset vista (zoom y pan)">Vista 1:1</button>
@@ -525,7 +525,7 @@
                   <button type="button" class="button primary" id="vs-clip-save">Guardar</button>
                   <button type="button" class="button" id="vs-clip-refresh">Actualizar</button>
                   <button type="button" class="button" id="vs-clip-dup">Duplicar</button>
-                  <button type="button" class="button" id="vs-clip-split">Split</button>
+                  <button type="button" class="button" id="vs-clip-split">Partir clip</button>
                 </div>
                 <div class="hint" id="vs-clip-saved-msg" style="margin-top:0.15rem;">—</div>
               </div>
@@ -622,7 +622,7 @@
 		              <div class="hint">Crea <span class="k">slides</span> (capturas con telestración) para imprimir o compartir.</div>
 		              <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
 		                <button type="button" class="button" id="vs-slide-add">Añadir slide</button>
-		                <button type="button" class="button" id="vs-slides-from-timeline">Timeline → slides</button>
+		                <button type="button" class="button" id="vs-slides-from-timeline">Marcas → diapositivas</button>
 		                <button type="button" class="button danger" id="vs-slides-clear">Limpiar</button>
 		              </div>
 		              <div class="list" id="vs-slides"></div>
