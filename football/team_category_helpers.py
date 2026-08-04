@@ -52,3 +52,24 @@ def get_teams_in_same_category(team):
     return Team.objects.filter(
         category_ref=team.category_ref
     ).exclude(id=team.id)
+
+
+def get_players_for_session(team):
+    """
+    Obtiene jugadores disponibles para sesiones/entrenamientos.
+
+    Para sesiones (entrenamientos de categoría), siempre incluye
+    todos los equipos de la categoría (A, B, C, etc.)
+
+    Args:
+        team: Team instance (equipo actual)
+
+    Returns:
+        QuerySet de Player
+    """
+    if not team or not team.category_ref:
+        # Fallback: solo jugadores del equipo
+        return team.player_set.filter(is_active=True) if team else None
+
+    # Sesiones incluyen todos los equipos de la categoría
+    return get_players_for_category(team.category_ref, include_related_divisions=True)
