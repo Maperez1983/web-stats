@@ -52,6 +52,8 @@
   </head>
   <body class="prod-commercial">
     <main class="vs-page">
+      {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='analisis' %}
       <div class="vs-head">
         <div class="vs-head-main">
           <h1>Clip · {{ clip.title|default:"(sin título)" }}</h1>

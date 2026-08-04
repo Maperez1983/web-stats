@@ -348,21 +348,11 @@
 			                    <button type="button" class="vs-chip" data-vs-resource="tactic:press_jump" data-vs-kind="tactic"><span class="dot"></span>Presión/salto</button>
 			                    <button type="button" class="vs-chip" data-vs-resource="tactic:shift" data-vs-kind="tactic"><span class="dot"></span>Basculación</button>
 			                  </div>
-			                  <div class="vs-menu-muted" style="margin-top:0.25rem;">Herramientas (1 clic)</div>
-			                  <div class="vs-menu-grid">
-			                    <button type="button" class="vs-chip" data-vs-resource="tool:arrow" data-vs-kind="tool"><span class="dot"></span>Flecha</button>
-			                    <button type="button" class="vs-chip" data-vs-resource="tool:move" data-vs-kind="tool"><span class="dot"></span>Trayectoria</button>
-			                    <button type="button" class="vs-chip" data-vs-resource="tool:text" data-vs-kind="tool"><span class="dot"></span>Texto</button>
-			                    <button type="button" class="vs-chip" data-vs-resource="tool:player" data-vs-kind="tool"><span class="dot"></span>Jugador</button>
-			                    <button type="button" class="vs-chip" data-vs-resource="tool:area" data-vs-kind="tool"><span class="dot"></span>Área</button>
-			                    <button type="button" class="vs-chip" data-vs-resource="tool:space" data-vs-kind="tool"><span class="dot"></span>Espacio móvil</button>
-			                  </div>
-			                  <div class="vs-menu-muted" style="margin-top:0.25rem;">FX (1 clic)</div>
-			                  <div class="vs-menu-grid">
-			                    <button type="button" class="vs-chip" data-vs-resource="fx:spot" data-vs-kind="fx"><span class="dot"></span>Spotlight</button>
-			                    <button type="button" class="vs-chip" data-vs-resource="fx:blur" data-vs-kind="fx"><span class="dot"></span>Blur</button>
-			                    <button type="button" class="vs-chip" data-vs-resource="fx:freeze" data-vs-kind="fx"><span class="dot"></span>Freeze</button>
-			                  </div>
+			                  {% comment %}Aqui habia otra vez Flecha, Trayectoria, Texto, Jugador, Area,
+			                  Espacio movil, Spotlight, Blur y Freeze: los nueve ya estan en la barra de
+			                  herramientas de arriba, con su marca de activa. Dos sitios para lo mismo es
+			                  justo lo que hace que una pantalla no se entienda. El menu se queda con lo
+			                  que SOLO esta aqui: los presets tacticos.{% endcomment %}
 			                  <div class="vs-menu-muted" style="margin-top:0.25rem;">Recientes</div>
 			                  <div class="vs-menu-grid" id="vs-resources-recent"></div>
 			                </div>

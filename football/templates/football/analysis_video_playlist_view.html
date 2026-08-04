@@ -62,6 +62,8 @@
   </head>
   <body class="prod-commercial">
     <main class="page">
+      {% include 'football/includes/dragon_nav.html' %}
+      {% include 'football/includes/_zone_subnav.html' with zone='analisis' %}
       {% csrf_token %}{# fija la cookie CSRF y el input oculto para el POST de comentarios (evita 403) #}
       <div class="head">
         <div class="head-copy">
