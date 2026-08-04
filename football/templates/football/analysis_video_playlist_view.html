@@ -84,9 +84,13 @@
       <div class="grid">
         <section class="card">
           <div class="stage">
+            {% if video.video %}
             <video id="pl-video" controls preload="metadata" playsinline crossorigin="anonymous">
               <source src="{{ video.video.url }}" />
             </video>
+            {% else %}
+            <p class="hint" style="padding:1rem;">Este vídeo no tiene fichero: la subida no llegó a completarse. Vuelve a subirlo desde la biblioteca.</p>
+            {% endif %}
           </div>
           <div class="status" id="pl-status">Listo.</div>
         </section>

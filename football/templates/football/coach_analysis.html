@@ -35,7 +35,9 @@
         padding: 1.1rem 1.15rem;
         border-radius: 26px;
         border: 1px solid rgba(255, 255, 255, 0.1);
-        background: linear-gradient(135deg, rgba(8, 15, 31, 0.9), rgba(15, 23, 42, 0.82));
+        /* El fondo lo pone el TEMA. Con un degradado oscuro fijo, en modo claro el texto (que sí
+           es del tema) salía oscuro sobre oscuro y no se leía ni el título del área. */
+        background: var(--prod-panel);
         box-shadow: 0 24px 58px rgba(0, 0, 0, 0.34);
         backdrop-filter: blur(14px);
       }
@@ -78,7 +80,7 @@
         text-transform: uppercase;
       }
       .panel {
-        background: rgba(15, 23, 42, 0.95);
+        background: var(--prod-panel);
         border-radius: 24px;
         padding: 2rem;
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -209,7 +211,7 @@
 	      .analysis-metric {
 	        border-radius: 16px;
 	        border: 1px solid rgba(255, 255, 255, 0.1);
-	        background: rgba(15, 23, 42, 0.65);
+	        background: var(--prod-panel-flat);
 	        padding: 0.7rem 0.75rem;
 	        min-height: 68px;
 	      }
@@ -276,7 +278,7 @@
         padding: 1rem;
         border-radius: 16px;
         border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(15, 23, 42, 0.8);
+        background: var(--prod-panel-flat);
         min-height: 110px;
         overflow: hidden;
       }
@@ -486,7 +488,7 @@
         padding: 0.45rem 0.75rem;
         border-radius: 999px;
         border: 1px solid rgba(148, 163, 184, 0.25);
-        background: rgba(15, 23, 42, 0.7);
+        background: var(--prod-panel-flat);
         color: var(--prod-button-text);
         text-decoration: none;
         font-size: 0.84rem;

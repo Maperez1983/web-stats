@@ -406,9 +406,13 @@
           </div>
 
 			          <div class="stage" id="vs-stage">
+			            {% if video.video %}
 			            <video id="vs-video" controls preload="metadata" playsinline crossorigin="anonymous">
 			              <source src="{{ video.video.url }}" />
 			            </video>
+			            {% else %}
+			            <p class="hint" style="padding:1rem;">Este vídeo no tiene fichero: la subida no llegó a completarse. Vuelve a subirlo desde la biblioteca.</p>
+			            {% endif %}
 			            <img id="vs-freeze-bg" alt="" />
 				            <canvas id="vs-fx"></canvas>
 				            <canvas id="vs-canvas"></canvas>

@@ -504,3 +504,74 @@ class VideoStudioPersonalLibraryTests(TestCase):
         self.assertTrue(VideoClip.objects.filter(video=self.video, team=self.team).exists())
         self.assertTrue(VideoTimelineEvent.objects.filter(video=self.video, team=self.team).exists())
         self.assertTrue(VideoTelestrationProject.objects.filter(video=self.video, team=self.team).exists())
+
+
+class VideoSinFicheroTests(TestCase):
+    """Un vídeo sin fichero no puede tumbar una pantalla."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from django.test import Client
+
+        from football.models import (
+            RivalVideo,
+            Team,
+            VideoClip,
+            Workspace,
+            WorkspaceMembership,
+            WorkspaceTeam,
+        )
+
+        self.user = get_user_model().objects.create_superuser("sv", "sv@example.com", "x")
+        self.team = Team.objects.create(name="Benagalbón", slug="bena-video", is_primary=True)
+        self.ws = Workspace.objects.create(name="Club", slug="club-video", kind=Workspace.KIND_CLUB)
+        WorkspaceMembership.objects.create(workspace=self.ws, user=self.user, role="owner")
+        WorkspaceTeam.objects.create(workspace=self.ws, team=self.team, is_default=True)
+        # Una subida cortada a medias deja exactamente esto: fila sin fichero y sin enlace.
+        self.video = RivalVideo.objects.create(team=self.team, title="Subida a medias",
+                                               source=RivalVideo.SOURCE_MANUAL)
+        self.clip = VideoClip.objects.create(team=self.team, video=self.video, title="c",
+                                             in_ms=0, out_ms=4000)
+        self.client = Client()
+        self.client.force_login(self.user)
+        s = self.client.session
+        s["active_workspace_id"] = self.ws.id
+        s["active_team_by_workspace"] = {str(self.ws.id): self.team.id}
+        s.save()
+
+    def test_el_estudio_no_revienta_y_lo_dice(self):
+        from django.urls import reverse
+
+        r = self.client.get(reverse("analysis-video-studio", args=[self.video.id]), secure=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("no tiene fichero", r.content.decode())
+
+    def test_la_ficha_del_clip_no_revienta_y_lo_dice(self):
+        from django.urls import reverse
+
+        r = self.client.get(reverse("analysis-video-clip-view", args=[self.clip.id]), secure=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("no tiene fichero", r.content.decode())
+
+
+class EnlacesDeYoutubeTests(TestCase):
+    """Los enlaces que se pegan de verdad: directo y sin https."""
+
+    def test_enlace_de_directo(self):
+        from football.views import _extract_youtube_video_id
+
+        self.assertEqual(
+            _extract_youtube_video_id("https://www.youtube.com/live/dQw4w9WgXcQ"), "dQw4w9WgXcQ",
+            "los partidos de la categoría se emiten en directo: ese es el enlace que llega",
+        )
+
+    def test_enlace_pegado_sin_https(self):
+        from football.views import _extract_youtube_video_id
+
+        self.assertEqual(_extract_youtube_video_id("youtube.com/watch?v=dQw4w9WgXcQ"), "dQw4w9WgXcQ")
+
+    def test_lo_que_no_es_youtube_sigue_fuera(self):
+        from football.views import _extract_youtube_video_id
+
+        self.assertEqual(_extract_youtube_video_id("https://vimeo.com/12345"), "")
+        self.assertEqual(_extract_youtube_video_id("https://www.youtube.com/playlist?list=PL1"), "")
