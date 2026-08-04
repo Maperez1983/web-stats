@@ -101,3 +101,56 @@ def analysis_video_clips_from_actions_api(request, video_id):
     return JsonResponse(
         {"ok": True, "created": creados, "skipped": saltados, "without_minute": sin_minuto}
     )
+
+
+@login_required
+def analysis_clip_burned_mp4(request, clip_id):
+    """
+    El clip con sus dibujos DENTRO, cortado y compuesto en el servidor.
+
+    Es la alternativa a grabar la pantalla: sale igual desde un móvil que desde un portátil, no
+    pierde calidad y se puede volver a generar si se retoca un trazo.
+    """
+    import os
+
+    from django.http import FileResponse, JsonResponse
+
+    from .models import VideoClip
+    from .video_burn import quemar
+    from .views import _forbid_if_no_coach_access, _get_primary_team_for_request
+
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    equipo = _get_primary_team_for_request(request)
+    clip = VideoClip.objects.filter(id=int(clip_id), team=equipo).select_related("video").first()
+    if not clip or not getattr(clip.video, "video", None):
+        return JsonResponse({"ok": False, "error": "Clip no disponible."}, status=404)
+
+    try:
+        ancho_lienzo = int(float(request.GET.get("canvas_w") or 0))
+    except (TypeError, ValueError):
+        ancho_lienzo = 0
+
+    try:
+        ruta = quemar(
+            source_path=clip.video.video.path,
+            start_s=clip.in_seconds,
+            end_s=clip.out_seconds,
+            overlay=clip.overlay if isinstance(clip.overlay, dict) else {},
+            ancho_lienzo=ancho_lienzo,
+        )
+    except Exception:
+        import logging
+
+        logging.getLogger(__name__).exception("No se pudo quemar la telestración del clip %s", clip_id)
+        return JsonResponse({"ok": False, "error": "No se pudo generar el vídeo."}, status=500)
+
+    nombre = (clip.title or "clip").replace('"', "").replace("/", "-")
+    resp = FileResponse(open(ruta, "rb"), content_type="video/mp4")
+    resp["Content-Disposition"] = f'attachment; filename="{nombre}.mp4"'
+    try:
+        os.unlink(ruta)  # FileResponse ya tiene el descriptor abierto
+    except Exception:
+        pass
+    return resp

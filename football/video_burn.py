@@ -68,27 +68,134 @@ def _cuerpo_de_flecha(puntos, grosor):
     ]
 
 
-def _flecha(dibujo, puntos, color, grosor):
-    cuerpo = _cuerpo_de_flecha(puntos, grosor)
+def _ondular_trazo(puntos, amplitud, tramo):
+    """Convierte un camino en ondulado (la conduccion), como en Tactica · Jugadas."""
+    salida = [puntos[0]]
+    lado = 1
+    for i in range(1, len(puntos)):
+        (x1, y1), (x2, y2) = puntos[i - 1], puntos[i]
+        largo = math.hypot(x2 - x1, y2 - y1)
+        if largo < 0.01:
+            continue
+        nx, ny = _perpendicular(x1, y1, x2, y2)
+        recorrido = 0.0
+        while recorrido + tramo <= largo:
+            recorrido += tramo
+            t = recorrido / largo
+            salida.append((x1 + (x2 - x1) * t + nx * amplitud * lado,
+                           y1 + (y2 - y1) * t + ny * amplitud * lado))
+            lado *= -1
+        salida.append((x2, y2))
+    return salida
+
+
+def _trocear(puntos, raya, hueco):
+    """Parte un camino para pintarlo discontinuo (el desmarque)."""
+    tramos, actual, pintando, resto = [], [], True, raya
+    for i in range(1, len(puntos)):
+        (x1, y1), (x2, y2) = puntos[i - 1], puntos[i]
+        largo = math.hypot(x2 - x1, y2 - y1)
+        recorrido = 0.0
+        while recorrido < largo:
+            paso = min(resto, largo - recorrido)
+            a = (x1 + (x2 - x1) * (recorrido / largo), y1 + (y2 - y1) * (recorrido / largo))
+            recorrido += paso
+            b = (x1 + (x2 - x1) * (recorrido / largo), y1 + (y2 - y1) * (recorrido / largo))
+            if pintando:
+                actual.extend([a, b] if not actual else [b])
+            resto -= paso
+            if resto <= 0.001:
+                if pintando and actual:
+                    tramos.append(actual)
+                    actual = []
+                pintando = not pintando
+                resto = raya if pintando else hueco
+    if actual:
+        tramos.append(actual)
+    return [t for t in tramos if len(t) >= 2]
+
+
+def _flecha(dibujo, puntos, color, grosor, clase='pase'):
+    # Cada tipo de flecha se dibuja distinto, como en la pizarra: el pase es limpio, la conduccion
+    # ondulada, el desmarque discontinuo y la presion mas gruesa. Se distinguen SIN leer la leyenda.
+    if clase in {'conduccion', 'dribble'}:
+        camino = _ondular_trazo(puntos, grosor * 1.5, grosor * 4.5)
+        _trazo_con_sombra(dibujo, camino, color, grosor)
+        _punta(dibujo, camino, color, grosor)
+        return
+    if clase in {'desmarque', 'run', 'move', 'trayectoria'}:
+        for tramo in _trocear(puntos, grosor * 2.6, grosor * 1.9):
+            _trazo_con_sombra(dibujo, tramo, color, grosor)
+        _punta(dibujo, puntos, color, grosor)
+        return
+    ancho = grosor * (1.55 if clase in {'presion', 'press'} else 1.0)
+    cuerpo = _cuerpo_de_flecha(puntos, ancho)
     if not cuerpo:
         return
-    # Sombra desplazada: es lo que despega el dibujo del césped.
-    desvio = max(2, int(grosor * 0.5))
+    desvio = max(2, int(ancho * 0.5))
     dibujo.polygon([(x + desvio, y + desvio) for (x, y) in cuerpo], fill=SOMBRA)
     dibujo.polygon(cuerpo, fill=color, outline=(10, 18, 28, 210))
 
 
-def _foco_jugador(dibujo, cx, cy, radio, color):
-    """Marcar a un jugador es un ANILLO a sus pies con halo, no un círculo plano encima."""
-    for i in range(5, 0, -1):
-        r = radio * (1 + i * 0.13)
-        alfa = int(26 * (6 - i) / 5)
-        dibujo.ellipse([cx - r, cy - r * 0.55, cx + r, cy + r * 0.55],
-                       fill=(color[0], color[1], color[2], alfa))
-    dibujo.ellipse([cx - radio, cy - radio * 0.55, cx + radio, cy + radio * 0.55],
-                   outline=(10, 18, 28, 200), width=max(4, int(radio * 0.16)))
-    dibujo.ellipse([cx - radio, cy - radio * 0.55, cx + radio, cy + radio * 0.55],
-                   outline=color, width=max(2, int(radio * 0.1)))
+def _trazo_con_sombra(dibujo, puntos, color, grosor):
+    desvio = max(2, int(grosor * 0.45))
+    dibujo.line([(x + desvio, y + desvio) for (x, y) in puntos], fill=SOMBRA, width=grosor + 2, joint='curve')
+    dibujo.line(puntos, fill=(10, 18, 28, 200), width=grosor + 4, joint='curve')
+    dibujo.line(puntos, fill=color, width=grosor, joint='curve')
+
+
+def _punta(dibujo, puntos, color, grosor):
+    (x1, y1), (x2, y2) = puntos[-2], puntos[-1]
+    ang = math.atan2(y2 - y1, x2 - x1)
+    largo = max(12.0, grosor * 3.4)
+    triangulo = [
+        (x2, y2),
+        (x2 - largo * math.cos(ang - 0.42), y2 - largo * math.sin(ang - 0.42)),
+        (x2 - largo * math.cos(ang + 0.42), y2 - largo * math.sin(ang + 0.42)),
+    ]
+    dibujo.polygon([(x + 2, y + 2) for (x, y) in triangulo], fill=SOMBRA)
+    dibujo.polygon(triangulo, fill=color, outline=(10, 18, 28, 210))
+
+
+def _foco_jugador(dibujo, cx, cy, radio, color, dorsal=''):
+    """
+    Marcar a un jugador: anillo ELIPTICO a sus pies, con halo y sombra.
+
+    Un circulo plano encima del jugador lo tapa y no dice donde pisa. El anillo en perspectiva
+    -mas ancho que alto, porque la camara mira desde arriba- es lo que hace que parezca pegado al
+    cesped y no un adhesivo sobre la imagen.
+    """
+    rx = radio
+    ry = radio * 0.42
+    # Sombra proyectada: separa el anillo del suelo.
+    dibujo.ellipse([cx - rx, cy - ry + rx * 0.10, cx + rx, cy + ry + rx * 0.10], fill=(0, 0, 0, 90))
+    # Halo: varios anillos cada vez mas tenues hacia fuera.
+    for i in range(6, 0, -1):
+        f = 1 + i * 0.11
+        dibujo.ellipse([cx - rx * f, cy - ry * f, cx + rx * f, cy + ry * f],
+                       outline=(color[0], color[1], color[2], int(18 * (7 - i) / 6)),
+                       width=max(2, int(rx * 0.14)))
+    dibujo.ellipse([cx - rx, cy - ry, cx + rx, cy + ry], outline=(8, 15, 26, 220), width=max(5, int(rx * 0.2)))
+    dibujo.ellipse([cx - rx, cy - ry, cx + rx, cy + ry], outline=color, width=max(3, int(rx * 0.12)))
+    if dorsal:
+        _chapa(dibujo, cx, cy - ry - rx * 0.55, max(12, rx * 0.42), color, str(dorsal))
+
+
+def _chapa(dibujo, cx, cy, radio, color, texto):
+    """El dorsal sobre el jugador, en una chapa que se lee sobre cualquier fondo."""
+    from PIL import ImageFont
+
+    dibujo.ellipse([cx - radio, cy - radio, cx + radio, cy + radio], fill=(8, 15, 26, 225),
+                   outline=color, width=max(2, int(radio * 0.22)))
+    fuente = None
+    for ruta in ('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+                 '/System/Library/Fonts/Supplemental/Arial Bold.ttf'):
+        try:
+            fuente = ImageFont.truetype(ruta, int(radio * 1.15))
+            break
+        except Exception:
+            continue
+    dibujo.text((cx, cy), texto, font=fuente, fill=color, anchor='mm')
 
 
 def _zona(dibujo, caja, color):
@@ -191,7 +298,9 @@ def _pinta(dibujo, objeto, ancho, alto, dx=0.0, dy=0.0, escala=1.0):
         radio = float(objeto.get('radius') or 0) * float(objeto.get('scaleX') or 1) * escala
         if not radio:
             radio = max(anc, alt) / 2.0
-        _foco_jugador(dibujo, izq + radio, arr + radio, radio, trazo or (255, 215, 106, 255))
+        datos = objeto.get('data') if isinstance(objeto.get('data'), dict) else {}
+        _foco_jugador(dibujo, izq + radio, arr + radio, radio, trazo or (255, 215, 106, 255),
+                      dorsal=str(datos.get('number') or datos.get('dorsal') or ''))
     elif tipo in {'text', 'i-text', 'textbox'}:
         from PIL import ImageFont
 
@@ -216,8 +325,9 @@ def _pinta(dibujo, objeto, ancho, alto, dx=0.0, dy=0.0, escala=1.0):
             return
         datos = objeto.get('data') if isinstance(objeto.get('data'), dict) else {}
         clase = str(datos.get('kind') or objeto.get('vsKind') or '').lower()
-        if clase in {'arrow', 'flecha', 'move', 'trayectoria'}:
-            _flecha(dibujo, puntos, trazo or (111, 211, 255, 255), grosor)
+        if clase in {'arrow', 'flecha', 'pase', 'pass', 'conduccion', 'dribble',
+                     'desmarque', 'run', 'move', 'trayectoria', 'presion', 'press'}:
+            _flecha(dibujo, puntos, trazo or (111, 211, 255, 255), grosor, clase=clase)
         else:
             # Trazo libre: sombra debajo y borde oscuro, para que se lea sobre cualquier césped.
             desvio = max(2, int(grosor * 0.45))

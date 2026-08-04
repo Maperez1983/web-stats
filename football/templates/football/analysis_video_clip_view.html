@@ -95,6 +95,9 @@
         </div>
         <div class="status-row">
           <div class="status" id="vs-status" style="flex:1 1 auto;">Cargando clip…</div>
+          {% comment %}El MP4 con la telestracion dentro: lo compone el servidor, no la pantalla.{% endcomment %}
+          <a class="button primary" href="{% url 'analysis-clip-burned' clip.id %}" id="cv-burned"
+             title="Descarga el clip con las flechas y marcas dentro del vídeo">Descargar con dibujos</a>
           <button type="button" class="button ghost" id="vs-reset-cache" title="Reinicia cachés offline (Safari/PWA) si no ves cambios">Reset caché</button>
           <button type="button" class="button ghost" id="vs-debug" title="Diagnóstico (captura de frame, CORS, etc.)">Debug</button>
         </div>

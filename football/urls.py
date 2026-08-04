@@ -224,6 +224,12 @@ urlpatterns = [
         name="analysis-rival-report-to-blueprints-api",
     ),
     path("analysis/video/<int:video_id>/", video_studio_views.analysis_video_studio_page, name="analysis-video-studio"),
+    # El clip con sus dibujos quemados dentro.
+    path(
+        "analysis/video/clip/<int:clip_id>/con-dibujos.mp4",
+        video_actions_views.analysis_clip_burned_mp4,
+        name="analysis-clip-burned",
+    ),
     # El registro del domingo, convertido en clips del vídeo.
     path(
         "analysis/video/<int:video_id>/clips-del-registro/",
