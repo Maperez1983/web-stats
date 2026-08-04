@@ -229,3 +229,46 @@
   try { guardado = window.localStorage.getItem(LLAVE) || 'cortar'; } catch (e) { guardado = 'cortar'; }
   aplicar(guardado);
 })();
+
+/*
+  Qué es "de cortar" y qué es "de editar".
+
+  De los 428 controles del estudio, los de uso diario son tres zonas: Clips, Exportar y Compartir.
+  Todo lo demás -los presets de recursos, las dos líneas de tiempo, alinear, estilos, plantillas,
+  autocut, el asistente- se usa un domingo al mes y hasta ahora competía por la atención cada vez
+  que se abría un vídeo.
+
+  Se marca por el NOMBRE de la zona y no tocando la plantilla a mano: así esta lista se lee de un
+  vistazo y cambiarla es cambiar una línea, no cazar un div entre mil.
+*/
+(function () {
+  const DE_EDITAR = [
+    'recursos', 'telestración', 'telestracion', 'edición', 'edicion', 'alinear', 'estilos',
+    'plantillas', 'timeline', 'timeline editor (beta)', 'configurar presets', 'autocut · ajustes',
+    'asistente ia', 'ver actividad',
+  ];
+  const DE_CORTAR = ['clips', 'exportar', 'compartir'];
+
+  const nombre = (bloque) => {
+    // El estudio titula sus zonas con `.meta`, no con encabezados: buscando sólo h2/h3 no
+    // encontrábamos ninguna y el modo no gateaba nada.
+    const cabecera = bloque.querySelector('summary, h2, h3, h4, .meta');
+    return (cabecera ? cabecera.textContent : '').trim().toLowerCase();
+  };
+
+  document.querySelectorAll('details, .vs-card, .panel, section').forEach((bloque) => {
+    if (bloque.hasAttribute('data-vs-advanced') || bloque.closest('[data-vs-advanced]')) return;
+    if (bloque.querySelectorAll('button,select,input').length < 3) return;
+    const titulo = nombre(bloque);
+    if (!titulo) return;
+    if (DE_CORTAR.some((t) => titulo.startsWith(t))) return;
+    if (DE_EDITAR.some((t) => titulo.startsWith(t))) bloque.setAttribute('data-vs-advanced', '1');
+  });
+
+  // Ya marcado todo, se vuelve a aplicar el modo guardado: si no, lo recién marcado se quedaría
+  // visible hasta el siguiente clic.
+  let modo = 'cortar';
+  try { modo = window.localStorage.getItem('vs-modo') || 'cortar'; } catch (e) { modo = 'cortar'; }
+  const boton = document.getElementById(modo === 'editar' ? 'vs-modo-editar' : 'vs-modo-cortar');
+  if (boton) boton.click();
+})();
