@@ -58,3 +58,33 @@ class CadaDatoEnUnSitioTests(SimpleTestCase):
     def test_altura_y_peso_solo_en_salud(self):
         self.assertEqual(_panel_de_cada(FICHA, "Altura"), ["salud"])
         self.assertEqual(_panel_de_cada(FICHA, "Peso"), ["salud"])
+
+
+class OrdenDeLosCamposTests(SimpleTestCase):
+    """El orden importa: primero lo que se usa, y cada dato al lado del que se lee con él."""
+
+    def test_el_contacto_empieza_por_el_email(self):
+        contenido = FICHA.read_text(encoding="utf-8")
+        personal = contenido[contenido.index('data-pane="personal"') : contenido.index('data-pane="agenda"')]
+
+        posicion_email = personal.index(">Email<")
+        posicion_telefono = personal.index(">Teléfono<")
+
+        self.assertLess(
+            posicion_email, posicion_telefono,
+            "El email va primero: es de donde sale la invitación al portal",
+        )
+
+    def test_de_quien_es_el_email_va_pegado_al_email(self):
+        contenido = FICHA.read_text(encoding="utf-8")
+        personal = contenido[contenido.index('data-pane="personal"') : contenido.index('data-pane="agenda"')]
+
+        entre = personal[personal.index(">Email<") : personal.index(">De quién es<")]
+
+        self.assertNotIn(">Teléfono<", entre, "Se ha colado un campo entre el email y de quién es")
+
+    def test_la_posicion_preferida_esta_junto_a_la_posicion(self):
+        contenido = FICHA.read_text(encoding="utf-8")
+        cabecera = contenido[: contenido.index('data-tab="resumen"')]
+
+        self.assertIn("preferred_position", cabecera, "La posición preferida se quedó sin sitio")

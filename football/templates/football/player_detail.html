@@ -1128,6 +1128,10 @@
             es que le falta la FOTO, porque eso es un dato de la persona y se sube aqui.{% endcomment %}
             {% if not player_photo_url %}<span class="ph-badge ph-muted" title="Sin foto no se le puede poner su cara: sale como ficha de color en la pizarra">Sin foto</span>{% endif %}
             {% if player.position %}<span class="ph-badge ph-muted">{{ player.position|display_position }}</span>{% endif %}
+            {% comment %}La posición preferida estaba suelta entre el nombre y la fecha de
+            nacimiento, en "Datos personales". Su sitio es al lado de la que ocupa: se leen
+            juntas o no dicen nada.{% endcomment %}
+            {% if player.preferred_position and player.preferred_position != player.position %}<span class="ph-badge ph-muted" title="Posición preferida">prefiere {{ player.preferred_position|display_position }}</span>{% endif %}
             {% if player.number %}<span class="ph-badge ph-muted">#{{ player.number }}</span>{% endif %}
           </div>
           {% if player.nickname %}
@@ -1492,10 +1496,10 @@
             <div style="{{ cardst }}">
               <p style="{{ ctit }}">Contacto</p>
               <div style="display:grid;gap:.6rem;">
-                <div><div style="{{ kst }}">Teléfono</div><div style="{% if player.phone %}{{ vst }}{% else %}{{ fst }}{% endif %}">{{ player.phone|default:"Sin indicar" }}</div></div>
                 <div><div style="{{ kst }}">Email</div><div style="{% if player.contact_email %}{{ vst }}{% else %}{{ fst }}{% endif %}">{{ player.contact_email|default:"Sin indicar" }}</div></div>
                 <div><div style="{{ kst }}">De quién es</div><div style="{% if player.contact_name %}{{ vst }}{% else %}{{ fst }}{% endif %}">{% if player.contact_name %}{{ player.contact_name }}{% if player.contact_is_guardian %} · tutor{% endif %}{% else %}Sin indicar{% endif %}</div></div>
-              </div>
+                <div><div style="{{ kst }}">Teléfono</div><div style="{% if player.phone %}{{ vst }}{% else %}{{ fst }}{% endif %}">{{ player.phone|default:"Sin indicar" }}</div></div>
+</div>
             </div>
           </div>
 
@@ -1506,7 +1510,6 @@
                 <div><div style="{{ kst }}">Nombre completo</div><div style="{{ vst }}">{{ player.full_name|default:player.name }}</div></div>
                 <div><div style="{{ kst }}">Apodo</div><div style="{% if player.nickname %}{{ vst }}{% else %}{{ fst }}{% endif %}">{{ player.nickname|default:"Sin indicar" }}</div></div>
                 <div><div style="{{ kst }}">Nacimiento</div><div style="{% if player.birth_date %}{{ vst }}{% else %}{{ fst }}{% endif %}">{% if player.birth_date %}{{ player.birth_date|date:'d/m/Y' }}{% if player.age %} · {{ player.age }} años{% endif %}{% else %}Falta{% endif %}</div></div>
-                {% if player.preferred_position %}<div><div style="{{ kst }}">Pos. preferida</div><div style="{{ vst }}">{{ player.preferred_position|display_position }}</div></div>{% endif %}
               </div>
             </div>
 
