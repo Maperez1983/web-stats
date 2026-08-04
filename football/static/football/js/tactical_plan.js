@@ -101,6 +101,23 @@
     lbl.className = 'lbl';
     lbl.textContent = String(fila.name || '').split(' ')[0].slice(0, 12);
     el.appendChild(lbl);
+    if (esRival) {
+      // Lo que ya sabemos de él, al pasar por encima. El goleador además se marca en la ficha.
+      const partes = [fila.name];
+      if (fila.position) partes.push(fila.position);
+      if (fila.pj) partes.push(fila.pj + ' partidos');
+      if (fila.minutes) partes.push(fila.minutes + "'");
+      if (fila.goals) partes.push(fila.goals + (fila.goals === 1 ? ' gol' : ' goles'));
+      if (fila.yellow || fila.red) partes.push((fila.yellow || 0) + 'A ' + (fila.red || 0) + 'R');
+      el.title = partes.join(' · ');
+      if ((fila.goals || 0) >= 3) {
+        const gol = document.createElement('span');
+        gol.className = 'gol';
+        gol.textContent = fila.goals;
+        gol.title = fila.goals + ' goles esta temporada';
+        el.appendChild(gol);
+      }
+    }
     hacerArrastrable(el, fila);
     return el;
   };
@@ -257,6 +274,34 @@
     rival: estado.rival.filter((p) => zonaDe(100 - p.x_pct).clave === z.clave).length,
   }));
 
+  // ¿Está cada uno en su sitio? El % de encaje por rol necesita evaluaciones cerradas y hoy no
+  // hay ninguna, así que ahí saldría "—" para todos. Esto usa lo que SÍ está: el puesto de su
+  // ficha frente a la zona donde lo has puesto.
+  const puestoDe = (texto) => {
+    const s = String(texto || '').trim().toLowerCase().replace(/\s+/g, '');
+    if (!s) return '';
+    if (s.includes('por') || s === 'gk') return 'por';
+    if (s.includes('def') || s.includes('central') || s.includes('lateral') || s.includes('carril') || ['dfc','ld','li','cb','lb','rb'].includes(s)) return 'def';
+    if (s.includes('med') || s.includes('pivote') || s.includes('interior') || ['mc','mcd','mco','mi','md','cm','dm','am'].includes(s)) return 'med';
+    if (s.includes('del') || s.includes('extremo') || s.includes('punta') || ['dc','ed','ei','st','lw','rw'].includes(s)) return 'del';
+    return '';
+  };
+  const zonaDelCampo = (x) => (x < 13 ? 'por' : (x < 30 ? 'def' : (x < 52 ? 'med' : 'del')));
+  const NOMBRE_PUESTO = { por: 'portería', def: 'defensa', med: 'medio', del: 'ataque' };
+
+  const fueraDeSitio = () => estado.starters
+    .map((p) => {
+      const suyo = puestoDe(p.position);
+      const donde = zonaDelCampo(Number(p.x_pct) || 0);
+      if (!suyo || suyo === donde) return null;
+      // Un defensa de central a lateral, o un medio un poco adelantado, no es "fuera de sitio":
+      // sólo se avisa cuando se salta una línea entera.
+      const orden = ['por', 'def', 'med', 'del'];
+      if (Math.abs(orden.indexOf(suyo) - orden.indexOf(donde)) < 2) return null;
+      return { nombre: String(p.name || '').split(' ')[0], suyo: NOMBRE_PUESTO[suyo], donde: NOMBRE_PUESTO[donde] };
+    })
+    .filter(Boolean);
+
   const pintarLectura = () => {
     const cont = $('tp-read');
     if (!cont) return;
@@ -290,6 +335,14 @@
       });
       html += '</div><p class="tp-hint" style="margin:.4rem 0 0;">+ es superioridad nuestra en esa franja.</p>';
     }
+    const raros = fueraDeSitio();
+    if (raros.length) {
+      html += '<p class="tp-sub">Fuera de su puesto</p>';
+      html += '<div class="tp-lanes">' + raros.map((r) =>
+        '<div class="tp-lane menos"><span>' + r.nombre + '</span><strong>' + r.suyo + ' → ' + r.donde + '</strong></div>'
+      ).join('') + '</div>';
+    }
+
     cont.innerHTML = html;
     const forma = $('tp-shape');
     if (forma) forma.textContent = e.dibujo;

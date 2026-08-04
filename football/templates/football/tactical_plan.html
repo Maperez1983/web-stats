@@ -75,6 +75,12 @@
         text-transform: uppercase; color: rgba(255,255,255,.72); text-shadow: 0 2px 8px rgba(0,0,0,.9);
       }
       .tp-zone-line { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,.22); }
+      /* El goleador del rival, marcado en su ficha: es el dato que cambia cómo lo marcas. */
+      .tp-token .gol {
+        position: absolute; right: -4px; top: -4px; min-width: 20px; height: 20px; padding: 0 4px;
+        border-radius: 999px; background: #f4b400; color: #17202a; font-size: .68rem; font-weight: 900;
+        display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,.5);
+      }
       .tp-phases { display: flex; gap: .35rem; flex-wrap: wrap; margin-bottom: .5rem; }
       .tp-phase {
         font-size: .78rem; padding: .32rem .7rem; border-radius: 999px; cursor: pointer;

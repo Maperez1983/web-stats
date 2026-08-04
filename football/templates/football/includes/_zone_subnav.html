@@ -65,6 +65,9 @@ existe, se queda donde está y sigue funcionando.{% endcomment %}
   <a href="{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'coach-tactics' %}on{% endif %}">✏️ Pizarra de jugadas</a>
   <a href="{% url 'coach-abp-board' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'coach-abp-board' %}on{% endif %}">🎯 Balón parado</a>
   <a href="{% url 'tactics-roles' %}" class="{% if request.resolver_match.url_name == 'tactics-roles' %}on{% endif %}">📋 Roles y encaje</a>
+  {% comment %}Roles y encaje se queda, pero de segunda: su "% de encaje" necesita evaluaciones
+  cerradas y hoy sale vacío para todos. Lo que sí sirve sin evaluaciones -si alguien está fuera de
+  su puesto- se ve ya en el Planteamiento.{% endcomment %}
     </div>
   </details>
 </nav>

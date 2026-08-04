@@ -80,7 +80,7 @@ def _fila_rival(item, indice):
     if not nombre:
         return None
     x, y = SLOTS_RIVAL[indice % len(SLOTS_RIVAL)]
-    return {
+    fila = {
         'code': str(item.get('code') or '')[:60],
         'name': nombre[:60],
         'number': str(item.get('number') or '').strip()[:4],
@@ -89,6 +89,12 @@ def _fila_rival(item, indice):
         'x_pct': _pct(item.get('x_pct'), x),
         'y_pct': _pct(item.get('y_pct'), y),
     }
+    for clave in ('pj', 'minutes', 'goals', 'yellow', 'red'):
+        try:
+            fila[clave] = max(0, min(9999, int(item.get(clave) or 0)))
+        except (TypeError, ValueError):
+            fila[clave] = 0
+    return fila
 
 
 def _normalizar(payload, permitidos):
@@ -549,11 +555,24 @@ def tactical_plan_rival_roster(request):
         nombre = str(row.get('name') or '').strip()
         if not nombre:
             continue
+        # Lo que ya sabemos de él: minutos, goles y tarjetas vienen en el mismo volcado y hasta
+        # ahora no los usaba nadie. Saber que su 9 lleva 12 goles cambia cómo lo marcas.
+        def _num(clave):
+            try:
+                return int(str(row.get(clave) or 0).strip() or 0)
+            except (TypeError, ValueError):
+                return 0
+
         jugadores.append({
             'code': str(row.get('code') or row.get('id') or f'row-{i}'),
             'name': nombre,
             'number': str(row.get('number') or row.get('dorsal') or '').strip(),
             'position': str(row.get('position') or '').strip(),
             'photo_url': str(row.get('photo_url') or '').strip(),
+            'pj': _num('pj'),
+            'minutes': _num('minutes'),
+            'goals': _num('goals'),
+            'yellow': _num('yellow_cards'),
+            'red': _num('red_cards'),
         })
     return JsonResponse({'ok': True, 'players': jugadores})
