@@ -295,6 +295,10 @@
 	                <option value="4">4x</option>
 	                <option value="5">5x</option>
 	              </select>
+		              {% comment %}El registro del domingo ya dice que paso y en que minuto: esto solo
+		              lo traduce a cortes. Es el "etiquetado en vivo" que venden fuera, sin etiquetar dos
+		              veces.{% endcomment %}
+		              <button type="button" class="button" id="vs-clips-registro" title="Convierte las acciones registradas del partido en clips">Clips del registro</button>
 		              <button type="button" class="button" id="vs-mark-in">IN</button>
 		              <button type="button" class="button" id="vs-mark-out">OUT</button>
 		              <button type="button" class="button primary" id="vs-clip-save-quick" title="Crea un clip con el segmento IN/OUT">Guardar</button>
@@ -1170,6 +1174,13 @@
 
       <input type="hidden" id="vs-ui-mode" value="simple" />
 	    <input type="hidden" id="vs-video-id" value="{{ video.id }}" />
+    {% comment %}Los datos que necesita "Clips del registro": a que partido pertenece la grabacion y
+    los partidos a los que se puede atar.{% endcomment %}
+    <input type="hidden" id="vs-match-id" value="{{ video.match_id|default:'' }}" />
+    <input type="hidden" id="vs-kickoff-s" value="{{ video.kickoff_ms|default:0 }}" />
+    <script>
+      window.VS_CLIPS_REGISTRO_URL = '{% url "analysis-video-clips-from-actions" video.id %}';
+    </script>
 	    <input type="hidden" id="vs-initial-clip-id" value="{{ request.GET.clip|default:'' }}" />
 	    <input type="hidden" id="vs-projects-url" value="{% url 'analysis-video-studio-projects-api' %}" />
 	    <input type="hidden" id="vs-project-save-url" value="{% url 'analysis-video-studio-project-save-api' %}" />

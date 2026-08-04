@@ -11,6 +11,7 @@ from . import (
     tactical_plan_views,
     tactical_play_views,
     tactical_views,
+    video_actions_views,
     task_board_snapshot,
     video_studio_views,
     views,
@@ -223,6 +224,12 @@ urlpatterns = [
         name="analysis-rival-report-to-blueprints-api",
     ),
     path("analysis/video/<int:video_id>/", video_studio_views.analysis_video_studio_page, name="analysis-video-studio"),
+    # El registro del domingo, convertido en clips del vídeo.
+    path(
+        "analysis/video/<int:video_id>/clips-del-registro/",
+        video_actions_views.analysis_video_clips_from_actions_api,
+        name="analysis-video-clips-from-actions",
+    ),
     path("analysis/video/clip/<int:clip_id>/", views.analysis_video_clip_view_page, name="analysis-video-clip-view"),
     path(
         "analysis/video/export/<int:export_id>/",

@@ -3735,6 +3735,21 @@ class RivalVideo(models.Model):
     ]
 
     team = models.ForeignKey(Team, on_delete=models.CASCADE, null=True, blank=True, related_name='analysis_videos')
+    # EL PUENTE con el registro de acciones: de qué partido es esta grabación y en qué segundo del
+    # vídeo empieza el minuto 0. Con esas dos cosas, cada acción anotada en vivo sabe dónde está en
+    # el vídeo, que es justo lo que cobran Sportscode y compañía como "etiquetado en vivo".
+    match = models.ForeignKey(
+        'Match', on_delete=models.SET_NULL, null=True, blank=True, related_name='analysis_videos',
+        help_text='El partido que recoge esta grabación.',
+    )
+    kickoff_ms = models.PositiveIntegerField(
+        default=0,
+        help_text='Milisegundo del vídeo en el que se pita el inicio (minuto 0 del partido).',
+    )
+    second_half_ms = models.PositiveIntegerField(
+        default=0,
+        help_text='Milisegundo del vídeo en el que arranca la segunda parte. 0 = grabación continua.',
+    )
     club_season = models.ForeignKey(
         WorkspaceSeason,
         null=True,
