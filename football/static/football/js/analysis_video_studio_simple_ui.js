@@ -242,12 +242,17 @@
   vistazo y cambiarla es cambiar una línea, no cazar un div entre mil.
 */
 (function () {
+  // "Timeline" a secas es la LISTA DE MARCAS del partido (buscar, filtrar por tipo, ir a la
+  // siguiente): eso no es avanzado, es justo lo que hace intuitivo cortar -ves la marca y saltas-.
+  // El "Timeline editor (beta)" es otra cosa: montar una pieza con proyecto y audio, uso ocasional.
+  //
+  // "Ver actividad" NO se toca: es el panel del asistente, que sale en todas las pantallas del
+  // programa. Esconderlo aquí lo haría desaparecer sólo en el estudio.
   const DE_EDITAR = [
     'recursos', 'telestración', 'telestracion', 'edición', 'edicion', 'alinear', 'estilos',
-    'plantillas', 'timeline', 'timeline editor (beta)', 'configurar presets', 'autocut · ajustes',
-    'asistente ia', 'ver actividad',
+    'plantillas', 'timeline editor', 'configurar presets', 'autocut · ajustes', 'asistente ia',
   ];
-  const DE_CORTAR = ['clips', 'exportar', 'compartir'];
+  const DE_CORTAR = ['clips', 'exportar', 'compartir', 'timeline'];
 
   const nombre = (bloque) => {
     // El estudio titula sus zonas con `.meta`, no con encabezados: buscando sólo h2/h3 no
@@ -261,8 +266,11 @@
     if (bloque.querySelectorAll('button,select,input').length < 3) return;
     const titulo = nombre(bloque);
     if (!titulo) return;
+    if (DE_EDITAR.some((t) => titulo.startsWith(t))) {
+      bloque.setAttribute('data-vs-advanced', '1');
+      return;
+    }
     if (DE_CORTAR.some((t) => titulo.startsWith(t))) return;
-    if (DE_EDITAR.some((t) => titulo.startsWith(t))) bloque.setAttribute('data-vs-advanced', '1');
   });
 
   // Ya marcado todo, se vuelve a aplicar el modo guardado: si no, lo recién marcado se quedaría
