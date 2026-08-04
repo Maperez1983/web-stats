@@ -2310,6 +2310,7 @@ class MatchLineup(models.Model):
 
 
 class Match(models.Model):
+    # NOTA: las jugadas de la charla de este partido cuelgan de aqui (campo `plays`, mas abajo).
     CONTEXT_LEAGUE = 'league'
     CONTEXT_TOURNAMENT = 'tournament'
     CONTEXT_FRIENDLY = 'friendly'
@@ -2366,6 +2367,15 @@ class Match(models.Model):
     is_closed = models.BooleanField(
         default=False,
         help_text='Marca si el partido ya se cerró y no debe seguir apareciendo como pendiente en convocatoria.',
+    )
+    # Las jugadas de la charla de ESTE partido (Táctica · Jugadas). M2M porque la misma jugada se
+    # enseña en varios partidos y un partido lleva varias: copiarlas por partido las dejaría
+    # divergiendo del original en cuanto se retocase una.
+    plays = models.ManyToManyField(
+        'TacticalPlay',
+        blank=True,
+        related_name='matches',
+        help_text='Jugadas que se enseñan en la charla de este partido.',
     )
     stats_source = models.CharField(
         max_length=16,

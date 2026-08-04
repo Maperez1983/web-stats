@@ -3687,6 +3687,22 @@
 		              <p class="meta" style="margin:0.6rem 0 0;">Arrastra jugadores para fijar posiciones (se guardan con el {{ starters_limit|default:11 }} inicial y mejoran la sugerencia automática).</p>
 		            </article>
           {% endif %}
+          {% comment %}Las jugadas que se enseñan en la charla de ESTE partido. Se ponen desde
+          Táctica · Jugadas y aquí sólo se abren: la pizarra del once y las jugadas se preparan en el
+          mismo sitio, que es esta pantalla.{% endcomment %}
+          {% if match_plays %}
+          <article class="status-card" style="margin-bottom:0.9rem;">
+            <h5 style="margin:0 0 .5rem;">Jugadas de la charla</h5>
+            <ul style="margin:0;padding-left:1.1rem;">
+              {% for jugada in match_plays %}
+              <li style="margin-bottom:.25rem;">
+                <a href="{% url 'tactics-play-board' jugada.id %}">{{ jugada.name }}</a>
+                <span class="meta">· {{ jugada.get_kind_display }} · {{ jugada.steps_data|length }} pasos</span>
+              </li>
+              {% endfor %}
+            </ul>
+          </article>
+          {% endif %}
           {% if match_info %}
           <div class="match-header-panels">
             <div class="match-info-stack">

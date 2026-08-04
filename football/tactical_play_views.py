@@ -256,6 +256,25 @@ def _dibujo(trazos):
     return formas
 
 
+def _partidos_abiertos(equipo):
+    """Los partidos a los que se le puede colgar una jugada: los que aún no se han cerrado."""
+    try:
+        from .query_helpers import _team_match_queryset
+
+        filas = []
+        for m in _team_match_queryset(equipo).filter(is_closed=False).order_by('date')[:20]:
+            rival = ''
+            for lado in ('away_team', 'home_team'):
+                otro = getattr(m, lado, None)
+                if otro and otro.id != equipo.id:
+                    rival = otro.name
+                    break
+            filas.append({'id': m.id, 'label': f"{m.date:%d/%m} · {rival or 'rival por definir'}"})
+        return filas
+    except Exception:
+        return []
+
+
 def _con_fotos(request, pasos, equipo):
     """Las caras de los jugadores no se guardan en la jugada: se resuelven al pintarla.
 
@@ -302,10 +321,26 @@ def tactical_play_page(request):
         for plan in TacticalPlan.objects.filter(team=equipo).select_related('rival_team')
     ]
 
+    # Cuántos dibujos hay en la pizarra antigua. Se enseña el número, no se migra nada: decidir si
+    # eso se jubila o se rescata es suyo, y con un número delante se decide mejor que a ciegas.
+    dibujos_antiguos = 0
+    try:
+        from .models import TacticalPlaybookClip, Team
+
+        sistema = Team.objects.filter(slug='pizarra').first()
+        ids = [equipo.id] + ([sistema.id] if sistema else [])
+        dibujos_antiguos = TacticalPlaybookClip.objects.filter(team_id__in=ids).count()
+    except Exception:
+        dibujos_antiguos = 0
+
     return render(request, 'football/tactical_play.html', {
         'team': equipo,
         'team_name': equipo.display_name,
         'crest_url': _escudo_de(equipo),
+        'dibujos_antiguos': dibujos_antiguos,
+        'partidos_json': json.dumps(_partidos_abiertos(equipo)),
+        # El tipo con el que se entra: "Balón parado" del menú abre esta misma pantalla ya filtrada.
+        'tipo_inicial': request.GET.get('tipo', ''),
         'jugadas_json': json.dumps([_jugada_json(j) for j in jugadas]),
         'jugadores_json': json.dumps([
             {
@@ -623,3 +658,272 @@ def tactical_play_player_board(request, play_id):
         'kind_label': jugada.get_kind_display(),
         'para_jugador': True,
     })
+
+
+@login_required
+@require_POST
+def tactical_play_match(request):
+    """
+    Pone (o quita) una jugada en la charla de un partido.
+
+    El partido guarda una LISTA de jugadas, no una copia de cada una: retocar la jugada retoca lo
+    que se enseña el domingo, y la misma jugada puede estar en varios partidos.
+    """
+    from .query_helpers import _team_match_queryset
+    from .views import _forbid_if_no_coach_access, _get_primary_team_for_request
+
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    equipo = _get_primary_team_for_request(request)
+    if not equipo:
+        return JsonResponse({'ok': False, 'error': 'Equipo no configurado'}, status=400)
+    try:
+        datos = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+        jugada_id = int(datos.get('play_id') or 0)
+        partido_id = int(datos.get('match_id') or 0)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'Datos ilegibles'}, status=400)
+
+    jugada = TacticalPlay.objects.filter(team=equipo, id=jugada_id).first()
+    if not jugada:
+        return JsonResponse({'ok': False, 'error': 'Jugada no encontrada'}, status=404)
+    partido = _team_match_queryset(equipo).filter(id=partido_id).first()
+    if not partido:
+        return JsonResponse({'ok': False, 'error': 'Partido no encontrado'}, status=404)
+
+    if datos.get('remove'):
+        partido.plays.remove(jugada)
+        puesta = False
+    else:
+        partido.plays.add(jugada)
+        puesta = True
+    return JsonResponse({'ok': True, 'attached': puesta, 'total': partido.plays.count()})
+
+
+# --- la jugada en movimiento (GIF) ------------------------------------------------------------
+#
+# Se compone con Pillow, no con el navegador: el PNG de la pizarra necesita Playwright y hay
+# servidores donde no arranca (ya nos pasó con las previews). Un GIF que se cae la mitad de las
+# veces no sirve para mandarlo al grupo del staff.
+GIF_ANCHO = 720           # menos de la mitad del campo real: se ve igual en un móvil y pesa mucho menos
+GIF_FOTOGRAMAS = 12       # por tramo entre dos pasos
+GIF_MS = 70               # duración de cada fotograma
+GIF_PAUSA_MS = 900        # lo que se queda quieto al llegar a cada paso
+
+
+def _suave(t):
+    """La misma curva que la animación de la pantalla: sale y entra despacio."""
+    return 2 * t * t if t < 0.5 else -1 + (4 - 2 * t) * t
+
+
+def _fuente(tam):
+    """Una fuente de verdad para los dorsales: la de Pillow por defecto es diminuta y fija."""
+    from PIL import ImageFont
+
+    for ruta in (
+        '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+        '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+        '/System/Library/Fonts/Supplemental/Arial Bold.ttf',
+        '/System/Library/Fonts/Helvetica.ttc',
+    ):
+        try:
+            return ImageFont.truetype(ruta, tam)
+        except Exception:
+            continue
+    try:
+        return ImageFont.load_default(tam)
+    except Exception:
+        return ImageFont.load_default()
+
+
+def _cesped_gif(ancho):
+    from django.contrib.staticfiles import finders
+    from PIL import Image
+
+    ruta = finders.find('football/images/pitch3d/coach_home_pitch_surface.png')
+    alto = round(ancho * ALTO / ANCHO)
+    if not ruta:
+        return Image.new('RGB', (ancho, alto), (31, 122, 77))
+    fondo = Image.open(ruta).convert('RGB')
+    return fondo.resize((ancho, alto), Image.LANCZOS)
+
+
+def _trocear(pares, largo_raya, largo_hueco):
+    """Parte un camino en trocitos para pintarlo discontinuo."""
+    import math
+
+    tramos, actual, pintando, resto = [], [], True, largo_raya
+    for i in range(1, len(pares)):
+        (x1, y1), (x2, y2) = pares[i - 1], pares[i]
+        largo = math.hypot(x2 - x1, y2 - y1)
+        recorrido = 0.0
+        while recorrido < largo:
+            paso = min(resto, largo - recorrido)
+            a = ((x1 + (x2 - x1) * (recorrido / largo)), (y1 + (y2 - y1) * (recorrido / largo)))
+            recorrido += paso
+            b = ((x1 + (x2 - x1) * (recorrido / largo)), (y1 + (y2 - y1) * (recorrido / largo)))
+            if pintando:
+                actual.extend([a, b] if not actual else [b])
+            resto -= paso
+            if resto <= 0.001:
+                if pintando and actual:
+                    tramos.append(actual)
+                    actual = []
+                pintando = not pintando
+                resto = largo_raya if pintando else largo_hueco
+    if actual:
+        tramos.append(actual)
+    return [t for t in tramos if len(t) >= 2]
+
+
+def _pinta_fotograma(fondo, nuestros, rivales, formas, escala):
+    from PIL import Image, ImageDraw
+
+    lienzo = fondo.copy()
+    dibujo = ImageDraw.Draw(lienzo, 'RGBA')
+
+    def punto(x, y):
+        return (x * escala, y * escala)
+
+    for f in formas or []:
+        if f['tipo'] == 'linea':
+            puntos = []
+            for trozo in f['d'].replace('M', ' ').replace('L', ' ').split():
+                puntos.append(float(trozo))
+            pares = [punto(puntos[i], puntos[i + 1]) for i in range(0, len(puntos) - 1, 2)]
+            if len(pares) >= 2:
+                grosor = max(2, round(5 * escala))
+                if f.get('dash'):
+                    # Pillow no sabe pintar discontinuo: se trocea el camino a mano. Si no, el
+                    # desmarque saldría igual que un pase y el GIF contaría otra cosa que la pantalla.
+                    for tramo in _trocear(pares, 9.0, 7.0):
+                        dibujo.line(tramo, fill=f['color'], width=grosor, joint='curve')
+                else:
+                    dibujo.line(pares, fill=f['color'], width=grosor, joint='curve')
+                # La punta de flecha: un triángulo orientado como el último tramo.
+                (x1, y1), (x2, y2) = pares[-2], pares[-1]
+                import math
+
+                ang = math.atan2(y2 - y1, x2 - x1)
+                largo = max(8, 16 * escala)
+                dibujo.polygon([
+                    (x2, y2),
+                    (x2 - largo * math.cos(ang - 0.45), y2 - largo * math.sin(ang - 0.45)),
+                    (x2 - largo * math.cos(ang + 0.45), y2 - largo * math.sin(ang + 0.45)),
+                ], fill=f['color'])
+        elif f['tipo'] == 'rect':
+            x, y = float(f['x']) * escala, float(f['y']) * escala
+            dibujo.rectangle([x, y, x + float(f['w']) * escala, y + float(f['h']) * escala],
+                             outline=f['color'], width=max(2, round(3 * escala)))
+        elif f['tipo'] == 'balon':
+            x, y = float(f['cx']) * escala, float(f['cy']) * escala
+            r = max(4, 11 * escala)
+            dibujo.ellipse([x - r, y - r, x + r, y + r], fill='#ffffff', outline='#12211b', width=2)
+        elif f['tipo'] == 'cono':
+            x, y = float(f['d'].split()[0][1:]) * escala, float(f['d'].split()[1]) * escala
+            r = max(4, 10 * escala)
+            dibujo.polygon([(x, y), (x + r, y + 2 * r), (x - r, y + 2 * r)], fill='#ff9f43')
+        elif f['tipo'] == 'texto':
+            dibujo.text((float(f['x']) * escala, float(f['y']) * escala), f.get('text') or '',
+                        fill=f['color'], anchor='mm', font=_fuente(max(11, round(0.024 * lienzo.width))),
+                        stroke_width=2, stroke_fill=(0, 0, 0))
+
+    radio = max(9, round(0.028 * lienzo.width))
+    tipo = _fuente(max(10, round(radio * 1.1)))
+    for fila, relleno, borde in ((nuestros, (15, 122, 82), (234, 255, 245)), (rivales, (140, 31, 43), (255, 233, 236))):
+        for ficha in fila or []:
+            x = float(ficha.get('x_pct') or 0) / 100.0 * lienzo.width
+            y = float(ficha.get('y_pct') or 0) / 100.0 * lienzo.height
+            dibujo.ellipse([x - radio, y - radio, x + radio, y + radio], fill=relleno, outline=borde, width=2)
+            dorsal = str(ficha.get('number') or '')
+            if dorsal:
+                dibujo.text((x, y), dorsal, fill=(255, 255, 255), anchor='mm', font=tipo)
+    return lienzo
+
+
+@login_required
+def tactical_play_gif(request, play_id):
+    """La jugada en movimiento, en GIF: lo que se manda al grupo del staff."""
+    from django.http import HttpResponse
+
+    from .views import _forbid_if_no_coach_access, _get_primary_team_for_request
+
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    equipo = _get_primary_team_for_request(request)
+    jugada = TacticalPlay.objects.filter(team=equipo, id=play_id).first() if equipo else None
+    if not jugada:
+        return JsonResponse({'ok': False, 'error': 'Jugada no encontrada'}, status=404)
+
+    pasos = jugada.steps_data if isinstance(jugada.steps_data, list) else []
+    if len(pasos) < 2:
+        return JsonResponse({'ok': False, 'error': 'Hacen falta al menos dos pasos para animarla'}, status=400)
+
+    fondo = _cesped_gif(GIF_ANCHO)
+    escala = fondo.width / float(ANCHO)
+
+    def interpolar(a, b, t):
+        por_id = {str(p.get('id') or p.get('code')): p for p in (b or [])}
+        salida = []
+        for p in (a or []):
+            fin = por_id.get(str(p.get('id') or p.get('code')))
+            if not fin:
+                salida.append(p)
+                continue
+            salida.append({
+                **p,
+                'x_pct': p.get('x_pct', 0) + (fin.get('x_pct', 0) - p.get('x_pct', 0)) * t,
+                'y_pct': p.get('y_pct', 0) + (fin.get('y_pct', 0) - p.get('y_pct', 0)) * t,
+            })
+        return salida
+
+    fotogramas, tiempos = [], []
+    for i in range(len(pasos) - 1):
+        desde, hasta = pasos[i], pasos[i + 1]
+        formas = _dibujo(desde.get('shapes'))
+        for k in range(GIF_FOTOGRAMAS):
+            t = _suave(k / float(GIF_FOTOGRAMAS - 1))
+            fotogramas.append(_pinta_fotograma(
+                fondo,
+                interpolar(desde.get('starters'), hasta.get('starters'), t),
+                interpolar(desde.get('rival'), hasta.get('rival'), t),
+                formas, escala,
+            ))
+            # El primero y el último de cada tramo se quedan quietos: si no, no da tiempo a leerlo.
+            tiempos.append(GIF_PAUSA_MS if k in (0, GIF_FOTOGRAMAS - 1) else GIF_MS)
+    # El último paso, con su dibujo, para cerrar.
+    ultimo = pasos[-1]
+    fotogramas.append(_pinta_fotograma(fondo, ultimo.get('starters'), ultimo.get('rival'),
+                                       _dibujo(ultimo.get('shapes')), escala))
+    tiempos.append(GIF_PAUSA_MS * 2)
+
+    # UNA sola paleta para todos los fotogramas. Sin esto cada fotograma lleva la suya (el césped es
+    # una foto, no un dibujo plano) y el GIF se va a varios MB: inservible para mandarlo por WhatsApp.
+    #
+    # La paleta NO puede salir sólo del césped: es todo verde, y el granate del rival acababa
+    # cayendo al verde más cercano -los dos equipos salían del mismo color-. Se le pegan antes las
+    # tintas que usamos.
+    from PIL import ImageDraw as _Draw
+
+    muestrario = fondo.copy()
+    tintas = ['#0f7a52', '#8c1f2b', '#eafff5', '#ffe9ec', COLOR_BALON, COLOR_JUGADOR,
+              COLOR_CLARO, '#ff9f43', '#ffffff', '#12211b']
+    pincel = _Draw.Draw(muestrario)
+    for i, tinta in enumerate(tintas):
+        pincel.rectangle([i * 20, 0, i * 20 + 19, 24], fill=tinta)
+    paleta = muestrario.quantize(colors=128, method=2)
+    reducidos = [f.quantize(palette=paleta, dither=0) for f in fotogramas]
+
+    import io
+
+    buffer = io.BytesIO()
+    reducidos[0].save(
+        buffer, format='GIF', save_all=True, append_images=reducidos[1:],
+        duration=tiempos, loop=0, optimize=True, disposal=1,
+    )
+    nombre = (jugada.name or 'jugada').replace('"', '').replace('/', '-')
+    resp = HttpResponse(buffer.getvalue(), content_type='image/gif')
+    resp['Content-Disposition'] = f'attachment; filename="{nombre}.gif"'
+    return resp

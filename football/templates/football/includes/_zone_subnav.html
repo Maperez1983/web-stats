@@ -70,7 +70,10 @@ existe, se queda donde está y sigue funcionando.{% endcomment %}
   {% if request.resolver_match.url_name == 'coach-tactics' %}
   <a href="{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="on">🗒️ Pizarra antigua</a>
   {% endif %}
-  <a href="{% url 'coach-abp-board' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'coach-abp-board' %}on{% endif %}">🎯 Balón parado</a>
+  {% comment %}Balon parado es una JUGADA mas, del tipo abp: abre la misma pantalla ya filtrada en
+  vez de una pizarra aparte con su propio campo. La antigua sigue viva en /coach/abp/pizarra/ y se
+  llega desde el panel "Lo que dibujaste antes".{% endcomment %}
+  <a href="{% url 'tactics-plays' %}?tipo=abp{% if active_team %}&team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'coach-abp-board' %}on{% endif %}">🎯 Balón parado</a>
   <a href="{% url 'tactics-roles' %}" class="{% if request.resolver_match.url_name == 'tactics-roles' %}on{% endif %}">📋 Roles y encaje</a>
   {% comment %}Roles y encaje se queda, pero de segunda: su "% de encaje" necesita evaluaciones
   cerradas y hoy sale vacío para todos. Lo que sí sirve sin evaluaciones -si alguien está fuera de

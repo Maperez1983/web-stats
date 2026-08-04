@@ -337,3 +337,133 @@ class JugadaEnSesionYPortalTests(TestCase):
 
         self.assertEqual(default_sections()["plays"], PUBLISHED_ONLY,
                          "por defecto sólo lo publicado, como el resto de lo sensible")
+
+
+class JugadaEnPartidoYExportacionTests(TestCase):
+    """La jugada en la charla del partido, el GIF y el encaje estimado."""
+
+    def setUp(self):
+        from datetime import date
+
+        from football.models import Competition, Match, Season
+
+        self.user = get_user_model().objects.create_superuser("s3", "s3@example.com", "x")
+        self.team = Team.objects.create(name="Benagalbón", slug="bena3", is_primary=True)
+        self.otro = Team.objects.create(name="Otro", slug="otro3")
+        self.ws = Workspace.objects.create(name="Club", slug="club3", kind=Workspace.KIND_CLUB)
+        WorkspaceMembership.objects.create(workspace=self.ws, user=self.user, role="owner")
+        WorkspaceTeam.objects.create(workspace=self.ws, team=self.team, is_default=True)
+        self.p1 = Player.objects.create(team=self.team, name="Uno", number=1, position="LI", is_active=True)
+
+        comp = Competition.objects.create(name="Liga", slug="liga3")
+        temporada = Season.objects.create(competition=comp, name="2026/2027")
+        self.match = Match.objects.create(
+            home_team=self.team, away_team=self.otro, date=date(2026, 8, 9), season=temporada, is_closed=False,
+        )
+        paso = {
+            "name": "Salida", "rival": [], "shapes": [
+                {"tool": "pase", "points": [{"x": 10, "y": 50}, {"x": 40, "y": 30}]},
+                {"tool": "desmarque", "points": [{"x": 20, "y": 80}, {"x": 50, "y": 70}]},
+            ],
+            "starters": [{"id": self.p1.id, "name": "Uno", "number": "1", "x_pct": 10, "y_pct": 50}],
+        }
+        paso2 = {**paso, "name": "Progresión",
+                 "starters": [{**paso["starters"][0], "x_pct": 40, "y_pct": 40}]}
+        self.play = TacticalPlay.objects.create(team=self.team, name="Salida 3-2", steps_data=[paso, paso2])
+
+        self.client = Client()
+        self.client.force_login(self.user)
+        s = self.client.session
+        s["active_workspace_id"] = self.ws.id
+        s["active_team_by_workspace"] = {str(self.ws.id): self.team.id}
+        s.save()
+
+    # --- la charla del partido ---
+
+    def test_colgar_una_jugada_de_un_partido(self):
+        r = self.client.post(reverse("tactics-play-match"),
+                             data=json.dumps({"play_id": self.play.id, "match_id": self.match.id}),
+                             content_type="application/json", secure=True)
+        self.assertTrue(r.json()["ok"])
+        self.assertEqual([p.name for p in self.match.plays.all()], ["Salida 3-2"])
+
+    def test_quitarla_de_la_charla(self):
+        self.match.plays.add(self.play)
+        self.client.post(reverse("tactics-play-match"),
+                         data=json.dumps({"play_id": self.play.id, "match_id": self.match.id, "remove": True}),
+                         content_type="application/json", secure=True)
+        self.assertEqual(self.match.plays.count(), 0)
+
+    def test_no_se_cuelga_una_jugada_de_otro_equipo(self):
+        ajena = TacticalPlay.objects.create(team=self.otro, name="Suya", steps_data=[])
+        r = self.client.post(reverse("tactics-play-match"),
+                             data=json.dumps({"play_id": ajena.id, "match_id": self.match.id}),
+                             content_type="application/json", secure=True)
+        self.assertEqual(r.status_code, 404)
+        self.assertEqual(self.match.plays.count(), 0)
+
+    # --- el GIF ---
+
+    def test_el_gif_sale_y_es_un_gif_animado(self):
+        from PIL import Image
+
+        r = self.client.get(reverse("tactics-play-gif", args=[self.play.id]), secure=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r["Content-Type"], "image/gif")
+        imagen = Image.open(__import__("io").BytesIO(r.content))
+        self.assertGreater(imagen.n_frames, 1, "un GIF de un solo fotograma no es una animación")
+
+    def test_el_gif_no_pesa_como_para_no_poder_mandarlo(self):
+        r = self.client.get(reverse("tactics-play-gif", args=[self.play.id]), secure=True)
+        self.assertLess(len(r.content), 2_000_000, "por encima de 2 MB no se manda por WhatsApp")
+
+    def test_una_jugada_de_un_solo_paso_no_se_anima(self):
+        quieta = TacticalPlay.objects.create(
+            team=self.team, name="Quieta",
+            steps_data=[{"name": "Uno", "starters": [], "rival": [], "shapes": []}],
+        )
+        r = self.client.get(reverse("tactics-play-gif", args=[quieta.id]), secure=True)
+        self.assertEqual(r.status_code, 400)
+
+    def test_el_gif_de_otro_equipo_no_se_descarga(self):
+        ajena = TacticalPlay.objects.create(team=self.otro, name="Suya", steps_data=[])
+        r = self.client.get(reverse("tactics-play-gif", args=[ajena.id]), secure=True)
+        self.assertEqual(r.status_code, 404)
+
+    # --- el filtro por tipo (balón parado es esta pantalla, no otra) ---
+
+    def test_balon_parado_abre_jugadas_filtrado(self):
+        r = self.client.get(reverse("tactics-plays") + "?tipo=abp", secure=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("tj-filter", r.content.decode(), "sin filtro no se puede separar el ABP")
+
+    def test_el_menu_de_tactica_ya_no_lleva_a_la_pizarra_vieja(self):
+        html = self.client.get(reverse("tactics-plays"), secure=True).content.decode()
+        menu = html.split('class="zone-menu-list"')[1].split('</details>')[0]
+        # Ojo: "/coach/tactica/" es prefijo de todas las demás, así que se busca el enlace ENTERO.
+        self.assertNotIn(f'href="{reverse("coach-tactics")}"', menu,
+                         "el área tiene UN editor; a la pizarra vieja se llega desde el panel de dentro")
+        self.assertNotIn(f'href="{reverse("coach-tactics")}?', menu)
+        self.assertIn(reverse("tactics-plays"), menu)
+
+    # --- roles: encaje estimado cuando no hay valoraciones ---
+
+    def test_sin_valoraciones_el_encaje_se_estima_por_el_puesto(self):
+        from football.views import FM_ROLE_CATALOG, _fm_baseline_scores
+
+        def encaje(pos, grupo):
+            base = _fm_baseline_scores(pos)
+            _clave, _etq, params = FM_ROLE_CATALOG[grupo][0]
+            vals = [base[p] for p in params if p in base]
+            return sum(vals) / len(vals) * 10
+
+        self.assertGreater(encaje("LI", "lateral"), encaje("LI", "delantero"),
+                           "un lateral tiene que encajar mejor de lateral que de delantero")
+        self.assertGreater(encaje("POR", "gk"), encaje("POR", "central"))
+
+    def test_la_pantalla_de_roles_avisa_de_que_es_una_estimacion(self):
+        r = self.client.get(reverse("tactics-roles"), secure=True)
+        self.assertEqual(r.status_code, 200)
+        html = r.content.decode()
+        self.assertIn("estimados por el puesto", html, "un % sin avisar se lee como un dato medido")
+        self.assertIn('"estimado": true', html)

@@ -121,6 +121,9 @@
         <aside>
           <div class="tj-panel">
             <h2>Jugadas</h2>
+            {% comment %}El filtro por tipo es lo que permite que "Balón parado" sea esta misma
+            pantalla y no otra pizarra distinta.{% endcomment %}
+            <div class="tj-steps" id="tj-filter" role="tablist" aria-label="Tipo de jugada"></div>
             <div id="tj-list"><p class="tj-hint" style="margin:0;">Todavía no hay ninguna guardada.</p></div>
             <button class="button" id="tj-new" type="button" style="margin-top:.5rem;width:100%;">Nueva jugada</button>
           </div>
@@ -148,6 +151,7 @@
           <div class="tj-panel">
             <h2>Compartir</h2>
             <a class="button" id="tj-image" href="#" style="width:100%;text-align:center;">Descargar imagen</a>
+            <a class="button" id="tj-gif" href="#" style="margin-top:.4rem;width:100%;text-align:center;">Descargar animación (GIF)</a>
             <a class="button" id="tj-board" href="#" style="margin-top:.4rem;width:100%;text-align:center;">Ver a pantalla completa</a>
             {% comment %}Publicar es un gesto aparte de guardar: guardar es para ti, publicar es
             mandársela al equipo. Y avisa, como la convocatoria.{% endcomment %}
@@ -158,10 +162,23 @@
           <div class="tj-panel">
             <h2>Lo que dibujaste antes</h2>
             <p class="tj-hint" style="margin:0 0 .5rem;">
-              La pizarra antigua guardaba los dibujos como tareas de entrenamiento. Sigue ahí con
-              todo lo que hicieras en ella.
+              {% if dibujos_antiguos %}
+                La pizarra antigua guarda <strong>{{ dibujos_antiguos }}</strong>
+                {% if dibujos_antiguos == 1 %}dibujo{% else %}dibujos{% endif %}. Siguen ahí: nada
+                se ha borrado ni se ha movido solo.
+              {% else %}
+                La pizarra antigua está vacía: no hay nada guardado en ella.
+              {% endif %}
             </p>
             <a class="button" href="{% url 'coach-tactics' %}{% if team %}?team={{ team.id }}{% endif %}" style="width:100%;text-align:center;">Abrir la pizarra antigua</a>
+            <a class="button" href="{% url 'coach-abp-board' %}{% if team %}?team={{ team.id }}{% endif %}" style="margin-top:.4rem;width:100%;text-align:center;">Abrir el ABP antiguo</a>
+          </div>
+
+          <div class="tj-panel">
+            <h2>Charla del partido</h2>
+            <select id="tj-match"><option value="">Elige el partido</option></select>
+            <button class="button" id="tj-match-add" type="button" style="margin-top:.4rem;width:100%;">Añadir a ese partido</button>
+            <p class="tj-hint">Sale en el prepartido, junto a la pizarra del once.</p>
           </div>
 
           <div class="tj-panel">
@@ -176,15 +193,19 @@
       {{ planes_json|json_script:"tj-planes" }}
       {{ slots_json|json_script:"tj-slots" }}
       {{ tipos_json|json_script:"tj-tipos" }}
+      {{ partidos_json|json_script:"tj-partidos" }}
       <script>
         window.TJ_URLS = {
           save: '{% url "tactics-play-save" %}',
           del: '{% url "tactics-play-delete" %}',
           publish: '{% url "tactics-play-publish" %}',
+          match: '{% url "tactics-play-match" %}',
           image: '{% url "tactics-play-image" 0 %}',
+          gif: '{% url "tactics-play-gif" 0 %}',
           board: '{% url "tactics-play-board" 0 %}',
         };
         window.TJ_LIMITE = {{ starters_limit }};
+        window.TJ_TIPO_INICIAL = '{{ tipo_inicial|escapejs }}';
         window.TJ_MAX_PASOS = {{ max_pasos }};
       </script>
       <script src="{% static 'football/js/tactical_play.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>

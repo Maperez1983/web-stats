@@ -43,6 +43,20 @@
         {% include 'football/includes/_zone_subnav.html' with zone='tactica' %}
         <h1 class="tk-h1" style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>Táctica · roles y funciones</span></h1>
         {% include 'football/includes/_zone_chips.html' with chips=zone_chips %}
+        {% comment %}Sin valoraciones cerradas el encaje sale ESTIMADO por el puesto natural, y hay
+        que decirlo: un porcentaje sin avisar se lee como un dato medido.{% endcomment %}
+        {% if sin_evaluar %}
+        <p class="tk-note" style="margin:.6rem 0 0;padding:.6rem .8rem;border:1px solid rgba(244,180,0,.4);border-radius:10px;background:rgba(244,180,0,.12);">
+          {% if evaluados %}
+            {{ sin_evaluar }} de {{ sin_evaluar|add:evaluados }} jugadores no tienen valoración cerrada:
+            su encaje va marcado con <strong>≈</strong> porque está <strong>estimado por su puesto</strong>, no medido.
+          {% else %}
+            Todavía no hay ninguna valoración cerrada, así que todos los encajes van
+            <strong>estimados por el puesto</strong> de cada jugador (marcados con <strong>≈</strong>).
+            En cuanto cierres valoraciones en las fichas, mandan ellas.
+          {% endif %}
+        </p>
+        {% endif %}
         <p class="tk-sub">{{ primary_team.display_name|default:primary_team.name }} · elige formación y rol por puesto · el % es el encaje del jugador al rol</p>
 
         <div class="tk-bar">
@@ -92,6 +106,8 @@
         function tone(f){ return f==null?'var(--fm-ink-3)':(f>=70?'var(--fm-good)':(f>=55?'var(--fm-mid)':'var(--fm-low)')); }
         function rolesFor(g){ return ROLES[g]||[]; }
         function roleObj(g,key){ var rs=rolesFor(g); for(var i=0;i<rs.length;i++){ if(rs[i].key===key) return rs[i]; } return rs[0]; }
+        // "≈" cuando el encaje sale del puesto y no de una valoración cerrada.
+        function marca(i){ var a=assign[i]; var pl=a&&a.playerId?playerById(a.playerId):null; return pl&&pl.estimado?'≈':''; }
         function playerById(id){ for(var i=0;i<ROSTER.length;i++){ if(String(ROSTER[i].id)===String(id)) return ROSTER[i]; } return null; }
         function slotFit(i){
           var s=FORMATIONS[current][i], a=assign[i]; if(!a||!a.playerId) return null;
@@ -119,7 +135,7 @@
             var col=tone(f);
             el.innerHTML='<div class="tk-mark" style="border-color:'+col+';">'+(pl&&pl.number!==''?esc(pl.number):s.code)+'</div>'+
               '<div class="tk-nm">'+(pl?esc(pl.name):'—')+'</div>'+
-              '<div class="tk-fit" style="color:'+col+';">'+(f==null?(pl?'sin eval':''):f+'%')+'</div>';
+              '<div class="tk-fit" style="color:'+col+';">'+(f==null?(pl?'sin datos':''):marca(i)+f+'%')+'</div>';
             pitch.appendChild(el);
           });
           // table
@@ -132,7 +148,7 @@
             tr.innerHTML='<td class="code">'+esc(s.code)+'</td>'+
               '<td><select data-i="'+i+'" data-t="role">'+roleOpts+'</select></td>'+
               '<td><select data-i="'+i+'" data-t="player">'+plOpts+'</select></td>'+
-              '<td class="tk-fp" style="color:'+tone(f)+';">'+(f==null?'—':f+'%')+'</td>';
+              '<td class="tk-fp" style="color:'+tone(f)+';">'+(f==null?'—':marca(i)+f+'%')+'</td>';
             tb.appendChild(tr);
           });
           // avg

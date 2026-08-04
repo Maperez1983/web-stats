@@ -1436,7 +1436,10 @@ def _player_home_zones(request, player, vis):
 
     # Las jugadas del equipo. Dos llaves: la sección abierta y la jugada PUBLICADA a propósito;
     # el cajón entero de Táctica no es suyo.
-    if vis.plays:
+    #
+    # `getattr` y no `vis.plays`: aquí llega cualquier objeto de visibilidad -las pruebas montan uno
+    # a mano- y una sección nueva no puede tumbar el portal entero de quien traiga uno sin ella.
+    if getattr(vis, 'plays', False):
         try:
             from .models import TacticalPlay
 

@@ -498,15 +498,38 @@
   };
 
   // --- lista de jugadas ---
+  // El filtro por tipo es lo que permite que "Balón parado" del menú sea ESTA pantalla filtrada y
+  // no una pizarra aparte: el área tiene un editor, no tres.
+  let filtro = String(window.TJ_TIPO_INICIAL || '');
+  if (filtro && !TIPOS.some((t) => t.key === filtro)) filtro = '';
+
+  const pintarFiltro = () => {
+    const cont = $('tj-filter');
+    if (!cont) return;
+    cont.innerHTML = '';
+    [{ key: '', name: 'Todas' }].concat(TIPOS).forEach((t) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'tj-step' + (filtro === t.key ? ' is-on' : '');
+      const cuantas = t.key ? jugadas.filter((j) => j.kind === t.key).length : jugadas.length;
+      b.textContent = t.name + (cuantas ? ' ' + cuantas : '');
+      b.addEventListener('click', () => { filtro = t.key; pintarFiltro(); pintarLista(); });
+      cont.appendChild(b);
+    });
+  };
+
   const pintarLista = () => {
     const cont = $('tj-list');
     if (!cont) return;
-    if (!jugadas.length) {
-      cont.innerHTML = '<p class="tj-hint" style="margin:0;">Todavía no hay ninguna guardada.</p>';
+    const visibles = filtro ? jugadas.filter((j) => j.kind === filtro) : jugadas;
+    if (!visibles.length) {
+      cont.innerHTML = '<p class="tj-hint" style="margin:0;">'
+        + (filtro ? 'No hay ninguna de este tipo todavía.' : 'Todavía no hay ninguna guardada.')
+        + '</p>';
       return;
     }
     cont.innerHTML = '';
-    jugadas.forEach((j) => {
+    visibles.forEach((j) => {
       const fila = document.createElement('div');
       fila.className = 'tj-item' + (String(j.id) === String(estado.id) ? ' is-on' : '');
       fila.innerHTML = '<strong></strong><small></small>';
@@ -573,6 +596,7 @@
       const idx = jugadas.findIndex((j) => String(j.id) === String(d.play.id));
       if (idx >= 0) jugadas[idx] = d.play; else jugadas.unshift(d.play);
       estado.id = d.play.id;
+      pintarFiltro();
       pintarLista();
       refrescarEnlaces();
       pintarPublicacion();
@@ -594,6 +618,7 @@
       });
       jugadas = jugadas.filter((j) => String(j.id) !== String(estado.id));
       estado.id = null;
+      pintarFiltro();
       pintarLista();
       refrescarEnlaces();
       pintarPublicacion();
@@ -748,12 +773,47 @@
     });
   }
 
+  // --- la jugada en la charla de un partido ---
+  const selPartido = $('tj-match');
+  if (selPartido) {
+    leerJson('tj-partidos', []).forEach((p) => {
+      const o = document.createElement('option');
+      o.value = p.id;
+      o.textContent = p.label;
+      selPartido.appendChild(o);
+    });
+  }
+  const btnPartido = $('tj-match-add');
+  if (btnPartido) {
+    btnPartido.addEventListener('click', async () => {
+      if (!estado.id) { aviso('Guarda la jugada antes de llevarla a un partido.'); return; }
+      const partido = (selPartido || {}).value;
+      if (!partido) { aviso('Elige a qué partido la llevas.'); return; }
+      try {
+        const r = await fetch(URLS.match, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
+          body: JSON.stringify({ play_id: estado.id, match_id: partido }),
+        });
+        const d = await r.json();
+        if (!d.ok) { aviso(d.error || 'No se pudo añadir al partido.'); return; }
+        aviso('Añadida a la charla de ese partido (' + d.total + ' en total).');
+      } catch (e) {
+        aviso('No se pudo añadir al partido.');
+      }
+    });
+  }
+
   // --- enlaces que necesitan la jugada guardada ---
   const conId = (url) => String(url || '').replace('/0/', '/' + estado.id + '/');
   const refrescarEnlaces = () => {
     const img = $('tj-image');
     const board = $('tj-board');
-    [[img, URLS.image, 'Descargar imagen'], [board, URLS.board, 'Ver a pantalla completa']].forEach(([nodo, url, texto]) => {
+    const gif = $('tj-gif');
+    [[img, URLS.image, 'Descargar imagen'],
+     [gif, URLS.gif, 'Descargar animación (GIF)'],
+     [board, URLS.board, 'Ver a pantalla completa']].forEach(([nodo, url, texto]) => {
       if (!nodo) return;
       if (!estado.id) {
         nodo.removeAttribute('href');
@@ -786,9 +846,12 @@
   pintarHerramientas();
   pintarPasos();
   pintarSelectorPlan();
+  pintarFiltro();
   pintarLista();
   pintarBanquillo();
   refrescarEnlaces();
   pintarPublicacion();
-  if (jugadas.length) cargarJugada(jugadas[0]); else pintarCampo();
+  const primeras = filtro ? jugadas.filter((j) => j.kind === filtro) : jugadas;
+  if (filtro) { estado.kind = filtro; if (selTipo) { selTipo.value = filtro; selTipo.dispatchEvent(new Event('change')); } }
+  if (primeras.length) cargarJugada(primeras[0]); else pintarCampo();
 })();
