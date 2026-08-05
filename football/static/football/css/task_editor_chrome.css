@@ -1111,3 +1111,17 @@ body.ed-chrome.edc-snapshot #task-pitch-stage {
 }
 body.ed-chrome.edc-snapshot #task-pitch-surface,
 body.ed-chrome.edc-snapshot #create-task-canvas { border-radius: 0 !important; }
+
+/* Salidas del editor ("Salir" y "Entrenamiento"): son <a>, y el tema sólo pinta de blanco los
+   <button> (con !important), así que se quedaban en texto oscuro sobre barra oscura: casi
+   invisibles. Que se vean igual que el resto de controles de la barra. */
+body.ed-chrome .edc-topbar a.edc-btn {
+  background: #ffffff !important;
+  color: rgba(15,23,42,0.92) !important;
+  border: 1px solid rgba(15,23,42,0.16) !important;
+}
+body.ed-chrome .edc-topbar a.edc-btn:hover,
+body.ed-chrome .edc-topbar a.edc-btn:focus-visible {
+  background: rgba(244,180,0,0.18) !important;
+  border-color: rgba(244,180,0,0.55) !important;
+}

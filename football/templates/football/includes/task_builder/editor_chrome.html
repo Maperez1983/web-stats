@@ -5,9 +5,15 @@
 <link rel="stylesheet" href="{% static 'football/css/task_editor_chrome.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
 
 <div class="edc-topbar" role="toolbar" aria-label="Vista del campo">
-  <a href="/coach/" class="edc-btn edc-home" title="Salir del editor · volver a la portada del entrenador" aria-label="Salir a la portada">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10.5V20h5v-6h4v6h5v-9.5"/></svg>Salir
+  {% comment %}"Salir" llevaba SIEMPRE a la portada del club, así que desde el editor había que
+  rehacer el camino entero hasta la sesión o la Biblioteca. Ahora sale por donde entraste, y al
+  lado queda la puerta fija a Entrenamiento.{% endcomment %}
+  <a href="{{ back_url|default:'/coach/' }}" class="edc-btn edc-home" title="{{ back_label|default:'Volver a entrenos' }}" aria-label="{{ back_label|default:'Volver a entrenos' }}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>Salir
   </a>
+  {% if training_home_url %}
+  <a href="{{ training_home_url }}" class="edc-btn" title="Ir a la home de Entrenamiento" aria-label="Ir a Entrenamiento">Entrenamiento</a>
+  {% endif %}
   <button type="button" class="edc-btn edc-icon-btn" data-edc="menu" aria-label="Menú">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
   </button>
@@ -650,7 +656,11 @@
       // se coloca con la elección global vigente (edcSel).
       items.forEach(function(src){
         var pid=src.getAttribute('data-player-id')||'';
-        var nameEl=src.querySelector('.token-name'); var name=nameEl?nameEl.textContent.trim().replace(/^\d+\s*/,''):''; // quita el dorsal duplicado al inicio del nombre (el número ya va en el recuadro)
+        // El nombre viene en `data-player-name` justamente porque el texto visible lleva el dorsal
+        // pegado delante (y en quien no tiene dorsal, la "J" de jugador: salia "JHARLEY").
+        var nameEl=src.querySelector('.token-name');
+        var name=(src.getAttribute('data-player-name')||'').trim()
+          || (nameEl?nameEl.textContent.trim().replace(/^(\d+|J|GK)\s*/,''):'');
         var numEl=src.querySelector('.token-number'); var num=numEl?numEl.textContent.trim():'';
         var isGK=!!src.querySelector('.is-goalkeeper');
         var estado=(src.getAttribute('data-estado')||'').trim();

@@ -31045,7 +31045,15 @@
 			            // Fase 3: si el jugador tiene un asset REAL (foto/kit/portero) para esta
 			            // presentación, esa imagen gana sobre el muñeco/act genérico.
 			            const __assetUrl = options?.assetUrl ? (resolvePlayerPhotoUrl(options.assetUrl) || safeText(options.assetUrl)) : '';
-			            const __avUrl = __assetUrl || ((style === 'photo') ? (photoUrl || resolveAvatarUrlForToken(kind, stripeColor)) : resolveAvatarUrlForToken(kind, stripeColor));
+			            // El avatar DEL JUGADOR manda sobre el muñeco genérico. Antes, con presentación
+			            // "Avatar" se pintaba a todos con la figura de su equipación aunque el club
+			            // hubiera importado el avatar de cada uno: parecían todos el mismo.
+			            // (Los porteros no entran: el servidor no les da avatar de campo a propósito,
+			            // así que su display nunca es 'avatar' y siguen con su PNG de portero.)
+			            const __avPropio = safeText(player?.display?.mode) === 'avatar'
+			              ? (resolvePlayerPhotoUrl(player?.display?.url) || safeText(player?.display?.url))
+			              : '';
+			            const __avUrl = __assetUrl || __avPropio || ((style === 'photo') ? (photoUrl || resolveAvatarUrlForToken(kind, stripeColor)) : resolveAvatarUrlForToken(kind, stripeColor));
 			            ensureAvatarImage(__avUrl);
 			            const __avEl = getReadyAvatarImage(__avUrl);
 			            if (__avEl) {
@@ -34158,11 +34166,31 @@
 		        button.type = 'button';
 		        button.className = 'player-token-bank';
 		        button.dataset.playerId = String(player.id || '');
+		        // El nombre LIMPIO, aparte: en estilo camiseta el dorsal se mete dentro del texto del
+		        // nombre, y quien lea el texto acaba pintando "JHarley" (la J es el dorsal por
+		        // defecto de quien no tiene número). El cajón de Plantilla lee esto.
+		        button.dataset.playerName = shortPlayerName(safeText(player?.nickname || player?.name));
 		        button.dataset.estado = String(player?.estado || '');
 		        button.dataset.scouted = (player && player.is_scouted) ? '1' : '0';
 		        if (player && player.is_scouted) button.classList.add('is-scouted');
+		        /* Lo que el jugador ES, colgado del botón. Quien coloca desde el cajón "Plantilla"
+		           (__tpadInsertPlayer) sólo tiene el botón, no el catálogo: si esto no está, se queda
+		           sin el avatar del jugador, sin sus assets por equipación y sin su nota, y acaba
+		           pintando el muñeco genérico. Era el motivo de que los avatares de la pizarra no
+		           fueran los que el club importó. La plantilla Django ya los pinta; faltaban aquí. */
+		        try {
+		          button.dataset.assets = safeText(player?.assets_json) || JSON.stringify(player?.assets || {});
+		        } catch (e) { button.dataset.assets = '{}'; }
+		        button.dataset.avatar = safeText(player?.display?.mode) === 'avatar' ? safeText(player?.display?.url) : '';
+		        if (player && player.rating != null && Number.isFinite(Number(player.rating))) {
+		          button.dataset.rating = String(player.rating);
+		        }
 		        // Precarga la foto real del jugador para poder pintarla SINCRONA (estilo Foto).
 		        try { ensureAvatarImage(resolvePlayerPhotoUrl(player?.photo_url)); } catch (e) { /* ignore */ }
+		        // Y su avatar, que es lo que se pinta en presentación Figura/Avatar.
+		        try {
+		          if (button.dataset.avatar) ensureAvatarImage(resolvePlayerPhotoUrl(button.dataset.avatar));
+		        } catch (e) { /* ignore */ }
 			        const copy = document.createElement('span');
 			        copy.className = 'player-token-bank-copy';
 			        const name = document.createElement('span');
@@ -38456,6 +38484,12 @@
                     // 'Foto' sin foto real NI asset de foto -> Chapa (evita caer al avatar por defecto).
                     if (st === 'photo' && !realPhoto && !assetUrl) st = 'disk';
                     if (!assetUrl) assetUrl = safeText(assetsMap[assetKindFor(st)] || '');
+                    // Sin asset para ESA equipación, el avatar propio del jugador antes que el
+                    // muñeco genérico: es preferible verle a él con la equipación de casa que ver
+                    // a un desconocido con la de fuera.
+                    if (!assetUrl && (st === 'sprite' || st === 'figure')) {
+                      assetUrl = safeText(el ? el.getAttribute('data-avatar') : '');
+                    }
                     const opts = { style: st, kit: kit, kitDark: isDark };
                     if (st === 'photo' && realPhoto) opts.photoUrl = realPhoto;
                     // El asset real (foto/kit/portero) solo lo pinta la rama figura (photo/sprite);

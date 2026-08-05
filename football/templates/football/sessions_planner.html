@@ -4160,6 +4160,39 @@
 			      <section class="panel">
 			        <h2>Biblioteca de tareas</h2>
 			        <p class="meta" style="margin-top:0;">Punto de entrada del entrenador: busca tareas por ficha, filtra y monta sesiones sin perder contexto.</p>
+                {% comment %}El buscador vivía DENTRO del desplegable de filtros, cerrado por
+                defecto: con 190 tareas, buscar por nombre era imposible si no sabías que estaba
+                ahí. Sube aquí, siempre a la vista. Los filtros finos siguen en el desplegable.
+                {% endcomment %}
+                <form method="get" class="box library-search-bar" style="margin:0 0 0.7rem; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                  <input type="hidden" name="tab" value="library" />
+                  <input type="hidden" name="team" value="{{ primary_team_id }}" />
+                  {% if active_workspace_id %}<input type="hidden" name="workspace" value="{{ active_workspace_id }}" />{% endif %}
+                  <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+                  <input type="hidden" name="library_source" value="{{ library_source_tab }}" />
+                  {% if library_pick %}<input type="hidden" name="lib" value="{{ library_pick }}" />{% endif %}
+                  {% if session_hint_id %}<input type="hidden" name="session_id" value="{{ session_hint_id }}" />{% endif %}
+                  {% if task_pick_kind %}<input type="hidden" name="pick_for" value="{{ task_pick_kind }}" />{% endif %}
+                  <input
+                    type="search"
+                    name="q"
+                    value="{{ library_q }}"
+                    style="flex:1 1 16rem; min-width:12rem;"
+                    placeholder="Buscar una tarea por su nombre, objetivo, material…"
+                    aria-label="Buscar tarea en la biblioteca"
+                  />
+                  <select name="sort" aria-label="Ordenar tareas">
+                    <option value="recent" {% if library_sort == 'recent' %}selected{% endif %}>Más recientes</option>
+                    <option value="title" {% if library_sort == 'title' %}selected{% endif %}>A‑Z</option>
+                    <option value="number" {% if library_sort == 'number' %}selected{% endif %}>Por número</option>
+                    <option value="quality" {% if library_sort == 'quality' %}selected{% endif %}>Mayor calidad</option>
+                  </select>
+                  <button type="submit" class="button primary">Buscar</button>
+                  {% if library_q %}
+                  <a class="button secondary" href="?{% qs_replace q=None lib_page=None %}" title="Quitar la búsqueda">✕ Quitar «{{ library_q }}»</a>
+                  {% endif %}
+                </form>
+
 			        {% if library_season_options %}
 			        <div class="library-season-strip" role="tablist" aria-label="Filtrar por temporada" style="display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center; margin:0.2rem 0 0.9rem;">
 			          <span class="meta" style="font-weight:800; letter-spacing:.02em; margin-right:0.15rem;">TEMPORADA</span>
@@ -4242,7 +4275,7 @@
 
 			        {# ELEGIR BIBLIOTECA. Entrar y recibir las 179 tareas de golpe no ayudaba a #}
 			        {# encontrar nada: primero se elige biblioteca y luego se lista. #}
-			        {% if not library_pick %}
+			        {% if not library_pick and not library_q %}
 			        <div class="folder-grid" aria-label="Bibliotecas" style="margin-top:0.4rem;">
 			          <a class="folder-card" href="?{% qs_replace tab='library' lib='general' collection_id=None family=None lib_page=None %}">
 			            <strong>📗 Biblioteca general</strong>
@@ -4257,7 +4290,7 @@
 			            <span>{{ library_pick_counts.importadas|default:0 }} tareas · desde PDF</span>
 			          </a>
 			        </div>
-			        <p class="meta" style="margin:0.3rem 0 1rem;">Elige una biblioteca para ver sus tareas.</p>
+			        <p class="meta" style="margin:0.3rem 0 1rem;">Elige una biblioteca… o busca ahí arriba y te salen de todas.</p>
 			        {% else %}
 			        <p class="meta" style="margin:0.3rem 0 0.6rem;">
 			          <a class="button secondary small" href="?{% qs_replace tab='library' lib=None collection_id=None family=None lib_page=None %}">← Todas las bibliotecas</a>
@@ -4265,7 +4298,7 @@
 			        </p>
 			        {% endif %}
 
-{% if library_pick %}
+{% if library_pick or library_q %}
 			        {# Tipo de tarea: la familia (rondo, circuito, partido…) como fila de carpetas, #}
 			        {# igual que las colecciones. Es la pregunta que más se hace al buscar una tarea. #}
 			        <div class="folder-grid" aria-label="Tipo de tarea" style="margin-top:0.75rem;">
@@ -4335,7 +4368,7 @@
 
                 <details class="box" style="margin:0 0 1rem;">
                   <summary style="cursor:pointer; font-weight:900;">
-                    🔎 Filtros de búsqueda
+                    🔎 Más filtros (momento, tipo, jugadores, duración, fecha…)
                     {% if library_filters_active %}<span class="badge" style="margin-left:0.35rem; opacity:0.95;">Activos</span>{% endif %}
                   </summary>
                   <form method="get" style="margin:0.8rem 0 0; display:grid; gap:0.65rem;">
@@ -4618,7 +4651,7 @@
         </div>
         {% endif %}
                 <div class="task-list">
-                  {% if library_pick %}{# la rejilla sólo cuando ya se ha elegido biblioteca #}
+                  {% if library_pick or library_q %}{# la rejilla: con biblioteca elegida O buscando (la búsqueda mira en todas) #}
                   {% for t in task_library_page_items %}
                   {% if library_group_by_block %}{% ifchanged t.block %}<div class="library-block-header">{{ t.get_block_display|default:"Sin bloque" }}</div>{% endifchanged %}{% endif %}
 			          <article
@@ -4842,7 +4875,7 @@
           </article>
           {% endfor %}
           {% else %}
-          <p class="meta" style="margin:0.6rem 0;">Elige arriba una biblioteca para ver sus tareas.</p>
+          <p class="meta" style="margin:0.6rem 0;">Elige arriba una biblioteca, o escribe en el buscador para mirar en todas a la vez.</p>
           {% endif %}{# library_pick: rejilla #}
         </div>
         {% if task_pick_mode or library_bulk_mode %}

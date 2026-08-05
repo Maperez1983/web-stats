@@ -1434,11 +1434,20 @@
             <span class="top-pill">{{ task.get_block_display }}</span>
             <span class="top-pill">{{ task.duration_minutes }} min</span>
             {% if task.category %}<span class="top-pill">{{ task.category }}</span>{% endif %}
-            <span class="top-pill">{% if active_task_tab == 'edit' %}Edición{% elif active_task_tab == 'export' %}Exportar{% elif is_editable_task %}Presentación{% else %}Solo lectura{% endif %}</span>
+            <span class="top-pill">{% if active_task_tab == 'edit' %}Pizarra{% elif active_task_tab == 'export' %}Exportar{% elif is_editable_task %}Presentación{% else %}Solo lectura{% endif %}</span>
           </div>
         </div>
+        {% comment %}Tres salidas, no una: la de "por dónde viniste" (contextual) y las dos fijas.
+        Desde una tarea no había forma evidente de volver a Entrenamiento ni a la Biblioteca si no
+        habías entrado justo por ahí.{% endcomment %}
         <div class="top-actions">
           <a class="button ghost task-back-link" href="{{ back_url }}">← {{ back_label }}</a>
+          {% if training_home_url %}
+          <a class="button ghost" href="{{ training_home_url }}" title="Ir a la home de Entrenamiento (sesiones, calendario, carga)">Entrenamiento</a>
+          {% endif %}
+          {% if library_url and back_label != "Volver a biblioteca" %}
+          <a class="button ghost" href="{{ library_url }}" title="Ir a la Biblioteca de tareas">Biblioteca</a>
+          {% endif %}
           {% if can_edit_task %}
           <button
             type="button"
@@ -1460,7 +1469,7 @@
         <div class="task-detail-tabs" role="tablist">
           <button type="button" class="button task-detail-tab{% if active_task_tab == 'presentation' %} is-active{% endif %}" data-task-tab="presentation" role="tab" aria-selected="{% if active_task_tab == 'presentation' %}true{% else %}false{% endif %}">Presentación</button>
           {% if can_edit_task %}
-          <button type="button" class="button task-detail-tab{% if active_task_tab == 'edit' %} is-active{% endif %}" data-task-tab="edit"{% if edit_graphic_url %} data-direct-url="{{ edit_graphic_url }}"{% endif %} role="tab" aria-selected="{% if active_task_tab == 'edit' %}true{% else %}false{% endif %}">Edición</button>
+          <button type="button" class="button task-detail-tab{% if active_task_tab == 'edit' %} is-active{% endif %}" data-task-tab="edit"{% if edit_graphic_url %} data-direct-url="{{ edit_graphic_url }}"{% endif %} role="tab" aria-selected="{% if active_task_tab == 'edit' %}true{% else %}false{% endif %}">Pizarra</button>
           {% endif %}
           <button type="button" class="button task-detail-tab{% if active_task_tab == 'export' %} is-active{% endif %}" data-task-tab="export" role="tab" aria-selected="{% if active_task_tab == 'export' %}true{% else %}false{% endif %}">Exportar</button>
         </div>
@@ -1488,7 +1497,7 @@
           {% if presentation_inline_edit %}
           <a class="button secondary" href="{{ exit_edit_url }}" title="Vuelve a la vista de solo lectura de la ficha">Salir de edición</a>
           {% else %}
-          <a class="button" href="{{ edit_ficha_url }}" title="Edita los textos de la ficha Club directamente">✏️ Editar ficha</a>
+          <a class="button" href="{{ edit_ficha_url }}" title="Edita los TEXTOS de la ficha (objetivo, desarrollo, material…). El dibujo se edita en la pestaña Pizarra.">✏️ Editar textos</a>
           {% endif %}
           {% endif %}
         </div>
@@ -1570,7 +1579,7 @@
       {% if can_edit_task %}
       <section class="panel task-detail-tab-panel{% if active_task_tab == 'edit' %} is-active{% endif %}" id="task-edit-panel" data-task-tab-panel="edit">
         <div class="task-edit-tab-bar" role="tablist" aria-label="Edición de la tarea">
-          <button type="button" class="button task-edit-tab{% if active_task_edit_tab == 'graphic' %} is-active{% endif %}" data-task-edit-tab="graphic"{% if edit_graphic_url %} data-direct-url="{{ edit_graphic_url }}"{% endif %} role="tab" aria-selected="{% if active_task_edit_tab == 'graphic' %}true{% else %}false{% endif %}">Edición gráfica</button>
+          <button type="button" class="button task-edit-tab{% if active_task_edit_tab == 'graphic' %} is-active{% endif %}" data-task-edit-tab="graphic"{% if edit_graphic_url %} data-direct-url="{{ edit_graphic_url }}"{% endif %} role="tab" aria-selected="{% if active_task_edit_tab == 'graphic' %}true{% else %}false{% endif %}">Dibujo de la pizarra</button>
           <button type="button" class="button task-edit-tab{% if active_task_edit_tab == 'settings' %} is-active{% endif %}" data-task-edit-tab="settings" role="tab" aria-selected="{% if active_task_edit_tab == 'settings' %}true{% else %}false{% endif %}">Ajustes avanzados</button>
         </div>
 
@@ -1593,7 +1602,7 @@
 
         <section class="panel task-edit-tab-panel{% if active_task_edit_tab == 'settings' %} is-active{% endif %}" data-task-edit-tab-panel="settings">
           <h2>Ajustes avanzados</h2>
-          <div class="msg" style="background:rgba(52,211,153,0.10); border:1px solid rgba(52,211,153,0.35);">✏️ Los campos principales (objetivo, desarrollo, material, criterios, progresión…) se editan directamente en la <strong>Ficha</strong> (pestaña Presentación → «Editar ficha»). Aquí solo quedan los <strong>ajustes avanzados</strong>: metodología, carga, superficie, categoría…</div>
+          <div class="msg" style="background:rgba(52,211,153,0.10); border:1px solid rgba(52,211,153,0.35);">✏️ Los campos principales (objetivo, desarrollo, material, criterios, progresión…) se editan directamente en la <strong>Ficha</strong> (pestaña Presentación → «Editar textos»). Aquí solo quedan los <strong>ajustes avanzados</strong>: metodología, carga, superficie, categoría…</div>
           <form method="post" class="grid editor-core" id="task-detail-form">
             {% csrf_token %}
             <input type="hidden" name="detail_action" value="update_task_detail" />
