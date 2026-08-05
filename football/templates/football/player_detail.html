@@ -1097,7 +1097,10 @@
 	          <span>2J Player · Football Intelligence</span>
 	        </div>
       </a>
-      {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True hide_dragon_logo=False hide_global_guard_widget=is_player_readonly %}
+      {% comment %}La ficha escondía los accesos del sistema (ÁREAS, Buscar, club, tema) y por eso
+      parecía otra aplicación. Se ocultan SOLO cuando entra el propio jugador en modo lectura.
+      {% endcomment %}
+      {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=is_player_readonly hide_dragon_logo=False hide_global_guard_widget=is_player_readonly %}
       {% if not is_player_readonly %}{% include 'football/includes/_zone_subnav.html' with zone='equipo' %}{% endif %}
       <header>
         <div class="player-head-main">
@@ -1321,6 +1324,18 @@
       {% endwith %}
 
 
+      {% comment %} Las pestañas del jugador salen de la política del club (`vis`), no de la plantilla.
+         Para el staff `vis` no restringe nada y salen todas. {% endcomment %}
+      <div class="tabs" role="tablist">
+        <button class="tab-btn" data-tab="resumen" role="tab">Resumen</button>
+        <button class="tab-btn" data-tab="personal" role="tab">Datos personales</button>
+        <button class="tab-btn" data-tab="agenda" role="tab">Agenda</button>
+        {% if vis.performance or vis.seasons %}<button class="tab-btn" data-tab="stats" role="tab">Rendimiento</button>{% endif %}
+        {% if vis.evaluation %}<button class="tab-btn" data-tab="evaluations" role="tab">Valoración</button>{% endif %}
+        {% if vis.physical or vis.injuries %}<button class="tab-btn" data-tab="salud" role="tab">Salud</button>{% endif %}
+        {% if vis.videos %}<button class="tab-btn" data-tab="desarrollo" role="tab">Desarrollo</button>{% endif %}
+        {% if vis.communication or vis.fines %}<button class="tab-btn" data-tab="club" role="tab">Club</button>{% endif %}
+      </div>
       {% if club_season_options %}
       <div class="season-context-card">
         <div>
@@ -1359,6 +1374,10 @@
       que lo único que tiene sentido comprobar es su espacio. Va embebida para verla sin salir,
       a ancho de móvil, que es donde la abre él.{% endcomment %}
       <section class="card" id="portal-preview" style="margin-bottom:1rem;">
+        {% comment %}Ocupaba media pantalla por delante de las pestañas. Ahora va plegada entera:
+        se abre cuando quieres comprobar qué ve el jugador, y mientras no estorba.{% endcomment %}
+        <details>
+        <summary style="cursor:pointer;list-style:none;">
         <div style="display:flex;gap:0.7rem;align-items:baseline;justify-content:space-between;flex-wrap:wrap;margin-bottom:0.7rem;">
           <div>
             <h2 style="margin:0;font-size:1rem;">👁️ Vista previa de su portal</h2>
@@ -1367,12 +1386,9 @@
               política de su equipo aplicada. Es sólo lectura.
             </p>
           </div>
-          <a class="btn alt" href="{% url 'player-home' %}?ver_como={{ player.id }}" target="_blank" rel="noopener">Abrir a pantalla completa</a>
         </div>
-        <details>
-          <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.6rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:var(--prod-text);list-style:none;">
-            Mostrar la vista previa
-          </summary>
+        </summary>
+          <p style="margin:0 0 0.7rem;"><a class="btn alt" href="{% url 'player-home' %}?ver_como={{ player.id }}" target="_blank" rel="noopener">Abrir a pantalla completa</a></p>
           <div style="margin-top:0.9rem;display:flex;justify-content:center;">
             <iframe src="{% url 'player-home' %}?ver_como={{ player.id }}"
                     title="Vista previa del portal de {{ player.name }}"
@@ -1383,18 +1399,6 @@
       </section>
       {% endif %}
 
-      {% comment %} Las pestañas del jugador salen de la política del club (`vis`), no de la plantilla.
-         Para el staff `vis` no restringe nada y salen todas. {% endcomment %}
-      <div class="tabs" role="tablist">
-        <button class="tab-btn" data-tab="resumen" role="tab">Resumen</button>
-        <button class="tab-btn" data-tab="personal" role="tab">Datos personales</button>
-        <button class="tab-btn" data-tab="agenda" role="tab">Agenda</button>
-        {% if vis.performance or vis.seasons %}<button class="tab-btn" data-tab="stats" role="tab">Rendimiento</button>{% endif %}
-        {% if vis.evaluation %}<button class="tab-btn" data-tab="evaluations" role="tab">Valoración</button>{% endif %}
-        {% if vis.physical or vis.injuries %}<button class="tab-btn" data-tab="salud" role="tab">Salud</button>{% endif %}
-        {% if vis.videos %}<button class="tab-btn" data-tab="desarrollo" role="tab">Desarrollo</button>{% endif %}
-        {% if vis.communication or vis.fines %}<button class="tab-btn" data-tab="club" role="tab">Club</button>{% endif %}
-      </div>
 
       <section class="card tab-pane" data-pane="resumen">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem;">
@@ -1504,7 +1508,10 @@
           <div style="display:flex;flex-direction:column;gap:.9rem;">
             <div style="{{ cardst }}">
               <p style="{{ ctit }}">Contacto</p>
-              <div style="display:grid;gap:.6rem;">
+              {% comment %}Mismo ritmo que Identidad: los tres datos en columnas, no apilados.
+              Apilados dejaban la fila medio vacía y cada bloque con un ancho distinto.
+              {% endcomment %}
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.7rem .9rem;">
                 <div><div style="{{ kst }}">Email</div><div style="{% if player.contact_email %}{{ vst }}{% else %}{{ fst }}{% endif %}">{{ player.contact_email|default:"Sin indicar" }}</div></div>
                 <div><div style="{{ kst }}">De quién es</div><div style="{% if player.contact_name %}{{ vst }}{% else %}{{ fst }}{% endif %}">{% if player.contact_name %}{{ player.contact_name }}{% if player.contact_is_guardian %} · tutor{% endif %}{% else %}Sin indicar{% endif %}</div></div>
                 <div><div style="{{ kst }}">Teléfono</div><div style="{% if player.phone %}{{ vst }}{% else %}{{ fst }}{% endif %}">{{ player.phone|default:"Sin indicar" }}</div></div>
