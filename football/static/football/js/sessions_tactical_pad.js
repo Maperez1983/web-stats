@@ -31185,15 +31185,22 @@
 			            ensureAvatarImage(__avUrl);
 			            const __avEl = getReadyAvatarImage(__avUrl);
 			            if (__avEl) {
-			              const __avScale = 52 / Math.max(1, __avEl.naturalHeight || __avEl.height || 1);
-			              const __avImg = new fabric.Image(__avEl, { left: 0, top: 2, originX: 'center', originY: 'center', selectable: false, evented: false, scaleX: __avScale, scaleY: __avScale });
+			              // 52 px de alto para un CUERPO ENTERO dejaba al jugador en una tira de unos
+			              // 20 px de ancho: al lado de la chapa (un disco de 48 px con el escudo) no se
+			              // leia nada. Una figura necesita mas alto que un disco para reconocerse.
+			              // 52 px para un CUERPO ENTERO dejaba al jugador en una tira de unos 20 px de
+			              // ancho: al lado de la chapa no se leia. Se sube a 68 y se baja el centro a
+			              // +12 para que la cabeza quede POR DEBAJO del cartel del nombre, que ocupa
+			              // de -43 a -24 y antes se la comia.
+			              const __avScale = 68 / Math.max(1, __avEl.naturalHeight || __avEl.height || 1);
+			              const __avImg = new fabric.Image(__avEl, { left: 0, top: 12, originX: 'center', originY: 'center', selectable: false, evented: false, scaleX: __avScale, scaleY: __avScale });
 			              applyRenderableQuality(__avImg, { strokeUniform: false });
 			              __avImg.data = { role: 'token_avatar' };
 			              tokenParts.push(__avImg);
-			              const __numChipBg = new fabric.Circle({ radius: 8.5, fill: 'rgba(2,6,23,0.82)', stroke: 'rgba(255,255,255,0.92)', strokeWidth: 1.6, originX: 'center', originY: 'center', left: 0, top: 26, selectable: false, evented: false });
+			              const __numChipBg = new fabric.Circle({ radius: 8.5, fill: 'rgba(2,6,23,0.82)', stroke: 'rgba(255,255,255,0.92)', strokeWidth: 1.6, originX: 'center', originY: 'center', left: 0, top: 52, selectable: false, evented: false });
 			              __numChipBg.data = { role: 'token_number_bg' };
 			              tokenParts.push(__numChipBg);
-			              const __numChipTxt = new fabric.Text(isGoalkeeper ? 'GK' : label, { originX: 'center', originY: 'center', left: 0, top: 26, fontSize: 9.6, fontWeight: '900', fill: '#f8fafc', selectable: false, evented: false });
+			              const __numChipTxt = new fabric.Text(isGoalkeeper ? 'GK' : label, { originX: 'center', originY: 'center', left: 0, top: 52, fontSize: 9.6, fontWeight: '900', fill: '#f8fafc', selectable: false, evented: false });
 			              __numChipTxt.data = { role: 'token_number' };
 			              tokenParts.push(__numChipTxt);
 			            }
