@@ -245,7 +245,7 @@
               {% for row in guard_observability.priority_queue_preview %}
                 <div class="guard-remediation-card">
                   <strong>{{ row.kind|default:"task" }} · {{ row.title|default:"Tarea del guard" }}</strong>
-                  <div>{{ row.priority_band|default:"next" }} · {{ row.status|default:"pending" }} · {{ row.priority_reason|default:row.result_summary|default:row.summary|default:"Sin detalle" }}</div>
+                  <div>{{ row.priority_band|default:"next" }} · {{ row.status|default:"pending" }} · {% firstof row.priority_reason row.result_summary row.summary "Sin detalle" %}{# firstof y no |default:row.x - una clave que falta COMO ARGUMENTO de filtro lanza #}{# VariableDoesNotExist y tumba la pagina entera con un 500. Estas filas son dicts y no #}{# todas traen las mismas claves: la que dejo sin abrir el IA-Trainer no tenia "summary". #}</div>
                 </div>
               {% empty %}
                 <div class="guard-remediation-card">
