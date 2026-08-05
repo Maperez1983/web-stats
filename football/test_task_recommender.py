@@ -213,3 +213,121 @@ class RecomendadorAprendeDelUsoTests(TestCase):
             ids.index(reciente.id), ids.index(antigua.id),
             "usarla cinco veces en octubre no vale lo mismo que usarla esta semana",
         )
+
+
+class RecomendadorContextoTests(TestCase):
+    """El hueco que llenas, el día del microciclo y la edad: datos que ya estaban guardados
+    y que el recomendador ignoraba."""
+
+    def setUp(self):
+        self.team = Team.objects.create(name="Senior", slug="senior-ctx", is_primary=True)
+        hoy = timezone.localdate()
+        mc = TrainingMicrocycle.objects.create(
+            team=self.team, title="Biblioteca ctx",
+            week_start=hoy - timedelta(days=21), week_end=hoy - timedelta(days=15),
+        )
+        self.biblioteca = TrainingSession.objects.create(microcycle=mc, session_date=hoy, focus="")
+
+    def _tarea(self, titulo, *, block="main_1", meta=None):
+        return SessionTask.objects.create(
+            session=self.biblioteca, block=block, title=titulo,
+            objective="posesion con apoyos", duration_minutes=12, tactical_layout={"meta": meta or {}},
+        )
+
+    def _sesion(self, **campos):
+        hoy = timezone.localdate()
+        mc = TrainingMicrocycle.objects.create(
+            team=self.team, title="Sem ctx", week_start=hoy, week_end=hoy + timedelta(days=6)
+        )
+        return TrainingSession.objects.create(microcycle=mc, session_date=hoy, focus="posesion", **campos)
+
+    def test_propone_del_bloque_que_estas_llenando(self):
+        calma = self._tarea("Estiramientos con balon", block="recovery")
+        principal = self._tarea("Posesion 6x6", block="main_1")
+        rec = _ai_trainer_suggest_tasks_for_session(self._sesion(), limit=6, bloque="main_1")
+        ids = [t.id for t in rec]
+        self.assertLess(ids.index(principal.id), ids.index(calma.id))
+        self.assertIn("del bloque que estás llenando", getattr(rec[0], "ai_trainer_reasons", []))
+
+    def test_en_md_1_no_recomienda_carga_fisica_por_delante(self):
+        fisica = self._tarea("Circuito de fuerza", meta={"content_domain": "physical"})
+        tactica = self._tarea("Posesion posicional", meta={"content_domain": "tactical"})
+        rec = _ai_trainer_suggest_tasks_for_session(self._sesion(md_day="md_minus_1"), limit=6)
+        ids = [t.id for t in rec]
+        self.assertLess(ids.index(tactica.id), ids.index(fisica.id))
+
+    def test_en_md_3_la_carga_fisica_encaja(self):
+        fisica = self._tarea("Circuito de fuerza", meta={"content_domain": "physical"})
+        self._tarea("Posesion posicional", meta={"content_domain": "tactical"})
+        rec = _ai_trainer_suggest_tasks_for_session(self._sesion(md_day="md_minus_3"), limit=6)
+        self.assertEqual(rec[0].id, fisica.id)
+        self.assertIn("encaja con la carga del día", rec[0].ai_trainer_reasons)
+
+    def test_una_tarea_de_otra_edad_baja(self):
+        self.team.category = "alevin"
+        self.team.save(update_fields=["category"])
+        senior = self._tarea("Once contra once", meta={"age_group": "senior"})
+        suya = self._tarea("Rondo para alevin", meta={"age_group": "alevin"})
+        ids = [t.id for t in _ai_trainer_suggest_tasks_for_session(self._sesion(), limit=6)]
+        self.assertLess(ids.index(suya.id), ids.index(senior.id))
+
+
+class RecomendadorMideYAprendeDelDescarteTests(TestCase):
+    """Sin saber qué propuso no se puede afirmar que acierte, ni aprender de lo ignorado."""
+
+    def setUp(self):
+        self.team = Team.objects.create(name="Senior", slug="senior-med", is_primary=True)
+        hoy = timezone.localdate()
+        mc = TrainingMicrocycle.objects.create(
+            team=self.team, title="Biblioteca med",
+            week_start=hoy - timedelta(days=21), week_end=hoy - timedelta(days=15),
+        )
+        self.biblioteca = TrainingSession.objects.create(microcycle=mc, session_date=hoy, focus="")
+        self.a = SessionTask.objects.create(
+            session=self.biblioteca, block="main_1", title="Rondo A",
+            objective="posesion en rondo", duration_minutes=12,
+        )
+        self.b = SessionTask.objects.create(
+            session=self.biblioteca, block="main_1", title="Rondo B",
+            objective="posesion en rondo largo", duration_minutes=12,
+        )
+        mc2 = TrainingMicrocycle.objects.create(
+            team=self.team, title="Sem med", week_start=hoy, week_end=hoy + timedelta(days=6)
+        )
+        self.sesion = TrainingSession.objects.create(microcycle=mc2, session_date=hoy, focus="posesion")
+
+    def test_queda_constancia_de_lo_propuesto(self):
+        from football.models import AiTrainerRecomendacion
+
+        _ai_trainer_suggest_tasks_for_session(self.sesion, limit=6)
+        filas = AiTrainerRecomendacion.objects.filter(session=self.sesion)
+        self.assertEqual(filas.count(), 2)
+        self.assertTrue(all(f.puesto > 0 for f in filas))
+
+    def test_no_duplica_al_volver_a_proponer(self):
+        from football.models import AiTrainerRecomendacion
+
+        _ai_trainer_suggest_tasks_for_session(self.sesion, limit=6)
+        _ai_trainer_suggest_tasks_for_session(self.sesion, limit=6)
+        filas = AiTrainerRecomendacion.objects.filter(session=self.sesion)
+        self.assertEqual(filas.count(), 2)
+        self.assertEqual(sorted(f.veces_propuesta for f in filas), [2, 2])
+
+    def test_elegir_una_marca_esa_y_cierra_las_demas(self):
+        from football.models import AiTrainerRecomendacion
+
+        _ai_trainer_suggest_tasks_for_session(self.sesion, limit=6)
+        SessionTask.objects.create(
+            session=self.sesion, block="main_1", title="Rondo A", duration_minutes=12,
+            tactical_layout={"meta": {"library_source_task_id": self.a.id}},
+        )
+        elegida = AiTrainerRecomendacion.objects.get(session=self.sesion, task=self.a)
+        descartada = AiTrainerRecomendacion.objects.get(session=self.sesion, task=self.b)
+        self.assertTrue(elegida.usada)
+        self.assertFalse(descartada.usada)
+
+    def test_lo_ignorado_resta_menos_de_lo_que_suma_usarlo(self):
+        from football.ai_trainer import CASTIGO_POR_IGNORAR, PESO_POR_USO
+
+        self.assertLess(CASTIGO_POR_IGNORAR, PESO_POR_USO,
+                        "que no te sirva hoy no significa que la tarea sea mala")

@@ -29,6 +29,19 @@ def aprender_de_la_tarea_puesta_en_sesion(sender, instance, created, **kwargs):
     Solo al CREAR: editar una tarea diez veces no significa que te guste diez veces más.
     Nunca propaga una excepción: preferimos no aprender antes que impedir guardar una sesión.
     """
+    # REINDEXAR SIEMPRE, tambien al editar: el indice solo se escribia al crear, en tres
+    # sitios sueltos, asi que si reescribias el objetivo de una tarea el recomendador seguia
+    # puntuando el texto viejo para siempre. Solo las de biblioteca, que son las candidatas.
+    try:
+        from football.ai_trainer import ai_trainer_index_task
+        from football.library_repositories import is_library_microcycle
+
+        microciclo = getattr(getattr(instance, 'session', None), 'microcycle', None)
+        if microciclo is not None and is_library_microcycle(microciclo):
+            ai_trainer_index_task(instance)
+    except Exception:
+        logger.debug('No se pudo reindexar la tarea %s', getattr(instance, 'id', None), exc_info=True)
+
     if not created:
         return
     try:

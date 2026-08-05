@@ -172,17 +172,95 @@ def apuntar_uso_en_la_tarea_de_biblioteca(task):
             veces_usada=F('veces_usada') + 1,
             usada_por_ultima_vez=fecha,
         )
+        # Elegir una es descartar las otras que se propusieron con ella.
+        try:
+            cerrar_recomendaciones_de_la_sesion(getattr(task, 'session', None), origen)
+        except Exception:
+            logger.debug('No se pudieron cerrar las recomendaciones', exc_info=True)
         return origen if actualizadas else 0
     except Exception:
         logger.debug('No se pudo apuntar el uso en la tarea %s', origen, exc_info=True)
         return 0
 
 
+# Cuánto baja el peso de lo que se propone y no se coge. Muy por debajo de lo que sube al
+# usarla (0.35): que no te sirva HOY no significa que sea mala.
+CASTIGO_POR_IGNORAR = 0.05
+
+
+def apuntar_lo_propuesto(team, session, tareas):
+    """Deja constancia de qué propuso el recomendador para esta sesión.
+
+    Una fila por (sesión, tarea): si se vuelve a proponer se cuenta, no se duplica. Con esto
+    se puede medir el acierto —hasta ahora los pesos del motor se ajustaban a ojo— y saber
+    qué se enseñó y no se cogió.
+    """
+    if not team or not tareas:
+        return 0
+    from .models import AiTrainerRecomendacion
+
+    apuntadas = 0
+    for puesto, tarea in enumerate(tareas, start=1):
+        try:
+            fila, creada = AiTrainerRecomendacion.objects.get_or_create(
+                session=session if getattr(session, 'id', None) else None,
+                task=tarea,
+                defaults={
+                    'team': team,
+                    'puesto': puesto,
+                    'score': float(getattr(tarea, 'ai_trainer_score', 0) or 0),
+                    'motivos': list(getattr(tarea, 'ai_trainer_reasons', []) or []),
+                },
+            )
+            if not creada:
+                fila.puesto = puesto
+                fila.score = float(getattr(tarea, 'ai_trainer_score', 0) or 0)
+                fila.motivos = list(getattr(tarea, 'ai_trainer_reasons', []) or [])
+                fila.veces_propuesta = int(fila.veces_propuesta or 0) + 1
+                fila.save(update_fields=['puesto', 'score', 'motivos', 'veces_propuesta', 'propuesta_en'])
+            apuntadas += 1
+        except Exception:
+            logger.debug('No se pudo apuntar la recomendacion de la tarea %s', getattr(tarea, 'id', None), exc_info=True)
+    return apuntadas
+
+
+def cerrar_recomendaciones_de_la_sesion(session, task_origen_id):
+    """Al elegir una tarea, cierra el resto de lo que se propuso para esa sesión.
+
+    Es la señal NEGATIVA que faltaba: las tareas que se enseñaron junto a la elegida se vieron
+    y se descartaron. Baja poco a propósito —que no valga hoy no la hace mala—, pero repetido
+    a lo largo de una temporada es lo que separa lo que usas de lo que sólo suena parecido.
+    """
+    if session is None or not getattr(session, 'id', None):
+        return 0
+    from django.utils import timezone
+
+    from .models import AiTrainerRecomendacion
+
+    try:
+        AiTrainerRecomendacion.objects.filter(session_id=session.id, task_id=task_origen_id).update(
+            usada=True, usada_en=timezone.now()
+        )
+        descartadas = list(
+            AiTrainerRecomendacion.objects.filter(session_id=session.id, usada=False).select_related('task')
+        )
+    except Exception:
+        logger.debug('No se pudieron cerrar las recomendaciones de la sesion', exc_info=True)
+        return 0
+
+    for fila in descartadas:
+        try:
+            aprender_de_tarea_usada(fila.task, team=fila.team, delta=-CASTIGO_POR_IGNORAR, forzar=True)
+        except Exception:
+            logger.debug('No se pudo restar por descarte la tarea %s', fila.task_id, exc_info=True)
+    return len(descartadas)
+
+
 def _equipo_de_la_tarea(task):
     return getattr(getattr(getattr(task, 'session', None), 'microcycle', None), 'team', None)
 
 
-def aprender_de_tarea_usada(task, *, team=None, delta=None):
+def aprender_de_tarea_usada(task, *, team=None, delta=None, forzar=False):
     """Sube el peso de los conceptos de una tarea que el entrenador ha metido en una sesión.
 
     De dónde sale la señal importa: hasta ahora los pesos SOLO se movían desde dos botones de
@@ -199,7 +277,9 @@ def aprender_de_tarea_usada(task, *, team=None, delta=None):
     if microcycle is None:
         return 0
     try:
-        if is_library_microcycle(microcycle):
+        # `forzar` es para la señal de DESCARTE: ahí la tarea es justo la de biblioteca que se
+        # propuso y no se cogió, así que hay que poder tocarla.
+        if is_library_microcycle(microcycle) and not forzar:
             return 0
     except Exception:
         logger.debug('No se pudo saber si el microciclo es de biblioteca', exc_info=True)

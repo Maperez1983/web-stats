@@ -3374,6 +3374,42 @@ class AiTrainerEvent(models.Model):
         return f'IA‑Trainer {self.event_type} · {self.team.name}'
 
 
+class AiTrainerRecomendacion(models.Model):
+    """Qué propuso el recomendador y qué acabó pasando con ello.
+
+    Sin esto no se puede saber si acierta: los pesos del motor se ajustaban a ojo y no había
+    forma de demostrar que fueran buenos. Guardar la propuesta permite medir el porcentaje de
+    acierto y, además, da la señal NEGATIVA que faltaba: una tarea que se propone y se ve
+    muchas veces sin elegirla nunca dice tanto como la que se elige.
+    """
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='ai_trainer_recomendaciones')
+    session = models.ForeignKey(
+        'TrainingSession', null=True, blank=True, on_delete=models.CASCADE,
+        related_name='ai_trainer_recomendaciones',
+    )
+    task = models.ForeignKey(SessionTask, on_delete=models.CASCADE, related_name='ai_trainer_recomendaciones')
+    puesto = models.PositiveSmallIntegerField(default=0, help_text='Posición en la lista propuesta (1 = la primera)')
+    score = models.FloatField(default=0.0)
+    motivos = models.JSONField(default=list, blank=True)
+    propuesta_en = models.DateTimeField(auto_now=True)
+    veces_propuesta = models.PositiveIntegerField(default=1)
+    usada = models.BooleanField(default=False)
+    usada_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        # Una fila por (sesión, tarea): si se vuelve a proponer se actualiza y se cuenta, en
+        # vez de llenar la tabla cada vez que se abre la pantalla.
+        unique_together = ('session', 'task')
+        indexes = [
+            models.Index(fields=['team', 'usada']),
+            models.Index(fields=['team', '-propuesta_en']),
+        ]
+
+    def __str__(self):
+        return f'{self.task_id} propuesta para {self.session_id} ({"usada" if self.usada else "no usada"})'
+
+
 class AiTrainerTokenWeight(models.Model):
     """
     “Aprendizaje” simple: pesos por token (palabras/conceptos) por equipo/workspace.
