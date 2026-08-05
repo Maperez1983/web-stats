@@ -828,6 +828,33 @@
       .field-token:active {
         cursor: grabbing;
       }
+      /* Arrastrar desde la lista: la ficha fantasma que sigue al dedo y el campo iluminado. */
+      .card-drag-ghost {
+        position: fixed;
+        z-index: 60;
+        transform: translate(-50%, -50%);
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.25rem 0.5rem 0.25rem 0.25rem;
+        border-radius: 999px;
+        background: rgba(2, 6, 23, 0.92);
+        border: 1px solid rgba(56, 189, 248, 0.75);
+        box-shadow: 0 16px 38px rgba(2, 6, 23, 0.6);
+        pointer-events: none;
+        opacity: 0.96;
+      }
+      .card-drag-disc {
+        width: 30px; height: 30px; border-radius: 999px; overflow: hidden;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(148, 163, 184, 0.25); color: #e2e8f0;
+        font-size: 0.66rem; font-weight: 900;
+      }
+      .card-drag-disc img { width: 100%; height: 100%; object-fit: cover; }
+      .card-drag-name { font-size: 0.7rem; font-weight: 800; color: #e2e8f0; letter-spacing: 0.03em; white-space: nowrap; }
+      .player-card.is-card-dragging { opacity: 0.45; }
+      body.is-dragging-card { user-select: none; }
+      .field.is-drop-target { outline: 2px dashed rgba(56, 189, 248, 0.75); outline-offset: -6px; }
       .field-token.is-active .token {
         border-color: rgba(56, 189, 248, 0.92);
         box-shadow: 0 18px 40px rgba(2, 6, 23, 0.6);
@@ -2523,7 +2550,7 @@
             <button class="roster-filter" type="button" data-roster-filter="fwd">Ataque</button>
           </div>
           {# Decía el orden al revés de lo que hace: primero se elige al jugador y luego dónde va. #}
-          <p class="player-list-summary">Toca a un jugador de la lista y luego el sitio del campo donde lo quieres. Ya colocado, arrastra su ficha para moverlo.</p>
+          <p class="player-list-summary">Arrastra al jugador desde esta lista hasta su sitio en el campo. Para sacarlo, arrastra su ficha de vuelta aquí. En tableta, mantén pulsado un instante antes de arrastrar.</p>
           <div class="players" id="player-list">
             {% for player in convocation_players %}
             <label class="player-card" data-player-id="{{ player.id }}" data-player-name="{{ player.name|upper|escape }}" data-player-number="{{ player.number|default:'--' }}" data-player-position="{% if player.position %}{{ player.position|display_position|escape }}{% endif %}" data-player-photo="{{ player.photo_url|default:''|escape }}" data-player-avatar="{{ player.avatar_url|default:''|escape }}">
@@ -2598,7 +2625,7 @@
           <details class="lineup-help">
             <summary class="field-help">Guía rápida</summary>
             <p class="field-help">
-              Modo libre: toca un jugador en la lista y luego toca el campo para colocarlo. Después puedes arrastrar su ficha para ajustar la posición.
+              Modo libre: arrastra al jugador de la lista al campo, y su ficha por el campo para ajustarlo. Tocarlo en la lista y luego tocar el campo también sirve.
             </p>
             <p class="field-help">
               Con el “Imán” activo, al soltar una ficha cerca de una posición del esquema se ajusta automáticamente. Para quitar a un titular, doble toque sobre su ficha o desmárcalo en la lista.
@@ -4076,6 +4103,122 @@
         });
       });
 
+      // --- Arrastrar de la lista al campo -------------------------------------------------
+      // El mismo gesto que en la pizarra de plantilla: coges al jugador y lo sueltas donde va,
+      // sin pasos ni modos. Tocar la ficha y luego el campo sigue funcionando igual que antes.
+      // En táctil el arrastre arranca al mantener pulsado un instante: si no, le robaríamos el
+      // scroll a la lista, que es larga.
+      const rosterListEl = document.getElementById('player-list');
+      const LONG_PRESS_MS = 200;
+      const DRAG_START_PX = 6;
+      let cardDrag = null;
+
+      const pointIsInside = (el, x, y) => {
+        if (!el) return false;
+        const rect = el.getBoundingClientRect();
+        return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+      };
+
+      const buildGhost = (payload) => {
+        const ghost = document.createElement('div');
+        ghost.className = 'card-drag-ghost';
+        const img = String(payload.photo || payload.avatar || '').trim();
+        ghost.innerHTML = `
+          <span class="card-drag-disc">${img ? `<img src="${img}" alt="" />` : escHtml(getInitials(payload.name))}</span>
+          <span class="card-drag-name">${escHtml(String(payload.name || '').toUpperCase())}</span>
+        `;
+        document.body.appendChild(ghost);
+        return ghost;
+      };
+      const placeGhost = (x, y) => {
+        if (!cardDrag?.ghost) return;
+        cardDrag.ghost.style.left = `${x}px`;
+        cardDrag.ghost.style.top = `${y}px`;
+      };
+      const startCardDrag = (x, y) => {
+        if (!cardDrag || cardDrag.dragging) return;
+        cardDrag.dragging = true;
+        cardDrag.card.classList.add('is-card-dragging');
+        cardDrag.ghost = buildGhost(cardDrag.payload);
+        placeGhost(x, y);
+        document.body.classList.add('is-dragging-card');
+      };
+      const cancelCardDrag = () => {
+        if (!cardDrag) return;
+        if (cardDrag.timer) clearTimeout(cardDrag.timer);
+        try { cardDrag.ghost?.remove(); } catch (_) {}
+        cardDrag.card?.classList.remove('is-card-dragging');
+        document.body.classList.remove('is-dragging-card');
+        cardDrag = null;
+      };
+
+      playerCards.forEach((card) => {
+        card.addEventListener('pointerdown', (event) => {
+          if (hasPendingConvocation) return;
+          if (dragState) return;
+          const payload = parseCard(card);
+          if (!payload?.id) return;
+          cardDrag = {
+            card,
+            payload,
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            dragging: false,
+            timer: null,
+          };
+          if (event.pointerType === 'touch') {
+            cardDrag.timer = setTimeout(() => startCardDrag(event.clientX, event.clientY), LONG_PRESS_MS);
+          }
+        });
+      });
+
+      window.addEventListener('pointermove', (event) => {
+        if (!cardDrag || event.pointerId !== cardDrag.pointerId) return;
+        const dx = event.clientX - cardDrag.startX;
+        const dy = event.clientY - cardDrag.startY;
+        if (!cardDrag.dragging) {
+          // Con el dedo, moverse antes del tiempo es hacer scroll en la lista: se abandona.
+          if (Math.abs(dx) + Math.abs(dy) < DRAG_START_PX) return;
+          if (event.pointerType === 'touch') { cancelCardDrag(); return; }
+          startCardDrag(event.clientX, event.clientY);
+        }
+        placeGhost(event.clientX, event.clientY);
+        field.classList.toggle('is-drop-target', pointIsInside(field, event.clientX, event.clientY));
+        if (event.cancelable) event.preventDefault();
+      }, { passive: false });
+
+      const dropCardOnField = (event) => {
+        const pid = String(cardDrag.payload.id || '');
+        const already = (lineupState.starters || []).some((row) => String(row?.id || '') === pid);
+        if (!already && (lineupState.starters || []).length >= STARTERS_REQUIRED) {
+          statusMsg.textContent = 'El 11 ya está completo. Saca a uno antes de meter a otro.';
+          statusMsg.classList.add('warn');
+          statusMsg.classList.remove('ok');
+          return;
+        }
+        const checkbox = cardDrag.card.querySelector('input[type="checkbox"]');
+        if (checkbox && !checkbox.checked) checkbox.checked = true;
+        manualMode = true;
+        activeSlotIndex = null;
+        const { x, y } = fieldPctFromClient(event.clientX, event.clientY);
+        upsertStarterWithPosition(cardDrag.payload, { x, y });
+        markLineupDirty();
+        renderField();
+      };
+
+      const endCardDrag = (event) => {
+        if (!cardDrag) return;
+        if (event && event.pointerId !== cardDrag.pointerId) return;
+        const arrastraba = cardDrag.dragging;
+        const sobreCampo = event ? pointIsInside(field, event.clientX, event.clientY) : false;
+        field.classList.remove('is-drop-target');
+        if (arrastraba && sobreCampo && event) dropCardOnField(event);
+        cancelCardDrag();
+      };
+      window.addEventListener('pointerup', endCardDrag);
+      window.addEventListener('pointercancel', endCardDrag);
+
       field.addEventListener('pointerdown', (event) => {
         if (hasPendingConvocation) return;
         if (dragState) return;
@@ -4136,6 +4279,22 @@
           if (event) dragState.el?.releasePointerCapture?.(event.pointerId);
         } catch (_) {}
         dragState = null;
+        // Gesto inverso al de la lista: si sueltas la ficha sobre los convocados, sale del 11 y
+        // se queda de suplente. Es lo que uno intenta hacer sin que nadie se lo explique.
+        const sobreLista = event && rosterListEl && (() => {
+          const rect = rosterListEl.getBoundingClientRect();
+          return event.clientX >= rect.left && event.clientX <= rect.right
+            && event.clientY >= rect.top && event.clientY <= rect.bottom;
+        })();
+        if (moved && sobreLista) {
+          manualMode = true;
+          removeStarter(pid);
+          renderField();
+          statusMsg.textContent = 'Fuera del 11. Sigue convocado como suplente.';
+          statusMsg.classList.remove('ok');
+          statusMsg.classList.add('warn');
+          return;
+        }
         if (releasedOutside) {
           // Antes esto BORRABA al titular: un arrastre que se pasaba del borde y el jugador
           // desaparecía del 11 sin avisar. En la pizarra de plantilla la ficha simplemente se
