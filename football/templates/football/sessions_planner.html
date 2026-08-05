@@ -4260,7 +4260,36 @@
 			          <a class="button secondary" href="?tab=import&library_repo={{ library_repository }}#import-tareas">Importar tareas</a>
 			          <a class="button secondary" href="?tab=sessions&sessions_view=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Añadir a sesión</a>
 			        </div>
-			        <div class="folder-grid" aria-label="Carpetas de Biblioteca">
+			        {# RECOMENDADAS PARA ESTA SESIÓN. Va ARRIBA del todo y antes de las carpetas: el
+		           momento de recomendar es cuando estás eligiendo qué meter, no cuando ya has
+		           navegado media biblioteca. Cada tarjeta dice POR QUÉ se propone. #}
+		        {% if library_recommended %}
+		        <div class="library-reco" style="margin:0.6rem 0 0.9rem;padding:0.7rem 0.8rem;border:1px solid var(--border,rgba(148,163,184,0.35));border-radius:12px;">
+		          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;">
+		            <strong>🎯 Recomendadas para esta sesión</strong>
+		            {% if selected_session %}<span class="muted" style="font-size:0.8rem;">{{ selected_session.session_date|date:"d/m" }}{% if selected_session.focus %} · {{ selected_session.focus }}{% endif %}</span>{% endif %}
+		          </div>
+		          {# Decir QUÉ HUECO llenas cambia la lista entera: una tarea de vuelta a la calma
+		             no sirve para la parte principal. La ficha de sesión no tiene un "añadir a este
+		             bloque", así que se elige aquí, que es donde estás decidiendo. #}
+		          <div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.6rem;font-size:0.78rem;">
+		            <span class="muted">Para el bloque:</span>
+		            <a href="?{% qs_replace block=None lib_page=None %}" style="{% if not library_block %}font-weight:700;{% else %}opacity:0.7;{% endif %}">todos</a>
+		            {% for clave, nombre in library_block_options %}
+		              <a href="?{% qs_replace block=clave lib_page=None %}" style="{% if library_block == clave %}font-weight:700;{% else %}opacity:0.7;{% endif %}">{{ nombre }}</a>
+		            {% endfor %}
+		          </div>
+		          <div class="folder-grid">
+		            {% for t in library_recommended %}
+		            <a class="folder-card" href="{% url 'session-task-detail' t.id %}">
+		              <strong>{{ t.title|default:"Tarea" }}</strong>
+		              <span>{% if t.ai_trainer_why %}{{ t.ai_trainer_why }}{% else %}afinidad {{ t.ai_trainer_score|default:0 }}{% endif %}</span>
+		            </a>
+		            {% endfor %}
+		          </div>
+		        </div>
+		        {% endif %}
+		        <div class="folder-grid" aria-label="Carpetas de Biblioteca">
 			          <a
 			            class="folder-card {% if not library_source_tab %}is-current{% endif %}"
 			            href="?{% qs_replace tab='library' library_source=None library_view='overview' library_key=None lib_page=None %}"
