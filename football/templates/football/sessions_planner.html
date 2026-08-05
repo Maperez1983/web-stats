@@ -3286,7 +3286,10 @@
 		        {% if selected_session %}
 			        <section class="panel" id="planner-blocks">
 			          <h2>Tareas por bloque · <span style="color:var(--accent, #34d399);">{{ selected_session.focus|default:'Sesión' }}</span> <span style="font-weight:600; font-size:0.72em; opacity:0.75;">{{ selected_session.session_date|date:"d/m/Y" }}</span></h2>
-			          <p class="meta" style="margin:0 0 0.4rem;">Mostrando la sesión seleccionada. Para ver otra, pulsa <strong>✏️ Editar</strong> en su tarjeta de arriba.</p>
+			          <p class="meta" style="margin:0 0 0.4rem;">
+			            {% if selected_session_is_next %}Estás viendo <strong>la próxima sesión</strong>.{% else %}Estás viendo <strong>la última sesión</strong>.{% endif %}
+			            Para ver otra, pulsa <strong>✏️ Editar</strong> en su tarjeta de arriba.
+			          </p>
 			          {% if not selected_session_task_count %}
 			          <div class="alert" style="margin:0 0 0.6rem; border:1px dashed rgba(148,163,184,0.4);">Esta sesión aún <strong>no tiene tareas</strong> asignadas. Usa <strong>➕ Añadir desde Biblioteca</strong> o <strong>Crear (para esta sesión)</strong>, o selecciona otra sesión con tareas.</div>
 			          {% endif %}
@@ -3321,6 +3324,11 @@
 		            <input type="hidden" name="selected_session_id" value="{{ selected_session.id }}" />
 		            <input type="hidden" name="task_id" value="" />
 		          </form>
+		          {% comment %}Con la sesión vacía se pintaban las OCHO cajas de bloque diciendo "Sin
+		          tareas en este bloque": un muro de vacíos justo al final de la pantalla. Si no hay
+		          ninguna tarea no se pinta la rejilla; el aviso y los botones de arriba ya lo dicen.
+		          {% endcomment %}
+		          {% if selected_session_task_count %}
 		          <div class="editor-grid">
 		            {% for section in selected_session_task_sections %}
 		            <div class="editor-box" data-drop-block="{{ section.block_keys.0|default:'' }}">
@@ -3395,6 +3403,7 @@
 		            </div>
 		            {% endfor %}
 		          </div>
+		          {% endif %}
 		        </section>
 		        <script>
 		          (function () {
