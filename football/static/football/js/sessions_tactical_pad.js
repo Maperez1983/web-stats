@@ -33974,9 +33974,15 @@
 			    };
 
 		    const isGoalkeeperPlayer = (player) => {
+		      // Manda el servidor: su clasificador entiende Portero, POR, GK, guardameta y las
+		      // abreviaturas del club. Esta lista de aqui no las entendia -le faltaba 'POR', que
+		      // es justo la que usa la plantilla- y ningun portero se marcaba como tal: al
+		      // colocarlo, su equipacion gk_* se normalizaba a la de campo y salia como uno mas.
+		      if (player && typeof player.is_gk === 'boolean') return player.is_gk;
 		      const pos = safeText(player?.position, '').toLowerCase();
 		      if (!pos) return false;
-		      return pos.includes('portero') || pos === 'gk' || pos.includes('goalkeeper');
+		      return pos.includes('portero') || pos === 'gk' || pos === 'por'
+		        || pos.includes('goalkeeper') || pos.includes('guardameta');
 		    };
 
 		    // Plantilla: ocultar jugadores ya usados (para no duplicar chapas).
