@@ -34413,8 +34413,23 @@
             const cuenta = cuentaPorFila[fila] || 1;
             const left = centroX + pasoX * (enLaFila - (cuenta - 1) / 2);
             const top = margenY + pasoY * (fila + 0.5);
+            /* La representación ELEGIDA manda para todos.
+               Sin pasarla, el motor la decide jugador a jugador: quien tiene avatar o foto sale
+               en "foto" y el resto con el estilo global, así que "Todos" devolvía la plantilla
+               mezclada (unos con chapa, otros con foto) en vez de como la habías pedido. */
+            const estilo = normalizeTokenStyle(tokenGlobalStyle);
+            const opciones = { style: estilo };
+            if (estilo === 'sprite' || estilo === 'figure') {
+              // En figura/avatar, la imagen propia del jugador antes que el muñeco genérico.
+              const suyo = safeText(player?.assets?.kit_titular)
+                || (safeText(player?.display?.mode) === 'avatar' ? safeText(player?.display?.url) : '');
+              if (suyo) opciones.assetUrl = suyo;
+            } else if (estilo === 'photo') {
+              const foto = safeText(player?.display?.url) || safeText(player?.photo_url);
+              if (foto) opciones.photoUrl = foto;
+            }
             let token = null;
-            try { token = playerTokenFactory(kind, player)(left, top); } catch (error) { token = null; }
+            try { token = playerTokenFactory(kind, player, opciones)(left, top); } catch (error) { token = null; }
             if (!token) return;
             // Mismo tratamiento que da addObject, pero sin su pushHistory/setActiveObject por
             // ficha: con 20 jugadores eso llenaría el historial y haría falta deshacer 20 veces.
