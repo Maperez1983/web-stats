@@ -25,35 +25,42 @@
       .club-meta strong { color:#12201A; }
       .club-meta .staff { margin-top:6px; font-size:9px; color:#7C877E; line-height:1.35; }
 
-      .section { margin-top:14px; }
-      .section h2 { margin:0 0 8px; font-size:12px; color:#12201A; }
+      .section { margin-top:11px; }
+      .section h2 { margin:0 0 6px; font-size:12px; color:#12201A; }
       .section h2::before { content:""; display:inline-block; width:7px; height:7px; margin-right:7px; border-radius:50%; background:#0F8A4B; vertical-align:1px; }
       .section h2 .count { margin-left:6px; font-size:10px; font-weight:700; color:#7C877E; letter-spacing:.04em; text-transform:uppercase; }
 
-      .hint { margin-top:6px; font-size:9px; color:#7C877E; font-weight:600; }
+      /* El campo, algo mas estrecho: es lo que hace que la convocatoria quepa en una sola hoja. */
+      .pitch-wrap { width:92%; margin:0 auto; }
 
-      .table { width:100%; border-collapse:collapse; }
-      .table th, .table td { border-bottom:1px solid #E2E9E1; padding:5px 6px; font-size:11px; vertical-align:middle; }
-      .table th { text-align:left; color:#7C877E; font-size:9px; letter-spacing:.06em; text-transform:uppercase; font-weight:800; }
-      .table tr { break-inside:avoid; page-break-inside:avoid; }
-      .table .num { width:34px; text-align:center; font-weight:800; font-variant-numeric:tabular-nums; }
-      .line-head td { padding:9px 6px 3px; border-bottom:1px solid #D3DCD3; font-size:9px; letter-spacing:.08em; text-transform:uppercase; font-weight:800; color:#0A5E33; }
-      .line-head td span { color:#7C877E; font-weight:700; }
+      /* Números de cabecera: cuántos van y cómo se reparten por puesto. */
+      .kpis { display:flex; gap:6px; margin-top:10px; }
+      .kpi { flex:1; min-width:0; border:1px solid #D3DCD3; border-radius:11px; padding:7px 6px; text-align:center; background:#fff; }
+      .kpi.is-main { background:#F3F7F2; border-color:#BBD6C3; }
+      .kpi .v { display:block; font-size:22px; font-weight:800; line-height:1; color:#12201A; }
+      .kpi.is-main .v { color:#0A5E33; }
+      .kpi .l { display:block; margin-top:5px; font-size:8px; letter-spacing:.08em; text-transform:uppercase; font-weight:800; color:#4B584F; }
+      .kpi .h { display:block; margin-top:2px; font-size:7px; color:#7C877E; font-weight:700; }
 
-      .who { display:flex; align-items:center; gap:8px; min-width:0; }
+      /* Listado a dos columnas: 20 convocados caben en la misma hoja que el campo. */
+      .roster { display:flex; gap:10px; align-items:flex-start; }
+      .roster-col { width:50%; }
+      .line-block { break-inside:avoid; page-break-inside:avoid; margin-bottom:8px; }
+      .line-title { display:flex; justify-content:space-between; align-items:baseline; padding-bottom:3px; border-bottom:1px solid #D3DCD3; font-size:9px; letter-spacing:.08em; text-transform:uppercase; font-weight:800; color:#0A5E33; }
+      .line-title span { color:#7C877E; }
+      .row { display:flex; align-items:center; gap:7px; padding:4px 2px; border-bottom:1px solid #EEF3EE; break-inside:avoid; page-break-inside:avoid; }
+      .row .num { width:20px; flex:none; text-align:center; font-size:10px; font-weight:800; color:#12201A; font-variant-numeric:tabular-nums; }
       /* Sin atajo `background:` con posición/tamaño: WeasyPrint es quisquilloso; propiedades sueltas. */
-      .who .avatar { width:22px; height:22px; flex:none; border-radius:999px; border:1px solid #D3DCD3; background-color:#F3F7F2; background-repeat:no-repeat; background-position:center; background-size:cover; color:#4B584F; font-size:8px; font-weight:800; letter-spacing:.04em; display:flex; align-items:center; justify-content:center; }
-      .who strong { font-size:11px; font-weight:800; color:#12201A; }
-      .tag { display:inline-block; margin-left:5px; padding:1px 5px; border-radius:999px; background:#0F8A4B; color:#fff; font-size:7px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; vertical-align:1px; }
+      .row .avatar { width:20px; height:20px; flex:none; border-radius:999px; border:1px solid #D3DCD3; background-color:#F3F7F2; background-repeat:no-repeat; background-position:center; background-size:cover; color:#4B584F; font-size:7px; font-weight:800; display:flex; align-items:center; justify-content:center; }
+      .row .who { flex:1; min-width:0; }
+      .row .who strong { display:block; font-size:10px; font-weight:800; color:#12201A; line-height:1.15; }
+      .row .who small { display:block; font-size:8px; color:#7C877E; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+      .row .state { flex:none; font-size:8px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
+      .state.lesionado { color:#B43C32; } .state.sancionado { color:#B87614; } .state.a-prueba { color:#B87614; }
+      .tag { display:inline-block; margin-left:4px; padding:0 4px; border-radius:999px; background:#0F8A4B; color:#fff; font-size:6px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; vertical-align:2px; }
       .tag.gk { background:#356FA6; }
-      .pos { color:#4B584F; font-weight:700; font-size:10px; }
-      .state { font-size:10px; font-weight:800; }
-      .state.available { color:#0A5E33; } .state.trial { color:#B87614; } .state.injured { color:#B43C32; }
 
-      .photo { margin-top:8px; border:1px solid #D3DCD3; border-radius:12px; overflow:hidden; background:#0b1220; break-inside:avoid; page-break-inside:avoid; }
-      .photo img { display:block; width:100%; height:62mm; object-fit:cover; object-position:center top; }
-
-      .foot { margin-top:14px; border-top:1px solid #D3DCD3; padding-top:10px; display:flex; justify-content:space-between; align-items:center; }
+      .foot { margin-top:10px; border-top:1px solid #D3DCD3; padding-top:7px; display:flex; justify-content:space-between; align-items:center; }
       .foot .muted { color:#7C877E; font-size:10px; }
     </style>
   </head>
@@ -86,66 +93,88 @@
       </div>
     </div>
 
+    {% if convocation_kpis %}
+    <div class="kpis">
+      {% for card in convocation_kpis %}
+        <div class="kpi{% if card.strong %} is-main{% endif %}">
+          <span class="v">{{ card.value }}</span>
+          <span class="l">{{ card.label }}</span>
+          {% if card.hint %}<span class="h">{{ card.hint }}</span>{% endif %}
+        </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
     {% if coach_pitch_players %}
     <div class="section">
       <h2>Convocados en el campo<span class="count">{{ coach_pitch_players|length }} jugadores</span></h2>
       {# Misma pizarra y misma superficie de césped que el resto de la app (chips ya posicionados). #}
-      {% include 'football/_coach_pitch_board_pdf.html' %}
-      <div class="hint">Cada jugador ocupa su posición en la pizarra del equipo. El estado de cada uno está en el listado.</div>
+      <div class="pitch-wrap">{% include 'football/_coach_pitch_board_pdf.html' %}</div>
     </div>
     {% endif %}
 
     <div class="section">
       <h2>Jugadores convocados<span class="count">{{ players|length }} en la lista</span></h2>
-      <table class="table">
-        <thead>
-          <tr><th class="num">#</th><th>Jugador</th><th>Posición</th><th>Estado</th></tr>
-        </thead>
-        <tbody>
-          {% for line in convocation_lines %}
-          <tr class="line-head"><td colspan="4">{{ line.label }} <span>· {{ line.total }}</span></td></tr>
+      {% if convocation_lines %}
+      {# Portería y defensa a la izquierda; del medio hacia arriba, a la derecha. Mismo orden que el campo. #}
+      <div class="roster">
+        <div class="roster-col">
+          {% for line in convocation_lines %}{% if line.key == 'gk' or line.key == 'def' %}
+          <div class="line-block">
+            <div class="line-title">{{ line.label }} <span>{{ line.total }}</span></div>
             {% for p in line.players %}
-            <tr>
-              <td class="num">{{ p.number|default:"–" }}</td>
-              <td>
-                <div class="who">
-                  <div class="avatar"{% if p.photo_data_uri %} style="background-image:url('{{ p.photo_data_uri }}');color:transparent;"{% endif %}>{% if not p.photo_data_uri %}{{ p.initials }}{% endif %}</div>
-                  <strong>{{ p.name }}</strong>
-                  {% if p.is_captain %}<span class="tag">Capitán</span>{% endif %}
-                  {% if p.is_goalkeeper %}<span class="tag gk">Portero titular</span>{% endif %}
-                </div>
-              </td>
-              <td class="pos">{{ p.position|default:"–" }}</td>
-              <td class="state {{ p.state }}">{{ p.state_label|default:"–" }}</td>
-            </tr>
+            <div class="row">
+              <div class="num">{{ p.number|default:"–" }}</div>
+              <div class="avatar"{% if p.photo_data_uri %} style="background-image:url('{{ p.photo_data_uri }}');color:transparent;"{% endif %}>{% if not p.photo_data_uri %}{{ p.initials }}{% endif %}</div>
+              <div class="who">
+                <strong>{{ p.name }}{% if p.is_captain %}<span class="tag">Capitán</span>{% endif %}{% if p.is_goalkeeper %}<span class="tag gk">Portero</span>{% endif %}</strong>
+                <small>{{ p.position|default:"Sin definir" }}</small>
+              </div>
+              {% if p.state_label and p.state_label != 'Disponible' %}<div class="state {{ p.state_label|slugify }}">{{ p.state_label }}</div>{% endif %}
+            </div>
             {% endfor %}
-          {% empty %}
-            {% for p in players %}
-            <tr>
-              <td class="num">{{ p.number|default:"–" }}</td>
-              <td>
-                <div class="who">
-                  <div class="avatar"{% if p.photo_data_uri %} style="background-image:url('{{ p.photo_data_uri }}');color:transparent;"{% endif %}>{% if not p.photo_data_uri %}{{ p.initials }}{% endif %}</div>
-                  <strong>{{ p.name }}</strong>
-                  {% if p.is_captain %}<span class="tag">Capitán</span>{% endif %}
-                  {% if p.is_goalkeeper %}<span class="tag gk">Portero titular</span>{% endif %}
-                </div>
-              </td>
-              <td class="pos">{{ p.position|default:"–" }}</td>
-              <td class="state">–</td>
-            </tr>
+          </div>
+          {% endif %}{% endfor %}
+        </div>
+        <div class="roster-col">
+          {% for line in convocation_lines %}{% if line.key != 'gk' and line.key != 'def' %}
+          <div class="line-block">
+            <div class="line-title">{{ line.label }} <span>{{ line.total }}</span></div>
+            {% for p in line.players %}
+            <div class="row">
+              <div class="num">{{ p.number|default:"–" }}</div>
+              <div class="avatar"{% if p.photo_data_uri %} style="background-image:url('{{ p.photo_data_uri }}');color:transparent;"{% endif %}>{% if not p.photo_data_uri %}{{ p.initials }}{% endif %}</div>
+              <div class="who">
+                <strong>{{ p.name }}{% if p.is_captain %}<span class="tag">Capitán</span>{% endif %}{% if p.is_goalkeeper %}<span class="tag gk">Portero</span>{% endif %}</strong>
+                <small>{{ p.position|default:"Sin definir" }}</small>
+              </div>
+              {% if p.state_label and p.state_label != 'Disponible' %}<div class="state {{ p.state_label|slugify }}">{{ p.state_label }}</div>{% endif %}
+            </div>
             {% endfor %}
+          </div>
+          {% endif %}{% endfor %}
+        </div>
+      </div>
+      {% else %}
+      {# Sin pizarra (sin equipo resuelto): al menos la lista, en el mismo formato. #}
+      <div class="roster">
+        <div class="roster-col">
+          {% for p in players %}
+          <div class="row">
+            <div class="num">{{ p.number|default:"–" }}</div>
+            <div class="avatar"{% if p.photo_data_uri %} style="background-image:url('{{ p.photo_data_uri }}');color:transparent;"{% endif %}>{% if not p.photo_data_uri %}{{ p.initials }}{% endif %}</div>
+            <div class="who"><strong>{{ p.name }}</strong><small>{{ p.position|default:"Sin definir" }}</small></div>
+          </div>
           {% endfor %}
-        </tbody>
-      </table>
+        </div>
+      </div>
+      {% endif %}
     </div>
 
-    {% if team_photo_data_uri %}
-    <div class="section">
-      <h2>El equipo</h2>
-      <div class="photo"><img src="{{ team_photo_data_uri }}" alt="Foto del equipo" /></div>
-    </div>
-    {% endif %}
+    {% comment %}
+      La foto de equipo se llevaba una hoja entera para ella sola. Una convocatoria se comparte y se
+      imprime: cabe en una sola página, y ahí gana más que la foto.
+    {% endcomment %}
 
     <div class="foot">
       <div class="muted">Generado: {{ generated_at|date:"d/m/Y H:i" }}</div>
