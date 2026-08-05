@@ -64,11 +64,17 @@ RADIO_FICHA = 22
 PIEZAS = {
     'player_local': {'color': '#2f7d32', 'borde': '#f8fafc', 'radio': RADIO_FICHA},
     'player_rival': {'color': '#e03127', 'borde': '#f8fafc', 'radio': RADIO_FICHA},
-    'goalkeeper_local': {'color': '#f4b400', 'borde': '#0f172a', 'radio': RADIO_FICHA},
+    # El comodín NO es de ningún equipo: juega con quien tenga la pelota, así que no puede salir
+    # del color de los locales como si fuera uno más.
+    'player_joker': {'color': '#facc15', 'borde': '#0f172a', 'radio': RADIO_FICHA},
+    'goalkeeper_local': {'color': '#0ea5e9', 'borde': '#f8fafc', 'radio': RADIO_FICHA},
     'goalkeeper_rival': {'color': '#a855f7', 'borde': '#f8fafc', 'radio': RADIO_FICHA},
     'cone': {'color': '#f97316', 'borde': '#7c2d12', 'radio': 9},
     'ball': {'color': '#f8fafc', 'borde': '#0f172a', 'radio': 8},
 }
+# Las porterías pequeñas que el libro dibuja DENTRO del espacio reducido. Las del campo, al
+# fondo, no sirven: la tarea se juega en el cuadrado, no en el campo entero.
+PORTERIA = {'ancho': 14, 'alto': 86, 'color': '#f8fafc'}
 
 
 def _ficha(kind, left, top, label=''):
@@ -100,6 +106,20 @@ def _normalizar_objeto(obj):
     kind = str((salida.get('data') or {}).get('kind') or '').strip().lower()
     left = salida.get('left', 0)
     top = salida.get('top', 0)
+
+    if kind in {'goal', 'goal_mini'}:
+        # Portería pequeña dentro del espacio: un rectángulo estrecho con su marco.
+        alto = float(salida.pop('height', 0) or PORTERIA['alto'])
+        ancho = float(salida.pop('width', 0) or PORTERIA['ancho'])
+        salida['type'] = 'rect'
+        salida['left'] = left - ancho / 2
+        salida['top'] = top - alto / 2
+        salida['width'] = ancho
+        salida['height'] = alto
+        salida.setdefault('fill', 'rgba(248,250,252,0.28)')
+        salida.setdefault('stroke', PORTERIA['color'])
+        salida.setdefault('strokeWidth', 4)
+        return salida
 
     if kind in PIEZAS:
         etiqueta = str((salida.get('data') or {}).get('label') or '')

@@ -259,3 +259,44 @@ class SubzonasQueSeDibujanTests(TestCase):
         o = self._linea({'type': 'line', 'x1': 1, 'y1': 2, 'x2': 3, 'y2': 4,
                          'data': {'kind': 'line_solid'}})
         self.assertEqual((o['x1'], o['y1'], o['x2'], o['y2']), (1, 2, 3, 4))
+
+
+class PorteriasYComodinesTests(TestCase):
+    """El comodín no es de ningún equipo y las porterías van DENTRO del espacio.
+
+    El comodín juega con quien tenga la pelota, así que pintarlo del color de los locales lo
+    hace parecer uno más. Y las tareas del libro se juegan en un cuadrado con porterías
+    pequeñas dentro: las del campo, al fondo, no son las de la tarea.
+    """
+
+    def setUp(self):
+        self.team = Team.objects.create(name='C.D. Piezas 2', slug='cd-piezas-2', is_primary=True)
+
+    def _pieza(self, obj):
+        importar_fichas(self.team, [{'titulo': 'Pieza', 'objetos': [obj]}])
+        tarea = SessionTask.objects.get(title='Pieza')
+        return tarea.tactical_layout['meta']['graphic_editor']['canvas_state']['objects'][0]
+
+    def test_el_comodin_no_es_del_color_de_los_locales(self):
+        comodin = self._pieza({'type': 'group', 'data': {'kind': 'player_joker', 'label': 'C'}})
+        SessionTask.objects.all().delete()
+        local = self._pieza({'type': 'group', 'data': {'kind': 'player_local'}})
+        self.assertNotEqual(comodin['objects'][0]['fill'], local['objects'][0]['fill'])
+
+    def test_el_comodin_lleva_su_marca(self):
+        o = self._pieza({'type': 'group', 'data': {'kind': 'player_joker', 'label': 'C'}})
+        textos = [h for h in o['objects'] if h.get('type') == 'text']
+        self.assertEqual(textos[0]['text'], 'C')
+
+    def test_la_porteria_se_dibuja_centrada_donde_se_pide(self):
+        o = self._pieza({'type': 'group', 'left': 300, 'top': 360, 'data': {'kind': 'goal'}})
+        self.assertEqual(o['type'], 'rect')
+        self.assertEqual(o['left'] + o['width'] / 2, 300)
+        self.assertEqual(o['top'] + o['height'] / 2, 360)
+        self.assertTrue(o['stroke'])
+
+    def test_los_porteros_se_distinguen_entre_si(self):
+        local = self._pieza({'type': 'group', 'data': {'kind': 'goalkeeper_local', 'label': 'P'}})
+        SessionTask.objects.all().delete()
+        rival = self._pieza({'type': 'group', 'data': {'kind': 'goalkeeper_rival', 'label': 'P'}})
+        self.assertNotEqual(local['objects'][0]['fill'], rival['objects'][0]['fill'])
