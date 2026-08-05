@@ -2522,7 +2522,8 @@
             <button class="roster-filter" type="button" data-roster-filter="mid">Medios</button>
             <button class="roster-filter" type="button" data-roster-filter="fwd">Ataque</button>
           </div>
-          <p class="player-list-summary">Toca una posición vacía del campo y después el jugador que quieres colocar.</p>
+          {# Decía el orden al revés de lo que hace: primero se elige al jugador y luego dónde va. #}
+          <p class="player-list-summary">Toca a un jugador de la lista y luego el sitio del campo donde lo quieres. Ya colocado, arrastra su ficha para moverlo.</p>
           <div class="players" id="player-list">
             {% for player in convocation_players %}
             <label class="player-card" data-player-id="{{ player.id }}" data-player-name="{{ player.name|upper|escape }}" data-player-number="{{ player.number|default:'--' }}" data-player-position="{% if player.position %}{{ player.position|display_position|escape }}{% endif %}" data-player-photo="{{ player.photo_url|default:''|escape }}" data-player-avatar="{{ player.avatar_url|default:''|escape }}">
@@ -2600,7 +2601,7 @@
               Modo libre: toca un jugador en la lista y luego toca el campo para colocarlo. Después puedes arrastrar su ficha para ajustar la posición.
             </p>
             <p class="field-help">
-              Con el “Imán” activo, al soltar una ficha cerca de una posición del esquema se ajusta automáticamente. Para quitar un titular, arrastra su ficha fuera del campo o haz doble toque.
+              Con el “Imán” activo, al soltar una ficha cerca de una posición del esquema se ajusta automáticamente. Para quitar a un titular, doble toque sobre su ficha o desmárcalo en la lista.
             </p>
           </details>
 	          <p class="status {% if has_pending_convocation or has_pending_lineup %}warn{% endif %}" id="status-msg">
@@ -4136,9 +4137,15 @@
         } catch (_) {}
         dragState = null;
         if (releasedOutside) {
+          // Antes esto BORRABA al titular: un arrastre que se pasaba del borde y el jugador
+          // desaparecía del 11 sin avisar. En la pizarra de plantilla la ficha simplemente se
+          // queda dentro, y aquí igual. Para quitar a alguien está el doble toque y la lista.
           manualMode = true;
-          removeStarter(pid);
           renderField();
+          // Después de renderField, que reescribe el estado: si no, este aviso no se llega a ver.
+          statusMsg.textContent = 'La ficha se queda en el campo. Para quitar a un titular, doble toque sobre su ficha.';
+          statusMsg.classList.remove('ok');
+          statusMsg.classList.add('warn');
           return;
         }
         if (!moved) {
