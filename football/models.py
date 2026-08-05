@@ -2347,6 +2347,9 @@ class RivalPlayer(models.Model):
     """
 
     SOURCE_LAPREFERENTE = 'lapreferente'
+    # Alta a mano desde la ficha del rival: para equipos sin plantilla publicada
+    # (amistosos, canteras) y para completar lo que la fuente no trae.
+    SOURCE_MANUAL = 'manual'
 
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='rival_players')
     source = models.CharField(max_length=20, default=SOURCE_LAPREFERENTE)

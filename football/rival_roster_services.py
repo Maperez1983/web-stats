@@ -284,7 +284,13 @@ def import_rival_squad(rival_team, rows, *, season_label="", replace_missing=Tru
         updated += 0 if was_created else 1
     deactivated = 0
     if replace_missing:
-        stale = RivalPlayer.objects.filter(team=rival_team, is_active=True).exclude(id__in=seen_ids)
+        # Los jugadores dados de alta a mano NO se tocan: la fuente no los conoce y, sin esto,
+        # la importacion semanal los daria de baja en cuanto pasara por ese equipo.
+        stale = (
+            RivalPlayer.objects.filter(team=rival_team, is_active=True)
+            .exclude(id__in=seen_ids)
+            .exclude(source=RivalPlayer.SOURCE_MANUAL)
+        )
         deactivated = stale.count()
         stale.update(is_active=False)
     return {"created": created, "updated": updated, "deactivated": deactivated, "matched": matched}

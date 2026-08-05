@@ -21,6 +21,24 @@
       .ri-nm { color:var(--prod-text); font-weight:800; }
       .ri-n { color:#7dd3fc; font-weight:900; font-size:.9rem; }
       .ri-empty { color:#94a3b8; }
+      .ri-tools { display:flex; gap:.8rem; flex-wrap:wrap; align-items:flex-start; margin:.9rem 0 1rem; }
+      .ri-find { display:flex; gap:.4rem; }
+      .ri-find input { min-width:min(320px, 70vw); padding:.55rem .7rem; border-radius:10px;
+        border:1px solid var(--fm-line, rgba(148,163,184,.25)); background:var(--fm-panel-2, rgba(255,255,255,.04)); color:inherit; }
+      .ri-new > summary { list-style:none; cursor:pointer; }
+      .ri-new > summary::-webkit-details-marker { display:none; }
+      .ri-new-form { display:grid; gap:.5rem; margin-top:.6rem; padding:.8rem; border-radius:14px;
+        border:1px solid var(--fm-line, rgba(148,163,184,.25)); background:var(--fm-panel, rgba(255,255,255,.03)); max-width:340px; }
+      .ri-new-form label { display:grid; gap:.25rem; font-size:.74rem; font-weight:800; }
+      .ri-new-form input { padding:.5rem .6rem; border-radius:10px; border:1px solid var(--fm-line, rgba(148,163,184,.25));
+        background:var(--fm-panel-2, rgba(255,255,255,.04)); color:inherit; font:inherit; }
+      .ri-hint { font-size:.72rem; opacity:.75; margin:0; }
+      .rv-flash { display:grid; gap:.4rem; margin:.6rem 0 .9rem; }
+      .rv-flash-item { margin:0; padding:.6rem .8rem; border-radius:12px; font-weight:700; font-size:.85rem;
+        border:1px solid var(--fm-line, rgba(148,163,184,.25)); background:var(--fm-panel, rgba(255,255,255,.04)); }
+      .rv-flash-item.success { border-color:rgba(34,197,94,.45); }
+      .rv-flash-item.error { border-color:rgba(220,38,38,.45); }
+      :root[data-theme="light"] .rv-flash-item { background:#ffffff; }
     </style>
   </head>
   <body class="prod-commercial">
@@ -29,8 +47,34 @@
       <main class="ri-wrap">
         {% include 'football/includes/_zone_subnav.html' with zone='direccion' %}
         <h1 class="ri-h1" style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>Rivales de la liga</span></h1>
-        <p class="ri-sub">Plantillas rivales importadas · trabajan con Análisis, Dirección y Partido</p>
+        <p class="ri-sub">Todos los equipos que no son tuyos: los de la liga y los de amistosos. Trabajan con Análisis, Dirección y Partido.</p>
         {% include 'football/includes/_zone_chips.html' with chips=zone_chips %}
+        {% if messages %}
+        <div class="rv-flash">
+          {% for m in messages %}<p class="rv-flash-item{% if m.tags %} {{ m.tags }}{% endif %}">{{ m }}</p>{% endfor %}
+        </div>
+        {% endif %}
+
+        {% comment %}Antes esta lista salia de los jugadores importados, asi que un rival de
+        amistoso no aparecia en ninguna pantalla aunque existiera con su id.{% endcomment %}
+        <div class="ri-tools">
+          <form method="get" class="ri-find">
+            <input type="search" name="q" value="{{ rival_query }}" placeholder="Buscar equipo por nombre o ciudad…" aria-label="Buscar equipo" />
+            <button class="btn" type="submit">Buscar</button>
+            {% if rival_query %}<a class="btn ghost" href="{% url 'rival-players-index' %}">Ver todos</a>{% endif %}
+          </form>
+          <details class="ri-new">
+            <summary class="btn">+ Equipo nuevo</summary>
+            <form method="post" action="{% url 'rival-team-create' %}" class="ri-new-form">
+              {% csrf_token %}
+              <label>Nombre <input name="name" required maxlength="150" placeholder="U.D. La Mosca" /></label>
+              <label>Categoría <input name="category" maxlength="60" placeholder="Juvenil" /></label>
+              <label>Ciudad <input name="city" maxlength="100" placeholder="Málaga" /></label>
+              <button class="btn primary" type="submit">Crear equipo</button>
+              <p class="ri-hint">Si ya existe uno con ese nombre, te lleva al suyo en vez de duplicarlo.</p>
+            </form>
+          </details>
+        </div>
         {% if rival_teams %}
         <div class="ri-grid">
           {% for t in rival_teams %}
