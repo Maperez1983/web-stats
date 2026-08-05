@@ -1073,8 +1073,16 @@
         width: 100%;
         height: 100%;
         object-fit: cover;
-        object-position: 50% 22%;
+        /* 18% desde arriba = medio cuerpo, el mismo encuadre que la pizarra. Con la figura
+           entera dentro de 54 px la cara se quedaba en unos pocos pixeles. */
+        object-position: 50% 18%;
         display: block;
+      }
+      .xi-chip-disc img.is-chapa {
+        object-fit: contain;
+        object-position: 50% 50%;
+        background: none;
+        padding: 0;
       }
       .xi-chip-disc img.is-kit {
         object-fit: contain;
@@ -2603,6 +2611,7 @@
             <label>Ficha</label>
             <div class="xi-seg" role="group" aria-label="Estilo de ficha">
               <button type="button" data-token-style="chapa" id="ts-chapa">Chapa</button>
+              <button type="button" data-token-style="camiseta" id="ts-camiseta">Camiseta</button>
               <button type="button" data-token-style="foto" id="ts-foto">Foto</button>
               <button type="button" data-token-style="avatar" id="ts-avatar">Avatar</button>
             </div>
@@ -3053,6 +3062,17 @@
       }
       function xiFitColor(pct) { return pct >= 70 ? 'var(--prod-success)' : (pct >= 55 ? '#e2a53a' : 'var(--prod-danger)'); }
 
+      // Las MISMAS chapas que la pizarra: PNG con el escudo del club, uno por
+      // equipacion. Hasta ahora el 11 llamaba "chapa" a la camiseta, asi que la misma
+      // palabra ensenaba dos cosas distintas segun la pantalla.
+      const CHAPA_URLS = {
+        local: '{% static "football/images/chapa/chapa_local.png" %}',
+        away: '{% static "football/images/chapa/chapa_away.png" %}',
+        gk: '{% static "football/images/chapa/chapa_gk_azul.png" %}',
+      };
+      function chapaUrlForLineupRole(role) {
+        return String(role || '').toLowerCase() === 'gk' ? CHAPA_URLS.gk : CHAPA_URLS.local;
+      }
       function kit2dUrlForLineupRole(role) {
         const normalized = String(role || '').toLowerCase();
         if (normalized === 'gk') return lineupKit2dDataUrls.gk || lineupKit2dDataUrls.gk2 || lineupKit2dDataUrls.gk3 || lineupKit2dDataUrls.home || lineupKit2dDataUrl || fallbackKitDataUrl('gk');
@@ -3765,9 +3785,14 @@
           const imgFoto = photoSafe ? `<img src='${photoSafe}' alt="" loading="lazy" />` : '';
           const imgAvatar = avatarSafe ? `<img src='${avatarSafe}' alt="" loading="lazy" />` : '';
           const imgKit = kitSafe ? `<img class="is-kit" src='${kitSafe}' alt="" loading="lazy" />` : '';
-          if (tokenStyle === 'foto') discImg = imgFoto || imgAvatar || imgKit;
-          else if (tokenStyle === 'avatar') discImg = imgAvatar || imgKit || imgFoto;
-          else discImg = imgKit || imgAvatar || imgFoto; // chapa
+          const chapaSafe = String(chapaUrlForLineupRole(role) || '').trim().replace(/'/g, '%27');
+          const imgChapa = chapaSafe ? `<img class="is-chapa" src='${chapaSafe}' alt="" loading="lazy" />` : '';
+          // Mismo orden de preferencia que la pizarra, y "camiseta" pasa a ser un estilo
+          // propio en vez de esconderse detras de "chapa".
+          if (tokenStyle === 'foto') discImg = imgFoto || imgAvatar || imgChapa;
+          else if (tokenStyle === 'avatar') discImg = imgAvatar || imgFoto || imgChapa;
+          else if (tokenStyle === 'camiseta') discImg = imgKit || imgChapa || imgAvatar;
+          else discImg = imgChapa || imgKit || imgAvatar || imgFoto; // chapa
           const numTxt = (num && num !== '--') ? num : '';
           wrap.innerHTML = `
             <div class="xi-chip xi-chip--${role}">
