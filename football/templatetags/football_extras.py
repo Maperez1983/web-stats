@@ -1,3 +1,5 @@
+import re
+
 from django import template
 
 from football.event_taxonomy import normalize_label
@@ -141,7 +143,14 @@ def display_venue(value, max_len=60):
     text = " ".join(str(value or "").strip().split())
     if not text:
         return ""
-    if text.lower().startswith(("http://", "https://", "www.")):
+    # Sin espacios: al copiar del móvil la URL llega troceada ("Https: //www. google. com/…"),
+    # así que comparar el texto tal cual no la reconoce.
+    compact = re.sub(r"\s+", "", text).lower()
+    if (
+        compact.startswith(("http://", "https://", "www."))
+        or "://" in compact
+        or re.search(r"[a-z0-9-]+\.(com|es|net|org|app|io)/", compact)
+    ):
         return "Ver ubicación (enlace)"
     try:
         limit = max(20, int(max_len))
