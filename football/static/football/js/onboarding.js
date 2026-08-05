@@ -37,7 +37,7 @@
         var kit2dFileInputs = Array.prototype.slice.call(document.querySelectorAll('input[data-kit2d-slot]') || []);
         var kit2dSave = document.getElementById('kit2d-direct-save');
         var kit2dStatus = document.getElementById('kit2d-direct-status');
-        var kit2dSlots = ['home', 'away', 'third', 'gk', 'gk2', 'gk3'];
+        var kit2dSlots = ['home', 'away', 'third', 'entreno', 'gk', 'gk2', 'gk3'];
         var kit2dGkGenerateButtons = Array.prototype.slice.call(document.querySelectorAll('button[data-kit2d-gk-target][data-kit2d-gk-source]') || []);
         var kit2dTemplateButtons = Array.prototype.slice.call(document.querySelectorAll('button[data-kit2d-template-slot]') || []);
         var kit2dExistingValue = {};
@@ -318,6 +318,12 @@
               trim: (document.getElementById('id_kit_home_main') || {}).value || '#06814d'
             };
           }
+          if (slot === 'entreno') {
+            return {
+              main: (document.getElementById('id_kit_home_main') || {}).value || '#06814d',
+              trim: (document.getElementById('id_kit_home_trim') || {}).value || '#ffffff'
+            };
+          }
           if (slot === 'gk' || slot === 'gk2' || slot === 'gk3') {
             if (slot === 'gk2') {
               return {
@@ -345,6 +351,7 @@
         function kit2dSlotLabel(slot) {
           if (slot === 'away') return '2ª equipación';
           if (slot === 'third') return '3ª equipación';
+          if (slot === 'entreno') return 'equipación de entrenamiento';
           if (slot === 'gk') return 'portero 1';
           if (slot === 'gk2') return 'portero 2';
           if (slot === 'gk3') return 'portero 3';
@@ -512,6 +519,7 @@
               setKit2dPreview('home', value.home_club_data_url || value.club_data_url || '');
               setKit2dPreview('away', value.away_club_data_url || '');
               setKit2dPreview('third', value.third_club_data_url || '');
+              setKit2dPreview('entreno', value.entreno_club_data_url || value.training_club_data_url || '');
               setKit2dPreview('gk', value.gk_club_data_url || value.goalkeeper_club_data_url || '');
               setKit2dPreview('gk2', value.gk2_club_data_url || '');
               setKit2dPreview('gk3', value.gk3_club_data_url || '');

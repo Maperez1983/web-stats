@@ -449,6 +449,17 @@
                 <button class="btn btn-ghost kit2d-small-btn" type="button" data-kit2d-template-slot="third">Generar con colores</button>
               </div>
               <div class="kit2d-card">
+                {% comment %}La de entrenar no es una equipación de partido, pero es la que más
+                se ve en la pizarra: casi todo lo que se dibuja son sesiones.{% endcomment %}
+                <label for="id_kit2d_entreno_file">Entrenamiento</label>
+                <input id="id_kit2d_entreno_file" data-kit2d-slot="entreno" type="file" accept="image/png,image/webp,image/*" />
+                <div class="kit2d-preview">
+                  <img id="kit2d-entreno-preview" alt="Vista previa equipación de entrenamiento" />
+                  <span id="kit2d-entreno-empty" class="kit2d-empty">Sin kit</span>
+                </div>
+                <button class="btn btn-ghost kit2d-small-btn" type="button" data-kit2d-template-slot="entreno">Generar con colores</button>
+              </div>
+              <div class="kit2d-card">
                 <label for="id_kit2d_gk_file">Portero 1</label>
                 <input id="id_kit2d_gk_file" data-kit2d-slot="gk" type="file" accept="image/png,image/webp,image/*" />
                 <div class="kit2d-preview">
