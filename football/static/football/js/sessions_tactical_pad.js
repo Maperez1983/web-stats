@@ -34107,11 +34107,11 @@
           return badge;
         };
 
-		    const renderPlayerBank = () => {
-		      if (!playerBank) return;
-		      playerBank.innerHTML = '';
-          try { playerBank.classList.remove('is-empty'); } catch (e) { /* ignore */ }
-		      let roster = (Array.isArray(players) ? players.slice() : []);
+        /* La plantilla que se ve AHORA con los filtros puestos (Campo/Porteros, estado, confirmados).
+           Vive aparte porque la usan dos cosas: pintar el banco y "Añadir todos"; si cada una
+           filtrase por su cuenta, el botón acabaría metiendo jugadores que no estás viendo. */
+        const rosterForCurrentFilters = () => {
+          let roster = (Array.isArray(players) ? players.slice() : []);
           if (rosterViewFilter === 'field') {
             roster = roster.filter((p) => !isGoalkeeperPlayer(p));
           } else if (rosterViewFilter === 'goalkeepers') {
@@ -34120,9 +34120,17 @@
           if (rosterStatusFilter && rosterStatusFilter !== 'all') {
             roster = roster.filter((p) => safeText(p?.estado) === rosterStatusFilter);
           }
-		      if (onlyConfirmedPlayersEnabled && confirmedPlayerIdSet.size > 0) {
-		        roster = roster.filter((p) => confirmedPlayerIdSet.has(String(p?.id || '')));
-		      }
+          if (onlyConfirmedPlayersEnabled && confirmedPlayerIdSet.size > 0) {
+            roster = roster.filter((p) => confirmedPlayerIdSet.has(String(p?.id || '')));
+          }
+          return roster;
+        };
+
+		    const renderPlayerBank = () => {
+		      if (!playerBank) return;
+		      playerBank.innerHTML = '';
+          try { playerBank.classList.remove('is-empty'); } catch (e) { /* ignore */ }
+		      let roster = rosterForCurrentFilters();
           if (!roster.length) {
             try { playerBank.classList.add('is-empty'); } catch (e) { /* ignore */ }
             const empty = document.createElement('div');
@@ -34306,6 +34314,109 @@
           syncQuickBarUi();
 		      schedulePlayerBankUpdate();
 		    };
+
+        /* "Añadir todos": la plantilla entera al campo de una vez.
+           Para una tarea física (rondos, circuitos, series) hay que colocar 20 fichas una a una,
+           que es media hora de clics para un dibujo que luego se reordena a mano igual. Esto las
+           reparte en una rejilla y ya las mueves donde quieras.
+           Respeta lo que estás viendo: usa los filtros del banco y NO repite a quien ya está
+           puesto (mismo criterio que "Ocultar usados"). Se añade todo con UN solo punto de
+           historial: deshacer una vez lo quita entero, no ficha a ficha. */
+        const addAllPlayersToPitch = () => {
+          const used = computeUsedPlayerIds();
+          const pendientes = rosterForCurrentFilters()
+            .filter((player) => {
+              const pid = String(player?.id || '');
+              return pid && !used.has(pid);
+            })
+            .sort((a, b) => {
+              const aGk = isGoalkeeperPlayer(a) ? 1 : 0;
+              const bGk = isGoalkeeperPlayer(b) ? 1 : 0;
+              if (aGk !== bGk) return bGk - aGk;
+              const na = Number.parseInt(String(a?.number || ''), 10);
+              const nb = Number.parseInt(String(b?.number || ''), 10);
+              if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
+              if (Number.isFinite(na)) return -1;
+              if (Number.isFinite(nb)) return 1;
+              return safeText(a?.name).localeCompare(safeText(b?.name));
+            });
+          if (!pendientes.length) {
+            setStatus('No queda ningún jugador por colocar con los filtros de ahora mismo.', true);
+            return;
+          }
+          const { w, h } = worldSize();
+          const ancho = Number(w) || 0;
+          const alto = Number(h) || 0;
+          if (ancho <= 0 || alto <= 0) {
+            setStatus('El campo todavía no está listo. Inténtalo otra vez en un segundo.', true);
+            return;
+          }
+          /* Rejilla que respeta la forma del campo: en horizontal salen más columnas que filas.
+             Las filas se reparten los jugadores y se CENTRAN: si sobra uno, queda centrado abajo
+             en vez de solo a la izquierda, que es lo que hace que parezca colocado a lo bruto. */
+          // Margen por eje (no uno común): con un margen único calculado sobre el lado corto, en un
+          // campo horizontal sobra media banda a la derecha y la plantilla queda escorada.
+          const margenX = Math.max(50, ancho * 0.08);
+          const margenY = Math.max(50, alto * 0.12);
+          const utilAncho = Math.max(1, ancho - margenX * 2);
+          const utilAlto = Math.max(1, alto - margenY * 2);
+          const filas = clamp(
+            Math.round(Math.sqrt(pendientes.length * (utilAlto / utilAncho))) || 1,
+            1,
+            pendientes.length,
+          );
+          const porFila = Math.floor(pendientes.length / filas);
+          const filasConUnoMas = pendientes.length % filas;
+          const columnas = porFila + (filasConUnoMas ? 1 : 0);
+          const pasoX = utilAncho / Math.max(1, columnas);
+          const pasoY = utilAlto / filas;
+          const centroX = margenX + utilAncho / 2;
+          // Cuántos van en cada fila y en qué posición global empieza cada una.
+          const cuentaPorFila = [];
+          for (let f = 0; f < filas; f += 1) cuentaPorFila.push(porFila + (f < filasConUnoMas ? 1 : 0));
+          const inicioDeFila = [];
+          cuentaPorFila.reduce((acc, cuenta) => { inicioDeFila.push(acc); return acc + cuenta; }, 0);
+          let colocados = 0;
+          pendientes.forEach((player, indice) => {
+            const kind = isGoalkeeperPlayer(player) ? 'goalkeeper_local' : 'player_local';
+            let fila = 0;
+            while (fila + 1 < filas && indice >= inicioDeFila[fila + 1]) fila += 1;
+            const enLaFila = indice - inicioDeFila[fila];
+            const cuenta = cuentaPorFila[fila] || 1;
+            const left = centroX + pasoX * (enLaFila - (cuenta - 1) / 2);
+            const top = margenY + pasoY * (fila + 0.5);
+            let token = null;
+            try { token = playerTokenFactory(kind, player)(left, top); } catch (error) { token = null; }
+            if (!token) return;
+            // Mismo tratamiento que da addObject, pero sin su pushHistory/setActiveObject por
+            // ficha: con 20 jugadores eso llenaría el historial y haría falta deshacer 20 veces.
+            try { normalizeEditableObject(token); } catch (error) { /* ignore */ }
+            try { constrainNewGraphicObjectToWorld(token); } catch (error) { /* ignore */ }
+            canvas.add(token);
+            colocados += 1;
+          });
+          if (!colocados) {
+            setStatus('No se pudo colocar la plantilla.', true);
+            return;
+          }
+          try { canvas.discardActiveObject(); } catch (error) { /* ignore */ }
+          canvas.requestRenderAll();
+          pushHistory();
+          try { syncInspector(); } catch (error) { /* ignore */ }
+          // La miniatura que verá la ficha se regenera aquí a mano: al colocar de una en una la
+          // dispara la selección de la ficha recién puesta, y aquí no seleccionamos ninguna. Sin
+          // esto, guardar justo después dejaba en la ficha un campo VACÍO.
+          try { refreshLivePreview(); } catch (error) { /* ignore */ }
+          schedulePlayerBankUpdate();
+          setStatus(`${colocados} jugador${colocados === 1 ? '' : 'es'} en el campo. Arrástralos donde los necesites.`);
+        };
+        document.getElementById('task-add-all-players')?.addEventListener('click', (event) => {
+          event.preventDefault();
+          addAllPlayersToPitch();
+        });
+        // El cajón "Plantilla" del rail (editor_chrome.html) se dibuja aparte y necesita poder
+        // llamar a esto desde su propio botón.
+        try { window.__tpadAddAllPlayers = addAllPlayersToPitch; } catch (error) { /* ignore */ }
         quickBar?.addEventListener('click', (event) => {
           const filterBtn = event.target.closest('button[data-roster-filter]');
           if (filterBtn) {
@@ -34622,6 +34733,59 @@
       runNext();
     };
 
+        /* El césped de verdad, en la miniatura.
+           La superficie "2D plano" NO se dibuja: es UNA foto (coach_home_pitch_surface.png) metida
+           como <image> dentro del SVG. Al rasterizar un SVG, el navegador NO baja sus <image>
+           externas, así que la miniatura salía con un césped de franjas planas dibujado a mano
+           ('flat_export'): por eso la ficha y la pizarra NUNCA se parecían.
+           Truco: metemos la foto en el propio SVG como data URI (eso SÍ se rasteriza). Se cachea
+           reescalada, porque el PNG original pesa 3,2 MB y la miniatura no necesita tanto. */
+        const GRASS_DATA_URL_MAX_SIDE = 2048;
+        let grassSurfaceDataUrl = '';
+        let grassSurfacePromise = null;
+        const ensureGrassSurfaceDataUrl = () => {
+          if (grassSurfaceDataUrl) return Promise.resolve(grassSurfaceDataUrl);
+          if (grassSurfacePromise) return grassSurfacePromise;
+          grassSurfacePromise = new Promise((resolve) => {
+            let href = '';
+            try {
+              href = safeText(form?.dataset?.pitch2dSurfaceSrc)
+                || '/static/football/images/pitch3d/coach_home_pitch_surface.png';
+            } catch (error) {
+              href = '/static/football/images/pitch3d/coach_home_pitch_surface.png';
+            }
+            const img = new Image();
+            // Es del propio dominio, pero pedirlo así evita que el canvas quede "tainted" si algún
+            // día la foto se sirve desde el CDN.
+            try { img.crossOrigin = 'anonymous'; } catch (error) { /* ignore */ }
+            const fail = () => { grassSurfacePromise = null; resolve(''); };
+            img.onload = () => {
+              try {
+                const w = img.naturalWidth || img.width;
+                const h = img.naturalHeight || img.height;
+                if (!w || !h) { fail(); return; }
+                const escala = Math.min(1, GRASS_DATA_URL_MAX_SIDE / Math.max(w, h));
+                const lienzo = document.createElement('canvas');
+                lienzo.width = Math.max(1, Math.round(w * escala));
+                lienzo.height = Math.max(1, Math.round(h * escala));
+                const ctx = lienzo.getContext('2d');
+                if (!ctx) { fail(); return; }
+                ctx.drawImage(img, 0, 0, lienzo.width, lienzo.height);
+                grassSurfaceDataUrl = lienzo.toDataURL('image/jpeg', 0.88);
+                resolve(grassSurfaceDataUrl);
+              } catch (error) {
+                fail();
+              }
+            };
+            img.onerror = fail;
+            img.src = href;
+          });
+          return grassSurfacePromise;
+        };
+        // Se precarga en cuanto el editor respira: cuando toque guardar, ya está lista y la
+        // miniatura sale con la foto a la primera.
+        try { runWhenIdle(() => { ensureGrassSurfaceDataUrl(); }, 1500); } catch (error) { /* ignore */ }
+
 			    const buildPreviewData = (options = {}) => new Promise((resolve) => {
 			      const sourceWidth = Math.round(canvas.getWidth());
 			      const sourceHeight = Math.round(canvas.getHeight());
@@ -34747,22 +34911,39 @@
 		      let svgMarkup = '';
 		      let svgSourceEl = svgSurface;
 		      try {
-		        // Miniatura: flat_2d/estadio usan FOTO (no compone al rasterizar el SVG -> sin cesped).
-		        // Regeneramos el campo en VECTORIAL para que la miniatura tenga cesped + LINEAS.
-		        // - flat_2d (2D plano, el habitual): usamos 'flat_export' = MISMO verde brillante a franjas
-		        //   que el editor, 100% SVG y sin gradas -> la ficha/PDF muestran igual que la pizarra.
+		        // Miniatura: flat_2d/estadio usan FOTO, y al rasterizar el SVG sus <image> externas no
+		        // se descargan -> saldría el campo sin césped. Se regenera el campo aquí:
+		        // - flat_2d (2D plano, el habitual): el MISMO SVG de la pizarra, con la foto incrustada
+		        //   como data URI (`grassSurfaceDataUrl`) para que sí se rasterice. Así la ficha enseña
+		        //   exactamente el césped, las líneas y las porterías que ves en el editor.
+		        //   Si la foto todavía no está lista, se cae a 'flat_export' (franjas planas), que es
+		        //   lo de antes: peor, pero nunca un campo en blanco.
 		        // - estadio (foto de estadio, verde oscuro): mantenemos 'coachboard'.
 		        var _photoSurf = ['flat_2d','stadium_native','stadium_top','stadium_top_h','stadium_top_v'];
 		        if (_photoSurf.indexOf(exportGrassStyle) !== -1 && window.WebstatsPitch25D && typeof window.WebstatsPitch25D.buildPitchSvg === 'function') {
 		          var _orient = safeText((document.getElementById('draw-task-pitch-orientation')||{}).value) || 'landscape';
 		          var _preset = safeText((document.getElementById('draw-task-pitch-preset')||{}).value) || 'full_pitch';
-		          var _exportSurf = (exportGrassStyle === 'flat_2d') ? 'flat_export' : 'coachboard';
+		          var _conFoto = (exportGrassStyle === 'flat_2d') && !!grassSurfaceDataUrl;
+		          var _exportSurf = (exportGrassStyle === 'flat_2d') ? (_conFoto ? 'flat_2d' : 'flat_export') : 'coachboard';
 		          var _built = window.WebstatsPitch25D.buildPitchSvg(_preset, _orient, _exportSurf);
 		          var _svgStr = (typeof _built === 'string') ? _built : ((_built && _built.nodeType) ? new XMLSerializer().serializeToString(_built) : '');
 		          if (_svgStr) {
 		            var _doc = new DOMParser().parseFromString(_svgStr, 'image/svg+xml');
 		            var _el = _doc && _doc.documentElement;
-		            if (_el && String(_el.tagName||'').toLowerCase()==='svg' && !(_doc.querySelector && _doc.querySelector('parsererror'))) { svgSourceEl = _el; }
+		            if (_el && String(_el.tagName||'').toLowerCase()==='svg' && !(_doc.querySelector && _doc.querySelector('parsererror'))) {
+		              if (_conFoto) {
+		                // La ruta del PNG no vale dentro de un SVG rasterizado: la sustituimos por la
+		                // foto ya cargada. `xlink:href` va también por los visores antiguos.
+		                try {
+		                  var _imgs = _el.querySelectorAll ? _el.querySelectorAll('image') : [];
+		                  Array.prototype.forEach.call(_imgs, function (nodo) {
+		                    nodo.setAttribute('href', grassSurfaceDataUrl);
+		                    try { nodo.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', grassSurfaceDataUrl); } catch (err) { /* ignore */ }
+		                  });
+		                } catch (err) { /* si falla, queda el SVG sin foto: mejor eso que romper el guardado */ }
+		              }
+		              svgSourceEl = _el;
+		            }
 		          }
 		        }
 		      } catch (e) { /* usa svgSurface */ }

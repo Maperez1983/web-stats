@@ -234,3 +234,91 @@ class PlayerInjuryDetailViewTests(TestCase):
         self.assertContains(response, 'name="injury_status"')
         self.assertContains(response, 'value="active"')
         self.assertContains(response, 'value="recovered"')
+
+
+class PartesAbiertosSimultaneosTests(TestCase):
+    """Varios partes abiertos a la vez: el caso que dejaba a un jugador lesionado para siempre.
+
+    Cerrar el parte que tienes delante no le devuelve a "disponible" si le quedan otros sin alta,
+    y desde la pantalla no había forma de enterarse.
+    """
+
+    # Mismo escenario que la clase de arriba (club, workspace, jugador y un parte abierto); se
+    # reutiliza tal cual en vez de heredar, que volvería a ejecutar sus tests con otro nombre.
+    setUp = PlayerInjuryDetailViewTests.setUp
+
+    def _segundo_parte(self, **extra):
+        datos = dict(
+            player=self.player,
+            injury='Lesión antigua',
+            injury_date=date(2026, 6, 1),
+            is_active=True,
+        )
+        datos.update(extra)
+        return PlayerInjuryRecord.objects.create(**datos)
+
+    def test_la_ficha_avisa_de_los_otros_partes_sin_alta(self):
+        otro = self._segundo_parte()
+
+        response = self.client.get(
+            reverse('player-injury-detail', args=[self.player.id, self.record.id]),
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'parte más sin alta')
+        self.assertContains(response, 'Lesión antigua')
+        self.assertContains(response, reverse('player-injury-detail', args=[self.player.id, otro.id]))
+        self.assertContains(response, 'Cerrar el otro parte')
+
+    def test_sin_otros_partes_no_hay_aviso(self):
+        response = self.client.get(
+            reverse('player-injury-detail', args=[self.player.id, self.record.id]),
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'sin alta')
+
+    def test_cerrar_los_restantes_les_pone_fecha_de_alta(self):
+        otro = self._segundo_parte()
+        tercero = self._segundo_parte(injury='Otra más', injury_date=date(2026, 5, 1))
+
+        response = self.client.post(
+            reverse('player-injury-detail', args=[self.player.id, self.record.id]),
+            data={'action': 'close-others'},
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        for cerrado in (otro, tercero):
+            cerrado.refresh_from_db()
+            self.assertTrue(cerrado.is_recovered)
+            self.assertFalse(cerrado.is_active)
+            # Sin fecha de alta el parte queda "recuperado" pero sin cerrar de verdad.
+            self.assertIsNotNone(cerrado.return_date)
+        # El parte que estabas mirando NO se toca: cerrarlo es otra acción.
+        self.record.refresh_from_db()
+        self.assertTrue(self.record.is_active)
+
+    def test_la_ficha_del_jugador_cuenta_los_partes_sin_alta(self):
+        self._segundo_parte()
+
+        response = self.client.get(
+            reverse('player-detail', args=[self.player.id]) + '?tab=injuries',
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Partes sin alta')
+        self.assertContains(response, 'Tiene 2 partes abiertos a la vez')
+
+    def test_el_formulario_de_alta_avisa_antes_de_abrir_otra(self):
+        response = self.client.get(
+            reverse('player-form', args=[self.player.id, 'lesion']),
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'ya tiene 1 parte sin alta')
+        self.assertContains(response, reverse('player-injury-detail', args=[self.player.id, self.record.id]))

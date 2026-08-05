@@ -52,6 +52,27 @@
         <a class="btn alt" href="{% url 'player-detail' player.id %}?tab={{ back_tab }}">← Volver a la ficha</a>
       </div>
 
+      {% if open_injury_records %}
+      {% comment %}Avisar ANTES de abrir otra lesión: los partes se acumulan y basta uno sin alta
+      para que el jugador siga figurando como lesionado en todo el sistema.{% endcomment %}
+      <div class="card" style="border-color:rgba(248,113,113,0.45);margin-bottom:0.9rem;">
+        <h2 style="margin:0;font-size:1rem;">
+          Ojo: {{ player.name }} ya tiene {{ open_injury_records|length }} parte{{ open_injury_records|pluralize:",s" }} sin alta
+        </h2>
+        <p style="margin:.4rem 0 .6rem;color:var(--prod-muted);font-size:0.88rem;">
+          Si esto es la misma lesión, edita el parte que ya existe en vez de abrir otro. Sólo abre uno nuevo si es una lesión distinta.
+        </p>
+        <ul style="margin:0;padding-left:1.1rem;line-height:1.7;">
+          {% for otro in open_injury_records %}
+          <li>
+            <a href="{{ otro.detail_url }}" style="color:inherit;font-weight:900;">{{ otro.injury }}</a>
+            · {{ otro.injury_date|date:"d/m/Y" }}{% if otro.injury_zone %} · {{ otro.injury_zone }}{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
       <div class="card">
         {% include form_partial %}
       </div>

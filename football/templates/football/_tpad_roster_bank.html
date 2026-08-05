@@ -22,6 +22,12 @@
       </div>
     </div>
     <div class="player-bank-tools">
+      {% comment %}Para una tarea física, colocar 20 fichas una a una es media hora de clics: esto
+      pone de golpe a los jugadores que estés viendo con los filtros de arriba.{% endcomment %}
+      <button type="button" class="chip-toggle chip-action" id="task-add-all-players"
+              title="Coloca en el campo a todos los jugadores que ves ahora mismo. Respeta los filtros y no repite a los que ya están puestos.">
+        Añadir todos
+      </button>
       <label class="chip-toggle" title="Oculta jugadores ya colocados en la pizarra (vuelven a aparecer al borrarlos).">
         <input type="checkbox" id="task-hide-used-players" checked />
         Ocultar usados

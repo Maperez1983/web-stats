@@ -633,6 +633,17 @@
         qb.addEventListener('click', function(){ try{ if(window.__tpadActivateTool) window.__tpadActivateTool(q[0]); }catch(e){} });
         quick.appendChild(qb);
       });
+      // Toda la plantilla de golpe: para una tarea física (rondos, circuitos, series) colocar 20
+      // fichas una a una es media hora de clics. El motor los reparte en rejilla y ya los mueves.
+      var todos=document.createElement('button'); todos.type='button'; todos.className='edc-roster-quickbtn is-all'; todos.textContent='＋ Todos';
+      todos.title='Coloca de una vez a todos los jugadores de la lista. No repite a los que ya están en el campo.';
+      todos.addEventListener('click', function(){
+        try{
+          if(window.__tpadAddAllPlayers){ window.__tpadAddAllPlayers(); return; }
+          var b=document.getElementById('task-add-all-players'); if(b) b.click();
+        }catch(e){}
+      });
+      quick.appendChild(todos);
       host.appendChild(quick);
       // Los selectores GLOBALES (Presentación/Equipación/Portero) ya NO se dibujan aquí: viven en la
       // barra inferior (#edc-selbar) y mutan `edcSel`. La lista solo muestra jugadores; al pulsar uno

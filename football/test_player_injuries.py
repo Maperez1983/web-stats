@@ -211,3 +211,74 @@ class PlayerInjuriesTests(TestCase):
         zones = _player_home_zones(request, self.player, visibility)
 
         self.assertIsNone(zones["active_injury"])
+
+
+class AvisoDePartesAcumuladosTests(TestCase):
+    """El alta de lesiones (Centro médico) avisa cuando el jugador ya arrastra partes sin alta."""
+
+    setUp = PlayerInjuriesTests.setUp
+
+    def _abierto(self, nombre, dias_atras):
+        return PlayerInjuryRecord.objects.create(
+            player=self.player,
+            injury=nombre,
+            injury_date=datetime.date.today() - datetime.timedelta(days=dias_atras),
+            is_active=True,
+        )
+
+    def test_registrar_otra_lesion_encima_avisa(self):
+        self._abierto("Sobrecarga", 10)
+
+        resp = self.client.post(
+            reverse("coach-injuries"),
+            {
+                "player_id": self.player.id,
+                "injury": "Esguince",
+                "injury_date": datetime.date.today().isoformat(),
+            },
+            HTTP_HOST="localhost",
+        )
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("msg=created-warn%3A1", resp["Location"])
+        seguimiento = self.client.get(resp["Location"], HTTP_HOST="localhost")
+        self.assertContains(seguimiento, "ya tenía 1 parte/s sin alta")
+
+    def test_primera_lesion_no_avisa(self):
+        resp = self.client.post(
+            reverse("coach-injuries"),
+            {
+                "player_id": self.player.id,
+                "injury": "Esguince",
+                "injury_date": datetime.date.today().isoformat(),
+            },
+            HTTP_HOST="localhost",
+        )
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("msg=created", resp["Location"])
+        self.assertNotIn("created-warn", resp["Location"])
+
+    def test_el_alta_cierra_los_otros_y_lo_dice(self):
+        principal = self._abierto("Esguince", 5)
+        arrastrado = self._abierto("Sobrecarga", 30)
+
+        resp = self.client.post(
+            reverse("coach-injuries"),
+            {
+                "action": "close",
+                "player_id": self.player.id,
+                "record_id": principal.id,
+                "return_date": datetime.date.today().isoformat(),
+            },
+            HTTP_HOST="localhost",
+        )
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("msg=closed-others%3A1", resp["Location"])
+        arrastrado.refresh_from_db()
+        self.assertTrue(arrastrado.is_recovered)
+        # Con .update() se quedaban recuperados SIN fecha de alta: medio cerrados.
+        self.assertIsNotNone(arrastrado.return_date)
+        seguimiento = self.client.get(resp["Location"], HTTP_HOST="localhost")
+        self.assertContains(seguimiento, "cerrados también")

@@ -1968,6 +1968,26 @@
         text-transform: uppercase;
         user-select: none;
       }
+	      /* "Añadir todos": vive entre los toggles de la plantilla, así que lleva su misma forma,
+	         pero es una ACCIÓN (se pulsa y pasa algo), no un interruptor: por eso el acento.
+	         Va con !important porque el tema (commercial.css) pinta TODO `button` con !important y
+	         si no, este botón sale con el gris de los demás y no se distingue del resto. */
+	      button#task-add-all-players.chip-toggle.chip-action {
+	        appearance: none;
+	        cursor: pointer;
+	        border: 1px solid rgba(244,180,0,0.34) !important;
+	        background: rgba(244,180,0,0.14) !important;
+	        color: rgba(248,250,252,0.96) !important;
+	        padding: 0.4rem 0.7rem !important;
+	        border-radius: 999px !important;
+	        font-size: 0.72rem !important;
+	        min-height: 0 !important;
+	      }
+	      button#task-add-all-players.chip-toggle.chip-action:hover,
+	      button#task-add-all-players.chip-toggle.chip-action:focus-visible {
+	        border-color: rgba(244,180,0,0.55) !important;
+	        background: rgba(244,180,0,0.22) !important;
+	      }
 	      .chip-toggle input {
 	        width: 18px;
 	        height: 18px;

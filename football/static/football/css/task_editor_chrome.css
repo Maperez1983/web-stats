@@ -844,6 +844,20 @@ body.ed-chrome #edc-mat-body .edc-roster-quickbtn {
   color: var(--edc-ink); cursor: pointer; font-size: 12.5px; font-weight: 700;
 }
 body.ed-chrome #edc-mat-body .edc-roster-quickbtn:hover { background: rgba(55,208,95,0.20); border-color: var(--edc-accent); }
+/* "＋ Todos" ocupa la fila entera: no es un jugador más, es la plantilla completa de una vez.
+   Va en línea continua (los anónimos van en discontinua) porque coloca gente REAL. */
+/* !important porque el tema pinta TODOS los `button` con !important y, sin esto, "Todos" sale
+   igual que los anónimos y no se distingue la acción fuerte. */
+body.ed-chrome #edc-mat-body .edc-roster-quickbtn.is-all {
+  grid-column: 1 / -1;
+  border: 1px solid rgba(244,180,0,0.65) !important;
+  background: rgba(244,180,0,0.20) !important;
+  color: var(--edc-ink) !important;
+}
+body.ed-chrome #edc-mat-body .edc-roster-quickbtn.is-all:hover {
+  background: rgba(244,180,0,0.32) !important;
+  border-color: rgba(244,180,0,0.9) !important;
+}
 body.ed-chrome #edc-mat-body .edc-roster-row { position: relative; }
 body.ed-chrome #edc-mat-body .edc-roster-btn {
   display: flex; align-items: center; gap: 8px; width: 100%;
