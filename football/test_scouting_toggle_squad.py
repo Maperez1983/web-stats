@@ -39,3 +39,21 @@ class ToggleSquadTests(TestCase):
         self.client.post(f"/direccion/{target.id}/", {"action": "toggle-squad"}, HTTP_HOST="localhost")
         target.refresh_from_db()
         self.assertFalse(target.available_for_coach_tools)
+
+    def test_a_prueba_desde_la_tarjeta_tambien_crea_la_ficha(self):
+        """Marcarlo "A prueba" desde el tablero tiene que dejarlo como desde su ficha.
+
+        Si sólo se enciende la bandera, el ojeado sale en la pizarra pero no en plantilla ni
+        en la convocatoria, que se nutren de Player.
+        """
+        target = self._target()
+        self.client.post(
+            "/direccion/",
+            {"action": "set-state", "target_id": target.id, "state": "trial"},
+            HTTP_HOST="localhost",
+        )
+        target.refresh_from_db()
+        self.assertTrue(target.available_for_coach_tools)
+        self.assertIsNotNone(target.player, "un ojeado a prueba tiene que tener su Ficha jugador")
+        self.assertEqual(target.player.team_id, self.team.id)
+        self.assertFalse(target.player.has_federative_license, "a prueba no es fichado")
