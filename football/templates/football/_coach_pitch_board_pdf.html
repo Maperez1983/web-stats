@@ -12,7 +12,8 @@
     <div style="position:absolute; left:{{ p.left|unlocalize }}%; top:{{ p.top|unlocalize }}%;
                 width:76px; margin-left:-38px; margin-top:-30px; text-align:center;">
       {% if p.avatar_pdf %}<img src="{{ p.avatar_pdf }}" alt="" style="width:44px; height:52px; object-fit:contain; display:block; margin:0 auto 1px;" />{% endif %}
-      <div style="display:inline-block; max-width:74px; padding:1px 5px; border-radius:6px;
+      {# La etiqueta va centrada y puede ser más ancha que el chip; el ancho lo decide la pizarra según lo cargada que esté la línea. #}
+      <div style="display:inline-block; max-width:{{ p.label_width|default:74 }}px; padding:1px 5px; border-radius:6px;
                   background:rgba(7,12,22,.82); color:#fff; font-size:8px; font-weight:800;
                   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{% if p.number %}{{ p.number }} · {% endif %}{{ p.name }}</div>
     </div>
