@@ -131,6 +131,28 @@ def display_text(value):
 
 
 @register.filter
+def display_venue(value, max_len=60):
+    """Nombre del campo apto para mostrar.
+
+    En el campo "Lugar" acaba pegada de vez en cuando la URL de una búsqueda de Google (al copiar
+    la dirección desde el móvil). Sin esto, la cabecera del 11 inicial y el PDF de la convocatoria
+    escupen 200 caracteres de URL donde debería ir el nombre del campo.
+    """
+    text = " ".join(str(value or "").strip().split())
+    if not text:
+        return ""
+    if text.lower().startswith(("http://", "https://", "www.")):
+        return "Ver ubicación (enlace)"
+    try:
+        limit = max(20, int(max_len))
+    except Exception:
+        limit = 60
+    if len(text) > limit:
+        return text[: limit - 1].rstrip() + "…"
+    return text
+
+
+@register.filter
 def display_position(value):
     text = str(value or "").strip()
     if not text:

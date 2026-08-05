@@ -1,3 +1,4 @@
+{% load football_extras %}
 <!DOCTYPE html>
 <html lang="es">
   <head>
@@ -73,7 +74,7 @@
       </div>
       <div class="club-meta">
         <div><strong>{{ round_label }}</strong> · {{ date_label }} · {{ time_label }}</div>
-        <div>{{ location_label }}</div>
+        <div>{{ location_label|display_venue }}</div>
         <div>{{ competition_name }}{% if season_name %} · {{ season_name }}{% endif %}{% if group_name %} · {{ group_name }}{% endif %}</div>
         {% if staff_lines %}
         <div class="staff">
