@@ -107,6 +107,77 @@ def ai_trainer_index_task(task, *, team=None):
         return None
 
 
+# Cada cuánto se reduce a la mitad lo aprendido. Sin esto los pesos sólo suben y en unos
+# meses todo lo habitual toca el tope: el sistema deja de distinguir y "balón" acaba pesando
+# como "basculación". Con esto, lo que entrenas ESTE mes manda sobre lo de octubre.
+VIDA_MEDIA_DIAS = 60.0
+
+
+def peso_con_antiguedad(weight, updated_at, *, hoy=None):
+    """El peso que de verdad vale hoy, descontando lo viejo."""
+    try:
+        base = float(weight or 0.0)
+    except Exception:
+        return 0.0
+    if not base or updated_at is None:
+        return base
+    try:
+        from django.utils import timezone
+
+        ahora = hoy or timezone.now()
+        dias = max(0.0, (ahora - updated_at).total_seconds() / 86400.0)
+        return base * (0.5 ** (dias / VIDA_MEDIA_DIAS))
+    except Exception:
+        return base
+
+
+def apuntar_uso_en_la_tarea_de_biblioteca(task):
+    """Suma un uso a la tarea de BIBLIOTECA de la que salió esta copia.
+
+    La señal más honesta de que una tarea vale no es lo que diga su texto: es que el
+    entrenador la haya llevado al campo. Cada copia guarda de cuál salió, así que aquí sólo
+    hay que seguir el rastro. Devuelve el id de la tarea reforzada, o 0.
+    """
+    if not task:
+        return 0
+    microcycle = getattr(getattr(task, 'session', None), 'microcycle', None)
+    if microcycle is None:
+        return 0
+    try:
+        if is_library_microcycle(microcycle):
+            return 0
+    except Exception:
+        return 0
+
+    from .models import SessionTask
+
+    origen = 0
+    for fuente in ('task_layout_light', 'tactical_layout'):
+        datos = getattr(task, fuente, None)
+        meta = datos.get('meta') if isinstance(datos, dict) and isinstance(datos.get('meta'), dict) else {}
+        try:
+            origen = int(meta.get('library_source_task_id') or 0)
+        except Exception:
+            origen = 0
+        if origen:
+            break
+    if not origen or origen == int(getattr(task, 'id', 0) or 0):
+        return 0
+
+    fecha = getattr(getattr(task, 'session', None), 'session_date', None)
+    try:
+        from django.db.models import F
+
+        actualizadas = SessionTask.objects.filter(id=origen).update(
+            veces_usada=F('veces_usada') + 1,
+            usada_por_ultima_vez=fecha,
+        )
+        return origen if actualizadas else 0
+    except Exception:
+        logger.debug('No se pudo apuntar el uso en la tarea %s', origen, exc_info=True)
+        return 0
+
+
 def _equipo_de_la_tarea(task):
     return getattr(getattr(getattr(task, 'session', None), 'microcycle', None), 'team', None)
 

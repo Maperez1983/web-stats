@@ -136,3 +136,80 @@ class RecomendadorPremiumTests(TestCase):
         familias = [getattr(t, "task_family", "") for t in rec]
         self.assertLessEqual(familias.count("rondo"), 2, "no puede devolver la misma familia una y otra vez")
         self.assertEqual(len(rec), 4, "y aun asi tiene que devolver las que se le piden")
+
+
+class RecomendadorAprendeDelUsoTests(TestCase):
+    """Lo que el entrenador LLEVA AL CAMPO es la señal buena: pesa, y caduca."""
+
+    def setUp(self):
+        self.team = Team.objects.create(name="Senior", slug="senior-uso", is_primary=True)
+        hoy = timezone.localdate()
+        mc = TrainingMicrocycle.objects.create(
+            team=self.team,
+            title="Biblioteca uso",
+            week_start=hoy - timedelta(days=21),
+            week_end=hoy - timedelta(days=15),
+        )
+        self.biblioteca = TrainingSession.objects.create(microcycle=mc, session_date=hoy, focus="")
+
+    def _de_biblioteca(self, titulo, **campos):
+        return SessionTask.objects.create(
+            session=self.biblioteca, block="main_1", title=titulo,
+            objective="Rondo de posesion con apoyos", duration_minutes=12, **campos,
+        )
+
+    def _sesion_real(self, dias=0):
+        hoy = timezone.localdate()
+        mc = TrainingMicrocycle.objects.create(
+            team=self.team, title=f"Semana {dias}",
+            week_start=hoy + timedelta(days=dias), week_end=hoy + timedelta(days=dias + 6),
+        )
+        return TrainingSession.objects.create(
+            microcycle=mc, session_date=hoy + timedelta(days=dias), focus="posesion"
+        )
+
+    def test_meter_la_tarea_en_una_sesion_apunta_el_uso(self):
+        origen = self._de_biblioteca("Rondo 5x2")
+        sesion = self._sesion_real()
+        SessionTask.objects.create(
+            session=sesion, block="main_1", title="Rondo 5x2", duration_minutes=12,
+            tactical_layout={"meta": {"library_source_task_id": origen.id}},
+        )
+        origen.refresh_from_db()
+        self.assertEqual(origen.veces_usada, 1)
+        self.assertEqual(origen.usada_por_ultima_vez, sesion.session_date)
+
+    def test_guardar_en_biblioteca_no_cuenta_como_usarla(self):
+        origen = self._de_biblioteca("Rondo 4x4")
+        SessionTask.objects.create(
+            session=self.biblioteca, block="main_1", title="Copia en biblioteca", duration_minutes=12,
+            tactical_layout={"meta": {"library_source_task_id": origen.id}},
+        )
+        origen.refresh_from_db()
+        self.assertEqual(origen.veces_usada, 0, "archivar una plantilla no es decidir entrenarla")
+
+    def test_la_que_usas_sale_por_delante_de_la_que_nunca_has_usado(self):
+        nunca = self._de_biblioteca("Rondo que nunca uso")
+        usada = self._de_biblioteca(
+            "Rondo que uso siempre", veces_usada=5, usada_por_ultima_vez=timezone.localdate()
+        )
+        rec = _ai_trainer_suggest_tasks_for_session(self._sesion_real(dias=7), limit=6)
+        ids = [t.id for t in rec]
+        self.assertIn(usada.id, ids)
+        self.assertIn(nunca.id, ids)
+        self.assertLess(ids.index(usada.id), ids.index(nunca.id))
+        self.assertIn("la has usado 5 veces", getattr(rec[0], "ai_trainer_reasons", []))
+
+    def test_el_uso_viejo_pesa_menos_que_el_reciente(self):
+        antigua = self._de_biblioteca(
+            "Rondo del otono", veces_usada=5,
+            usada_por_ultima_vez=timezone.localdate() - timedelta(days=270),
+        )
+        reciente = self._de_biblioteca(
+            "Rondo de esta semana", veces_usada=5, usada_por_ultima_vez=timezone.localdate()
+        )
+        ids = [t.id for t in _ai_trainer_suggest_tasks_for_session(self._sesion_real(dias=14), limit=6)]
+        self.assertLess(
+            ids.index(reciente.id), ids.index(antigua.id),
+            "usarla cinco veces en octubre no vale lo mismo que usarla esta semana",
+        )

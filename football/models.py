@@ -3186,6 +3186,12 @@ class SessionTask(models.Model):
                                    help_text='Momento del juego (derivado del JSON)')
     task_family = models.CharField(max_length=30, blank=True, default='', db_index=True,
                                    help_text='Familia de la tarea: rondo, juego de posición, circuito… (derivado del JSON)')
+    # MEMORIA DE USO de una tarea de biblioteca: cuántas veces se ha llevado de verdad al
+    # campo y cuándo fue la última. El recomendador aprendía sólo de palabras, y lo que el
+    # entrenador ELIGE entrenar dice más que lo que escribe. Lo mantiene la señal de
+    # football/signals.py cuando una copia de la tarea entra en una sesión real.
+    veces_usada = models.PositiveIntegerField(default=0, db_index=True)
+    usada_por_ultima_vez = models.DateField(null=True, blank=True)
     principle = models.CharField(max_length=160, blank=True, default='')
     subprinciple = models.CharField(max_length=200, blank=True, default='')
     structure_periodization = models.CharField(max_length=40, blank=True, default='', db_index=True,

@@ -37,3 +37,11 @@ def aprender_de_la_tarea_puesta_en_sesion(sender, instance, created, **kwargs):
         aprender_de_tarea_usada(instance)
     except Exception:
         logger.debug('No se pudo aprender de la tarea %s', getattr(instance, 'id', None), exc_info=True)
+    try:
+        from football.ai_trainer import apuntar_uso_en_la_tarea_de_biblioteca
+
+        apuntar_uso_en_la_tarea_de_biblioteca(instance)
+    except Exception:
+        logger.debug(
+            'No se pudo apuntar el uso de la tarea %s', getattr(instance, 'id', None), exc_info=True
+        )
