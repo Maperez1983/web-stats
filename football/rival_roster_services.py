@@ -144,6 +144,19 @@ def parse_rival_squad(html):
     return players
 
 
+def parse_team_crest(html):
+    """URL del escudo del equipo en una pagina de laPreferente, o "" si no la publica.
+
+    La fuente lo expone en og:image, que es la unica referencia estable: los <img> del
+    escudo cambian de clase cada rediseno.
+    """
+    m = re.search(r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']', html or "", re.I)
+    if not m:
+        m = re.search(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']', html or "", re.I)
+    url = (m.group(1) if m else "").strip()
+    return url if "/escudos/" in url else ""
+
+
 def _detect_matched_player(row):
     """"Reconocido como": localiza un Player ya en el sistema que sea la MISMA persona (sin fusionar).
     Prioridad: J-id en preferente_profile_url (exacto y fiable) -> nombre completo exacto -> alias

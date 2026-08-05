@@ -41,7 +41,7 @@ import django  # noqa: E402
 
 django.setup()
 
-from football.rival_roster_services import parse_rival_squad  # noqa: E402
+from football.rival_roster_services import parse_rival_squad, parse_team_crest  # noqa: E402
 from football.services import _fetch_preferente_response  # noqa: E402
 
 PREFERENTE_BASE = "https://lapreferente.com/"
@@ -144,7 +144,11 @@ def main() -> int:
         sin_foto += n_sin
         total += len(filas)
         print(f"  · {nombre[:30]:30} {len(filas):3} jugadores, {len(filas)-n_sin:3} con foto")
-        payload_equipos.append({"name": nombre, "code": code, "url": url, "players": filas})
+        payload_equipos.append({
+            "name": nombre, "code": code, "url": url, "players": filas,
+            # El escudo va en el mismo viaje: la app solo lo usa si el equipo no tenia.
+            "crest_url": parse_team_crest(resp.text),
+        })
 
     if not payload_equipos:
         raise SystemExit("No se pudo leer ninguna plantilla. Nada que enviar.")
