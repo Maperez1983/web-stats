@@ -1,0 +1,7 @@
+Equipaciones 2D del CD Benagalbon, 256x256 con transparencia.
+
+Hechas sobre la plantilla FC'12 Nike #508 (lisa, cuello redondo, mangas del
+mismo color), recoloreada, con el escudo del club y Grupo Modernia encima.
+
+Estan aqui como respaldo: si alguien vacia la preferencia kit2d.tokens se
+pueden volver a cargar desde Onboarding sin rehacerlas.
