@@ -112,3 +112,34 @@ def ids_de_tareas_compartidas(workspace):
     except Exception:
         logger.debug('No se pudieron listar las tareas compartidas del club', exc_info=True)
         return set()
+
+
+def equipos_de_la_categoria(workspace, team):
+    """
+    Ids de los equipos del club que comparten categoría con el de referencia.
+
+    Un club puede tener dos equipos de la misma categoría (Cadete A y Cadete B). El material
+    de trabajo es el mismo: lo que prepara el A le sirve al B. Filtrar por equipo exacto dejaba
+    al staff del B con la biblioteca vacía.
+
+    Si el equipo no tiene categoría puesta no se agrupa con nadie: mejor ver de menos que
+    mezclar el material del alevín con el del senior.
+    """
+    from .models import Team
+
+    ids = {int(team.id)} if team is not None and getattr(team, 'id', None) else set()
+    categoria = str(getattr(team, 'category', '') or '').strip()
+    if not categoria:
+        return ids
+    del_club = equipos_del_espacio(workspace, team)
+    if not del_club:
+        return ids
+    try:
+        ids |= {
+            int(tid)
+            for tid in Team.objects.filter(id__in=del_club, category__iexact=categoria).values_list('id', flat=True)
+            if tid
+        }
+    except Exception:
+        logger.debug('No se pudieron listar los equipos de la categoría', exc_info=True)
+    return ids

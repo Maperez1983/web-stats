@@ -174,3 +174,53 @@ class SelectorDeBibliotecasTests(TestCase):
         respuesta = self.client.get(reverse('sessions') + '?tab=library')
 
         self.assertContains(respuesta, 'Todavía no hay tareas en la biblioteca')
+
+
+class MismaCategoriaTests(TestCase):
+    """Cadete A y Cadete B trabajan el mismo material: la biblioteca es de la categoría."""
+
+    def setUp(self):
+        self.duenio = User.objects.create_user(username='dueno-categoria', password='x')
+        self.workspace = Workspace.objects.create(
+            name='Club categoria', slug='club-categoria', kind=Workspace.KIND_CLUB, owner_user=self.duenio
+        )
+        self.cadete_a = Team.objects.create(name='Cadete A cat', slug='cadete-a-cat', category='Cadete')
+        self.cadete_b = Team.objects.create(name='Cadete B cat', slug='cadete-b-cat', category='Cadete')
+        self.senior = Team.objects.create(name='Senior cat', slug='senior-cat', category='Senior')
+        for equipo in (self.cadete_a, self.cadete_b, self.senior):
+            WorkspaceTeam.objects.create(workspace=self.workspace, team=equipo)
+
+    def test_el_cadete_b_agrupa_con_el_cadete_a(self):
+        from .library_sharing import equipos_de_la_categoria
+
+        ids = equipos_de_la_categoria(self.workspace, self.cadete_b)
+
+        self.assertIn(self.cadete_a.id, ids)
+        self.assertIn(self.cadete_b.id, ids)
+
+    def test_pero_no_con_el_senior(self):
+        from .library_sharing import equipos_de_la_categoria
+
+        ids = equipos_de_la_categoria(self.workspace, self.cadete_b)
+
+        self.assertNotIn(self.senior.id, ids)
+
+    def test_un_equipo_sin_categoria_no_se_mezcla_con_nadie(self):
+        from .library_sharing import equipos_de_la_categoria
+
+        suelto = Team.objects.create(name='Sin categoria cat', slug='sin-cat', category='')
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=suelto)
+
+        self.assertEqual(equipos_de_la_categoria(self.workspace, suelto), {suelto.id})
+
+    def test_ni_con_el_cadete_de_otro_club(self):
+        from .library_sharing import equipos_de_la_categoria
+
+        otro_duenio = User.objects.create_user(username='otro-categoria', password='x')
+        otro = Workspace.objects.create(
+            name='Otro club cat', slug='otro-club-cat', kind=Workspace.KIND_CLUB, owner_user=otro_duenio
+        )
+        ajeno = Team.objects.create(name='Cadete ajeno cat', slug='cadete-ajeno-cat', category='Cadete')
+        WorkspaceTeam.objects.create(workspace=otro, team=ajeno)
+
+        self.assertNotIn(ajeno.id, equipos_de_la_categoria(self.workspace, self.cadete_b))
