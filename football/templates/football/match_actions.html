@@ -3247,7 +3247,7 @@
 	                  var res = data.result || '';
 	                  text = String(ev) + ' · ' + String(zone || '-') + ' · ' + String(res || '');
 	                }
-	                item.innerHTML = '<span class=\"hist-minute\">' + minute + \"'\" + '</span><strong>' + playerLabel + '</strong><p class=\"hist-text\">' + text + '</p><div class=\"history-actions\"><button type=\"button\" class=\"history-impact\" aria-label=\"Valorar impacto\">★</button><button type=\"button\" class=\"history-delete\" aria-label=\"Eliminar acción\">🗑</button></div>';
+	                item.innerHTML = '<span class=\"hist-minute\">' + minute + "'" + '</span><strong>' + playerLabel + '</strong><p class=\"hist-text\">' + text + '</p><div class=\"history-actions\"><button type=\"button\" class=\"history-impact\" aria-label=\"Valorar impacto\">★</button><button type=\"button\" class=\"history-delete\" aria-label=\"Eliminar acción\">🗑</button></div>';
 		                try {
 		                  if (list.firstChild) list.insertBefore(item, list.firstChild);
 		                  else list.appendChild(item);
