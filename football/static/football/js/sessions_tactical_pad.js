@@ -6420,12 +6420,24 @@
 	      syncTokenAdaptiveUi();
 	      return moved;
 	    };
+	    // Colores del CLUB (siempre presentes; los rellena la vista desde kit_theme:v1).
+	    // Antes esta paleta iba escrita a fuego -verde, rojo y azul- asi que las chapas
+	    // nunca eran las del club por mucho que se cambiaran en Onboarding.
+	    const clubColorInput = (id, porDefecto) => {
+	      const el = document.getElementById(id);
+	      return parseColorToHex(el && el.value, porDefecto) || porDefecto;
+	    };
 	    const tokenTeamPresetPalette = (presetRaw) => {
 	      const preset = safeText(presetRaw, 'local').toLowerCase();
-	      const local = parseColorToHex(tokenGlobalColorLocalInput?.value, '#0f7a35') || '#0f7a35';
-	      const rival = parseColorToHex(tokenGlobalColorRivalInput?.value, '#ef4444') || '#ef4444';
+	      const clubLocal = clubColorInput('task-club-color-local', '#06814d');
+	      const clubRival = clubColorInput('task-club-color-rival', '#ef4444');
+	      const clubGk = clubColorInput('task-club-color-gk', '#1d4ed8');
+	      const clubGkTrim = clubColorInput('task-club-color-gk-trim', '#ffffff');
+	      // El selector visible de Tactica, si esta, manda sobre el color del club.
+	      const local = parseColorToHex(tokenGlobalColorLocalInput?.value, clubLocal) || clubLocal;
+	      const rival = parseColorToHex(tokenGlobalColorRivalInput?.value, clubRival) || clubRival;
 	      if (preset === 'rival') return { base: rival, stripe: '#ffffff', pattern: 'solid' };
-	      if (preset === 'goalkeeper') return { base: '#1d4ed8', stripe: '#0ea5e9', pattern: 'solid' };
+	      if (preset === 'goalkeeper') return { base: clubGk, stripe: clubGkTrim, pattern: 'solid' };
 	      if (preset === 'neutral') return { base: '#f8fafc', stripe: '#64748b', pattern: 'solid' };
 	      return { base: '#ffffff', stripe: local, pattern: 'striped' };
 	    };

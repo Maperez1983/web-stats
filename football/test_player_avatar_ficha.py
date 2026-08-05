@@ -105,11 +105,16 @@ class PlayerAvatarFichaTests(TestCase):
         self.player.save()
         self.assertTrue(player_avatar_pending(self.player))
 
-    def test_resolver_skips_goalkeepers(self):
+    def test_goalkeeper_gets_goalkeeper_figure(self):
         from football.views import resolve_player_avatar_url
         gk = Player.objects.create(team=self.team, name="Portero", position="Portero", is_active=True, skin_grade=3)
-        # Un portero NO recibe avatar de campo (la figura base es de campo).
-        self.assertEqual(resolve_player_avatar_url(gk), "")
+        url = resolve_player_avatar_url(gk)
+        # Un portero NO recibe la figura de CAMPO recoloreada, pero tampoco se queda sin nada:
+        # la biblioteca tiene figura de portero y antes no la usaba nadie, así que en la pizarra
+        # acababa con el muñeco genérico.
+        self.assertNotIn("player-avatar-recolored", url)
+        self.assertNotEqual(url, "")
+        self.assertIn("gk_", url)
 
     def test_profile_form_saves_hairstyle(self):
         url = reverse("player-detail", args=[self.player.id])

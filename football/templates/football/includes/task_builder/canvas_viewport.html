@@ -1135,18 +1135,26 @@
 	                <p class="resource-helper" hidden>Pulsa una pestaña para mostrar los recursos.</p>
 				                <div class="resource-panel is-visible" data-panel="base">
 				                  <h3 class="tool-group-title">{% if tactics_mode %}Recursos gráficos{% else %}Jugadores{% endif %}</h3>
+			                  {% comment %}Los colores del club, disponibles SIEMPRE (no solo en Tactica):
+			                  los campos visibles de color viven dentro del bloque de Tactica, asi que en
+			                  el editor de tareas no existia ninguno y la chapa caia al color escrito a
+			                  fuego en el JS. Estos tres son la fuente para la chapa en las dos pantallas.{% endcomment %}
+			                  <input type="hidden" id="task-club-color-local" value="{{ club_token_colors.local|default:'#06814d' }}" />
+			                  <input type="hidden" id="task-club-color-rival" value="{{ club_token_colors.rival|default:'#ef4444' }}" />
+			                  <input type="hidden" id="task-club-color-gk" value="{{ club_token_colors.gk|default:'#1d4ed8' }}" />
+			                  <input type="hidden" id="task-club-color-gk-trim" value="{{ club_token_colors.gk_trim|default:'#ffffff' }}" />
 			                  {% if tactics_mode %}
 			                  <div class="token-global-style" id="task-token-style-global-tactics" aria-label="Colores rápidos de fichas">
 			                    <span class="label">Colores</span>
 			                    <span class="token-global-color" aria-label="Color local">
 			                      <span class="label" style="opacity:0.9;">Local</span>
-			                      <input type="color" id="task-token-global-color-local" value="#0f7a35" aria-label="Color local" />
-			                      <input type="text" id="task-token-global-color-local-hex" value="#0f7a35" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="#RRGGBB" aria-label="Color local (hex)" />
+			                      <input type="color" id="task-token-global-color-local" value="{{ club_token_colors.local|default:'#0f7a35' }}" aria-label="Color local" />
+			                      <input type="text" id="task-token-global-color-local-hex" value="{{ club_token_colors.local|default:'#0f7a35' }}" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="#RRGGBB" aria-label="Color local (hex)" />
 			                    </span>
 			                    <span class="token-global-color" aria-label="Color rival">
 			                      <span class="label" style="opacity:0.9;">Rival</span>
-			                      <input type="color" id="task-token-global-color-rival" value="#ef4444" aria-label="Color rival" />
-			                      <input type="text" id="task-token-global-color-rival-hex" value="#ef4444" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="#RRGGBB" aria-label="Color rival (hex)" />
+			                      <input type="color" id="task-token-global-color-rival" value="{{ club_token_colors.rival|default:'#ef4444' }}" aria-label="Color rival" />
+			                      <input type="text" id="task-token-global-color-rival-hex" value="{{ club_token_colors.rival|default:'#ef4444' }}" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="#RRGGBB" aria-label="Color rival (hex)" />
 			                    </span>
 			                    <button type="button" data-token-team-preset="local">Local</button>
 			                    <button type="button" data-token-team-preset="rival">Rival</button>
