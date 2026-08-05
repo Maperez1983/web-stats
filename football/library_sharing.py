@@ -92,3 +92,23 @@ def tarea_archivada_en_el_club(task, workspace):
     except Exception:
         logger.debug("No se pudo comprobar la carpeta de la tarea %s", getattr(task, "id", None), exc_info=True)
         return False
+
+
+def ids_de_tareas_compartidas(workspace):
+    """Ids de las tareas archivadas en las carpetas que el club comparte entre categorías."""
+    from .models import SessionTaskCollectionItem
+
+    ids = equipos_del_espacio(workspace)
+    if not ids:
+        return set()
+    try:
+        return {
+            int(tid)
+            for tid in SessionTaskCollectionItem.objects.filter(collection__team_id__in=ids)
+            .filter(_filtro_de_nombres_compartidos('collection__'))
+            .values_list('task_id', flat=True)
+            if tid
+        }
+    except Exception:
+        logger.debug('No se pudieron listar las tareas compartidas del club', exc_info=True)
+        return set()

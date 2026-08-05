@@ -150,3 +150,27 @@ class CarpetaCompartidaTests(TestCase):
         respuesta = self.client.get(reverse('sessions-task-edit', args=[suelta.id]))
 
         self.assertEqual(respuesta.status_code, 404)
+
+
+class SelectorDeBibliotecasTests(TestCase):
+    """El selector pintaba las tres bibliotecas siempre, con cero tareas y en cualquier club."""
+
+    def setUp(self):
+        self.duenio = User.objects.create_user(username='dueno-selector', password='x')
+        self.workspace = Workspace.objects.create(
+            name='Club selector', slug='club-selector', kind=Workspace.KIND_CLUB, owner_user=self.duenio
+        )
+        self.equipo = Team.objects.create(name='Senior selector', slug='senior-selector')
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.equipo, is_default=True)
+        self.client.force_login(self.duenio)
+
+    def test_un_club_sin_tareas_no_ve_la_biblioteca_de_aitor(self):
+        respuesta = self.client.get(reverse('sessions') + '?tab=library')
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertNotContains(respuesta, 'Biblioteca de Aitor')
+
+    def test_y_se_le_dice_que_no_hay_nada(self):
+        respuesta = self.client.get(reverse('sessions') + '?tab=library')
+
+        self.assertContains(respuesta, 'Todavía no hay tareas en la biblioteca')

@@ -4290,21 +4290,33 @@
 			        {# ELEGIR BIBLIOTECA. Entrar y recibir las 179 tareas de golpe no ayudaba a #}
 			        {# encontrar nada: primero se elige biblioteca y luego se lista. #}
 			        {% if not library_pick and not library_q %}
+		        {# Una biblioteca vacía no es una biblioteca: se pintaban las tres siempre, así #}
+		        {# que a un club que nunca ha subido un PPT le salía la de Aitor con 0 tareas. #}
 			        <div class="folder-grid" aria-label="Bibliotecas" style="margin-top:0.4rem;">
+			          {% if library_pick_counts.general %}
 			          <a class="folder-card" href="?{% qs_replace tab='library' lib='general' collection_id=None family=None lib_page=None %}">
 			            <strong>📗 Biblioteca general</strong>
-			            <span>{{ library_pick_counts.general|default:0 }} tareas · las del club</span>
+			            <span>{{ library_pick_counts.general }} tareas · las del club</span>
 			          </a>
+			          {% endif %}
+			          {% if library_pick_counts.aitor %}
 			          <a class="folder-card" href="?{% qs_replace tab='library' lib='aitor' collection_id=None family=None lib_page=None %}">
 			            <strong>🗂️ Biblioteca de Aitor</strong>
-			            <span>{{ library_pick_counts.aitor|default:0 }} tareas · las del PPT</span>
+			            <span>{{ library_pick_counts.aitor }} tareas · las del PPT</span>
 			          </a>
+			          {% endif %}
+			          {% if library_pick_counts.importadas %}
 			          <a class="folder-card" href="?{% qs_replace tab='library' lib='importadas' collection_id=None family=None lib_page=None %}">
 			            <strong>📥 Importadas</strong>
-			            <span>{{ library_pick_counts.importadas|default:0 }} tareas · desde PDF</span>
+			            <span>{{ library_pick_counts.importadas }} tareas · desde PDF</span>
 			          </a>
+			          {% endif %}
 			        </div>
+			        {% if library_pick_counts.general or library_pick_counts.aitor or library_pick_counts.importadas %}
 			        <p class="meta" style="margin:0.3rem 0 1rem;">Elige una biblioteca… o busca ahí arriba y te salen de todas.</p>
+			        {% else %}
+			        <p class="meta" style="margin:0.3rem 0 1rem;">Todavía no hay tareas en la biblioteca de este equipo.</p>
+			        {% endif %}
 			        {% else %}
 			        <p class="meta" style="margin:0.3rem 0 0.6rem;">
 			          <a class="button secondary small" href="?{% qs_replace tab='library' lib=None collection_id=None family=None lib_page=None %}">← Todas las bibliotecas</a>
