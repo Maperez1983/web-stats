@@ -4,23 +4,23 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Rivales de la liga · 2J</title>
+    <title>Equipos rivales · 2J</title>
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
     {% include 'football/pwa_head.html' %}
     <style>
       .ri-wrap { max-width:var(--fm-page,1120px); margin: 0 auto; padding: 1rem; }
       .ri-h1 { margin:0; color:var(--prod-text); font-size:1.6rem; }
-      .ri-sub { color:#94a3b8; font-weight:700; margin:.2rem 0 1rem; }
+      .ri-sub { color:var(--prod-muted, #94a3b8); font-weight:700; margin:.2rem 0 1rem; }
       .ri-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:.7rem; }
-      .ri-card { display:flex; justify-content:space-between; align-items:center; background:#0f172a; border:1px solid #1e293b; border-radius:12px; padding:.9rem 1rem; text-decoration:none; }
-      .ri-card:hover { border-color:#334155; background:#111c31; }
+      .ri-card { display:flex; justify-content:space-between; align-items:center; background:var(--fm-panel, #0f172a); border:1px solid var(--fm-line, #1e293b); border-radius:12px; padding:.9rem 1rem; text-decoration:none; }
+      .ri-card:hover { border-color:var(--prod-line-strong, #334155); background:var(--fm-panel-2, #111c31); }
       .ri-team { display:flex; align-items:center; gap:.6rem; }
-      .ri-crest { width:30px; height:30px; object-fit:contain; border-radius:6px; background:#0b1220; flex:0 0 auto; }
-      .ri-crest-ph { background:#1e293b; }
+      .ri-crest { width:30px; height:30px; object-fit:contain; border-radius:6px; background:var(--fm-panel-2, #0b1220); flex:0 0 auto; }
+      .ri-crest-ph { background:var(--fm-line, #1e293b); }
       .ri-nm { color:var(--prod-text); font-weight:800; }
       .ri-n { color:#7dd3fc; font-weight:900; font-size:.9rem; }
-      .ri-empty { color:#94a3b8; }
+      .ri-empty { color:var(--prod-muted, #94a3b8); }
       .ri-tools { display:flex; gap:.8rem; flex-wrap:wrap; align-items:flex-start; margin:.9rem 0 1rem; }
       .ri-find { display:flex; gap:.4rem; }
       .ri-find input { min-width:min(320px, 70vw); padding:.55rem .7rem; border-radius:10px;
@@ -39,6 +39,9 @@
       .rv-flash-item.success { border-color:rgba(34,197,94,.45); }
       .rv-flash-item.error { border-color:rgba(220,38,38,.45); }
       :root[data-theme="light"] .rv-flash-item { background:#ffffff; }
+      /* El azul del contador y el hueco del escudo se fijan a mano: el token de marca es
+         verde oscuro y sobre el panel oscuro se queda corto de contraste. */
+      :root[data-theme="light"] .ri-n { color:#0369a1; }
     </style>
   </head>
   <body class="prod-commercial">
@@ -46,7 +49,7 @@
       {% include 'football/includes/dragon_nav.html' %}
       <main class="ri-wrap">
         {% include 'football/includes/_zone_subnav.html' with zone='direccion' %}
-        <h1 class="ri-h1" style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>Rivales de la liga</span></h1>
+        <h1 class="ri-h1" style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>Equipos rivales</span></h1>
         <p class="ri-sub">Todos los equipos que no son tuyos: los de la liga y los de amistosos. Trabajan con Análisis, Dirección y Partido.</p>
         {% include 'football/includes/_zone_chips.html' with chips=zone_chips %}
         {% if messages %}
