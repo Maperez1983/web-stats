@@ -133,3 +133,20 @@ class CarpetaCompartidaTests(TestCase):
         peticion = self.client.get(reverse('session-task-detail', args=[self.tarea.id])).wsgi_request
 
         self.assertFalse(_can_reach_task(peticion, suya))
+
+    def test_el_editor_abre_una_tarea_de_la_carpeta_desde_el_cadete(self):
+        """Ver la tarea funcionaba, pero el editor la buscaba acotada al equipo activo: 404."""
+        respuesta = self.client.get(reverse('sessions-task-edit', args=[self.tarea.id]))
+
+        self.assertEqual(respuesta.status_code, 200)
+
+    def test_el_editor_sigue_cerrado_a_una_tarea_suelta_de_otra_categoria(self):
+        mc = TrainingMicrocycle.objects.create(
+            team=self.senior, title='Semana', week_start=date(2026, 8, 10), week_end=date(2026, 8, 16)
+        )
+        sesion = TrainingSession.objects.create(microcycle=mc, session_date=date(2026, 8, 11), duration_minutes=90)
+        suelta = SessionTask.objects.create(session=sesion, title='Rondo privado')
+
+        respuesta = self.client.get(reverse('sessions-task-edit', args=[suelta.id]))
+
+        self.assertEqual(respuesta.status_code, 404)
