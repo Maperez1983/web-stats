@@ -46,7 +46,7 @@ propia página; el POST sigue yendo a la ficha, que ya sabe guardarlo.{% endcomm
                   {% for p in area.params %}
                   <div class="eval-param">
                     <span class="eval-param-label">{{ p.label }}</span>
-                    <input type="range" name="param_{{ area.key }}_{{ p.key }}" min="0" max="10" step="1" value="0" data-eval-param />
+                    <input type="range" name="param_{{ area.key }}_{{ p.key }}" min="0" max="10" step="0.5" value="0" data-eval-param aria-label="{{ p.label }} (0 a 10, medios puntos)" />
                     <output class="eval-param-val">–</output>
                   </div>
                   {% endfor %}
@@ -82,10 +82,10 @@ propia página; el POST sigue yendo a la ficha, que ya sabe guardarlo.{% endcomm
                   function recompute(){
                     var vals = [];
                     ranges.forEach(function(r){
-                      var v = parseInt(r.value, 10) || 0;
+                      var v = parseFloat(r.value) || 0;
                       var out = r.parentElement.querySelector('.eval-param-val');
                       if (out){
-                        out.textContent = v >= 1 ? v : '–';
+                        out.textContent = v >= 1 ? (v % 1 ? v.toFixed(1).replace('.', ',') : String(v)) : '–';
                         out.setAttribute('data-band', v >= 8 ? 'high' : (v >= 5 ? 'mid' : (v >= 1 ? 'low' : '')));
                       }
                       if (v >= 1) vals.push(v);
