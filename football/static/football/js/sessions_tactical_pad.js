@@ -31192,8 +31192,21 @@
 			              // ancho: al lado de la chapa no se leia. Se sube a 68 y se baja el centro a
 			              // +12 para que la cabeza quede POR DEBAJO del cartel del nombre, que ocupa
 			              // de -43 a -24 y antes se la comia.
-			              const __avScale = 68 / Math.max(1, __avEl.naturalHeight || __avEl.height || 1);
-			              const __avImg = new fabric.Image(__avEl, { left: 0, top: 12, originX: 'center', originY: 'center', selectable: false, evented: false, scaleX: __avScale, scaleY: __avScale });
+			              // MEDIO CUERPO. Con la figura entera a 68 px la cara queda en 8 pixeles y no
+			              // hay nitidez que valga: no es un problema de resolucion -la caja no cachea y
+			              // el original es de 1482 px- sino de cuantos pixeles toca cada rasgo. Con el
+			              // recorte a la mitad superior, la cara pasa a unos 20 px y ya se reconoce.
+			              // El recorte es de la FUENTE, asi que al hacer zoom sigue habiendo original
+			              // de sobra del que tirar.
+			              const __avAlto = Math.max(1, __avEl.naturalHeight || __avEl.height || 1);
+			              const __avAncho = Math.max(1, __avEl.naturalWidth || __avEl.width || 1);
+			              const __avRecorte = Math.round(__avAlto * 0.46);
+			              const __avScale = 68 / __avRecorte;
+			              const __avImg = new fabric.Image(__avEl, {
+			                left: 0, top: 6, originX: 'center', originY: 'center',
+			                selectable: false, evented: false, scaleX: __avScale, scaleY: __avScale,
+			                cropX: 0, cropY: 0, width: __avAncho, height: __avRecorte,
+			              });
 			              applyRenderableQuality(__avImg, { strokeUniform: false });
 			              __avImg.data = { role: 'token_avatar' };
 			              tokenParts.push(__avImg);
