@@ -1601,13 +1601,13 @@
         </section>
 
         <section class="panel task-edit-tab-panel{% if active_task_edit_tab == 'settings' %} is-active{% endif %}" data-task-edit-tab-panel="settings">
-          <h2>Ajustes avanzados</h2>
-          <div class="msg" style="background:rgba(52,211,153,0.10); border:1px solid rgba(52,211,153,0.35);">✏️ Los campos principales (objetivo, desarrollo, material, criterios, progresión…) se editan directamente en la <strong>Ficha</strong> (pestaña Presentación → «Editar textos»). Aquí solo quedan los <strong>ajustes avanzados</strong>: metodología, carga, superficie, categoría…</div>
+          <h2>Ajustes de la tarea</h2>
+          <div class="msg" style="background:rgba(52,211,153,0.10); border:1px solid rgba(52,211,153,0.35);">✏️ Los <strong>textos</strong> de la tarea (título, objetivo, desarrollo, material, medidas…) se editan en un solo sitio: <strong>Presentación → «Editar textos»</strong>. Aquí quedan los ajustes que NO son texto: campo y jugadores, metodología y carga.</div>
           <form method="post" class="grid editor-core" id="task-detail-form">
             {% csrf_token %}
             <input type="hidden" name="detail_action" value="update_task_detail" />
             <div class="task-settings-tab-bar" role="tablist" aria-label="Secciones de configuración">
-              <button type="button" class="button task-settings-tab is-active" data-task-settings-tab="sheet" aria-selected="true">Datos técnicos</button>
+              <button type="button" class="button task-settings-tab is-active" data-task-settings-tab="sheet" aria-selected="true">Campo y jugadores</button>
               <button type="button" class="button task-settings-tab" data-task-settings-tab="content" aria-selected="false">Contenido</button>
               <button type="button" class="button task-settings-tab" data-task-settings-tab="methodology" aria-selected="false">Metodología</button>
               <button type="button" class="button task-settings-tab" data-task-settings-tab="load" aria-selected="false">Carga</button>
@@ -1616,47 +1616,15 @@
             <section class="task-settings-pane is-active" data-task-settings-pane="sheet">
               <div class="editor-section">
                 <div class="editor-section-head">
-                  <h3>Ficha técnica base</h3>
-                  <span class="meta">Lo que define la tarea antes de entrar en detalle.</span>
+                  <h3>Campo y jugadores</h3>
+                  <span class="meta">Dónde se juega y con cuánta gente. Los textos van en la ficha.</span>
                 </div>
+                {% comment %}Título, bloque, minutos y medidas se editan en la FICHA («Editar
+                textos»). Estaban también aquí, y eso era la "otra ficha de edición": dos
+                formularios para lo mismo. El título viaja oculto porque el guardado lo exige.
+                {% endcomment %}
+                <input type="hidden" name="task_title" value="{{ task.title }}" />
                 <div class="editor-grid">
-                  <label>
-                    Título
-                    <input type="text" name="task_title" value="{{ task.title }}" maxlength="160" required />
-                  </label>
-                  <label>
-                    Bloque
-                    <select name="task_block">
-                      {% for value, label in task_blocks %}
-                      <option value="{{ value }}" {% if task.block == value %}selected{% endif %}>{{ label }}</option>
-                      {% endfor %}
-                    </select>
-                  </label>
-                  <label>
-                    Minutos
-                    <input type="number" name="task_minutes" min="5" max="90" value="{{ task.duration_minutes }}" />
-                  </label>
-                  <label>
-                    Espacio · medidas
-                    <input type="text" name="task_sheet_dimensions" value="{{ task_sheet.dimensions }}" placeholder="Ej: Medio campo · 40x30 m" />
-                  </label>
-                  <label>
-                    Materiales
-                    <input type="text" name="task_sheet_materials" value="{{ task_sheet.materials }}" placeholder="Ej: 10 conos, 2 porterías, 8 petos" />
-                    <div class="mat-chips" data-mat-target="task_sheet_materials" style="display:flex; flex-wrap:wrap; gap:.3rem; margin-top:.4rem;">
-                      <button type="button" class="button secondary small" data-mat="conos">Conos</button>
-                      <button type="button" class="button secondary small" data-mat="petos">Petos</button>
-                      <button type="button" class="button secondary small" data-mat="mini-porterías">Mini-porterías</button>
-                      <button type="button" class="button secondary small" data-mat="porterías">Porterías</button>
-                      <button type="button" class="button secondary small" data-mat="vallas">Vallas</button>
-                      <button type="button" class="button secondary small" data-mat="picas">Picas</button>
-                      <button type="button" class="button secondary small" data-mat="escaleras">Escaleras</button>
-                      <button type="button" class="button secondary small" data-mat="balones">Balones</button>
-                      <button type="button" class="button secondary small" data-mat="maniquíes">Maniquíes</button>
-                      <button type="button" class="button secondary small" data-mat="aros">Aros</button>
-                    </div>
-                    <span class="meta" style="display:block; margin-top:.25rem;">Toca para añadir/quitar. El material también <strong>afina la portada realista</strong>.</span>
-                  </label>
                   <label>
                     Edad / categoría
                     <input type="text" name="task_age_group" value="{{ task_meta.age_group }}" placeholder="Ej: Benjamín / Cadete" />
@@ -1678,10 +1646,6 @@
                       <option value="{{ value }}" {% if task_meta.pitch_format == value %}selected{% endif %}>{{ label }}</option>
                       {% endfor %}
                     </select>
-                  </label>
-                  <label class="full">
-                    Objetivo
-                    <textarea name="task_objective" rows="2" style="min-height:52px; resize:vertical;">{{ task.objective }}</textarea>
                   </label>
                   <label class="full">
                     Jugadores / organización
