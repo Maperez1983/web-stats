@@ -4240,6 +4240,32 @@
 			          </a>
 			        </div>
 
+			        {# ELEGIR BIBLIOTECA. Entrar y recibir las 179 tareas de golpe no ayudaba a #}
+			        {# encontrar nada: primero se elige biblioteca y luego se lista. #}
+			        {% if not library_pick %}
+			        <div class="folder-grid" aria-label="Bibliotecas" style="margin-top:0.4rem;">
+			          <a class="folder-card" href="?{% qs_replace tab='library' lib='general' collection_id=None family=None lib_page=None %}">
+			            <strong>📗 Biblioteca general</strong>
+			            <span>{{ library_pick_counts.general|default:0 }} tareas · las del club</span>
+			          </a>
+			          <a class="folder-card" href="?{% qs_replace tab='library' lib='aitor' collection_id=None family=None lib_page=None %}">
+			            <strong>🗂️ Biblioteca de Aitor</strong>
+			            <span>{{ library_pick_counts.aitor|default:0 }} tareas · las del PPT</span>
+			          </a>
+			          <a class="folder-card" href="?{% qs_replace tab='library' lib='importadas' collection_id=None family=None lib_page=None %}">
+			            <strong>📥 Importadas</strong>
+			            <span>{{ library_pick_counts.importadas|default:0 }} tareas · desde PDF</span>
+			          </a>
+			        </div>
+			        <p class="meta" style="margin:0.3rem 0 1rem;">Elige una biblioteca para ver sus tareas.</p>
+			        {% else %}
+			        <p class="meta" style="margin:0.3rem 0 0.6rem;">
+			          <a class="button secondary small" href="?{% qs_replace tab='library' lib=None collection_id=None family=None lib_page=None %}">← Todas las bibliotecas</a>
+			          <strong style="margin-left:.5rem;">{% if library_pick == 'aitor' %}Biblioteca de Aitor{% elif library_pick == 'importadas' %}Importadas{% else %}Biblioteca general{% endif %}</strong>
+			        </p>
+			        {% endif %}
+
+{% if library_pick %}
 			        {# Tipo de tarea: la familia (rondo, circuito, partido…) como fila de carpetas, #}
 			        {# igual que las colecciones. Es la pregunta que más se hace al buscar una tarea. #}
 			        <div class="folder-grid" aria-label="Tipo de tarea" style="margin-top:0.75rem;">
@@ -4526,6 +4552,7 @@
                 </div>
                 {% endif %}
 
+        {% endif %}{# library_pick: filtros y carpetas #}
         {% if task_library_page_items %}
         {% if task_pick_mode and task_pick_kind == 'create_session' %}
         <div class="box" style="margin:0 0 0.9rem;">
@@ -4591,6 +4618,7 @@
         </div>
         {% endif %}
                 <div class="task-list">
+                  {% if library_pick %}{# la rejilla sólo cuando ya se ha elegido biblioteca #}
                   {% for t in task_library_page_items %}
                   {% if library_group_by_block %}{% ifchanged t.block %}<div class="library-block-header">{{ t.get_block_display|default:"Sin bloque" }}</div>{% endifchanged %}{% endif %}
 			          <article
@@ -4813,6 +4841,9 @@
             </div>
           </article>
           {% endfor %}
+          {% else %}
+          <p class="meta" style="margin:0.6rem 0;">Elige arriba una biblioteca para ver sus tareas.</p>
+          {% endif %}{# library_pick: rejilla #}
         </div>
         {% if task_pick_mode or library_bulk_mode %}
         <script>
