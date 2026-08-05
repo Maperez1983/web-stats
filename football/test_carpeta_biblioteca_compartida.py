@@ -46,12 +46,16 @@ class CarpetaCompartidaTests(TestCase):
         self.client.force_login(self.entrenador)
 
     def _tarea_en_carpeta(self, team, carpeta, titulo):
-        mc = TrainingMicrocycle.objects.create(
-            team=team, title='Biblioteca', week_start=date(2000, 1, 10), week_end=date(2000, 1, 16)
+        # Un equipo tiene UN microciclo de biblioteca: se reutiliza, como en producción.
+        mc, _ = TrainingMicrocycle.objects.get_or_create(
+            team=team, week_start=date(2000, 1, 10),
+            defaults={'title': 'Biblioteca', 'week_end': date(2000, 1, 16)},
         )
-        sesion = TrainingSession.objects.create(microcycle=mc, session_date=date(2000, 1, 10), duration_minutes=90)
+        sesion, _ = TrainingSession.objects.get_or_create(
+            microcycle=mc, session_date=date(2000, 1, 10), defaults={'duration_minutes': 90}
+        )
         tarea = SessionTask.objects.create(session=sesion, title=titulo)
-        coleccion = SessionTaskCollection.objects.create(
+        coleccion, _ = SessionTaskCollection.objects.get_or_create(
             team=team, repository=SessionTaskCollection.REPO_INTERACTIVE, name=carpeta
         )
         SessionTaskCollectionItem.objects.create(collection=coleccion, task=tarea)
@@ -97,12 +101,35 @@ class CarpetaCompartidaTests(TestCase):
         self.assertFalse(_can_reach_task(peticion, tarea_ajena))
 
     def test_las_carpetas_del_club_se_listan_desde_cualquier_categoria(self):
-        from .library_sharing import carpetas_del_club
+        from .library_sharing import carpetas_visibles
 
         nombres = list(
-            carpetas_del_club(self.workspace, self.cadete, SessionTaskCollection.REPO_INTERACTIVE).values_list(
+            carpetas_visibles(self.workspace, self.cadete, SessionTaskCollection.REPO_INTERACTIVE).values_list(
                 'name', flat=True
             )
         )
 
         self.assertIn('Tareas importadas', nombres)
+
+    def test_la_biblioteca_de_aitor_no_sale_del_senior(self):
+        """Sólo se comparte lo importado: la biblioteca de una persona es de su categoría."""
+        from .library_sharing import carpetas_visibles
+
+        self._tarea_en_carpeta(self.senior, 'Biblioteca de Aitor', 'Rondo de Aitor')
+
+        nombres = list(
+            carpetas_visibles(self.workspace, self.cadete, SessionTaskCollection.REPO_INTERACTIVE).values_list(
+                'name', flat=True
+            )
+        )
+
+        self.assertIn('Tareas importadas', nombres)
+        self.assertNotIn('Biblioteca de Aitor', nombres)
+
+    def test_y_su_tarea_tampoco_se_alcanza_desde_el_cadete(self):
+        from .views import _can_reach_task
+
+        suya = self._tarea_en_carpeta(self.senior, 'Biblioteca de Aitor', 'Otro rondo de Aitor')
+        peticion = self.client.get(reverse('session-task-detail', args=[self.tarea.id])).wsgi_request
+
+        self.assertFalse(_can_reach_task(peticion, suya))
