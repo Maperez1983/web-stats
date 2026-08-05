@@ -1554,6 +1554,16 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     if (!button) return;
     button.addEventListener('click', async () => {
       if (button.disabled) return;
+      // "Guardar partido" cierra el registro en vivo, y está siempre a la vista mientras se
+      // registran acciones: un toque suelto en la tableta terminaba el partido sin preguntar.
+      // No bloquea nada (el staff puede cerrar aunque falten datos), sólo pide confirmar.
+      try {
+        const registradas = document.querySelectorAll('#history-list .history-item').length;
+        const detalle = registradas > 0
+          ? `Se cerrará con ${registradas} ${registradas === 1 ? 'acción registrada' : 'acciones registradas'}.`
+          : 'Todavía no hay acciones registradas en vivo.';
+        if (!window.confirm(`¿Guardar el partido y cerrar el registro en vivo?\n\n${detalle}`)) return;
+      } catch (e) {}
       const setFinalizeInFlight = (inFlight) => {
         matchFinalizeButtons.forEach((btn) => {
           if (!btn) return;

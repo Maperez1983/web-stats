@@ -3097,7 +3097,7 @@
   </head>
   <body class="prod-commercial">
     <div class="page">
-      {% include 'football/includes/matchday_flow_bar.html' with matchday_match_id=selected_match_id matchday_team_id=primary_team_id matchday_match_label=match_info.opponent matchday_step='actions' matchday_convocation_state='Lista guardada' matchday_lineup_state='11 inicial' matchday_actions_state=actions_total_count|default:'Registro en vivo' matchday_close_state='Resultado e informes' %}
+      {% include 'football/includes/matchday_flow_bar.html' with matchday_match_id=selected_match_id matchday_team_id=primary_team_id matchday_match_label=match_info.opponent matchday_step='actions' matchday_convocation_state='Lista guardada' matchday_lineup_state='11 preparado' matchday_actions_state=actions_state_label matchday_close_state='Resultado e informes' %}
       <div class="action-screen">
         <section class="field-column">
           <div class="match-page-status" id="match-page-status" aria-live="polite"></div>
@@ -4400,7 +4400,7 @@
               <div class="history-grid" id="history-list">
 	              {% for event in recent_events %}
 	              <article class="history-item{% if event.raw_data.impact.code %} has-impact{% endif %}" data-event-id="{{ event.id }}" data-system="{{ event.system|default:'' }}" data-source="{{ event.source_file|default:'' }}" data-impact-code="{{ event.raw_data.impact.code|default:'' }}" data-impact-reason="{{ event.raw_data.impact.reason|default:'' }}"{% if event.player_id %} data-player-id="{{ event.player_id }}"{% endif %}>
-	                <span class="hist-minute">{{ event.minute|default:"??" }}'</span>
+	                <span class="hist-minute">{% if event.minute is not None %}{{ event.minute }}'{% else %}—{% endif %}</span>
                   {% if event.source_file == 'manual-recovery' %}
                     <span class="pending-pill" style="background: rgba(8,145,178,0.16); border-color: rgba(34,211,238,0.35); color: #a5f3fc;">RECUPERADA</span>
                   {% elif event.system == 'touch-field-final' %}
