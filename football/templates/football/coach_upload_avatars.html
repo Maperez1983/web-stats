@@ -90,6 +90,18 @@
       <button type="submit">Subir y asignar</button>
     </form>
 
+    {% comment %}Los avatares subidos antes de que existiera el recorte automatico
+    siguen con su fondo. Esto los repasa sin tener que volver a subirlos.{% endcomment %}
+    <form method="post" style="margin-top:1rem;">
+      {% csrf_token %}
+      <input type="hidden" name="form_action" value="recortar_existentes" />
+      <button type="submit" class="btn btn-ghost">Quitar el fondo a los avatares ya subidos</button>
+      <p style="margin:.35rem 0 0;font-size:.8rem;opacity:.75;">
+        Repasa los que estén opacos y les recorta el fondo. Los que ya estén recortados no se tocan,
+        y el archivo anterior se conserva.
+      </p>
+    </form>
+
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
         <strong>Plantilla · {{ primary_team.name }}</strong>

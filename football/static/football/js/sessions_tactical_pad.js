@@ -6427,6 +6427,15 @@
 	      const el = document.getElementById(id);
 	      return parseColorToHex(el && el.value, porDefecto) || porDefecto;
 	    };
+	    // Un solo sitio con los colores del club, para que la chapa de una ficha recien
+	    // colocada y los botones Local/Rival/Portero no puedan discrepar.
+	    const coloresDelClub = () => ({
+	      local: clubColorInput('task-club-color-local', '#06814d'),
+	      rival: clubColorInput('task-club-color-rival', '#ef4444'),
+	      gk: clubColorInput('task-club-color-gk', '#1d4ed8'),
+	      gkTrim: clubColorInput('task-club-color-gk-trim', '#ffffff'),
+	    });
+	    window.__tpadClubColors = coloresDelClub;
 	    const tokenTeamPresetPalette = (presetRaw) => {
 	      const preset = safeText(presetRaw, 'local').toLowerCase();
 	      const clubLocal = clubColorInput('task-club-color-local', '#06814d');
@@ -30735,13 +30744,15 @@
     void preloadAllAvatars;
     const playerTokenFactory = (kind, player, options = {}) => (left, top) => {
 		      const preferredName = safeText(player?.nickname || player?.name, '');
-		      const playerNameLower = preferredName.toLowerCase();
-		      const goalkeeperPreferBlue = playerNameLower.includes('trivi') || playerNameLower.includes('antonio');
       const isGoalkeeperKind = kind === 'goalkeeper_local' || kind === 'goalkeeper_rival';
+      // El color del portero salia de una paleta fija y, encima, de un apanio con dos
+      // nombres escritos a mano ('trivi', 'antonio'). Ahora manda la equipacion de
+      // portero del club, que es lo que el entrenador configura en Onboarding.
+      const _club = (typeof window.__tpadClubColors === 'function') ? window.__tpadClubColors() : null;
       const palette = isGoalkeeperKind
-        ? (goalkeeperPreferBlue ? COLORS.goalkeeper_blue : COLORS.goalkeeper)
+        ? (_club ? { fill: _club.gk, stroke: _club.gkTrim, text: '#ffffff' } : COLORS.goalkeeper)
         : kind === 'player_rival'
-          ? COLORS.rival
+          ? (_club ? { fill: _club.rival, stroke: '#ffffff', text: '#ffffff' } : COLORS.rival)
           : COLORS.local;
       const label = player?.number ? String(player.number).slice(0, 2) : (isGoalkeeperKind ? 'GK' : 'J');
 	      const playerName = safeText(
@@ -30763,10 +30774,12 @@
 		      const _displayStyle = (player?.display?.mode === 'avatar' || player?.display?.mode === 'photo') ? 'photo' : '';
 		      const style = normalizeTokenStyle(options?.style || player?.token_style || _displayStyle || tokenGlobalStyle);
 			      const pattern = normalizeTokenPattern(options?.pattern || player?.token_pattern || 'striped');
-	      const defaultBase = kind === 'player_away' ? (isTacticsMode ? tokenGlobalColorLocal : '#facc15') : (isTacticsMode ? tokenGlobalColorLocalBase : '#ffffff');
+	      const defaultBase = kind === 'player_away'
+	        ? (isTacticsMode ? tokenGlobalColorLocal : (_club ? _club.rival : '#facc15'))
+	        : (isTacticsMode ? tokenGlobalColorLocalBase : '#ffffff');
       const defaultStripe = isTacticsMode
         ? ((kind === 'player_rival' || kind === 'goalkeeper_rival') ? tokenGlobalColorRival : tokenGlobalColorLocal)
-        : (kind === 'player_local' ? '#0f7a35' : palette.fill);
+        : (kind === 'player_local' ? (_club ? _club.local : '#0f7a35') : palette.fill);
 		      const baseColor = parseColorToHex(options?.base, parseColorToHex(player?.token_base_color, defaultBase)) || defaultBase;
 		      const stripeColor = parseColorToHex(options?.stripe, parseColorToHex(player?.token_stripe_color, defaultStripe)) || defaultStripe;
 		      const photoUrl = resolvePlayerPhotoUrl(options?.photoUrl || player?.display?.url || player?.photo_url);
