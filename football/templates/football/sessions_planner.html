@@ -4282,8 +4282,11 @@
 			            href="?{% qs_replace tab='library' library_source='imported' library_view='overview' library_key=None lib_page=None %}"
 			            {% if library_source_tab == 'imported' %}aria-current="page"{% endif %}
 			          >
-			            <strong>📥 Importadas</strong>
-			            <span>{{ library_source_counts.imported|default:0 }} tareas · PDF tal cual</span>
+			            {# NO decir "Importadas": esa palabra ya es la BIBLIOTECA de material de fuera. #}
+			            {# Esto es otra cosa: por dónde entró el fichero. Salían las dos en la misma #}
+			            {# pantalla con números distintos (24 y 22) y no había forma de saber cuál era cuál. #}
+			            <strong>📥 Subidas en PDF</strong>
+			            <span>{{ library_source_counts.imported|default:0 }} tareas · el PDF tal cual</span>
 			          </a>
 			          <a
 			            class="folder-card {% if library_source_tab == 'performed' %}is-current{% endif %}"
