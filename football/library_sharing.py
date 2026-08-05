@@ -55,13 +55,17 @@ def equipos_del_espacio(workspace, team=None):
     return ids
 
 
-def carpetas_visibles(workspace, team, repository):
-    """Las carpetas propias de la categoría, más las compartidas del resto del club."""
+def carpetas_visibles(workspace, team, repository=None):
+    """Las carpetas propias de la categoría, más las compartidas del resto del club.
+
+    `repository=None` las trae todas: tradicional o interactiva es de dónde entró el material,
+    no una biblioteca aparte.
+    """
     from django.db.models import Q
 
     from .models import SessionTaskCollection
 
-    qs = SessionTaskCollection.objects.filter(repository=repository)
+    qs = SessionTaskCollection.objects.all() if repository is None else SessionTaskCollection.objects.filter(repository=repository)
     if team is None or not getattr(team, 'id', None):
         return qs.none()
     propias = Q(team_id=int(team.id))

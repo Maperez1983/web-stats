@@ -224,3 +224,47 @@ class MismaCategoriaTests(TestCase):
         WorkspaceTeam.objects.create(workspace=otro, team=ajeno)
 
         self.assertNotIn(ajeno.id, equipos_de_la_categoria(self.workspace, self.cadete_b))
+
+
+class BibliotecaSinPartirTests(TestCase):
+    """Tradicional o interactiva es de dónde entró el material, no una biblioteca aparte."""
+
+    def setUp(self):
+        self.duenio = User.objects.create_user(username='dueno-repo', password='x')
+        self.workspace = Workspace.objects.create(
+            name='Club repo', slug='club-repo', kind=Workspace.KIND_CLUB, owner_user=self.duenio
+        )
+        self.equipo = Team.objects.create(name='Senior repo', slug='senior-repo', category='Senior')
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.equipo, is_default=True)
+
+    def test_las_carpetas_salen_sean_del_repositorio_que_sean(self):
+        from .library_sharing import carpetas_visibles
+
+        SessionTaskCollection.objects.create(
+            team=self.equipo, repository=SessionTaskCollection.REPO_INTERACTIVE, name='Tareas importadas'
+        )
+        SessionTaskCollection.objects.create(
+            team=self.equipo, repository=SessionTaskCollection.REPO_TRADITIONAL, name='Del PPT'
+        )
+
+        nombres = sorted(carpetas_visibles(self.workspace, self.equipo).values_list('name', flat=True))
+
+        self.assertEqual(nombres, ['Del PPT', 'Tareas importadas'])
+
+    def test_pedir_un_repositorio_concreto_sigue_pudiendose(self):
+        from .library_sharing import carpetas_visibles
+
+        SessionTaskCollection.objects.create(
+            team=self.equipo, repository=SessionTaskCollection.REPO_INTERACTIVE, name='Tareas importadas'
+        )
+        SessionTaskCollection.objects.create(
+            team=self.equipo, repository=SessionTaskCollection.REPO_TRADITIONAL, name='Del PPT'
+        )
+
+        nombres = list(
+            carpetas_visibles(
+                self.workspace, self.equipo, SessionTaskCollection.REPO_TRADITIONAL
+            ).values_list('name', flat=True)
+        )
+
+        self.assertEqual(nombres, ['Del PPT'])
