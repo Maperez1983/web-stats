@@ -2219,13 +2219,13 @@
 
 			      <div class="tabs" id="planner-tabs">
 			        <a class="tab-link {% if main_tab == 'create' %}is-active{% endif %}" href="?tab=create&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Crear</a>
-				        <a class="tab-link {% if main_tab == 'library' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_source={{ library_source_tab|default:'created' }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Biblioteca</a>
+				        <a class="tab-link {% if main_tab == 'library' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_source={{ library_source_tab }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Biblioteca</a>
 				        <a class="tab-link {% if main_tab == 'import' %}is-active{% endif %}" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Importar</a>
 				      </div>
 
 			      {% if main_tab == 'library' %}
 			      <div class="tabs" style="margin-top:-0.15rem;">
-				        <a class="tab-link {% if active_tab == 'library' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_source={{ library_source_tab|default:'created' }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Tareas</a>
+				        <a class="tab-link {% if active_tab == 'library' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_source={{ library_source_tab }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Tareas</a>
 				        <a class="tab-link {% if active_tab == 'sessions' %}is-active{% endif %}" href="?tab=sessions&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Sesiones</a>
 				        <a class="tab-link {% if active_tab == 'microcycles' %}is-active{% endif %}" href="?tab=microcycles&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Microciclos</a>
 			      </div>
@@ -4212,7 +4212,7 @@
 			          <span class="meta" style="font-weight:800; letter-spacing:.02em; margin-right:0.15rem;">TEMPORADA</span>
 			          {% for s in library_season_options %}
 			          <a class="tab-link {% if library_season_selected|stringformat:'s' == s.id|stringformat:'s' %}is-active{% endif %}"
-			             href="?tab=library&amp;library_repo={{ library_repository }}&amp;library_source={{ library_source_tab|default:'created' }}&amp;library_season={{ s.id }}&amp;team={{ primary_team_id }}{% if active_workspace_id %}&amp;workspace={{ active_workspace_id }}{% endif %}"
+			             href="?tab=library&amp;library_repo={{ library_repository }}&amp;library_source={{ library_source_tab }}&amp;library_season={{ s.id }}&amp;team={{ primary_team_id }}{% if active_workspace_id %}&amp;workspace={{ active_workspace_id }}{% endif %}"
 			             {% if s.is_active %}title="Temporada activa"{% endif %}>{{ s.label }}{% if s.is_active %} ●{% endif %} <span class="meta" style="opacity:.75;">({{ s.count }})</span></a>
 			          {% endfor %}
 			        </div>
@@ -4245,7 +4245,7 @@
 			          <div class="library-strip-item">
 			            <small>En carpeta</small>
 			            <strong>
-			              {% if library_source_tab == 'imported' %}{{ library_source_counts.imported|default:0 }}{% elif library_source_tab == 'performed' %}{{ library_source_counts.performed|default:0 }}{% else %}{{ library_source_counts.created|default:0 }}{% endif %}
+			              {% if not library_source_tab %}{{ library_total|default:0 }}{% elif library_source_tab == 'imported' %}{{ library_source_counts.imported|default:0 }}{% elif library_source_tab == 'performed' %}{{ library_source_counts.performed|default:0 }}{% else %}{{ library_source_counts.created|default:0 }}{% endif %}
 			            </strong>
 			          </div>
 			          <div class="library-strip-item">
@@ -4261,6 +4261,14 @@
 			          <a class="button secondary" href="?tab=sessions&sessions_view=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Añadir a sesión</a>
 			        </div>
 			        <div class="folder-grid" aria-label="Carpetas de Biblioteca">
+			          <a
+			            class="folder-card {% if not library_source_tab %}is-current{% endif %}"
+			            href="?{% qs_replace tab='library' library_source=None library_view='overview' library_key=None lib_page=None %}"
+			            {% if not library_source_tab %}aria-current="page"{% endif %}
+			          >
+			            <strong>🗂️ Todas</strong>
+			            <span>{{ library_total|default:0 }} tareas · sin filtrar por origen</span>
+			          </a>
 			          <a
 			            class="folder-card {% if library_source_tab == 'created' %}is-current{% endif %}"
 			            href="?{% qs_replace tab='library' library_source='created' library_view='overview' library_key=None lib_page=None %}"
