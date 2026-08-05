@@ -28900,6 +28900,67 @@
 	          }
 	          try { applyViewportTransformToWorld(); } catch (e) { /* ignore */ }
 	        }
+		// Compat: las zonas guardadas antes del arreglo del rayado arrastran una CAJA
+		// FANTASMA (el rayado sin recortar media ~546x552 dentro de una zona de 138x90).
+		// Aqui se le ajusta la caja al rectangulo que de verdad se ve, SIN mover ni
+		// redimensionar el dibujo: la zona se ve igual, pero los tiradores y las medidas
+		// por fin coinciden con ella.
+		try {
+		  const cajaDeLaZona = (zona) => {
+		    if (!zona || zona.type !== 'group' || !Array.isArray(zona._objects)) return false;
+		    if (safeText(zona?.data?.kind) !== 'zone') return false;
+		    if (zona.originX !== 'center' || zona.originY !== 'center') return false;
+		    const visibles = zona._objects.filter((hijo) => {
+		      const role = safeText(hijo?.data?.role);
+		      return role === 'zone_base' || role === 'zone_border';
+		    });
+		    if (!visibles.length) return false;
+		    if (!visibles.every((h) => h.originX === 'center' && h.originY === 'center')) return false;
+		    let izq = Infinity; let der = -Infinity; let arr = Infinity; let aba = -Infinity;
+		    visibles.forEach((hijo) => {
+		      const trazo = Number(hijo.strokeWidth) || 0;
+		      const ancho = (Number(hijo.width) || 0) * (Number(hijo.scaleX) || 1) + trazo;
+		      const alto = (Number(hijo.height) || 0) * (Number(hijo.scaleY) || 1) + trazo;
+		      const hx = Number(hijo.left) || 0;
+		      const hy = Number(hijo.top) || 0;
+		      izq = Math.min(izq, hx - ancho / 2);
+		      der = Math.max(der, hx + ancho / 2);
+		      arr = Math.min(arr, hy - alto / 2);
+		      aba = Math.max(aba, hy + alto / 2);
+		    });
+		    const anchoReal = der - izq;
+		    const altoReal = aba - arr;
+		    if (!(anchoReal > 0) || !(altoReal > 0)) return false;
+		    const sobraAncho = (Number(zona.width) || 0) - anchoReal;
+		    const sobraAlto = (Number(zona.height) || 0) - altoReal;
+		    if (sobraAncho <= 1 && sobraAlto <= 1) return false;
+		    // Si el rectangulo no estaba centrado en su caja, se recolocan los hijos y se
+		    // compensa el desplazamiento en el grupo para que nada se mueva en pantalla.
+		    const cx = (izq + der) / 2;
+		    const cy = (arr + aba) / 2;
+		    if (cx || cy) {
+		      const rad = ((Number(zona.angle) || 0) * Math.PI) / 180;
+		      const dx = cx * (Number(zona.scaleX) || 1);
+		      const dy = cy * (Number(zona.scaleY) || 1);
+		      zona.left = (Number(zona.left) || 0) + dx * Math.cos(rad) - dy * Math.sin(rad);
+		      zona.top = (Number(zona.top) || 0) + dx * Math.sin(rad) + dy * Math.cos(rad);
+		      zona._objects.forEach((hijo) => {
+		        if (!hijo) return;
+		        hijo.left = (Number(hijo.left) || 0) - cx;
+		        hijo.top = (Number(hijo.top) || 0) - cy;
+		        try { hijo.setCoords(); } catch (e) { /* ignore */ }
+		      });
+		    }
+		    zona.set({ width: anchoReal, height: altoReal });
+		    zona.dirty = true;
+		    try { zona.setCoords(); } catch (e) { /* ignore */ }
+		    return true;
+		  };
+		  canvas.getObjects().forEach((obj) => {
+		    try { cajaDeLaZona(obj); } catch (e) { /* ignore */ }
+		  });
+		} catch (e) { /* ignore */ }
+
 	        // Compat: algunas tareas muy antiguas no guardaban token_style. Solo esas se normalizan.
 	        // Si una tarea ya guardó "camiseta", "foto" o "chapa", respetamos exactamente su formato.
         try {
@@ -33009,16 +33070,37 @@
 		          base.data = { role: 'zone_base' };
 
 		          // Hatch overlay (broadcast style).
+		          // OJO con la CAJA del grupo: las lineas se dibujan mas largas que la zona y
+		          // luego se recortan con clipPath. Se VE bien, pero fabric mide el grupo por
+		          // las lineas SIN recortar, asi que la caja de la zona salia ~4 veces mayor
+		          // que el rectangulo visible (138x90 de rectangulo en una caja de 546x552).
+		          // Consecuencia: escalar o colocar la zona desde fuera daba un tamanio y una
+		          // posicion que no se correspondian con lo que se ve. Por eso las lineas se
+		          // generan YA giradas (el grupo se queda a 0 grados) y se le fija a la caja el
+		          // tamanio de la zona: lo que mide es lo que se ve.
 		          const hatchLines = [];
 		          const step = 16;
 		          const span = Math.max(width, height) * 2;
-		          for (let x = -span; x <= span; x += step) {
-		            const line = new fabric.Line([x, -span, x, span], {
-		              stroke: rgbaFromHex(colorHex, 0.38),
-		              strokeWidth: 2,
-		              selectable: false,
-		              evented: false,
-		            });
+		          const hatchRad = (-35 * Math.PI) / 180;
+		          const hatchDx = Math.cos(hatchRad);
+		          const hatchDy = Math.sin(hatchRad);
+		          const hatchNx = -hatchDy;
+		          const hatchNy = hatchDx;
+		          for (let d = -span; d <= span; d += step) {
+		            const line = new fabric.Line(
+		              [
+		                d * hatchNx - span * hatchDx,
+		                d * hatchNy - span * hatchDy,
+		                d * hatchNx + span * hatchDx,
+		                d * hatchNy + span * hatchDy,
+		              ],
+		              {
+		                stroke: rgbaFromHex(colorHex, 0.38),
+		                strokeWidth: 2,
+		                selectable: false,
+		                evented: false,
+		              },
+		            );
 		            line.data = { role: 'zone_hatch' };
 		            hatchLines.push(line);
 		          }
@@ -33029,8 +33111,9 @@
 		            top: 0,
 		            selectable: false,
 		            evented: false,
-		            angle: -35,
 		          });
+		          hatchGroup.set({ width, height });
+		          hatchGroup.setCoords();
 		          hatchGroup.clipPath = new fabric.Rect({
 		            originX: 'center',
 		            originY: 'center',
