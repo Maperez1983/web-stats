@@ -7761,8 +7761,18 @@
 	      }
 
 	      try {
+	        // Guardar la posicion antes de recalcular la caja: fabric recoloca el grupo a
+	        // partir de sus hijos (centrados en el origen) y el elemento se iria a la esquina.
+	        const keep = {
+	          left: group.left,
+	          top: group.top,
+	          originX: group.originX,
+	          originY: group.originY,
+	        };
 	        if (typeof group._calcBounds === 'function') group._calcBounds();
 	        if (typeof group._updateObjectsCoords === 'function') group._updateObjectsCoords();
+	        group.set(keep);
+	        group.setCoords();
 	      } catch (e) { /* ignore */ }
 	      return true;
 	    };
@@ -7828,8 +7838,18 @@
 	      if (initialsText && typeof initialsText.set === 'function') initialsText.set('text', computeInitials(nextName, nextNumber));
 
 	      try {
+	        // Guardar la posicion antes de recalcular la caja: fabric recoloca el grupo a
+	        // partir de sus hijos (centrados en el origen) y el elemento se iria a la esquina.
+	        const keep = {
+	          left: group.left,
+	          top: group.top,
+	          originX: group.originX,
+	          originY: group.originY,
+	        };
 	        if (typeof group._calcBounds === 'function') group._calcBounds();
 	        if (typeof group._updateObjectsCoords === 'function') group._updateObjectsCoords();
+	        group.set(keep);
+	        group.setCoords();
 	      } catch (error) { /* ignore */ }
 	    };
 	    const applyToActiveFlexibleObject = (callback, message) => {
