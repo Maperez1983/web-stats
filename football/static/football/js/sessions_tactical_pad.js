@@ -7649,8 +7649,22 @@
 	        marker.set('opacity', wantsVisible ? 1 : 0);
 	      }
 	      try {
+	        // GUARDAR LA POSICION antes de recalcular la caja del grupo: fabric la recoloca
+	        // a partir de sus hijos, que estan centrados en el origen, asi que sin esto el
+	        // balon se iba a la esquina superior izquierda del campo. Al cargar una tarea
+	        // esto se ejecuta para CADA balon: los mandaba todos a la esquina, con las
+	        // posiciones correctas guardadas en el fichero pero sin aparecer en el dibujo.
+	        // Misma cautela que en setTokenFacing, justo encima.
+	        const keep = {
+	          left: group.left,
+	          top: group.top,
+	          originX: group.originX,
+	          originY: group.originY,
+	        };
 	        if (typeof group._calcBounds === 'function') group._calcBounds();
 	        if (typeof group._updateObjectsCoords === 'function') group._updateObjectsCoords();
+	        group.set(keep);
+	        group.setCoords();
 	      } catch (e) { /* ignore */ }
 	      return true;
 	    };
