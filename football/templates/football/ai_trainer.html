@@ -475,7 +475,9 @@
               <div class="blocks">
                 {% for t in suggestions %}
                   <div class="block">
-                    <strong>{{ t.ai_trainer_repo_label|default:"Biblioteca" }} · score {{ t.ai_trainer_score|default:0 }}</strong>
+                    {# El POR QUE, no solo el numero: un score suelto no se puede discutir ni corregir. #}
+                    <strong>{{ t.ai_trainer_repo_label|default:"Biblioteca" }} · afinidad {{ t.ai_trainer_score|default:0 }}</strong>
+                    {% if t.ai_trainer_why %}<span class="muted" style="display:block;font-size:0.78rem;">Por qué: {{ t.ai_trainer_why }}</span>{% endif %}
                     <span>
                       <a href="{% url 'session-task-detail' t.id %}" class="mono" style="color:inherit; text-decoration:underline;">{{ t.title }}</a>
                       {% if t.objective %}<span class="muted"> — {{ t.objective }}</span>{% endif %}

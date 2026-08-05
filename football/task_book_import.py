@@ -278,6 +278,16 @@ def importar_fichas(team, fichas, *, coleccion=COLECCION_POR_DEFECTO, scope_key=
                 order=orden,
             )
             SessionTaskCollectionItem.objects.get_or_create(collection=estanteria, task=tarea)
+            # INDEXAR AQUI, o el libro entra en la biblioteca pero no existe para el
+            # recomendador: su camino rapido va por el indice y el plan B solo salta cuando el
+            # indice no devuelve NADA, asi que con la biblioteca ya indexada las tareas nuevas
+            # no llegaban ni a competir.
+            try:
+                from .ai_trainer import ai_trainer_index_task
+
+                ai_trainer_index_task(tarea, team=team)
+            except Exception:
+                logger.exception('No se pudo indexar para el recomendador la tarea %s', titulo)
             resumen['creadas'].append(titulo)
             titulos_previos.add(titulo)
         except Exception:

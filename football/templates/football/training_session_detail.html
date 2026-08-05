@@ -584,6 +584,8 @@
                     <span style="min-width:0;">
                       <span style="display:block;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ t.title|default:'Tarea' }}</span>
                       {% if t.objective %}<span style="display:block;font-size:0.8rem;opacity:0.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ t.objective }}</span>{% endif %}
+                      {# Por que se propone: sin esto el entrenador no sabe si fiarse. #}
+                      {% if t.ai_trainer_why %}<span style="display:block;font-size:0.74rem;opacity:0.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ t.ai_trainer_why }}</span>{% endif %}
                     </span>
                     <span style="font-size:0.72rem;opacity:0.7;white-space:nowrap;">{{ t.ai_trainer_repo_label }}</span>
                   </a>

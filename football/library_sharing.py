@@ -118,6 +118,39 @@ def ids_de_tareas_compartidas(workspace):
         return set()
 
 
+def ids_de_tareas_compartidas_de_un_equipo(team):
+    """Igual que `ids_de_tareas_compartidas`, pero partiendo de un EQUIPO.
+
+    El recomendador se ejecuta desde una sesión y no tiene el espacio de trabajo a mano, así
+    que se resuelve por el club del equipo. Si el equipo no tiene club, se mira sólo el suyo:
+    peor ver de menos que colar material de otro club.
+    """
+    from .models import SessionTaskCollectionItem, Team
+
+    if team is None or not getattr(team, 'id', None):
+        return set()
+    ids_equipos = {int(team.id)}
+    club_id = getattr(team, 'club_id', None)
+    if club_id:
+        try:
+            ids_equipos |= {
+                int(tid) for tid in Team.objects.filter(club_id=club_id).values_list('id', flat=True) if tid
+            }
+        except Exception:
+            logger.debug('No se pudieron listar los equipos del club', exc_info=True)
+    try:
+        return {
+            int(tid)
+            for tid in SessionTaskCollectionItem.objects.filter(collection__team_id__in=ids_equipos)
+            .filter(_filtro_de_nombres_compartidos('collection__'))
+            .values_list('task_id', flat=True)
+            if tid
+        }
+    except Exception:
+        logger.debug('No se pudieron listar las tareas compartidas del equipo', exc_info=True)
+        return set()
+
+
 def equipos_de_la_categoria(workspace, team):
     """
     Ids de los equipos del club que comparten categoría con el de referencia.
