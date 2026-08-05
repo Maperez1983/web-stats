@@ -119,6 +119,18 @@ def _normalizar_objeto(obj):
     elif kind in {'line_solid', 'line_dashed', 'arrow_run', 'arrow_pass'}:
         for clave, valor in ESTILO_LINEA.items():
             salida.setdefault(clave, valor)
+        if kind == 'line_dashed':
+            salida.setdefault('strokeDashArray', [10, 8])
+        # Una línea se dibuja por sus DOS EXTREMOS, no por posición y tamaño: con left/top/width/
+        # height el lienzo no pinta nada. Por eso las subzonas de las tareas del libro salían sin
+        # dividir, contradiciendo su propia descripción ("espacio dividido en 6 subzonas iguales").
+        if 'x1' not in salida:
+            ancho = float(salida.pop('width', 0) or 0)
+            alto = float(salida.pop('height', 0) or 0)
+            salida['x1'] = left
+            salida['y1'] = top
+            salida['x2'] = left + ancho
+            salida['y2'] = top + alto
     elif salida.get('type') == 'rect':
         # Cualquier otro rectángulo sin relleno tendría el mismo problema.
         salida.setdefault('fill', 'rgba(255,255,255,0.10)')

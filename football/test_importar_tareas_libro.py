@@ -219,3 +219,43 @@ class PiezasQueSeVenTests(TestCase):
         o = self._objetos([{'type': 'group', 'left': 321, 'top': 123, 'data': {'kind': 'player_rival'}}])[0]
         self.assertEqual(o['left'], 321)
         self.assertEqual(o['top'], 123)
+
+
+class SubzonasQueSeDibujanTests(TestCase):
+    """Una línea se dibuja por sus dos EXTREMOS, no por posición y tamaño.
+
+    Con left/top/width/height el lienzo no pinta nada, así que las tareas del libro salían con la
+    zona entera y sin dividir, contradiciendo su propia descripción ("espacio dividido en 6
+    subzonas iguales"). Lo cazó el usuario mirando la pizarra (2026-08-05).
+    """
+
+    def setUp(self):
+        self.team = Team.objects.create(name='C.D. Subzonas', slug='cd-subzonas', is_primary=True)
+
+    def _linea(self, obj):
+        importar_fichas(self.team, [{'titulo': 'Con subzonas', 'objetos': [obj]}])
+        tarea = SessionTask.objects.get(title='Con subzonas')
+        return tarea.tactical_layout['meta']['graphic_editor']['canvas_state']['objects'][0]
+
+    def test_la_division_vertical_tiene_sus_dos_extremos(self):
+        o = self._linea({'type': 'line', 'left': 640, 'top': 150, 'width': 0, 'height': 420,
+                         'data': {'kind': 'line_dashed'}})
+        self.assertEqual((o['x1'], o['y1']), (640, 150))
+        self.assertEqual((o['x2'], o['y2']), (640, 570))
+
+    def test_la_division_horizontal_tambien(self):
+        o = self._linea({'type': 'line', 'left': 330, 'top': 360, 'width': 620, 'height': 0,
+                         'data': {'kind': 'line_dashed'}})
+        self.assertEqual((o['x1'], o['x2']), (330, 950))
+        self.assertEqual((o['y1'], o['y2']), (360, 360))
+
+    def test_la_division_se_ve_discontinua(self):
+        o = self._linea({'type': 'line', 'left': 0, 'top': 0, 'width': 100, 'height': 0,
+                         'data': {'kind': 'line_dashed'}})
+        self.assertTrue(o.get('strokeDashArray'))
+        self.assertTrue(o.get('stroke'))
+
+    def test_no_se_pisa_una_linea_que_ya_trae_extremos(self):
+        o = self._linea({'type': 'line', 'x1': 1, 'y1': 2, 'x2': 3, 'y2': 4,
+                         'data': {'kind': 'line_solid'}})
+        self.assertEqual((o['x1'], o['y1'], o['x2'], o['y2']), (1, 2, 3, 4))
