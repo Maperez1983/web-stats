@@ -2718,6 +2718,11 @@
                 <p class="session-library-stats">
                   <span id="session-library-count">{{ session_library_rows|length }}</span> sesiones encontradas.
                 </p>
+                {% if session_list_truncated %}
+                {% comment %}Si de verdad se corta, se dice. Callarlo es lo que hacía pensar que las
+                sesiones antiguas se habían perdido.{% endcomment %}
+                <p class="filter-meta" style="color:#fbbf24;">Se muestran las 400 más recientes. Hay sesiones anteriores que no caben en esta lista.</p>
+                {% endif %}
                 <p class="filter-meta">Consejo: ordena y filtra para ubicar sesiones por estado, duración o fecha.</p>
               </div>
               {% if session_library_rows %}
