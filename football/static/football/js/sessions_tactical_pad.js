@@ -29833,8 +29833,12 @@
                 name: safeText(payload.name || ''),
                 number: safeText(payload.number || '').slice(0, 6),
               };
+              // EQUIPACION: sin esto una ficha colocada por script siempre cae en la del
+              // tipo (nuestra o la del rival), y un COMODIN sale indistinguible de un jugador
+              // mas. El catalogo ya tiene turquesa y blanca justo para eso.
               const factory = playerTokenFactory(kind, pseudo, {
                 style: styleRaw,
+                kit: safeText(payload.kit || ''),
                 facing_deg: normalizeAngle(payload.facing_deg, 0),
               });
               if (typeof factory !== 'function') return null;
