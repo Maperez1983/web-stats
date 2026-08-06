@@ -448,3 +448,34 @@ def parse_match_date_from_ui(raw_value):
         except ValueError:
             continue
     return None
+
+
+def player_assets_map(players):
+    """{id_jugador: {tipo: url}} con el material subido por jugador, en UNA consulta.
+
+    La pizarra y el 11 la llamaban desde hace tiempo... y no existia. Como la llamada
+    va dentro de un try/except, el NameError se tragaba en silencio y el mapa quedaba
+    vacio SIEMPRE: por eso al cambiar de equipacion la figura del jugador no cambiaba
+    nunca, aunque el club hubiera subido su avatar para cada una.
+    """
+    from .models import PlayerAsset
+
+    ids = []
+    for player in players or []:
+        try:
+            ids.append(int(getattr(player, "id", player)))
+        except (TypeError, ValueError):
+            continue
+    if not ids:
+        return {}
+    mapa = {}
+    filas = PlayerAsset.objects.filter(player_id__in=ids).only("player_id", "kind", "image")
+    for fila in filas.iterator():
+        if not fila.image:
+            continue
+        try:
+            url = fila.image.url
+        except Exception:
+            continue
+        mapa.setdefault(int(fila.player_id), {})[str(fila.kind)] = url
+    return mapa

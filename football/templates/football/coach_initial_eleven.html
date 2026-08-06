@@ -2597,7 +2597,7 @@
           <p class="player-list-summary">Arrastra al jugador desde esta lista hasta su sitio en el campo. Para sacarlo, arrastra su ficha de vuelta aquí. En tableta, mantén pulsado un instante antes de arrastrar.</p>
           <div class="players" id="player-list">
             {% for player in convocation_players %}
-            <label class="player-card" data-player-id="{{ player.id }}" data-player-name="{{ player.name|upper|escape }}" data-player-number="{{ player.number|default:'--' }}" data-player-position="{% if player.position %}{{ player.position|display_position|escape }}{% endif %}" data-player-photo="{{ player.photo_url|default:''|escape }}" data-player-avatar="{{ player.avatar_url|default:''|escape }}">
+            <label class="player-card" data-player-id="{{ player.id }}" data-player-name="{{ player.name|upper|escape }}" data-player-number="{{ player.number|default:'--' }}" data-player-position="{% if player.position %}{{ player.position|display_position|escape }}{% endif %}" data-player-photo="{{ player.photo_url|default:''|escape }}" data-player-avatar="{{ player.avatar_url|default:''|escape }}" data-player-assets="{{ player.assets_json|default:'{}'|escape }}">
               {% if player.photo_url %}
               <img src="{{ player.photo_url }}" alt="{{ player.name }}" loading="lazy" />
               {% elif player.avatar_url %}
@@ -3869,7 +3869,21 @@
           const role = isGk ? 'gk' : String(player.role || roleFromPosition(position) || 'mid');
           const posLabel = isGk ? 'POR' : (position ? position.toUpperCase() : role.toUpperCase());
           const photoSafe = String(player.photo || '').trim().replace(/'/g, '%27');
-          const avatarSafe = String(player.avatar || '').trim().replace(/'/g, '%27');
+          // MISMO cruce que la pizarra (FIG_KIND): cada equipacion tiene su figura del
+          // jugador en PlayerAsset. Antes se usaba siempre el avatar principal, asi que
+          // cambiar de equipacion no cambiaba la figura.
+          const FIG_KIND = {
+            titular: 'kit_titular', visitante: 'kit_visitante', blanca: 'kit_blanca',
+            turquesa: 'kit_turquesa', chandal: 'chandal',
+            gk_azul: 'gk_azul', gk_negra: 'gk_negra', gk_magenta: 'gk_magenta',
+          };
+          let avatarElegido = String(player.avatar || '').trim();
+          try {
+            const assets = (player.assets && typeof player.assets === 'object') ? player.assets : {};
+            const kind = FIG_KIND[equipacionParaRol(role)];
+            if (kind && assets[kind]) avatarElegido = String(assets[kind]).trim();
+          } catch (_) {}
+          const avatarSafe = avatarElegido.replace(/'/g, '%27');
           const kitSafe = String(kit2dUrlForLineupRole(role) || '').trim().replace(/'/g, '%27');
           // Imagen del disco según el estilo elegido, con cascada de respaldo.
           let discImg = '';
@@ -3960,6 +3974,8 @@
         position: String(card.dataset.playerPosition || ''),
         photo: String(card.dataset.playerPhoto || ''),
         avatar: String(card.dataset.playerAvatar || ''),
+        // El material por equipacion del jugador, para poder cruzar elemento y equipacion.
+        assets: (() => { try { return JSON.parse(card.dataset.playerAssets || '{}'); } catch (_) { return {}; } })(),
       });
 
       const normalizePosition = (value) => String(value || '').toLowerCase().trim();
