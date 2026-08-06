@@ -235,6 +235,13 @@
         gap: 0.95rem;
         align-items: stretch;
       }
+      .broadcast-card { position:relative; }
+      .pc-watch { position:absolute; top:.45rem; right:.45rem; z-index:2; margin:0; }
+      .pc-watch-btn { border:1px solid var(--fm-line, rgba(148,163,184,.3)); background:var(--fm-panel-2, rgba(2,6,23,.55));
+        color:var(--prod-muted, #94a3b8); border-radius:999px; width:1.9rem; height:1.9rem; line-height:1;
+        font-size:.9rem; cursor:pointer; padding:0; }
+      .pc-watch-btn:hover { border-color:var(--prod-line-strong, #334155); color:var(--prod-text); }
+      .pc-watch-btn.on { border-color:rgba(244,180,0,.6); color:#f4b400; background:rgba(244,180,0,.12); }
       .player-card {
         display: grid;
         grid-template-columns: 92px 1fr;
@@ -935,6 +942,18 @@
                   </div>
 
                 </a>
+                {% if can_edit %}
+                {% comment %}El ojo va FUERA del enlace de la tarjeta: un formulario dentro de un
+                <a> no es HTML valido y el navegador lo saca de sitio.{% endcomment %}
+                <form method="post" action="{% url 'season-watch-toggle' %}" class="pc-watch">
+                  {% csrf_token %}
+                  <input type="hidden" name="player_id" value="{{ card.player_id }}" />
+                  <input type="hidden" name="next" value="{{ request.get_full_path }}" />
+                  <button type="submit" class="pc-watch-btn{% if card.is_watched %} on{% endif %}"
+                          title="{% if card.is_watched %}En seguimiento. Pulsa para dejar de seguirlo.{% else %}Seguir esta temporada: aparece en Dirección › Seguimiento.{% endif %}"
+                          aria-label="{% if card.is_watched %}Dejar de seguir{% else %}Seguir esta temporada{% endif %}">👁</button>
+                </form>
+                {% endif %}
 
                 <div class="broadcast-actions">
                   <details class="broadcast-details broadcast-action">
