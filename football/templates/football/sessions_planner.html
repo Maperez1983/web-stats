@@ -4902,7 +4902,11 @@ agrupado aparecen DENTRO de una carpeta, que es cuando sirven de algo. No se qui
             <div class="task-content">
               <h3 class="task-title">{{ t.title }}</h3>
               <p class="task-objective">{{ t.objective_summary|truncatechars:140 }}</p>
-              <p class="meta"><strong>{{ t.reference_date|date:"d/m/Y" }}</strong>{% if t.reference_date_is_detected %} · Fecha detectada{% endif %} · {{ t.get_block_display }} · {{ t.duration_minutes }}'</p>
+              {# La fecha grande era la DETECTADA en el texto de la tarea, no la de creacion: una
+                 tarea creada hoy aparecia con la fecha que llevara escrita dentro (21/07), y el
+                 "Fecha detectada" de al lado no bastaba para entenderlo. Ahora manda la de
+                 creacion y la detectada se enseña aparte, dicha con todas las letras. #}
+              <p class="meta"><strong>{{ t.created_at|date:"d/m/Y" }}</strong>{% if t.reference_date_is_detected %} · fecha en el contenido: {{ t.reference_date|date:"d/m/Y" }}{% endif %} · {{ t.get_block_display }} · {{ t.duration_minutes }}'</p>
               <div class="task-kpis">
                 {% if t.needs_review %}<span class="badge" style="border-color:rgba(248,113,113,0.65); color:#fecaca;">Revisión</span>{% endif %}
                 {% for item in t.exercise_types|slice:":2" %}<span class="badge">Tipo: {{ item }}</span>{% endfor %}
