@@ -36,8 +36,12 @@ def _url_grande(url):
     return texto.replace("/thumbs/", "/")
 
 
-def descargar_escudo(team, *, guardar=True):
-    """Devuelve los bytes del escudo del equipo, y los guarda en crest_image."""
+def descargar_escudo(team, *, guardar=True, limite=None):
+    """Devuelve los bytes del escudo del equipo, y los guarda en crest_image.
+
+    `limite` acorta la espera: al pintar una pantalla no se puede tener al usuario
+    12 segundos esperando a que responda una web de terceros. En segundo plano si.
+    """
     try:
         if getattr(team, "crest_image", None):
             team.crest_image.open("rb")
@@ -53,7 +57,7 @@ def descargar_escudo(team, *, guardar=True):
     try:
         import requests
 
-        resp = requests.get(url, timeout=TIEMPO_LIMITE, headers={"User-Agent": "SegundaJugada/1.0"})
+        resp = requests.get(url, timeout=(limite or TIEMPO_LIMITE), headers={"User-Agent": "SegundaJugada/1.0"})
         if resp.status_code != 200:
             return b""
         datos = resp.content or b""
