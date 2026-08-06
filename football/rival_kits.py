@@ -78,17 +78,28 @@ def descargar_escudo(team, *, guardar=True, limite=None):
 def precargar_equipacion(workspace, team, *, forzar=False):
     """Propone la equipacion del rival y la guarda si ese equipo no tenia nada.
 
+    Escribe en la preferencia `rival_kit2d:<id>`, que es la que lee y guarda el
+    formulario de la ficha del rival. (El primer intento la escribia en
+    kit_theme:v1 -donde viven los colores del equipo PROPIO- y por ahi no la leia
+    nadie: se veia guardado y la ficha seguia en verde.)
+
     Devuelve un dict con lo que ha hecho, para poder contarlo por pantalla.
     """
     from .crest_colors import equipacion_propuesta
     from .models import WorkspacePreference
 
     salida = {"equipo": str(getattr(team, "name", "") or team), "estado": "sin escudo"}
-    pref = WorkspacePreference.objects.filter(workspace=workspace, key="kit_theme:v1").first()
-    raw = dict(pref.value) if pref and isinstance(pref.value, dict) else {}
-    equipos = dict(raw.get("teams") or {}) if isinstance(raw.get("teams"), dict) else {}
-    clave = str(int(getattr(team, "id", 0) or 0))
-    if not forzar and isinstance(equipos.get(clave), dict) and equipos[clave]:
+    try:
+        clave_pref = "rival_kit2d:%d" % int(getattr(team, "id", 0) or 0)
+    except Exception:
+        salida["estado"] = "equipo sin id"
+        return salida
+
+    pref = WorkspacePreference.objects.filter(workspace=workspace, key=clave_pref).first()
+    valor = dict(pref.value) if pref and isinstance(pref.value, dict) else {}
+    ya_tiene = any(valor.get(f"{s}_main_color") or valor.get(f"{s}_trim_color")
+                   for s in ("home", "away", "third", "gk", "gk2", "gk3"))
+    if ya_tiene and not forzar:
         salida["estado"] = "ya tenia colores"
         return salida
 
@@ -102,20 +113,17 @@ def precargar_equipacion(workspace, team, *, forzar=False):
 
     principal = propuesta["home_main"]
     ribete = propuesta["home_trim"]
-    equipos[clave] = {
-        "home_main": principal,
-        "home_trim": ribete,
-        # La 2a y la de portero no se pueden deducir del escudo: se dejan en un
-        # contraste razonable y el entrenador las ajusta si le importan.
-        "away_main": ribete if ribete != "#ffffff" else "#111418",
-        "away_trim": principal,
-        "gk_main": "#1d4ed8",
-        "gk_trim": "#ffffff",
+    valor.update({
+        "home_main_color": principal,
+        "home_trim_color": ribete,
+        # La 2a invertida, que es lo que hace cualquier equipo. La 3a y las de
+        # portero no salen del escudo: se dejan para que las ponga el entrenador.
+        "away_main_color": ribete,
+        "away_trim_color": principal,
         "origen": "escudo",
-    }
-    raw["teams"] = equipos
+    })
     WorkspacePreference.objects.update_or_create(
-        workspace=workspace, key="kit_theme:v1", defaults={"value": raw}
+        workspace=workspace, key=clave_pref, defaults={"value": valor}
     )
     salida.update({
         "estado": "precargado",

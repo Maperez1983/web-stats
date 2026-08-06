@@ -47,8 +47,19 @@
         <div class="actions">
           <a class="btn" href="{% url 'coach-cards' %}?area=match{% if active_team %}&team={{ active_team.id }}{% endif %}">Volver</a>
           <a class="btn primary" href="{% url 'analysis' %}?tab=rivals{% if active_team %}&team={{ active_team.id }}{% endif %}">Crear desde clasificación</a>
+          {% comment %}Con medio centenar de rivales, poner dos colores a cada uno a mano no lo
+          hace nadie. Esto los recorre y les propone la equipacion desde su escudo.{% endcomment %}
+          <form method="post" style="display:inline;">
+            {% csrf_token %}
+            <input type="hidden" name="form_action" value="precargar_equipaciones" />
+            <button class="btn" type="submit">Precargar equipaciones desde el escudo</button>
+          </form>
         </div>
       </header>
+
+      {% if aviso_precarga %}
+        <div class="empty" style="margin-bottom:0.9rem;border-color:rgba(132,204,22,0.45);">{{ aviso_precarga }}</div>
+      {% endif %}
 
       {% if rival_cards %}
         <section class="grid" aria-label="Rivales">
