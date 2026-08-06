@@ -11,6 +11,7 @@
 Nada de esto toca Player ni la plantilla propia: RivalPlayer es un modelo aislado para análisis.
 """
 import re
+import unicodedata
 
 from bs4 import BeautifulSoup
 
@@ -142,6 +143,40 @@ def parse_rival_squad(html):
             "red_cards": tr or 0,
         })
     return players
+
+
+def clave_de_nombre(nombre):
+    """Las palabras del nombre, sin acentos, sin orden y sin comas.
+
+    Cada fuente lo escribe a su manera: Universo manda "BUSTAMANTE SALADO, ELOY" y laPreferente
+    "Eloy Bustamante Salado". Comparar las cadenas tal cual no casa NINGUNA, y el resultado es
+    la misma persona duplicada en dos fichas -una con los minutos y otra con los goles-. Se
+    comparan las palabras como conjunto, que es lo unico estable entre las dos.
+    """
+    texto = unicodedata.normalize('NFD', str(nombre or '').lower())
+    texto = ''.join(c for c in texto if unicodedata.category(c) != 'Mn')
+    palabras = [t for t in re.split(r'[^a-z0-9]+', texto) if len(t) > 1]
+    return frozenset(palabras)
+
+
+def _buscar_por_nombre(rival_team, full_name):
+    """El jugador de ese equipo cuyo nombre son las MISMAS palabras, en cualquier orden."""
+    clave = clave_de_nombre(full_name)
+    if not clave:
+        return None
+    candidatos = RivalPlayer.objects.filter(team=rival_team).only('id', 'full_name')
+    for cand in candidatos:
+        otra = clave_de_nombre(cand.full_name)
+        if not otra:
+            continue
+        if otra == clave:
+            return RivalPlayer.objects.filter(pk=cand.pk).first()
+        # Una fuente puede traer solo un apellido: vale si una esta contenida en la otra y
+        # comparten al menos dos palabras, para no casar a dos hermanos por el apellido.
+        comunes = otra & clave
+        if len(comunes) >= 2 and (otra <= clave or clave <= otra):
+            return RivalPlayer.objects.filter(pk=cand.pk).first()
+    return None
 
 
 def upsert_manual_rival_player(team, datos):
@@ -317,7 +352,26 @@ def import_rival_squad(rival_team, rows, *, season_label="", replace_missing=Tru
         if sid:
             existente = RivalPlayer.objects.filter(team=rival_team, source_player_id=sid).first()
         if existente is None:
-            existente = RivalPlayer.objects.filter(team=rival_team, full_name__iexact=full_name).first()
+            existente = _buscar_por_nombre(rival_team, full_name)
+        if existente is not None:
+            # REPARACION: si la misma persona quedo partida en varias fichas (paso al mezclar
+            # fuentes antes de comparar los nombres por palabras), se funden aqui. Se queda la
+            # que encontramos y se le pasa lo mejor de cada una: los minutos los tenia una y
+            # los goles la otra. Asi el propio refresco cura lo que ya estaba roto.
+            clave_actual = clave_de_nombre(full_name)
+            for gemela in RivalPlayer.objects.filter(team=rival_team).exclude(pk=existente.pk):
+                if clave_de_nombre(gemela.full_name) != clave_actual:
+                    continue
+                for campo in ("minutes", "matches_played", "goals", "yellow_cards", "red_cards", "age"):
+                    if getattr(gemela, campo, 0) and getattr(gemela, campo, 0) > getattr(existente, campo, 0):
+                        setattr(existente, campo, getattr(gemela, campo))
+                for campo in ("photo_url", "position", "alias", "preferente_profile_url"):
+                    if getattr(gemela, campo, "") and not getattr(existente, campo, ""):
+                        setattr(existente, campo, getattr(gemela, campo))
+                if gemela.matched_player_id and not existente.matched_player_id:
+                    existente.matched_player = gemela.matched_player
+                existente.save()
+                gemela.delete()
         lookup = {"pk": existente.pk} if existente else {"team": rival_team, "full_name": full_name}
         matched_player = _detect_matched_player(row)
         if matched_player:
