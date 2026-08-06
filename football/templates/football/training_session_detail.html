@@ -479,9 +479,14 @@
                     </td>
                     <td style="width:170px;">
                       <select name="attendance_status_{{ p.id }}" class="js-attendance-status">
-	                        <option value="" {% if not mark and not injury_default %}selected{% endif %}>Sin marcar</option>
+	                        {% comment %}Sin "Sin marcar": la regla del club es que entrena todo el
+	                        mundo salvo incidencia, asi que quien no tiene marca ESTA presente. El
+	                        guardado borra la marca de presente a proposito -solo se guardan las
+	                        incidencias-, y al recargar salia "Sin marcar", que se leia como que lo
+	                        marcado se habia perdido. Ahora la pantalla dice lo que el sistema
+	                        entiende.{% endcomment %}
 	                        {% for value, label in allowed_statuses %}
-	                          <option value="{{ value }}" {% if mark and mark.status == value and value != 'present' or not mark and injury_default and value == 'injured' %}selected{% endif %}>{{ label }}</option>
+	                          <option value="{{ value }}" {% if mark and mark.status == value and value != 'present' %}selected{% elif not mark and injury_default and value == 'injured' %}selected{% elif not mark and not injury_default and value == 'present' %}selected{% endif %}>{{ label }}</option>
 	                        {% endfor %}
 	                      </select>
 	                    </td>
