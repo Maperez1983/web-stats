@@ -124,6 +124,11 @@ def library_repository_for_task(task):
         light = getattr(task, 'task_layout_light', None)
         meta = light.get('meta') if isinstance(light, dict) and isinstance(light.get('meta'), dict) else None
         if meta is None:
+            try:
+                if 'tactical_layout' in task.get_deferred_fields():
+                    return LIBRARY_REPOSITORY_TRADITIONAL
+            except Exception:
+                pass
             layout = task.tactical_layout if isinstance(getattr(task, 'tactical_layout', None), dict) else {}
             meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
         raw_repo = meta.get('repository') or meta.get('library_repo') or meta.get('library_repository')

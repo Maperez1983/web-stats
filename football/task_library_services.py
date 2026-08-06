@@ -290,6 +290,14 @@ def task_meta_light(task):
     light = getattr(task, 'task_layout_light', None)
     if isinstance(light, dict) and isinstance(light.get('meta'), dict):
         return light['meta']
+    # Si la copia ligera no sirve y el canvas viene DIFERIDO, no se toca: leerlo aqui seria una
+    # consulta por fila -y cada una arrastra ~165 KB-, o sea peor que no haber diferido nada.
+    # Quien difiere lo hace porque solo lista; prefiere un meta vacio a una pantalla de 30 s.
+    try:
+        if 'tactical_layout' in task.get_deferred_fields():
+            return {}
+    except Exception:
+        pass
     layout = getattr(task, 'tactical_layout', None)
     if isinstance(layout, dict) and isinstance(layout.get('meta'), dict):
         return layout['meta']
