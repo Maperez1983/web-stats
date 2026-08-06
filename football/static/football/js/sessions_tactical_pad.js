@@ -6997,6 +6997,24 @@
 	        profile.showTokenFacing = true;
 	        profile.showTokenFov = true;
 	        profile.showTokenColors = true;
+	        // La fila "Kit" (1a/2a/3a/P1/P2/P3) y la de patrones existen en la pantalla y sus
+	        // botones ya tienen manejador, pero nadie las encendia nunca: con una chapa
+	        // colocada no habia forma de cambiarle la equipacion. Cambiar de kit NO es
+	        // recolorear -no toca applyTokenColor-, asi que no roza el candado de la chapa:
+	        // se sustituye la imagen del kit y el escudo sigue intacto.
+	        profile.showTokenKit = true;
+	        // El patron (rayas/solido/mitad/banda) SI recolorea, y sobre una chapa dibujada
+	        // con PNG el candado corta el recoloreado a proposito. Ofrecerlo ahi seria un
+	        // boton que no hace nada, asi que solo se enseña cuando la ficha no es la chapa.
+	        try {
+	          const objetos = typeof object?.getObjects === 'function' ? object.getObjects() : [];
+	          const esChapa = objetos.some((child) => (
+	            child && child.type === 'image' && safeText(child?.data?.role) === 'token_base'
+	          ));
+	          profile.showTokenPattern = !esChapa;
+	        } catch (e) {
+	          profile.showTokenPattern = false;
+	        }
 	        profile.scaleXLabel = 'Tamaño';
 	        return profile;
 	      }
