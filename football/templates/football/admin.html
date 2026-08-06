@@ -678,6 +678,24 @@
           <p style="margin:0.55rem 0;color:rgba(205,225,255,0.82);">No hay categorías configuradas.</p>
           {% endfor %}
         </div>
+        {% if equipos_sueltos %}
+        <div style="margin-top:0.9rem;padding:0.8rem 0.9rem;border:1px solid rgba(244,180,0,0.28);border-radius:12px;background:rgba(244,180,0,0.06);">
+          <h3 style="margin:0 0 0.2rem;font-size:0.95rem;">Equipos de este club que están fuera</h3>
+          <p style="margin:0 0 0.6rem;color:rgba(205,225,255,0.82);font-size:0.82rem;">
+            Existen y son tuyos, pero no cuelgan del club: no salen en el selector de categoría y sí en la lista de rivales.
+          </p>
+          {% for t in equipos_sueltos %}
+          <form method="post" class="form-inline" style="display:flex;gap:0.5rem;align-items:center;justify-content:space-between;margin-bottom:0.35rem;">
+            {% csrf_token %}
+            <input type="hidden" name="form_action" value="team_link" />
+            <input type="hidden" name="active_tab" value="teams" />
+            <input type="hidden" name="team_id" value="{{ t.id }}" />
+            <span>{{ t.display_name }} <span style="color:rgba(205,225,255,0.7);font-size:0.8rem;">· {{ t.category|default:"sin categoría" }}</span></span>
+            <button class="pill-button" type="submit">Devolver al club</button>
+          </form>
+          {% endfor %}
+        </div>
+        {% endif %}
       </section>
       {% else %}
       <section class="block roster-manager" id="roster-manager">
