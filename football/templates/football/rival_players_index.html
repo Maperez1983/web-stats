@@ -42,6 +42,14 @@
       /* El azul del contador y el hueco del escudo se fijan a mano: el token de marca es
          verde oscuro y sobre el panel oscuro se queda corto de contraste. */
       :root[data-theme="light"] .ri-n { color:#0369a1; }
+      .ri-dup { margin:0 0 1.1rem; padding:.8rem .9rem; border-radius:14px;
+        border:1px solid var(--prod-line-strong, rgba(244,180,0,.3)); background:var(--fm-panel, rgba(255,255,255,.03)); }
+      .ri-dup-h { margin:0; font-size:.95rem; color:var(--prod-text); }
+      .ri-dup-row { display:flex; gap:.7rem; align-items:center; flex-wrap:wrap; justify-content:space-between;
+        margin-top:.5rem; padding:.5rem .6rem; border-radius:10px; background:var(--fm-panel-2, rgba(255,255,255,.04)); }
+      .ri-dup-txt { font-size:.85rem; }
+      .ri-dup-n { font-size:.74rem; color:var(--prod-muted, #94a3b8); }
+      .ri-dup-sep { margin:0 .35rem; color:var(--prod-muted, #94a3b8); font-size:.74rem; text-transform:uppercase; letter-spacing:.06em; }
     </style>
   </head>
   <body class="prod-commercial">
@@ -78,6 +86,27 @@
             </form>
           </details>
         </div>
+        {% if rival_duplicados %}
+        <section class="ri-dup">
+          <h2 class="ri-dup-h">Fichas repetidas del mismo equipo</h2>
+          <p class="ri-hint">La misma fuente los escribe de dos maneras y acaban como dos fichas. Al unirlas, jugadores, partidos y clasificaciones pasan a la que se queda.</p>
+          {% for g in rival_duplicados %}
+          <form method="post" action="{% url 'rival-team-merge' %}" class="ri-dup-row"
+                onsubmit="return confirm('Vas a unir «{{ g.drop.0.name|escapejs }}» dentro de «{{ g.keep.name|escapejs }}». No se puede deshacer. ¿Sigo?');">
+            {% csrf_token %}
+            <input type="hidden" name="keep" value="{{ g.keep.team_id }}" />
+            <input type="hidden" name="drop" value="{{ g.drop.0.team_id }}" />
+            <span class="ri-dup-txt">
+              <b>{{ g.keep.name }}</b> <span class="ri-dup-n">{{ g.keep.count }} jugador{{ g.keep.count|pluralize:"es" }}</span>
+              <span class="ri-dup-sep">se queda con</span>
+              <b>{{ g.drop.0.name }}</b> <span class="ri-dup-n">{{ g.drop.0.count }} jugador{{ g.drop.0.count|pluralize:"es" }}</span>
+            </span>
+            <button class="btn" type="submit">Unir</button>
+          </form>
+          {% endfor %}
+        </section>
+        {% endif %}
+
         {% if rival_teams %}
         <div class="ri-grid">
           {% for t in rival_teams %}

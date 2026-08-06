@@ -155,6 +155,7 @@ urlpatterns = [
     # Alta manual: un equipo rival (amistosos, canteras) y jugadores en su plantilla.
     path("coach/rivales/nuevo/", views.rival_team_create, name="rival-team-create"),
     path("coach/rivales/equipo/<int:team_id>/jugador/nuevo/", views.rival_player_create, name="rival-player-create"),
+    path("coach/rivales/unir/", views.rival_team_merge, name="rival-team-merge"),
     path("coach/rivales/jugador/<int:rival_player_id>/", views.rival_player_detail, name="rival-player-detail"),
     path("coach/rivales/jugador/<int:rival_player_id>/objetivo/", views.rival_player_make_target, name="rival-player-make-target"),
     path("coach/rivales/jugador/<int:rival_player_id>/vincular/", views.rival_player_link_own, name="rival-player-link-own"),
