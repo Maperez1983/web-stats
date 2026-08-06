@@ -14385,6 +14385,53 @@ class SessionsPlanningTests(TestCase):
         )
         self.assertEqual(tarea.club_season_id, pasada.id, 'las tareas viajan con su sesión')
 
+    def test_sanear_sesiones_no_toca_la_biblioteca_con_el_microciclo_sin_marcar(self):
+        """La biblioteca real de producción NO lleva la marca en su microciclo.
+
+        `exclude_library_sessions_qs` sólo mira el microciclo, así que la biblioteca del Senior
+        (fecha centinela del año 2000, y "Biblioteca de Aitor" sólo en el `focus` de la sesión) se
+        colaba en la simulación y proponía moverla de temporada. Dos cerrojos: la fecha es anterior
+        a la PRIMERA temporada del club, así que no hay temporada anterior a la que mandarla; y el
+        `focus` la delata.
+        """
+        WorkspaceSeason.objects.create(
+            workspace=self.workspace, label='2025/2026',
+            start_date=date(2025, 8, 2), end_date=date(2026, 6, 30), is_active=False,
+        )
+        nueva = WorkspaceSeason.objects.create(
+            workspace=self.workspace, label='2026/2027',
+            start_date=date(2026, 7, 1), end_date=date(2027, 6, 30), is_active=True,
+        )
+        micro_sin_marcar = TrainingMicrocycle.objects.create(
+            team=self.team, title='S1 (99/00)',
+            week_start=date(2000, 1, 3), week_end=date(2000, 1, 9),
+        )
+        biblioteca = TrainingSession.objects.create(
+            microcycle=micro_sin_marcar, session_date=date(2000, 1, 4),
+            focus='Biblioteca de Aitor', club_season=None, duration_minutes=90,
+        )
+
+        call_command('sanear_sesiones_por_temporada', '--apply', '--corte', '2026-07-21')
+
+        biblioteca.refresh_from_db()
+        self.assertIsNone(
+            biblioteca.club_season_id,
+            'la biblioteca no se mueve aunque su microciclo no lleve la marca',
+        )
+
+        # Y el cerrojo de la fecha aguanta solo, sin depender del nombre.
+        otra_biblioteca = TrainingSession.objects.create(
+            microcycle=micro_sin_marcar, session_date=date(2000, 1, 5),
+            focus='Sin nombre revelador', club_season=None, duration_minutes=90,
+        )
+        call_command('sanear_sesiones_por_temporada', '--apply', '--corte', '2026-07-21')
+        otra_biblioteca.refresh_from_db()
+        self.assertIsNone(
+            otra_biblioteca.club_season_id,
+            'anterior a la primera temporada del club: no hay temporada anterior a la que ir',
+        )
+        self.assertTrue(WorkspaceSeason.objects.filter(id=nueva.id).exists())
+
 
 class StaffUserLinkingTests(TestCase):
     def setUp(self):

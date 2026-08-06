@@ -82,6 +82,12 @@ class Command(BaseCommand):
             temporadas = temporadas_por_workspace.get(getattr(workspace, "id", None)) or []
             if not temporadas:
                 return None
+            # Anterior a la PRIMERA temporada del club no hay "temporada anterior" a la que
+            # mandarla: eso no es una sesión de entrenamiento, es un centinela del sistema (la
+            # biblioteca cuelga de una con fecha del año 2000). Se deja en paz. Esto es lo que de
+            # verdad protege, porque no depende de cómo esté nombrada.
+            if fecha < temporadas[0].start_date:
+                return None
             del_corte = next((t for t in temporadas if contiene(t, corte)), None)
             contenedora = next((t for t in temporadas if contiene(t, fecha)), None)
             if contenedora and (del_corte is None or contenedora.id != del_corte.id):
@@ -96,6 +102,11 @@ class Command(BaseCommand):
         if solo_equipo:
             qs = qs.filter(microcycle__team_id=solo_equipo)
         qs = exclude_library_sessions_qs(qs)
+        # `exclude_library_sessions_qs` sólo mira el MICROCICLO, y en producción hay sesiones de
+        # biblioteca cuyo microciclo no lleva la marca: lo único que las delata es su propio
+        # `focus` ("Biblioteca de Aitor"). Sin esto, la simulación proponía mover la biblioteca
+        # del Senior. Se excluyen también aquí.
+        qs = qs.exclude(focus__istartswith="Biblioteca").exclude(focus__istartswith="Papelera")
 
         movidas = 0
         sin_temporada = 0
