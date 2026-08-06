@@ -89,17 +89,17 @@
         {% if rival_duplicados %}
         <section class="ri-dup">
           <h2 class="ri-dup-h">Fichas repetidas del mismo equipo</h2>
-          <p class="ri-hint">La misma fuente los escribe de dos maneras y acaban como dos fichas. Al unirlas, jugadores, partidos y clasificaciones pasan a la que se queda.</p>
+          <p class="ri-hint">Dos fichas del mismo equipo <b>y la misma categoría</b>. Al unirlas, jugadores, partidos y clasificaciones pasan a la que se queda. Comprueba la categoría antes: un club tiene una ficha por categoría y no son duplicados.</p>
           {% for g in rival_duplicados %}
           <form method="post" action="{% url 'rival-team-merge' %}" class="ri-dup-row"
-                onsubmit="return confirm('Vas a unir «{{ g.drop.0.name|escapejs }}» dentro de «{{ g.keep.name|escapejs }}». No se puede deshacer. ¿Sigo?');">
+                onsubmit="return confirm('Vas a unir «{{ g.drop.0.name|escapejs }}» ({{ g.drop.0.category|default:"sin categoría"|escapejs }}) dentro de «{{ g.keep.name|escapejs }}» ({{ g.keep.category|default:"sin categoría"|escapejs }}). Si son categorías distintas del mismo club, NO son duplicados. No se puede deshacer. ¿Sigo?');">
             {% csrf_token %}
             <input type="hidden" name="keep" value="{{ g.keep.team_id }}" />
             <input type="hidden" name="drop" value="{{ g.drop.0.team_id }}" />
             <span class="ri-dup-txt">
-              <b>{{ g.keep.name }}</b> <span class="ri-dup-n">{{ g.keep.count }} jugador{{ g.keep.count|pluralize:"es" }}</span>
+              <b>{{ g.keep.name }}</b> <span class="ri-dup-n">{{ g.keep.category|default:"sin categoría" }} · {{ g.keep.count }} jugador{{ g.keep.count|pluralize:"es" }}</span>
               <span class="ri-dup-sep">se queda con</span>
-              <b>{{ g.drop.0.name }}</b> <span class="ri-dup-n">{{ g.drop.0.count }} jugador{{ g.drop.0.count|pluralize:"es" }}</span>
+              <b>{{ g.drop.0.name }}</b> <span class="ri-dup-n">{{ g.drop.0.category|default:"sin categoría" }} · {{ g.drop.0.count }} jugador{{ g.drop.0.count|pluralize:"es" }}</span>
             </span>
             <button class="btn" type="submit">Unir</button>
           </form>
