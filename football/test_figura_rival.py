@@ -1,0 +1,59 @@
+"""La figura del rival en la pizarra: que aparezca, y que no vaya vestida de los nuestros.
+
+Dos fallos distintos la hacian imposible y ninguno daba error:
+
+1. El rail escribia el estilo a mano (`style: 'disk'`). Al rival solo se le puede
+   colocar desde el rail -no esta en el banco de la plantilla-, asi que elegir
+   "Figura" no le afectaba NUNCA: siempre salia chapa.
+2. El ajuste global de figura (`window.__edcAvatar`) lleva NUESTRA equipacion y se
+   aplicaba a todos. Con el 1 arreglado, el rival aparecia con nuestra camiseta
+   verde, indistinguible de un jugador propio.
+
+Se comprueba sobre el fuente, como el candado de la chapa: es codigo de navegador
+sin bundler y esto es lo unico que corta la regresion en `manage.py test`.
+"""
+from pathlib import Path
+
+from django.test import SimpleTestCase
+
+PAD = Path(__file__).resolve().parent / "static" / "football" / "js" / "sessions_tactical_pad.js"
+
+
+class FiguraDelRivalTests(SimpleTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.src = PAD.read_text(encoding="utf-8")
+
+    def test_el_rail_no_vuelve_a_fijar_el_estilo_a_mano(self):
+        for kind in ("player_local", "player_rival", "goalkeeper_local", "goalkeeper_rival"):
+            aguja = "playerTokenFactory('%s', null, { style: 'disk' })" % kind
+            self.assertNotIn(
+                aguja,
+                self.src,
+                "el rail vuelve a colocar %s con el estilo escrito a mano: elegir "
+                "Figura/Avatar dejara de tener efecto" % kind,
+            )
+
+    def test_el_rail_usa_el_estilo_elegido(self):
+        self.assertIn("const estiloDelRail = () => (", self.src)
+        # La chapa sigue siendo el DEFECTO: solo se cede si el entrenador eligio.
+        self.assertIn("tokenGlobalStyleUserSelected ? normalizeTokenStyle(tokenGlobalStyle) : 'disk'", self.src)
+
+    def test_el_rival_no_lleva_nuestra_equipacion(self):
+        self.assertIn("const AVATAR_RIVAL_CAMPO = 'amarilla';", self.src)
+        self.assertIn(
+            "const esRival = kind === 'player_rival' || kind === 'goalkeeper_rival';",
+            self.src,
+            "resolveAvatarUrlForToken ha dejado de distinguir al rival",
+        )
+        self.assertIn("? AVATAR_RIVAL_CAMPO", self.src)
+        self.assertIn("esRival ? avatarGkDelRival(nuestro) : nuestro", self.src)
+
+    def test_las_figuras_del_rival_existen(self):
+        base = PAD.parent.parent / "images" / "players"
+        faltan = [
+            n for n in ("act-conduccion-amarilla.png", "act-gk-frente-rojo.png", "act-gk-frente-negro.png")
+            if not (base / n).exists()
+        ]
+        self.assertEqual(faltan, [], "faltan las figuras con las que se viste al rival")

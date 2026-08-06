@@ -30643,16 +30643,27 @@
       });
       return best || Object.keys(table)[0];
     };
+    // La equipacion del override es la NUESTRA: vestir con ella al rival lo dejaba
+    // identico a un jugador propio, que es lo unico que una pizarra no puede permitirse.
+    // El rival lleva la de visitante, la misma regla que ya sigue su chapa (chapa_away),
+    // y su portero una distinta de la nuestra. La POSE si la comparten: es como se mueve
+    // el muñeco, no de quien es.
+    const AVATAR_RIVAL_CAMPO = 'amarilla';
+    const avatarGkDelRival = (nuestro) => (safeText(nuestro) === 'rojo' ? 'negro' : 'rojo');
     const resolveAvatarUrlForToken = (kind, colorHex) => {
       const isGk = kind === 'goalkeeper_local' || kind === 'goalkeeper_rival';
+      const esRival = kind === 'player_rival' || kind === 'goalkeeper_rival';
       // Override de pose/equipacion elegido por el usuario (lo pone la carcasa 2D).
       let ov = null; try { ov = window.__edcAvatar || null; } catch (e) { /* ignore */ }
       if (isGk) {
-        const c = (ov && ov.gkColor) || nearestAvatarColorKey(colorHex, AVATAR_GK_COLORS);
+        const nuestro = (ov && ov.gkColor) || nearestAvatarColorKey(colorHex, AVATAR_GK_COLORS);
+        const c = esRival ? avatarGkDelRival(nuestro) : nuestro;
         const p = (ov && ov.gkPose) || 'frente';
         return `${AVATAR_BASE_URL}act-gk-${p}-${c}.png`;
       }
-      const c = (ov && ov.color) || nearestAvatarColorKey(colorHex, AVATAR_FIELD_COLORS);
+      const c = esRival
+        ? AVATAR_RIVAL_CAMPO
+        : ((ov && ov.color) || nearestAvatarColorKey(colorHex, AVATAR_FIELD_COLORS));
       const p = (ov && ov.pose) || 'conduccion';
       return `${AVATAR_BASE_URL}act-${p}-${c}.png`;
     };
@@ -38587,6 +38598,14 @@
                 renderQuickRecents();
               };
 
+              // El rail colocaba SIEMPRE una chapa, con el estilo escrito a mano. Por eso el
+              // rival no tenia figura en la pizarra: al rival solo se le puede colocar desde
+              // aqui -no esta en el banco de la plantilla, que si respeta el estilo elegido-,
+              // asi que elegir "Figura" no le afectaba nunca. La chapa SIGUE siendo el
+              // defecto: solo se cede cuando el entrenador ha elegido estilo el mismo.
+              const estiloDelRail = () => (
+                tokenGlobalStyleUserSelected ? normalizeTokenStyle(tokenGlobalStyle) : 'disk'
+              );
               const activateAddKind = (add, { fromQuickbar = false } = {}) => {
                 const kind = safeText(add);
                 if (!kind) return;
@@ -38594,19 +38613,19 @@
                 if (fromQuickbar) highlightTacticsQuickTool(kind);
                 rememberQuickTool(kind);
                 if (kind === 'player_local') {
-                  activateFactory(playerTokenFactory('player_local', null, { style: 'disk' }), 'un jugador local', 'player_local');
+                  activateFactory(playerTokenFactory('player_local', null, { style: estiloDelRail() }), 'un jugador local', 'player_local');
                   return;
                 }
                 if (kind === 'player_rival') {
-                  activateFactory(playerTokenFactory('player_rival', null, { style: 'disk' }), 'un jugador rival', 'player_rival');
+                  activateFactory(playerTokenFactory('player_rival', null, { style: estiloDelRail() }), 'un jugador rival', 'player_rival');
                   return;
                 }
                 if (kind === 'goalkeeper_local') {
-                  activateFactory(playerTokenFactory('goalkeeper_local', null, { style: 'disk' }), 'un portero', 'goalkeeper_local');
+                  activateFactory(playerTokenFactory('goalkeeper_local', null, { style: estiloDelRail() }), 'un portero', 'goalkeeper_local');
                   return;
                 }
                 if (kind === 'goalkeeper_rival') {
-                  activateFactory(playerTokenFactory('goalkeeper_rival', null, { style: 'disk' }), 'un portero rival', 'goalkeeper_rival');
+                  activateFactory(playerTokenFactory('goalkeeper_rival', null, { style: estiloDelRail() }), 'un portero rival', 'goalkeeper_rival');
                   return;
                 }
                 activateFactory(simpleFactory(kind), RESOURCE_LABELS[kind] || kind, kind);
