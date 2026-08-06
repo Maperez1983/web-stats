@@ -35641,7 +35641,18 @@
 		      }
 		      const previewOptions = options && typeof options === 'object' ? (options.previewOptions || {}) : {};
 		      const applyLive = !(options && typeof options === 'object' && options.applyLivePreview === false);
-		      const dataUrl = await buildPreviewData(previewOptions);
+		      // La previa viaja DENTRO del formulario, en base64. Por defecto se generaba en PNG y, con
+    // cesped de foto real, a 2048 px: varios MB en CADA guardado. Por eso guardar una tarea
+    // pasaba del minuto y a veces ni llegaba a completarse. WebP a 1280 px pesa del orden de
+    // 15 veces menos y a ese tamano no se aprecia diferencia en la miniatura.
+    // El PDF NO se toca: pide sus propias opciones (6144 px, PNG, calidad 0.98), y como el
+    // spread va al final, cualquier llamada explicita sigue mandando.
+    const dataUrl = await buildPreviewData({
+      maxSide: 1280,
+      mime: 'image/webp',
+      quality: 0.85,
+      ...previewOptions,
+    });
 	      if (previewInput) previewInput.value = dataUrl;
 	      if (applyLive) applyLivePreview(dataUrl);
 	      if (timelinePreviewsInput) timelinePreviewsInput.value = '';
