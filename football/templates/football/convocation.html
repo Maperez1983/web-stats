@@ -686,6 +686,12 @@
           <select id="filter-position">
             <option value="">Todas las posiciones</option>
           </select>
+          {% if can_show_related_divisions_toggle %}
+          <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; color: var(--muted); cursor: pointer; white-space: nowrap;">
+            <input type="checkbox" id="include-related-divisions" {% if include_related_divisions %}checked{% endif %} onchange="window.location.href = window.location.pathname + '?include_related=' + (this.checked ? '1' : '0')" />
+            <span>Incluir equipos relacionados</span>
+          </label>
+          {% endif %}
           <button id="select-visible" class="button" type="button">Seleccionar visibles</button>
           <button id="clear-all" class="button" type="button">Limpiar</button>
           <button id="drop-injured" class="button" type="button">Excluir lesionados</button>
