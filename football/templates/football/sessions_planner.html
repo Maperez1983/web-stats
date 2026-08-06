@@ -4263,6 +4263,15 @@
 			        {# RECOMENDADAS PARA ESTA SESIÓN. Va ARRIBA del todo y antes de las carpetas: el
 		           momento de recomendar es cuando estás eligiendo qué meter, no cuando ya has
 		           navegado media biblioteca. Cada tarjeta dice POR QUÉ se propone. #}
+		        {# Si no hay nada que merezca proponerse se DICE, y se dice por qué: una sesión sin
+		           momento de juego ni principio no da con qué recomendar, y callarse parecería que
+		           el recomendador no existe. #}
+		        {% if selected_session_for_reco and not library_recommended %}
+		        <div style="margin:0.6rem 0 0.9rem;padding:0.7rem 0.8rem;border:1px dashed var(--border,rgba(148,163,184,0.35));border-radius:12px;font-size:0.85rem;">
+		          <strong>🎯 Sin recomendaciones para esta sesión</strong>
+		          <div class="muted" style="margin-top:0.25rem;">Ponle a la sesión el <strong>momento de juego</strong> o el <strong>principio</strong> y podré proponerte tareas de verdad. Con sólo el texto no paso de coincidencias sueltas.</div>
+		        </div>
+		        {% endif %}
 		        {% if library_recommended %}
 		        <div class="library-reco" style="margin:0.6rem 0 0.9rem;padding:0.7rem 0.8rem;border:1px solid var(--border,rgba(148,163,184,0.35));border-radius:12px;">
 		          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;">
