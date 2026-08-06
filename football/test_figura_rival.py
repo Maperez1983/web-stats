@@ -107,3 +107,22 @@ class ChapaAlReconstruirTests(SimpleTestCase):
         bloque = src[i:i + 900]
         self.assertIn("naturalWidth", bloque)
         self.assertIn("__cimg.set({ width: __w, height: __h })", bloque)
+
+
+class TresEquiposSeDistinguenTests(SimpleTestCase):
+    """Con tres equipos en el campo, dos no pueden llevar la misma chapa.
+
+    El rival lleva la amarilla y NUESTRA segunda equipacion llevaba tambien la amarilla:
+    en una tarea de 3 equipos dos grupos salian identicos, que es lo unico que una pizarra
+    no puede permitirse. La segunda pasa a la turquesa.
+    """
+
+    def test_la_segunda_equipacion_no_comparte_chapa_con_el_rival(self):
+        src = PAD.read_text(encoding="utf-8")
+        self.assertIn("esRival ? 'chapa_away' : (esSegunda ? 'chapa_turquesa' : 'chapa_local')", src)
+        self.assertIn("chapaBaseUrlForToken = (kit, isGoalkeeper, isAway, esRival, esSegunda)", src)
+
+    def test_las_etiquetas_de_relleno_no_se_pintan(self):
+        src = PAD.read_text(encoding="utf-8")
+        self.assertIn("const __GENERICOS = new Set(['jugador','rival','portero','comodin'", src)
+        self.assertIn("if (__nombreUtil) {", src)

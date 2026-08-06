@@ -30623,15 +30623,18 @@
     // Chapa con escudo (base sin dorsal): local verdiblanca, visitante amarilla lisa, portero azul/negra.
     const CHAPA_BASE_URL = '/static/football/images/chapa/';
     const CHAPA_KEY = { titular:'chapa_local', visitante:'chapa_away', turquesa:'chapa_turquesa', blanca:'chapa_blanca', chandal:'chapa_chandal', gk_azul:'chapa_gk_azul', gk_negra:'chapa_gk_negra', gk_magenta:'chapa_gk_magenta' };
-    const chapaBaseUrlForToken = (kit, isGoalkeeper, isAway, esRival) => {
+    const chapaBaseUrlForToken = (kit, isGoalkeeper, isAway, esRival, esSegunda) => {
       // Sin equipacion explicita, el RIVAL usa la suya (amarilla), no la nuestra.
       // Antes caia siempre en 'chapa_local' y una ficha de rival salia verdiblanca
       // con nuestro escudo, indistinguible de un jugador propio.
       // Al PORTERO rival le faltaba la misma regla: caia en 'chapa_gk_azul', que es
       // la nuestra, y los dos porteros del campo salian iguales. Va de negra.
+      // Tres equipos en el campo tienen que distinguirse a la primera. El rival lleva la
+      // amarilla y NUESTRA segunda equipacion llevaba tambien la amarilla, asi que en una
+      // tarea de tres equipos dos grupos salian identicos. La segunda pasa a la turquesa.
       const porDefecto = isGoalkeeper
         ? (esRival ? 'chapa_gk_negra' : 'chapa_gk_azul')
-        : (isAway ? 'chapa_away' : 'chapa_local');
+        : (esRival ? 'chapa_away' : (esSegunda ? 'chapa_turquesa' : 'chapa_local'));
       const key = CHAPA_KEY[safeText(kit)] || porDefecto;
       return `${CHAPA_BASE_URL}${key}.png`;
     };
@@ -31650,6 +31653,7 @@
 			              isGoalkeeper,
 			              isAway || isRivalTokenKind(kind),
 			              isRivalTokenKind(kind),
+			              isAway,
 			            );
 			          const __chapaEl = __chapaImgUrl ? (getReadyAvatarImage(__chapaImgUrl) || ensureAvatarImage(__chapaImgUrl)) : null;
 			          const __useChapaImg = !!__chapaEl; // usamos SIEMPRE la imagen de chapa (placeholder de color mientras carga)
@@ -32007,6 +32011,12 @@
 		        });
 		        numberText.data = { role: 'token_number' };
 		        tokenParts.push(numberText);
+		        // Una tarea generada trae nombres de relleno ("Jugador", "Rival", "Comodin"...).
+		        // Con las fichas juntas esas etiquetas se amontonan y tapan el campo sin decir
+		        // nada. Si el nombre no es el de una persona, no se pinta etiqueta.
+		        const __GENERICOS = new Set(['jugador','rival','portero','comodin','comodín','oleada','espera','local','visitante']);
+		        const __nombreUtil = !__GENERICOS.has(String(displayName || '').trim().toLowerCase());
+		        if (__nombreUtil) {
 		        const nameBg = new fabric.Rect({
 		          originX: 'center',
 		          originY: 'center',
@@ -32037,6 +32047,7 @@
 		        });
 			        nameText.data = { role: 'token_name' };
 			        tokenParts.push(nameText);
+			        }
 			        }
 		      } else {
 	        baseRadius = (kind === 'goalkeeper_local' || kind === 'goalkeeper_rival') ? 24 : 21;
