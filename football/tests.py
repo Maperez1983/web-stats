@@ -14224,6 +14224,59 @@ class SessionsPlanningTests(TestCase):
         meta = (task.tactical_layout or {}).get('meta') or {}
         self.assertIn('original_version', meta)
 
+    def test_editing_texts_does_not_copy_the_canvas_into_the_snapshot(self):
+        """Editar TEXTOS no puede duplicar el lienzo dentro de la propia tarea.
+
+        La copia de seguridad "versión original" se llevaba `graphic_editor` entero. En una tarea
+        real son ~2 MB, así que el primer guardado de textos engordaba la fila un 50%. El lienzo
+        solo debe copiarse cuando quien guarda va a cambiar el dibujo.
+        """
+        from football.session_task_editor_services import _ensure_original_task_snapshot
+
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 26),
+            focus='Biblioteca coach',
+            duration_minutes=90,
+        )
+        lienzo = {'canvas_state': {'objects': [{'id': 'a', 'relleno': 'x' * 20000}]}}
+        task = SessionTask.objects.create(
+            session=session,
+            title='Tarea con dibujo',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=15,
+            objective='Objetivo de partida',
+            tactical_layout={'meta': {'graphic_editor': lienzo}},
+        )
+        peso_inicial = len(json.dumps(task.tactical_layout, separators=(',', ':')))
+
+        football_views._update_library_task_from_post(
+            task,
+            {'task_title': 'Tarea renombrada'},
+            scope_key=None,
+        )
+
+        task.refresh_from_db()
+        meta = (task.tactical_layout or {}).get('meta') or {}
+        original = meta.get('original_version') or {}
+        self.assertTrue(original, 'debe seguir guardándose la versión original')
+        self.assertFalse(
+            original.get('graphic_editor'),
+            'editar textos no debe copiar el lienzo dentro de la tarea',
+        )
+        peso_final = len(json.dumps(task.tactical_layout, separators=(',', ':')))
+        self.assertLess(
+            peso_final,
+            peso_inicial * 1.2,
+            'guardar textos no puede engordar el layout con una copia del lienzo',
+        )
+
+        # Y si después se edita el DIBUJO, la copia se completa con el lienzo original.
+        _ensure_original_task_snapshot(task, include_graphic=True)
+        task.refresh_from_db()
+        original = ((task.tactical_layout or {}).get('meta') or {}).get('original_version') or {}
+        self.assertEqual(original.get('graphic_editor'), lienzo)
+
 
 class StaffUserLinkingTests(TestCase):
     def setUp(self):

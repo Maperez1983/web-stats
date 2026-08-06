@@ -46,15 +46,39 @@ def _workspace_needs_setup(workspace) -> bool:
     return not WorkspaceTeam.objects.filter(workspace=workspace).exists()
 
 
-def _ensure_original_task_snapshot(task):
+def _ensure_original_task_snapshot(task, include_graphic=True):
+    """Guarda una vez la versión de partida de la tarea, para poder restaurarla.
+
+    `include_graphic` decide si la copia se lleva también el LIENZO (`graphic_editor`). El lienzo
+    es lo que pesa: en una tarea real son ~2 MB, así que copiarlo duplica la fila. Solo tiene
+    sentido cuando quien guarda va a cambiar el dibujo. Editar los TEXTOS de la ficha no lo toca,
+    y ahí la copia del lienzo era peso muerto: engordaba la tarea un 50% de una vez y para siempre.
+
+    Si la copia ya existe pero le falta el lienzo (la creó una edición de textos) y ahora sí va a
+    cambiarse el dibujo, se completa en ese momento: el lienzo que hay guardado sigue siendo el
+    original, porque los textos no lo tocan.
+    """
     if not task:
         return {}
     layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
     layout = dict(layout)
     meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
     meta = dict(meta)
-    if isinstance(meta.get("original_version"), dict):
-        return meta.get("original_version") or {}
+    current_graphic = meta.get("graphic_editor") if isinstance(meta.get("graphic_editor"), dict) else {}
+
+    existing = meta.get("original_version") if isinstance(meta.get("original_version"), dict) else None
+    if existing is not None:
+        if not include_graphic or existing.get("graphic_editor"):
+            return existing
+        # Completar la copia con el lienzo, ahora que sí hace falta.
+        existing = dict(existing)
+        existing["graphic_editor"] = dict(current_graphic)
+        meta["original_version"] = existing
+        layout["meta"] = meta
+        task.tactical_layout = layout
+        task.save(update_fields=["tactical_layout"])
+        return existing
+
     analysis_meta = meta.get("analysis") if isinstance(meta.get("analysis"), dict) else {}
     analysis_meta = dict(analysis_meta)
     task_sheet = analysis_meta.get("task_sheet") if isinstance(analysis_meta.get("task_sheet"), dict) else {}
@@ -67,10 +91,11 @@ def _ensure_original_task_snapshot(task):
         "coaching_points": task.coaching_points or "",
         "confrontation_rules": task.confrontation_rules or "",
         "task_sheet": dict(task_sheet),
-        "graphic_editor": meta.get("graphic_editor") if isinstance(meta.get("graphic_editor"), dict) else {},
         "task_preview_image": task.task_preview_image.name if task.task_preview_image else "",
         "task_pdf": task.task_pdf.name if task.task_pdf else "",
     }
+    if include_graphic:
+        snapshot["graphic_editor"] = dict(current_graphic)
     meta["original_version"] = snapshot
     layout["meta"] = meta
     task.tactical_layout = layout
