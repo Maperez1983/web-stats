@@ -144,6 +144,51 @@ def parse_rival_squad(html):
     return players
 
 
+def upsert_manual_rival_player(team, datos):
+    """Alta de un jugador que la fuente NO lista para ese equipo. Devuelve (jugador, creado).
+
+    Existe porque un rival de amistoso juega con gente que su ficha publicada no recoge -cedidos,
+    canteranos que suben, fichajes recientes-. Se guarda con `source='manual'` para que
+    `import_rival_squad` no lo desactive, y se usa desde los DOS caminos de alta (el formulario
+    de la ficha y la ingesta del agente) para que no haya dos reglas distintas.
+    """
+    nombre = " ".join(str(datos.get("full_name") or "").split())[:140]
+    if not team or not nombre:
+        return None, False
+    ya = RivalPlayer.objects.filter(team=team, full_name__iexact=nombre).first()
+    if ya:
+        return ya, False
+
+    def _entero(valor):
+        try:
+            n = int(str(valor).strip())
+        except (TypeError, ValueError):
+            return None
+        return n if n > 0 else None
+
+    posicion = " ".join(str(datos.get("position") or "").split())[:60]
+    linea = str(datos.get("line") or "").strip().lower()
+    if linea not in {"gk", "def", "mid", "att"}:
+        linea = _position_line(posicion) or ""
+    return (
+        RivalPlayer.objects.create(
+            team=team,
+            source=RivalPlayer.SOURCE_MANUAL,
+            full_name=nombre,
+            alias=" ".join(str(datos.get("alias") or "").split())[:80],
+            number=_entero(datos.get("number")),
+            age=_entero(datos.get("age")),
+            position=posicion,
+            line=linea,
+            photo_url=str(datos.get("photo_url") or "").strip()[:300],
+            # De donde salio el dato, para poder volver a la fuente desde su ficha.
+            preferente_profile_url=str(datos.get("profile_url") or "").strip()[:300],
+            is_active=True,
+        ),
+        True,
+    )
+
+
 def parse_team_crest(html):
     """URL del escudo del equipo en una pagina de laPreferente, o "" si no la publica.
 
