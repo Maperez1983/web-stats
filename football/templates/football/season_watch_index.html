@@ -18,7 +18,11 @@
       .sw-card { border:1px solid var(--fm-line, #1e293b); border-radius:12px;
         background:var(--fm-panel, #0f172a); padding:.75rem .9rem; }
       .sw-top { display:flex; justify-content:space-between; align-items:baseline; gap:.6rem; flex-wrap:wrap; }
-      .sw-nm { color:var(--prod-text); font-weight:800; font-size:.98rem; }
+      .sw-nm { color:var(--prod-text); font-weight:800; font-size:.98rem; text-decoration:none; }
+      .sw-nm:hover { text-decoration:underline; }
+      .sw-img { width:38px; height:44px; object-fit:cover; border-radius:8px; flex:0 0 auto;
+        background:var(--fm-panel-2, #0b1220); border:1px solid var(--fm-line, #1e293b); }
+      .sw-img-ph { display:inline-block; }
       .sw-de { color:var(--prod-muted, #94a3b8); font-weight:600; font-size:.78rem; }
       .sw-tag { font-size:.68rem; padding:.15rem .5rem; border-radius:999px; white-space:nowrap;
         border:1px solid var(--fm-line, rgba(148,163,184,.3)); }

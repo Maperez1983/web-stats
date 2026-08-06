@@ -1,8 +1,20 @@
+{% load static %}
 {% comment %}Una entrada del seguimiento. Vive aparte porque la pintan jugadores y equipos igual.{% endcomment %}
 <article class="sw-card">
   <div class="sw-top">
-    <span>
-      <span class="sw-nm">{{ w.subject_name }}</span>
+    <span style="display:flex;align-items:center;gap:.55rem;">
+      {% if w.team %}
+        {% if w.team.crest_url %}<img class="sw-img" src="{{ w.team.crest_url }}" alt="" loading="lazy" />{% else %}<span class="sw-img sw-img-ph"></span>{% endif %}
+      {% elif w.rival_player and w.rival_player.photo_url %}
+        <img class="sw-img" src="{{ w.rival_player.photo_url }}" alt="" loading="lazy"
+             onerror="this.onerror=null;this.src='{% static 'football/images/player-avatar.svg' %}';" />
+      {% elif w.player %}
+        <img class="sw-img" src="{% url 'player-photo-file' player_id=w.player.id %}" alt="" loading="lazy"
+             onerror="this.onerror=null;this.src='{% static 'football/images/player-avatar.svg' %}';" />
+      {% else %}
+        <img class="sw-img" src="{% static 'football/images/player-avatar.svg' %}" alt="" />
+      {% endif %}
+      <a class="sw-nm" href="{% if w.player %}{% url 'player-detail' player_id=w.player.id %}{% elif w.rival_player %}{% url 'rival-player-detail' rival_player_id=w.rival_player.id %}{% elif w.team %}{% url 'rival-team-squad' team_id=w.team.id %}{% else %}#{% endif %}">{{ w.subject_name }}</a>
       {% if w.rival_player and w.rival_player.team %}<span class="sw-de">· {{ w.rival_player.team.display_name }}</span>
       {% elif w.player and w.player.team %}<span class="sw-de">· {{ w.player.team.category|default:w.player.team.name }}</span>
       {% elif w.team %}<span class="sw-de">· {{ w.team.category|default:"sin categoría" }}</span>{% endif %}
