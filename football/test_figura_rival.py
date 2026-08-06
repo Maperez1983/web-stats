@@ -50,6 +50,20 @@ class FiguraDelRivalTests(SimpleTestCase):
         self.assertIn("? AVATAR_RIVAL_CAMPO", self.src)
         self.assertIn("esRival ? avatarGkDelRival(nuestro) : nuestro", self.src)
 
+    def test_el_portero_rival_no_lleva_nuestra_chapa(self):
+        # Le faltaba la misma regla que al jugador de campo: caia en 'chapa_gk_azul',
+        # que es la nuestra, y los dos porteros del campo salian identicos.
+        self.assertIn(
+            "? (esRival ? 'chapa_gk_negra' : 'chapa_gk_azul')",
+            self.src,
+            "chapaBaseUrlForToken vuelve a dar NUESTRA chapa de portero al portero rival",
+        )
+
+    def test_el_relleno_provisional_es_del_color_que_va_a_llegar(self):
+        # Miraba solo isAway, asi que el rival parpadeaba en verde antes de amarillo.
+        self.assertIn("const __esRival = isRivalTokenKind(kind);", self.src)
+        self.assertIn("((isAway || __esRival) ? '#f4c400' : '#0f7a35')", self.src)
+
     def test_las_figuras_del_rival_existen(self):
         base = PAD.parent.parent / "images" / "players"
         faltan = [

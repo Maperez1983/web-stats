@@ -30623,11 +30623,15 @@
     // Chapa con escudo (base sin dorsal): local verdiblanca, visitante amarilla lisa, portero azul/negra.
     const CHAPA_BASE_URL = '/static/football/images/chapa/';
     const CHAPA_KEY = { titular:'chapa_local', visitante:'chapa_away', turquesa:'chapa_turquesa', blanca:'chapa_blanca', chandal:'chapa_chandal', gk_azul:'chapa_gk_azul', gk_negra:'chapa_gk_negra', gk_magenta:'chapa_gk_magenta' };
-    const chapaBaseUrlForToken = (kit, isGoalkeeper, isAway) => {
+    const chapaBaseUrlForToken = (kit, isGoalkeeper, isAway, esRival) => {
       // Sin equipacion explicita, el RIVAL usa la suya (amarilla), no la nuestra.
       // Antes caia siempre en 'chapa_local' y una ficha de rival salia verdiblanca
       // con nuestro escudo, indistinguible de un jugador propio.
-      const porDefecto = isGoalkeeper ? 'chapa_gk_azul' : (isAway ? 'chapa_away' : 'chapa_local');
+      // Al PORTERO rival le faltaba la misma regla: caia en 'chapa_gk_azul', que es
+      // la nuestra, y los dos porteros del campo salian iguales. Va de negra.
+      const porDefecto = isGoalkeeper
+        ? (esRival ? 'chapa_gk_negra' : 'chapa_gk_azul')
+        : (isAway ? 'chapa_away' : 'chapa_local');
       const key = CHAPA_KEY[safeText(kit)] || porDefecto;
       return `${CHAPA_BASE_URL}${key}.png`;
     };
@@ -31645,12 +31649,19 @@
 			              (options && options.kit) || safeText(player?.token_kit),
 			              isGoalkeeper,
 			              isAway || isRivalTokenKind(kind),
+			              isRivalTokenKind(kind),
 			            );
 			          const __chapaEl = __chapaImgUrl ? (getReadyAvatarImage(__chapaImgUrl) || ensureAvatarImage(__chapaImgUrl)) : null;
 			          const __useChapaImg = !!__chapaEl; // usamos SIEMPRE la imagen de chapa (placeholder de color mientras carga)
 			          if (__useChapaImg) {
 			            // Placeholder: disco del color del kit (evita el flash BLANCO mientras carga la imagen).
-			            const __phFill = isGoalkeeper ? '#1d4ed8' : (isAway ? '#f4c400' : '#0f7a35');
+			            // El relleno provisional mientras carga el PNG tiene que ser del color de
+			            // la chapa que va a llegar. Miraba solo `isAway`, asi que un rival parpadeaba
+			            // en VERDE antes de ponerse amarillo, y su portero en azul antes de negro.
+			            const __esRival = isRivalTokenKind(kind);
+			            const __phFill = isGoalkeeper
+			              ? (__esRival ? '#1b1d22' : '#1d4ed8')
+			              : ((isAway || __esRival) ? '#f4c400' : '#0f7a35');
 			            const __ph = new fabric.Circle({ radius, fill: __phFill, stroke: 'rgba(248,250,252,0.98)', strokeWidth: 2.7, originX: 'center', originY: 'center', left: 0, top: 0, selectable: false, evented: false });
 			            __ph.data = { role: 'token_base' };
 			            tokenParts.push(__ph);
