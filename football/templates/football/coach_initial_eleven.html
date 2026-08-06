@@ -1029,6 +1029,7 @@
       }
 
       /* Selector segmentado Chapa / Foto / Avatar */
+      .xi-kit-row .xi-swatches { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
       .xi-token-style-row .xi-seg {
         display: inline-flex;
         border: 1px solid rgba(226, 232, 240, 0.22);
@@ -2616,23 +2617,26 @@
               <button type="button" data-token-style="avatar" id="ts-avatar">Avatar</button>
             </div>
           </div>
-          <div class="field-row">
-            <label for="xi-kit-field">Equipación</label>
-            <select id="xi-kit-field">
-              <option value="titular">1ª · titular</option>
-              <option value="visitante">2ª · visitante</option>
-              <option value="blanca">3ª · blanca</option>
-              <option value="turquesa">Entrenamiento</option>
-              <option value="chandal">Chándal</option>
-            </select>
+          {% comment %}Los mismos circulos de color que la pizarra, con los mismos colores y el
+          mismo aro verde en el activo. Antes eran dos desplegables de texto: elegir equipacion
+          obligaba a leer en vez de mirar.{% endcomment %}
+          <div class="field-row xi-kit-row">
+            <label>Campo</label>
+            <div class="xi-swatches" id="xi-kit-field" role="group" aria-label="Equipación de campo">
+              <button type="button" class="xi-swatch" data-kit="titular" title="1ª · titular" aria-label="Titular" style="width:26px!important;height:26px!important;min-width:26px!important;min-height:26px!important;padding:0!important;border-radius:50%!important;flex:0 0 auto;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.4);border:2px solid rgba(255,255,255,.28);background:linear-gradient(90deg,#0f7a35 0 50%,#f2f4f3 50% 100%)!important;"></button>
+              <button type="button" class="xi-swatch" data-kit="visitante" title="2ª · visitante" aria-label="Visitante" style="width:26px!important;height:26px!important;min-width:26px!important;min-height:26px!important;padding:0!important;border-radius:50%!important;flex:0 0 auto;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.4);border:2px solid rgba(255,255,255,.28);background:#f5c514!important;"></button>
+              <button type="button" class="xi-swatch" data-kit="blanca" title="3ª · blanca" aria-label="Blanca" style="width:26px!important;height:26px!important;min-width:26px!important;min-height:26px!important;padding:0!important;border-radius:50%!important;flex:0 0 auto;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.4);border:2px solid rgba(255,255,255,.28);background:#ecedeb!important;"></button>
+              <button type="button" class="xi-swatch" data-kit="turquesa" title="Entrenamiento" aria-label="Entrenamiento" style="width:26px!important;height:26px!important;min-width:26px!important;min-height:26px!important;padding:0!important;border-radius:50%!important;flex:0 0 auto;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.4);border:2px solid rgba(255,255,255,.28);background:#1aa3a3!important;"></button>
+              <button type="button" class="xi-swatch" data-kit="chandal" title="Chándal" aria-label="Chándal" style="width:26px!important;height:26px!important;min-width:26px!important;min-height:26px!important;padding:0!important;border-radius:50%!important;flex:0 0 auto;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.4);border:2px solid rgba(255,255,255,.28);background:#20462d!important;"></button>
+            </div>
           </div>
-          <div class="field-row">
-            <label for="xi-kit-gk">Equipación del portero</label>
-            <select id="xi-kit-gk">
-              <option value="gk_azul">Portero · azul</option>
-              <option value="gk_negra">Portero · negra</option>
-              <option value="gk_magenta">Portero · coral</option>
-            </select>
+          <div class="field-row xi-kit-row">
+            <label>Portero</label>
+            <div class="xi-swatches" id="xi-kit-gk" role="group" aria-label="Equipación del portero">
+              <button type="button" class="xi-swatch" data-gk="gk_azul" title="Portero · azul" aria-label="Azul" style="width:26px!important;height:26px!important;min-width:26px!important;min-height:26px!important;padding:0!important;border-radius:50%!important;flex:0 0 auto;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.4);border:2px solid rgba(255,255,255,.28);background:#1d4ed8!important;"></button>
+              <button type="button" class="xi-swatch" data-gk="gk_negra" title="Portero · negra" aria-label="Negra" style="width:26px!important;height:26px!important;min-width:26px!important;min-height:26px!important;padding:0!important;border-radius:50%!important;flex:0 0 auto;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.4);border:2px solid rgba(255,255,255,.28);background:#16191d!important;"></button>
+              <button type="button" class="xi-swatch" data-gk="gk_magenta" title="Portero · coral" aria-label="Coral" style="width:26px!important;height:26px!important;min-width:26px!important;min-height:26px!important;padding:0!important;border-radius:50%!important;flex:0 0 auto;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.4);border:2px solid rgba(255,255,255,.28);background:#c96068!important;"></button>
+            </div>
           </div>
           <div class="field-row">
             <label for="lineup-gk-select">Portero (este partido)</label>
@@ -3108,10 +3112,10 @@
           if (CHAPA_URLS[g.campo]) campo = g.campo;
           if (CHAPA_URLS[g.portero]) portero = g.portero;
         } catch (_) {}
-        const selC = document.getElementById('xi-kit-field');
-        const selP = document.getElementById('xi-kit-gk');
-        if (selC && CHAPA_URLS[selC.value]) campo = selC.value;
-        if (selP && CHAPA_URLS[selP.value]) portero = selP.value;
+        const actC = document.querySelector('#xi-kit-field .xi-swatch.is-active');
+        const actP = document.querySelector('#xi-kit-gk .xi-swatch.is-active');
+        if (actC && CHAPA_URLS[actC.dataset.kit]) campo = actC.dataset.kit;
+        if (actP && CHAPA_URLS[actP.dataset.gk]) portero = actP.dataset.gk;
         return { campo, portero };
       };
       function equipacionParaRol(role) {
@@ -4746,23 +4750,40 @@
 
       // Equipacion elegida: se recuerda y repinta el campo.
       (() => {
-        const selC = document.getElementById('xi-kit-field');
-        const selP = document.getElementById('xi-kit-gk');
         let guardado = {};
         try { guardado = JSON.parse(window.localStorage?.getItem(XI_KIT_KEY) || '{}'); } catch (_) {}
-        if (selC && guardado.campo) selC.value = guardado.campo;
-        if (selP && guardado.portero) selP.value = guardado.portero;
+        // El aro verde del activo va INLINE, como en la pizarra: a prueba de CSS cacheado.
+        const ARO_ON = '0 0 0 2px #37d05f,0 1px 4px rgba(0,0,0,.5)';
+        const ARO_OFF = '0 1px 3px rgba(0,0,0,.4)';
+        const pintar = (caja, attr, valor) => {
+          caja?.querySelectorAll('.xi-swatch').forEach((b) => {
+            const activo = b.dataset[attr] === valor;
+            b.classList.toggle('is-active', activo);
+            // Con setProperty e 'important': el tema pinta los <button> con !important y
+            // un estilo en linea normal se lo come. Es el mismo motivo por el que los
+            // circulos llevan el fondo forzado en el HTML.
+            b.style.setProperty('box-shadow', activo ? ARO_ON : ARO_OFF, 'important');
+            b.style.setProperty('border-color', activo ? '#37d05f' : 'rgba(255,255,255,.28)', 'important');
+          });
+        };
+        const cajaC = document.getElementById('xi-kit-field');
+        const cajaP = document.getElementById('xi-kit-gk');
+        let campo = CHAPA_URLS[guardado.campo] ? guardado.campo : 'titular';
+        let portero = CHAPA_URLS[guardado.portero] ? guardado.portero : 'gk_azul';
+        pintar(cajaC, 'kit', campo);
+        pintar(cajaP, 'gk', portero);
         const guardar = () => {
-          try {
-            window.localStorage?.setItem(XI_KIT_KEY, JSON.stringify({
-              campo: selC ? selC.value : 'titular',
-              portero: selP ? selP.value : 'gk_azul',
-            }));
-          } catch (_) {}
+          try { window.localStorage?.setItem(XI_KIT_KEY, JSON.stringify({ campo, portero })); } catch (_) {}
           renderField();
         };
-        selC?.addEventListener('change', guardar);
-        selP?.addEventListener('change', guardar);
+        cajaC?.addEventListener('click', (ev) => {
+          const b = ev.target.closest('.xi-swatch'); if (!b) return;
+          campo = b.dataset.kit; pintar(cajaC, 'kit', campo); guardar();
+        });
+        cajaP?.addEventListener('click', (ev) => {
+          const b = ev.target.closest('.xi-swatch'); if (!b) return;
+          portero = b.dataset.gk; pintar(cajaP, 'gk', portero); guardar();
+        });
       })();
 
       const xi3d = {
