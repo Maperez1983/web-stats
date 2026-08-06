@@ -1421,8 +1421,8 @@
 
         {% if active_tab == 'manage' %}
         {% if can_manage_roster %}
-        {# Completar la ficha con lo que la federación ya tiene. No copia la plantilla de
-           Universo: sólo toca a los jugadores ya dados de alta cuyo nombre casa. #}
+        {% comment %} Completar la ficha con lo que la federación ya tiene. No copia la plantilla de
+           Universo: sólo toca a los jugadores ya dados de alta cuyo nombre casa. {% endcomment %}
         <div class="club-panel" style="margin:0 0 14px;">
           <div class="club-panel-head"><h3 style="margin:0;">Completar fichas desde Universo RFAF</h3></div>
           <div class="club-panel-body" style="display:grid; gap:10px;">

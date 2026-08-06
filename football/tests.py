@@ -14189,6 +14189,43 @@ class SessionsPlanningTests(TestCase):
         self.assertContains(response, 'Transición + finalización')
         self.assertContains(response, '19:30')
 
+    def test_anadir_desde_biblioteca_solo_ensena_las_tres_carpetas(self):
+        """Venir de una sesión a elegir tarea no puede aterrizar en la biblioteca entera.
+
+        Encima de las tres carpetas se pintaban cuatro filtros por origen (Todas / Creadas /
+        Subidas en PDF / Realizadas), que son para administrar. En modo "elegir para esta sesión"
+        sobran. Administrando la biblioteca siguen estando.
+        """
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 24),
+            focus='Sesión que recibe tareas',
+            duration_minutes=90,
+        )
+        url = reverse('sessions')
+
+        administrando = self.client.get(url, {'tab': 'library', 'team': self.team.id})
+        html_admin = administrando.content.decode('utf-8', 'replace')
+        self.assertIn('aria-label="Carpetas de Biblioteca"', html_admin)
+        self.assertIn('library_source=created', html_admin)
+
+        eligiendo = self.client.get(
+            url, {'tab': 'library', 'team': self.team.id, 'session_id': session.id}
+        )
+        html_elegir = eligiendo.content.decode('utf-8', 'replace')
+        self.assertNotIn(
+            'aria-label="Carpetas de Biblioteca"', html_elegir,
+            'los filtros por origen sobran cuando vienes a elegir una tarea',
+        )
+        self.assertNotIn(
+            'library_source=created', html_elegir,
+            'no se puede prefijar un filtro que esconde tareas',
+        )
+        self.assertIn(
+            'aria-label="Bibliotecas"', html_elegir,
+            'las tres carpetas sí tienen que estar',
+        )
+
     def test_update_library_task_does_not_wipe_unposted_fields_on_rename(self):
         session = TrainingSession.objects.create(
             microcycle=self.microcycle,

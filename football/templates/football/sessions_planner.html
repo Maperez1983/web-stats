@@ -3300,7 +3300,7 @@
                   </div>
                 </div>
                 <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; margin:0.85rem 0 0.6rem;">
-                  <a class="button secondary" href="?{% qs_replace tab='library' library_source='created' library_repo=library_repository session_id=selected_session.id %}" title="Ir a Biblioteca y seleccionar tareas creadas para copiarlas a esta sesión">➕ Añadir desde Biblioteca</a>
+                  <a class="button secondary" href="?{% qs_replace tab='library' library_source=None library_repo=library_repository session_id=selected_session.id %}" title="Elegir carpeta y tarea para añadirla a esta sesión">➕ Añadir desde Biblioteca</a>
                   <a class="button" href="{% url task_builder_route_name %}?repo={{ library_repository|urlencode }}">Crear (biblioteca)</a>
                   <a class="button secondary" href="{% url task_builder_route_name %}?repo={{ library_repository|urlencode }}&session_id={{ selected_session.id }}&assign=1" title="Preselecciona la sesión activa para guardar la tarea directamente en el día de entreno">Crear (para esta sesión)</a>
                 </div>
@@ -4260,12 +4260,12 @@
 			          <a class="button secondary" href="?tab=import&library_repo={{ library_repository }}#import-tareas">Importar tareas</a>
 			          <a class="button secondary" href="?tab=sessions&sessions_view=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Añadir a sesión</a>
 			        </div>
-			        {# RECOMENDADAS PARA ESTA SESIÓN. Va ARRIBA del todo y antes de las carpetas: el
+			        {% comment %} RECOMENDADAS PARA ESTA SESIÓN. Va ARRIBA del todo y antes de las carpetas: el
 		           momento de recomendar es cuando estás eligiendo qué meter, no cuando ya has
-		           navegado media biblioteca. Cada tarjeta dice POR QUÉ se propone. #}
-		        {# Si no hay nada que merezca proponerse se DICE, y se dice por qué: una sesión sin
+		           navegado media biblioteca. Cada tarjeta dice POR QUÉ se propone. {% endcomment %}
+		        {% comment %} Si no hay nada que merezca proponerse se DICE, y se dice por qué: una sesión sin
 		           momento de juego ni principio no da con qué recomendar, y callarse parecería que
-		           el recomendador no existe. #}
+		           el recomendador no existe. {% endcomment %}
 		        {% if selected_session_for_reco and not library_recommended %}
 		        <div style="margin:0.6rem 0 0.9rem;padding:0.7rem 0.8rem;border:1px dashed var(--border,rgba(148,163,184,0.35));border-radius:12px;font-size:0.85rem;">
 		          <strong>🎯 Sin recomendaciones para esta sesión</strong>
@@ -4278,9 +4278,9 @@
 		            <strong>🎯 Recomendadas para esta sesión</strong>
 		            {% if selected_session %}<span class="muted" style="font-size:0.8rem;">{{ selected_session.session_date|date:"d/m" }}{% if selected_session.focus %} · {{ selected_session.focus }}{% endif %}</span>{% endif %}
 		          </div>
-		          {# Decir QUÉ HUECO llenas cambia la lista entera: una tarea de vuelta a la calma
+		          {% comment %} Decir QUÉ HUECO llenas cambia la lista entera: una tarea de vuelta a la calma
 		             no sirve para la parte principal. La ficha de sesión no tiene un "añadir a este
-		             bloque", así que se elige aquí, que es donde estás decidiendo. #}
+		             bloque", así que se elige aquí, que es donde estás decidiendo. {% endcomment %}
 		          <div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.6rem;font-size:0.78rem;">
 		            <span class="muted">Para el bloque:</span>
 		            <a href="?{% qs_replace block=None lib_page=None %}" style="{% if not library_block %}font-weight:700;{% else %}opacity:0.7;{% endif %}">todos</a>
@@ -4298,6 +4298,10 @@
 		          </div>
 		        </div>
 		        {% endif %}
+		        {% comment %} Los cuatro filtros por ORIGEN (Todas/Creadas/Subidas/Realizadas) son para administrar
+		           la biblioteca. Si vienes de una sesión a elegir una tarea, sobran: quedaban cuatro
+		           cajas encima de las tres carpetas y no se sabía cuál era cuál. {% endcomment %}
+		        {% if not eligiendo_para_sesion %}
 		        <div class="folder-grid" aria-label="Carpetas de Biblioteca">
 			          <a
 			            class="folder-card {% if not library_source_tab %}is-current{% endif %}"
@@ -4335,6 +4339,7 @@
 			            <span>{{ library_source_counts.performed|default:0 }} tareas · con fecha</span>
 			          </a>
 			        </div>
+			        {% endif %}
 
 			        {# ELEGIR BIBLIOTECA. Entrar y recibir las 179 tareas de golpe no ayudaba a #}
 			        {# encontrar nada: primero se elige biblioteca y luego se lista. #}
@@ -4414,9 +4419,9 @@
 			            <span>{{ col.item_count|default:0 }} tareas · colección</span>
 			          </a>
 			          {% endfor %}
-			          {# SUBCARPETAS de la carpeta en la que estás. Con 209 tareas dentro de
+			          {% comment %} SUBCARPETAS de la carpeta en la que estás. Con 209 tareas dentro de
 			             Importadas, una lista plana no hay quien la recorra: aquí se parte por
-			             tipo de tarea sin salir de la carpeta. #}
+			             tipo de tarea sin salir de la carpeta. {% endcomment %}
 			          {% for sub in library_subcarpetas %}
 			          <a
 			            class="folder-card {% if library_collection_id == sub.id %}is-current{% endif %}"
