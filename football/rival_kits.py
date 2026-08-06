@@ -36,7 +36,7 @@ def _url_grande(url):
     return texto.replace("/thumbs/", "/")
 
 
-def descargar_escudo(team, *, guardar=True, limite=None):
+def descargar_escudo(team, *, guardar=True, limite=None, url_escudo=""):
     """Devuelve los bytes del escudo del equipo, y los guarda en crest_image.
 
     `limite` acorta la espera: al pintar una pantalla no se puede tener al usuario
@@ -51,7 +51,10 @@ def descargar_escudo(team, *, guardar=True, limite=None):
                 return datos
     except Exception:
         pass
-    url = _url_grande(getattr(team, "crest_url", ""))
+    # El escudo del rival NO suele estar en el equipo: la pantalla lo resuelve
+    # desde el Universo y lo pinta directamente. Por eso se admite recibirlo:
+    # buscarlo solo en team.crest_url daba "sin escudo" para todos.
+    url = _url_grande(url_escudo or getattr(team, "crest_url", ""))
     if not url:
         return b""
     try:
@@ -75,7 +78,7 @@ def descargar_escudo(team, *, guardar=True, limite=None):
     return datos
 
 
-def precargar_equipacion(workspace, team, *, forzar=False):
+def precargar_equipacion(workspace, team, *, forzar=False, url_escudo=""):
     """Propone la equipacion del rival y la guarda si ese equipo no tenia nada.
 
     Escribe en la preferencia `rival_kit2d:<id>`, que es la que lee y guarda el
@@ -103,7 +106,7 @@ def precargar_equipacion(workspace, team, *, forzar=False):
         salida["estado"] = "ya tenia colores"
         return salida
 
-    datos = descargar_escudo(team)
+    datos = descargar_escudo(team, url_escudo=url_escudo)
     if not datos:
         return salida
     propuesta = equipacion_propuesta(datos)
@@ -134,12 +137,18 @@ def precargar_equipacion(workspace, team, *, forzar=False):
     return salida
 
 
-def precargar_equipaciones(workspace, equipos, *, forzar=False):
-    """Pasa por todos los rivales. Devuelve (resumen, detalle)."""
+def precargar_equipaciones(workspace, equipos, *, forzar=False, escudos=None):
+    """Pasa por todos los rivales. Devuelve (resumen, detalle).
+
+    `escudos` es {id_equipo: url}, porque la URL del escudo la resuelve la pantalla
+    y no esta guardada en el equipo.
+    """
+    escudos = escudos or {}
     detalle = []
     for team in equipos or []:
         try:
-            detalle.append(precargar_equipacion(workspace, team, forzar=forzar))
+            url = escudos.get(int(getattr(team, "id", 0) or 0), "")
+            detalle.append(precargar_equipacion(workspace, team, forzar=forzar, url_escudo=url))
         except Exception as exc:
             log.info("precarga fallida (%s): %s", team, exc)
             detalle.append({"equipo": str(team), "estado": "error"})
