@@ -602,6 +602,42 @@ def merge_teams(keep, drop):
     return keep
 
 
+def merge_workspaces(keep, drop):
+    """Reabsorbe el club `drop` dentro de `keep`: es la contraria de "Separar como club".
+
+    Existia el boton de separar una categoria como club independiente, pero no el de volver a
+    juntarla, asi que un club acababa partido en varios espacios sin forma de recomponerlo. Al
+    reabsorber se lleva TODO lo que colgaba del hijo -equipos, jugadores, staff, accesos,
+    contexto competitivo- reasignando las relaciones inversas, igual que `merge_teams`, en vez
+    de enumerar cincuenta modelos que se quedarian desactualizados.
+
+    Lo que choca con una restriccion de unicidad en `keep` (la misma preferencia de marca, el
+    mismo acceso) se descarta: ya existe alli su equivalente.
+
+    Devuelve `keep`. IRREVERSIBLE: quien la use debe confirmar antes.
+    """
+    from django.db import IntegrityError, transaction
+
+    if keep is None or drop is None or keep.pk == drop.pk:
+        return keep
+    for rel in list(drop._meta.related_objects):
+        field = rel.field
+        model = rel.related_model
+        for obj_pk in list(model.objects.filter(**{field.attname: drop.pk}).values_list('pk', flat=True)):
+            try:
+                with transaction.atomic():
+                    model.objects.filter(pk=obj_pk).update(**{field.attname: keep.pk})
+            except IntegrityError:
+                with transaction.atomic():
+                    model.objects.filter(pk=obj_pk).delete()
+    # El equipo principal del hijo no puede quedarse apuntandole: se suelta antes de borrar.
+    if getattr(drop, 'primary_team_id', None):
+        drop.primary_team = None
+        drop.save(update_fields=['primary_team'])
+    drop.delete()
+    return keep
+
+
 class Workspace(models.Model):
     KIND_CLUB = 'club'
     KIND_TASK_STUDIO = 'task_studio'

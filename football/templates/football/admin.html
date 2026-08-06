@@ -678,6 +678,25 @@
           <p style="margin:0.55rem 0;color:rgba(205,225,255,0.82);">No hay categorías configuradas.</p>
           {% endfor %}
         </div>
+        {% if clubes_separados %}
+        <div style="margin-top:0.9rem;padding:0.8rem 0.9rem;border:1px solid rgba(244,180,0,0.28);border-radius:12px;background:rgba(244,180,0,0.06);">
+          <h3 style="margin:0 0 0.2rem;font-size:0.95rem;">Este club está partido</h3>
+          <p style="margin:0 0 0.6rem;color:rgba(205,225,255,0.82);font-size:0.82rem;">
+            Otros espacios de trabajo son el mismo club. Al reabsorberlos se traen sus equipos, jugadores, staff, accesos y el enlace de competición. No se puede deshacer.
+          </p>
+          {% for w in clubes_separados %}
+          <form method="post" class="form-inline" style="display:flex;gap:0.5rem;align-items:center;justify-content:space-between;margin-bottom:0.35rem;"
+                onsubmit="return confirm('Vas a traerte «{{ w.name|escapejs }}» dentro de este club, con todo lo que tenga dentro. No se puede deshacer. ¿Sigo?');">
+            {% csrf_token %}
+            <input type="hidden" name="form_action" value="workspace_absorb" />
+            <input type="hidden" name="active_tab" value="teams" />
+            <input type="hidden" name="child_workspace_id" value="{{ w.id }}" />
+            <span>{{ w.name }} <span style="color:rgba(205,225,255,0.7);font-size:0.8rem;">· {{ w.primary_team.category|default:"sin categoría" }}</span></span>
+            <button class="pill-button" type="submit">Reabsorber</button>
+          </form>
+          {% endfor %}
+        </div>
+        {% endif %}
         {% if equipos_sueltos %}
         <div style="margin-top:0.9rem;padding:0.8rem 0.9rem;border:1px solid rgba(244,180,0,0.28);border-radius:12px;background:rgba(244,180,0,0.06);">
           <h3 style="margin:0 0 0.2rem;font-size:0.95rem;">Equipos de este club que están fuera</h3>
