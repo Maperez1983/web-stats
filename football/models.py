@@ -2478,6 +2478,9 @@ class RivalPlayer(models.Model):
     # Alta a mano desde la ficha del rival: para equipos sin plantilla publicada
     # (amistosos, canteras) y para completar lo que la fuente no trae.
     SOURCE_MANUAL = 'manual'
+    # Universo RFAF: responde desde el servidor y da partidos, titularidades, goles y
+    # tarjetas -pero NO minutos-. Cubre a los equipos sin pagina en laPreferente.
+    SOURCE_UNIVERSO = 'universo'
 
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='rival_players')
     source = models.CharField(max_length=20, default=SOURCE_LAPREFERENTE)

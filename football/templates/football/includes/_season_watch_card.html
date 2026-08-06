@@ -22,6 +22,21 @@
     <span class="sw-tag{% if w.es_del_club %} mio{% endif %}">{% if w.es_del_club %}del club{% else %}rival{% endif %}</span>
   </div>
   {% if w.reason %}<p class="sw-por">{{ w.reason }}</p>{% endif %}
+  {% with rp=w.rival_player %}
+  {% if rp and rp.matches_played %}
+  {% comment %}Universo no publica minutos, asi que NO se enseñan: un "0 minutos" se leeria
+  como "no ha jugado", que es lo contrario de lo que pasa.{% endcomment %}
+  <p class="sw-stats">
+    <span><b>{{ rp.matches_played }}</b> partido{{ rp.matches_played|pluralize }}</span>
+    <span><b>{{ rp.goals }}</b> gol{{ rp.goals|pluralize:"es" }}</span>
+    {% if rp.yellow_cards %}<span class="sw-amar">{{ rp.yellow_cards }} amarilla{{ rp.yellow_cards|pluralize }}</span>{% endif %}
+    {% if rp.red_cards %}<span class="sw-roja">{{ rp.red_cards }} roja{{ rp.red_cards|pluralize }}</span>{% endif %}
+    <span class="sw-fuente">{% if rp.source == 'universo' %}Universo RFAF{% elif rp.source == 'manual' %}a mano{% else %}laPreferente{% endif %}</span>
+  </p>
+  {% elif rp and rp.source == 'manual' %}
+  <p class="sw-stats"><span class="sw-fuente">Dado de alta a mano · sin estadísticas publicadas</span></p>
+  {% endif %}
+  {% endwith %}
   <p class="sw-quien">
     {% if w.created_by %}{{ w.created_by.get_full_name|default:w.created_by.username }}{% else %}—{% endif %}
     {% with ultima=w.notes.first %}

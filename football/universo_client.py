@@ -325,6 +325,62 @@ def fetch_universo_live_results(group_id, round_id=''):
     return payload if isinstance(payload, dict) else {}
 
 
+def fetch_universo_team_stats(team_code: str) -> list[dict]:
+    """Estadísticas por jugador de un equipo en Universo RFAF.
+
+    Vive en `teams/stats`, NO en `teams/detail`: ese solo trae la ficha (nombre, licencia,
+    fecha de nacimiento, foto) y por eso durante mucho tiempo dimos por hecho que Universo no
+    publicaba estadísticas. Sí las publica.
+
+    Los eventos vienen con código numérico. Deducido mirando 7 equipos y más de 300 jugadores:
+    `gol_1xx` son goles (hay tres variantes, se suman), `tarjeta_100` es la amarilla -la que
+    tiene casi todo el mundo- y `tarjeta_101` la roja, mucho más rara. `player_in`/`player_out`
+    son las veces que entró y salió del campo, no minutos: **Universo no da minutos**.
+    """
+    code = str(team_code or '').strip()
+    if not code:
+        return []
+    payload = universo_internal_post('teams/stats', {'cod_equipo': code})
+    squad = (payload or {}).get('squad') if isinstance(payload, dict) else None
+    if not isinstance(squad, list):
+        return []
+
+    filas = []
+    for item in squad:
+        if not isinstance(item, dict):
+            continue
+        info = item.get('player_info') if isinstance(item.get('player_info'), dict) else {}
+        eventos = item.get('events') if isinstance(item.get('events'), dict) else {}
+        alineaciones = item.get('lineup') if isinstance(item.get('lineup'), dict) else {}
+
+        def _n(valor):
+            try:
+                return max(0, int(valor or 0))
+            except (TypeError, ValueError):
+                return 0
+
+        goles = sum(_n(v) for k, v in eventos.items() if str(k).startswith('gol_'))
+        nombre = str(info.get('name') or '').strip()
+        if not nombre:
+            continue
+        filas.append({
+            'source_player_id': str(info.get('cod_licencia') or info.get('id') or '').strip(),
+            'full_name': nombre,
+            'number': _n(item.get('dorsal')) or None,
+            'photo_url': str(info.get('image') or '').strip(),
+            'birth_date': str(info.get('birth_date') or '').strip(),
+            'matches_played': _n(alineaciones.get('matches_played')),
+            'starter': _n(alineaciones.get('starter')),
+            'goals': goles,
+            'yellow_cards': _n(eventos.get('tarjeta_100')),
+            'red_cards': _n(eventos.get('tarjeta_101')),
+            # Universo no publica minutos. Se deja a 0 y la pantalla NO lo enseña como "0
+            # minutos", que se leeria como "no ha jugado".
+            'minutes': 0,
+        })
+    return filas
+
+
 def fetch_universo_team_roster(team_code: str) -> list[dict]:
     code = str(team_code or '').strip()
     if not code:
