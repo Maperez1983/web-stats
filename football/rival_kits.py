@@ -20,6 +20,18 @@ log = logging.getLogger(__name__)
 MAX_ESCUDO = 3 * 1024 * 1024
 TIEMPO_LIMITE = 12
 
+# El navegador del entrenador si baja estos escudos (la pantalla los pinta). Al
+# pedirlos desde el servidor hay que presentarse igual que se presenta el, o hay
+# webs que contestan 403 a cualquiera que no parezca un navegador.
+_CABECERAS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+    ),
+    "Accept": "image/avif,image/webp,image/png,image/*,*/*;q=0.8",
+    "Referer": "https://www.lapreferente.com/",
+}
+
 
 def _url_grande(url):
     """laPreferente sirve miniaturas en /thumbs/. La grande es la misma sin eso.
@@ -36,18 +48,25 @@ def _url_grande(url):
     return texto.replace("/thumbs/", "/")
 
 
-def descargar_escudo(team, *, guardar=True, limite=None, url_escudo=""):
+def descargar_escudo(team, *, guardar=True, limite=None, url_escudo="", diagnostico=None):
     """Devuelve los bytes del escudo del equipo, y los guarda en crest_image.
 
     `limite` acorta la espera: al pintar una pantalla no se puede tener al usuario
     12 segundos esperando a que responda una web de terceros. En segundo plano si.
+
+    `diagnostico` es un dict que se rellena con el motivo. Antes todos los fallos
+    -no habia url, la web contesto 403, se cayo la red- salian por pantalla como
+    el mismo "sin escudo", asi que el boton no servia para averiguar nada: decia
+    lo mismo tanto si el problema estaba aqui como si estaba en la otra punta.
     """
+    parte = diagnostico if isinstance(diagnostico, dict) else {}
     try:
         if getattr(team, "crest_image", None):
             team.crest_image.open("rb")
             datos = team.crest_image.read()
             team.crest_image.close()
             if datos:
+                parte["motivo"] = "ya guardado"
                 return datos
     except Exception:
         pass
@@ -56,19 +75,28 @@ def descargar_escudo(team, *, guardar=True, limite=None, url_escudo=""):
     # buscarlo solo en team.crest_url daba "sin escudo" para todos.
     url = _url_grande(url_escudo or getattr(team, "crest_url", ""))
     if not url:
+        parte["motivo"] = "sin url de escudo"
         return b""
+    parte["url"] = url
     try:
         import requests
 
-        resp = requests.get(url, timeout=(limite or TIEMPO_LIMITE), headers={"User-Agent": "SegundaJugada/1.0"})
+        resp = requests.get(url, timeout=(limite or TIEMPO_LIMITE), headers=_CABECERAS)
         if resp.status_code != 200:
+            parte["motivo"] = "la web responde %d" % resp.status_code
             return b""
         datos = resp.content or b""
     except Exception as exc:
         log.info("escudo no descargado (%s): %s", url, exc)
+        parte["motivo"] = "no se pudo conectar (%s)" % type(exc).__name__
         return b""
-    if not datos or len(datos) > MAX_ESCUDO:
+    if not datos:
+        parte["motivo"] = "la web devuelve un archivo vacio"
         return b""
+    if len(datos) > MAX_ESCUDO:
+        parte["motivo"] = "el escudo pesa demasiado"
+        return b""
+    parte["motivo"] = "descargado"
     if guardar:
         try:
             nombre = f"{getattr(team, 'slug', '') or team.id}-escudo.png"
@@ -106,8 +134,11 @@ def precargar_equipacion(workspace, team, *, forzar=False, url_escudo=""):
         salida["estado"] = "ya tenia colores"
         return salida
 
-    datos = descargar_escudo(team, url_escudo=url_escudo)
+    parte = {}
+    datos = descargar_escudo(team, url_escudo=url_escudo, diagnostico=parte)
     if not datos:
+        salida["estado"] = parte.get("motivo") or "sin escudo"
+        salida["url"] = parte.get("url", "")
         return salida
     propuesta = equipacion_propuesta(datos)
     if not propuesta:
