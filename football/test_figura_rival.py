@@ -89,3 +89,21 @@ class TercerEquipoEnElRailTests(SimpleTestCase):
         bloque = src[i:i + 2000]
         self.assertIn("kind === 'player_away'", bloque)
         self.assertIn("playerTokenFactory('player_away', null, { style: estiloDelRail() })", bloque)
+
+
+class ChapaAlReconstruirTests(SimpleTestCase):
+    """Al abrir una tarea GUARDADA la chapa aun se esta descargando.
+
+    La `fabric.Image` toma width/height del elemento, que en ese momento vale 0, y una imagen
+    de 0x0 reescalada sigue siendo 0x0: la ficha se quedaba en el disco de relleno provisional
+    para siempre. Colocandola a mano no se veia porque la chapa ya estaba en cache. El
+    manejador de `load` tiene que devolver el TAMANIO, no solo la escala.
+    """
+
+    def test_el_manejador_de_carga_devuelve_el_tamanio(self):
+        src = PAD.read_text(encoding="utf-8")
+        i = src.find("__chapaEl.addEventListener('load'")
+        self.assertGreater(i, 0, "ha desaparecido el manejador de carga de la chapa")
+        bloque = src[i:i + 900]
+        self.assertIn("naturalWidth", bloque)
+        self.assertIn("__cimg.set({ width: __w, height: __h })", bloque)

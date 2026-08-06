@@ -31671,7 +31671,20 @@
 			            __cimg.data = { role: 'token_base' };
 			            tokenParts.push(__cimg);
 			            if (!(__chapaEl.complete && (__chapaEl.naturalWidth || __chapaEl.width))) {
-			              try { __chapaEl.addEventListener('load', function(){ try { const __c = (radius * 2.34) / __chH(); __cimg.set({ scaleX: __c, scaleY: __c }); canvas.requestRenderAll(); } catch(e){} }, { once: true }); } catch (e) { /* ignore */ }
+			              try { __chapaEl.addEventListener('load', function(){ try {
+			                // Al reconstruir una tarea GUARDADA la chapa aun se esta descargando, asi que
+			                // la fabric.Image nace con width/height 0 -los toma del elemento- y una imagen
+			                // de 0x0 reescalada sigue siendo 0x0: la ficha se quedaba en el disco de relleno
+			                // provisional para siempre. Colocandola a mano no se veia porque la chapa ya
+			                // estaba en cache. Hay que devolverle el TAMANIO, no solo la escala.
+			                const __w = __chapaEl.naturalWidth || __chapaEl.width || 0;
+			                const __h = __chapaEl.naturalHeight || __chapaEl.height || 0;
+			                const __c = (radius * 2.34) / (__h || 360);
+			                if (__w && __h) __cimg.set({ width: __w, height: __h });
+			                __cimg.set({ scaleX: __c, scaleY: __c });
+			                try { __cimg.setCoords(); } catch (e) { /* ignore */ }
+			                canvas.requestRenderAll();
+			              } catch(e){} }, { once: true }); } catch (e) { /* ignore */ }
 			            }
 			          } else {
 			          // Borde exterior oscuro para que la chapa destaque sobre líneas blancas/césped.
