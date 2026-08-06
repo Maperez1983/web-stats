@@ -1,0 +1,159 @@
+/* Captura rápida · registro de acciones para el dedo.
+   Fuente: el prototipo v6 aprobado. La pantalla vive dentro del layout de la app,
+   así que aquí sólo van los estilos del propio tablero. */
+  .captura-app {
+  --verde:#0f8a4b; --verde-vivo:#34d07a; --oro:#f4b400; --rojo:#c04a3c;
+  --app-bg:#070f0b; --app-surface:#0f1c15; --app-surface-2:#16281e; --app-line:#24382c;
+  --app-ink:#eef5ef; --app-muted:#8ba394;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+  .captura-app * { box-sizing:border-box; }
+
+  .captura-app .app { position:relative; display:flex; flex-direction:column; gap:9px; padding:10px; border-radius:16px; background:var(--app-bg); color:var(--app-ink);
+         user-select:none; -webkit-user-select:none; }
+  .captura-app .panel { background:var(--app-surface); border:1px solid var(--app-line); border-radius:13px; }
+  .captura-app .titulo-panel { padding:9px 11px 0; font-size:9.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--app-muted); }
+  .captura-app .cabecera { display:flex; align-items:center; gap:13px; padding:9px 13px; }
+  .captura-app .cron { font-family:var(--mono); font-size:24px; font-weight:700; font-variant-numeric:tabular-nums; cursor:pointer; }
+  .captura-app .btn-parte { padding:6px 10px; border-radius:8px; border:1px solid var(--app-line); background:var(--app-surface-2); color:var(--app-muted); font:inherit; font-size:9.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; }
+  .captura-app .btn-parte.descanso { border-color:var(--oro); color:var(--oro); }
+  .captura-app .parte { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--app-muted); }
+  .captura-app .paso { font-size:12.5px; font-weight:700; }
+  .captura-app .paso b { color:var(--verde-vivo); }
+  .captura-app .vivo-pill { display:inline-flex; align-items:center; gap:5px; margin-left:auto; font-size:9px; font-weight:800; letter-spacing:.1em; color:var(--verde-vivo); }
+  .captura-app .punto { width:7px; height:7px; border-radius:50%; background:var(--verde-vivo); }
+
+  .captura-app .cuerpo { display:grid; grid-template-columns:minmax(0,1fr) 224px; gap:9px; }
+  .captura-app .col-izq { display:flex; flex-direction:column; gap:9px; min-width:0; }
+  .captura-app .historial { flex:1; display:flex; flex-direction:column; min-height:0; }
+  .captura-app .historial .tira { flex:1; flex-direction:column; align-items:stretch; overflow:auto; max-height:112px; }
+  .captura-app .historial .registro { justify-content:flex-start; }
+  .captura-app .escena { position:relative; }
+  .captura-app .pb-field { position:relative; width:100%; aspect-ratio:1664/945; background-size:cover; background-position:center; border-radius:13px 13px 0 0; border:1px solid rgba(255,255,255,.14); border-bottom:0; overflow:hidden; box-shadow:inset 0 0 60px rgba(0,0,0,.35); container-type:inline-size; cursor:crosshair; touch-action:none; }
+  .captura-app .rejilla { position:absolute; inset:0; display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr); z-index:2; }
+  .captura-app .rejilla div { border:1px dashed rgba(255,255,255,.09); }
+  .captura-app .rejilla div.marcada { background:rgba(244,180,0,.14); }
+  .captura-app .pb-chip { position:absolute; transform:translate(-50%,-50%); z-index:3; display:flex; flex-direction:column; align-items:center; gap:2px; width:clamp(42px,7cqw,86px); color:#fff; pointer-events:none; }
+  .captura-app .pb-avatar { position:relative; width:clamp(34px,5.5cqw,66px); height:clamp(41px,6.6cqw,80px); display:flex; align-items:flex-end; justify-content:center; filter:drop-shadow(0 7px 9px rgba(0,0,0,.55)); }
+  .captura-app .pb-avatar img { width:100%; height:100%; object-fit:contain; }
+  .captura-app .pb-num { position:absolute; top:-5px; left:50%; transform:translateX(-140%); min-width:17px; height:17px; padding:0 4px; border-radius:999px; background:#0b1220; border:2px solid #fff; color:#fff; font-size:.6rem; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .captura-app .pb-name { margin-top:2px; max-width:clamp(50px,7.6cqw,96px); padding:1px 5px; border-radius:7px; background:rgba(7,12,22,.86); font-size:clamp(.48rem,.86cqw,.68rem); font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; border:1px solid rgba(255,255,255,.12); }
+  .captura-app .pb-chip.resaltado .pb-name { background:var(--oro); color:#1a1400; border-color:var(--oro); }
+  .captura-app .capa-trazo { position:absolute; inset:0; z-index:4; pointer-events:none; }
+  .captura-app .marca-punto { position:absolute; width:30px; height:30px; transform:translate(-50%,-50%); pointer-events:none; z-index:5; }
+  .captura-app .marca-punto::before { content:""; position:absolute; inset:0; border-radius:50%; border:2px solid var(--oro); }
+  .captura-app .marca-punto::after { content:""; position:absolute; inset:11px; border-radius:50%; background:var(--oro); }
+
+  /* el selector de jugador aparece DONDE tocas */
+  .captura-app .cercanos { position:absolute; z-index:6; transform:translate(-50%,-50%); max-width:min(360px,66%); display:none; padding:7px; border-radius:16px; background:rgba(6,14,10,.95); border:1px solid rgba(52,208,122,.4); box-shadow:0 20px 50px rgba(0,0,0,.6); }
+  .captura-app .cercanos.abierto { display:block; }
+  .captura-app .tira-sellos { display:flex; flex-wrap:wrap; gap:3px; margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid var(--app-line); }
+  .captura-app .mini-sello { padding:5px 8px; border-radius:7px; border:1px solid var(--app-line); background:transparent; color:var(--app-muted); font:inherit; font-size:8.5px; font-weight:800; letter-spacing:.03em; text-transform:uppercase; cursor:pointer; }
+  .captura-app .mini-sello.puesto { background:var(--oro); border-color:var(--oro); color:#1a1400; }
+  .captura-app .quien-fila { display:flex; gap:5px; align-items:stretch; }
+  .captura-app .quien-fila + .quien-fila { margin-top:5px; }
+  .captura-app .valorar { width:46px; border-radius:11px; border:1px solid var(--app-line); background:var(--app-surface-2); font-size:19px; line-height:1; cursor:pointer; }
+  .captura-app .valorar.si { border-color:rgba(52,208,122,.45); background:rgba(15,138,75,.18); }
+  .captura-app .valorar.no { border-color:rgba(192,74,60,.45); background:rgba(192,74,60,.16); }
+  .captura-app .valorar.medio { border-color:rgba(244,180,0,.45); background:rgba(244,180,0,.14); }
+  .captura-app .valorar .sentido { display:block; font-size:8px; font-weight:800; letter-spacing:.03em; text-transform:uppercase; color:var(--app-ink); }
+  .captura-app .mas.rival { border-style:solid; border-color:rgba(192,74,60,.5); color:#f2a79c; }
+  .captura-app .mas { width:100%; margin-top:5px; padding:7px; border-radius:10px; border:1px dashed var(--app-line); background:transparent; color:var(--app-muted); font:inherit; font-size:9px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; }
+  .captura-app .quien { display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1; min-width:82px; padding:7px 2px; border-radius:11px; border:1px solid var(--app-line); background:var(--app-surface-2); color:var(--app-ink); font:inherit; cursor:pointer; touch-action:none; }
+  .captura-app .quien b { font-family:var(--mono); font-size:17px; font-weight:700; line-height:1; }
+  .captura-app .quien span { font-size:6.5px; font-weight:700; color:var(--app-muted); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .captura-app .quien.arriba { background:rgba(52,208,122,.3); border-color:var(--verde-vivo); }
+  .captura-app .quien.abajo { background:rgba(192,74,60,.3); border-color:var(--rojo); }
+  .captura-app .quien.mas { background:transparent; color:var(--app-muted); }
+  .captura-app .cercanos-pista { margin-top:6px; text-align:center; max-width:230px; font-size:8px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--app-muted); }
+
+  .captura-app .bajo-campo { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 11px; border:1px solid var(--app-line); border-top:0; border-radius:0 0 13px 13px; background:var(--app-surface); font-size:10px; font-weight:700; color:var(--app-muted); }
+  .captura-app .bajo-campo b { color:var(--app-ink); }
+  .captura-app .bajo-campo button { padding:6px 12px; border-radius:999px; border:1px solid var(--app-line); background:var(--app-surface-2); color:var(--app-muted); font:inherit; font-size:9.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; }
+  .captura-app .bajo-campo button[aria-pressed="true"] { background:var(--oro); border-color:var(--oro); color:#1a1400; }
+
+  .captura-app .rail { display:flex; flex-direction:column; gap:9px; min-width:0; }
+  .captura-app .sellos { display:grid; grid-template-columns:repeat(3,1fr); gap:5px; padding:8px; }
+  .captura-app .sello { padding:9px 2px; border-radius:10px; border:1px solid var(--app-line); background:var(--app-surface-2); color:var(--app-ink); font:inherit; font-size:9.5px; font-weight:800; letter-spacing:.01em; text-transform:uppercase; cursor:pointer; }
+  .captura-app .sello[aria-pressed="true"] { background:var(--oro); border-color:var(--oro); color:#1a1400; }
+  .captura-app .abp { display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:8px; }
+  .captura-app .abp-btn { padding:11px 4px; border-radius:10px; border:1px solid var(--app-line); background:var(--app-surface-2); color:var(--app-ink); font:inherit; font-size:10px; font-weight:800; letter-spacing:.03em; text-transform:uppercase; line-height:1.25; cursor:pointer; }
+  .captura-app .abp-btn.si { border-color:rgba(52,208,122,.4); }
+  .captura-app .abp-btn.no { border-color:rgba(192,74,60,.4); }
+  .captura-app .abp-btn.amarilla { border-color:rgba(244,180,0,.5); }
+  .captura-app .abp-btn.roja { border-color:rgba(192,74,60,.55); }
+  .captura-app .abp-btn.cambio { border-color:rgba(52,208,122,.45); }
+  .captura-app .fila-final { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .captura-app .btn-des { padding:12px 6px; border-radius:11px; border:1px solid var(--app-line); background:var(--app-surface-2); color:var(--app-ink); font:inherit; font-size:10px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; cursor:pointer; }
+  .captura-app .btn-des:disabled { opacity:.32; cursor:default; }
+  .captura-app .btn-des b { color:var(--oro); font-family:var(--mono); }
+  .captura-app .rival-fila { display:grid; grid-template-columns:repeat(5,1fr); gap:5px; padding:8px; }
+  .captura-app .riv-btn { display:flex; flex-direction:column; align-items:center; gap:2px; padding:9px 2px; border-radius:10px; border:1px solid rgba(192,74,60,.35); background:rgba(192,74,60,.1); color:var(--app-ink); font:inherit; font-size:15px; cursor:pointer; }
+  .captura-app .riv-btn span { font-size:7px; font-weight:800; letter-spacing:.03em; text-transform:uppercase; color:var(--app-muted); }
+  .captura-app .quedan { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:10px 4px; border-radius:10px; border:1px dashed var(--app-line); font-size:8px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--app-muted); }
+  .captura-app .quedan b { font-family:var(--mono); font-size:17px; color:var(--app-ink); }
+  .captura-app .aviso-2a { margin-top:5px; padding:5px; border-radius:8px; background:rgba(192,74,60,.2); border:1px solid rgba(192,74,60,.5); font-size:8.5px; font-weight:800; letter-spacing:.03em; text-transform:uppercase; color:#f2a79c; text-align:center; }
+  .captura-app .abp-pista { padding:0 9px 9px; font-size:9px; font-weight:700; letter-spacing:.03em; color:var(--app-muted); text-align:center; }
+  .captura-app .habitual { display:block; margin-top:2px; padding:0 4px; border-radius:999px; background:var(--oro); color:#1a1400; font-size:6px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
+  .captura-app .resumen { padding:11px; font-size:11px; color:var(--app-muted); font-weight:700; }
+  .captura-app .resumen b { display:block; font-size:14px; color:var(--app-ink); }
+
+  .captura-app .kpis-vista { display:flex; align-items:center; gap:14px; margin-left:auto; }
+  .captura-app .kpi-v { text-align:center; }
+  .captura-app .kpi-v b { display:block; font-family:var(--mono); font-size:15px; font-weight:700; color:var(--app-ink); font-variant-numeric:tabular-nums; line-height:1; }
+  .captura-app .kpi-v b i { font-style:normal; color:var(--app-muted); }
+  .captura-app .kpi-v span { display:block; margin-top:2px; font-size:7px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--app-muted); }
+  .captura-app .kpi-v.duelos { padding-left:13px; border-left:1px solid var(--app-line); }
+  /* El porcentaje manda, pero el crudo va debajo: un 100% de un duelo no dice nada. */
+  .captura-app .kpi-v.pct b { color:var(--oro); font-size:17px; }
+  .captura-app .kpi-v.pct em { display:block; margin-top:1px; font-style:normal; font-family:var(--mono); font-size:9px; color:var(--app-muted); font-variant-numeric:tabular-nums; }
+  .captura-app .kpi-mas { padding:7px 11px; border-radius:9px; border:1px solid var(--app-line); background:var(--app-surface-2); color:var(--app-muted); font:inherit; font-size:9px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; }
+  .captura-app .kpi-mas:hover { color:var(--app-ink); }
+
+  .captura-app .hoja-kpis { position:absolute; inset:56px 10px 10px; z-index:20; border-radius:14px; background:rgba(6,14,10,.97); border:1px solid var(--app-line); box-shadow:0 30px 70px rgba(0,0,0,.6); display:flex; flex-direction:column; }
+  .captura-app [hidden] { display:none !important; }  /* si no, el display:flex/grid gana al atributo y se sigue pintando */
+  .captura-app .hoja-cab { display:flex; align-items:center; justify-content:space-between; padding:11px 14px; border-bottom:1px solid var(--app-line); }
+  .captura-app .hoja-cab b { font-size:13px; font-weight:800; letter-spacing:.04em; }
+  .captura-app .hoja-cab button { padding:7px 13px; border-radius:9px; border:1px solid var(--app-line); background:var(--app-surface-2); color:var(--app-ink); font:inherit; font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; }
+  .captura-app .hoja-kpis { bottom:auto; max-height:calc(100% - 66px); }   /* caen como un cajón: sólo ocupan lo que tienen */
+  .captura-app .lista-detalle { padding:11px; overflow:auto; display:flex; flex-direction:column; gap:8px; }
+  .captura-app .det-fila { padding:10px 12px; border-radius:11px; background:var(--app-surface); border:1px solid var(--app-line); }
+  .captura-app .det-cab { display:flex; align-items:center; gap:9px; font-size:11.5px; }
+  .captura-app .det-cab .min { font-family:var(--mono); color:var(--verde-vivo); font-weight:700; }
+  .captura-app .det-cab b { font-weight:800; }
+  .captura-app .det-cab span { color:var(--app-muted); }
+  .captura-app .det-chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
+  .captura-app .det-chip { padding:6px 11px; border-radius:999px; border:1px solid var(--app-line); background:var(--app-surface-2); color:var(--app-muted); font:inherit; font-size:10px; font-weight:800; letter-spacing:.03em; cursor:pointer; }
+  .captura-app .det-chip.puesto { background:var(--verde); border-color:#bff5d6; color:#fff; }
+  .captura-app .det-grupo { font-size:8px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--app-muted); align-self:center; margin-right:2px; }
+  .captura-app .det-vacio { padding:22px; text-align:center; font-size:12px; color:var(--app-muted); }
+  .captura-app .hoja-cuerpo { display:grid; grid-template-columns:repeat(4,1fr); gap:11px; padding:13px; overflow:auto; }
+  .captura-app .bloque { padding:11px; border-radius:12px; background:var(--app-surface); border:1px solid var(--app-line); }
+  .captura-app .bloque.ancho { grid-column:1/-1; }
+  .captura-app .bloque h4 { margin:0 0 7px; font-size:9px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--verde-vivo); }
+  .captura-app .par { display:flex; align-items:baseline; justify-content:space-between; gap:8px; padding:4px 0; border-bottom:1px solid rgba(255,255,255,.05); font-size:11px; color:var(--app-muted); }
+  .captura-app .par:last-child { border-bottom:0; }
+  .captura-app .par b { font-family:var(--mono); font-size:15px; color:var(--app-ink); font-variant-numeric:tabular-nums; }
+  .captura-app .top { display:flex; gap:7px; flex-wrap:wrap; }
+  .captura-app .top-jug { display:flex; align-items:center; gap:6px; padding:6px 11px; border-radius:999px; background:var(--app-surface-2); border:1px solid var(--app-line); font-size:11px; font-weight:800; }
+  .captura-app .top-jug i { font-style:normal; font-family:var(--mono); color:var(--oro); }
+  .captura-app .vacio-top { font-size:11px; color:var(--app-muted); }
+  .captura-app .marcador { display:grid; grid-template-columns:repeat(6,1fr); gap:1px; overflow:hidden; background:var(--app-line); }
+  .captura-app .marca-dato { padding:9px 6px; text-align:center; background:var(--app-surface); }
+  .captura-app .marca-dato b { display:block; font-family:var(--mono); font-size:19px; font-weight:700; color:var(--oro); font-variant-numeric:tabular-nums; }
+  .captura-app .marca-dato span { display:block; margin-top:2px; font-size:7.5px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--app-muted); }
+  .captura-app .tira { display:flex; gap:7px; padding:8px; overflow-x:auto; }
+  .captura-app .registro { flex:0 0 auto; display:flex; align-items:center; gap:7px; padding:6px 11px; border-radius:999px; background:var(--app-surface-2); border:1px solid var(--app-line); font-size:11px; }
+  .captura-app .registro .min { font-family:var(--mono); font-weight:700; color:var(--verde-vivo); }
+  .captura-app .registro b { font-weight:800; }
+  .captura-app .registro span { color:var(--app-muted); }
+  .captura-app .registro .res.bueno { color:var(--verde-vivo); font-weight:900; }
+  .captura-app .registro .res.medio { color:var(--oro); font-weight:900; }
+  .captura-app .registro .res.malo { color:#f2a79c; font-weight:900; }
+  .captura-app .vacio { padding:8px 12px; font-size:11px; color:var(--app-muted); }
+
+  @media (max-width:900px) {
+  .captura-app .cuerpo { grid-template-columns:1fr; }
+  .captura-app .kpis-vista { margin-left:0; width:100%; overflow-x:auto; padding-bottom:2px; }
+  .captura-app .historial .tira { max-height:none; }
+  }

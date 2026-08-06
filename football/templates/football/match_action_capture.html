@@ -1,0 +1,176 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Captura rápida · {{ primary_team.name }}</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <link rel="stylesheet" href="{% static 'football/css/match_action_capture.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <style>
+      body { margin:0; background:#070f0b; color:#eef5ef; font-family: ui-sans-serif, -apple-system, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif; }
+      .marco { padding:8px; }
+      .aviso { margin:18px auto; max-width:640px; padding:18px 20px; border-radius:14px; background:#0f1c15; border:1px solid #24382c; }
+      .aviso h1 { margin:0 0 8px; font-size:19px; }
+      .aviso p { margin:0 0 6px; color:#8ba394; font-size:14px; }
+      .aviso a { color:#34d07a; font-weight:700; }
+      .cola { display:none; align-items:center; gap:7px; margin-left:10px; padding:5px 10px; border-radius:999px;
+              background:rgba(244,180,0,.16); border:1px solid rgba(244,180,0,.5); color:#f4b400;
+              font-size:9px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+      .cola.visible { display:inline-flex; }
+    </style>
+  </head>
+  <body>
+    {% if sin_partido or sin_convocatoria %}
+      <div class="aviso">
+        <h1>Todavía no se puede capturar</h1>
+        {% if sin_partido %}<p>No hay un partido activo. Abre el partido desde el registro de acciones y vuelve.</p>{% endif %}
+        {% if sin_convocatoria %}<p>No hay convocatoria guardada para este partido: sin convocados no hay a quién asignar las acciones.</p>{% endif %}
+        <p><a href="{% url 'match-action-page' %}">Ir al registro de acciones</a></p>
+      </div>
+    {% else %}
+    <div class="marco captura-app">
+      <div class="app">
+        <div class="panel cabecera">
+          <span class="cron" id="reloj">00:00</span>
+          <button type="button" class="btn-parte" id="btn-parte">1ª parte</button>
+          <span class="paso" id="paso">Toca <b>dónde</b> ha pasado</span>
+          <span class="cola" id="cola-offline">Sin conexión · <b id="cola-n">0</b> por enviar</span>
+          <div class="kpis-vista">
+            <div class="kpi-v"><b id="k-goles">0<i>–0</i></b><span>Goles</span></div>
+            <div class="kpi-v"><b id="k-disparos">0<i>–0</i></b><span>Disparos</span></div>
+            <div class="kpi-v"><b id="k-corners">0<i>–0</i></b><span>Córners</span></div>
+            <div class="kpi-v"><b id="k-tarjetas">0<i>–0</i></b><span>Tarjetas</span></div>
+            <div class="kpi-v duelos pct"><b id="k-duelos">—</b><em id="k-duelos-crudo">0–0</em><span>Duelos</span></div>
+            <div class="kpi-v pct"><b id="k-segundas">—</b><em id="k-segundas-crudo">0–0</em><span>2ª jugada</span></div>
+            <button type="button" class="kpi-mas" id="abrir-kpis">Todo ▸</button>
+          </div>
+          <span class="vivo-pill"><i class="punto"></i>{% if rival_name %}vs {{ rival_name }}{% else %}En vivo{% endif %}</span>
+        </div>
+
+        <div class="cuerpo">
+          <div class="col-izq">
+            <div class="escena">
+              <div class="pb-field" id="campo"
+                   style="background-image:url('{% static 'football/images/pitch3d/coach_home_pitch_surface.png' %}');">
+                <div class="rejilla" id="rejilla"></div>
+                <svg class="capa-trazo" id="capa-trazo" viewBox="0 0 100 100" preserveAspectRatio="none">
+                  <line id="linea-trazo" x1="0" y1="0" x2="0" y2="0" stroke="#f4b400" stroke-width="0.7"
+                        stroke-linecap="round" stroke-dasharray="2 1.4" opacity="0" />
+                </svg>
+              </div>
+              {# El panel va FUERA del campo: dentro, el preventDefault del césped se comería sus toques. #}
+              <div class="cercanos" id="cercanos"></div>
+              <div class="bajo-campo">
+                <span>Zona: <b id="zona-txt">sin marcar</b> · tercio <b id="tercio-txt">—</b></span>
+                <button type="button" id="btn-porteria" aria-pressed="false">Portería</button>
+              </div>
+            </div>
+            <div class="panel historial">
+              <div class="titulo-panel">Últimas acciones</div>
+              <div class="tira" id="lista"></div>
+            </div>
+          </div>
+
+          <div class="rail">
+            <div class="panel">
+              <div class="titulo-panel">Acción · se queda puesta</div>
+              <div class="sellos" id="sellos"></div>
+              <div class="abp-pista" id="pista-res"></div>
+            </div>
+            <div class="panel">
+              <div class="titulo-panel">ABP · sin jugador</div>
+              <div class="abp" id="abp"></div>
+              <div class="abp-pista">Los nuestros piden lanzador.</div>
+            </div>
+            <div class="panel">
+              <div class="titulo-panel">Rival · un toque</div>
+              <div class="rival-fila" id="rival-fila"></div>
+            </div>
+            <div class="panel">
+              <div class="titulo-panel">Tarjetas y cambios</div>
+              <div class="abp">
+                <button type="button" class="abp-btn amarilla" id="btn-amarilla">🟨 Amarilla</button>
+                <button type="button" class="abp-btn roja" id="btn-roja">🟥 Roja</button>
+                <button type="button" class="abp-btn cambio" id="btn-cambio">🔁 Cambio</button>
+                <div class="quedan">Cambios<b id="quedan-cambios">5</b></div>
+              </div>
+            </div>
+            <div class="fila-final">
+              <button class="btn-des" id="btn-deshacer" type="button" disabled>↶ Deshacer</button>
+              <button class="btn-des" id="btn-detalle" type="button">Detallar <b id="pendientes-det">0</b></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="hoja-kpis" id="hoja-detalle" hidden>
+          <div class="hoja-cab">
+            <b>Detallar después · lo que quedó a medias</b>
+            <button type="button" id="cerrar-detalle">Cerrar</button>
+          </div>
+          <div class="lista-detalle" id="lista-detalle"></div>
+        </div>
+
+        <div class="hoja-kpis" id="hoja-kpis" hidden>
+          <div class="hoja-cab">
+            <b>KPIs del partido</b>
+            <button type="button" id="cerrar-kpis">Cerrar</button>
+          </div>
+          <div class="hoja-cuerpo">
+            <div class="bloque">
+              <h4>Ataque</h4>
+              <div class="par"><span>Disparos</span><b id="h-disparos">0</b></div>
+              <div class="par"><span>A puerta</span><b id="h-ap">0</b></div>
+              <div class="par"><span>Goles</span><b id="h-goles">0</b></div>
+              <div class="par"><span>Córners a favor</span><b id="h-corner-f">0</b></div>
+              <div class="par"><span>Balones a la espalda</span><b id="h-espalda">0</b></div>
+              <div class="par"><span>Cambios de orientación</span><b id="h-cambios">0</b></div>
+            </div>
+            <div class="bloque">
+              <h4>Disputa</h4>
+              <div class="par"><span>Duelos generados</span><b id="h-duelos">0</b></div>
+              <div class="par"><span>Duelos ganados</span><b id="h-duelos-g">0</b></div>
+              <div class="par"><span>De ellos, aéreos</span><b id="h-aereos">0</b></div>
+              <div class="par"><span>Segundas ganadas</span><b id="h-seg-g">0</b></div>
+              <div class="par"><span>Segundas perdidas</span><b id="h-seg-p">0</b></div>
+              <div class="par"><span>% segunda jugada</span><b id="h-seg-pct">—</b></div>
+              <div class="par"><span>Robos</span><b id="h-robos">0</b></div>
+            </div>
+            <div class="bloque">
+              <h4>Balón</h4>
+              <div class="par"><span>Pases</span><b id="h-pases">0</b></div>
+              <div class="par"><span>Pases acertados</span><b id="h-pases-ok">0</b></div>
+              <div class="par"><span>De ellos, en largo</span><b id="h-largos">0</b></div>
+              <div class="par"><span>Pérdidas forzadas</span><b id="h-perd-f">0</b></div>
+              <div class="par"><span>Pérdidas no forzadas</span><b id="h-perd-nf">0</b></div>
+            </div>
+            <div class="bloque">
+              <h4>Disciplina y banquillo</h4>
+              <div class="par"><span>Faltas cometidas</span><b id="h-faltas-c">0</b></div>
+              <div class="par"><span>Faltas recibidas</span><b id="h-faltas-r">0</b></div>
+              <div class="par"><span>Córners en contra</span><b id="h-corner-c">0</b></div>
+              <div class="par"><span>Amarillas</span><b id="h-amarillas">0</b></div>
+              <div class="par"><span>Rojas</span><b id="h-rojas">0</b></div>
+              <div class="par"><span>Cambios disponibles</span><b id="h-cambios-libres">5</b></div>
+              <div class="par"><span>Acciones registradas</span><b id="h-total">0</b></div>
+            </div>
+            <div class="bloque">
+              <h4>Rival</h4>
+              <div class="par"><span>Goles</span><b id="h-riv-goles">0</b></div>
+              <div class="par"><span>Disparos</span><b id="h-riv-disparos">0</b></div>
+              <div class="par"><span>Córners</span><b id="h-riv-corners">0</b></div>
+              <div class="par"><span>Tarjetas</span><b id="h-riv-tarjetas">0</b></div>
+            </div>
+            <div class="bloque ancho">
+              <h4>Quién está apareciendo</h4>
+              <div class="top" id="h-top"><span class="vacio-top">Sin acciones todavía.</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {{ capture_config|json_script:"capture-config" }}
+    <script src="{% static 'football/js/match_action_capture.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    {% endif %}
+  </body>
+</html>

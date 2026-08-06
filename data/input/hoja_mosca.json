@@ -1,0 +1,178 @@
+{
+  "id": "mosca-2026",
+  "equipo": "benagalbon",
+  "partido_id": 1,
+  "duracion": 90,
+  "_nota": "Hoja del entrenador del partido contra la Mosca. El once inicial sale del sistema; los cambios son los que él declaró. Los emparejamientos del descanso están marcados como supuestos: no cambian los minutos de nadie, sólo el 'salió por'.",
+  "minutos": {
+    "Tadeo": 45, "Juanmi": 45, "Antonio Ruiz": 45, "Ivan": 45, "Victor": 45, "Francis": 45,
+    "Silva": 45, "Nizar": 45, "Antonio Gamez": 45, "Harley": 45, "Adam": 45, "Lolo": 45,
+    "Reno": 55, "Salva": 65, "Cristian": 65, "Nake": 65, "Nacho": 65,
+    "Angel": 25, "Martinez": 25
+  },
+  "descanso": 45,
+  "cambios": [
+    {"minuto": 65, "sale": "Nacho", "entra": "Angel"},
+    {"minuto": 65, "sale": "Nake", "entra": "Martinez"},
+    {"minuto": 65, "sale": "Salva", "entra": "Francis"},
+    {"minuto": 65, "sale": "Cristian", "entra": "Reno"}
+  ],
+  "acciones": {
+    "Tadeo": [
+      {"accion": "Pase", "resultado": "OK", "veces": 9},
+      {"accion": "Pase", "resultado": "MAL", "veces": 2},
+      {"accion": "Parada", "resultado": "OK", "veces": 2},
+      {"accion": "Pérdida forzada", "resultado": "MAL", "veces": 2},
+      {"accion": "Pérdida no forzada", "resultado": "MAL", "veces": 1}
+    ],
+    "Juanmi": [
+      {"accion": "Pase", "resultado": "OK", "veces": 6},
+      {"accion": "Robo", "resultado": "OK", "veces": 4},
+      {"accion": "Duelo aéreo", "resultado": "GANADO", "veces": 4},
+      {"accion": "Pérdida forzada", "resultado": "MAL", "veces": 2},
+      {"accion": "Pérdida no forzada", "resultado": "MAL", "veces": 3}
+    ],
+    "Salva": [
+      {"accion": "Pase largo", "resultado": "OK", "veces": 5},
+      {"accion": "Pase", "resultado": "OK", "veces": 4},
+      {"accion": "Pase", "resultado": "MAL", "veces": 3},
+      {"accion": "Regate", "resultado": "OK", "veces": 4},
+      {"accion": "Falta", "resultado": "EN CONTRA", "veces": 2},
+      {"accion": "Duelo aéreo", "resultado": "GANADO", "veces": 3},
+      {"accion": "Duelo aéreo", "resultado": "PERDIDO", "veces": 4},
+      {"accion": "Pérdida forzada", "resultado": "MAL", "veces": 4},
+      {"accion": "Pérdida no forzada", "resultado": "MAL", "veces": 3}
+    ],
+    "Antonio Ruiz": [
+      {"accion": "Pase", "resultado": "OK", "veces": 4},
+      {"accion": "Pase", "resultado": "MAL", "veces": 3},
+      {"accion": "Pase largo", "resultado": "OK", "veces": 5},
+      {"accion": "Robo", "resultado": "OK", "veces": 3},
+      {"accion": "Robo", "resultado": "MAL", "veces": 2},
+      {"accion": "Duelo aéreo", "resultado": "GANADO", "veces": 3},
+      {"accion": "Duelo", "resultado": "PERDIDO", "veces": 6},
+      {"accion": "Pérdida forzada", "resultado": "MAL", "veces": 4},
+      {"accion": "Pérdida no forzada", "resultado": "MAL", "veces": 1},
+      {"accion": "Falta", "resultado": "A FAVOR", "veces": 2},
+      {"accion": "Falta", "resultado": "EN CONTRA", "veces": 2}
+    ],
+    "Silva": [
+      {"accion": "Centro", "resultado": "OK", "veces": 1},
+      {"accion": "Regate", "resultado": "OK", "veces": 1},
+      {"accion": "Pase", "resultado": "OK", "veces": 6},
+      {"accion": "Caída", "resultado": "PERDIDO", "veces": 4}
+    ],
+    "Nake": [
+      {"accion": "Duelo", "resultado": "GANADO", "veces": 7},
+      {"accion": "Duelo", "resultado": "PERDIDO", "veces": 3},
+      {"accion": "Falta", "resultado": "A FAVOR", "veces": 1},
+      {"accion": "Falta", "resultado": "EN CONTRA", "veces": 1},
+      {"accion": "Pase", "resultado": "OK", "veces": 5},
+      {"accion": "Caída", "resultado": "PERDIDO", "veces": 5},
+      {"accion": "Pérdida no forzada", "resultado": "MAL", "veces": 4},
+      {"accion": "Pérdida forzada", "resultado": "MAL", "veces": 3}
+    ],
+    "Nizar": [
+      {"accion": "Pase", "resultado": "OK", "veces": 3},
+      {"accion": "Pase", "resultado": "MAL", "veces": 2},
+      {"accion": "Caída", "resultado": "PERDIDO", "veces": 5},
+      {"accion": "Duelo", "resultado": "GANADO", "veces": 2}
+    ],
+    "Ivan": [
+      {"accion": "Duelo", "resultado": "GANADO", "veces": 4},
+      {"accion": "Pase clave", "resultado": "OK", "veces": 2},
+      {"accion": "Pase", "resultado": "OK", "veces": 3},
+      {"accion": "Disparo", "resultado": "FALLADO", "veces": 1},
+      {"accion": "Disparo", "resultado": "AP", "veces": 1},
+      {"accion": "Centro", "resultado": "OK", "veces": 2},
+      {"accion": "Desmarque", "resultado": "OK", "veces": 3},
+      {"accion": "Duelo aéreo", "resultado": "GANADO", "veces": 1}
+    ],
+    "Cristian": [
+      {"accion": "Duelo aéreo", "resultado": "GANADO", "veces": 3},
+      {"accion": "Duelo aéreo", "resultado": "PERDIDO", "veces": 4},
+      {"accion": "Disparo", "resultado": "AP", "veces": 1},
+      {"accion": "Disparo", "resultado": "FALLADO", "veces": 1}
+    ],
+    "Antonio Gamez": [
+      {"accion": "Pase", "resultado": "OK", "veces": 5},
+      {"accion": "Pase", "resultado": "MAL", "veces": 2},
+      {"accion": "Pérdida forzada", "resultado": "MAL", "veces": 4},
+      {"accion": "Parada", "resultado": "OK", "veces": 3}
+    ],
+    "Victor": [
+      {"accion": "Duelo", "resultado": "GANADO", "veces": 4},
+      {"accion": "Robo", "resultado": "OK", "veces": 3},
+      {"accion": "Pérdida forzada", "resultado": "MAL", "veces": 1},
+      {"accion": "Pase", "resultado": "OK", "veces": 3},
+      {"accion": "Pase largo", "resultado": "OK", "veces": 2}
+    ],
+    "Francis": [
+      {"accion": "Duelo aéreo", "resultado": "GANADO", "veces": 3},
+      {"accion": "Duelo", "resultado": "GANADO", "veces": 3},
+      {"accion": "Pase", "resultado": "OK", "veces": 1},
+      {"accion": "Robo", "resultado": "OK", "veces": 2},
+      {"accion": "Pérdida forzada", "resultado": "MAL", "veces": 3}
+    ],
+    "Lolo": [
+      {"accion": "Duelo", "resultado": "GANADO", "veces": 2},
+      {"accion": "Pérdida forzada", "resultado": "MAL", "veces": 3},
+      {"accion": "Pase largo", "resultado": "MAL", "veces": 1},
+      {"accion": "Pase", "resultado": "MAL", "veces": 2},
+      {"accion": "Caída", "resultado": "GANADO", "veces": 3},
+      {"accion": "Duelo aéreo", "resultado": "GANADO", "veces": 1}
+    ],
+    "Nacho": [
+      {"accion": "Pase", "resultado": "OK", "veces": 9},
+      {"accion": "Pase", "resultado": "MAL", "veces": 5},
+      {"accion": "Regate", "resultado": "OK", "veces": 3},
+      {"accion": "Regate", "resultado": "MAL", "veces": 1},
+      {"accion": "Duelo aéreo", "resultado": "PERDIDO", "veces": 1},
+      {"accion": "Centro", "resultado": "OK", "veces": 3},
+      {"accion": "Saque de esquina a favor", "resultado": "MAL", "veces": 3, "nota": "ABP mal ejecutado"},
+      {"accion": "Pérdida no forzada", "resultado": "MAL", "veces": 4},
+      {"accion": "Pérdida forzada", "resultado": "MAL", "veces": 3},
+      {"accion": "Caída", "resultado": "GANADO", "veces": 5},
+      {"accion": "Caída", "resultado": "PERDIDO", "veces": 4}
+    ],
+    "Harley": [
+      {"accion": "Pase", "resultado": "OK", "veces": 6},
+      {"accion": "Duelo aéreo", "resultado": "GANADO", "veces": 2},
+      {"accion": "Regate", "resultado": "OK", "veces": 4},
+      {"accion": "Pérdida forzada", "resultado": "MAL", "veces": 1},
+      {"accion": "Robo", "resultado": "OK", "veces": 5},
+      {"accion": "Caída", "resultado": "PERDIDO", "veces": 4},
+      {"accion": "Caída", "resultado": "GANADO", "veces": 3},
+      {"accion": "Cambio de orientación", "resultado": "OK", "veces": 1}
+    ],
+    "Reno": [
+      {"accion": "Falta", "resultado": "EN CONTRA", "veces": 3},
+      {"accion": "Duelo aéreo", "resultado": "PERDIDO", "veces": 2},
+      {"accion": "Pase", "resultado": "OK", "veces": 3},
+      {"accion": "Pase clave", "resultado": "OK", "veces": 1},
+      {"accion": "Presión alta", "resultado": "OK", "veces": 3},
+      {"accion": "Juego de espaldas", "resultado": "OK", "veces": 3}
+    ],
+    "Adam": [
+      {"accion": "Pérdida forzada", "resultado": "MAL", "veces": 2},
+      {"accion": "Disparo", "resultado": "AP", "veces": 2},
+      {"accion": "Pase", "resultado": "OK", "veces": 4},
+      {"accion": "Regate", "resultado": "OK", "veces": 2},
+      {"accion": "Caída", "resultado": "GANADO", "veces": 3}
+    ],
+    "Angel": [
+      {"accion": "Pase", "resultado": "OK", "veces": 4},
+      {"accion": "Duelo", "resultado": "GANADO", "veces": 2},
+      {"accion": "Pérdida forzada", "resultado": "MAL", "veces": 1},
+      {"accion": "Duelo", "resultado": "PERDIDO", "veces": 2}
+    ],
+    "Martinez": [
+      {"accion": "Pase", "resultado": "OK", "veces": 4},
+      {"accion": "Robo", "resultado": "OK", "veces": 5},
+      {"accion": "Pérdida no forzada", "resultado": "MAL", "veces": 4},
+      {"accion": "Duelo", "resultado": "GANADO", "veces": 3},
+      {"accion": "Duelo", "resultado": "PERDIDO", "veces": 2},
+      {"accion": "Caída", "resultado": "GANADO", "veces": 3}
+    ]
+  }
+}

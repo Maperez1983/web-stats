@@ -4391,6 +4391,8 @@
 	                  <button type="button" class="toolbar-pill" id="subs-mode-toggle" title="Toca saliente y luego entrante para registrar el cambio">Modo cambios</button>
 	                </div>
 	                <div class="toolbar-group">
+	                  <a class="toolbar-pill" href="{% url 'match-action-capture' %}{% if selected_match_id %}?match_id={{ selected_match_id }}{% endif %}"
+	                     title="La misma toma de datos, pensada para el dedo: tocas el sitio y salen los de al lado">⚡ Captura rápida</a>
 	                  <button type="button" class="toolbar-pill" data-stage-jump="pre">Volver a prepartido</button>
 	                </div>
 	              </div>

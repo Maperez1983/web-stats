@@ -462,7 +462,10 @@ class MatchRatingAlgorithmTests(TestCase):
 
         self.assertEqual(rating["method"], "actions")
         self.assertEqual(rating["confidence"], "alta")
-        self.assertGreaterEqual(rating["rating"], 6.4)
+        # La base de la nota sigue al resultado del equipo (este partido acabó 2-2), así que lo
+        # que se comprueba es que cinco acciones buenas SUBEN sobre la base del empate, no que
+        # se alcance un número fijo pensado para cuando el marcador no contaba.
+        self.assertGreater(rating["rating"], 6.2)
 
     def test_error_marked_as_won_is_never_a_success_or_won_duel(self):
         self._event("ERROR FORZADO", "GANADO")
