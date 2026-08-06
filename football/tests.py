@@ -14256,6 +14256,25 @@ class SessionsPlanningTests(TestCase):
         self.assertIn('Agrupar por bloque', dentro, 'dentro si esta el agrupado')
         self.assertIn('Todas las bibliotecas', dentro, 'y siempre se puede volver')
 
+    def test_dentro_de_la_carpeta_los_paneles_pesados_van_plegados(self):
+        """Un `display` en linea gana al display:none de un <details> cerrado.
+
+        El panel "Mas filtros" YA estaba dentro de un <details>, pero su formulario lleva
+        `display:grid` en linea, asi que se veia entero aunque estuviera plegado: incluia un
+        SEGUNDO buscador identico al de arriba. La regla CSS es lo que lo arregla.
+        """
+        html = self.client.get(
+            reverse('sessions'), {'tab': 'library', 'team': self.team.id, 'lib': 'general'}
+        ).content.decode('utf-8', 'replace')
+
+        self.assertIn(
+            'details:not([open]) > *:not(summary)', html,
+            'sin esta regla los paneles plegados se siguen viendo enteros',
+        )
+        # Los filtros por origen pasan a un plegable, pero siguen ahi.
+        self.assertIn('Filtrar por origen', html)
+        self.assertIn('aria-label="Carpetas de Biblioteca"', html)
+
     def test_update_library_task_does_not_wipe_unposted_fields_on_rename(self):
         session = TrainingSession.objects.create(
             microcycle=self.microcycle,

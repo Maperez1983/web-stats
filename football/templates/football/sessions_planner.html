@@ -977,6 +977,10 @@
       }
       .meta { margin: 0.2rem 0 0.45rem; font-size: 0.78rem; color: var(--prod-muted); }
       .empty { margin: 0; color: var(--prod-muted); }
+      /* Un `display` en linea (el form lleva display:grid) GANA al display:none que el navegador
+         da al contenido de un <details> CERRADO: el panel "Mas filtros" se plegaba en el HTML y
+         se seguia viendo entero, con un segundo buscador identico al de arriba. */
+      details:not([open]) > *:not(summary) { display: none !important; }
       .folder-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -4452,6 +4456,10 @@ agrupado aparecen DENTRO de una carpeta, que es cuando sirven de algo. No se qui
 		           la biblioteca. Si vienes de una sesión a elegir una tarea, sobran: quedaban cuatro
 		           cajas encima de las tres carpetas y no se sabía cuál era cuál. {% endcomment %}
 		        {% if biblioteca_dentro and not eligiendo_para_sesion %}
+		        {% comment %}Dentro de una carpeta, los cuatro filtros por ORIGEN repiten lo que ya
+		        dice la carpeta ("Creadas 30" cuando la carpeta son 30). Se pliegan.{% endcomment %}
+		        <details style="margin:0 0 0.6rem;">
+		          <summary class="button secondary small" style="width:max-content; cursor:pointer;">📂 Filtrar por origen</summary>
 		        <div class="folder-grid" aria-label="Carpetas de Biblioteca">
 			          <a
 			            class="folder-card {% if not library_source_tab %}is-current{% endif %}"
@@ -4489,6 +4497,7 @@ agrupado aparecen DENTRO de una carpeta, que es cuando sirven de algo. No se qui
 			            <span>{{ library_source_counts.performed|default:0 }} tareas · con fecha</span>
 			          </a>
 			        </div>
+		        </details>
 			        {% endif %}
 
 
