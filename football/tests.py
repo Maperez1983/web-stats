@@ -14190,101 +14190,71 @@ class SessionsPlanningTests(TestCase):
         self.assertContains(response, '19:30')
 
     def test_anadir_desde_biblioteca_solo_ensena_las_tres_carpetas(self):
-        """Venir de una sesión a elegir tarea no puede aterrizar en la biblioteca entera.
+        """Venir de una sesion a elegir tarea no puede aterrizar en la biblioteca entera.
 
-        Encima de las tres carpetas se pintaban cuatro filtros por origen (Todas / Creadas /
-        Subidas en PDF / Realizadas), que son para administrar. En modo "elegir para esta sesión"
-        sobran. Administrando la biblioteca siguen estando.
+        Los cuatro filtros por ORIGEN (Todas / Creadas / Subidas en PDF / Realizadas) son para
+        administrar. En modo "elegir para esta sesion" no salen ni en la portada ni dentro de una
+        carpeta. Administrando si, en cuanto hay una lista que filtrar.
         """
         session = TrainingSession.objects.create(
             microcycle=self.microcycle,
             session_date=date(2026, 3, 24),
-            focus='Sesión que recibe tareas',
+            focus='Sesion que recibe tareas',
             duration_minutes=90,
         )
         url = reverse('sessions')
 
-        administrando = self.client.get(url, {'tab': 'library', 'team': self.team.id})
-        html_admin = administrando.content.decode('utf-8', 'replace')
-        self.assertIn('aria-label="Carpetas de Biblioteca"', html_admin)
-        self.assertIn('library_source=created', html_admin)
+        def html(params):
+            base = {'tab': 'library', 'team': self.team.id}
+            base.update(params)
+            return self.client.get(url, base).content.decode('utf-8', 'replace')
 
-        eligiendo = self.client.get(
-            url, {'tab': 'library', 'team': self.team.id, 'session_id': session.id}
-        )
-        html_elegir = eligiendo.content.decode('utf-8', 'replace')
-        self.assertNotIn(
-            'aria-label="Carpetas de Biblioteca"', html_elegir,
-            'los filtros por origen sobran cuando vienes a elegir una tarea',
-        )
-        self.assertNotIn(
-            'library_source=created', html_elegir,
-            'no se puede prefijar un filtro que esconde tareas',
-        )
-        self.assertIn(
-            'aria-label="Bibliotecas"', html_elegir,
-            'las tres carpetas sí tienen que estar',
-        )
+        # La portada del modo elegir: las carpetas y nada de filtros.
+        portada = html({'session_id': session.id})
+        self.assertIn('aria-label="Bibliotecas"', portada, 'las tres carpetas si')
+        self.assertNotIn('aria-label="Carpetas de Biblioteca"', portada)
+        self.assertNotIn('library_source=created', portada,
+                         'no se puede prefijar un filtro que esconde tareas')
 
-    def test_sesiones_entra_por_la_semana_y_no_vuelca_todas(self):
-        """La zona Sesiones no puede abrirse volcando todas las sesiones.
+        # Y dentro de una carpeta, tampoco.
+        dentro = html({'session_id': session.id, 'lib': 'general'})
+        self.assertNotIn('aria-label="Carpetas de Biblioteca"', dentro,
+                         'los filtros por origen sobran cuando vienes a elegir una tarea')
 
-        En el Senior eran 540 enlaces en una pantalla. Se entra por la semana; el calendario y las
-        cerradas son las otras dos puertas; la lista entera sigue existiendo tras "Ver todas".
+        # Administrando dentro de la carpeta si estan.
+        administrando = html({'lib': 'general'})
+        self.assertIn('aria-label="Carpetas de Biblioteca"', administrando)
+
+    def test_la_biblioteca_abre_simple_y_los_filtros_estan_dentro(self):
+        """Quien llega nuevo tiene que saber por donde ir.
+
+        La portada ensenaba 18 mandos y CERO tareas, con las tres carpetas las ultimas. Ahora la
+        portada es buscador + carpetas; los filtros (temporada, origen, facetas), el orden, el
+        agrupado y la paginacion aparecen DENTRO de una carpeta, que es cuando sirven. No se
+        quita nada: dentro siguen estando todos.
         """
-        import re as _re
+        url = reverse('sessions')
 
-        micro = TrainingMicrocycle.objects.create(
-            team=self.team, title='Semana de prueba',
-            week_start=date(2026, 8, 3), week_end=date(2026, 8, 9),
-        )
-        # Tres en la semana del 3 al 9, y una fuera para comprobar que no se cuela.
-        for dia, estado in ((3, TrainingSession.STATUS_DONE), (5, TrainingSession.STATUS_PLANNED),
-                            (7, TrainingSession.STATUS_PLANNED)):
-            TrainingSession.objects.create(
-                microcycle=micro, session_date=date(2026, 8, dia),
-                focus=f'Sesión {dia}', duration_minutes=90, status=estado,
-            )
-        fuera = TrainingMicrocycle.objects.create(
-            team=self.team, title='Otra semana',
-            week_start=date(2026, 8, 17), week_end=date(2026, 8, 23),
-        )
-        TrainingSession.objects.create(
-            microcycle=fuera, session_date=date(2026, 8, 18),
-            focus='Sesión de otra semana', duration_minutes=90,
-        )
+        def panel(params):
+            base = {'tab': 'library', 'team': self.team.id}
+            base.update(params)
+            html = self.client.get(url, base).content.decode('utf-8', 'replace')
+            ini = html.index('data-tab="library"')
+            return html[ini:]
 
-        def panel(vista, extra=None):
-            params = {'tab': 'sessions', 'sessions_view': vista, 'team': self.team.id,
-                      'semana': '2026-08-05', 'mes': '2026-08'}
-            params.update(extra or {})
-            html = self.client.get(reverse('sessions'), params).content.decode('utf-8', 'replace')
-            ini = html.index('data-tab="sessions"')
-            return html[ini:html.index('class="tab-panel', ini + 10)]
+        portada = panel({})
+        self.assertIn('aria-label="Bibliotecas"', portada, 'las carpetas son la portada')
+        for sobra, que_es in (
+            ('aria-label="Filtrar por temporada"', 'la franja de temporada'),
+            ('aria-label="Carpetas de Biblioteca"', 'los filtros por origen'),
+            ('Agrupar por bloque', 'el agrupado'),
+        ):
+            self.assertNotIn(sobra, portada, f'{que_es} no pinta nada en la portada')
 
-        semana = panel('semana')
-        self.assertIn('Sesión 3', semana)
-        self.assertIn('Sesión 5', semana)
-        self.assertNotIn('Sesión de otra semana', semana, 'la semana no puede traer sesiones de otra')
-        self.assertNotIn('id="session-library-count"', semana, 'la lista entera no se pinta aquí')
-        self.assertNotIn('id="planner-blocks"', semana, 'el tablero de bloques es de la vista de edición')
-
-        enlaces_semana = len(_re.findall(r'/coach/sesiones/sesion/[0-9]+/', semana))
-        enlaces_todas = len(_re.findall(r'/coach/sesiones/sesion/[0-9]+/', panel('library')))
-        self.assertLess(enlaces_semana, enlaces_todas, 'la puerta principal tiene que enseñar menos')
-
-        # El calendario lleva el enlace dentro de la caja del día.
-        calendario = panel('calendario')
-        self.assertIn('Sesión 3', calendario)
-        self.assertIn('Sesión de otra semana', calendario, 'el mes entero sí sale en el calendario')
-
-        # Cerradas: sólo las que lo están.
-        cerradas = panel('cerradas')
-        self.assertIn('Sesión 3', cerradas)
-        self.assertNotIn('Sesión 5', cerradas, 'una sesión planificada no está cerrada')
-
-        # Y la vista de edición conserva su tablero.
-        self.assertIn('id="planner-blocks"', panel('editor'))
+        dentro = panel({'lib': 'general'})
+        self.assertIn('aria-label="Carpetas de Biblioteca"', dentro, 'dentro si estan los filtros')
+        self.assertIn('Agrupar por bloque', dentro, 'dentro si esta el agrupado')
+        self.assertIn('Todas las bibliotecas', dentro, 'y siempre se puede volver')
 
     def test_update_library_task_does_not_wipe_unposted_fields_on_rename(self):
         session = TrainingSession.objects.create(

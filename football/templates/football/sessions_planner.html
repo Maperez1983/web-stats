@@ -4298,19 +4298,62 @@
                     placeholder="Buscar una tarea por su nombre, objetivo, material…"
                     aria-label="Buscar tarea en la biblioteca"
                   />
+                  {% if biblioteca_dentro %}
                   <select name="sort" aria-label="Ordenar tareas">
                     <option value="recent" {% if library_sort == 'recent' %}selected{% endif %}>Más recientes</option>
                     <option value="title" {% if library_sort == 'title' %}selected{% endif %}>A‑Z</option>
                     <option value="number" {% if library_sort == 'number' %}selected{% endif %}>Por número</option>
                     <option value="quality" {% if library_sort == 'quality' %}selected{% endif %}>Mayor calidad</option>
                   </select>
+                  {% endif %}
                   <button type="submit" class="button primary">Buscar</button>
                   {% if library_q %}
                   <a class="button secondary" href="?{% qs_replace q=None lib_page=None %}" title="Quitar la búsqueda">✕ Quitar «{{ library_q }}»</a>
                   {% endif %}
                 </form>
 
-			        {% if library_season_options %}
+			        {# ELEGIR BIBLIOTECA. Entrar y recibir las 179 tareas de golpe no ayudaba a #}
+			        {# encontrar nada: primero se elige biblioteca y luego se lista. #}
+			        {% if not library_pick and not library_q %}
+		        {# Una biblioteca vacía no es una biblioteca: se pintaban las tres siempre, así #}
+		        {# que a un club que nunca ha subido un PPT le salía la de Aitor con 0 tareas. #}
+			        <div class="folder-grid" aria-label="Bibliotecas" style="margin-top:0.4rem;">
+			          {% if library_pick_counts.general %}
+			          <a class="folder-card" href="?{% qs_replace tab='library' lib='general' collection_id=None family=None lib_page=None %}">
+			            <strong>📗 Biblioteca general</strong>
+			            <span>{{ library_pick_counts.general }} tareas · las del club</span>
+			          </a>
+			          {% endif %}
+			          {% if library_pick_counts.aitor %}
+			          <a class="folder-card" href="?{% qs_replace tab='library' lib='aitor' collection_id=None family=None lib_page=None %}">
+			            <strong>🗂️ Biblioteca de Aitor</strong>
+			            <span>{{ library_pick_counts.aitor }} tareas · las del PPT</span>
+			          </a>
+			          {% endif %}
+			          {% if library_pick_counts.importadas %}
+			          <a class="folder-card" href="?{% qs_replace tab='library' lib='importadas' collection_id=None family=None lib_page=None %}">
+			            <strong>📥 Importadas</strong>
+			            <span>{{ library_pick_counts.importadas }} tareas · de libros y de fuera</span>
+			          </a>
+			          {% endif %}
+			        </div>
+			        {% if library_pick_counts.general or library_pick_counts.aitor or library_pick_counts.importadas %}
+			        <p class="meta" style="margin:0.3rem 0 1rem;">Elige una biblioteca… o busca ahí arriba y te salen de todas.</p>
+			        {% else %}
+			        <p class="meta" style="margin:0.3rem 0 1rem;">Todavía no hay tareas en la biblioteca de este equipo.</p>
+			        {% endif %}
+			        {% else %}
+			        <p class="meta" style="margin:0.3rem 0 0.6rem;">
+			          <a class="button secondary small" href="?{% qs_replace tab='library' lib=None collection_id=None family=None lib_page=None %}">← Todas las bibliotecas</a>
+			          <strong style="margin-left:.5rem;">{% if library_pick == 'aitor' %}Biblioteca de Aitor{% elif library_pick == 'importadas' %}Importadas{% else %}Biblioteca general{% endif %}</strong>
+			        </p>
+			        {% endif %}
+
+			        {% comment %}PORTADA DE LA BIBLIOTECA. Quien llega nuevo se encontraba 18 mandos y CERO
+tareas, y las tres carpetas —la respuesta a "por donde voy"— las ultimas, detras de otras
+catorce cosas. En la portada se queda el buscador y las carpetas; los filtros, el orden y el
+agrupado aparecen DENTRO de una carpeta, que es cuando sirven de algo. No se quita nada.{% endcomment %}
+			        {% if library_season_options and biblioteca_dentro %}
 			        <div class="library-season-strip" role="tablist" aria-label="Filtrar por temporada" style="display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center; margin:0.2rem 0 0.9rem;">
 			          <span class="meta" style="font-weight:800; letter-spacing:.02em; margin-right:0.15rem;">TEMPORADA</span>
 			          {% for s in library_season_options %}
@@ -4320,7 +4363,9 @@
 			          {% endfor %}
 			        </div>
 			        {% endif %}
-			        {% if library_facets %}
+			        {% comment %}Los desplegables de faceta (Bloque, Momento...) filtran una lista:
+			        en la portada no hay lista que filtrar.{% endcomment %}
+			        {% if library_facets and biblioteca_dentro %}
 			        <div class="library-chips" style="display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center; margin:0 0 0.9rem;">
 			          {% for f in library_facets %}
 			          <details class="library-chip" style="position:relative;">
@@ -4336,6 +4381,7 @@
 			          {% if library_facets_clear_href %}<a href="{{ library_facets_clear_href }}" class="button secondary small" style="margin-left:.2rem;">✕ Limpiar filtros</a>{% endif %}
 			        </div>
 			        {% endif %}
+				        {% if biblioteca_dentro %}
 				        <div style="display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; margin:0 0 0.8rem;">
 				          <button type="button" class="button {% if library_group_by_block %}primary{% else %}secondary{% endif %} small" title="Ordena las tareas por bloque con una cabecera por sección" onclick="var u=new URL(location.href); {% if library_group_by_block %}u.searchParams.delete('library_group');{% else %}u.searchParams.set('library_group','block');{% endif %} location.href=u.toString();">{% if library_group_by_block %}✓ Agrupado por bloque{% else %}⊞ Agrupar por bloque{% endif %}</button>
 				          {% if library_group_by_block %}<span class="meta" style="opacity:.8;">Tareas ordenadas por bloque para elegirlas fácil.</span>{% endif %}
@@ -4358,10 +4404,11 @@
 			            </strong>
 			          </div>
 			        </div>
+			        {% endif %}
 			        <div class="library-quick-row">
 			          <a class="button" href="{% url task_builder_route_name %}?repo=traditional&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Nueva tarea táctica</a>
 			          <a class="button secondary" href="?tab=import&library_repo={{ library_repository }}#import-tareas">Importar tareas</a>
-			          <a class="button secondary" href="?tab=sessions&sessions_view=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Añadir a sesión</a>
+			          {% if biblioteca_dentro %}<a class="button secondary" href="?tab=sessions&sessions_view=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Añadir a sesión</a>{% endif %}
 			        </div>
 			        {% comment %} RECOMENDADAS PARA ESTA SESIÓN. Va ARRIBA del todo y antes de las carpetas: el
 		           momento de recomendar es cuando estás eligiendo qué meter, no cuando ya has
@@ -4404,7 +4451,7 @@
 		        {% comment %} Los cuatro filtros por ORIGEN (Todas/Creadas/Subidas/Realizadas) son para administrar
 		           la biblioteca. Si vienes de una sesión a elegir una tarea, sobran: quedaban cuatro
 		           cajas encima de las tres carpetas y no se sabía cuál era cuál. {% endcomment %}
-		        {% if not eligiendo_para_sesion %}
+		        {% if biblioteca_dentro and not eligiendo_para_sesion %}
 		        <div class="folder-grid" aria-label="Carpetas de Biblioteca">
 			          <a
 			            class="folder-card {% if not library_source_tab %}is-current{% endif %}"
@@ -4444,42 +4491,6 @@
 			        </div>
 			        {% endif %}
 
-			        {# ELEGIR BIBLIOTECA. Entrar y recibir las 179 tareas de golpe no ayudaba a #}
-			        {# encontrar nada: primero se elige biblioteca y luego se lista. #}
-			        {% if not library_pick and not library_q %}
-		        {# Una biblioteca vacía no es una biblioteca: se pintaban las tres siempre, así #}
-		        {# que a un club que nunca ha subido un PPT le salía la de Aitor con 0 tareas. #}
-			        <div class="folder-grid" aria-label="Bibliotecas" style="margin-top:0.4rem;">
-			          {% if library_pick_counts.general %}
-			          <a class="folder-card" href="?{% qs_replace tab='library' lib='general' collection_id=None family=None lib_page=None %}">
-			            <strong>📗 Biblioteca general</strong>
-			            <span>{{ library_pick_counts.general }} tareas · las del club</span>
-			          </a>
-			          {% endif %}
-			          {% if library_pick_counts.aitor %}
-			          <a class="folder-card" href="?{% qs_replace tab='library' lib='aitor' collection_id=None family=None lib_page=None %}">
-			            <strong>🗂️ Biblioteca de Aitor</strong>
-			            <span>{{ library_pick_counts.aitor }} tareas · las del PPT</span>
-			          </a>
-			          {% endif %}
-			          {% if library_pick_counts.importadas %}
-			          <a class="folder-card" href="?{% qs_replace tab='library' lib='importadas' collection_id=None family=None lib_page=None %}">
-			            <strong>📥 Importadas</strong>
-			            <span>{{ library_pick_counts.importadas }} tareas · de libros y de fuera</span>
-			          </a>
-			          {% endif %}
-			        </div>
-			        {% if library_pick_counts.general or library_pick_counts.aitor or library_pick_counts.importadas %}
-			        <p class="meta" style="margin:0.3rem 0 1rem;">Elige una biblioteca… o busca ahí arriba y te salen de todas.</p>
-			        {% else %}
-			        <p class="meta" style="margin:0.3rem 0 1rem;">Todavía no hay tareas en la biblioteca de este equipo.</p>
-			        {% endif %}
-			        {% else %}
-			        <p class="meta" style="margin:0.3rem 0 0.6rem;">
-			          <a class="button secondary small" href="?{% qs_replace tab='library' lib=None collection_id=None family=None lib_page=None %}">← Todas las bibliotecas</a>
-			          <strong style="margin-left:.5rem;">{% if library_pick == 'aitor' %}Biblioteca de Aitor{% elif library_pick == 'importadas' %}Importadas{% else %}Biblioteca general{% endif %}</strong>
-			        </p>
-			        {% endif %}
 
 {% if library_pick or library_q %}
 			        {# Tipo de tarea: la familia (rondo, circuito, partido…) como fila de carpetas, #}
@@ -5071,7 +5082,6 @@
           </article>
           {% endfor %}
           {% else %}
-          <p class="meta" style="margin:0.6rem 0;">Elige arriba una biblioteca, o escribe en el buscador para mirar en todas a la vez.</p>
           {% endif %}{# library_pick: rejilla #}
         </div>
         {% if task_pick_mode or library_bulk_mode %}
@@ -5159,7 +5169,8 @@
           })();
         </script>
         {% endif %}
-        {% if library_pages|default:1|add:0 > 1 %}
+        {% comment %}Paginar en la portada es paginar una lista que no se ve.{% endcomment %}
+        {% if library_pages|default:1|add:0 > 1 and biblioteca_dentro %}
         <div style="display:flex; gap:0.55rem; flex-wrap:wrap; align-items:center; justify-content:center; margin-top: 1rem;">
           {% if library_page|default:1|add:0 > 1 %}
           <a class="button secondary" href="?{{ library_pager_prefix }}lib_page={{ library_page|add:'-1' }}">← Anterior</a>
