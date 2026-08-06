@@ -14277,6 +14277,55 @@ class SessionsPlanningTests(TestCase):
         original = ((task.tactical_layout or {}).get('meta') or {}).get('original_version') or {}
         self.assertEqual(original.get('graphic_editor'), lienzo)
 
+    def test_remove_task_from_session_detail_sends_it_to_trash(self):
+        """Quitar de la sesión una tarea metida por error, sin salir de la sesión.
+
+        Sólo se podía desde el planificador. Va a la MISMA papelera (se restaura desde allí), y
+        no puede alcanzar una tarea que pertenezca a otra sesión.
+        """
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 27),
+            focus='Sesión con tarea de más',
+            duration_minutes=90,
+        )
+        buena = SessionTask.objects.create(
+            session=session, title='La que sí toca', block=SessionTask.BLOCK_MAIN_1, duration_minutes=20
+        )
+        colada = SessionTask.objects.create(
+            session=session, title='Metida por error', block=SessionTask.BLOCK_PHYSICAL_PREP, duration_minutes=15
+        )
+        otra_sesion = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 28),
+            focus='Otra sesión',
+            duration_minutes=90,
+        )
+        ajena = SessionTask.objects.create(
+            session=otra_sesion, title='De otra sesión', block=SessionTask.BLOCK_MAIN_1, duration_minutes=20
+        )
+
+        detail = reverse('training-session-detail', args=[session.id])
+
+        # El botón está en la pantalla, no sólo la acción en el servidor.
+        html = self.client.get(detail).content.decode('utf-8', 'replace')
+        self.assertIn('value="remove_task"', html)
+
+        response = self.client.post(detail, {'action': 'remove_task', 'task_id': colada.id})
+        self.assertEqual(response.status_code, 302)
+
+        colada.refresh_from_db()
+        buena.refresh_from_db()
+        self.assertIsNotNone(colada.deleted_at, 'la tarea quitada va a la papelera')
+        self.assertIsNone(buena.deleted_at, 'las demás tareas no se tocan')
+        # Papelera, no borrado: sigue existiendo y se puede restaurar.
+        self.assertTrue(SessionTask.objects.filter(id=colada.id).exists())
+
+        # Una tarea de OTRA sesión no puede quitarse desde aquí.
+        self.client.post(detail, {'action': 'remove_task', 'task_id': ajena.id})
+        ajena.refresh_from_db()
+        self.assertIsNone(ajena.deleted_at, 'no puede alcanzar tareas de otra sesión')
+
 
 class StaffUserLinkingTests(TestCase):
     def setUp(self):

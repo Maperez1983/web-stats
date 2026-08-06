@@ -62,6 +62,22 @@
       .btn.primary { border-color: rgba(244, 180, 0, 0.34); background: rgba(244, 180, 0, 0.12); }
       .btn.secondary { border-color: rgba(125, 211, 252, 0.26); background: rgba(125, 211, 252, 0.08); }
       .btn:hover { transform: translateY(-1px); box-shadow: 0 14px 24px rgba(2,6,23,0.18); }
+      /* "Quitar de la sesion" vive DENTRO de la hoja blanca estilo PDF Club, y el .danger del tema
+         esta pensado para el armazon oscuro: pintaba texto casi blanco (--prod-text) sobre rosa
+         claro, contraste 1,24 sobre el 4,5 que hace falta. Aqui se repinta en rojo oscuro sobre
+         rosa palido (5,5). Hace falta ganar al tema, que usa !important: por eso el selector
+         incluye `body.prod-commercial` y `.task`. */
+      body.prod-commercial .task .btn.danger,
+      body.prod-commercial .task button.btn.danger {
+        background: rgba(220, 38, 38, 0.10) !important;
+        border-color: rgba(185, 28, 28, 0.38) !important;
+        color: #b91c1c !important;
+        -webkit-text-fill-color: #b91c1c;
+      }
+      body.prod-commercial .task .btn.danger:hover {
+        background: rgba(220, 38, 38, 0.18) !important;
+        border-color: rgba(185, 28, 28, 0.6) !important;
+      }
       .meta { color: var(--prod-muted); font-weight: 850; }
       .alert { margin:0 0 0.85rem; border-radius:16px; padding:0.75rem 0.85rem; border:1px solid rgba(148,163,184,0.2); background: rgba(2, 6, 23, 0.35); font-weight:850; }
       .alert.ok { border-color: rgba(34,211,238,0.35); }
@@ -698,8 +714,22 @@
 
 	                        </div>
                         </details>
-                        <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+                        <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
 		                          <a class="btn secondary" style="padding:0.45rem 0.7rem;" href="{{ t.detail_url }}?from_session={{ session.id }}" title="Abre la ficha de la tarea; desde ahí se editan sus textos y su pizarra">Abrir tarea →</a>
+		                          {% comment %}Quitar una tarea metida por error se podía sólo desde el
+		                          planificador: había que salirse de la sesión para deshacer un clic dado
+		                          aquí dentro. Va a la MISMA papelera, y la tarea de la sesión es una copia,
+		                          así que no toca la de la biblioteca.{% endcomment %}
+		                          <form method="post" style="margin:0;" onsubmit="return confirm('¿Quitar «{{ t.title|escapejs }}» de esta sesión?\n\nSe puede restaurar desde la papelera del planificador. La tarea de la biblioteca no se toca.');">
+		                            {% csrf_token %}
+		                            <input type="hidden" name="action" value="remove_task" />
+		                            <input type="hidden" name="task_id" value="{{ t.id }}" />
+		                            {% comment %}`danger` y no `secondary`: quitar no puede pesar lo mismo
+		                            que abrir. Es la clase que ya usa el planificador para esta misma
+		                            acción, y el tema la pinta con !important (si no, sale igual de maciza
+		                            que cualquier otra).{% endcomment %}
+		                            <button type="submit" class="btn danger" style="padding:0.45rem 0.7rem;" title="Quita esta tarea de la sesión (va a la papelera; la tarea de la biblioteca no se toca)">🗑️ Quitar de la sesión</button>
+		                          </form>
 		                        </div>
 		                      </div>
 		                    </div>
