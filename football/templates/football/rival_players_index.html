@@ -42,6 +42,16 @@
       /* El azul del contador y el hueco del escudo se fijan a mano: el token de marca es
          verde oscuro y sobre el panel oscuro se queda corto de contraste. */
       :root[data-theme="light"] .ri-n { color:#0369a1; }
+      .ri-clubes { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:.7rem; align-items:start; }
+      .ri-club { border:1px solid var(--fm-line, #1e293b); border-radius:12px; background:var(--fm-panel, #0f172a); padding:.7rem .8rem; }
+      .ri-club-h { display:flex; align-items:center; gap:.55rem; }
+      .ri-club-nm { color:var(--prod-text); font-weight:800; font-size:.95rem; flex:1 1 auto; }
+      .ri-club-n { font-size:.7rem; color:var(--prod-muted, #94a3b8); white-space:nowrap; }
+      .ri-eq { display:flex; justify-content:space-between; align-items:center; gap:.5rem; margin-top:.4rem;
+        padding:.4rem .55rem; border-radius:9px; background:var(--fm-panel-2, #0b1220); text-decoration:none; }
+      .ri-eq:hover { border-color:var(--prod-line-strong, #334155); background:var(--fm-panel, #111c31); }
+      .ri-eq-cat { color:var(--prod-text); font-size:.83rem; font-weight:700; }
+      .ri-eq-n { font-size:.72rem; color:var(--prod-muted, #94a3b8); white-space:nowrap; }
       .ri-dup { margin:0 0 1.1rem; padding:.8rem .9rem; border-radius:14px;
         border:1px solid var(--prod-line-strong, rgba(244,180,0,.3)); background:var(--fm-panel, rgba(255,255,255,.03)); }
       .ri-dup-h { margin:0; font-size:.95rem; color:var(--prod-text); }
@@ -57,8 +67,12 @@
       {% include 'football/includes/dragon_nav.html' %}
       <main class="ri-wrap">
         {% include 'football/includes/_zone_subnav.html' with zone='direccion' %}
-        <h1 class="ri-h1" style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>Equipos rivales</span></h1>
-        <p class="ri-sub">Todos los equipos que no son tuyos: los de la liga y los de amistosos. Trabajan con Análisis, Dirección y Partido.</p>
+        <h1 class="ri-h1" style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>{% if rival_manda %}Clubes rivales{% else %}Rivales{% if rival_categoria %} del {{ rival_categoria|lower }}{% endif %}{% endif %}</span></h1>
+        {% if rival_manda %}
+        <p class="ri-sub">Todos los clubes que no son tuyos, con sus categorías dentro. Un club con tres equipos es un club, no tres fichas repetidas.</p>
+        {% else %}
+        <p class="ri-sub">Los equipos rivales de tu categoría: los de la liga y los de amistosos. Trabajan con Análisis, Dirección y Partido.</p>
+        {% endif %}
         {% include 'football/includes/_zone_chips.html' with chips=zone_chips %}
         {% if messages %}
         <div class="rv-flash">
@@ -79,7 +93,7 @@
             <form method="post" action="{% url 'rival-team-create' %}" class="ri-new-form">
               {% csrf_token %}
               <label>Nombre <input name="name" required maxlength="150" placeholder="U.D. La Mosca" /></label>
-              <label>Categoría <input name="category" maxlength="60" placeholder="Juvenil" /></label>
+              <label>Categoría <input name="category" maxlength="60" value="{{ rival_categoria }}" placeholder="Juvenil" /></label>
               <label>Ciudad <input name="city" maxlength="100" placeholder="Málaga" /></label>
               <button class="btn primary" type="submit">Crear equipo</button>
               <p class="ri-hint">Si ya existe uno con ese nombre, te lleva al suyo en vez de duplicarlo.</p>
@@ -107,7 +121,29 @@
         </section>
         {% endif %}
 
-        {% if rival_teams %}
+        {% if rival_manda %}
+          {% if rival_clubes %}
+          <div class="ri-clubes">
+            {% for c in rival_clubes %}
+            <section class="ri-club">
+              <header class="ri-club-h">
+                {% if c.crest_url %}<img class="ri-crest" src="{{ c.crest_url }}" alt="" />{% else %}<span class="ri-crest ri-crest-ph"></span>{% endif %}
+                <span class="ri-club-nm">{{ c.club }}</span>
+                <span class="ri-club-n">{{ c.equipos|length }} equipo{{ c.equipos|length|pluralize }}</span>
+              </header>
+              {% for t in c.equipos %}
+              <a class="ri-eq" href="{% url 'rival-team-squad' team_id=t.team_id %}"{% if t.kit %} style="border-left:4px solid {{ t.kit }};"{% endif %}>
+                <span class="ri-eq-cat">{{ t.category|default:"sin categoría" }}</span>
+                <span class="ri-eq-n">{% if t.count %}{{ t.count }} jugador{{ t.count|pluralize:"es" }}{% else %}sin plantilla{% endif %}</span>
+              </a>
+              {% endfor %}
+            </section>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="ri-empty">No hay ningún club rival{% if rival_query %} que case con «{{ rival_query }}»{% endif %}.</p>
+          {% endif %}
+        {% elif rival_teams %}
         <div class="ri-grid">
           {% for t in rival_teams %}
           <a class="ri-card" href="{% url 'rival-team-squad' team_id=t.team_id %}"{% if t.kit %} style="border-left:4px solid {{ t.kit }};"{% endif %}>
@@ -120,7 +156,7 @@
           {% endfor %}
         </div>
         {% else %}
-        <p class="ri-empty">Aún no hay plantillas rivales importadas.</p>
+        <p class="ri-empty">Todavía no hay rivales{% if rival_categoria %} en {{ rival_categoria|lower }}{% endif %}{% if rival_query %} que casen con «{{ rival_query }}»{% endif %}. Da de alta el equipo del próximo amistoso y podrás ir metiéndole jugadores.</p>
         {% endif %}
       </main>
     </div>
