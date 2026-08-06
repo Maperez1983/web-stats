@@ -2617,6 +2617,24 @@
             </div>
           </div>
           <div class="field-row">
+            <label for="xi-kit-field">Equipación</label>
+            <select id="xi-kit-field">
+              <option value="titular">1ª · titular</option>
+              <option value="visitante">2ª · visitante</option>
+              <option value="blanca">3ª · blanca</option>
+              <option value="turquesa">Entrenamiento</option>
+              <option value="chandal">Chándal</option>
+            </select>
+          </div>
+          <div class="field-row">
+            <label for="xi-kit-gk">Equipación del portero</label>
+            <select id="xi-kit-gk">
+              <option value="gk_azul">Portero · azul</option>
+              <option value="gk_negra">Portero · negra</option>
+              <option value="gk_magenta">Portero · coral</option>
+            </select>
+          </div>
+          <div class="field-row">
             <label for="lineup-gk-select">Portero (este partido)</label>
             <select id="lineup-gk-select" data-selected="{{ selected_goalkeeper_id }}" {% if has_pending_convocation %}disabled{% endif %}>
               <option value="">Auto</option>
@@ -2863,7 +2881,7 @@
       // Estilo de ficha en el campo: chapa (camiseta) / foto (real) / avatar. Se recuerda.
       const TOKEN_STYLE_KEY = 'webstats:xi:token-style:v1';
       const readTokenStyle = () => {
-        try { const v = window.localStorage?.getItem(TOKEN_STYLE_KEY); if (v === 'chapa' || v === 'foto' || v === 'avatar') return v; } catch (_) {}
+        try { const v = window.localStorage?.getItem(TOKEN_STYLE_KEY); if (v === 'chapa' || v === 'camiseta' || v === 'foto' || v === 'avatar') return v; } catch (_) {}
         return 'foto';
       };
       let tokenStyle = readTokenStyle();
@@ -3065,16 +3083,50 @@
       // Las MISMAS chapas que la pizarra: PNG con el escudo del club, uno por
       // equipacion. Hasta ahora el 11 llamaba "chapa" a la camiseta, asi que la misma
       // palabra ensenaba dos cosas distintas segun la pantalla.
+      // Las OCHO del catalogo, con las mismas claves que usa la pizarra (CHAPA_KEY).
       const CHAPA_URLS = {
-        local: '{% static "football/images/chapa/chapa_local.png" %}',
-        away: '{% static "football/images/chapa/chapa_away.png" %}',
-        gk: '{% static "football/images/chapa/chapa_gk_azul.png" %}',
+        titular: '{% static "football/images/chapa/chapa_local.png" %}',
+        visitante: '{% static "football/images/chapa/chapa_away.png" %}',
+        blanca: '{% static "football/images/chapa/chapa_blanca.png" %}',
+        turquesa: '{% static "football/images/chapa/chapa_turquesa.png" %}',
+        chandal: '{% static "football/images/chapa/chapa_chandal.png" %}',
+        gk_azul: '{% static "football/images/chapa/chapa_gk_azul.png" %}',
+        gk_negra: '{% static "football/images/chapa/chapa_gk_negra.png" %}',
+        gk_magenta: '{% static "football/images/chapa/chapa_gk_magenta.png" %}',
       };
+      // Que hueco de kit2d le toca a cada equipacion.
+      const KIT_SLOT_POR_EQUIPACION = {
+        titular: 'home', visitante: 'away', blanca: 'third', turquesa: 'entreno', chandal: 'home',
+        gk_azul: 'gk', gk_negra: 'gk2', gk_magenta: 'gk3',
+      };
+      const XI_KIT_KEY = 'webstats:xi:kit:v1';
+      const leerEquipacion = () => {
+        let campo = 'titular';
+        let portero = 'gk_azul';
+        try {
+          const g = JSON.parse(window.localStorage?.getItem(XI_KIT_KEY) || '{}');
+          if (CHAPA_URLS[g.campo]) campo = g.campo;
+          if (CHAPA_URLS[g.portero]) portero = g.portero;
+        } catch (_) {}
+        const selC = document.getElementById('xi-kit-field');
+        const selP = document.getElementById('xi-kit-gk');
+        if (selC && CHAPA_URLS[selC.value]) campo = selC.value;
+        if (selP && CHAPA_URLS[selP.value]) portero = selP.value;
+        return { campo, portero };
+      };
+      function equipacionParaRol(role) {
+        const e = leerEquipacion();
+        return String(role || '').toLowerCase() === 'gk' ? e.portero : e.campo;
+      }
       function chapaUrlForLineupRole(role) {
-        return String(role || '').toLowerCase() === 'gk' ? CHAPA_URLS.gk : CHAPA_URLS.local;
+        return CHAPA_URLS[equipacionParaRol(role)] || CHAPA_URLS.titular;
       }
       function kit2dUrlForLineupRole(role) {
         const normalized = String(role || '').toLowerCase();
+        // La camiseta sigue la MISMA equipacion que la chapa, no un hueco fijo.
+        const hueco = KIT_SLOT_POR_EQUIPACION[equipacionParaRol(role)] || 'home';
+        const elegido = lineupKit2dDataUrls[hueco];
+        if (elegido) return elegido;
         if (normalized === 'gk') return lineupKit2dDataUrls.gk || lineupKit2dDataUrls.gk2 || lineupKit2dDataUrls.gk3 || lineupKit2dDataUrls.home || lineupKit2dDataUrl || fallbackKitDataUrl('gk');
         return lineupKit2dDataUrls.home || lineupKit2dDataUrl || fallbackKitDataUrl(normalized);
       }
@@ -4671,24 +4723,47 @@
         document.getElementById(id)?.addEventListener('change', () => { try { renderField(); } catch (_) {} }),
       );
 
-      // Selector de estilo de ficha (Chapa / Foto / Avatar)
+      // Los MISMOS cuatro estilos que la pizarra. Iban tres: al anadir "Camiseta" el boton
+      // se quedaba sin escuchador y no hacia nada, porque estas listas no se tocaron.
+      const ESTILOS_FICHA = ['chapa', 'camiseta', 'foto', 'avatar'];
       const applyTokenStyleButtons = () => {
-        ['chapa', 'foto', 'avatar'].forEach((s) => {
+        ESTILOS_FICHA.forEach((s) => {
           const b = document.getElementById('ts-' + s);
           if (b) b.classList.toggle('is-active', s === tokenStyle);
         });
       };
       const setTokenStyle = (v) => {
-        if (!['chapa', 'foto', 'avatar'].includes(v)) return;
+        if (!ESTILOS_FICHA.includes(v)) return;
         tokenStyle = v;
         try { window.localStorage?.setItem(TOKEN_STYLE_KEY, v); } catch (_) {}
         applyTokenStyleButtons();
         renderField();
       };
-      ['chapa', 'foto', 'avatar'].forEach((s) => {
+      ESTILOS_FICHA.forEach((s) => {
         document.getElementById('ts-' + s)?.addEventListener('click', () => setTokenStyle(s));
       });
       applyTokenStyleButtons();
+
+      // Equipacion elegida: se recuerda y repinta el campo.
+      (() => {
+        const selC = document.getElementById('xi-kit-field');
+        const selP = document.getElementById('xi-kit-gk');
+        let guardado = {};
+        try { guardado = JSON.parse(window.localStorage?.getItem(XI_KIT_KEY) || '{}'); } catch (_) {}
+        if (selC && guardado.campo) selC.value = guardado.campo;
+        if (selP && guardado.portero) selP.value = guardado.portero;
+        const guardar = () => {
+          try {
+            window.localStorage?.setItem(XI_KIT_KEY, JSON.stringify({
+              campo: selC ? selC.value : 'titular',
+              portero: selP ? selP.value : 'gk_azul',
+            }));
+          } catch (_) {}
+          renderField();
+        };
+        selC?.addEventListener('change', guardar);
+        selP?.addEventListener('change', guardar);
+      })();
 
       const xi3d = {
         THREE: null,
