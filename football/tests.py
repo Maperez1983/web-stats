@@ -14326,6 +14326,65 @@ class SessionsPlanningTests(TestCase):
         ajena.refresh_from_db()
         self.assertIsNone(ajena.deleted_at, 'no puede alcanzar tareas de otra sesión')
 
+    def test_sanear_sesiones_por_temporada_respeta_biblioteca_y_la_ventana_de_julio(self):
+        """Las sesiones anteriores a la pretemporada se van a la temporada pasada.
+
+        Dos trampas: la sesión del 1-20 de julio CAE dentro de la temporada nueva por fechas y aun
+        así es de la vieja; y la biblioteca cuelga de un microciclo centinela del año 2000 que no
+        se puede mover sin romper el repositorio de tareas.
+        """
+        from football.library_repositories import LIBRARY_MICROCYCLE_MARKER
+
+        pasada = WorkspaceSeason.objects.create(
+            workspace=self.workspace, label='2025/2026',
+            start_date=date(2025, 8, 2), end_date=date(2026, 6, 30), is_active=False,
+        )
+        nueva = WorkspaceSeason.objects.create(
+            workspace=self.workspace, label='2026/2027',
+            start_date=date(2026, 7, 1), end_date=date(2027, 6, 30), is_active=True,
+        )
+        micro = TrainingMicrocycle.objects.create(
+            team=self.team, title='Microciclo viejo',
+            week_start=date(2026, 4, 27), week_end=date(2026, 5, 3),
+        )
+        de_mayo = TrainingSession.objects.create(
+            microcycle=micro, session_date=date(2026, 5, 19), club_season=nueva, duration_minutes=90,
+        )
+        tarea = SessionTask.objects.create(
+            session=de_mayo, title='Tarea de mayo', duration_minutes=15, club_season=nueva,
+        )
+        de_julio = TrainingSession.objects.create(
+            microcycle=micro, session_date=date(2026, 7, 10), club_season=nueva, duration_minutes=90,
+        )
+        de_agosto = TrainingSession.objects.create(
+            microcycle=micro, session_date=date(2026, 8, 4), club_season=nueva, duration_minutes=90,
+        )
+        micro_biblioteca = TrainingMicrocycle.objects.create(
+            team=self.team, title='Biblioteca general',
+            week_start=date(2000, 1, 3), week_end=date(2000, 1, 9),
+            notes=LIBRARY_MICROCYCLE_MARKER,
+        )
+        de_biblioteca = TrainingSession.objects.create(
+            microcycle=micro_biblioteca, session_date=date(2000, 1, 4), club_season=nueva, duration_minutes=90,
+        )
+
+        call_command('sanear_sesiones_por_temporada', '--apply', '--corte', '2026-07-21')
+
+        for obj in (de_mayo, de_julio, de_agosto, de_biblioteca, tarea):
+            obj.refresh_from_db()
+
+        self.assertEqual(de_mayo.club_season_id, pasada.id, 'mayo es de la temporada pasada')
+        self.assertEqual(
+            de_julio.club_season_id, pasada.id,
+            'el 10 de julio cae dentro de la nueva por fechas, pero es anterior a la pretemporada',
+        )
+        self.assertEqual(de_agosto.club_season_id, nueva.id, 'agosto no se toca')
+        self.assertEqual(
+            de_biblioteca.club_season_id, nueva.id,
+            'la sesión de biblioteca (centinela año 2000) no se puede mover',
+        )
+        self.assertEqual(tarea.club_season_id, pasada.id, 'las tareas viajan con su sesión')
+
 
 class StaffUserLinkingTests(TestCase):
     def setUp(self):
