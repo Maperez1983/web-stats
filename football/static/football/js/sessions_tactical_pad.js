@@ -32569,25 +32569,23 @@
 	      }
 	      if (kind === 'pole_marker') {
 	        return (left, top) => {
+	          // UNA PICA ES UN POSTE CON PIE, no una flecha. Llevaba un triangulo invertido
+	          // debajo del palo y cuatro picas seguidas se leian como cuatro flechas apuntando
+	          // hacia abajo: en un ejercicio de libro donde las picas hacen de porteria, eso
+	          // cambia lo que el entrenador entiende. Ahora es el mismo dibujo que se usa en
+	          // los libros: palo vertical y pie horizontal.
 	          const stroke = '#22d3ee';
-	          const pole = new fabric.Line([0, -26, 0, 16], {
+	          const pole = new fabric.Line([0, -26, 0, 22], {
 	            stroke,
 	            strokeWidth: 4,
 	            strokeLineCap: 'round',
 	            selectable: false,
 	            evented: false,
 	          });
-	          const base = new fabric.Triangle({
-	            left: 0,
-	            top: 28,
-	            originX: 'center',
-	            originY: 'center',
-	            width: 22,
-	            height: 22,
-	            angle: 180,
-	            fill: stroke,
-	            stroke: darkenHex(stroke, 0.45),
-	            strokeWidth: 1.2,
+	          const base = new fabric.Line([-13, 24, 13, 24], {
+	            stroke: darkenHex(stroke, 0.35),
+	            strokeWidth: 5,
+	            strokeLineCap: 'round',
 	            selectable: false,
 	            evented: false,
 	          });
