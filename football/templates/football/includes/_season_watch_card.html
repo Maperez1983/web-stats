@@ -1,0 +1,40 @@
+{% comment %}Una entrada del seguimiento. Vive aparte porque la pintan jugadores y equipos igual.{% endcomment %}
+<article class="sw-card">
+  <div class="sw-top">
+    <span>
+      <span class="sw-nm">{{ w.subject_name }}</span>
+      {% if w.rival_player and w.rival_player.team %}<span class="sw-de">· {{ w.rival_player.team.display_name }}</span>
+      {% elif w.player and w.player.team %}<span class="sw-de">· {{ w.player.team.category|default:w.player.team.name }}</span>
+      {% elif w.team %}<span class="sw-de">· {{ w.team.category|default:"sin categoría" }}</span>{% endif %}
+    </span>
+    <span class="sw-tag{% if w.es_del_club %} mio{% endif %}">{% if w.es_del_club %}del club{% else %}rival{% endif %}</span>
+  </div>
+  {% if w.reason %}<p class="sw-por">{{ w.reason }}</p>{% endif %}
+  <p class="sw-quien">
+    {% if w.created_by %}{{ w.created_by.get_full_name|default:w.created_by.username }}{% else %}—{% endif %}
+    {% with ultima=w.notes.first %}
+      {% if ultima %} · última nota {{ ultima.created_at|date:"j M" }}{% else %} · sin anotaciones todavía{% endif %}
+    {% endwith %}
+  </p>
+
+  {% if w.notes.all %}
+  <div class="sw-notas">
+    {% for n in w.notes.all|slice:":4" %}
+    <p class="sw-nota"><time datetime="{{ n.created_at|date:'c' }}">{{ n.created_at|date:"j M" }}</time> · {{ n.text }}</p>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <form method="post" action="{% url 'season-watch-note' watch_id=w.id %}" class="sw-form">
+    {% csrf_token %}
+    <input type="text" name="text" maxlength="2000" placeholder="Anotar algo de hoy…" aria-label="Anotación" />
+    <button class="btn" type="submit">Anotar</button>
+    <button class="btn ghost" type="submit" form="sw-stop-{{ w.id }}">Dejar de seguir</button>
+  </form>
+  <form method="post" action="{% url 'season-watch-toggle' %}" id="sw-stop-{{ w.id }}" style="display:none;">
+    {% csrf_token %}
+    {% if w.player_id %}<input type="hidden" name="player_id" value="{{ w.player_id }}" />{% endif %}
+    {% if w.rival_player_id %}<input type="hidden" name="rival_player_id" value="{{ w.rival_player_id }}" />{% endif %}
+    {% if w.team_id %}<input type="hidden" name="team_id" value="{{ w.team_id }}" />{% endif %}
+  </form>
+</article>

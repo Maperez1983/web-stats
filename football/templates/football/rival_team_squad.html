@@ -67,6 +67,7 @@
           </div>
         </div>
         {% include 'football/includes/_zone_chips.html' with chips=zone_chips %}
+        <div style="margin:.2rem 0 .9rem;">{% include 'football/includes/_season_watch_button.html' %}</div>
         {% if messages %}
         <div class="rv-flash">
           {% for m in messages %}<p class="rv-flash-item{% if m.tags %} {{ m.tags }}{% endif %}">{{ m }}</p>{% endfor %}

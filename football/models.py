@@ -2094,6 +2094,98 @@ class ScoutingReport(models.Model):
         return f'{self.target.display_name} · {self.observed_on:%d/%m/%Y}'
 
 
+class SeasonWatch(models.Model):
+    """Un jugador o un equipo que el club sigue de cerca durante toda la temporada.
+
+    Deliberadamente SEPARADO del ojeo: un `ScoutingTarget` significa "candidato a fichar" y
+    arrastra su flujo (a prueba, fichado, descartado). Seguir a un chaval tuyo no es ficharlo, y
+    mezclarlo obligaba a darlo de baja de la plantilla para poder seguirlo.
+
+    Seguir NO mueve a nadie de sitio: es una marca encima. Y va atada a la temporada, para que al
+    cerrarla la lista se archive sola en vez de acumular nombres año tras año.
+
+    Es del CLUB, no de quien la crea: dirección deportiva y análisis miran la misma lista.
+    """
+
+    KIND_PLAYER = 'player'
+    KIND_TEAM = 'team'
+    KIND_CHOICES = [
+        (KIND_PLAYER, 'Jugador'),
+        (KIND_TEAM, 'Equipo'),
+    ]
+
+    workspace = models.ForeignKey('Workspace', on_delete=models.CASCADE, related_name='season_watches')
+    season = models.ForeignKey(
+        'WorkspaceSeason', on_delete=models.CASCADE, related_name='watches', null=True, blank=True,
+        help_text='Temporada en la que se sigue. Al cerrarla, la lista se archiva.',
+    )
+    kind = models.CharField(max_length=12, choices=KIND_CHOICES, db_index=True)
+    player = models.ForeignKey('Player', on_delete=models.CASCADE, null=True, blank=True, related_name='season_watches')
+    team = models.ForeignKey('Team', on_delete=models.CASCADE, null=True, blank=True, related_name='season_watches')
+    # El sujeto puede ser un jugador rival, que no es un Player sino un RivalPlayer.
+    rival_player = models.ForeignKey(
+        'RivalPlayer', on_delete=models.CASCADE, null=True, blank=True, related_name='season_watches'
+    )
+    reason = models.CharField(max_length=240, blank=True, help_text='Por qué lo sigues.')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='season_watches')
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['kind', '-updated_at', '-id']
+        verbose_name = 'Seguimiento de temporada'
+        verbose_name_plural = 'Seguimientos de temporada'
+        indexes = [
+            models.Index(fields=['workspace', 'season', 'is_active'], name='swatch_ws_season_idx'),
+        ]
+
+    @property
+    def subject(self):
+        return self.player or self.rival_player or self.team
+
+    @property
+    def subject_name(self):
+        sujeto = self.subject
+        if sujeto is None:
+            return ''
+        return str(
+            getattr(sujeto, 'display_name', None)
+            or getattr(sujeto, 'full_name', None)
+            or getattr(sujeto, 'name', None)
+            or sujeto
+        )
+
+    @property
+    def es_del_club(self):
+        """Si el sujeto es tuyo. Lo que decide el distintivo de la pantalla."""
+        if self.player_id:
+            return True
+        if self.team_id and self.workspace_id:
+            return WorkspaceTeam.objects.filter(workspace_id=self.workspace_id, team_id=self.team_id).exists()
+        return False
+
+    def __str__(self):
+        return f'{self.get_kind_display()}: {self.subject_name}'
+
+
+class SeasonWatchNote(models.Model):
+    """Anotación fechada de un seguimiento: es lo que lo convierte en seguimiento y no en lista."""
+
+    watch = models.ForeignKey(SeasonWatch, on_delete=models.CASCADE, related_name='notes')
+    author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='season_watch_notes')
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        verbose_name = 'Anotación de seguimiento'
+        verbose_name_plural = 'Anotaciones de seguimiento'
+
+    def __str__(self):
+        return f'{self.watch_id} · {self.created_at:%d/%m/%Y}'
+
+
 class ScoutingFollowUp(models.Model):
     target = models.ForeignKey(ScoutingTarget, on_delete=models.CASCADE, related_name='followups')
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='scouting_followups')

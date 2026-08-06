@@ -1,0 +1,76 @@
+{% load static football_extras %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Seguimiento · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      .sw-wrap { max-width:var(--fm-page,1120px); margin:0 auto; padding:1rem; }
+      .sw-h1 { margin:0; color:var(--prod-text); font-size:1.6rem; }
+      .sw-sub { color:var(--prod-muted, #94a3b8); font-weight:700; margin:.2rem 0 1rem; }
+      .sw-grupo { margin:0 0 .5rem; font-size:.72rem; letter-spacing:.07em; text-transform:uppercase;
+        color:var(--prod-muted, #94a3b8); font-weight:900; }
+      .sw-list { display:grid; gap:.6rem; margin-bottom:1.4rem; }
+      .sw-card { border:1px solid var(--fm-line, #1e293b); border-radius:12px;
+        background:var(--fm-panel, #0f172a); padding:.75rem .9rem; }
+      .sw-top { display:flex; justify-content:space-between; align-items:baseline; gap:.6rem; flex-wrap:wrap; }
+      .sw-nm { color:var(--prod-text); font-weight:800; font-size:.98rem; }
+      .sw-de { color:var(--prod-muted, #94a3b8); font-weight:600; font-size:.78rem; }
+      .sw-tag { font-size:.68rem; padding:.15rem .5rem; border-radius:999px; white-space:nowrap;
+        border:1px solid var(--fm-line, rgba(148,163,184,.3)); }
+      .sw-tag.mio { border-color:rgba(34,197,94,.45); }
+      .sw-por { margin:.45rem 0 0; font-size:.85rem; color:var(--prod-text); }
+      .sw-quien { margin:.25rem 0 0; font-size:.72rem; color:var(--prod-muted, #94a3b8); }
+      .sw-notas { margin:.6rem 0 0; padding-top:.5rem; border-top:1px solid var(--fm-line, #1e293b); display:grid; gap:.35rem; }
+      .sw-nota { margin:0; font-size:.8rem; }
+      .sw-nota time { color:var(--prod-muted, #94a3b8); font-size:.7rem; }
+      .sw-form { display:flex; gap:.4rem; margin-top:.5rem; flex-wrap:wrap; }
+      .sw-form input[type=text] { flex:1 1 14rem; padding:.45rem .6rem; border-radius:10px; font:inherit; color:inherit;
+        border:1px solid var(--fm-line, rgba(148,163,184,.25)); background:var(--fm-panel-2, rgba(255,255,255,.04)); }
+      .sw-empty { color:var(--prod-muted, #94a3b8); }
+      .rv-flash { display:grid; gap:.4rem; margin:.6rem 0 .9rem; }
+      .rv-flash-item { margin:0; padding:.6rem .8rem; border-radius:12px; font-weight:700; font-size:.85rem;
+        border:1px solid var(--fm-line, rgba(148,163,184,.25)); background:var(--fm-panel, rgba(255,255,255,.04)); }
+      .rv-flash-item.success { border-color:rgba(34,197,94,.45); }
+      .rv-flash-item.error { border-color:rgba(220,38,38,.45); }
+      :root[data-theme="light"] .rv-flash-item { background:#ffffff; }
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <div class="app-shell">
+      {% include 'football/includes/dragon_nav.html' %}
+      <main class="sw-wrap">
+        {% include 'football/includes/_zone_subnav.html' with zone='direccion' %}
+        <h1 class="sw-h1" style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>Seguimiento</span></h1>
+        <p class="sw-sub">A quién sigue el club{% if watch_season %} en {{ watch_season.label }}{% endif %}. Estar aquí no cambia a nadie de plantilla.</p>
+        {% include 'football/includes/_zone_chips.html' with chips=zone_chips %}
+        {% if messages %}
+        <div class="rv-flash">
+          {% for m in messages %}<p class="rv-flash-item{% if m.tags %} {{ m.tags }}{% endif %}">{{ m }}</p>{% endfor %}
+        </div>
+        {% endif %}
+
+        {% if watch_players or watch_teams %}
+          {% if watch_players %}
+          <p class="sw-grupo">Jugadores</p>
+          <div class="sw-list">
+            {% for w in watch_players %}{% include 'football/includes/_season_watch_card.html' with w=w %}{% endfor %}
+          </div>
+          {% endif %}
+          {% if watch_teams %}
+          <p class="sw-grupo">Equipos</p>
+          <div class="sw-list">
+            {% for w in watch_teams %}{% include 'football/includes/_season_watch_card.html' with w=w %}{% endfor %}
+          </div>
+          {% endif %}
+        {% else %}
+        <p class="sw-empty">Todavía no sigues a nadie. En la ficha de un jugador o de un equipo tienes el botón «Seguir esta temporada»: entra aquí sin moverlo de su sitio.</p>
+        {% endif %}
+      </main>
+    </div>
+  </body>
+</html>

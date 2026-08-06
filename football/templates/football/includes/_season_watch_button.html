@@ -1,0 +1,22 @@
+{% comment %}
+Botón «Seguir esta temporada». Uno solo para jugador propio, jugador rival y equipo: si cada
+ficha se monta el suyo acaban divergiendo, que es lo que pasó con el alta de rivales.
+Se le pasa UNO de estos: watch_player_id / watch_rival_player_id / watch_team_id.
+{% endcomment %}
+<form method="post" action="{% url 'season-watch-toggle' %}" class="sw-btn-form" style="display:inline-flex;gap:.4rem;align-items:center;flex-wrap:wrap;">
+  {% csrf_token %}
+  {% if watch_player_id %}<input type="hidden" name="player_id" value="{{ watch_player_id }}" />{% endif %}
+  {% if watch_rival_player_id %}<input type="hidden" name="rival_player_id" value="{{ watch_rival_player_id }}" />{% endif %}
+  {% if watch_team_id %}<input type="hidden" name="team_id" value="{{ watch_team_id }}" />{% endif %}
+  <input type="hidden" name="next" value="{{ request.get_full_path }}" />
+  {% if is_watched %}
+    <button class="btn" type="submit" title="Está en Dirección › Seguimiento. Pulsa para dejar de seguirlo.">👀 En seguimiento</button>
+    <a class="btn ghost" href="{% url 'season-watch' %}">Ver seguimiento</a>
+  {% else %}
+    <input type="text" name="reason" maxlength="240" placeholder="Por qué lo sigues (opcional)"
+           aria-label="Motivo del seguimiento"
+           style="padding:.45rem .6rem;border-radius:10px;font:inherit;color:inherit;min-width:min(16rem,60vw);
+                  border:1px solid var(--fm-line, rgba(148,163,184,.25));background:var(--fm-panel-2, rgba(255,255,255,.04));" />
+    <button class="btn" type="submit" title="Lo mete en Dirección › Seguimiento sin moverlo de su plantilla">👁 Seguir esta temporada</button>
+  {% endif %}
+</form>

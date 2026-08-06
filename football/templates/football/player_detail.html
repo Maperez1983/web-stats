@@ -2869,6 +2869,12 @@
         <h2 style="margin-top:0;">Vinculación, comunicación y multas</h2>
         {% include 'football/includes/_player_card_club.html' %}
         {% if not is_player_readonly %}
+        <div style="margin:0 0 1rem;">
+          {% include 'football/includes/_season_watch_button.html' %}
+          <p class="subtle" style="margin:.35rem 0 0;font-size:.74rem;">Lo sigues de cerca toda la temporada sin sacarlo de la plantilla. Aparece en Dirección › Seguimiento.</p>
+        </div>
+        {% endif %}
+        {% if not is_player_readonly %}
         <details class="fm-manage" style="margin:0 0 1rem;">
           <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.65rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:var(--prod-text);background:rgba(2,6,23,0.35);list-style:none;">⚙ Estado en el club · pasar a ojeado / traspaso</summary>
           <div style="padding:.95rem .15rem .15rem;">
