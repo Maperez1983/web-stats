@@ -48,6 +48,31 @@ def _url_grande(url):
     return texto.replace("/thumbs/", "/")
 
 
+def _pedir(url, limite):
+    """Baja la imagen. Si es de laPreferente, por la puerta que ya usa el proyecto.
+
+    `services._fetch_preferente_response` mantiene una sesion con cookies y
+    reintenta cuando llega un 403, y su comentario dice literalmente que esta
+    puesto para "reducir bloqueos (403) en produccion". Es decir: el proyecto ya
+    sabe que a esa web no se le puede pedir nada a pelo desde el servidor. Yo se
+    lo estaba pidiendo a pelo.
+    """
+    import requests
+
+    host = ""
+    try:
+        from urllib.parse import urlparse
+
+        host = (urlparse(url).hostname or "").lower()
+    except Exception:
+        host = ""
+    if host in {"lapreferente.com", "www.lapreferente.com"}:
+        from .services import _fetch_preferente_response
+
+        return _fetch_preferente_response(url, timeout=int(limite))
+    return requests.get(url, timeout=limite, headers=_CABECERAS)
+
+
 def descargar_escudo(team, *, guardar=True, limite=None, url_escudo="", diagnostico=None):
     """Devuelve los bytes del escudo del equipo, y los guarda en crest_image.
 
@@ -79,9 +104,7 @@ def descargar_escudo(team, *, guardar=True, limite=None, url_escudo="", diagnost
         return b""
     parte["url"] = url
     try:
-        import requests
-
-        resp = requests.get(url, timeout=(limite or TIEMPO_LIMITE), headers=_CABECERAS)
+        resp = _pedir(url, limite or TIEMPO_LIMITE)
         if resp.status_code != 200:
             parte["motivo"] = "la web responde %d" % resp.status_code
             return b""

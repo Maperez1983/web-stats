@@ -54,3 +54,40 @@ class CrestColorsTests(SimpleTestCase):
         blanco = _escudo((255, 255, 255, 255))
         self.assertEqual(colores_de_escudo(blanco), [])
         self.assertEqual(equipacion_propuesta(blanco), {})
+
+
+class DescargaDelEscudoTests(SimpleTestCase):
+    """El fallo se cuenta, y a laPreferente no se le pide nada a pelo.
+
+    Dos veces seguidas el boton de produccion contesto "15 sin escudo" con las 15
+    tarjetas pintando su escudo: como todos los caminos de fallo devolvian ese
+    mismo texto, no habia forma de saber si el problema era la url, la red o un
+    403. Estas dos pruebas fijan lo que faltaba.
+    """
+
+    def test_sin_url_lo_dice(self):
+        from football.rival_kits import descargar_escudo
+
+        class Equipo:
+            id = 1
+            crest_image = None
+            crest_url = ""
+
+        parte = {}
+        self.assertEqual(descargar_escudo(Equipo(), guardar=False, diagnostico=parte), b"")
+        self.assertEqual(parte["motivo"], "sin url de escudo")
+
+    def test_lapreferente_va_por_la_sesion_del_proyecto(self):
+        from unittest import mock
+
+        from football.rival_kits import _pedir
+
+        with mock.patch("football.services._fetch_preferente_response") as duro, \
+                mock.patch("requests.get") as pelo:
+            duro.return_value = mock.Mock(status_code=200, content=b"x")
+            _pedir("https://www.lapreferente.com/imagenes/escudos/escudo-17.png", 12)
+            self.assertEqual(duro.call_count, 1)
+            self.assertEqual(pelo.call_count, 0, "a laPreferente no se le pide a pelo")
+
+            _pedir("https://example.com/escudo.png", 12)
+            self.assertEqual(pelo.call_count, 1, "el resto de webs siguen por requests")
