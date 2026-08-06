@@ -1079,6 +1079,41 @@
         object-position: 50% 18%;
         display: block;
       }
+      /* Figura entera, como el mockup de Registro de acciones: sin disco que la recorte,
+         el jugador a tamanio util y el dorsal en un circulo arriba a la izquierda. El disco
+         de 54 px obligaba a recortar y era lo que hacia el avatar irreconocible. */
+      .xi-chip--figura { width: 96px; }
+      .xi-chip--figura .xi-chip-disc {
+        width: auto;
+        height: 92px;
+        border: 0;
+        border-radius: 0;
+        overflow: visible;
+        background: none;
+        box-shadow: none;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+      }
+      .xi-chip--figura .xi-chip-disc img {
+        width: auto;
+        height: 92px;
+        max-width: none;
+        object-fit: contain;
+        object-position: 50% 100%;
+        filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.55));
+      }
+      .xi-chip--figura .xi-chip-num {
+        left: -14px;
+        bottom: auto;
+        top: 2px;
+        width: 24px;
+        min-width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: #0b1220;
+        border: 2px solid rgba(255, 255, 255, 0.96);
+      }
       .xi-chip-disc img.is-chapa {
         object-fit: contain;
         object-position: 50% 50%;
@@ -3845,13 +3880,14 @@
           const imgChapa = chapaSafe ? `<img class="is-chapa" src='${chapaSafe}' alt="" loading="lazy" />` : '';
           // Mismo orden de preferencia que la pizarra, y "camiseta" pasa a ser un estilo
           // propio en vez de esconderse detras de "chapa".
+          // En figura entera manda el avatar: la foto de carnet no tiene cuerpo que enseniar.
           if (tokenStyle === 'foto') discImg = imgFoto || imgAvatar || imgChapa;
           else if (tokenStyle === 'avatar') discImg = imgAvatar || imgFoto || imgChapa;
           else if (tokenStyle === 'camiseta') discImg = imgKit || imgChapa || imgAvatar;
           else discImg = imgChapa || imgKit || imgAvatar || imgFoto; // chapa
           const numTxt = (num && num !== '--') ? num : '';
           wrap.innerHTML = `
-            <div class="xi-chip xi-chip--${role}">
+            <div class="xi-chip xi-chip--${role}${(tokenStyle === 'avatar' || tokenStyle === 'foto') ? ' xi-chip--figura' : ''}">
               <div class="xi-chip-disc">
                 ${discImg}
                 ${numTxt ? `<span class="xi-chip-num">${escHtml(numTxt)}</span>` : ''}
