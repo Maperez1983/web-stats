@@ -31623,7 +31623,11 @@
 			          // Si la imagen no está cargada, cae al disco vectorial de siempre (fallback).
 			          const __chapaImgUrl = (options && options.assetUrl)
 			            ? (resolvePlayerPhotoUrl(options.assetUrl) || safeText(options.assetUrl))
-			            : chapaBaseUrlForToken(options && options.kit, isGoalkeeper, isAway || isRivalTokenKind(kind));
+			            : chapaBaseUrlForToken(
+			              (options && options.kit) || safeText(player?.token_kit),
+			              isGoalkeeper,
+			              isAway || isRivalTokenKind(kind),
+			            );
 			          const __chapaEl = __chapaImgUrl ? (getReadyAvatarImage(__chapaImgUrl) || ensureAvatarImage(__chapaImgUrl)) : null;
 			          const __useChapaImg = !!__chapaEl; // usamos SIEMPRE la imagen de chapa (placeholder de color mientras carga)
 			          if (__useChapaImg) {
@@ -32087,6 +32091,11 @@
 			          token_style: style,
 			          token_pattern: pattern,
 			          token_kit_slot: tokenKitSlot,
+			          // La EQUIPACION elegida se guarda en la ficha. Sin esto se pintaba bien al
+			          // crearla y volvia a la de por defecto en cuanto la tarea se recargaba: la
+			          // reconstruccion vuelve a preguntar por el kit y ya no habia quien lo dijera.
+			          // Un comodin turquesa amanecia verdiblanco.
+			          token_kit: safeText(options?.kit || ''),
 			          token_name_tag: 'solid',
 			          token_focus: !!options?.focus,
 			          token_possession: !!options?.possession,
