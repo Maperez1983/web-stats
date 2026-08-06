@@ -34,6 +34,21 @@
       .card-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:6px;}
       .empty{border:1px dashed rgba(148,163,184,.3);border-radius:16px;padding:40px 24px;text-align:center;color:var(--prod-muted,#a7b6cf);}
       form.inline{display:inline;margin:0;}
+      /* .folder-card sólo estaba definida dentro del planificador: aquí salían sin estilo.
+         Se copia lo mínimo para que las tres carpetas se vean igual en las dos pantallas. */
+      .folder-card {
+        display: block;
+        text-decoration: none;
+        border: 1px solid rgba(244, 180, 0, 0.22);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--prod-muted-soft, #e2e8f0);
+        padding: 0.62rem 0.72rem;
+        transition: border-color 140ms ease, transform 140ms ease, background 140ms ease;
+      }
+      .folder-card:hover { border-color: rgba(244, 180, 0, 0.5); transform: translateY(-1px); }
+      .folder-card strong { display: block; font-size: 0.86rem; }
+      .folder-card span { display: block; margin-top: 0.2rem; font-size: 0.74rem; color: var(--prod-muted, #94a3b8); }
     </style>
   </head>
   <body class="prod-commercial">
@@ -43,12 +58,35 @@
       <div class="topbar">
         <div>
           <div class="kicker">Entrenamiento</div>
-          <h1 style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>📚 Biblioteca de sesiones</span></h1>
+          <h1 style="display:flex;align-items:center;gap:.6rem;">{% include 'football/includes/_kit_bar.html' %}<span>📚 Biblioteca</span></h1>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <a class="btn" href="{{ back_url }}">← Sesiones</a>
         </div>
       </div>
+      {% comment %}El menú «📚 Biblioteca» aterrizaba AQUÍ, y aquí sólo había plantillas de sesión
+      —que en el club son cero—. La biblioteca de verdad (421 tareas en tres carpetas) vivía dentro
+      del planificador y no se llegaba a ella por el menú: quien entraba nuevo pulsaba «Biblioteca»
+      y encontraba una página vacía. Las tres carpetas van arriba del todo. Los números no se
+      repiten aquí a propósito: contarlos es delicado (carpetas compartidas, tareas importadas) y
+      duplicar esa lógica es pedir que las dos pantallas acaben diciendo cosas distintas.{% endcomment %}
+      <h2 style="margin:0.9rem 0 0.35rem; font-size:1.05rem;">Tareas</h2>
+      <div class="folder-grid" aria-label="Carpetas de tareas" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px;">
+        <a class="folder-card" href="{% url 'sessions' %}?tab=library&amp;lib=general{% if team %}&amp;team={{ team.id }}{% endif %}">
+          <strong>📗 Biblioteca general</strong>
+          <span>Las tareas del club</span>
+        </a>
+        <a class="folder-card" href="{% url 'sessions' %}?tab=library&amp;lib=aitor{% if team %}&amp;team={{ team.id }}{% endif %}">
+          <strong>🗂️ Biblioteca de Aitor</strong>
+          <span>Las del PPT</span>
+        </a>
+        <a class="folder-card" href="{% url 'sessions' %}?tab=library&amp;lib=importadas{% if team %}&amp;team={{ team.id }}{% endif %}">
+          <strong>📥 Importadas</strong>
+          <span>De libros y de fuera</span>
+        </a>
+      </div>
+
+      <h2 style="margin:1.4rem 0 0.35rem; font-size:1.05rem;">Sesiones guardadas</h2>
       {% include 'football/includes/_zone_chips.html' with chips=zone_chips %}
       <p class="hint">Plantillas de sesión reutilizables. Guarda cualquier sesión como plantilla desde su ficha (botón «⭐ Guardar como plantilla») y reutilízala en cualquier semana.</p>
 
