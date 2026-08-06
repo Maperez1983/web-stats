@@ -295,7 +295,7 @@ def import_rival_competition(competition_url, *, season_label="", limit=None, sk
     return {"totals": totals, "teams": per_team}
 
 
-def import_rival_squad(rival_team, rows, *, season_label="", replace_missing=True):
+def import_rival_squad(rival_team, rows, *, season_label="", replace_missing=True, source=""):
     """Upsert de RivalPlayer para un equipo rival. Dedup por J-id (o nombre si no hay J-id). Detecta
     'reconocido como' contra Players. Da de baja (is_active=False) los que ya no aparecen. Nunca crea
     ni modifica Player. Devuelve {created, updated, deactivated, matched}."""
@@ -308,11 +308,17 @@ def import_rival_squad(rival_team, rows, *, season_label="", replace_missing=Tru
         full_name = str(row.get("full_name") or "").strip()
         if not full_name:
             continue
-        lookup = {"team": rival_team}
+        # Cada fuente identifica al jugador a su manera: laPreferente con su J-id y Universo
+        # con la licencia federativa. Buscar solo por ese id crea DOS fichas de la misma
+        # persona en cuanto un equipo se refresca por la otra fuente. Asi que si el id no
+        # aparece, se busca por nombre antes de crear, y al encontrarlo se le queda el id
+        # nuevo: la siguiente vez ya casa directo.
+        existente = None
         if sid:
-            lookup["source_player_id"] = sid
-        else:
-            lookup["full_name"] = full_name
+            existente = RivalPlayer.objects.filter(team=rival_team, source_player_id=sid).first()
+        if existente is None:
+            existente = RivalPlayer.objects.filter(team=rival_team, full_name__iexact=full_name).first()
+        lookup = {"pk": existente.pk} if existente else {"team": rival_team, "full_name": full_name}
         matched_player = _detect_matched_player(row)
         if matched_player:
             matched += 1
@@ -336,6 +342,19 @@ def import_rival_squad(rival_team, rows, *, season_label="", replace_missing=Tru
         }
         if sid:
             defaults["source_player_id"] = sid
+        if source:
+            defaults["source"] = source
+        if existente is not None:
+            defaults.setdefault("team", rival_team)
+            # Ninguna fuente pisa con CERO lo que otra si publica. Universo no da minutos, asi
+            # que sin esto un refresco por Universo borraria los minutos que trajo
+            # laPreferente y el jugador pareceria no haber jugado.
+            for campo in ("minutes", "matches_played", "goals", "yellow_cards", "red_cards", "age"):
+                if not defaults.get(campo) and getattr(existente, campo, 0):
+                    defaults[campo] = getattr(existente, campo)
+            for campo in ("photo_url", "position", "alias", "preferente_profile_url"):
+                if not defaults.get(campo) and getattr(existente, campo, ""):
+                    defaults[campo] = getattr(existente, campo)
         obj, was_created = RivalPlayer.objects.update_or_create(defaults=defaults, **lookup)
         seen_ids.add(obj.id)
         created += 1 if was_created else 0
