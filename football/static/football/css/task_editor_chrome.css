@@ -646,12 +646,20 @@ body.ed-chrome .edc-inspector #task-selection-dock:not([hidden]) {
 }
 body.ed-chrome .edc-inspector #task-selection-toolbar[hidden],
 body.ed-chrome .edc-inspector #task-selection-dock[hidden] { display: none !important; }
-/* Anti-duplicado: el tipo de ficha (Chapa/Camiseta/Foto/Avatar) + colores/franjas/KIT ya viven en
-   la barra GLOBAL inferior (#edc-selbar). En el inspector per-elemento ocultamos esa seccion "Ficha"
-   y todo lo que va debajo (hermanos siguientes), dejando solo lo propio del elemento (nombre, dorsal,
-   color, borrar/duplicar, orden, bloquear). Solo aplica dentro del inspector flotante. */
+/* Anti-duplicado: la PRESENTACION de la ficha (Chapa/Camiseta/Foto/Avatar) si esta repetida,
+   porque vive en la barra GLOBAL inferior (#edc-selbar) y alli manda para todo el lienzo.
+   Se oculta solo esa fila.
+
+   Lo que NO se puede ocultar es el resto: los circulos de la barra inferior (Local/Visitante/
+   Chandal...) solo eligen la equipacion de la SIGUIENTE ficha que colocas, no tocan las que ya
+   estan en el campo. Un `~ *` barria los 12 bloques siguientes -equipacion, colores, franjas,
+   etiqueta, foco, zonas, carriles, fondo- y dejaba una chapa colocada imposible de retocar:
+   ese era el "no me deja cambiarle el color sobre la misma chapa". Cada bloque ya se enciende
+   o se apaga solo segun el elemento seleccionado (perfil del inspector), asi que basta con
+   respetar su atributo `hidden`, que sin esto pierde contra `.selection-grid{display:grid}`. */
 body.ed-chrome .edc-inspector .edc-dup-ficha,
-body.ed-chrome .edc-inspector .edc-dup-ficha ~ * { display: none !important; }
+body.ed-chrome .edc-inspector #task-token-style-actions { display: none !important; }
+body.ed-chrome .edc-inspector #task-selection-toolbar > [hidden] { display: none !important; }
 /* Consolidar controles repetidos en el inspector: dejamos UNA forma de cada uno.
    - Color: solo el selector+hex (#task-style-color-row) -> quitamos los 8 botones de color.
    - Grosor: solo el slider (#task-stroke-width-row) -> quitamos los presets S/M/L/XL.

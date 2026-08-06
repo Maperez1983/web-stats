@@ -7903,15 +7903,29 @@
 	        group.setCoords();
 	      } catch (error) { /* ignore */ }
 	    };
+	    // Retoca lo que haya seleccionado: UNA ficha o VARIAS.
+	    // Con tres fichas seleccionadas, `getActiveObject()` devuelve el grupo de seleccion de
+	    // fabric, no las fichas; el retoque no llegaba a ninguna y el editor decia igualmente
+	    // que lo habia aplicado. Montar un equipo de tres del mismo color exigia ir de una en una.
+	    // (no se usa getSelectionObjects, que se declara mas abajo: asi no depende del orden)
+	    const objetosSeleccionados = () => {
+	      const active = canvas.getActiveObject();
+	      if (!active) return [];
+	      if (active.type === 'activeSelection' && typeof active.getObjects === 'function') return active.getObjects() || [];
+	      return [active];
+	    };
 	    const applyToActiveFlexibleObject = (callback, message) => {
-	      const active = activeInspectableObject();
-	      if (!active) return;
-	      if (active?.data?.locked) {
+	      const seleccion = objetosSeleccionados();
+	      if (!seleccion.length) return;
+	      const editables = seleccion.filter((obj) => obj && !obj?.data?.locked);
+	      if (!editables.length) {
 	        setStatus('Elemento bloqueado. Usa “Desbloquear” para editarlo.', true);
 	        return;
 	      }
-	      callback(active);
-	      active.setCoords();
+	      editables.forEach((obj) => {
+	        callback(obj);
+	        try { obj.setCoords(); } catch (e) { /* ignore */ }
+	      });
 	      commitObjectChange(message);
 	    };
 
@@ -8074,15 +8088,10 @@
 		      return changed;
 		    };
 
-		    const setActiveTokenKitSlot = (rawSlot) => {
-		      const active = activeInspectableObject();
-		      if (!active || !isTokenGroup(active)) return;
-		      if (active?.data?.locked) {
-		        setStatus('Elemento bloqueado. Usa “Desbloquear” para editarlo.', true);
-		        return;
-		      }
-		      const nextSlot = normalizeKit2dSlot(rawSlot);
-		      if (!nextSlot) return;
+		    // Cambia la equipacion de UNA ficha. Devuelve la ficha nueva (se sustituye entera,
+		    // porque el kit es la imagen del token, no un relleno) o null si no se pudo.
+		    const aplicarKitAFicha = (active, nextSlot) => {
+		      if (!active || !isTokenGroup(active)) return null;
 		      const tokenKind = safeText(active?.data?.token_kind);
 		      const center = tokenCenterPoint(active);
 		      const player = resolvePlayerForToken(active);
@@ -8101,9 +8110,9 @@
 		        role: safeText(active?.data?.token_role),
 		      };
 		      const factory = playerTokenFactory(tokenKind || 'player_local', player, options);
-		      if (typeof factory !== 'function') return;
+		      if (typeof factory !== 'function') return null;
 		      const fresh = factory(center.x, center.y);
-		      if (!fresh) return;
+		      if (!fresh) return null;
 		      const prevData = active.data || {};
 		      const objects = canvas.getObjects() || [];
 		      const index = objects.indexOf(active);
@@ -8130,8 +8139,38 @@
 		      } catch (e) { /* ignore */ }
 		      updateTokenAppearance(fresh, { name: safeText(prevData.playerName), number: safeText(prevData.playerNumber) });
 		      keepTokenAtCenter(fresh, center);
-		      canvas.setActiveObject(fresh);
-		      commitObjectChange(`Camiseta: ${tokenKitSlotLabel(nextSlot)}.`);
+		      return fresh;
+		    };
+
+		    // Equipacion de la seleccion. Acepta VARIAS fichas: vestir a los tres de un equipo
+		    // era el caso que no habia forma de hacer (los circulos de la barra de abajo solo
+		    // eligen el kit de la SIGUIENTE ficha que colocas, no tocan las que ya estan puestas).
+		    const setActiveTokenKitSlot = (rawSlot) => {
+		      const nextSlot = normalizeKit2dSlot(rawSlot);
+		      if (!nextSlot) return;
+		      const fichas = objetosSeleccionados().filter((obj) => isTokenGroup(obj));
+		      if (!fichas.length) return;
+		      const editables = fichas.filter((obj) => !obj?.data?.locked);
+		      if (!editables.length) {
+		        setStatus('Elemento bloqueado. Usa “Desbloquear” para editarlo.', true);
+		        return;
+		      }
+		      // Deshacer la seleccion multiple ANTES de sustituir: mientras existe, fabric guarda
+		      // las coordenadas de cada ficha relativas al grupo, y la ficha nueva aterrizaria en
+		      // la esquina del lienzo en vez de donde estaba.
+		      try { canvas.discardActiveObject(); } catch (e) { /* ignore */ }
+		      const nuevas = [];
+		      editables.forEach((ficha) => {
+		        const fresh = aplicarKitAFicha(ficha, nextSlot);
+		        if (fresh) nuevas.push(fresh);
+		      });
+		      if (!nuevas.length) return;
+		      try {
+		        if (nuevas.length === 1) canvas.setActiveObject(nuevas[0]);
+		        else canvas.setActiveObject(new fabric.ActiveSelection(nuevas, { canvas }));
+		      } catch (e) { /* ignore */ }
+		      const cuantas = nuevas.length > 1 ? ` (${nuevas.length} fichas)` : '';
+		      commitObjectChange(`Camiseta: ${tokenKitSlotLabel(nextSlot)}.${cuantas}`);
 		    };
 
 	    const getSelectionObjects = () => {
