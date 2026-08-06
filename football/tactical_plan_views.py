@@ -189,16 +189,26 @@ def _escudo_de(equipo):
 
 
 def _foto_de(request, player):
-    from .views import resolve_player_avatar_url, resolve_player_photo_url
+    """La imagen de la ficha del campo. Figura recortada, NUNCA la foto de carnet.
+
+    Antes iba al reves: primero la foto y el avatar de ultimo recurso. Con el recorte estatico
+    del club salia bien, pero el jugador que no lo tiene acababa con su foto subida metida en
+    una ficha redonda de 62 px: el recorte circular le caia en la camiseta y salia un disco
+    liso sin cara. Verificado en produccion el 2026-08-06.
+    """
+    from django.templatetags.static import static as _static
+
+    from .player_media import resolve_player_photo_static_path
+    from .views import resolve_player_board_avatar_url
 
     try:
-        foto = resolve_player_photo_url(request, player)
-        if foto:
-            return foto
+        ruta = resolve_player_photo_static_path(player)
+        if ruta:
+            return _static(ruta)
     except Exception:
         pass
     try:
-        return resolve_player_avatar_url(player) or ''
+        return resolve_player_board_avatar_url(player) or ''
     except Exception:
         return ''
 

@@ -1107,10 +1107,14 @@
         left: -14px;
         bottom: auto;
         top: 2px;
-        width: 24px;
+        /* `width: 24px` fijo partia los dorsales de DOS cifras: el 11 salia como un "1" en la
+           chapita y otro "1" suelto debajo, y el 16 como "1" y "6". Los de una cifra colaban.
+           Con min-width + padding la chapita crece lo justo y el numero no se parte. */
         min-width: 24px;
         height: 24px;
-        border-radius: 50%;
+        padding: 0 5px;
+        border-radius: 999px;
+        white-space: nowrap;
         background: #0b1220;
         border: 2px solid rgba(255, 255, 255, 0.96);
       }
