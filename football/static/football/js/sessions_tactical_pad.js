@@ -38631,6 +38631,13 @@
                   activateFactory(playerTokenFactory('player_rival', null, { style: estiloDelRail() }), 'un jugador rival', 'player_rival');
                   return;
                 }
+                if (kind === 'player_away') {
+                  // El rail OFRECE la segunda equipacion pero no tenia rama, asi que el clic caia
+                  // en simpleFactory -que no sabe hacer una ficha de jugador- y no pasaba nada.
+                  // Sin esto, una tarea de TRES equipos es imposible de dibujar.
+                  activateFactory(playerTokenFactory('player_away', null, { style: estiloDelRail() }), 'un jugador con segunda equipación', 'player_away');
+                  return;
+                }
                 if (kind === 'goalkeeper_local') {
                   activateFactory(playerTokenFactory('goalkeeper_local', null, { style: estiloDelRail() }), 'un portero', 'goalkeeper_local');
                   return;

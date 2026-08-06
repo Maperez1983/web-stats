@@ -71,3 +71,21 @@ class FiguraDelRivalTests(SimpleTestCase):
             if not (base / n).exists()
         ]
         self.assertEqual(faltan, [], "faltan las figuras con las que se viste al rival")
+
+
+class TercerEquipoEnElRailTests(SimpleTestCase):
+    """El rail ofrece la 2a equipacion: tiene que saber colocarla.
+
+    `activateAddKind` tenia rama para local, rival y los dos porteros, pero NO para
+    `player_away`, aunque el rail lo lista. El clic caia en `simpleFactory`, que no sabe
+    construir una ficha de jugador, y no pasaba nada: una tarea de TRES equipos no se podia
+    dibujar. Detectado el 2026-08-06 montando tareas de 3 equipos para el Cadete.
+    """
+
+    def test_el_rail_sabe_colocar_la_segunda_equipacion(self):
+        src = PAD.read_text(encoding="utf-8")
+        i = src.find("const activateAddKind = (add")
+        self.assertGreater(i, 0, "no encuentro activateAddKind")
+        bloque = src[i:i + 2000]
+        self.assertIn("kind === 'player_away'", bloque)
+        self.assertIn("playerTokenFactory('player_away', null, { style: estiloDelRail() })", bloque)
