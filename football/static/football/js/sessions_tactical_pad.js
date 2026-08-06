@@ -33845,11 +33845,13 @@
 	      }
 	      if (kind === 'text') {
 	        // La familia importa: sin decirla, el lienzo pinta con la serif por defecto del
-	        // navegador y un rotulo sobre el cesped se lee mal. Una sans con una sombra oscura
-	        // detras aguanta tanto sobre hierba como sobre una zona clara.
+	        // navegador y un rotulo sobre el cesped se lee mal. Se usa la del sistema, IBM Plex
+	        // Sans, que la app ya sirve como woff2 propio (nada de CDN), asi que el rotulo de la
+	        // pizarra se escribe con la misma letra que el resto de la aplicacion. La sombra
+	        // oscura detras aguanta tanto sobre hierba como sobre una zona clara.
 	        return (left, top) => new fabric.IText('Texto', {
 	          left, top, originX: 'center', originY: 'center',
-	          fontFamily: 'Helvetica, Arial, sans-serif',
+	          fontFamily: '"IBM Plex Sans", system-ui, sans-serif',
 	          fontSize: 22, fill: '#ffffff', fontWeight: '700', charSpacing: 30,
 	          shadow: new fabric.Shadow({ color: 'rgba(2,6,23,0.6)', blur: 5, offsetX: 0, offsetY: 1 }),
 	          data: { kind: 'text', color: '#ffffff' },
