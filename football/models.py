@@ -392,6 +392,33 @@ def resolve_or_create_team(*, name, external_id='', preferente_url='', group=Non
     if aliased is not None:
         return aliased, False
 
+    # EL EQUIPO PERSISTE DE UN AÑO PARA OTRO. El grupo dice dónde juega ESTA temporada, no
+    # quién es: sin esto, cada verano nacía una ficha nueva del mismo club (el rival de
+    # pretemporada aparecía duplicado año tras año, y su historial quedaba partido).
+    # La identidad es club + categoría: dos categorías del mismo club siguen siendo dos
+    # equipos distintos, pero el mismo equipo en dos temporadas es UNO.
+    if key and group is not None:
+        categoria = str((defaults or {}).get('category') or '').strip()
+        if not categoria:
+            try:
+                from football.team_category_services import deducir_categoria
+
+                categoria = deducir_categoria(
+                    getattr(group, 'name', ''),
+                    getattr(getattr(getattr(group, 'season', None), 'competition', None), 'name', ''),
+                ) or ''
+            except Exception:
+                categoria = ''
+        if categoria:
+            previos = list(Team.objects.filter(name_key=key, category__iexact=categoria)[:2])
+            if len(previos) == 1:
+                equipo = previos[0]
+                # Sigue siendo el mismo club: sólo se actualiza dónde juega ahora.
+                if equipo.group_id != getattr(group, 'id', None):
+                    equipo.group = group
+                    equipo.save(update_fields=['group'])
+                return equipo, False
+
     values = dict(defaults or {})
     values.setdefault('external_id', external_id)
     if preferente_url:

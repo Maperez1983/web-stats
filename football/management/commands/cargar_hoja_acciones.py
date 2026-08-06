@@ -15,7 +15,7 @@ import json
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from football.models import Match, MatchEvent, Player, Team
+from football.models import Match, MatchEvent, Player, PlayerStatistic, Team
 
 FUENTE = "registro-acciones"
 SISTEMA = "touch-field"
@@ -36,8 +36,9 @@ class Command(BaseCommand):
         equipo = self._equipo(hoja)
         partido = self._partido(hoja, equipo)
         plantilla = self._plantilla(equipo, hoja)
+        hoja = self._con_nombres_reales(hoja, plantilla)
         once = self._once(partido, equipo, plantilla, hoja)
-        cambios = self._con_el_descanso(hoja, once)
+        cambios = self._con_el_descanso(hoja, once, plantilla)
 
         minutos, tramos = self._minutos(once, cambios, int(hoja.get("duracion") or 90))
         acciones = self._acciones(hoja, plantilla, minutos, tramos, int(hoja.get("duracion") or 90))
@@ -67,6 +68,19 @@ class Command(BaseCommand):
                 ).delete()
                 self.stdout.write(f"Borrados de una carga anterior: {borrados[0]}")
             MatchEvent.objects.bulk_create(acciones["eventos"])
+            # Los minutos jugados NO son un adorno del informe: de ellos salen los minutos de la
+            # ficha, y la nota los usa para no encumbrar a quien entró cinco minutos. Se guardan
+            # donde la app los lee (PlayerStatistic manual_minutes).
+            for nombre, jugados in minutos.items():
+                jugador = plantilla.get(str(nombre).strip().lower())
+                if not jugador or not jugados:
+                    continue
+                # OJO al contexto: sin "manual-match" la ficha del jugador cuenta el partido
+                # pero NO sus minutos, porque el panel de temporada filtra por ese contexto.
+                PlayerStatistic.objects.update_or_create(
+                    player=jugador, match=partido, name="manual_minutes", context="manual-match",
+                    defaults={"value": int(jugados), "season": getattr(partido, "season", None)},
+                )
         self.stdout.write(self.style.SUCCESS(f"Cargadas {len(acciones['eventos'])} acciones en {partido}."))
 
     # ------------------------------------------------------------------ piezas
@@ -96,6 +110,27 @@ class Command(BaseCommand):
                 por_nombre[str(mote).strip().lower()] = jugador
         return por_nombre
 
+    def _con_nombres_reales(self, hoja, plantilla):
+        """Todo a nombre de jugador real.
+
+        En la hoja él escribe "Salva" y en la ficha pone "Salvador López Vazquez". Si no se
+        unifica, el mismo jugador sale dos veces: titular que juega 90' y suplente que entra
+        en el descanso. Los minutos y los cambios se calculan por persona, no por apodo.
+        """
+        def real(nombre):
+            jugador = plantilla.get(str(nombre).strip().lower())
+            return jugador.name if jugador else nombre
+
+        hoja = dict(hoja)
+        hoja["acciones"] = {real(n): v for n, v in (hoja.get("acciones") or {}).items()}
+        hoja["minutos"] = {real(n): v for n, v in (hoja.get("minutos") or {}).items()}
+        hoja["cambios"] = [
+            {**c, "sale": real(c["sale"]), "entra": real(c["entra"])} for c in (hoja.get("cambios") or [])
+        ]
+        if hoja.get("once"):
+            hoja["once"] = [real(n) for n in hoja["once"]]
+        return hoja
+
     def _once(self, partido, equipo, plantilla, hoja):
         """El once inicial sale del sistema; el fichero sólo puede darlo si aún no está guardado."""
         from football.views import _stored_lineup_for_match
@@ -116,7 +151,7 @@ class Command(BaseCommand):
             once.append(jugador)
         return once
 
-    def _con_el_descanso(self, hoja, once):
+    def _con_el_descanso(self, hoja, once, plantilla=None):
         """Completa la tanda del descanso.
 
         En un partido de base la mayoría de cambios se hacen todos juntos en el descanso y
@@ -142,11 +177,27 @@ class Command(BaseCommand):
             n for n in (hoja.get("acciones") or {})
             if n not in nombres_once and n not in entran_despues and int(minutos.get(n, 0)) >= int(descanso)
         ]
+        # Al portero lo releva el portero: emparejar por orden alfabético metía al portero
+        # suplente por un central y dejaba al titular los 90 minutos.
+        from football.views import _fm_position_group
+
+        def es_portero(nombre):
+            jugador = plantilla.get(str(nombre).strip().lower())
+            return bool(jugador) and _fm_position_group(getattr(jugador, "position", "")) == "gk"
+
         salen.sort()
         entran.sort()
-        for sale, entra in zip(salen, entran):
+        parejas = []
+        porteros_salen = [n for n in salen if es_portero(n)]
+        porteros_entran = [n for n in entran if es_portero(n)]
+        for sale, entra in zip(porteros_salen, porteros_entran):
+            parejas.append((sale, entra))
+            salen.remove(sale)
+            entran.remove(entra)
+        parejas.extend(zip(salen, entran))
+        for sale, entra in parejas:
             cambios.append({"minuto": int(descanso), "sale": sale, "entra": entra, "supuesto": True})
-        sobran = salen[len(entran):] + entran[len(salen):]
+        sobran = [n for n, _ in [(x, None) for x in salen[len(entran):]]] + entran[len(salen):]
         if sobran:
             self.stdout.write(self.style.WARNING(
                 "En el descanso no cuadran las entradas con las salidas: " + ", ".join(sobran)
