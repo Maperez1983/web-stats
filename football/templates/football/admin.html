@@ -584,6 +584,15 @@
                 <input type="hidden" name="workspace_team_id" value="{{ link.id }}" />
                 <button class="pill-button" type="submit">Separar como club</button>
               </form>
+              <form method="post" class="form-inline"
+                    onsubmit="return confirm('Archivar «{{ link.team.display_name|escapejs }}» significa que este año NO se saca a competir: desaparece de los selectores de todo el club. Si compite pero no la llevas tú, cancela y dale el acceso a quien la lleve.');">
+                {% csrf_token %}
+                <input type="hidden" name="form_action" value="team_set_link_active" />
+                <input type="hidden" name="active_tab" value="teams" />
+                <input type="hidden" name="workspace_team_id" value="{{ link.id }}" />
+                <input type="hidden" name="activo" value="0" />
+                <button class="pill-button" type="submit">Archivar</button>
+              </form>
               <form method="post" class="form-inline">
                 {% csrf_token %}
                 <input type="hidden" name="form_action" value="team_unlink" />
@@ -678,6 +687,26 @@
           <p style="margin:0.55rem 0;color:rgba(205,225,255,0.82);">No hay categorías configuradas.</p>
           {% endfor %}
         </div>
+        {% if categorias_archivadas %}
+        <div style="margin-top:0.9rem;padding:0.8rem 0.9rem;border:1px solid rgba(160,180,215,0.22);border-radius:12px;background:rgba(255,255,255,0.03);">
+          <h3 style="margin:0 0 0.2rem;font-size:0.95rem;">Categorías archivadas</h3>
+          <p style="margin:0 0 0.6rem;color:rgba(205,225,255,0.82);font-size:0.82rem;">
+            Este año no se sacan a competir, así que no salen en los selectores ni en los recuentos. Su histórico está intacto.
+            Si la categoría sí compite y lo que pasa es que no la llevas tú, no la archives: dale el acceso a quien la lleve.
+          </p>
+          {% for link in categorias_archivadas %}
+          <form method="post" class="form-inline" style="display:flex;gap:0.5rem;align-items:center;justify-content:space-between;margin-bottom:0.35rem;">
+            {% csrf_token %}
+            <input type="hidden" name="form_action" value="team_set_link_active" />
+            <input type="hidden" name="active_tab" value="teams" />
+            <input type="hidden" name="workspace_team_id" value="{{ link.id }}" />
+            <input type="hidden" name="activo" value="1" />
+            <span>{{ link.team.display_name }} <span style="color:rgba(205,225,255,0.7);font-size:0.8rem;">· {{ link.team.category|default:"sin categoría" }}</span></span>
+            <button class="pill-button" type="submit">Volver a activar</button>
+          </form>
+          {% endfor %}
+        </div>
+        {% endif %}
         {% if clubes_separados %}
         <div style="margin-top:0.9rem;padding:0.8rem 0.9rem;border:1px solid rgba(244,180,0,0.28);border-radius:12px;background:rgba(244,180,0,0.06);">
           <h3 style="margin:0 0 0.2rem;font-size:0.95rem;">Este club está partido</h3>
