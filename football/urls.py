@@ -156,6 +156,7 @@ urlpatterns = [
     path("coach/rivales/nuevo/", views.rival_team_create, name="rival-team-create"),
     path("coach/rivales/equipo/<int:team_id>/jugador/nuevo/", views.rival_player_create, name="rival-player-create"),
     path("coach/rivales/unir/", views.rival_team_merge, name="rival-team-merge"),
+    path("coach/rivales/jugador/<int:rival_player_id>/mover/", views.rival_player_move, name="rival-player-move"),
     path("api/rivales/a-refrescar/", views.rivales_a_refrescar, name="rivales-a-refrescar"),
     path("coach/seguimiento/", views.season_watch_index, name="season-watch"),
     path("coach/seguimiento/marcar/", views.season_watch_toggle, name="season-watch-toggle"),

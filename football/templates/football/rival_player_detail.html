@@ -92,6 +92,24 @@
 
           <div class="rpf-tools">
             <div class="rpf-tool">
+              <h3>¿Equipo equivocado?</h3>
+              <form method="post" action="{% url 'rival-player-move' rival_player_id=rp.id %}" class="rpf-row" style="gap:.4rem;flex-wrap:wrap;">
+                {% csrf_token %}
+                <input type="number" name="team_id" min="1" placeholder="id del equipo" aria-label="Id del equipo destino"
+                       style="width:9rem;padding:.45rem .6rem;border-radius:10px;font:inherit;color:inherit;
+                              border:1px solid var(--fm-line, rgba(148,163,184,.25));background:var(--fm-panel-2, rgba(255,255,255,.04));" />
+                <button class="rpf-btn ghost" type="submit">Mover a ese equipo</button>
+              </form>
+              <form method="post" action="{% url 'rival-player-move' rival_player_id=rp.id %}"
+                    onsubmit="return confirm('¿Quitar a {{ rp.full_name|escapejs }} de esta plantilla?');">
+                {% csrf_token %}
+                <input type="hidden" name="quitar" value="1" />
+                <button class="rpf-btn ghost" type="submit">Quitar de la plantilla</button>
+              </form>
+              <p class="rpf-note">Mover conserva su ficha y sus datos. Si ya está en el equipo destino, no se duplica.</p>
+            </div>
+
+            <div class="rpf-tool">
               <h3>Seguimiento</h3>
               {% include 'football/includes/_season_watch_button.html' %}
               <p class="rpf-note">Lo sigues toda la temporada sin meterlo en el ojeo: no es un candidato a fichar, es alguien a quien no perder de vista.</p>
