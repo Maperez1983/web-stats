@@ -460,6 +460,17 @@
                 <button class="btn btn-ghost kit2d-small-btn" type="button" data-kit2d-template-slot="entreno">Generar con colores</button>
               </div>
               <div class="kit2d-card">
+                {% comment %}El chandal ya tenia chapa y avatar propios; le faltaba el kit 2D,
+                asi que era la unica equipacion que no se podia elegir como camiseta.{% endcomment %}
+                <label for="id_kit2d_chandal_file">Chándal</label>
+                <input id="id_kit2d_chandal_file" data-kit2d-slot="chandal" type="file" accept="image/png,image/webp,image/*" />
+                <div class="kit2d-preview">
+                  <img id="kit2d-chandal-preview" alt="Vista previa del chándal" />
+                  <span id="kit2d-chandal-empty" class="kit2d-empty">Sin kit</span>
+                </div>
+                <button class="btn btn-ghost kit2d-small-btn" type="button" data-kit2d-template-slot="chandal">Generar con colores</button>
+              </div>
+              <div class="kit2d-card">
                 <label for="id_kit2d_gk_file">Portero 1</label>
                 <input id="id_kit2d_gk_file" data-kit2d-slot="gk" type="file" accept="image/png,image/webp,image/*" />
                 <div class="kit2d-preview">

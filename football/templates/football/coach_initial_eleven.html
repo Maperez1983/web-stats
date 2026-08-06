@@ -2979,7 +2979,7 @@
       };
       const KIT2D_PREF_KEY = 'kit2d.tokens';
       let lineupKit2dDataUrl = '';
-      const lineupKit2dDataUrls = { home: '', away: '', third: '', entreno: '', gk: '', gk2: '', gk3: '' };
+      const lineupKit2dDataUrls = { home: '', away: '', third: '', entreno: '', chandal: '', gk: '', gk2: '', gk3: '' };
       const rivalKit2dDataUrl = '{{ rival_team_kit2d_url|default_if_none:""|escapejs }}';
 
       const STARTERS_REQUIRED = Number('{{ starters_limit|default:11 }}') || 11;
@@ -3059,6 +3059,7 @@
           const awayUrl = String(value.away_club_data_url || value.away_editor_data_url || '').trim();
           const thirdUrl = String(value.third_club_data_url || value.third_editor_data_url || '').trim();
           const entrenoUrl = String(value.entreno_club_data_url || value.entreno_editor_data_url || value.training_club_data_url || '').trim();
+          const chandalUrl = String(value.chandal_club_data_url || value.chandal_editor_data_url || '').trim();
           const gkUrl = String(value.gk_club_data_url || value.gk_editor_data_url || value.goalkeeper_club_data_url || '').trim();
           const gk2Url = String(value.gk2_club_data_url || value.gk2_editor_data_url || '').trim();
           const gk3Url = String(value.gk3_club_data_url || value.gk3_editor_data_url || '').trim();
@@ -3066,6 +3067,7 @@
           if (validUrl(awayUrl)) lineupKit2dDataUrls.away = awayUrl;
           if (validUrl(thirdUrl)) lineupKit2dDataUrls.third = thirdUrl;
           if (validUrl(entrenoUrl)) lineupKit2dDataUrls.entreno = entrenoUrl;
+          if (validUrl(chandalUrl)) lineupKit2dDataUrls.chandal = chandalUrl;
           if (validUrl(gkUrl)) lineupKit2dDataUrls.gk = gkUrl;
           if (validUrl(gk2Url)) lineupKit2dDataUrls.gk2 = gk2Url;
           if (validUrl(gk3Url)) lineupKit2dDataUrls.gk3 = gk3Url;
@@ -3135,7 +3137,7 @@
       };
       // Que hueco de kit2d le toca a cada equipacion.
       const KIT_SLOT_POR_EQUIPACION = {
-        titular: 'home', visitante: 'away', blanca: 'third', turquesa: 'entreno', chandal: 'home',
+        titular: 'home', visitante: 'away', blanca: 'third', turquesa: 'entreno', chandal: 'chandal',
         gk_azul: 'gk', gk_negra: 'gk2', gk_magenta: 'gk3',
       };
       const XI_KIT_KEY = 'webstats:xi:kit:v1';
