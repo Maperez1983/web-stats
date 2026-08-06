@@ -343,6 +343,13 @@ class ServerTimingMiddleware:
                 parts.append(f"db;dur={int(db_ms)}")
                 parts.append(f"dbq;desc=\\\"db queries: {int(db_queries)}\\\";dur=0")
             response["Server-Timing"] = ", ".join(parts)
+            # Cloudflare borra `Server-Timing` por el camino, asi que el diagnostico no
+            # llegaba nunca al navegador en produccion: la misma medida se repite en una
+            # cabecera propia, que si pasa. Solo existe con PERF_SERVER_TIMING activado.
+            medida = f"total={total_ms}"
+            if self.db_enabled:
+                medida += f";db={int(db_ms)};q={int(db_queries)}"
+            response["X-Perf"] = medida
         except Exception:
             try:
                 self.logger.debug("server_timing_failed", exc_info=True)
