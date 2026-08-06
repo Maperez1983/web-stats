@@ -2676,6 +2676,103 @@
 			      <div class="tab-panel {% if main_tab == 'library' and active_tab == 'sessions' %}is-active{% endif %}" data-tab="sessions">
 			        <section class="panel">
 			          <h2>Sesiones · Estructura por bloques</h2>
+
+			          {% comment %}TRES PUERTAS. Esta pantalla volcaba TODAS las sesiones (540 enlaces
+			          en el Senior) y encontrar la de mañana era imposible. Se entra por la semana
+			          planificada, que es lo que se mira casi siempre; el calendario sirve para ir a una
+			          concreta; y las cerradas se van a su archivo. La lista entera sigue detrás de
+			          "Ver todas", porque a veces hace falta.{% endcomment %}
+			          {% if sessions_view != 'editor' %}
+			          <div class="sesiones-puertas" style="display:flex; flex-wrap:wrap; gap:0.4rem; margin:0.35rem 0 0.9rem;">
+			            <a class="tab-link {% if sessions_view == 'semana' %}is-active{% endif %}" href="?tab=sessions&sessions_view=semana&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Esta semana</a>
+			            <a class="tab-link {% if sessions_view == 'calendario' %}is-active{% endif %}" href="?tab=sessions&sessions_view=calendario&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Buscar</a>
+			            <a class="tab-link {% if sessions_view == 'cerradas' %}is-active{% endif %}" href="?tab=sessions&sessions_view=cerradas&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Cerradas{% if sesiones_cerradas %} ({{ sesiones_cerradas|length }}){% endif %}</a>
+			            {% comment %}"Crear sesión" y "Editar" viven en la vista de edición, que ya no se
+			            pinta debajo de las tres puertas: hay que dejar la puerta abierta desde aquí.{% endcomment %}
+			            <a class="tab-link" style="margin-left:auto;" href="?tab=sessions&sessions_view=editor&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}#planner-create-session">Crear sesión</a>
+			            <a class="tab-link {% if sessions_view == 'library' %}is-active{% endif %}" href="?tab=sessions&sessions_view=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Ver todas</a>
+			          </div>
+			          {% endif %}
+
+			          {% if sessions_view == 'semana' %}
+			          <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.6rem;">
+			            <a class="button secondary small" href="?tab=sessions&sessions_view=semana&semana={{ semana_anterior }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">← Semana anterior</a>
+			            <strong>{{ semana_inicio|date:"j M" }} – {{ semana_fin|date:"j M Y" }}</strong>
+			            {% if semana_es_la_de_hoy %}<span class="meta">· semana en curso</span>{% endif %}
+			            <a class="button secondary small" href="?tab=sessions&sessions_view=semana&semana={{ semana_siguiente }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Semana siguiente →</a>
+			          </div>
+			          {% if sesiones_semana %}
+			          <div style="display:grid; gap:0.45rem;">
+			            {% for row in sesiones_semana %}
+			            <div style="display:flex; align-items:center; gap:0.7rem; flex-wrap:wrap; border:1px solid var(--prod-border, rgba(148,163,184,0.2)); border-radius:12px; padding:0.55rem 0.7rem;">
+			              <span class="meta" style="min-width:5.5rem;">{{ row.session_date|date:"D j M" }}</span>
+			              <a href="{{ row.url_ficha }}" style="font-weight:900; flex:1; min-width:12rem;">{{ row.focus_title }}</a>
+			              <span class="meta">{{ row.tasks_count }} tarea{{ row.tasks_count|pluralize:"s" }} · {{ row.duration }}'</span>
+			              <span class="meta">{{ row.status }}</span>
+			            </div>
+			            {% endfor %}
+			          </div>
+			          {% else %}
+			          <p class="meta">No hay sesiones en esta semana.
+			            {% if semana_sugerida %}
+			            <a href="?tab=sessions&sessions_view=semana&semana={{ semana_sugerida }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Ir a la semana con sesiones más cercana →</a>
+			            {% endif %}
+			          </p>
+			          {% endif %}
+			          {% endif %}
+
+			          {% if sessions_view == 'calendario' %}
+			          <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.6rem;">
+			            <a class="button secondary small" href="?tab=sessions&sessions_view=calendario&mes={{ calendario_mes_anterior }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">← Mes anterior</a>
+			            <strong>{{ calendario_mes|date:"F Y"|capfirst }}</strong>
+			            <a class="button secondary small" href="?tab=sessions&sessions_view=calendario&mes={{ calendario_mes_siguiente }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Mes siguiente →</a>
+			          </div>
+			          <table class="calendario-sesiones" style="width:100%; border-collapse:collapse; table-layout:fixed;">
+			            <thead>
+			              <tr>
+			                <th class="meta" style="padding:0.2rem; font-size:0.7rem;">L</th>
+			                <th class="meta" style="padding:0.2rem; font-size:0.7rem;">M</th>
+			                <th class="meta" style="padding:0.2rem; font-size:0.7rem;">X</th>
+			                <th class="meta" style="padding:0.2rem; font-size:0.7rem;">J</th>
+			                <th class="meta" style="padding:0.2rem; font-size:0.7rem;">V</th>
+			                <th class="meta" style="padding:0.2rem; font-size:0.7rem;">S</th>
+			                <th class="meta" style="padding:0.2rem; font-size:0.7rem;">D</th>
+			              </tr>
+			            </thead>
+			            <tbody>
+			              {% for semana in calendario_semanas %}
+			              <tr>
+			                {% for celda in semana %}
+			                <td style="vertical-align:top; height:4.6rem; padding:0.25rem; border:1px solid rgba(148,163,184,0.18); border-radius:8px;{% if not celda.del_mes %} opacity:0.35;{% endif %}{% if celda.es_hoy %} outline:2px solid rgba(244,180,0,0.55);{% endif %}">
+			                  <div class="meta" style="font-size:0.68rem;">{{ celda.numero }}</div>
+			                  {% for row in celda.sesiones %}
+			                  <a href="{{ row.url_ficha }}" style="display:block; font-size:0.72rem; font-weight:800; line-height:1.2; margin-top:0.15rem;" title="{{ row.title }}">{{ row.focus_title|truncatechars:22 }}</a>
+			                  {% endfor %}
+			                </td>
+			                {% endfor %}
+			              </tr>
+			              {% endfor %}
+			            </tbody>
+			          </table>
+			          {% endif %}
+
+			          {% if sessions_view == 'cerradas' %}
+			          {% if sesiones_cerradas %}
+			          <div style="display:grid; gap:0.45rem;">
+			            {% for row in sesiones_cerradas %}
+			            <div style="display:flex; align-items:center; gap:0.7rem; flex-wrap:wrap; border:1px solid rgba(148,163,184,0.2); border-radius:12px; padding:0.55rem 0.7rem;">
+			              <span class="meta" style="min-width:6.5rem;">{{ row.session_date|date:"j M Y" }}</span>
+			              <a href="{{ row.url_ficha }}" style="font-weight:900; flex:1; min-width:12rem;">{{ row.focus_title }}</a>
+			              <span class="meta">{{ row.tasks_count }} tarea{{ row.tasks_count|pluralize:"s" }}</span>
+			              <span class="meta">{{ row.status }}</span>
+			            </div>
+			            {% endfor %}
+			          </div>
+			          {% else %}
+			          <p class="meta">Todavía no hay sesiones cerradas.</p>
+			          {% endif %}
+			          {% endif %}
+
               {% if sessions_view == 'library' %}
               <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin:0.35rem 0 0.6rem;">
                 <a class="tab-link {% if sessions_source_tab == 'created' %}is-active{% endif %}" href="?tab=sessions&sessions_view=library&sessions_source=created&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">
@@ -2854,7 +2951,10 @@
               <p class="empty">No hay sesiones importadas todavía.</p>
               {% endif %}
               {% endif %}
-              {% else %}
+              {% comment %}Las cinco columnas de edicion (crear, sesion activa, en vivo, asistencia,
+              textos) son para TRABAJAR una sesion, no para encontrarla: salian debajo de cualquier
+              vista y convertian las tres puertas en un muro. Se quedan en la vista de edicion.{% endcomment %}
+              {% elif sessions_view == 'editor' %}
 			          <div class="editor-grid">
 				            <div class="editor-box" id="planner-create-session">
 				              <h3>Crear sesión</h3>
@@ -3283,7 +3383,10 @@
 	        </section>
               {% endif %}
 
-		        {% if selected_session %}
+		        {% comment %}El tablero de tareas por bloque tambien es para TRABAJAR la sesion.
+		        Debajo de las tres puertas alargaba la pantalla con ocho columnas de bloques sin
+		        que nadie lo hubiera pedido: se queda en la vista de edicion.{% endcomment %}
+		        {% if selected_session and sessions_view == 'editor' %}
 			        <section class="panel" id="planner-blocks">
 			          <h2>Tareas por bloque · <span style="color:var(--accent, #34d399);">{{ selected_session.focus|default:'Sesión' }}</span> <span style="font-weight:600; font-size:0.72em; opacity:0.75;">{{ selected_session.session_date|date:"d/m/Y" }}</span></h2>
 			          <p class="meta" style="margin:0 0 0.4rem;">

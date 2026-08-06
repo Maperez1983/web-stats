@@ -14226,6 +14226,66 @@ class SessionsPlanningTests(TestCase):
             'las tres carpetas sí tienen que estar',
         )
 
+    def test_sesiones_entra_por_la_semana_y_no_vuelca_todas(self):
+        """La zona Sesiones no puede abrirse volcando todas las sesiones.
+
+        En el Senior eran 540 enlaces en una pantalla. Se entra por la semana; el calendario y las
+        cerradas son las otras dos puertas; la lista entera sigue existiendo tras "Ver todas".
+        """
+        import re as _re
+
+        micro = TrainingMicrocycle.objects.create(
+            team=self.team, title='Semana de prueba',
+            week_start=date(2026, 8, 3), week_end=date(2026, 8, 9),
+        )
+        # Tres en la semana del 3 al 9, y una fuera para comprobar que no se cuela.
+        for dia, estado in ((3, TrainingSession.STATUS_DONE), (5, TrainingSession.STATUS_PLANNED),
+                            (7, TrainingSession.STATUS_PLANNED)):
+            TrainingSession.objects.create(
+                microcycle=micro, session_date=date(2026, 8, dia),
+                focus=f'Sesión {dia}', duration_minutes=90, status=estado,
+            )
+        fuera = TrainingMicrocycle.objects.create(
+            team=self.team, title='Otra semana',
+            week_start=date(2026, 8, 17), week_end=date(2026, 8, 23),
+        )
+        TrainingSession.objects.create(
+            microcycle=fuera, session_date=date(2026, 8, 18),
+            focus='Sesión de otra semana', duration_minutes=90,
+        )
+
+        def panel(vista, extra=None):
+            params = {'tab': 'sessions', 'sessions_view': vista, 'team': self.team.id,
+                      'semana': '2026-08-05', 'mes': '2026-08'}
+            params.update(extra or {})
+            html = self.client.get(reverse('sessions'), params).content.decode('utf-8', 'replace')
+            ini = html.index('data-tab="sessions"')
+            return html[ini:html.index('class="tab-panel', ini + 10)]
+
+        semana = panel('semana')
+        self.assertIn('Sesión 3', semana)
+        self.assertIn('Sesión 5', semana)
+        self.assertNotIn('Sesión de otra semana', semana, 'la semana no puede traer sesiones de otra')
+        self.assertNotIn('id="session-library-count"', semana, 'la lista entera no se pinta aquí')
+        self.assertNotIn('id="planner-blocks"', semana, 'el tablero de bloques es de la vista de edición')
+
+        enlaces_semana = len(_re.findall(r'/coach/sesiones/sesion/[0-9]+/', semana))
+        enlaces_todas = len(_re.findall(r'/coach/sesiones/sesion/[0-9]+/', panel('library')))
+        self.assertLess(enlaces_semana, enlaces_todas, 'la puerta principal tiene que enseñar menos')
+
+        # El calendario lleva el enlace dentro de la caja del día.
+        calendario = panel('calendario')
+        self.assertIn('Sesión 3', calendario)
+        self.assertIn('Sesión de otra semana', calendario, 'el mes entero sí sale en el calendario')
+
+        # Cerradas: sólo las que lo están.
+        cerradas = panel('cerradas')
+        self.assertIn('Sesión 3', cerradas)
+        self.assertNotIn('Sesión 5', cerradas, 'una sesión planificada no está cerrada')
+
+        # Y la vista de edición conserva su tablero.
+        self.assertIn('id="planner-blocks"', panel('editor'))
+
     def test_update_library_task_does_not_wipe_unposted_fields_on_rename(self):
         session = TrainingSession.objects.create(
             microcycle=self.microcycle,
