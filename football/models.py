@@ -3560,6 +3560,12 @@ class SessionTaskCollection(models.Model):
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='task_collections')
     repository = models.CharField(max_length=32, choices=REPO_CHOICES, default=REPO_TRADITIONAL)
     name = models.CharField(max_length=120)
+    # SUBCARPETAS. Un libro de 188 ejercicios dentro de una sola carpeta no se puede recorrer:
+    # hay que poder partirlo por tipo de tarea. Se borra la subcarpeta si se borra la madre,
+    # pero las tareas NO se van con ella: una tarea vive en la biblioteca, no en la carpeta.
+    parent = models.ForeignKey(
+        'self', null=True, blank=True, on_delete=models.CASCADE, related_name='subcarpetas'
+    )
     created_by_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='task_collections')
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -4414,6 +4414,19 @@
 			            <span>{{ col.item_count|default:0 }} tareas · colección</span>
 			          </a>
 			          {% endfor %}
+			          {# SUBCARPETAS de la carpeta en la que estás. Con 209 tareas dentro de
+			             Importadas, una lista plana no hay quien la recorra: aquí se parte por
+			             tipo de tarea sin salir de la carpeta. #}
+			          {% for sub in library_subcarpetas %}
+			          <a
+			            class="folder-card {% if library_collection_id == sub.id %}is-current{% endif %}"
+			            href="?{% qs_replace tab='library' collection_id=sub.id lib_page=None %}"
+			            {% if library_collection_id == sub.id %}aria-current="page"{% endif %}
+			          >
+			            <strong>↳ {{ sub.name }}</strong>
+			            <span>{{ sub.item_count|default:0 }} tareas · subcarpeta</span>
+			          </a>
+			          {% endfor %}
 			          <details class="folder-card" style="cursor:pointer;">
 			            <summary style="list-style:none; font-weight:900;">➕ Nueva colección</summary>
 			            <form method="post" style="margin:0.55rem 0 0; display:grid; gap:0.4rem;">
