@@ -363,8 +363,12 @@ def import_rival_squad(rival_team, rows, *, season_label="", replace_missing=Tru
                 if clave_de_nombre(gemela.full_name) != clave_actual:
                     continue
                 for campo in ("minutes", "matches_played", "goals", "yellow_cards", "red_cards", "age"):
-                    if getattr(gemela, campo, 0) and getattr(gemela, campo, 0) > getattr(existente, campo, 0):
-                        setattr(existente, campo, getattr(gemela, campo))
+                    # `or 0` no es adorno: la edad y el dorsal admiten vacio, y comparar un
+                    # entero con None revienta. Fue el 500 de la primera pasada.
+                    suyo = getattr(gemela, campo, 0) or 0
+                    mio = getattr(existente, campo, 0) or 0
+                    if suyo > mio:
+                        setattr(existente, campo, suyo)
                 for campo in ("photo_url", "position", "alias", "preferente_profile_url"):
                     if getattr(gemela, campo, "") and not getattr(existente, campo, ""):
                         setattr(existente, campo, getattr(gemela, campo))
@@ -404,7 +408,7 @@ def import_rival_squad(rival_team, rows, *, season_label="", replace_missing=Tru
             # que sin esto un refresco por Universo borraria los minutos que trajo
             # laPreferente y el jugador pareceria no haber jugado.
             for campo in ("minutes", "matches_played", "goals", "yellow_cards", "red_cards", "age"):
-                if not defaults.get(campo) and getattr(existente, campo, 0):
+                if not defaults.get(campo) and (getattr(existente, campo, 0) or 0):
                     defaults[campo] = getattr(existente, campo)
             for campo in ("photo_url", "position", "alias", "preferente_profile_url"):
                 if not defaults.get(campo) and getattr(existente, campo, ""):
