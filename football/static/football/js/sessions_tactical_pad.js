@@ -29073,7 +29073,14 @@
             const center = obj.getCenterPoint ? obj.getCenterPoint() : { x: Number(obj.left) || 0, y: Number(obj.top) || 0 };
             const legacyPlayer = resolvePlayerForLegacy(obj);
             if (typeof playerTokenFactory !== 'function') return;
-	            const factory = playerTokenFactory(tokenKind, legacyPlayer, { style: 'disk', facing_deg: obj?.data?.facing_deg });
+	            // La EQUIPACION viaja con la ficha vieja: si no se le pasa aqui, esta
+	            // reconstruccion la vuelve a poner con la de por defecto y una ficha turquesa
+	            // amanece verdiblanca cada vez que se abre la tarea.
+	            const factory = playerTokenFactory(tokenKind, legacyPlayer, {
+	              style: 'disk',
+	              kit: safeText(obj?.data?.token_kit),
+	              facing_deg: obj?.data?.facing_deg,
+	            });
 	            if (typeof factory !== 'function') return;
 	            const fresh = factory(center.x, center.y);
             if (!fresh) return;
