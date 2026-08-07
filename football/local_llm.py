@@ -163,6 +163,19 @@ def build_ai_trainer_prompt(context):
 
 
 def call_ollama_json(prompt, *, model=None, base_url=None, timeout=8):
+    # Una pregunta del usuario no puede quedarse esperando al modelo. El `timeout` de urlopen
+    # es por operación de socket, no total: medido en producción, con 8 s de tope la llamada
+    # seguía dentro a los 20 s. Y en esta máquina (sin GPU) el modelo tarda mucho más que eso,
+    # así que la espera casi nunca acaba en respuesta: acaba en nada, con el worker retenido.
+    # Por eso el chat la trata como lo que es, una sonda cara, y usa su respuesta de reserva.
+    # Cuando haya un modelo por API que conteste en un segundo, esto se quita.
+    try:
+        from football.system_guard import sondas_caras_permitidas
+
+        if not sondas_caras_permitidas():
+            return None, 'sonda_omitida_en_el_chat'
+    except Exception:
+        pass
     model = str(model or os.getenv('OLLAMA_MODEL') or DEFAULT_QWEN_MODEL).strip() or DEFAULT_QWEN_MODEL
     base_url = str(base_url or DEFAULT_OLLAMA_URL).strip().rstrip('/') or DEFAULT_OLLAMA_URL
     body = {
