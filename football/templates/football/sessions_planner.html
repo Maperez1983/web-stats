@@ -4507,11 +4507,14 @@ agrupado aparecen DENTRO de una carpeta, que es cuando sirven de algo. No se qui
 			          </div>
 			        </div>
 			        {% endif %}
+			        {% comment %}El peso de los dos botones estaba al reves: importar se pintaba en verde
+			        macizo y a la misma anchura que crear, asi que lo que se hace cuatro veces al año
+			        gritaba mas que lo que se hace cada semana. Crear va solido y importar de contorno.{% endcomment %}
 			        <div class="library-quick-row">
-			          <a class="button" href="{% url task_builder_route_name %}?repo=traditional&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Nueva tarea táctica</a>
+			          <a class="button primary" href="{% url task_builder_route_name %}?repo=traditional&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Nueva tarea táctica</a>
 			          {% comment %}Este enlace se dejaba el equipo por el camino: sin `team` la pagina de
 			          importar se abria en el equipo por defecto, no en el que estabas mirando.{% endcomment %}
-			          <a class="button secondary" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}#import-tareas">Importar tareas</a>
+			          <a class="button ghost" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}#import-tareas">Importar tareas</a>
 			          {% if biblioteca_dentro %}<a class="button secondary" href="?tab=sessions&sessions_view=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Añadir a sesión</a>{% endif %}
 			        </div>
 			        {% comment %} RECOMENDADAS PARA ESTA SESIÓN. Va ARRIBA del todo y antes de las carpetas: el
