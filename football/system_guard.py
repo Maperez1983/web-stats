@@ -9578,7 +9578,14 @@ def _runtime_business_snapshot(workspace, *, page_context=None) -> dict:
         library_task_qs = SessionTask.objects.filter(session__microcycle__team=active_team, deleted_at__isnull=True)
         if library_repo:
             repo_token = str(library_repo).strip().lower()
-            library_task_qs = library_task_qs.filter(tactical_layout__meta__repository=repo_token)
+            # ESTA ERA LA LINEA QUE COLGABA EL ASISTENTE. Filtrar por dentro de
+            # `tactical_layout` obliga a Postgres a abrir el lienzo -~165 KB- de CADA tarea
+            # para poder mirar una clave de `meta`, y solo para contarlas. Con ~200 tareas son
+            # decenas de MB por cuenta, y el chat construye esta foto dos veces por pregunta:
+            # medido en produccion con el vigilante de cuelgues, se quedaba aqui mas de 40 s.
+            # La copia ligera lleva la misma `meta` y es una columna pequeña (comprobado tarea
+            # por tarea: mismo reparto de repositorios, 0 discrepancias).
+            library_task_qs = library_task_qs.filter(task_layout_light__meta__repository=repo_token)
         library_task_count = library_task_qs.count()
     return {
         "active_team_id": int(getattr(active_team, "id", 0) or team_id or 0),
