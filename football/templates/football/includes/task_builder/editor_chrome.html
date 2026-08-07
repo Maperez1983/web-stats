@@ -470,7 +470,10 @@
   var MAT_CATS = [
     { key:'plantilla',  label:'Plantilla',  roster:true },
     { key:'material',   label:'Material',   strips:['[data-material-family="equipamiento"] .resource-strip'] },
-    { key:'porterias',  label:'Porterías',  strips:['[data-material-family="porterias"] .resource-strip'] },
+    // Las porterías PRIMERO y por id: si se deja sólo el selector de familia, gana el strip con
+    // más botones y en esta familia ese es "Material del club" (41 contra 13), así que la pestaña
+    // Porterías no enseñaba ni una portería.
+    { key:'porterias',  label:'Porterías',  strips:['#task-goals-tools','[data-material-family="porterias"] .resource-strip'] },
     { key:'marcadores', label:'Marcadores', strips:['[data-material-family="marcadores"] .resource-strip'] },
     { key:'flechas',    label:'Flechas',    strips:['#task-lines-tools'] },
     { key:'zonas',      label:'Formas',      strips:['#task-shapes-tools'] },

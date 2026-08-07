@@ -4419,24 +4419,27 @@
 			            <span>{{ library_pick_counts.importadas }} tareas · de libros y de fuera</span>
 			          </a>
 			          {% endif %}
+			          {% comment %}Las interactivas son una carpeta MAS, no un aviso. El listado
+			          siempre las ha traido dentro (partir los repositorios dejo una vez la mitad del
+			          material inalcanzable), asi que se contaban dentro de "Biblioteca general" y
+			          encima se anunciaban aparte en un recuadro amarillo que hablaba de "otro
+			          repositorio". Ahora salen aqui, con el mismo mecanismo que las otras tres.{% endcomment %}
+			          {% if library_pick_counts.interactivas %}
+			          <a class="folder-card" href="?{% qs_replace tab='library' lib='interactivas' collection_id=None family=None lib_page=None %}">
+			            <strong>🎬 Interactivas</strong>
+			            <span>{{ library_pick_counts.interactivas }} tareas · vídeo y escenarios</span>
+			          </a>
+			          {% endif %}
 			        </div>
-			        {% if library_pick_counts.general or library_pick_counts.aitor or library_pick_counts.importadas %}
+			        {% if library_pick_counts.general or library_pick_counts.aitor or library_pick_counts.importadas or library_pick_counts.interactivas %}
 			        <p class="meta" style="margin:0.3rem 0 1rem;">Elige una biblioteca… o busca ahí arriba y te salen de todas.</p>
 			        {% else %}
 			        <p class="meta" style="margin:0.3rem 0 1rem;">Todavía no hay tareas en la biblioteca de este equipo.</p>
 			        {% endif %}
-			        {# Guardas una tarea, entras a buscarla y no esta porque estabas en otro #}
-			        {# repositorio, y nada te lo decia. Ahora se dice y se enlaza. #}
-			        {% if library_otros_repos %}
-			        <p class="meta" style="margin:-0.4rem 0 1rem; padding:.55rem .7rem; border-radius:9px; background:rgba(250,204,21,.12); border:1px solid rgba(250,204,21,.42);">
-			          ⚠️ Este equipo tiene tareas en otro repositorio:
-			          {% for r in library_otros_repos %}<a href="?{% qs_replace tab='library' library_repo=r.repo lib=None collection_id=None family=None lib_page=None %}"><strong>{{ r.n }}</strong> en {{ r.label }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}.
-			        </p>
-			        {% endif %}
 			        {% else %}
 			        <p class="meta" style="margin:0.3rem 0 0.6rem;">
 			          <a class="button secondary small" href="?{% qs_replace tab='library' lib=None collection_id=None family=None lib_page=None %}">← Todas las bibliotecas</a>
-			          <strong style="margin-left:.5rem;">{% if library_pick == 'aitor' %}Biblioteca de Aitor{% elif library_pick == 'importadas' %}Importadas{% else %}Biblioteca general{% endif %}</strong>
+			          <strong style="margin-left:.5rem;">{% if library_pick == 'aitor' %}Biblioteca de Aitor{% elif library_pick == 'importadas' %}Importadas{% elif library_pick == 'interactivas' %}Interactivas{% else %}Biblioteca general{% endif %}</strong>
 			        </p>
 			        {% endif %}
 

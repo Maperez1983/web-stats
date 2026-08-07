@@ -1733,12 +1733,22 @@
                     <button type="button" class="tool-icon" data-add="image_url:{% static 'football/images/ppt_material/image83.png' %}" title="Material del club" aria-label="Material del club"><img src="{% static 'football/images/ppt_material/image83.png' %}" alt="" style="width:26px;height:26px;object-fit:contain;" /></button>
                   </div>
                   <div class="meta" style="margin:0.85rem 0 0.35rem;">Porterías</div>
-                  <div class="resource-strip">
+                  {# El id NO es decorativo: el cajón "Elementos gráficos" rellena cada pestaña con #}
+                  {# el strip que MÁS botones tenga de su familia, y en esta familia el de "Material #}
+                  {# del club" trae 41 contra los 13 de aquí. Resultado: la pestaña Porterías #}
+                  {# enseñaba material del club y ninguna portería. Con id propio se pide este. #}
+                  <div class="resource-strip" id="task-goals-tools">
                     <button type="button" class="tool-icon" data-add="goal" title="Portería (red completa)" aria-label="Portería red"><span class="tool-emoji" aria-hidden="true">🥅</span><span class="sr-only">Portería red</span></button>
                     <button type="button" class="tool-icon" data-add="goal_mini" title="Mini portería" aria-label="Mini portería"><span class="tool-emoji" aria-hidden="true">Mini</span><span class="sr-only">Mini portería</span></button>
                     <button type="button" class="tool-icon" data-add="goal_popup" title="Portería pop-up" aria-label="Portería pop-up"><span class="tool-emoji" aria-hidden="true">Pop</span><span class="sr-only">Portería pop-up</span></button>
                     <button type="button" class="tool-icon" data-add="goal_posts" title="Portería (postes)" aria-label="Portería postes"><span class="tool-emoji" aria-hidden="true">Post</span><span class="sr-only">Portería postes</span></button>
                     <button type="button" class="tool-icon" data-add="goal_futsal" title="Portería futsal" aria-label="Portería futsal"><span class="tool-emoji" aria-hidden="true">Fut</span><span class="sr-only">Portería futsal</span></button>
+                    {# Portería CENITAL fotográfica: la única que no desentona sobre una tarea vista #}
+                    {# desde arriba. Sale de la foto del campo (scripts/extraer_porteria_cenital.py), #}
+                    {# así que casa la luz y la red deja pasar el césped. Van las dos bocas para no #}
+                    {# obligar a girar el objeto: izquierda es la del fondo izquierdo del campo. #}
+                    <button type="button" class="tool-icon" data-add="image_url:{% static 'football/images/goals/porteria_cenital_izq.png' %}" title="Portería cenital · fondo izquierdo" aria-label="Portería cenital fondo izquierdo"><img src="{% static 'football/images/goals/porteria_cenital_izq.png' %}" alt="" style="width:26px;height:26px;object-fit:contain;" /><span class="sr-only">Portería cenital fondo izquierdo</span></button>
+                    <button type="button" class="tool-icon" data-add="image_url:{% static 'football/images/goals/porteria_cenital_der.png' %}" title="Portería cenital · fondo derecho" aria-label="Portería cenital fondo derecho"><img src="{% static 'football/images/goals/porteria_cenital_der.png' %}" alt="" style="width:26px;height:26px;object-fit:contain;" /><span class="sr-only">Portería cenital fondo derecho</span></button>
                     {# Porterías reales del repertorio del club (sacadas del PPT de tareas). #}
                     <button type="button" class="tool-icon" data-add="image_url:{% static 'football/images/goals/porteria_11_frontal.png' %}" title="Portería de 11 (frontal)" aria-label="Portería de 11 frontal"><span class="tool-emoji" aria-hidden="true">11</span><span class="sr-only">Portería de 11 frontal</span></button>
                     <button type="button" class="tool-icon" data-add="image_url:{% static 'football/images/goals/porteria_perspectiva.png' %}" title="Portería en perspectiva" aria-label="Portería en perspectiva"><span class="tool-emoji" aria-hidden="true">3D</span><span class="sr-only">Portería en perspectiva</span></button>

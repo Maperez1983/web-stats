@@ -14562,6 +14562,75 @@ class SessionsPlanningTests(TestCase):
         )
         self.assertTrue(os.path.exists(ruta), f'no existe {ruta}')
 
+    def test_las_interactivas_son_una_carpeta_y_no_un_aviso(self):
+        """Entrar en Biblioteca sacaba un recuadro amarillo de "otro repositorio".
+
+        Ademas de hablar en jerga era falso: el listado trae a proposito las tareas de todos los
+        repositorios, asi que esas tareas estaban delante, contadas dentro de Biblioteca general.
+        Ahora las interactivas son la cuarta carpeta y la general ya no se las apunta.
+        """
+        from football.library_repositories import LIBRARY_MICROCYCLE_MARKER
+
+        micro = TrainingMicrocycle.objects.create(
+            team=self.team,
+            title='Biblioteca interactiva',
+            week_start=date(2000, 1, 3),
+            week_end=date(2000, 1, 9),
+            notes=LIBRARY_MICROCYCLE_MARKER,
+        )
+        sesion = TrainingSession.objects.create(
+            microcycle=micro, session_date=date(2000, 1, 4), focus='Biblioteca interactiva',
+        )
+        SessionTask.objects.create(session=sesion, title='Salida en 3 con video', order=1)
+
+        portada = self.client.get(
+            reverse('sessions'), {'tab': 'library', 'team': self.team.id}
+        ).content.decode('utf-8', 'replace')
+
+        self.assertIn('🎬 Interactivas', portada, 'las interactivas necesitan su carpeta')
+        self.assertNotIn('otro repositorio', portada, 'el recuadro amarillo se va')
+
+        # Y no se cuentan dos veces: la que esta en Interactivas no esta tambien en la general.
+        i = portada.index('🎬 Interactivas')
+        self.assertIn('1 tarea', portada[i:i + 260])
+
+        # Dentro se entra igual que en las otras: primero el tipo de entreno, luego las tareas.
+        # (update() y no save(): save() deriva task_family del JSON y borraria lo que ponemos.)
+        SessionTask.objects.filter(session=sesion).update(task_family='rondo')
+        dentro = self.client.get(
+            reverse('sessions'),
+            {'tab': 'library', 'lib': 'interactivas', 'family': 'rondo', 'team': self.team.id},
+        ).content.decode('utf-8', 'replace')
+        self.assertIn('Salida en 3 con video', dentro, 'la carpeta tiene que listar SU tarea')
+
+    def test_la_pestana_porterias_del_editor_ensena_porterias(self):
+        """El cajon rellena cada pestaña con el strip que MAS botones tenga de su familia.
+
+        En la familia "porterias" conviven dos: el de "Material del club" (41 botones) y el de
+        las porterias (13). Ganaba el primero, asi que la pestaña Porterias no enseñaba ni una
+        porteria -y la cenital nueva no se veia por ningun sitio-. Se pide por id.
+        """
+        import os
+
+        from django.conf import settings
+
+        base = os.path.join(settings.BASE_DIR, 'football', 'templates', 'football', 'includes',
+                            'task_builder')
+        with open(os.path.join(base, 'canvas_viewport.html'), encoding='utf-8') as fh:
+            lienzo = fh.read()
+        with open(os.path.join(base, 'editor_chrome.html'), encoding='utf-8') as fh:
+            chrome = fh.read()
+
+        self.assertIn('id="task-goals-tools"', lienzo, 'el strip de porterias necesita su id')
+        self.assertIn("'#task-goals-tools'", chrome, 'y el cajon tiene que pedirlo por ese id')
+
+        # La porteria cenital: el recurso y su fichero.
+        for cara in ('izq', 'der'):
+            self.assertIn(f'porteria_cenital_{cara}.png', lienzo, f'falta el boton {cara}')
+            ruta = os.path.join(settings.BASE_DIR, 'football', 'static', 'football', 'images',
+                                'goals', f'porteria_cenital_{cara}.png')
+            self.assertTrue(os.path.exists(ruta), f'no existe {ruta}')
+
     def test_update_library_task_does_not_wipe_unposted_fields_on_rename(self):
         session = TrainingSession.objects.create(
             microcycle=self.microcycle,
