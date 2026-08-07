@@ -14222,7 +14222,8 @@ class SessionsPlanningTests(TestCase):
                          'los filtros por origen sobran cuando vienes a elegir una tarea')
 
         # Administrando dentro de la carpeta si estan.
-        administrando = html({'lib': 'general'})
+        # Los filtros por origen salen cuando hay LISTA (al elegir tipo), no al entrar.
+        administrando = html({'lib': 'general', 'family': 'rondo'})
         self.assertIn('aria-label="Carpetas de Biblioteca"', administrando)
 
     def test_la_biblioteca_abre_simple_y_los_filtros_estan_dentro(self):
@@ -14251,10 +14252,15 @@ class SessionsPlanningTests(TestCase):
         ):
             self.assertNotIn(sobra, portada, f'{que_es} no pinta nada en la portada')
 
-        dentro = panel({'lib': 'general'})
-        self.assertIn('aria-label="Carpetas de Biblioteca"', dentro, 'dentro si estan los filtros')
-        self.assertIn('Agrupar por bloque', dentro, 'dentro si esta el agrupado')
-        self.assertIn('Todas las bibliotecas', dentro, 'y siempre se puede volver')
+        # Entrar en la carpeta ensena los TIPOS; los filtros aparecen con la lista.
+        carpeta = panel({'lib': 'general'})
+        self.assertIn('aria-label="Tipo de tarea"', carpeta, 'al entrar se eligen tipos')
+        self.assertIn('Todas las bibliotecas', carpeta, 'y siempre se puede volver')
+        self.assertNotIn('Agrupar por bloque', carpeta, 'agrupar una lista que no hay')
+
+        con_lista = panel({'lib': 'general', 'family': 'rondo'})
+        self.assertIn('aria-label="Carpetas de Biblioteca"', con_lista, 'con lista si estan')
+        self.assertIn('Agrupar por bloque', con_lista, 'y el agrupado tambien')
 
     def test_dentro_de_la_carpeta_los_paneles_pesados_van_plegados(self):
         """Un `display` en linea gana al display:none de un <details> cerrado.
@@ -14264,7 +14270,8 @@ class SessionsPlanningTests(TestCase):
         SEGUNDO buscador identico al de arriba. La regla CSS es lo que lo arregla.
         """
         html = self.client.get(
-            reverse('sessions'), {'tab': 'library', 'team': self.team.id, 'lib': 'general'}
+            reverse('sessions'),
+            {'tab': 'library', 'team': self.team.id, 'lib': 'general', 'family': 'rondo'},
         ).content.decode('utf-8', 'replace')
 
         self.assertIn(
