@@ -296,6 +296,24 @@ class ServerTimingMiddleware:
         started = time.perf_counter()
         db_ms = 0
         db_queries = 0
+        # Cuantas veces se repite cada consulta y cuanto suma. Sin esto, un "265 consultas" no
+        # dice CUAL se repite, y buscar un N+1 a ojo en una vista de 5.000 lineas es adivinar.
+        repetidas = {}
+
+        def _firma(sql):
+            texto = str(sql or "")[:400]
+            verbo = texto.split(" ", 1)[0].upper()[:6]
+            tabla = ""
+            for marca in (' FROM "', ' INTO "', ' UPDATE "'):
+                pos = texto.find(marca)
+                if pos >= 0:
+                    resto = texto[pos + len(marca):]
+                    tabla = resto.split('"', 1)[0]
+                    break
+            if not tabla and texto.upper().startswith("UPDATE "):
+                tabla = texto[8:].split('"', 1)[0]
+            columnas = texto.count(",") + 1
+            return f"{verbo}:{tabla or '?'}:{columnas}"
 
         def _sql_wrapper(execute, sql, params, many, context):  # pragma: no cover
             nonlocal db_ms, db_queries
@@ -306,7 +324,14 @@ class ServerTimingMiddleware:
                 return execute(sql, params, many, context)
             finally:
                 db_queries += 1
-                db_ms += int((time.perf_counter() - t0) * 1000)
+                gastado = int((time.perf_counter() - t0) * 1000)
+                db_ms += gastado
+                try:
+                    clave = _firma(sql)
+                    veces, suma = repetidas.get(clave, (0, 0))
+                    repetidas[clave] = (veces + 1, suma + gastado)
+                except Exception:
+                    pass
 
         managers = []
         if self.db_enabled:
@@ -350,6 +375,11 @@ class ServerTimingMiddleware:
             if self.db_enabled:
                 medida += f";db={int(db_ms)};q={int(db_queries)}"
             response["X-Perf"] = medida
+            if self.db_enabled and repetidas:
+                top = sorted(repetidas.items(), key=lambda kv: kv[1][0], reverse=True)[:4]
+                response["X-Perf-Top"] = " | ".join(
+                    f"{clave} x{veces} {suma}ms" for clave, (veces, suma) in top
+                )[:300]
         except Exception:
             try:
                 self.logger.debug("server_timing_failed", exc_info=True)
