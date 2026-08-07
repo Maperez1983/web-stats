@@ -26,16 +26,33 @@ services:
       # Arranque rápido: `collectstatic` ya se hace en build (`build.sh`).
       - key: RUN_COLLECTSTATIC
         value: "false"
+      # MODELO LOCAL APAGADO EN LA WEB (2026-08-07, decision del propietario).
+      #
+      # Por que: `ollama serve` y el modelo se quedaban RESIDENTES en el mismo contenedor que
+      # los workers de gunicorn, comiendo memoria y CPU los usara alguien o no. Medido: la
+      # misma pagina de 12 consultas costaba 36 ms de base de datos en calma y 1.185 ms justo
+      # despues de cuatro peticiones seguidas -33 veces mas- porque la maquina va ahogada.
+      #
+      # Que se pierde: texto generado en tres sitios (analisis automatico de la ficha de tarea,
+      # consejo del IA-Trainer senior y revision del guardian). Los tres tienen ya su camino sin
+      # modelo, asi que degradan solos.
+      #
+      # Que NO se pierde: el asistente. Las preguntas de datos del club las resuelve el
+      # enrutador, sin modelo, en menos de medio segundo. La parte que si usaba el modelo
+      # devolvia 502 en 248 ms matando un worker, o sea que no estaba dando servicio: estaba
+      # tirando media web cada vez.
+      #
+      # Para volver a encenderlo: las cuatro a "true". Nada mas. El codigo no cambia.
       - key: INSTALL_OLLAMA
-        value: "true"
+        value: "false"
       - key: ENABLE_OLLAMA
-        value: "true"
+        value: "false"
       - key: OLLAMA_MODEL
         value: "qwen3:1.7b"
       - key: AI_TRAINER_LOCAL_LLM_MODEL
         value: "qwen3:1.7b"
       - key: AI_TRAINER_LOCAL_LLM_ENABLED
-        value: "true"
+        value: "false"
       - key: AI_TRAINER_OLLAMA_URL
         value: "http://127.0.0.1:11434"
       - key: AI_TRAINER_LOCAL_VISION_MODELS
