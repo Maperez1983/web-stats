@@ -8,6 +8,7 @@ from django.test import TestCase
 
 from football.models import (
     Competition,
+    MatchEvent,
     ConvocationRecord,
     Group,
     Match,
@@ -74,9 +75,19 @@ class FigurasDeDireccionTests(TestCase):
         """Salva no entrena y sólo juega amistosos: tiene que salir como que está probando."""
         t = self._ficha("Salva", con_jugador=True)
         partido = self._partido(self.hoy - timedelta(days=2))
+        MatchEvent.objects.create(
+            match=partido, player=t.player, event_type="Pase", result="OK",
+            source_file="registro-acciones", system="touch-field-final",
+        )
+        self.assertEqual(self._grupo_de(t), "prueba_dentro")
+
+    def test_estar_convocado_no_es_haber_jugado(self):
+        """Si se quedó en el banquillo de un partido ya jugado, no ha probado nada."""
+        t = self._ficha("Banquillo", con_jugador=True)
+        partido = self._partido(self.hoy - timedelta(days=2))
         conv = ConvocationRecord.objects.create(team=self.team, match=partido)
         conv.players.add(t.player)
-        self.assertEqual(self._grupo_de(t), "prueba_dentro")
+        self.assertEqual(self._grupo_de(t), "ojeo")
 
     def test_quien_vino_hace_un_mes_pasa_a_decidir(self):
         t = self._ficha("Antiguo", con_jugador=True)
@@ -112,3 +123,20 @@ class FigurasDeDireccionTests(TestCase):
         fuera = self._ficha("Descartado", status=ScoutingTarget.STATUS_DISCARDED)
         self.assertEqual(self._grupo_de(fichado), "plantilla")
         self.assertIsNone(self._grupo_de(fuera))
+
+    def test_las_sesiones_de_prueba_y_biblioteca_no_cuentan_como_entrenos(self):
+        """25 sesiones en la agenda eran 10 entrenamientos: el resto, biblioteca y basura."""
+        from football.views import sesiones_de_entrenamiento_reales
+
+        ciclo, _ = TrainingMicrocycle.objects.get_or_create(
+            team=self.team, week_start=self.hoy, defaults={"week_end": self.hoy + timedelta(days=6)}
+        )
+        buena = TrainingSession.objects.create(microcycle=ciclo, session_date=self.hoy, focus="Entrenamiento")
+        for foco in ("PRUEBA CLAUDE - borrar", "Entrenamiento · 🗑️ #138", "Biblioteca PDF · Entrenador"):
+            TrainingSession.objects.create(microcycle=ciclo, session_date=self.hoy, focus=foco)
+        TrainingSession.objects.create(
+            microcycle=ciclo, session_date=self.hoy, focus="Cancelada",
+            status=TrainingSession.STATUS_CANCELED,
+        )
+        reales = sesiones_de_entrenamiento_reales(TrainingSession.objects.filter(microcycle=ciclo))
+        self.assertEqual(list(reales), [buena])
