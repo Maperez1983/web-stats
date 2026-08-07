@@ -35138,6 +35138,19 @@
         // miniatura sale con la foto a la primera.
         try { runWhenIdle(() => { ensureGrassSurfaceDataUrl(); }, 1500); } catch (error) { /* ignore */ }
 
+			    // El formato de salida se respetaba solo si era JPEG: cualquier otro -webp incluido-
+			    // acababa en PNG. Con eso, pedir webp para el guardado no servia de nada y se subia un
+			    // PNG igual de gordo. Se pregunta al navegador; si no sabe hacerlo, PNG.
+			    const formatoDeSalida = (mime) => {
+			      const pedido = String(mime || '').toLowerCase();
+			      if (pedido === 'image/jpeg' || pedido === 'image/png') return pedido;
+			      try {
+			        const prueba = document.createElement('canvas');
+			        prueba.width = 1; prueba.height = 1;
+			        if (String(prueba.toDataURL(pedido) || '').indexOf('data:' + pedido) === 0) return pedido;
+			      } catch (e) { /* ignore */ }
+			      return 'image/png';
+			    };
 			    const buildPreviewData = (options = {}) => new Promise((resolve) => {
 			      const sourceWidth = Math.round(canvas.getWidth());
 			      const sourceHeight = Math.round(canvas.getHeight());
@@ -35405,7 +35418,7 @@
 			          const preserveFullStadiumFrame = !['whiteboard', 'blackboard', 'coachboard'].includes(exportGrassStyle);
 			          if (preserveFullStadiumFrame) {
 			            try {
-			              resolve(output.toDataURL(mime === 'image/jpeg' ? 'image/jpeg' : 'image/png', quality));
+			              resolve(output.toDataURL(formatoDeSalida(mime), quality));
 			              return;
 			            } catch (error) {
 			              resolve(output.toDataURL('image/png', 0.92));
@@ -35508,7 +35521,7 @@
 		                  cctx.fillRect(0, 0, cropped.width, cropped.height);
 		                  cctx.drawImage(output, -cropX, -cropY);
 		                  try {
-		                    resolve(cropped.toDataURL(mime === 'image/jpeg' ? 'image/jpeg' : 'image/png', quality));
+		                    resolve(cropped.toDataURL(formatoDeSalida(mime), quality));
 		                    return;
 		                  } catch (error) {
 		                    resolve(cropped.toDataURL('image/png', 0.92));
@@ -35520,7 +35533,7 @@
 		          }
 			        } catch (error) { /* ignore */ }
 			        try {
-			          resolve(output.toDataURL(mime === 'image/jpeg' ? 'image/jpeg' : 'image/png', quality));
+			          resolve(output.toDataURL(formatoDeSalida(mime), quality));
 			        } catch (error) {
 			          resolve(output.toDataURL('image/png', 0.92));
 			        }
@@ -41999,7 +42012,12 @@
 			        try {
 			          await Promise.race([
 			            syncHiddenBuilderFields({
-			              previewOptions: { maxSide: 6144, mime: 'image/png', quality: 0.98 },
+			              // GUARDAR no es EXPORTAR. Esto pedia 6144 px en PNG -lo mismo que el PDF-, y
+			              // eso son ~21 MB de base64 subiendo por el formulario: el navegador tardaba
+			              // ~10 s en generarlo y el servidor otros ~10 s en decodificarlo, redimensionarlo
+			              // con Pillow y escribir 15 MB. Para la ficha y las tarjetas sobra 2048 px.
+			              // El PDF sigue pidiendo 6144/PNG en su propia llamada, que es donde hace falta.
+			              previewOptions: { maxSide: 2048, mime: 'image/webp', quality: 0.9 },
 			              applyLivePreview: false,
 			            }),
 			            new Promise((resolve) => { try { setTimeout(resolve, 12000); } catch (e) { resolve(); } }),
