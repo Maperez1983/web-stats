@@ -58,6 +58,12 @@ class Command(BaseCommand):
         por_origen = {}
         por_equipo = {}
         por_via = {}
+        # Segunda pregunta de la misma visita: sus tarjetas salen SIN IMAGEN. La tarjeta pinta algo
+        # si la tarea tiene portada, miniatura, PDF o dibujo; si no tiene ninguna de las cuatro,
+        # sale el hueco gris. Y ojo: una tarea marcada "importada" NO cuenta como dibujada aunque
+        # su lienzo tenga objetos, asi que sin PDF adjunto se queda en blanco.
+        imagen = {"portada": 0, "miniatura": 0, "pdf": 0, "dibujo": 0, "nada": 0}
+        marcadas_importadas = 0
         ejemplos = []
         total = 0
         for tarea in qs.iterator():
@@ -72,6 +78,23 @@ class Command(BaseCommand):
             origen = str(meta.get("source") or "").strip() or "(sin source)"
             por_origen[origen] = por_origen.get(origen, 0) + 1
             por_via[via] = por_via.get(via, 0) + 1
+
+            tiene_dibujo = bool(isinstance(light, dict) and light.get("has_canvas"))
+            tiene_portada = bool(getattr(tarea, "cover_present", False))
+            tiene_mini = bool(getattr(tarea, "task_preview_image", None))
+            tiene_pdf = bool(getattr(tarea, "task_pdf", None))
+            if str(meta.get("source") or "").strip() in {"pdf_import", "import", "pptx_import"}:
+                marcadas_importadas += 1
+            if tiene_portada:
+                imagen["portada"] += 1
+            elif tiene_mini:
+                imagen["miniatura"] += 1
+            elif tiene_pdf:
+                imagen["pdf"] += 1
+            elif tiene_dibujo:
+                imagen["dibujo"] += 1
+            else:
+                imagen["nada"] += 1
             eq = getattr(getattr(getattr(tarea, "session", None), "microcycle", None), "team", None)
             nombre_eq = str(getattr(eq, "name", "") or getattr(eq, "display_name", "") or f"equipo {getattr(eq, 'id', '?')}")
             por_equipo[nombre_eq] = por_equipo.get(nombre_eq, 0) + 1
@@ -96,6 +119,23 @@ class Command(BaseCommand):
         self.stdout.write("\n=== por equipo ===")
         for eq, n in sorted(por_equipo.items(), key=lambda kv: -kv[1]):
             self.stdout.write(f"  {n:>5}  {eq}")
+
+        self.stdout.write("\n=== por qué la tarjeta sale sin imagen ===")
+        etiquetas = {
+            "portada": "tienen portada",
+            "miniatura": "tienen miniatura guardada",
+            "pdf": "tienen PDF adjunto",
+            "dibujo": "tienen dibujo en el lienzo",
+            "nada": "NO tienen ninguna de las cuatro  <-- estas salen en gris",
+        }
+        for clave in ("portada", "miniatura", "pdf", "dibujo", "nada"):
+            self.stdout.write(f"  {imagen[clave]:>5}  {etiquetas[clave]}")
+        self.stdout.write(f"  {marcadas_importadas:>5}  marcadas como importadas")
+        if marcadas_importadas:
+            self.stdout.write(
+                "         (una tarea marcada importada NO cuenta como dibujada aunque su lienzo\n"
+                "          tenga objetos: sin PDF adjunto, la tarjeta se queda en blanco)"
+            )
 
         if ejemplos:
             self.stdout.write("\n=== muestra ===")
