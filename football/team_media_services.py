@@ -212,7 +212,45 @@ def build_team_crest_lookup(load_snapshot_func=None):
         build_team_crest_lookup._memo = {'capture_mtime': capture_mtime, 'snapshot_mtime': snapshot_mtime, 'lookup': lookup}
     except Exception:
         pass
-    return lookup
+    return _con_escudos_de_la_base(lookup)
+
+
+def _con_escudos_de_la_base(lookup):
+    """Añade al catálogo los escudos guardados en la ficha de cada equipo.
+
+    El catálogo se construía SÓLO con dos ficheros externos (la captura del Universo y su
+    snapshot). En un despliegue esos ficheros no viajan, así que salía vacío y la
+    clasificación de la home se pintaba sin un solo escudo, aunque los equipos tuvieran el
+    suyo guardado en `Team.crest_url`. La base es la fuente que sí sobrevive al despliegue,
+    y va la última para no pisar lo que traiga el Universo.
+    """
+    combinado = dict(lookup or {})
+    try:
+        from football.models import Team
+
+        from django.db.models import Q
+
+        equipos = Team.objects.filter(
+            Q(crest_url__gt='') | Q(crest_image__gt='')
+        ).only('name', 'crest_url', 'crest_image', 'external_id')
+        for equipo in equipos:
+            nombre = equipo.name
+            externo = equipo.external_id
+            url = absolute_universo_url(equipo.crest_url)
+            if not url:
+                # El escudo del propio club suele estar SUBIDO como fichero, no como URL.
+                try:
+                    url = equipo.crest_image.url if equipo.crest_image else ''
+                except Exception:
+                    url = ''
+            if not url:
+                continue
+            for clave in (_normalize_team_lookup_key(nombre), str(externo or '').strip().lower()):
+                if clave and clave not in combinado:
+                    combinado[clave] = url
+    except Exception:
+        logger.debug('No se pudieron leer los escudos guardados en la base', exc_info=True)
+    return combinado
 
 
 def sync_team_crest_from_sources(team, *, load_snapshot_func=None, invalidate_func=None):
