@@ -14275,6 +14275,38 @@ class SessionsPlanningTests(TestCase):
         self.assertIn('Filtrar por origen', html)
         self.assertIn('aria-label="Carpetas de Biblioteca"', html)
 
+    def test_copiar_una_tarea_realizada_a_una_sesion_la_deja_editable(self):
+        """Meter una tarea de biblioteca en tu sesion no puede darte una tarea bloqueada.
+
+        La biblioteca guarda tambien tareas REALIZADAS (fecha delante en el titulo), y esas son de
+        solo lectura a proposito. Al clonarlas la marca viajaba con la copia: aparecia en tu sesion
+        sin "Editar textos" ni pestana Pizarra. La copia es una tarea planificada nueva.
+        """
+        origen_sesion = TrainingSession.objects.create(
+            microcycle=self.microcycle, session_date=date(2026, 3, 20),
+            focus='Biblioteca', duration_minutes=90,
+        )
+        realizada = SessionTask.objects.create(
+            session=origen_sesion, title='16/09/2026 · Resistencia', duration_minutes=20,
+            tactical_layout={'meta': {'source': 'performed', 'performed_on': '2026-09-16'}},
+        )
+        destino = TrainingSession.objects.create(
+            microcycle=self.microcycle, session_date=date(2026, 3, 21),
+            focus='Sesion nueva', duration_minutes=90,
+        )
+
+        copia = football_views._clone_session_task_to_session(realizada, destino)
+
+        meta = ((copia.tactical_layout or {}).get('meta') or {})
+        self.assertNotEqual(str(meta.get('source') or ''), 'performed',
+                            'la copia no es un registro de algo ya hecho')
+        self.assertFalse(meta.get('performed_on'), 'ni arrastra su fecha de realizacion')
+
+        # Y la original sigue marcada como realizada: no se toca.
+        realizada.refresh_from_db()
+        meta_origen = ((realizada.tactical_layout or {}).get('meta') or {})
+        self.assertEqual(meta_origen.get('source'), 'performed')
+
     def test_update_library_task_does_not_wipe_unposted_fields_on_rename(self):
         session = TrainingSession.objects.create(
             microcycle=self.microcycle,
