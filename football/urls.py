@@ -609,6 +609,8 @@ urlpatterns = [
     path("convocatoria/arbitro/pdf/", views.convocation_referee_pdf, name="convocation-referee-pdf"),
     path("pdf/viewer/", views.pdf_viewer_page, name="pdf-viewer"),
     path("api/system/guard-chat/", views.system_guard_chat_api, name="system-guard-chat-api"),
+    # Lo que el asistente no ha sabido hacer: el plan de trabajo, escrito por el uso.
+    path("api/system/asistente-pendientes/", views.asistente_pendientes_api, name="asistente-pendientes-api"),
     # Diagnóstico del cuelgue del asistente: devuelve dónde se quedó parada la petición.
     path("api/system/guard-pila/", views.system_guard_pila_api, name="system-guard-pila-api"),
     path("api/system/guard-operator/", views.system_guard_operator_api, name="system-guard-operator-api"),
