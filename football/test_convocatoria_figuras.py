@@ -388,3 +388,91 @@ class LaFiguraDelPdfConservaElRecorteTests(SimpleTestCase):
             with self.subTest(figura=nombre):
                 uri = _cutout_image_as_small_data_uri(finders.find(_BOARD_LIB + nombre))
                 self.assertLess(len(uri) / 1024, 12, f"{nombre} pesa demasiado para el PDF")
+
+
+class ElMotivoElegidoSIGUEAHIAlVolverTests(TestCase):
+    """Se guardaba bien pero el desplegable salía en blanco al reabrir la convocatoria.
+
+    La causa: la pantalla leía `convocation_record.absence_reasons` CIENTO DIECISÉIS líneas antes
+    de que `convocation_record` existiera. Era un `UnboundLocalError` que se tragaba un
+    `except Exception`, así que no daba error: simplemente no había motivos nunca.
+
+    Este test renderiza la pantalla de verdad, que es lo único que lo habría cazado: los tests
+    que tenía comprobaban el guardado y el PDF, y los dos funcionaban.
+    """
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from football.models import Workspace
+
+        self.team = Team.objects.create(name="Cadete Motivos", slug="cadete-motivos", category="Cadete")
+        self.ws = Workspace.objects.create(
+            name="Club Motivos", kind=Workspace.KIND_CLUB, primary_team=self.team
+        )
+        User = get_user_model()
+        self.user = User.objects.create_superuser("motivos", "m@x.es", "x")
+
+    def _jugador(self, nombre, dorsal):
+        return Player.objects.create(
+            team=self.team, name=nombre, number=dorsal, position="Defensa",
+            birth_date=_nacido_con(24), has_federative_license=True, is_active=True,
+        )
+
+    def test_el_desplegable_vuelve_con_el_motivo_marcado(self):
+        import re
+
+        from django.test import Client
+
+        from football.models import ConvocationRecord
+
+        va = self._jugador("Convocado", 1)
+        fuera = self._jugador("Fuera", 2)
+        record = ConvocationRecord.objects.create(
+            team=self.team, round="J1", match_date=HOY, is_current=True,
+            absence_reasons={str(fuera.id): "personales"},
+        )
+        record.players.add(va)
+
+        c = Client()
+        c.force_login(self.user)
+        sesion = c.session
+        sesion["active_workspace_id"] = int(self.ws.id)
+        sesion.save()
+        resp = c.get("/convocatoria/", {"team": int(self.team.id)})
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode("utf-8", "replace")
+
+        # La tarjeta del NO convocado tiene que traer su motivo ya seleccionado.
+        tarjetas = re.findall(r'data-player-id="(\d+)".*?</select>', html, re.S)
+        self.assertTrue(tarjetas, "no se han pintado las tarjetas de jugador")
+        bloque = re.search(
+            rf'data-player-id="{fuera.id}".*?<select class="roster-reason".*?</select>', html, re.S
+        )
+        self.assertIsNotNone(bloque, "el no convocado no trae desplegable de motivo")
+        self.assertIn(
+            '<option value="personales" selected>', bloque.group(0),
+            "el motivo guardado NO vuelve marcado: el desplegable sale en blanco",
+        )
+
+    def test_al_que_no_tiene_motivo_le_sale_en_blanco(self):
+        import re
+
+        from django.test import Client
+
+        from football.models import ConvocationRecord
+
+        sin_motivo = self._jugador("Sin motivo", 3)
+        ConvocationRecord.objects.create(
+            team=self.team, round="J1", match_date=HOY, is_current=True, absence_reasons={}
+        )
+        c = Client()
+        c.force_login(self.user)
+        sesion = c.session
+        sesion["active_workspace_id"] = int(self.ws.id)
+        sesion.save()
+        html = c.get("/convocatoria/", {"team": int(self.team.id)}).content.decode("utf-8", "replace")
+        bloque = re.search(
+            rf'data-player-id="{sin_motivo.id}".*?<select class="roster-reason".*?</select>', html, re.S
+        )
+        self.assertIsNotNone(bloque)
+        self.assertNotIn("selected", bloque.group(0))
