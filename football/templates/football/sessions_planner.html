@@ -1110,6 +1110,86 @@
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
         gap: 0.5rem;
       }
+      /* LAS CARPETAS MANDAN. Eran una fila de fichas finas con un número suelto, del tamaño de
+         cualquier otro control de la página; y son la respuesta a "por dónde voy". */
+      .biblio-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(268px, 1fr));
+        gap: 0.7rem;
+        margin: 0.5rem 0 0;
+      }
+      .biblio-card {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        grid-template-areas: "ico num" "tit tit" "pie pie" "tipos tipos" "ir ir";
+        align-items: center;
+        gap: 0.1rem 0.6rem;
+        padding: 1rem 1.1rem 0.9rem;
+        border-radius: 16px;
+        border: 1px solid rgba(148,163,184,.24);
+        background: var(--prod-card, rgba(15,23,42,.55));
+        text-decoration: none;
+        color: inherit;
+        transition: border-color .14s ease, transform .14s ease, box-shadow .14s ease;
+      }
+      .biblio-card:hover {
+        border-color: rgba(244,180,0,.55);
+        transform: translateY(-2px);
+        box-shadow: 0 10px 26px rgba(2,6,23,.32);
+      }
+      .biblio-ico { grid-area: ico; font-size: 1.6rem; line-height: 1; }
+      .biblio-num {
+        grid-area: num;
+        justify-self: end;
+        font-size: 2.1rem;
+        font-weight: 800;
+        line-height: 1;
+        color: var(--prod-text);
+      }
+      .biblio-tit {
+        grid-area: tit;
+        margin-top: 0.5rem;
+        font-size: 1.02rem;
+        font-weight: 800;
+        line-height: 1.2;
+      }
+      .biblio-pie { grid-area: pie; color: var(--prod-muted); font-size: .84rem; }
+      .biblio-tipos {
+        grid-area: tipos;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem;
+        margin-top: 0.6rem;
+      }
+      .biblio-chip {
+        padding: 0.18rem 0.5rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148,163,184,.28);
+        font-size: .74rem;
+        color: var(--prod-muted);
+        white-space: nowrap;
+      }
+      .biblio-chip b { color: var(--prod-text); font-weight: 800; }
+      /* Lo que queda por clasificar no es un dato más: es trabajo pendiente, y la regla es que
+         todo lo nuevo se clasifique. Se ve, pero sin gritar. */
+      .biblio-chip.is-pendiente {
+        border-color: rgba(250,204,21,.45);
+        background: rgba(250,204,21,.10);
+      }
+      .biblio-ir {
+        grid-area: ir;
+        margin-top: 0.7rem;
+        font-size: .8rem;
+        font-weight: 800;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        color: rgba(244,180,0,.92);
+      }
+      :root[data-theme="light"] .biblio-card { background: #ffffff; border-color: rgba(15,23,42,.12); }
+      @media (max-width: 720px) {
+        .biblio-grid { grid-template-columns: 1fr; }
+        .biblio-num { font-size: 1.7rem; }
+      }
       .library-task-actions {
         display: flex;
         gap: 0.35rem;
@@ -4403,44 +4483,46 @@
                   {% endif %}
                 </form>
 
+			        {% comment %}Crear e importar, JUNTO al buscador y encima de las carpetas: son lo
+			        que traes hecho de casa, no el final del recorrido. Y con el peso al derecho: crear
+			        es de cada semana; importar, cuatro veces al año.{% endcomment %}
+			        <div class="library-quick-row" style="margin:0 0 0.9rem;">
+			          <a class="button primary" href="{% url task_builder_route_name %}?repo=traditional&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Nueva tarea táctica</a>
+			          {% comment %}Este enlace se dejaba el equipo por el camino: sin `team` la pagina de
+			          importar se abria en el equipo por defecto, no en el que estabas mirando.{% endcomment %}
+			          <a class="button ghost" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}#import-tareas">Importar tareas</a>
+			        </div>
+
 			        {# ELEGIR BIBLIOTECA. Entrar y recibir las 179 tareas de golpe no ayudaba a #}
 			        {# encontrar nada: primero se elige biblioteca y luego se lista. #}
 			        {% if not library_pick and not library_q %}
 		        {# Una biblioteca vacía no es una biblioteca: se pintaban las tres siempre, así #}
 		        {# que a un club que nunca ha subido un PPT le salía la de Aitor con 0 tareas. #}
-			        <div class="folder-grid" aria-label="Bibliotecas" style="margin-top:0.4rem;">
-			          {% if library_pick_counts.general %}
-			          <a class="folder-card" href="?{% qs_replace tab='library' lib='general' collection_id=None family=None lib_page=None %}">
-			            <strong>📗 Biblioteca general</strong>
-			            <span>{{ library_pick_counts.general }} tareas · las del club</span>
+			        {% comment %}Las carpetas MANDAN en esta pantalla: son la respuesta a "por donde
+			        voy", y con un numero suelto ("214 tareas") no se puede elegir. Cada una dice ahora
+			        de que estan hechas -los tres tipos que mas pesan y cuantas quedan sin clasificar-,
+			        que sale de `task_family` y no cuesta ni una consulta mas.
+			        Las interactivas son una carpeta MAS, no un aviso: el listado siempre las ha traido
+			        dentro (partir los repositorios dejo una vez la mitad del material inalcanzable),
+			        asi que se contaban dentro de "Biblioteca general" y encima se anunciaban aparte en
+			        un recuadro amarillo que hablaba de "otro repositorio".{% endcomment %}
+			        <div class="biblio-grid" aria-label="Bibliotecas">
+			          {% for c in library_pick_cards %}
+			          <a class="biblio-card" href="?{% qs_replace tab='library' lib=c.key collection_id=None family=None lib_page=None %}">
+			            <span class="biblio-ico" aria-hidden="true">{{ c.icono }}</span>
+			            <span class="biblio-num">{{ c.n }}</span>
+			            <strong class="biblio-tit">{{ c.titulo }}</strong>
+			            <span class="biblio-pie">{{ c.pie }}</span>
+			            <span class="biblio-tipos">
+			              {% for t in c.tipos %}<span class="biblio-chip">{{ t.label }} <b>{{ t.n }}</b></span>{% endfor %}
+			              {% if c.sin_tipo %}<span class="biblio-chip is-pendiente">Sin clasificar <b>{{ c.sin_tipo }}</b></span>{% endif %}
+			            </span>
+			            <span class="biblio-ir">Abrir →</span>
 			          </a>
-			          {% endif %}
-			          {% if library_pick_counts.aitor %}
-			          <a class="folder-card" href="?{% qs_replace tab='library' lib='aitor' collection_id=None family=None lib_page=None %}">
-			            <strong>🗂️ Biblioteca de Aitor</strong>
-			            <span>{{ library_pick_counts.aitor }} tareas · las del PPT</span>
-			          </a>
-			          {% endif %}
-			          {% if library_pick_counts.importadas %}
-			          <a class="folder-card" href="?{% qs_replace tab='library' lib='importadas' collection_id=None family=None lib_page=None %}">
-			            <strong>📥 Importadas</strong>
-			            <span>{{ library_pick_counts.importadas }} tareas · de libros y de fuera</span>
-			          </a>
-			          {% endif %}
-			          {% comment %}Las interactivas son una carpeta MAS, no un aviso. El listado
-			          siempre las ha traido dentro (partir los repositorios dejo una vez la mitad del
-			          material inalcanzable), asi que se contaban dentro de "Biblioteca general" y
-			          encima se anunciaban aparte en un recuadro amarillo que hablaba de "otro
-			          repositorio". Ahora salen aqui, con el mismo mecanismo que las otras tres.{% endcomment %}
-			          {% if library_pick_counts.interactivas %}
-			          <a class="folder-card" href="?{% qs_replace tab='library' lib='interactivas' collection_id=None family=None lib_page=None %}">
-			            <strong>🎬 Interactivas</strong>
-			            <span>{{ library_pick_counts.interactivas }} tareas · vídeo y escenarios</span>
-			          </a>
-			          {% endif %}
+			          {% endfor %}
 			        </div>
-			        {% if library_pick_counts.general or library_pick_counts.aitor or library_pick_counts.importadas or library_pick_counts.interactivas %}
-			        <p class="meta" style="margin:0.3rem 0 1rem;">Elige una biblioteca… o busca ahí arriba y te salen de todas.</p>
+			        {% if library_pick_cards %}
+			        <p class="meta" style="margin:0.75rem 0 1rem;">Elige una biblioteca… o busca ahí arriba y te salen de todas.</p>
 			        {% else %}
 			        <p class="meta" style="margin:0.3rem 0 1rem;">Todavía no hay tareas en la biblioteca de este equipo.</p>
 			        {% endif %}
@@ -4507,16 +4589,15 @@ agrupado aparecen DENTRO de una carpeta, que es cuando sirven de algo. No se qui
 			          </div>
 			        </div>
 			        {% endif %}
-			        {% comment %}El peso de los dos botones estaba al reves: importar se pintaba en verde
-			        macizo y a la misma anchura que crear, asi que lo que se hace cuatro veces al año
-			        gritaba mas que lo que se hace cada semana. Crear va solido y importar de contorno.{% endcomment %}
+			        {% comment %}Los botones se han ido ARRIBA, con el buscador. Debajo de las carpetas
+			        quedaban como el final de la pantalla, y lo ultimo que se ve no puede ser "crear":
+			        estas eligiendo entre carpetas y el ultimo renglon te ofrecia irte a otro sitio.
+			        Aqui abajo solo queda lo que depende de estar dentro.{% endcomment %}
+			        {% if biblioteca_dentro %}
 			        <div class="library-quick-row">
-			          <a class="button primary" href="{% url task_builder_route_name %}?repo=traditional&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Nueva tarea táctica</a>
-			          {% comment %}Este enlace se dejaba el equipo por el camino: sin `team` la pagina de
-			          importar se abria en el equipo por defecto, no en el que estabas mirando.{% endcomment %}
-			          <a class="button ghost" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}#import-tareas">Importar tareas</a>
-			          {% if biblioteca_dentro %}<a class="button secondary" href="?tab=sessions&sessions_view=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Añadir a sesión</a>{% endif %}
+			          <a class="button secondary" href="?tab=sessions&sessions_view=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Añadir a sesión</a>
 			        </div>
+			        {% endif %}
 			        {% comment %} RECOMENDADAS PARA ESTA SESIÓN. Va ARRIBA del todo y antes de las carpetas: el
 		           momento de recomendar es cuando estás eligiendo qué meter, no cuando ya has
 		           navegado media biblioteca. Cada tarjeta dice POR QUÉ se propone. {% endcomment %}

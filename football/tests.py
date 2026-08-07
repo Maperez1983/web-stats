@@ -14596,12 +14596,15 @@ class SessionsPlanningTests(TestCase):
             reverse('sessions'), {'tab': 'library', 'team': self.team.id}
         ).content.decode('utf-8', 'replace')
 
-        self.assertIn('🎬 Interactivas', portada, 'las interactivas necesitan su carpeta')
+        self.assertIn("lib=interactivas", portada, 'las interactivas necesitan su carpeta')
+        self.assertIn('>Interactivas</strong>', portada)
         self.assertNotIn('otro repositorio', portada, 'el recuadro amarillo se va')
 
-        # Y no se cuentan dos veces: la que esta en Interactivas no esta tambien en la general.
-        i = portada.index('🎬 Interactivas')
-        self.assertIn('1 tarea', portada[i:i + 260])
+        # Y la tarjeta dice de que esta hecha: numero y desglose por tipo (aqui, sin clasificar).
+        i = portada.index("lib=interactivas")
+        tarjeta = portada[i:i + 900]
+        self.assertIn('biblio-num">1<', tarjeta.replace(' ', ''), 'la tarjeta tiene que contar 1')
+        self.assertIn('Sin clasificar', tarjeta, 'y decir lo que queda por clasificar')
 
         # Dentro se entra igual que en las otras: primero el tipo de entreno, luego las tareas.
         # (update() y no save(): save() deriva task_family del JSON y borraria lo que ponemos.)
