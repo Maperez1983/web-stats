@@ -4017,6 +4017,12 @@ def _task_matches_autonomous_strategy(task: dict, strategy: dict) -> bool:
 
 
 def _execute_queued_task(workspace, task: dict) -> dict:
+    # Undecima cosa que aparecia en el camino del chat, y la mas seria: aqui se EJECUTAN las
+    # tareas de reparacion en cola (entre ellas deduplicar tareas de sesion, que toca datos
+    # del usuario). Que eso se dispare porque alguien escriba una pregunta no es un problema
+    # de rendimiento: es que no debe pasar. Con el guardian en modo accion se ejecuta igual.
+    if not sondas_caras_permitidas():
+        return {**_OMITIDA, "executed": False}
     if not workspace or not isinstance(task, dict):
         return task or {}
     task_id = str(task.get("id") or "").strip()
