@@ -4724,61 +4724,13 @@ agrupado aparecen DENTRO de una carpeta, que es cuando sirven de algo. No se qui
 			          {% endif %}
 			        </div>
 
-			        {% comment %}COLECCIONES, PLEGADAS. Ya has elegido biblioteca y ahora eliges TIPO;
-			        debajo aparecía una segunda fila de carpetas que se llaman igual que las de arriba
-			        ("Biblioteca de Aitor", "Tareas importadas") y que además cuentan sobre TODA la
-			        biblioteca: dentro de Interactivas, que tiene 24 tareas, anunciaban 389. Dos
-			        sistemas de carpetas a la vez y uno de ellos diciendo números de otro sitio.
-			        Siguen enteras, pero plegadas: se abren solas si ya estás dentro de una.{% endcomment %}
-			        <details class="library-colecciones" {% if library_collection_id %}open{% endif %} style="margin-top:0.75rem;">
-			          <summary class="meta" style="cursor:pointer; font-weight:800; padding:.35rem 0;">🗂️ Colecciones{% if library_collections %} ({{ library_collections|length }}){% endif %}</summary>
-			        {# Colecciones: hasta ahora sólo existían como desplegable escondido, así que una #}
-			        {# colección creada no se podía ABRIR. Aquí se ven como carpetas, igual que arriba. #}
-			        <div class="folder-grid" aria-label="Colecciones de tareas" style="margin-top:0.5rem;">
-			          <a
-			            class="folder-card {% if not library_collection_id %}is-current{% endif %}"
-			            href="?{% qs_replace tab='library' collection_id=None lib_page=None %}"
-			            {% if not library_collection_id %}aria-current="page"{% endif %}
-			          >
-			            <strong>📚 Todas</strong>
-			            <span>Sin colección · toda la carpeta</span>
-			          </a>
-			          {% for col in library_collections %}
-			          <a
-			            class="folder-card {% if library_collection_id == col.id %}is-current{% endif %}"
-			            href="?{% qs_replace tab='library' collection_id=col.id lib_page=None %}"
-			            {% if library_collection_id == col.id %}aria-current="page"{% endif %}
-			          >
-			            <strong>🗂️ {{ col.name }}</strong>
-			            <span>{{ col.item_count|default:0 }} tareas · colección</span>
-			          </a>
-			          {% endfor %}
-			          {% comment %} SUBCARPETAS de la carpeta en la que estás. Con 209 tareas dentro de
-			             Importadas, una lista plana no hay quien la recorra: aquí se parte por
-			             tipo de tarea sin salir de la carpeta. {% endcomment %}
-			          {% for sub in library_subcarpetas %}
-			          <a
-			            class="folder-card {% if library_collection_id == sub.id %}is-current{% endif %}"
-			            href="?{% qs_replace tab='library' collection_id=sub.id lib_page=None %}"
-			            {% if library_collection_id == sub.id %}aria-current="page"{% endif %}
-			          >
-			            <strong>↳ {{ sub.name }}</strong>
-			            <span>{{ sub.item_count|default:0 }} tareas · subcarpeta</span>
-			          </a>
-			          {% endfor %}
-			          <details class="folder-card" style="cursor:pointer;">
-			            <summary style="list-style:none; font-weight:900;">➕ Nueva colección</summary>
-			            <form method="post" style="margin:0.55rem 0 0; display:grid; gap:0.4rem;">
-			              {% csrf_token %}
-			              <input type="hidden" name="planner_action" value="create_task_collection" />
-			              <input type="hidden" name="planner_tab" value="library" />
-			              <input type="hidden" name="library_repo" value="{{ library_repository }}" />
-			              <input type="text" name="collection_name" placeholder="Nombre (ej: ‘Biblioteca de Aitor’)…" />
-			              <button type="submit" class="button secondary small">Crear</button>
-			            </form>
-			          </details>
-			        </div>
-			        </details>
+			        {% comment %}Aqui vivia una segunda fila de carpetas: "Todas", "Biblioteca de
+			        Aitor", "Tareas importadas", "Nueva coleccion". Duplicaba las bibliotecas de la
+			        portada -literalmente: esas colecciones SON las bibliotecas, las carpetas de arriba
+			        se construyen a partir de ellas- y ademas contaba sobre toda la biblioteca: dentro
+			        de Interactivas, con 24 tareas, anunciaba 389. Una carpeta por cosa y una sola vez:
+			        eliges biblioteca arriba y tipo de entreno aqui. Las colecciones siguen existiendo
+			        como mecanismo, y se les añaden tareas desde el listado.{% endcomment %}
 
 			        {% comment %}"Estás viendo la carpeta: Creadas" salía SIEMPRE, y "Creadas" es el valor
 			        por defecto: una línea que no dice nada nuevo entre dos filas de carpetas. Sólo se

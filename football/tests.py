@@ -14647,20 +14647,19 @@ class SessionsPlanningTests(TestCase):
         """Ya has elegido biblioteca: ahora eliges TIPO, y nada más.
 
         Debajo aparecía una segunda fila de carpetas llamadas igual que las de arriba
-        ("Biblioteca de Aitor", "Tareas importadas") y que además contaban sobre TODA la
-        biblioteca: dentro de Interactivas, con 24 tareas, anunciaban 389. Y encima una línea
-        "Estás viendo la carpeta: Creadas", que es el valor por defecto y no dice nada.
+        ("Biblioteca de Aitor", "Tareas importadas"). No es que se parecieran: esas colecciones
+        SON las bibliotecas -las carpetas de la portada se construyen a partir de ellas-, así que
+        era la misma cosa dos veces, y encima contando sobre toda la biblioteca: dentro de
+        Interactivas, con 24 tareas, anunciaban 389.
         """
         html = self.client.get(
             reverse('sessions'),
             {'tab': 'library', 'lib': 'general', 'team': self.team.id},
         ).content.decode('utf-8', 'replace')
 
-        i = html.index('aria-label="Colecciones de tareas"')
-        antes = html[max(0, i - 700):i]
-        self.assertIn('<details class="library-colecciones"', antes, 'las colecciones van plegadas')
-        self.assertNotIn('open>', antes.split('library-colecciones')[-1],
-                         'y cerradas si no estás dentro de una')
+        self.assertNotIn('aria-label="Colecciones de tareas"', html,
+                         'esa fila duplicaba las bibliotecas de la portada')
+        self.assertNotIn('Nueva colección', html, 'y su botón de crear, con ella')
         self.assertNotIn('Estás viendo la carpeta', html, 'esa línea sólo cuando no es lo normal')
 
         # Los tipos, en cambio, mandan: son la única fila de carpetas que se ve al entrar.
