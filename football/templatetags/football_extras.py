@@ -172,3 +172,17 @@ def display_position(value):
         if key in _POSITION_DISPLAY_MAP:
             return _POSITION_DISPLAY_MAP[key]
     return _smart_title(text)
+
+
+@register.filter
+def dic(mapping, key):
+    """Lee un diccionario con una clave VARIABLE: `{{ contadores|dic:valor }}`.
+
+    En plantilla `{{ d.x }}` sólo sirve para claves literales; con una clave que viene de un bucle
+    no hay forma de mirar dentro sin esto. Se usa para poner en cada carpeta de tipo de tarea
+    cuántas tiene.
+    """
+    try:
+        return mapping.get(key)
+    except Exception:
+        return None

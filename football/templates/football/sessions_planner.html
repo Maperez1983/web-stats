@@ -1006,6 +1006,19 @@
         border-color: rgba(244, 180, 0, 0.44);
         transform: translateY(-1px);
       }
+      /* Carpeta de TIPO DE ENTRENO: se reconoce por la foto antes de leer el nombre. */
+      .familia-card { padding: 0; overflow: hidden; }
+      .familia-card .familia-foto {
+        display: block;
+        width: 100%;
+        height: 92px;
+        background-size: cover;
+        background-position: center;
+        background-color: rgba(255,255,255,0.05);
+      }
+      .familia-card strong, .familia-card span:not(.familia-foto) { padding: 0 0.72rem; }
+      .familia-card strong { padding-top: 0.5rem; }
+      .familia-card span:not(.familia-foto) { padding-bottom: 0.6rem; }
       .folder-card strong {
         display: block;
         font-size: 0.86rem;
@@ -4518,12 +4531,20 @@ agrupado aparecen DENTRO de una carpeta, que es cuando sirven de algo. No se qui
 			            <span>Sin filtrar por tipo</span>
 			          </a>
 			          {% for value, label in task_family_choices %}
-			          <a class="folder-card {% if library_family == value %}is-current{% endif %}"
+			          {% comment %}La carpeta dice CUANTAS tareas tiene: sin el numero hay que entrar a
+			          mirar una por una. Y lleva una foto del tipo de entreno, que se reconoce antes de
+			          leer. Las vacias no se pintan: una carpeta con 0 no es una carpeta.{% endcomment %}
+			          {% with n=library_family_counts|dic:value %}
+			          {% if n %}
+			          <a class="folder-card familia-card {% if library_family == value %}is-current{% endif %}"
 			             href="?{% qs_replace tab='library' family=value lib_page=None %}"
 			             {% if library_family == value %}aria-current="page"{% endif %}>
+			            <span class="familia-foto" style="background-image:url('{% static "football/images/familias/" %}{{ value }}.jpg');" aria-hidden="true"></span>
 			            <strong>{{ label }}</strong>
-			            <span>tipo de tarea</span>
+			            <span>{{ n }} tarea{{ n|pluralize:"s" }}</span>
 			          </a>
+			          {% endif %}
+			          {% endwith %}
 			          {% endfor %}
 			        </div>
 
@@ -4873,7 +4894,10 @@ agrupado aparecen DENTRO de una carpeta, que es cuando sirven de algo. No se qui
         </div>
         {% endif %}
                 <div class="task-list">
-                  {% if library_pick or library_q %}{# la rejilla: con biblioteca elegida O buscando (la búsqueda mira en todas) #}
+                  {% comment %}Entrar en una biblioteca ya no vuelca las tareas: primero se elige
+                  TIPO DE ENTRENO (rondo, rueda de pases, partido...). Con 179 tareas de golpe no se
+                  encuentra nada. Buscando si se listan, porque ahi ya has dicho que quieres.{% endcomment %}
+                  {% if library_family or library_q or library_collection_id %}
                   {% for t in task_library_page_items %}
                   {% if library_group_by_block %}{% ifchanged t.block %}<div class="library-block-header">{{ t.get_block_display|default:"Sin bloque" }}</div>{% endifchanged %}{% endif %}
 			          <article

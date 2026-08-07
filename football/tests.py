@@ -14347,6 +14347,38 @@ class SessionsPlanningTests(TestCase):
                 marcada = _re.findall(r'is-active[^>]*>([^<>]{3,14})</a>', trozo)[:1]
                 self.assertEqual(marcada, [activa], f'{tab} deberia marcar {activa}')
 
+    def test_entrar_en_una_biblioteca_ensena_carpetas_por_tipo_no_tareas(self):
+        """Entrar en una biblioteca no puede volcar las tareas.
+
+        Primero se elige TIPO DE ENTRENO (rondo, rueda de pases, partido...), con el numero de
+        tareas en cada carpeta. Las tareas salen al elegir tipo. Las carpetas vacias no se pintan.
+        """
+        from football.library_repositories import LIBRARY_MICROCYCLE_MARKER
+
+        # La tarea tiene que colgar de un microciclo de BIBLIOTECA: si no, no entra en el listado.
+        micro_biblioteca = TrainingMicrocycle.objects.create(
+            team=self.team, title='Biblioteca general',
+            week_start=date(2000, 1, 10), week_end=date(2000, 1, 16),
+            notes=LIBRARY_MICROCYCLE_MARKER,
+        )
+        sesion = TrainingSession.objects.create(
+            microcycle=micro_biblioteca, session_date=date(2000, 1, 11),
+            focus='Biblioteca general', duration_minutes=90,
+        )
+        for i in range(3):
+            SessionTask.objects.create(session=sesion, title=f'Rondo {i}', duration_minutes=15)
+        # task_family se DERIVA en save() desde el JSON: hay que forzarla con update().
+        SessionTask.objects.filter(session=sesion).update(task_family='rondo')
+
+        url = reverse('sessions')
+        entrando = self.client.get(
+            url, {'tab': 'library', 'team': self.team.id, 'lib': 'general'}
+        ).content.decode('utf-8', 'replace')
+
+        self.assertIn('aria-label="Tipo de tarea"', entrando, 'las carpetas por tipo son la puerta')
+        self.assertIn('familias/rondo.jpg', entrando, 'cada carpeta lleva su foto')
+        self.assertNotIn('Transición</strong>', entrando, 'una carpeta sin tareas no se pinta')
+
     def test_update_library_task_does_not_wipe_unposted_fields_on_rename(self):
         session = TrainingSession.objects.create(
             microcycle=self.microcycle,
