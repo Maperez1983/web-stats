@@ -80,6 +80,20 @@ class ConQueSeDibujaCadaFichaTests(TestCase):
         self.assertTrue(url, "la ficha se ha quedado sin imagen")
         self.assertTrue(url.endswith("kit_home_hd.png"), url)
 
+    def test_si_ha_subido_foto_el_estilo_foto_le_ensenia_SU_foto(self):
+        """Sin recorte del club manda la foto subida: si el entrenador pide "Foto" y le sale una
+        figura, no le estamos haciendo caso. En las otras tres presentaciones no entra nunca."""
+        import datetime as _dt
+
+        self.campo.photo_updated_at = _dt.datetime(2026, 8, 7, 12, 0)
+        self.campo.save(update_fields=["photo_updated_at"])
+        url = self._url(self.campo, "titular", "foto")
+        self.assertIn(f"/player/{self.campo.id}/photo/", url)
+        # Y sigue sin entrar donde no la han pedido.
+        for estilo in ("chapa", "camiseta", "avatar"):
+            with self.subTest(estilo=estilo):
+                self.assertNotIn("/photo/", self._url(self.campo, "titular", estilo))
+
     def test_un_estilo_desconocido_no_rompe_la_pizarra(self):
         from football.views import board_estilo_valido
 
