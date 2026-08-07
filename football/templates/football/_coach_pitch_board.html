@@ -14,16 +14,7 @@
       <p class="muted" style="margin:0;">Toca un jugador para abrir su ficha · arrástralo para recolocarlo.</p>
     </div>
     <div class="pb-head-actions">
-      {% if board_kit_options %}
-      <label class="pb-kit" title="Con qué equipación se pinta la plantilla">
-        <span class="pb-kit-label">Equipación</span>
-        <select data-pb-kit>
-          {% for clave, etiqueta in board_kit_options %}
-          <option value="{{ clave }}"{% if clave == board_kit %} selected{% endif %}>{{ etiqueta }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      {% endif %}
+      {% include 'football/includes/_board_view_controls.html' %}
       <div class="pb-view-toggle" role="group" aria-label="Cambiar vista">
         <button type="button" class="pb-view-btn is-active" data-pb-view="field">Campo</button>
         <button type="button" class="pb-view-btn" data-pb-view="list">Lista</button>
@@ -35,7 +26,7 @@
   <div class="pb-field" data-pb-team="{{ primary_team_id|default:0 }}" data-pb-save-url="{% url 'coach-pitch-board-save' %}"
        style="background-image:url('{% static 'football/images/pitch3d/coach_home_pitch_surface.png' %}');">
     {% for p in coach_pitch_players %}
-    <a class="pb-chip pb-{{ p.state }}{% if p.is_scout %} pb-scout{% endif %}" href="{{ p.ficha_url }}" data-pb-pid="{{ p.id }}" data-pb-state="{{ p.state }}"{% if p.is_scout %} data-pb-scout="1"{% endif %} draggable="false"
+    <a class="pb-chip pb-{{ p.state }}{% if p.is_scout %} pb-scout{% endif %}" href="{{ p.ficha_url }}" data-pb-pid="{{ p.id }}" data-pb-state="{{ p.state }}" data-pb-estilo="{{ p.estilo|default:'avatar' }}"{% if p.is_scout %} data-pb-scout="1"{% endif %} draggable="false"
        style="left:{{ p.left|unlocalize }}%;top:{{ p.top|unlocalize }}%;"
        title="{{ p.name }} · {{ p.state_label }}" aria-label="{{ p.name }}, {{ p.position|default:'jugador' }}, {{ p.state_label }}. Abrir ficha.">
       <span class="pb-avatar"><img src="{% if p.avatar_url %}{{ p.avatar_url }}{% else %}{% static p.avatar %}{% endif %}" alt="" draggable="false" /></span>
@@ -88,14 +79,6 @@
   }
   .pb-reset:hover { background: rgba(244, 180, 0, 0.16); }
   .pb-head-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
-  .pb-kit { display: inline-flex; align-items: center; gap: 0.4rem; }
-  .pb-kit-label { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--prod-muted, #94a3b8); }
-  .pb-kit select {
-    border: 1px solid rgba(148, 163, 184, 0.28); border-radius: 999px; padding: 0.35rem 0.7rem;
-    background: rgba(15, 23, 42, 0.22); color: var(--prod-text, #e5e7eb); font: inherit; font-size: 0.76rem;
-    font-weight: 750; cursor: pointer;
-  }
-  .pb-kit select:focus-visible { outline: 2px solid var(--accent, #f4b400); outline-offset: 2px; }
   .pb-view-toggle { display: inline-flex; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 999px; overflow: hidden; }
   .pb-view-btn { border: 0; background: transparent; color: var(--prod-muted, #94a3b8); padding: 0.4rem 0.85rem; font-size: 0.74rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer; }
   .pb-view-btn.is-active { background: rgba(244, 180, 0, 0.16); color: var(--accent, #f4b400); }
@@ -141,6 +124,22 @@
     filter: drop-shadow(0 7px 9px rgba(0, 0, 0, 0.55));
   }
   .pb-avatar img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+  /* Una chapa y una camiseta son cuadradas y se miran de frente; una figura se apoya en el suelo.
+     Con la caja alta de la figura, la chapa salia pequeñita y pegada abajo. */
+  .pb-chip[data-pb-estilo="chapa"] .pb-avatar,
+  .pb-chip[data-pb-estilo="camiseta"] .pb-avatar {
+    align-items: center;
+    height: clamp(44px, 6.8cqw, 82px);
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45));
+  }
+  .pb-chip[data-pb-estilo="foto"] .pb-avatar {
+    align-items: center;
+    height: clamp(44px, 6.8cqw, 82px);
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid rgba(255, 255, 255, 0.75);
+  }
+  .pb-chip[data-pb-estilo="foto"] .pb-avatar img { object-fit: cover; object-position: center 15%; }
   .pb-num {
     position: absolute; top: -6px; left: 50%; transform: translateX(-140%);
     min-width: 20px; height: 20px; padding: 0 4px; border-radius: 999px;
@@ -272,16 +271,6 @@
       field.addEventListener('touchstart', onDown, { passive: true });
       window.addEventListener('touchmove', onMove, { passive: false });
       window.addEventListener('touchend', onUp);
-    }
-
-    // Equipación: se guarda por equipo y se recarga, porque la figura de cada jugador la resuelve
-    // el servidor (avatar suyo con esa camiseta si lo tiene, y si no la figura de librería).
-    var kitSelect = document.querySelector('[data-pb-kit]');
-    if (kitSelect) {
-      kitSelect.addEventListener('change', function () {
-        postForm({ team_id: team, kit: kitSelect.value });
-        setTimeout(function () { location.reload(); }, 250);
-      });
     }
 
     var reset = document.querySelector('[data-pb-reset]');

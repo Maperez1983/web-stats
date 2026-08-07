@@ -136,6 +136,8 @@
             <button class="button" id="tp-delete" type="button">Borrar</button>
             <button class="button" id="tp-lanes-toggle" type="button" aria-pressed="false">Carriles: OFF</button>
             <button class="button" id="tp-play" type="button" title="Ver el movimiento entre fases">▶ Animar</button>
+            {% csrf_token %}
+            {% include 'football/includes/_board_view_controls.html' %}
           </div>
           <div class="tp-phases" id="tp-phases" role="tablist" aria-label="Fases del planteamiento"></div>
           <div class="tp-pitch" id="tp-pitch" role="application" aria-label="Campo con los dos onces"></div>

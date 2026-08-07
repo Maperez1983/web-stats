@@ -2921,9 +2921,14 @@
       const saveUrl = matchId ? `${saveUrlBase}?match_id=${encodeURIComponent(matchId)}` : saveUrlBase;
       const publishUrlBase = '{% url "initial-eleven-publish" %}';
       const publishUrl = matchId ? `${publishUrlBase}?match_id=${encodeURIComponent(matchId)}` : publishUrlBase;
-      // Estilo de ficha en el campo: chapa (camiseta) / foto (real) / avatar. Se recuerda.
+      // Estilo de ficha en el campo: chapa / camiseta / foto / avatar.
+      // El valor de arranque lo manda el SERVIDOR, que es donde vive la preferencia del equipo
+      // desde que las cuatro pizarras comparten selector; el localStorage se queda de respaldo
+      // para el que ya tuviera uno elegido antes de esto.
       const TOKEN_STYLE_KEY = 'webstats:xi:token-style:v1';
+      const TOKEN_STYLE_SERVIDOR = '{{ board_estilo|default:""|escapejs }}';
       const readTokenStyle = () => {
+        if (TOKEN_STYLE_SERVIDOR) return TOKEN_STYLE_SERVIDOR;
         try { const v = window.localStorage?.getItem(TOKEN_STYLE_KEY); if (v === 'chapa' || v === 'camiseta' || v === 'foto' || v === 'avatar') return v; } catch (_) {}
         return 'foto';
       };
@@ -4798,6 +4803,18 @@
         if (!ESTILOS_FICHA.includes(v)) return;
         tokenStyle = v;
         try { window.localStorage?.setItem(TOKEN_STYLE_KEY, v); } catch (_) {}
+        // Y al servidor, para que la plantilla y el Planteamiento se vean igual que el 11.
+        try {
+          const eq = '{{ primary_team_id|default:0 }}';
+          const tok = (document.querySelector('input[name=csrfmiddlewaretoken]') || {}).value
+            || (document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/) || [])[1] || '';
+          fetch('{% url "coach-pitch-board-save" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': decodeURIComponent(tok), 'X-Requested-With': 'XMLHttpRequest' },
+            body: 'team_id=' + encodeURIComponent(eq) + '&estilo=' + encodeURIComponent(v),
+            credentials: 'same-origin'
+          }).catch(function () {});
+        } catch (_) {}
         applyTokenStyleButtons();
         renderField();
       };

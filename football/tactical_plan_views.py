@@ -188,25 +188,40 @@ def _escudo_de(equipo):
     return str(getattr(equipo, 'crest_url', '') or '')
 
 
-def _foto_de(request, player):
-    """La imagen de la ficha del campo. Figura recortada, NUNCA la foto de carnet.
+def _foto_de(request, player, kit=None, estilo=None):
+    """La imagen de la ficha del campo, segun COMO se haya elegido ver la pizarra.
 
     Antes iba al reves: primero la foto y el avatar de ultimo recurso. Con el recorte estatico
     del club salia bien, pero el jugador que no lo tiene acababa con su foto subida metida en
     una ficha redonda de 62 px: el recorte circular le caia en la camiseta y salia un disco
     liso sin cara. Verificado en produccion el 2026-08-06.
+
+    Con `estilo` (chapa / camiseta / foto / avatar) manda la puerta unica de la presentacion, la
+    misma que usa la pizarra de plantilla; sin el, se conserva el comportamiento de siempre.
     """
     from django.templatetags.static import static as _static
 
     from .player_media import resolve_player_photo_static_path
-    from .views import resolve_player_board_avatar_url
+    from .views import resolve_player_board_avatar_url, resolve_player_board_token_url
 
+    _recorte = ''
     try:
         ruta = resolve_player_photo_static_path(player)
         if ruta:
-            return _static(ruta)
+            _recorte = _static(ruta)
     except Exception:
-        pass
+        _recorte = ''
+    if estilo:
+        try:
+            # El recorte del club es la mejor "foto" que hay: se le pasa para que no tenga que
+            # buscarla otra vez, y para que "foto" signifique lo mismo aqui que en la plantilla.
+            return resolve_player_board_token_url(
+                player, kit=kit, estilo=estilo, foto_url=_recorte
+            ) or ''
+        except Exception:
+            pass
+    if _recorte:
+        return _recorte
     try:
         return resolve_player_board_avatar_url(player) or ''
     except Exception:
@@ -310,10 +325,20 @@ def tactical_plan_page(request):
     except Exception:
         partidos = []
 
+    # Cómo quiere ver la pizarra (ficha y equipación): la MISMA preferencia que la plantilla, para
+    # que elegir "camiseta" en una pantalla no le deje la de al lado con figuras.
+    from .views import _get_active_workspace, board_estilo_para_equipo, board_kit_para_equipo, coach_pitch_board_context
+
+    _ws = _get_active_workspace(request)
+    _kit = board_kit_para_equipo(_ws, equipo)
+    _estilo = board_estilo_para_equipo(_ws, equipo)
+
     return render(request, 'football/tactical_plan.html', {
         'partidos_json': json.dumps(partidos),
         'team': equipo,
         'team_name': equipo.display_name,
+        'primary_team_id': int(getattr(equipo, 'id', 0) or 0),
+        **coach_pitch_board_context(_ws, equipo),
         'planes_json': json.dumps([_plan_json(p) for p in planes]),
         'jugadores_json': json.dumps([
             {
@@ -323,7 +348,7 @@ def tactical_plan_page(request):
                 'position': (p.position or '').strip(),
                 # La cara del jugador: es lo que hace que la pizarra sea SU equipo y no once
                 # círculos de color. Primero su foto; si no tiene, la figura recoloreada.
-                'photo_url': _foto_de(request, p),
+                'photo_url': _foto_de(request, p, kit=_kit, estilo=_estilo),
                 'baja': bajas.get(p.id, ''),
             }
             for p in jugadores

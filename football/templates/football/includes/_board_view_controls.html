@@ -1,0 +1,100 @@
+{% comment %}
+  Cómo se ve una pizarra: CON QUÉ se dibuja cada ficha (chapa / camiseta / foto / avatar) y CON QUÉ
+  EQUIPACIÓN. Va en un include compartido a propósito: hay cuatro pizarras interactivas y hasta
+  ahora cada una decidía por su cuenta —el 11 tenía los cuatro estilos y las otras tres ninguno—,
+  que es justo cómo la misma cosa acaba llamándose de dos maneras según la pantalla.
+
+  Necesita en contexto: board_estilo, board_estilo_options, board_kit, board_kit_options,
+  primary_team_id, y la URL de guardado. Lo guarda el servidor por equipo, no el navegador: la
+  elección tiene que seguirte del portátil al iPad del campo.
+{% endcomment %}
+{% if board_estilo_options or board_kit_options %}
+<div class="bvc" data-board-view data-bvc-team="{{ primary_team_id|default:0 }}"
+     data-bvc-url="{% url 'coach-pitch-board-save' %}">
+  {% if board_estilo_options %}
+  <label class="bvc-campo">
+    <span class="bvc-etiqueta">Ficha</span>
+    <select data-bvc-estilo aria-label="Con qué se dibuja cada jugador">
+      {% for clave, etiqueta in board_estilo_options %}
+      <option value="{{ clave }}"{% if clave == board_estilo %} selected{% endif %}>{{ etiqueta }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  {% endif %}
+  {% if board_kit_options %}
+  <label class="bvc-campo">
+    <span class="bvc-etiqueta">Equipación</span>
+    <select data-bvc-kit aria-label="Con qué equipación se dibuja el equipo">
+      {% for clave, etiqueta in board_kit_options %}
+      <option value="{{ clave }}"{% if clave == board_kit %} selected{% endif %}>{{ etiqueta }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  {% endif %}
+</div>
+
+<style>
+  .bvc { display: inline-flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+  .bvc-campo { display: inline-flex; align-items: center; gap: 0.35rem; }
+  .bvc-etiqueta {
+    font-size: 0.72rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--prod-muted, #94a3b8);
+  }
+  .bvc select {
+    border: 1px solid rgba(148, 163, 184, 0.28); border-radius: 999px; padding: 0.35rem 0.7rem;
+    background: rgba(15, 23, 42, 0.22); color: var(--prod-text, #e5e7eb); font: inherit;
+    font-size: 0.76rem; font-weight: 750; cursor: pointer;
+  }
+  .bvc select:focus-visible { outline: 2px solid var(--accent, #f4b400); outline-offset: 2px; }
+  @media print { .bvc { display: none; } }
+</style>
+
+<script>
+  (function () {
+    var caja = document.querySelector('[data-board-view]');
+    if (!caja || caja.dataset.bvcListo) return;
+    caja.dataset.bvcListo = '1';
+    var equipo = caja.getAttribute('data-bvc-team') || '0';
+    var url = caja.getAttribute('data-bvc-url') || '';
+
+    function csrf() {
+      var input = document.querySelector('input[name=csrfmiddlewaretoken]');
+      if (input && input.value) return input.value;
+      var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+      return m ? decodeURIComponent(m[1]) : '';
+    }
+
+    // Se recarga después de guardar porque la figura la resuelve el SERVIDOR: sabe si ese
+    // jugador tiene su avatar con esa camiseta, su recorte o sólo la figura genérica.
+    function guardar(datos) {
+      if (!url) return;
+      var cuerpo = Object.keys(datos).map(function (k) {
+        return encodeURIComponent(k) + '=' + encodeURIComponent(datos[k]);
+      }).join('&');
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-CSRFToken': csrf(),
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: cuerpo,
+        credentials: 'same-origin'
+      }).then(function () { location.reload(); }).catch(function () { location.reload(); });
+    }
+
+    var estilo = caja.querySelector('[data-bvc-estilo]');
+    if (estilo) {
+      estilo.addEventListener('change', function () {
+        guardar({ team_id: equipo, estilo: estilo.value });
+      });
+    }
+    var kit = caja.querySelector('[data-bvc-kit]');
+    if (kit) {
+      kit.addEventListener('change', function () {
+        guardar({ team_id: equipo, kit: kit.value });
+      });
+    }
+  })();
+</script>
+{% endif %}
