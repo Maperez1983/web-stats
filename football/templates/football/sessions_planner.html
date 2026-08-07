@@ -4346,6 +4346,14 @@
 			        {% else %}
 			        <p class="meta" style="margin:0.3rem 0 1rem;">Todavía no hay tareas en la biblioteca de este equipo.</p>
 			        {% endif %}
+			        {# Guardas una tarea, entras a buscarla y no esta porque estabas en otro #}
+			        {# repositorio, y nada te lo decia. Ahora se dice y se enlaza. #}
+			        {% if library_otros_repos %}
+			        <p class="meta" style="margin:-0.4rem 0 1rem; padding:.55rem .7rem; border-radius:9px; background:rgba(250,204,21,.12); border:1px solid rgba(250,204,21,.42);">
+			          ⚠️ Este equipo tiene tareas en otro repositorio:
+			          {% for r in library_otros_repos %}<a href="?{% qs_replace tab='library' library_repo=r.repo lib=None collection_id=None family=None lib_page=None %}"><strong>{{ r.n }}</strong> en {{ r.label }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}.
+			        </p>
+			        {% endif %}
 			        {% else %}
 			        <p class="meta" style="margin:0.3rem 0 0.6rem;">
 			          <a class="button secondary small" href="?{% qs_replace tab='library' lib=None collection_id=None family=None lib_page=None %}">← Todas las bibliotecas</a>
