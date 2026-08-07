@@ -37,7 +37,7 @@ jobs:
         with:
           fetch-depth: 0   # gitleaks necesita el historial para mirar commits antiguos
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11.9"
           cache: pip
