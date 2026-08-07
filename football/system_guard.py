@@ -1446,6 +1446,10 @@ def _local_navigation_audit_snapshot(workspace, *, actor_id=None, page_context=N
 
 
 def _browser_navigation_audit_snapshot(workspace, *, actor_id=None, page_context=None) -> dict:
+    # Abrir un navegador headless (Playwright) es la sonda mas cara que existe aqui, y el
+    # chat la lanzaba para contestarte una pregunta. Respeta el candado como las demas.
+    if not sondas_caras_permitidas():
+        return {"enabled": False, "reason": "sonda_omitida_en_el_chat", "routes": []}
     context = page_context if isinstance(page_context, dict) else {}
     if not workspace:
         return {"enabled": False, "reason": "workspace_required", "routes": []}
@@ -1622,6 +1626,10 @@ def _browser_navigation_audit_snapshot(workspace, *, actor_id=None, page_context
 
 
 def _browser_visual_page_snapshot(workspace, *, actor_id=None, page_context=None) -> dict:
+    # Abrir un navegador headless (Playwright) es la sonda mas cara que existe aqui, y el
+    # chat la lanzaba para contestarte una pregunta. Respeta el candado como las demas.
+    if not sondas_caras_permitidas():
+        return {"enabled": False, "reason": "sonda_omitida_en_el_chat", "routes": []}
     context = page_context if isinstance(page_context, dict) else {}
     if not workspace:
         return {"enabled": False, "reason": "workspace_required"}
@@ -1860,6 +1868,8 @@ def _browser_visual_analysis_payload(snapshot: dict) -> dict:
 
 
 def _browser_visual_openai_analysis(*, page_context=None) -> dict:
+    if not sondas_caras_permitidas():
+        return {"enabled": False, "reason": "sonda_omitida_en_el_chat"}
     context = page_context if isinstance(page_context, dict) else {}
     snapshot = context.get("browser_visual_snapshot") if isinstance(context.get("browser_visual_snapshot"), dict) else {}
     if not snapshot:
@@ -2780,6 +2790,8 @@ def _inspect_critical_paths() -> dict:
 
 
 def _probe_ollama(cfg: dict) -> dict:
+    if not sondas_caras_permitidas():
+        return {**_OMITIDA, "enabled": True, "reachable": False}
     started_at = time.monotonic()
     enabled = bool(cfg.get("enabled"))
     base_url = str(cfg.get("base_url") or "").rstrip("/")
@@ -5989,6 +6001,8 @@ def _autofix_dedupe_session_tasks(*, workspace=None, page_context=None) -> dict:
 
 
 def _autofix_ollama_pull(model_name: str) -> dict:
+    if not sondas_caras_permitidas():
+        return {**_OMITIDA}
     model = str(model_name or "").strip()
     if not model:
         return {"ok": False, "error": "empty_model"}
