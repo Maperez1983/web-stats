@@ -14475,6 +14475,23 @@ class SessionsPlanningTests(TestCase):
         self.assertNotIn('Tipo:', tarjeta, 'el tipo ya lo dice la carpeta por la que has entrado')
         self.assertNotIn('Fase:', tarjeta, 'y la fase repetia la misma palabra')
 
+    def test_crear_ofrece_lo_que_promete_y_no_una_puerta_a_tactica(self):
+        """La portada de "Crear" era solo un atajo llamado "Pizarra libre" que iba a Tactica.
+
+        Tactica ya es su propia zona en el menu: era una cuarta puerta al mismo lienzo, con un
+        nombre que no existia en ningun otro sitio. Ahora la pestaña ofrece Tarea, Sesion y
+        Microciclo, que es lo que dice su nombre.
+        """
+        html = self.client.get(
+            reverse('sessions'), {'tab': 'create', 'team': self.team.id}
+        ).content.decode('utf-8', 'replace')
+        ini = html.index('data-tab="create"')
+        panel = html[ini:html.index('class="tab-panel', ini + 10)]
+
+        self.assertNotIn('Pizarra libre', panel, 'Tactica ya tiene su zona en el menu')
+        for opcion in ('create_page=task', 'create_page=session', 'create_page=microcycle'):
+            self.assertIn(opcion, panel, f'falta la opcion {opcion}')
+
     def test_update_library_task_does_not_wipe_unposted_fields_on_rename(self):
         session = TrainingSession.objects.create(
             microcycle=self.microcycle,
