@@ -46,8 +46,8 @@ def meta_de(dic):
     return meta if isinstance(meta, dict) else None
 
 
-def marca_en_metadata(tarea):
-    """¿La marca está en la METADATA de la tarea? (lo otro es la sesión, y eso no se toca aquí)"""
+def repo_en_metadata(tarea):
+    """El repositorio que dice la METADATA de la tarea, o "" si no dice nada."""
     for campo in ("task_layout_light", "tactical_layout"):
         meta = meta_de(getattr(tarea, campo, None))
         if not meta:
@@ -55,8 +55,13 @@ def marca_en_metadata(tarea):
         for clave in CLAVES_REPO:
             repo = normalize_library_repository(meta.get(clave), fallback="")
             if repo in LIBRARY_REPOSITORY_CHOICES:
-                return repo == LIBRARY_REPOSITORY_INTERACTIVE
-    return False
+                return repo
+    return ""
+
+
+def marca_en_metadata(tarea):
+    """¿La marca está en la METADATA de la tarea? (lo otro es la sesión, y eso no se toca aquí)"""
+    return repo_en_metadata(tarea) == LIBRARY_REPOSITORY_INTERACTIVE
 
 
 def es_interactiva_de_verdad(tarea):
@@ -107,13 +112,21 @@ class Command(BaseCommand):
             sesion = getattr(tarea, "session", None)
             if not is_library_session(sesion):
                 continue
-            if marca_en_metadata(tarea):
+            repo_meta = repo_en_metadata(tarea)
+            if repo_meta == LIBRARY_REPOSITORY_INTERACTIVE:
                 if es_interactiva_de_verdad(tarea):
                     se_quedan.append(tarea)
                 else:
                     a_limpiar.append(tarea)
                 continue
-            # Sin marca propia: entonces la que la llama interactiva es LA SESIÓN que la aloja.
+            # SÓLO si su metadata no dice NADA manda la sesión. Esto empezó siendo "si no está
+            # marcada interactiva en su metadata", y eso metía aquí a 96 tareas que dicen
+            # "tradicional" en su metadata y viven en una sesión de biblioteca interactiva: en la
+            # biblioteca salen bien -manda la metadata-, así que mudarlas era un trasiego de 96
+            # tareas para arreglar algo que no estaba roto. Se toca lo que se ve mal y nada más.
+            if repo_meta:
+                continue
+            # Sin repositorio propio: la que la llama interactiva es LA SESIÓN que la aloja.
             # Quitarle el nombre a la sesión arrastraría todo lo que cuelgue de ella, así que a
             # estas se las muda de sesión, que es una tarea cada vez y se puede mirar antes.
             if (
@@ -121,6 +134,15 @@ class Command(BaseCommand):
                 and not es_interactiva_de_verdad(tarea)
             ):
                 a_mudar.append(tarea)
+
+        # CUADRE. Lo que este comando toca tiene que ser exactamente lo que la biblioteca enseña
+        # como interactivo, ni una más. La primera versión metía aquí tareas que se ven bien, y
+        # eso sólo se descubre comparando los dos números.
+        enseñadas = len(a_limpiar) + len(se_quedan) + len(a_mudar)
+        self.stdout.write(self.style.SUCCESS(
+            f"\nLa biblioteca enseña como INTERACTIVAS: {enseñadas}"
+        ))
+        self.stdout.write(f"  (tiene que coincidir con `revisar_interactivas`)")
 
         self.stdout.write(self.style.SUCCESS(f"\nMarcadas interactivas en su metadata: "
                                              f"{len(a_limpiar) + len(se_quedan)}"))

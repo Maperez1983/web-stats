@@ -14690,9 +14690,20 @@ class SessionsPlanningTests(TestCase):
         # muda de sesión y no se toca la sesión, que arrastraría todo lo que cuelgue de ella.
         alojada = SessionTask.objects.create(session=sesion, title='Presión tras pérdida', order=3)
 
+        # PERO una que vive en esa sesión y dice "tradicional" en su metadata NO se toca: en la
+        # biblioteca ya sale bien, porque manda la metadata. La primera versión mudaba también
+        # estas y en producción eran 96 tareas movidas para arreglar algo que no estaba roto.
+        quieta = SessionTask.objects.create(session=sesion, title='Rondo 4+1 vs 2', order=4)
+        SessionTask.objects.filter(id=quieta.id).update(
+            tactical_layout={'meta': {'repository': 'traditional', 'source': 'manual-studio'}},
+            task_layout_light={'meta': {'repository': 'traditional', 'source': 'manual-studio'}},
+        )
+
         call_command('arreglar_marca_interactiva', '--apply', stdout=StringIO())
         alojada.refresh_from_db()
+        quieta.refresh_from_db()
         self.assertNotEqual(alojada.session_id, sesion.id, 'tenía que mudarse de sesión')
+        self.assertEqual(quieta.session_id, sesion.id, 'esta se ve bien: no se toca')
         from football.library_repositories import library_repository_for_session
         self.assertNotEqual(
             library_repository_for_session(alojada.session), 'interactive',
