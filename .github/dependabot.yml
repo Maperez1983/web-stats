@@ -1,0 +1,24 @@
+# Dependabot: avisa cuando una librería tuya tiene una vulnerabilidad y propone la subida.
+# Es GRATIS también en repositorios privados (lo de pago de GitHub es CodeQL y el secret
+# scanning avanzado, que aquí cubren bandit y gitleaks en `workflows/vigilancia.yml`).
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Madrid
+    # Tope bajo a propósito: cinco propuestas abiertas se revisan; treinta se ignoran.
+    open-pull-requests-limit: 5
+    labels: ["dependencias", "seguridad"]
+    commit-message:
+      prefix: "deps"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    labels: ["dependencias"]

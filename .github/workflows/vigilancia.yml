@@ -1,0 +1,79 @@
+# Vigilancia de código y seguridad. Coste: 0 €.
+#
+# Por qué existe: el "guardián" del programa vigila despliegues, logs y estabilidad, pero NO
+# mira el código ni la seguridad. Sus siete detectores son de infraestructura. Esto cubre el
+# hueco con herramientas libres, y fuera de la aplicación: aquí puede tardar lo que quiera sin
+# quitarle un solo milisegundo al servidor.
+#
+# Qué mira, y por qué cada una:
+#   · pip-audit  — si alguna librería que usas tiene una vulnerabilidad publicada (CVE).
+#   · bandit     — fallos de seguridad en el código Python (SQL a pelo, secretos, subprocess…).
+#   · gitleaks   — contraseñas o claves coladas en el repositorio. Ya ha pasado.
+#   · check --deploy — la lista de seguridad de Django para producción (cookies, HSTS, DEBUG…).
+#
+# El plan gratuito de GitHub da 2.000 minutos de Actions al mes; esto gasta ~3 por pasada.
+name: Vigilancia
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Lunes a las 7:00 (hora peninsular en invierno). Una revisión semanal aunque no toques nada:
+    # las vulnerabilidades aparecen en librerías que llevan meses quietas.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  seguridad:
+    runs-on: ubuntu-latest
+    # Que un aviso no tumbe el build: esto informa, no bloquea. Si algún día quieres que
+    # bloquee, quita este `continue-on-error` del paso que corresponda.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # gitleaks necesita el historial para mirar commits antiguos
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11.9"
+          cache: pip
+
+      - name: Instalar herramientas
+        run: python -m pip install --quiet --upgrade pip pip-audit bandit
+
+      - name: Dependencias con vulnerabilidades conocidas
+        continue-on-error: true
+        run: |
+          echo "### Dependencias vulnerables" >> "$GITHUB_STEP_SUMMARY"
+          pip-audit -r requirements.txt --desc on --format markdown >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Fallos de seguridad en el código
+        continue-on-error: true
+        run: |
+          echo "### Código (bandit)" >> "$GITHUB_STEP_SUMMARY"
+          # -ll: sólo severidad media y alta. Sin eso salen cientos de avisos de nivel bajo y
+          # nadie los lee, que es la forma más común de que una vigilancia no sirva de nada.
+          bandit -r football webstats scripts -ll -f txt -x '*/tests*,*/migrations/*' \
+            | tail -40 >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Claves y contraseñas en el repositorio
+        continue-on-error: true
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lista de seguridad de Django
+        continue-on-error: true
+        env:
+          DJANGO_SETTINGS_MODULE: webstats.settings
+          SECRET_KEY: solo-para-la-revision
+          DEBUG: "false"
+          ALLOW_SQLITE_IN_PROD: "true"
+        run: |
+          python -m pip install --quiet -r requirements.txt
+          echo "### Django check --deploy" >> "$GITHUB_STEP_SUMMARY"
+          python manage.py check --deploy 2>&1 | tail -40 >> "$GITHUB_STEP_SUMMARY" || true
