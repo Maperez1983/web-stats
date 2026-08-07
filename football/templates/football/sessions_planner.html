@@ -2220,20 +2220,18 @@
         </div>
       </section>
       {% endif %}
-
+			      {% comment %}UNA sola fila. Habia dos anidadas: arriba Crear/Biblioteca/Importar y,
+			      colgando de «Biblioteca», Tareas/Sesiones/Microciclos. O sea que la pantalla de
+			      Sesiones vivia DENTRO de una pestaña llamada Biblioteca, y «Biblioteca» nombraba a la
+			      vez esa pestaña, la pagina del menu y los recursos de la pizarra. Cada nombre dice
+			      ahora lo que es, y el orden es el del trabajo: primero lo de esta semana.{% endcomment %}
 			      <div class="tabs" id="planner-tabs">
+			        <a class="tab-link {% if active_tab == 'sessions' %}is-active{% endif %}" href="?tab=sessions&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Sesiones</a>
+			        <a class="tab-link {% if active_tab == 'microcycles' %}is-active{% endif %}" href="?tab=microcycles&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Microciclos</a>
+			        <a class="tab-link {% if main_tab == 'library' and active_tab == 'library' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Tareas</a>
 			        <a class="tab-link {% if main_tab == 'create' %}is-active{% endif %}" href="?tab=create&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Crear</a>
-				        <a class="tab-link {% if main_tab == 'library' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_source={{ library_source_tab }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Biblioteca</a>
-				        <a class="tab-link {% if main_tab == 'import' %}is-active{% endif %}" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Importar</a>
-				      </div>
-
-			      {% if main_tab == 'library' %}
-			      <div class="tabs" style="margin-top:-0.15rem;">
-				        <a class="tab-link {% if active_tab == 'library' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_source={{ library_source_tab }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Tareas</a>
-				        <a class="tab-link {% if active_tab == 'sessions' %}is-active{% endif %}" href="?tab=sessions&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Sesiones</a>
-				        <a class="tab-link {% if active_tab == 'microcycles' %}is-active{% endif %}" href="?tab=microcycles&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Microciclos</a>
+			        <a class="tab-link {% if main_tab == 'import' %}is-active{% endif %}" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Importar</a>
 			      </div>
-			      {% endif %}
 
 			      <div class="tab-panel {% if main_tab == 'create' %}is-active{% endif %}" data-tab="create">
 	              {% with create_page=request.GET.create_page|default:'' %}

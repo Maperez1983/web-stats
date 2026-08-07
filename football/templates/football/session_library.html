@@ -86,6 +86,17 @@
         </a>
       </div>
 
+      {% comment %}«Biblioteca» nombraba TRES cosas: esta pagina, la pestaña Biblioteca dentro de
+      Sesiones y la «Biblioteca de recursos» del menu. Recursos entra aqui como un apartado mas, y
+      el menu deja de ofrecer dos bibliotecas distintas.{% endcomment %}
+      <h2 style="margin:1.4rem 0 0.35rem; font-size:1.05rem;">Recursos para la pizarra</h2>
+      <div class="folder-grid" aria-label="Recursos" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px;">
+        <a class="folder-card" href="{% url 'sessions-task-library' %}{% if team %}?team={{ team.id }}{% endif %}">
+          <strong>🎨 Recursos</strong>
+          <span>Dibujos y material para la pizarra</span>
+        </a>
+      </div>
+
       <h2 style="margin:1.4rem 0 0.35rem; font-size:1.05rem;">Sesiones guardadas</h2>
       {% include 'football/includes/_zone_chips.html' with chips=zone_chips %}
       <p class="hint">Plantillas de sesión reutilizables. Guarda cualquier sesión como plantilla desde su ficha (botón «⭐ Guardar como plantilla») y reutilízala en cualquier semana.</p>

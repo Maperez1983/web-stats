@@ -14327,6 +14327,26 @@ class SessionsPlanningTests(TestCase):
                 )
                 self.assertEqual(r.status_code, 200, f'la vista {vista} no responde')
 
+    def test_las_pestanas_son_una_fila_plana_y_marcan_la_correcta(self):
+        """«Biblioteca» nombraba tres cosas y Sesiones colgaba de ella.
+
+        Habia dos filas anidadas: Crear/Biblioteca/Importar y, dentro de «Biblioteca»,
+        Tareas/Sesiones/Microciclos. Ahora es una fila plana y cada pestaña se marca en la suya.
+        """
+        import re as _re
+        esperadas = ['Sesiones', 'Microciclos', 'Tareas', 'Crear', 'Importar']
+        for tab, activa in (('sessions', 'Sesiones'), ('microcycles', 'Microciclos'),
+                            ('library', 'Tareas'), ('create', 'Crear'), ('import', 'Importar')):
+            with self.subTest(pestana=tab):
+                html = self.client.get(
+                    reverse('sessions'), {'tab': tab, 'team': self.team.id}
+                ).content.decode('utf-8', 'replace')
+                i = html.index('id="planner-tabs"')
+                trozo = html[i:i + 2600]
+                self.assertEqual(_re.findall(r'>([^<>]{3,14})</a>', trozo)[:5], esperadas)
+                marcada = _re.findall(r'is-active[^>]*>([^<>]{3,14})</a>', trozo)[:1]
+                self.assertEqual(marcada, [activa], f'{tab} deberia marcar {activa}')
+
     def test_update_library_task_does_not_wipe_unposted_fields_on_rename(self):
         session = TrainingSession.objects.create(
             microcycle=self.microcycle,

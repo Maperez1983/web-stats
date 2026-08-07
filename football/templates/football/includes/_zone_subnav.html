@@ -89,7 +89,6 @@ existe, se queda donde está y sigue funcionando.{% endcomment %}
       <div class="zone-menu-title">🏋️ Entrenamiento</div>
   <a href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'sessions' %}on{% endif %}">📆 Sesiones</a>
   <a href="{% url 'session-library' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if request.resolver_match.url_name == 'session-library' %}on{% endif %}">📚 Biblioteca</a>
-  <a href="{% url 'sessions-task-library' %}" class="{% if request.resolver_match.url_name == 'sessions-task-library' %}on{% endif %}">🎨 Recursos</a>
   <a href="{% url 'training-load' %}" class="{% if request.resolver_match.url_name == 'training-load' %}on{% endif %}">🗓️ Carga semanal</a>
     </div>
   </details>
