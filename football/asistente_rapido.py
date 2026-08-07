@@ -151,21 +151,47 @@ def respuesta_busqueda(grupos, texto):
     }
 
 
+def _campo(tarea, *nombres):
+    """Lee un campo venga como diccionario o como objeto del modelo.
+
+    El recomendador devuelve OBJETOS SessionTask, no diccionarios. Filtrar por `isinstance
+    dict` los tiraba todos y el asistente contestaba "no encuentro tareas" mientras el
+    recomendador se las estaba dando. Se ve en cuanto se prueba con datos reales.
+    """
+    for nombre in nombres:
+        if isinstance(tarea, dict):
+            valor = tarea.get(nombre)
+        else:
+            valor = getattr(tarea, nombre, None)
+        if valor not in (None, ""):
+            return valor
+    return None
+
+
 def respuesta_sugerencias(tareas, texto):
-    tareas = [t for t in (tareas or []) if isinstance(t, dict)]
+    tareas = [t for t in (tareas or []) if t is not None]
     if not tareas:
         return {
             "message": f"No encuentro tareas de «{texto}» en tu biblioteca.",
             "highlights": [],
         }
-    filas = []
+    filas, titulos = [], []
     for t in tareas[:5]:
-        titulo = str(t.get("title") or t.get("titulo") or "").strip()
-        tid = t.get("id") or t.get("task_id")
-        if titulo:
-            filas.append(f"· {titulo}" + (f" — /coach/sesiones/tarea/{int(tid)}/" if tid else ""))
-    cuerpo = "\n".join(filas) or "(sin título)"
+        titulo = str(_campo(t, "title", "titulo") or "").strip()
+        tid = _campo(t, "id", "task_id")
+        if not titulo:
+            continue
+        titulos.append(titulo)
+        porque = str(_campo(t, "ai_trainer_why") or "").strip()
+        fila = f"· {titulo}"
+        if tid:
+            fila += f" — /coach/sesiones/tarea/{int(tid)}/"
+        if porque:
+            fila += f"\n   ({porque})"
+        filas.append(fila)
+    if not filas:
+        return {"message": f"No encuentro tareas de «{texto}» en tu biblioteca.", "highlights": []}
     return {
-        "message": f"Tareas de tu biblioteca para «{texto}»:\n{cuerpo}",
-        "highlights": [str(t.get("title") or "")[:40] for t in tareas[:4]],
+        "message": f"Tareas de tu biblioteca para «{texto}»:\n" + "\n".join(filas),
+        "highlights": [t[:40] for t in titulos[:4]],
     }
