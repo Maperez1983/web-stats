@@ -2308,6 +2308,16 @@ class ConvocationRecord(models.Model):
     round = models.CharField(max_length=60, blank=True)
     match_date = models.DateField(null=True, blank=True)
     match_time = models.TimeField(null=True, blank=True)
+    # A qué hora hay que estar en el campo, que no es la hora del partido: se convoca a las 9:15
+    # para jugar a las 10:00. Es el dato que el entrenador repetía por WhatsApp cada semana.
+    call_time = models.TimeField(null=True, blank=True, help_text='Hora de citación (llegada al campo).')
+    # Con qué equipación se juega ESE partido. Se congela al guardar la convocatoria desde la
+    # elección de la pizarra, para que cambiarla después no reescriba un PDF ya repartido.
+    kit_choice = models.CharField(max_length=20, blank=True, help_text='Equipación: titular / visitante / turquesa / blanca.')
+    # Por qué NO va cada uno de los que se quedan fuera: {"<player_id>": "lesion|personales|
+    # entrenador|sancion"}. Va en la convocatoria y no en el jugador porque es de ESE partido:
+    # el que hoy falta por motivos personales la semana que viene juega.
+    absence_reasons = models.JSONField(default=dict, blank=True)
     location = models.CharField(max_length=200, blank=True)
     opponent_name = models.CharField(max_length=150, blank=True)
     lineup_data = models.JSONField(default=dict, blank=True)

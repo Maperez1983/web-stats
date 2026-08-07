@@ -18,7 +18,6 @@ import re
 
 import numpy as np
 from PIL import Image
-from rembg import remove
 from insightface.app import FaceAnalysis
 
 REPO = os.environ.get("WEBSTATS_REPO") or "/Volumes/Mac Satecchi/Mac/Web-stats-analysis-entry-clean"
@@ -141,10 +140,13 @@ def _mascara_piel(rgb, dentro, cara):
     return dentro & (d < 30)
 
 
-def uniformar_rayas(im, cara, verde=VERDE_CLUB, blanco=BLANCO_CLUB, bandas=BANDAS):
+def uniformar_rayas(im, cara, verde=VERDE_CLUB, blanco=BLANCO_CLUB, bandas=BANDAS,
+                    pantalon=None, rango_verde=(0.62, 1.30), rango_blanco=(0.88, 1.04),
+                    umbral_oscuro=90):
     """
     Pinta LA MISMA camiseta en todas las figuras: mismo numero de rayas, mismos colores, y los
-    pliegues de cada una respetados.
+    pliegues de cada una respetados. Con `verde` y `blanco` iguales sale una equipacion lisa, que
+    es como se fabrican la visitante, la turquesa y la blanca a partir de la titular.
 
     Igualar solo el color no bastaba: cada tirada de Flux dibujaba las rayas a su manera -unas
     anchas, otras finas, alguna con las mangas de otro color- y la equipacion tiene que ser LA del
@@ -194,13 +196,23 @@ def uniformar_rayas(im, cara, verde=VERDE_CLUB, blanco=BLANCO_CLUB, bandas=BANDA
             continue
         camiseta[y, xs_fila.min():xs_fila.max() + 1] = True
     camiseta &= dentro & (~piel)
+    # CUELLO, HOMBROS Y MANGAS: son verde liso, sin una raya blanca, asi que su fila no pasaba el
+    # filtro de "fila de camiseta" y se quedaban sin repintar. Sobre la titular no se notaba
+    # -verde sobre verde-, pero al pasar a amarillo o turquesa quedaba un ribete verde alrededor
+    # del cuello en casi todas las figuras. Se anexa cualquier verde que caiga entre la barbilla y
+    # el bajo de la camiseta.
+    camiseta |= (yy >= barbilla) & (yy <= y_fin) & es_verde & dentro & (~piel)
     # Lo que no es tela ni piel dentro de la camiseta es un logo (escudo, marca, patrocinador):
     # muy saturado o casi negro. Se protege, porque esta funcion tambien se usa sobre figuras que
     # YA los llevan pegados.
     maxc, minc = rgb.max(axis=2), rgb.min(axis=2)
     saturado = (maxc - minc) > 60
-    oscuro = maxc < 90
-    camiseta &= ~((saturado & ~es_verde) | oscuro)
+    # `umbral_oscuro` protege lo casi negro por considerarlo logo. Con 90 tambien se salvaban los
+    # PLIEGUES mas hondos de la raya verde (llegan a 73 de maximo): al repintar de amarillo se
+    # quedaban verdes y la camiseta seguia pareciendo rayada. Para una equipacion lisa se baja,
+    # porque ahi cualquier verde que sobreviva canta; para la titular se deja como estaba.
+    oscuro = maxc < umbral_oscuro
+    camiseta &= ~((saturado & ~es_verde) | (oscuro & ~es_verde))
     if camiseta.sum() < 1500:
         return im
 
@@ -216,15 +228,26 @@ def uniformar_rayas(im, cara, verde=VERDE_CLUB, blanco=BLANCO_CLUB, bandas=BANDA
     ref_v = float(np.median(lum[es_verde & camiseta])) if (es_verde & camiseta).any() else 0.5
     ref_b = float(np.median(lum[es_blanco & camiseta])) if (es_blanco & camiseta).any() else 0.9
 
+
     indice = np.floor((xx - centro) / banda + 0.5).astype(int)
     toca_verde = (indice % 2) == 0
+
+    # Camiseta LISA (los dos colores iguales, como la visitante o la de entreno): las bandas se
+    # reparten por el ORIGEN de cada pixel, no por la geometria. El brillo que se conserva es el
+    # del original, y el original TIENE rayas: repartiendo por bandas geometricas, la raya del
+    # club seguia asomando por debajo del color nuevo. Separando "lo que era blanco" de "lo que
+    # era verde" y midiendo cada uno contra SU referencia, las dos partes caen al mismo brillo y
+    # lo unico que sobrevive son los pliegues, que es lo que se quiere.
+    lisa = tuple(verde) == tuple(blanco)
+    banda_clara = (camiseta & es_blanco) if lisa else (camiseta & ~toca_verde)
+    banda_oscura = (camiseta & ~es_blanco) if lisa else (camiseta & toca_verde)
 
     salida = rgb.copy()
     # El blanco admite MUCHO menos juego que el verde: si se le deja bajar con la sombra, las
     # rayas blancas salen grises y la camiseta parece otra.
     for pinta, color, ref, (lo, hi) in (
-        (camiseta & toca_verde, verde, ref_v, (0.62, 1.30)),
-        (camiseta & ~toca_verde, blanco, ref_b, (0.88, 1.04)),
+        (banda_oscura, verde, ref_v, rango_verde),
+        (banda_clara, blanco, ref_b, rango_blanco),
     ):
         if not pinta.any():
             continue
@@ -240,13 +263,19 @@ def uniformar_rayas(im, cara, verde=VERDE_CLUB, blanco=BLANCO_CLUB, bandas=BANDA
     if prenda.sum() > 500:
         ref_p = float(np.median(lum[debajo & es_verde])) if (debajo & es_verde).any() else 0.45
         factor = np.clip(lum[prenda] / max(ref_p, 0.05), 0.62, 1.30)[:, None]
-        salida[prenda] = np.clip(np.array(verde, dtype=np.float32) * factor, 0, 255)
+        # El pantalon no siempre es del color de la camiseta: la turquesa lo lleva azul marino y
+        # la blanca gris. Por defecto sigue siendo el mismo, que es la titular de siempre.
+        salida[prenda] = np.clip(np.array(pantalon or verde, dtype=np.float32) * factor, 0, 255)
 
     a[:, :, :3] = salida
     return Image.fromarray(a.astype("uint8"), "RGBA")
 
 
 def finish(origen, destino):
+    # rembg se importa AQUI y no arriba: es lo unico que lo necesita, y arriba impedia
+    # reutilizar el recoloreado (`uniformar_rayas`) desde otro script sin tenerlo instalado.
+    from rembg import remove
+
     # El chandal es negro: el patrocinador tiene que ir en blanco o desaparece.
     chandal = "chandal" in os.path.basename(destino)
     fig = remove(Image.open(origen).convert("RGBA"))

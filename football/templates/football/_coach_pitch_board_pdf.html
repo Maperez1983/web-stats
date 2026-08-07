@@ -3,7 +3,28 @@
   Versión ESTÁTICA de la pizarra de plantilla para el PDF (WeasyPrint: sin JS).
   Fondo del campo + chips posicionados por línea/posición guardada, con avatar (data URI),
   número y nombre. Requiere en contexto: coach_pitch_players (con avatar_pdf) y pdf_pitch_bg.
+
+  `board_compact` encoge el tablero ENTERO -campo y fichas a la vez-. Estrechar sólo el campo no
+  vale: las fichas van en px y las posiciones en %, así que un campo más estrecho las amontona.
+  Lo usa la convocatoria, que tiene que caber en una hoja con el listado y las ausencias.
 {% endcomment %}
+{% if board_compact %}
+<div style="position:relative; width:100%; padding-top:56.79%; border-radius:14px; overflow:hidden;
+            background-color:#1f6f39;{% if pdf_pitch_bg %} background-image:url('{{ pdf_pitch_bg }}'); background-size:cover; background-position:center; background-repeat:no-repeat;{% endif %}
+            border:1px solid #cbd5e1; box-shadow: inset 0 0 40px rgba(0,0,0,.28);">
+  <div style="position:absolute; top:0; left:0; right:0; bottom:0;">
+    {% for p in coach_pitch_players %}
+    <div style="position:absolute; left:{{ p.left|unlocalize }}%; top:{{ p.top|unlocalize }}%;
+                width:64px; margin-left:-32px; margin-top:-25px; text-align:center;">
+      {% if p.avatar_pdf %}<img src="{{ p.avatar_pdf }}" alt="" style="width:37px; height:44px; object-fit:contain; display:block; margin:0 auto 1px;" />{% endif %}
+      <div style="display:inline-block; max-width:{{ p.label_width|default:74 }}px; padding:1px 4px; border-radius:5px;
+                  background:rgba(7,12,22,.82); color:#fff; font-size:7px; font-weight:800;
+                  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{% if p.number %}{{ p.number }} · {% endif %}{{ p.name }}{% if p.is_captain %} <span style="color:#86efac;">C</span>{% endif %}{% if p.is_goalkeeper %} <span style="color:#93c5fd;">P</span>{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% else %}
 <div style="position:relative; width:100%; padding-top:56.79%; border-radius:14px; overflow:hidden;
             background-color:#1f6f39;{% if pdf_pitch_bg %} background-image:url('{{ pdf_pitch_bg }}'); background-size:cover; background-position:center; background-repeat:no-repeat;{% endif %}
             border:1px solid #cbd5e1; box-shadow: inset 0 0 40px rgba(0,0,0,.28);">
@@ -11,12 +32,18 @@
     {% for p in coach_pitch_players %}
     <div style="position:absolute; left:{{ p.left|unlocalize }}%; top:{{ p.top|unlocalize }}%;
                 width:76px; margin-left:-38px; margin-top:-30px; text-align:center;">
+      {% comment %}
+        `avatar_pdf` lo garantiza _coach_pitch_board_pdf_assets, que tiene último recurso: si se
+        quedara vacío, la ficha sería un dorsal y un nombre flotando sobre el césped. El if de
+        abajo es sólo la red para que un chip que no haya pasado por ahí no pinte una imagen rota.
+      {% endcomment %}
       {% if p.avatar_pdf %}<img src="{{ p.avatar_pdf }}" alt="" style="width:44px; height:52px; object-fit:contain; display:block; margin:0 auto 1px;" />{% endif %}
       {# La etiqueta va centrada y puede ser más ancha que el chip; el ancho lo decide la pizarra según lo cargada que esté la línea. #}
       <div style="display:inline-block; max-width:{{ p.label_width|default:74 }}px; padding:1px 5px; border-radius:6px;
                   background:rgba(7,12,22,.82); color:#fff; font-size:8px; font-weight:800;
-                  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{% if p.number %}{{ p.number }} · {% endif %}{{ p.name }}</div>
+                  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{% if p.number %}{{ p.number }} · {% endif %}{{ p.name }}{% if p.is_captain %} <span style="color:#86efac;">C</span>{% endif %}{% if p.is_goalkeeper %} <span style="color:#93c5fd;">P</span>{% endif %}</div>
     </div>
     {% endfor %}
   </div>
 </div>
+{% endif %}

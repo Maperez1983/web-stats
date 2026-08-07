@@ -7,163 +7,191 @@
     {% include 'football/includes/print_tokens_css.html' %}
     <style>
       /* Misma identidad que el resto de informes (informe de partido, plantilla, dirección):
-         cabecera con marca + escudo, secciones con título y punto verde, y pie con la firma. */
+         cabecera con escudo, secciones con título y punto verde, y pie con la firma.
+         La marca 2J vive en el PIE: la cabecera es del club, no nuestra. */
       @page { size: A4 portrait; margin: 12mm; }
       * { box-sizing: border-box; }
       body { margin:0; font-family:var(--print-font,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif); background:#fff; color:#12201A; }
 
-      .top { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; padding:10px 0 14px; border-bottom:2px solid #12201A; break-after:avoid-page; page-break-after:avoid; }
-      .brand { display:flex; align-items:center; gap:10px; min-width:0; }
+      .top { display:flex; align-items:stretch; justify-content:space-between; gap:16px; padding:2px 0 12px; border-bottom:2px solid #12201A; break-after:avoid-page; page-break-after:avoid; }
+      .brand { display:flex; align-items:center; gap:11px; min-width:0; flex:1; }
       .brand img { display:block; object-fit:contain; }
-      .brand .crest { width:38px; height:38px; border-radius:999px; border:1px solid #D3DCD3; background:#fff; padding:2px; }
-      .brand .meta { line-height:1.2; min-width:0; }
+      .brand .crest { width:44px; height:44px; flex:none; border-radius:999px; border:1px solid #D3DCD3; background:#fff; padding:2px; }
+      .brand .meta { line-height:1.15; min-width:0; }
       .brand .meta .app { font-size:9px; letter-spacing:.16em; text-transform:uppercase; color:#0A5E33; font-weight:800; }
-      .brand .meta .team { font-size:21px; line-height:1.05; color:#12201A; font-weight:800; }
-      .brand .meta .fixture { display:flex; align-items:center; gap:6px; margin-top:4px; font-size:11px; color:#4B584F; font-weight:700; }
-      .brand .meta .fixture img { width:16px; height:16px; border-radius:999px; border:1px solid #D3DCD3; background:#fff; padding:1px; }
-      .club-meta { text-align:right; font-size:11px; color:#4B584F; line-height:1.35; }
-      .club-meta strong { color:#12201A; }
-      .club-meta .staff { margin-top:6px; font-size:9px; color:#7C877E; line-height:1.35; }
+      /* Una sola línea: "Benagalbón Cadete A" partía en dos y descuadraba la cabecera. */
+      .brand .meta .team { font-size:20px; line-height:1.1; color:#12201A; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:62mm; }
+      /* En TABLA, no en flex ni en línea: WeasyPrint colocaba el "vs" encima del escudo, y con
+         inline-block le tiraba el escudo al renglón de abajo. Con una tabla de una fila se porta. */
+      .brand .meta .fixture { margin-top:5px; border-collapse:collapse; }
+      .brand .meta .fixture td { padding:0 6px 0 0; vertical-align:middle; font-size:12px; font-weight:800; color:#12201A; }
+      .brand .meta .fixture td.vs { color:#7C877E; font-weight:700; }
+      .brand .meta .fixture td.rname { max-width:48mm; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .brand .meta .fixture img { width:22px; height:22px; object-fit:contain; display:block; }
 
-      .section { margin-top:11px; }
-      .section h2 { margin:0 0 6px; font-size:12px; color:#12201A; }
+      /* Cuándo y dónde: es lo primero que se busca al abrir la hoja. */
+      .when { flex:none; min-width:62mm; text-align:right; border-left:1px solid #D3DCD3; padding-left:14px; }
+      .when .day { font-size:17px; font-weight:800; color:#12201A; line-height:1.1; letter-spacing:.01em; }
+      .when .kick { font-size:24px; font-weight:800; color:#0A5E33; line-height:1.05; }
+      .when .where { margin-top:3px; font-size:11px; font-weight:700; color:#12201A; }
+      .when .comp { margin-top:2px; font-size:9px; color:#7C877E; font-weight:700; }
+
+      .section { margin-top:9px; }
+      .section h2 { margin:0 0 5px; font-size:12px; color:#12201A; }
       .section h2::before { content:""; display:inline-block; width:7px; height:7px; margin-right:7px; border-radius:50%; background:#0F8A4B; vertical-align:1px; }
       .section h2 .count { margin-left:6px; font-size:10px; font-weight:700; color:#7C877E; letter-spacing:.04em; text-transform:uppercase; }
 
-      /* El campo, algo mas estrecho: es lo que hace que la convocatoria quepa en una sola hoja. */
-      .pitch-wrap { width:92%; margin:0 auto; }
+      /* El campo, algo mas estrecho: es lo que hace que la convocatoria quepa en una sola hoja.
+         Con 18 convocados y 8 ausencias -el senior real- al 92 % el pie se iba a una segunda
+         pagina para el solo. */
+      .pitch-wrap { width:74%; margin:0 auto; }
 
-      /* Números de cabecera: cuántos van y cómo se reparten por puesto. */
-      .kpis { display:flex; gap:6px; margin-top:10px; }
-      .kpi { flex:1; min-width:0; border:1px solid #D3DCD3; border-radius:11px; padding:7px 6px; text-align:center; background:#fff; }
-      .kpi.is-main { background:#F3F7F2; border-color:#BBD6C3; }
-      .kpi .v { display:block; font-size:22px; font-weight:800; line-height:1; color:#12201A; }
-      .kpi.is-main .v { color:#0A5E33; }
-      .kpi .l { display:block; margin-top:5px; font-size:8px; letter-spacing:.08em; text-transform:uppercase; font-weight:800; color:#4B584F; }
-      .kpi .h { display:block; margin-top:2px; font-size:7px; color:#7C877E; font-weight:700; }
+      /* Datos prácticos: citación, equipación, dónde se juega y cuántos van. */
+      .facts { display:flex; gap:6px; margin-top:9px; }
+      .fact { flex:1; min-width:0; border:1px solid #D3DCD3; border-radius:11px; padding:7px 8px; background:#fff; }
+      .fact.is-main { background:#F3F7F2; border-color:#BBD6C3; }
+      .fact .l { display:block; font-size:8px; letter-spacing:.08em; text-transform:uppercase; font-weight:800; color:#7C877E; }
+      .fact .v { display:block; margin-top:3px; font-size:15px; font-weight:800; line-height:1.1; color:#12201A; }
+      .fact.is-main .v { color:#0A5E33; }
+      .fact .h { display:block; margin-top:1px; font-size:7px; color:#7C877E; font-weight:700; }
+      .fact .kit-dot { display:inline-block; width:11px; height:11px; border-radius:3px; vertical-align:-1px; margin-right:4px; }
 
-      /* Listado a dos columnas: 20 convocados caben en la misma hoja que el campo. */
-      .roster { display:flex; gap:10px; align-items:flex-start; }
-      .roster-col { width:50%; }
+      .alert { margin-top:8px; border:1px solid #F0CFC9; border-radius:10px; background:#FDF3F1; padding:6px 9px; font-size:9px; font-weight:700; color:#B43C32; }
+
+      /* Listado a dos columnas EQUILIBRADAS: se lee una entera y luego la otra. */
+      /* Dos columnas SIN `gap` y con ancho explícito: `gap` sumaba al 50 % de cada columna y se
+         pasaba del ancho, así que el contador de "Porteros" acababa pegado al título
+         "Centrocampistas" de al lado. `flex:1` tampoco vale: WeasyPrint no lo resuelve igual. */
+      .roster { display:flex; justify-content:space-between; align-items:flex-start; }
+      .roster-col { width:47%; }
       .line-block { break-inside:avoid; page-break-inside:avoid; margin-bottom:8px; }
       .line-title { display:flex; justify-content:space-between; align-items:baseline; padding-bottom:3px; border-bottom:1px solid #D3DCD3; font-size:9px; letter-spacing:.08em; text-transform:uppercase; font-weight:800; color:#0A5E33; }
       .line-title span { color:#7C877E; }
-      .row { display:flex; align-items:center; gap:7px; padding:4px 2px; border-bottom:1px solid #EEF3EE; break-inside:avoid; page-break-inside:avoid; }
-      .row .num { width:20px; flex:none; text-align:center; font-size:10px; font-weight:800; color:#12201A; font-variant-numeric:tabular-nums; }
-      /* Sin atajo `background:` con posición/tamaño: WeasyPrint es quisquilloso; propiedades sueltas. */
-      .row .avatar { width:20px; height:20px; flex:none; border-radius:999px; border:1px solid #D3DCD3; background-color:#F3F7F2; background-repeat:no-repeat; background-position:center; background-size:cover; color:#4B584F; font-size:7px; font-weight:800; display:flex; align-items:center; justify-content:center; }
+      .row { display:flex; align-items:center; gap:7px; padding:3px 2px; border-bottom:1px solid #EEF3EE; break-inside:avoid; page-break-inside:avoid; }
+      .row .num { width:20px; flex:none; text-align:center; font-size:11px; font-weight:800; color:#12201A; font-variant-numeric:tabular-nums; }
+      /* Sin atajo `background:` con posición/tamaño: WeasyPrint es quisquilloso; propiedades sueltas.
+         `background-position` va ARRIBA, no al centro: el recorte del club es una figura de cuerpo
+         entero, así que centrado el circulito caía en el pecho y salían dieciocho camisetas sin
+         cara. Es el mismo fallo que ya tuvieron las pizarras. */
+      .row .avatar { width:20px; height:20px; flex:none; border-radius:999px; border:1px solid #D3DCD3; background-color:#F3F7F2; background-repeat:no-repeat; background-position:center 6%; background-size:cover; }
       .row .who { flex:1; min-width:0; }
       .row .who strong { display:block; font-size:10px; font-weight:800; color:#12201A; line-height:1.15; }
       .row .who small { display:block; font-size:8px; color:#7C877E; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
       .row .state { flex:none; font-size:8px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
+      /* Casilla para pasar lista en el campo: esta hoja se imprime y se lleva a la banda. */
+      .row .tick { width:11px; height:11px; flex:none; margin-left:6px; border:1px solid #A9B8AC; border-radius:3px; }
       .state.lesionado { color:#B43C32; } .state.sancionado { color:#B87614; } .state.a-prueba { color:#B87614; }
       .tag { display:inline-block; margin-left:4px; padding:0 4px; border-radius:999px; background:#0F8A4B; color:#fff; font-size:6px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; vertical-align:2px; }
       .tag.gk { background:#356FA6; }
 
-      .foot { margin-top:10px; border-top:1px solid #D3DCD3; padding-top:7px; display:flex; justify-content:space-between; align-items:center; }
-      .foot .muted { color:#7C877E; font-size:10px; }
+      /* Quién no va y por qué: una convocatoria son los que van Y los que se quedan. */
+      .out { display:flex; flex-wrap:wrap; gap:5px; }
+      .out .chip { border:1px solid #E2E8E3; border-radius:999px; padding:2px 8px; font-size:8px; font-weight:700; color:#4B584F; background:#FAFBFA; }
+      .out .chip b { color:#12201A; font-weight:800; }
+      .out .chip.lesionado { border-color:#F0CFC9; background:#FDF3F1; color:#B43C32; }
+      .out .chip.sancionado { border-color:#F2DFC0; background:#FDF8EF; color:#B87614; }
+
+      /* El pie tiene que caber en la MISMA hoja: una convocatoria de una página es la gracia.
+         El staff va en una sola línea que envuelve, no en seis. */
+      .foot { margin-top:7px; border-top:1px solid #D3DCD3; padding-top:5px; }
+      .foot .staff { color:#7C877E; font-size:8px; line-height:1.35; }
+      .foot .staff b { color:#12201A; font-weight:800; }
+      .foot .sign { margin-top:3px; display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+      .foot .muted { color:#7C877E; font-size:9px; }
     </style>
   </head>
   <body>
     <div class="top">
       <div class="brand">
-        {% if brand_mark_src %}<img src="{{ brand_mark_src }}" alt="2J" style="width:78px;height:auto;" />{% endif %}
         <img class="crest" src="{{ team_crest_src }}" alt="Escudo {{ team_full_name }}" />
         <div class="meta">
           <div class="app">Convocatoria · Prepartido</div>
           <div class="team">{{ team_name }}</div>
-          <div class="fixture">
-            vs
-            <img src="{{ rival_crest_src }}" alt="Escudo {{ rival_full_name }}" />
-            {{ rival_full_name }}
-          </div>
+          <table class="fixture"><tr>
+            <td class="vs">vs</td>
+            <td><img src="{{ rival_crest_src }}" alt="Escudo {{ rival_full_name }}" /></td>
+            <td class="rname">{{ rival_full_name }}</td>
+          </tr></table>
         </div>
       </div>
-      <div class="club-meta">
-        <div><strong>{{ round_label }}</strong> · {{ date_label }} · {{ time_label }}</div>
-        <div>{{ location_label|display_venue }}</div>
-        <div>{{ competition_name }}{% if season_name %} · {{ season_name }}{% endif %}{% if group_name %} · {{ group_name }}{% endif %}</div>
-        {% if staff_lines %}
-        <div class="staff">
-          {% for line in staff_lines %}
-          <div><strong>{{ line.role }}</strong> · {{ line.name }}</div>
-          {% endfor %}
-        </div>
-        {% endif %}
+      <div class="when">
+        <div class="day">{% if date_short_label %}{{ date_short_label }}{% else %}{{ date_label }}{% endif %}{% if round_short_label %} · {{ round_short_label }}{% endif %}</div>
+        <div class="kick">{{ time_label }}</div>
+        <div class="where">{{ location_label|display_venue }}</div>
+        {% if competition_name %}<div class="comp">{{ competition_name }}{% if season_name %} · {{ season_name }}{% endif %}{% if group_name %} · {{ group_name }}{% endif %}</div>{% endif %}
       </div>
     </div>
 
-    {% if convocation_kpis %}
-    <div class="kpis">
-      {% for card in convocation_kpis %}
-        <div class="kpi{% if card.strong %} is-main{% endif %}">
-          <span class="v">{{ card.value }}</span>
+    {% if convocation_facts %}
+    <div class="facts">
+      {% for card in convocation_facts %}
+        <div class="fact{% if card.strong %} is-main{% endif %}">
           <span class="l">{{ card.label }}</span>
+          <span class="v">{% if card.swatch %}<span class="kit-dot" style="background-color:{{ card.swatch }}; border:1px solid {{ card.swatch_trim }};"></span>{% endif %}{{ card.value }}</span>
           {% if card.hint %}<span class="h">{{ card.hint }}</span>{% endif %}
         </div>
       {% endfor %}
     </div>
     {% endif %}
 
+    {% if injured_in_list %}
+    <div class="alert">
+      Revisa antes de salir: {% for nombre in injured_in_list %}{{ nombre }}{% if not forloop.last %}, {% endif %}{% endfor %}
+      {% if injured_in_list|length == 1 %}tiene{% else %}tienen{% endif %} un parte de lesión abierto y {% if injured_in_list|length == 1 %}sigue{% else %}siguen{% endif %} en la lista.
+    </div>
+    {% endif %}
+
     {% if coach_pitch_players %}
     <div class="section">
       <h2>Convocados en el campo<span class="count">{{ coach_pitch_players|length }} jugadores</span></h2>
-      {# Misma pizarra y misma superficie de césped que el resto de la app (chips ya posicionados). #}
-      <div class="pitch-wrap">{% include 'football/_coach_pitch_board_pdf.html' %}</div>
+      {% comment %}
+        Misma pizarra y misma superficie de césped que el resto de la app (chips ya posicionados).
+      {% endcomment %}
+      <div class="pitch-wrap">{% include 'football/_coach_pitch_board_pdf.html' with board_compact=1 %}</div>
     </div>
     {% endif %}
 
     <div class="section">
-      <h2>Jugadores convocados<span class="count">{{ players|length }} en la lista</span></h2>
-      {% if convocation_lines %}
-      {# Portería y defensa a la izquierda; del medio hacia arriba, a la derecha. Mismo orden que el campo. #}
+      <h2>Jugadores convocados</h2>
+      {% if convocation_columns %}
+      {% comment %}
+        Las dos columnas vienen ya repartidas por el servidor, equilibradas y en orden de lectura:
+        se lee la izquierda entera y se sigue en la derecha. Antes iban fijas (portería y defensa
+        a la izquierda) y la columna izquierda acababa mucho antes.
+      {% endcomment %}
       <div class="roster">
+        {% for columna in convocation_columns %}
         <div class="roster-col">
-          {% for line in convocation_lines %}{% if line.key == 'gk' or line.key == 'def' %}
+          {% for line in columna %}
           <div class="line-block">
             <div class="line-title">{{ line.label }} <span>{{ line.total }}</span></div>
             {% for p in line.players %}
             <div class="row">
               <div class="num">{{ p.number|default:"–" }}</div>
-              <div class="avatar"{% if p.photo_data_uri %} style="background-image:url('{{ p.photo_data_uri }}');color:transparent;"{% endif %}>{% if not p.photo_data_uri %}{{ p.initials }}{% endif %}</div>
+              {% if p.photo_data_uri %}<div class="avatar" style="background-image:url('{{ p.photo_data_uri }}');"></div>{% endif %}
               <div class="who">
                 <strong>{{ p.name }}{% if p.is_captain %}<span class="tag">Capitán</span>{% endif %}{% if p.is_goalkeeper %}<span class="tag gk">Portero</span>{% endif %}</strong>
                 <small>{{ p.position|default:"Sin definir" }}</small>
               </div>
               {% if p.state_label and p.state_label != 'Disponible' %}<div class="state {{ p.state_label|slugify }}">{{ p.state_label }}</div>{% endif %}
+              <div class="tick"></div>
             </div>
             {% endfor %}
           </div>
-          {% endif %}{% endfor %}
+          {% endfor %}
         </div>
-        <div class="roster-col">
-          {% for line in convocation_lines %}{% if line.key != 'gk' and line.key != 'def' %}
-          <div class="line-block">
-            <div class="line-title">{{ line.label }} <span>{{ line.total }}</span></div>
-            {% for p in line.players %}
-            <div class="row">
-              <div class="num">{{ p.number|default:"–" }}</div>
-              <div class="avatar"{% if p.photo_data_uri %} style="background-image:url('{{ p.photo_data_uri }}');color:transparent;"{% endif %}>{% if not p.photo_data_uri %}{{ p.initials }}{% endif %}</div>
-              <div class="who">
-                <strong>{{ p.name }}{% if p.is_captain %}<span class="tag">Capitán</span>{% endif %}{% if p.is_goalkeeper %}<span class="tag gk">Portero</span>{% endif %}</strong>
-                <small>{{ p.position|default:"Sin definir" }}</small>
-              </div>
-              {% if p.state_label and p.state_label != 'Disponible' %}<div class="state {{ p.state_label|slugify }}">{{ p.state_label }}</div>{% endif %}
-            </div>
-            {% endfor %}
-          </div>
-          {% endif %}{% endfor %}
-        </div>
+        {% endfor %}
       </div>
       {% else %}
-      {# Sin pizarra (sin equipo resuelto): al menos la lista, en el mismo formato. #}
+      {% comment %}Sin pizarra (sin equipo resuelto): al menos la lista, en el mismo formato.{% endcomment %}
       <div class="roster">
         <div class="roster-col">
           {% for p in players %}
           <div class="row">
             <div class="num">{{ p.number|default:"–" }}</div>
-            <div class="avatar"{% if p.photo_data_uri %} style="background-image:url('{{ p.photo_data_uri }}');color:transparent;"{% endif %}>{% if not p.photo_data_uri %}{{ p.initials }}{% endif %}</div>
+            {% if p.photo_data_uri %}<div class="avatar" style="background-image:url('{{ p.photo_data_uri }}');"></div>{% endif %}
             <div class="who"><strong>{{ p.name }}</strong><small>{{ p.position|default:"Sin definir" }}</small></div>
+            <div class="tick"></div>
           </div>
           {% endfor %}
         </div>
@@ -171,14 +199,35 @@
       {% endif %}
     </div>
 
+    {% if convocation_absences %}
+    <div class="section">
+      <h2>No convocados<span class="count">{{ convocation_absences|length }} de la plantilla</span></h2>
+      <div class="out">
+        {% for p in convocation_absences %}
+        <span class="chip {{ p.clase }}">{% if p.number %}{{ p.number }} · {% endif %}<b>{{ p.name }}</b> · {{ p.motivo }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
     {% comment %}
       La foto de equipo se llevaba una hoja entera para ella sola. Una convocatoria se comparte y se
       imprime: cabe en una sola página, y ahí gana más que la foto.
     {% endcomment %}
 
     <div class="foot">
-      <div class="muted">Generado: {{ generated_at|date:"d/m/Y H:i" }}</div>
-      <div class="muted">2J Football Intelligence{% if club_hashtag %} · {{ club_hashtag }}{% endif %}</div>
+      {% if staff_lines %}
+      <div class="staff">{% for line in staff_lines %}<b>{{ line.role }}</b> {{ line.name }}{% if not forloop.last %} · {% endif %}{% endfor %}</div>
+      {% endif %}
+      {% comment %}
+        La marca va aquí en TEXTO, no como imagen: el SVG del logo no trae proporción propia y
+        WeasyPrint lo estiraba por encima de la fecha. En la cabecera no pinta nada: esa hoja es
+        del club.
+      {% endcomment %}
+      <div class="sign">
+        <span class="muted">Generado: {{ generated_at|date:"d/m/Y H:i" }}</span>
+        <span class="muted">2J Football Intelligence{% if club_hashtag %} · {{ club_hashtag }}{% endif %}</span>
+      </div>
     </div>
   </body>
 </html>

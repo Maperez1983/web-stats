@@ -278,6 +278,23 @@
         border-color: rgba(239, 68, 68, 0.9);
         cursor: not-allowed;
       }
+      /* Por qué NO va. Sólo tiene sentido en el que se queda fuera: al seleccionarlo desaparece. */
+      .roster-reason {
+        width: 100%;
+        margin-top: 0.15rem;
+        padding: 0.22rem 0.3rem;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(2, 6, 23, 0.55);
+        color: var(--text, #e2e8f0);
+        font: inherit;
+        font-size: 0.68rem;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .roster-reason:focus-visible { outline: 2px solid rgba(56, 189, 248, 0.9); outline-offset: 1px; }
+      .roster-card.selected .roster-reason { display: none; }
+      .roster-reason.is-set { border-color: rgba(244, 180, 0, 0.6); color: #fde68a; }
       .roster-photo {
         width: 58px;
         height: 58px;
@@ -734,6 +751,17 @@
                 <span class="status-dot yellow-card" title="Apercibido (4 amarillas)">🟨</span>
                 {% endif %}
               </div>
+              {% comment %}
+                Por qué NO va. Sólo se ve en los que se quedan fuera (el JS lo esconde al
+                seleccionar) y sale en la hoja de convocatoria. Vacío = se deduce del parte de
+                lesión o de la sanción, como hasta ahora.
+              {% endcomment %}
+              <select class="roster-reason" data-absence-reason aria-label="Motivo por el que no va convocado">
+                <option value="">Motivo…</option>
+                {% for clave, etiqueta in absence_reason_options %}
+                <option value="{{ clave }}"{% if player.absence_reason == clave %} selected{% endif %}>{{ etiqueta }}</option>
+                {% endfor %}
+              </select>
             </div>
             {% empty %}
             <div class="empty">No hay jugadores disponibles.</div>
@@ -1204,6 +1232,7 @@
           players: Array.from(selectedSet),
           captain_id: Number.isFinite(captainInt) ? captainInt : null,
           goalkeeper_id: Number.isFinite(goalkeeperInt) ? goalkeeperInt : null,
+          absence_reasons: absenceReasons(),
 	          match_info: {
 	            opponent: getOpponentValue(),
 	            round: matchRound?.value || '',
@@ -1258,6 +1287,31 @@
       cards.forEach((card) => {
         card.addEventListener('click', () => togglePlayer(card));
       });
+
+      // Motivo de la ausencia. El desplegable vive DENTRO de la tarjeta, que es un botón de
+      // seleccionar: sin parar el clic, elegir un motivo convocaba al jugador.
+      const reasonSelects = Array.from(document.querySelectorAll('[data-absence-reason]'));
+      const pintaReason = (sel) => sel.classList.toggle('is-set', Boolean(sel.value));
+      reasonSelects.forEach((sel) => {
+        pintaReason(sel);
+        sel.addEventListener('click', (ev) => ev.stopPropagation());
+        sel.addEventListener('change', (ev) => {
+          ev.stopPropagation();
+          pintaReason(sel);
+        });
+      });
+
+      // {id: motivo} de los que NO están en la lista. Del convocado no se manda motivo: si luego
+      // entra, arrastrar su "no va porque…" dejaría la hoja diciendo dos cosas.
+      const absenceReasons = () => {
+        const salida = {};
+        reasonSelects.forEach((sel) => {
+          const card = sel.closest('.roster-card');
+          const id = String(card?.dataset.playerId || '');
+          if (id && sel.value && !selectedSet.has(id)) salida[id] = sel.value;
+        });
+        return salida;
+      };
 
       selectedList.addEventListener('click', (event) => {
         const target = event.target;

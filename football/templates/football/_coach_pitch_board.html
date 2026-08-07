@@ -14,6 +14,16 @@
       <p class="muted" style="margin:0;">Toca un jugador para abrir su ficha · arrástralo para recolocarlo.</p>
     </div>
     <div class="pb-head-actions">
+      {% if board_kit_options %}
+      <label class="pb-kit" title="Con qué equipación se pinta la plantilla">
+        <span class="pb-kit-label">Equipación</span>
+        <select data-pb-kit>
+          {% for clave, etiqueta in board_kit_options %}
+          <option value="{{ clave }}"{% if clave == board_kit %} selected{% endif %}>{{ etiqueta }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      {% endif %}
       <div class="pb-view-toggle" role="group" aria-label="Cambiar vista">
         <button type="button" class="pb-view-btn is-active" data-pb-view="field">Campo</button>
         <button type="button" class="pb-view-btn" data-pb-view="list">Lista</button>
@@ -78,6 +88,14 @@
   }
   .pb-reset:hover { background: rgba(244, 180, 0, 0.16); }
   .pb-head-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+  .pb-kit { display: inline-flex; align-items: center; gap: 0.4rem; }
+  .pb-kit-label { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--prod-muted, #94a3b8); }
+  .pb-kit select {
+    border: 1px solid rgba(148, 163, 184, 0.28); border-radius: 999px; padding: 0.35rem 0.7rem;
+    background: rgba(15, 23, 42, 0.22); color: var(--prod-text, #e5e7eb); font: inherit; font-size: 0.76rem;
+    font-weight: 750; cursor: pointer;
+  }
+  .pb-kit select:focus-visible { outline: 2px solid var(--accent, #f4b400); outline-offset: 2px; }
   .pb-view-toggle { display: inline-flex; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 999px; overflow: hidden; }
   .pb-view-btn { border: 0; background: transparent; color: var(--prod-muted, #94a3b8); padding: 0.4rem 0.85rem; font-size: 0.74rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer; }
   .pb-view-btn.is-active { background: rgba(244, 180, 0, 0.16); color: var(--accent, #f4b400); }
@@ -254,6 +272,16 @@
       field.addEventListener('touchstart', onDown, { passive: true });
       window.addEventListener('touchmove', onMove, { passive: false });
       window.addEventListener('touchend', onUp);
+    }
+
+    // Equipación: se guarda por equipo y se recarga, porque la figura de cada jugador la resuelve
+    // el servidor (avatar suyo con esa camiseta si lo tiene, y si no la figura de librería).
+    var kitSelect = document.querySelector('[data-pb-kit]');
+    if (kitSelect) {
+      kitSelect.addEventListener('change', function () {
+        postForm({ team_id: team, kit: kitSelect.value });
+        setTimeout(function () { location.reload(); }, 250);
+      });
     }
 
     var reset = document.querySelector('[data-pb-reset]');
