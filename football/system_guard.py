@@ -1364,6 +1364,15 @@ def _prioritized_guard_routes(page_context=None, limit: int = 4) -> list[dict]:
 
 
 def _local_navigation_audit_snapshot(workspace, *, actor_id=None, page_context=None) -> dict:
+    # Esta era la capa que quedaba, y es la mas cara de todas: recorre CUATRO paginas enteras
+    # de la aplicacion con el cliente de pruebas, en el mismo proceso y dentro de la peticion.
+    # Una de ellas es la home del entrenador, que son 473 consultas. Cuatro paginas asi, dos
+    # veces por pregunta, es el cuelgue de 30 s que veia el usuario.
+    #
+    # No la pillaba el candado porque no sale a la red ni lanza un proceso: se navega a si
+    # misma por dentro. Sigue siendo una sonda cara, asi que respeta el mismo interruptor.
+    if not sondas_caras_permitidas():
+        return {"enabled": False, "reason": "sonda_omitida_en_el_chat", "routes": []}
     context = page_context if isinstance(page_context, dict) else {}
     if not workspace:
         return {"enabled": False, "reason": "workspace_required", "routes": []}
