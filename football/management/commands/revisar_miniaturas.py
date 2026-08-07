@@ -39,40 +39,71 @@ class Command(BaseCommand):
         if equipo:
             qs = qs.filter(session__microcycle__team_id=equipo)
 
-        cubos = {"portada": 0, "miniatura": 0, "pdf": 0, "dibujo": 0, "nada": 0}
+        def cubos_vacios():
+            return {"portada": 0, "miniatura": 0, "pdf": 0, "dibujo": 0, "nada": 0}
+
+        # Se cuentan por separado las de BIBLIOTECA (las que salen en tarjetas) y las que viven en
+        # una sesión de verdad: son el mismo modelo, pero sólo las primeras se pintan como cards.
+        cubos = cubos_vacios()
+        cubos_sesion = cubos_vacios()
+        por_equipo_sin_nada = {}
         con_miniatura = []
         sin_nada = []
         total = 0
+        total_sesion = 0
         for tarea in qs.iterator():
-            if not is_library_session(getattr(tarea, "session", None)):
-                continue
-            total += 1
+            sesion = getattr(tarea, "session", None)
+            de_biblioteca = is_library_session(sesion)
+            destino = cubos if de_biblioteca else cubos_sesion
+            if de_biblioteca:
+                total += 1
+            else:
+                total_sesion += 1
             light = getattr(tarea, "task_layout_light", None)
             dibujo = bool(isinstance(light, dict) and light.get("has_canvas"))
             if getattr(tarea, "cover_present", False):
-                cubos["portada"] += 1
+                destino["portada"] += 1
             elif getattr(tarea, "task_preview_image", None):
-                cubos["miniatura"] += 1
-                con_miniatura.append(tarea)
+                destino["miniatura"] += 1
+                if de_biblioteca:
+                    con_miniatura.append(tarea)
             elif getattr(tarea, "task_pdf", None):
-                cubos["pdf"] += 1
+                destino["pdf"] += 1
             elif dibujo:
-                cubos["dibujo"] += 1
+                destino["dibujo"] += 1
             else:
-                cubos["nada"] += 1
-                if len(sin_nada) < 20:
-                    sin_nada.append(tarea)
+                destino["nada"] += 1
+                if de_biblioteca:
+                    equipo = getattr(getattr(sesion, "microcycle", None), "team", None)
+                    nombre = str(getattr(equipo, "name", "") or f"equipo {getattr(equipo, 'id', '?')}")
+                    por_equipo_sin_nada[nombre] = por_equipo_sin_nada.get(nombre, 0) + 1
+                    if len(sin_nada) < 20:
+                        sin_nada.append(tarea)
 
-        self.stdout.write(self.style.SUCCESS(f"\nTareas de biblioteca: {total}"))
-        self.stdout.write("\n=== qué tiene cada una para pintar la tarjeta ===")
-        for clave, etiqueta in (
+        etiquetas = (
             ("portada", "portada"),
             ("miniatura", "miniatura guardada"),
             ("pdf", "PDF adjunto"),
             ("dibujo", "dibujo en el lienzo"),
             ("nada", "NADA  <-- salen en gris seguro"),
-        ):
+        )
+
+        self.stdout.write(self.style.SUCCESS(f"\nTareas de BIBLIOTECA (las que salen en tarjetas): {total}"))
+        self.stdout.write("\n=== qué tiene cada una para pintar la tarjeta ===")
+        for clave, etiqueta in etiquetas:
             self.stdout.write(f"  {cubos[clave]:>5}  {etiqueta}")
+
+        if total_sesion:
+            self.stdout.write(self.style.SUCCESS(
+                f"\nTareas metidas en sesiones de verdad: {total_sesion}"
+            ))
+            for clave, etiqueta in etiquetas:
+                self.stdout.write(f"  {cubos_sesion[clave]:>5}  {etiqueta.replace('  <-- salen en gris seguro', '')}")
+
+        if por_equipo_sin_nada:
+            self.stdout.write("\n=== las de biblioteca SIN NADA, por equipo ===")
+            for equipo, n in sorted(por_equipo_sin_nada.items(), key=lambda kv: -kv[1]):
+                self.stdout.write(f"  {n:>5}  {equipo}")
 
         # LA PRUEBA DE VERDAD: que el fichero esté donde la base de datos dice.
         if con_miniatura and muestra:
