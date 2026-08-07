@@ -4546,6 +4546,17 @@ agrupado aparecen DENTRO de una carpeta, que es cuando sirven de algo. No se qui
 			          {% endif %}
 			          {% endwith %}
 			          {% endfor %}
+			          {% comment %}SIN CLASIFICAR es una carpeta mas, no un limbo. Lo que se importa o se
+			          crea sin tipo cae aqui y se va clasificando a mano desde dentro, en vez de quedarse
+			          invisible en el fondo de la biblioteca.{% endcomment %}
+			          {% if library_family_sin_tipo %}
+			          <a class="folder-card {% if library_family == 'sin_clasificar' %}is-current{% endif %}"
+			             href="?{% qs_replace tab='library' family='sin_clasificar' lib_page=None %}"
+			             {% if library_family == 'sin_clasificar' %}aria-current="page"{% endif %}>
+			            <strong>🏷️ Sin clasificar</strong>
+			            <span>{{ library_family_sin_tipo }} tarea{{ library_family_sin_tipo|pluralize:"s" }} · ponles tipo</span>
+			          </a>
+			          {% endif %}
 			        </div>
 
 			        {# Colecciones: hasta ahora sólo existían como desplegable escondido, así que una #}
@@ -5038,6 +5049,24 @@ agrupado aparecen DENTRO de una carpeta, que es cuando sirven de algo. No se qui
                   </details>
 	                {% endif %}
                 {% if not t.is_imported %}
+                {% comment %}CLASIFICAR A MANO. En la carpeta "Sin clasificar" cada tarea lleva su
+                selector: se le pone el tipo aqui mismo, sin abrir la ficha. Es como se vacia la carpeta.{% endcomment %}
+                {% if library_family == 'sin_clasificar' %}
+                <form method="post" style="margin:0; display:flex; gap:.3rem; align-items:center;">
+                  {% csrf_token %}
+                  <input type="hidden" name="planner_action" value="set_task_family" />
+                  <input type="hidden" name="planner_tab" value="library" />
+                  <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+                  <input type="hidden" name="lib" value="{{ library_pick }}" />
+                  <input type="hidden" name="family" value="sin_clasificar" />
+                  <input type="hidden" name="task_id" value="{{ t.id }}" />
+                  <select name="task_family" aria-label="Tipo de entreno" style="max-width:13rem;">
+                    <option value="">Poner tipo…</option>
+                    {% for value, label in task_family_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                  </select>
+                  <button type="submit" class="button secondary small">Guardar</button>
+                </form>
+                {% endif %}
                 <form method="post" style="margin:0;" onsubmit="return confirm('¿Enviar esta tarea a la papelera? (Se puede restaurar)');">
                   {% csrf_token %}
                   <input type="hidden" name="planner_action" value="delete_library_task" />

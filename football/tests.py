@@ -6031,6 +6031,7 @@ class SessionsTaskBuilderSubmitTests(TestCase):
         url = reverse('sessions-task-create')
         payload = {
             'draw_task_title': 'Juego lúdico',
+            'task_family': 'rondo',
             'draw_task_block': SessionTask.BLOCK_MAIN_1,
             'draw_task_minutes': '15',
             'draw_canvas_state': '{}',
@@ -6050,6 +6051,7 @@ class SessionsTaskBuilderSubmitTests(TestCase):
         url = reverse('sessions-task-create')
         payload = {
             'draw_task_title': 'Juego lúdico repetido',
+            'task_family': 'rondo',
             'draw_task_block': SessionTask.BLOCK_MAIN_1,
             'draw_task_minutes': '15',
             'draw_task_objective': 'Activación básica',
@@ -6090,6 +6092,7 @@ class SessionsTaskBuilderSubmitTests(TestCase):
             'task_id': str(task.id),
             'task_submit_uid': 'task-id-edit-uid-001',
             'draw_task_title': 'Tarea modificada',
+            'task_family': 'rondo',
             'draw_task_block': SessionTask.BLOCK_MAIN_2,
             'draw_task_minutes': '18',
             'draw_task_pitch_preset': 'full_pitch',
@@ -6116,6 +6119,7 @@ class SessionsTaskBuilderSubmitTests(TestCase):
         url = reverse('sessions-task-create')
         payload = {
             'draw_task_title': 'Juego lúdico preparación física',
+            'task_family': 'rondo',
             'draw_task_block': SessionTask.BLOCK_CONDITIONING,
             'draw_task_minutes': '20',
             'draw_task_objective': 'Activación con carrera y movilidad.',
@@ -14385,6 +14389,55 @@ class SessionsPlanningTests(TestCase):
         self.assertIn('aria-label="Tipo de tarea"', entrando, 'las carpetas por tipo son la puerta')
         self.assertIn('familias/rondo.jpg', entrando, 'cada carpeta lleva su foto')
         self.assertNotIn('Transición</strong>', entrando, 'una carpeta sin tareas no se pinta')
+
+    def test_sin_clasificar_es_una_carpeta_y_se_clasifica_desde_ella(self):
+        """Lo que no tiene tipo no puede quedarse invisible: va a su carpeta y se clasifica alli.
+
+        Antes, una tarea sin `task_family` no salia en ninguna carpeta y solo aparecia entrando por
+        "Todos los tipos". Ahora hay una carpeta "Sin clasificar" con su cuenta, y dentro cada
+        tarea lleva su selector de tipo.
+        """
+        from football.library_repositories import LIBRARY_MICROCYCLE_MARKER
+
+        micro = TrainingMicrocycle.objects.create(
+            team=self.team, title='Biblioteca general',
+            week_start=date(2000, 1, 10), week_end=date(2000, 1, 16),
+            notes=LIBRARY_MICROCYCLE_MARKER,
+        )
+        sesion = TrainingSession.objects.create(
+            microcycle=micro, session_date=date(2000, 1, 11),
+            focus='Biblioteca general', duration_minutes=90,
+        )
+        con_tipo = SessionTask.objects.create(session=sesion, title='Rondo 1', duration_minutes=15)
+        SessionTask.objects.filter(id=con_tipo.id).update(task_family='rondo')
+        huerfana = SessionTask.objects.create(session=sesion, title='Ejercicio 14', duration_minutes=15)
+        SessionTask.objects.filter(id=huerfana.id).update(task_family='')
+
+        url = reverse('sessions')
+        entrando = self.client.get(
+            url, {'tab': 'library', 'team': self.team.id, 'lib': 'general'}
+        ).content.decode('utf-8', 'replace')
+        self.assertIn('Sin clasificar', entrando, 'la carpeta existe')
+
+        dentro = self.client.get(
+            url, {'tab': 'library', 'team': self.team.id, 'lib': 'general', 'family': 'sin_clasificar'}
+        ).content.decode('utf-8', 'replace')
+        self.assertIn('Ejercicio 14', dentro, 'la tarea sin tipo esta dentro')
+        self.assertNotIn('Rondo 1', dentro, 'la que ya tiene tipo no')
+        self.assertIn('set_task_family', dentro, 'y se puede clasificar desde ahi')
+
+        self.client.post(url, {
+            'planner_action': 'set_task_family', 'planner_tab': 'library',
+            'team': self.team.id, 'lib': 'general',
+            'task_id': huerfana.id, 'task_family': 'circuito',
+        })
+        huerfana.refresh_from_db()
+        self.assertEqual(huerfana.task_family, 'circuito')
+        # Y aguanta un guardado normal: `save()` deriva la familia del JSON, asi que el tipo
+        # tiene que quedar escrito tambien alli o el primer guardado lo borraria.
+        huerfana.save()
+        huerfana.refresh_from_db()
+        self.assertEqual(huerfana.task_family, 'circuito', 'el tipo no puede borrarse al guardar')
 
     def test_update_library_task_does_not_wipe_unposted_fields_on_rename(self):
         session = TrainingSession.objects.create(
