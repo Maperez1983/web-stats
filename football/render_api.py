@@ -19,6 +19,23 @@ def _request(path: str, *, timeout: int = DEFAULT_TIMEOUT):
     key = render_api_key()
     if not key:
         return None, {"ok": False, "error": "missing_token"}
+
+    # Memoria corta. El guardián monta varias fotos del sistema por cada pregunta del chat y
+    # media docena de ellas pregunta aquí; con 12 s de espera cada una, responder "para qué
+    # sirve el microciclo" se iba de 25 s y retenía un worker de gunicorn todo ese rato.
+    # El estado de los servicios no cambia de un segundo a otro, así que dos minutos sobran.
+    # Se cachea TAMBIÉN el fallo: si la API no responde, lo caro es justo esperar en balde.
+    memoria = None
+    clave = f"render_api:{path}"
+    try:
+        from django.core.cache import cache as memoria
+
+        guardado = memoria.get(clave)
+        if guardado is not None:
+            return guardado[0], dict(guardado[1])
+    except Exception:
+        memoria = None
+
     url = f"{RENDER_API_BASE}{path}"
     req = urllib.request.Request(
         url,
@@ -28,14 +45,22 @@ def _request(path: str, *, timeout: int = DEFAULT_TIMEOUT):
         },
         method="GET",
     )
+    def _recordar(resultado):
+        if memoria is not None:
+            try:
+                memoria.set(clave, resultado, 120)
+            except Exception:
+                pass
+        return resultado[0], dict(resultado[1])
+
     try:
         with urllib.request.urlopen(req, timeout=max(3, int(timeout or DEFAULT_TIMEOUT))) as resp:
             raw = resp.read()
-        return json.loads(raw.decode("utf-8") or "{}"), {"ok": True}
+        return _recordar((json.loads(raw.decode("utf-8") or "{}"), {"ok": True}))
     except urllib.error.HTTPError as exc:
-        return None, {"ok": False, "error": f"http_{exc.code}"}
+        return _recordar((None, {"ok": False, "error": f"http_{exc.code}"}))
     except Exception as exc:
-        return None, {"ok": False, "error": f"{exc.__class__.__name__}:{str(exc)[:120]}"}
+        return _recordar((None, {"ok": False, "error": f"{exc.__class__.__name__}:{str(exc)[:120]}"}))
 
 
 def list_render_services(*, timeout: int = DEFAULT_TIMEOUT, limit: int = 5) -> dict:

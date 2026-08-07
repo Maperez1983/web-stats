@@ -8153,7 +8153,16 @@ def _action_catalog_snapshot(*, page_context=None) -> dict:
     }
 
 
-def _external_connectors_snapshot(*, page_context=None) -> dict:
+def _external_connectors_snapshot(*, page_context=None, incluir_red=True) -> dict:
+    """Estado de los conectores externos.
+
+    `incluir_red=False` no pregunta a la API de Render: dice, leyendo solo el entorno, cual
+    esta configurado. Lo usa el CHAT. Una sola foto puede encadenar hasta diez peticiones a
+    esa API (el listado mas tres por cada servicio que inspecciona) con 12 s de espera cada
+    una, y el chat monta la foto dos veces por pregunta: por eso responder algo tan simple
+    como "para que sirve el microciclo" se colgaba mas de 25 s reteniendo un worker.
+    La pantalla del guardian la sigue pidiendo entera, que es donde ese dato importa.
+    """
     context = page_context if isinstance(page_context, dict) else {}
     llm_cfg = local_llm_config()
     public_base = str(os.getenv("APP_PUBLIC_BASE_URL") or "").strip()
@@ -8182,6 +8191,10 @@ def _external_connectors_snapshot(*, page_context=None) -> dict:
         elif key == "render_api":
             api_key = render_api_key()
             enabled = bool(api_key)
+            if enabled and not incluir_red:
+                items.append({**meta, "key": key, "enabled": True, "status": "configured",
+                              "detail": "configurado (sin consultar, respuesta rapida)"})
+                continue
             if enabled:
                 snapshot = list_render_services(limit=4)
                 service_rows = [row for row in (snapshot.get("services") or []) if isinstance(row, dict)]
@@ -10372,7 +10385,7 @@ def _build_intelligence_os_snapshot(
     silent_operator = silent_operator if isinstance(silent_operator, dict) else {}
     improvement_proposals = improvement_proposals if isinstance(improvement_proposals, list) else []
     snapshot_diff = snapshot_diff if isinstance(snapshot_diff, dict) else {}
-    external_connectors = _external_connectors_snapshot(page_context=page_context)
+    external_connectors = _external_connectors_snapshot(page_context=page_context, incluir_red=False)
     safe_command_executor = _safe_command_executor_snapshot(page_context=page_context)
     # Tambien sin red: los DOS sitios que piden esta foto son el chat, y el chat la pedia
     # dos veces por pregunta. Cuatro llamadas de 8 s = los 32 s de cuelgue. El diagnostico
@@ -12661,7 +12674,7 @@ def run_system_guard_chat(
         snapshot_diff=snapshot_diff,
         autonomous_strategy=autonomous_strategy,
     )
-    external_connectors = _external_connectors_snapshot(page_context=page_context)
+    external_connectors = _external_connectors_snapshot(page_context=page_context, incluir_red=False)
     safe_command_executor = _safe_command_executor_snapshot(page_context=page_context)
     # Desde el CHAT, sin las comprobaciones de red: una de ellas hacia que la app se llamara
     # a si misma y el asistente se colgaba >40 s reteniendo un worker. Ver la funcion.
