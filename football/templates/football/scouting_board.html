@@ -696,7 +696,32 @@
       .pitch-chip[data-sem="yellow"] { border-color: rgba(244,180,0,0.75); }
       .pitch-chip[data-sem="red"] { border-color: rgba(248,113,113,0.7); }
       .pitch-chip[data-sem="blue"] { border-color: rgba(96,165,250,0.7); }
-    </style>
+    
+  .direccion-tablero { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:.8rem; align-items:start; }
+  .dir-grupo { background:var(--prod-panel-flat, rgba(14,23,39,.96)); border:1px solid var(--prod-line, rgba(144,161,185,.22)); border-radius:14px; overflow:hidden; }
+  .dir-grupo > header { padding:.75rem .85rem .6rem; border-bottom:1px solid var(--prod-line, rgba(144,161,185,.22)); }
+  .dir-grupo h2 { margin:0; font-size:.85rem; font-weight:800; display:flex; align-items:center; gap:.5rem; }
+  .dir-n { margin-left:auto; font-family:ui-monospace,Menlo,monospace; font-size:1rem; }
+  .dir-pregunta { display:block; margin-top:.3rem; font-size:.72rem; color:var(--prod-muted,#94a3b8); }
+  .dir-objetivo { border-color:rgba(52,208,122,.4); } .dir-objetivo h2, .dir-objetivo .dir-n { color:#34d07a; }
+  .dir-ojeo h2, .dir-ojeo .dir-n { color:var(--prod-info,#22d3ee); }
+  .dir-prueba_citado { border-color:rgba(244,180,0,.35); } .dir-prueba_citado h2, .dir-prueba_citado .dir-n { color:#f4b400; }
+  .dir-prueba_dentro { border-color:rgba(244,180,0,.5); } .dir-prueba_dentro h2, .dir-prueba_dentro .dir-n { color:#f4b400; }
+  .dir-prueba_probado { border-color:rgba(224,112,95,.45); } .dir-prueba_probado h2, .dir-prueba_probado .dir-n { color:#e0705f; }
+  .dir-fichas { display:flex; flex-direction:column; }
+  .dir-ficha { display:grid; grid-template-columns:1fr auto; gap:.15rem .6rem; padding:.6rem .85rem;
+               border-bottom:1px solid var(--prod-line, rgba(144,161,185,.16)); text-decoration:none; color:inherit; }
+  .dir-ficha:last-child { border-bottom:0; }
+  .dir-ficha:hover { background:rgba(255,255,255,.05); }
+  .dir-nom { font-size:.85rem; font-weight:700; }
+  .dir-meta { grid-column:1/2; font-size:.72rem; color:var(--prod-muted,#94a3b8); }
+  .dir-hecho { grid-column:2/3; grid-row:1/3; align-self:center; text-align:right; font-family:ui-monospace,Menlo,monospace;
+               font-size:.68rem; color:var(--prod-muted,#94a3b8); white-space:nowrap; }
+  .dir-hecho b { display:block; font-size:.9rem; color:var(--prod-text,#e5e7eb); }
+  .dir-hecho i { font-style:normal; color:var(--prod-muted,#94a3b8); }
+  .dir-vacio { padding:.9rem .85rem; margin:0; font-size:.78rem; color:var(--prod-muted,#94a3b8); }
+  .dir-pie { margin:.9rem 0 0; font-size:.75rem; color:var(--prod-muted,#94a3b8); max-width:70ch; }
+</style>
   </head>
   <body class="prod-commercial">
     <div class="shell">
@@ -733,8 +758,9 @@
       <div id="rival-league-import-status" class="sub" style="margin-top:0.4rem;" aria-live="polite"></div>
 
       <div class="workspace-tabs" role="tablist" aria-label="Vistas de dirección deportiva">
+        <button class="workspace-tab is-active" type="button" data-scout-tab-target="tablero">Tablero</button>
         <button class="workspace-tab" type="button" data-scout-tab-target="list">Listado</button>
-        <button class="workspace-tab is-active" type="button" data-scout-tab-target="shortlist">Dashboard</button>
+        <button class="workspace-tab" type="button" data-scout-tab-target="shortlist">Dashboard</button>
         <button class="workspace-tab" type="button" data-scout-tab-target="archive">Histórico{% if archived_count %} · {{ archived_count }}{% endif %}</button>
         {% if can_manage_workspace %}
         <button class="workspace-tab" type="button" data-scout-tab-target="create">Crear</button>
@@ -742,6 +768,53 @@
       </div>
 
       {% if can_manage_workspace %}
+      {# Tablero por figuras: quién nos interesa, a quién hay que ver, y quién está probando.
+         Lo que separa Ojeo de Objetivo es quién tiene la pelota: en Ojeo la tenemos nosotros
+         (hay que ir a verle), en Objetivo la tiene él (le queremos, falta que quiera). La
+         Prueba NO sale de una etiqueta: sale de haber venido -entreno o partido cerrado-. #}
+      <section class="workspace-panel is-active" data-scout-panel="tablero">
+        <div class="direccion-tablero">
+          {% for grupo in figuras_orden %}
+          <section class="dir-grupo dir-{{ grupo.clave }}">
+            <header>
+              <h2>{{ grupo.titulo }}<span class="dir-n">{{ grupo.fichas|length }}</span></h2>
+              <span class="dir-pregunta">{{ grupo.pregunta }}</span>
+            </header>
+            {% if grupo.fichas %}
+            <div class="dir-fichas">
+              {% for t in grupo.fichas %}
+              <a class="dir-ficha" href="{% url 'scouting-target-detail' t.id %}">
+                <span class="dir-nom">{{ t.subject_name|display_text }}</span>
+                <span class="dir-meta">
+                  {% if t.position %}{{ t.position|display_position }}{% else %}Sin posición{% endif %}
+                  {% if t.subject_team_name %} · {{ t.subject_team_name|display_text }}{% endif %}
+                </span>
+                <span class="dir-hecho">
+                  {% if t.hecho_entrenos or t.hecho_partidos %}
+                    <b>{{ t.hecho_entrenos }}<i>e</i> {{ t.hecho_partidos }}<i>p</i></b>
+                    {% if t.hecho_ultima %}{{ t.hecho_ultima|date:"d/m" }}{% endif %}
+                  {% elif t.hecho_citado %}
+                    <b>citado</b>{{ t.hecho_citado.date|date:"d/m" }}
+                  {% else %}
+                    <b>—</b>sin venir
+                  {% endif %}
+                </span>
+              </a>
+              {% endfor %}
+            </div>
+            {% else %}
+            <p class="dir-vacio">{{ grupo.vacio }}</p>
+            {% endif %}
+          </section>
+          {% endfor %}
+        </div>
+        <p class="dir-pie">
+          Entrenos y partidos contados sobre <b>sesiones y partidos cerrados</b>. Quien ha venido
+          aparece en Prueba aunque nadie le haya puesto la etiqueta, y deja de aparecer cuando
+          lleva más de dos semanas sin venir.
+        </p>
+      </section>
+
       <section class="workspace-panel" data-scout-panel="create">
         <section class="create-panel" style="margin-bottom:1.1rem;border:1px solid rgba(120,200,160,0.28);">
           <h2>Importar de La Preferente</h2>
@@ -1103,7 +1176,7 @@
         {% endif %}
       </section>
 
-      <section class="workspace-panel is-active" data-scout-panel="shortlist">
+      <section class="workspace-panel" data-scout-panel="shortlist">
         <div class="shortlist-head">
           <div>
             <h2 style="margin:0;">Comparativa por posición</h2>
