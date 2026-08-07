@@ -4724,9 +4724,17 @@ agrupado aparecen DENTRO de una carpeta, que es cuando sirven de algo. No se qui
 			          {% endif %}
 			        </div>
 
+			        {% comment %}COLECCIONES, PLEGADAS. Ya has elegido biblioteca y ahora eliges TIPO;
+			        debajo aparecía una segunda fila de carpetas que se llaman igual que las de arriba
+			        ("Biblioteca de Aitor", "Tareas importadas") y que además cuentan sobre TODA la
+			        biblioteca: dentro de Interactivas, que tiene 24 tareas, anunciaban 389. Dos
+			        sistemas de carpetas a la vez y uno de ellos diciendo números de otro sitio.
+			        Siguen enteras, pero plegadas: se abren solas si ya estás dentro de una.{% endcomment %}
+			        <details class="library-colecciones" {% if library_collection_id %}open{% endif %} style="margin-top:0.75rem;">
+			          <summary class="meta" style="cursor:pointer; font-weight:800; padding:.35rem 0;">🗂️ Colecciones{% if library_collections %} ({{ library_collections|length }}){% endif %}</summary>
 			        {# Colecciones: hasta ahora sólo existían como desplegable escondido, así que una #}
 			        {# colección creada no se podía ABRIR. Aquí se ven como carpetas, igual que arriba. #}
-			        <div class="folder-grid" aria-label="Colecciones de tareas" style="margin-top:0.75rem;">
+			        <div class="folder-grid" aria-label="Colecciones de tareas" style="margin-top:0.5rem;">
 			          <a
 			            class="folder-card {% if not library_collection_id %}is-current{% endif %}"
 			            href="?{% qs_replace tab='library' collection_id=None lib_page=None %}"
@@ -4770,11 +4778,17 @@ agrupado aparecen DENTRO de una carpeta, que es cuando sirven de algo. No se qui
 			            </form>
 			          </details>
 			        </div>
+			        </details>
 
+			        {% comment %}"Estás viendo la carpeta: Creadas" salía SIEMPRE, y "Creadas" es el valor
+			        por defecto: una línea que no dice nada nuevo entre dos filas de carpetas. Sólo se
+			        escribe cuando estás en algo que no es lo normal y conviene recordarlo.{% endcomment %}
+			        {% if library_source_tab == 'imported' or library_source_tab == 'performed' or library_collection_id %}
 			        <p class="meta" style="margin:0.6rem 0 0.9rem;">
 			          Estás viendo la carpeta:
 			          <strong>{% if library_source_tab == 'imported' %}Importadas{% elif library_source_tab == 'performed' %}Realizadas{% else %}Creadas{% endif %}</strong>{% if library_collection_id %}{% for col in library_collections %}{% if library_collection_id == col.id %}, colección <strong>{{ col.name }}</strong> ({{ col.item_count|default:0 }} tareas, ordenadas por número){% endif %}{% endfor %}{% endif %}.
 			        </p>
+			        {% endif %}
 			        {% if library_source_tab != 'imported' and library_source_tab != 'performed' %}
 			        {% comment %}Administracion: no va delante de unas carpetas.{% endcomment %}
 			        {% if library_viendo_lista %}

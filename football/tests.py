@@ -14643,6 +14643,29 @@ class SessionsPlanningTests(TestCase):
                                 'goals', f'porteria_cenital_{cara}.png')
             self.assertTrue(os.path.exists(ruta), f'no existe {ruta}')
 
+    def test_dentro_de_una_biblioteca_solo_manda_una_fila_de_carpetas(self):
+        """Ya has elegido biblioteca: ahora eliges TIPO, y nada más.
+
+        Debajo aparecía una segunda fila de carpetas llamadas igual que las de arriba
+        ("Biblioteca de Aitor", "Tareas importadas") y que además contaban sobre TODA la
+        biblioteca: dentro de Interactivas, con 24 tareas, anunciaban 389. Y encima una línea
+        "Estás viendo la carpeta: Creadas", que es el valor por defecto y no dice nada.
+        """
+        html = self.client.get(
+            reverse('sessions'),
+            {'tab': 'library', 'lib': 'general', 'team': self.team.id},
+        ).content.decode('utf-8', 'replace')
+
+        i = html.index('aria-label="Colecciones de tareas"')
+        antes = html[max(0, i - 700):i]
+        self.assertIn('<details class="library-colecciones"', antes, 'las colecciones van plegadas')
+        self.assertNotIn('open>', antes.split('library-colecciones')[-1],
+                         'y cerradas si no estás dentro de una')
+        self.assertNotIn('Estás viendo la carpeta', html, 'esa línea sólo cuando no es lo normal')
+
+        # Los tipos, en cambio, mandan: son la única fila de carpetas que se ve al entrar.
+        self.assertIn('Todos los tipos', html)
+
     def test_quitar_la_marca_interactiva_a_las_que_no_lo_son(self):
         """141 tareas salían como "Interactivas" y ninguna era de vídeo.
 
