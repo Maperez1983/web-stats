@@ -99,3 +99,20 @@ class AusenciaPorLesionTests(TestCase):
             PlayerInjuryRecord.objects.filter(player=self.player, is_active=True).count(),
             1,
         )
+
+    def test_una_sesion_futura_no_puede_abrir_una_lesion_con_fecha_futura(self):
+        """La app pre-marca como lesionado en las sesiones que vienen: el parte no puede nacer
+        fechado dentro de un mes."""
+        futura = self._sesion(cuando=date.today() + timedelta(days=40))
+        self.client.post(
+            reverse("training-session-detail", args=[futura.id]),
+            {
+                "action": "attendance",
+                f"attendance_status_{self.player.id}": "injured",
+                f"attendance_injury_{self.player.id}": "Sobrecarga isquios",
+            },
+        )
+        for parte in PlayerInjuryRecord.objects.filter(player=self.player):
+            self.assertLessEqual(
+                parte.injury_date, date.today(), "una lesión no puede empezar en el futuro"
+            )
