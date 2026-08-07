@@ -14686,7 +14686,18 @@ class SessionsPlanningTests(TestCase):
             'interactive', 'la propuesta no escribe',
         )
 
+        # Y la que no lleva marca propia: la llama interactiva LA SESIÓN que la aloja. A esa se la
+        # muda de sesión y no se toca la sesión, que arrastraría todo lo que cuelgue de ella.
+        alojada = SessionTask.objects.create(session=sesion, title='Presión tras pérdida', order=3)
+
         call_command('arreglar_marca_interactiva', '--apply', stdout=StringIO())
+        alojada.refresh_from_db()
+        self.assertNotEqual(alojada.session_id, sesion.id, 'tenía que mudarse de sesión')
+        from football.library_repositories import library_repository_for_session
+        self.assertNotEqual(
+            library_repository_for_session(alojada.session), 'interactive',
+            'y su nueva sesión no puede ser la interactiva',
+        )
         falsa.refresh_from_db()
         buena.refresh_from_db()
         self.assertNotIn('repository', falsa.task_layout_light.get('meta', {}))

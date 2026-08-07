@@ -25,10 +25,14 @@ from django.core.management.base import BaseCommand
 from football.library_repositories import (
     LIBRARY_REPOSITORY_CHOICES,
     LIBRARY_REPOSITORY_INTERACTIVE,
+    LIBRARY_REPOSITORY_TRADITIONAL,
     is_library_session,
+    library_repository_for_session,
     normalize_library_repository,
 )
 from football.models import SessionTask
+from football.session_import_services import get_or_create_library_session_with_repository
+from football.task_library_services import task_scope_for_item
 
 # Lo único que justifica la marca: vídeo, o una jugada guardada desde Táctica.
 FUENTES_INTERACTIVAS = {"tactics-playbook", "video", "video_import", "library_upload_video"}
@@ -98,15 +102,25 @@ class Command(BaseCommand):
 
         a_limpiar = []
         se_quedan = []
+        a_mudar = []
         for tarea in qs.iterator():
-            if not is_library_session(getattr(tarea, "session", None)):
+            sesion = getattr(tarea, "session", None)
+            if not is_library_session(sesion):
                 continue
-            if not marca_en_metadata(tarea):
+            if marca_en_metadata(tarea):
+                if es_interactiva_de_verdad(tarea):
+                    se_quedan.append(tarea)
+                else:
+                    a_limpiar.append(tarea)
                 continue
-            if es_interactiva_de_verdad(tarea):
-                se_quedan.append(tarea)
-            else:
-                a_limpiar.append(tarea)
+            # Sin marca propia: entonces la que la llama interactiva es LA SESIÓN que la aloja.
+            # Quitarle el nombre a la sesión arrastraría todo lo que cuelgue de ella, así que a
+            # estas se las muda de sesión, que es una tarea cada vez y se puede mirar antes.
+            if (
+                library_repository_for_session(sesion) == LIBRARY_REPOSITORY_INTERACTIVE
+                and not es_interactiva_de_verdad(tarea)
+            ):
+                a_mudar.append(tarea)
 
         self.stdout.write(self.style.SUCCESS(f"\nMarcadas interactivas en su metadata: "
                                              f"{len(a_limpiar) + len(se_quedan)}"))
@@ -120,9 +134,40 @@ class Command(BaseCommand):
         if len(a_limpiar) > 25:
             self.stdout.write(f"  … y {len(a_limpiar) - 25} más")
 
+        if a_mudar:
+            self.stdout.write(self.style.SUCCESS(
+                f"\nAlojadas en una sesión llamada «Biblioteca interactiva»: {len(a_mudar)}"
+            ))
+            self.stdout.write("  (se mudan a la biblioteca normal de su equipo; la sesión no se toca)")
+            for tarea in a_mudar[:25]:
+                equipo = getattr(getattr(getattr(tarea, "session", None), "microcycle", None), "team", None)
+                self.stdout.write(
+                    f'  {tarea.id:>6}  {str(tarea.title or "")[:58]}  ({getattr(equipo, "name", "?")})'
+                )
+
         if not aplicar:
             self.stdout.write(self.style.WARNING("\nPropuesta: nada escrito. Repite con --apply."))
             return
+
+        mudadas = 0
+        for tarea in a_mudar:
+            sesion = getattr(tarea, "session", None)
+            equipo = getattr(getattr(sesion, "microcycle", None), "team", None)
+            if not equipo:
+                continue
+            try:
+                destino = get_or_create_library_session_with_repository(
+                    equipo, task_scope_for_item(tarea), repository=LIBRARY_REPOSITORY_TRADITIONAL
+                )
+            except Exception:
+                self.stderr.write(f"  no se pudo resolver la biblioteca de la tarea {tarea.id}")
+                continue
+            if not destino or destino.id == getattr(sesion, "id", None):
+                continue
+            SessionTask.objects.filter(id=tarea.id).update(session=destino)
+            mudadas += 1
+        if a_mudar:
+            self.stdout.write(self.style.SUCCESS(f"Mudadas de sesión: {mudadas}"))
 
         escritas = 0
         for tarea in a_limpiar:
