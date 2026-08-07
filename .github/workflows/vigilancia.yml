@@ -33,7 +33,7 @@ jobs:
     # Que un aviso no tumbe el build: esto informa, no bloquea. Si algún día quieres que
     # bloquee, quita este `continue-on-error` del paso que corresponda.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0   # gitleaks necesita el historial para mirar commits antiguos
 
