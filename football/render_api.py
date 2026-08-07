@@ -16,6 +16,15 @@ def render_api_key() -> str:
 
 
 def _request(path: str, *, timeout: int = DEFAULT_TIMEOUT):
+    # Mismo candado que el resto de sondas caras: dentro del chat del asistente no se sale a
+    # la red. Se importa aqui dentro para no crear un ciclo entre los dos modulos.
+    try:
+        from football.system_guard import sondas_caras_permitidas
+
+        if not sondas_caras_permitidas():
+            return None, {"ok": False, "skipped": True, "error": "sonda_omitida_en_el_chat"}
+    except Exception:
+        pass
     key = render_api_key()
     if not key:
         return None, {"ok": False, "error": "missing_token"}

@@ -8,6 +8,7 @@ import os
 import re
 import socket
 import subprocess
+import contextvars
 import time
 import tempfile
 import urllib.error
@@ -434,6 +435,38 @@ OPERATOR_LEASE_PREF_KEY = "system_guard:operator_lease:v1"
 OPERATOR_CONTROL_PREF_KEY = "system_guard:operator_control:v1"
 OPERATOR_DIGEST_PREF_KEY = "system_guard:operator_digest:v1"
 OPERATOR_DIGEST_INTERVAL_SECONDS = 24 * 3600
+
+# --- Candado de sondas caras -------------------------------------------------------------
+# El chat del asistente montaba, para responder CUALQUIER pregunta, una foto entera del
+# sistema: se llamaba a si mismo por HTTP, preguntaba a la API de Render, leia el log de
+# errores completo y ejecutaba `git status` en el contenedor. Y la montaba DOS veces. Cada una
+# de esas piezas se fue arreglando por separado y siempre aparecia otra detras.
+#
+# Esto lo corta de raiz y de una vez: dentro del chat se activa el candado, y las sondas caras
+# -las que salen a la red o lanzan un proceso- devuelven "omitida" en lugar de bloquear. Sirve
+# tambien para las que se añadan mañana, que es lo que fallaba del enfoque anterior.
+# La pantalla del guardian NO pone el candado: alli el diagnostico es el producto.
+_sondas_caras_bloqueadas = contextvars.ContextVar("guard_sondas_caras_bloqueadas", default=False)
+
+
+@contextlib.contextmanager
+def sin_sondas_caras():
+    testigo = _sondas_caras_bloqueadas.set(True)
+    try:
+        yield
+    finally:
+        _sondas_caras_bloqueadas.reset(testigo)
+
+
+def sondas_caras_permitidas() -> bool:
+    try:
+        return not _sondas_caras_bloqueadas.get()
+    except Exception:
+        return True
+
+
+_OMITIDA = {"ok": False, "skipped": True, "error": "sonda_omitida_en_el_chat"}
+
 SCHEDULED_GUARD_INTERVAL_SECONDS = 300
 AUTONOMOUS_BACKLOG_MAX_TASKS = 3
 OPERATOR_LEASE_SECONDS = 240
@@ -2509,6 +2542,8 @@ def _inspect_runtime_config() -> dict:
 
 
 def _inspect_public_deployment() -> dict:
+    if not sondas_caras_permitidas():
+        return {**_OMITIDA, "action": "inspect_public_deployment"}
     base_url = str(os.getenv("APP_PUBLIC_BASE_URL") or "").strip()
     render_host = str(os.getenv("RENDER_EXTERNAL_HOSTNAME") or "").strip()
     if not base_url and render_host:
@@ -2551,6 +2586,8 @@ def _connector_endpoint(name: str) -> tuple[str, str]:
 
 
 def _connector_http_request(url: str, *, token: str = "", method: str = "GET", payload: dict | None = None, timeout: int = 12) -> dict:
+    if not sondas_caras_permitidas():
+        return {**_OMITIDA, "url": str(url or "")[:120]}
     target = str(url or "").strip()
     if not target:
         return {"ok": False, "error": "missing_url"}
@@ -5581,6 +5618,8 @@ def _operator_repo_path() -> Path | None:
 
 
 def _run_repo_command(args: list[str], *, timeout: int = 120) -> dict:
+    if not sondas_caras_permitidas():
+        return {**_OMITIDA, "command": args}
     repo_path = _operator_repo_path()
     if repo_path is None:
         return {"ok": False, "error": "repo_not_available"}
