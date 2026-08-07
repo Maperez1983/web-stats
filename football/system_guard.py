@@ -2412,7 +2412,19 @@ def _inspect_recent_errors(*, max_lines: int = 80) -> dict:
             "recent_lines": [],
         }
     try:
-        lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
+        # Solo la COLA. Esto leia el fichero ENTERO en memoria para quedarse con 40 lineas, y
+        # `django_error.log` crece todo el dia: en local no existe y no se nota, en produccion
+        # es lo que colgaba al asistente (y antes lo mataba con un 502 por memoria), porque el
+        # chat pide esta foto dos veces por pregunta. 256 KB dan de sobra para 80 lineas.
+        cola_bytes = 256 * 1024
+        with path.open("rb") as fichero:
+            fichero.seek(0, os.SEEK_END)
+            tamano = fichero.tell()
+            fichero.seek(max(0, tamano - cola_bytes))
+            crudo = fichero.read()
+        lines = crudo.decode("utf-8", errors="ignore").splitlines()
+        if tamano > cola_bytes and lines:
+            lines = lines[1:]  # la primera puede venir cortada por la mitad
     except Exception as exc:
         return {
             "ok": False,
