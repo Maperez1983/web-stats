@@ -10440,6 +10440,15 @@ def _build_intelligence_os_snapshot(
     improvement_proposals=None,
     snapshot_diff=None,
 ) -> dict:
+    # Esta foto es la que hacia inusable al asistente: dentro lleva inspeccion del esquema de
+    # la base de datos, auditoria navegando por 4 paginas, navegador headless, git, la API de
+    # Render y la llamada al modelo. Y se construye DOS veces por pregunta.
+    #
+    # Ademas NADIE la lee: `intelligence_os` no aparece en ninguna plantilla ni en el JS. Se
+    # arma, se envia y se tira. Asi que en una pregunta normal no se construye; con el
+    # guardian en modo accion (reparar/ejecutar/smoke) se sigue armando entera.
+    if not sondas_caras_permitidas():
+        return {"enabled": False, "reason": "sonda_omitida_en_el_chat"}
     technical_execution = technical_execution if isinstance(technical_execution, dict) else {}
     change_blueprint = change_blueprint if isinstance(change_blueprint, dict) else {}
     autofix_runner = autofix_runner if isinstance(autofix_runner, dict) else {}
@@ -12448,6 +12457,10 @@ def _normalize_llm_response(parsed, fallback: dict) -> dict:
 
 
 def _build_silent_operator_state(workspace, *, response=None, actor_id=None) -> dict:
+    # Igual que la foto de inteligencia: cara de armar y nadie la lee (`silent_operator` no
+    # aparece ni en plantillas ni en el JS).
+    if not sondas_caras_permitidas():
+        return {"enabled": False, "reason": "sonda_omitida_en_el_chat"}
     priority_state = _refresh_operator_priorities(workspace, page_context={}) if workspace else {}
     queue_rows = [row for row in (priority_state.get("tasks") or []) if isinstance(row, dict)]
     objective_rows = [row for row in (priority_state.get("objectives") or []) if isinstance(row, dict)]
