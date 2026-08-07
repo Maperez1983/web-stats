@@ -56,6 +56,18 @@ def prepare_task_library(
         light = getattr(task, 'task_layout_light', None)
         if isinstance(light, dict) and isinstance(light.get('meta'), dict):
             return light['meta']
+        # Si la copia ligera no sirve y el canvas viene DIFERIDO, no se toca: Django lo traeria
+        # con una consulta por fila -~165 KB cada una-, que es justo lo que el listado evitaba
+        # al diferirlo. Esta guarda ya estaba en las dos funciones hermanas
+        # (`task_library_services.task_meta_light` y `library_repositories`) y aqui faltaba: era
+        # la diferencia entre 45 consultas y las 265 que medi en produccion.
+        # Quien llama rellena antes la copia ligera con `asegurar_copia_ligera`, asi que llegar
+        # hasta aqui con el canvas diferido es ya un caso raro.
+        try:
+            if 'tactical_layout' in task.get_deferred_fields():
+                return {}
+        except Exception:
+            pass
         layout = task.tactical_layout if isinstance(getattr(task, 'tactical_layout', None), dict) else {}
         return layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
 

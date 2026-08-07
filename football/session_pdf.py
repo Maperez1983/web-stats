@@ -485,7 +485,12 @@ def _build_session_task_sheet(task):
             return ''
         return dict(choices).get(raw, raw)
 
-    meta = _normalize_task_pdf_meta(task.tactical_layout.get('meta') if isinstance(task.tactical_layout, dict) else {})
+    # `meta` por la copia ligera: esta funcion se llama DENTRO de bucles por tarea (una ficha por
+    # tarea de cada sesion de cada microciclo) y leer `tactical_layout` ahi des-diferia el lienzo
+    # fila a fila, ~165 KB cada una, anulando el defer que la consulta acababa de poner.
+    from .task_library_services import task_meta_light
+
+    meta = _normalize_task_pdf_meta(task_meta_light(task))
     analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
     task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
     source_template_id = _parse_int(meta.get('library_source_task_id')) or 0

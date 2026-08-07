@@ -275,6 +275,68 @@ def sanitize_task_text(value, multiline=True, max_len=None):
     )
 
 
+def asegurar_copia_ligera(tasks, *, lote=25, maximo=100):
+    """Rellena `task_layout_light` de las tareas del listado que aun no la tengan.
+
+    Por que hace falta: la copia ligera solo se deriva en `SessionTask.save()`, asi que las
+    tareas anteriores a ese cambio la tienen vacia. Cuando esta vacia, quien pide `meta` acaba
+    leyendo `tactical_layout` -que el listado habia DIFERIDO a proposito- y Django lo trae con
+    una consulta por fila: 265 consultas y 24 s en el listado de sesiones, medido en produccion.
+
+    Aqui se trae lo que falta en UNA consulta por lote en vez de una por tarea, y se deja
+    escrito para que la siguiente visita no tenga que traerlo. Es idempotente y no toca
+    `tactical_layout` (misma idea que `manage.py rellenar_guiones`, que aqui no se puede
+    ejecutar porque en produccion no hay consola).
+
+    Va por lotes y con tope porque cada fila arrastra ~165 KB: traer 600 de golpe son ~100 MB
+    en memoria, y este servidor ya se ha caido por eso. Con tope, converge en varias visitas
+    y ninguna de ellas es la visita cara.
+    """
+    from .models import SessionTask
+    from .task_script import build_layout_light
+
+    pendientes = []
+    for task in tasks or []:
+        light = getattr(task, 'task_layout_light', None)
+        if isinstance(light, dict) and light:
+            continue
+        tid = getattr(task, 'id', None)
+        if tid:
+            pendientes.append(int(tid))
+    if not pendientes:
+        return 0
+
+    pendientes = pendientes[:maximo]
+    porId = {}
+    for i in range(0, len(pendientes), lote):
+        trozo = pendientes[i:i + lote]
+        filas = SessionTask.objects.filter(id__in=trozo).values_list('id', 'tactical_layout')
+        for tid, layout in filas:
+            try:
+                porId[tid] = build_layout_light(layout)
+            except Exception:
+                porId[tid] = {}
+
+    escritas = 0
+    for tid, light in porId.items():
+        try:
+            SessionTask.objects.filter(id=tid).update(task_layout_light=light)
+            escritas += 1
+        except Exception:
+            continue
+
+    # Se deja tambien en los objetos que ya estan en memoria: si no, esta misma peticion
+    # seguiria pidiendo `meta` y volveria a des-diferir el canvas fila a fila.
+    for task in tasks or []:
+        tid = getattr(task, 'id', None)
+        if tid and int(tid) in porId:
+            try:
+                task.task_layout_light = porId[int(tid)]
+            except Exception:
+                continue
+    return escritas
+
+
 def task_meta_light(task):
     """
     Devuelve `meta` de la tarea SIN tocar el canvas.
