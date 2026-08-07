@@ -301,19 +301,18 @@ class ServerTimingMiddleware:
         repetidas = {}
 
         def _firma(sql):
-            texto = str(sql or "")[:400]
+            # Se busca en TODA la sentencia, no en los primeros caracteres: una consulta que
+            # selecciona muchas columnas deja el FROM muy atras y la tabla salia como "?".
+            texto = str(sql or "")
             verbo = texto.split(" ", 1)[0].upper()[:6]
             tabla = ""
-            for marca in (' FROM "', ' INTO "', ' UPDATE "'):
+            for marca in (' FROM "', ' INTO "', 'UPDATE "'):
                 pos = texto.find(marca)
                 if pos >= 0:
-                    resto = texto[pos + len(marca):]
-                    tabla = resto.split('"', 1)[0]
+                    tabla = texto[pos + len(marca):].split('"', 1)[0]
                     break
-            if not tabla and texto.upper().startswith("UPDATE "):
-                tabla = texto[8:].split('"', 1)[0]
-            columnas = texto.count(",") + 1
-            return f"{verbo}:{tabla or '?'}:{columnas}"
+            columnas = texto[: texto.find(" FROM ") if " FROM " in texto else 200].count(",") + 1
+            return f"{verbo}:{tabla or '?'}:{columnas}c"
 
         def _sql_wrapper(execute, sql, params, many, context):  # pragma: no cover
             nonlocal db_ms, db_queries
@@ -376,10 +375,15 @@ class ServerTimingMiddleware:
                 medida += f";db={int(db_ms)};q={int(db_queries)}"
             response["X-Perf"] = medida
             if self.db_enabled and repetidas:
-                top = sorted(repetidas.items(), key=lambda kv: kv[1][0], reverse=True)[:4]
-                response["X-Perf-Top"] = " | ".join(
-                    f"{clave} x{veces} {suma}ms" for clave, (veces, suma) in top
-                )[:300]
+                # Por VECES (donde esta el N+1) y por TIEMPO (donde esta la consulta lenta):
+                # no suelen ser la misma, y con solo una de las dos listas se busca donde no es.
+                porVeces = sorted(repetidas.items(), key=lambda kv: kv[1][0], reverse=True)[:3]
+                porTiempo = sorted(repetidas.items(), key=lambda kv: kv[1][1], reverse=True)[:3]
+                pinta = lambda pares: " | ".join(
+                    f"{clave} x{veces} {suma}ms" for clave, (veces, suma) in pares
+                )
+                response["X-Perf-Top"] = pinta(porVeces)[:300]
+                response["X-Perf-Slow"] = pinta(porTiempo)[:300]
         except Exception:
             try:
                 self.logger.debug("server_timing_failed", exc_info=True)
